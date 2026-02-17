@@ -16,7 +16,7 @@
         <div class="absolute inset-0 bg-(--primary) opacity-0 group-hover:opacity-10 transition-opacity" />
 
         <img 
-            v-if="isHttp" 
+            v-if="icon && isHttp" 
             :src="icon" 
             :alt="label"
             class="
@@ -27,7 +27,7 @@
         />
 
         <i 
-            v-else
+            v-else-if="icon"
             class="
                 bi text-3xl relative z-10
                 group-hover:text-(--primary)

@@ -1,4 +1,5 @@
 import type { Org } from "./types/org";
+import type { WorkSpace } from "./types/workSpace";
 
 const organizations: Org[] = [
     {
@@ -33,4 +34,30 @@ const organizations: Org[] = [
     }
 ];
 
+const workSpace: WorkSpace[] = [
+
+    {
+        id: "fezr435TGFREDsgz",
+        org_id: "org-8fec6cfc42a14c09bc7f1291eba954c0",
+        name: "General",
+        logo: "https://api.dicebear.com/7.x/identicon/svg?seed=General&backgroundColor=1e1e1e&color=1ed760"
+    },
+
+    {
+        id: "fezr43GFREDsgz",
+        org_id: "org-8fec6cfc42a14c09bc7f1291eba954c0",
+        name: "fdsfds",
+        logo: "bi-people"
+    },
+
+    {
+        id: "fezr43GFREDsg432z",
+        org_id: "org-5357410fce6d45959ed4d0bac84595a8",
+        name: "fdsfds",
+        logo: "bi-people"
+    },
+
+];
+
+export { organizations, workSpace };
 export default organizations;

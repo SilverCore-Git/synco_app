@@ -3,13 +3,18 @@
 import type { Org } from '@/types/org';
 import SpaceBarBTN from '../common/SpaceBarBTN.vue';
 import { useRoute, useRouter } from 'vue-router';
+import { computed } from 'vue';
+import { workSpace } from '@/organizations';
+import type { WorkSpace } from '@/types/workSpace';
 
 const router = useRouter();
 const route = useRoute();
 
-defineProps<{
+const props = defineProps<{
     organization: Org;
 }>();
+
+const spaces = computed(() => workSpace.filter((space: WorkSpace) => space.org_id == props.organization.id));
 
 const createNewSpace = () => {
     alert('créer un nouvel espace')
@@ -63,18 +68,12 @@ const createNewSpace = () => {
             <hr class=" w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
 
             <SpaceBarBTN
-                icon="bi-people"
-                label="Espace1"
-                iconFillOnActive
-                :active="route.name === 'SpaceView' && route.path.includes('espace1')"
-                @click="router.push(`/org/${organization.id}/space/spce-espace1`)"
-            />
-
-            <SpaceBarBTN
-                icon="bi-person-workspace"
-                label="Espace2"
-                :active="route.name === 'SpaceView' && route.path.includes('espace2')"
-                @click="router.push(`/org/${organization.id}/space/spce-espace2`)"
+                v-for="space in spaces"
+                :key="'space-' + space.id + '-btn'"
+                :icon="space.logo"
+                :label="space.name"
+                :active="route.name === 'SpaceView' && route.path.includes(space.id)"
+                @click="router.push(`/org/${organization.id}/space/${space.id}`)"
             />
 
             <SpaceBarBTN
