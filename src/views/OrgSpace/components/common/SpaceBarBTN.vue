@@ -1,50 +1,84 @@
 <template>
 
-    <button
-        @click="$emit('click')"
-        :aria-label="label"
-        :title="label"
-        class="
-            relative flex items-center justify-center 
-            w-12 h-12 cursor-pointer transition-all duration-300 ease-out
-            bg-(--bg) rounded-xl
-            border  hover:border-(--primary)/50
-            group overflow-hidden 
-        "
-        :class="active ? 'border-(--primary)/50' : 'border-(--text)/10'"
-    >
-        <div class="absolute inset-0 bg-(--primary) opacity-0 group-hover:opacity-10 transition-opacity" />
+    <div class="group relative ">
 
-        <img 
-            v-if="icon && isHttp" 
-            :src="icon" 
-            :alt="label"
+        <button
+            @click="$emit('click')"
+            :aria-label="label"
             class="
-                w-full h-full p-2 rounded-xl
-                group-active:scale-50 group-hover:scale-110
-                transition-all duration-300 ease-out
+                relative flex items-center justify-center 
+                w-12 h-12 cursor-pointer transition-all duration-300 ease-out
+                bg-(--bg) rounded-xl overflow-hidden 
+                border  hover:border-(--primary)/50
             "
-        />
+            :class="active ? 'border-(--primary)/50' : 'border-(--text)/10'"
+        >
 
-        <i 
-            v-else-if="icon"
+            <div class="absolute inset-0 bg-(--primary) opacity-0 group-hover:opacity-10 transition-opacity" />
+
+            <img 
+                v-if="icon && isHttp" 
+                :src="icon" 
+                :alt="label"
+                class="
+                    w-full h-full p-2 rounded-xl
+                    group-active:scale-50 group-hover:scale-110
+                    transition-all duration-300 ease-out
+                "
+            />
+
+            <i 
+                v-else-if="icon"
+                class="
+                    bi text-3xl relative z-10
+                    group-hover:text-(--primary)
+                    group-active:scale-50 group-hover:scale-110
+                    transition-all duration-300 ease-out    
+                "
+                :class="[
+                    active && iconFillOnActive ? icon + '-fill' : icon,
+                    active ? 'text-(--primary)' : 'text-(--text)'
+                ]"
+            />
+
+        </button>
+
+        <div
             class="
-                bi text-3xl relative z-10
-                group-hover:text-(--primary)
-                group-active:scale-50 group-hover:scale-110
-                transition-all duration-300 ease-out    
+                absolute left-14 top-1/2 -translate-y-1/2
+                hidden group-hover:flex z-50 pointer-events-none
             "
-            :class="[
-                active && iconFillOnActive ? icon + '-fill' : icon,
-                active ? 'text-(--primary)' : 'text-(--text)'
-            ]"
-        />
+        >
+            <span
+                class="
+                    bg-(--bg2) text-(--text) text-xs font-bold
+                    px-3 py-1.5 rounded-lg border border-(--primary)/30
+                    shadow-xl shadow-black/50 animate-silver-load
+                    whitespace-nowrap relative
+                "
+                
+            >
+                {{ label }}
+            
+                <div 
+                    class="
+                        absolute -left-1 top-1/2 
+                        -translate-y-1/2 w-2 h-2 
+                        border-l border-b border-(--primary)/30
+                        rotate-45 bg-(--bg2) 
+                    "
+                />
 
-    </button>
+            </span>
+
+        </div>
+
+    </div>
 
 </template>
 
 <script lang="ts" setup>
+
 import { computed } from 'vue';
 
 const props = defineProps<{
@@ -63,7 +97,21 @@ const isHttp = computed(() => props.icon.startsWith('http'));
 </script>
 
 <style scoped>
+
 button:hover {
   box-shadow: 0 0 15px -3px rgba(30, 215, 96, 0.2);
 }
+
+
+@keyframes silver-bounce {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { transform: scale(1.01); opacity: 1; }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+.animate-silver-load {
+  animation: silver-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
 </style>
