@@ -1,1 +1,54 @@
-<template></template>
+<template>
+    <div class="flex items-center justify-center w-full h-full opacity-20 ">
+        <i class="bi bi-arrow-repeat animate-spin text-2xl" />
+    </div>
+</template>
+
+<script lang="ts" setup>
+
+import { onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { workSpaces } from '@/organizations';
+
+const route = useRoute();
+const router = useRouter();
+
+onMounted(() => {
+
+    const spaceId = route.params.spaceId;
+    const space = workSpaces.find(s => s.id === spaceId);
+
+    if (!space) {
+        return router.push({ name: 'OrgHome' });
+    }
+
+    const textThreads = space.threads
+        .filter(th => th.type === 'text')
+        .sort((a, b) => {
+            const catA = space.categories.find(c => c.id === a.categoryId)?.index || 0;
+            const catB = space.categories.find(c => c.id === b.categoryId)?.index || 0;
+            if (catA !== catB) return catA - catB;
+            return a.index - b.index;
+        });
+
+    const targetThread = textThreads[0];
+
+    if (targetThread)
+    {
+        router.replace({
+            name: 'SpaceThreadView',
+            params: {
+                orgId: route.params.orgId,
+                spaceId: space.id,
+                threadId: targetThread.id
+            }
+        });
+    } 
+    else 
+    {
+        router.replace({ name: 'OrgHome', params: { orgId: route.params.orgId } });
+    }
+
+});
+
+</script>
