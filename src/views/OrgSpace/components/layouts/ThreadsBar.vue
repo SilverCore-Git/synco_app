@@ -46,7 +46,6 @@ const route = useRoute();
 const title = computed(() => {
     if (route.name == 'OrgHome' || route.name == 'OrgThreadHome') return 'Accueil';
     if (route.name == 'OrgChat') return 'Messages privés';
-    if (route.name == 'OrgCalendar') return 'Calendrier';
     else
     {
         const space = workSpaces.find((space: WorkSpace) => space.id == route.params.spaceId && space.org_id == route.params.orgId);
@@ -63,7 +62,6 @@ const categories = computed(() => {
         return org.home;
     }
     else if (route.name == 'OrgChat') return []
-    else if (route.name == 'OrgCalendar') return []
     else if (route.name == 'SpaceView' || route.name == 'SpaceThreadView')
     {
         const space = workSpaces.find((space: WorkSpace) => space.id == route.params.spaceId && space.org_id == route.params.orgId);

@@ -57,15 +57,7 @@ const createNewSpace = () => {
                 :active="route.name === 'OrgChat'"
                 @click="router.push(`/org/${organization.id}/chat`)"
             />
-
-            <SpaceBarBTN
-                icon="bi-calendar2-date"
-                label="Calendrier"
-                iconFillOnActive
-                :active="route.name === 'OrgCalendar'"
-                @click="router.push(`/org/${organization.id}/calendar`)"
-            />
-
+            
             <hr class=" w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
 
             <SpaceBarBTN
