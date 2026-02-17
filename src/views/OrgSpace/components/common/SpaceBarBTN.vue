@@ -20,7 +20,7 @@
             :src="icon" 
             :alt="label"
             class="
-                w-full h-full p-2 
+                w-full h-full p-2 rounded-xl
                 group-active:scale-50 group-hover:scale-110
                 transition-all duration-300 ease-out
             "

@@ -7,15 +7,14 @@
         "
     >
 
-        <h3 class="p-6 pb-[22px] text-lg font-semibold">{{ title }}</h3>
+        <h3 class="p-5  font-semibold">{{ title }}</h3>
 
-        <hr class=" w-full h-0.5 bg-(--text)/40 border-none rounded-full mb-6" />
-
+        <hr class=" w-full h-0.5 bg-(--text)/40 border-none rounded-full" />
 
         <ul
             class="
                 flex justify-start items-start flex-col 
-                gap-2 h-full w-full
+                gap-3 h-full w-full px-3 py-5
             "
         >
 
@@ -58,7 +57,7 @@ const categories = computed(() => {
     if (route.name == 'OrgHome') return [];
     if (route.name == 'OrgChat') return [];
     if (route.name == 'OrgCalendar') return [];
-    else if (route.name == 'SpaceView')
+    else if (route.name == 'SpaceView' || route.name == 'SpaceThreadView')
     {
         const space = workSpaces.find((space: WorkSpace) => space.id == route.params.spaceId && space.org_id == route.params.orgId);
         if (!space) return [];

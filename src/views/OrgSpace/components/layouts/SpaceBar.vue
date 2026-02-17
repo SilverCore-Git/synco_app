@@ -72,7 +72,13 @@ const createNewSpace = () => {
                 :key="'space-' + space.id + '-btn'"
                 :icon="space.logo"
                 :label="space.name"
-                :active="route.name === 'SpaceView' && route.path.includes(space.id)"
+                :active="
+                    (
+                        route.name === 'SpaceView' 
+                        || route.name === 'SpaceThreadView'
+                    )
+                    && route.path.includes(space.id)
+                "
                 @click="router.push(`/org/${organization.id}/space/${space.id}`)"
             />
 

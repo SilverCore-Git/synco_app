@@ -1,24 +1,31 @@
 <template>
 
     <button
+        @click="emit('click')"
         class="
-        w-full flex items-center gap-2 px-2 py-1.5 rounded-md
-        transition-all duration-200 group cursor-pointer
-        hover:bg-white/5 active:bg-white/10
-        text-(--text)/60 hover:text-(--text)
+            w-full flex items-center justify-start gap-2 px-2 py-1.5 rounded-lg
+            transition-all duration-200 group cursor-pointer
+            hover:bg-(--primary)/5 active:scale-95
+            hover:text-(--text)
         "
-        :class="{ 'bg-white/10 text-white': active }"
+        :class="
+            active
+                ? 'border-l-3 border-(--primary) bg-(--primary)/10 text-(--text)' 
+                : 'text-(--text)/60' 
+        "
     >
 
         <div class="flex items-center justify-center w-5 h-5">
             <i 
                 v-if="thread.type === 'text'" 
-                class="bi bi-hash text-xl opacity-40 group-hover:opacity-100"
-            ></i>
+                class="bi bi-hash text-xl group-hover:opacity-100"
+                :class="active ? 'opacity-100' : 'opacity-40'"
+            />
             <i 
                 v-else 
-                class="bi bi-volume-up-fill text-lg opacity-40 group-hover:opacity-100"
-            ></i>
+                class="bi bi-volume-up-fill text-lg group-hover:opacity-100"
+                :class="active ? 'opacity-100' : 'opacity-40'"
+            />
         </div>
 
         <span class="text-sm font-medium truncate lowercase tracking-wide">
@@ -28,8 +35,8 @@
         <div 
             v-if="hasUnread" 
             class="
-                ml-auto w-2 h-2
-                rounded-full bg-(--primary) 
+                ml-auto w-2 h-2 mr-1.5 bg-(--primary)
+                animate-pulse rounded-full 
                 shadow-[0_0_8px_var(--primary)]
             "
         />
@@ -41,13 +48,13 @@
 <script lang="ts" setup>
 
 import type { Thread } from '@/types/workSpace';
-
-interface Props {
+ 
+defineProps<{
   thread: Thread;
   active?: boolean;
   hasUnread?: boolean;
-}
+}>();
 
-defineProps<Props>();
+const emit = defineEmits(['click']);
 
 </script>
