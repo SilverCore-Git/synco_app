@@ -2,10 +2,18 @@
 
 import type { Org } from '@/types/org';
 import SpaceBarBTN from '../common/SpaceBarBTN.vue';
+import { useRoute, useRouter } from 'vue-router';
+
+const router = useRouter();
+const route = useRoute();
 
 defineProps<{
     organization: Org;
 }>();
+
+const createNewSpace = () => {
+    alert('créer un nouvel espace')
+}
 
 </script>
 
@@ -13,7 +21,7 @@ defineProps<{
 
     <nav
         class="
-            h-full w-22 bg-(--bg2) border-r border-(--primary)/5
+            h-full min-w-17 bg-(--bg2) border-r border-(--primary)/5
             flex justify-start items-center flex-col pt-2.5
         "
     >
@@ -23,7 +31,7 @@ defineProps<{
             <SpaceBarBTN
                 :icon="organization.logo"
                 :label="organization.name"
-                @click="console.log('click')"
+                @click="router.push('/org')"
             />
 
             <hr class=" w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
@@ -32,21 +40,24 @@ defineProps<{
                 icon="bi-house"
                 label="Général"
                 iconFillOnActive
-                @click="console.log('click')"
+                :active="route.name === 'OrgHome'"
+                @click="router.push(`/org/${organization.id}/home`)"
             />
 
             <SpaceBarBTN
                 icon="bi-chat-dots"
                 label="Messages privées"
                 iconFillOnActive
-                @click="console.log('click')"
+                :active="route.name === 'OrgChat'"
+                @click="router.push(`/org/${organization.id}/chat`)"
             />
 
             <SpaceBarBTN
                 icon="bi-calendar2-date"
                 label="Calendrier"
                 iconFillOnActive
-                @click="console.log('click')"
+                :active="route.name === 'OrgCalendar'"
+                @click="router.push(`/org/${organization.id}/calendar`)"
             />
 
             <hr class=" w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
@@ -55,20 +66,21 @@ defineProps<{
                 icon="bi-people"
                 label="Espace1"
                 iconFillOnActive
-                @click="console.log('click')"
+                :active="route.name === 'SpaceView' && route.path.includes('espace1')"
+                @click="router.push(`/org/${organization.id}/space/spce-espace1`)"
             />
 
             <SpaceBarBTN
                 icon="bi-person-workspace"
                 label="Espace2"
-                iconFillOnActive
-                @click="console.log('click')"
+                :active="route.name === 'SpaceView' && route.path.includes('espace2')"
+                @click="router.push(`/org/${organization.id}/space/spce-espace2`)"
             />
 
             <SpaceBarBTN
                 icon="bi-plus"
                 label="Créer un nouvel espace"
-                @click="console.log('click')"
+                @click="createNewSpace"
             />
 
         </ul>

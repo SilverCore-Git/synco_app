@@ -3,7 +3,7 @@
     <a
         :key="org.id"
         class="group relative flex flex-col items-center cursor-pointer"
-        :href="`/org/${org.id}`"
+        :href="`/org/${org.id}/home`"
         @click.prevent="handleClick"
     >
 
@@ -53,7 +53,7 @@ const props = defineProps<{
 const router = useRouter();
 
 const handleClick = () => {
-    router.push('/org/' + props.org.id)
+    router.push(`/org/${props.org.id}/home`)
 };
 
 </script>

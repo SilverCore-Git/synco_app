@@ -5,6 +5,8 @@ import OrgSelection from './views/OrgsSelection/OrgSelection.vue';
 import OrgLayout from './views/OrgSpace/OrgLayout.vue';
 import SpaceView from './views/OrgSpace/views/SpaceView.vue';
 import OrgHome from './views/OrgSpace/views/OrgHome.vue';
+import OrgChat from './views/OrgSpace/views/OrgChat.vue';
+import OrgCalendar from './views/OrgSpace/views/OrgCalendar.vue';
 
 
 const routes = [
@@ -27,8 +29,8 @@ const routes = [
   },
 
   {
-    path: '/org/:orgId/home',
-    name: 'OrgSpaceHome',
+    path: '/org/:orgId',
+    name: 'OrgLayout',
     component: OrgLayout,
     props: true,
     meta: { title: 'SilverTeams' },
@@ -41,8 +43,22 @@ const routes = [
         meta: { title: 'SilverTeams' }
       },
       {
+        path: 'chat',
+        name: 'OrgChat',
+        props: true,
+        component: OrgChat,
+        meta: { title: 'SilverTeams' }
+      },
+      {
+        path: 'calendar',
+        name: 'OrgCalendar',
+        props: true,
+        component: OrgCalendar,
+        meta: { title: 'SilverTeams' }
+      },
+      {
         path: 'space/:spaceId',
-        name: 'SpaceDetail',
+        name: 'SpaceView',
         component: SpaceView,
         props: true,
         meta: { title: 'SilverTeams' }
