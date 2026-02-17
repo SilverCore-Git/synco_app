@@ -1,6 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import OrgSpace from './views/OrgSpace/OrgSpace.vue';
+
+
 import OrgSelection from './views/OrgsSelection/OrgSelection.vue';
+import OrgLayout from './views/OrgSpace/OrgLayout.vue';
+import SpaceView from './views/OrgSpace/views/SpaceView.vue';
+import OrgHome from './views/OrgSpace/views/OrgHome.vue';
 
 
 const routes = [
@@ -19,9 +23,31 @@ const routes = [
 
   {
     path: '/org/:orgId',
-    name: 'OrgSpace',
-    component: OrgSpace,
-    meta: { title: 'SilverTeams' }
+    redirect: (to: any) => ({ name: 'OrgSpaceHome', params: { orgId: to.params.orgId } })
+  },
+
+  {
+    path: '/org/:orgId/home',
+    name: 'OrgSpaceHome',
+    component: OrgLayout,
+    props: true,
+    meta: { title: 'SilverTeams' },
+    children: [
+      {
+        path: 'home',
+        name: 'OrgHome',
+        props: true,
+        component: OrgHome,
+        meta: { title: 'SilverTeams' }
+      },
+      {
+        path: 'space/:spaceId',
+        name: 'SpaceDetail',
+        component: SpaceView,
+        props: true,
+        meta: { title: 'SilverTeams' }
+      }
+    ]
   },
 
 ]
