@@ -43,6 +43,13 @@ const routes = [
         meta: { title: 'SilverTeams' }
       },
       {
+        path: 'home/thread/:threadId',
+        name: 'OrgThreadHome',
+        props: true,
+        component: OrgHome,
+        meta: { title: 'SilverTeams' }
+      },
+      {
         path: 'chat',
         name: 'OrgChat',
         props: true,

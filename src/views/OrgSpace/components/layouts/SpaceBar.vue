@@ -34,8 +34,9 @@ const createNewSpace = () => {
         <ul class="flex justify-start items-center flex-col gap-2 h-full w-full">
 
             <SpaceBarBTN
-                :icon="organization.logo"
-                :label="organization.name"
+                icon="bi-arrow-bar-left"
+                label="Revenir aux organisation"
+                redhover
                 @click="router.push('/org')"
             />
 
@@ -45,7 +46,7 @@ const createNewSpace = () => {
                 icon="bi-house"
                 label="Général"
                 iconFillOnActive
-                :active="route.name === 'OrgHome'"
+                :active="route.name === 'OrgHome' || route.name === 'OrgThreadHome'"
                 @click="router.push(`/org/${organization.id}/home`)"
             />
 

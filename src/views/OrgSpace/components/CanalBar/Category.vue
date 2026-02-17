@@ -40,12 +40,14 @@
                 :key="thread.id"
                 :thread="thread"
                 :active="
-                    route.name == 'SpaceThreadView' 
-                    && route.params.threadId == thread.id
+                    route.params.threadId == thread.id
                 "
                 @click="
                     router.push({
-                        name: 'SpaceThreadView',
+                        name: 
+                            route.name == 'OrgHome' || route.name == 'OrgThreadHome'
+                                ? 'OrgThreadHome'
+                                : 'SpaceThreadView',
                         params: {
                             orgId: route.params.orgId,
                             spaceId: route.params.spaceId,

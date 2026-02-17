@@ -1,3 +1,5 @@
+import type { Category } from "./workSpace";
+
 export type OrgConfig = {
     maxNotesPerSpace: number;
     maxFileStoragePerSpace: number; // mo
@@ -19,6 +21,8 @@ export interface Org {
 
     stats: OrgStats;
     config: OrgConfig;
+
+    home: Category[];
 
 }
 

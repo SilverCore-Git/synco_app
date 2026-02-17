@@ -9,6 +9,7 @@ export interface Thread {
 
 export interface Category {
     id: string;
+    index: number;
     name: string;
     threads: Thread[];
 }

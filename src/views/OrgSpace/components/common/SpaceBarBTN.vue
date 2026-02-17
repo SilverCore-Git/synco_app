@@ -8,13 +8,22 @@
             class="
                 relative flex items-center justify-center 
                 w-12 h-12 cursor-pointer transition-all duration-300 ease-out
-                bg-(--bg) rounded-xl overflow-hidden 
-                border  hover:border-(--primary)/50
+                bg-(--bg) rounded-xl overflow-hidden border  
             "
-            :class="active ? 'border-(--primary)/50' : 'border-(--text)/10'"
+            :class="[
+                active ? 'border-(--primary)/50' : 'border-(--text)/10',
+                redhover ? 'hover:border-red-500/50' : 'hover:border-(--primary)/50'
+            ]"
         >
 
-            <div class="absolute inset-0 bg-(--primary) opacity-0 group-hover:opacity-10 transition-opacity" />
+            <div 
+                class="
+                    absolute inset-0
+                    opacity-0 group-hover:opacity-10 
+                    transition-opacity
+                " 
+                :class="redhover ? 'bg-red-500' : 'bg-(--primary)'"
+            />
 
             <img 
                 v-if="icon && isHttp" 
@@ -31,13 +40,13 @@
                 v-else-if="icon"
                 class="
                     bi text-3xl relative z-10
-                    group-hover:text-(--primary)
                     group-active:scale-50 group-hover:scale-110
                     transition-all duration-300 ease-out    
                 "
                 :class="[
                     active && iconFillOnActive ? icon + '-fill' : icon,
-                    active ? 'text-(--primary)' : 'text-(--text)'
+                    active ? 'text-(--primary)' : 'text-(--text)',
+                    redhover ? 'group-hover:text-red-500' : 'group-hover:text-(--primary)'
                 ]"
             />
 
@@ -52,11 +61,11 @@
             <span
                 class="
                     bg-(--bg2) text-(--text) text-xs font-bold
-                    px-3 py-1.5 rounded-lg border border-(--primary)/30
-                    shadow-xl shadow-black/50 animate-silver-load
-                    whitespace-nowrap relative
+                    px-3 py-1.5 rounded-lg border relative
+                    shadow-xl shadow-black/50 whitespace-nowrap
+                    animate-silver-load 
                 "
-                
+                :class="redhover ? 'border-red-500/30' : 'border-(--primary)/30'"
             >
                 {{ label }}
             
@@ -64,9 +73,10 @@
                     class="
                         absolute -left-1 top-1/2 
                         -translate-y-1/2 w-2 h-2 
-                        border-l border-b border-(--primary)/30
+                        border-l border-b
                         rotate-45 bg-(--bg2) 
                     "
+                    :class="redhover ? 'border-red-500/30' : 'border-(--primary)/30'"
                 />
 
             </span>
@@ -86,6 +96,7 @@ const props = defineProps<{
     label: string;
     active?: boolean;
     iconFillOnActive?: boolean;
+    redhover?: boolean;
 }>();
 
 defineEmits<{

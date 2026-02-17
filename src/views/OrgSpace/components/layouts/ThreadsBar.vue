@@ -3,7 +3,7 @@
     <div
         class="
             h-full min-w-60 bg-(--bg) border-r border-(--text)/5
-            flex justify-start items-start flex-col
+            flex justify-start items-start flex-col relative
         "
     >
 
@@ -13,8 +13,8 @@
 
         <ul
             class="
-                flex justify-start items-start flex-col 
-                gap-3 h-full w-full px-3 py-5
+                flex justify-start items-start flex-col mb-18
+                gap-3 h-full w-full px-3 py-5 overflow-scroll
             "
         >
 
@@ -38,25 +38,32 @@ import { useRoute } from 'vue-router';
 import { workSpaces } from '@/organizations';
 import type { WorkSpace } from '@/types/workSpace';
 import Category from '../CanalBar/Category.vue';
+import organizations from '../../../../organizations';
+import type { Org } from '../../../../types/org';
 
 const route = useRoute();
 
 const title = computed(() => {
-    if (route.name == 'OrgHome') return 'Accueil';
+    if (route.name == 'OrgHome' || route.name == 'OrgThreadHome') return 'Accueil';
     if (route.name == 'OrgChat') return 'Messages privés';
     if (route.name == 'OrgCalendar') return 'Calendrier';
     else
     {
         const space = workSpaces.find((space: WorkSpace) => space.id == route.params.spaceId && space.org_id == route.params.orgId);
-        if (!space) return 'Inconue';
+        if (!space) return 'Inconu';
         return space.name;
     }
 })
 
 const categories = computed(() => {
-    if (route.name == 'OrgHome') return [];
-    if (route.name == 'OrgChat') return [];
-    if (route.name == 'OrgCalendar') return [];
+    if (route.name == 'OrgHome' || route.name == 'OrgThreadHome')
+    {
+        const org = organizations.find((org: Org) => org.id == route.params.orgId);
+        if (!org) return [];
+        return org.home;
+    }
+    else if (route.name == 'OrgChat') return []
+    else if (route.name == 'OrgCalendar') return []
     else if (route.name == 'SpaceView' || route.name == 'SpaceThreadView')
     {
         const space = workSpaces.find((space: WorkSpace) => space.id == route.params.spaceId && space.org_id == route.params.orgId);

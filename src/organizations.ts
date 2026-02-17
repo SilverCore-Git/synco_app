@@ -1,5 +1,15 @@
 import type { Org } from "./types/org";
-import type { WorkSpace, Category, Thread } from "./types/workSpace";
+import type { WorkSpace } from "./types/workSpace";
+
+// Fonction utilitaire pour générer des threads en masse
+const generateThreads = (count: number, prefix: string) => {
+    return Array.from({ length: count }, (_, i) => ({
+        id: `th-${prefix}-${i + 1}`,
+        index: i + 1,
+        name: `${prefix}-channel-${i + 1}`,
+        type: (i % 5 === 0 ? 'vocal' : 'text') as 'text' | 'vocal'
+    }));
+};
 
 const organizations: Org[] = [
     {
@@ -12,7 +22,18 @@ const organizations: Org[] = [
             maxFileStoragePerSpace: 1024,
             maxUsersPerSpace: 50,
             maxTotalUsers: 100
-        }
+        },
+        home: [
+            {
+                id: "cat-home-1",
+                index: 1,
+                name: "Annonces",
+                threads: [
+                    { id: "th-h1", index: 1, name: "nouveautés", type: "text" },
+                    { id: "th-h2", index: 2, name: "roadmap", type: "text" }
+                ]
+            }
+        ]
     },
     {
         id: "org-5357410fce6d45959ed4d0bac84595a8",
@@ -24,7 +45,8 @@ const organizations: Org[] = [
             maxFileStoragePerSpace: 10240,
             maxUsersPerSpace: 200,
             maxTotalUsers: 1000
-        }
+        },
+        home: []
     }
 ];
 
@@ -37,7 +59,8 @@ const workSpaces: WorkSpace[] = [
         categories: [
             {
                 id: "cat-1",
-                name: "Canaux Textuels",
+                index: 1,
+                name: "Administration",
                 threads: [
                     { id: "th-1", index: 1, name: "briefing-rd", type: "text" },
                     { id: "th-2", index: 2, name: "déploiement-prod", type: "text" }
@@ -45,33 +68,32 @@ const workSpaces: WorkSpace[] = [
             },
             {
                 id: "cat-2",
-                name: "Salons Vocaux",
+                index: 2,
+                name: "Communication",
                 threads: [
-                    { id: "th-3", index: 3, name: "Cafétéria", type: "vocal" }
+                    { id: "th-5", index: 1, name: "Général", type: "text" },
+                    { id: "th-6", index: 2, name: "Cafétéria", type: "vocal" }
                 ]
             }
         ]
     },
     {
-        id: "ws-silver-dev",
+        id: "ws-massive-logs",
         org_id: "org-8fec6cfc42a14c09bc7f1291eba954c0",
-        name: "Labo Tech",
-        logo: "bi-code-slash",
+        name: "Archives & Logs",
+        logo: "bi-archive",
         categories: [
             {
-                id: "cat-3",
-                name: "Développement",
-                threads: [
-                    { id: "th-4", index: 1, name: "architecture-e2ee", type: "text" },
-                    { id: "th-5", index: 2, name: "bugs-tracking", type: "text" }
-                ]
+                id: "cat-massive-1",
+                index: 1,
+                name: "Rapports Hebdomadaires (20)",
+                threads: generateThreads(20, "week")
             },
             {
-                id: "cat-4",
-                name: "Vocal",
-                threads: [
-                    { id: "th-6", index: 3, name: "Pair Programming", type: "vocal" }
-                ]
+                id: "cat-massive-2",
+                index: 2,
+                name: "Archives Système (40)",
+                threads: generateThreads(40, "arch")
             }
         ]
     },
@@ -83,16 +105,10 @@ const workSpaces: WorkSpace[] = [
         categories: [
             {
                 id: "cat-5",
-                name: "Opérations",
+                index: 1,
+                name: "Surveillance",
                 threads: [
-                    { id: "th-7", index: 1, name: "rapports-terrain", type: "text" }
-                ]
-            },
-            {
-                id: "cat-6",
-                name: "Urgence",
-                threads: [
-                    { id: "th-8", index: 2, name: "Salle de crise", type: "vocal" }
+                    { id: "th-18", index: 1, name: "secteur-alpha", type: "text" }
                 ]
             }
         ]
