@@ -2,6 +2,7 @@
 
 import CanalBar from './components/layouts/CanalBar.vue';
 import SpaceBar from './components/layouts/spaceBar.vue';
+import UserCard from './components/layouts/UserCard.vue';
 import UsersBar from './components/layouts/UsersBar.vue';
 
 </script>
@@ -10,18 +11,22 @@ import UsersBar from './components/layouts/UsersBar.vue';
 
     <div
         class="
-            h-fill w-full relative
-            flex justify-center items-center
-            flex-raw
+            h-full w-full 
+            flex flex-row 
+            relative
         "
     >
 
         <SpaceBar />
         <CanalBar />
 
-        <RouterView />
+        <div class="h-full w-full ">
+            <RouterView />
+        </div>
 
         <UsersBar />
+
+        <UserCard />
 
     </div>
 
