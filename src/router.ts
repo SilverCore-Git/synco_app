@@ -6,6 +6,7 @@ import OrgLayout from './views/OrgSpace/OrgLayout.vue';
 import SpaceView from './views/OrgSpace/views/SpaceView.vue';
 import OrgHome from './views/OrgSpace/views/OrgHome.vue';
 import OrgChat from './views/OrgSpace/views/OrgChat.vue';
+import ThreadView from './views/OrgSpace/views/ThreadView.vue';
 
 
 const routes = [
@@ -45,7 +46,7 @@ const routes = [
         path: 'home/thread/:threadId',
         name: 'OrgThreadHome',
         props: true,
-        component: OrgHome,
+        component: ThreadView,
         meta: { title: 'SilverTeams' }
       },
       {
@@ -65,7 +66,7 @@ const routes = [
       {
         path: 'space/:spaceId/thread/:threadId',
         name: 'SpaceThreadView',
-        component: SpaceView,
+        component: ThreadView,
         props: true,
         meta: { title: 'SilverTeams' },
       }
