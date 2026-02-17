@@ -36,7 +36,7 @@
         >
 
             <ThreadBtn 
-                v-for="thread in category.threads"
+                v-for="thread in threads"
                 :key="thread.id"
                 :thread="thread"
                 :active="
@@ -69,9 +69,11 @@ import { ref } from 'vue';
 import type { Category } from '@/types/workSpace';
 import ThreadBtn from './ThreadBtn.vue';
 import { useRoute, useRouter } from 'vue-router';
+import type { Thread } from '../../../../types/workSpace';
 
 defineProps<{
-    category: Category
+    category: Category;
+    threads: Thread[];
 }>();
 
 const route = useRoute();

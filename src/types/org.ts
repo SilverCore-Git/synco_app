@@ -1,4 +1,4 @@
-import type { Category } from "./workSpace";
+import type { Category, Thread } from "./workSpace";
 
 export type OrgConfig = {
     maxNotesPerSpace: number;
@@ -22,7 +22,10 @@ export interface Org {
     stats: OrgStats;
     config: OrgConfig;
 
-    home: Category[];
+    home: {
+        categories: Category[];
+        threads: Thread[];
+    }
 
 }
 

@@ -2,6 +2,7 @@ export type ThreadType = 'text' | 'vocal';
 
 export interface Thread {
     id: string;
+    categoryId: string;
     index: number;
     name: string;
     type: ThreadType;
@@ -11,7 +12,6 @@ export interface Category {
     id: string;
     index: number;
     name: string;
-    threads: Thread[];
 }
 
 export interface WorkSpace {
@@ -21,5 +21,6 @@ export interface WorkSpace {
     logo: string; // bi | http
     
     categories: Category[];
+    threads: Thread[];
 
 }

@@ -1,10 +1,11 @@
 import type { Org } from "./types/org";
-import type { WorkSpace } from "./types/workSpace";
+import type { WorkSpace, Thread } from "./types/workSpace";
 
-// Fonction utilitaire pour générer des threads en masse
-const generateThreads = (count: number, prefix: string) => {
+// Fonction utilitaire pour générer des threads en masse avec liaison de catégorie
+const generateThreads = (count: number, prefix: string, categoryId: string): Thread[] => {
     return Array.from({ length: count }, (_, i) => ({
         id: `th-${prefix}-${i + 1}`,
+        categoryId: categoryId,
         index: i + 1,
         name: `${prefix}-channel-${i + 1}`,
         type: (i % 5 === 0 ? 'vocal' : 'text') as 'text' | 'vocal'
@@ -23,17 +24,14 @@ const organizations: Org[] = [
             maxUsersPerSpace: 50,
             maxTotalUsers: 100
         },
-        home: [
-            {
-                id: "cat-home-1",
-                index: 1,
-                name: "Annonces",
-                threads: [
-                    { id: "th-h1", index: 1, name: "nouveautés", type: "text" },
-                    { id: "th-h2", index: 2, name: "roadmap", type: "text" }
-                ]
-            }
-        ]
+        home: {
+            categories: [
+                { id: "fdsfds3455346", index: 1, name: "Général" },
+            ],
+            threads: [
+                { id: "thrad-home-1", categoryId: 'fdsfds3455346', type: "text", index: 1, name: "Annonces" }
+            ]
+        }
     },
     {
         id: "org-5357410fce6d45959ed4d0bac84595a8",
@@ -46,7 +44,18 @@ const organizations: Org[] = [
             maxUsersPerSpace: 200,
             maxTotalUsers: 1000
         },
-        home: []
+        home: {
+            categories: [
+                { id: "cat-1", index: 1, name: "Administration" },
+                { id: "cat-2", index: 2, name: "Communication" }
+            ],
+            threads: [
+                { id: "th-1", categoryId: "cat-1", index: 1, name: "briefing-rd", type: "text" },
+                { id: "th-2", categoryId: "cat-1", index: 2, name: "déploiement-prod", type: "text" },
+                { id: "th-5", categoryId: "cat-2", index: 1, name: "Général", type: "text" },
+                { id: "th-6", categoryId: "cat-2", index: 2, name: "Cafétéria", type: "vocal" }
+            ]
+        }
     }
 ];
 
@@ -57,24 +66,14 @@ const workSpaces: WorkSpace[] = [
         name: "QG Opérationnel",
         logo: "bi-shield-lock",
         categories: [
-            {
-                id: "cat-1",
-                index: 1,
-                name: "Administration",
-                threads: [
-                    { id: "th-1", index: 1, name: "briefing-rd", type: "text" },
-                    { id: "th-2", index: 2, name: "déploiement-prod", type: "text" }
-                ]
-            },
-            {
-                id: "cat-2",
-                index: 2,
-                name: "Communication",
-                threads: [
-                    { id: "th-5", index: 1, name: "Général", type: "text" },
-                    { id: "th-6", index: 2, name: "Cafétéria", type: "vocal" }
-                ]
-            }
+            { id: "cat-1", index: 1, name: "Administration" },
+            { id: "cat-2", index: 2, name: "Communication" }
+        ],
+        threads: [
+            { id: "th-1", categoryId: "cat-1", index: 1, name: "briefing-rd", type: "text" },
+            { id: "th-2", categoryId: "cat-1", index: 2, name: "déploiement-prod", type: "text" },
+            { id: "th-5", categoryId: "cat-2", index: 1, name: "Général", type: "text" },
+            { id: "th-6", categoryId: "cat-2", index: 2, name: "Cafétéria", type: "vocal" }
         ]
     },
     {
@@ -83,18 +82,12 @@ const workSpaces: WorkSpace[] = [
         name: "Archives & Logs",
         logo: "bi-archive",
         categories: [
-            {
-                id: "cat-massive-1",
-                index: 1,
-                name: "Rapports Hebdomadaires (20)",
-                threads: generateThreads(20, "week")
-            },
-            {
-                id: "cat-massive-2",
-                index: 2,
-                name: "Archives Système (40)",
-                threads: generateThreads(40, "arch")
-            }
+            { id: "cat-massive-1", index: 1, name: "Rapports Hebdomadaires" },
+            { id: "cat-massive-2", index: 2, name: "Archives Système" }
+        ],
+        threads: [
+            ...generateThreads(20, "week", "cat-massive-1"),
+            ...generateThreads(40, "arch", "cat-massive-2")
         ]
     },
     {
@@ -103,14 +96,10 @@ const workSpaces: WorkSpace[] = [
         name: "Intelligence",
         logo: "bi-eye",
         categories: [
-            {
-                id: "cat-5",
-                index: 1,
-                name: "Surveillance",
-                threads: [
-                    { id: "th-18", index: 1, name: "secteur-alpha", type: "text" }
-                ]
-            }
+            { id: "cat-5", index: 1, name: "Surveillance" }
+        ],
+        threads: [
+            { id: "th-18", categoryId: "cat-5", index: 1, name: "secteur-alpha", type: "text" }
         ]
     }
 ];
