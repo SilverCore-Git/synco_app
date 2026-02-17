@@ -19,6 +19,6 @@ export interface WorkSpace {
     name: string;
     logo: string; // bi | http
     
-    categoryes: Category[];
+    categories: Category[];
 
 }

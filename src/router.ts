@@ -61,7 +61,14 @@ const routes = [
         name: 'SpaceView',
         component: SpaceView,
         props: true,
-        meta: { title: 'SilverTeams' }
+        meta: { title: 'SilverTeams' },
+      },
+      {
+        path: 'space/:spaceId/thread/:threadId',
+        name: 'SpaceThreadView',
+        component: SpaceView,
+        props: true,
+        meta: { title: 'SilverTeams' },
       }
     ]
   },

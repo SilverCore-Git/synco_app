@@ -4,8 +4,8 @@ import type { Org } from '@/types/org';
 import SpaceBarBTN from '../common/SpaceBarBTN.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { computed } from 'vue';
-import { workSpace } from '@/organizations';
 import type { WorkSpace } from '@/types/workSpace';
+import { workSpaces } from '@/organizations';
 
 const router = useRouter();
 const route = useRoute();
@@ -14,7 +14,7 @@ const props = defineProps<{
     organization: Org;
 }>();
 
-const spaces = computed(() => workSpace.filter((space: WorkSpace) => space.org_id == props.organization.id));
+const spaces = computed(() => workSpaces.filter((space: WorkSpace) => space.org_id == props.organization.id));
 
 const createNewSpace = () => {
     alert('créer un nouvel espace')

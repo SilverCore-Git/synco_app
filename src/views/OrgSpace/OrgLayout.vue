@@ -1,7 +1,7 @@
 <script setup lang="ts">
 
 import { computed } from 'vue';
-import CanalBar from './components/layouts/CanalBar.vue';
+import ThreadsBar from './components/layouts/ThreadsBar.vue';
 import SpaceBar from './components/layouts/spaceBar.vue';
 import UserCard from './components/layouts/UserCard.vue';
 import UsersBar from './components/layouts/UsersBar.vue';
@@ -28,7 +28,7 @@ const organization = computed(() => organizations.find((org) => org.id === props
         <SpaceBar
             :organization="organization"
         />
-        <CanalBar />
+        <ThreadsBar />
 
         <div class="h-full w-full ">
             <RouterView />
