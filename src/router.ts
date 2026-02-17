@@ -25,7 +25,7 @@ const routes = [
 
   {
     path: '/org/:orgId',
-    redirect: (to: any) => ({ name: 'OrgSpaceHome', params: { orgId: to.params.orgId } })
+    redirect: (to: any) => ({ name: 'OrgHome', params: { orgId: to.params.orgId } })
   },
 
   {
