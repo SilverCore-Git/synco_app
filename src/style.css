@@ -1,0 +1,27 @@
+@import 'tailwindcss';
+
+:root {
+
+  --primary: #1DD796;
+
+  --bg: #1E1E1E;
+  --bg2: #0A1411;
+
+  --text: #BFC3C7;
+
+}
+
+body {
+  overflow-x: hidden;
+  color-scheme: light dark;
+  color: var(--text);
+
+  line-height: 1.1;
+  margin: 0;
+  background-color: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
