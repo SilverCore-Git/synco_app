@@ -1,11 +1,13 @@
 <script setup lang="ts">
 
 import type { Org } from '@/types/org';
+import { useRouter } from 'vue-router';
 
+const router = useRouter();
 
 const organizations: Org[] = [
     {
-        id: "st-alpha-01",
+        id: "org-8fec6cfc42a14c09bc7f1291eba954c0",
         name: "SilverTeams Core",
         logo: "https://api.dicebear.com/7.x/identicon/svg?seed=SilverCore&backgroundColor=1e1e1e&color=1ed760",
         stats: {
@@ -20,7 +22,7 @@ const organizations: Org[] = [
         }
     },
     {
-        id: "st-corp-99",
+        id: "org-5357410fce6d45959ed4d0bac84595a8",
         name: "Neo-Defense Corp",
         logo: "https://api.dicebear.com/7.x/identicon/svg?seed=NeoDefense&backgroundColor=1e1e1e&color=bfc3c7",
         stats: {
@@ -39,7 +41,7 @@ const organizations: Org[] = [
 
 
 const handleSelect = (org: Org) => {
-
+    router.push('/org/' + org.id)
 };
 
 </script>
@@ -48,24 +50,25 @@ const handleSelect = (org: Org) => {
 
     <div class="min-h-screen bg-(--bg2) flex flex-col items-center justify-center p-8 font-sans">
         
-        <header class="text-center mb-16 space-y-4">
+        <header class="text-center mb-20 space-y-4">
             <h1 class="uppercase text-4xl md:text-5xl font-bold tracking-tight">
                 SÉLECTIONNEZ VOTRE <span class="text-[#1ED760]">organisation</span>
             </h1>
         </header>
 
-        <div class="flex flex-wrap justify-center gap-16 max-w-6xl">
+        <div class="flex flex-wrap justify-center gap-10 md:gap-16 max-w-6xl">
 
-            <div
+            <a
                 v-for="org in organizations"
                 :key="org.id"
                 class="group relative flex flex-col items-center cursor-pointer"
-                @click="handleSelect(org)"
+                :href="`/org/${org.id}`"
+                @click.prevent="handleSelect(org)"
             >
 
                 <div 
                     class="
-                        relative w-60 h-60
+                        relative w-40 h-40 md:w-60 md:h-60
                         overflow-hidden border-4 border-transparent 
                         transition-all duration-300 transform bg-(--bg)
                         rounded-4xl
@@ -93,17 +96,7 @@ const handleSelect = (org: Org) => {
                     {{ org.name }}
                 </span>
 
-            </div>
-
-            <!-- <div class="group flex flex-col items-center cursor-pointer" @click="emit('manage')">
-                <div class="w-36 h-36 md:w-44 md:h-44 rounded-lg border-4 border-dashed border-[#BFC3C7]/20 
-                            flex items-center justify-center transition-all group-hover:border-[#BFC3C7]/50 group-hover:bg-[#BFC3C7]/5">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-[#BFC3C7]/20 group-hover:text-[#BFC3C7]/50 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4" />
-                </svg>
-                </div>
-                <span class="mt-5 text-xl font-medium text-[#BFC3C7]/30 group-hover:text-[#BFC3C7]/60">Nouvelle Org</span>
-            </div> -->
+            </a>
 
         </div>
 
