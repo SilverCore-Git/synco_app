@@ -13,23 +13,18 @@ const routes = [
 
   {
     path: '/',
-    redirect: '/org',
-  },
-
-  {
-    path: '/org',
     name: 'OrgSelection',
     component: OrgSelection,
     meta: { title: 'SilverTeams' }
   },
 
   {
-    path: '/org/:orgId',
+    path: '/:orgId',
     redirect: (to: any) => ({ name: 'OrgHome', params: { orgId: to.params.orgId } })
   },
 
   {
-    path: '/org/:orgId',
+    path: '/:orgId',
     name: 'OrgLayout',
     component: OrgLayout,
     props: true,
@@ -43,7 +38,7 @@ const routes = [
         meta: { title: 'SilverTeams' }
       },
       {
-        path: 'home/thread/:threadId',
+        path: 'home/:threadId',
         name: 'OrgThreadHome',
         props: true,
         component: ThreadView,
@@ -57,14 +52,14 @@ const routes = [
         meta: { title: 'SilverTeams' }
       },
       {
-        path: 'space/:spaceId',
+        path: ':spaceId',
         name: 'SpaceView',
         component: SpaceView,
         props: true,
         meta: { title: 'SilverTeams' },
       },
       {
-        path: 'space/:spaceId/thread/:threadId',
+        path: ':spaceId/:threadId',
         name: 'SpaceThreadView',
         component: ThreadView,
         props: true,

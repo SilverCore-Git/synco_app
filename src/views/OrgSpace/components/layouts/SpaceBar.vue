@@ -37,7 +37,7 @@ const createNewSpace = () => {
                 icon="bi-arrow-bar-left"
                 label="Revenir aux organisation"
                 redhover
-                @click="router.push('/org')"
+                @click="router.push('/')"
             />
 
             <hr class=" w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
@@ -47,7 +47,7 @@ const createNewSpace = () => {
                 label="Général"
                 iconFillOnActive
                 :active="route.name === 'OrgHome' || route.name === 'OrgThreadHome'"
-                @click="router.push(`/org/${organization.id}/home`)"
+                @click="router.push(`/${organization.id}/home`)"
             />
 
             <SpaceBarBTN
@@ -55,7 +55,7 @@ const createNewSpace = () => {
                 label="Messages privées"
                 iconFillOnActive
                 :active="route.name === 'OrgChat'"
-                @click="router.push(`/org/${organization.id}/chat`)"
+                @click="router.push(`/${organization.id}/chat`)"
             />
             
             <hr class=" w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
@@ -72,7 +72,7 @@ const createNewSpace = () => {
                     )
                     && route.path.includes(space.id)
                 "
-                @click="router.push(`/org/${organization.id}/space/${space.id}`)"
+                @click="router.push(`/${organization.id}/${space.id}`)"
             />
 
             <SpaceBarBTN

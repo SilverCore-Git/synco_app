@@ -69,7 +69,7 @@ import { ref } from 'vue';
 import type { Category } from '@/types/workSpace';
 import ThreadBtn from './ThreadBtn.vue';
 import { useRoute, useRouter } from 'vue-router';
-import type { Thread } from '../../../../types/workSpace';
+import type { Thread } from '@/types/workSpace';
 
 defineProps<{
     category: Category;

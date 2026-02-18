@@ -1,4 +1,4 @@
-<template>
+    <template>
 
     <div class="group relative ">
 
@@ -30,18 +30,18 @@
                 :src="icon" 
                 :alt="label"
                 class="
-                    w-full h-full p-2 rounded-xl
+                    w-[30px] h-[30px] rounded-md object-cover
                     group-active:scale-50 group-hover:scale-110
-                    transition-all duration-300 ease-out
+                    transition-all duration-300 ease-out 
                 "
             />
 
             <i 
                 v-else-if="icon"
                 class="
-                    bi text-3xl relative z-10
+                    bi text-[28px] relative z-10
                     group-active:scale-50 group-hover:scale-110
-                    transition-all duration-300 ease-out    
+                    transition-all duration-300 ease-out     
                 "
                 :class="[
                     active && iconFillOnActive ? icon + '-fill' : icon,

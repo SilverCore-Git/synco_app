@@ -8,7 +8,7 @@
 
 import { onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import organizations from '../../../organizations';
+import organizations from '@/organizations';
 
 const route = useRoute();
 const router = useRouter();

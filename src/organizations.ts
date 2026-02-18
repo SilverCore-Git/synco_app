@@ -80,7 +80,7 @@ const workSpaces: WorkSpace[] = [
         id: "ws-massive-logs",
         org_id: "org-8fec6cfc42a14c09bc7f1291eba954c0",
         name: "Archives & Logs",
-        logo: "bi-archive",
+        logo: "https://www.silvernote.fr/favicon.png",
         categories: [
             { id: "cat-massive-1", index: 1, name: "Rapports Hebdomadaires" },
             { id: "cat-massive-2", index: 2, name: "Archives Système" }
