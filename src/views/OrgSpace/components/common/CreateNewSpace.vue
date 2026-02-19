@@ -76,7 +76,7 @@
 
 import { ref, reactive, nextTick, watch } from 'vue';
 import Popup from '@/components/Popup.vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import IconSelector from '@/components/common/IconSelector.vue';
 import { openedOrg } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
@@ -84,6 +84,7 @@ import type { WorkSpace } from '@/types/types';
 import { useToast } from '@/composables/useToast';
 
 const route = useRoute();
+const router = useRouter();
 const isOpen = ref<boolean>(false);
 const loading = ref<boolean>(false);
 const nameInput = ref<HTMLInputElement | null>(null);
@@ -131,6 +132,7 @@ const handleSubmit = async () => {
       const space: WorkSpace = res;
       openedOrg.value?.spaces?.push(space);
       toast.show('Espace de travail créé avec succès.', 'success');
+      router.push({ name: 'SpaceView', params: { orgId: route.params.orgId, spaceId: res.id } });
     }
 
     closeModal();
