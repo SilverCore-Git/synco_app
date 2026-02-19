@@ -3,6 +3,7 @@
 :root {
 
   --primary: #1DD796;
+  --primary-hover: #16ac77;
 
   --bg: #1E1E1E;
   --bg2: #0A1411;
@@ -27,4 +28,246 @@ body {
 
 a, button {
   cursor: pointer;
+}
+
+
+
+
+
+
+
+
+
+
+button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 100ms ease-in-out;
+}
+
+button:active {
+  transform: scale(0.90);
+}
+
+button.default {
+  @apply hover:bg-(--text)/5 transition;
+  padding: 0.4em 1rem;
+  font-size: 1em;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 12px;
+}
+
+button.default-primary {
+  @apply w-full sm:w-auto bg-(--text)/5
+          border border-(--primary)
+          hover:bg-(--text)/10 transition-all;
+  border-radius: 12px;
+  padding: 0.4em 1rem;
+  font-size: 1em;
+  font-weight: 500;
+}
+
+
+button.primary {
+  border: 1px solid transparent;
+  padding: 0.4em 1rem;
+  font-size: 1em;
+  font-weight: 500;
+  background-color: var(--primary);
+  color: white;
+  cursor: pointer;
+  transition: all 0.25s;
+  cursor: pointer;
+  border-radius: 12px;
+}
+
+button.primary:hover {
+  background-color: var(--primary-hover) !important;
+}
+
+button.primary.green {
+  border: 1px solid transparent;
+  padding: 0.4em 1rem;
+  font-size: 1em;
+  font-weight: 500;
+  background-color: var(--color-green-600);
+  color: white;
+  cursor: pointer;
+  transition: all 0.25s;
+  cursor: pointer;
+  border-radius: 12px;
+}
+
+button.primary.green:hover {
+  border: 1px solid transparent;
+  padding: 0.4em 1rem;
+  font-size: 1em;
+  font-weight: 500;
+  background-color: var(--color-green-800);
+  color: white;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+
+button.second {
+  border: 2px solid var(--primary);
+  padding: 0.4em 1em;
+  font-size: 1em;
+  font-weight: 500;
+  background-color: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.25s;
+  cursor: pointer;
+  border-radius: 12px;
+}
+
+button.primary.danger {
+  border: 1px solid transparent;
+  padding: 0.4em 1rem;
+  font-size: 1em;
+  font-weight: 500;
+  background-color: rgb(255, 72, 0);
+  color: white;
+  cursor: pointer;
+  transition: all 0.25s;
+  cursor: pointer;
+  border-radius: 12px;
+}
+
+button.second.danger {
+  border: 2px solid rgb(255, 72, 0);
+  padding: 0.4em 1em;
+  font-size: 1em;
+  font-weight: 500;
+  background-color: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.25s;
+  cursor: pointer;
+  border-radius: 12px;
+}
+
+button:hover.primary {
+  border-color: var(--primary-hover);
+  background-color: var(--primary);
+  color: white;
+}
+
+button:hover.second.nohover {
+  background-color: transparent;
+  color: initial;
+}
+
+button:hover.second {
+  background-color: var(--primary);
+  color: white;
+}
+
+button:hover.danger {
+  background-color: rgb(255, 72, 0);
+  border-color: rgb(255, 72, 0);
+  color: white;
+}
+
+button:hover.scale {
+  transform: scale(1.1);
+}
+
+.button-scale:hover {
+  transform: scale(1.1);
+}
+
+
+
+button.loader,
+button.danger.loader,
+button.loader:hover {
+    color: transparent !important;
+    pointer-events: none; 
+    background-image: none !important;
+}
+
+button.loader:after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 18px;
+    height: 18px;
+    border: 3px solid rgba(0, 0, 0, 0.1); 
+    border-top: 3px solid var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.05);
+}
+
+button.danger.loader:after {
+    border-top-color: rgb(255, 72, 0);
+}
+
+button.loader {
+    background-color: transparent !important;
+    border-color: var(--primary);
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+
+button.premium {
+  border: 1px solid transparent;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0.6em 1.5rem;
+  font-size: 1em;
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--primary)); 
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+button.premium.xl {
+  font-size: 1.5em;
+}
+
+button.premium:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.2);
+  filter: brightness(1.1);
+}
+
+button.premium:active {
+  transform: translateY(0) scale(0.95);
+}
+
+button.premium::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: 0.5s;
+}
+
+button.premium:hover::before {
+  left: 100%;
 }

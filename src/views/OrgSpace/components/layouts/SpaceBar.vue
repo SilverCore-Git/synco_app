@@ -5,6 +5,7 @@ import SpaceBarBTN from '../common/SpaceBarBTN.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { computed } from 'vue';
 import { workSpaces } from '@/organizations';
+import CreateNewSpace from '@/components/popup/CreateNewSpace.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -14,10 +15,6 @@ const props = defineProps<{
 }>();
 
 const spaces = computed(() => workSpaces.filter((space: WorkSpace) => space.orgId == props.organization.id));
-
-const createNewSpace = () => {
-    alert('créer un nouvel espace')
-}
 
 </script>
 
@@ -74,11 +71,12 @@ const createNewSpace = () => {
                 @click="router.push(`/${organization.id}/${space.id}`)"
             />
 
-            <SpaceBarBTN
-                icon="bi-plus"
-                label="Créer un nouvel espace"
-                @click="createNewSpace"
-            />
+            <CreateNewSpace>
+                <SpaceBarBTN
+                    icon="bi-plus"
+                    label="Créer un nouvel espace"
+                />
+            </CreateNewSpace>
 
         </ul>
 

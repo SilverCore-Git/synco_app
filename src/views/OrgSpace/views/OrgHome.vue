@@ -18,6 +18,8 @@ onMounted(() => {
     const org = organizations.find(org => org.id == route.params.orgId);
     const firstCategory = org?.home.categories.find(cat => cat.index == 1);
     const firstThread = org?.home.threads.find(th => th.categoryId == firstCategory?.id && th.index == 1);
+    if (!firstCategory || !firstThread) return;
+
     router.push({
         name: 'OrgThreadHome',
         params: {

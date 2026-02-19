@@ -17,7 +17,7 @@ const props = defineProps<{
 const organization = computed(() => organizations.find((org) => org.id === props.orgId));
 
 onMounted(async() => {
-   await sfetch(`/api/orgs/${props.orgId}`).then(res => res.json()); 
+   openedOrg.value = await sfetch(`/api/orgs/${props.orgId}`).then(res => res.json()); 
 });
 
 </script>
@@ -34,7 +34,7 @@ onMounted(async() => {
     >
 
         <SpaceBar
-            :organization="organization"
+            :organization="openedOrg"
         />
         <ThreadsBar />
 

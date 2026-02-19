@@ -27,7 +27,10 @@ onMounted(async () => {
       <!-- top bar for desktop app -->
     </div>
       
-    <div v-if="isLoaded && isClerkLoaded">
+    <div 
+      v-if="isLoaded && isClerkLoaded"
+      class="w-full h-full"
+    >
       
       <SignedIn>
         <RouterView />
@@ -39,7 +42,7 @@ onMounted(async () => {
 
     </div>
 
-    <div v-else>
+    <div v-else class="w-full h-full">
       <Loader />
     </div>
 
