@@ -6,10 +6,11 @@ import { useRoute, useRouter } from 'vue-router';
 import { useToast } from '@/composables/useToast';
 import { openedOrg } from '@/assets/var';
 import type { WorkSpace } from '@/types/types';
+import sfetch from '@/assets/utils/sfetch';
 
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import DropDown from '@/components/DropDown.vue';
-import sfetch from '@/assets/utils/sfetch';
+import UpdateSpace from './UpdateSpace.vue';
 
 
 const toast = useToast();
@@ -17,6 +18,7 @@ const route = useRoute();
 const router = useRouter();
 const isModalOpen = ref<boolean>(false);
 const isDeleting = ref<boolean>(false);
+const showUpdateSpace = ref<boolean>(false);
 
 
 const currentWorkspace = computed(() => {
@@ -26,6 +28,11 @@ const currentWorkspace = computed(() => {
 const openConfirmModal = () => {
     isModalOpen.value = true;
 }
+
+const openUpdate = () => {
+    console.log("Ouverture modal pour :", currentWorkspace.value?.name);
+    showUpdateSpace.value = true;
+};
 
 const handleDelete = async () => {
 
@@ -79,17 +86,27 @@ const handleDelete = async () => {
 
         <template #content>
 
-            <button class="dropdown-item-annimate dropdown-item-style">
-                <i class="bi bi-pencil mr-2"></i> Modifier
+            <button @click="openUpdate" class="dropdown-item-annimate dropdown-item-style">
+                <i class="bi bi-pencil mr-2" /> Modifier
             </button>
 
             <button @click="openConfirmModal" class=" dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!" >
-                <i class="bi bi-trash mr-2"></i> Supprimer
+                <i class="bi bi-trash mr-2" /> Supprimer
             </button>
 
         </template>
 
     </Dropdown>
+
+    <UpdateSpace 
+        :key="currentWorkspace?.id" 
+        v-if="currentWorkspace"
+        :isOpen="showUpdateSpace" 
+        :id="currentWorkspace.id"
+        :name="currentWorkspace.name"
+        :logo="currentWorkspace.logo"
+        @close="showUpdateSpace = false"
+    />
 
     <ConfirmDelete
         v-if="currentWorkspace"

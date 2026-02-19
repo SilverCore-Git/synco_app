@@ -7,7 +7,7 @@
         "
     >
 
-        <div class="p-5 flex justify-between items-center flex-row w-full">
+        <div class="p-3 flex justify-between items-center flex-row w-full">
 
             <div class="flex justify-center items-center flex-row gap-3 ">
                 <img v-if="icon && icon.startsWith('http')" :src="icon" />
