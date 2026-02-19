@@ -7,7 +7,13 @@
         "
     >
 
-        <h3 class="p-5  font-semibold">{{ title }}</h3>
+        <div class="p-5 flex justify-center items-center flex-row gap-3 ">
+            <img v-if="icon && icon.startsWith('http')" :src="icon" />
+            <i v-else-if="icon" class="bi" :class="icon" />
+            <h3 class="font-semibold">
+                {{ title }}
+            </h3>
+        </div>
 
         <hr class=" w-full h-0.5 bg-(--text)/40 border-none rounded-full" />
 
@@ -52,6 +58,17 @@ const title = computed(() => {
         const space = openedOrg.value?.spaces?.find((space: WorkSpace) => space.id == route.params.spaceId && space.orgId == route.params.orgId);
         if (!space) return 'Inconu';
         return space.name;
+    }
+})
+
+const icon = computed(() => {
+    if (route.name == 'OrgHome' || route.name == 'OrgThreadHome') return 'bi-house';
+    if (route.name == 'OrgChat') return 'bi-chat-dots';
+    else
+    {
+        const space = openedOrg.value?.spaces?.find((space: WorkSpace) => space.id == route.params.spaceId && space.orgId == route.params.orgId);
+        if (!space) return 'Inconu';
+        return space.logo;
     }
 })
 

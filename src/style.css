@@ -39,7 +39,10 @@ a, button {
 
 
 
-button {
+button.primary,
+button.second,
+button.default,
+button.default-primary  {
   position: relative;
   display: inline-flex;
   align-items: center;
