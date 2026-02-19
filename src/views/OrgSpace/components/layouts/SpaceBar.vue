@@ -1,26 +1,19 @@
 <script setup lang="ts">
 
-import type { Org, WorkSpace } from '@/types/types';
 import SpaceBarBTN from '../common/SpaceBarBTN.vue';
 import { useRoute, useRouter } from 'vue-router';
-import { computed } from 'vue';
-import { workSpaces } from '@/organizations';
 import CreateNewSpace from '@/components/popup/CreateNewSpace.vue';
+import { openedOrg } from '@/assets/var';
 
 const router = useRouter();
 const route = useRoute();
-
-const props = defineProps<{
-    organization: Org;
-}>();
-
-const spaces = computed(() => workSpaces.filter((space: WorkSpace) => space.orgId == props.organization.id));
 
 </script>
 
 <template>
 
     <nav
+        v-if="openedOrg"
         class="
             h-full min-w-17 bg-(--bg2) border-r border-(--primary)/5
             flex justify-start items-center flex-col pt-2.5
@@ -43,7 +36,7 @@ const spaces = computed(() => workSpaces.filter((space: WorkSpace) => space.orgI
                 label="Général"
                 iconFillOnActive
                 :active="route.name === 'OrgHome' || route.name === 'OrgThreadHome'"
-                @click="router.push(`/${organization.id}/home`)"
+                @click="router.push(`/${openedOrg.id}/home`)"
             />
 
             <SpaceBarBTN
@@ -51,13 +44,13 @@ const spaces = computed(() => workSpaces.filter((space: WorkSpace) => space.orgI
                 label="Messages privées"
                 iconFillOnActive
                 :active="route.name === 'OrgChat'"
-                @click="router.push(`/${organization.id}/chat`)"
+                @click="router.push(`/${openedOrg.id}/chat`)"
             />
             
             <hr class=" w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
 
             <SpaceBarBTN
-                v-for="space in spaces"
+                v-for="space in openedOrg?.spaces"
                 :key="'space-' + space.id + '-btn'"
                 :icon="space.logo"
                 :label="space.name"
@@ -68,7 +61,7 @@ const spaces = computed(() => workSpaces.filter((space: WorkSpace) => space.orgI
                     )
                     && route.path.includes(space.id)
                 "
-                @click="router.push(`/${organization.id}/${space.id}`)"
+                @click="router.push(`/${openedOrg.id}/${space.id}`)"
             />
 
             <CreateNewSpace>

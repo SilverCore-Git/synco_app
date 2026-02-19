@@ -8,7 +8,7 @@
 
 import { onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { workSpaces } from '@/organizations';
+import { openedOrg } from '@/assets/var';
 
 const route = useRoute();
 const router = useRouter();
@@ -16,7 +16,7 @@ const router = useRouter();
 onMounted(() => {
 
     const spaceId = route.params.spaceId;
-    const space = workSpaces.find(s => s.id === spaceId);
+    const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
 
     if (!space) {
         return router.push({ name: 'OrgHome' });
@@ -44,10 +44,10 @@ onMounted(() => {
             }
         });
     } 
-    else 
-    {
-        router.replace({ name: 'OrgHome', params: { orgId: route.params.orgId } });
-    }
+    // else 
+    // {
+    //     router.replace({ name: 'OrgHome', params: { orgId: route.params.orgId } });
+    // }
 
 });
 

@@ -152,15 +152,15 @@ onMounted(async () => {
 
   try {
 
-    const key = import.meta.env.VITE_EMOJI_API_KEY;
+    // const key = import.meta.env.VITE_EMOJI_API_KEY;
     
-    const groupsRes = await fetch(`https://emoji-api.com/categories?access_key=${key}`);
-    const groupsData = await groupsRes.json();
-    emojisGroups.value = groupsData.map((g: any) => g.slug);
-    activeGroup.value = emojisGroups.value[0] || '';
+    // const groupsRes = await fetch(`https://emoji-api.com/categories?access_key=${key}`);
+    // const groupsData = await groupsRes.json();
+    // emojisGroups.value = groupsData.map((g: any) => g.slug);
+    // activeGroup.value = emojisGroups.value[0] || '';
 
-    const emojiRes = await fetch(`https://emoji-api.com/emojis?access_key=${key}`);
-    emojis.value = await emojiRes.json();
+    // const emojiRes = await fetch(`https://emoji-api.com/emojis?access_key=${key}`);
+    // emojis.value = await emojiRes.json();
 
     const res = await fetch('https://raw.githubusercontent.com/twbs/icons/main/font/bootstrap-icons.json');
     const data = await res.json();

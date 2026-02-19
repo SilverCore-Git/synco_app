@@ -42,11 +42,6 @@
 
       </div>
 
-      <div v-if="error" class="text-red-400 text-sm flex items-center gap-2">
-        <i class="bi bi-exclamation-triangle" />
-        {{ error }}
-      </div>
-
     </form>
 
     <template #footer>
@@ -86,12 +81,13 @@ import IconSelector from '../common/IconSelector.vue';
 import { openedOrg } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import type { WorkSpace } from '@/types/types';
+import { useToast } from '@/composables/useToast';
 
 const route = useRoute();
 const isOpen = ref<boolean>(false);
 const loading = ref<boolean>(false);
-const error = ref<string | null>(null);
 const nameInput = ref<HTMLInputElement | null>(null);
+const toast = useToast();
 
 const form = reactive({
   name: '',
@@ -108,7 +104,6 @@ watch(isOpen, async (val) => {
 const closeModal = () => {
   isOpen.value = false;
   form.name = '';
-  error.value = null;
 };
 
 const handleSubmit = async () => {
@@ -116,7 +111,6 @@ const handleSubmit = async () => {
   if (!form.name.trim() || form.logo == '') return;
 
   loading.value = true;
-  error.value = null;
 
   try {
 
@@ -129,18 +123,22 @@ const handleSubmit = async () => {
 
     if (res.error)
     {
-      alert(res.error);
-      return;
+      toast.show('Une erreur est survenue lors de la création.', 'error');
+      console.error('Error on space creation : ', res.error);
     }
-
-    const space: WorkSpace = res;
-    openedOrg.value?.spaces?.push(space);
+    else
+    {
+      const space: WorkSpace = res;
+      openedOrg.value?.spaces?.push(space);
+      toast.show('Espace de travail créé avec succès.', 'success');
+    }
 
     closeModal();
 
   } 
   catch (err: any) {
-    error.value = err.response?.data?.error || "Une erreur est survenue lors de la création.";
+    toast.show('Une erreur est survenue lors de la création.', 'error');
+    console.error('Error on space creation : ', err);
   } 
   finally {
     loading.value = false;

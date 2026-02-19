@@ -22,7 +22,7 @@
                 v-for="category in categories" 
                 :key="'category-' + category.id" 
                 :category="category"
-                :threads="threads.filter((th: Thread) => th.categoryId == category.id)"
+                :threads="threads?.filter((th: Thread) => th.categoryId == category.id) || []"
             />
 
         </ul>
@@ -36,21 +36,20 @@
 
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { workSpaces } from '@/organizations';
-import type { WorkSpace } from '@/types/workSpace';
 import Category from '../CanalBar/Category.vue';
-import organizations from '../../../../organizations';
-import type { Org } from '../../../../types/org';
-import type { Thread } from '../../../../types/workSpace';
+import type { Thread, WorkSpace } from '@/types/types';
+import { openedOrg } from '@/assets/var';
+
 
 const route = useRoute();
+
 
 const title = computed(() => {
     if (route.name == 'OrgHome' || route.name == 'OrgThreadHome') return 'Accueil';
     if (route.name == 'OrgChat') return 'Messages privés';
     else
     {
-        const space = workSpaces.find((space: WorkSpace) => space.id == route.params.spaceId && space.org_id == route.params.orgId);
+        const space = openedOrg.value?.spaces?.find((space: WorkSpace) => space.id == route.params.spaceId && space.orgId == route.params.orgId);
         if (!space) return 'Inconu';
         return space.name;
     }
@@ -59,14 +58,12 @@ const title = computed(() => {
 const threads = computed(() => {
     if (route.name == 'OrgHome' || route.name == 'OrgThreadHome')
     {
-        const org = organizations.find((org: Org) => org.id == route.params.orgId);
-        if (!org) return [];
-        return org.home.threads;
+        return openedOrg.value?.home.threads || [];
     }
     else if (route.name == 'OrgChat') return []
     else if (route.name == 'SpaceView' || route.name == 'SpaceThreadView')
     {
-        const space = workSpaces.find((space: WorkSpace) => space.id == route.params.spaceId && space.org_id == route.params.orgId);
+        const space = openedOrg.value?.spaces?.find((space: WorkSpace) => space.id == route.params.spaceId && space.orgId == route.params.orgId);
         if (!space) return [];
         return space.threads;
     }
@@ -76,14 +73,12 @@ const threads = computed(() => {
 const categories = computed(() => {
     if (route.name == 'OrgHome' || route.name == 'OrgThreadHome')
     {
-        const org = organizations.find((org: Org) => org.id == route.params.orgId);
-        if (!org) return [];
-        return org.home.categories;
+        return openedOrg.value?.home.categories || [];
     }
     else if (route.name == 'OrgChat') return []
     else if (route.name == 'SpaceView' || route.name == 'SpaceThreadView')
     {
-        const space = workSpaces.find((space: WorkSpace) => space.id == route.params.spaceId && space.org_id == route.params.orgId);
+        const space = openedOrg.value?.spaces?.find((space: WorkSpace) => space.id == route.params.spaceId && space.orgId == route.params.orgId);
         if (!space) return [];
         return space.categories;
     }

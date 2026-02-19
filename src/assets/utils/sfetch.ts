@@ -6,6 +6,7 @@ export default async function
         ...arg,
         method: arg?.method || 'GET',
         headers: {
+            'Content-Type': 'application/json',
             'Authorization': `Bearer ${await window.Clerk.session?.getToken()}`
         }
     });

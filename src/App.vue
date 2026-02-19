@@ -7,6 +7,7 @@ import { onMounted } from 'vue';
 import waitFor from './assets/utils/waitfor';
 import init from './assets/init';
 import { isLoaded } from './assets/var';
+import Toast from './components/common/Toast.vue';
 
 const { isLoaded: isClerkLoaded } = useUser();
 
@@ -18,6 +19,8 @@ onMounted(async () => {
 </script>
 
 <template>
+
+  <Toast />
 
   <div
     class="w-screen h-screen relative"

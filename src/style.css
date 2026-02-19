@@ -49,7 +49,10 @@ button {
   transition: all 100ms ease-in-out;
 }
 
-button:active {
+button.primary:active,
+button.second:active,
+button.default:active,
+button.default-primary:active {
   transform: scale(0.90);
 }
 
