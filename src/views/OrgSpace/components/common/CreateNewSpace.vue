@@ -4,7 +4,7 @@
     <slot />
   </div>
 
-  <STPopup :is-open="isOpen" @close="closeModal">
+  <Popup :is-open="isOpen" @close="closeModal">
 
     <template #title>Créer un Espace de travail</template>
 
@@ -68,16 +68,16 @@
 
     </template>
 
-  </STPopup>
+  </Popup>
 
 </template>
 
 <script setup lang="ts">
 
 import { ref, reactive, nextTick, watch } from 'vue';
-import STPopup from '@/components/popup.vue';
+import Popup from '@/components/Popup.vue';
 import { useRoute } from 'vue-router';
-import IconSelector from '../common/IconSelector.vue';
+import IconSelector from '@/components/common/IconSelector.vue';
 import { openedOrg } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import type { WorkSpace } from '@/types/types';

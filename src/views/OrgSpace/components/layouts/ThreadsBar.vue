@@ -7,12 +7,18 @@
         "
     >
 
-        <div class="p-5 flex justify-center items-center flex-row gap-3 ">
-            <img v-if="icon && icon.startsWith('http')" :src="icon" />
-            <i v-else-if="icon" class="bi" :class="icon" />
-            <h3 class="font-semibold">
-                {{ title }}
-            </h3>
+        <div class="p-5 flex justify-between items-center flex-row w-full">
+
+            <div class="flex justify-center items-center flex-row gap-3 ">
+                <img v-if="icon && icon.startsWith('http')" :src="icon" />
+                <i v-else-if="icon" class="bi" :class="icon" />
+                <h3 class="font-semibold">
+                    {{ title }}
+                </h3>
+            </div>
+
+            <ThreadsBarDropDown />
+        
         </div>
 
         <hr class=" w-full h-0.5 bg-(--text)/40 border-none rounded-full" />
@@ -45,6 +51,7 @@ import { useRoute } from 'vue-router';
 import Category from '../CanalBar/Category.vue';
 import type { Thread, WorkSpace } from '@/types/types';
 import { openedOrg } from '@/assets/var';
+import ThreadsBarDropDown from '../common/ThreadsBarDropDown.vue';
 
 
 const route = useRoute();
