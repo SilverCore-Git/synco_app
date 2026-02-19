@@ -1,10 +1,9 @@
 <script setup lang="ts">
 
-import type { Org } from '@/types/org';
+import type { Org, WorkSpace } from '@/types/types';
 import SpaceBarBTN from '../common/SpaceBarBTN.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { computed } from 'vue';
-import type { WorkSpace } from '@/types/workSpace';
 import { workSpaces } from '@/organizations';
 
 const router = useRouter();
@@ -14,7 +13,7 @@ const props = defineProps<{
     organization: Org;
 }>();
 
-const spaces = computed(() => workSpaces.filter((space: WorkSpace) => space.org_id == props.organization.id));
+const spaces = computed(() => workSpaces.filter((space: WorkSpace) => space.orgId == props.organization.id));
 
 const createNewSpace = () => {
     alert('créer un nouvel espace')

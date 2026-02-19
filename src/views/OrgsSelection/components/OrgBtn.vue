@@ -43,11 +43,11 @@
 
 <script lang="ts" setup>
 
-import type { Org } from '@/types/org';
+import type { Org, OrgLittle } from '@/types/types';
 import { useRouter } from 'vue-router';
 
 const props = defineProps<{
-    org: Org;
+    org: Org | OrgLittle;
 }>();
 
 const router = useRouter();

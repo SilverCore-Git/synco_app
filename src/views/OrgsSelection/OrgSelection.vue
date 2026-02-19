@@ -1,7 +1,8 @@
 <script setup lang="ts">
 
+import { organizations } from '@/assets/var';
 import OrgBtn from './components/OrgBtn.vue';
-import organizations from '../../organizations';
+
 
 </script>
 
