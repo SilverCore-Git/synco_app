@@ -3,30 +3,42 @@
     <div class="w-full">
 
         <button 
-            @click="isOpen = !isOpen"
+            @click="toggleOpen"
             class="
-                w-full flex items-center 
+                w-full flex items-center justify-between
                 cursor-pointer group
                 text-(--text)/40 hover:text-(--text)/80 
                 transition-colors duration-200
             "
         >
 
-            <i 
-                class="bi bi-chevron-right text-[10px] transition-transform duration-200"
-                :class="{ 'rotate-90': isOpen }"
-            />
+            <div>
 
-            <span class="ml-2 text-[11px] font-bold uppercase tracking-wider truncate">
-                {{ category.name }}
-            </span>
+                <i 
+                    class="bi bi-chevron-right inline-block text-[10px] transition-transform duration-200"
+                    :class="isOpen ? 'rotate-90' : 'rotate-0'"
+                />
 
-            <i 
-                class="
-                    bi bi-plus-lg ml-auto text-sm
-                    hover:text-(--primary) transition-colors
-                "
-            />
+                <span class="ml-2 text-[11px] font-bold uppercase tracking-wider truncate">
+                    {{ category.name }}
+                </span>
+
+            </div>
+
+            <div @click.stop>
+                <CreateNewThread 
+                    :categoryId="category.id"
+                    :index="threads.length + 1"
+                    key="'createNewSpace-' + category.id"
+                >
+                    <i
+                        class="
+                            bi bi-plus-lg ml-auto text-sm
+                            hover:text-(--primary) transition-colors
+                        "
+                    />
+                </CreateNewThread>
+            </div>
 
         </button>
 
@@ -66,10 +78,10 @@
 <script lang="ts" setup>
 
 import { ref } from 'vue';
-import type { Category } from '@/types/workSpace';
+import type { Category, Thread } from '@/types/types';
 import ThreadBtn from './ThreadBtn.vue';
 import { useRoute, useRouter } from 'vue-router';
-import type { Thread } from '@/types/workSpace';
+import CreateNewThread from '../common/CreateNewThread.vue';
 
 defineProps<{
     category: Category;
@@ -79,6 +91,11 @@ defineProps<{
 const route = useRoute();
 const router = useRouter();
 const isOpen = ref<boolean>(true);
+
+const toggleOpen = () => {
+    isOpen.value = !isOpen.value;
+};
+
 
 </script>
 
