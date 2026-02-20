@@ -11,6 +11,7 @@ import sfetch from '@/assets/utils/sfetch';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import DropDown from '@/components/DropDown.vue';
 import UpdateSpace from './UpdateSpace.vue';
+import CreateNewCategory from './CreateNewCategory.vue';
 
 
 const toast = useToast();
@@ -85,6 +86,15 @@ const handleDelete = async () => {
         </template>
 
         <template #content>
+
+            <CreateNewCategory
+                :index="currentWorkspace!.categories.length + 1"
+                :key="'createNewSpace-' + currentWorkspace?.id"
+            >
+                <button @click="" class="dropdown-item-annimate dropdown-item-style">
+                    <i class="bi bi-folder-plus mr-2" /> Créer une catégorie
+                </button>
+            </CreateNewCategory>
 
             <button @click="openUpdate" class="dropdown-item-annimate dropdown-item-style">
                 <i class="bi bi-pencil mr-2" /> Modifier

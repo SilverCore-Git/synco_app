@@ -22,6 +22,9 @@ onMounted(() => {
         return router.push({ name: 'OrgHome' });
     }
 
+    const thread = route.params.threadId;
+    if (thread) return;
+
     const textThreads = space.threads
         .filter(th => th.type === 'text')
         .sort((a, b) => {
@@ -43,11 +46,7 @@ onMounted(() => {
                 threadId: targetThread.id
             }
         });
-    } 
-    // else 
-    // {
-    //     router.replace({ name: 'OrgHome', params: { orgId: route.params.orgId } });
-    // }
+    }
 
 });
 

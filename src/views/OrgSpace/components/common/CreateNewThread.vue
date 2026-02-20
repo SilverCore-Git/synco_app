@@ -151,8 +151,9 @@ const handleSubmit = async () => {
             const thread: Thread = res;
             const space = openedOrg.value?.spaces?.find(s => s.id === route.params.spaceId);
             space?.threads?.push(thread);
-            toast.show('Salon créé avec succès.', 'success');
+            await nextTick();
             router.push({ name: 'SpaceView', params: { orgId: route.params.orgId, spaceId, threadId: res.id } });
+            toast.show('Salon créé avec succès.', 'success');
         }
 
         closeModal();
