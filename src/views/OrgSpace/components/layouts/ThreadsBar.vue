@@ -1,60 +1,72 @@
 <template>
 
-    <div
-        class="
-            h-full min-w-60 bg-(--bg) border-r border-(--text)/5
-            flex justify-start items-start flex-col relative
-        "
-    >
+    <ThreadBarDropDown>
 
-        <div class="p-3 flex justify-between items-center flex-row w-full">
+        <template #trigger>
 
-            <div class="flex justify-center items-center flex-row gap-3 ">
-                <img v-if="icon && icon.startsWith('http')" :src="icon" />
-                <i v-else-if="icon" class="bi" :class="icon" />
-                <h3 class="font-semibold">
-                    {{ title }}
-                </h3>
+            <div
+                class="
+                    h-full min-w-60 bg-(--bg) border-r border-(--text)/5
+                    flex justify-start items-start flex-col relative
+                "
+                @contextmenu.prevent="showDropDown = !showDropDown"
+            >
+
+                <div class="p-3 flex justify-between items-center flex-row w-full">
+
+                    <div class="flex justify-center items-center flex-row gap-3 ">
+                        <img v-if="icon && icon.startsWith('http')" :src="icon" />
+                        <i v-else-if="icon" class="bi" :class="icon" />
+                        <h3 class="font-semibold">
+                            {{ title }}
+                        </h3>
+                    </div>
+
+                    <ThreadsBarDropDown />
+                
+                </div>
+
+                <hr class=" w-full h-0.5 bg-(--text)/40 border-none rounded-full" />
+
+                <ul
+                    class="
+                        flex justify-start items-start flex-col mb-18
+                        gap-3 h-full w-full px-3 py-5 overflow-scroll
+                    "
+                >
+
+                    <Category 
+                        v-for="category in categories" 
+                        :key="'category-' + category.id" 
+                        :category="category"
+                        :threads="threads?.filter((th: Thread) => th.categoryId == category.id) || []"
+                    />
+
+                </ul>
+
             </div>
 
-            <ThreadsBarDropDown />
-        
-        </div>
+        </template>
 
-        <hr class=" w-full h-0.5 bg-(--text)/40 border-none rounded-full" />
-
-        <ul
-            class="
-                flex justify-start items-start flex-col mb-18
-                gap-3 h-full w-full px-3 py-5 overflow-scroll
-            "
-        >
-
-            <Category 
-                v-for="category in categories" 
-                :key="'category-' + category.id" 
-                :category="category"
-                :threads="threads?.filter((th: Thread) => th.categoryId == category.id) || []"
-            />
-
-        </ul>
-
-    </div>
+    </ThreadBarDropDown>
 
 </template>
 
 
 <script lang="ts" setup>
 
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import Category from '../CanalBar/Category.vue';
 import type { Thread, WorkSpace } from '@/types/types';
 import { openedOrg } from '@/assets/var';
-import ThreadsBarDropDown from '../common/ThreadsBarDropDown.vue';
+import ThreadsBarDropDown from '../dropdown/ThreadDropDown.vue';
+import ThreadBarDropDown from '../dropdown/ThreadBarDropDown.vue';
 
 
 const route = useRoute();
+
+const showDropDown = ref<boolean>(false);
 
 
 const title = computed(() => {

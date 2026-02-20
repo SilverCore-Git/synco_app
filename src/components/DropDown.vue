@@ -2,7 +2,12 @@
 
     <div class="relative inline-block text-left" ref="dropdownRef">
 
-        <div @click="toggleDropdown" class="cursor-pointer">
+        <div 
+            @click="click !== 'right' ? toggleDropdown($event) : console.log" 
+            @contextmenu.prevent="click == 'right' ? toggleDropdown($event) : console.log" 
+            :class="click !== 'right' ? 'cursor-pointer' : ''"
+            class="h-full"
+        >
             <slot name="trigger" />
         </div>
 
@@ -16,12 +21,16 @@
         >
 
             <div
-                v-if="isOpen"
+                v-if="isOpen || show"
                 class="
                     absolute z-50 mt-2 w-56 rounded-xl border border-(--text)/10
                     bg-(--bg2) shadow-xl ring-1 ring-white/5 focus:outline-none
                 "
-                :class="align === 'right' ? 'right-0' : 'left-0'"
+                :class="align === 'right' ? 'right-0' : align === 'left' ? 'left-0' : ''"
+                :style="align == 'mouse' ? {
+                    top: pos.y - 10 + 'px',
+                    left: pos.x - 70 + 'px'
+                } : {}"
             >
 
                 <div class="p-1.5 sdropdown">
@@ -38,18 +47,31 @@
 
 <script setup lang="ts">
 
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, reactive } from 'vue';
 
 const props = defineProps<{
-  align?: 'left' | 'right';
+  align?: 'left' | 'right' | 'mouse';
+  click?: 'right' | 'left';
+  show?: boolean;
 }>();
 
-const isOpen = ref(false);
+
 const dropdownRef = ref<HTMLElement | null>(null);
+const isOpen = ref<boolean>(false);
+const pos = reactive({ x: 0, y: 0 });
 
-const toggleDropdown = () => (isOpen.value = !isOpen.value);
+
+
+const toggleDropdown = (e?: MouseEvent) => {
+    isOpen.value = !isOpen.value
+    if (e && props.align === 'mouse') 
+    {
+        pos.x = e.clientX;
+        pos.y = e.clientY;
+    }
+};
+
 const closeDropdown = () => (isOpen.value = false);
-
 
 const handleClickOutside = (event: MouseEvent) => {
     if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) 

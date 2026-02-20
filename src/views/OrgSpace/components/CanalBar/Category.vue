@@ -81,7 +81,7 @@ import { ref } from 'vue';
 import type { Category, Thread } from '@/types/types';
 import ThreadBtn from './ThreadBtn.vue';
 import { useRoute, useRouter } from 'vue-router';
-import CreateNewThread from '../common/CreateNewThread.vue';
+import CreateNewThread from '../popup/CreateNewThread.vue';
 
 defineProps<{
     category: Category;

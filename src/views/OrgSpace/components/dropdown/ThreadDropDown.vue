@@ -10,8 +10,8 @@ import sfetch from '@/assets/utils/sfetch';
 
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import DropDown from '@/components/DropDown.vue';
-import UpdateSpace from './UpdateSpace.vue';
-import CreateNewCategory from './CreateNewCategory.vue';
+import CreateNewCategory from '../popup/CreateNewCategory.vue';
+import UpdateSpace from '../common/UpdateSpace.vue';
 
 
 const toast = useToast();
@@ -108,7 +108,7 @@ const handleDelete = async () => {
 
     </Dropdown>
 
-    <UpdateSpace 
+    <UpdateSpace
         :key="currentWorkspace?.id" 
         v-if="currentWorkspace"
         :isOpen="showUpdateSpace" 

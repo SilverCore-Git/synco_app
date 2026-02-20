@@ -31,7 +31,7 @@ onMounted(async() => {
     >
 
         <SpaceBar />
-        <ThreadsBar />
+        <ThreadsBar class="h-full" />
 
         <div class="h-full w-full ">
             <RouterView />

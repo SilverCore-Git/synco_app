@@ -2,7 +2,7 @@
 
 import SpaceBarBTN from '../common/SpaceBarBTN.vue';
 import { useRoute, useRouter } from 'vue-router';
-import CreateNewSpace from '../common/CreateNewSpace.vue';
+import CreateNewSpace from '../popup/CreateNewSpace.vue';
 import { openedOrg } from '@/assets/var';
 
 const router = useRouter();
