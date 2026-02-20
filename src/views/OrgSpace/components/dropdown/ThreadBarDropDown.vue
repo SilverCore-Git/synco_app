@@ -44,7 +44,7 @@ const currentWorkspace = computed(() => {
                 :key="'createNewSpace-' + currentWorkspace?.id"
             >
                 <button @click="" class="dropdown-item-annimate dropdown-item-style">
-                    <i class="bi bi-folder-plus mr-2" /> Créer un salon
+                    <i class="bi bi-plus-circle mr-2" /> Créer un salon
                 </button>
             </CreateNewThread>
 
