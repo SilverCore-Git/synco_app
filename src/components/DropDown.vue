@@ -1,12 +1,12 @@
 <template>
 
-    <div class="relative inline-block text-left" ref="dropdownRef">
+    <div class="relative inline-block text-left " ref="dropdownRef">
 
         <div 
             @click="click !== 'right' ? toggleDropdown($event) : console.log" 
             @contextmenu.prevent="click == 'right' ? toggleDropdown($event) : console.log" 
             :class="click !== 'right' ? 'cursor-pointer' : ''"
-            class="h-full"
+            class="h-full w-full"
         >
             <slot name="trigger" />
         </div>
