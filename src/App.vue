@@ -31,22 +31,26 @@ onMounted(async () => {
     </div>
       
     <div 
-      v-if="isLoaded && isClerkLoaded"
+      v-if="isClerkLoaded"
       class="w-full h-full"
     >
       
       <SignedIn>
-        <RouterView />
+
+        <div v-if="isLoaded" class="w-full h-full">
+          <RouterView />
+        </div>
+
+        <div v-else class="w-full h-full">
+          <Loader />
+        </div>
+
       </SignedIn>
 
       <SignedOut>
         <SignIn />
       </SignedOut>
 
-    </div>
-
-    <div v-else class="w-full h-full">
-      <Loader />
     </div>
 
   </div>
