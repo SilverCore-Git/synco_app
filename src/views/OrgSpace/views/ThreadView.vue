@@ -1,6 +1,6 @@
 <template>
 
-    <div class="flex flex-col h-full bg-(--bg) relative overflow-hidden">
+    <div class="flex flex-col h-full bg-(--bg) relative overflow-hidden w-full">
         
         <header 
             v-if="thread" 
@@ -28,10 +28,11 @@
 
         <main 
             ref="messagesContainer"
-            class="flex-1 overflow-y-auto p-4 custom-scrollbar bg-(--bg)"
+            @scroll="handleScroll"
+            class="flex-1 overflow-y-auto p-4 custom-scrollbar bg-(--bg) w-full"
         >
 
-            <div v-if="thread" class="flex flex-col justify-end min-h-full">
+            <div v-if="thread" class="flex flex-col justify-end min-h-full w-full">
                 
                 <div class="mb-8 p-4">
                     <div class="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4">
@@ -41,9 +42,34 @@
                     <p class="text-(--text)/50">C'est le début de l'histoire de ce salon chiffré.</p>
                 </div>
 
-                <div class="space-y-6">
+                <div class="space-y-6 w-full">
 
-                    <div 
+                    <div
+                        v-if="loading || isFetchingMore"
+                        v-for="index in 15" 
+                        :key="'loader-mdg-' + index" 
+                        class="
+                            group px-4 py-1 animate-pulse
+                            flex flex-raw justify-start items-start gap-3
+                            hover:bg-white/[0.02] rounded-lg transition-colors"
+                    >
+                        
+                        <div
+                            class="bg-white/5 rounded-full w-9 h-9"
+                        />
+
+                        <div class="space-y-2">
+
+                            <div class="flex items-baseline bg-white/5 w-16 h-2 rounded-full" />
+
+                            <p class="bg-white/5 w-100 h-4 rounded-full" />
+
+                        </div>
+
+                    </div>
+
+                    <div
+                        v-show="!loading"
                         v-for="msg in messages" 
                         :key="msg.id" 
                         class="
@@ -139,7 +165,6 @@ import { useRoute } from 'vue-router';
 import type { Thread, WorkSpace, Message } from '@/types/types';
 import { openedOrg } from '@/assets/var';
 import { io, Socket } from "socket.io-client";
-import sfetch from '@/assets/utils/sfetch';
 
 const route = useRoute();
 
@@ -152,8 +177,11 @@ interface sMessage extends Message {
 
 const socket = ref<Socket | null>(null);
 const messages = ref<sMessage[]>([]);
-const newMessage = ref("");
+const newMessage = ref<string>("");
 const messagesContainer = ref<HTMLElement | null>(null);
+const loading = ref<boolean>(true);
+const hasMore = ref<boolean>(true);
+const isFetchingMore = ref<boolean>(false);
 
 
 const thread = computed(() => {
@@ -164,15 +192,41 @@ const thread = computed(() => {
     
     const org = openedOrg.value;
     if (org && org.home) allThreads = [...allThreads, ...org.home.threads];
-    
+
     return allThreads.find((t: Thread) => t.id === route.params.threadId);
 
 });
 
-const getUser = async (userId: string) => {
-    const res = await sfetch(`/api/users/${userId}`).then(res => res.json());
-    return res;
-}
+const handleScroll = async (e: Event) => {
+
+    const container = e.target as HTMLElement;
+    
+    if (
+        container.scrollTop < 20
+        && !isFetchingMore.value 
+        && hasMore.value
+    ) 
+    {
+        loadMore();
+    }
+
+};
+
+const loadMore = () => {
+
+    console.log("load more");
+
+    if (messages.value.length === 0) return;
+    
+    //isFetchingMore.value = true;
+    const oldestMessageId = messages.value[0]?.id;
+
+    socket.value?.emit("load-more", { 
+        threadId: thread.value?.id, 
+        before: oldestMessageId 
+    });
+
+};
 
 
 const connectSocket = async () => {
@@ -189,12 +243,45 @@ const connectSocket = async () => {
         if (thread.value) joinThread(thread.value.id);
     });
 
-    socket.value.on("new-message", async (msg: Message) => {
-        const message = {
-            ...msg,
-            sender: await getUser(msg.senderId)
+    socket.value.on('thread-history', (history: Message[]) => {
+
+        history.forEach(msg => {
+            messages.value.push(msg);
+        });
+
+        loading.value = false;
+        scrollToBottom(true);
+
+    });
+
+    socket.value.on("more-messages", async (moreMessages: sMessage[]) => {
+
+        //if (moreMessages.length < 20) hasMore.value = false;
+        if (moreMessages.length === 0) 
+        {
+            isFetchingMore.value = false;
+            return;
         }
-        messages.value.push(message);
+
+        const container = messagesContainer.value;
+        const previousHeight = container?.scrollHeight || 0;
+
+        messages.value = [...moreMessages, ...messages.value];
+
+        await nextTick();
+
+        if (container) 
+        {
+            const newHeight = container.scrollHeight;
+            container.scrollTop = newHeight - previousHeight;
+        }
+
+        isFetchingMore.value = false;
+
+    });
+
+    socket.value.on("new-message", async (msg: Message) => {
+        messages.value.push(msg);
         scrollToBottom();
     });
 
@@ -229,22 +316,28 @@ const sendMessage = () => {
 };
 
 
-const scrollToBottom = async () => {
+const scrollToBottom = async (noSmoth: boolean = false) => {
     await nextTick();
     if (messagesContainer.value) {
         messagesContainer.value.scrollTo({
             top: messagesContainer.value.scrollHeight,
-            behavior: 'smooth'
+            behavior: noSmoth ? 'auto' : 'smooth'
         });
     }
 };
 
 
 watch(() => route.params.threadId, (newId) => {
-    if (newId) joinThread(newId as string);
+    if (newId) 
+    {
+        loading.value = true;
+        scrollToBottom(true);
+        joinThread(newId as string);
+    }
 });
 
 onMounted(() => {
+    scrollToBottom(true);
     connectSocket();
 });
 
