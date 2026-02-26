@@ -20,10 +20,12 @@ const router = useRouter();
 const isModalOpen = ref<boolean>(false);
 const isDeleting = ref<boolean>(false);
 const showUpdateSpace = ref<boolean>(false);
+const isHome = computed(()=> route.name == 'OrgHome' || route.name == 'OrgThreadHome');
 
 
 const currentWorkspace = computed(() => {
-    return openedOrg.value?.spaces?.find((space: WorkSpace) => space.id == route.params.spaceId && space.orgId == route.params.orgId);
+    if (isHome.value) return { categories: openedOrg.value?.home.categories, threads: openedOrg.value?.home.threads, id: 'home', name: 'Accueil', logo: 'bi-house', orgId: route.params.orgId } as WorkSpace;
+    else return openedOrg.value?.spaces?.find((space: WorkSpace) => space.id == route.params.spaceId && space.orgId == route.params.orgId);
 });
 
 const openConfirmModal = () => {
@@ -88,7 +90,7 @@ const handleDelete = async () => {
         <template #content>
 
             <CreateNewCategory
-                :index="currentWorkspace!.categories.length + 1"
+                :index="currentWorkspace?.categories.length || 0 + 1"
                 :key="'createNewSpace-' + currentWorkspace?.id"
             >
                 <button @click="" class="dropdown-item-annimate dropdown-item-style">

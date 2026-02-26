@@ -64,7 +64,7 @@
 
 <script setup lang="ts">
 
-import { ref, reactive, nextTick, watch } from 'vue';
+import { ref, reactive, nextTick, watch, computed } from 'vue';
 import Popup from '@/components/Popup.vue';
 import { useRoute } from 'vue-router';
 import { openedOrg } from '@/assets/var';
@@ -77,6 +77,7 @@ const isOpen = ref<boolean>(false);
 const loading = ref<boolean>(false);
 const nameInput = ref<HTMLInputElement | null>(null);
 const toast = useToast();
+const isHome = computed(()=> route.name == 'OrgHome' || route.name == 'OrgThreadHome');
 
 const props = defineProps<{
   index: number;
@@ -108,7 +109,7 @@ const handleSubmit = async () => {
 
     const spaceId = route.params.spaceId as string;
     
-    const res = await sfetch(`/api/categories/space/${spaceId}`, {
+    const res = await sfetch(`/api/categories/${isHome.value ? 'org' : 'spaces'}/${isHome.value ? route.params.orgId : spaceId}`, {
       method: 'POST',
       body: JSON.stringify({
         ...form,
@@ -123,10 +124,21 @@ const handleSubmit = async () => {
     }
     else
     {
-      const category: Category = res;
-      const space = openedOrg.value?.spaces?.find(s => s.id === route.params.spaceId);
-      space?.categories?.push(category);
+
+      if (isHome.value)
+      {
+        const category: Category = res;
+        openedOrg.value?.home?.categories?.push(category);
+      }
+      else
+      {
+        const category: Category = res;
+        const space = openedOrg.value?.spaces?.find(s => s.id === route.params.spaceId);
+        space?.categories?.push(category);
+      }
+
       toast.show('Catégorie créé avec succès.', 'success');
+
     }
 
     closeModal();

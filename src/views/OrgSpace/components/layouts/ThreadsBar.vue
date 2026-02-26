@@ -22,7 +22,7 @@
                         </h3>
                     </div>
 
-                    <ThreadsBarDropDown />
+                    <ThreadDropDown />
                 
                 </div>
 
@@ -60,7 +60,7 @@ import { useRoute } from 'vue-router';
 import Category from '../CanalBar/Category.vue';
 import type { Thread, WorkSpace } from '@/types/types';
 import { openedOrg } from '@/assets/var';
-import ThreadsBarDropDown from '../dropdown/ThreadDropDown.vue';
+import ThreadDropDown from '../dropdown/ThreadDropDown.vue';
 import ThreadBarDropDown from '../dropdown/ThreadBarDropDown.vue';
 
 
@@ -94,7 +94,7 @@ const icon = computed(() => {
 const threads = computed(() => {
     if (route.name == 'OrgHome' || route.name == 'OrgThreadHome')
     {
-        return openedOrg.value?.home.threads || [];
+        return openedOrg.value?.home?.threads || [];
     }
     else if (route.name == 'OrgChat') return []
     else if (route.name == 'SpaceView' || route.name == 'SpaceThreadView')
@@ -109,7 +109,7 @@ const threads = computed(() => {
 const categories = computed(() => {
     if (route.name == 'OrgHome' || route.name == 'OrgThreadHome')
     {
-        return openedOrg.value?.home.categories || [];
+        return openedOrg.value?.home?.categories || [];
     }
     else if (route.name == 'OrgChat') return []
     else if (route.name == 'SpaceView' || route.name == 'SpaceThreadView')

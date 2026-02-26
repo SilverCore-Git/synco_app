@@ -88,7 +88,7 @@
 
 <script setup lang="ts">
 
-import { ref, reactive, nextTick, watch } from 'vue';
+import { ref, reactive, nextTick, watch, computed } from 'vue';
 import Popup from '@/components/Popup.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { openedOrg } from '@/assets/var';
@@ -102,6 +102,8 @@ const isOpen = ref<boolean>(false);
 const loading = ref<boolean>(false);
 const nameInput = ref<HTMLInputElement | null>(null);
 const toast = useToast();
+const isHome = computed(()=> route.name == 'OrgHome' || route.name == 'OrgThreadHome');
+
 
 const props = defineProps<{
     categoryId: string;
@@ -136,7 +138,7 @@ const handleSubmit = async () => {
 
         const spaceId = route.params.spaceId as string;
         
-        const res = await sfetch(`/api/threads/space/${spaceId}`, {
+        const res = await sfetch(`/api/threads/${isHome.value ? 'org' : 'spaces'}/${isHome.value ? route.params.orgId : spaceId}`, {
             method: 'POST',
             body: JSON.stringify({ ...form, index: props.index, categoryId: props.categoryId })
         }).then(res => res.json());
@@ -148,12 +150,24 @@ const handleSubmit = async () => {
         }
         else
         {
-            const thread: Thread = res;
-            const space = openedOrg.value?.spaces?.find(s => s.id === route.params.spaceId);
-            space?.threads?.push(thread);
-            await nextTick();
-            router.push({ name: 'SpaceView', params: { orgId: route.params.orgId, spaceId, threadId: res.id } });
+            if (isHome.value)
+            {
+                const thread: Thread = res;
+                openedOrg.value?.home?.threads?.push(thread);
+                await nextTick();
+                router.push({ name: 'OrgThreadHome', params: { orgId: route.params.orgId, threadId: res.id } });
+            }
+            else
+            {
+                const thread: Thread = res;
+                const space = openedOrg.value?.spaces?.find(s => s.id === route.params.spaceId);
+                space?.threads?.push(thread);
+                await nextTick();
+                router.push({ name: 'SpaceView', params: { orgId: route.params.orgId, spaceId, threadId: res.id } });
+            }
+
             toast.show('Salon créé avec succès.', 'success');
+
         }
 
         closeModal();

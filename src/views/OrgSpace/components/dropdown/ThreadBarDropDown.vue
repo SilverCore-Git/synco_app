@@ -11,10 +11,12 @@ import CreateNewThread from '../popup/CreateNewThread.vue';
 
 
 const route = useRoute();
+const isHome = computed(()=> route.name == 'OrgHome' || route.name == 'OrgThreadHome');
 
 
 const currentWorkspace = computed(() => {
-    return openedOrg.value?.spaces?.find((space: WorkSpace) => space.id == route.params.spaceId && space.orgId == route.params.orgId);
+    if (isHome.value) return { categories: openedOrg.value?.home.categories, threads: openedOrg.value?.home.threads, id: 'home', name: 'Accueil', logo: 'bi-house', orgId: route.params.orgId } as WorkSpace;
+    else return openedOrg.value?.spaces?.find((space: WorkSpace) => space.id == route.params.spaceId && space.orgId == route.params.orgId);
 });
 
 </script>
