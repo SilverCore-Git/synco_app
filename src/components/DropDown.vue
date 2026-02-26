@@ -26,7 +26,10 @@
                     absolute z-50 mt-2 w-56 rounded-xl border border-(--text)/10
                     bg-(--bg2) shadow-xl ring-1 ring-white/5 focus:outline-none
                 "
-                :class="align === 'right' ? 'right-0' : align === 'left' ? 'left-0' : ''"
+                :class="[
+                    align === 'right' ? 'right-0' : align === 'left' ? 'left-0' : '',
+                    props.contentInerTW || '' 
+                ]"
                 :style="align == 'mouse' ? {
                     top: pos.y - 10 + 'px',
                     left: pos.x - 70 + 'px'
@@ -53,6 +56,7 @@ const props = defineProps<{
   align?: 'left' | 'right' | 'mouse';
   click?: 'right' | 'left';
   show?: boolean;
+  contentInerTW?: string;
 }>();
 
 
