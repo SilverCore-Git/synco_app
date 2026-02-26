@@ -40,11 +40,11 @@ export interface Org {
 }
 
 export interface OrgLittle {
-  id: string,
-  name: string,
-  logo: string,
-  role: string,
-  memberCount: string,
+  id: string;
+  name: string;
+  logo: string;
+  role: string;
+  memberCount: string;
 }
 
 export interface WorkSpace {
@@ -72,6 +72,8 @@ export interface User {
   email: string;
   name?: string;
   publicKey?: string;
+  avatarUrl?: string;
+  data?: any; // { status: 'online' | 'dnd  | 'idle' | 'offline' }
   organizations?: string[];
   createdAt: string | Date;
   updatedAt: string | Date;
