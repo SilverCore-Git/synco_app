@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-import { onMounted } from 'vue';
+import { onMounted, onUnmounted } from 'vue';
 import ThreadsBar from './components/layouts/ThreadsBar.vue';
 import SpaceBar from './components/layouts/spaceBar.vue';
 import UserCard from './components/layouts/UserCard.vue';
@@ -17,12 +17,16 @@ onMounted(async() => {
    openedOrg.value = await sfetch(`/api/orgs/${props.orgId}`).then(res => res.json()); 
 });
 
+onUnmounted(() => {
+    openedOrg.value = null;
+});
+
 </script>
 
 <template>
 
     <div
-        v-if="openedOrg"
+        v-if="openedOrg !== null"
         class="
             h-full w-full 
             flex flex-row 
