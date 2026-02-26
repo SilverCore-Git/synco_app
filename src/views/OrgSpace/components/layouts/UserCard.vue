@@ -1,8 +1,16 @@
 <script setup lang="ts">
 
-import { UserButton, useUser } from '@clerk/vue';
+import getColorByStatus from '@/assets/utils/getColorByStatus';
+import sfetch from '@/assets/utils/sfetch';
+import type { User } from '@/types/types';
+import { onMounted, ref } from 'vue';
+import UserDropDown from '../dropdown/UserDropDown.vue';
 
-const { user } = useUser();
+const user = ref<User | undefined>(undefined);
+
+onMounted(async () => {
+    user.value = await sfetch('/api/users/me').then(res => res.json());
+})
 
 </script>
 
@@ -13,45 +21,69 @@ const { user } = useUser();
             absolute bottom-0 left-0 
             w-77 h-14 bg-(--bg2) 
             border-t border-(--primary)/5 
-            px-2 flex items-center
+            p-1 flex items-center
         "
     >
-        <div
-            class="
-                flex items-center 
-                w-full gap-2 p-1
-                rounded-lg hover:bg-(--primary)/5 
-                transition-colors group cursor-pointer
-            "
-        >
 
-            <div class="relative flex items-center justify-center">
-                <UserButton after-sign-out-url="/" />
-                <div class="absolute bottom-0 right-0 w-3 h-3 bg-(--primary) border-2 border-(--bg2) rounded-full" />
-            </div>
+        <UserDropDown :user="user" class="w-full">
 
-            <div class="flex flex-col min-w-0 flex-1 leading-tight">
-                <span class="text-sm font-semibold text-(--text) truncate">
-                    {{ user?.username || user?.firstName }}
-                </span>
-                <span class="text-[11px] text-(--text)/50 truncate font-medium">
-                    #{{ user?.id.slice(-4) || '0001' }}
-                </span>
-            </div>
+            <template #trigger>
 
-            <div class="flex items-center gap-0.5">
-                <button class="p-1.5 rounded-md hover:bg-(--primary)/10 active:scale-90 text-(--text)/70 hover:text-(--text) transition-all">
-                    <i class="bi bi-mic-fill text-sm" />
-                </button>
-                <button class="p-1.5 rounded-md hover:bg-(--primary)/10 active:scale-90 text-(--text)/70 hover:text-(--text) transition-all">
-                    <i class="bi bi-headphones text-sm" />
-                </button>
-                <button class="p-1.5 rounded-md hover:bg-(--primary)/10 active:scale-90 text-(--text)/70 hover:text-(--text) transition-all">
-                    <i class="bi bi-gear-fill text-sm hover:rotate-45 transition-all" />
-                </button>
-            </div>
+                <div
+                    class="
+                        flex items-center 
+                        w-full gap-2 p-2
+                        rounded-lg hover:bg-(--primary)/5 
+                        transition-colors group
+                    "
+                >
 
-        </div>
+                    <div class="relative flex items-center justify-center">
+                                
+                        <img 
+                            :src="user?.avatarUrl"
+                            :alt="user?.name"
+                            class="w-8 h-8 rounded-full"
+                        />
+                        <div 
+                            v-if="user"
+                            class="
+                                absolute -bottom-0.5 -right-0.5 
+                                w-3 h-3 border-2 border-(--bg) 
+                                rounded-full z-10
+                            " 
+                            :class="getColorByStatus(user.data?.status || 'offline')"
+                        />
+                    </div>
+
+        
+
+                    <div class="flex flex-col min-w-0 flex-1 leading-tight select-none">
+                        <span class="text-sm font-bold text-(--text) truncate">
+                            {{ user?.name || 'Chargement...' }}
+                        </span>
+                        <span class="text-[10px] text-(--text)/40 truncate font-medium uppercase tracking-wider">
+                            {{ user?.data.username }}
+                        </span>
+                    </div>
+
+                    <div class="flex items-center">
+                        <button @click.stop="" title="Couper le micro" class="p-1.5 rounded-md hover:bg-(--primary)/10 active:scale-90 text-(--text)/40 hover:text-(--text) transition-all">
+                            <i class="bi bi-mic-fill text-sm" />
+                        </button>
+                        <button @click.stop="" title="Couper le son" class="p-1.5 rounded-md hover:bg-(--primary)/10 active:scale-90 text-(--text)/40 hover:text-(--text) transition-all">
+                            <i class="bi bi-headphones text-sm" />
+                        </button>
+                        <button @click.stop="" title="Paramètres" class="p-1.5 rounded-md hover:bg-(--primary)/10 active:scale-90 text-(--text)/40 hover:text-(--text) transition-all group/settings">
+                            <i class="bi bi-gear-fill text-sm group-hover/settings:rotate-45 transition-transform duration-300" />
+                        </button>
+                    </div>
+
+                </div>
+
+            </template>
+
+        </UserDropDown>
 
     </div>
 
@@ -60,12 +92,13 @@ const { user } = useUser();
 <style scoped>
 
 :deep(.cl-userButtonTrigger) {
-  @apply focus:shadow-none focus:outline-none;
+    @apply focus:shadow-none focus:outline-none outline-none ring-0;
 }
 
 :deep(.cl-avatarBox) {
-  width: 32px;
-  height: 32px;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
 }
 
 </style>
