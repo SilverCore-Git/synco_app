@@ -7,6 +7,7 @@ import SpaceView from './views/OrgSpace/views/SpaceView.vue';
 import OrgHome from './views/OrgSpace/views/OrgHome.vue';
 import OrgChat from './views/OrgSpace/views/OrgChat.vue';
 import ThreadView from './views/OrgSpace/views/ThreadView.vue';
+import ChatView from './views/OrgSpace/views/ChatView.vue';
 
 
 const routes = [
@@ -49,6 +50,13 @@ const routes = [
         name: 'OrgChat',
         props: true,
         component: OrgChat,
+        meta: { title: 'SilverTeams' }
+      },
+      {
+        path: 'chat/:userId',
+        name: 'OrgThreadChat',
+        props: true,
+        component: ChatView,
         meta: { title: 'SilverTeams' }
       },
       {
