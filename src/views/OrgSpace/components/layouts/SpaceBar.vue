@@ -43,7 +43,7 @@ const route = useRoute();
                 icon="bi-chat-dots"
                 label="Messages privées"
                 iconFillOnActive
-                :active="route.name === 'OrgChat'"
+                :active="route.name === 'OrgChat' || route.name === 'OrgThreadChat'"
                 @click="router.push(`/${openedOrg.id}/chat`)"
             />
             
