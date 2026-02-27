@@ -23,14 +23,17 @@ onMounted(async () => {
 
     <div
         class="
-            absolute bottom-0 left-0 
-            w-77 h-14 bg-(--bg2) 
-            border-t border-(--primary)/5 
+            absolute bottom-1 left-1
+            w-75 h-14 bg-(--bg2) rounded-xl
+            border border-white/5
             p-1 flex items-center
         "
     >
 
-        <UserDropDown :user="user" class="w-full">
+        <UserDropDown
+            :user="user" 
+            class="w-full"
+        >
 
             <template #trigger>
 

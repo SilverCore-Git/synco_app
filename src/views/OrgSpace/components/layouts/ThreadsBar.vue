@@ -9,7 +9,12 @@
             "
         >
 
-            <div class="p-3 flex justify-between items-center flex-row w-full">
+            <div 
+                class="
+                    p-3 flex justify-between items-center
+                    flex-row w-full border-b border-white/5
+                "
+            >
 
                 <div class="flex justify-center items-center flex-row gap-3 ">
                     <img v-if="icon && icon.startsWith('http')" :src="icon" />
@@ -20,8 +25,6 @@
                 </div>
                     
             </div>
-
-            <hr class=" w-full h-0.5 bg-(--text)/40 border-none rounded-full" />
 
             <ul
                 class="
@@ -58,7 +61,12 @@
                     @contextmenu.prevent="showDropDown = !showDropDown"
                 >
 
-                    <div class="p-3 flex justify-between items-center flex-row w-full">
+                    <div 
+                        class="
+                            min-h-14 px-3 flex justify-between items-center
+                            flex-row w-full border-b border-white/5
+                        "
+                    >
 
                         <div class="flex justify-center items-center flex-row gap-3 ">
                             <img v-if="icon && icon.startsWith('http')" :src="icon" />
@@ -71,8 +79,6 @@
                         <ThreadDropDown />
                     
                     </div>
-
-                    <hr class=" w-full h-0.5 bg-(--text)/40 border-none rounded-full" />
 
                     <ul
                         class="

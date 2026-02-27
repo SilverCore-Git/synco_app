@@ -2,8 +2,9 @@
 
 :root {
 
-  --primary: #1DD796;
-  --primary-hover: #16ac77;
+  --primary: #16ac77; 
+  /* #1ED760 ?? */
+  --primary-hover: #128a60;
 
   --bg: #121214;
   --bg2: #121214;

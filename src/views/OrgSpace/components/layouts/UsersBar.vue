@@ -2,12 +2,12 @@
 
     <div
         class="
-            h-full min-w-60 bg-(--bg2) border-l border-(--primary)/5
+            h-full min-w-60 bg-(--bg2) border-l border-white/5
             flex flex-col overflow-hidden
         "
     >
 
-        <div class="px-4 py-3 border-b border-white/5">
+        <div class="px-4 min-h-14 flex justify-start items-center border-b border-white/5">
             <h3 class="text-xs font-semibold text-(--text)/50 uppercase tracking-wider">
                 Membres ({{ openedOrg?.members?.length || 0 }})
             </h3>

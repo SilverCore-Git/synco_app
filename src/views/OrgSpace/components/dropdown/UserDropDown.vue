@@ -39,7 +39,13 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
 
 <template>
     
-    <DropDown align="left" content-iner-t-w="absolute! -top-74! left-2! z-100 sdropdown">
+    <DropDown 
+        align="left" 
+        content-iner-t-w="
+            absolute! -top-70! z-100 sdropdown min-w-72.5 shadow-none!
+            ring-transparent! border-b-transparent! rounded-b-none! 
+        "
+    >
         
         <template #trigger>
             <slot name="trigger" />

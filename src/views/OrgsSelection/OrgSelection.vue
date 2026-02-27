@@ -12,7 +12,7 @@ import OrgBtn from './components/OrgBtn.vue';
         
         <header class="text-center mb-20 space-y-4">
             <h1 class="uppercase text-4xl md:text-5xl font-bold tracking-tight">
-                SÉLECTIONNEZ VOTRE <span class="text-[#1ED760]">organisation</span>
+                SÉLECTIONNEZ VOTRE <span class="text-(--primary)">organisation</span>
             </h1>
         </header>
 

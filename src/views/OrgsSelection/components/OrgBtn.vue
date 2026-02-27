@@ -12,8 +12,8 @@
                 relative w-40 h-40 md:w-60 md:h-60
                 overflow-hidden border-4 border-transparent 
                 transition-all duration-300 transform bg-(--bg)
-                rounded-4xl
-                group-hover:scale-105 group-hover:border-(--primary) shadow-2xl
+                rounded-4xl group-active:scale-90 shadow-2xl
+                group-hover:scale-105 group-hover:border-(--primary) 
             "
         >
 
