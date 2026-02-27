@@ -4,6 +4,7 @@ import type { User } from '@/types/types';
 import DropDown from '@/components/DropDown.vue';
 import useWSocket from '@/composables/useWSocket';
 import { openedOrg } from '@/assets/var';
+import { SignOutButton } from '@clerk/vue';
 
 const props = defineProps<{
     user: User | undefined;
@@ -38,7 +39,7 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
 
 <template>
     
-    <DropDown align="left" content-iner-t-w="absolute! -top-90! left-2! z-100 sdropdown">
+    <DropDown align="left" content-iner-t-w="absolute! -top-74! left-2! z-100 sdropdown">
         
         <template #trigger>
             <slot name="trigger" />
@@ -78,20 +79,11 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
             <div class="h-px bg-white/5 my-1" />
 
             <div class="p-1">
-                <button class="w-full flex items-center px-2 py-1.5 text-xs font-medium rounded-md transition-colors text-(--text)/70 hover:text-(--text) active:scale-95 duration-150">
-                    <i class="bi bi-person-badge mr-2 opacity-50" /> Modifier le profil
-                </button>
-                <button class="w-full flex items-center px-2 py-1.5 text-xs font-medium rounded-md transition-colors text-(--text)/70 hover:text-(--text) active:scale-95 duration-150">
-                    <i class="bi bi-shield-lock mr-2 opacity-50" /> Confidentialité
-                </button>
-            </div>
-
-            <div class="h-px bg-white/5 my-1" />
-
-            <div class="p-1">
-                <button @click="" class="w-full flex items-center px-2 py-1.5 text-xs font-medium rounded-md transition-colors text-(--text)/70 hover:text-(--text) active:scale-95 duration-150 text-red-400 hover:bg-red-500/10">
-                    <i class="bi bi-box-arrow-right mr-2" /> Déconnexion
-                </button>
+                <SignOutButton>
+                    <button class="text-red-500! hover:bg-red-500/5! dropdown-item-style dropdown-item-annimate">
+                        <i class="bi bi-box-arrow-right mr-2" /> Déconnexion
+                    </button>
+                </SignOutButton>
             </div>
 
         </template>
