@@ -34,6 +34,7 @@
                     v-for="member in openedOrg?.members"
                     :key="member.id"
                     :user="member"
+                    @click="router.push({ name: 'OrgThreadChat', params: { userId: member.id } })"
                 />
 
             </ul>
@@ -103,7 +104,7 @@
 <script lang="ts" setup>
 
 import { computed, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import Category from '../CanalBar/Category.vue';
 import type { Thread, WorkSpace } from '@/types/types';
 import { openedOrg } from '@/assets/var';
@@ -113,7 +114,8 @@ import ChatUserBtn from '../CanalBar/ChatUserBtn.vue';
 
 
 const route = useRoute();
-const isChat = computed(() => route.name == 'OrgChat');
+const router = useRouter();
+const isChat = computed(() => route.name == 'OrgChat' || route.name == 'OrgThreadChat');
 const isHome = computed(()=> route.name == 'OrgHome' || route.name == 'OrgThreadHome');
 const showDropDown = ref<boolean>(false);
 
