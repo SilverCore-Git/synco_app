@@ -2,7 +2,8 @@
 
 import type { User } from '@/types/types';
 import DropDown from '@/components/DropDown.vue';
-import sfetch from '@/assets/utils/sfetch';
+import useWSocket from '@/composables/useWSocket';
+import { openedOrg } from '@/assets/var';
 
 const props = defineProps<{
     user: User | undefined;
@@ -16,15 +17,14 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
     
     try {
 
-        const res = await sfetch('/api/users/status', {
-            method: 'PATCH',
-            body: JSON.stringify({ status })
-        });
-        
-        if (res.ok) 
-        {
-            emit('update:status', status);
-        }
+        const socket = await useWSocket();
+
+        socket.value?.emit('update-status', { orgId: openedOrg.value?.id, status });
+
+        const me = openedOrg.value?.members?.find(member => member.user?.clerkId == props.user?.clerkId);
+        if (me && me.user) me.user.data.status = status;
+
+        emit('update:status', status);
 
     } 
     catch (err) 

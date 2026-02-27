@@ -160,12 +160,14 @@
 
 <script lang="ts" setup>
 
-import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { computed, ref, onMounted, onUnmounted, watch, nextTick, type Ref } from 'vue';
 import { useRoute } from 'vue-router';
 import type { Thread, WorkSpace, Message } from '@/types/types';
 import { openedOrg } from '@/assets/var';
-import { io, Socket } from "socket.io-client";
+import useWSocket from '@/composables/useWSocket';
+import type { Socket } from 'socket.io-client';
 
+let socket: Ref<Socket | null> = ref<null>(null);
 const route = useRoute();
 
 interface sMessage extends Message {
@@ -175,7 +177,7 @@ interface sMessage extends Message {
     };
 }
 
-const socket = ref<Socket | null>(null);
+
 const messages = ref<sMessage[]>([]);
 const newMessage = ref<string>("");
 const messagesContainer = ref<HTMLElement | null>(null);
@@ -229,21 +231,18 @@ const loadMore = () => {
 };
 
 
-const connectSocket = async () => {
-    
-    const token = await window.Clerk.session?.getToken();
-    
-    socket.value = io("http://localhost:3434", {
-        path: "/socket/space",
-        auth: { token }
-    });
+const initListener = async () => {
+     
+    socket.value?.off("thread-history");
+    socket.value?.off("more-messages");
+    socket.value?.off("new-message");
 
-    socket.value.on("connect", () => {
+    socket.value?.on("connect", () => {
         console.log("[Socket] Connecté au serveur");
         if (thread.value) joinThread(thread.value.id);
     });
 
-    socket.value.on('thread-history', (history: Message[]) => {
+    socket.value?.on('thread-history', (history: Message[]) => {
 
         history.forEach(msg => {
             messages.value.push(msg);
@@ -254,7 +253,7 @@ const connectSocket = async () => {
 
     });
 
-    socket.value.on("more-messages", async (moreMessages: sMessage[]) => {
+    socket.value?.on("more-messages", async (moreMessages: sMessage[]) => {
 
         //if (moreMessages.length < 20) hasMore.value = false;
         if (moreMessages.length === 0) 
@@ -280,19 +279,19 @@ const connectSocket = async () => {
 
     });
 
-    socket.value.on("new-message", async (msg: Message) => {
+    socket.value?.on("new-message", async (msg: Message) => {
         messages.value.push(msg);
         scrollToBottom();
     });
 
-    socket.value.on("error", (err: string) => {
+    socket.value?.on("error", (err: string) => {
         console.error("[Socket] Erreur:", err);
     });
     
 };
 
 const joinThread = (id: string) => {
-    messages.value = []; // Reset l'interface
+    messages.value = []; 
     socket.value?.emit("join-thread", { 
         threadId: id, 
         spaceId: route.params.spaceId 
@@ -336,9 +335,10 @@ watch(() => route.params.threadId, (newId) => {
     }
 });
 
-onMounted(() => {
+onMounted(async () => {
+    socket = await useWSocket();
     scrollToBottom(true);
-    connectSocket();
+    initListener();
 });
 
 onUnmounted(() => {

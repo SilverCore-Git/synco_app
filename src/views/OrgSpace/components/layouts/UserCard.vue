@@ -1,15 +1,20 @@
 <script setup lang="ts">
 
 import getColorByStatus from '@/assets/utils/getColorByStatus';
-import sfetch from '@/assets/utils/sfetch';
 import type { User } from '@/types/types';
 import { onMounted, ref } from 'vue';
 import UserDropDown from '../dropdown/UserDropDown.vue';
+import { openedOrg } from '@/assets/var';
+import { useUser } from '@clerk/vue';
 
 const user = ref<User | undefined>(undefined);
+const { user: ClerkUser } = useUser();
+
 
 onMounted(async () => {
-    user.value = await sfetch('/api/users/me').then(res => res.json());
+    // user.value = await sfetch('/api/users/me').then(res => res.json());
+    user.value = openedOrg.value?.members?.find(member => member.user?.clerkId == ClerkUser.value?.id)?.user;
+
 })
 
 </script>
@@ -46,13 +51,13 @@ onMounted(async () => {
                             class="w-8 h-8 rounded-full"
                         />
                         <div 
-                            v-if="user"
+                            v-if="user && user.data.status"
                             class="
                                 absolute -bottom-0.5 -right-0.5 
                                 w-3 h-3 border-2 border-(--bg) 
                                 rounded-full z-10
                             " 
-                            :class="getColorByStatus(user.data?.status || 'offline')"
+                            :class="getColorByStatus(user.data.status)"
                         />
                     </div>
 
