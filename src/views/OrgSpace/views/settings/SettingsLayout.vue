@@ -25,14 +25,22 @@
 
 <script lang="ts" setup>
 
-import { computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { settingsViews } from './settings';
 
 const route = useRoute();
+const router = useRouter();
 
 const setting = computed(() => {
     return settingsViews.find(view => view.route == route.name);
 })
+
+onMounted(() => {
+    const firstSetting = settingsViews[0];
+    if (!firstSetting) return;
+    router.push({ name: firstSetting.route });
+});
+
 
 </script>
