@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-import { onMounted, onUnmounted } from 'vue';
+import { onBeforeUnmount, onMounted } from 'vue';
 import ThreadsBar from './components/layouts/ThreadsBar.vue';
 import SpaceBar from './components/layouts/spaceBar.vue';
 import UserCard from './components/layouts/UserCard.vue';
@@ -28,23 +28,25 @@ const initSocketListener = async () => {
     if (me && me.user) me.user.data.status = 'online';
     
 
-    socket.value?.on('user-status-changed', ({ userId, status }: { userId: string; status: string; }) => {
-
-        const user = openedOrg.value?.members?.find(member => member.id === userId);
-        if (user && user.user) user.user.data.status = status;
-
-    })
+    socket.value?.on('user-status-changed', ({ status, userId }: { status: string, userId: string }) => {
+        console.log(status, userId);
+        const member = openedOrg.value?.members?.find(m => m.userId === userId);            
+        if (member?.user?.data) member.user.data.status = status;
+    });
 
 }
 
-onMounted(async() => {
+onMounted(async () => {
    openedOrg.value = await sfetch(`/api/orgs/${props.orgId}`).then(res => res.json()); 
    await initSocketListener();
 });
 
-onUnmounted(() => {
-    openedOrg.value = null;
-});
+onBeforeUnmount(async () => {
+    const socket = await useWSocket();
+    socket.value?.off('user-status-changed');
+    socket.value?.disconnect();
+    socket.value = null;
+})
 
 </script>
 

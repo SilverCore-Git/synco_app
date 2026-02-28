@@ -1,4 +1,3 @@
-import { openedOrg } from "@/assets/var";
 import { io, type Socket } from "socket.io-client";
 import { ref, type Ref } from "vue";
 
@@ -44,11 +43,6 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
         socket.value.on("connect_error", (err) => {
             console.error("[WS] Connection Error:", err.message);
             isConnecting.value = false;
-        });
-
-        socket.value.on('user-status-changed', ({ status, userId }: { status: string, userId: string }) => {
-            const member = openedOrg.value?.members?.find(m => m.userId === userId);            
-            if (member?.user?.data) member.user.data.status = status;
         });
 
     } 
