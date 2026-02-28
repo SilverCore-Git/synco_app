@@ -42,7 +42,7 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
     <DropDown 
         align="left" 
         content-iner-t-w="
-            absolute! -top-70! z-100 sdropdown min-w-72.5 shadow-none!
+            absolute! -top-74! z-100 sdropdown min-w-72.5 shadow-none!
             ring-transparent! border-b-transparent! rounded-b-none! 
         "
     >
@@ -56,6 +56,7 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
             <div class="px-3 py-2 border-b border-white/5 mb-1">
                 <p class="text-[10px] uppercase tracking-widest text-(--text)/30 font-bold">Profil</p>
                 <p class="text-sm font-bold text-(--text) truncate">{{ user?.name }}</p>
+                <p class="text-xs text-(--text)/70 truncate">id : {{ user?.id }}</p>
             </div>
 
             <div class="p-1">

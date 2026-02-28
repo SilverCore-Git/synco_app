@@ -4,24 +4,10 @@ import SpaceBarBTN from '../common/SpaceBarBTN.vue';
 import { useRoute, useRouter } from 'vue-router';
 import CreateNewSpace from '../popup/CreateNewSpace.vue';
 import { openedOrg } from '@/assets/var';
-import { computed } from 'vue';
-import { useUser } from '@clerk/vue';
+import isAdmin from '@/assets/isAdmin';
 
 const router = useRouter();
 const route = useRoute();
-const { user: ClerkUser } = useUser();
-
-const canSettings = computed(() => {
-
-    const user = openedOrg.value?.members?.find(user => user.user?.clerkId == ClerkUser.value?.id);
-
-    return (
-        user?.userId === openedOrg.value?.ownerId
-        || user?.role === 'ADMIN'
-        || user?.role === 'OWNER'
-    )
-
-})
 
 </script>
 
@@ -45,7 +31,7 @@ const canSettings = computed(() => {
             />
 
             <SpaceBarBTN
-                v-if="canSettings"
+                v-if="isAdmin"
                 icon="bi-gear"
                 label="Paramètres"
                 :active="route.name?.toString().startsWith('OrgSettings')"

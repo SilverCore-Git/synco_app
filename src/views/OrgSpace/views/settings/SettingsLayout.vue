@@ -1,6 +1,6 @@
 <template>
 
-    <div class="flex flex-col h-full bg-(--bg) relative overflow-hidden w-full">
+    <div v-if="isAdmin" class="flex flex-col h-full bg-(--bg) relative overflow-hidden w-full">
         
         <header 
             class="min-h-14 flex items-center px-4 border-b border-white/5 bg-(--bg)/80 backdrop-blur-md z-10"
@@ -28,6 +28,7 @@
 import { computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { settingsViews } from './settings';
+import isAdmin from '@/assets/isAdmin';
 
 const route = useRoute();
 const router = useRouter();
@@ -37,9 +38,13 @@ const setting = computed(() => {
 })
 
 onMounted(() => {
+
+    if (!isAdmin) return router.push({ name: 'OrgHome' });
+
     const firstSetting = settingsViews[0];
     if (!firstSetting) return;
     router.push({ name: firstSetting.route });
+
 });
 
 

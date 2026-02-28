@@ -104,58 +104,6 @@
 
                 <hr class="border-white/5" />
 
-                <section class="space-y-6">
-
-                    <div class="flex flex-col gap-1">
-                        <h3 class="text-lg font-bold ">
-                            Sécurité & Accès
-                        </h3>
-                        <p class="text-sm text-(--text)/40">
-                            Gérez le chiffrement et les invitations.
-                        </p>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                        <div class="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 transition-all">
-
-                            <div class="flex items-center gap-3 mb-3">
-
-                                <div class="p-2 rounded-lg bg-yellow-500/10 text-yellow-500">
-                                    <i class="bi bi-shield-lock-fill" />
-                                </div>
-
-                                <span class="font-bold text-sm ">Chiffrement AES-256</span>
-
-                            </div>
-
-                            <p class="text-xs text-(--text)/40 leading-relaxed">
-                                Lorem ipsum dolor sit amet, consectetur adipisicing elit. 
-                            </p>
-                        
-                        </div>
-
-                        <div class="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 transition-all">
-
-                            <div class="flex items-center gap-3 mb-3">
-                                <div class="p-2 rounded-lg bg-(--primary)/10 text-(--primary)">
-                                    <i class="bi bi-person-plus-fill" />
-                                </div>
-                                <span class="font-bold text-sm ">Lien d'invitation</span>
-                            </div>
-
-                            <button @click="copyInvite" class="default-primary w-full!">
-                                Copier le lien d'accès
-                            </button>
-
-                        </div>
-
-                    </div>
-
-                </section>
-
-                <hr class="border-white/5" />
-
                 <section class="p-6 rounded-3xl bg-red-500/5 border border-red-500/10 space-y-4">
 
                     <div class="flex items-center gap-3 text-red-500">
@@ -267,12 +215,6 @@ const saveSettings = async () => {
 
 };
 
-const copyInvite = () => {
-    // create logic for moderate copy link
-    const link = `https://silverteams.app/invite/${openedOrg.value?.id}`;
-    navigator.clipboard.writeText(link);
-    toast.show('Lien copié dans le presse-papier.', 'success');
-};
 
 watch(() => openedOrg.value, (newOrg) => {
     if (newOrg)

@@ -2,13 +2,21 @@
 
 import { organizations } from '@/assets/var';
 import OrgBtn from './components/OrgBtn.vue';
+import { onMounted, ref } from 'vue';
+import type { User } from '@/types/types';
+import sfetch from '@/assets/utils/sfetch';
 
+const me = ref<User | undefined>(undefined);
+
+onMounted(async () => {
+    me.value = await sfetch('/api/users/me').then(res => res.json());
+})
 
 </script>
 
 <template>
 
-    <div class="min-h-screen bg-(--bg2) flex flex-col items-center justify-center p-8 font-sans">
+    <div v-if="organizations.length" class="min-h-screen bg-(--bg2) flex flex-col items-center justify-center p-8 font-sans">
         
         <header class="text-center mb-20 space-y-4">
             <h1 class="uppercase text-4xl md:text-5xl font-bold tracking-tight">
@@ -23,6 +31,24 @@ import OrgBtn from './components/OrgBtn.vue';
                 :key="org.id"
                 :org="org"
             />
+
+        </div>
+
+    </div>
+
+    <div v-else class="min-h-screen bg-(--bg2) flex flex-col items-center justify-center p-8 font-sans ">
+        
+        <header class="text-center mb-20 space-y-4 max-w-4xl">
+            <h1 class="uppercase text-xl md:text-5xl font-bold tracking-tight">
+                Partager votre identifiant pour rejoindre une <span class="text-(--primary)">organisation</span>
+            </h1>
+        </header>
+
+        <div class="flex flex-wrap justify-center gap-10 md:gap-16 max-w-4xl">
+
+            <h2 class="text-lg">
+                Identifiant : <span class="text-(--primary)">{{ me?.id }}</span>
+            </h2>
 
         </div>
 

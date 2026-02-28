@@ -9,8 +9,8 @@ import OrgChat from './views/OrgSpace/views/OrgChat.vue';
 import ThreadView from './views/OrgSpace/views/ThreadView.vue';
 import ChatView from './views/OrgSpace/views/ChatView.vue';
 import GeneralSettings from './views/OrgSpace/views/settings/views/GeneralSettings.vue';
-import SecuritySettings from './views/OrgSpace/views/settings/views/SecuritySettings.vue';
 import SettingsLayout from './views/OrgSpace/views/settings/SettingsLayout.vue';
+import MembersSettings from './views/OrgSpace/views/settings/views/MembersSettings.vue';
 
 
 const routes = [
@@ -56,10 +56,10 @@ const routes = [
             meta: { title: 'SilverTeams' }
           },
           {
-            path: 'security',
-            name: 'OrgSettingsSecurity',
+            path: 'members',
+            name: 'OrgSettingsMembers',
             props: true,
-            component: SecuritySettings,
+            component: MembersSettings,
             meta: { title: 'SilverTeams' }
           }
         ]

@@ -1,6 +1,6 @@
 <template>
 
-    <div v-if="isSettings" class="h-full">
+    <div v-if="isSettings && isAdmin" class="h-full">
 
         <div
             class="
@@ -174,6 +174,7 @@ import ThreadBarDropDown from '../dropdown/ThreadBarDropDown.vue';
 import ChatUserBtn from '../CanalBar/ChatUserBtn.vue';
 import SettingsViewBtn from '../CanalBar/SettingsViewBtn.vue';
 import { settingsViews } from '../../views/settings/settings';
+import isAdmin from '@/assets/isAdmin';
 
 
 const route = useRoute();

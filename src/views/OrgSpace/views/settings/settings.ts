@@ -8,13 +8,13 @@ interface settingsView {
 const settingsViews: settingsView[] = [
     {
         name: 'Paramètres généraux',
-        icon: 'bi-gear',
+        icon: 'bi-gear-fill',
         route: 'OrgSettingsGeneral'
     },
     {
-        name: 'Sécurité',
-        icon: 'bi-shield-fill',
-        route: 'OrgSettingsSecurity'
+        name: 'Gestion des Membres',
+        icon: 'bi-people-fill',
+        route: 'OrgSettingsMembers'
     }
 ]
 

@@ -9,11 +9,18 @@ class Init
 
     public async run()
     {
-        await Promise.all([
-            this.InitUser(),
-            this.initOrg()
-        ])
-        isLoaded.value = true;
+        try {
+            await Promise.all([
+                this.InitUser(),
+                this.initOrg()
+            ]);
+        }
+        catch (e) {
+            console.log(e);
+        }
+        finally {
+            isLoaded.value = true;
+        }
     }
 
     private async InitUser()
