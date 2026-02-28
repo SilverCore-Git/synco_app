@@ -1,18 +1,18 @@
 <script setup lang="ts">
 
 import getColorByStatus from '@/assets/utils/getColorByStatus';
-import type { User } from '@/types/types';
+import type { OrgMember } from '@/types/types';
 import { onMounted, ref } from 'vue';
 import UserDropDown from '../dropdown/UserDropDown.vue';
 import { openedOrg } from '@/assets/var';
 import { useUser } from '@clerk/vue';
 
-const user = ref<User | undefined>(undefined);
+const user = ref<OrgMember | undefined>(undefined);
 const { user: ClerkUser } = useUser();
 
 
 onMounted(async () => {
-    user.value = openedOrg.value?.members?.find(member => member.user?.clerkId == ClerkUser.value?.id)?.user;
+    user.value = openedOrg.value?.members?.find(member => member.user?.clerkId == ClerkUser.value?.id);
 })
 
 </script>
@@ -29,7 +29,7 @@ onMounted(async () => {
     >
 
         <UserDropDown
-            :user="user" 
+            :user="user?.user" 
             class="w-full"
         >
 
@@ -47,18 +47,18 @@ onMounted(async () => {
                     <div class="relative flex items-center justify-center">
                                 
                         <img 
-                            :src="user?.avatarUrl"
-                            :alt="user?.name"
+                            :src="user?.user?.avatarUrl"
+                            :alt="user?.user?.name"
                             class="w-8 h-8 rounded-full"
                         />
                         <div 
-                            v-if="user && user.data.status"
+                            v-if="user && user.user?.data.status"
                             class="
                                 absolute -bottom-0.5 -right-0.5 
                                 w-3 h-3 border-2 border-(--bg) 
                                 rounded-full z-10
                             " 
-                            :class="getColorByStatus(user.data.status)"
+                            :class="getColorByStatus(user.user.data.status)"
                         />
                     </div>
 
@@ -66,10 +66,10 @@ onMounted(async () => {
 
                     <div class="flex flex-col min-w-0 flex-1 leading-tight select-none">
                         <span class="text-sm font-bold text-(--text) truncate">
-                            {{ user?.name || 'Chargement...' }}
+                            {{ user?.user?.name || 'Chargement...' }}
                         </span>
                         <span class="text-[10px] text-(--text)/40 truncate font-medium uppercase tracking-wider">
-                            {{ user?.data.username }}
+                            {{ user?.user?.data?.username || user?.role }}
                         </span>
                     </div>
 
