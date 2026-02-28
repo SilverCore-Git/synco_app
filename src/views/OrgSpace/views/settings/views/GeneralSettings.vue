@@ -1,6 +1,6 @@
 <template>
 
-    <div class="flex flex-col h-full bg-(--bg) w-full overflow-hidden">
+    <div class="flex flex-col bg-(--bg) w-full overflow-hidden h-full">
         
         <main class="flex-1 overflow-y-auto p-6 lg:p-10">
 
@@ -13,13 +13,14 @@
                         <p class="text-sm text-(--text)/40">Mettez à jour les informations publiques de votre espace.</p>
                     </div>
 
-                    <div class="flex flex-col md:flex-row gap-8 items-start">
+                    <div class="flex flex-col md:flex-row gap-8 items-center">
 
                         <div class="relative group cursor-pointer">
 
                             <div 
+                                @click="showIconSelector = !showIconSelector"
                                 class="
-                                    w-32 h-32 rounded-3xl bg-white/5 border-2 border-dashed 
+                                    w-35 h-35 rounded-3xl bg-white/5 border-2 border-dashed 
                                     border-white/10 flex flex-col items-center justify-center 
                                     group-hover:border-(--primary)/50 transition-all overflow-hidden
                                 "
@@ -45,6 +46,13 @@
                                 </template>
 
                             </div>
+
+                            <div class="fixed inset-0 cursor-auto" @click="showIconSelector = false" v-if="showIconSelector" />
+                            <Transition name="pop">
+                                <div class="absolute" v-if="showIconSelector">
+                                    <IconSelector v-model:model-value="orgData.logo" />
+                                </div>
+                            </Transition>
 
                         </div>
 
@@ -168,20 +176,22 @@
             </div>
         </main>
 
-        <footer 
-            v-if="hasChanges" 
-            class="p-4 bg-(--bg2)/80 backdrop-blur-xl border-t border-white/5 flex justify-end gap-3"
-        >
+        <Transition name="fade-bottom">
+            <footer 
+                v-if="hasChanges" 
+                class="p-4 bg-(--bg2)/80 backdrop-blur-xl border-t border-white/5 flex justify-end gap-3"
+            >
 
-            <button @click="resetChanges" class="default">
-                Annuler
-            </button>
-            
-            <button @click="saveSettings" class="primary">
-                Enregistrer les modifications
-            </button>
+                <button @click="resetChanges" class="default">
+                    Annuler
+                </button>
+                
+                <button @click="saveSettings" class="primary" :class="saving ? 'loader' : ''">
+                    Enregistrer les modifications
+                </button>
 
-        </footer>
+            </footer>
+        </Transition>
 
     </div>
 
@@ -191,14 +201,27 @@
 
 import { ref, computed, watch } from 'vue';
 import { openedOrg } from '@/assets/var';
+import { useToast } from '@/composables/useToast';
+import IconSelector from '@/components/common/IconSelector.vue';
+import sfetch from '@/assets/utils/sfetch';
 
+
+const toast = useToast();
+
+const showIconSelector = ref<boolean>(false);
+const saving = ref<boolean>(false);
+
+    
 const orgData = ref({
     name: openedOrg.value?.name || '',
     logo: openedOrg.value?.logo || ''
 });
 
 const hasChanges = computed(() => {
-    return orgData.value.name !== openedOrg.value?.name;
+    return (
+        orgData.value.name !== openedOrg.value?.name
+        || orgData.value.logo !== openedOrg.value?.logo
+    )
 });
 
 const resetChanges = () => {
@@ -206,14 +229,49 @@ const resetChanges = () => {
 };
 
 const saveSettings = async () => {
-    // save data
-    console.log("Saving...", orgData.value);
+
+    if (!hasChanges.value) return;
+
+    saving.value = true;
+
+    try {
+
+        const res = await sfetch(`/api/orgs/${openedOrg.value?.id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({
+                name: orgData.value.name,
+                logo: orgData.value.logo
+            })
+        }).then(res => res.json())
+
+        if (res.error)
+        {
+            toast.show(res.error, 'error');
+        }
+        else
+        {
+            toast.show('Modifications sauvegardées avec succès.', 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+
+    }
+    catch (err) {
+        console.log(err);
+        toast.show('Une erreur est survenue lors de la sauvegarde des modifications.', 'error');
+    }
+    finally {
+        saving.value = false;
+    }
+
 };
 
 const copyInvite = () => {
     // create logic for moderate copy link
     const link = `https://silverteams.app/invite/${openedOrg.value?.id}`;
     navigator.clipboard.writeText(link);
+    toast.show('Lien copié dans le presse-papier.', 'success');
 };
 
 watch(() => openedOrg.value, (newOrg) => {
