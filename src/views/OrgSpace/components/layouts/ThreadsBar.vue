@@ -11,7 +11,7 @@
 
             <div 
                 class="
-                    min-h-14 px-3 flex justify-between items-center
+                    min-h-14 pl-5 px-3 flex justify-between items-center
                     flex-row w-full border-b border-white/5
                 "
             >
@@ -66,7 +66,7 @@
 
             <div 
                 class="
-                    min-h-14 px-3 flex justify-between items-center
+                    min-h-14 pl-5 px-3 flex justify-between items-center
                     flex-row w-full border-b border-white/5
                 "
             >
@@ -118,7 +118,7 @@
 
                     <div 
                         class="
-                            min-h-14 px-3 flex justify-between items-center
+                            min-h-14 pl-5 px-3 flex justify-between items-center
                             flex-row w-full border-b border-white/5
                         "
                     >

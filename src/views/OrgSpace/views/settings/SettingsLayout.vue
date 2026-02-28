@@ -3,7 +3,7 @@
     <div class="flex flex-col h-full bg-(--bg) relative overflow-hidden w-full">
         
         <header 
-            class="h-14 flex items-center px-4 border-b border-white/5 bg-(--bg)/80 backdrop-blur-md z-10"
+            class="min-h-14 flex items-center px-4 border-b border-white/5 bg-(--bg)/80 backdrop-blur-md z-10"
         >
 
             <div class="flex items-center gap-2">
@@ -15,7 +15,7 @@
 
         </header>
 
-        <main>
+        <main class="h-full w-full overflow-auto">
             <RouterView />
         </main>
 
