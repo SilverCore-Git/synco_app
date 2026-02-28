@@ -8,6 +8,9 @@ import OrgHome from './views/OrgSpace/views/OrgHome.vue';
 import OrgChat from './views/OrgSpace/views/OrgChat.vue';
 import ThreadView from './views/OrgSpace/views/ThreadView.vue';
 import ChatView from './views/OrgSpace/views/ChatView.vue';
+import GeneralSettings from './views/OrgSpace/views/settings/views/GeneralSettings.vue';
+import SecuritySettings from './views/OrgSpace/views/settings/views/SecuritySettings.vue';
+import SettingsLayout from './views/OrgSpace/views/settings/SettingsLayout.vue';
 
 
 const routes = [
@@ -37,6 +40,29 @@ const routes = [
         props: true,
         component: OrgHome,
         meta: { title: 'SilverTeams' }
+      },
+      {
+        path: 'settings',
+        name: 'OrgSettings',
+        props: true,
+        component: SettingsLayout,
+        meta: { title: 'SilverTeams' },
+        children: [
+          {
+            path: 'general',
+            name: 'OrgSettingsGeneral',
+            props: true,
+            component: GeneralSettings,
+            meta: { title: 'SilverTeams' }
+          },
+          {
+            path: 'security',
+            name: 'OrgSettingsSecurity',
+            props: true,
+            component: SecuritySettings,
+            meta: { title: 'SilverTeams' }
+          }
+        ]
       },
       {
         path: 'home/:threadId',
