@@ -77,32 +77,3 @@ onMounted(() => window.addEventListener('keydown', handleEsc));
 onUnmounted(() => window.removeEventListener('keydown', handleEsc));
 
 </script>
-
-<style scoped>
-
-.fade-enter-active, .fade-leave-active { 
-  transition: opacity 0.3s ease; 
-}
-.fade-enter-from, .fade-leave-to { 
-  opacity: 0; 
-}
-
-.pop-enter-active {
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
-}
-
-.pop-leave-active {
-  transition: transform 0.2s ease-in, opacity 0.2s ease;
-}
-
-.pop-enter-from, .pop-leave-to { 
-  transform: scale(0.85);
-  opacity: 0; 
-}
-
-.pop-enter-to, .pop-leave-from {
-  transform: scale(1);
-  opacity: 1;
-}
-
-</style>
