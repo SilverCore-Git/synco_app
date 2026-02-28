@@ -70,7 +70,7 @@
 
                     <div
                         v-show="!loading"
-                        v-for="msg in messages" 
+                        v-for="msg in sortedMessages" 
                         :key="msg.id" 
                         class="
                             group px-4 py-1
@@ -179,6 +179,13 @@ interface sMessage extends Message {
 
 
 const messages = ref<sMessage[]>([]);
+const sortedMessages = computed(() => {
+    return messages.value.sort((a, b) => {
+        const dateA = new Date(a.createdAt);
+        const dateB = new Date(b.createdAt);
+        return dateA.getTime() - dateB.getTime();
+    });
+})
 const newMessage = ref<string>("");
 const messagesContainer = ref<HTMLElement | null>(null);
 const loading = ref<boolean>(true);

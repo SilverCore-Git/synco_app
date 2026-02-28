@@ -12,9 +12,7 @@ const { user: ClerkUser } = useUser();
 
 
 onMounted(async () => {
-    // user.value = await sfetch('/api/users/me').then(res => res.json());
     user.value = openedOrg.value?.members?.find(member => member.user?.clerkId == ClerkUser.value?.id)?.user;
-
 })
 
 </script>

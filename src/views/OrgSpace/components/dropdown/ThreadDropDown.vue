@@ -98,11 +98,11 @@ const handleDelete = async () => {
                 </button>
             </CreateNewCategory>
 
-            <button @click="openUpdate" class="dropdown-item-annimate dropdown-item-style">
+            <button v-if="!isHome" @click="openUpdate" class="dropdown-item-annimate dropdown-item-style">
                 <i class="bi bi-pencil mr-2" /> Modifier
             </button>
 
-            <button @click="openConfirmModal" class=" dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!" >
+            <button v-if="!isHome" @click="openConfirmModal" class=" dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!" >
                 <i class="bi bi-trash mr-2" /> Supprimer
             </button>
 
