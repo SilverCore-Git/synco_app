@@ -15,7 +15,7 @@
 
         <div class="flex-1 overflow-y-auto p-2 space-y-1 ">
 
-            <p class=" py-1 text-xs text-(--text)/60">
+            <p v-if="members.filter(member => member.user?.data.status !== 'offline').length > 0" class=" py-1 text-xs text-(--text)/60">
                 En ligne {{ members.filter(member => member.user?.data.status !== 'offline').length }}
             </p>
             
@@ -54,7 +54,7 @@
 
             </router-link>
 
-            <p class=" py-1 text-xs text-(--text)/60">
+            <p v-if="members.filter(member => member.user?.data.status === 'offline').length > 0" class=" py-1 text-xs text-(--text)/60">
                 Hors ligne {{ members.filter(member => member.user?.data.status === 'offline').length }}
             </p>
 

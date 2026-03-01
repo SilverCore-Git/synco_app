@@ -5,7 +5,7 @@ import ThreadsBar from './components/layouts/ThreadsBar.vue';
 import SpaceBar from './components/layouts/spaceBar.vue';
 import UserCard from './components/layouts/UserCard.vue';
 import UsersBar from './components/layouts/UsersBar.vue';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, organizations } from '@/assets/var';
 import Loader from '@/components/Loader.vue';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
@@ -29,9 +29,26 @@ const initSocketListener = async () => {
     
 
     socket.value?.on('user-status-changed', ({ status, userId }: { status: string, userId: string }) => {
-        console.log(status, userId);
         const member = openedOrg.value?.members?.find(m => m.userId === userId);            
         if (member?.user?.data) member.user.data.status = status;
+    });
+
+    socket.value?.on('org-data-updated', ({ orgId, data }: { orgId: string, data: { logo: string, name: string } }) => {
+
+        if (orgId !== props.orgId) return;
+
+        if (!openedOrg.value) return;
+        openedOrg.value.logo = data.logo;
+        openedOrg.value.name = data.name;
+
+        const curentOrg = organizations.value.find(org => org.id === openedOrg.value?.id);
+
+        if (curentOrg)
+        {
+            curentOrg.logo = data.logo;
+            curentOrg.name = data.name;
+        }
+
     });
 
 }

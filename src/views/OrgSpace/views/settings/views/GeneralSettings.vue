@@ -148,10 +148,11 @@
 <script lang="ts" setup>
 
 import { ref, computed, watch } from 'vue';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, organizations } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import IconSelector from '@/components/common/IconSelector.vue';
 import sfetch from '@/assets/utils/sfetch';
+import useWSocket from '@/composables/useWSocket';
 
 
 const toast = useToast();
@@ -182,6 +183,8 @@ const saveSettings = async () => {
 
     saving.value = true;
 
+    const socket = await useWSocket();
+
     try {
 
         const res = await sfetch(`/api/orgs/${openedOrg.value?.id}`, {
@@ -198,10 +201,30 @@ const saveSettings = async () => {
         }
         else
         {
+
+            if (!openedOrg.value) return toast.show('Organisation non trouvée.', 'error');
+
+            openedOrg.value.name = orgData.value.name;
+            openedOrg.value.logo = orgData.value.logo;
+
+            const curentOrg = organizations.value.find(org => org.id === openedOrg.value?.id);
+
+            if (curentOrg)
+            {
+                curentOrg.name = orgData.value.name;
+                curentOrg.logo = orgData.value.logo;
+            }
+
+            socket.value?.emit('update-org-data', { 
+                orgId: openedOrg.value.id, 
+                data: {
+                    name: orgData.value.name,
+                    logo: orgData.value.logo
+                } 
+            });
+
             toast.show('Modifications sauvegardées avec succès.', 'success');
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+
         }
 
     }
