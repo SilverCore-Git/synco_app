@@ -2,7 +2,7 @@
 
 import { SignedIn, SignedOut, useUser } from '@clerk/vue';
 import SignIn from './views/auth/SignIn.vue';
-import Loader from './components/Loader.vue';
+import Loader from './components/LogoLoader.vue';
 import { onMounted } from 'vue';
 import waitFor from './assets/utils/waitfor';
 import init from './assets/init';

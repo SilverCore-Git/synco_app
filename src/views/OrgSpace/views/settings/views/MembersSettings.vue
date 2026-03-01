@@ -31,11 +31,11 @@
                                 {{ inviteLink }}
                             </div>
                             <button 
-                                @click="copyInvite" 
+                                @click="inviteLink.length == 0 ? createInviteLink() : copyInvite()" 
                                 class="primary gap-2"
                             >
-                                <i class="bi" :class="copied ? 'bi-check-lg' : 'bi-copy'" />
-                                {{ copied ? 'Copié !' : 'Copier' }}
+                                <i class="bi" :class="inviteLink.length == 0 ? 'bi-plus-lg' : copied ? 'bi-check-lg' : 'bi-copy'" />
+                                {{ inviteLink.length == 0 ? 'Créer un lien d\'invitation' : copied ? 'Copié !' : 'Copier' }}
                             </button>
                         </div>
 
@@ -189,6 +189,113 @@
 
                 </section>
 
+                <section class="space-y-6">
+
+                    <div class="flex items-center justify-between">
+                    
+                        <h3 class="text-lg font-bold ">
+                            Liste des membres 
+                            <span class="text-(--text)/30 font-medium ml-2 text-sm">
+                                {{ openedOrg?.members?.length }}
+                            </span>
+                        </h3>
+                    
+                        <div class="relative">
+                            <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text)/30 text-xs" />
+                            <input 
+                                v-model="searchQuery"
+                                type="text" 
+                                placeholder="Rechercher un membre..."
+                                class="bg-white/5 border border-white/10 rounded-lg pl-9 pr-4 py-2 text-xs focus:outline-none focus:border-(--primary)/50 w-64"
+                            />
+                        </div>
+
+                    </div>
+
+                    <div class="rounded-2xl border border-white/5 overflow-hidden bg-white/1">
+
+                        <table class="w-full text-left border-collapse">
+
+                            <thead>
+
+                                <tr class="text-[10px] uppercase tracking-widest text-(--text)/40 border-b border-white/5">
+
+                                    <th class="px-6 py-4 font-bold">Utilisateur</th>
+                                    <th class="px-6 py-4 font-bold">Rôle</th>
+                                    <th class="px-6 py-4 font-bold">Arrivée</th>
+                                    <th class="px-6 py-4 font-bold text-right">Actions</th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody class="divide-y divide-white/5">
+
+                                <tr 
+                                    v-for="member in filteredMembers" 
+                                    :key="member.id" 
+                                    class="group hover:bg-white/2 transition-colors relative"
+                                >
+
+                                    <td class="px-6 py-4">
+
+                                        <div class="flex items-center gap-3">
+
+                                            <img 
+                                                :src="member.user?.avatarUrl" 
+                                                class="w-8 h-8 rounded-full border border-white/10" 
+                                                :class="isSelf(member.user?.clerkId!) ? 'ring-2 ring-(--primary)' : ''"
+                                            />
+
+                                            <div class="flex flex-col">
+                                                <span class="text-sm font-bold ">{{ member.user?.name }}</span>
+                                                <span class="text-[10px] text-(--text)/30">{{ member.user?.email }}</span>
+                                            </div>
+
+                                        </div>
+
+                                    </td>
+
+                                    <td class="px-6 py-4">
+
+                                        <select 
+                                            :value="member.role"
+                                            @change="updateRole(member.id, $event)"
+                                            :disabled="isSelf(member.user?.clerkId!) || !isAdmin"
+                                            class="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-(--text) focus:outline-none disabled:opacity-50"
+                                        >
+                                            <option value="ADMIN">Admin</option>
+                                            <option value="MEMBER">Membre</option>
+                                            <option value="GUEST">Invité</option>
+                                        </select>
+
+                                    </td>
+
+                                    <td class="px-6 py-4 text-xs text-(--text)/40">
+                                        {{ new Date(member.createdAt).toLocaleDateString() }}
+                                    </td>
+
+                                    <td class="px-6 py-4 text-right">
+                                        <button 
+                                            v-if="!isSelf(member.user?.clerkId!) && isAdmin"
+                                            @click="removeMember(member.id)"
+                                            class="p-2 text-red-500/40 hover:text-red-500 transition-colors"
+                                            title="Exclure le membre"
+                                        >
+                                            <i class="bi bi-person-x-fill text-lg" />
+                                        </button>
+                                    </td>
+
+                                </tr>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </section>
+
             </div>
 
         </main>
@@ -199,7 +306,7 @@
 
 <script lang="ts" setup>
 
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { openedOrg } from '@/assets/var';
 import isAdmin from '@/assets/isAdmin';
 import { useToast } from '@/composables/useToast';
@@ -211,9 +318,9 @@ const searchQuery = ref<string>('');
 const inviteId = ref<string>('');
 const copied = ref<boolean>(false);
 const invited = ref<boolean>(false);
+const inviteLinks = ref<any[]>([]);
+const inviteLink = ref<string>('');
 
-
-const inviteLink = computed(() => `https://silverteams.app/join/${openedOrg.value?.id}`);
 
 const filteredMembers = computed(() => {
     if (!openedOrg.value?.members) return [];
@@ -285,4 +392,28 @@ const removeMember = (memberId: string) => {
         // Émettre un event Socket ici: socket.emit('remove-member', { memberId })
     }
 };
+
+
+const createInviteLink = async () => {
+    
+    const invite = await sfetch('/api/orgs/users/inviteLink/create', {
+        method: 'POST',
+        body: JSON.stringify({ 
+            organizationId: openedOrg.value?.id,
+            maxUses: 1, 
+            expiresInHours: 24
+        })
+    }).then(res => res.json())
+
+    inviteLink.value = `${window.location.origin}/invite/${invite.code}`
+
+}
+
+
+onMounted(async () => {
+
+    inviteLinks.value = await sfetch(`/api/orgs/users/inviteLink/${openedOrg.value?.id}`).then(res => res.json()) || [];
+
+})
+
 </script>

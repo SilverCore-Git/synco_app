@@ -11,6 +11,7 @@ import ChatView from './views/OrgSpace/views/ChatView.vue';
 import GeneralSettings from './views/OrgSpace/views/settings/views/GeneralSettings.vue';
 import SettingsLayout from './views/OrgSpace/views/settings/SettingsLayout.vue';
 import MembersSettings from './views/OrgSpace/views/settings/views/MembersSettings.vue';
+import InviteView from './views/inviteView.vue';
 
 
 const routes = [
@@ -19,6 +20,14 @@ const routes = [
     path: '/',
     name: 'OrgSelection',
     component: OrgSelection,
+    meta: { title: 'SilverTeams' }
+  },
+
+  {
+    path: '/invite/:code',
+    name: 'InviteView',
+    component: InviteView,
+    props: true,
     meta: { title: 'SilverTeams' }
   },
 

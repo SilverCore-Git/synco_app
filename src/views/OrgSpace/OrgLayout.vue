@@ -6,7 +6,7 @@ import SpaceBar from './components/layouts/spaceBar.vue';
 import UserCard from './components/layouts/UserCard.vue';
 import UsersBar from './components/layouts/UsersBar.vue';
 import { openedOrg, organizations } from '@/assets/var';
-import Loader from '@/components/Loader.vue';
+import Loader from '@/components/LogoLoader.vue';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import { useUser } from '@clerk/vue';
