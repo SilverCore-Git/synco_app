@@ -116,22 +116,24 @@
 
         <footer v-if="thread" class="p-4 bg-transparent">
 
-            <div class="relative flex items-center bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus-within:border-(--primary)/50 transition-all shadow-2xl">
+            <div 
+                class="
+                    relative flex items-center 
+                    bg-white/5 border border-white/10 
+                    rounded-xl px-4 py-3 
+                    focus-within:border-(--primary)/50 
+                    transition-all shadow-2xl
+                "
+            >
                 
                 <button class="mr-3 text-(--text)/40 hover:text-(--primary) transition-colors">
                     <i class="bi bi-plus-circle-fill text-xl" />
                 </button>
                 
-                <textarea 
-                    v-model="newMessage" 
-                    type="text" 
-                    :placeholder="'Envoyer un message dans #' + thread.name"
-                    class="
-                        bg-transparent border-none outline-none 
-                        resize-none flex-1 text-sm text-(--text) 
-                        placeholder:text-(--text)/20 h-full
-                    "
-                    @keyup.enter="sendMessage"
+                <ThreadTextarea
+                    v-model="newMessage"
+                    @send="sendMessage"
+                    :placeholder="'Envoyer un message...'"
                 />
 
                 <div class="flex gap-3 ml-3 text-(--text)/40">
@@ -166,6 +168,7 @@ import type { Thread, WorkSpace, Message } from '@/types/types';
 import { openedOrg } from '@/assets/var';
 import useWSocket from '@/composables/useWSocket';
 import type { Socket } from 'socket.io-client';
+import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 
 let socket: Ref<Socket | null> = ref<null>(null);
 const route = useRoute();
