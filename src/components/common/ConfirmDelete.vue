@@ -26,7 +26,7 @@
 
                     <button 
                         @click="emit('cancel')"
-                        class="px-4 py-2 rounded-xl font-medium text-(--text)/60 hover:bg-(--text)/5 transition-colors cursor-pointer"
+                        class="default"
                     >
                         Annuler
                     </button>
@@ -34,7 +34,7 @@
                     <button 
                         @click="emit('confirm')"
                         :disabled="loading"
-                        class="px-5 py-2 rounded-xl font-bold bg-red-500 hover:bg-red-600 text-white transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer active:scale-95"
+                        class="danger"
                     >
                         <span v-if="loading" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
                         Supprimer définitivement

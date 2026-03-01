@@ -187,7 +187,7 @@ button.second {
 }
 
 button.danger {
-  @apply px-6 py-3 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-(--text) rounded-xl text-xs font-black transition-all uppercase tracking-widest;
+  @apply active:scale-90 px-6 py-3 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-(--text) rounded-xl text-xs font-black transition-all uppercase tracking-widest;
 }
 
 button:hover.primary {
