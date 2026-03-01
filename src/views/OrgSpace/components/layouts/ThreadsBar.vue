@@ -92,6 +92,7 @@
                     v-for="member in openedOrg?.members"
                     :key="member.id"
                     :user="member"
+                    :active="route.params.userId == member.id"
                     @click="router.push({ name: 'OrgThreadChat', params: { userId: member.id } })"
                 />
 
