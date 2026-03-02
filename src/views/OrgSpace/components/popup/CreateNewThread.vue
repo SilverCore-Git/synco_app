@@ -138,7 +138,7 @@ const handleSubmit = async () => {
 
         const spaceId = route.params.spaceId as string;
         
-        const res = await sfetch(`/api/threads/${isHome.value ? 'org' : 'spaces'}/${isHome.value ? route.params.orgId : spaceId}`, {
+        const res = await sfetch(`/api/threads/${isHome.value ? 'org' : 'space'}/${isHome.value ? route.params.orgId : spaceId}`, {
             method: 'POST',
             body: JSON.stringify({ ...form, index: props.index, categoryId: props.categoryId })
         }).then(res => res.json());
