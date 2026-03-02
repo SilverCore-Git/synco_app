@@ -166,10 +166,17 @@ import useWSocket from '@/composables/useWSocket';
 import type { Socket } from 'socket.io-client';
 import getColorByStatus from '@/assets/utils/getColorByStatus';
 import getTextByStatus from '@/assets/utils/getTextByStatus';
+import { loadOrGenerateKeyPair, exportPublicKey, importPublicKey, getSharedKey, encryptMessage, decryptMessage } from '@/assets/utils/crypto';
+import sfetch from '@/assets/utils/sfetch';
+import { useToast } from '@/composables/useToast';
 
 const route = useRoute();
+const toast = useToast();
 let socket: Ref<Socket | null> = ref(null);
 
+const isE2EEEnabled = ref<boolean>(true);
+const myPrivateKey = ref<CryptoKey | null>(null);
+const sharedKey = ref<CryptoKey | null>(null);
 const messages = ref<any[]>([]);
 const newMessage = ref<string>("");
 const messagesContainer = ref<HTMLElement | null>(null);
@@ -205,16 +212,50 @@ const initListener = () => {
     const events = ["dm:history", "dm:new-message", "dm:user-typing"];
     events.forEach(ev => socket.value?.off(ev));
 
-    socket.value.on('dm:history', (history: any[]) => {
-        messages.value = history;
+    socket.value.on('dm:history', async (history: any[]) => {
+        
+        messages.value = await Promise.all(history.map(async (msg) => {
+
+            if (msg.isE2EE && sharedKey.value) 
+            {
+
+                try {
+                    msg.content = await decryptMessage(msg.content, msg.nonce, sharedKey.value);
+                } 
+                catch (e) {
+                    msg.content = "🔒 [Erreur de déchiffrement]";
+                }
+
+            }
+
+            return msg;
+
+        }));
+
         loading.value = false;
         scrollToBottom(true);
+
     });
 
-    socket.value.on("dm:new-message", (msg: any) => {
+    socket.value.on("dm:new-message", async (msg: any) => {
+        
+        if (msg.isE2EE && sharedKey.value) 
+        {
+
+            try {
+                msg.content = await decryptMessage(msg.content, msg.nonce, sharedKey.value);
+            } 
+            catch (e) {
+                console.error(e);
+                msg.content = "🔒 [Erreur de déchiffrement]";
+            }
+
+        }
+
         messages.value.push(msg);
         isSomeoneTyping.value = false;
         scrollToBottom();
+
     });
 
     socket.value.on("dm:user-typing", (data: { isTyping: boolean }) => {
@@ -223,20 +264,81 @@ const initListener = () => {
 
 };
 
-const joinDM = (userId: string) => {
+
+const joinDM = async (userId: string) => {
+
     loading.value = true;
+
+    const recipientPubKeyBase64 = recipient.value?.publicKey;
+
+    if (!recipientPubKeyBase64) 
+    {
+        toast.show('Clé publique introuvable pour cet utilisateur. Chiffrement désactivé.', 'warning');
+        sharedKey.value = null;
+    } 
+    else 
+    {
+
+        try {
+
+            const recipientPubKey = await importPublicKey(recipientPubKeyBase64);
+            
+            if (myPrivateKey.value) 
+            {
+                 sharedKey.value = await getSharedKey(myPrivateKey.value, recipientPubKey);
+                 console.log("Clé partagée générée avec succès !");
+            } 
+            else 
+            {
+                 console.error("Clé privée locale manquante.");
+            }
+
+        } 
+        catch (e) {
+            console.error("Erreur importation clé destinataire:", e);
+            toast.show('La clé publique du destinataire est corrompue. Chiffrement désactivé.', 'error');
+            sharedKey.value = null;
+        }
+
+    }
+
     messages.value = [];
     socket.value?.emit("join-dm", { recipientId: userId });
+
 };
 
-const sendMessage = () => {
+const sendMessage = async () => {
 
     if (!newMessage.value.trim() || !socket.value || !recipient.value) return;
+
+    let finalContent = newMessage.value;
+    let nonce = null;
+
+    const useEncryption = isE2EEEnabled.value && sharedKey.value !== null;
+
+    if (useEncryption) 
+    {
+
+        try {
+
+            const encrypted = await encryptMessage(newMessage.value, sharedKey.value!);
+            finalContent = encrypted.ciphertext;
+            nonce = encrypted.nonce;
+
+        } 
+        catch (e) {
+            console.error("Erreur de chiffrement:", e);
+            toast.show("Erreur lors du chiffrement du message.", "error");
+            return;
+        }
+
+    }
     
     socket.value.emit("dm:send-message", {
         recipientId: recipient.value.id,
-        content: newMessage.value,
-        nonce: `n_${Date.now()}`
+        content: finalContent,
+        nonce: nonce,
+        isE2EE: useEncryption
     });
 
     newMessage.value = "";
@@ -277,13 +379,25 @@ const scrollToBottom = async (instant = false) => {
 };
 
 const mount = async () => {
+
+    const keyPair = await loadOrGenerateKeyPair();
+    myPrivateKey.value = keyPair.privateKey;
+    const pubKey = await exportPublicKey(keyPair.publicKey);
+    
+    await sfetch('/api/users/me/publicKey', {
+        method: 'PATCH',
+        body: JSON.stringify({ publicKey: pubKey })
+    }).then(res => res.json());
+
     initListener();
-    if (recipient.value) joinDM(recipient.value.id);
+    if (recipient.value) await joinDM(recipient.value.id);
+
 }
 
 watch(() => route.params.userId, async () => {
     await mount();
 });
+
 
 onMounted(async () => {
     socket = await useWSocket();
