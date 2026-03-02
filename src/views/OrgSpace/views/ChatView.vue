@@ -158,7 +158,7 @@
 <script lang="ts" setup>
 
 import { computed, ref, onMounted, onUnmounted, watch, nextTick, type Ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import type { OrgMember } from '@/types/types';
 import { openedOrg } from '@/assets/var';
 import useWSocket from '@/composables/useWSocket';
@@ -172,6 +172,7 @@ import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 
 
 const route = useRoute();
+const router = useRouter();
 const toast = useToast();
 let socket: Ref<Socket | null> = ref(null);
 
@@ -404,6 +405,10 @@ watch(() => route.params.userId, async () => {
 
 
 onMounted(async () => {
+
+    const firstUser = openedOrg.value?.members?.[0];
+    if (firstUser) router.push({ params: { ...route.params, userId: firstUser.id  } });
+
     socket = await useWSocket();
     await mount();
 });
