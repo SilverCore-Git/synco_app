@@ -9,14 +9,10 @@
         "
         :class="
             active
-                ? 'bg-white/5 text-(--text) shadow-sm' 
-                : 'text-(--text)/50 hover:text-(--text)/80' 
+                ? 'border-l-3 border-(--primary) bg-(--primary)/10 text-(--text)' 
+                : 'text-(--text)/60'
         "
     >
-        <div 
-            v-if="active" 
-            class="absolute left-0 w-1 h-5 bg-(--primary) rounded-r-full"
-        />
 
         <div class="relative shrink-0">
 

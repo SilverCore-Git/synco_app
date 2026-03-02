@@ -5,7 +5,6 @@ import OrgSelection from './views/OrgsSelection/OrgSelection.vue';
 import OrgLayout from './views/OrgSpace/OrgLayout.vue';
 import SpaceView from './views/OrgSpace/views/SpaceView.vue';
 import OrgHome from './views/OrgSpace/views/OrgHome.vue';
-import OrgChat from './views/OrgSpace/views/OrgChat.vue';
 import ThreadView from './views/OrgSpace/views/ThreadView.vue';
 import ChatView from './views/OrgSpace/views/ChatView.vue';
 import GeneralSettings from './views/OrgSpace/views/settings/views/GeneralSettings.vue';
@@ -84,7 +83,7 @@ const routes = [
         path: 'chat',
         name: 'OrgChat',
         props: true,
-        component: OrgChat,
+        component: ChatView,
         meta: { title: 'SilverTeams' }
       },
       {
