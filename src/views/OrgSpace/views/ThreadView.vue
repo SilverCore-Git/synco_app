@@ -51,7 +51,7 @@
                         class="
                             group px-4 py-1 animate-pulse
                             flex flex-raw justify-start items-start gap-3
-                            hover:bg-white/[0.02] rounded-lg transition-colors"
+                            hover:bg-white/2 rounded-lg transition-colors"
                     >
                         
                         <div
@@ -75,7 +75,7 @@
                         class="
                             group px-4 py-1
                             flex flex-raw justify-start items-start gap-3
-                            hover:bg-white/[0.02] rounded-lg transition-colors"
+                            hover:bg-white/2 rounded-lg transition-colors"
                     >
                         
                         <img 
@@ -120,7 +120,7 @@
                 class="
                     relative flex items-center 
                     bg-white/5 border border-white/10 
-                    rounded-xl px-4 py-3 
+                    rounded-xl px-4 py-2
                     focus-within:border-(--primary)/50 
                     transition-all shadow-2xl
                 "

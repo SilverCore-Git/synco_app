@@ -128,15 +128,14 @@
                 </p>
              </div>
 
-            <div class="relative flex items-center bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus-within:border-(--primary)/50 transition-all shadow-2xl">
+            <div class="relative flex items-center bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
                 
-                <textarea 
-                    v-model="newMessage" 
-                    rows="1"
-                    :placeholder="'Message @' + recipient.name"
-                    class="bg-transparent border-none outline-none resize-none flex-1 text-sm text-(--text) placeholder:text-(--text)/20 max-h-32"
+                <ThreadTextarea
+                    v-model="newMessage"
+                    @send="sendMessage"
                     @input="handleTyping"
-                    @keydown.enter.prevent="sendMessage"
+                    ref="inputComponent"
+                    :placeholder="'Message @' + recipient.name"
                 />
 
                 <button 
@@ -169,6 +168,8 @@ import getTextByStatus from '@/assets/utils/getTextByStatus';
 import { loadOrGenerateKeyPair, exportPublicKey, importPublicKey, getSharedKey, encryptMessage, decryptMessage } from '@/assets/utils/crypto';
 import sfetch from '@/assets/utils/sfetch';
 import { useToast } from '@/composables/useToast';
+import ThreadTextarea from '../components/common/ThreadTextarea.vue';
+
 
 const route = useRoute();
 const toast = useToast();
@@ -185,6 +186,7 @@ const isFetchingMore = ref<boolean>(false);
 const hasMore = ref<boolean>(true);
 const isSomeoneTyping = ref<boolean>(false);
 let typingTimeout: any = null;
+const inputComponent = ref<any>(null);
 
 
 const recipient = computed(() => {
@@ -391,6 +393,8 @@ const mount = async () => {
 
     initListener();
     if (recipient.value) await joinDM(recipient.value.id);
+
+    inputComponent.value?.textarea?.focus();
 
 }
 

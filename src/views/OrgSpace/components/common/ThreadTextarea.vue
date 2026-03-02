@@ -29,9 +29,15 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'update:modelValue', value: string): void;
     (e: 'send', value: string): void;
+    (e: 'input'): void;
 }>();
 
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
+
+defineExpose({
+  textarea: textareaRef
+});
+
 
 const adjustHeight = () => {
 
@@ -50,6 +56,7 @@ const adjustHeight = () => {
 const onInput = (event: Event) => {
     const target = event.target as HTMLTextAreaElement;
     emit('update:modelValue', target.value);
+    emit('input');
     adjustHeight();
 };
 
