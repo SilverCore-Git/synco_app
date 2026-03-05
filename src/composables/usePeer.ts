@@ -1,39 +1,37 @@
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { Peer, type MediaConnection } from 'peerjs';
 import type { User, OrgMember } from '@/types/types';
 import { openedOrg } from '@/assets/var';
 
 
 const peer = ref<Peer | null>(null);
-const remoteStream = ref<MediaStream | null>(null);
 const localStream = ref<MediaStream | null>(null);
 const isCalling = ref<boolean>(false);
-const currentCall = ref<MediaConnection | null>(null);
+const haveCallingEnter = ref<OrgMember | 'no' | 'reject' | 'accept'>('no');
 const isSpeaking = ref<boolean>(false);
-const remoteIsSpeaking = ref<boolean>(false);
+
+const remoteStreams = ref<Map<string, MediaStream>>(new Map());
+const activeCalls = ref<Map<string, MediaConnection>>(new Map());
+
+const isMicOn = ref<boolean>(true);
+const isCamOn = ref<boolean>(true);
+
 const ringtone = new Audio('/callSound.wav');
 ringtone.loop = true;
-
 
 const initPeer = () => {
 
     if (peer.value && !peer.value.destroyed) 
     {
-        if (peer.value.disconnected) 
-        {
-            peer.value.reconnect();
-        }
+        if (peer.value.disconnected) peer.value.reconnect();
         return;
     }
-    
+
     const myClerkId = (window as any).Clerk?.user?.id;
     const myUser = openedOrg.value?.members?.find((m: OrgMember) => m.user?.clerkId === myClerkId)?.user;
     const myId = myUser?.id;
 
-    if (!myId) 
-    {
-        return console.error("[PEER] Impossible de trouver l'ID utilisateur local.");
-    }
+    if (!myId) return console.error("[PEER] ID local introuvable.");
 
     peer.value = new Peer(myId, {
         host: 'localhost',
@@ -42,47 +40,149 @@ const initPeer = () => {
         key: import.meta.env.VITE_PEER_PUBLISHABLE_KEY
     });
 
-    peer.value.on('open', (id) => {
-        console.log('[PEER] Connecté avec l\'ID :', id);
-    });
-
     peer.value.on('call', async (call) => {
 
-        if (confirm("Appel entrant... Répondre ?")) 
+        const user = openedOrg.value?.members?.find(user => user.user?.id == call.peer);
+        if (!user) return;
+        haveCallingEnter.value = user;
+        
+        const closeWatch = watch(haveCallingEnter, async (newVal) => 
         {
 
-            try {
-
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                localStream.value = stream;
-                isCalling.value = true;
-                currentCall.value = call;
-
-                call.answer(stream);
-
-                monitorAudio(localStream.value, (val) => isSpeaking.value = val);
-                
-                call.on('stream', (incomingStream) => {
-                    remoteStream.value = incomingStream;
-                    monitorAudio(incomingStream, (val) => remoteIsSpeaking.value = val);
-                });
-
-                call.on('close', cleanupCall);
-
-            } 
-            catch (err) 
+            if (newVal == 'accept') 
             {
-                console.error("[PEER] Erreur accès média :", err);
+
+                haveCallingEnter.value = 'no';
+
+                try {
+
+                    if (!localStream.value) 
+                    {
+                        localStream.value = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                        monitorAudio(localStream.value, (val) => isSpeaking.value = val);
+                    }
+                    
+                    isCalling.value = true;
+                    call.answer(localStream.value);
+                    handleCallEvents(call);
+
+                } 
+                catch (err) 
+                {
+                    console.error("[PEER] Erreur média entrant:", err);
+                }
+
+            }
+            else if (newVal == 'reject')
+            {
+                call.close();
+                closeWatch();
+                haveCallingEnter.value = 'no';
             }
 
+        })
+
+    });
+
+};
+
+
+const handleCallEvents = (call: MediaConnection) => {
+
+    activeCalls.value.set(call.peer, call);
+
+    call.on('stream', (incomingStream) => {
+        ringtone.pause();
+        remoteStreams.value.set(call.peer, incomingStream);
+        remoteStreams.value = new Map(remoteStreams.value);
+    });
+
+    call.on('close', () => {
+        remoteStreams.value.delete(call.peer);
+        remoteStreams.value = new Map(remoteStreams.value);
+        activeCalls.value.delete(call.peer);
+        if (remoteStreams.value.size === 0) cleanupCall();
+    });
+
+};
+
+const startCall = async (recipient: User) => {
+
+    if (!recipient?.id || !peer.value) return;
+
+    try {
+
+        isCalling.value = true;
+        if (remoteStreams.value.size === 0) ringtone.play().catch(() => {});
+
+        if (!localStream.value) 
+        {
+            localStream.value = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            monitorAudio(localStream.value, (val) => isSpeaking.value = val);
         }
 
-    });
+        const call = peer.value.call(recipient.id, localStream.value);
+        handleCallEvents(call);
 
-    peer.value.on('error', (err) => {
-        console.error("[PEER] Erreur PeerJS :", err.type, err);
-    });
+    } 
+    catch (err) 
+    {
+        console.error("[PEER] Erreur startCall:", err);
+        cleanupCall();
+    }
 
+};
+
+
+
+const toggleMic = () => {
+
+    if (localStream.value) 
+    {
+
+        const audioTrack = localStream.value.getAudioTracks()[0];
+        if (audioTrack) 
+        {
+            audioTrack.enabled = !audioTrack.enabled;
+            isMicOn.value = audioTrack.enabled;
+        }
+
+    }
+
+};
+
+const toggleCam = () => {
+
+    if (localStream.value) 
+    {
+
+        const videoTrack = localStream.value.getVideoTracks()[0];
+        if (videoTrack) 
+        {
+            videoTrack.enabled = !videoTrack.enabled;
+            isCamOn.value = videoTrack.enabled;
+        }
+
+    }
+
+};
+
+
+const endCall = () => {
+    activeCalls.value.forEach(call => call.close());
+    cleanupCall();
+};
+
+
+const cleanupCall = () => {
+    ringtone.pause();
+    localStream.value?.getTracks().forEach(track => track.stop());
+    localStream.value = null;
+    remoteStreams.value.clear();
+    activeCalls.value.clear();
+    isCalling.value = false;
+    isMicOn.value = true;
+    isCamOn.value = true;
 };
 
 
@@ -91,99 +191,21 @@ const monitorAudio = (stream: MediaStream, callback: (speaking: boolean) => void
     const audioContext = new AudioContext();
     const source = audioContext.createMediaStreamSource(stream);
     const analyzer = audioContext.createAnalyser();
-    
     analyzer.fftSize = 512;
     source.connect(analyzer);
-
     const dataArray = new Uint8Array(analyzer.frequencyBinCount);
-    
+
     const checkVolume = () => {
-
+        if (!stream.active) return audioContext.close();
         analyzer.getByteFrequencyData(dataArray);
-        
-        
-        let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) 
-        {
-            sum += dataArray[i]!;
-        }
-
-        const average = sum / dataArray.length;
-
-        const speaking = average > 30;
-        callback(speaking);
-
-        if (stream.active) 
-        {
-            requestAnimationFrame(checkVolume);
-        }
-        else 
-        {
-            audioContext.close();
-        }
+        let sum = dataArray.reduce((a, b) => a + b, 0);
+        callback((sum / dataArray.length) > 30);
+        requestAnimationFrame(checkVolume);
     };
 
     checkVolume();
 
 };
-
-
-
-const startCall = async (recipient: User) => {
-
-    if (!recipient?.id || !peer.value) return;
-    
-    try {
-
-        isCalling.value = true;
-        ringtone.currentTime = 0;
-        ringtone.play().catch(e => console.warn("L'auto-play a bloqué le son :", e));
-
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        localStream.value = stream;
-
-        const call = peer.value.call(recipient.id, stream);
-        currentCall.value = call;
-        
-        call?.on('stream', (incomingStream) => {
-            ringtone.pause();
-            remoteStream.value = incomingStream;
-        });
-
-        call?.on('close', cleanupCall);
-
-    } 
-    catch (err) 
-    {
-        console.error("[PEER] Erreur lancement appel :", err);
-        cleanupCall();
-    }
-
-};
-
-
-const endCall = () => {
-    if (currentCall.value) 
-    {
-        currentCall.value.close();
-        ringtone.pause();
-    }
-    cleanupCall();
-};
-
-
-const cleanupCall = () => {
-    
-    ringtone.pause();
-    localStream.value?.getTracks().forEach(track => track.stop());
-    
-    localStream.value = null;
-    remoteStream.value = null;
-    isCalling.value = false;
-    currentCall.value = null;
-
-};
-
 
 export default function usePeer() 
 {
@@ -191,11 +213,15 @@ export default function usePeer()
         initPeer,
         startCall,
         endCall,
-        remoteStream,
+        toggleMic,
+        toggleCam,
+        remoteStreams,
+        haveCallingEnter,
         localStream,
         isCalling,
         isSpeaking,
-        remoteIsSpeaking,
+        isMicOn,
+        isCamOn,
         peer
     };
 }

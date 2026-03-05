@@ -153,8 +153,6 @@
 
     </div>
 
-    <CallOverlay />
-
 </template>
 
 <script lang="ts" setup>
@@ -172,13 +170,12 @@ import sfetch from '@/assets/utils/sfetch';
 import { useToast } from '@/composables/useToast';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import usePeer from '@/composables/usePeer';
-import CallOverlay from '@/components/peer/CallOverlay.vue';
 
 
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
-const { startCall, isCalling, initPeer } = usePeer();
+const { startCall } = usePeer();
 let socket: Ref<Socket | null> = ref(null);
 
 const isE2EEEnabled = ref<boolean>(true);
@@ -416,7 +413,6 @@ onMounted(async () => {
 
     socket = await useWSocket();
     await mount();
-    initPeer();
 
 });
 

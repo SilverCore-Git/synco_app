@@ -7,7 +7,7 @@
     >
 
         <div
-            class="cursor-grab active:cursor-grabbing select-none"
+            :class="active ? 'cursor-grab active:cursor-grabbing select-none' : ''"
             @mousedown="startDrag"
         >
             <slot name="header"></slot>
@@ -59,7 +59,7 @@ const startDrag = (e: MouseEvent) => {
 };
 
 const onDrag = (e: MouseEvent) => {
-    
+
     if (!isDragging || !windowRef.value) return;
 
     const deltaX = e.clientX - startMouseX;

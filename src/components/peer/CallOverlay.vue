@@ -4,7 +4,7 @@
             
         <Transition name="fade">
 
-            <div v-if="isCalling || remoteStream">
+            <div v-if="isCalling || remoteStreams.size">
 
                 <DraggableWindow 
                     :initialX="initialX"
@@ -15,7 +15,7 @@
 
                     <div 
                         class="
-                            z-1000 justify-center 
+                            z-100 justify-center 
                             flex flex-col items-center group
                         "
                         :class="
@@ -24,10 +24,6 @@
                                 : 'fixed inset-0 p-6  bg-(--black)/95'
                             "
                     >
-
-                        <div class="fixed top-6 left-6" ><button class="default">
-                            <i class="text-2xl bi bi-arrows-angle-contract" @click="isMinimized = !isMinimized" />
-                        </button></div>
                         
                         <div 
                             class="
@@ -36,17 +32,34 @@
                                 rounded-3xl overflow-hidden 
                                 shadow-2xl border border-(--white)/10
                             "
-                            :class="{ 
-                                'ring-2 ring-(--primary)': remoteIsSpeaking
-                            }"
                         >
+
+                            <div 
+                                class="
+                                    absolute top-0 left-0 
+                                    transition-all duration-200
+                                "
+                            ><button class="default">
+                                <i 
+                                    class="text-2xl bi" 
+                                    :class="
+                                        isMinimized
+                                            ? 'bi-arrows-angle-expand opacity-0 group-hover:opacity-100 '
+                                            : 'bi-arrows-angle-contract'
+                                    "
+                                    @click="isMinimized = !isMinimized" 
+                                />
+                            </button></div>
                             
-                            <video 
-                                v-if="remoteStream"
-                                :srcObject="remoteStream"
-                                autoplay 
-                                class="w-full h-full object-cover bg-(--black)"
-                            />
+                            <div v-if="remoteStreams.size" class="grid flex-1 gap-4">
+                                <video 
+                                    v-for="[id, stream] of remoteStreams"
+                                    :key="id"
+                                    :srcObject="stream" 
+                                    autoplay 
+                                    class="w-full h-full object-cover bg-(--black)"
+                                />
+                            </div>
                             
                             <div v-else class="w-full h-full flex flex-col items-center justify-center gap-4 text-(--white)/20">
                                 <div class="w-24 h-24 rounded-full bg-(--white)/5 flex items-center justify-center animate-pulse">
@@ -139,10 +152,8 @@ const initialY = ref<number>(window.innerHeight - 200 - 32);
 
 const { 
     isCalling, 
-    remoteStream, 
-    localStream, 
-    remoteIsSpeaking,
-    isSpeaking,
+    remoteStreams, 
+    localStream,
     endCall 
 } = usePeer();
 

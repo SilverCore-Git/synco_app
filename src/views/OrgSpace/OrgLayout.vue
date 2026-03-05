@@ -10,12 +10,16 @@ import Loader from '@/components/LogoLoader.vue';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import { useUser } from '@clerk/vue';
+import OnCallOverlay from '@/components/peer/onCallOverlay.vue';
+import usePeer from '@/composables/usePeer';
+import CallOverlay from '@/components/peer/CallOverlay.vue';
 
 const props = defineProps<{
     orgId: string;
 }>();
 
 const { user } = useUser();
+const { initPeer } = usePeer();
 
 const initSocketListener = async () => {
 
@@ -56,6 +60,7 @@ const initSocketListener = async () => {
 onMounted(async () => {
    openedOrg.value = await sfetch(`/api/orgs/${props.orgId}`).then(res => res.json()); 
    await initSocketListener();
+   initPeer();
 });
 
 onBeforeUnmount(async () => {
@@ -94,5 +99,8 @@ onBeforeUnmount(async () => {
     <div v-else>
         <Loader />
     </div>
+
+    <OnCallOverlay />
+    <CallOverlay />
 
 </template>
