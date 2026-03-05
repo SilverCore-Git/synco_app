@@ -33,7 +33,7 @@
             </div>
             
             <div class="ml-auto flex items-center gap-4 text-(--text)/40">
-                <button class="hover:text-(--text) transition-colors">
+                <button @click="startCall(recipient)" class="hover:text-(--text) transition-colors">
                     <i class="bi bi-telephone-fill" />
                 </button>
                 <button class="hover:text-(--text) transition-colors">
@@ -153,6 +153,8 @@
 
     </div>
 
+    <CallOverlay />
+
 </template>
 
 <script lang="ts" setup>
@@ -169,11 +171,14 @@ import { loadOrGenerateKeyPair, exportPublicKey, importPublicKey, getSharedKey, 
 import sfetch from '@/assets/utils/sfetch';
 import { useToast } from '@/composables/useToast';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
+import usePeer from '@/composables/usePeer';
+import CallOverlay from '@/components/peer/CallOverlay.vue';
 
 
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
+const { startCall, isCalling, initPeer } = usePeer();
 let socket: Ref<Socket | null> = ref(null);
 
 const isE2EEEnabled = ref<boolean>(true);
@@ -411,6 +416,8 @@ onMounted(async () => {
 
     socket = await useWSocket();
     await mount();
+    initPeer();
+
 });
 
 onUnmounted(() => {
