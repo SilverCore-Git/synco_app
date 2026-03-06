@@ -61,6 +61,8 @@
                     <ThreadBtn 
                         :thread="thread"
                         :active="route.params.threadId == thread.id"
+                        :hasUnread="thread.hasUnread"
+                        :key="'thread-' + thread.id"
                         class="cursor-grab active:cursor-grabbing"
                         @click="navigateToThread(thread.id)"
                     />

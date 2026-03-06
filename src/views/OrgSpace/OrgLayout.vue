@@ -13,14 +13,19 @@ import { useUser } from '@clerk/vue';
 import OnCallOverlay from '@/components/peer/onCallOverlay.vue';
 import usePeer from '@/composables/usePeer';
 import CallOverlay from '@/components/peer/CallOverlay.vue';
-import type { Category } from '@/types/types';
+import type { Category, Message } from '@/types/types';
+import { useRoute } from 'vue-router';
+
 
 const props = defineProps<{
     orgId: string;
 }>();
 
+
 const { user } = useUser();
 const { initPeer } = usePeer();
+const route = useRoute();
+
 
 const initSocketListener = async () => {
 
@@ -95,6 +100,20 @@ const initSocketListener = async () => {
 
             }
         }
+
+    });
+
+    socket.value?.on('notif:new-message', ({ message, spaceId }: { message: Message, spaceId: string }) => {
+        
+        if (route.params.threadId == message.threadId) return;
+
+        const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
+        if (!space) return;
+
+        const thread = space.threads.find(t => t.id === message.threadId);
+        if (!thread) return;
+
+        thread.hasUnread = true;
 
     });
 

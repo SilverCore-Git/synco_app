@@ -301,6 +301,8 @@ const initListener = async () => {
 };
 
 const joinThread = (id: string) => {
+    if (!thread.value) return;
+    thread.value.hasUnread = false;
     messages.value = []; 
     socket.value?.emit("join-thread", { 
         threadId: id, 

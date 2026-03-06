@@ -19,11 +19,12 @@
 
 <script lang="ts" setup>
 
-import { ref, watch, nextTick } from 'vue';
+import { ref, watch, nextTick, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 
 const props = defineProps<{
-  modelValue: string;
-  placeholder?: string;
+    modelValue: string;
+    placeholder?: string;
 }>();
 
 const emit = defineEmits<{
@@ -32,6 +33,7 @@ const emit = defineEmits<{
     (e: 'input'): void;
 }>();
 
+const route = useRoute();
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 
 defineExpose({
@@ -84,5 +86,15 @@ watch(() => props.modelValue, (newVal) => {
         });
     }
 });
+
+
+watch(() => route.params.threadId, async () => {
+    await nextTick();
+    textareaRef.value?.focus();
+})
+onMounted(async () => {
+    await nextTick();
+    textareaRef.value?.focus();
+})
 
 </script>

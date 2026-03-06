@@ -3,16 +3,20 @@
     <button
         @click="emit('click')"
         class="
-            w-full flex items-start justify-start text-left gap-2 px-2 py-1.5 rounded-lg
+            w-full flex items-center justify-start 
+            text-left gap-2 px-2 py-1.5 rounded-lg
             transition-all duration-200 group cursor-pointer
             hover:bg-(--primary)/5 active:scale-95
             hover:text-(--text) 
         "
-        :class="
+        :class="[
             active
                 ? 'border-l-3 border-(--primary) bg-(--primary)/10 text-(--text)' 
-                : 'text-(--text)/60' 
-        "
+                : 'text-(--text)/60',
+            hasUnread
+                ? 'bg-(--primary)/2' 
+                : ''
+        ]"
     >
 
         <div class="flex items-center justify-center w-5 h-5">

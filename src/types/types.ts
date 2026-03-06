@@ -6,6 +6,7 @@ export interface Thread {
   index: number;
   name: string;
   type: ThreadType;
+  hasUnread?: boolean; // front end var
 }
 
 export interface Category {
