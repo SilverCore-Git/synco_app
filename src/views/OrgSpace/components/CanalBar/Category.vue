@@ -44,30 +44,30 @@
 
         <div 
             v-show="isOpen" 
-            class="space-y-0.5 pt-1 transition-all"
+            class="pt-1"
         >
 
-            <ThreadBtn 
-                v-for="thread in threads"
-                :key="thread.id"
-                :thread="thread"
-                :active="
-                    route.params.threadId == thread.id
-                "
-                @click="
-                    router.push({
-                        name: 
-                            route.name == 'OrgHome' || route.name == 'OrgThreadHome'
-                                ? 'OrgThreadHome'
-                                : 'SpaceThreadView',
-                        params: {
-                            orgId: route.params.orgId,
-                            spaceId: route.params.spaceId,
-                            threadId: thread.id
-                        }
-                    })
-                "
-            />
+            <draggable
+                v-model="localThreads" 
+                item-key="id"
+                @end="handleDragEnd"
+                ghost-class="opacity-50"
+                drag-class="cursor-grabbing"
+                class="space-y-0.5"
+            >
+
+                <template #item="{ element: thread }">
+
+                    <ThreadBtn 
+                        :thread="thread"
+                        :active="route.params.threadId == thread.id"
+                        class="cursor-grab active:cursor-grabbing"
+                        @click="navigateToThread(thread.id)"
+                    />
+
+                </template>
+
+            </draggable>
 
         </div>
         
@@ -77,25 +77,61 @@
 
 <script lang="ts" setup>
 
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
+import draggable from 'vuedraggable';
 import type { Category, Thread } from '@/types/types';
 import ThreadBtn from './ThreadBtn.vue';
 import { useRoute, useRouter } from 'vue-router';
 import CreateNewThread from '../popup/CreateNewThread.vue';
+import useWSocket from '@/composables/useWSocket';
 
-defineProps<{
+const props = defineProps<{
     category: Category;
     threads: Thread[];
 }>();
 
+
 const route = useRoute();
 const router = useRouter();
+
 const isOpen = ref<boolean>(true);
+
 
 const toggleOpen = () => {
     isOpen.value = !isOpen.value;
 };
 
+const localThreads = ref<Thread[]>([...props.threads].sort((a, b) => a.index - b.index));
+
+watch(() => props.threads, (newVal) => {
+    localThreads.value = [...newVal].sort((a, b) => a.index - b.index);
+}, { deep: true });
+
+
+const handleDragEnd = async () => {
+
+    const socket = await useWSocket();
+
+    socket.value?.emit('update-category', ({
+        orgId: route.params.orgId,
+        spaceId: route.params.spaceId,
+        category: {
+            ...props.category,
+            threads: localThreads.value.map((thread, index) => ({
+                ...thread,
+                index
+            }))
+        }
+    }))
+
+};
+
+
+const navigateToThread = (threadId: string) => {
+    const name = (route.name == 'OrgHome' || route.name == 'OrgThreadHome') 
+                 ? 'OrgThreadHome' : 'SpaceThreadView';
+    router.push({ name, params: { ...route.params, threadId } });
+};
 
 </script>
 

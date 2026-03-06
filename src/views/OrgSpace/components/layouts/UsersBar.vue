@@ -2,8 +2,8 @@
 
     <div
         class="
-            h-full min-w-60 bg-(--bg2) border-l border-white/5
-            flex flex-col overflow-hidden
+            h-full w-full border-l border-white/5
+            flex flex-col overflow-hidden  bg-(--bg2)
         "
     >
 

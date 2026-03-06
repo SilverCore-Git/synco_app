@@ -13,6 +13,7 @@ import { useUser } from '@clerk/vue';
 import OnCallOverlay from '@/components/peer/onCallOverlay.vue';
 import usePeer from '@/composables/usePeer';
 import CallOverlay from '@/components/peer/CallOverlay.vue';
+import type { Category } from '@/types/types';
 
 const props = defineProps<{
     orgId: string;
@@ -26,6 +27,16 @@ const initSocketListener = async () => {
     const socket = await useWSocket();
 
     socket.value?.emit('join-org', { orgId: props.orgId });
+    
+    const space = openedOrg.value?.spaces;
+    if (space)
+    {
+
+        space.forEach(async space => {
+            socket.value?.emit('join-space', { orgId: props.orgId, spaceId: space.id });
+        })
+    
+    } 
 
 
     const me = openedOrg.value?.members?.find(member => member.user?.clerkId == user.value?.id);
@@ -51,6 +62,38 @@ const initSocketListener = async () => {
         {
             curentOrg.logo = data.logo;
             curentOrg.name = data.name;
+        }
+
+    });
+
+    socket.value?.on('category-updated', ({ orgId, spaceId, category }: { orgId: string, spaceId: string, category: Category }) => {
+        
+        if (orgId !== props.orgId) return;
+
+        const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
+        if (!space) return;
+
+        const targetCategory = space.categories.find(cat => cat.id === category.id);
+
+        if (targetCategory) 
+        {
+            
+            Object.assign(targetCategory, category);
+            
+            if (category.threads) 
+            {
+
+                category.threads.forEach(updatedThread => {
+
+                    const tIndex = space.threads.findIndex(t => t.id === updatedThread.id);
+                    if (tIndex !== -1) 
+                    {
+                        space.threads[tIndex] = updatedThread;
+                    }
+
+                });
+
+            }
         }
 
     });
@@ -84,13 +127,13 @@ onBeforeUnmount(async () => {
     >
 
         <SpaceBar />
-        <ThreadsBar class="h-full" />
+        <ThreadsBar class="h-full w-60 max-w-60 min-w-60" />
 
-        <div class="h-full w-full ">
+        <div class="h-full w-full min-w-80">
             <RouterView />
         </div>
 
-        <UsersBar />
+        <UsersBar class="w-60 max-w-60 min-w-60" />
 
         <UserCard />
 

@@ -1,10 +1,10 @@
 <template>
 
-    <div v-if="isSettings && isAdmin" class="h-full">
+    <div v-if="isSettings && isAdmin" class="h-full w-full">
 
         <div
             class="
-                h-full min-w-60 bg-(--bg) border-r border-(--text)/5
+                h-full w-full bg-(--bg) border-r border-(--text)/5
                 flex justify-start items-start flex-col relative
             "
         >
@@ -55,11 +55,13 @@
 
     </div>
 
-    <div v-else-if="isChat" class="h-full">
+    <div v-else-if="isChat" class="h-full w-full">
 
         <div
             class="
-                h-full min-w-60 bg-(--bg) border-r border-(--text)/5
+                h-full 
+                
+                bg-(--bg) border-r border-(--text)/5
                 flex justify-start items-start flex-col relative
             "
         >
@@ -103,15 +105,17 @@
 
     </div>
 
-    <div v-else class="h-full">
+    <div v-else class="h-full w-full">
         
-        <ThreadBarDropDown class="h-full">
+        <ThreadBarDropDown class="h-full w-full">
 
             <template #trigger>
 
                 <div
                     class="
-                        h-full min-w-60 bg-(--bg) border-r border-(--text)/5
+                        h-full 
+                        
+                        bg-(--bg) border-r border-(--text)/5
                         flex justify-start items-start flex-col relative
                     "
                     @contextmenu.prevent="showDropDown = !showDropDown"
@@ -147,7 +151,7 @@
                             v-for="category in categories" 
                             :key="'category-' + category.id" 
                             :category="category"
-                            :threads="threads?.filter((th: Thread) => th.categoryId == category.id) || []"
+                            :threads="threadsByCategory[category.id] || []"
                         />
 
                     </ul>
@@ -167,7 +171,6 @@
 
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import Category from '../CanalBar/Category.vue';
 import type { Thread, WorkSpace } from '@/types/types';
 import { openedOrg } from '@/assets/var';
 import ThreadDropDown from '../dropdown/ThreadDropDown.vue';
@@ -176,6 +179,7 @@ import ChatUserBtn from '../CanalBar/ChatUserBtn.vue';
 import SettingsViewBtn from '../CanalBar/SettingsViewBtn.vue';
 import { settingsViews } from '../../views/settings/settings';
 import isAdmin from '@/assets/isAdmin';
+import Category from '../CanalBar/Category.vue';
 
 
 const route = useRoute();
@@ -186,7 +190,7 @@ const isSettings = computed(()=> route.name?.toString().startsWith('OrgSettings'
 const showDropDown = ref<boolean>(false);
 
 
-const title = computed(() => {
+const title = computed<string>(() => {
     if (isHome.value) return 'Accueil';
     else if (isChat.value) return 'Messages privés';
     else if (isSettings.value) return 'Paramètres';
@@ -198,7 +202,7 @@ const title = computed(() => {
     }
 })
 
-const icon = computed(() => {
+const icon = computed<string | undefined>(() => {
     if (isHome.value) return 'bi-house';
     else if (isChat.value) return 'bi-chat-dots';
     else if (isSettings.value) return 'bi-gear';
@@ -210,7 +214,7 @@ const icon = computed(() => {
     }
 })
 
-const threads = computed(() => {
+const threads = computed<Thread[]>(() => {
     if (isHome.value)
     {
         return openedOrg.value?.home?.threads || [];
@@ -223,6 +227,23 @@ const threads = computed(() => {
         if (!space) return [];
         return space.threads;
     }
+});
+
+
+const threadsByCategory = computed(() => {
+
+    const map: Record<string, Thread[]> = {};
+    
+    categories.value.forEach(cat => map[cat.id] = []);
+    
+    threads.value.forEach(thread => {
+        if (map[thread.categoryId]) {
+            map[thread.categoryId]?.push(thread);
+        }
+    });
+    
+    return map;
+
 });
 
 
