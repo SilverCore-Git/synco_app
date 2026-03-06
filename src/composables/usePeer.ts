@@ -76,6 +76,7 @@ const initPeer = () => {
             else if (newVal == 'reject')
             {
                 call.close();
+                endCall();
                 closeWatch();
                 haveCallingEnter.value = 'no';
             }
