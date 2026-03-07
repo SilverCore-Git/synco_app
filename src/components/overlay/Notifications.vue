@@ -5,7 +5,7 @@
         <TransitionGroup name="list">
 
             <div 
-                v-for="notif in notifications" 
+                v-for="notif in sortedNotifications" 
                 :key="notif.type + '-' + notif.id"
                 class="
                     pointer-events-auto flex items-start 
@@ -114,10 +114,24 @@
 <script setup lang="ts">
 
 import useNotifications, { type NotificationType } from '@/composables/useNotifications';
-import { onMounted } from 'vue';
+import { computed, onMounted } from 'vue';
 
 
 const { notifications, initListener, remove } = useNotifications();
+
+
+const sortedNotifications = computed(() => {
+    
+    return notifications.value
+    .sort((a, b) => {
+
+        const dateA = new Date(a.createdAt);
+        const dateB = new Date(b.createdAt);
+        return dateB.getTime() - dateA.getTime();
+
+    });
+
+});
 
 
 const getIcon = (type: string) => {

@@ -2,6 +2,7 @@ import { useToast } from "@/composables/useToast";
 import type { Message, OrgMember } from "@/types/types";
 import { ref, watch } from "vue";
 import useWSocket from "./useWSocket";
+import { useRoute } from "vue-router";
 
 
 type NotificationType = 'toast' | 'notif:msg' | 'notif:call';
@@ -10,7 +11,7 @@ interface Notification {
 
     id: number;
     type: NotificationType;
-    createAt: Date;
+    createdAt: Date;
 
     // if toast
     message?: string;
@@ -24,11 +25,12 @@ interface Notification {
 
 }
 
-
 const { toasts } = useToast();
 const callNotif = ref<OrgMember[]>([]);
 const messageNotif = ref<Message[]>([]);
 const notifications = ref<Notification[]>([]);
+
+const removeAfter: number = 3000;
 
 
 let lastCallNotifLength: number = callNotif.value.length;
@@ -39,7 +41,7 @@ watch(() => callNotif.value, () => {
         notifications.value.push({
             id: notifications.value.length + 1,
             type: 'notif:call',
-            createAt: new Date(),
+            createdAt: new Date(),
             call: callNotif.value[callNotif.value.length - 1]
         });
     }
@@ -54,17 +56,25 @@ watch(() => messageNotif.value, () => {
 
     if (messageNotif.value.length > lastMsgNotifLength)
     {
+
+        const id: number = notifications.value.length + 1;
+
         notifications.value.push({
-            id: notifications.value.length + 1,
+            id,
             type: 'notif:msg',
-            createAt: new Date(),
+            createdAt: new Date(),
             msg: messageNotif.value[messageNotif.value.length - 1]
         });
+
+        setTimeout(() => {
+            remove(id);
+        }, removeAfter);
+        
     }
 
     lastMsgNotifLength = messageNotif.value.length;
 
-})
+}, { deep: true })
 
 
 let lastToastsLength: number = toasts.value.length;
@@ -72,18 +82,26 @@ watch(() => toasts.value, () => {
 
     if (toasts.value.length > lastToastsLength)
     {
+
+        const id: number = notifications.value.length + 1;
+
         notifications.value.push({
-            id: notifications.value.length + 1,
+            id,
             type: 'toast',
-            createAt: new Date(),
+            createdAt: new Date(),
             message: toasts.value[toasts.value.length - 1]?.message,
             toastType: toasts.value[toasts.value.length - 1]?.type
         });
+
+        setTimeout(() => {
+            remove(id);
+        }, removeAfter);
+
     }
 
     lastToastsLength = toasts.value.length;
 
-})
+}, { deep: true })
 
 
 const remove = (id: number) => {
@@ -93,9 +111,11 @@ const remove = (id: number) => {
 
 const initListener = async () => {
 
+    const route = useRoute();
     const socket = await useWSocket();
 
     socket.value?.on('notif:new-message', ({ message }: { message: Message }) => {
+        if (route.params.threadId == message.threadId) return;
         messageNotif.value.push(message);
     })
 
