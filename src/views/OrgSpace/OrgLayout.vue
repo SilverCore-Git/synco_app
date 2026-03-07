@@ -10,11 +10,10 @@ import Loader from '@/components/LogoLoader.vue';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import { useUser } from '@clerk/vue';
-import OnCallOverlay from '@/components/peer/onCallOverlay.vue';
 import usePeer from '@/composables/usePeer';
-import CallOverlay from '@/components/peer/CallOverlay.vue';
 import type { Category, Message } from '@/types/types';
 import { useRoute } from 'vue-router';
+import Notifications from '@/components/overlay/Notifications.vue';
 
 
 const props = defineProps<{
@@ -162,7 +161,6 @@ onBeforeUnmount(async () => {
         <Loader />
     </div>
 
-    <OnCallOverlay />
-    <CallOverlay />
+    <Notifications />
 
 </template>
