@@ -1,0 +1,157 @@
+<template>
+
+    <div class="fixed top-4 right-4 z-1000 flex flex-col gap-2 w-80 pointer-events-none">
+
+        <TransitionGroup name="list">
+
+            <div 
+                v-for="notif in notifications" 
+                :key="notif.type + '-' + notif.id"
+                class="
+                    pointer-events-auto flex items-start 
+                    gap-3 p-4 rounded-xl border shadow-lg w-full
+                    backdrop-blur-md transition-all duration-300
+                "
+                :class="getStyles(notif.type, notif.toastType)"
+            >
+
+                <div class="flex items-center gap-3 w-full">
+
+                    <template v-if="notif.type == 'toast'">
+
+                        <i :class="['bi text-lg', getIcon(notif.toastType!)]" />
+                        
+                        <span class="text-sm font-medium flex-1">{{ notif.message }}</span>
+
+                    </template>
+
+                    <template v-else-if="notif.type == 'notif:msg'">
+
+                        <div class="flex items-center gap-3">
+                            
+                            <div class="relative shrink-0">
+                                <img 
+                                    :src="(notif.msg as any)?.sender?.avatarUrl  || ''"
+                                    class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
+                                />
+                            </div>
+
+                            <div class="flex-1 overflow-hidden">
+                                <h4 class="text-(--text) text-sm font-bold truncate">
+                                    {{ (notif.msg as any)?.sender?.name }}
+                                </h4>
+                                <p class="text-(--text)/70 text-sm line-clamp-2 leading-snug">
+                                    {{ notif.msg?.content }}
+                                </p>
+                            </div>
+
+                        </div>
+
+                    </template>
+
+                    <template v-else-if="notif.type == 'notif:call'">
+
+                        <div class="flex flex-col w-full">
+
+                            <div class="flex items-center gap-3">
+
+                                <div class="relative">
+                                    <img 
+                                        :src="notif.call?.user?.avatarUrl || ''"
+                                        class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
+                                    />
+                                </div>
+
+                                <div class="flex-1 overflow-hidden">
+                                    <p class="text-xs font-bold text-primary uppercase tracking-wider mb-1">Appel entrant</p>
+                                    <h4 class="text-white font-semibold truncate">{{ notif.call?.user?.name || 'Utilisateur inconnu' }}</h4>
+                                </div>
+
+                            </div>
+
+                            <div class="flex gap-3 mt-5 w-full">
+
+                                <button 
+                                    @click=""
+                                    class="danger w-full gap-3"
+                                >
+                                    <i class="bi bi-x-lg" />
+                                    Refuser
+                                </button>
+                                
+                                <button 
+                                    @click=""
+                                    class="primary w-full gap-3"
+                                >
+                                    <i class="bi bi-telephone-fill animate-bounce" />
+                                    Répondre
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </template>
+
+                </div>
+
+                <button 
+                    @click="remove(notif.id)" 
+                    class="opacity-40 hover:opacity-100 transition-opacity"
+                    :class="notif.type == 'notif:call' ? 'absolute top-4 right-4' : ''"
+                >
+                    <i class="bi bi-x-lg text-xs" />
+                </button>
+                
+            </div>
+
+        </TransitionGroup>
+
+    </div>
+
+</template>
+
+<script setup lang="ts">
+
+import useNotifications, { type NotificationType } from '@/composables/useNotifications';
+import { onMounted } from 'vue';
+
+
+const { notifications, initListener, remove } = useNotifications();
+
+
+const getIcon = (type: string) => {
+    switch (type) {
+        case 'success': return 'bi-check-circle-fill text-green-400';
+        case 'error': return 'bi-exclamation-octagon-fill text-red-400';
+        case 'warning': return 'bi-exclamation-triangle-fill text-yellow-400';
+        default: return 'bi-info-circle-fill text-blue-400';
+    }
+};
+
+const getStyles = (type: NotificationType, toastType?: string) => {
+
+    switch (type) 
+    {
+
+        case 'toast': switch (toastType) 
+        {
+            case 'success': return 'bg-green-500/10 border-green-500/20 text-green-200';
+            case 'error': return 'bg-red-500/10 border-red-500/20 text-red-200';
+            case 'warning': return 'bg-yellow-500/10 border-yellow-500/20 text-yellow-200';
+            default: return 'bg-blue-500/10 border-blue-500/20 text-blue-200';
+        };
+
+        case 'notif:msg': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:call': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+
+    }
+
+};
+
+
+onMounted(async () => {
+    await initListener();
+})
+
+</script>
