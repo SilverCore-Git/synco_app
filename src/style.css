@@ -94,6 +94,50 @@ select {
 
 
 
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.4s ease;
+}
+
+.list-leave-active {
+  position: absolute;
+  width: 100%; 
+}
+
+.list-enter-from {
+  opacity: 0;
+  transform: translateX(50px) scale(0.9);
+}
+
+.list-leave-to {
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+.list-move {
+  transition: all 0.4s ease;
+}
+
+
+
+.slide-fade-enter-active {
+  transition: all 0.3s ease-out;
+}
+
+.slide-fade-leave-active {
+  transition: all 0.2s cubic-bezier(1, 0.5, 0.8, 1);
+}
+
+.slide-fade-enter-from {
+  transform: translateX(50px);
+  opacity: 0;
+}
+
+.slide-fade-leave-to {
+  transform: scale(0.9);
+  opacity: 0;
+}
+
 
 
 button.primary,
