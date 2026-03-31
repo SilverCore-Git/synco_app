@@ -2,7 +2,7 @@
 
 import { onBeforeUnmount, onMounted } from 'vue';
 import ThreadsBar from './components/layouts/ThreadsBar.vue';
-import SpaceBar from './components/layouts/spaceBar.vue';
+import SpaceBar from './components/layouts/SpaceBar.vue';
 import UserCard from './components/layouts/UserCard.vue';
 import UsersBar from './components/layouts/UsersBar.vue';
 import { openedOrg, organizations } from '@/assets/var';

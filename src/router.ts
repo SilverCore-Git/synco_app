@@ -11,6 +11,8 @@ import GeneralSettings from './views/OrgSpace/views/settings/views/GeneralSettin
 import SettingsLayout from './views/OrgSpace/views/settings/SettingsLayout.vue';
 import MembersSettings from './views/OrgSpace/views/settings/views/MembersSettings.vue';
 import InviteView from './views/inviteView.vue';
+import HankoProfile from './views/auth/HankoProfile.vue';
+import HankoAuth from './views/auth/HankoAuth.vue';
 
 
 const routes = [
@@ -106,6 +108,28 @@ const routes = [
         component: ThreadView,
         props: true,
         meta: { title: 'SilverTeams' },
+      }
+    ]
+  },
+  
+  {
+    path: '/auth',
+    name: 'Auth',
+    meta: { title: 'Auth' },
+    children: [
+      {
+        path: 'profile',
+        name: 'Profile',
+        component: HankoProfile,
+        props: true,
+        meta: { title: 'Profile - SilverTeams' },
+      },
+      {
+        path: 'sign',
+        name: 'Sign',
+        component: HankoAuth,
+        props: true,
+        meta: { title: 'Sign - SilverTeams' },
       }
     ]
   },

@@ -13,6 +13,7 @@
     "@clerk/vue": "^1.17.14",
     "@emailjs/browser": "^4.4.1",
     "@tailwindcss/vite": "^4.1.17",
+    "@teamhanko/hanko-elements": "^2.5.0",
     "bootstrap-icons": "^1.13.1",
     "gsap": "^3.13.0",
     "markdown-it": "^14.1.0",
