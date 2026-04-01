@@ -142,6 +142,7 @@ onBeforeUnmount(async () => {
             flex flex-row 
             relative
         "
+        :style="{ 'view-transition-name': `org-${route.params.orgId}` }"
     >
 
         <SpaceBar />

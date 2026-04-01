@@ -5,6 +5,7 @@
         class="group relative flex flex-col items-center cursor-pointer"
         :href="`/${org.id}`"
         @click.prevent="handleClick"
+        :style="{ 'view-transition-name': `org-${org.id}` }"
     >
 
         <div 

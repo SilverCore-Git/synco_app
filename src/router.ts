@@ -13,6 +13,7 @@ import MembersSettings from './views/OrgSpace/views/settings/views/MembersSettin
 import InviteView from './views/inviteView.vue';
 import HankoProfile from './views/auth/HankoProfile.vue';
 import HankoAuth from './views/auth/HankoAuth.vue';
+import { nextTick } from 'vue';
 
 
 const routes = [
@@ -149,6 +150,19 @@ const router = createRouter({
     return { top: 0 };
   }
 });
+
+router.beforeResolve((_to, _from) => {
+
+  if (!document.startViewTransition) return;
+
+  return new Promise((resolve) => {
+    document.startViewTransition(async () => {
+      resolve()
+      await nextTick()
+    })
+  })
+  
+})
 
 router.beforeEach((to: any, _from: any, next: any) => {
   const title = to.meta.title as string;

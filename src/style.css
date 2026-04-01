@@ -349,3 +349,44 @@ button.premium::before {
 button.premium:hover::before {
   left: 100%;
 }
+
+
+
+
+
+
+
+
+
+::view-transition-group(org-*) {
+  animation-duration: 400ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+::view-transition-old(org-*),
+::view-transition-new(org-*) {
+  mix-blend-mode: normal !important;
+  height: 100%;
+  width: 100%;
+  object-fit: contain; 
+}
+
+::view-transition-old(org-*) {
+  animation: fade-out 150ms ease-in-out forwards;
+}
+
+::view-transition-new(org-*) {
+  animation: fade-in 400ms ease-in-out both;
+}
+
+
+@keyframes fade-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
