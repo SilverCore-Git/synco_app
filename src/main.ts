@@ -3,6 +3,7 @@ import './style.css'
 import App from './App.vue'
 import router from './router';
 import { clerkPlugin } from '@clerk/vue';
+import StarportPlugin from 'vue-starport'
 import { frFR } from '@clerk/localizations'
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
@@ -19,4 +20,6 @@ app.use(clerkPlugin, {
   routerReplace: router.replace
 });
 
-app.mount('#app')
+app.use(StarportPlugin());
+
+app.mount('#app');

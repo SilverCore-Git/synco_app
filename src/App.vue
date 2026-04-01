@@ -7,6 +7,7 @@ import { onMounted } from 'vue';
 import waitFor from './assets/utils/waitfor';
 import init from './assets/init';
 import { isLoaded } from './assets/var';
+import { StarportCarrier } from 'vue-starport';
 
 const { isLoaded: isClerkLoaded } = useUser();
 
@@ -37,7 +38,9 @@ onMounted(async () => {
       <SignedIn>
 
         <div v-if="isLoaded" class="w-full h-full">
-          <RouterView />
+          <StarportCarrier>
+            <RouterView />
+          </StarportCarrier>
         </div>
 
         <div v-else class="w-full h-full">

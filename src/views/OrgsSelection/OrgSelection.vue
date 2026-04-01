@@ -26,11 +26,17 @@ onMounted(async () => {
 
         <div class="flex flex-wrap justify-center gap-10 md:gap-16 max-w-6xl">
 
-            <OrgBtn
-                v-for="org in organizations"
-                :key="org.id"
-                :org="org"
-            />
+            <div v-for="org in organizations" :key="org.id">
+
+                <Starport :port="`org-${org.id}`" class="w-full h-full">
+
+                    <OrgBtn
+                        :org="org"
+                    />
+
+                </Starport>
+            
+            </div>
 
         </div>
 

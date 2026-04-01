@@ -5,17 +5,21 @@
         class="group relative flex flex-col items-center cursor-pointer"
         :href="`/${org.id}`"
         @click.prevent="handleClick"
-        :style="{ 'view-transition-name': `org-${org.id}` }"
     >
 
         <div 
             class="
                 relative w-40 h-40 md:w-60 md:h-60
-                overflow-hidden border-4 border-transparent 
+                overflow-hidden border-transparent 
                 transition-all duration-300 transform bg-(--bg)
                 rounded-4xl group-active:scale-90 shadow-2xl
                 flex items-center justify-center border-white/5
                 group-hover:scale-105 group-hover:border-(--primary) 
+            "
+            :class="
+                loader 
+                    ? 'animate-pulse border-none scale-105' 
+                    : 'border-4'
             "
         >
 
@@ -24,10 +28,10 @@
                 :src="org.logo" 
                 :alt="org.name" 
                 class="
-                    w-full h-full 
-                    object-cover grayscale-50
-                    group-hover:grayscale-0 transition-all
+                    w-full h-full transition-all
+                    object-cover group-hover:grayscale-0 
                 "
+                :class="loader ? 'grayscale-0' : 'grayscale-50'"
             />
 
             <i
@@ -45,7 +49,7 @@
 
         </div>
 
-        <span class="mt-5 text-xl font-medium text-(--text)/60 group-hover:text-(--text) transition-colors">
+        <span v-if="!loader" class="mt-5 text-xl font-medium text-(--text)/60 group-hover:text-(--text) transition-colors">
             {{ org.name }}
         </span>
 
@@ -60,6 +64,7 @@ import { useRouter } from 'vue-router';
 
 const props = defineProps<{
     org: Org | OrgLittle;
+    loader?: boolean;
 }>();
 
 const router = useRouter();

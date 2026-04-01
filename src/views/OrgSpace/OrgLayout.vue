@@ -1,12 +1,11 @@
 <script setup lang="ts">
 
-import { onBeforeUnmount, onMounted } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import ThreadsBar from './components/layouts/ThreadsBar.vue';
 import SpaceBar from './components/layouts/SpaceBar.vue';
 import UserCard from './components/layouts/UserCard.vue';
 import UsersBar from './components/layouts/UsersBar.vue';
 import { openedOrg, organizations } from '@/assets/var';
-import Loader from '@/components/LogoLoader.vue';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import { useUser } from '@clerk/vue';
@@ -14,6 +13,8 @@ import usePeer from '@/composables/usePeer';
 import type { Category, Message } from '@/types/types';
 import { useRoute } from 'vue-router';
 import Notifications from '@/components/overlay/Notifications.vue';
+import { Starport } from 'vue-starport';
+import OrgBtn from '../OrgsSelection/components/OrgBtn.vue';
 
 
 const props = defineProps<{
@@ -25,6 +26,10 @@ const { user } = useUser();
 const { initPeer } = usePeer();
 const route = useRoute();
 
+const loading = ref<boolean>(true);
+const orgOnOpen = computed(() => {
+    return organizations.value.find(org => org.id === route.params.orgId);
+});
 
 const initSocketListener = async () => {
 
@@ -122,6 +127,11 @@ onMounted(async () => {
    openedOrg.value = await sfetch(`/api/orgs/${props.orgId}`).then(res => res.json()); 
    await initSocketListener();
    initPeer();
+
+   setTimeout(() => {
+    loading.value = false;
+   }, 500);
+
 });
 
 onBeforeUnmount(async () => {
@@ -135,33 +145,44 @@ onBeforeUnmount(async () => {
 
 <template>
 
-    <div
-        v-if="openedOrg !== null"
-        class="
-            h-full w-full 
-            flex flex-row 
-            relative
-        "
-        :style="{ 'view-transition-name': `org-${route.params.orgId}` }"
-    >
+        <div
+            v-if="!loading"
+            class="
+                h-full w-full 
+                flex flex-row 
+                relative
+            "
+        >
 
-        <SpaceBar />
-        <ThreadsBar class="h-full w-60 max-w-60 min-w-60" />
+            <SpaceBar />
+            <ThreadsBar class="h-full w-60 max-w-60 min-w-60" />
 
-        <div class="h-full w-full min-w-80">
-            <RouterView />
+            <div class="h-full w-full min-w-80">
+                <RouterView />
+            </div>
+
+            <UsersBar class="w-60 max-w-60 min-w-60" />
+
+            <UserCard />
+
         </div>
 
-        <UsersBar class="w-60 max-w-60 min-w-60" />
+        <Transition name="fade">
 
-        <UserCard />
+            <div v-if="loading && orgOnOpen" class="w-full h-full z-100">
+                
+                <div class="h-full w-full flex items-center justify-center">
+                        
+                    <Starport :port="`org-${orgOnOpen?.id}`">
+                        <OrgBtn :org="orgOnOpen" :loader="true" />
+                    </Starport>
 
-    </div>
+                </div>
 
-    <div v-else>
-        <Loader />
-    </div>
+            </div>
 
-    <Notifications />
+        </Transition>
+
+        <Notifications />
 
 </template>
