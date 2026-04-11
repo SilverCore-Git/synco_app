@@ -78,7 +78,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import type { Thread } from '@/types/workSpace';
 import useLiveKit from '@/composables/useLiveKit';
 import sfetch from '@/assets/utils/sfetch';
