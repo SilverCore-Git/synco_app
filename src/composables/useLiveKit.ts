@@ -1,68 +1,69 @@
-import { ref, shallowRef, onBeforeUnmount } from 'vue';
+import { ref, shallowRef } from 'vue';
 import { 
     Room, 
     RoomEvent, 
     RemoteParticipant, 
-    RemoteTrack, 
-    RemoteTrackPublication,
-    Track
+    RemoteTrack,
+    Track,
+    ConnectionState
 } from 'livekit-client';
 
 
+const room = shallowRef<Room | null>(null);
+const isConnected = ref<boolean>(false);
+const participants = ref<RemoteParticipant[]>([]);
+const audioTracks = ref<Map<string, RemoteTrack>>(new Map());
+const videoTracks = ref<Map<string, RemoteTrack>>(new Map());
 
 
-function useLiveKit()
+export function useLiveKit()
 {
 
-    const room = shallowRef<Room | null>(null);
-    const isConnected = ref<boolean>(false);
-    const participants = ref<RemoteParticipant[]>([]);
-    const audioTracks = ref<Map<string, RemoteTrack>>(new Map());
-    const videoTracks = ref<Map<string, RemoteTrack>>(new Map());
-
-
     const connectToRoom = async (url: string, token: string) => {
+        
+        if (room.value?.state === ConnectionState.Connected) return;
 
         const newRoom = new Room({
-            adaptiveStream: true, // Optimise la bande passante (qualité selon la taille d'affichage)
-            dynacast: true,       // Coupe les flux vidéos non visibles
+            adaptiveStream: true,
+            dynacast: true,
+            publishDefaults: {
+                audioPreset: { maxBitrate: 32000 }, 
+            }
         });
 
+        const syncParticipants = () => {
+            participants.value = Array.from(newRoom.remoteParticipants.values());
+        };
 
-        // on a client connected
-        newRoom.on(RoomEvent.ParticipantConnected, () => {
-            participants.value = [...newRoom.remoteParticipants.values()];
-        });
-
-        // on a client disconnected
-        newRoom.on(RoomEvent.ParticipantDisconnected, () => {
-            participants.value = [...newRoom.remoteParticipants.values()];
-        });
-
-        // on track subscribed
-        newRoom.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, pub: RemoteTrackPublication, participant: RemoteParticipant) => {
-
+        newRoom.on(RoomEvent.ParticipantConnected, syncParticipants);
+        newRoom.on(RoomEvent.ParticipantDisconnected, syncParticipants);
+        
+        // Track Management
+        newRoom.on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
+            
             if (track.kind === Track.Kind.Audio) 
             {
-                track.attach(); // auto play
+                track.attach(); 
                 audioTracks.value.set(participant.identity, track);
-            } 
-            else if (track.kind === Track.Kind.Video) 
+            }
+            else 
             {
                 videoTracks.value.set(`${participant.identity}-${pub.source}`, track);
             }
 
         });
 
-        // on track unsubscribed
-        newRoom.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, pub: RemoteTrackPublication, participant: RemoteParticipant) => {
+        newRoom.on(RoomEvent.TrackUnsubscribed, (track, pub, participant) => {
 
-            if (track.kind === Track.Kind.Video) 
+            track.detach();
+            if (track.kind === Track.Kind.Audio) 
+            {
+                audioTracks.value.delete(participant.identity);
+            } 
+            else 
             {
                 videoTracks.value.delete(`${participant.identity}-${pub.source}`);
             }
-
-            track.detach();
 
         });
 
@@ -71,36 +72,34 @@ function useLiveKit()
             await newRoom.connect(url, token);
             room.value = newRoom;
             isConnected.value = true;
-            participants.value = [...newRoom.remoteParticipants.values()];
-
-        } catch (error) {
-            console.error("LiveKit connexion error :", error);
+            syncParticipants(); // Sync initial
+            
+            await newRoom.localParticipant.setMicrophoneEnabled(true);
+            
+        } 
+        catch (error) 
+        {
+            console.error("LiveKit connection error:", error);
+            throw error;
         }
 
     };
 
-
-    const toggleCamera = async (enabled: boolean) => {
-        await room.value?.localParticipant.setCameraEnabled(enabled);
-    };
-
-    const toggleMicrophone = async (enabled: boolean) => {
-        await room.value?.localParticipant.setMicrophoneEnabled(enabled);
-    };
-
-    const toggleScreenShare = async (enabled: boolean) => {
-        await room.value?.localParticipant.setScreenShareEnabled(enabled);
-    };
-
     const leaveRoom = async () => {
-        await room.value?.disconnect();
-        isConnected.value = false;
-        room.value = null;
+        if (room.value) 
+        {
+            await room.value.disconnect();
+            room.value = null;
+            isConnected.value = false;
+            participants.value = [];
+            audioTracks.value.clear();
+            videoTracks.value.clear();
+        }
     };
 
-
-    onBeforeUnmount(() => leaveRoom());
-
+    const isParticipantSpeaking = (participant: RemoteParticipant) => {
+        return participant.isSpeaking;
+    };
 
     return {
         room,
@@ -108,13 +107,11 @@ function useLiveKit()
         participants,
         videoTracks,
         connectToRoom,
-        toggleCamera,
-        toggleMicrophone,
-        toggleScreenShare,
-        leaveRoom
+        leaveRoom,
+        isParticipantSpeaking,
+        toggleCamera: (en: boolean) => room.value?.localParticipant.setCameraEnabled(en),
+        toggleMicrophone: (en: boolean) => room.value?.localParticipant.setMicrophoneEnabled(en),
+        toggleScreenShare: (en: boolean) => room.value?.localParticipant.setScreenShareEnabled(en),
     };
-
-
+    
 }
-
-export default useLiveKit;

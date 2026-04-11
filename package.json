@@ -16,7 +16,7 @@
     "@teamhanko/hanko-elements": "^2.5.0",
     "bootstrap-icons": "^1.13.1",
     "gsap": "^3.13.0",
-    "livekit-client": "^2.18.0",
+    "livekit-client": "^2.18.1",
     "markdown-it": "^14.1.0",
     "peerjs": "^1.5.5",
     "socket.io-client": "^4.8.3",
