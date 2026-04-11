@@ -35,7 +35,7 @@
             </span>
 
             <div 
-                v-if="currentParticipants.length > 0" 
+                v-if="isActiveInRoom && currentParticipants.length > 0" 
                 class="ml-auto text-[10px] bg-black/20 px-1.5 py-0.5 rounded-full opacity-60"
             >
                 {{ currentParticipants.length }}
@@ -94,19 +94,10 @@ const emit = defineEmits(['click']);
 const route = useRoute();
 const router = useRouter();
 
-const { room, isConnected, connectToRoom } = useLiveKit();
+const { room, isConnected, connectToRoom, allParticipants: currentParticipants } = useLiveKit();
 
 const isActiveInRoom = computed(() => {
     return isConnected.value && room.value?.name === props.thread.id;
-});
-
-const currentParticipants = computed(() => {
-
-    if (!isActiveInRoom.value || !room.value) return [];
-    
-    const all = [room.value.localParticipant, ...Array.from(room.value.remoteParticipants.values())];
-    return all;
-
 });
 
 const isSpeakingInThisRoom = computed(() => {
