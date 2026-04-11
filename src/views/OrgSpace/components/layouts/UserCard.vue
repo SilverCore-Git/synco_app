@@ -1,58 +1,3 @@
-<script setup lang="ts">
-
-import getColorByStatus from '@/assets/utils/getColorByStatus';
-import type { OrgMember } from '@/types/types';
-import { onMounted, ref, computed, onUnmounted } from 'vue';
-import UserDropDown from '../dropdown/UserDropDown.vue';
-import { openedOrg } from '@/assets/var';
-import { useUser } from '@clerk/vue';
-import useLiveKit from '@/composables/useLiveKit';
-import { ConnectionQuality } from 'livekit-client';
-
-const { user: ClerkUser } = useUser();
-const { 
-    room, 
-    isConnected, 
-    leaveRoom, 
-    toggleMicrophone, 
-    toggleCamera, 
-    toggleScreenShare 
-} = useLiveKit();
-
-const user = ref<OrgMember | undefined>(undefined);
-const ping = ref<number>(-1);
-
-const isMicEnabled = computed(() => room.value?.localParticipant.isMicrophoneEnabled ?? false);
-const isCameraEnabled = computed(() => room.value?.localParticipant.isCameraEnabled ?? false);
-const isScreenShareEnabled = computed(() => room.value?.localParticipant.isScreenShareEnabled ?? false);
-
-const connectionColor = computed(() => {
-    const quality = room.value?.localParticipant.connectionQuality;
-    if (quality === ConnectionQuality.Excellent || quality === ConnectionQuality.Good) return 'text-green-500';
-    if (quality === ConnectionQuality.Poor) return 'text-yellow-500';
-    return 'text-red-500';
-});
-
-let pingInterval: any;
-onMounted(async () => {
-
-    user.value = openedOrg.value?.members?.find(member => member.user?.clerkId == ClerkUser.value?.id);
-    
-    pingInterval = setInterval(async () => {
-
-        if (isConnected.value && room.value) 
-        {
-            ping.value = room.value.localParticipant.engine.client?.rtt || 1;
-        }
-        
-    }, 2000);
-
-});
-
-onUnmounted(() => clearInterval(pingInterval));
-
-</script>
-
 <template>
 
     <div class="absolute bottom-1 left-1 w-75 flex flex-col gap-1">
@@ -62,7 +7,7 @@ onUnmounted(() => clearInterval(pingInterval));
             <div 
                 v-if="isConnected"
                 class="
-                    flex flex-col gap-2 p-2 bg-(--bg2) rounded-xl 
+                    flex flex-col gap-2 p-2 bg-(--bg) rounded-xl 
                     border border-white/5 shadow-2xl
                     animate-in fade-in slide-in-from-bottom-2 duration-300
                 "
@@ -121,7 +66,7 @@ onUnmounted(() => clearInterval(pingInterval));
 
         <div
             class="
-                h-14 bg-(--bg2) rounded-xl
+                h-14 bg-(--bg) rounded-xl
                 border border-white/5
                 p-1 flex items-center shadow-xl
             "
@@ -182,6 +127,61 @@ onUnmounted(() => clearInterval(pingInterval));
     </div>
 
 </template>
+
+<script setup lang="ts">
+
+import getColorByStatus from '@/assets/utils/getColorByStatus';
+import type { OrgMember } from '@/types/types';
+import { onMounted, ref, computed, onUnmounted } from 'vue';
+import UserDropDown from '../dropdown/UserDropDown.vue';
+import { openedOrg } from '@/assets/var';
+import { useUser } from '@clerk/vue';
+import useLiveKit from '@/composables/useLiveKit';
+import { ConnectionQuality } from 'livekit-client';
+
+const { user: ClerkUser } = useUser();
+const { 
+    room, 
+    isConnected, 
+    leaveRoom, 
+    toggleMicrophone, 
+    toggleCamera, 
+    toggleScreenShare 
+} = useLiveKit();
+
+const user = ref<OrgMember | undefined>(undefined);
+const ping = ref<number>(-1);
+
+const isMicEnabled = computed(() => room.value?.localParticipant.isMicrophoneEnabled ?? false);
+const isCameraEnabled = computed(() => room.value?.localParticipant.isCameraEnabled ?? false);
+const isScreenShareEnabled = computed(() => room.value?.localParticipant.isScreenShareEnabled ?? false);
+
+const connectionColor = computed(() => {
+    const quality = room.value?.localParticipant.connectionQuality;
+    if (quality === ConnectionQuality.Excellent || quality === ConnectionQuality.Good) return 'text-green-500';
+    if (quality === ConnectionQuality.Poor) return 'text-yellow-500';
+    return 'text-red-500';
+});
+
+let pingInterval: any;
+onMounted(async () => {
+
+    user.value = openedOrg.value?.members?.find(member => member.user?.clerkId == ClerkUser.value?.id);
+    
+    pingInterval = setInterval(async () => {
+
+        if (isConnected.value && room.value) 
+        {
+            ping.value = room.value.localParticipant.engine.client?.rtt || 1;
+        }
+        
+    }, 2000);
+
+});
+
+onUnmounted(() => clearInterval(pingInterval));
+
+</script>
 
 <style scoped>
 .bi-reception-4 {

@@ -24,7 +24,7 @@
                 v-if="isOpen || show"
                 class="
                     absolute z-50 mt-2 w-56 rounded-xl border border-(--text)/10
-                    bg-(--bg2) shadow-xl ring-1 ring-white/5 focus:outline-none
+                    bg-(--bg) shadow-xl ring-1 ring-white/5 focus:outline-none
                 "
                 :class="[
                     align === 'right' ? 'right-0' : align === 'left' ? 'left-0' : '',

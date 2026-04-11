@@ -3,7 +3,7 @@
         <main 
             ref="messagesContainer"
             @scroll="handleScroll"
-            class="flex-1 overflow-y-auto p-4 custom-scrollbar bg-(--bg) w-full"
+            class="flex-1 overflow-y-auto p-4 custom-scrollbar w-full"
         >
 
             <div v-if="thread" class="flex flex-col justify-end min-h-full w-full">
@@ -93,7 +93,7 @@
             <div 
                 class="
                     relative flex items-center 
-                    bg-white/5 border border-white/10 
+                    bg-(--bg) border border-white/10 
                     rounded-xl px-4 py-2
                     focus-within:border-(--primary)/50 
                     transition-all shadow-2xl

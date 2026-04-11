@@ -3,11 +3,11 @@
     <div
         class="
             h-full w-full border-l border-white/5
-            flex flex-col overflow-hidden  bg-(--bg2)
+            flex flex-col overflow-hidden  bg-(--bg3)
         "
     >
 
-        <div class="px-4 min-h-14 flex justify-start items-center border-b border-white/5">
+        <div class="px-4 min-h-14 flex justify-start items-center border-b border-white/5 bg-(--bg2)">
             <h3 class="text-xs font-semibold text-(--text)/50 uppercase tracking-wider">
                 Membres ({{ openedOrg?.members?.length || 0 }})
             </h3>

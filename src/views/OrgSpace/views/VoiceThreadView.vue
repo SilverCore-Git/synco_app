@@ -1,13 +1,23 @@
 <template>
 
-    <div v-if="isConnected" class="flex-1 bg-black/40 p-4 overflow-hidden flex flex-col gap-4">
+    <div v-if="isConnected" class="flex-1 overflow-hidden">
             
-        <div :class="['grid gap-4 h-full w-full transition-all duration-500', gridClass]">
+        <div 
+            class="
+                flex flex-wrap justify-center items-center 
+                gap-4 h-full w-full transition-all duration-500
+            "
+        >
                 
             <div 
-                v-for="p in allParticipants" 
+                v-for="p in [ ...allParticipants, ...allParticipants, ...allParticipants ]" 
                 :key="p.identity"
-                class="relative bg-(--bg2) rounded-2xl overflow-hidden border border-white/5 flex items-center justify-center group"
+                class="
+                    relative bg-(--bg2) rounded-2xl 
+                    overflow-hidden border border-white/5
+                    flex items-center justify-center group
+                    w-lg h-70
+                "
             >
                     
                 <VideoTrack 

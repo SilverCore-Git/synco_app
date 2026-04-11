@@ -16,7 +16,7 @@ const route = useRoute();
     <nav
         v-if="openedOrg"
         class="
-            h-full min-w-17 bg-(--bg2) border-r border-white/5
+            h-full min-w-17 bg-(--bg) border-r border-white/5
             flex justify-start items-center flex-col pt-2.5
         "
     >

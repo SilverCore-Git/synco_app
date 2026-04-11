@@ -4,8 +4,8 @@
 
         <div
             class="
-                h-full w-full bg-(--bg) border-r border-(--text)/5
-                flex justify-start items-start flex-col relative
+                h-full w-full bg-(--bg2) relative
+                flex justify-start items-start flex-col 
             "
         >
 
@@ -61,7 +61,7 @@
             class="
                 h-full 
                 
-                bg-(--bg) border-r border-(--text)/5
+                bg-(--bg2) border-r border-(--text)/5
                 flex justify-start items-start flex-col relative
             "
         >
@@ -115,7 +115,7 @@
                     class="
                         h-full 
                         
-                        bg-(--bg) border-r border-(--text)/5
+                        bg-(--bg2) border-r border-(--text)/5
                         flex justify-start items-start flex-col relative
                     "
                     @contextmenu.prevent="showDropDown = !showDropDown"

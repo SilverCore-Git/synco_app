@@ -1,10 +1,10 @@
 <template>
 
-    <div class="flex flex-col h-full bg-(--bg) relative overflow-hidden w-full">
+    <div class="flex flex-col h-full relative overflow-hidden w-full">
 
         <header 
             v-if="thread" 
-            class="h-14 flex items-center px-4 border-b border-white/5 bg-(--bg)/80 backdrop-blur-md z-10"
+            class="h-14 flex items-center px-4 border-b border-white/5 bg-(--bg2) backdrop-blur-md z-10"
         >
 
             <div class="flex items-center gap-2">

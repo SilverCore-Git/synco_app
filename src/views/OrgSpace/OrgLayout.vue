@@ -151,14 +151,14 @@ onBeforeUnmount(async () => {
             class="
                 h-full w-full 
                 flex flex-row 
-                relative
+                relative bg-(--bg3)
             "
         >
 
             <SpaceBar />
             <ThreadsBar class="h-full w-60 max-w-60 min-w-60" />
 
-            <div class="h-full w-full min-w-80">
+            <div class="bg-(--bg3) h-full w-full min-w-80">
                 <RouterView />
             </div>
 
