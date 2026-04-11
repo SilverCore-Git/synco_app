@@ -10,6 +10,7 @@ import {
 } from 'livekit-client';
 import { openedOrg } from '@/assets/var';
 import E2EEWorker from '../../node_modules/livekit-client/dist/livekit-client.e2ee.worker.js?worker&url';
+import waitFor from '@/assets/utils/waitfor';
 
 
 const room = shallowRef<Room | null>(null);
@@ -53,7 +54,7 @@ function useLiveKit()
             await keyProvider.setKey(e2eeKey);
             e2eeOptions = {
                 keyProvider,
-                worker: new Worker(E2EEWorker),
+                worker: new Worker(E2EEWorker, { type: 'module' }),
             };
 
         }
@@ -108,15 +109,13 @@ function useLiveKit()
             await newRoom.connect(url, token);
             room.value = newRoom;
             isConnected.value = true;
-            syncParticipants(); // Sync initial
-            
+
             await newRoom.localParticipant.setMicrophoneEnabled(true);
-            
+
         } 
         catch (error) 
         {
-            console.error("LiveKit connection error:", error);
-            throw error;
+            console.error("Erreur de connexion E2EE:", error);
         }
 
     };

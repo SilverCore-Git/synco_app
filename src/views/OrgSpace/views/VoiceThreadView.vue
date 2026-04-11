@@ -1,16 +1,19 @@
 <template>
 
-    <div v-if="isConnected" class="flex-1 overflow-hidden">
+    <div 
+        v-if="isConnected" 
+        class="w-full h-full flex justify-center items-center overflow-hidden"
+    >
             
         <div 
             class="
-                flex flex-wrap justify-center items-center 
-                gap-4 h-full w-full transition-all duration-500
+                flex flex-wrap justify-center items-center
+                gap-4 transition-all duration-500
             "
         >
                 
             <div 
-                v-for="p in [ ...allParticipants, ...allParticipants, ...allParticipants ]" 
+                v-for="p in allParticipants" 
                 :key="p.identity"
                 class="
                     relative bg-(--bg2) rounded-2xl 
