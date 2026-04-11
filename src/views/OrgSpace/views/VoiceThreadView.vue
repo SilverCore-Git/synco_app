@@ -70,38 +70,38 @@
         </div>
 
     </div>
+
+    <div v-else class="flex justify-center items-center flex-col h-[80%]">
+
+        <div class="relative mb-6">
+            <div class="absolute inset-0 bg-red-500/20 blur-3xl rounded-full"></div>
+            <div class="relative w-20 h-20 bg-(--bg) border border-white/10 rounded-3xl flex items-center justify-center shadow-2xl">
+                <i class="bi bi-telephone-x-fill text-3xl text-red-500"></i>
+            </div>
+        </div>
+
+        <h2 class="text-xl font-bold text-(--text) mb-2">La réunion est terminé !</h2>
+        <p class="text-sm text-(--text)/40 max-w-70 mb-8">
+            De nouveau dans la solitude.
+        </p>
+
+    </div>
     
 </template>
 
 
 <script setup lang="ts">
 
-import { computed } from 'vue';
 import useLiveKit from '@/composables/useLiveKit';
 import VideoTrack from '../components/common/VideoTrack.vue';
 import type { Thread } from '@/types/types';
 
-const { room, isConnected } = useLiveKit();
+const { allParticipants, isConnected } = useLiveKit();
 
 
 defineProps<{
     thread?: Thread;
 }>();
-
-
-const allParticipants = computed(() => {
-    if (!room.value) return [];
-    return [room.value.localParticipant, ...Array.from(room.value.remoteParticipants.values())];
-});
-
-
-const gridClass = computed(() => {
-    const count = allParticipants.value.length;
-    if (count <= 1) return 'grid-cols-1';
-    if (count <= 2) return 'grid-cols-1 md:grid-cols-2';
-    if (count <= 4) return 'grid-cols-2';
-    return 'grid-cols-2 lg:grid-cols-3';
-});
 
 const getMeta = (p: any) => {
     try { return JSON.parse(p.metadata || '{}'); } catch { return {}; }

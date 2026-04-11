@@ -38,12 +38,12 @@
 
                 </div>
 
-                <div class="grid grid-cols-2 gap-2 border-t border-white/5 pt-2">
+                <div class="grid grid-cols-2 gap-2 border-t border-(--white)/5 pt-2">
 
                     <button 
                         @click="toggleCamera(!isCameraEnabled)"
                         class="flex items-center justify-center gap-2 py-1.5 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wider"
-                        :class="isCameraEnabled ? 'bg-(--primary)/20 text-(--primary)' : 'bg-white/5 text-(--text)/40 hover:bg-white/10'"
+                        :class="isCameraEnabled ? 'bg-(--primary)/20 text-(--primary)' : 'bg-(--white)/5 text-(--text)/40 hover:bg-(--white)/10'"
                     >
                         <i class="bi" :class="isCameraEnabled ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'" />
                         Vidéo
@@ -52,7 +52,7 @@
                     <button 
                         @click="toggleScreenShare(!isScreenShareEnabled)"
                         class="flex items-center justify-center gap-2 py-1.5 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wider"
-                        :class="isScreenShareEnabled ? 'bg-blue-500/20 text-blue-500' : 'bg-white/5 text-(--text)/40 hover:bg-white/10'"
+                        :class="isScreenShareEnabled ? 'bg-(--primary)/20 text-(--primary)' : 'bg-(--white)/5 text-(--text)/40 hover:bg-(--white)/10'"
                     >
                         <i class="bi bi-display" />
                         Écran
@@ -146,15 +146,14 @@ const {
     leaveRoom, 
     toggleMicrophone, 
     toggleCamera, 
-    toggleScreenShare 
+    toggleScreenShare,
+    isCameraEnabled,
+    isMicEnabled,
+    isScreenShareEnabled,
 } = useLiveKit();
 
 const user = ref<OrgMember | undefined>(undefined);
 const ping = ref<number>(-1);
-
-const isMicEnabled = computed(() => room.value?.localParticipant.isMicrophoneEnabled ?? false);
-const isCameraEnabled = computed(() => room.value?.localParticipant.isCameraEnabled ?? false);
-const isScreenShareEnabled = computed(() => room.value?.localParticipant.isScreenShareEnabled ?? false);
 
 const connectionColor = computed(() => {
     const quality = room.value?.localParticipant.connectionQuality;

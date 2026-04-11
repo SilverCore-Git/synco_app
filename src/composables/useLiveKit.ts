@@ -10,17 +10,19 @@ import {
 } from 'livekit-client';
 import { openedOrg } from '@/assets/var';
 import E2EEWorker from '../../node_modules/livekit-client/dist/livekit-client.e2ee.worker.js?worker&url';
-import waitFor from '@/assets/utils/waitfor';
 
 
 const room = shallowRef<Room | null>(null);
 const isConnected = ref<boolean>(false);
 const participants = ref<RemoteParticipant[]>([]);
+const allParticipants = ref<any[]>([]);
 const audioTracks = ref<Map<string, RemoteTrack>>(new Map());
 const videoTracks = ref<Map<string, RemoteTrack>>(new Map());
 
+const isMicEnabled = ref<boolean>(false);
+const isCameraEnabled = ref<boolean>(false);
+const isScreenShareEnabled = ref<boolean>(false);
 const keyProvider = new ExternalE2EEKeyProvider();
-
 
 async function getE2EEKey(threadId: string): Promise<string> 
 {
@@ -40,6 +42,15 @@ async function getE2EEKey(threadId: string): Promise<string>
 
 function useLiveKit()
 {
+
+    const syncLocalState = () => {
+        if (!room.value) return;
+        const lp = room.value.localParticipant;
+        isMicEnabled.value = lp.isMicrophoneEnabled;
+        isCameraEnabled.value = lp.isCameraEnabled;
+        isScreenShareEnabled.value = lp.isScreenShareEnabled;
+        isConnected.value = true;
+    };
 
     const connectToRoom = async (url: string, token: string, threadId: string) => {
         
@@ -70,6 +81,7 @@ function useLiveKit()
 
         const syncParticipants = () => {
             participants.value = Array.from(newRoom.remoteParticipants.values());
+            if (room.value) allParticipants.value = [ ...participants.value, room.value.localParticipant ];
         };
 
         newRoom.on(RoomEvent.ParticipantConnected, syncParticipants);
@@ -78,6 +90,8 @@ function useLiveKit()
         // Track Management
         newRoom.on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
             
+            syncParticipants();
+
             if (track.kind === Track.Kind.Audio) 
             {
                 track.attach(); 
@@ -91,6 +105,8 @@ function useLiveKit()
         });
 
         newRoom.on(RoomEvent.TrackUnsubscribed, (track, pub, participant) => {
+
+            syncParticipants();
 
             track.detach();
             if (track.kind === Track.Kind.Audio) 
@@ -111,6 +127,7 @@ function useLiveKit()
             isConnected.value = true;
 
             await newRoom.localParticipant.setMicrophoneEnabled(true);
+            syncLocalState();
 
         } 
         catch (error) 
@@ -140,13 +157,29 @@ function useLiveKit()
         room,
         isConnected,
         participants,
+        allParticipants,
         videoTracks,
+        isCameraEnabled,
+        isMicEnabled,
+        isScreenShareEnabled,
         connectToRoom,
         leaveRoom,
         isParticipantSpeaking,
-        toggleCamera: (en: boolean) => room.value?.localParticipant.setCameraEnabled(en),
-        toggleMicrophone: (en: boolean) => room.value?.localParticipant.setMicrophoneEnabled(en),
-        toggleScreenShare: (en: boolean) => room.value?.localParticipant.setScreenShareEnabled(en),
+        toggleCamera: async (en: boolean) => {
+            if (!room.value) return;
+            await room.value.localParticipant.setCameraEnabled(en);
+            isCameraEnabled.value = en;
+        },
+        toggleMicrophone: async (en: boolean) => {
+            if (!room.value) return;
+            await room.value.localParticipant.setMicrophoneEnabled(en);
+            isMicEnabled.value = en;
+        },
+        toggleScreenShare: async (en: boolean) => {
+            if (!room.value) return;
+            await room.value.localParticipant.setScreenShareEnabled(en);
+            isScreenShareEnabled.value = en;
+        },
     };
 
 }
