@@ -136,8 +136,7 @@
 
 import { computed, ref, onMounted, onUnmounted, watch, nextTick, type Ref } from 'vue';
 import { useRoute } from 'vue-router';
-import type { Thread, WorkSpace, Message } from '@/types/types';
-import { openedOrg } from '@/assets/var';
+import type { Thread, Message } from '@/types/types';
 import useWSocket from '@/composables/useWSocket';
 import type { Socket } from 'socket.io-client';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
@@ -145,9 +144,10 @@ import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 let socket: Ref<Socket | null> = ref<null>(null);
 const route = useRoute();
 
-defineProps<{
+const props = defineProps<{
     thread?: Thread;
 }>();
+const thread = computed(() => props.thread);
 
 interface sMessage extends Message {
     sender?: {

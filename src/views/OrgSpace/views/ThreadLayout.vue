@@ -19,7 +19,11 @@
                 <button class="hover:text-(--text) transition-colors">
                     <i class="bi bi-bell-fill" />
                 </button>
-                <button class="hover:text-(--text) transition-colors">
+                <button 
+                    @click="showUsersBar = !showUsersBar"
+                    class="hover:text-(--text) transition-colors"
+                    :class="showUsersBar ? 'text-(--text)' : ''"
+                >
                     <i class="bi bi-people-fill" />
                 </button>
             </div>
@@ -45,6 +49,7 @@ import VoiceThreadView from './VoiceThreadView.vue';
 import ThreadView from './ThreadView.vue';
 import type { Thread, WorkSpace } from '@/types/types';
 import { openedOrg } from '@/assets/var';
+import { showUsersBar } from '@/assets/settings';
 
 const route = useRoute();
 const isVoice = computed<boolean>(() => route.query.type == 'vocal');

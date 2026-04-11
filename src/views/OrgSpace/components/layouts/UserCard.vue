@@ -57,7 +57,7 @@ onUnmounted(() => clearInterval(pingInterval));
 
     <div class="absolute bottom-1 left-1 w-75 flex flex-col gap-1">
 
-        <Transition name="slide-in-up">
+        <Transition name="fade-slide-in-up">
             
             <div 
                 v-if="isConnected"
