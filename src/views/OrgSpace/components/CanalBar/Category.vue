@@ -59,12 +59,21 @@
                 <template #item="{ element: thread }">
 
                     <ThreadBtn 
+                        v-if="thread.type === 'text'"
                         :thread="thread"
                         :active="route.params.threadId == thread.id"
                         :hasUnread="thread.hasUnread"
-                        :key="'thread-' + thread.id"
+                        :key="'thread-text-' + thread.id"
                         class="cursor-grab active:cursor-grabbing"
                         @click="navigateToThread(thread.id)"
+                    />
+
+                    <VoiceThreadBtn 
+                        v-else-if="thread.type === 'vocal'"
+                        :thread="thread"
+                        :active="route.params.threadId == thread.id"
+                        :key="'thread-vocal-' + thread.id"
+                        class="cursor-grab active:cursor-grabbing"
                     />
 
                 </template>
@@ -86,6 +95,7 @@ import ThreadBtn from './ThreadBtn.vue';
 import { useRoute, useRouter } from 'vue-router';
 import CreateNewThread from '../popup/CreateNewThread.vue';
 import useWSocket from '@/composables/useWSocket';
+import VoiceThreadBtn from './VoiceThreadBtn.vue';
 
 const props = defineProps<{
     category: Category;

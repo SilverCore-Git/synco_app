@@ -21,13 +21,7 @@
 
         <div class="flex items-center justify-center w-5 h-5">
             <i 
-                v-if="thread.type === 'text'" 
                 class="bi bi-hash text-xl group-hover:opacity-100"
-                :class="active ? 'opacity-100' : 'opacity-40'"
-            />
-            <i 
-                v-else 
-                class="bi bi-volume-up-fill text-lg group-hover:opacity-100"
                 :class="active ? 'opacity-100' : 'opacity-40'"
             />
         </div>
