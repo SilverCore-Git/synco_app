@@ -1,10 +1,10 @@
 <template>
 
-    <div class="flex flex-col h-full bg-(--bg) relative overflow-hidden w-full">
+    <div class="flex flex-col h-full bg-(--bg3) relative overflow-hidden w-full">
         
         <header 
             v-if="recipient" 
-            class="h-14 flex items-center px-4 border-b border-white/5 bg-(--bg)/80 backdrop-blur-md z-10"
+            class="h-14 flex items-center px-4 border-b border-white/5 bg-(--bg2)/80 backdrop-blur-md z-10"
         >
 
             <div class="flex items-center gap-3">
@@ -46,7 +46,7 @@
         <main 
             ref="messagesContainer"
             @scroll="handleScroll"
-            class="flex-1 overflow-y-auto p-4 custom-scrollbar bg-(--bg) w-full"
+            class="flex-1 overflow-y-auto p-4 custom-scrollbar w-full"
         >
 
             <div v-if="recipient" class="flex flex-col justify-end min-h-full w-full">
@@ -128,7 +128,7 @@
                 </p>
              </div>
 
-            <div class="relative flex items-center bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
+            <div class="relative flex items-center bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
                 
                 <ThreadTextarea
                     v-model="newMessage"

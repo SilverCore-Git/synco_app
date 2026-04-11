@@ -1,14 +1,16 @@
-import { ref, watch } from 'vue';
+import { ref } from 'vue';
 import { Peer, type MediaConnection } from 'peerjs';
 import type { User, OrgMember } from '@/types/types';
 import { openedOrg } from '@/assets/var';
+import useNotifications from './useNotifications';
 
 
 const peer = ref<Peer | null>(null);
 const localStream = ref<MediaStream | null>(null);
 const isCalling = ref<boolean>(false);
-const haveCallingEnter = ref<OrgMember | 'no' | 'reject' | 'accept'>('no');
+const { callNotif } = useNotifications();
 const isSpeaking = ref<boolean>(false);
+const enteringCall = ref<any>(null);
 
 const remoteStreams = ref<Map<string, MediaStream>>(new Map());
 const activeCalls = ref<Map<string, MediaConnection>>(new Map());
@@ -44,49 +46,60 @@ const initPeer = () => {
 
         const user = openedOrg.value?.members?.find(user => user.user?.id == call.peer);
         if (!user) return;
-        haveCallingEnter.value = user;
+
+        isCalling.value = true;
+        callNotif.value.push(user);
+        enteringCall.value = call;
+
+        console.log('call entering : ', call)
         
-        const closeWatch = watch(haveCallingEnter, async (newVal) => 
-        {
-
-            if (newVal == 'accept') 
-            {
-
-                haveCallingEnter.value = 'no';
-
-                try {
-
-                    if (!localStream.value) 
-                    {
-                        localStream.value = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                        monitorAudio(localStream.value, (val) => isSpeaking.value = val);
-                    }
-                    
-                    isCalling.value = true;
-                    call.answer(localStream.value);
-                    handleCallEvents(call);
-
-                } 
-                catch (err) 
-                {
-                    console.error("[PEER] Erreur média entrant:", err);
-                }
-
-            }
-            else if (newVal == 'reject')
-            {
-                call.close();
-                endCall();
-                closeWatch();
-                haveCallingEnter.value = 'no';
-            }
-
-        })
-
     });
 
 };
 
+const acceptCall = async () => {
+    
+    try {
+
+        if (!enteringCall) return;
+
+        if (!localStream.value) 
+        {
+            localStream.value = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            monitorAudio(localStream.value, (val) => isSpeaking.value = val);
+        }
+                    
+        isCalling.value = true;
+        enteringCall.value.answer(localStream.value);
+        handleCallEvents(enteringCall.value);
+
+        const user = openedOrg.value?.members?.find(user => user.user?.id == enteringCall.value.peer);
+        if (!user) return;
+        const userId = user.id;
+
+        enteringCall.value = null;
+        callNotif.value.filter(user => user.id !== userId);
+
+    } 
+    catch (err) 
+    {
+        console.error("[PEER] Erreur média entrant:", err);
+    }
+}
+
+const rejectCall = () => {
+    
+    enteringCall.value.close();
+    endCall();
+
+    const user = openedOrg.value?.members?.find(user => user.user?.id == enteringCall.value.peer);
+    if (!user) return;
+    const userId = user.id;
+
+    enteringCall.value = null;
+    callNotif.value.filter(user => user.id !== userId);
+
+}
 
 const handleCallEvents = (call: MediaConnection) => {
 
@@ -216,8 +229,9 @@ export default function usePeer()
         endCall,
         toggleMic,
         toggleCam,
+        acceptCall,
+        rejectCall,
         remoteStreams,
-        haveCallingEnter,
         localStream,
         isCalling,
         isSpeaking,

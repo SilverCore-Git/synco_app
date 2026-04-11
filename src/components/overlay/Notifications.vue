@@ -72,7 +72,7 @@
                             <div class="flex gap-3 mt-5 w-full">
 
                                 <button 
-                                    @click=""
+                                    @click="router.push({ name: 'OrgThreadChat', params: { userId: notif.call?.userId } }), acceptCall()"
                                     class="danger w-full gap-3"
                                 >
                                     <i class="bi bi-x-lg" />
@@ -80,7 +80,7 @@
                                 </button>
                                 
                                 <button 
-                                    @click=""
+                                    @click="rejectCall()"
                                     class="primary w-full gap-3"
                                 >
                                     <i class="bi bi-telephone-fill animate-bounce" />
@@ -114,10 +114,14 @@
 <script setup lang="ts">
 
 import useNotifications, { type NotificationType } from '@/composables/useNotifications';
+import usePeer from '@/composables/usePeer';
 import { computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 
 
 const { notifications, initListener, remove } = useNotifications();
+const router = useRouter();
+const { acceptCall, rejectCall } = usePeer();
 
 
 const sortedNotifications = computed(() => {

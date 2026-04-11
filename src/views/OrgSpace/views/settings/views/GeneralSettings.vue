@@ -1,6 +1,6 @@
 <template>
 
-    <div class="flex flex-col bg-(--bg) w-full overflow-hidden h-full">
+    <div class="flex flex-col w-full overflow-hidden h-full">
         
         <main class="flex-1 overflow-y-auto p-6 lg:p-10">
 
