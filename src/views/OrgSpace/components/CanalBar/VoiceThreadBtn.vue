@@ -82,6 +82,7 @@ import { computed } from 'vue';
 import type { Thread } from '@/types/workSpace';
 import useLiveKit from '@/composables/useLiveKit';
 import sfetch from '@/assets/utils/sfetch';
+import { useRoute, useRouter } from 'vue-router';
 
 const props = defineProps<{
   thread: Thread;
@@ -90,7 +91,10 @@ const props = defineProps<{
 
 const emit = defineEmits(['click']);
 
-const { room, isConnected, leaveRoom, connectToRoom } = useLiveKit();
+const route = useRoute();
+const router = useRouter();
+
+const { room, isConnected, connectToRoom } = useLiveKit();
 
 const isActiveInRoom = computed(() => {
     return isConnected.value && room.value?.name === props.thread.id;
@@ -109,20 +113,13 @@ const isSpeakingInThisRoom = computed(() => {
     return isActiveInRoom.value && room.value?.localParticipant.isSpeaking;
 });
 
-const getAvatar = (participant: any) => {
-    try {
-        const meta = JSON.parse(participant.metadata || '{}');
-        return meta.avatarUrl || `https://ui-avatars.com/api/?name=${participant.name}`;
-    } catch {
-        return `https://ui-avatars.com/api/?name=${participant.name}`;
-    }
-};
-
 const handleAction = async () => {
     
     if (isActiveInRoom.value) 
     {
-        await leaveRoom();
+        const name = (route.name == 'OrgHome' || route.name == 'OrgThreadHome') 
+                 ? 'OrgThreadHome' : 'SpaceThreadView';
+        router.push({ name, params: { ...route.params, threadId: props.thread.id }, query: { ...route.query,  type: 'vocal' } })
     } 
     else 
     {

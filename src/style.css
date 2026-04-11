@@ -138,6 +138,7 @@ select {
   opacity: 0;
 }
 
+
 .slide-in-up-enter-active {
   transition: all 0.3s ease-out;
 }
@@ -153,6 +154,25 @@ select {
 
 .slide-in-up-leave-to {
   transform: translateY(20px);
+  opacity: 0;
+}
+
+
+.slide-in-right-enter-active {
+  transition: all 0.3s ease-out;
+}
+
+.slide-in-right-leave-active {
+  transition: all 0.2s cubic-bezier(1, 0.5, 0.8, 1);
+}
+
+.slide-in-right-enter-from {
+  transform: translateX(20px);
+  opacity: 0;
+}
+
+.slide-in-right-leave-to {
+  transform: translateX(20px);
   opacity: 0;
 }
 

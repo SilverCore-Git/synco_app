@@ -5,7 +5,6 @@ import OrgSelection from './views/OrgsSelection/OrgSelection.vue';
 import OrgLayout from './views/OrgSpace/OrgLayout.vue';
 import SpaceView from './views/OrgSpace/views/SpaceView.vue';
 import OrgHome from './views/OrgSpace/views/OrgHome.vue';
-import ThreadView from './views/OrgSpace/views/ThreadView.vue';
 import ChatView from './views/OrgSpace/views/ChatView.vue';
 import GeneralSettings from './views/OrgSpace/views/settings/views/GeneralSettings.vue';
 import SettingsLayout from './views/OrgSpace/views/settings/SettingsLayout.vue';
@@ -13,6 +12,7 @@ import MembersSettings from './views/OrgSpace/views/settings/views/MembersSettin
 import InviteView from './views/inviteView.vue';
 import HankoProfile from './views/auth/HankoProfile.vue';
 import HankoAuth from './views/auth/HankoAuth.vue';
+import ThreadLayout from './views/OrgSpace/views/ThreadLayout.vue';
 import { nextTick } from 'vue';
 
 
@@ -79,7 +79,7 @@ const routes = [
         path: 'home/:threadId',
         name: 'OrgThreadHome',
         props: true,
-        component: ThreadView,
+        component: ThreadLayout,
         meta: { title: 'SilverTeams' }
       },
       {
@@ -106,7 +106,7 @@ const routes = [
       {
         path: ':spaceId/:threadId',
         name: 'SpaceThreadView',
-        component: ThreadView,
+        component: ThreadLayout,
         props: true,
         meta: { title: 'SilverTeams' },
       }

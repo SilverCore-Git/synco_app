@@ -15,6 +15,7 @@ import { useRoute } from 'vue-router';
 import Notifications from '@/components/overlay/Notifications.vue';
 import { Starport } from 'vue-starport';
 import OrgBtn from '../OrgsSelection/components/OrgBtn.vue';
+import { showUsersBar } from '@/assets/settings';
 
 
 const props = defineProps<{
@@ -161,7 +162,9 @@ onBeforeUnmount(async () => {
                 <RouterView />
             </div>
 
-            <UsersBar class="w-60 max-w-60 min-w-60" />
+            <Transition name="slide-in-right">
+                <UsersBar v-if="showUsersBar" class="w-60 max-w-60 min-w-60" />
+            </Transition>
 
             <UserCard />
 
