@@ -16,7 +16,7 @@ const audioTracks = ref<Map<string, RemoteTrack>>(new Map());
 const videoTracks = ref<Map<string, RemoteTrack>>(new Map());
 
 
-export function useLiveKit()
+function useLiveKit()
 {
 
     const connectToRoom = async (url: string, token: string) => {
@@ -113,5 +113,7 @@ export function useLiveKit()
         toggleMicrophone: (en: boolean) => room.value?.localParticipant.setMicrophoneEnabled(en),
         toggleScreenShare: (en: boolean) => room.value?.localParticipant.setScreenShareEnabled(en),
     };
-    
+
 }
+
+export default useLiveKit;
