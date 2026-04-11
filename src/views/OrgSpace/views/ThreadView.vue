@@ -3,7 +3,7 @@
         <main 
             ref="messagesContainer"
             @scroll="handleScroll"
-            class="flex-1 overflow-y-auto p-4 custom-scrollbar w-full"
+            class="flex-1 overflow-y-auto p-4 w-full"
         >
 
             <div v-if="thread" class="flex flex-col justify-end min-h-full w-full">
@@ -323,21 +323,3 @@ onUnmounted(() => {
 });
 
 </script>
-
-<style scoped>
-
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-</style>

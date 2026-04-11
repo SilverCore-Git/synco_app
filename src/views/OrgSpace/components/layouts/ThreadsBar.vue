@@ -28,7 +28,7 @@
 
             <ul
                 class="
-                    flex justify-start items-start flex-col mb-18
+                    flex justify-start items-start flex-col mb-11
                     gap-3 h-full w-full px-3 py-5 overflow-scroll
                 "
             >
@@ -85,7 +85,7 @@
 
             <ul
                 class="
-                    flex justify-start items-start flex-col mb-18
+                    flex justify-start items-start flex-col mb-11
                     gap-3 h-full w-full px-3 py-5 overflow-scroll
                 "
             >
@@ -142,8 +142,8 @@
 
                     <ul
                         class="
-                            flex justify-start items-start flex-col mb-18
-                            gap-3 h-full w-full px-3 py-5 overflow-scroll
+                            flex justify-start items-start flex-col mb-11
+                            gap-3 h-full w-full px-3 py-5 overflow-scroll 
                         "
                     >
 

@@ -3,7 +3,7 @@
 :root {
 
   --primary: #16ac77; 
-  /* #1ED760 ?? */
+  --primary-dark: #062d1f;
   --primary-hover: #128a60;
 
   --bg: #121214;
@@ -409,22 +409,34 @@ button.premium:hover::before {
 
 
 
-
-
-
-
-::view-transition-group(org-*) {
+* {
+  scrollbar-width: 6px;
+  scrollbar-color: var(--primary-dark) transparent;
 }
 
-::view-transition-old(org-*),
-::view-transition-new(org-*) {
-
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-/* Optionnel : On peut rendre l'ancien bouton invisible vite 
-   pour que le contenu de la nouvelle vue apparaisse pendant l'expansion */
-::view-transition-old(org-*) {
+*::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-::view-transition-new(org-*) {
+*::-webkit-scrollbar-thumb {
+  background: var(--primary-dark);
+  border-radius: 10px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-hover);
+}
+
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
