@@ -5,8 +5,11 @@ import {
     RemoteParticipant, 
     RemoteTrack,
     Track,
-    ConnectionState
+    ConnectionState,
+    ExternalE2EEKeyProvider
 } from 'livekit-client';
+import { openedOrg } from '@/assets/var';
+import E2EEWorker from '../../node_modules/livekit-client/dist/livekit-client.e2ee.worker.js?worker&url';
 
 
 const room = shallowRef<Room | null>(null);
@@ -15,20 +18,53 @@ const participants = ref<RemoteParticipant[]>([]);
 const audioTracks = ref<Map<string, RemoteTrack>>(new Map());
 const videoTracks = ref<Map<string, RemoteTrack>>(new Map());
 
+const keyProvider = new ExternalE2EEKeyProvider();
+
+
+async function getE2EEKey(threadId: string): Promise<string> 
+{
+
+    const input = `${import.meta.env.VITE_LIVEKIT_E2EE_KEY}_${openedOrg.value?.id}_${threadId}`;
+
+    const encoder = new TextEncoder();
+    const data = encoder.encode(input);
+    
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+}
+
 
 function useLiveKit()
 {
 
-    const connectToRoom = async (url: string, token: string) => {
+    const connectToRoom = async (url: string, token: string, threadId: string) => {
         
         if (room.value?.state === ConnectionState.Connected) return;
+
+        let e2eeOptions = undefined;
+        const e2eeKey = await getE2EEKey(threadId);
+
+        if (e2eeKey) 
+        {
+            
+            await keyProvider.setKey(e2eeKey);
+            e2eeOptions = {
+                keyProvider,
+                worker: new Worker(E2EEWorker),
+            };
+
+        }
 
         const newRoom = new Room({
             adaptiveStream: true,
             dynacast: true,
             publishDefaults: {
                 audioPreset: { maxBitrate: 32000 }, 
-            }
+            },
+            e2ee: e2eeOptions
         });
 
         const syncParticipants = () => {

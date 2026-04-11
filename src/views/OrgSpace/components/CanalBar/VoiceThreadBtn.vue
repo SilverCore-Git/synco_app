@@ -57,14 +57,14 @@
 
                 <div class="relative">
                     <img 
-                        :src="getAvatar(p)" 
+                        :src="JSON.parse(p.metadata!).avatarUrl" 
                         class="w-5 h-5 rounded-full object-cover transition-transform"
                         :class="p.isSpeaking ? 'scale-110 ring-2 ring-(--primary)' : ''"
                     />
                 </div>
                 
                 <span class="text-xs truncate font-medium">
-                    {{ p.name || 'Anonyme' }}
+                    {{ JSON.parse(p.metadata!).name || 'Anonyme' }}
                 </span>
 
                 <i v-if="!p.isMicrophoneEnabled" class="bi bi-mic-mute-fill text-[10px] ml-auto opacity-40" />
@@ -135,7 +135,7 @@ const handleAction = async () => {
         if (res.ok) 
         {
             const data = await res.json();
-            await connectToRoom(data.url, data.token);
+            await connectToRoom(data.url, data.token, props.thread.id);
         }
 
     }
