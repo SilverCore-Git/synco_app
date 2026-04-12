@@ -148,6 +148,7 @@ import useWSocket from '@/composables/useWSocket';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import { encrypt, decrypt, deriveKey } from '@/assets/utils/threadsCrypto';
 import { useToast } from '@/composables/useToast';
+import { openedOrg } from '@/assets/var';
 
 
 const props = defineProps<{ 
@@ -277,6 +278,12 @@ const joinThread = async (id: string) => {
         spaceId: route.params.spaceId 
     });
 
+    let _thread
+    if (route.params.spaceId == 'home')  _thread = openedOrg.value?.home.threads.find(__thread => __thread.id == thread.value?.id);
+    else _thread = (openedOrg.value?.spaces?.find(space => space.id == route.params.spaceId))?.threads.find(__thread => __thread.id == thread.value?.id);
+
+    if (_thread) _thread.hasUnread = false;
+
 };
 
 const sendMessage = async () => {
@@ -317,11 +324,13 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+
     if (socket.value) 
     {
         socket.value.emit("leave-thread", thread.value?.id);
         socket.value.off("thread-history").off("more-messages").off("new-message");
     }
+
 });
 
 </script>
