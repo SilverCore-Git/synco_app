@@ -249,7 +249,7 @@
                                     <td class="px-6 py-4">
 
                                         <select 
-                                            :value="member.role"
+                                            :value="member?.role || 'unknow'"
                                             @change="updateRole(member.id, $event)"
                                             :disabled="isSelf(member.user?.clerkId!) || !isAdmin"
                                             class="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-(--text) focus:outline-none disabled:opacity-50"

@@ -115,7 +115,7 @@
                         La suppression d'une organisation est irréversible. Toutes les données, messages et fichiers seront définitivement effacés.
                     </p>
 
-                    <button class=" danger">
+                    <button class=" danger" @click="showDeleteOrg = !showDeleteOrg">
                         Supprimer l'organisation
                     </button>
 
@@ -143,6 +143,16 @@
 
     </div>
 
+    <ConfirmDelete 
+        :show="showDeleteOrg"
+        item-type="l'organisation"
+        :item-name="'l\'organisation ' + orgData.name"
+        checkbox
+        checktext
+        @cancel="showDeleteOrg = false"
+        @confirm="deleteOrg"
+    />
+
 </template>
 
 <script lang="ts" setup>
@@ -153,13 +163,17 @@ import { useToast } from '@/composables/useToast';
 import IconSelector from '@/components/common/IconSelector.vue';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
+import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
+import { useRouter } from 'vue-router';
 
 
 const toast = useToast();
+const router = useRouter();
+
 
 const showIconSelector = ref<boolean>(false);
 const saving = ref<boolean>(false);
-
+const showDeleteOrg = ref<boolean>(false);
     
 const orgData = ref({
     name: openedOrg.value?.name || '',
@@ -237,6 +251,30 @@ const saveSettings = async () => {
     }
 
 };
+
+
+const deleteOrg = async () => {
+
+    showDeleteOrg.value = false;
+
+    const res = await sfetch(`/api/orgs/${openedOrg.value?.id}`, {
+        method: 'DELETE'
+    })
+
+    if (res.ok)
+    {
+        toast.show('Organisation supprimer avec succès.', 'success');
+        router.push('/');
+        organizations.value.filter(org => org.id !== openedOrg.value?.id);
+        openedOrg.value = null
+    }
+    else
+    {
+        const err = ( await res.json() ).error;
+        toast.show(err, 'error');
+    }
+
+}
 
 
 watch(() => openedOrg.value, (newOrg) => {

@@ -22,6 +22,38 @@
                     Cette action est irréversible et toutes les données associées seront perdues.
                 </p>
 
+                <label 
+                    v-if="checkbox"
+                    class="flex items-start gap-3 p-3 rounded-lg bg-red-500/5 border border-red-500/10 cursor-pointer group mb-4"
+                >
+                    <input 
+                        v-model="acknowledge" 
+                        type="checkbox" 
+                        class="mt-1 accent-red-500 h-4 w-4"
+                    />
+                    <span class="text-xs text-(--text)/80 leading-snug select-none">
+                        Je comprends que cette action supprimera définitivement toutes les données liées à ce contenu.
+                    </span>
+                </label>
+
+                <div 
+                    v-if="checktext"
+                    class="mb-6" 
+                    :class="{ 'opacity-40 pointer-events-none': !acknowledge }"
+                >
+                    <label class="text-[11px] text-(--text)/70 mb-2 block lowercase italic">
+                        Tapez <span class="text-red-400 font-mono select-all">"{{ itemName }}"</span> pour débloquer :
+                    </label>
+                    <input 
+                        v-model="confirmText"
+                        type="text"
+                        :disabled="!acknowledge"
+                        class="w-full bg-black/20 border border-(--text)/10 rounded-lg px-4 py-2 text-sm text-(--text) focus:border-red-500/50 outline-none transition-all"
+                        placeholder="..."
+                        @paste.prevent
+                    />
+                </div>
+
                 <div class="flex flex-col sm:flex-row gap-3 sm:justify-end">
 
                     <button 
@@ -33,11 +65,12 @@
                     
                     <button 
                         @click="emit('confirm')"
-                        :disabled="loading"
-                        class="danger"
+                        :disabled="submitDisabled"
+                        class="danger flex items-center justify-center gap-2"
+                        :class="submitDisabled || loading ? 'opacity-30 cursor-not-allowed! grayscale active:scale-100!' : ''"
                     >
                         <span v-if="loading" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                        Supprimer définitivement
+                        <span v-else>Supprimer définitivement</span>
                     </button>
 
                 </div>
@@ -51,15 +84,43 @@
 </template>
 
 <script setup lang="ts">
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
-defineProps<{
+
+const props = defineProps<{
   show: boolean;
   itemName: string;
+  checkbox?: boolean;
+  checktext?: boolean;
   itemType?: string; // ex: "le salon", "le workspace"
   loading?: boolean;
 }>();
 
+const acknowledge = ref<boolean>(false);
+const confirmText = ref<string>('');
+
+const isFullyConfirmed = computed<boolean>(() => {
+    return acknowledge.value && confirmText.value == props.itemName;
+})
+const submitDisabled = computed<boolean>(() => {
+
+    let disabled: boolean = false;
+
+    if (props.checkbox && !acknowledge.value) disabled = true;
+    if (props.checktext && confirmText.value !== props.itemName) disabled = true;
+
+    return disabled;
+
+});
+
 const emit = defineEmits(['confirm', 'cancel']);
+
+const handleEsc = (e: KeyboardEvent) => {
+  if (e.key === 'Escape') emit('cancel');
+};
+
+onMounted(() => window.addEventListener('keydown', handleEsc));
+onUnmounted(() => window.removeEventListener('keydown', handleEsc));
 
 </script>
 
