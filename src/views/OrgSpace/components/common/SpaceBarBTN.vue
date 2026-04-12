@@ -1,4 +1,4 @@
-    <template>
+<template>
 
     <div class="group relative ">
 
@@ -8,7 +8,7 @@
             class="
                 relative flex items-center justify-center 
                 w-12 h-12 cursor-pointer transition-all duration-300 ease-out
-                bg-(--bg) rounded-xl overflow-hidden border  
+                bg-(--bg2)/50 rounded-xl overflow-hidden border  
             "
             :class="[
                 active ? 'border-(--primary)/50' : 'border-(--text)/10',

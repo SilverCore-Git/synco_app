@@ -142,8 +142,7 @@ onBeforeUnmount(async () => {
 
         <div
             class="
-                h-full w-full 
-                flex flex-row 
+                h-full w-full flex flex-row 
                 relative bg-(--bg3)
             "
             style="view-transition-name: openOrg;"
@@ -157,7 +156,10 @@ onBeforeUnmount(async () => {
             </div>
 
             <Transition name="slide-in-right">
-                <UsersBar v-if="showUsersBar" class="w-60 max-w-60 min-w-60" />
+                <UsersBar 
+                    v-if="showUsersBar" 
+                    class="w-60 max-w-60 min-w-60" 
+                />
             </Transition>
 
             <UserCard />
