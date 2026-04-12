@@ -78,7 +78,13 @@
 
                     <div class="flex items-center w-full gap-2 p-2 rounded-lg hover:bg-(--primary)/5 transition-colors group">
                        
-                        <div class="relative flex items-center justify-center">
+                        <div
+                            v-if="openedOrg == null"
+                        >
+                            <div class=" rounded-full bg-(--white)/6 h-9 w-9 animate-pulse" />
+                        </div>
+
+                        <div v-else class="relative flex items-center justify-center">
                             <img :src="user?.user?.avatarUrl" :alt="user?.user?.name" class="w-8 h-8 rounded-full object-cover" />
                             <div 
                                 v-if="user && user.user?.data.status"
@@ -87,11 +93,20 @@
                             />
                         </div>
 
-                        <div class="flex flex-col min-w-0 flex-1 leading-tight select-none">
-                            <span class="text-sm font-bold text-(--text) truncate">
+                        <div 
+                            class="flex flex-col min-w-0 flex-1 leading-tight select-none"
+                            :class="openedOrg == null ? 'bg-(--white)/8 rounded-lg animate-pulse' : ''"
+                        >
+                            <span 
+                                class="text-sm font-bold truncate"
+                                :class="openedOrg == null ? 'text-transparent' : 'text-(--text)'"
+                            >
                                 {{ user?.user?.name || 'Chargement...' }}
                             </span>
-                            <span class="text-[10px] text-(--text)/40 truncate font-medium uppercase tracking-wider">
+                            <span 
+                                class="text-[10px] truncate font-medium uppercase tracking-wider"
+                                :class="openedOrg == null ? 'text-transparent' : 'text-(--text)/40'"
+                            >
                                 {{ user?.user?.data?.username || user?.role }}
                             </span>
                         </div>
