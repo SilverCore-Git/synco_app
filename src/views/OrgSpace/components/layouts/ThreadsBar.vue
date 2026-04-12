@@ -1,226 +1,224 @@
 <template>
 
-    <!-- loader -->
-    <div v-if="openedOrg == null" class="h-full w-full">
-        
-        <ThreadBarDropDown class="h-full w-full">
+    <div class="h-full w-full pb-20 bg-(--bg2) border-r border-(--text)/5">
 
-            <template #trigger>
+        <!-- loader -->
+        <template v-if="openedOrg == null" class="h-full w-full">
+            
+            <ThreadBarDropDown class="h-full w-full">
 
-                <div
-                    class="
-                        h-full 
-                        
-                        bg-(--bg2) border-r border-(--text)/5
-                        flex justify-start items-start flex-col relative
-                    "
-                    @contextmenu.prevent="showDropDown = !showDropDown"
-                >
+                <template #trigger>
 
-                    <div 
+                    <div
                         class="
-                            min-h-14 pl-5 px-3 flex justify-between items-center
-                            flex-row w-full border-b border-white/5
+                            h-full 
+                            flex justify-start items-start flex-col relative
                         "
-                    >
-
-                        <div class="flex justify-center items-center flex-row gap-3 ">
-                            <div class=" rounded-lg bg-(--white)/6 h-6 w-6 animate-pulse" />
-                            <div class=" rounded-lg bg-(--white)/6 h-5 w-40 animate-pulse" />
-                        </div>
-                    
-                    </div>
-
-                    <ul
-                        class="
-                            flex justify-start items-start flex-col mb-11
-                            gap-3 h-full w-full px-3 py-5 overflow-scroll 
-                        "
+                        @contextmenu.prevent="showDropDown = !showDropDown"
                     >
 
                         <div 
-                            v-for="i in 13"
-                            :key="i"
-                            class=" rounded-lg bg-(--white)/4 h-6 w-full animate-pulse" 
-                        />
+                            class="
+                                min-h-14 pl-5 px-3 flex justify-between items-center
+                                flex-row w-full border-b border-white/5
+                            "
+                        >
 
-                    </ul>
-
-                </div>
-
-            </template>
-
-        </ThreadBarDropDown>
-
-    </div>
-
-    <div v-else-if="isSettings && isAdmin" class="h-full w-full">
-
-        <div
-            class="
-                h-full w-full bg-(--bg2) relative
-                flex justify-start items-start flex-col 
-            "
-        >
-
-            <div 
-                class="
-                    min-h-14 pl-5 px-3 flex justify-between items-center
-                    flex-row w-full border-b border-white/5
-                "
-            >
-
-                <div class="flex justify-center items-center flex-row gap-3 ">
-                    <img v-if="icon && icon.startsWith('http')" :src="icon" />
-                    <i v-else-if="icon" class="bi" :class="icon" />
-                    <h3 class="font-semibold">
-                        {{ title }}
-                    </h3>
-                </div>
-                    
-            </div>
-
-            <ul
-                class="
-                    flex justify-start items-start flex-col mb-11
-                    gap-3 h-full w-full px-3 py-5 overflow-scroll
-                "
-            >
-
-                <RouterLink
-                    v-for="view in settingsViews"
-                    :key="'settings-' + view.name + '-link'"
-                    :to="{ name: view.route }"
-                    class="w-full"
-                >
-                    <SettingsViewBtn
-                        :key="'settings-' + view.name + '-btn'"
-                        :name="view.name"
-                        :icon="view.icon"
-                        :active="
-                            route.name == view.route
-                        "
-                    />
-                </RouterLink>
-
-            </ul>
-
-        </div>
-
-
-    </div>
-
-    <div v-else-if="isChat" class="h-full w-full">
-
-        <div
-            class="
-                h-full 
-                
-                bg-(--bg2) border-r border-(--text)/5
-                flex justify-start items-start flex-col relative
-            "
-        >
-
-            <div 
-                class="
-                    min-h-14 pl-5 px-3 flex justify-between items-center
-                    flex-row w-full border-b border-white/5
-                "
-            >
-
-                <div class="flex justify-center items-center flex-row gap-3 ">
-                    <img v-if="icon && icon.startsWith('http')" :src="icon" />
-                    <i v-else-if="icon" class="bi" :class="icon" />
-                    <h3 class="font-semibold">
-                        {{ title }}
-                    </h3>
-                </div>
-                    
-            </div>
-
-            <ul
-                class="
-                    flex justify-start items-start flex-col mb-11
-                    gap-3 h-full w-full px-3 py-5 overflow-scroll
-                "
-            >
-
-                <RouterLink
-                    v-for="member in openedOrg?.members"
-                    :key="member.id + '-link'"
-                    :to="{ name: 'OrgThreadChat', params: { userId: member.id } }"
-                    class="w-full"
-                >
-                    <ChatUserBtn
-                        :key="member.id + '-btn'"
-                        :user="member"
-                        :active="route.params.userId == member.id"
-                    />
-                </RouterLink>
-
-            </ul>
-
-        </div>
-
-
-    </div>
-
-    <div v-else class="h-full w-full">
-        
-        <ThreadBarDropDown class="h-full w-full">
-
-            <template #trigger>
-
-                <div
-                    class="
-                        h-full 
+                            <div class="flex justify-center items-center flex-row gap-3 ">
+                                <div class=" rounded-lg bg-(--white)/6 h-6 w-6 animate-pulse" />
+                                <div class=" rounded-lg bg-(--white)/6 h-5 w-40 animate-pulse" />
+                            </div>
                         
-                        bg-(--bg2) border-r border-(--text)/5
-                        flex justify-start items-start flex-col relative
-                    "
-                    @contextmenu.prevent="showDropDown = !showDropDown"
-                >
-
-                    <div 
-                        class="
-                            min-h-14 pl-5 px-3 flex justify-between items-center
-                            flex-row w-full border-b border-white/5
-                        "
-                    >
-
-                        <div class="flex justify-center items-center flex-row gap-3 ">
-                            <img v-if="icon && icon.startsWith('http')" :src="icon" />
-                            <i v-else-if="icon" class="bi" :class="icon" />
-                            <h3 class="font-semibold">
-                                {{ title }}
-                            </h3>
                         </div>
 
-                        <ThreadDropDown />
-                    
+                        <ul
+                            class="
+                                flex justify-start items-start flex-col mb-11
+                                gap-3 h-full w-full px-3 py-5 overflow-scroll 
+                            "
+                        >
+
+                            <div 
+                                v-for="i in 13"
+                                :key="i"
+                                class=" rounded-lg bg-(--white)/4 h-6 w-full animate-pulse" 
+                            />
+
+                        </ul>
+
                     </div>
 
-                    <ul
-                        class="
-                            flex justify-start items-start flex-col mb-11
-                            gap-3 h-full w-full px-3 py-5 overflow-scroll 
-                        "
-                    >
+                </template>
 
-                        <Category 
-                            v-for="category in categories" 
-                            :key="'category-' + category.id" 
-                            :category="category"
-                            :threads="threadsByCategory[category.id] || []"
-                        />
+            </ThreadBarDropDown>
 
-                    </ul>
+        </template>
 
+        <template v-else-if="isSettings && isAdmin" class="h-full w-full">
+
+            <div
+                class="
+                    h-full w-full relative
+                    flex justify-start items-start flex-col 
+                "
+            >
+
+                <div 
+                    class="
+                        min-h-14 pl-5 px-3 flex justify-between items-center
+                        flex-row w-full border-b border-white/5
+                    "
+                >
+
+                    <div class="flex justify-center items-center flex-row gap-3 ">
+                        <img v-if="icon && icon.startsWith('http')" :src="icon" />
+                        <i v-else-if="icon" class="bi" :class="icon" />
+                        <h3 class="font-semibold">
+                            {{ title }}
+                        </h3>
+                    </div>
+                        
                 </div>
 
-            </template>
+                <ul
+                    class="
+                        flex justify-start items-start flex-col mb-11
+                        gap-3 h-full w-full px-3 py-5 overflow-scroll
+                    "
+                >
 
-        </ThreadBarDropDown>
+                    <RouterLink
+                        v-for="view in settingsViews"
+                        :key="'settings-' + view.name + '-link'"
+                        :to="{ name: view.route }"
+                        class="w-full"
+                    >
+                        <SettingsViewBtn
+                            :key="'settings-' + view.name + '-btn'"
+                            :name="view.name"
+                            :icon="view.icon"
+                            :active="
+                                route.name == view.route
+                            "
+                        />
+                    </RouterLink>
+
+                </ul>
+
+            </div>
+
+
+        </template>
+
+        <template v-else-if="isChat" class="h-full w-full">
+
+            <div
+                class="
+                    h-full 
+                    flex justify-start items-start flex-col relative
+                "
+            >
+
+                <div 
+                    class="
+                        min-h-14 pl-5 px-3 flex justify-between items-center
+                        flex-row w-full border-b border-white/5
+                    "
+                >
+
+                    <div class="flex justify-center items-center flex-row gap-3 ">
+                        <img v-if="icon && icon.startsWith('http')" :src="icon" />
+                        <i v-else-if="icon" class="bi" :class="icon" />
+                        <h3 class="font-semibold">
+                            {{ title }}
+                        </h3>
+                    </div>
+                        
+                </div>
+
+                <ul
+                    class="
+                        flex justify-start items-start flex-col mb-11
+                        gap-3 h-full w-full px-3 py-5 overflow-scroll
+                    "
+                >
+
+                    <RouterLink
+                        v-for="member in openedOrg?.members"
+                        :key="member.id + '-link'"
+                        :to="{ name: 'OrgThreadChat', params: { userId: member.id } }"
+                        class="w-full"
+                    >
+                        <ChatUserBtn
+                            :key="member.id + '-btn'"
+                            :user="member"
+                            :active="route.params.userId == member.id"
+                        />
+                    </RouterLink>
+
+                </ul>
+
+            </div>
+
+
+        </template>
+
+        <template v-else class="h-full w-full">
+            
+            <ThreadBarDropDown class="h-full w-full">
+
+                <template #trigger>
+
+                    <div
+                        class="
+                            h-full 
+                            flex justify-start items-start flex-col relative
+                        "
+                        @contextmenu.prevent="showDropDown = !showDropDown"
+                    >
+
+                        <div 
+                            class="
+                                min-h-14 pl-5 px-3 flex justify-between items-center
+                                flex-row w-full border-b border-white/5
+                            "
+                        >
+
+                            <div class="flex justify-center items-center flex-row gap-3 ">
+                                <img v-if="icon && icon.startsWith('http')" :src="icon" />
+                                <i v-else-if="icon" class="bi" :class="icon" />
+                                <h3 class="font-semibold">
+                                    {{ title }}
+                                </h3>
+                            </div>
+
+                            <ThreadDropDown />
+                        
+                        </div>
+
+                        <ul
+                            class="
+                                flex justify-start items-start flex-col mb-11
+                                gap-3 h-full w-full px-3 py-5 overflow-scroll 
+                            "
+                        >
+
+                            <Category 
+                                v-for="category in categories" 
+                                :key="'category-' + category.id" 
+                                :category="category"
+                                :threads="threadsByCategory[category.id] || []"
+                            />
+
+                        </ul>
+
+                    </div>
+
+                </template>
+
+            </ThreadBarDropDown>
+
+        </template>
 
     </div>
 
