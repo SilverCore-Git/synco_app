@@ -8,6 +8,7 @@ import waitFor from './assets/utils/waitfor';
 import init from './assets/init';
 import { isLoaded } from './assets/var';
 import { StarportCarrier } from 'vue-starport';
+import Notifications from './components/overlay/Notifications.vue';
 
 const { isLoaded: isClerkLoaded } = useUser();
 
@@ -46,6 +47,8 @@ onMounted(async () => {
         <div v-else class="w-full h-full">
           <Loader />
         </div>
+
+        <Notifications />
 
       </SignedIn>
 

@@ -2,11 +2,50 @@
 
 import { organizations } from '@/assets/var';
 import OrgBtn from './components/OrgBtn.vue';
-import { onMounted, ref } from 'vue';
+import { onMounted, reactive, ref } from 'vue';
 import type { User } from '@/types/types';
 import sfetch from '@/assets/utils/sfetch';
+import Popup from '@/components/Popup.vue';
+import IconSelector from '@/components/common/IconSelector.vue';
+import { useToast } from '@/composables/useToast';
+
+const toast = useToast();
 
 const me = ref<User | undefined>(undefined);
+
+const showCreateNewOrg = ref<boolean>(false);
+const newOrgForm = reactive({
+  name: '',
+  logo: ''
+});
+
+const createNewOrg = async () => {
+
+    showCreateNewOrg.value = false;
+
+    // vérifier si le user a le droit 
+
+    const res = await sfetch('/api/orgs', {
+        method: 'POST',
+        body: JSON.stringify({ name: newOrgForm.name, logo: newOrgForm.logo })  
+    })
+
+    if (res.ok)
+    {
+        const org = await res.json();
+        organizations.value.push(org);
+        toast.show('Organisation créer avec succès.', 'success');
+    }
+    else
+    {
+        const err = (await res.json()).error;
+        toast.show(err, 'error');
+    }
+
+    newOrgForm.logo = '';
+    newOrgForm.name = '';
+
+}
 
 onMounted(async () => {
     me.value = await sfetch('/api/users/me').then(res => res.json());
@@ -29,13 +68,19 @@ onMounted(async () => {
             <div 
                 v-for="org in organizations" 
                 :key="org.id"
-                style="view-transition-name: openOrg;"
+                :style="{ viewTransitionName: `openOrg-${org.id}` }"
             >
 
                 <OrgBtn
                     :org="org"
                 />
             
+            </div>
+
+            <div @click="showCreateNewOrg = !showCreateNewOrg">
+                <OrgBtn
+                    :org="{ id: '', name: 'Créer une organisation', logo: 'bi-plus', role: '', memberCount: '' }"
+                />
             </div>
 
         </div>
@@ -59,5 +104,68 @@ onMounted(async () => {
         </div>
 
     </div>
+
+    <Popup :isOpen="showCreateNewOrg" @close="showCreateNewOrg = false, newOrgForm.logo = '', newOrgForm.name = ''">
+
+        <template #title>Créer un Espace de travail</template>
+
+        <form @submit.prevent="createNewOrg()" class="space-y-5">
+
+            <div class="flex gap-2 flex-col">
+
+                <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+                    Nom de l'espace
+                </label>
+
+                <input 
+                    v-model="newOrgForm.name"
+                    type="text" 
+                    placeholder="Ex: Silvercore, silverteams..."
+                    ref="nameInput"
+                    class="
+                        w-full bg-(--bg2)/30 border border-white/10 rounded-xl 
+                        px-4 py-3 text-(--text) placeholder:text-(--text)/20 
+                        focus:outline-none focus:border-(--primary)/50 focus:ring-1
+                        focus:ring-(--primary)/20 transition-all
+                    "
+                />
+
+            </div>
+
+            <div class="flex gap-2 flex-col">
+
+                <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+                    Icon de l'espace
+                </label>
+
+                <IconSelector v-model="newOrgForm.logo" />
+
+            </div>
+
+        </form>
+
+        <template #footer>
+
+            <button 
+                @click="showCreateNewOrg = false, newOrgForm.logo = '', newOrgForm.name = ''" 
+                class="default"
+            >
+                Annuler
+            </button>
+
+            <button 
+                @click="createNewOrg()"
+                class="primary"
+                :class="[
+                    !newOrgForm.name.trim() || newOrgForm.logo == '' ? ' grayscale-100 pointer-events-none opacity-50' : ''
+                ]"
+                :disabled="!newOrgForm.name.trim() || newOrgForm.logo == ''"
+            >
+                Créer l'espace
+            </button>
+
+        </template>
+
+    </Popup>
 
 </template>

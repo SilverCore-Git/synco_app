@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted } from 'vue';
 import ThreadsBar from './components/layouts/ThreadsBar.vue';
 import SpaceBar from './components/layouts/SpaceBar.vue';
 import UserCard from './components/layouts/UserCard.vue';
@@ -12,9 +12,6 @@ import { useUser } from '@clerk/vue';
 import usePeer from '@/composables/usePeer';
 import type { Category, Message } from '@/types/types';
 import { useRoute } from 'vue-router';
-import Notifications from '@/components/overlay/Notifications.vue';
-import { Starport } from 'vue-starport';
-import OrgBtn from '../OrgsSelection/components/OrgBtn.vue';
 import { showUsersBar } from '@/assets/settings';
 
 
@@ -145,7 +142,7 @@ onBeforeUnmount(async () => {
                 h-full w-full flex flex-row 
                 relative bg-(--bg3)
             "
-            style="view-transition-name: openOrg;"
+            :style="{ viewTransitionName: `openOrg-${orgOnOpen?.id}` }"
         >
 
             <SpaceBar />
@@ -165,7 +162,5 @@ onBeforeUnmount(async () => {
             <UserCard />
 
         </div>
-
-        <Notifications />
 
 </template>
