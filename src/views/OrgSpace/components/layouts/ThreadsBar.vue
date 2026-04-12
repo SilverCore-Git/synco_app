@@ -87,20 +87,21 @@
                 "
             >
 
-                <SettingsViewBtn
+                <RouterLink
                     v-for="view in settingsViews"
-                    :key="'settings-' + view.name"
-                    :name="view.name"
-                    :icon="view.icon"
-                    :active="
-                        route.name == view.route
-                    "
-                    @click="
-                        router.push({
-                            name: view.route,
-                        })
-                    "
-                />
+                    :key="'settings-' + view.name + '-link'"
+                    :to="{ name: view.route }"
+                    class="w-full"
+                >
+                    <SettingsViewBtn
+                        :key="'settings-' + view.name + '-btn'"
+                        :name="view.name"
+                        :icon="view.icon"
+                        :active="
+                            route.name == view.route
+                        "
+                    />
+                </RouterLink>
 
             </ul>
 
@@ -144,13 +145,18 @@
                 "
             >
 
-                <ChatUserBtn 
+                <RouterLink
                     v-for="member in openedOrg?.members"
-                    :key="member.id"
-                    :user="member"
-                    :active="route.params.userId == member.id"
-                    @click="router.push({ name: 'OrgThreadChat', params: { userId: member.id } })"
-                />
+                    :key="member.id + '-link'"
+                    :to="{ name: 'OrgThreadChat', params: { userId: member.id } }"
+                    class="w-full"
+                >
+                    <ChatUserBtn
+                        :key="member.id + '-btn'"
+                        :user="member"
+                        :active="route.params.userId == member.id"
+                    />
+                </RouterLink>
 
             </ul>
 
@@ -224,7 +230,7 @@
 <script lang="ts" setup>
 
 import { computed, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import type { Thread, WorkSpace } from '@/types/types';
 import { openedOrg } from '@/assets/var';
 import ThreadDropDown from '../dropdown/ThreadDropDown.vue';
@@ -237,7 +243,6 @@ import Category from '../CanalBar/Category.vue';
 
 
 const route = useRoute();
-const router = useRouter();
 const isChat = computed(() => route.name == 'OrgChat' || route.name == 'OrgThreadChat');
 const isHome = computed(()=> route.name == 'OrgHome' || route.name == 'OrgThreadHome');
 const isSettings = computed(()=> route.name?.toString().startsWith('OrgSettings'));

@@ -23,56 +23,64 @@ const route = useRoute();
 
         <ul class="flex justify-start items-center flex-col gap-2 h-full w-full">
 
-            <SpaceBarBTN
-                icon="bi-arrow-bar-left"
-                label="Revenir aux organisation"
-                redhover
-                @click="openedOrg = null, router.push('/')"
-            />
+            <RouterLink to="/">
+                <SpaceBarBTN
+                    icon="bi-arrow-bar-left"
+                    label="Revenir aux organisation"
+                    redhover
+                    @click="openedOrg = null"
+                />
+            </RouterLink>
 
-            <SpaceBarBTN
-                v-if="isAdmin"
-                icon="bi-gear"
-                label="Paramètres"
-                :active="route.name?.toString().startsWith('OrgSettings')"
-                iconFillOnActive
-                @click="router.push(`/${openedOrg.id}/settings`)"
-            />
+            <RouterLink v-if="isAdmin" :to="`/${openedOrg.id}/settings`">
+                <SpaceBarBTN
+                    icon="bi-gear"
+                    label="Paramètres"
+                    :active="route.name?.toString().startsWith('OrgSettings')"
+                    iconFillOnActive
+                />
+            </RouterLink>
 
             <hr class=" w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
 
-            <SpaceBarBTN
-                icon="bi-house"
-                label="Général"
-                iconFillOnActive
-                :active="route.name === 'OrgHome' || route.name === 'OrgThreadHome'"
-                @click="router.push(`/${openedOrg.id}/home`)"
-            />
+            <RouterLink :to="`/${openedOrg.id}/home`">
+                <SpaceBarBTN
+                    icon="bi-house"
+                    label="Général"
+                    iconFillOnActive
+                    :active="route.name === 'OrgHome' || route.name === 'OrgThreadHome'"
+                />
+            </RouterLink>
 
-            <SpaceBarBTN
-                icon="bi-chat-dots"
-                label="Messages privées"
-                iconFillOnActive
-                :active="route.name === 'OrgChat' || route.name === 'OrgThreadChat'"
-                @click="router.push(`/${openedOrg.id}/chat`)"
-            />
+            <RouterLink :to="`/${openedOrg.id}/chat`">
+                <SpaceBarBTN
+                    icon="bi-chat-dots"
+                    label="Messages privées"
+                    iconFillOnActive
+                    :active="route.name === 'OrgChat' || route.name === 'OrgThreadChat'"
+                />
+            </RouterLink>
             
             <hr class=" w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
 
-            <SpaceBarBTN
-                v-for="space in openedOrg?.spaces"
-                :key="'space-' + space.id + '-btn'"
-                :icon="space.logo"
-                :label="space.name"
-                :active="
-                    (
-                        route.name === 'SpaceView' 
-                        || route.name === 'SpaceThreadView'
-                    )
-                    && route.path.includes(space.id)
-                "
-                @click="router.push(`/${openedOrg.id}/${space.id}`)"
-            />
+            <RouterLink
+                v-for="space in openedOrg?.spaces" 
+                :key="'space-' + space.id + '-link'" 
+                :to="`/${openedOrg.id}/${space.id}`"
+            >
+                <SpaceBarBTN
+                    :key="'space-' + space.id + '-btn'"
+                    :icon="space.logo"
+                    :label="space.name"
+                    :active="
+                        (
+                            route.name === 'SpaceView' 
+                            || route.name === 'SpaceThreadView'
+                        )
+                        && route.path.includes(space.id)
+                    "
+                />
+            </RouterLink>
 
             <CreateNewSpace>
                 <SpaceBarBTN

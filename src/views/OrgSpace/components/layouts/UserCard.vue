@@ -29,7 +29,7 @@
                     </div>
 
                     <button 
-                        @click="leaveRoom" 
+                        @click="leaveRoom(String(route.params.threadId), String(route.params.spaceId))" 
                         class="p-2 w-9 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-lg transition-all active:scale-90"
                         title="Déconnecter le vocal"
                     >
@@ -153,8 +153,10 @@ import { openedOrg } from '@/assets/var';
 import { useUser } from '@clerk/vue';
 import useLiveKit from '@/composables/useLiveKit';
 import { ConnectionQuality } from 'livekit-client';
+import { useRoute } from 'vue-router';
 
 const { user: ClerkUser } = useUser();
+const route = useRoute();
 const { 
     room, 
     isConnected, 
@@ -167,7 +169,7 @@ const {
     isScreenShareEnabled,
 } = useLiveKit();
 
-const user = ref<OrgMember | undefined>(undefined);
+const user = computed<OrgMember | undefined>(() => openedOrg.value?.members?.find(member => member.user?.clerkId == ClerkUser.value?.id));
 const ping = ref<number>(-1);
 
 const connectionColor = computed(() => {
@@ -179,8 +181,6 @@ const connectionColor = computed(() => {
 
 let pingInterval: any;
 onMounted(async () => {
-
-    user.value = openedOrg.value?.members?.find(member => member.user?.clerkId == ClerkUser.value?.id);
     
     pingInterval = setInterval(async () => {
 

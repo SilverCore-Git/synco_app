@@ -35,7 +35,7 @@
             </span>
 
             <div 
-                v-if="isActiveInRoom && currentParticipants.length > 0" 
+                v-if="currentParticipants.length > 0" 
                 class="ml-auto text-[10px] bg-black/20 px-1.5 py-0.5 rounded-full opacity-60"
             >
                 {{ currentParticipants.length }}
@@ -44,7 +44,7 @@
         </button>
 
         <div 
-            v-if="isActiveInRoom && currentParticipants.length > 0" 
+            v-if="currentParticipants.length > 0" 
             class="flex flex-col gap-1 ml-7 mt-1 mb-2"
         >
 
@@ -78,11 +78,12 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
-import type { Thread } from '@/types/workSpace';
+import { computed, onMounted, ref, watch } from 'vue';
+import type { Thread } from '@/types/types';
 import useLiveKit from '@/composables/useLiveKit';
 import sfetch from '@/assets/utils/sfetch';
 import { useRoute, useRouter } from 'vue-router';
+import useWSocket from '@/composables/useWSocket';
 
 const props = defineProps<{
   thread: Thread;
@@ -94,7 +95,13 @@ const emit = defineEmits(['click']);
 const route = useRoute();
 const router = useRouter();
 
-const { room, isConnected, connectToRoom, allParticipants: currentParticipants } = useLiveKit();
+const { room, isConnected, connectToRoom, allParticipants } = useLiveKit();
+
+const currentParticipants = computed(() => {
+    return isActiveInRoom.value ? allParticipants.value : socketParticipants.value;
+});
+
+const socketParticipants = ref<any[]>([]);
 
 const isActiveInRoom = computed(() => {
     return isConnected.value && room.value?.name === props.thread.id;
@@ -123,11 +130,44 @@ const handleAction = async () => {
         if (res.ok) 
         {
             const data = await res.json();
-            await connectToRoom(data.url, data.token, props.thread.id);
+            await connectToRoom(data.url, data.token, props.thread.id, String(route.params.spaceId));
         }
 
     }
 
 };
+
+watch(allParticipants, async (newList) => {
+    if (isActiveInRoom.value) 
+    {
+        (await useWSocket()).value?.emit('voc:update', { 
+            participants: newList, 
+            threadId: props.thread.id, 
+            orgId: route.params.orgId, 
+            spaceId: route.params.spaceId 
+        });
+    }
+}, { deep: true });
+
+onMounted(async () => {
+
+    const socket = await useWSocket();
+
+    socket.value?.on('voc:update', ({ participants, threadId }) => {
+        if (threadId === props.thread.id && !isActiveInRoom.value) 
+        {
+            socketParticipants.value = participants;
+        }
+    });
+
+    if (!isActiveInRoom.value) 
+    {
+        socket.value?.emit('voc:get-update', { 
+            threadId: props.thread.id, 
+            orgId: route.params.orgId 
+        });
+    }
+
+});
 
 </script>

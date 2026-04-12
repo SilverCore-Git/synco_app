@@ -1,4 +1,4 @@
-import { ref, shallowRef } from 'vue';
+import { nextTick, ref, shallowRef } from 'vue';
 import { 
     Room, 
     RoomEvent, 
@@ -10,6 +10,7 @@ import {
 } from 'livekit-client';
 import { openedOrg } from '@/assets/var';
 import E2EEWorker from '../../node_modules/livekit-client/dist/livekit-client.e2ee.worker.js?worker&url';
+import useWSocket from './useWSocket';
 
 
 const room = shallowRef<Room | null>(null);
@@ -52,7 +53,7 @@ function useLiveKit()
         isConnected.value = true;
     };
 
-    const connectToRoom = async (url: string, token: string, threadId: string) => {
+    const connectToRoom = async (url: string, token: string, threadId: string, spaceId: string) => {
         
         if (room.value?.state === ConnectionState.Connected) return;
 
@@ -80,12 +81,26 @@ function useLiveKit()
         });
 
         const syncParticipants = () => {
-            participants.value = Array.from(newRoom.remoteParticipants.values());
-            if (room.value) allParticipants.value = [ ...participants.value, room.value.localParticipant ];
+
+            if (!room.value) return;
+            participants.value = Array.from(room.value.remoteParticipants.values());
+            
+            allParticipants.value = [
+                ...participants.value,
+                room.value.localParticipant
+            ].map(p => ({
+                identity: p.identity,
+                isSpeaking: p.isSpeaking,
+                isMicrophoneEnabled: p.isMicrophoneEnabled,
+                metadata: p.metadata,
+            }));
+
         };
 
         newRoom.on(RoomEvent.ParticipantConnected, syncParticipants);
         newRoom.on(RoomEvent.ParticipantDisconnected, syncParticipants);
+        newRoom.on(RoomEvent.TrackMuted, syncParticipants);
+        newRoom.on(RoomEvent.TrackUnmuted, syncParticipants);
         
         // Track Management
         newRoom.on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
@@ -129,6 +144,9 @@ function useLiveKit()
             await newRoom.localParticipant.setMicrophoneEnabled(true);
             syncLocalState();
 
+            await nextTick();
+            (await useWSocket()).value?.emit('voc:update', ({ participants: allParticipants, threadId, orgId: openedOrg.value?.id, spaceId }))
+
         } 
         catch (error) 
         {
@@ -137,9 +155,18 @@ function useLiveKit()
 
     };
 
-    const leaveRoom = async () => {
+    const leaveRoom = async (threadId: string, spaceId: string) => {
         if (room.value) 
         {
+
+            const socket = (await useWSocket()).value;
+            socket?.emit('voc:update', { 
+                participants: participants, 
+                threadId, 
+                orgId: openedOrg.value?.id, 
+                spaceId 
+            });
+
             await room.value.disconnect();
             room.value = null;
             isConnected.value = false;
