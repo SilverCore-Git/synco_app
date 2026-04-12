@@ -20,7 +20,7 @@
 
             <div class="flex items-center justify-center w-5 h-5">
                 <i
-                    v-if="isSpeakingInThisRoom"
+                    v-if="isAnyoneSpeaking"
                     class="bi bi-soundwave text-lg text-(--primary) animate-pulse"
                 />
                 <i
@@ -44,7 +44,7 @@
         </button>
 
         <div 
-            v-if="currentParticipants.length > 0" 
+            v-if="currentParticipants.length > 0"
             class="flex flex-col gap-1 ml-7 mt-1 mb-2"
         >
 
@@ -57,14 +57,14 @@
 
                 <div class="relative">
                     <img 
-                        :src="JSON.parse(p.metadata!).avatarUrl" 
+                        :src="safeParseMeta(p.metadata).avatarUrl" 
                         class="w-5 h-5 rounded-full object-cover transition-transform"
                         :class="p.isSpeaking ? 'scale-110 ring-2 ring-(--primary)' : ''"
                     />
                 </div>
                 
                 <span class="text-xs truncate font-medium">
-                    {{ JSON.parse(p.metadata!).name || 'Anonyme' }}
+                    {{ safeParseMeta(p.metadata).name || 'Anonyme' }}
                 </span>
 
                 <i v-if="!p.isMicrophoneEnabled" class="bi bi-mic-mute-fill text-[10px] ml-auto opacity-40" />
@@ -78,41 +78,53 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, ref, watch } from 'vue';
+
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import type { Thread } from '@/types/types';
 import useLiveKit from '@/composables/useLiveKit';
 import sfetch from '@/assets/utils/sfetch';
 import { useRoute, useRouter } from 'vue-router';
 import useWSocket from '@/composables/useWSocket';
 
+
 const props = defineProps<{
   thread: Thread;
   active?: boolean;
 }>();
 
-const emit = defineEmits(['click']);
-
 const route = useRoute();
 const router = useRouter();
 
+
 const { room, isConnected, connectToRoom, allParticipants } = useLiveKit();
 
-const currentParticipants = computed(() => {
-    return isActiveInRoom.value ? allParticipants.value : socketParticipants.value;
-});
-
 const socketParticipants = ref<any[]>([]);
+
+
+const currentParticipants = computed(() => {
+    if (isActiveInRoom.value) return allParticipants.value;
+    return socketParticipants.value;
+});
 
 const isActiveInRoom = computed(() => {
     return isConnected.value && room.value?.name === props.thread.id;
 });
 
-const isSpeakingInThisRoom = computed(() => {
-    return isActiveInRoom.value && room.value?.localParticipant.isSpeaking;
+const isAnyoneSpeaking = computed(() => {
+    return currentParticipants.value.some(p => p.isSpeaking);
 });
 
+
+const safeParseMeta = (metadata: string | undefined) => {
+    try {
+        return metadata ? JSON.parse(metadata) : { name: '', avatarUrl: '' };
+    } catch {
+        return { name: 'Anonyme', avatarUrl: '' };
+    }
+};
+
 const handleAction = async () => {
-    
+
     if (isActiveInRoom.value) 
     {
         const name = (route.name == 'OrgHome' || route.name == 'OrgThreadHome') 
@@ -137,37 +149,54 @@ const handleAction = async () => {
 
 };
 
-watch(allParticipants, async (newList) => {
-    if (isActiveInRoom.value) 
-    {
-        (await useWSocket()).value?.emit('voc:update', { 
-            participants: newList, 
-            threadId: props.thread.id, 
-            orgId: route.params.orgId, 
-            spaceId: route.params.spaceId 
-        });
-    }
-}, { deep: true });
-
 onMounted(async () => {
 
-    const socket = await useWSocket();
+    const socketRef = await useWSocket();
+    const socket = socketRef.value;
+    if (!socket) return;
 
-    socket.value?.on('voc:update', ({ participants, threadId }) => {
+    socket.on('voc:update', ({ participants, threadId }) => {
         if (threadId === props.thread.id && !isActiveInRoom.value) 
         {
             socketParticipants.value = participants;
         }
     });
 
+    socket.on('voc:get-update', ({ threadId }) => {
+
+        if (threadId === props.thread.id && isActiveInRoom.value) 
+        {
+            socket.emit('voc:update', { 
+                participants: allParticipants.value, 
+                threadId: props.thread.id, 
+                orgId: route.params.orgId, 
+                spaceId: route.params.spaceId 
+            });
+        }
+
+    });
+
     if (!isActiveInRoom.value) 
     {
-        socket.value?.emit('voc:get-update', { 
+        
+
+        socket.emit('voc:get-update', { 
             threadId: props.thread.id, 
-            orgId: route.params.orgId 
+            orgId: route.params.orgId,
+            spaceId: route.params.spaceId
         });
+
     }
 
+});
+
+onUnmounted(async () => {
+    const socket = (await useWSocket()).value;
+    if (socket) 
+    {
+        socket.off('voc:update');
+        socket.off('voc:get-update');
+    }
 });
 
 </script>

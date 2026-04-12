@@ -29,7 +29,7 @@
                     </div>
 
                     <button 
-                        @click="leaveRoom(String(route.params.threadId), String(route.params.spaceId))" 
+                        @click="leaveRoom(String(room?.name), String(route.params.spaceId))" 
                         class="p-2 w-9 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-lg transition-all active:scale-90"
                         title="Déconnecter le vocal"
                     >
