@@ -27,7 +27,6 @@ const { user } = useUser();
 const { initPeer } = usePeer();
 const route = useRoute();
 
-const loading = ref<boolean>(true);
 const orgOnOpen = computed(() => {
     return organizations.value.find(org => org.id === route.params.orgId);
 });
@@ -128,11 +127,6 @@ onMounted(async () => {
    openedOrg.value = await sfetch(`/api/orgs/${props.orgId}`).then(res => res.json()); 
    await initSocketListener();
    initPeer();
-
-   setTimeout(() => {
-    loading.value = false;
-   }, 500);
-
 });
 
 onBeforeUnmount(async () => {
@@ -147,12 +141,12 @@ onBeforeUnmount(async () => {
 <template>
 
         <div
-            v-if="!loading"
             class="
                 h-full w-full 
                 flex flex-row 
                 relative bg-(--bg3)
             "
+            style="view-transition-name: openOrg;"
         >
 
             <SpaceBar />
@@ -169,22 +163,6 @@ onBeforeUnmount(async () => {
             <UserCard />
 
         </div>
-
-        <Transition name="fade">
-
-            <div v-if="loading && orgOnOpen" class="w-full h-full z-100">
-                
-                <div class="h-full w-full flex items-center justify-center">
-                        
-                    <Starport :port="`org-${orgOnOpen?.id}`">
-                        <OrgBtn :org="orgOnOpen" :loader="true" />
-                    </Starport>
-
-                </div>
-
-            </div>
-
-        </Transition>
 
         <Notifications />
 
