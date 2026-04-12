@@ -13,7 +13,7 @@
             </h3>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-2 space-y-1 ">
+        <div v-if="openedOrg?.members" class="flex-1 overflow-y-auto p-2 space-y-1 ">
 
             <p v-if="members.filter(member => member.user?.data.status !== 'offline').length > 0" class=" py-1 text-xs text-(--text)/60">
                 En ligne — {{ members.filter(member => member.user?.data.status !== 'offline').length }}
@@ -92,6 +92,61 @@
                 </div>
 
             </router-link>
+
+        </div>
+
+        <!-- Loader -->
+        <div v-else class="flex-1 overflow-y-auto p-2 space-y-1 ">
+
+            <p class=" py-1 text-xs text-(--text)/60">
+                En ligne — 3
+            </p>
+            
+            <div
+                v-for="i in 3"
+                :key="i"
+                class="
+                    flex items-center gap-3 px-3 py-2 rounded-lg
+                    hover:bg-white/3 transition-colors 
+                    group opacity-50 
+                "
+            >
+
+                <div class="relative">
+                    <div class=" rounded-full bg-(--white)/12 h-9 w-9 animate-pulse" />
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <div class=" rounded-lg bg-(--white)/12 h-4 w-24 animate-pulse" />
+                    <div class=" rounded-lg bg-(--white)/12 h-3 w-22 animate-pulse" />
+                </div>
+
+            </div>
+
+            <p class=" py-1 text-xs text-(--text)/60">
+                Hors ligne — 5
+            </p>
+
+            <div
+                v-for="i in 5"
+                :key="i"
+                class="
+                    flex items-center gap-3 px-3 py-2 rounded-lg
+                    hover:bg-white/3 transition-colors 
+                    group opacity-50 
+                "
+            >
+
+                <div class="relative">
+                    <div class=" rounded-full bg-(--white)/12 h-9 w-9 animate-pulse" />
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <div class=" rounded-lg bg-(--white)/12 h-4 w-24 animate-pulse" />
+                    <div class=" rounded-lg bg-(--white)/12 h-3 w-22 animate-pulse" />
+                </div>
+
+            </div>
 
         </div>
 
