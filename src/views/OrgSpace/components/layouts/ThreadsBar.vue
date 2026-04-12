@@ -1,6 +1,60 @@
 <template>
 
-    <div v-if="isSettings && isAdmin" class="h-full w-full">
+    <!-- loader -->
+    <div v-if="openedOrg == null" class="h-full w-full">
+        
+        <ThreadBarDropDown class="h-full w-full">
+
+            <template #trigger>
+
+                <div
+                    class="
+                        h-full 
+                        
+                        bg-(--bg2) border-r border-(--text)/5
+                        flex justify-start items-start flex-col relative
+                    "
+                    @contextmenu.prevent="showDropDown = !showDropDown"
+                >
+
+                    <div 
+                        class="
+                            min-h-14 pl-5 px-3 flex justify-between items-center
+                            flex-row w-full border-b border-white/5
+                        "
+                    >
+
+                        <div class="flex justify-center items-center flex-row gap-3 ">
+                            <div class=" rounded-lg bg-(--white)/6 h-6 w-6 animate-pulse" />
+                            <div class=" rounded-lg bg-(--white)/6 h-5 w-40 animate-pulse" />
+                        </div>
+                    
+                    </div>
+
+                    <ul
+                        class="
+                            flex justify-start items-start flex-col mb-11
+                            gap-3 h-full w-full px-3 py-5 overflow-scroll 
+                        "
+                    >
+
+                        <div 
+                            v-for="i in 13"
+                            :key="i"
+                            class=" rounded-lg bg-(--white)/4 h-6 w-full animate-pulse" 
+                        />
+
+                    </ul>
+
+                </div>
+
+            </template>
+
+        </ThreadBarDropDown>
+
+    </div>
+
+    <div v-else-if="isSettings && isAdmin" class="h-full w-full">
 
         <div
             class="
