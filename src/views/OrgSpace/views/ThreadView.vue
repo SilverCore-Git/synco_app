@@ -54,7 +54,8 @@
                     v-else
                     v-for="msg in sortedMessages" 
                     :key="msg.id" 
-                    class="group px-4 py-1 flex justify-start items-start gap-3 hover:bg-white/2 rounded-lg transition-colors"
+                    class="group px-4 py-2 flex justify-start items-start gap-3 hover:bg-white/2 rounded-lg transition-colors"
+                    :class="selectedMessage == msg.id ? ' border border-(--primary) border-dashed animate-pulse' : ''"
                 >
 
                     <img 
@@ -141,7 +142,7 @@
 <script lang="ts" setup>
 
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import type { Thread, Message } from '@/types/types';
 import useWSocket from '@/composables/useWSocket';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
@@ -153,9 +154,15 @@ const props = defineProps<{
     thread?: Thread 
 }>();
 
-const thread = computed(() => props.thread);
+
 const route = useRoute();
+const router = useRouter();
 const toast = useToast();
+
+const thread = computed(() => props.thread);
+const selectedMessage = computed<string>(() => String(route.query.select));
+watch(() => selectedMessage.value, () => { setTimeout(() => { router.push({ query: { ...route.query, select: undefined } }) }, 5000) });
+
 const currentThreadKey = ref<CryptoKey | null>(null);
 
 interface sMessage extends Message {

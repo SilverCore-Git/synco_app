@@ -3,6 +3,8 @@ import type { Message, OrgMember } from "@/types/types";
 import { ref, watch } from "vue";
 import useWSocket from "./useWSocket";
 import { useRoute } from "vue-router";
+import { decrypt, deriveKey } from "@/assets/utils/threadsCrypto";
+import { openedOrg } from "@/assets/var";
 
 
 type NotificationType = 'toast' | 'notif:msg' | 'notif:call';
@@ -114,9 +116,18 @@ const initListener = async () => {
     const route = useRoute();
     const socket = await useWSocket();
 
-    socket.value?.on('notif:new-message', ({ message }: { message: Message }) => {
+    socket.value?.on('notif:new-message', async ({ message }: { message: Message }) => {
+
         if (route.params.threadId == message.threadId) return;
-        messageNotif.value.push(message);
+
+        let decryptedMessage = message;
+
+        const key = await deriveKey(openedOrg.value!.id, message.threadId);
+        if (!key) return;
+        decryptedMessage.content = await decrypt(message.content, key);
+
+        messageNotif.value.push(decryptedMessage);
+
     })
 
 }

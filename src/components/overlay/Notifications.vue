@@ -27,7 +27,10 @@
 
                     <template v-else-if="notif.type == 'notif:msg'">
 
-                        <div class="flex items-center gap-3">
+                        <RouterLink
+                            :to="`/${openedOrg?.id}/${getSpaceIdByThreadId(notif.msg!.threadId)}/${notif.msg?.threadId}?type=text&select=${notif.msg?.id}`"
+                            class="flex items-center gap-3"
+                        >
                             
                             <div class="relative shrink-0">
                                 <img 
@@ -36,16 +39,16 @@
                                 />
                             </div>
 
-                            <div class="flex-1 overflow-hidden">
+                            <div class="flex-1 overflow-hidden" v-if="notif.msg">
                                 <h4 class="text-(--text) text-sm font-bold truncate">
                                     {{ (notif.msg as any)?.sender?.name }}
                                 </h4>
                                 <p class="text-(--text)/70 text-sm line-clamp-2 leading-snug">
-                                    {{ notif.msg?.content }}
+                                    {{ notif.msg.content }}
                                 </p>
                             </div>
 
-                        </div>
+                        </RouterLink>
 
                     </template>
 
@@ -113,6 +116,8 @@
 
 <script setup lang="ts">
 
+import getSpaceIdByThreadId from '@/assets/utils/getSpaceWithThreadId';
+import { openedOrg } from '@/assets/var';
 import useNotifications, { type NotificationType } from '@/composables/useNotifications';
 import usePeer from '@/composables/usePeer';
 import { computed, onMounted } from 'vue';
@@ -136,7 +141,6 @@ const sortedNotifications = computed(() => {
     });
 
 });
-
 
 const getIcon = (type: string) => {
     switch (type) {
