@@ -1,79 +1,85 @@
 <template>
 
-        <main 
-            ref="messagesContainer"
-            @scroll="handleScroll"
-            class="flex-1 overflow-y-auto p-4 w-full"
+    <main 
+        ref="messagesContainer"
+        @scroll="handleScroll"
+        class="flex-1 overflow-y-auto p-4 w-full h-full"
+    >
+
+        <div 
+            v-if="thread" 
+            class="flex flex-col justify-end min-h-full w-full"
         >
 
-            <div v-if="thread" class="flex flex-col justify-end min-h-full w-full">
-                
-                <div class="mb-8 p-4">
-                    <div class="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4">
-                        <i class="bi bi-hash text-4xl text-(--text)/60" />
-                    </div>
-                    <h1 class="text-3xl font-black text-white mb-2">Bienvenue dans #{{ thread.name }} !</h1>
-                    <p class="text-(--text)/50">C'est le début de l'histoire de ce salon chiffré.</p>
+            <div class="mb-8 p-4">
+
+                <div class="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4">
+                    <i class="bi bi-hash text-4xl text-(--text)/60" />
                 </div>
 
-                <div class="space-y-6 w-full">
+                <h1 class="text-3xl font-black text-white mb-2">#{{ thread.name }}</h1>
 
-                    <div
-                        v-if="loading || isFetchingMore"
-                        v-for="index in 15" 
-                        :key="'loader-mdg-' + index" 
-                        class="
-                            group px-4 py-1 animate-pulse
-                            flex flex-raw justify-start items-start gap-3
-                            hover:bg-white/2 rounded-lg transition-colors"
+                <p class="text-(--text)/50 flex items-center gap-2">
+                    C'est le début de l'histoire de ce thread.
+                </p>
+
+            </div>
+
+            <div class="space-y-6 w-full">
+
+                <div v-if="isFetchingMore" class="flex justify-center py-4">
+                    <div class="w-6 h-6 border-2 border-(--primary)/30 border-t-(--primary) rounded-full animate-spin" />
+                </div>
+
+                <template v-if="loading">
+
+                    <div 
+                        v-for="i in 10" 
+                        :key="i"
+                        class="flex gap-3 px-4 py-1 animate-pulse"
                     >
-                        
-                        <div
-                            class="bg-white/5 rounded-full w-9 h-9"
-                        />
 
-                        <div class="space-y-2">
+                        <div class="bg-white/5 rounded-full w-9 h-9 shrink-0" />
 
-                            <div class="flex items-baseline bg-white/5 w-16 h-2 rounded-full" />
-
-                            <p class="bg-white/5 w-100 h-4 rounded-full" />
-
+                        <div class="space-y-2 flex-1">
+                            <div class="bg-white/5 w-24 h-3 rounded" />
+                            <div class="bg-white/5 w-full h-4 rounded" />
                         </div>
 
                     </div>
 
-                    <div
-                        v-show="!loading"
-                        v-for="msg in sortedMessages" 
-                        :key="msg.id" 
-                        class="
-                            group px-4 py-1
-                            flex flex-raw justify-start items-start gap-3
-                            hover:bg-white/2 rounded-lg transition-colors"
-                    >
-                        
-                        <img 
-                            v-if="msg.sender"
-                            :src="msg.sender.avatarUrl"
-                            class=" rounded-full w-9 h-9"
-                        />
+                </template>
 
-                        <div>
+                <div
+                    v-else
+                    v-for="msg in sortedMessages" 
+                    :key="msg.id" 
+                    class="group px-4 py-1 flex justify-start items-start gap-3 hover:bg-white/2 rounded-lg transition-colors"
+                >
 
-                            <div class="flex items-baseline gap-2">
-                                <span class="text-(--primary) font-bold text-xs tracking-tighter">
-                                    {{ msg.sender?.name || 'Anonyme' }}
-                                </span>
-                                <span class="text-(--text)/20 text-[10px]">
-                                    {{ new Date(msg.createdAt).toLocaleString() }}
-                                </span>
-                            </div>
+                    <img 
+                        v-if="msg.sender"
+                        :src="msg.sender.avatarUrl"
+                        class="rounded-full w-9 h-9 object-cover shrink-0"
+                    />
 
-                            <p class="text-(--text)/80 text-sm leading-relaxed break-words">
-                                {{ msg.content }}
-                            </p>
+                    <div class="min-w-0 flex-1">
+
+                        <div class="flex items-baseline gap-2">
+
+                            <span class="text-(--primary) font-bold text-xs tracking-tighter truncate">
+                                {{ msg.sender?.name || 'Anonyme' }}
+                            </span>
+
+                            <span class="text-(--text)/20 text-[10px] whitespace-nowrap">
+                                {{ formatTime(msg.createdAt) }}
+                            </span>
 
                         </div>
+
+                        <p class="text-(--text)/80 text-sm leading-relaxed wrap-break-word whitespace-pre-wrap">
+                            {{ msg.content }}
+                        </p>
 
                     </div>
 
@@ -81,244 +87,233 @@
 
             </div>
 
-            <div v-else class="h-full flex flex-col items-center justify-center gap-4">
-                <div class="text-6xl opacity-20">🛡️</div>
-                <p class="text-(--text)/40 italic font-medium">Thread introuvable ou accès refusé.</p>
+        </div>
+
+        <div 
+            v-else 
+            class="
+                h-full flex flex-col items-center justify-start pt-40 gap-4
+                bg-linear-to-t from-(--primary-dark) to-transparent 
+                bg-size-[100%_50%] bg-bottom bg-no-repeat
+                -m-4 translate-y-8 overflow-hidden
+            "
+        >
+            <div class="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4 border border-(--primary)/10">
+                <i class="bi bi-hash text-4xl text-(--text)/60" />
             </div>
+            <p class="text-(--text)/80 italic font-medium">Thread introuvable ou accès refusé.</p>
+        </div>
 
-        </main>
+    </main>
 
-        <footer v-if="thread" class="p-4 bg-transparent">
+    <footer v-if="thread" class="p-4 bg-transparent">
 
-            <div 
-                class="
-                    relative flex items-center 
-                    bg-(--bg) border border-white/10 
-                    rounded-xl px-4 py-2
-                    focus-within:border-(--primary)/50 
-                    transition-all shadow-2xl
-                "
-            >
-                
-                <button class="mr-3 text-(--text)/40 hover:text-(--primary) transition-colors">
-                    <i class="bi bi-plus-circle-fill text-xl" />
+        <div class="relative flex items-center bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
+            
+            <button class="mr-3 text-(--text)/40 hover:text-(--primary) transition-colors">
+                <i class="bi bi-plus-circle-fill text-xl" />
+            </button>
+            
+            <ThreadTextarea
+                v-model="newMessage"
+                @send="sendMessage"
+                :placeholder="currentThreadKey ? 'Envoyer un message chiffré...' : 'Génération de la clé...'"
+                :disabled="!currentThreadKey"
+            />
+
+            <div class="flex gap-3 ml-3 text-(--text)/40">
+                <button 
+                    @click="sendMessage"
+                    :disabled="!newMessage.trim() || !currentThreadKey"
+                    :class="newMessage.trim() && currentThreadKey ? 'text-(--primary)' : 'text-(--text)/40 opacity-50'"
+                    class="transition-colors"
+                >
+                    <i class="bi bi-send-fill" />
                 </button>
-                
-                <ThreadTextarea
-                    v-model="newMessage"
-                    @send="sendMessage"
-                    :placeholder="'Envoyer un message...'"
-                />
-
-                <div class="flex gap-3 ml-3 text-(--text)/40">
-
-                    <button class="hover:text-yellow-500 transition-colors">
-                        <i class="bi bi-emoji-smile-fill" />
-                    </button>
-
-                    <button 
-                        @click="sendMessage"
-                        :class="newMessage.trim() ? 'text-(--primary)' : 'text-(--text)/40'"
-                        class="transition-colors"
-                    >
-                        <i class="bi bi-send-fill" />
-                    </button>
-
-                </div>
-
             </div>
 
-        </footer>
+        </div>
+
+    </footer>
 
 </template>
 
 <script lang="ts" setup>
 
-import { computed, ref, onMounted, onUnmounted, watch, nextTick, type Ref } from 'vue';
+import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import type { Thread, Message } from '@/types/types';
 import useWSocket from '@/composables/useWSocket';
-import type { Socket } from 'socket.io-client';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
+import { encrypt, decrypt, deriveKey } from '@/assets/utils/threadsCrypto';
+import { useToast } from '@/composables/useToast';
 
-let socket: Ref<Socket | null> = ref<null>(null);
-const route = useRoute();
 
-const props = defineProps<{
-    thread?: Thread;
+const props = defineProps<{ 
+    thread?: Thread 
 }>();
+
 const thread = computed(() => props.thread);
+const route = useRoute();
+const toast = useToast();
+const currentThreadKey = ref<CryptoKey | null>(null);
 
 interface sMessage extends Message {
-    sender?: {
-        name: string;
-        avatarUrl: string;
-    };
+    sender?: { name: string; avatarUrl: string; };
 }
 
-
-const messages = ref<sMessage[]>([]);
-const sortedMessages = computed(() => {
-    return messages.value.sort((a, b) => {
-        const dateA = new Date(a.createdAt);
-        const dateB = new Date(b.createdAt);
-        return dateA.getTime() - dateB.getTime();
-    });
-})
+const socket = ref<any>(null);
+const rawMessages = ref<Map<string, sMessage>>(new Map());
 const newMessage = ref<string>("");
 const messagesContainer = ref<HTMLElement | null>(null);
 const loading = ref<boolean>(true);
 const hasMore = ref<boolean>(true);
 const isFetchingMore = ref<boolean>(false);
 
+const sortedMessages = ref<sMessage[]>([]);
 
-const handleScroll = async (e: Event) => {
 
-    const container = e.target as HTMLElement;
-    
-    if (
-        container.scrollTop < 20
-        && !isFetchingMore.value 
-        && hasMore.value
-    ) 
-    {
-        loadMore();
-    }
+const processMessages = async (msgs: sMessage[]) => {
+    if (!currentThreadKey.value) return msgs;
+    return await Promise.all(msgs.map(async m => ({
+        ...m,
+        content: await decrypt(m.content, currentThreadKey.value!)
+    })));
+};
 
+const formatTime = (d: string) => new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+const handleScroll = (e: Event) => {
+    const el = e.target as HTMLElement;
+    if (el.scrollTop < 200 && !isFetchingMore.value && hasMore.value) loadMore();
 };
 
 const loadMore = () => {
-
-    console.log("load more");
-
-    if (messages.value.length === 0) return;
-    
-    //isFetchingMore.value = true;
-    const oldestMessageId = messages.value[0]?.id;
-
-    socket.value?.emit("load-more", { 
-        threadId: thread.value?.id, 
-        before: oldestMessageId 
-    });
-
+    if (sortedMessages.value.length === 0 || isFetchingMore.value) return;
+    isFetchingMore.value = true;
+    socket.value?.emit("load-more", { threadId: thread.value?.id, before: sortedMessages.value[0]?.id });
 };
 
+const initListener = () => {
 
-const initListener = async () => {
-     
-    socket.value?.off("thread-history");
-    socket.value?.off("more-messages");
-    socket.value?.off("new-message");
+    if (!socket.value) return;
 
-    socket.value?.on("connect", () => {
-        console.log("[Socket] Connecté au serveur");
-        if (thread.value) joinThread(thread.value.id);
-    });
+    socket.value.off("thread-history").off("more-messages").off("new-message");
 
-    socket.value?.on('thread-history', (history: Message[]) => {
+    socket.value.on("thread-history", async (history: sMessage[]) => {
 
-        history.forEach(msg => {
-            messages.value.push(msg);
-        });
+        rawMessages.value.clear();
+        history.forEach(m => rawMessages.value.set(m.id, m));
+        sortedMessages.value = await processMessages(history);
 
         loading.value = false;
+        hasMore.value = history.length >= 15;
         scrollToBottom(true);
 
     });
 
-    socket.value?.on("more-messages", async (moreMessages: sMessage[]) => {
+    socket.value.on("more-messages", async (more: sMessage[]) => {
 
-        //if (moreMessages.length < 20) hasMore.value = false;
-        if (moreMessages.length === 0) 
-        {
-            isFetchingMore.value = false;
-            return;
-        }
+        if (more.length === 0) { hasMore.value = false; isFetchingMore.value = false; return; }
+        if (more.length < 20) hasMore.value = false;
 
         const container = messagesContainer.value;
-        const previousHeight = container?.scrollHeight || 0;
-
-        messages.value = [...moreMessages, ...messages.value];
+        const scrollOffset = container ? container.scrollHeight - container.scrollTop : 0;
+        
+        const decryptedMore = await processMessages(more);
+        sortedMessages.value = [...decryptedMore, ...sortedMessages.value];
 
         await nextTick();
+        if (container) container.scrollTop = container.scrollHeight - scrollOffset;
+        setTimeout(() => { isFetchingMore.value = false; }, 100);
 
+    });
+
+    socket.value.on("new-message", async (msg: sMessage) => {
+
+        const decrypted = { ...msg, content: await decrypt(msg.content, currentThreadKey.value!) };
+        sortedMessages.value.push(decrypted);
+        
+        const container = messagesContainer.value;
         if (container) 
         {
-            const newHeight = container.scrollHeight;
-            container.scrollTop = newHeight - previousHeight;
+            const isNearBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 200;
+            if (isNearBottom) scrollToBottom();
         }
 
-        isFetchingMore.value = false;
-
     });
 
-    socket.value?.on("new-message", async (msg: Message) => {
-        messages.value.push(msg);
-        scrollToBottom();
-    });
-
-    socket.value?.on("error", (err: string) => {
-        console.error("[Socket] Erreur:", err);
-    });
-    
 };
 
-const joinThread = (id: string) => {
-    if (!thread.value) return;
-    thread.value.hasUnread = false;
-    messages.value = []; 
-    socket.value?.emit("join-thread", { 
+const joinThread = async (id: string) => {
+
+    if (!socket.value) return;
+    
+    loading.value = true;
+    currentThreadKey.value = null;
+    sortedMessages.value = [];
+
+    const orgId = route.params.orgId as string || "no-org";
+
+    const key = await deriveKey(orgId, id);
+    
+    if (!key) 
+    {
+        toast.show('[E2EE] Échec génération clé. Le salon restera verrouillé.', 'error')
+        return;
+    }
+
+    currentThreadKey.value = key;
+
+    socket.value.emit("join-thread", { 
         threadId: id, 
         spaceId: route.params.spaceId 
     });
+
 };
 
-const sendMessage = () => {
+const sendMessage = async () => {
 
-    if (!newMessage.value.trim() || !socket.value || !thread.value) return;
+    if (!newMessage.value.trim() || !socket.value || !currentThreadKey.value) return;
 
-    const payload = {
-        threadId: thread.value.id,
-        content: newMessage.value, 
-        nonce: "nonce_" + Date.now(),
+    const encryptedData = await encrypt(newMessage.value, currentThreadKey.value);
+    
+    socket.value.emit("send-message", {
+        threadId: thread.value?.id,
+        content: JSON.stringify(encryptedData), 
+        nonce: "n_" + Date.now(),
         context: route.params.spaceId ? 'workspace' : 'home'
-    };
+    });
 
-    socket.value.emit("send-message", payload);
     newMessage.value = "";
 
 };
 
-
-const scrollToBottom = async (noSmoth: boolean = false) => {
+const scrollToBottom = async (instant = false) => {
     await nextTick();
-    if (messagesContainer.value) {
-        messagesContainer.value.scrollTo({
-            top: messagesContainer.value.scrollHeight,
-            behavior: noSmoth ? 'auto' : 'smooth'
-        });
+    if (messagesContainer.value) 
+    {
+        messagesContainer.value.scrollTo({ top: messagesContainer.value.scrollHeight, behavior: instant ? 'auto' : 'smooth' });
     }
 };
 
-
 watch(() => route.params.threadId, (newId) => {
-    if (newId) 
-    {
-        loading.value = true;
-        scrollToBottom(true);
-        joinThread(newId as string);
-    }
-});
+    if (newId) joinThread(newId as string);
+}, { immediate: true });
 
 onMounted(async () => {
-    socket = await useWSocket();
-    scrollToBottom(true);
+    socket.value = (await useWSocket()).value;
+    await nextTick();
     initListener();
+    await nextTick();
+    joinThread(String(route.params.threadId));
 });
 
 onUnmounted(() => {
-    if (socket.value) {
-        socket.value.disconnect();
+    if (socket.value) 
+    {
+        socket.value.emit("leave-thread", thread.value?.id);
+        socket.value.off("thread-history").off("more-messages").off("new-message");
     }
 });
 
