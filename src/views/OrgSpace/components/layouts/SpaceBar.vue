@@ -103,34 +103,31 @@ const route = useRoute();
                 @click="openedOrg = null, router.push('/')"
             />
 
-            <SpaceBarBTN
+            <div
                 v-if="isAdmin"
-                icon="bi-gear"
-                label="Paramètres"
-                :active="route.name?.toString().startsWith('OrgSettings')"
-                iconFillOnActive
+                class="                
+                    relative flex items-center justify-center 
+                    w-12 h-12 cursor-pointer transition-all duration-300 ease-out
+                    bg-(--bg2) rounded-xl overflow-hidden border border-(--primary-dark) animate-pulse
+                "
             />
 
             <hr class=" w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
 
-            <SpaceBarBTN
-                icon="bi-house"
-                label="Général"
-                iconFillOnActive
-                :active="route.name === 'OrgHome' || route.name === 'OrgThreadHome'"
-            />
-
-            <SpaceBarBTN
-                icon="bi-chat-dots"
-                label="Messages privées"
-                iconFillOnActive
-                :active="route.name === 'OrgChat' || route.name === 'OrgThreadChat'"
+            <div 
+                v-for="i in 2"
+                :key="i"
+                class="                
+                    relative flex items-center justify-center 
+                    w-12 h-12 cursor-pointer transition-all duration-300 ease-out
+                    bg-(--bg2) rounded-xl overflow-hidden border border-(--primary-dark) animate-pulse
+                "
             />
             
             <hr class=" w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
 
             <div 
-                v-for="i in 3"
+                v-for="i in 5"
                 :key="i"
                 class="                
                     relative flex items-center justify-center 
@@ -139,12 +136,6 @@ const route = useRoute();
                 "
             />
 
-            <CreateNewSpace>
-                <SpaceBarBTN
-                    icon="bi-plus"
-                    label="Créer un nouvel espace"
-                />
-            </CreateNewSpace>
 
         </ul>
 

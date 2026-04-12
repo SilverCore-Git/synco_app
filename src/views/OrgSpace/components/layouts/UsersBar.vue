@@ -98,9 +98,7 @@
         <!-- Loader -->
         <div v-else class="flex-1 overflow-y-auto p-2 space-y-1 ">
 
-            <p class=" py-1 text-xs text-(--text)/60">
-                En ligne — 3
-            </p>
+            <div class=" rounded-lg bg-(--white)/15 h-4 w-20 animate-pulse" />
             
             <div
                 v-for="i in 3"
@@ -123,9 +121,7 @@
 
             </div>
 
-            <p class=" py-1 text-xs text-(--text)/60">
-                Hors ligne — 5
-            </p>
+            <div class=" rounded-lg bg-(--white)/15 h-4 w-20 animate-pulse" />
 
             <div
                 v-for="i in 5"
