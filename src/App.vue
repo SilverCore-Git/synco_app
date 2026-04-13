@@ -1,17 +1,14 @@
 <script setup lang="ts">
 
-import { SignedIn, SignedOut, useUser } from '@clerk/vue';
-import SignIn from './views/auth/SignIn.vue';
 import Loader from './components/LogoLoader.vue';
-import { onMounted, watch } from 'vue';
-import waitFor from './assets/utils/waitfor';
+import { onMounted, ref, watch } from 'vue';
 import init from './assets/init';
 import { isLoaded } from './assets/var';
 import { StarportCarrier } from 'vue-starport';
 import Notifications from './components/overlay/Notifications.vue';
 import useSettingsItem from './composables/useSettingsItem';
-
-const { isLoaded: isClerkLoaded } = useUser();
+import keycloak from './assets/keycloak';
+import LogoLoader from './components/LogoLoader.vue';
 
 const { Item: theme } = useSettingsItem('theme', 'dark');
 
@@ -19,9 +16,17 @@ watch(() => theme.value, () => {
   document.body.className = theme.value;
 })
 
+const authenticated = ref<boolean>(false);
+
 onMounted(async () => {
-  await waitFor(() => isClerkLoaded.value == true, 10000);
-  await init.run();
+
+  authenticated.value = await keycloak.init({
+      onLoad: "login-required",
+      checkLoginIframe: false
+  });
+
+  if (authenticated.value) await init.run();
+
 })
 
 </script>
@@ -38,12 +43,11 @@ onMounted(async () => {
       <!-- top bar for desktop app -->
     </div>
       
-    <div 
-      v-if="isClerkLoaded"
+    <div
       class="w-full h-full"
     >
       
-      <SignedIn>
+      <div v-if="authenticated">
 
         <div v-if="isLoaded" class="w-full h-full">
           <StarportCarrier>
@@ -57,11 +61,11 @@ onMounted(async () => {
 
         <Notifications />
 
-      </SignedIn>
+      </div>
 
-      <SignedOut>
-        <SignIn />
-      </SignedOut>
+      <div v-else>
+        <LogoLoader />
+      </div>
 
     </div>
 

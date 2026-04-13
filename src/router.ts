@@ -10,8 +10,6 @@ import GeneralSettings from './views/OrgSpace/views/settings/views/GeneralSettin
 import SettingsLayout from './views/OrgSpace/views/settings/SettingsLayout.vue';
 import MembersSettings from './views/OrgSpace/views/settings/views/MembersSettings.vue';
 import InviteView from './views/inviteView.vue';
-import HankoProfile from './views/auth/HankoProfile.vue';
-import HankoAuth from './views/auth/HankoAuth.vue';
 import ThreadLayout from './views/OrgSpace/views/ThreadLayout.vue';
 import { nextTick } from 'vue';
 
@@ -112,28 +110,6 @@ const routes = [
       }
     ]
   },
-  
-  {
-    path: '/auth',
-    name: 'Auth',
-    meta: { title: 'Auth' },
-    children: [
-      {
-        path: 'profile',
-        name: 'Profile',
-        component: HankoProfile,
-        props: true,
-        meta: { title: 'Profile - SilverTeams' },
-      },
-      {
-        path: 'sign',
-        name: 'Sign',
-        component: HankoAuth,
-        props: true,
-        meta: { title: 'Sign - SilverTeams' },
-      }
-    ]
-  },
 
 ]
 
@@ -142,12 +118,22 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
-  scrollBehavior(to, _from, _savedPosition) {
-    if (to.hash) {
+  scrollBehavior(to, _from, _savedPosition) 
+  {
+
+    if (to.hash && (to.hash.includes('state=') || to.hash.includes('access_token='))) 
+    {
+      return false;
+    }
+
+    if (to.hash) 
+    {
       const el = document.querySelector(to.hash);
       if (el) return { top: (el as HTMLElement).offsetTop, behavior: 'smooth' };
     }
+
     return { top: 0 };
+
   }
 });
 
