@@ -3,14 +3,21 @@
 import { SignedIn, SignedOut, useUser } from '@clerk/vue';
 import SignIn from './views/auth/SignIn.vue';
 import Loader from './components/LogoLoader.vue';
-import { onMounted } from 'vue';
+import { onMounted, watch } from 'vue';
 import waitFor from './assets/utils/waitfor';
 import init from './assets/init';
 import { isLoaded } from './assets/var';
 import { StarportCarrier } from 'vue-starport';
 import Notifications from './components/overlay/Notifications.vue';
+import useSettingsItem from './composables/useSettingsItem';
 
 const { isLoaded: isClerkLoaded } = useUser();
+
+const { Item: theme } = useSettingsItem('theme', 'dark');
+
+watch(() => theme.value, () => {
+  document.body.className = theme.value;
+})
 
 onMounted(async () => {
   await waitFor(() => isClerkLoaded.value == true, 10000);

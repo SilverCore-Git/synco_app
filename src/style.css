@@ -17,7 +17,42 @@
 
 }
 
+body.dark {
+
+  --primary: #16ac77; 
+  --primary-dark: #062d1f;
+  --primary-hover: #128a60;
+
+  --bg: #121214;
+  --bg2: #09090a;
+  --bg3: #000000;
+  
+  --black: #000;
+  --white: #fff;
+
+  --text: #BFC3C7;
+
+}
+
+body.light {
+
+  --primary: #16ac77; 
+  --primary-dark: #a4e1ca;
+  --primary-hover: #128a60;
+
+  --bg: #cbcbcb;
+  --bg2: #dedede;
+  --bg3: #f4f4f4;
+  
+  --black: #ffffff;
+  --white: #000000;
+
+  --text: #2d2f30;
+
+}
+
 body {
+
   overflow-x: hidden;
   color-scheme: light dark;
   color: var(--text);
@@ -29,6 +64,7 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
 }
 
 a, button {
@@ -85,7 +121,7 @@ select {
 }
 
 .pop-enter-from, .pop-leave-to { 
-  transform: scale(0.85);
+  transform: scale(0.80);
   opacity: 0; 
 }
 
