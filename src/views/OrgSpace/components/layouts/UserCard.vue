@@ -125,7 +125,7 @@
                                 <i class="bi bi-headphones text-sm" />
                             </button>
 
-                            <button @click.stop="" class="p-1.5 rounded-md hover:bg-(--primary)/10 active:scale-90 text-(--text)/40 hover:text-(--text) transition-all group/settings">
+                            <button @click.stop="showUserSettings = !showUserSettings" class="p-1.5 rounded-md hover:bg-(--primary)/10 active:scale-90 text-(--text)/40 hover:text-(--text) transition-all group/settings">
                                 <i class="bi bi-gear-fill text-sm group-hover/settings:rotate-45 transition-transform duration-300" />
                             </button>
 
@@ -141,6 +141,11 @@
 
     </div>
 
+    <UserSettings 
+        :isOpen="showUserSettings"
+        @close="showUserSettings = false" 
+    />
+
 </template>
 
 <script setup lang="ts">
@@ -154,6 +159,7 @@ import { useUser } from '@clerk/vue';
 import useLiveKit from '@/composables/useLiveKit';
 import { ConnectionQuality } from 'livekit-client';
 import { useRoute } from 'vue-router';
+import UserSettings from '@/components/windows/UserSettings.vue';
 
 const { user: ClerkUser } = useUser();
 const route = useRoute();
@@ -162,7 +168,7 @@ const {
     isConnected, 
     leaveRoom, 
     toggleMicrophone, 
-    toggleCamera, 
+    toggleCamera,
     toggleScreenShare,
     isCameraEnabled,
     isMicEnabled,
@@ -171,6 +177,7 @@ const {
 
 const user = computed<OrgMember | undefined>(() => openedOrg.value?.members?.find(member => member.user?.clerkId == ClerkUser.value?.id));
 const ping = ref<number>(-1);
+const showUserSettings = ref<boolean>(false);
 
 const connectionColor = computed(() => {
     const quality = room.value?.localParticipant.connectionQuality;
