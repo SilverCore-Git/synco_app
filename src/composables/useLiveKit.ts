@@ -183,7 +183,12 @@ function useLiveKit()
             if (!room.value) return;
             await room.value.localParticipant.setMicrophoneEnabled(en);
             isMicEnabled.value = en;
-        }
+        },
+        toggleScreenShare: async (en: boolean) => {
+            if (!room.value) return;
+            await room.value.localParticipant.setScreenShareEnabled(en);
+            isScreenShareEnabled.value = en;
+        },
     };
 
 }

@@ -12,7 +12,7 @@ import { useUser } from '@clerk/vue';
 import usePeer from '@/composables/usePeer';
 import type { Category, Message } from '@/types/types';
 import { useRoute } from 'vue-router';
-import { showUsersBar } from '@/assets/settings';
+import useSettingsItem from '@/composables/useSettingsItem';
 
 
 const props = defineProps<{
@@ -20,6 +20,7 @@ const props = defineProps<{
 }>();
 
 
+const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
 const { user } = useUser();
 const { initPeer } = usePeer();
 const route = useRoute();

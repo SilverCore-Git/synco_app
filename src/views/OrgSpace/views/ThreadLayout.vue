@@ -54,11 +54,12 @@ import VoiceThreadView from './VoiceThreadView.vue';
 import ThreadView from './ThreadView.vue';
 import type { Thread, WorkSpace } from '@/types/types';
 import { openedOrg } from '@/assets/var';
-import { showUsersBar } from '@/assets/settings';
 import SpinLoader from '@/components/SpinLoader.vue';
+import useSettingsItem from '@/composables/useSettingsItem';
 
 const route = useRoute();
 const isVoice = computed<boolean>(() => route.query.type == 'vocal');
+const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
 
 const thread = computed(() => {
 
