@@ -28,7 +28,7 @@
             <div class="space-y-6 w-full">
 
                 <div v-if="isFetchingMore" class="flex justify-center py-4">
-                    <div class="w-6 h-6 border-2 border-(--primary)/30 border-t-(--primary) rounded-full animate-spin" />
+                    <SpinLoader />
                 </div>
 
                 <template v-if="loading">
@@ -149,6 +149,7 @@ import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import { encrypt, decrypt, deriveKey } from '@/assets/utils/threadsCrypto';
 import { useToast } from '@/composables/useToast';
 import { openedOrg } from '@/assets/var';
+import SpinLoader from '@/components/SpinLoader.vue';
 
 
 const props = defineProps<{ 

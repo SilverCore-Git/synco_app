@@ -2,12 +2,11 @@
 
     <div class="flex flex-col h-full relative overflow-hidden w-full">
 
-        <header 
-            v-if="thread" 
+        <header
             class="h-14 flex items-center px-4 border-b border-white/5 bg-(--bg2) backdrop-blur-md z-10"
         >
 
-            <div class="flex items-center gap-2">
+            <div v-if="thread && openedOrg" class="flex items-center gap-2">
                 <i v-if="thread.type === 'text'" class="bi bi-hash text-2xl text-(--text)/40" />
                 <i v-else class="bi bi-volume-up-fill text-xl text-(--text)/40" />
                 <h2 class="font-bold text-(--text) tracking-wide lowercase">
@@ -30,12 +29,18 @@
 
         </header>
 
-        <template v-if="isVoice">
+        <template v-if="isVoice && openedOrg">
             <VoiceThreadView :thread="thread" />
         </template>
 
-        <template v-else>
+        <template v-else-if="!isVoice && openedOrg">
             <ThreadView :thread="thread" />
+        </template>
+
+        <template v-else>
+            <div class="flex justify-center items-center h-full">
+                <SpinLoader />
+            </div>
         </template>
 
     </div>
@@ -50,6 +55,7 @@ import ThreadView from './ThreadView.vue';
 import type { Thread, WorkSpace } from '@/types/types';
 import { openedOrg } from '@/assets/var';
 import { showUsersBar } from '@/assets/settings';
+import SpinLoader from '@/components/SpinLoader.vue';
 
 const route = useRoute();
 const isVoice = computed<boolean>(() => route.query.type == 'vocal');
