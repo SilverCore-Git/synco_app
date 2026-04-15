@@ -48,7 +48,7 @@ onMounted(async () => {
       class="w-full h-full"
     >
       
-      <div v-if="authenticated">
+      <div v-if="authenticated" class="h-full w-full">
 
         <div v-if="isLoaded" class="w-full h-full">
             <RouterView />
