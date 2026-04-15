@@ -8,11 +8,11 @@ import UsersBar from './components/layouts/UsersBar.vue';
 import { openedOrg, organizations } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
-import { useUser } from '@clerk/vue';
 import usePeer from '@/composables/usePeer';
 import type { Category, Message } from '@/types/types';
 import { useRoute } from 'vue-router';
 import useSettingsItem from '@/composables/useSettingsItem';
+import keycloak from '@/assets/keycloak';
 
 
 const props = defineProps<{
@@ -21,7 +21,6 @@ const props = defineProps<{
 
 
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
-const { user } = useUser();
 const { initPeer } = usePeer();
 const route = useRoute();
 
@@ -46,7 +45,7 @@ const initSocketListener = async () => {
     } 
 
 
-    const me = openedOrg.value?.members?.find(member => member.user?.clerkId == user.value?.id);
+    const me = openedOrg.value?.members?.find(member => member.user?.clerkId == keycloak.userInfo?.sub);
     if (me && me.user) me.user.data.status = 'online';
     
 

@@ -1,3 +1,4 @@
+import keycloak from "../keycloak";
 
 export default async function
 (url: string, arg?: any)
@@ -7,7 +8,7 @@ export default async function
         method: arg?.method || 'GET',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${await window.Clerk.session?.getToken()}`
+            'Authorization': `Bearer ${keycloak.token}`
         }
     });
 }

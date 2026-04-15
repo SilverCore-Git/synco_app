@@ -155,13 +155,12 @@ import type { OrgMember } from '@/types/types';
 import { onMounted, ref, computed, onUnmounted } from 'vue';
 import UserDropDown from '../dropdown/UserDropDown.vue';
 import { openedOrg } from '@/assets/var';
-import { useUser } from '@clerk/vue';
 import useLiveKit from '@/composables/useLiveKit';
 import { ConnectionQuality } from 'livekit-client';
 import { useRoute } from 'vue-router';
 import UserSettings from '@/components/windows/UserSettings.vue';
+import keycloak from '@/assets/keycloak';
 
-const { user: ClerkUser } = useUser();
 const route = useRoute();
 const { 
     room, 
@@ -175,7 +174,7 @@ const {
     isScreenShareEnabled,
 } = useLiveKit();
 
-const user = computed<OrgMember | undefined>(() => openedOrg.value?.members?.find(member => member.user?.clerkId == ClerkUser.value?.id));
+const user = computed<OrgMember | undefined>(() => openedOrg.value?.members?.find(member => member.user?.clerkId == keycloak.userInfo?.sub));
 const ping = ref<number>(-1);
 const showUserSettings = ref<boolean>(false);
 

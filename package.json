@@ -9,8 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@clerk/localizations": "^3.35.5",
-    "@clerk/vue": "^1.17.14",
     "@emailjs/browser": "^4.4.1",
     "@tailwindcss/vite": "^4.1.17",
     "bootstrap-icons": "^1.13.1",
