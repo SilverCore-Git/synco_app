@@ -1,3 +1,5 @@
+import sfetch from "./utils/sfetch";
+
 export const sdb = {
     
     async get(user: any, key: string): Promise<any> 
@@ -9,18 +11,15 @@ export const sdb = {
 
     async set(user: any, key: string, value: any) 
     {
-        if (!user) return;
-        const currentSettings = (user.unsafeMetadata?.settings as Record<string, any>) || {};
         
-        return await user.update({
-            unsafeMetadata: {
-                ...user.unsafeMetadata,
-                settings: {
-                    ...currentSettings,
-                    [key]: value
-                }
-            }
-        });
+        if (!user) return;
+        const currentSettings = (user.attributes?.settings as Record<string, any>) || {};
+        
+        return await sfetch('/api/users/me/update-attr', {
+            method: 'POST',
+            body: JSON.stringify({ attributs: { ...currentSettings, [key]: value } })
+        })
+        
     }
 
 };
