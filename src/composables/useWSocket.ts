@@ -1,3 +1,4 @@
+import keycloak from "@/assets/keycloak";
 import { io, type Socket } from "socket.io-client";
 import { ref, type Ref } from "vue";
 
@@ -24,7 +25,7 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
 
     try {
 
-        const token = await window.Clerk.session?.getToken();
+        const token = keycloak.token;
 
         if (!token) throw new Error("No token found");
 

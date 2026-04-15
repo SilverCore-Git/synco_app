@@ -3,6 +3,7 @@ import { Peer, type MediaConnection } from 'peerjs';
 import type { User, OrgMember } from '@/types/types';
 import { openedOrg } from '@/assets/var';
 import useNotifications from './useNotifications';
+import keycloak from '@/assets/keycloak';
 
 
 const peer = ref<Peer | null>(null);
@@ -29,9 +30,11 @@ const initPeer = () => {
         return;
     }
 
-    const myClerkId = (window as any).Clerk?.user?.id;
-    const myUser = openedOrg.value?.members?.find((m: OrgMember) => m.user?.clerkId === myClerkId)?.user;
+    const myKCId = keycloak.userInfo?.sub;
+    const myUser = openedOrg.value?.members?.find((m: OrgMember) => m.user?.id === myKCId)?.user;
     const myId = myUser?.id;
+
+    console.log(myUser, myId)
 
     if (!myId) return console.error("[PEER] ID local introuvable.");
 

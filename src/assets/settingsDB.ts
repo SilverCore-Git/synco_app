@@ -5,7 +5,7 @@ export const sdb = {
     async get(user: any, key: string): Promise<any> 
     {
         if (!user) return undefined;
-        const settings = (user.unsafeMetadata?.settings as Record<string, any>) || {};
+        const settings = (user.attributes?.settings as Record<string, any>) || {};
         return settings[key];
     },
 
