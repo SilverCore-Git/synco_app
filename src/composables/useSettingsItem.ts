@@ -1,6 +1,6 @@
 import { ref, watch, nextTick, type Ref } from "vue";
 import { sdb } from '@/assets/settingsDB';
-import { useUser } from "@clerk/vue";
+import keycloak from "@/assets/keycloak";
 
 const settingsCache: Partial<Record<string, {
     Item: Ref<any>,
@@ -10,19 +10,19 @@ const settingsCache: Partial<Record<string, {
 
 const useSettingsItem = (item: string, defaultValue: any) => {
     
-    const { user, isLoaded: clerkReady } = useUser();
-    
     if (!settingsCache[item]) 
     {
-
+        
         settingsCache[item] = {
             Item: ref<any>(undefined),
             isLoaded: ref<boolean>(false)
         };
 
-        watch([clerkReady, user], async ([ready, currentUser]) => {
+        const currentUser = keycloak;
 
-            if (ready && currentUser)
+        setTimeout(async () => {
+
+            if (currentUser)
             {
 
                 const cacheEntry = settingsCache[item]!;
@@ -49,7 +49,7 @@ const useSettingsItem = (item: string, defaultValue: any) => {
 
             }
 
-        }, { immediate: true });
+        }, 1);
 
     }
 

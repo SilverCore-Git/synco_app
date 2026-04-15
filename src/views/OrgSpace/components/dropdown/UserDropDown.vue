@@ -4,7 +4,7 @@ import type { User } from '@/types/types';
 import DropDown from '@/components/DropDown.vue';
 import useWSocket from '@/composables/useWSocket';
 import { openedOrg } from '@/assets/var';
-import { SignOutButton } from '@clerk/vue';
+import keycloak from '@/assets/keycloak';
 
 const props = defineProps<{
     user: User | undefined;
@@ -86,11 +86,9 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
             <div class="h-px bg-white/5 my-1" />
 
             <div class="p-1">
-                <SignOutButton>
-                    <button class="text-red-500! hover:bg-red-500/5! dropdown-item-style dropdown-item-annimate">
-                        <i class="bi bi-box-arrow-right mr-2" /> Déconnexion
-                    </button>
-                </SignOutButton>
+                <button @click="keycloak.logout()" class="text-red-500! hover:bg-red-500/5! dropdown-item-style dropdown-item-annimate">
+                    <i class="bi bi-box-arrow-right mr-2" /> Déconnexion
+                </button>
             </div>
 
         </template>
