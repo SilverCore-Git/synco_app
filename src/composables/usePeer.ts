@@ -22,7 +22,7 @@ const isCamOn = ref<boolean>(true);
 const ringtone = new Audio('/callSound.wav');
 ringtone.loop = true;
 
-const initPeer = () => {
+const initPeer = async () => {
 
     if (peer.value && !peer.value.destroyed) 
     {
@@ -30,11 +30,9 @@ const initPeer = () => {
         return;
     }
 
-    const myKCId = keycloak.userInfo?.sub;
+    const myKCId = (await keycloak.loadUserInfo()).sub;
     const myUser = openedOrg.value?.members?.find((m: OrgMember) => m.user?.id === myKCId)?.user;
     const myId = myUser?.id;
-
-    console.log(myUser, myId)
 
     if (!myId) return console.error("[PEER] ID local introuvable.");
 

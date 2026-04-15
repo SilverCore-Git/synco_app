@@ -6,4 +6,11 @@ const keycloak = new Keycloak({
   clientId: "silverteams_web_app",
 });
 
+const initKC = async () => {
+
+  window.localStorage.setItem('userId', (await keycloak.loadUserInfo()).sub);
+
+}
+
+export { initKC };
 export default keycloak;

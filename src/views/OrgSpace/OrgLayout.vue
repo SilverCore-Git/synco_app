@@ -122,8 +122,10 @@ const initSocketListener = async () => {
 
 onMounted(async () => {
    openedOrg.value = await sfetch(`/api/orgs/${props.orgId}`).then(res => res.json()); 
-   await initSocketListener();
-   initPeer();
+   await Promise.all([
+        initSocketListener(),
+        initPeer()
+   ])
 });
 
 onBeforeUnmount(async () => {
@@ -145,7 +147,7 @@ onBeforeUnmount(async () => {
             :style="{ viewTransitionName: `openOrg-${orgOnOpen?.id}` }"
         >
 
-            <SpaceBar />
+            <SpaceBar class="h-full" />
             <ThreadsBar class="h-full w-60 max-w-60 min-w-60" />
 
             <div class="bg-(--bg3) h-full w-full min-w-80">

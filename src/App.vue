@@ -7,7 +7,7 @@ import { isLoaded } from './assets/var';
 import { StarportCarrier } from 'vue-starport';
 import Notifications from './components/overlay/Notifications.vue';
 import useSettingsItem from './composables/useSettingsItem';
-import keycloak from './assets/keycloak';
+import keycloak, { initKC } from './assets/keycloak';
 import LogoLoader from './components/LogoLoader.vue';
 
 const { Item: theme } = useSettingsItem('theme', 'dark');
@@ -24,6 +24,8 @@ onMounted(async () => {
       onLoad: "login-required",
       checkLoginIframe: false
   });
+
+  await initKC();
 
   if (authenticated.value) await init.run();
 
