@@ -77,12 +77,6 @@ onMounted(async () => {
             
             </div>
 
-            <div @click="showCreateNewOrg = !showCreateNewOrg">
-                <OrgBtn
-                    :org="{ id: '', name: 'Créer une organisation', logo: 'bi-plus', role: '', memberCount: '' }"
-                />
-            </div>
-
         </div>
 
     </div>
@@ -101,6 +95,14 @@ onMounted(async () => {
                 Identifiant : <span class="text-(--primary)">{{ me?.id }}</span>
             </h2>
 
+        </div>
+
+        <span class="text-md my-10">ou</span>
+
+        <div @click="showCreateNewOrg = !showCreateNewOrg">
+            <OrgBtn
+                :org="{ id: '', name: 'Créer une organisation', logo: 'bi-plus', role: '', memberCount: '' }"
+            />
         </div>
 
     </div>
