@@ -1,6 +1,5 @@
 import { computed } from "vue";
 import { openedOrg } from "./var";
-import keycloak from "./keycloak";
 
 const isAdmin = computed(() => {
 
