@@ -4,7 +4,6 @@ import Loader from './components/LogoLoader.vue';
 import { onMounted, ref, watch } from 'vue';
 import init from './assets/init';
 import { isLoaded } from './assets/var';
-import { StarportCarrier } from 'vue-starport';
 import Notifications from './components/overlay/Notifications.vue';
 import useSettingsItem from './composables/useSettingsItem';
 import keycloak, { initKC } from './assets/keycloak';
@@ -52,9 +51,7 @@ onMounted(async () => {
       <div v-if="authenticated">
 
         <div v-if="isLoaded" class="w-full h-full">
-          <StarportCarrier>
             <RouterView />
-          </StarportCarrier>
         </div>
 
         <div v-else class="w-full h-full">
