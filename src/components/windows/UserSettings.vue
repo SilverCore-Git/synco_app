@@ -34,20 +34,25 @@
                         <p class="text-sm text-(--text)/60">Gérez vos informations personnelles et votre profil.</p>
                     </div>
 
-                    <div class="flex items-center gap-6 p-4 bg-(--bg2) rounded-xl border border-white/5">
+                    <div class="flex items-cente justify-between gap-6 p-4 bg-(--bg2) rounded-xl border border-white/5">
                        
-                        <div class="w-20 h-20 rounded-full bg-(--bg) border-2 border-(--primary) flex items-center justify-center overflow-hidden shrink-0">
-                            <i class="bi bi-person-fill text-4xl text-(--primary)" />
+                        <div class="w-22 h-22 rounded-full bg-(--bg) border-2 border-(--primary) flex items-center justify-center overflow-hidden shrink-0">
+                            <img :src="user?.user?.avatarUrl || 'https://cdn.silvercore.fr/static/files/silverteams/avatar/default.png'" />
                         </div>
                         
-                        <div class="space-y-2">
-                            <button class="px-4 py-2 bg-(--primary) hover:bg-(--primary-hover) text-(--white) rounded-lg font-medium transition-colors text-sm">
+                        <div class="flex flex-col justify-between">
+                            <button @click="avatarChange = true" class="primary">
                                 Changer l'avatar
                             </button>
-                            <button class="px-4 py-2 hover:bg-red-500/10 hover:text-red-400 text-(--text) rounded-lg font-medium transition-colors text-sm ml-2">
+                            <button class="danger">
                                 Supprimer
                             </button>
                         </div>
+
+                        <ProfileUploader 
+                            :show="avatarChange" 
+                            @close="avatarChange = false" 
+                        />
 
                     </div>
 
@@ -79,8 +84,11 @@
 
                     </div>
 
-                    <div class="pt-6 border-t border-white/5">
-                        <button class="px-6 py-2.5 bg-(--primary) hover:bg-(--primary-hover) text-(--white) rounded-lg font-bold transition-colors shadow-lg shadow-(--primary)/20">
+                    <div class="pt-6 border-t border-white/5" >
+                        <button  
+                            class="primary" 
+                            :class="isModified ? 'grayscale cursor-not-allowed!' : ''"
+                        >
                             Enregistrer les modifications
                         </button>
                     </div>
@@ -188,9 +196,13 @@
 
 <script setup lang="ts">
 
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import Window from './Window.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
+import type { OrgMember } from '@/types/types';
+import { openedOrg } from '@/assets/var';
+import keycloak from '@/assets/keycloak';
+import ProfileUploader from '../common/ProfileUploader.vue';
 
 defineProps<{
   isOpen: boolean;
@@ -198,14 +210,18 @@ defineProps<{
 
 const emit = defineEmits(['close']);
 
+const { Item: theme } = useSettingsItem('theme', 'dark');
+const user = computed<OrgMember | undefined>(() => openedOrg.value?.members?.find(member => member.user?.id == keycloak.userInfo?.sub));
+
+const isModified = computed<boolean>(() => formData.email !== user.value?.user?.email || formData.username !== user.value?.user?.name )
+const activeTab = ref<string>('account');
+
 const formData = reactive({
-    username: 'SilverUser',
-    email: 'contact@silverteams.com'
+    username: user.value?.user?.name,
+    email: user.value?.user?.email
 });
 
-const { Item: theme } = useSettingsItem('theme', 'dark');
-
-const activeTab = ref<string>('account');
+const avatarChange = ref<boolean>(false);
 
 const tabs = [
     { id: 'account', label: 'Mon Compte', icon: 'bi bi-person-fill' },

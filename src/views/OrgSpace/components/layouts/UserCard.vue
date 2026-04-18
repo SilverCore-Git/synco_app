@@ -174,7 +174,7 @@ const {
     isScreenShareEnabled,
 } = useLiveKit();
 
-const user = computed<OrgMember | undefined>(() => openedOrg.value?.members?.find(member => member.user?.clerkId == keycloak.userInfo?.sub));
+const user = computed<OrgMember | undefined>(() => openedOrg.value?.members?.find(member => member.user?.id == keycloak.userInfo?.sub));
 const ping = ref<number>(-1);
 const showUserSettings = ref<boolean>(false);
 
