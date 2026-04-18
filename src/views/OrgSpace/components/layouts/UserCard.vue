@@ -85,7 +85,7 @@
                         </div>
 
                         <div v-else class="relative flex items-center justify-center">
-                            <img :src="user?.user?.avatarUrl" :alt="user?.user?.name" class="w-8 h-8 rounded-full object-cover" />
+                            <img :src="user?.user?.avatarUrl || 'https://cdn.silvercore.fr/static/files/silverteams/avatar/default.png'" :alt="user?.user?.name" class="w-8 h-8 rounded-full object-cover" />
                             <div 
                                 v-if="user && user.user?.data.status"
                                 class="absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-(--bg) rounded-full z-10" 

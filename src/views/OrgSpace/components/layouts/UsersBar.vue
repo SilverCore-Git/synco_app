@@ -33,7 +33,7 @@
 
                 <div class="relative">
                     <img 
-                        :src="member.user?.avatarUrl" 
+                        :src="member.user?.avatarUrl || 'https://cdn.silvercore.fr/static/files/silverteams/avatar/default.png'" 
                         :alt="member.user?.name"
                         class="w-8 h-8 rounded-full"
                     />
@@ -72,7 +72,7 @@
 
                 <div class="relative">
                     <img 
-                        :src="member.user?.avatarUrl" 
+                        :src="member.user?.avatarUrl || 'https://cdn.silvercore.fr/static/files/silverteams/avatar/default.png'" 
                         :alt="member.user?.name"
                         class="w-8 h-8 rounded-full"
                     />
