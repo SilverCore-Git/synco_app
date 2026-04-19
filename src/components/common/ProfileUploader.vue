@@ -45,6 +45,7 @@ import { Cropper, CircleStencil } from 'vue-advanced-cropper';
 import 'vue-advanced-cropper/dist/style.css';
 import Popup from '../Popup.vue';
 import sfetch from '@/assets/utils/sfetch';
+import { openedOrg } from '@/assets/var';
 
 const imageSrc = ref<string | null>(null);
 const cropperRef = ref<any>(null);
@@ -86,10 +87,20 @@ const cropAndUpload = async () => {
 
                 formData.append('file', blob, `${localStorage.getItem('userId')}.jpg`);
 
-                await sfetch(`/api/cdn/upload/avatar`, {
+                const res = await sfetch(`/api/cdn/upload/avatar`, {
                     method: "POST",
                     body: formData
                 })
+
+                const data = await res.json();
+
+                const user = openedOrg.value?.members?.find(member => member.user?.id == localStorage.getItem('userId'));
+                if (user && user.user) user.user.avatarUrl = data.url;
+
+                await sfetch('/api/users/me', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ avatarUrl: data.url })
+                });
 
                 if (imageSrc.value) 
                 {
