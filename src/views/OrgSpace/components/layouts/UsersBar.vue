@@ -38,7 +38,7 @@
                         class="w-8 h-8 rounded-full"
                     />
                     <span 
-                        class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-(--bg2)"
+                        class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg2)"
                         :class="getColorByStatus(member.user?.data.status)"
                     />
                 </div>
@@ -48,7 +48,7 @@
                         {{ member.user?.name }}
                     </span>
                     <span class="text-xs text-(--text)/40">
-                        {{ getTextByStatus(member.user?.data.status) }}
+                        {{ member.role }}
                     </span>
                 </div>
 
@@ -77,7 +77,7 @@
                         class="w-8 h-8 rounded-full"
                     />
                     <span 
-                        class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-(--bg2)"
+                        class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg2)"
                         :class="getColorByStatus(member.user?.data.status)"
                     />
                 </div>
@@ -87,7 +87,7 @@
                         {{ member.user?.name }}
                     </span>
                     <span class="text-xs text-(--text)/40">
-                        {{ getTextByStatus(member.user?.data.status) }}
+                        {{ member.role }}
                     </span>
                 </div>
 
@@ -155,7 +155,6 @@
 import { computed } from 'vue';
 import { openedOrg } from '@/assets/var';
 import getColorByStatus from '@/assets/utils/getColorByStatus';
-import getTextByStatus from '@/assets/utils/getTextByStatus';
 
 const members = computed(() => {
 
