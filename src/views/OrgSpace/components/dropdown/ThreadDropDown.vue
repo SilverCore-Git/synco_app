@@ -32,7 +32,7 @@ const openConfirmModal = () => {
     isModalOpen.value = true;
 }
 
-const openUpdate = () => {
+const openSettings = () => {
     console.log("Ouverture modal pour :", currentWorkspace.value?.name);
     showUpdateSpace.value = true;
 };
@@ -77,7 +77,7 @@ const handleDelete = async () => {
 
 <template>
 
-    <DropDown align="right">
+    <DropDown align="right" class="ml-2">
 
         <template #trigger>
 
@@ -98,8 +98,8 @@ const handleDelete = async () => {
                 </button>
             </CreateNewCategory>
 
-            <button v-if="!isHome" @click="openUpdate" class="dropdown-item-annimate dropdown-item-style">
-                <i class="bi bi-pencil mr-2" /> Modifier
+            <button v-if="!isHome" @click="openSettings" class="dropdown-item-annimate dropdown-item-style">
+                <i class="bi bi-gear mr-2" /> Paramètres
             </button>
 
             <button v-if="!isHome" @click="openConfirmModal" class=" dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!" >
