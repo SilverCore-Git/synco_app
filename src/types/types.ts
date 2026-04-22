@@ -13,6 +13,8 @@ export interface Category {
   id: string;
   index: number;
   name: string;
+  ownerId: String;
+  membersId: String[];
   threads?: Thread[]; 
 }
 
@@ -53,6 +55,8 @@ export interface WorkSpace {
     orgId: string;
     name: string;
     logo: string; // bi | http
+    ownerId: String;
+    membersId: String[];
     categories: Category[];
     threads: Thread[];
 }
