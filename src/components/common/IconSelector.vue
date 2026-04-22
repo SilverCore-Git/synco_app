@@ -38,13 +38,13 @@
       </button>
     </div>
         
-    <div class="flex-1 overflow-y-auto">
+    <div v-if="activeTab == 'Emojis'" class="flex-1 overflow-y-auto">
 
       <div class="grid grid-cols-6 gap-2 h-full ">
 
         <button 
           v-for="item in currentList" 
-          :key="activeTab === 'Icons' ? item : item.slug"
+          :key="item.slug"
           @click="updateValue(activeTab === 'Emojis' ? item.codePoint : item)"
           type="button"
           class="
@@ -53,13 +53,32 @@
             hover:border-(--primary)/30 
             border border-transparent transition-all
           "
-          :class="selectedIcon == (activeTab === 'Icons' ? item : item.codePoint) ? 'bg-(--primary)/20' : ''"
+          :class="selectedIcon == (item.codePoint) ? 'bg-(--primary)/20' : ''"
         >
-          <i v-if="activeTab === 'Icons'" class="bi text-lg text-(--text)/70" :class="item" />
-          <span v-else class="text-2xl">{{ item.character || item }}</span>
+          <span class="text-2xl">{{ item.character || item }}</span>
         </button>
 
       </div>
+
+    </div>
+
+    <div v-else class="flex-1">
+
+      <input 
+            type="file" 
+            ref="fileInput" 
+            accept="image/*" 
+            @change="onFileChange" 
+            style="display: none"
+      />
+      
+      <button 
+        @click="$refs.fileInput.click()" 
+        class="primary w-full"
+        :class="imgLoading ? 'loader' : ''"
+      >
+        Sélectionner une image
+      </button>
 
     </div>
 
@@ -69,6 +88,8 @@
 
 <script setup lang="ts">
 
+import sfetch from '@/assets/utils/sfetch';
+import { useToast } from '@/composables/useToast';
 import { ref, computed, onMounted } from 'vue';
 
 const props = defineProps<{
@@ -76,7 +97,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits(['update:modelValue']);
-
+const toast = useToast();
 
 const activeTab = ref('Emojis');
 const bootstrapIcons = ref<string[]>([]);
@@ -86,6 +107,59 @@ const activeGroup = ref<string>("");
 const search = ref<string>("");
 const selectedIcon = ref<string>("");
 const loading = ref<boolean>(true);
+const imgLoading = ref<boolean>(false);
+
+
+const onFileChange = async (event: Event) => {
+
+    imgLoading.value = true;
+    const target = event.target as HTMLInputElement;
+
+    if (target.files && target.files[0]) 
+    {
+        const file = target.files[0];
+
+        if (file.size > 10 * 1024 * 1024) 
+        {
+            toast.show("L'image est trop lourde (max 10Mo)", 'error');
+            imgLoading.value = false;
+            return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = async (e) => {
+
+            const result = e.target?.result as string;
+            const formData = new FormData();
+
+            const response = await fetch(result);
+            const blob = await response.blob();
+
+            formData.append('file', blob, `${window.crypto.randomUUID()}.jpg`);
+
+            const res = await sfetch(`/api/cdn/upload/orgIcons`, {
+                method: "POST",
+                body: formData
+            })
+
+            const data = await res.json();
+
+            if (res.ok)
+            {
+                selectedIcon.value = data.url;
+                updateValue(data.url);
+                toast.show("Image upload avec succès", 'success');
+            }
+            else            {
+                toast.show("Erreur upload image", 'error');
+            }
+
+        };
+
+        reader.readAsDataURL(file);
+    }
+};
 
 
 const currentList = computed(() => {
