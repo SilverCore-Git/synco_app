@@ -62,7 +62,7 @@ export interface OrgMember {
   orgId: string;
   userId: string;
   user?: User;
-  role: 'admin' | 'member' | string;
+  role: string;
   createdAt: string | Date;
   updatedAt: string | Date;
 }
