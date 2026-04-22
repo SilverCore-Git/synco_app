@@ -254,6 +254,7 @@
                                             :disabled="isSelf(member.user?.clerkId!) || !isAdmin"
                                             class="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-(--text) focus:outline-none disabled:opacity-50"
                                         >
+                                            <option value="OWNER">Propriétaire</option>
                                             <option value="ADMIN">Admin</option>
                                             <option value="MEMBER">Membre</option>
                                             <option value="GUEST">Invité</option>
@@ -331,7 +332,7 @@ const filteredMembers = computed(() => {
 
 
 const isSelf = (userId: string) => {
-    return window.Clerk.user?.id == userId;
+    return localStorage.getItem('userId') == userId;
 };
 
 const copyInvite = () => {
