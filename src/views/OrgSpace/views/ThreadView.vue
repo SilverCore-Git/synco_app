@@ -25,7 +25,7 @@
 
             </div>
 
-            <div class="space-y-6 w-full">
+            <div class="space-y-4 w-full">
 
                 <div v-if="isFetchingMore" class="flex justify-center py-4">
                     <SpinLoader />
@@ -54,7 +54,7 @@
                     v-else
                     v-for="msg in sortedMessages" 
                     :key="msg.id" 
-                    class="group px-4 py-2 flex justify-start items-start gap-3 hover:bg-white/2 rounded-lg transition-colors"
+                    class="group px-4 py-2 flex justify-start items-start gap-3 hover:bg-white/6 rounded-lg transition-colors"
                     :class="selectedMessage == msg.id ? ' border border-(--primary) border-dashed animate-pulse' : ''"
                 >
 
@@ -118,7 +118,7 @@
             <ThreadTextarea
                 v-model="newMessage"
                 @send="sendMessage"
-                :placeholder="currentThreadKey ? 'Envoyer un message chiffré...' : 'Génération de la clé...'"
+                :placeholder="currentThreadKey ? 'Envoyer un message...' : 'Génération de la clé...'"
                 :disabled="!currentThreadKey"
             />
 
