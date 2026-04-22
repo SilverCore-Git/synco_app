@@ -107,7 +107,7 @@
                                 class="text-[10px] truncate font-medium uppercase tracking-wider"
                                 :class="openedOrg == null ? 'text-transparent' : 'text-(--text)/40'"
                             >
-                                {{ user?.user?.data?.username || user?.role }}
+                                {{ user?.role }}
                             </span>
                         </div>
 
