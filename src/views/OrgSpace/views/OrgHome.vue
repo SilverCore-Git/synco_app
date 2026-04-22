@@ -3,17 +3,15 @@
 <script lang="ts" setup>
 
 import { onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import organizations from '@/organizations';
+import { useRouter } from 'vue-router';
+import { openedOrg } from '@/assets/var';
 
-const route = useRoute();
 const router = useRouter();
 
 onMounted(() => {
 
-    const org = organizations.find(org => org.id == route.params.orgId);
-    const firstCategory = org?.home.categories.find(cat => cat.index == 1);
-    const firstThread = org?.home.threads.find(th => th.categoryId == firstCategory?.id && th.index == 1);
+    const firstCategory = openedOrg.value?.home.categories.find(cat => cat.index == 1);
+    const firstThread = openedOrg.value?.home.threads.find(th => th.categoryId == firstCategory?.id && th.index == 1);
     if (!firstCategory || !firstThread) return;
 
     router.push({
