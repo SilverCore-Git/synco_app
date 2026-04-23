@@ -11,7 +11,7 @@ import sfetch from '@/assets/utils/sfetch';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import DropDown from '@/components/DropDown.vue';
 import CreateNewCategory from '../popup/CreateNewCategory.vue';
-import UpdateSpace from '../common/UpdateSpace.vue';
+import SpaceSettings from '@/components/windows/SpaceSettings.vue';
 
 
 const toast = useToast();
@@ -31,11 +31,6 @@ const currentWorkspace = computed(() => {
 const openConfirmModal = () => {
     isModalOpen.value = true;
 }
-
-const openSettings = () => {
-    console.log("Ouverture modal pour :", currentWorkspace.value?.name);
-    showUpdateSpace.value = true;
-};
 
 const handleDelete = async () => {
 
@@ -98,7 +93,7 @@ const handleDelete = async () => {
                 </button>
             </CreateNewCategory>
 
-            <button v-if="!isHome" @click="openSettings" class="dropdown-item-annimate dropdown-item-style">
+            <button v-if="!isHome" @click="showUpdateSpace = true" class="dropdown-item-annimate dropdown-item-style">
                 <i class="bi bi-gear mr-2" /> Paramètres
             </button>
 
@@ -110,13 +105,11 @@ const handleDelete = async () => {
 
     </Dropdown>
 
-    <UpdateSpace
+    <SpaceSettings
         :key="currentWorkspace?.id" 
         v-if="currentWorkspace"
         :isOpen="showUpdateSpace" 
-        :id="currentWorkspace.id"
-        :name="currentWorkspace.name"
-        :logo="currentWorkspace.logo"
+        :space="currentWorkspace"
         @close="showUpdateSpace = false"
     />
 

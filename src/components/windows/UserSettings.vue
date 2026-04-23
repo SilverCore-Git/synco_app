@@ -12,8 +12,8 @@
                     v-for="tab in tabs" 
                     :key="tab.id"
                     @click="activeTab = tab.id"
-                    class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-left font-medium"
-                    :class="activeTab === tab.id ? 'bg-(--primary)/10 border-l-3 border-(--primary)' : 'hover:bg-white/5 hover:text-(--white)'"
+                    class="tab"
+                    :class="activeTab === tab.id ? 'active' : ''"
                 >
                     <i :class="tab.icon" class="text-lg" />
                     {{ tab.label }}

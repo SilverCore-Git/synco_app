@@ -442,7 +442,18 @@ button.premium:hover::before {
 }
 
 
+button.tab {
+  @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-left font-medium;
+  transition: all 0.25s;
+}
 
+button.tab.active {
+  @apply bg-(--primary)/10 border-l-3 border-(--primary);
+}
+
+button.tab:not(.active) {
+  @apply hover:bg-white/5 hover:text-(--white);
+}
 
 
 * {
