@@ -30,7 +30,7 @@
                 :src="icon" 
                 :alt="label"
                 class="
-                    w-[30px] h-[30px] rounded-md object-cover
+                     rounded-md object-cover
                     group-active:scale-50 group-hover:scale-110
                     transition-all duration-300 ease-out 
                 "

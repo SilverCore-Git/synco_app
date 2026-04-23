@@ -28,6 +28,7 @@
             focus:ring-(--primary)/20 transition-all
           "
           :disabled="loading"
+          maxlength="35"
         />
 
       </div>

@@ -184,10 +184,10 @@
                             "
                         >
 
-                            <div class="flex justify-center items-center flex-row gap-3 ">
-                                <img v-if="icon && icon.startsWith('http')" :src="icon" />
+                            <div class="flex justify-start items-center flex-row gap-3 ">
+                                <img v-if="icon && icon.startsWith('http')" :src="icon" class="w-6 h-6 rounded-sm" />
                                 <i v-else-if="icon" class="bi" :class="icon" />
-                                <h3 class="font-semibold">
+                                <h3 class="font-semibold text-ellipsis overflow-hidden whitespace-nowrap max-w-[120px]">
                                     {{ title }}
                                 </h3>
                             </div>
