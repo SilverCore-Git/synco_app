@@ -3,14 +3,12 @@
     <button
         @click="emit('click')"
         class="
-            w-full flex items-center justify-start text-left gap-3 px-3 py-2 rounded-xl
-            transition-all duration-200 group cursor-pointer relative
-            hover:bg-white/3 active:scale-[0.98]
+            tab w-full
         "
         :class="
             active
-                ? 'border-l-3 border-(--primary) bg-(--primary)/10 text-(--text)' 
-                : 'text-(--text)/60'
+                ? 'active' 
+                : ''
         "
     >
 
@@ -42,8 +40,6 @@
                 {{ user.role }}
             </span>
         </div>
-
-        <i class="bi bi-chevron-right ml-auto text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"/>
 
     </button>
 

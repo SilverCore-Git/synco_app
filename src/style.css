@@ -443,7 +443,7 @@ button.premium:hover::before {
 
 
 button.tab {
-  @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-left font-medium;
+  @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-left font-medium;
   transition: all 0.25s;
 }
 
