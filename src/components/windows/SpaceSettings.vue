@@ -71,32 +71,22 @@
                     </div>
                 </section>
 
-                <section v-if="activeTab === 'members'" class="animate-fade-in space-y-6">
+                <section v-if="activeTab === 'members'" class="animate-fade-in space-y-10">
+
                     <div class="flex items-center justify-between">
                         <div>
-                            <h3 class="text-2xl font-black text-(--white) mb-1">Membres</h3>
-                            <p class="text-sm text-(--text)/60">{{ space.membersId.length }} personnes ont accès à ce space.</p>
+                            <h3 class="text-2xl font-black text-(--white) mb-1">Gestion des membres</h3>
+                            <p class="text-sm text-(--text)/60">Invitez ou supprimez des membres de votre espace.</p>
                         </div>
-                        <button class="primary !py-2">
-                            <i class="bi bi-person-plus-fill mr-2" />Inviter
-                        </button>
                     </div>
 
-                    <div class="space-y-2">
-                        <div v-for="memberId in space.membersId" :key="memberId" 
-                            class="flex items-center justify-between p-3 bg-(--bg2) rounded-xl border border-white/5 hover:border-white/10 transition-colors">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-full bg-(--bg) border border-white/5 flex items-center justify-center text-xs font-bold text-(--primary)">
-                                    {{ memberId.substring(0, 2).toUpperCase() }}
-                                </div>
-                                <span class="font-medium text-(--white)">{{ memberId === space.ownerId ? 'Propriétaire' : 'Membre' }}</span>
-                                <span v-if="memberId === space.ownerId" class="text-[10px] bg-(--primary)/20 text-(--primary) px-2 py-0.5 rounded-full font-black uppercase">Owner</span>
-                            </div>
-                            <button v-if="memberId !== space.ownerId" class="text-(--text)/40 hover:text-red-400 p-2">
-                                <i class="bi bi-x-circle" />
-                            </button>
-                        </div>
-                    </div>
+                    <MembersManager 
+                        :members="members as OrgMember[] || []" 
+                        :ownerId="space.ownerId as string"
+                        @add="addMember"
+                        @remove="removeMember"
+                    />
+
                 </section>
 
                 <section v-if="activeTab === 'security'" class="animate-fade-in space-y-6">
@@ -141,9 +131,12 @@
 
 import { ref, reactive, computed, watch } from 'vue';
 import Window from './Window.vue';
-import type { WorkSpace } from '@/types/types';
+import type { OrgMember, WorkSpace } from '@/types/types';
 import SaveUpdateOverlay from '../overlay/SaveUpdateOverlay.vue';
 import { useToast } from '@/composables/useToast';
+import MembersManager from '../settings/MembersManager.vue';
+import { openedOrg } from '@/assets/var';
+import sfetch from '@/assets/utils/sfetch';
 
 const props = defineProps<{
     space: WorkSpace;
@@ -158,6 +151,20 @@ const activeTab = ref<string>('general');
 const formData = reactive({
     name: props.space.name,
     logo: props.space.logo
+});
+
+
+const members = computed(() => {
+    return props.space.membersId.map(id => {
+        return (
+            openedOrg.value?.members?.find(m => m.user?.id === id) 
+            || {
+                id,
+                name: "Utilisateur inconnu",
+                email: "email inconnu",
+            }
+        );
+    });
 });
 
 
@@ -185,6 +192,52 @@ const saveChanges = () => {
     // mettre call api
     console.log("Saving space changes...", formData);
     toast.show('Modifications enregistrées avec succès.', 'success');
+};
+
+const addMember = async (member: OrgMember) => {
+
+    props.space.membersId.push(member.userId);
+
+    const res = await sfetch(`/api/spaces/${props.space.id}/members`, {
+        method: 'PATCH',
+        body: JSON.stringify({ membersId: props.space.membersId }),
+    });
+
+    if (res.ok) 
+    {
+        toast.show(`Invitation envoyée à ${member.user?.name}.`, 'success');
+    }
+    else
+    {
+        toast.show(`Erreur lors de l'invitation de ${member.user?.name}.`, 'error');
+    }
+
+};
+
+const removeMember = async (member: OrgMember) => {
+
+    const index = props.space.membersId.indexOf(member.userId);
+    if (index !== -1) 
+    {
+
+        props.space.membersId.splice(index, 1);
+
+        const res = await sfetch(`/api/spaces/${props.space.id}/members`, {
+            method: 'PATCH',
+            body: JSON.stringify({ membersId: props.space.membersId }),
+        });
+
+        if (res.ok) 
+        {
+            toast.show(`${member.user?.name} a été retiré du space.`, 'success');
+        }
+        else
+        {
+            toast.show(`Erreur lors de la suppression de ${member.user?.name}.`, 'error');
+        }
+        
+    }
+
 };
 
 </script>
