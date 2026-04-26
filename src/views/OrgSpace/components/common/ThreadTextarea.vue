@@ -10,7 +10,7 @@
             bg-transparent border-none outline-none 
             resize-none w-full text-sm text-(--text) 
             placeholder:text-(--text)/20
-            py-2.5 overflow-hidden
+            py-2 overflow-hidden
         "
         @keydown.enter="handleEnter"
     />
