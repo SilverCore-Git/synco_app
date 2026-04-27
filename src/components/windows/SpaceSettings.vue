@@ -137,6 +137,7 @@ import { useToast } from '@/composables/useToast';
 import MembersManager from '../settings/MembersManager.vue';
 import { openedOrg } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
+import useWSocket from '@/composables/useWSocket';
 
 const props = defineProps<{
     space: WorkSpace;
@@ -196,6 +197,8 @@ const saveChanges = () => {
 
 const addMember = async (member: OrgMember) => {
 
+    const socket = await useWSocket();
+
     props.space.membersId.push(member.userId);
 
     const res = await sfetch(`/api/spaces/${props.space.id}/members`, {
@@ -205,6 +208,16 @@ const addMember = async (member: OrgMember) => {
 
     if (res.ok) 
     {
+        socket.value?.emit('space:updated', { 
+            orgId: openedOrg.value?.id, 
+            spaceId: props.space.id, 
+            data: {
+                logo: props.space.logo,
+                name: props.space.name,
+                members: props.space.membersId
+            } 
+        });
+        
         toast.show(`${member.user?.name} a été ajouté au space.`, 'success');
     }
     else
