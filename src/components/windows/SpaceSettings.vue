@@ -189,15 +189,55 @@ const resetForm = () => {
     formData.logo = props.space.logo;
 };
 
-const saveChanges = () => {
-    // mettre call api
-    console.log("Saving space changes...", formData);
-    toast.show('Modifications enregistrées avec succès.', 'success');
+const saveChanges = async () => {
+
+    const res = await sfetch(`/api/spaces/${props.space.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+            name: formData.name,
+            logo: formData.logo
+        })
+    });
+
+    if (res.ok) 
+    {
+
+        const space = await res.json();
+
+        openedOrg.value?.spaces?.splice(
+            openedOrg.value.spaces?.findIndex(s => s.id === props.space.id) || 0, 
+            1, 
+            space
+        );
+
+        await WSpubSave();
+        toast.show('Modifications enregistrées avec succès.', 'success');
+
+    }
+    else
+    {
+        toast.show('Erreur lors de l\'enregistrement des modifications.', 'error');
+    }
+    
+};
+
+const WSpubSave = async () => {
+
+    const socket = await useWSocket();
+
+    socket.value?.emit('space:update', { 
+        orgId: openedOrg.value?.id, 
+        spaceId: props.space.id,
+        data: {
+            name: formData.name,
+            logo: formData.logo,
+            members: props.space.membersId
+        }
+    });
+
 };
 
 const addMember = async (member: OrgMember) => {
-
-    const socket = await useWSocket();
 
     props.space.membersId.push(member.userId);
 
@@ -208,16 +248,7 @@ const addMember = async (member: OrgMember) => {
 
     if (res.ok) 
     {
-        socket.value?.emit('space:updated', { 
-            orgId: openedOrg.value?.id, 
-            spaceId: props.space.id, 
-            data: {
-                logo: props.space.logo,
-                name: props.space.name,
-                members: props.space.membersId
-            } 
-        });
-        
+        await WSpubSave();
         toast.show(`${member.user?.name} a été ajouté au space.`, 'success');
     }
     else
@@ -242,6 +273,7 @@ const removeMember = async (member: OrgMember) => {
 
         if (res.ok) 
         {
+            await WSpubSave();
             toast.show(`${member.user?.name} a été retiré du space.`, 'success');
         }
         else

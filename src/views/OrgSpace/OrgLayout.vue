@@ -67,6 +67,7 @@ const initSocketListener = async () => {
 
         if (data.members.includes(keycloak.userInfo?.sub || '')) 
         {
+            
             socket.value?.emit('join-space', { orgId: props.orgId, spaceId });
             
             const space = await sfetch(`/api/spaces/${spaceId}`).then(res => res.json());
