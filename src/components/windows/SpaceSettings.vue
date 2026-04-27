@@ -258,9 +258,9 @@ const addMember = async (member: OrgMember) => {
 
 };
 
-const removeMember = async (member: OrgMember) => {
+const removeMember = async (id: string) => {
 
-    const index = props.space.membersId.indexOf(member.userId);
+    const index = props.space.membersId.indexOf(id);
     if (index !== -1) 
     {
 
@@ -274,11 +274,11 @@ const removeMember = async (member: OrgMember) => {
         if (res.ok) 
         {
             await WSpubSave();
-            toast.show(`${member.user?.name} a été retiré du space.`, 'success');
+            toast.show(`Membre retiré avec succès.`, 'success');
         }
         else
         {
-            toast.show(`Erreur lors de la suppression de ${member.user?.name}.`, 'error');
+            toast.show(`Erreur lors de la suppression du membre.`, 'error');
         }
         
     }

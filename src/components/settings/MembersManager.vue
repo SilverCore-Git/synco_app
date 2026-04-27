@@ -87,8 +87,8 @@
 
                             <td class="px-6 py-4 text-right">
                                 <button 
-                                    v-if="canManage(member) && member.userId !== ownerId"
-                                    @click="emit('remove', member.id)"
+                                    v-if="canManage(member) && member.user?.id !== ownerId"
+                                    @click="emit('remove', member.user?.id)"
                                     class="danger"
                                     title="Exclure"
                                 >
