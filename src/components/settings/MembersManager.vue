@@ -49,7 +49,7 @@
 
                         <tr 
                             v-for="member in filteredMembers" 
-                            :key="member.id" 
+                            :key="member.userId" 
                             class="group hover:bg-(--white)/2 transition-all"
                         >
 
@@ -75,10 +75,10 @@
 
                                     <div class="flex flex-col">
                                         <span class="text-sm font-bold text-(--white) flex items-center gap-2">
-                                            {{ member.user?.name }}
+                                            {{ member.user?.name || 'Utilisateur inconnu' }}
                                             <span v-if="isSelf(member.userId)" class="text-[9px] bg-(--white)/10 px-1.5 py-0.5 rounded text-(--text)/60">VOUS</span>
                                         </span>
-                                        <span class="text-[10px] text-(--text)/40">{{ member.user?.email }}</span>
+                                        <span class="text-[10px] text-(--text)/40">{{ member.user?.email || 'Email non disponible' }}</span>
                                     </div>
 
                                 </div>

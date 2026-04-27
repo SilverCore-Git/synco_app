@@ -205,7 +205,7 @@ const addMember = async (member: OrgMember) => {
 
     if (res.ok) 
     {
-        toast.show(`Invitation envoyée à ${member.user?.name}.`, 'success');
+        toast.show(`${member.user?.name} a été ajouté au space.`, 'success');
     }
     else
     {
