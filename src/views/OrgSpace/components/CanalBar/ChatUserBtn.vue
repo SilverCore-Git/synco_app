@@ -15,10 +15,10 @@
         <div class="relative shrink-0">
 
             <img
-                :src="user.user?.avatarUrl"
+                :src="user.user?.avatarUrl || `https://ui-avatars.com/api/?name=${user.user?.name}&background=16ac77&color=fff`"
                 :alt="user.user?.name"
                 class="w-8 h-8 rounded-full object-cover border border-white/10 group-hover:border-(--primary)/30 transition-colors"
-                @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${user.user?.name}&background=random`"
+                @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${user.user?.name}&background=16ac77&color=fff`"
             />
             
             <div 

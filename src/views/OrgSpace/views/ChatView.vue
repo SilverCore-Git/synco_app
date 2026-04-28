@@ -33,12 +33,31 @@
             </div>
             
             <div class="ml-auto flex items-center gap-4 text-(--text)/40">
+
                 <button @click="startCall(recipient)" class="hover:text-(--text) transition-colors">
                     <i class="bi bi-telephone-fill" />
                 </button>
-                <button class="hover:text-(--text) transition-colors">
-                    <i class="bi bi-three-dots-vertical" />
-                </button>
+
+                <DropDown align="right">
+
+                    <template #trigger>
+                        <button class="hover:text-(--text) transition-colors">
+                            <i class="bi bi-three-dots-vertical" />
+                        </button>
+                    </template>
+
+                    <template #content>
+                        <button 
+                            @click="createPrivateMeet" 
+                            class="dropdown-item-annimate dropdown-item-style"
+                            title="Conversation P2P chiffrée de bout en bout."
+                        >
+                            Créer une session privée
+                        </button>
+                    </template>
+
+                </DropDown>
+
             </div>
 
         </header>
@@ -170,6 +189,7 @@ import sfetch from '@/assets/utils/sfetch';
 import { useToast } from '@/composables/useToast';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import usePeer from '@/composables/usePeer';
+import DropDown from '@/components/DropDown.vue';
 
 
 const route = useRoute();
@@ -197,6 +217,10 @@ const recipient = computed(() => {
     if (!openedOrg.value?.members) return null;
     return openedOrg.value.members.find((m: OrgMember) => m.id === userId)?.user;
 });
+
+const createPrivateMeet = () => {
+    router.push({ name: 'OrgThreadChatPrivateMeet', params: { userId: openedOrg.value?.members?.find((m: OrgMember) => m.id === route.params.userId)?.id } });
+}
 
 const formatTime = (date: any) => {
     return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

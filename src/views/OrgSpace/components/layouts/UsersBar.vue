@@ -33,9 +33,10 @@
 
                 <div class="relative">
                     <img 
-                        :src="member.user?.avatarUrl || 'https://cdn.silvercore.fr/static/files/silverteams/avatar/default.png'" 
+                        :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=16ac77&color=fff`" 
                         :alt="member.user?.name"
                         class="w-8 h-8 rounded-full"
+                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${member.user?.name}&background=16ac77&color=fff`"
                     />
                     <span 
                         class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg2)"

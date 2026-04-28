@@ -241,7 +241,7 @@ import Category from '../CanalBar/Category.vue';
 
 
 const route = useRoute();
-const isChat = computed(() => route.name == 'OrgChat' || route.name == 'OrgThreadChat');
+const isChat = computed(() => route.name == 'OrgChat' || route.name == 'OrgThreadChat' || route.name == 'OrgThreadChatPrivateMeet');
 const isHome = computed(()=> route.name == 'OrgHome' || route.name == 'OrgThreadHome');
 const isSettings = computed(()=> route.name?.toString().startsWith('OrgSettings'));
 const showDropDown = ref<boolean>(false);
