@@ -110,6 +110,44 @@ const remove = (id: number) => {
     notifications.value = notifications.value.filter(n => n.id !== id);
 }
 
+const notify = (type: NotificationType, payload: any) => {
+    
+    const id: number = notifications.value.length + 1;
+
+    if (type === 'toast')
+    {
+        notifications.value.push({
+            id,
+            type,
+            createdAt: new Date(),
+            message: payload.message,
+            toastType: payload.toastType
+        });
+    }
+    else if (type === 'notif:msg')
+    {
+        notifications.value.push({
+            id,
+            type,
+            createdAt: new Date(),
+            msg: payload
+        });
+    }
+    else if (type === 'notif:call')
+    {
+        notifications.value.push({
+            id,
+            type,
+            createdAt: new Date(),
+            call: payload
+        });
+    }
+
+    setTimeout(() => {
+        remove(id);
+    }, removeAfter);
+
+};
 
 const initListener = async () => {
 
@@ -141,7 +179,8 @@ export default function ()
         callNotif,
         notifications,
         initListener,
-        remove
+        remove,
+        notify
     }
 }
 
