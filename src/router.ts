@@ -12,6 +12,7 @@ import MembersSettings from './views/OrgSpace/views/settings/views/MembersSettin
 import InviteView from './views/inviteView.vue';
 import ThreadLayout from './views/OrgSpace/views/ThreadLayout.vue';
 import { nextTick } from 'vue';
+import PrivateMeetView from './views/OrgSpace/views/PrivateMeetView.vue';
 
 
 const routes = [
@@ -92,6 +93,13 @@ const routes = [
         name: 'OrgThreadChat',
         props: true,
         component: ChatView,
+        meta: { title: 'SilverTeams' }
+      },
+      {
+        path: 'chat/privateMeet/:userId',
+        name: 'OrgThreadChatPrivateMeet',
+        props: true,
+        component: PrivateMeetView,
         meta: { title: 'SilverTeams' }
       },
       {
