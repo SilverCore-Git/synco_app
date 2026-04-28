@@ -13,6 +13,7 @@ import type { Category, Message } from '@/types/types';
 import { useRoute } from 'vue-router';
 import useSettingsItem from '@/composables/useSettingsItem';
 import keycloak from '@/assets/keycloak';
+import useNotifications from '@/composables/useNotifications';
 
 
 const props = defineProps<{
@@ -22,6 +23,7 @@ const props = defineProps<{
 
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
 const { initPeer } = usePeer();
+const { notify } = useNotifications();
 const route = useRoute();
 
 const orgOnOpen = computed(() => {
@@ -145,6 +147,11 @@ const initSocketListener = async () => {
 
         thread.hasUnread = true;
 
+    });
+
+    socket.value?.on('privateMeet:incomingCall', async ({ recipientId }: { recipientId: string }) => {
+        const orgMember = openedOrg.value?.members?.find(m => m.userId === recipientId);
+        notify('notif:call', orgMember);
     });
 
 }
