@@ -96,7 +96,7 @@
                         v-else
                         v-for="msg in messages" 
                         :key="msg.id" 
-                        class="group px-4 py-1.5 flex flex-raw justify-start items-start gap-3 hover:bg-white/2 rounded-lg transition-colors"
+                        class="group px-4 py-1.5 flex flex-row justify-start items-start gap-3 hover:bg-white/2 rounded-lg transition-colors"
                     >
 
                         <img 
@@ -176,7 +176,7 @@
 
 <script lang="ts" setup>
 
-import { computed, ref, onMounted, onUnmounted, watch, nextTick, type Ref } from 'vue';
+import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { OrgMember } from '@/types/types';
 import { openedOrg } from '@/assets/var';
@@ -190,13 +190,14 @@ import { useToast } from '@/composables/useToast';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import usePeer from '@/composables/usePeer';
 import DropDown from '@/components/DropDown.vue';
-
+import waitFor from '@/assets/utils/waitfor';
 
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const { startCall } = usePeer();
-let socket: Ref<Socket | null> = ref(null);
+
+const socket = ref<Socket | null>(null);
 
 const isE2EEEnabled = ref<boolean>(true);
 const myPrivateKey = ref<CryptoKey | null>(null);
@@ -211,7 +212,6 @@ const isSomeoneTyping = ref<boolean>(false);
 let typingTimeout: any = null;
 const inputComponent = ref<any>(null);
 
-
 const recipient = computed(() => {
     const userId = route.params.userId;
     if (!openedOrg.value?.members) return null;
@@ -219,8 +219,9 @@ const recipient = computed(() => {
 });
 
 const createPrivateMeet = () => {
-    router.push({ name: 'OrgThreadChatPrivateMeet', params: { userId: openedOrg.value?.members?.find((m: OrgMember) => m.id === route.params.userId)?.id } });
-}
+    const memberId = openedOrg.value?.members?.find((m: OrgMember) => m.id === route.params.userId)?.id;
+    router.push({ name: 'OrgThreadChatPrivateMeet', params: { userId: memberId } });
+};
 
 const formatTime = (date: any) => {
     return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -235,42 +236,32 @@ const handleScroll = (e: Event) => {
 };
 
 const initListener = () => {
-
     if (!socket.value) return;
     
     const events = ["dm:history", "dm:new-message", "dm:user-typing"];
     events.forEach(ev => socket.value?.off(ev));
 
     socket.value.on('dm:history', async (history: any[]) => {
-        
         messages.value = await Promise.all(history.map(async (msg) => {
-
             if (msg.isE2EE && sharedKey.value) 
             {
-
                 try {
                     msg.content = await decryptMessage(msg.content, msg.nonce, sharedKey.value);
                 } 
                 catch (e) {
                     msg.content = "🔒 [Erreur de déchiffrement]";
                 }
-
             }
-
             return msg;
-
         }));
 
         loading.value = false;
         scrollToBottom(true);
-
     });
 
     socket.value.on("dm:new-message", async (msg: any) => {
-        
         if (msg.isE2EE && sharedKey.value) 
         {
-
             try {
                 msg.content = await decryptMessage(msg.content, msg.nonce, sharedKey.value);
             } 
@@ -278,24 +269,19 @@ const initListener = () => {
                 console.error(e);
                 msg.content = "🔒 [Erreur de déchiffrement]";
             }
-
         }
 
         messages.value.push(msg);
         isSomeoneTyping.value = false;
         scrollToBottom();
-
     });
 
     socket.value.on("dm:user-typing", (data: { isTyping: boolean }) => {
         isSomeoneTyping.value = data.isTyping;
     });
-
 };
 
-
 const joinDM = async (userId: string) => {
-
     loading.value = true;
 
     const recipientPubKeyBase64 = recipient.value?.publicKey;
@@ -307,9 +293,7 @@ const joinDM = async (userId: string) => {
     } 
     else 
     {
-
         try {
-
             const recipientPubKey = await importPublicKey(recipientPubKeyBase64);
             
             if (myPrivateKey.value) 
@@ -321,23 +305,19 @@ const joinDM = async (userId: string) => {
             {
                  console.error("Clé privée locale manquante.");
             }
-
         } 
         catch (e) {
             console.error("Erreur importation clé destinataire:", e);
             toast.show('La clé publique du destinataire est corrompue. Chiffrement désactivé.', 'error');
             sharedKey.value = null;
         }
-
     }
 
     messages.value = [];
     socket.value?.emit("join-dm", { recipientId: userId });
-
 };
 
 const sendMessage = async () => {
-
     if (!newMessage.value.trim() || !socket.value || !recipient.value) return;
 
     let finalContent = newMessage.value;
@@ -347,23 +327,19 @@ const sendMessage = async () => {
 
     if (useEncryption) 
     {
-
         try {
-
             const encrypted = await encryptMessage(newMessage.value, sharedKey.value!);
             finalContent = encrypted.ciphertext;
             nonce = encrypted.nonce;
-
         } 
         catch (e) {
             console.error("Erreur de chiffrement:", e);
             toast.show("Erreur lors du chiffrement du message.", "error");
             return;
         }
-
     }
     
-    socket.value.emit("dm:send-message", {
+    socket.value?.emit("dm:send-message", {
         recipientId: recipient.value.id,
         content: finalContent,
         nonce: nonce,
@@ -372,26 +348,23 @@ const sendMessage = async () => {
 
     newMessage.value = "";
     stopTyping();
-
 };
 
 const handleTyping = () => {
-
     if (!socket.value || !recipient.value) return;
     
-    socket.value.emit("dm:typing", { 
+    socket.value?.emit("dm:typing", { 
         recipientId: recipient.value.id, 
         isTyping: true 
     });
 
     clearTimeout(typingTimeout);
     typingTimeout = setTimeout(stopTyping, 3000);
-
 };
 
 const stopTyping = () => {
     if (!socket.value || !recipient.value) return;
-    socket.value.emit("dm:typing", { 
+    socket.value?.emit("dm:typing", { 
         recipientId: recipient.value.id, 
         isTyping: false 
     });
@@ -408,7 +381,6 @@ const scrollToBottom = async (instant = false) => {
 };
 
 const mount = async () => {
-
     const keyPair = await loadOrGenerateKeyPair();
     myPrivateKey.value = keyPair.privateKey;
     const pubKey = await exportPublicKey(keyPair.publicKey);
@@ -422,21 +394,30 @@ const mount = async () => {
     if (recipient.value) await joinDM(recipient.value.id);
 
     inputComponent.value?.textarea?.focus();
-
-}
+};
 
 watch(() => route.params.userId, async () => {
     await mount();
 });
 
-
 onMounted(async () => {
+    
+    if (!route.params.userId) 
+    {
+        const firstUser = openedOrg.value?.members?.[0];
+        if (firstUser) 
+        {
+            router.replace({ params: { ...route.params, userId: firstUser.id  } });
+        }
+    }
 
-    const firstUser = openedOrg.value?.members?.[0];
-    if (firstUser) router.push({ params: { ...route.params, userId: firstUser.id  } });
+    const wsRef = await useWSocket();
+    socket.value = wsRef.value; 
 
-    socket = await useWSocket();
-    await mount();
+    await waitFor(() => openedOrg.value !== null);
+    await waitFor(() => socket.value !== null);
+
+    await mount();    
 
 });
 
