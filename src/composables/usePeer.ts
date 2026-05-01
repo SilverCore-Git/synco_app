@@ -45,7 +45,7 @@ export default function usePeer()
         if (!myId) return console.error("[PEER] ID local introuvable.");
 
         peer.value = new Peer(myId, {
-            host: '192.168.1.73',
+            host: import.meta.env.VITE_API_URL || '192.168.1.73',
             port: 9001,
             path: '/webrtc',
             secure: true

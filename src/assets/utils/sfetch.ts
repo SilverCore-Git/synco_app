@@ -21,7 +21,7 @@ export default async function sfetch(url: string, arg?: any) {
         }
     }
 
-    return await fetch('http://localhost:9000' + url, {
+    return await fetch(import.meta.env.VITE_API_URL || 'http://localhost:9000' + url, {
         ...arg,
         method: arg?.method || 'GET',
         headers
