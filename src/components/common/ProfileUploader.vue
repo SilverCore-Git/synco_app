@@ -14,7 +14,7 @@
             style="display: none"
         />
         
-        <button @click="$refs.fileInput.click()" class="primary">Sélectionner une photo</button>
+        <button @click="triggerFileSelect()" class="primary">Sélectionner une photo</button>
 
         <div v-if="imageSrc" class="cropper-wrapper">
 
@@ -50,6 +50,12 @@ import { openedOrg } from '@/assets/var';
 const imageSrc = ref<string | null>(null);
 const cropperRef = ref<any>(null);
 const loading = ref<boolean>(false);
+const fileInput = ref<HTMLInputElement | null>(null);
+
+
+const triggerFileSelect = () => {
+  fileInput.value?.click();
+};
 
 defineProps<{
     show: boolean;

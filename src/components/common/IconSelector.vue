@@ -73,7 +73,7 @@
       />
       
       <button 
-        @click="$refs.fileInput.click()" 
+        @click="triggerFileSelect()" 
         class="primary w-full"
         :class="imgLoading ? 'loader' : ''"
       >
@@ -108,7 +108,12 @@ const search = ref<string>("");
 const selectedIcon = ref<string>("");
 const loading = ref<boolean>(true);
 const imgLoading = ref<boolean>(false);
+const fileInput = ref<HTMLInputElement | null>(null);
 
+
+const triggerFileSelect = () => {
+  fileInput.value?.click();
+};
 
 const onFileChange = async (event: Event) => {
 

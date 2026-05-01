@@ -99,9 +99,9 @@ const props = defineProps<{
 const acknowledge = ref<boolean>(false);
 const confirmText = ref<string>('');
 
-const isFullyConfirmed = computed<boolean>(() => {
-    return acknowledge.value && confirmText.value == props.itemName;
-})
+// const isFullyConfirmed = computed<boolean>(() => {
+//     return acknowledge.value && confirmText.value == props.itemName;
+// })
 const submitDisabled = computed<boolean>(() => {
 
     let disabled: boolean = false;

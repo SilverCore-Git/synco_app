@@ -75,7 +75,7 @@
                             </span>
 
                             <span class="text-(--text)/20 text-[10px] whitespace-nowrap">
-                                {{ formatTime(msg.createdAt) }}
+                                {{ formatTime(msg.createdAt as any) }}
                             </span>
 
                         </div>

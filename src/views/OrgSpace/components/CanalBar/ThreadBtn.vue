@@ -45,7 +45,7 @@
 
 <script lang="ts" setup>
 
-import type { Thread } from '@/types/workSpace';
+import type { Thread } from '@/types/types';
  
 defineProps<{
   thread: Thread;
