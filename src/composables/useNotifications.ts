@@ -7,7 +7,7 @@ import { decrypt, deriveKey } from "@/assets/utils/threadsCrypto";
 import { openedOrg } from "@/assets/var";
 
 
-type NotificationType = 'toast' | 'notif:msg' | 'notif:call';
+type NotificationType = 'toast' | 'notif:msg' | 'notif:call' | 'notif:privateMeet';
 
 interface Notification {
 
@@ -24,6 +24,9 @@ interface Notification {
 
     // if notif:call
     call?: OrgMember;
+
+    // if notif:privateMeet
+    privateMeet?: OrgMember;
 
 }
 

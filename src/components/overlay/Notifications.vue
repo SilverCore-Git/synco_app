@@ -96,6 +96,50 @@
 
                     </template>
 
+                    <template v-else-if="notif.type == 'notif:privateMeet'">
+
+                        <div class="flex flex-col w-full">
+
+                            <div class="flex items-center gap-3">
+
+                                <div class="relative">
+                                    <img 
+                                        :src="notif.privateMeet?.user?.avatarUrl || ''"
+                                        class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
+                                    />
+                                </div>
+
+                                <div class="flex-1 overflow-hidden">
+                                    <p class="text-xs font-bold text-primary uppercase tracking-wider mb-1">Discussion privée</p>
+                                    <h4 class="text-white font-semibold truncate">{{ notif.privateMeet?.user?.name || 'Utilisateur inconnu' }}</h4>
+                                </div>
+
+                            </div>
+
+                            <div class="flex gap-3 mt-5 w-full">
+
+                                <button 
+                                    @click=""
+                                    class="danger w-full gap-3"
+                                >
+                                    <i class="bi bi-x-lg" />
+                                    Refuser
+                                </button>
+                                
+                                <button 
+                                    @click="router.push({ name: 'OrgThreadChatPrivateMeet', params: { userId: notif.privateMeet?.userId } });"
+                                    class="primary w-full gap-3"
+                                >
+                                    <i class="bi bi-telephone-fill animate-bounce" />
+                                    Répondre
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </template>
+
                 </div>
 
                 <button 

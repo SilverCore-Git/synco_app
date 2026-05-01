@@ -149,9 +149,9 @@ const initSocketListener = async () => {
 
     });
 
-    socket.value?.on('privateMeet:incomingCall', async ({ recipientId }: { recipientId: string }) => {
-        const orgMember = openedOrg.value?.members?.find(m => m.userId === recipientId);
-        notify('notif:call', orgMember);
+    socket.value?.on('privateMeet:incomingCall', async ({ callerId }: { callerId: string }) => {
+        const orgMember = openedOrg.value?.members?.find(m => m.userId === callerId);
+        notify('notif:privateMeet', orgMember);
     });
 
 }
