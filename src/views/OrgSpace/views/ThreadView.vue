@@ -3,7 +3,7 @@
     <main 
         ref="messagesContainer"
         @scroll="handleScroll"
-        class="flex-1 overflow-y-auto p-4 w-full h-full"
+        class="flex-1 overflow-y-auto p-4 w-full h-full mb-14"
     >
 
         <div 
@@ -60,7 +60,9 @@
 
                     <img 
                         v-if="msg.sender"
-                        :src="msg.sender.avatarUrl"
+                        :src="msg.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=128a60&color=fff`"
+                        :alt="msg.sender?.name"
+                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=128a60&color=fff`"
                         class="rounded-full w-9 h-9 object-cover shrink-0"
                     />
 

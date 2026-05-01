@@ -66,7 +66,7 @@
         <main 
             ref="messagesContainer"
             @scroll="handleScroll"
-            class="flex-1 overflow-y-auto p-4 custom-scrollbar w-full"
+            class="flex-1 overflow-y-auto p-4 custom-scrollbar w-full mb-14"
         >
 
             <div v-if="recipient" class="flex flex-col justify-end min-h-full w-full">
