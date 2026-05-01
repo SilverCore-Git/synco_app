@@ -10,8 +10,9 @@
             <div class="flex items-center gap-3">
 
                 <img 
-                    :src="recipient.avatarUrl" 
+                    :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${recipient?.name}&background=128a60&color=fff`" 
                     :alt="recipient.name"
+                    @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${recipient?.name}&background=128a60&color=fff`"
                     class="w-9 h-9 rounded-full border border-white/10"
                 />
 
@@ -72,7 +73,11 @@
                 
                 <div class="mb-8 p-6 border-b border-white/5 bg-white/1 rounded-2xl mx-4">
                     <div class="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4 overflow-hidden border-2 border-white/10">
-                        <img :src="recipient.avatarUrl" class="w-full h-full object-cover" />
+                        <img 
+                            :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${recipient?.name}&background=128a60&color=fff`" 
+                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${recipient?.name}&background=128a60&color=fff`"
+                            class="w-full h-full object-cover" 
+                        />
                     </div>
                     <h1 class="text-3xl font-black text-(--text) mb-2">{{ recipient.name }}</h1>
                     <p class="text-(--text)/50 text-sm">
@@ -100,8 +105,9 @@
                     >
 
                         <img 
-                            :src="msg.sender?.avatarUrl || '/default-avatar.png'"
+                            :src="msg.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=128a60&color=fff`"
                             class="rounded-full w-9 h-9 border border-white/5 shrink-0"
+                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=128a60&color=fff`"
                         />
 
                         <div class="min-w-0 flex-1">
@@ -139,15 +145,15 @@
 
         </main>
 
-        <footer v-if="recipient" class="p-4 bg-transparent mt-auto">
+        <footer v-if="recipient" class="absolute bottom-0 inset-x-0 p-1 bg-transparent mt-auto">
 
-            <div class="h-5 mb-1 px-2">
-                <p v-if="isSomeoneTyping" class="text-[10px] text-(--primary)/60 animate-pulse italic">
+            <div v-if="isSomeoneTyping" class="h-5 flex justify-start items-center px-2">
+                <p class="text-[10px] text-(--primary)/60 animate-pulse italic">
                     {{ recipient.name }} est en train d'écrire...
                 </p>
              </div>
 
-            <div class="relative flex items-center bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
+            <div class=" relative flex items-center bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
                 
                 <ThreadTextarea
                     v-model="newMessage"

@@ -107,7 +107,7 @@
 
     </main>
 
-    <footer v-if="thread" class=" p-1 bg-transparent">
+    <footer v-if="thread" class="absolute bottom-0 inset-x-0 p-1 bg-transparent mt-auto">
 
         <div class="relative flex items-center bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
             
