@@ -37,10 +37,11 @@ const initPeer = async () => {
     if (!myId) return console.error("[PEER] ID local introuvable.");
 
     peer.value = new Peer(myId, {
-        host: 'localhost',
+        host: '192.168.1.73',
         port: 9001,
         path: '/webrtc',
-        key: import.meta.env.VITE_PEER_PUBLISHABLE_KEY
+        key: import.meta.env.VITE_PEER_PUBLISHABLE_KEY,
+        secure: false // mettre true en prod
     });
 
     peer.value.on('call', async (call) => {
