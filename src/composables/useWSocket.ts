@@ -29,12 +29,12 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
 
         if (!token) throw new Error("No token found");
 
-        socket.value = io(import.meta.env?.VITE_API_URL || 'localhost:3467', {
-            path: "/socket",
+        socket.value = io(import.meta.env?.VITE_SOCKET_URL || 'localhost:3467', {
+            path: import.meta.env?.VITE_SOCKET_PATH || '/socket.io',
             auth: { token },
             reconnection: true,
             reconnectionAttempts: 5,
-            protocols: ["websocket"],
+            protocols: import.meta.env.DEV ? ["websocket"] : ["websocket", "polling"],
         });
 
         socket.value.on("connect", () => {
