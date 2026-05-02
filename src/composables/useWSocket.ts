@@ -29,7 +29,7 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
 
         if (!token) throw new Error("No token found");
 
-        socket.value = io("http://localhost:3434", {
+        socket.value = io(`http://${import.meta.env.VITE_API_URL || 'localhost'}:3467`, {
             path: "/socket",
             auth: { token },
             reconnection: true,
