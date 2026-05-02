@@ -33,7 +33,8 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             path: "/socket",
             auth: { token },
             reconnection: true,
-            reconnectionAttempts: 5
+            reconnectionAttempts: 5,
+            protocols: ["websocket"],
         });
 
         socket.value.on("connect", () => {
