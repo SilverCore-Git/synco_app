@@ -3,7 +3,8 @@
     <main 
         ref="messagesContainer"
         @scroll="handleScroll"
-        class="flex-1 overflow-y-auto p-4 w-full h-full mb-14"
+        class="flex-1 overflow-y-auto p-4 w-full h-full"
+        :class="messageWillBeResponded ? 'mb-32' : 'mb-14'"
     >
 
         <div 
@@ -59,8 +60,9 @@
                         :key="msg.id"
                         :msg="msg"
                         :selectedMessage="selectedMessage"
+                        :messages="sortedMessages"
                     />
-                    
+
                 </div>
 
             </div>
@@ -86,6 +88,37 @@
 
     <footer v-if="thread" class="absolute bottom-0 inset-x-0 p-1 bg-transparent mt-auto">
 
+        <transition name="fade-bottom">
+
+            <div 
+                v-if="messageWillBeResponded" 
+                class="
+                    mb-2 flex items-start gap-3 bg-(--bg)/80 backdrop-blur-3xl
+                    border border-(--primary)/30 rounded-lg px-4 py-3
+                "
+            >
+                
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs text-(--primary) font-semibold mb-1">
+                        Répondre à {{ getMessageSenderName(messageWillBeResponded) }}
+                    </p>
+                    <p class="text-sm text-(--text)/70 truncate">
+                        {{ messageWillBeResponded.content || '(message vide)' }}
+                    </p>
+                </div>
+
+                <button 
+                    @click="cancelReply"
+                    class="shrink-0 text-(--text)/40 hover:text-(--text)/70 transition-colors"
+                    title="Annuler la réponse"
+                >
+                    <i class="bi bi-x-lg text-lg" />
+                </button>
+
+            </div>
+
+        </transition>
+
         <div class="relative flex items-center bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
             
             <button class="mr-3 text-(--text)/40 hover:text-(--primary) transition-colors">
@@ -97,6 +130,7 @@
                 @send="sendMessage"
                 :placeholder="currentThreadKey ? 'Envoyer un message...' : 'Génération de la clé...'"
                 :disabled="!currentThreadKey"
+                ref="TextareaRef"
             />
 
             <div class="flex gap-3 ml-3 text-(--text)/40">
@@ -128,6 +162,8 @@ import { useToast } from '@/composables/useToast';
 import { openedOrg } from '@/assets/var';
 import SpinLoader from '@/components/SpinLoader.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
+import useResponse from '@/composables/useResponse';
+import waitFor from '@/assets/utils/waitfor';
 
 
 const props = defineProps<{ 
@@ -149,6 +185,7 @@ interface sMessage extends Message {
     sender?: { name: string; avatarUrl: string; };
 }
 
+const TextareaRef = ref<InstanceType<typeof ThreadTextarea> | null>(null);
 const socket = ref<any>(null);
 const rawMessages = ref<Map<string, sMessage>>(new Map());
 const newMessage = ref<string>("");
@@ -157,7 +194,7 @@ const loading = ref<boolean>(true);
 const hasMore = ref<boolean>(true);
 const isFetchingMore = ref<boolean>(false);
 const sortedMessages = ref<sMessage[]>([]);
-
+const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
 
 const processMessages = async (msgs: sMessage[]) => {
     if (!currentThreadKey.value) return msgs;
@@ -260,6 +297,9 @@ const joinThread = async (id: string) => {
 
     if (_thread) _thread.hasUnread = false;
 
+    await nextTick();
+    TextareaRef.value?.textarea?.focus();
+
 };
 
 const sendMessage = async () => {
@@ -271,11 +311,14 @@ const sendMessage = async () => {
     socket.value.emit("send-message", {
         threadId: thread.value?.id,
         content: JSON.stringify(encryptedData), 
+        replyToId: messageWillBeResponded.value?.id,
         nonce: "n_" + Date.now(),
         context: route.params.spaceId ? 'workspace' : 'home'
     });
 
+    setMessageWillBeResponded(null);
     newMessage.value = "";
+    scrollToBottom();
 
 };
 
@@ -286,6 +329,18 @@ const scrollToBottom = async (instant = false) => {
         messagesContainer.value.scrollTo({ top: messagesContainer.value.scrollHeight, behavior: instant ? 'auto' : 'smooth' });
     }
 };
+
+const getMessageSenderName = (msg: sMessage): string => {
+    return msg.sender?.name || 'Anonyme';
+};
+
+const cancelReply = () => {
+    setMessageWillBeResponded(null);
+};
+
+watch(() => messageWillBeResponded.value, () => {
+    TextareaRef.value?.textarea?.focus();
+});
 
 watch(() => route.params.threadId, (newId) => {
     if (newId) joinThread(newId as string);
