@@ -42,7 +42,7 @@
                         >
 
                             <button 
-                                @click="showPlusDropdown = false" 
+                                @click="openDeleteConfirm" 
                                 class="dropdown-item-annimate dropdown-item-style  text-red-400! hover:bg-red-500/10!"
                             >
                                 Supprimer le message
@@ -82,11 +82,20 @@
 
                 </div>
 
+        <ConfirmDelete 
+            :show="showDeleteConfirm"
+            itemType="le message"
+            :itemName="msg.content.substring(0, 50)"
+            @confirm="deleteMessage"
+            @cancel="showDeleteConfirm = false"
+        />
+
 </template>
 
 <script setup lang="ts">
 
 import { ref } from 'vue';
+import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 
 defineProps<{
     msg: any;
@@ -96,5 +105,16 @@ defineProps<{
 const formatTime = (d: string) => new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 const showPlusDropdown = ref<boolean>(false);
+const showDeleteConfirm = ref<boolean>(false);
+
+const openDeleteConfirm = () => {
+    showPlusDropdown.value = false;
+    showDeleteConfirm.value = true;
+};
+
+const deleteMessage = async () => {
+    // mettre la ligique
+    showDeleteConfirm.value = false;
+};
 
 </script>
