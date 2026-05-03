@@ -52,40 +52,15 @@
 
                 <div
                     v-else
-                    v-for="msg in sortedMessages" 
-                    :key="msg.id" 
-                    class="group px-4 py-2 flex justify-start items-start gap-3 hover:bg-white/6 rounded-lg transition-colors"
-                    :class="selectedMessage == msg.id ? ' border border-(--primary) border-dashed animate-pulse' : ''"
                 >
-
-                    <img 
-                        v-if="msg.sender"
-                        :src="msg.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=128a60&color=fff`"
-                        :alt="msg.sender?.name"
-                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=128a60&color=fff`"
-                        class="rounded-full w-9 h-9 object-cover shrink-0"
+                
+                    <ThreadMessage
+                        v-for="msg in sortedMessages"
+                        :key="msg.id"
+                        :msg="msg"
+                        :selectedMessage="selectedMessage"
                     />
-
-                    <div class="min-w-0 flex-1">
-
-                        <div class="flex items-baseline gap-2">
-
-                            <span class="text-(--primary) font-bold text-xs tracking-tighter truncate">
-                                {{ msg.sender?.name || 'Anonyme' }}
-                            </span>
-
-                            <span class="text-(--text)/20 text-[10px] whitespace-nowrap">
-                                {{ formatTime(msg.createdAt as any) }}
-                            </span>
-
-                        </div>
-
-                        <p class="text-(--text)/80 text-sm leading-relaxed wrap-break-word whitespace-pre-wrap">
-                            {{ msg.content }}
-                        </p>
-
-                    </div>
-
+                    
                 </div>
 
             </div>
@@ -152,6 +127,7 @@ import { encrypt, decrypt, deriveKey } from '@/assets/utils/threadsCrypto';
 import { useToast } from '@/composables/useToast';
 import { openedOrg } from '@/assets/var';
 import SpinLoader from '@/components/SpinLoader.vue';
+import ThreadMessage from '../components/common/ThreadMessage.vue';
 
 
 const props = defineProps<{ 
@@ -180,7 +156,6 @@ const messagesContainer = ref<HTMLElement | null>(null);
 const loading = ref<boolean>(true);
 const hasMore = ref<boolean>(true);
 const isFetchingMore = ref<boolean>(false);
-
 const sortedMessages = ref<sMessage[]>([]);
 
 
@@ -191,8 +166,6 @@ const processMessages = async (msgs: sMessage[]) => {
         content: await decrypt(m.content, currentThreadKey.value!)
     })));
 };
-
-const formatTime = (d: string) => new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 const handleScroll = (e: Event) => {
     const el = e.target as HTMLElement;
