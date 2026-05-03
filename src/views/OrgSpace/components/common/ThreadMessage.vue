@@ -20,7 +20,7 @@
                             <i class="bi bi-clipboard text-lg" />
                         </button>
 
-                        <button class="dropdown-item-annimate dropdown-item-style">
+                        <button @click="setMessageWillBeResponded(msg)" class="dropdown-item-annimate dropdown-item-style">
                             <i class="bi bi-arrow-90deg-left text-lg" />
                         </button>
                         
@@ -74,6 +74,15 @@
 
                         </div>
 
+                        <div v-if="msg.replyToId && getReplyMessage(msg.replyToId)" class="mb-2 pl-3 border-l-2 border-(--primary)/40">
+                            <p class="text-xs text-(--text)/60 mb-1">
+                                {{ getReplyMessage(msg.replyToId)?.sender?.name || 'Anonyme' }}
+                            </p>
+                            <p class="text-xs text-(--text)/70 italic line-clamp-2">
+                                {{ getReplyMessage(msg.replyToId)?.content }}
+                            </p>
+                        </div>
+
                         <p class="text-(--text)/80 text-sm leading-relaxed wrap-break-word whitespace-pre-wrap">
                             {{ msg.content }}
                         </p>
@@ -96,16 +105,20 @@
 
 import { ref } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
+import useResponse from '@/composables/useResponse';
 
-defineProps<{
+const props = defineProps<{
     msg: any;
     selectedMessage: string | null;
+    messages: any[];
 }>();
 
-const formatTime = (d: string) => new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const { setMessageWillBeResponded } = useResponse();
 
 const showPlusDropdown = ref<boolean>(false);
 const showDeleteConfirm = ref<boolean>(false);
+
+const formatTime = (d: string) => new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 const openDeleteConfirm = () => {
     showPlusDropdown.value = false;
@@ -113,8 +126,12 @@ const openDeleteConfirm = () => {
 };
 
 const deleteMessage = async () => {
-    // mettre la ligique
+    // mettre la logique
     showDeleteConfirm.value = false;
+};
+
+const getReplyMessage = (replyToId: string) => {
+    return (props.messages || []).find(m => m.id === replyToId);
 };
 
 </script>

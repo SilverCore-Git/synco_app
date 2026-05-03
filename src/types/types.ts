@@ -90,6 +90,7 @@ export interface Message {
   context: 'home' | 'workspace' | 'dm';
   senderId: string;
   content: string; 
+  replyToId?: string;
   nonce: string;
   createdAt: string | Date;
 }
