@@ -202,13 +202,17 @@
                                 gap-3 h-full w-full px-3 py-5 overflow-scroll 
                             "
                         >
-
-                            <Category 
+                            
+                            <div  
                                 v-for="category in categories" 
-                                :key="'category-' + category.id" 
-                                :category="category"
-                                :threads="threadsByCategory[category.id] || []"
-                            />
+                                :key="'category-' + category.id"
+                                @contextmenu.stop
+                            >
+                                <Category 
+                                    :category="category"
+                                    :threads="threadsByCategory[category.id] || []"
+                                />
+                            </div>
 
                         </ul>
 
