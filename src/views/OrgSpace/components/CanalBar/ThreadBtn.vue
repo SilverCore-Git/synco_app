@@ -104,6 +104,7 @@ const showConfirmDelete = ref<boolean>(false);
 const deleteThread = async () => {
     const socket = await useWSocket();
     socket.value?.emit('thread:delete', ({ orgId: openedOrg.value?.id, threadId: props.thread.id }));
+    showConfirmDelete.value = false;
 }
 
 </script>
