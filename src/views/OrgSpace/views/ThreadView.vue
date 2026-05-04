@@ -163,7 +163,6 @@ import { openedOrg } from '@/assets/var';
 import SpinLoader from '@/components/SpinLoader.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import useResponse from '@/composables/useResponse';
-import waitFor from '@/assets/utils/waitfor';
 
 
 const props = defineProps<{ 

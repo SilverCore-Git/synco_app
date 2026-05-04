@@ -34,7 +34,7 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             auth: { token },
             reconnection: true,
             reconnectionAttempts: 5,
-            protocols: import.meta.env.DEV ? ["websocket"] : ["websocket", "polling"],
+            protocols: import.meta.env.DEV == false ? ["websocket"] : ["websocket", "polling"],
         });
 
         socket.value.on("connect", () => {
