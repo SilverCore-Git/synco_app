@@ -67,10 +67,10 @@
 
 import { ref, reactive, nextTick, watch, computed } from 'vue';
 import Popup from '@/components/Popup.vue';
-import { openedOrg } from '@/assets/var';
-import sfetch from '@/assets/utils/sfetch';
 import type { Thread } from '@/types/types';
 import { useToast } from '@/composables/useToast';
+import useWSocket from '@/composables/useWSocket';
+import { openedOrg } from '@/assets/var';
 
 const emit = defineEmits([ 'close' ]);
 
@@ -112,33 +112,12 @@ const handleSubmit = async () => {
 
     try {
         
-        // faire call back
-        const res: any = {};
+        const socket = await useWSocket();
+        socket.value?.emit('thread:update', ({ orgId: openedOrg.value?.id, threadId: props.thread.id, name: form.name }));
 
-        if (res.error) 
-        {
-            toast.show('Erreur lors de la modification.', 'error');
-        } 
-        else 
-        {
-            
-            if (openedOrg.value) 
-            {
-                
-                const homeThread = openedOrg.value.home?.threads?.find(t => t.id === props.thread.id);
-                if (homeThread) homeThread.name = form.name.trim();
+        toast.show('Salon modifié avec succès.', 'success');
+        closeModal();
 
-                openedOrg.value.spaces?.forEach(space => {
-                    const t = space.threads?.find(t => t.id === props.thread.id);
-                    if (t) t.name = form.name.trim();
-                });
-
-            }
-
-            toast.show('Salon modifié avec succès.', 'success');
-            closeModal();
-
-        }
 
     }
     catch (err: any) {

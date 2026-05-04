@@ -9,8 +9,8 @@ import { openedOrg, organizations } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import usePeer from '@/composables/usePeer';
-import type { Category, Message } from '@/types/types';
-import { useRoute } from 'vue-router';
+import type { Category, Message, Thread } from '@/types/types';
+import { stringifyQuery, useRoute } from 'vue-router';
 import useSettingsItem from '@/composables/useSettingsItem';
 import keycloak from '@/assets/keycloak';
 import useNotifications from '@/composables/useNotifications';
@@ -152,6 +152,26 @@ const initSocketListener = async () => {
     socket.value?.on('privateMeet:incomingCall', async ({ callerId }: { callerId: string }) => {
         const orgMember = openedOrg.value?.members?.find(m => m.userId === callerId);
         notify('notif:privateMeet', orgMember);
+    });
+
+
+    socket.value?.on('thread:updated', ({ orgId, threadId, name }: { orgId: string, threadId: string, name: string }) => {
+        
+        if (orgId !== props.orgId) return;
+
+        const org = openedOrg.value;
+        if (!org) return;
+
+        org.spaces?.forEach(space => {
+            const t = space.threads?.find(t => t.id === threadId);
+            if (t) t.name = name;
+        });
+
+        if (org.home) {
+            const t = org.home.threads?.find(t => t.id === threadId);
+            if (t) t.name = name;
+        }
+        
     });
 
 }
