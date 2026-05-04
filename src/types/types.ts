@@ -92,5 +92,6 @@ export interface Message {
   content: string; 
   replyToId?: string;
   nonce: string;
+  edited?: boolean;
   createdAt: string | Date;
 }

@@ -51,10 +51,10 @@ async function encrypt(text: string, key: CryptoKey)
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
     const cipher = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(text));
 
-    return {
+    return JSON.stringify({
         ct: btoa(String.fromCharCode(...new Uint8Array(cipher))),
         iv: btoa(String.fromCharCode(...iv))
-    };
+    });
 
 }
 

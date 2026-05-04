@@ -242,6 +242,7 @@ button.default-primary  {
   overflow: hidden;
   cursor: pointer;
   transition: all 100ms ease-in-out;
+  @apply disabled:grayscale-100 disabled:cursor-not-allowed
 }
 
 button.primary:active,

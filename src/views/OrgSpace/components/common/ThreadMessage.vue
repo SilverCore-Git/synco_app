@@ -16,24 +16,15 @@
                         :class="showPlusDropdown ? 'flex' : 'hidden group-hover:flex'"
                     >
 
-                        <button v-tooltip="'copier'" class="dropdown-item-annimate dropdown-item-style">
-                            <i class="bi bi-clipboard-fill text-lg" />
-                        </button>
-
-                        <button @click="editMessage" class="dropdown-item-annimate dropdown-item-style">
-                            <i class="bi bi-pencil-fill text-lg" />
-                        </button>
-
-                        <button @click="setMessageWillBeResponded(msg)" class="dropdown-item-annimate dropdown-item-style">
-                            <i class="bi bi-arrow-90deg-left text-lg" />
-                        </button>
-                        
-                        <button class="dropdown-item-annimate dropdown-item-style">
-                            <i class="bi bi-arrow-90deg-right text-lg" />
-                        </button>
-
-                        <button @click="openDeleteConfirm"  class="dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!">
-                            <i class="bi bi-trash-fill text-lg" />
+                        <button
+                            v-for="(btn, index) in dropdownBtns"
+                            :key="'dropdownBtns-' + index"
+                            v-tooltip="btn.tooltip" 
+                            class="dropdown-item-annimate dropdown-item-style"
+                            :class="btn.class"
+                            @click="btn.func(msg)"
+                        >
+                            <i class="bi text-lg" :class="btn.icon" />
                         </button>
 
                         <!-- <button @click="showPlusDropdown = !showPlusDropdown" class="dropdown-item-annimate dropdown-item-style">
@@ -76,7 +67,7 @@
                                 {{ msg.sender?.name || 'Anonyme' }}
                             </span>
 
-                            <span class="text-(--text)/20 text-[10px] whitespace-nowrap">
+                            <span class="text-(--text)/27 text-[10px] whitespace-nowrap">
                                 {{ formatTime(msg.createdAt as any) }}
                             </span>
 
@@ -93,6 +84,9 @@
 
                         <p class="text-(--text)/80 text-sm leading-relaxed wrap-break-word whitespace-pre-wrap">
                             {{ msg.content }}
+                            <span v-if="msg.edited" class="text-[10px] text-(--text)/30">
+                                (modifié)
+                            </span>
                         </p>
 
                     </div>
@@ -107,6 +101,13 @@
             @cancel="showDeleteConfirm = false"
         />
 
+        <EditMessage 
+            :is-open="showEditMessage" 
+            :initial-content="msg.content"
+            @close="showEditMessage = false"
+            @save="editMessage"
+        />
+
 </template>
 
 <script setup lang="ts">
@@ -115,6 +116,9 @@ import { ref } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
 import useWSocket from '@/composables/useWSocket';
+import EditMessage from '../popup/EditMessage.vue';
+import { deriveKey, encrypt } from '@/assets/utils/threadsCrypto';
+import { openedOrg } from '@/assets/var';
 
 const props = defineProps<{
     msg: any;
@@ -125,34 +129,35 @@ const props = defineProps<{
 interface DropdownBtn {
     icon: string,
     tooltip: string,
-    func: () => void
+    func: (msg: any) => void,
+    class?: string;
 }
 
 const dropdownBtns: DropdownBtn[] = [
     {
         icon: "bi-clipboard-fill",
         tooltip: "copier",
-        func: () => { /* ta logique de copie */ },
-        class?: string;
+        func: () => {},
     },
     {
         icon: "bi-pencil-fill",
         tooltip: "modifier",
-        func: editMessage
+        func: () => openEditMessage()
     },
     {
         icon: "bi-arrow-90deg-left",
         tooltip: "répondre",
-        func: () => setMessageWillBeResponded(msg)
+        func: (msg: any) => setMessageWillBeResponded(msg)
     },
     {
         icon: "bi-arrow-90deg-right",
-        tooltip: "transférer"
+        tooltip: "transférer",
+        func: () => {}
     },
     {
         icon: "bi-trash-fill",
         tooltip: "supprimer",
-        func: openDeleteConfirm,
+        func: () => openDeleteConfirm(),
         class: "text-red-400! hover:bg-red-500/10!"
     }
 ];
@@ -161,13 +166,27 @@ const { setMessageWillBeResponded } = useResponse();
 
 const showPlusDropdown = ref<boolean>(false);
 const showDeleteConfirm = ref<boolean>(false);
+const showEditMessage = ref<boolean>(false);
 
-const formatTime = (d: string) => new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const formatTime = (d: string) => {
+  return new Date(d).toLocaleString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
 
 const openDeleteConfirm = () => {
     showPlusDropdown.value = false;
     showDeleteConfirm.value = true;
 };
+
+const openEditMessage = () => {
+    showPlusDropdown.value = false;
+    showEditMessage.value = true;
+}
 
 const deleteMessage = async () => {
     const socket = await useWSocket();
@@ -176,8 +195,14 @@ const deleteMessage = async () => {
 };
 
 const editMessage = async (newContent: string) => {
+
+    const key = await deriveKey(openedOrg.value!.id, props.msg.threadId);
+    if (!key) return;
+    const cryptedContent = await encrypt(newContent, key);
+
     const socket = await useWSocket();
-    socket.value?.emit('edit-message', { id: props.msg.id, content: newContent });
+    socket.value?.emit('edit-message', { id: props.msg.id, newContent: cryptedContent });
+
 };
 
 const getReplyMessage = (replyToId: string) => {
