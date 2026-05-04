@@ -113,14 +113,6 @@ button:hover {
   box-shadow: 0 0 15px -3px rgba(30, 215, 96, 0.2);
 }
 
-
-@keyframes silver-bounce {
-  0% { transform: scale(0.8); opacity: 0; }
-  50% { transform: scale(1.01); opacity: 1; }
-  70% { transform: scale(0.9); }
-  100% { transform: scale(1); }
-}
-
 .animate-silver-load {
   animation: silver-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }

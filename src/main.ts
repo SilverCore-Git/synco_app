@@ -3,12 +3,16 @@ import './style.css'
 import App from './App.vue'
 import router from './router';
 import StarportPlugin from 'vue-starport'
+import FloatingVue from 'floating-vue'
+
 import 'bootstrap-icons/font/bootstrap-icons.css';
+import 'floating-vue/dist/style.css'
 
 const app = createApp(App);
 
 app.use(router);
 
 app.use(StarportPlugin());
+app.use(FloatingVue)
 
 app.mount('#app');

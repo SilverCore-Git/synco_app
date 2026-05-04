@@ -487,3 +487,55 @@ button.tab:not(.active) {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+
+/* tooltip */
+
+.v-popper__popper {
+    z-index: 10000;
+    top: 0;
+    left: 0;
+    outline: none;
+}
+
+
+.v-popper__popper .v-popper__inner {
+  backdrop-filter: blur(20px);
+  padding: 6px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--primary-hover);
+  box-shadow: 0 6px 30px rgba(0, 0, 0, .1);
+  animation: silver-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.v-popper__popper .v-popper__arrow-inner {
+  visibility: visible;
+  border-color: var(--primary-hover);
+}
+
+.v-popper__popper .v-popper__arrow-outer {
+  border-color: var(--primary-hover);
+}
+
+
+.v-popper__popper.v-popper__popper--hidden {
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity .15s, visibility .15s;
+}
+
+/* --- État affiché --- */
+.v-popper__popper.v-popper__popper--shown {
+  visibility: visible;
+  opacity: 1;
+}
+
+
+
+@keyframes silver-bounce {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { transform: scale(1.01); opacity: 1; }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}

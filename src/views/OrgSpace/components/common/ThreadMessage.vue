@@ -16,8 +16,12 @@
                         :class="showPlusDropdown ? 'flex' : 'hidden group-hover:flex'"
                     >
 
-                        <button class="dropdown-item-annimate dropdown-item-style">
-                            <i class="bi bi-clipboard text-lg" />
+                        <button v-tooltip="'copier'" class="dropdown-item-annimate dropdown-item-style">
+                            <i class="bi bi-clipboard-fill text-lg" />
+                        </button>
+
+                        <button @click="editMessage" class="dropdown-item-annimate dropdown-item-style">
+                            <i class="bi bi-pencil-fill text-lg" />
                         </button>
 
                         <button @click="setMessageWillBeResponded(msg)" class="dropdown-item-annimate dropdown-item-style">
@@ -28,9 +32,13 @@
                             <i class="bi bi-arrow-90deg-right text-lg" />
                         </button>
 
-                        <button @click="showPlusDropdown = !showPlusDropdown" class="dropdown-item-annimate dropdown-item-style">
-                            <i class="bi bi-three-dots text-lg" />
+                        <button @click="openDeleteConfirm"  class="dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!">
+                            <i class="bi bi-trash-fill text-lg" />
                         </button>
+
+                        <!-- <button @click="showPlusDropdown = !showPlusDropdown" class="dropdown-item-annimate dropdown-item-style">
+                            <i class="bi bi-three-dots text-lg" />
+                        </button> -->
 
                         <div 
                             v-if="showPlusDropdown"
@@ -114,6 +122,41 @@ const props = defineProps<{
     messages: any[];
 }>();
 
+interface DropdownBtn {
+    icon: string,
+    tooltip: string,
+    func: () => void
+}
+
+const dropdownBtns: DropdownBtn[] = [
+    {
+        icon: "bi-clipboard-fill",
+        tooltip: "copier",
+        func: () => { /* ta logique de copie */ },
+        class?: string;
+    },
+    {
+        icon: "bi-pencil-fill",
+        tooltip: "modifier",
+        func: editMessage
+    },
+    {
+        icon: "bi-arrow-90deg-left",
+        tooltip: "répondre",
+        func: () => setMessageWillBeResponded(msg)
+    },
+    {
+        icon: "bi-arrow-90deg-right",
+        tooltip: "transférer"
+    },
+    {
+        icon: "bi-trash-fill",
+        tooltip: "supprimer",
+        func: openDeleteConfirm,
+        class: "text-red-400! hover:bg-red-500/10!"
+    }
+];
+
 const { setMessageWillBeResponded } = useResponse();
 
 const showPlusDropdown = ref<boolean>(false);
@@ -130,6 +173,11 @@ const deleteMessage = async () => {
     const socket = await useWSocket();
     socket.value?.emit('delete-message', props.msg.id);
     showDeleteConfirm.value = false;
+};
+
+const editMessage = async (newContent: string) => {
+    const socket = await useWSocket();
+    socket.value?.emit('edit-message', { id: props.msg.id, content: newContent });
 };
 
 const getReplyMessage = (replyToId: string) => {

@@ -12,6 +12,7 @@
     "@emailjs/browser": "^4.4.1",
     "@tailwindcss/vite": "^4.1.17",
     "bootstrap-icons": "^1.13.1",
+    "floating-vue": "^5.2.2",
     "gsap": "^3.13.0",
     "keycloak-js": "^26.2.3",
     "livekit-client": "^2.18.1",

@@ -265,9 +265,15 @@ const initListener = () => {
     });
 
     socket.value.on('delete-message', (msgId: string) => {
-        console.log('Message deleted:', msgId);
         rawMessages.value.delete(msgId);
         sortedMessages.value = sortedMessages.value.filter(m => m.id !== msgId);
+    });
+
+    socket.value.on('edit-message', async (editedMsg: sMessage) => {
+        const decryptedContent = await decrypt(editedMsg.content, currentThreadKey.value!);
+        const updatedMsg = { ...editedMsg, content: decryptedContent };
+        rawMessages.value.set(editedMsg.id, updatedMsg);
+        sortedMessages.value = sortedMessages.value.map(m => m.id === editedMsg.id ? updatedMsg : m);
     });
 
 };
