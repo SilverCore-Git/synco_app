@@ -87,8 +87,10 @@ import type { Thread } from '@/types/types';
 import UpdateThread from '../popup/UpdateThread.vue';
 import { ref } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
+import useWSocket from '@/composables/useWSocket';
+import { openedOrg } from '@/assets/var';
  
-defineProps<{
+const props = defineProps<{
   thread: Thread;
   active?: boolean;
   hasUnread?: boolean;
@@ -99,8 +101,9 @@ const emit = defineEmits(['click']);
 const showEditThread = ref<boolean>(false);
 const showConfirmDelete = ref<boolean>(false);
 
-const deleteThread = () => {
-    // faire la logique back
+const deleteThread = async () => {
+    const socket = await useWSocket();
+    socket.value?.emit('thread:delete', ({ orgId: openedOrg.value?.id, threadId: props.thread.id }));
 }
 
 </script>

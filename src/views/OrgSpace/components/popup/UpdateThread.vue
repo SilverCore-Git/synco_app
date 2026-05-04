@@ -115,9 +115,7 @@ const handleSubmit = async () => {
         const socket = await useWSocket();
         socket.value?.emit('thread:update', ({ orgId: openedOrg.value?.id, threadId: props.thread.id, name: form.name }));
 
-        toast.show('Salon modifié avec succès.', 'success');
         closeModal();
-
 
     }
     catch (err: any) {

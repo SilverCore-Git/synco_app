@@ -171,6 +171,33 @@ const initSocketListener = async () => {
             const t = org.home.threads?.find(t => t.id === threadId);
             if (t) t.name = name;
         }
+
+    });
+
+    socket.value?.on('thread:deleted', ({ orgId, threadId }: { orgId: string, threadId: string }) => {
+        
+        if (orgId !== props.orgId) return;
+
+        const org = openedOrg.value;
+        if (!org) return;
+
+        org.spaces?.forEach(space => {
+            if (space.threads) 
+            {
+                const index = space.threads.findIndex(t => t.id === threadId);
+                if (index !== -1) {
+                    space.threads.splice(index, 1);
+                }
+            }
+        });
+
+        if (org.home?.threads) 
+        {
+            const index = org.home.threads.findIndex(t => t.id === threadId);
+            if (index !== -1) {
+                org.home.threads.splice(index, 1);
+            }
+        }
         
     });
 
