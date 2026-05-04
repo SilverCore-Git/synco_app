@@ -264,6 +264,12 @@ const initListener = () => {
 
     });
 
+    socket.value.on('delete-message', (msgId: string) => {
+        console.log('Message deleted:', msgId);
+        rawMessages.value.delete(msgId);
+        sortedMessages.value = sortedMessages.value.filter(m => m.id !== msgId);
+    });
+
 };
 
 const joinThread = async (id: string) => {

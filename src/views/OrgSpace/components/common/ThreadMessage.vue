@@ -106,6 +106,7 @@
 import { ref } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
+import useWSocket from '@/composables/useWSocket';
 
 const props = defineProps<{
     msg: any;
@@ -126,7 +127,8 @@ const openDeleteConfirm = () => {
 };
 
 const deleteMessage = async () => {
-    // mettre la logique
+    const socket = await useWSocket();
+    socket.value?.emit('delete-message', props.msg.id);
     showDeleteConfirm.value = false;
 };
 
