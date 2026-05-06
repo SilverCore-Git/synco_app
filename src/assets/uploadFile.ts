@@ -1,0 +1,51 @@
+
+export default async function uploadFile(
+    file: File, 
+    onProgress?: (percent: number) => void
+): Promise<any> 
+{
+
+    return new Promise((resolve, reject) => {
+
+        const formData = new FormData();
+        
+        formData.append('file', file);
+
+        const xhr = new XMLHttpRequest();
+
+        if (onProgress)
+        {
+            xhr.upload.addEventListener('progress', (event) => {
+                if (event.lengthComputable) {
+                    const percentComplete = (event.loaded / event.total) * 100;
+                    onProgress(Math.round(percentComplete));
+                }
+            });
+        }
+
+        xhr.onload = () => {
+
+            if (xhr.status >= 200 && xhr.status < 300) 
+            {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    resolve(response);
+                } catch (e) {
+                    resolve(xhr.responseText);
+                }
+            } 
+            else 
+            {
+                reject(new Error(`Erreur serveur: ${xhr.status} ${xhr.statusText}`));
+            }
+
+        };
+
+        xhr.onerror = () => reject(new Error("Erreur réseau ou connexion interrompue."));
+
+        xhr.open('POST', '/api/upload', true);
+        xhr.send(formData);
+
+    });
+
+}
