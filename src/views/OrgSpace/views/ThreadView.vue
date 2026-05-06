@@ -141,6 +141,10 @@
 
                 </div>
 
+                <button class="primary">
+                    Valider
+                </button>
+
             </div>
 
         </transition>

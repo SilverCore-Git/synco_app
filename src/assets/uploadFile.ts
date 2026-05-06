@@ -1,13 +1,15 @@
 import keycloak from "./keycloak";
 import { openedOrg } from "./var";
 
+export interface UploadContext {
+    workspaceId: string;
+    messageId?: string;
+    dmMessageId?: string;
+}
+
 export default async function uploadFile(
     file: File,
-    context: {
-        workspaceId: string,
-        messageId?: string,
-        dmMessageId?: string
-    },
+    context: UploadContext,
     onProgress?: (percent: number) => void
 ): Promise<any> 
 {
@@ -63,4 +65,33 @@ export default async function uploadFile(
 
     });
 
+}
+
+
+export async function uploadFiles(
+    files: File[],
+    context: UploadContext,
+    onTotalProgress?: (percent: number) => void
+): Promise<any[]> {
+    
+    const progressMap = new Array(files.length).fill(0);
+
+    const uploadPromises = files.map((file, index) => {
+        return uploadFile(
+            file, 
+            context, 
+            (percent) => {
+                progressMap[index] = percent;
+                
+                if (onTotalProgress) 
+                {
+                    const totalProgress = progressMap.reduce((a, b) => a + b, 0) / files.length;
+                    onTotalProgress(Math.round(totalProgress));
+                }
+            }
+        );
+    });
+
+    return Promise.all(uploadPromises);
+    
 }
