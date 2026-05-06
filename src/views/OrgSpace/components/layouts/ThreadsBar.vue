@@ -207,6 +207,7 @@
                                 v-for="category in categories" 
                                 :key="'category-' + category.id"
                                 @contextmenu.stop
+                                class="w-full"
                             >
                                 <Category 
                                     :category="category"

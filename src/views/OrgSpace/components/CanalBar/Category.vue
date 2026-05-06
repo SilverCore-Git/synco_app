@@ -44,7 +44,7 @@
 
         <div 
             v-show="isOpen" 
-            class="pt-1"
+            class="pt-1 w-full"
         >
 
             <draggable

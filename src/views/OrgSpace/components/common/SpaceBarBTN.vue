@@ -8,12 +8,13 @@
             class="
                 relative flex items-center justify-center 
                 w-12 h-12 cursor-pointer transition-all duration-300 ease-out
-                bg-(--bg2)/50 rounded-xl overflow-hidden border  
+                bg-(--bg2)/50 rounded-xl overflow-hidden 
             "
             :class="[
-                active ? 'border-(--primary)/50' : 'border-(--text)/10',
+                active ? 'border-(--primary)/50 border-2' : 'border-(--text)/10 border',
                 redhover ? 'hover:border-red-500/50' : 'hover:border-(--primary)/50'
             ]"
+            :style="[ active ? 'box-shadow: 0 0 10px 2px var(--primary-dark)' : '' ]"
         >
 
             <div 
