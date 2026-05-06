@@ -1,27 +1,50 @@
 export type ThreadType = 'text' | 'vocal';
+export type UserStatus = 'online' | 'dnd' | 'idle' | 'offline';
+
+export interface StoredFile {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  encoding?: string;
+  hash?: string;
+  isEncrypted: boolean;
+  
+  ownerId: string;
+  orgId: string;
+  workspaceId?: string;
+  messageId?: string;
+  dmMessageId?: string;
+
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
 
 export interface Thread {
   id: string;
   categoryId: string;
   index: number;
   name: string;
+  ownerId: string;
+  membersId: string[];
   type: ThreadType;
-  hasUnread?: boolean; // front end var
+  messages?: Message[];
 }
 
 export interface Category {
   id: string;
   index: number;
   name: string;
-  ownerId: String;
-  membersId: String[];
-  threads?: Thread[]; 
+  ownerId: string;
+  membersId: string[];
+  threads?: Thread[];
 }
 
 export interface Org {
   id: string;
   name: string;
-  logo: string;
+  logo: string | null;
   ownerId: string;
   stats: {
     memberCount: number;
@@ -39,47 +62,33 @@ export interface Org {
   };
   members?: OrgMember[];
   spaces?: WorkSpace[];
+  files?: StoredFile[];
   createdAt: string | Date;
-}
-
-export interface OrgLittle {
-  id: string;
-  name: string;
-  logo: string;
-  role: string;
-  memberCount: string;
 }
 
 export interface WorkSpace {
-    id: string;
-    orgId: string;
-    name: string;
-    logo: string; // bi | http
-    ownerId: String;
-    membersId: String[];
-    categories: Category[];
-    threads: Thread[];
-}
-
-export interface OrgMember {
   id: string;
   orgId: string;
-  userId: string;
-  user?: User;
-  role: string;
-  createdAt: string | Date;
-  updatedAt: string | Date;
+  name: string;
+  logo: string | null;
+  ownerId: string;
+  membersId: string[];
+  categories: Category[];
+  threads: Thread[];
+  files?: StoredFile[];
 }
 
 export interface User {
   id: string;
-  clerkId: string;
   email: string;
-  name?: string;
-  publicKey?: string;
+  name: string;
   avatarUrl?: string;
-  data?: any; // { status: 'online' | 'dnd  | 'idle' | 'offline' }
-  organizations?: string[];
+  publicKey?: string;
+  data?: {
+    status?: UserStatus;
+    [key: string]: any;
+  };
+  files?: StoredFile[];
   createdAt: string | Date;
   updatedAt: string | Date;
 }
@@ -87,11 +96,34 @@ export interface User {
 export interface Message {
   id: string;
   threadId: string;
-  context: 'home' | 'workspace' | 'dm';
   senderId: string;
-  content: string; 
-  replyToId?: string;
+  content: string; // Encrypted
   nonce: string;
+  replyToId?: string;
   edited?: boolean;
+  files?: StoredFile[];
   createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
+export interface DMMessage {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  content: string;
+  nonce: string;
+  isE2EE: boolean;
+  files?: StoredFile[];
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
+export interface OrgMember {
+  id: string;
+  organizationId: string;
+  userId: string;
+  user?: User;
+  role: 'admin' | 'member' | string | null;
+  createdAt: string | Date;
+  updatedAt: string | Date;
 }
