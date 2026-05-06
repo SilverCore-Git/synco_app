@@ -1,6 +1,13 @@
+import keycloak from "./keycloak";
+import { openedOrg } from "./var";
 
 export default async function uploadFile(
-    file: File, 
+    file: File,
+    context: {
+        workspaceId: string,
+        messageId?: string,
+        dmMessageId?: string
+    },
     onProgress?: (percent: number) => void
 ): Promise<any> 
 {
@@ -10,6 +17,11 @@ export default async function uploadFile(
         const formData = new FormData();
         
         formData.append('file', file);
+
+        formData.append('orgId', openedOrg.value!.id);
+        formData.append('workspaceId', context.workspaceId);
+        if (context.messageId) formData.append('messageId', context.messageId);
+        if (context.dmMessageId) formData.append('dmMessageId', context.dmMessageId);
 
         const xhr = new XMLHttpRequest();
 
@@ -43,7 +55,10 @@ export default async function uploadFile(
 
         xhr.onerror = () => reject(new Error("Erreur réseau ou connexion interrompue."));
 
-        xhr.open('POST', '/api/upload', true);
+        xhr.open('POST', `${import.meta.env.VITE_API_URL}/api/upload`, true);
+
+        xhr.setRequestHeader('Authorization', `Bearer ${keycloak.token}`);
+
         xhr.send(formData);
 
     });
