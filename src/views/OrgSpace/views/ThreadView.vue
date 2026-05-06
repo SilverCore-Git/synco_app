@@ -119,29 +119,89 @@
 
         </transition>
 
-        <div class="relative flex items-center bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
-            
-            <button class="mr-3 text-(--text)/40 hover:text-(--primary) transition-colors">
-                <i class="bi bi-plus-circle-fill text-xl" />
-            </button>
-            
-            <ThreadTextarea
-                v-model="newMessage"
-                @send="sendMessage"
-                :placeholder="currentThreadKey ? 'Envoyer un message...' : 'Génération de la clé...'"
-                :disabled="!currentThreadKey"
-                ref="TextareaRef"
-            />
+        <transition name="fade-bottom">
 
-            <div class="flex gap-3 ml-3 text-(--text)/40">
-                <button 
-                    @click="sendMessage"
-                    :disabled="!newMessage.trim() || !currentThreadKey"
-                    :class="newMessage.trim() && currentThreadKey ? 'text-(--primary)' : 'text-(--text)/40 opacity-50'"
-                    class="transition-colors"
+            <div 
+                v-if="selectedFiles.length > 0"
+                class="flex flex-wrap gap-2 mb-2 p-2 bg-(--bg)/80 backdrop-blur-3xl rounded-lg border border-white/5"
+            >
+
+                <div 
+                    v-for="(file, index) in selectedFiles" 
+                    :key="index" 
+                    class="relative group bg-(--bg) border border-white/10 rounded-md px-3 py-1 flex items-center gap-2"
                 >
-                    <i class="bi bi-send-fill" />
+
+                    <i class="bi bi-file-earmark-text text-(--primary)" />
+                    <span class="text-xs truncate max-w-50">{{ file.name }}</span>
+
+                    <button @click="removeFile(index)" class="text-red-400 hover:text-red-500">
+                        <i class="bi bi-x-circle-fill" />
+                    </button>
+
+                </div>
+
+            </div>
+
+        </transition>
+
+        <div 
+            class="relative flex flex-col w-full"
+            @dragover.prevent="isDragging = true"
+            @dragleave.prevent="isDragging = false"
+            @drop.prevent="handleDrop"
+        >
+        
+            <div 
+                v-if="isDragging" 
+                class="
+                    absolute inset-0 z-50 bg-(--primary)/10
+                     border-2 border-dashed border-(--primary) 
+                     rounded-xl flex items-center justify-center 
+                     pointer-events-none
+                "
+            >
+                <span class="text-(--primary) font-bold">
+                    Relâchez pour ajouter
+                </span>
+            </div>
+
+            <div class="relative flex items-center bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
+                
+                <input 
+                    type="file" 
+                    multiple 
+                    ref="fileInputRef" 
+                    class="hidden" 
+                    @change="(e) => handleFiles(e.target.files)"
+                />
+
+                <button 
+                    @click="triggerFileSearch"
+                    class="mr-3 text-(--text)/40 hover:text-(--primary) transition-colors"
+                >
+                    <i class="bi bi-plus-circle-fill text-xl" />
                 </button>
+                
+                <ThreadTextarea
+                    v-model="newMessage"
+                    @send="sendMessage"
+                    :placeholder="currentThreadKey ? 'Envoyer un message...' : 'Génération de la clé...'"
+                    :disabled="!currentThreadKey"
+                    ref="TextareaRef"
+                />
+
+                <div class="flex gap-3 ml-3">
+                    <button 
+                        @click="sendMessage"
+                        :disabled="(!newMessage.trim() && selectedFiles.length === 0) || !currentThreadKey"
+                        :class="(newMessage.trim() || selectedFiles.length > 0) && currentThreadKey ? 'text-(--primary)' : 'text-(--text)/40 opacity-50'"
+                        class="transition-colors"
+                    >
+                        <i class="bi bi-send-fill" />
+                    </button>
+                </div>
+
             </div>
 
         </div>
@@ -184,6 +244,8 @@ interface sMessage extends Message {
     sender?: { name: string; avatarUrl: string; };
 }
 
+const selectedFiles = ref<File[]>([]);
+const fileInputRef = ref<HTMLInputElement | null>(null);
 const TextareaRef = ref<InstanceType<typeof ThreadTextarea> | null>(null);
 const socket = ref<any>(null);
 const rawMessages = ref<Map<string, sMessage>>(new Map());
@@ -194,6 +256,63 @@ const hasMore = ref<boolean>(true);
 const isFetchingMore = ref<boolean>(false);
 const sortedMessages = ref<sMessage[]>([]);
 const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
+
+
+// file / pj
+const triggerFileSearch = () => fileInputRef.value?.click();
+
+const handleFiles = (files: FileList | File[]) => {
+    
+    isDragging.value = false;
+    const newFiles = Array.from(files);
+    const LIMIT = 10;
+
+    if (selectedFiles.value.length >= LIMIT) {
+        return toast.show(`Limite de ${LIMIT} fichiers atteinte.`, 'warning');
+    }
+
+    const availableSlots = LIMIT - selectedFiles.value.length;
+
+    if (newFiles.length > availableSlots) 
+    {
+        const filesToAdd = newFiles.slice(0, availableSlots);
+        selectedFiles.value.push(...filesToAdd);
+        
+        return toast.show(
+            `Seuls les ${availableSlots} premiers fichiers ont été ajoutés (max ${LIMIT}).`, 
+            'warning'
+        );
+    }
+
+    selectedFiles.value.push(...newFiles);
+
+};
+
+const handlePaste = (e: ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    
+    for (const item of items) 
+    {
+        if (item.kind === 'file') 
+        {
+            const file = item.getAsFile();
+            if (file) handleFiles([file]);
+        }
+    }
+};
+
+const isDragging = ref<boolean>(false);
+const handleDrop = (e: DragEvent) => {
+    isDragging.value = false;
+    if (e.dataTransfer?.files) handleFiles(e.dataTransfer.files);
+};
+
+const removeFile = (index: number) => {
+    selectedFiles.value.splice(index, 1);
+};
+
+
 
 const processMessages = async (msgs: sMessage[]) => {
     if (!currentThreadKey.value) return msgs;
@@ -363,6 +482,7 @@ onMounted(async () => {
     initListener();
     await nextTick();
     joinThread(String(route.params.threadId));
+    window.addEventListener('paste', handlePaste);
 });
 
 onUnmounted(() => {
@@ -372,6 +492,8 @@ onUnmounted(() => {
         socket.value.emit("leave-thread", thread.value?.id);
         socket.value.off("thread-history").off("more-messages").off("new-message");
     }
+
+    window.removeEventListener('paste', handlePaste);
 
 });
 
