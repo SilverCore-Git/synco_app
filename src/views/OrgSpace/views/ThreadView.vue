@@ -141,7 +141,7 @@
 
                 </div>
 
-                <button class="primary">
+                <button @click="validUpload" class="primary">
                     Valider
                 </button>
 
@@ -227,6 +227,7 @@ import { openedOrg } from '@/assets/var';
 import SpinLoader from '@/components/SpinLoader.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import useResponse from '@/composables/useResponse';
+import { uploadFiles } from '@/assets/uploadFile';
 
 
 const props = defineProps<{ 
@@ -315,6 +316,22 @@ const handleDrop = (e: DragEvent) => {
 const removeFile = (index: number) => {
     selectedFiles.value.splice(index, 1);
 };
+
+const validUpload = async () => {
+
+    const files = uploadFiles(
+        selectedFiles.value,
+        {
+            workspaceId: String(route.query.spaceId),
+        },
+        (percent: number) => {
+            console.log(percent + '%');
+        }
+    )
+
+    // add la logique pour update les files avec messageId lors de l'envoie du message
+
+}
 
 
 
