@@ -228,6 +228,7 @@ import SpinLoader from '@/components/SpinLoader.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import useResponse from '@/composables/useResponse';
 import { uploadFiles } from '@/assets/uploadFile';
+import sfetch from '@/assets/utils/sfetch';
 
 
 const props = defineProps<{ 
@@ -250,6 +251,8 @@ interface sMessage extends Message {
 }
 
 const selectedFiles = ref<File[]>([]);
+const files = ref<any[]>([]);
+const fileSendProgress = ref<null | number>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const TextareaRef = ref<InstanceType<typeof ThreadTextarea> | null>(null);
 const socket = ref<any>(null);
@@ -261,6 +264,7 @@ const hasMore = ref<boolean>(true);
 const isFetchingMore = ref<boolean>(false);
 const sortedMessages = ref<sMessage[]>([]);
 const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
+const lastMessageId = ref<string>('');
 
 
 // file / pj
@@ -319,20 +323,35 @@ const removeFile = (index: number) => {
 
 const validUpload = async () => {
 
-    const files = uploadFiles(
+    fileSendProgress.value = 0;
+
+    files.value = await uploadFiles(
         selectedFiles.value,
         {
             workspaceId: String(route.query.spaceId),
         },
         (percent: number) => {
-            console.log(percent + '%');
+            fileSendProgress.value = percent;
         }
     )
 
-    // add la logique pour update les files avec messageId lors de l'envoie du message
-
 }
 
+const updateFilesMetadata = async () => {
+
+    const updateMetaMap = files.value.map((file) => {
+        return sfetch(`/cdn/meta/${file.id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ update: { ...file, messageId: lastMessageId.value } })
+        });
+    });
+
+    await Promise.all(updateMetaMap);
+
+    const socket = await useWSocket();
+    socket.value?.emit('edit-message-files', { id: lastMessageId.value, files: files.value });
+
+}
 
 
 const processMessages = async (msgs: sMessage[]) => {
@@ -470,6 +489,14 @@ const sendMessage = async () => {
     setMessageWillBeResponded(null);
     newMessage.value = "";
     scrollToBottom();
+
+    if (selectedFiles.value.length)
+    {
+        await updateFilesMetadata();
+        await nextTick();
+        files.value = [];
+        selectedFiles.value = [];
+    }
 
 };
 
