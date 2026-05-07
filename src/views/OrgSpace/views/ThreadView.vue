@@ -515,24 +515,41 @@ const sendMessage = async () => {
 
     const encryptedData = await encrypt(newMessage.value, currentThreadKey.value);
     
-    socket.value.emit("send-message", {
+    const payload = {
         threadId: thread.value?.id,
         content: JSON.stringify(encryptedData), 
         replyToId: messageWillBeResponded.value?.id,
         nonce: "n_" + Date.now(),
         context: route.params.spaceId ? 'workspace' : 'home'
-    });
+    };
 
-    setMessageWillBeResponded(null);
-    newMessage.value = "";
-    scrollToBottom();
+    try {
+        
+        const confirmedMessage: any = await new Promise((resolve, reject) => {
+            socket.value.emit("send-message", payload, (response: any) => {
+                if (response?.error) reject(response.error);
+                else resolve(response);
+            });
+        });
 
-    if (selectedFiles.value.length)
+        lastMessageId.value = confirmedMessage.id;
+
+        setMessageWillBeResponded(null);
+        newMessage.value = "";
+        scrollToBottom();
+
+        if (selectedFiles.value.length)
+        {
+            await updateFilesMetadata();
+            await nextTick();
+            files.value = [];
+            selectedFiles.value = [];
+        }
+
+    } catch (err) 
     {
-        await updateFilesMetadata();
-        await nextTick();
-        files.value = [];
-        selectedFiles.value = [];
+        console.error("Erreur lors de l'envoi du message :", err);
+        toast.show('Une erreur est survenue lors de l\'envoie du message.', 'error');
     }
 
 };
