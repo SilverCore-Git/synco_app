@@ -57,7 +57,7 @@ export default async function uploadFile(
 
         xhr.onerror = () => reject(new Error("Erreur réseau ou connexion interrompue."));
 
-        xhr.open('POST', `${import.meta.env.VITE_API_URL}/api/upload`, true);
+        xhr.open('POST', `${import.meta.env.VITE_API_URL}/api/cdn/upload`, true);
 
         xhr.setRequestHeader('Authorization', `Bearer ${keycloak.token}`);
 
@@ -72,7 +72,8 @@ export async function uploadFiles(
     files: File[],
     context: UploadContext,
     onTotalProgress?: (percent: number) => void
-): Promise<any[]> {
+): Promise<any[]> 
+{
     
     const progressMap = new Array(files.length).fill(0);
 

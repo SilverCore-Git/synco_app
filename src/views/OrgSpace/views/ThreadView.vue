@@ -123,30 +123,62 @@
 
             <div 
                 v-if="selectedFiles.length > 0"
-                class="flex flex-wrap gap-2 mb-2 p-2 bg-(--bg)/80 backdrop-blur-3xl rounded-lg border border-white/5"
+                class="flex flex-wrap gap-2 mb-2 p-2 bg-(--bg)/80 backdrop-blur-3xl rounded-lg border border-white/5 relative overflow-hidden"
             >
+            
+                <div v-if="fileSendProgress !== null" class="absolute inset-0 bg-(--bg)/40 z-10 pointer-events-none" />
 
                 <div 
                     v-for="(file, index) in selectedFiles" 
                     :key="index" 
-                    class="relative group bg-(--bg) border border-white/10 rounded-md px-3 py-1 flex items-center gap-2"
+                    class="relative group bg-(--bg) border border-white/10 rounded-md px-3 py-1 flex items-center gap-2 overflow-hidden"
                 >
+                
+                    <div 
+                        v-if="fileSendProgress !== null"
+                        class="absolute bottom-0 left-0 h-0.5 bg-(--primary) transition-all duration-300"
+                        :style="{ width: fileSendProgress + '%' }"
+                    />
 
                     <i class="bi bi-file-earmark-text text-(--primary)" />
                     <span class="text-xs truncate max-w-50">{{ file.name }}</span>
 
-                    <button @click="removeFile(index)" class="text-red-400 hover:text-red-500">
+                    <button 
+                        v-if="fileSendProgress === null"
+                        @click="removeFile(index)" 
+                        class="text-red-400 hover:text-red-500"
+                    >
                         <i class="bi bi-x-circle-fill" />
                     </button>
 
                 </div>
 
-                <button @click="validUpload" class="primary">
-                    Valider
+                <button 
+                    @click="validUpload" 
+                    class="primary flex items-center gap-2 min-w-24 justify-center relative overflow-hidden"
+                    :disabled="fileSendProgress !== null"
+                >
+
+                    <template v-if="fileSendProgress !== null">
+
+                        <i class="bi bi-arrow-repeat animate-spin text-lg" />
+                        <span>{{ fileSendProgress }}%</span>
+                        
+                        <div 
+                            class="absolute inset-0 bg-white/10 pointer-events-none transition-all duration-300"
+                            :style="{ width: fileSendProgress + '%' }"
+                        ></div>
+
+                    </template>
+                    
+                    <template v-else>
+                        Valider
+                    </template>
+
                 </button>
 
             </div>
-
+            
         </transition>
 
         <div 
