@@ -376,6 +376,8 @@ const validUpload = async () => {
 
 const updateFilesMetadata = async () => {
 
+    // pb coté back le message ne semble pas existé quand on envoie la req
+
     const updateMetaMap = files.value.map((file) => {
         return sfetch(`/api/cdn/meta/${file.id}`, {
             method: 'PATCH',
