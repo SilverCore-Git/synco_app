@@ -4,7 +4,7 @@
         ref="messagesContainer"
         @scroll="handleScroll"
         class="flex-1 overflow-y-auto p-4 w-full h-full"
-        :class="messageWillBeResponded ? 'mb-32' : 'mb-14'"
+        :class="messageWillBeResponded || selectedFiles.length ? 'mb-32' : 'mb-14'"
     >
 
         <div 
@@ -153,32 +153,8 @@
 
                 </div>
 
-                <button 
-                    @click="validUpload" 
-                    class="primary flex items-center gap-2 min-w-24 justify-center relative overflow-hidden"
-                    :disabled="fileSendProgress !== null"
-                >
-
-                    <template v-if="fileSendProgress !== null">
-
-                        <i class="bi bi-arrow-repeat animate-spin text-lg" />
-                        <span>{{ fileSendProgress }}%</span>
-                        
-                        <div 
-                            class="absolute inset-0 bg-white/10 pointer-events-none transition-all duration-300"
-                            :style="{ width: fileSendProgress + '%' }"
-                        ></div>
-
-                    </template>
-                    
-                    <template v-else>
-                        Valider
-                    </template>
-
-                </button>
-
             </div>
-            
+
         </transition>
 
         <div 
@@ -220,6 +196,7 @@
                 </button>
                 
                 <ThreadTextarea
+                    v-show="!(selectedFiles.length && !files.length)"
                     v-model="newMessage"
                     @send="sendMessage"
                     :placeholder="currentThreadKey ? 'Envoyer un message...' : 'Génération de la clé...'"
@@ -227,7 +204,10 @@
                     ref="TextareaRef"
                 />
 
-                <div class="flex gap-3 ml-3">
+                <div 
+                    v-show="!(selectedFiles.length && !files.length)"
+                    class="flex gap-3 ml-3"
+                >
                     <button 
                         @click="sendMessage"
                         :disabled="(!newMessage.trim() && selectedFiles.length === 0) || !currentThreadKey"
@@ -237,6 +217,31 @@
                         <i class="bi bi-send-fill" />
                     </button>
                 </div>
+
+                <button 
+                    v-if="(selectedFiles.length && !files.length)"
+                    @click="validUpload" 
+                    class="primary flex items-center gap-2 min-w-24 justify-center relative overflow-hidden w-full"
+                    :disabled="fileSendProgress !== null"
+                >
+
+                    <template v-if="fileSendProgress !== null">
+
+                        <i class="bi bi-arrow-repeat animate-spin text-lg" />
+                        <span>{{ fileSendProgress }}%</span>
+                        
+                        <div 
+                            class="absolute inset-0 bg-white/10 pointer-events-none transition-all duration-300"
+                            :style="{ width: fileSendProgress + '%' }"
+                        />
+
+                    </template>
+                    
+                    <template v-else>
+                        Valider les pièces jointes
+                    </template>
+
+                </button>
 
             </div>
 
@@ -360,7 +365,7 @@ const validUpload = async () => {
     files.value = await uploadFiles(
         selectedFiles.value,
         {
-            workspaceId: String(route.query.spaceId),
+            workspaceId: String(route.params.spaceId),
         },
         (percent: number) => {
             fileSendProgress.value = percent;
@@ -372,7 +377,7 @@ const validUpload = async () => {
 const updateFilesMetadata = async () => {
 
     const updateMetaMap = files.value.map((file) => {
-        return sfetch(`/cdn/meta/${file.id}`, {
+        return sfetch(`/api/cdn/meta/${file.id}`, {
             method: 'PATCH',
             body: JSON.stringify({ update: { ...file, messageId: lastMessageId.value } })
         });
