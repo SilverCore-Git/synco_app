@@ -168,7 +168,7 @@
                                 </div>
 
                                 <button 
-                                    @click=""
+                                    @click="downloadFile(file.id)"
                                     class="ml-auto p-1.5 rounded-md hover:bg-(--primary)/20 text-(--text)/60 hover:text-(--primary) transition-colors"
                                     title="Télécharger"
                                 >
@@ -210,6 +210,7 @@ import EditMessage from '../popup/EditMessage.vue';
 import { deriveKey, encrypt } from '@/assets/utils/threadsCrypto';
 import { openedOrg } from '@/assets/var';
 import type { Message } from '@/types/types';
+import keycloak from '@/assets/keycloak';
 
 interface sMessage extends Message {
     sender?: { name: string; avatarUrl: string; };
@@ -302,6 +303,19 @@ const editMessage = async (newContent: string) => {
 
 const getReplyMessage = (replyToId: string) => {
     return (props.messages || []).find(m => m.id === replyToId);
+};
+
+const downloadFile = (fileId: string) => {
+    
+    const link = document.createElement('a');
+    link.href = `${import.meta.env.VITE_API_URL}/cdn/download/${fileId}?token=Bearer ${keycloak.token}`;
+    
+    link.target = '_blank'; 
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
 };
 
 </script>
