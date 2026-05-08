@@ -127,3 +127,24 @@ export interface OrgMember {
   createdAt: string | Date;
   updatedAt: string | Date;
 }
+
+
+export interface Folder {
+  id: string;
+  name: string;
+  
+  orgId: string;
+  workspaceId: string | null;
+  
+  parentId: string | null;
+  
+  ownerId: string;
+  createdAt: Date;
+  updatedAt: Date;
+
+  organization?: Org;
+  workspace?: WorkSpace | null;
+  parent?: Folder | null;
+  subFolders?: Folder[];
+  files?: StoredFile[];
+}
