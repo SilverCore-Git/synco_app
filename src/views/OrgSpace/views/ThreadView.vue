@@ -260,6 +260,7 @@
                     v-show="!(selectedFiles.length && !files.length)"
                     class="flex gap-3 ml-3"
                 >
+
                     <button 
                         @click="sendMessage"
                         :disabled="(!newMessage.trim() && selectedFiles.length === 0) || !currentThreadKey"
@@ -268,6 +269,7 @@
                     >
                         <i class="bi bi-send-fill" />
                     </button>
+
                 </div>
 
                 <button 
@@ -363,6 +365,8 @@ const handleFiles = (files: FileList | File[]) => {
     isDragging.value = false;
     const newFiles = Array.from(files);
     const LIMIT = 10;
+    const MAX_SIZE_GB = 10; // Limite à 10 MB
+    const MAX_SIZE_BYTES = MAX_SIZE_GB * 1024 * 1024 * 1024;
 
     if (selectedFiles.value.length >= LIMIT) {
         return toast.show(`Limite de ${LIMIT} fichiers atteinte.`, 'warning');
@@ -380,8 +384,16 @@ const handleFiles = (files: FileList | File[]) => {
             'warning'
         );
     }
+    
+    const validFiles = newFiles.filter(file => {
+        if (file.size > MAX_SIZE_BYTES) {
+            toast.show(`Le fichier ${file.name} est trop lourd (max ${MAX_SIZE_GB}Go)`, 'error');
+            return false;
+        }
+        return true;
+    });
 
-    selectedFiles.value.push(...newFiles);
+    selectedFiles.value.push(...validFiles);
 
 };
 
