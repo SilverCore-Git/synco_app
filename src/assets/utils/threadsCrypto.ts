@@ -74,6 +74,7 @@ async function decrypt(encryptedJson: string, key: CryptoKey)
     } 
     catch (e) 
     { 
+        //console.error('Error on decrypt message : ',  e);
         return "🔒 [Impossible de déchiffrer le message]"; 
     }
     

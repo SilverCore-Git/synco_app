@@ -317,7 +317,6 @@ import SpinLoader from '@/components/SpinLoader.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import useResponse from '@/composables/useResponse';
 import { uploadFiles } from '@/assets/uploadFile';
-import sfetch from '@/assets/utils/sfetch';
 
 
 const props = defineProps<{ 
@@ -428,11 +427,18 @@ const validUpload = async () => {
 
 
 const processMessages = async (msgs: sMessage[]) => {
+    
     if (!currentThreadKey.value) return msgs;
-    return await Promise.all(msgs.map(async m => ({
+
+    const decryptedMessages = await Promise.all(msgs.map(async m => ({
         ...m,
         content: await decrypt(m.content, currentThreadKey.value!)
     })));
+
+    return decryptedMessages.sort((a, b) => {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+
 };
 
 const handleScroll = (e: Event) => {
@@ -553,7 +559,7 @@ const sendMessage = async () => {
     
     const payload = {
         threadId: thread.value?.id,
-        content: JSON.stringify(encryptedData), 
+        content: encryptedData,
         replyToId: messageWillBeResponded.value?.id,
         nonce: "n_" + Date.now(),
         context: route.params.spaceId ? 'workspace' : 'home'
