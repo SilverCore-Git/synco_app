@@ -376,17 +376,15 @@ const validUpload = async () => {
 
 const updateFilesMetadata = async () => {
 
-    // pb coté back le message ne semble pas existé quand on envoie la req
-
     const updateMetaMap = files.value.map((file) => {
         return sfetch(`/api/cdn/meta/${file.id}`, {
             method: 'PATCH',
-            body: JSON.stringify({ update: { ...file, messageId: lastMessageId.value } })
+            body: JSON.stringify({ update: { messageId: lastMessageId.value } })
         });
     });
 
     await Promise.all(updateMetaMap);
-
+    
     const socket = await useWSocket();
     socket.value?.emit('edit-message-files', { id: lastMessageId.value, files: files.value });
 
