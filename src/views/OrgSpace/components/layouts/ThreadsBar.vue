@@ -202,6 +202,16 @@
                                 gap-3 h-full w-full px-3 py-5 overflow-scroll 
                             "
                         >
+
+                            <SettingsViewBtn 
+                                v-if="!isHome"
+                                name="Fichiers"
+                                icon="bi-file-earmark"
+                                :active="route.name == 'SpaceFiles'"
+                                @click="router.push({ name: 'SpaceFiles' })"
+                            />
+
+                            <hr v-if="!isHome" class=" w-full h-0.5 bg-(--text)/50 border-none rounded-full my-1" />
                             
                             <div  
                                 v-for="category in categories" 
@@ -233,7 +243,7 @@
 <script lang="ts" setup>
 
 import { computed, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import type { Thread, WorkSpace } from '@/types/types';
 import { openedOrg } from '@/assets/var';
 import ThreadDropDown from '../dropdown/ThreadDropDown.vue';
@@ -246,6 +256,8 @@ import Category from '../CanalBar/Category.vue';
 
 
 const route = useRoute();
+const router = useRouter();
+
 const isChat = computed(() => route.name == 'OrgChat' || route.name == 'OrgThreadChat' || route.name == 'OrgThreadChatPrivateMeet');
 const isHome = computed(()=> route.name == 'OrgHome' || route.name == 'OrgThreadHome');
 const isSettings = computed(()=> route.name?.toString().startsWith('OrgSettings'));

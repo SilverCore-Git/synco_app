@@ -13,6 +13,7 @@ import InviteView from './views/inviteView.vue';
 import ThreadLayout from './views/OrgSpace/views/ThreadLayout.vue';
 import { nextTick } from 'vue';
 import PrivateMeetView from './views/OrgSpace/views/PrivateMeetView.vue';
+import SpaceFiles from './views/OrgSpace/views/SpaceFiles.vue';
 
 
 const routes = [
@@ -102,6 +103,7 @@ const routes = [
         component: PrivateMeetView,
         meta: { title: 'SilverTeams' }
       },
+      
       {
         path: ':spaceId',
         name: 'SpaceView',
@@ -115,7 +117,15 @@ const routes = [
         component: ThreadLayout,
         props: true,
         meta: { title: 'SilverTeams' },
+      },
+      {
+        path: ':spaceId/files',
+        name: 'SpaceFiles',
+        component: SpaceFiles,
+        props: true,
+        meta: { title: 'SilverTeams' },
       }
+
     ]
   },
 
