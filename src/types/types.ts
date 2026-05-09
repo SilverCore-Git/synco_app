@@ -15,6 +15,7 @@ export interface StoredFile {
   workspaceId?: string;
   messageId?: string;
   dmMessageId?: string;
+  folderId?: string;
 
   createdAt: string | Date;
   updatedAt: string | Date;

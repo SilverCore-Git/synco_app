@@ -210,7 +210,7 @@ import EditMessage from '../popup/EditMessage.vue';
 import { deriveKey, encrypt } from '@/assets/utils/threadsCrypto';
 import { openedOrg } from '@/assets/var';
 import type { Message } from '@/types/types';
-import keycloak from '@/assets/keycloak';
+import { downloadFile } from '@/assets/utils/downloadFile';
 
 interface sMessage extends Message {
     sender?: { name: string; avatarUrl: string; };
@@ -303,19 +303,6 @@ const editMessage = async (newContent: string) => {
 
 const getReplyMessage = (replyToId: string) => {
     return (props.messages || []).find(m => m.id === replyToId);
-};
-
-const downloadFile = (fileId: string) => {
-    
-    const link = document.createElement('a');
-    link.href = `${import.meta.env.VITE_API_URL}/cdn/download/${fileId}?token=Bearer ${keycloak.token}`;
-    
-    link.target = '_blank'; 
-    
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
 };
 
 </script>
