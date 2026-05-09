@@ -4,6 +4,7 @@ import { openedOrg } from "./var";
 export interface UploadContext {
     workspaceId: string;
     messageId?: string;
+    folderId?: string;
     dmMessageId?: string;
 }
 
@@ -23,6 +24,7 @@ export default async function uploadFile(
         formData.append('orgId', openedOrg.value!.id);
         formData.append('workspaceId', context.workspaceId);
         if (context.messageId) formData.append('messageId', context.messageId);
+        if (context.folderId) formData.append('folderId', context.folderId);
         if (context.dmMessageId) formData.append('dmMessageId', context.dmMessageId);
 
         const xhr = new XMLHttpRequest();

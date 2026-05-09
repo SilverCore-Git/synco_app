@@ -50,10 +50,19 @@
 
                 </div>
 
-                <button @click="showFolderNamePrompt = true" class="primary gap-2">
-                    <i class="bi bi-folder-plus" />
-                    <span>Nouveau dossier</span>
-                </button>
+                <div class="flex flex-row gap-3">
+
+                    <button @click="showFolderNamePrompt = true" class="primary gap-2">
+                        <i class="bi bi-folder-plus" />
+                        <span>Nouveau dossier</span>
+                    </button>
+
+                    <button @click="triggerFileSearch" class="primary gap-2">
+                        <i class="bi bi-plus-circle" />
+                        <span>Ajouter des fichiers</span>
+                    </button>
+
+                </div>
 
             </div>
 
@@ -82,17 +91,37 @@
 
                 </nav>
 
+                <div v-if="isUploading" class="w-full bg-white/5 border border-white/10 rounded-lg p-3 mb-4 animate-in fade-in slide-in-from-top-2">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-[10px] font-black uppercase text-(--primary) tracking-widest">
+                            {{ fileSendProgress == 100 ? 'Finalisation...' : 'Envoi en cours...' }}
+                        </span>
+                        <span class="text-[10px] font-bold text-(--text)/60">{{ fileSendProgress }}%</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-black/20 rounded-full overflow-hidden">
+                        <div 
+                            class="h-full bg-(--primary) transition-all duration-300 ease-out shadow-[0_0_10px_var(--primary)]"
+                            :style="{ width: `${fileSendProgress}%` }"
+                        ></div>
+                    </div>
+                </div>
+
                 <div v-if="filteredFolders.length > 0" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                     
                     <div 
                         v-for="folder in filteredFolders" 
                         :key="folder.id"
+                        draggable="true"
+                        @dragstart="handleFolderDragStart($event, folder.id)"
                         @click="currentFolderId = folder.id"
-                        @dragover.prevent="draggedFolderId = folder.id"
-                        @dragleave="draggedFolderId = null"
+                        @dragover.prevent="draggedIntoFolderId = folder.id"
+                        @dragleave="draggedIntoFolderId = null"
                         @drop="handleDrop($event, folder.id)"
                         class="group flex items-center gap-3 p-3 bg-(--bg2)/40 border border-white/5 rounded-xl transition-all cursor-pointer shadow-sm"
-                        :class="draggedFolderId === folder.id ? 'ring-2 ring-(--primary) bg-(--primary)/10 border-(--primary)/50' : 'hover:border-(--primary)/50 hover:bg-(--primary)/5'"
+                        :class="[
+                            draggedIntoFolderId === folder.id ? 'ring-2 ring-(--primary) bg-(--primary)/10 border-(--primary)/50' : 'hover:border-(--primary)/50 hover:bg-(--primary)/5',
+                            draggedSourceFolderId === folder.id ? 'opacity-40 grayscale-50' : ''
+                        ]"
                     >
 
                         <div class="w-10 h-10 flex items-center justify-center rounded-lg bg-yellow-500/10 text-yellow-500 group-hover:scale-110 transition-transform">
@@ -113,6 +142,7 @@
                 </div>
 
                 <div class="mt-4">
+
                     <h3 v-if="filteredFiles.length > 0" class="text-[10px] font-black uppercase tracking-[0.2em] text-(--text)/20 mb-4 px-1">
                         Fichiers dans ce dossier
                     </h3>
@@ -182,11 +212,6 @@
                                     <span v-if="file.createdAt">{{ formatDate(file.createdAt) }}</span>
                                 </div>
                             </div>
-
-                            <div v-if="file.folderId" class="mt-2 pt-2 border-t border-white/5 flex items-center gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity">
-                                <i class="bi bi-folder2 text-[10px]" />
-                                <span class="text-[9px] truncate italic">Classé</span>
-                            </div>
                             
                         </div>
 
@@ -203,6 +228,14 @@
         </main>
 
     </div>
+
+    <input 
+        type="file" 
+        multiple 
+        ref="fileInputRef" 
+        class="hidden" 
+        @change="(e) => handleFiles(e.target.files)"
+    />
 
     <CreateNewFolder
         :show="showFolderNamePrompt"
@@ -223,11 +256,13 @@ import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { downloadFile } from '@/assets/utils/downloadFile';
 import { openedOrg } from '@/assets/var';
 import CreateNewFolder from '../components/popup/CreateNewFolder.vue';
+import { useToast } from '@/composables/useToast';
+import { uploadFiles } from '@/assets/uploadFile';
 
 
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
 const route = useRoute();
-
+const toast = useToast();
 
 const searchQuery = ref<string>('');
 const allFiles = ref<StoredFile[]>([]);
@@ -235,30 +270,56 @@ const allFolders = ref<Folder[]>([]);
 const loading = ref<boolean>(true);
 const currentFolderId = ref<string>('root');
 const showFolderNamePrompt = ref<boolean>(false);
+
+const fileSendProgress = ref<number>(0);
+const isUploading = ref<boolean>(false);
+const fileInputRef = ref<HTMLInputElement | null>(null);
 const draggedFileId = ref<string | null>(null);
-const draggedFolderId = ref<string | null>(null);
+const draggedSourceFolderId = ref<string | null>(null);
+const draggedIntoFolderId = ref<string | null>(null);
 
 
 const filteredFiles = computed(() => {
-
+    
     const query = searchQuery.value.toLowerCase().trim();
 
-    const baseFiles = allFiles.value.filter(file => {
+    if (!query) 
+    {
+        return allFiles.value.filter(file => {
+            if (currentFolderId.value === 'root') return !file.folderId;
+            return file.folderId === currentFolderId.value;
+        });
+    }
+    
+    let allowedFolderIds: string[] = [];
+    
+    if (currentFolderId.value !== 'root') 
+    {
+        const getChildFolderIds = (parentId: string): string[] => {
+            const children = allFolders.value.filter(f => f.parentId === parentId);
+            let ids = [parentId];
+            children.forEach(child => {
+                ids = [...ids, ...getChildFolderIds(child.id)];
+            });
+            return ids;
+        };
+        allowedFolderIds = getChildFolderIds(currentFolderId.value);
+    }
+
+    return allFiles.value.filter(file => {
+
+        const nameMatches = file.originalName.toLowerCase().includes(query);
+        
         if (currentFolderId.value === 'root') 
         {
-            return !file.folderId; 
+            return nameMatches;
         } 
         else 
         {
-            return file.folderId === currentFolderId.value;
+            return nameMatches && file.folderId && allowedFolderIds.includes(file.folderId);
         }
+
     });
-
-    if (!query) return baseFiles;
-
-    return baseFiles.filter(file => 
-        file.originalName.toLowerCase().includes(query)
-    );
 
 });
 
@@ -347,28 +408,6 @@ const createFolder = async (name: string) => {
 };
 
 
-const handleDragStart = (event: DragEvent, fileId: string) => {
-    draggedFileId.value = fileId;
-    if (event.dataTransfer) 
-    {
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('fileId', fileId);
-    }
-};
-
-const handleDrop = async (event: DragEvent, targetFolderId: string) => {
-
-    event.preventDefault();
-    draggedFolderId.value = null;
-    
-    const fileId = event.dataTransfer?.getData('fileId') || draggedFileId.value;
-    
-    if (fileId && fileId !== targetFolderId) 
-    {
-        await moveFile(fileId, targetFolderId);
-    }
-
-};
 
 const moveFile = async (fileId: string, folderId: string) => {
     
@@ -391,6 +430,123 @@ const moveFile = async (fileId: string, folderId: string) => {
         console.error("Erreur lors du déplacement du fichier:", e);
     }
 
+};
+
+const triggerFileSearch = () => fileInputRef.value?.click();
+
+const handleFolderDragStart = (event: DragEvent, folderId: string) => {
+    draggedSourceFolderId.value = folderId;
+    if (event.dataTransfer) 
+    {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('folderId', folderId);
+        event.dataTransfer.setData('type', 'folder');
+    }
+};
+
+const handleDragStart = (event: DragEvent, fileId: string) => {
+    draggedFileId.value = fileId;
+    if (event.dataTransfer) 
+    {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('fileId', fileId);
+        event.dataTransfer.setData('type', 'file');
+    }
+};
+
+const handleDrop = async (event: DragEvent, targetFolderId: string) => {
+
+    event.preventDefault();
+    draggedIntoFolderId.value = null;
+    
+    const type = event.dataTransfer?.getData('type');
+    const sourceId = type === 'file' 
+        ? event.dataTransfer?.getData('fileId') 
+        : event.dataTransfer?.getData('folderId');
+
+    if (!sourceId || sourceId === targetFolderId) return;
+
+    if (type === 'file') 
+    {
+        await moveFile(sourceId, targetFolderId);
+    } 
+    else
+    {
+        await moveFolder(sourceId, targetFolderId);
+    }
+    
+    draggedFileId.value = null;
+    draggedSourceFolderId.value = null;
+
+};
+
+const moveFolder = async (folderId: string, parentId: string) => {
+
+    try {
+
+        const res = await sfetch(`/api/spaces/${route.params.spaceId}/folders/move`, {
+            method: 'PATCH',
+            body: JSON.stringify({ folderId, parentId })
+        });
+
+        if (res.ok) 
+        {
+            const index = allFolders.value.findIndex(f => f.id === folderId);
+            if (index !== -1) {
+                allFolders.value[index]!.parentId = parentId;
+            }
+        }
+
+    } catch (e) {
+        console.error("Erreur déplacement dossier:", e);
+    }
+
+};
+
+
+const handleFiles = async (files: FileList | File[]) => {
+
+    const selectedFiles = Array.from(files);
+    if (selectedFiles.length === 0) return;
+
+    const MAX_SIZE = 10 * 1024 * 1024 * 1024;
+    const oversized = selectedFiles.some(f => f.size > MAX_SIZE);
+    if (oversized) 
+    {
+        toast.show("Un ou plusieurs fichiers dépassent la limite de 2Go", "error");
+        return;
+    }
+
+    try {
+
+        isUploading.value = true;
+        fileSendProgress.value = 0;
+
+        const uploadedFiles = await uploadFiles(
+            selectedFiles,
+            {
+                workspaceId: String(route.params.spaceId),
+                folderId: currentFolderId.value === 'root' ? undefined : currentFolderId.value,
+            },
+            (percent: number) => {
+                fileSendProgress.value = percent;
+            }
+        );
+
+        if (uploadedFiles && Array.isArray(uploadedFiles)) 
+        {
+            allFiles.value.push(...uploadedFiles);
+            toast.show(`${uploadedFiles.length} fichier(s) ajouté(s)`, "success");
+        }
+
+    } catch (e) {
+        console.error("Upload Error:", e);
+        toast.show("Erreur lors de l'envoi des fichiers", "error");
+    } finally {
+        isUploading.value = false;
+        fileSendProgress.value = 0;
+        if (fileInputRef.value) fileInputRef.value.value = '';
+    }
 };
 
 

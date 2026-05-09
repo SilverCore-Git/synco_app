@@ -282,7 +282,9 @@
                     <template v-if="fileSendProgress !== null">
 
                         <i class="bi bi-arrow-repeat animate-spin text-lg" />
-                        <span>{{ fileSendProgress }}%</span>
+                        
+                        <span v-if="fileSendProgress = 100">Finalisation...</span>
+                        <span v-else>{{ fileSendProgress }}%</span>
                         
                         <div 
                             class="absolute inset-0 bg-white/10 pointer-events-none transition-all duration-300"
