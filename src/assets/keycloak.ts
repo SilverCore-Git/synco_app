@@ -6,11 +6,41 @@ const keycloak = new Keycloak({
   clientId: (import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'silverteams_web_app'),
 });
 
+
 const initKC = async () => {
 
-  window.localStorage.setItem('userId', (await keycloak.loadUserInfo()).sub);
+  try {
 
-}
+    const authenticated = await keycloak.init({
+      onLoad: 'check-sso',
+      silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
+      pkceMethod: 'S256',
+    });
+
+    if (authenticated) 
+    {
+      
+      const userInfo: any = await keycloak.loadUserInfo();
+      window.localStorage.setItem('userId', userInfo.sub);
+
+      setInterval(async () => {
+        try {
+          const refreshed = await keycloak.updateToken(70);
+          if (refreshed) {
+            console.log('Token rafraîchi avec succès');
+          }
+        } catch (error) {
+          console.error('Erreur lors du rafraîchissement du token ou session expirée');
+        }
+      }, 60000); 
+
+    }
+
+  } catch (error) {
+    console.error("Erreur d'initialisation Keycloak", error);
+  }
+
+};
 
 export { initKC };
 export default keycloak;
