@@ -27,7 +27,7 @@
 
         <main class="flex-1 overflow-y-auto p-4 w-full h-full space-y-4">
 
-            <div class="w-full flex justify-between items-center flex-row gap-3">
+            <div class="w-full flex justify-start 2xl:justify-between flex-col 2xl:flex-row gap-3">
 
                 <div class="relative group max-w-md w-full">
                     
@@ -79,7 +79,7 @@
                     </button>
                         
                     <template v-for="crumb in breadcrumbs" :key="crumb.id">
-                        <i class="bi bi-chevron-right text-[10px] text-(--text)/20" />
+                        <i class="bi bi-chevron-right text-[10px] text-(--text)/40" />
                         <button 
                             @click="currentFolderId = crumb.id"
                             class="hover:text-(--primary) transition-colors shrink-0 max-w-[120px] truncate text-[10px] font-black uppercase tracking-widest"

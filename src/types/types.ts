@@ -31,6 +31,7 @@ export interface Thread {
   membersId: string[];
   type: ThreadType;
   messages?: Message[];
+  hasUnread: boolean;
 }
 
 export interface Category {
