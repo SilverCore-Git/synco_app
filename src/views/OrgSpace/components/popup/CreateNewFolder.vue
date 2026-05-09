@@ -20,7 +20,7 @@
           v-model="form.name"
           type="text" 
           placeholder="Ex: Marketing, Dev, Général..."
-          ref="nameInput"
+          ref="inputRef"
           class="
             w-full bg-(--bg2)/30 border border-white/10 rounded-xl 
             px-4 py-3 text-(--text) placeholder:text-(--text)/20 
@@ -61,8 +61,10 @@
 
 <script setup lang="ts">
 
-import { reactive} from 'vue';
+import { nextTick, reactive, ref, watch} from 'vue';
 import Popup from '@/components/Popup.vue';
+
+const inputRef = ref<HTMLInputElement | null>(null);
 
 const props = defineProps<{
   show: boolean
@@ -75,6 +77,17 @@ const emit = defineEmits([
 
 const form = reactive({
   name: ''
+});
+
+watch(() => props.show, async (isOpened) => {
+  if (isOpened) {
+    await nextTick();
+    setTimeout(() => {
+      inputRef.value?.focus();
+    }, 50);
+  } else {
+    form.name = '';
+  }
 });
 
 </script>

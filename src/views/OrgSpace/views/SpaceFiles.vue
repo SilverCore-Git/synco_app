@@ -207,7 +207,7 @@
     <CreateNewFolder
         :show="showFolderNamePrompt"
         @close="showFolderNamePrompt = false"
-        @save="createFolder, showFolderNamePrompt = false"
+        @save="createFolder"
     />
 
 </template>
@@ -340,6 +340,8 @@ const createFolder = async (name: string) => {
 
     } catch (e) {
         console.error("Erreur lors de la création du dossier:", e);
+    } finally {
+        showFolderNamePrompt.value = false;
     }
 
 };
