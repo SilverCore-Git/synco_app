@@ -1,0 +1,80 @@
+<template>
+
+  <div @click="show = true">
+    <slot />
+  </div>
+
+  <Popup :is-open="show" @close="emit('close')">
+
+    <template #title>Créer un dossier</template>
+
+    <form @submit.prevent="emit('save', form.name)" class="space-y-5">
+
+      <div class="flex gap-2 flex-col">
+
+        <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+          Nom du dossier
+        </label>
+
+        <input 
+          v-model="form.name"
+          type="text" 
+          placeholder="Ex: Marketing, Dev, Général..."
+          ref="nameInput"
+          class="
+            w-full bg-(--bg2)/30 border border-white/10 rounded-xl 
+            px-4 py-3 text-(--text) placeholder:text-(--text)/20 
+            focus:outline-none focus:border-(--primary)/50 focus:ring-1
+            focus:ring-(--primary)/20 transition-all
+          "
+        />
+
+      </div>
+
+    </form>
+
+    <template #footer>
+
+      <button 
+        @click="emit('close')" 
+        class="default"
+      >
+        Annuler
+      </button>
+
+      <button 
+        @click="emit('save', form.name)"
+        class="primary"
+        :class="[
+          !form.name.trim() ? ' grayscale-100 pointer-events-none opacity-50' : ''
+        ]"
+        :disabled="!form.name.trim()"
+      >
+        Créer le dossier
+      </button>
+
+    </template>
+
+  </Popup>
+
+</template>
+
+<script setup lang="ts">
+
+import { reactive} from 'vue';
+import Popup from '@/components/Popup.vue';
+
+const props = defineProps<{
+  show: boolean
+}>();
+
+const emit = defineEmits([
+  'close',
+  'save'
+])
+
+const form = reactive({
+  name: ''
+});
+
+</script>
