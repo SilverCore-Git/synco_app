@@ -27,9 +27,9 @@
 
         <main class="flex-1 overflow-y-auto p-4 w-full h-full space-y-4">
 
-            <div class="w-full flex justify-start 2xl:justify-between flex-col 2xl:flex-row gap-3">
+            <div class="w-full grid grid-cols-1 2xl:grid-cols-2 gap-3">
 
-                <div class="relative group max-w-md w-full">
+                <div class="relative group w-full">
                     
                     <i class="bi bi-search absolute left-3.5 top-1/2 -translate-y-1/2 text-(--text)/30 group-focus-within:text-(--primary) group-focus-within:scale-110 transition-all duration-300" />
 
@@ -50,7 +50,7 @@
 
                 </div>
 
-                <div class="flex flex-row gap-3">
+                <div class="gap-3 w-full grid grid-cols-2">
 
                     <button @click="showFolderNamePrompt = true" class="primary gap-2">
                         <i class="bi bi-folder-plus" />
