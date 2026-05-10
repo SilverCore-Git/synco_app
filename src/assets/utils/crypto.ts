@@ -95,9 +95,32 @@ export async function encryptForPeer (text: string, peerPublicKeyJWK: string)
         ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext))),
         encryptedAesKey: btoa(String.fromCharCode(...new Uint8Array(encryptedAesKey))),
         iv: btoa(String.fromCharCode(...iv)),
+        rawKey: exportedAesKey
     };
 
 };
+
+
+export async function encryptAesKeyWithRsa(rawAesKey: ArrayBuffer, pubKeyJWK: any) 
+{
+    
+    const pubKey = await crypto.subtle.importKey(
+        "jwk", 
+        typeof pubKeyJWK === 'string' ? JSON.parse(pubKeyJWK) : pubKeyJWK, 
+        { name: "RSA-OAEP", hash: "SHA-256" }, 
+        false, 
+        ["encrypt"]
+    );
+
+    const encrypted = await crypto.subtle.encrypt(
+        { name: "RSA-OAEP" }, 
+        pubKey, 
+        rawAesKey
+    );
+
+    return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+
+}
 
 
 export async function decryptFromPeer (

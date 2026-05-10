@@ -190,7 +190,7 @@
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { OrgMember } from '@/types/types';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, user } from '@/assets/var';
 import useWSocket from '@/composables/useWSocket';
 import type { Socket } from 'socket.io-client';
 import getColorByStatus from '@/assets/utils/getColorByStatus';
@@ -201,7 +201,7 @@ import usePeer from '@/composables/usePeer';
 import DropDown from '@/components/DropDown.vue';
 import waitFor from '@/assets/utils/waitfor';
 
-import { E2EEUnloked, privateKey, encryptForPeer, decryptFromPeer } from '@/assets/utils/crypto';
+import { E2EEUnloked, privateKey, encryptForPeer, decryptFromPeer, encryptAesKeyWithRsa } from '@/assets/utils/crypto';
 
 
 const route = useRoute();
@@ -233,10 +233,14 @@ const decryptMessageContent = async (msg: any) => {
     if (msg.isE2EE && privateKey.value) 
     {
         try {
-            msg.content = await decryptFromPeer(msg.content, msg.encryptedAesKey, msg.nonce, privateKey.value);
+
+            const keyToUse = (msg.senderId === user.value?.id) 
+                ? msg.selfEncryptedAesKey 
+                : msg.encryptedAesKey;
+
+            msg.content = await decryptFromPeer(msg.content, keyToUse, msg.nonce, privateKey.value);
+
         } catch (e) {
-            console.error(e)
-            console.log(msg.content, msg.encryptedAesKey, msg.nonce, privateKey.value)
             msg.content = "🔒 [Erreur de déchiffrement]";
         }
     }
@@ -284,46 +288,58 @@ const sendMessage = async () => {
 
     let finalContent = newMessage.value;
     let finalEncryptedAesKey = null;
+    let selfEncryptedAesKey = null;
     let finalIv = null;
 
     const useEncryption = isE2EEEnabled.value && E2EEUnloked.value;
 
-    if (useEncryption)
+    if (useEncryption) 
     {
+        
+        const recipientPubKey = recipient.value.publicKey;
+        
+        const myPubKey = user.value?.publicKey; 
 
-        const recipientPubKeyJWK = recipient.value.publicKey;
-        if (!recipientPubKeyJWK) 
+        if (!recipientPubKey) 
         {
-            toast.show("Impossible de chiffrer : Clé publique du destinataire introuvable.", "error");
+            toast.show("Clé du destinataire introuvable.", "error");
             return;
         }
 
         try {
             
-            const encrypted = await encryptForPeer(newMessage.value, recipientPubKeyJWK);
-            finalContent = encrypted.ciphertext;
-            finalEncryptedAesKey = encrypted.encryptedAesKey;
-            finalIv = encrypted.iv;
+            const encryptedData = await encryptForPeer(newMessage.value, recipientPubKey);
+
+            finalContent = encryptedData.ciphertext;
+            finalEncryptedAesKey = encryptedData.encryptedAesKey;
+            finalIv = encryptedData.iv;
+
+            if (myPubKey && encryptedData.rawKey) 
+            {
+                selfEncryptedAesKey = await encryptAesKeyWithRsa(
+                    encryptedData.rawKey,
+                    myPubKey
+                );
+            }
 
         } catch (e) {
             console.error("Erreur de chiffrement:", e);
-            toast.show("Erreur lors du chiffrement du message.", "error");
+            toast.show("Erreur lors du chiffrement.", "error");
             return;
         }
-
     }
     
     socket.value?.emit("dm:send-message", {
         recipientId: recipient.value.id,
         content: finalContent,
         encryptedAesKey: finalEncryptedAesKey,
-        nonce: finalIv, // nonce == iv
+        selfEncryptedAesKey: selfEncryptedAesKey,
+        nonce: finalIv,
         isE2EE: useEncryption
     });
 
     newMessage.value = "";
     stopTyping();
-
 };
 
 const createPrivateMeet = () => {
