@@ -1,147 +1,163 @@
-const DB_NAME: string = 'scrypto_store';
-const DB_VERSION: number = 1;
-const STORE_NAME: string = 'scrypto_keys';
-const KEY_ID: string = 'scrypto_keypear';
 
+const PIN_ITERATIONS = 100000;
 
-const openDB = (): Promise<IDBDatabase> => {
-    return new Promise((resolve, reject) => {
-        const req = indexedDB.open(DB_NAME, DB_VERSION);
-        req.onupgradeneeded = () => req.result.createObjectStore(STORE_NAME);
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-    });
-};
+export async function deriveMasterKey (pin: string, salt: string): Promise<CryptoKey> 
+{
 
-const saveKeyPair = async (keyPair: CryptoKeyPair): Promise<void> => {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        tx.objectStore(STORE_NAME).put(keyPair, KEY_ID);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-    });
-};
-
-const loadKeyPair = async (): Promise<CryptoKeyPair | null> => {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readonly');
-        const req = tx.objectStore(STORE_NAME).get(KEY_ID);
-        req.onsuccess = () => resolve(req.result ?? null);
-        req.onerror = () => reject(req.error);
-    });
-};
-
-
-export const loadOrGenerateKeyPair = async (): Promise<CryptoKeyPair> => {
-
-    const existing = await loadKeyPair();
-    if (existing) return existing;
-
-    const keyPair = await crypto.subtle.generateKey(
-        { name: 'ECDH', namedCurve: 'P-256' },
-        false, //  extractable
-        ['deriveKey']
+    const encoder = new TextEncoder();
+    const baseKey = await crypto.subtle.importKey(
+        "raw", encoder.encode(pin), "PBKDF2", false, ["deriveKey"]
     );
-
-    await saveKeyPair(keyPair);
-    return keyPair;
-
-};
-
-export const exportPublicKey = async (key: CryptoKey): Promise<string> => {
-    
-    const exported = await crypto.subtle.exportKey("raw", key);
-    
-    const uint8Array = new Uint8Array(exported);
-    
-    let binaryString = '';
-    
-    for (const byte of uint8Array) {
-        binaryString += String.fromCharCode(byte);
-    }
-    
-    return btoa(binaryString);
-
-};
-
-
-export const importPublicKey = async (base64Key: string): Promise<CryptoKey> => {
-    
-    let cleanedKey = base64Key
-        .trim()
-        .replace(/ /g, '+')
-        .replace(/[^A-Za-z0-9+/=]/g, '');
-
-    if (cleanedKey.length !== 88) 
-    {
-        throw new Error(`Longueur invalide: ${cleanedKey.length}`);
-    }
-
-    const binaryString = atob(cleanedKey);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-    }
-
-    return await crypto.subtle.importKey(
-        "raw",
-        bytes.buffer,
-        { name: "ECDH", namedCurve: "P-256" },
-        true,
-        []
-    );
-
-};
-
-
-
-export const getSharedKey = async (privateKey: CryptoKey, peerPublicKey: CryptoKey): Promise<CryptoKey> => {
 
     return await crypto.subtle.deriveKey(
-        { name: "ECDH", public: peerPublicKey },
-        privateKey,
+        {
+            name: "PBKDF2",
+            salt: encoder.encode(salt),
+            iterations: PIN_ITERATIONS,
+            hash: "SHA-256",
+        },
+        baseKey,
         { name: "AES-GCM", length: 256 },
-        false,
+        true,
         ["encrypt", "decrypt"]
     );
 
 };
 
 
-export const encryptMessage = async (text: string, key: CryptoKey) => {
+export async function decryptUserPrivateKey (
+    encryptedPrivKeyBase64: string,
+    ivBase64: string,
+    masterKey: CryptoKey
+): Promise<CryptoKey> 
+{
+
+    const encryptedData = Uint8Array.from(atob(encryptedPrivKeyBase64), c => c.charCodeAt(0));
+    const iv = Uint8Array.from(atob(ivBase64), c => c.charCodeAt(0));
+
+    const decryptedRaw = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv },
+        masterKey,
+        encryptedData
+    );
+
+    return await crypto.subtle.importKey(
+        "pkcs8",
+        decryptedRaw,
+        { name: "RSA-OAEP", hash: "SHA-256" },
+        false,
+        ["decrypt"]
+    );
+};
+
+
+
+export async function encryptForPeer (text: string, peerPublicKeyJWK: string) 
+{
 
     const encoder = new TextEncoder();
-    const nonce = crypto.getRandomValues(new Uint8Array(12));
-    const encodedText = encoder.encode(text);
+    
+    const publicKey = await crypto.subtle.importKey(
+        "jwk",
+        JSON.parse(peerPublicKeyJWK),
+        { name: "RSA-OAEP", hash: "SHA-256" },
+        true,
+        ["encrypt"]
+    );
 
+    const messageKey = await crypto.subtle.generateKey(
+        { name: "AES-GCM", length: 256 },
+        true,
+        ["encrypt"]
+    );
+
+    const iv = crypto.getRandomValues(new Uint8Array(12));
     const ciphertext = await crypto.subtle.encrypt(
-        { name: "AES-GCM", iv: nonce },
-        key,
-        encodedText
+        { name: "AES-GCM", iv },
+        messageKey,
+        encoder.encode(text)
+    );
+
+    const exportedAesKey = await crypto.subtle.exportKey("raw", messageKey);
+    const encryptedAesKey = await crypto.subtle.encrypt(
+        { name: "RSA-OAEP" },
+        publicKey,
+        exportedAesKey
     );
 
     return {
         ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext))),
-        nonce: btoa(String.fromCharCode(...nonce)),
+        encryptedAesKey: btoa(String.fromCharCode(...new Uint8Array(encryptedAesKey))),
+        iv: btoa(String.fromCharCode(...iv)),
     };
 
 };
 
 
-export const decryptMessage = async (ciphertextBase64: string, nonceBase64: string, key: CryptoKey) => {
+export async function decryptFromPeer (
+    ciphertextBase64: string,
+    encryptedAesKeyBase64: string,
+    ivBase64: string,
+    myPrivateKey: CryptoKey
+) 
+{
 
-    const decoder = new TextDecoder();
-    const ciphertext = new Uint8Array(atob(ciphertextBase64).split("").map(c => c.charCodeAt(0)));
-    const nonce = new Uint8Array(atob(nonceBase64).split("").map(c => c.charCodeAt(0)));
+    const ciphertext = Uint8Array.from(atob(ciphertextBase64), c => c.charCodeAt(0));
+    const encryptedAesKey = Uint8Array.from(atob(encryptedAesKeyBase64), c => c.charCodeAt(0));
+    const iv = Uint8Array.from(atob(ivBase64), c => c.charCodeAt(0));
+
+    const aesKeyRaw = await crypto.subtle.decrypt(
+        { name: "RSA-OAEP" },
+        myPrivateKey,
+        encryptedAesKey
+    );
+
+    const aesKey = await crypto.subtle.importKey(
+        "raw", aesKeyRaw, "AES-GCM", false, ["decrypt"]
+    );
 
     const decrypted = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv: nonce },
-        key,
+        { name: "AES-GCM", iv },
+        aesKey,
         ciphertext
     );
 
-    return decoder.decode(decrypted);
+    return new TextDecoder().decode(decrypted);
+
+};
+
+
+export async function setupFirstTimeSecurity (pin: string, salt: string) 
+{
     
+    const keyPair = await crypto.subtle.generateKey(
+        {
+            name: "RSA-OAEP",
+            modulusLength: 4096,
+            publicExponent: new Uint8Array([1, 0, 1]),
+            hash: "SHA-256",
+        },
+        true,
+        ["encrypt", "decrypt"]
+    );
+
+    const masterKey = await deriveMasterKey(pin, salt);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const exportedPriv = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+    
+    const encryptedPriv = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        masterKey,
+        exportedPriv
+    );
+
+    const publicKeyJWK = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
+
+    return {
+        publicKey: JSON.stringify(publicKeyJWK),
+        encryptedPrivateKey: btoa(String.fromCharCode(...new Uint8Array(encryptedPriv))),
+        iv: btoa(String.fromCharCode(...iv)),
+        pinSalt: salt
+    };
+
 };
