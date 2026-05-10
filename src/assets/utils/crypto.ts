@@ -1,4 +1,6 @@
+import { ref } from "vue";
 
+const privateKey = ref<CryptoKey | null>(null);
 const PIN_ITERATIONS = 100000;
 
 export async function deriveMasterKey (pin: string, salt: string): Promise<CryptoKey> 
@@ -152,6 +154,7 @@ export async function setupFirstTimeSecurity (pin: string, salt: string)
     );
 
     const publicKeyJWK = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
+    privateKey.value = keyPair.privateKey;
 
     return {
         publicKey: JSON.stringify(publicKeyJWK),
@@ -161,3 +164,20 @@ export async function setupFirstTimeSecurity (pin: string, salt: string)
     };
 
 };
+
+export async function unlockSecurity(pin: string, salt: string, encryptedKey: string, iv: string) 
+{
+    try {
+        const masterKey = await deriveMasterKey(pin, salt);
+        privateKey.value = await decryptUserPrivateKey(encryptedKey, iv, masterKey);
+        return true;
+    } catch (e) {
+        console.error("PIN invalide ou données corrompues");
+        return false;
+    }
+}
+
+export function lockSecurity() 
+{
+    privateKey.value = null;
+}
