@@ -85,7 +85,12 @@ export interface User {
   email: string;
   name: string;
   avatarUrl?: string;
-  publicKey?: string;
+
+  publicKey?: string; // Format JWK (string JSON)
+  encryptedPrivateKey?: string; // Base64
+  keyIv?: string;           // Base64
+  pinSalt?: string;           // String aléatoire
+
   data?: {
     status?: UserStatus;
     [key: string]: any;
@@ -94,7 +99,6 @@ export interface User {
   createdAt: string | Date;
   updatedAt: string | Date;
 }
-
 export interface Message {
   id: string;
   threadId: string;

@@ -1,6 +1,10 @@
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
-const privateKey = ref<CryptoKey | null>(null);
+export const privateKey = ref<CryptoKey | null>(null);
+export const E2EEUnloked = computed(() => {
+    return privateKey.value !== null && typeof privateKey.value === 'object';
+});
+
 const PIN_ITERATIONS = 100000;
 
 export async function deriveMasterKey (pin: string, salt: string): Promise<CryptoKey> 
@@ -129,8 +133,10 @@ export async function decryptFromPeer (
 };
 
 
-export async function setupFirstTimeSecurity (pin: string, salt: string) 
+export async function setupFirstTimeSecurity (pin: string) 
 {
+
+    const salt = generateSalt();
     
     const keyPair = await crypto.subtle.generateKey(
         {
@@ -181,3 +187,12 @@ export function lockSecurity()
 {
     privateKey.value = null;
 }
+
+
+export const generateSalt = (): string => {
+    const array = new Uint8Array(16);
+    
+    window.crypto.getRandomValues(array);
+    
+    return btoa(String.fromCharCode(...array));
+};

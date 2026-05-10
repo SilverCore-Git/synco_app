@@ -1,6 +1,5 @@
 import sfetch from "./utils/sfetch";
-import { isLoaded, organizations } from "./var";
-
+import { isLoaded, organizations, user } from "./var";
 
 class Init 
 {
@@ -25,7 +24,7 @@ class Init
 
     private async InitUser()
     {
-        await sfetch('/api/users/me').then(res => res.json());
+        user.value = await sfetch('/api/users/me').then(res => res.json());
     }
 
 
@@ -37,6 +36,11 @@ class Init
 
     }
 
+}
+
+
+export const refetchUser = async () => {
+    user.value = await sfetch('/api/users/me').then(res => res.json());
 }
 
 export default new Init();
