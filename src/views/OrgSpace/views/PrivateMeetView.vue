@@ -1,6 +1,6 @@
 <template>
 
-    <div class="flex flex-col h-full bg-(--bg3) relative overflow-hidden w-full">
+    <div class="m-6 rounded-2xl shadow-2xl border border-(--text)/20 flex flex-col h-[calc(100vh-3rem)] bg-(--bg3) relative overflow-hidden ">
         
         <header 
             v-if="recipient" 
@@ -9,25 +9,11 @@
 
             <div class="flex items-center gap-3">
 
-                <img 
-                    :src="recipient.avatarUrl" 
-                    :alt="recipient.name"
-                    class="w-9 h-9 rounded-full border border-white/10"
-                />
-
-                <div class="flex flex-col">
-
-                    <h2 class="font-bold text-(--text) tracking-wide leading-none mb-1">
-                        {{ recipient.name }}
-                    </h2>
-
-                    <div class="flex items-center gap-1.5">
-                        <span class="w-1.5 h-1.5 rounded-full" :class="getColorByStatus(recipient.data.status)" />
-                        <span class="text-[10px] text-(--text)/40 uppercase tracking-tighter font-bold">
-                            {{ getTextByStatus(recipient.data.status) }}
-                        </span>
-                    </div>
-
+               <div class="flex items-center gap-1.5 bg-green-500/10 px-3 py-2 rounded-2xl border border-green-500/20">
+                    <i class="bi bi-shield-lock-fill text-[12px] text-green-500" />
+                    <span class="text-[12px] text-green-500 uppercase tracking-tighter font-bold">
+                        Chiffré de bout en bout (P2P)
+                    </span>
                 </div>
 
             </div>
@@ -35,7 +21,10 @@
             <div class="ml-auto flex items-center gap-4 text-(--text)/40">
 
                 <button class="hover:text-(--text) transition-colors">
-                    <i class="bi bi-telephone-fill" />
+                    <i 
+                        @click="router.push({ name: 'OrgThreadChat', params: { userId: recipient?.id } });" 
+                        class="bi bi-telephone-x-fill text-red-400 hover:text-red-500 transition-colors"
+                    />
                 </button>
 
             </div>
@@ -54,20 +43,10 @@
         <main 
             v-else
             ref="messagesContainer"
-            class="flex-1 overflow-y-auto p-4 custom-scrollbar w-full"
+            class="flex-1 overflow-y-scroll p-4 w-full"
         >
 
             <div v-if="recipient" class="flex flex-col justify-end min-h-full w-full">
-                
-                <div class="mb-8 p-6 border-b border-white/5 bg-white/1 rounded-2xl mx-4">
-                    <div class="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4 overflow-hidden border-2 border-white/10">
-                        <img :src="recipient.avatarUrl" class="w-full h-full object-cover" />
-                    </div>
-                    <h1 class="text-3xl font-black text-(--text) mb-2">{{ recipient.name }}</h1>
-                    <p class="text-(--text)/50 text-sm">
-                        C'est le début de votre historique de messages directs avec <b>@{{ recipient.name }}</b>.
-                    </p>
-                </div>
 
                 <div class="space-y-1 w-full">
 
@@ -78,7 +57,7 @@
                     >
 
                         <img 
-                            src="https://cdn.silvercore.fr/static/files/silverteams/avatar/default.png"
+                            :src="`https://ui-avatars.com/api/?name=${msg.sender}&background=128a60&color=fff`"
                             class="rounded-full w-9 h-9 border border-white/5 shrink-0"
                         />
 
@@ -122,7 +101,7 @@
                     @send="sendEncryptedMessage(newMessage); newMessage = ''"
                     @input=""
                     ref="inputComponent"
-                    :placeholder="'Message @' + recipient.name"
+                    :placeholder="'Message @' + recipient.user?.name"
                 />
 
                 <button 
@@ -146,17 +125,16 @@
 
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import getColorByStatus from '@/assets/utils/getColorByStatus';
-import getTextByStatus from '@/assets/utils/getTextByStatus';
 import { useToast } from '@/composables/useToast';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, user } from '@/assets/var';
 import type { OrgMember } from '@/types/types';
 import usePrivateMeet from '@/composables/usePrivatMeet';
 import SpinLoader from '@/components/SpinLoader.vue';
 import useWSocket from '@/composables/useWSocket';
+import waitFor from '@/assets/utils/waitfor';
 
-const { messages, initPeer, connectToPeer, sendEncryptedMessage, destroyChat } = usePrivateMeet();
+const { messages, isConnected, myPeerId, initPeer, connectToPeer, sendEncryptedMessage, destroyChat } = usePrivateMeet();
 
 const route = useRoute();
 const router = useRouter();
@@ -168,25 +146,47 @@ const newMessage = ref<string>('');
 
 const recipient = computed(() => {
     const userId = route.params.userId;
-    if (!openedOrg.value?.members) return null;
-    return openedOrg.value.members.find((m: OrgMember) => m.id === userId)?.user;
+    if (!openedOrg.value?.members?.length) return null;
+    return openedOrg.value.members.find((m: OrgMember) => m.id == userId);
 });
 
 const mount = async () => {
 
+    await waitFor(() => recipient.value != undefined);
+
     const socket = await useWSocket();
 
+    const orgMe = openedOrg.value!.members!.find((m: OrgMember) => m.userId == user.value?.id);
+
+    await initPeer(orgMe?.id); 
+
+    await waitFor(() => myPeerId.value !== '');
+
+    socket.value?.off('privateMeet:accepted');
     socket.value?.on('privateMeet:accepted', async () => {
-        if (recipient.value?.id) connectToPeer(recipient.value.id);
-        loading.value = false;
+        if (recipient.value?.id)
+        {
+            connectToPeer(recipient.value.id); 
+            loadingStatus.value = "Établissement du canal sécurisé...";
+        }
     });
+
+    watch(() => isConnected.value, (connected) => {
+        if (connected) 
+        {
+            loading.value = false;
+        }
+    });
+
+    if (recipient.value?.id)
+    {
+        connectToPeer(recipient.value.id);
+    }
 
     socket.value?.on('privateMeet:declined', async () => {
         toast.show('La conversation a été refusée.', "error");
         router.back();
     });
-
-    await initPeer();
 
     if (recipient.value) 
     {
@@ -197,7 +197,7 @@ const mount = async () => {
         setTimeout(() => {
             if (loading.value) 
             {
-                loadingStatus.value = 'Aucun réponse...';
+                loadingStatus.value = 'Aucune réponse...';
             }
         }, 10000);
 

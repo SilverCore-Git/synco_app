@@ -88,6 +88,10 @@ const submit = async () => {
 
 onMounted(async () => {
 
+  const res = await fetch(`${import.meta.env.VITE_API_URL}/health`);
+
+  if (!res.ok) return alert('Api error');
+
   authenticated.value = await keycloak.init({
       onLoad: "login-required",
       checkLoginIframe: false

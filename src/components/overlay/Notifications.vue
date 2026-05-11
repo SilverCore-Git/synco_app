@@ -67,7 +67,7 @@
 
                                 <div class="flex-1 overflow-hidden">
                                     <p class="text-xs font-bold text-primary uppercase tracking-wider mb-1">Appel entrant</p>
-                                    <h4 class="text-white font-semibold truncate">{{ notif.call?.user?.name || 'Utilisateur inconnu' }}</h4>
+                                    <h4 class=" font-semibold truncate">{{ notif.call?.user?.name || 'Utilisateur inconnu' }}</h4>
                                 </div>
 
                             </div>
@@ -111,7 +111,7 @@
 
                                 <div class="flex-1 overflow-hidden">
                                     <p class="text-xs font-bold text-primary uppercase tracking-wider mb-1">Discussion privée</p>
-                                    <h4 class="text-white font-semibold truncate">{{ notif.privateMeet?.user?.name || 'Utilisateur inconnu' }}</h4>
+                                    <h4 class=" font-semibold truncate">{{ notif.privateMeet?.user?.name || 'Utilisateur inconnu' }}</h4>
                                 </div>
 
                             </div>
@@ -127,7 +127,7 @@
                                 </button>
                                 
                                 <button 
-                                    @click="router.push({ name: 'OrgThreadChatPrivateMeet', params: { userId: notif.privateMeet?.userId } });"
+                                    @click="router.push({ name: 'OrgThreadChatPrivateMeet', params: { userId: notif.privateMeet?.id } });"
                                     class="primary w-full gap-3"
                                 >
                                     <i class="bi bi-telephone-fill animate-bounce" />
@@ -144,7 +144,7 @@
 
                 <button 
                     @click="remove(notif.id)" 
-                    class="opacity-40 hover:opacity-100 transition-opacity"
+                    class="opacity-40 hover:opacity-100 transition-opacity absolute top-4 right-4"
                     :class="notif.type == 'notif:call' ? 'absolute top-4 right-4' : ''"
                 >
                     <i class="bi bi-x-lg text-xs" />
@@ -210,6 +210,7 @@ const getStyles = (type: NotificationType, toastType?: string) => {
 
         case 'notif:msg': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
         case 'notif:call': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:privateMeet': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
 
     }
 

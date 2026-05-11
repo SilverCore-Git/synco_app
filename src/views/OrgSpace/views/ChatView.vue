@@ -181,6 +181,10 @@
 
         </footer>
 
+        <div v-if="isPrivateMeet" class="absolute inset-0 z-50 backdrop-blur-xs">
+            <PrivateMeetView />
+        </div>
+
     </div>
 
 </template>
@@ -202,6 +206,7 @@ import DropDown from '@/components/DropDown.vue';
 import waitFor from '@/assets/utils/waitfor';
 
 import { E2EEUnloked, privateKey, encryptForPeer, decryptFromPeer, encryptAesKeyWithRsa } from '@/assets/utils/crypto';
+import PrivateMeetView from './PrivateMeetView.vue';
 
 
 const route = useRoute();
@@ -211,6 +216,7 @@ const { startCall } = usePeer();
 
 const socket = ref<Socket | null>(null);
 
+const isPrivateMeet = computed(() => route.name == 'OrgThreadChatPrivateMeet');
 const isE2EEEnabled = ref<boolean>(true);
 const messages = ref<any[]>([]);
 const newMessage = ref<string>("");

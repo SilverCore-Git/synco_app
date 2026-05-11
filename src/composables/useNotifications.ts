@@ -113,7 +113,7 @@ const remove = (id: number) => {
     notifications.value = notifications.value.filter(n => n.id !== id);
 }
 
-const notify = (type: NotificationType, payload: any) => {
+const notify = (type: NotificationType, payload: any, timeout?: number) => {
     
     const id: number = notifications.value.length + 1;
 
@@ -145,10 +145,22 @@ const notify = (type: NotificationType, payload: any) => {
             call: payload
         });
     }
+    else if (type === 'notif:privateMeet')
+    {
+        notifications.value.push({
+            id,
+            type,
+            createdAt: new Date(),
+            privateMeet: payload
+        });
+    }
 
-    setTimeout(() => {
-        remove(id);
-    }, removeAfter);
+    if (timeout !== -1)
+    {
+        setTimeout(() => {
+            remove(id);
+        }, timeout || removeAfter);
+    }
 
 };
 

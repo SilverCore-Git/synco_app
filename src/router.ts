@@ -100,7 +100,7 @@ const routes = [
         path: 'chat/privateMeet/:userId',
         name: 'OrgThreadChatPrivateMeet',
         props: true,
-        component: PrivateMeetView,
+        component: ChatView,
         meta: { title: 'SilverTeams' }
       },
       

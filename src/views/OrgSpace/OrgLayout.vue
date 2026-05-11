@@ -9,8 +9,8 @@ import { openedOrg, organizations } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import usePeer from '@/composables/usePeer';
-import type { Category, Message, Thread } from '@/types/types';
-import { stringifyQuery, useRoute } from 'vue-router';
+import type { Category, Message } from '@/types/types';
+import { useRoute } from 'vue-router';
 import useSettingsItem from '@/composables/useSettingsItem';
 import keycloak from '@/assets/keycloak';
 import useNotifications from '@/composables/useNotifications';
@@ -47,13 +47,13 @@ const initSocketListener = async () => {
     } 
 
 
-    const me = openedOrg.value?.members?.find(member => member.user?.clerkId == keycloak.userInfo?.sub);
-    if (me && me.user) me.user.data.status = 'online';
+    const me = openedOrg.value?.members?.find(member => member.user?.id == keycloak.userInfo?.sub);
+    if (me && me.user && me.user.data) me.user.data.status = 'online';
     
 
     socket.value?.on('user-status-changed', ({ status, userId }: { status: string, userId: string }) => {
         const member = openedOrg.value?.members?.find(m => m.userId === userId);            
-        if (member?.user?.data) member.user.data.status = status;
+        if (member && member.user && member.user.data) member.user.data.status = status;
     });
 
     socket.value?.on('space:updated', async ({ orgId, spaceId, data }: { orgId: string, spaceId: string, data: { logo: string, name: string, members: string[] } }) => {
@@ -151,7 +151,7 @@ const initSocketListener = async () => {
 
     socket.value?.on('privateMeet:incomingCall', async ({ callerId }: { callerId: string }) => {
         const orgMember = openedOrg.value?.members?.find(m => m.userId === callerId);
-        notify('notif:privateMeet', orgMember);
+        notify('notif:privateMeet', orgMember, -1);
     });
 
 

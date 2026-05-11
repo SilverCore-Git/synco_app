@@ -39,7 +39,7 @@ export default function usePeer()
         const userInfo = await keycloak.loadUserInfo();
         const myKCId = userInfo.sub;
         
-        const myUser = openedOrg.value?.members?.find((m: OrgMember) => m.user?.clerkId === myKCId || m.userId === myKCId)?.user;
+        const myUser = openedOrg.value?.members?.find((m: OrgMember) => m.user?.id === myKCId || m.userId === myKCId)?.user;
         const myId = myUser?.id;
 
         if (!myId) return console.error("[PEER] ID local introuvable.");
@@ -48,7 +48,8 @@ export default function usePeer()
             host: import.meta.env.VITE_PEER_HOST || '192.168.1.73',
             port: import.meta.env.VITE_PEER_PORT || 9001,
             path: import.meta.env.VITE_PEER_PATH || '/webrtc',
-            secure: true
+            key: import.meta.env.VITE_PEER_PUBLISHABLE_KEY || '',
+            secure: false
         });
 
         peer.value.on('call', (call) => {
