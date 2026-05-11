@@ -92,7 +92,7 @@
                                 @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${user?.user?.name}&background=128a60&color=fff`"
                             />
                             <div 
-                                v-if="user && user.user?.data.status"
+                                v-if="user && user.user?.data?.status"
                                 class="absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-(--bg) rounded-full z-10" 
                                 :class="getColorByStatus(user.user.data.status)"
                             />
@@ -179,7 +179,19 @@ const {
     isScreenShareEnabled,
 } = useLiveKit();
 
-const user = computed<OrgMember | undefined>(() => openedOrg.value?.members?.find(member => member.user?.id == keycloak.userInfo?.sub));
+
+const user = computed<OrgMember | undefined>(() => {
+
+    if (!openedOrg.value?.members) return undefined;
+    
+    const myId = keycloak.subject || keycloak.userInfo?.sub;
+
+    return openedOrg.value.members.find(member => 
+        String(member.user?.id) === String(myId)
+    );
+
+});
+
 const ping = ref<number>(-1);
 const showUserSettings = ref<boolean>(false);
 
