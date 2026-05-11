@@ -164,7 +164,7 @@ const handleSubmit = async () => {
       <button 
         @click="handleSubmit"
         class="primary"
-        :disabled="loading || (state === 1 && !form.name.trim()) || (state === 2 && !form.logo)"
+        :disabled="loading || (state === 1 && !form.name.trim())"
         :class="{ 'loader': loading }"
       >
         {{ state < 3 ? 'Continuer' : 'Créer l\'espace' }}

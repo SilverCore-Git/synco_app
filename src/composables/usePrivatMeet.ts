@@ -14,7 +14,7 @@ export default function usePrivateMeet()
     const sessionPublicKeyJWK = ref<string>('');
     const peerPublicKeyJWK = ref<string | null>(null);
     
-    const messages = ref<{ sender: 'Moi' | 'Correspondant.e', text: string, timestamp: number }[]>([]);
+    const messages = ref<{ sender: 'Vous' | 'Correspondant.e', text: string, timestamp: number }[]>([]);
 
     const initPeer = async (userId?: string) => {
 
@@ -157,7 +157,7 @@ export default function usePrivateMeet()
             });
 
             messages.value.push({
-                sender: 'Moi',
+                sender: 'Vous',
                 text,
                 timestamp: Date.now()
             });

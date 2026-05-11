@@ -52,7 +52,7 @@
 
                 <div class="gap-3 w-full grid grid-cols-2">
 
-                    <button @click="showFolderNamePrompt = true" class="primary gap-2">
+                    <button @click="showFolderNamePrompt = true" class="default gap-2">
                         <i class="bi bi-folder-plus" />
                         <span>Nouveau dossier</span>
                     </button>
@@ -227,6 +227,16 @@
 
         </main>
 
+        <div class="absolute left-5 bottom-5">
+            <button 
+                v-if="currentFolderId !== 'root'"
+                class=" bg-(--primary-hover) hover:scale-110 active:scale-90 transition-all duration-200 p-2 w-12 h-12 rounded-full" 
+                @click="goBack"
+            >
+                <i class="bi bi-arrow-left text-2xl " />
+            </button>
+        </div>
+
     </div>
 
     <input 
@@ -379,6 +389,22 @@ const breadcrumbs = computed(() => {
 
 });
 
+const goBack = () => {
+    
+    if (!currentFolderId.value || currentFolderId.value === 'root') return;
+
+    const currentFolder = allFolders.value.find(f => f.id === currentFolderId.value);
+
+    if (currentFolder && currentFolder.parentId) 
+    {
+        currentFolderId.value = currentFolder.parentId;
+    } 
+    else 
+    {
+        currentFolderId.value = 'root';
+    }
+
+};
 
 const createFolder = async (name: string) => {
 

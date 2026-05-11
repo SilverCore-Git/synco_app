@@ -53,7 +53,7 @@
                             class="dropdown-item-annimate dropdown-item-style"
                             title="Conversation P2P chiffrée de bout en bout."
                         >
-                            Créer une session privée
+                            Session ephemere
                         </button>
                     </template>
 
