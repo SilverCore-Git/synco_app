@@ -50,9 +50,10 @@
                     <template #content>
                         <button 
                             @click="createPrivateMeet" 
-                            class="dropdown-item-annimate dropdown-item-style"
+                            class="dropdown-item-annimate dropdown-item-style gap-2"
                             title="Conversation P2P chiffrée de bout en bout."
                         >
+                            <i class="bi bi-shield-fill-check text-(--primary)" />
                             Session ephemere
                         </button>
                     </template>

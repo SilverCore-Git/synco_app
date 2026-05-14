@@ -14,6 +14,7 @@ import { useRoute } from 'vue-router';
 import useSettingsItem from '@/composables/useSettingsItem';
 import keycloak from '@/assets/keycloak';
 import useNotifications from '@/composables/useNotifications';
+import { isMeeting } from '@/composables/usePrivatMeet';
 
 
 const props = defineProps<{
@@ -151,7 +152,7 @@ const initSocketListener = async () => {
 
     socket.value?.on('privateMeet:incomingCall', async ({ callerId }: { callerId: string }) => {
         const orgMember = openedOrg.value?.members?.find(m => m.userId === callerId);
-        notify('notif:privateMeet', orgMember, -1);
+        if (!isMeeting.value) notify('notif:privateMeet', orgMember, -1);
     });
 
 

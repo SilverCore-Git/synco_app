@@ -22,7 +22,7 @@
 
                 <button class="hover:text-(--text) transition-colors">
                     <i 
-                        @click="router.push({ name: 'OrgThreadChat', params: { userId: recipient?.id } });" 
+                        @click="close" 
                         class="bi bi-telephone-x-fill text-red-400 hover:text-red-500 transition-colors"
                     />
                 </button>
@@ -129,7 +129,7 @@ import { useToast } from '@/composables/useToast';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import { openedOrg, user } from '@/assets/var';
 import type { OrgMember } from '@/types/types';
-import usePrivateMeet from '@/composables/usePrivatMeet';
+import usePrivateMeet, { isMeeting } from '@/composables/usePrivatMeet';
 import SpinLoader from '@/components/SpinLoader.vue';
 import useWSocket from '@/composables/useWSocket';
 import waitFor from '@/assets/utils/waitfor';
@@ -149,6 +149,8 @@ const recipient = computed(() => {
     if (!openedOrg.value?.members?.length) return null;
     return openedOrg.value.members.find((m: OrgMember) => m.id == userId);
 });
+
+const close = () => router.push({ name: 'OrgThreadChat', params: { userId: recipient.value?.id } });
 
 const mount = async () => {
 
@@ -175,6 +177,7 @@ const mount = async () => {
         if (connected) 
         {
             loading.value = false;
+            isMeeting.value = true;
         }
     });
 
@@ -191,13 +194,16 @@ const mount = async () => {
     if (recipient.value) 
     {
 
-        socket.value?.emit('privateMeet:call', { recipientId: recipient.value.id });
+        socket.value?.emit('privateMeet:call', { recipientId: recipient.value.userId });
         loadingStatus.value = 'En attente de la réponse...';
 
         setTimeout(() => {
             if (loading.value) 
             {
-                loadingStatus.value = 'Aucune réponse...';
+                loadingStatus.value = 'Aucune réponse, fermeture de la session.';
+                setTimeout(() => {
+                    close();
+                }, 2000);
             }
         }, 10000);
 
@@ -212,6 +218,13 @@ const mount = async () => {
 
 watch(() => route.params.userId, () => mount());
 
+
+watch(() => isMeeting.value, (newVal, oldVal) => {
+    if (oldVal == true && newVal == false)
+    {
+        close();
+    }
+})
 
 onMounted(async () => {
     await mount();

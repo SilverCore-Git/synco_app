@@ -75,7 +75,7 @@
                             <div class="flex gap-3 mt-5 w-full">
 
                                 <button 
-                                    @click="router.push({ name: 'OrgThreadChat', params: { userId: notif.call?.userId } }), acceptCall()"
+                                    @click="rejectCall()"
                                     class="danger w-full gap-3"
                                 >
                                     <i class="bi bi-x-lg" />
@@ -83,7 +83,7 @@
                                 </button>
                                 
                                 <button 
-                                    @click="rejectCall()"
+                                    @click="router.push({ name: 'OrgThreadChat', params: { userId: notif.call?.userId } }), acceptCall()"
                                     class="primary w-full gap-3"
                                 >
                                     <i class="bi bi-telephone-fill animate-bounce" />
@@ -119,7 +119,7 @@
                             <div class="flex gap-3 mt-5 w-full">
 
                                 <button 
-                                    @click=""
+                                    @click="remove(notif.id)"
                                     class="danger w-full gap-3"
                                 >
                                     <i class="bi bi-x-lg" />

@@ -2,6 +2,8 @@ import { ref, onUnmounted } from 'vue';
 import Peer, { type DataConnection } from 'peerjs';
 import { encryptForPeer, decryptFromPeer } from '@/assets/utils/crypto';
 
+export const isMeeting = ref<boolean>(false);
+
 export default function usePrivateMeet() 
 {
     
@@ -9,7 +11,6 @@ export default function usePrivateMeet()
     const myPeerId = ref<string>('');
     const connection = ref<DataConnection | null>(null);
     const isConnected = ref<boolean>(false);
-
     const sessionPrivateKey = ref<CryptoKey | null>(null);
     const sessionPublicKeyJWK = ref<string>('');
     const peerPublicKeyJWK = ref<string | null>(null);
@@ -132,6 +133,7 @@ export default function usePrivateMeet()
         conn.on('close', () => {
             isConnected.value = false;
             peerPublicKeyJWK.value = null;
+            isMeeting.value = false;
             console.log('Meet closed');
         });
 
