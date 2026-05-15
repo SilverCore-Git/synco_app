@@ -156,6 +156,118 @@ export async function decryptFromPeer (
 };
 
 
+// For thread E2EE
+
+export async function decryptThreadKeyWithRsa(
+    encryptedThreadKeyBase64: string,
+    myPrivateKey: CryptoKey
+): Promise<CryptoKey> 
+{
+
+    const encryptedKeyBuffer = Uint8Array.from(atob(encryptedThreadKeyBase64), c => c.charCodeAt(0));
+
+    const decryptedRawAesKey = await crypto.subtle.decrypt(
+        { name: "RSA-OAEP" },
+        myPrivateKey,
+        encryptedKeyBuffer
+    );
+
+    return await crypto.subtle.importKey(
+        "raw",
+        decryptedRawAesKey,
+        { name: "AES-GCM", length: 256 },
+        true,
+        ["encrypt", "decrypt"]
+    );
+
+}
+
+export async function encryptMessageWithContentKey(text: string, threadKey: CryptoKey) 
+{
+
+    const encoder = new TextEncoder();
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    
+    const ciphertext = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        threadKey,
+        encoder.encode(text)
+    );
+
+    return {
+        ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext))),
+        iv: btoa(String.fromCharCode(...iv))
+    };
+
+}
+
+
+export async function decryptMessageWithContentKey(
+    ciphertextBase64: string, 
+    ivBase64: string, 
+    threadKey: CryptoKey
+): Promise<string> 
+{
+
+    try {
+
+        const ciphertext = Uint8Array.from(atob(ciphertextBase64), c => c.charCodeAt(0));
+        const iv = Uint8Array.from(atob(ivBase64), c => c.charCodeAt(0));
+
+        const decryptedBuffer = await crypto.subtle.decrypt(
+            { name: "AES-GCM", iv },
+            threadKey,
+            ciphertext
+        );
+
+        return new TextDecoder().decode(decryptedBuffer);
+
+    } catch (e) {
+        console.error("[E2EE] Échec du déchiffrement du message", e);
+        return "⚠️ Erreur : Impossible de déchiffrer ce message.";
+    }
+
+}
+
+export async function generateThreadKey(): Promise<CryptoKey> 
+{
+    return await crypto.subtle.generateKey(
+        { name: "AES-GCM", length: 256 },
+        true,
+        ["encrypt", "decrypt"]
+    );
+}
+
+export async function encryptThreadKeyForMember(
+    threadKey: CryptoKey, 
+    memberPublicKeyJWK: string | object
+): Promise<string> 
+{
+    
+    const pubKey = await crypto.subtle.importKey(
+        "jwk", 
+        typeof memberPublicKeyJWK === 'string' ? JSON.parse(memberPublicKeyJWK) : memberPublicKeyJWK, 
+        { name: "RSA-OAEP", hash: "SHA-256" }, 
+        false, 
+        ["encrypt"]
+    );
+
+    const rawThreadKey = await crypto.subtle.exportKey("raw", threadKey);
+
+    const encryptedBuffer = await crypto.subtle.encrypt(
+        { name: "RSA-OAEP" }, 
+        pubKey, 
+        rawThreadKey
+    );
+
+    return btoa(String.fromCharCode(...new Uint8Array(encryptedBuffer)));
+
+}
+
+
+
+// Set up
+
 export async function setupFirstTimeSecurity (pin: string) 
 {
 
