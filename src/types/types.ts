@@ -66,6 +66,7 @@ export interface Org {
   spaces?: WorkSpace[];
   files?: StoredFile[];
   createdAt: string | Date;
+  maxTotalUsers: number;
 }
 
 export interface WorkSpace {

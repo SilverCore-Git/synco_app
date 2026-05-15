@@ -181,6 +181,14 @@
 
                 <section class="space-y-6">
 
+                    <CapacityGauge 
+                        :used="openedOrg?.members?.length || 0"
+                        :max="openedOrg?.maxTotalUsers || 100"
+                        unit="Utilisateurs"
+                        icon="bi-people"
+                        title="Slot utilisateur"
+                    />
+
                     <div class="flex items-center justify-between">
                     
                         <h3 class="text-lg font-bold ">
@@ -310,6 +318,7 @@ import isAdmin from '@/assets/isAdmin';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
+import CapacityGauge from '@/components/common/CapacityGauge.vue';
 
 const toast = useToast();
 
