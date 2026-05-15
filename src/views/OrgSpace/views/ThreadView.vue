@@ -61,6 +61,7 @@
                         :msg="msg"
                         :selectedMessage="selectedMessage"
                         :messages="sortedMessages"
+                        :currentThreadKey="currentThreadKey"
                     />
 
                 </div>
@@ -314,7 +315,12 @@ import { useRoute, useRouter } from 'vue-router';
 import type { Thread, Message } from '@/types/types';
 import useWSocket from '@/composables/useWSocket';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
-import { encrypt, decrypt, deriveKey } from '@/assets/utils/threadsCrypto';
+import { 
+    privateKey, 
+    decryptThreadKeyWithRsa, 
+    encryptMessageWithContentKey, 
+    decryptMessageWithContentKey 
+} from '@/assets/utils/crypto';
 import { useToast } from '@/composables/useToast';
 import { openedOrg } from '@/assets/var';
 import SpinLoader from '@/components/SpinLoader.vue';
@@ -367,10 +373,11 @@ const handleFiles = (files: FileList | File[]) => {
     isDragging.value = false;
     const newFiles = Array.from(files);
     const LIMIT = 10;
-    const MAX_SIZE_GB = 10; // Limite à 10 MB
+    const MAX_SIZE_GB = 10; // Limite à 10 GB
     const MAX_SIZE_BYTES = MAX_SIZE_GB * 1024 * 1024 * 1024;
 
-    if (selectedFiles.value.length >= LIMIT) {
+    if (selectedFiles.value.length >= LIMIT) 
+    {
         return toast.show(`Limite de ${LIMIT} fichiers atteinte.`, 'warning');
     }
 
@@ -441,13 +448,17 @@ const validUpload = async () => {
 
 
 const processMessages = async (msgs: sMessage[]) => {
-    
+
     if (!currentThreadKey.value) return msgs;
 
-    const decryptedMessages = await Promise.all(msgs.map(async m => ({
-        ...m,
-        content: await decrypt(m.content, currentThreadKey.value!)
-    })));
+    const decryptedMessages = await Promise.all(msgs.map(async m => {
+        if (m.content && m.nonce) 
+        {
+            const clearText = await decryptMessageWithContentKey(m.content, m.nonce, currentThreadKey.value!);
+            return { ...m, content: clearText };
+        }
+        return m;
+    }));
 
     return decryptedMessages.sort((a, b) => {
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
@@ -503,7 +514,13 @@ const initListener = () => {
 
     socket.value.on("new-message", async (msg: sMessage) => {
 
-        const decrypted = { ...msg, content: await decrypt(msg.content, currentThreadKey.value!) };
+        let clearContent = msg.content;
+        if (msg.content && msg.nonce && currentThreadKey.value) 
+        {
+            clearContent = await decryptMessageWithContentKey(msg.content, msg.nonce, currentThreadKey.value);
+        }
+        
+        const decrypted = { ...msg, content: clearContent };
         sortedMessages.value.push(decrypted);
         
         const container = messagesContainer.value;
@@ -521,47 +538,71 @@ const initListener = () => {
     });
 
     socket.value.on('edit-message', async (editedMsg: sMessage) => {
-        const decryptedContent = await decrypt(editedMsg.content, currentThreadKey.value!);
+
+        let decryptedContent = editedMsg.content;
+        if (editedMsg.content && editedMsg.nonce && currentThreadKey.value) 
+        {
+            decryptedContent = await decryptMessageWithContentKey(editedMsg.content, editedMsg.nonce, currentThreadKey.value);
+        }
         const updatedMsg = { ...editedMsg, content: decryptedContent };
         rawMessages.value.set(editedMsg.id, updatedMsg);
         sortedMessages.value = sortedMessages.value.map(m => m.id === editedMsg.id ? updatedMsg : m);
+
     });
 
 };
 
 const joinThread = async (id: string) => {
-
+    
     if (!socket.value) return;
     
     loading.value = true;
     currentThreadKey.value = null;
     sortedMessages.value = [];
 
-    const orgId = route.params.orgId as string || "no-org";
-
-    const key = await deriveKey(orgId, id);
-    
-    if (!key) 
+    if (!privateKey.value) 
     {
-        toast.show('[E2EE] Échec génération clé. Le salon restera verrouillé.', 'error')
+        loading.value = false;
+        toast.show('[E2EE] Votre clé privée est introuvable. Veuillez déverrouiller votre espace sécurisé (PIN).', 'error');
         return;
     }
 
-    currentThreadKey.value = key;
+    socket.value.emit("get-thread-access", { threadId: id }, async (response: { encryptedKey?: string, error?: string }) => {
 
-    socket.value.emit("join-thread", { 
-        threadId: id, 
-        spaceId: route.params.spaceId 
+        if (response.error || !response.encryptedKey) 
+        {
+            loading.value = false;
+            toast.show('[E2EE] Accès refusé ou impossible de récupérer la clé du salon.', 'error');
+            return;
+        }
+
+        try {
+            
+            const decryptedKey = await decryptThreadKeyWithRsa(response.encryptedKey, privateKey.value!);
+            currentThreadKey.value = decryptedKey;
+
+            socket.value.emit("join-thread", { 
+                threadId: id, 
+                spaceId: route.params.spaceId 
+            });
+
+            let _thread;
+            if (route.params.spaceId == 'home')  _thread = openedOrg.value?.home.threads.find(__thread => __thread.id == thread.value?.id);
+            else _thread = (openedOrg.value?.spaces?.find(space => space.id == route.params.spaceId))?.threads.find(__thread => __thread.id == thread.value?.id);
+
+            if (_thread) _thread.hasUnread = false;
+
+            await nextTick();
+            TextareaRef.value?.textarea?.focus();
+
+
+        } catch (cryptoErr) {
+            loading.value = false;
+            console.error(cryptoErr);
+            toast.show('[E2EE] Échec du déchiffrement de la clé de session du salon.', 'error');
+        }
+
     });
-
-    let _thread
-    if (route.params.spaceId == 'home')  _thread = openedOrg.value?.home.threads.find(__thread => __thread.id == thread.value?.id);
-    else _thread = (openedOrg.value?.spaces?.find(space => space.id == route.params.spaceId))?.threads.find(__thread => __thread.id == thread.value?.id);
-
-    if (_thread) _thread.hasUnread = false;
-
-    await nextTick();
-    TextareaRef.value?.textarea?.focus();
 
 };
 
@@ -569,18 +610,19 @@ const sendMessage = async () => {
 
     if (!newMessage.value.trim() || !socket.value || !currentThreadKey.value) return;
 
-    const encryptedData = await encrypt(newMessage.value, currentThreadKey.value);
+    const { ciphertext, iv } = await encryptMessageWithContentKey(newMessage.value, currentThreadKey.value);
     
     const payload = {
         threadId: thread.value?.id,
-        content: encryptedData,
+        content: ciphertext, // Contenu chiffré
+        iv: iv,              // IV nécessaire au déchiffrement des pairs
         replyToId: messageWillBeResponded.value?.id,
         nonce: "n_" + Date.now(),
         context: route.params.spaceId ? 'workspace' : 'home'
     };
 
     try {
-        
+
         const confirmedMessage: any = await new Promise((resolve, reject) => {
             socket.value.emit("send-message", payload, (response: any) => {
                 if (response?.error) reject(response.error);
@@ -594,7 +636,7 @@ const sendMessage = async () => {
         newMessage.value = "";
         scrollToBottom();
 
-        if (selectedFiles.value.length)
+        if (selectedFiles.value.length) 
         {
             socket.value?.emit('edit-message-files', { id: lastMessageId.value, files: files.value });
             await nextTick();
@@ -603,10 +645,9 @@ const sendMessage = async () => {
             fileSendProgress.value = null;
         }
 
-    } catch (err) 
-    {
+    } catch (err) {
         console.error("Erreur lors de l'envoi du message :", err);
-        toast.show('Une erreur est survenue lors de l\'envoie du message.', 'error');
+        toast.show('Une erreur est survenue lors de l\'envoi du message.', 'error');
     }
 
 };

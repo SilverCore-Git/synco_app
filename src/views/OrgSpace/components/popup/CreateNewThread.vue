@@ -95,6 +95,7 @@ import { openedOrg } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import type { Thread } from '@/types/types';
 import { useToast } from '@/composables/useToast';
+import { generateThreadKey, encryptThreadKeyForMember } from '@/assets/utils/crypto';
 
 const route = useRoute();
 const router = useRouter();
@@ -128,8 +129,8 @@ const closeModal = () => {
   form.name = '';
 };
 
-const handleSubmit = async () => {
 
+const handleSubmit = async () => {
     if (!form.name.trim() || form.type == '') return;
 
     loading.value = true;
@@ -137,27 +138,66 @@ const handleSubmit = async () => {
     try {
 
         const spaceId = route.params.spaceId as string;
-        
+        let encryptedKeysPayload: Array<{ userId: string; encryptedKey: string }> = [];
+
+        if (form.type === 'text') 
+        {
+
+            try {
+
+                const members = openedOrg.value?.members?.map(m => m!.user!) || [];
+
+                const newThreadKey = await generateThreadKey();
+
+                for (const member of members) 
+                {
+                    if (member.publicKey) 
+                    {
+                        const encryptedKey = await encryptThreadKeyForMember(newThreadKey, member.publicKey);
+                        encryptedKeysPayload.push({
+                            userId: member.id,
+                            encryptedKey: encryptedKey
+                        });
+                    }
+                }
+
+            } catch (cryptoErr) {
+                console.error('[E2EE] Erreur lors de la préparation des clés :', cryptoErr);
+                toast.show("Échec de l'initialisation de la sécurité du salon.", 'error');
+                loading.value = false;
+                return;
+            }
+
+        }
+
+        const payload = { 
+            ...form, 
+            index: props.index, 
+            categoryId: props.categoryId,
+            keys: encryptedKeysPayload
+        };
+
         const res = await sfetch(`/api/threads/${isHome.value ? 'org' : 'space'}/${isHome.value ? route.params.orgId : spaceId}`, {
             method: 'POST',
-            body: JSON.stringify({ ...form, index: props.index, categoryId: props.categoryId })
+            body: JSON.stringify(payload)
         }).then(res => res.json());
 
-        if (res.error)
+        if (res.error) 
         {
             toast.show('Une erreur est survenue lors de la création du salon.', 'error');
             console.error('Error on thread creation : ', res.error);
-        }
-        else
+        } 
+        else 
         {
-            if (isHome.value)
+
+            if (isHome.value) 
             {
                 const thread: Thread = res;
                 openedOrg.value?.home?.threads?.push(thread);
                 await nextTick();
                 router.push({ name: 'OrgThreadHome', params: { orgId: route.params.orgId, threadId: res.id } });
-            }
-            else
+            } 
+            else 
             {
                 const thread: Thread = res;
                 const space = openedOrg.value?.spaces?.find(s => s.id === route.params.spaceId);
@@ -172,15 +212,13 @@ const handleSubmit = async () => {
 
         closeModal();
 
-    } 
-    catch (err: any) {
+    } catch (err: any) {
         toast.show('Une erreur est survenue lors de la création du salon.', 'error');
         console.error('Error on thread creation : ', err);
-    } 
-    finally {
+    } finally {
         loading.value = false;
     }
-
+    
 };
 
 </script>

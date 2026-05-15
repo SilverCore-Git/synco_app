@@ -207,10 +207,9 @@ import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
 import useWSocket from '@/composables/useWSocket';
 import EditMessage from '../popup/EditMessage.vue';
-import { deriveKey, encrypt } from '@/assets/utils/threadsCrypto';
-import { openedOrg } from '@/assets/var';
 import type { Message } from '@/types/types';
 import { downloadFile } from '@/assets/utils/downloadFile';
+import { encryptMessageWithContentKey } from '@/assets/utils/crypto';
 
 interface sMessage extends Message {
     sender?: { name: string; avatarUrl: string; };
@@ -220,6 +219,7 @@ const props = defineProps<{
     msg: sMessage;
     selectedMessage: string | null;
     messages: sMessage[];
+    currentThreadKey: CryptoKey | null;
 }>();
 
 interface DropdownBtn {
@@ -292,12 +292,15 @@ const deleteMessage = async () => {
 
 const editMessage = async (newContent: string) => {
 
-    const key = await deriveKey(openedOrg.value!.id, props.msg.threadId);
-    if (!key) return;
-    const cryptedContent = await encrypt(newContent, key);
+    const { ciphertext, iv } = await encryptMessageWithContentKey(newContent, props.currentThreadKey!);
 
     const socket = await useWSocket();
-    socket.value?.emit('edit-message', { id: props.msg.id, newContent: cryptedContent });
+        
+    socket.value?.emit('edit-message', { 
+        id: props.msg.id, 
+        content: ciphertext, 
+        nonce: iv 
+    });
 
 };
 

@@ -3,7 +3,6 @@ import type { Message, OrgMember } from "@/types/types";
 import { ref, watch } from "vue";
 import useWSocket from "./useWSocket";
 import { useRoute } from "vue-router";
-import { decrypt, deriveKey } from "@/assets/utils/threadsCrypto";
 import { openedOrg } from "@/assets/var";
 
 
@@ -179,9 +178,7 @@ const initListener = async () => {
 
         let decryptedMessage = message;
 
-        const key = await deriveKey(openedOrg.value!.id, message.threadId);
-        if (!key) return;
-        decryptedMessage.content = await decrypt(message.content, key);
+        decryptedMessage.content = message.content;
 
         messageNotif.value.push(decryptedMessage);
 
