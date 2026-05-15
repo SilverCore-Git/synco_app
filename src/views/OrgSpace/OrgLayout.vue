@@ -15,6 +15,7 @@ import useSettingsItem from '@/composables/useSettingsItem';
 import keycloak from '@/assets/keycloak';
 import useNotifications from '@/composables/useNotifications';
 import { isMeeting } from '@/composables/usePrivatMeet';
+import CallOverlay from '@/components/peer/CallOverlay.vue';
 
 
 const props = defineProps<{
@@ -248,5 +249,7 @@ onBeforeUnmount(async () => {
             <UserCard />
 
         </div>
+
+        <CallOverlay />
 
 </template>

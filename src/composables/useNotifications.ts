@@ -37,23 +37,27 @@ const notifications = ref<Notification[]>([]);
 
 const removeAfter: number = 3000;
 
+watch(callNotif, (newList) => {
 
-let lastCallNotifLength: number = callNotif.value.length;
-watch(() => callNotif.value, () => {
+    if (!newList || newList.length === 0) return;
 
-    if (callNotif.value.length > lastCallNotifLength)
+    const lastCall = newList[newList.length - 1];
+
+    const alreadyNotified = notifications.value.some(n => n.call?.id === lastCall?.id);
+
+    if (!alreadyNotified) 
     {
+    
         notifications.value.push({
-            id: notifications.value.length + 1,
+            id: Date.now(), 
             type: 'notif:call',
             createdAt: new Date(),
-            call: callNotif.value[callNotif.value.length - 1]
+            call: lastCall
         });
+        
     }
 
-    lastCallNotifLength = callNotif.value.length;
-
-})
+}, { deep: true });
 
 
 let lastMsgNotifLength: number = messageNotif.value.length;

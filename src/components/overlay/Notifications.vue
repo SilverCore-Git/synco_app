@@ -83,7 +83,7 @@
                                 </button>
                                 
                                 <button 
-                                    @click="router.push({ name: 'OrgThreadChat', params: { userId: notif.call?.userId } }), acceptCall()"
+                                    @click="router.push({ name: 'OrgThreadChat', params: { userId: notif.call?.id } }), acceptCall()"
                                     class="primary w-full gap-3"
                                 >
                                     <i class="bi bi-telephone-fill animate-bounce" />

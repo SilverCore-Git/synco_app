@@ -8,7 +8,7 @@ import Notifications from './components/overlay/Notifications.vue';
 import useSettingsItem from './composables/useSettingsItem';
 import keycloak, { initKC } from './assets/keycloak';
 import LogoLoader from './components/LogoLoader.vue';
-import { E2EEUnloked, generateSalt, lockSecurity, privateKey, setupFirstTimeSecurity, unlockSecurity } from './assets/utils/crypto';
+import { E2EEUnloked, lockSecurity, setupFirstTimeSecurity, unlockSecurity } from './assets/utils/crypto';
 import sfetch from './assets/utils/sfetch';
 import { useToast } from './composables/useToast';
 import SpinLoader from './components/SpinLoader.vue';
