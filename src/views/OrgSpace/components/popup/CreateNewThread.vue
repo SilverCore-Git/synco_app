@@ -144,14 +144,17 @@ const handleSubmit = async () => {
         {
 
             try {
-
-                const members = openedOrg.value?.members?.map(m => m!.user!) || [];
+                
+                const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
+                
+                const members = openedOrg.value?.members?.filter(m => space?.membersId.includes(m.userId)).map(m => m!.user!) || [];
 
                 const newThreadKey = await generateThreadKey();
 
                 for (const member of members) 
                 {
-                    if (member.publicKey) 
+                    
+                    if (member.publicKey && typeof member.publicKey === 'string' && member.publicKey.trim().startsWith('{')) 
                     {
                         const encryptedKey = await encryptThreadKeyForMember(newThreadKey, member.publicKey);
                         encryptedKeysPayload.push({
@@ -159,15 +162,24 @@ const handleSubmit = async () => {
                             encryptedKey: encryptedKey
                         });
                     }
+                    else if (member.publicKey) 
+                    {
+                        console.warn(`[E2EE] Clé ignorée pour l'utilisateur ${member.id} (Format non-JWK ou pollué par Keycloak).`);
+                    }
                 }
 
-            } catch (cryptoErr) {
+                if (encryptedKeysPayload.length === 0) 
+                {
+                    throw new Error("Aucun membre du salon ne possède de clé de chiffrement E2EE valide.");
+                }
+
+            } catch (cryptoErr: any) {
                 console.error('[E2EE] Erreur lors de la préparation des clés :', cryptoErr);
-                toast.show("Échec de l'initialisation de la sécurité du salon.", 'error');
+                toast.show(`Échec de la sécurité : ${cryptoErr.message || "Clés invalides."}`, 'error');
                 loading.value = false;
                 return;
             }
-
+            
         }
 
         const payload = { 

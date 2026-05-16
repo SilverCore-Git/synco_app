@@ -224,7 +224,7 @@ export async function decryptMessageWithContentKey(
 
     } catch (e) {
         console.error("[E2EE] Échec du déchiffrement du message", e);
-        return "⚠️ Erreur : Impossible de déchiffrer ce message.";
+        return "[⚠️ Impossible de déchiffrer ce message.]";
     }
 
 }

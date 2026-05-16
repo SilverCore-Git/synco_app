@@ -51,9 +51,7 @@
 
                 </template>
 
-                <div
-                    v-else
-                >
+                <div v-else>
                 
                     <ThreadMessage
                         v-for="msg in sortedMessages"
@@ -141,7 +139,6 @@
                         :style="{ width: fileSendProgress + '%' }"
                     />
 
-                                
                     <div class="w-10 h-10 shrink-0 flex items-center justify-center rounded bg-(--bg) border border-(--text)/5">
 
                         <template v-if="file.name.includes('67')">
@@ -238,7 +235,7 @@
                     multiple 
                     ref="fileInputRef" 
                     class="hidden" 
-                    @change="(e) => handleFiles(e.target.files)"
+                    @change="(e) => handleFiles((e.target as HTMLInputElement).files)"
                 />
 
                 <button 
@@ -284,7 +281,7 @@
 
                         <i class="bi bi-arrow-repeat animate-spin text-lg" />
                         
-                        <span v-if="fileSendProgress = 100">Finalisation...</span>
+                        <span v-if="fileSendProgress == 100">Finalisation...</span>
                         <span v-else>{{ fileSendProgress }}%</span>
                         
                         <div 
@@ -345,6 +342,7 @@ watch(() => selectedMessage.value, () => { setTimeout(() => { router.push({ quer
 const currentThreadKey = ref<CryptoKey | null>(null);
 
 interface sMessage extends Message {
+    iv?: string;
     sender?: { name: string; avatarUrl: string; };
 }
 
@@ -368,12 +366,13 @@ const lastMessageId = ref<string>('');
 // file / pj
 const triggerFileSearch = () => fileInputRef.value?.click();
 
-const handleFiles = (files: FileList | File[]) => {
-    
+const handleFiles = (filesList: FileList | File[] | null) => {
+
+    if (!filesList) return;
     isDragging.value = false;
-    const newFiles = Array.from(files);
+    const newFiles = Array.from(filesList);
     const LIMIT = 10;
-    const MAX_SIZE_GB = 10; // Limite à 10 GB
+    const MAX_SIZE_GB = 10; 
     const MAX_SIZE_BYTES = MAX_SIZE_GB * 1024 * 1024 * 1024;
 
     if (selectedFiles.value.length >= LIMIT) 
@@ -431,9 +430,7 @@ const removeFile = (index: number) => {
 };
 
 const validUpload = async () => {
-
     fileSendProgress.value = 0;
-
     files.value = await uploadFiles(
         selectedFiles.value,
         {
@@ -443,7 +440,6 @@ const validUpload = async () => {
             fileSendProgress.value = percent;
         }
     )
-
 }
 
 
@@ -452,12 +448,30 @@ const processMessages = async (msgs: sMessage[]) => {
     if (!currentThreadKey.value) return msgs;
 
     const decryptedMessages = await Promise.all(msgs.map(async m => {
-        if (m.content && m.nonce) 
+
+        if (m.content && m.content.trim() !== "") 
         {
-            const clearText = await decryptMessageWithContentKey(m.content, m.nonce, currentThreadKey.value!);
-            return { ...m, content: clearText };
+
+            try {
+                
+                const vectorInit = m.iv && m.iv.trim() !== "" ? m.iv : m.nonce;
+                
+                if (!vectorInit || vectorInit.trim() === "") {
+                    return { ...m, content: "🔒 Erreur E2EE : Vecteur d'initialisation manquant." };
+                }
+
+                const clearText = await decryptMessageWithContentKey(m.content, vectorInit, currentThreadKey.value!);
+                return { ...m, content: clearText };
+            } 
+            catch (cryptoErr) {
+                console.error(`[E2EE] Échec du déchiffrement pour le message ${m.id}:`, cryptoErr);
+                return { ...m, content: "🔒 Impossible de déchiffrer ce message (Chaîne ou IV invalide)." };
+            }
+
         }
+
         return m;
+
     }));
 
     return decryptedMessages.sort((a, b) => {
@@ -484,7 +498,6 @@ const initListener = () => {
     socket.value.off("thread-history").off("more-messages").off("new-message");
 
     socket.value.on("thread-history", async (history: sMessage[]) => {
-
         rawMessages.value.clear();
         history.forEach(m => rawMessages.value.set(m.id, m));
         sortedMessages.value = await processMessages(history);
@@ -492,11 +505,9 @@ const initListener = () => {
         loading.value = false;
         hasMore.value = history.length >= 15;
         scrollToBottom(true);
-
     });
 
     socket.value.on("more-messages", async (more: sMessage[]) => {
-
         if (more.length === 0) { hasMore.value = false; isFetchingMore.value = false; return; }
         if (more.length < 20) hasMore.value = false;
 
@@ -509,15 +520,19 @@ const initListener = () => {
         await nextTick();
         if (container) container.scrollTop = container.scrollHeight - scrollOffset;
         setTimeout(() => { isFetchingMore.value = false; }, 100);
-
     });
 
     socket.value.on("new-message", async (msg: sMessage) => {
-
         let clearContent = msg.content;
-        if (msg.content && msg.nonce && currentThreadKey.value) 
+        if (msg.content && msg.content.trim() !== "" && currentThreadKey.value) 
         {
-            clearContent = await decryptMessageWithContentKey(msg.content, msg.nonce, currentThreadKey.value);
+            try {
+                const vectorInit = msg.iv && msg.iv.trim() !== "" ? msg.iv : msg.nonce;
+                clearContent = await decryptMessageWithContentKey(msg.content, vectorInit, currentThreadKey.value);
+            } catch (err) {
+                console.error("[E2EE] Échec réception à la volée :", err);
+                clearContent = "🔒 Impossible de déchiffrer ce message en direct.";
+            }
         }
         
         const decrypted = { ...msg, content: clearContent };
@@ -529,7 +544,6 @@ const initListener = () => {
             const isNearBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 200;
             if (isNearBottom) scrollToBottom();
         }
-
     });
 
     socket.value.on('delete-message', (msgId: string) => {
@@ -538,22 +552,25 @@ const initListener = () => {
     });
 
     socket.value.on('edit-message', async (editedMsg: sMessage) => {
-
         let decryptedContent = editedMsg.content;
-        if (editedMsg.content && editedMsg.nonce && currentThreadKey.value) 
+        if (editedMsg.content && editedMsg.content.trim() !== "" && currentThreadKey.value) 
         {
-            decryptedContent = await decryptMessageWithContentKey(editedMsg.content, editedMsg.nonce, currentThreadKey.value);
+            try {
+                const vectorInit = editedMsg.iv && editedMsg.iv.trim() !== "" ? editedMsg.iv : editedMsg.nonce;
+                decryptedContent = await decryptMessageWithContentKey(editedMsg.content, vectorInit, currentThreadKey.value);
+            } catch (err) {
+                decryptedContent = "🔒 Échec du déchiffrement lors de l'édition.";
+            }
         }
         const updatedMsg = { ...editedMsg, content: decryptedContent };
         rawMessages.value.set(editedMsg.id, updatedMsg);
         sortedMessages.value = sortedMessages.value.map(m => m.id === editedMsg.id ? updatedMsg : m);
-
     });
 
 };
 
 const joinThread = async (id: string) => {
-    
+
     if (!socket.value) return;
     
     loading.value = true;
@@ -572,18 +589,18 @@ const joinThread = async (id: string) => {
         if (response.error || !response.encryptedKey) 
         {
             loading.value = false;
+            console.error('[E2EE] erreur serveur : ', response)
             toast.show('[E2EE] Accès refusé ou impossible de récupérer la clé du salon.', 'error');
             return;
         }
 
         try {
-            
+
             const decryptedKey = await decryptThreadKeyWithRsa(response.encryptedKey, privateKey.value!);
             currentThreadKey.value = decryptedKey;
 
             socket.value.emit("join-thread", { 
-                threadId: id, 
-                spaceId: route.params.spaceId 
+                threadId: id
             });
 
             let _thread;
@@ -595,11 +612,11 @@ const joinThread = async (id: string) => {
             await nextTick();
             TextareaRef.value?.textarea?.focus();
 
-
         } catch (cryptoErr) {
-            loading.value = false;
-            console.error(cryptoErr);
+            console.error("[E2EE] Échec Déchiffrement Salon:", cryptoErr);
             toast.show('[E2EE] Échec du déchiffrement de la clé de session du salon.', 'error');
+        } finally {
+            loading.value = false;
         }
 
     });
@@ -610,18 +627,18 @@ const sendMessage = async () => {
 
     if (!newMessage.value.trim() || !socket.value || !currentThreadKey.value) return;
 
-    const { ciphertext, iv } = await encryptMessageWithContentKey(newMessage.value, currentThreadKey.value);
-    
-    const payload = {
-        threadId: thread.value?.id,
-        content: ciphertext, // Contenu chiffré
-        iv: iv,              // IV nécessaire au déchiffrement des pairs
-        replyToId: messageWillBeResponded.value?.id,
-        nonce: "n_" + Date.now(),
-        context: route.params.spaceId ? 'workspace' : 'home'
-    };
-
     try {
+
+        const { ciphertext, iv } = await encryptMessageWithContentKey(newMessage.value, currentThreadKey.value);
+        
+        const payload = {
+            threadId: thread.value?.id,
+            content: ciphertext, 
+            iv: iv,              
+            replyToId: messageWillBeResponded.value?.id,
+            nonce: "n_" + Date.now(),
+            context: route.params.spaceId ? 'workspace' : 'home'
+        };
 
         const confirmedMessage: any = await new Promise((resolve, reject) => {
             socket.value.emit("send-message", payload, (response: any) => {
@@ -649,7 +666,7 @@ const sendMessage = async () => {
         console.error("Erreur lors de l'envoi du message :", err);
         toast.show('Une erreur est survenue lors de l\'envoi du message.', 'error');
     }
-
+    
 };
 
 const scrollToBottom = async (instant = false) => {
@@ -672,29 +689,30 @@ watch(() => messageWillBeResponded.value, () => {
     TextareaRef.value?.textarea?.focus();
 });
 
-watch(() => route.params.threadId, (newId) => {
+watch(() => props.thread?.id, (newId) => {
     if (newId) joinThread(newId as string);
 }, { immediate: true });
 
 onMounted(async () => {
-    socket.value = (await useWSocket()).value;
-    await nextTick();
+    const ws = await useWSocket();
+    socket.value = ws.value;
+    
     initListener();
-    await nextTick();
-    joinThread(String(route.params.threadId));
     window.addEventListener('paste', handlePaste);
+
+    if (route.params.threadId) 
+    {
+        await joinThread(String(route.params.threadId));
+    }
 });
 
 onUnmounted(() => {
-
     if (socket.value) 
     {
         socket.value.emit("leave-thread", thread.value?.id);
         socket.value.off("thread-history").off("more-messages").off("new-message");
     }
-
     window.removeEventListener('paste', handlePaste);
-
 });
 
 </script>

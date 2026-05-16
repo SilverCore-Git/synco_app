@@ -87,6 +87,10 @@ const submit = async () => {
 
 }
 
+const pinForgot = () => {
+  alert('t mort');
+}
+
 onMounted(async () => {
 
   const res = await fetch(`${import.meta.env.VITE_API_URL}/health`);
@@ -225,7 +229,11 @@ onUnmounted(() => {
 
             </div>
 
-            <button v-if="pinSetup" class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text)/30 hover:text-(--primary) transition-colors">
+            <button 
+              v-if="pinSetup" 
+              @click="pinForgot"
+              class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text)/30 hover:text-(--primary) transition-colors"
+            >
                 Code PIN oublié ?
             </button>
             

@@ -158,10 +158,6 @@ onMounted(async () => {
             <button 
                 @click="createNewOrg()"
                 class="primary"
-                :class="[
-                    !newOrgForm.name.trim() || newOrgForm.logo == '' ? ' grayscale-100 pointer-events-none opacity-50' : ''
-                ]"
-                :disabled="!newOrgForm.name.trim() || newOrgForm.logo == ''"
             >
                 Créer l'espace
             </button>
