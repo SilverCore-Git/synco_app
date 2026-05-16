@@ -78,16 +78,14 @@
                                 {{ getReplyMessage(msg.replyToId)?.sender?.name || 'Anonyme' }}
                             </p>
                             <p class="text-xs text-(--text)/70 italic line-clamp-2">
-                                {{ getReplyMessage(msg.replyToId)?.content }}
+                                <MarkdownRender :content="getReplyMessage(msg.replyToId)?.content || ''" />
                             </p>
                         </div>
 
-                        <p class="text-(--text)/80 text-sm leading-relaxed wrap-break-word whitespace-pre-wrap">
-                            {{ msg.content }}
-                            <span v-if="msg.edited" class="text-[10px] text-(--text)/30">
-                                (modifié)
-                            </span>
-                        </p>
+                        <div class="text-(--text)/80 text-sm leading-relaxed wrap-break-word">
+                            <MarkdownRender :content="msg.content" />
+                            <span v-if="msg.edited" class="text-[10px] text-(--text)/30"> (modifié)</span>
+                        </div>
 
                         <div 
                             v-if="msg.files && msg.files.length > 0" 
@@ -210,6 +208,7 @@ import EditMessage from '../popup/EditMessage.vue';
 import type { Message } from '@/types/types';
 import { downloadFile } from '@/assets/utils/downloadFile';
 import { encryptMessageWithContentKey } from '@/assets/utils/crypto';
+import MarkdownRender from '../../views/MarkdownRender.vue';
 
 interface sMessage extends Message {
     sender?: { name: string; avatarUrl: string; };

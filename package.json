@@ -12,11 +12,13 @@
     "@emailjs/browser": "^4.4.1",
     "@tailwindcss/vite": "^4.1.17",
     "bootstrap-icons": "^1.13.1",
+    "dompurify": "^3.4.3",
     "floating-vue": "^5.2.2",
     "gsap": "^3.13.0",
     "keycloak-js": "^26.2.3",
     "livekit-client": "^2.18.1",
     "markdown-it": "^14.1.0",
+    "marked": "^18.0.3",
     "peerjs": "^1.5.5",
     "socket.io-client": "^4.8.3",
     "tailwindcss": "^4.1.17",
@@ -27,6 +29,7 @@
     "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
+    "@types/dompurify": "^3.0.5",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.10.0",
     "@types/vue-router": "^2.0.0",

@@ -1,0 +1,130 @@
+<template>
+    <div class="markdown-body text-sm leading-relaxed wrap-break-word" v-html="renderedHtml" />
+</template>
+
+<script setup lang="ts">
+
+import { computed } from 'vue';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
+
+const props = defineProps<{
+  content: string;
+}>();
+
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+});
+
+const renderedHtml = computed(() => {
+
+    if (!props.content) return '';
+    
+    const rawHtml = marked.parse(props.content) as string;
+    
+    return DOMPurify.sanitize(rawHtml, {
+        ALLOWED_TAGS: [
+            'p', 'br', 'strong', 'em', 'del', 'code', 'pre', 
+            'ul', 'ol', 'li', 'blockquote', 'a', 'h1', 'h2', 'h3'
+        ],
+        ALLOWED_ATTR: ['href', 'target', 'class']
+    });
+
+});
+
+</script>
+
+<style scoped>
+
+.markdown-body :deep(p) {
+  margin-bottom: 0.5rem;
+}
+.markdown-body :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.markdown-body :deep(code:not(pre code)) {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ff79c6;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 85%;
+}
+
+.markdown-body :deep(pre) {
+  background-color: rgba(0, 0, 0, 0.3);
+  border: 1px border;
+  border-color: rgba(255, 255, 255, 0.05);
+  padding: 0.75rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-family: monospace;
+  margin: 0.5rem 0;
+}
+
+.markdown-body :deep(pre code) {
+  color: #e2e8f0;
+  font-size: 0.875rem;
+  background: none;
+  padding: 0;
+}
+
+.markdown-body :deep(a) {
+  color: var(--primary, #3b82f6);
+  text-decoration: underline;
+}
+
+.markdown-body :deep(ul) {
+  list-style-type: disc;
+  padding-left: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+.markdown-body :deep(ol) {
+  list-style-type: decimal;
+  padding-left: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.markdown-body :deep(blockquote) {
+  border-left: 4px solid var(--primary, #3b82f6);
+  background-color: rgba(255, 255, 255, 0.03);
+  padding: 0.5rem 0.75rem;
+  margin: 0.5rem 0;
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 0 4px 4px 0;
+}
+
+.markdown-body :deep(h1),
+.markdown-body :deep(h2),
+.markdown-body :deep(h3) {
+  color: #ffffff;
+  font-weight: 800;
+  line-height: 1.3;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.markdown-body :deep(h1) {
+  font-size: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.3rem;
+}
+
+.markdown-body :deep(h2) {
+  font-size: 1.25rem;
+}
+
+.markdown-body :deep(h3) {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.markdown-body :deep(h1:first-child),
+.markdown-body :deep(h2:first-child),
+.markdown-body :deep(h3:first-child) {
+  margin-top: 0;
+}
+
+</style>
