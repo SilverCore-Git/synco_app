@@ -1,6 +1,9 @@
 <template>
 
-    <div class="h-full w-full pb-20 bg-(--bg2) border-r border-(--text)/5">
+    <div 
+        class="h-full w-full pb-20 bg-(--bg2) border-r border-l border-white/5 "
+        :class="isDesktopApp() ? 'border-t' : ''"
+    >
 
         <!-- loader -->
         <template v-if="openedOrg == null" class="h-full w-full">
@@ -253,6 +256,7 @@ import SettingsViewBtn from '../CanalBar/SettingsViewBtn.vue';
 import { settingsViews } from '../../views/settings/settings';
 import isAdmin from '@/assets/isAdmin';
 import Category from '../CanalBar/Category.vue';
+import isDesktopApp from '@/assets/isDesktopApp';
 
 
 const route = useRoute();

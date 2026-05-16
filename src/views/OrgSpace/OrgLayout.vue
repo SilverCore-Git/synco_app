@@ -16,6 +16,7 @@ import keycloak from '@/assets/keycloak';
 import useNotifications from '@/composables/useNotifications';
 import { isMeeting } from '@/composables/usePrivatMeet';
 import CallOverlay from '@/components/peer/CallOverlay.vue';
+import isDesktopApp from '@/assets/isDesktopApp';
 
 
 const props = defineProps<{
@@ -227,15 +228,18 @@ onBeforeUnmount(async () => {
         <div
             class="
                 h-full w-full flex flex-row 
-                relative bg-(--bg3)
+                relative bg-(--bg)
             "
             :style="{ viewTransitionName: `openOrg-${orgOnOpen?.id}` }"
         >
 
             <SpaceBar class="h-full" />
-            <ThreadsBar class="h-full w-60 max-w-60 min-w-60" />
+            <ThreadsBar class="h-full w-60 max-w-60 min-w-60 " :class="isDesktopApp() ? 'rounded-tl-2xl' : ''" />
 
-            <div class="relative flex-1 h-full min-w-0 overflow-hidden bg-(--bg3)">
+            <div 
+                class="relative flex-1 h-full min-w-0 overflow-hidden bg-(--bg3)"
+                :class="isDesktopApp() ? 'border-t border-white/10' : ''"
+            >
                 <RouterView />
             </div>
 

@@ -12,6 +12,7 @@ import { E2EEUnloked, lockSecurity, setupFirstTimeSecurity, unlockSecurity } fro
 import sfetch from './assets/utils/sfetch';
 import { useToast } from './composables/useToast';
 import SpinLoader from './components/SpinLoader.vue';
+import TopBar from './components/layout/topBar.vue';
 
 const toast = useToast();
 const { Item: theme } = useSettingsItem('theme', 'dark');
@@ -114,11 +115,11 @@ onUnmounted(() => {
   <Toast />
 
   <div
-    class="w-screen h-screen relative"
+    class="w-screen h-screen relative flex flex-col"
   >
 
-    <div>
-      <!-- top bar for desktop app -->
+    <div class="w-full">
+      <TopBar />
     </div>
 
     <div v-if="authenticated" class="h-full w-full">

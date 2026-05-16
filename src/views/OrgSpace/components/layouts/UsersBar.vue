@@ -5,6 +5,7 @@
             h-full w-full border-l border-white/5
             flex flex-col overflow-hidden  bg-(--bg3)
         "
+        :class="isDesktopApp() ? 'border-t' : ''"
     >
 
         <div class="px-4 min-h-14 flex justify-start items-center border-b border-white/5 bg-(--bg2)">
@@ -157,6 +158,7 @@
 import { computed } from 'vue';
 import { openedOrg } from '@/assets/var';
 import getColorByStatus from '@/assets/utils/getColorByStatus';
+import isDesktopApp from '@/assets/isDesktopApp';
 
 const members = computed(() => {
 
