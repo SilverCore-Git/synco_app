@@ -24,7 +24,7 @@
         >
 
             <img 
-                v-if="org.logo && org.logo.startsWith('http')" 
+                v-if="org.logo && org.logo.startsWith('data:')" 
                 :src="org.logo" 
                 :alt="org.name" 
                 class="
@@ -32,15 +32,6 @@
                     object-cover group-hover:grayscale-0 
                 "
                 :class="loader ? 'grayscale-0' : 'grayscale-50'"
-            />
-
-            <i
-                v-else-if="org.logo"
-                class="
-                    group-hover:opacity-100 transition-all
-                    bi text-9xl object-cover opacity-50
-                "
-                :class="org.logo"
             />
 
             <div v-else class="w-full h-full bg-(--bg) flex items-center justify-center">

@@ -27,30 +27,21 @@
                             >
                                 
                                 <img 
-                                    v-if="orgData.logo && orgData.logo.startsWith('http')" 
+                                    v-if="orgData.logo && orgData.logo.startsWith('data:')" 
                                     :src="orgData.logo" 
                                     class="w-full h-full object-cover" 
                                 />
 
-                                <i 
-                                    v-else-if="orgData.logo"
-                                    class="bi text-7xl"
-                                    :class="orgData.logo"
-                                />
-                                
-                                <template v-else>
-                                    <i class="bi bi-camera text-2xl text-(--text)/20 mb-2" />
-                                    <span class="text-[10px] text-(--text)/30 font-bold uppercase tracking-widest">
-                                        Modifier
-                                    </span>
-                                </template>
+                                <div v-else class="w-full h-full bg-(--bg) flex items-center justify-center">
+                                    <span class="text-4xl font-black text-(--primary)">{{ orgData.name.substring(0, 2).toUpperCase() }}</span>
+                                </div>
 
                             </div>
 
                             <div class="fixed inset-0 cursor-auto" @click="showIconSelector = false" v-if="showIconSelector" />
                             <Transition name="pop">
                                 <div class="absolute" v-if="showIconSelector">
-                                    <IconSelector v-model:model-value="orgData.logo" />
+                                    <IconSelector v-model:model-value="orgData.logo" @on-base64="(icon: string) => orgData.logo = icon" />
                                 </div>
                             </Transition>
 
@@ -251,7 +242,6 @@ const saveSettings = async () => {
     }
 
 };
-
 
 const deleteOrg = async () => {
 
