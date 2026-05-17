@@ -26,7 +26,7 @@
 
             </div>
 
-            <div class="space-y-4 w-full">
+            <div class="space-y-4 w-full overflow-hidden">
 
                 <div v-if="isFetchingMore" class="flex justify-center py-4">
                     <SpinLoader />
@@ -53,14 +53,18 @@
 
                 <div v-else>
                 
-                    <ThreadMessage
-                        v-for="msg in sortedMessages"
-                        :key="msg.id"
-                        :msg="msg"
-                        :selectedMessage="selectedMessage"
-                        :messages="sortedMessages"
-                        :currentThreadKey="currentThreadKey"
-                    />
+                    <div 
+                            v-for="msg in sortedMessages" 
+                            :key="msg.id"
+                            :id="'msg-' + msg.id"
+                    >
+                        <ThreadMessage
+                            :msg="msg"
+                            :selectedMessage="selectedMessage"
+                            :messages="sortedMessages"
+                            :currentThreadKey="currentThreadKey"
+                        />
+                    </div>
 
                 </div>
 
@@ -92,17 +96,14 @@
             <div 
                 v-if="messageWillBeResponded" 
                 class="
-                    mb-2 flex items-start gap-3 bg-(--bg)/80 backdrop-blur-3xl
+                    mb-2 flex items-center gap-3 bg-(--bg)/80 backdrop-blur-3xl
                     border border-(--primary)/30 rounded-lg px-4 py-3
                 "
             >
                 
                 <div class="flex-1 min-w-0">
-                    <p class="text-xs text-(--primary) font-semibold mb-1">
+                    <p class="text-md text-(--primary) font-semibold mb-1">
                         Répondre à {{ getMessageSenderName(messageWillBeResponded) }}
-                    </p>
-                    <p class="text-sm text-(--text)/70 truncate">
-                        {{ messageWillBeResponded.content || '(message vide)' }}
                     </p>
                 </div>
 
@@ -337,7 +338,18 @@ const toast = useToast();
 
 const thread = computed(() => props.thread);
 const selectedMessage = computed<string>(() => String(route.query.select));
-watch(() => selectedMessage.value, () => { setTimeout(() => { router.push({ query: { ...route.query, select: undefined } }) }, 5000) });
+watch(() => selectedMessage.value, async (newId) => {
+    if (newId && newId !== 'undefined') 
+    {
+
+        await scrollToSelectedMessage();
+        
+        setTimeout(() => {
+            router.push({ query: { ...route.query, select: undefined } });
+        }, 5000);
+        
+    }
+}, { immediate: true });
 
 const currentThreadKey = ref<CryptoKey | null>(null);
 
@@ -442,6 +454,18 @@ const validUpload = async () => {
     )
 }
 
+const scrollToSelectedMessage = async () => {
+
+    if (!selectedMessage.value || selectedMessage.value === 'undefined') return;
+
+    await nextTick();
+
+    const targetEl = document.getElementById(`msg-${selectedMessage.value}`);
+    if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    console.log(targetEl)
+
+};
 
 const processMessages = async (msgs: sMessage[]) => {
 
@@ -504,7 +528,15 @@ const initListener = () => {
 
         loading.value = false;
         hasMore.value = history.length >= 15;
-        scrollToBottom(true);
+        
+        if (selectedMessage.value && selectedMessage.value !== 'undefined') 
+        {
+            await scrollToSelectedMessage();
+        } 
+        else 
+        {
+            scrollToBottom(true);
+        }
     });
 
     socket.value.on("more-messages", async (more: sMessage[]) => {
