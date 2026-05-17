@@ -197,6 +197,15 @@
 
                         </div>
 
+                        <div 
+                            v-if="msg.transferId && msg.transferMessage" 
+                            class="min-w-0 flex-1 mt-1 mb-2"
+                        >
+                            
+                            feur
+
+                        </div>
+
                     </div>
 
                 </div>
@@ -261,11 +270,11 @@ const dropdownBtns: DropdownBtn[] = [
         tooltip: "répondre",
         func: (msg: Message) => setMessageWillBeResponded(msg)
     },
-    {
-        icon: "bi-arrow-90deg-right",
-        tooltip: "transférer",
-        func: () => {}
-    },
+    // {
+    //     icon: "bi-arrow-90deg-right",
+    //     tooltip: "transférer",
+    //     func: (msg: Message) => setMessageWillBeTransfer(msg)
+    // },
     {
         icon: "bi-trash-fill",
         tooltip: "supprimer",
