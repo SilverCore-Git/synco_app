@@ -45,7 +45,7 @@ import { Cropper, CircleStencil } from 'vue-advanced-cropper';
 import 'vue-advanced-cropper/dist/style.css';
 import Popup from '../Popup.vue';
 import sfetch from '@/assets/utils/sfetch';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, user } from '@/assets/var';
 
 const imageSrc = ref<string | null>(null);
 const cropperRef = ref<any>(null);
@@ -82,52 +82,46 @@ const cropAndUpload = async () => {
     {
 
         loading.value = true;
+
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
         
-        canvas.toBlob(async (blob: Blob) => {
+        try {
 
-            try {
+            loading.value = true;
 
-                loading.value = true;
 
-                const formData = new FormData();
+            const orgUser = openedOrg.value?.members?.find(member => 
+                String(member.user?.id) === String(user.value?.id)
+            );
 
-                formData.append('file', blob, `${localStorage.getItem('userId')}.jpg`);
 
-                const res = await sfetch(`/api/cdn/upload/avatar`, {
-                    method: "POST",
-                    body: formData
-                })
+            if (!user.value || !orgUser || !orgUser.user) return;
+            user.value.avatarUrl = compressedBase64;
+            orgUser.user.avatarUrl = compressedBase64;
 
-                const data = await res.json();
+            await sfetch('/api/users/me', {
+                method: 'PATCH',
+                body: JSON.stringify(user.value)
+            });
 
-                const user = openedOrg.value?.members?.find(member => member.user?.id == localStorage.getItem('userId'));
-                if (user && user.user) user.user.avatarUrl = data.url;
-
-                await sfetch('/api/users/me', {
-                    method: 'PATCH',
-                    body: JSON.stringify({ avatarUrl: data.url })
-                });
-
-                if (imageSrc.value) 
-                {
-                    URL.revokeObjectURL(imageSrc.value);
-                    imageSrc.value = null;
-                }
-                
-                loading.value = false;
-                emit('close');
-
-            } 
-            catch (err) 
+            if (imageSrc.value) 
             {
-                console.error("Erreur upload", err);
-            } 
-            finally 
-            {
-                loading.value = false;
+                URL.revokeObjectURL(imageSrc.value);
+                imageSrc.value = null;
             }
+                
+            loading.value = false;
+            emit('close');
 
-        }, 'image/jpeg');
+        } 
+        catch (err) 
+        {
+            console.error("Erreur upload", err);
+        } 
+        finally 
+        {
+            loading.value = false;
+        }
 
     }
 

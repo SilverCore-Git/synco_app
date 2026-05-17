@@ -37,7 +37,11 @@
                     <div class="flex items-cente justify-between gap-6 p-4 bg-(--bg2) rounded-xl border border-white/5">
                        
                         <div class="w-22 h-22 rounded-full bg-(--bg) border-2 border-(--primary) flex items-center justify-center overflow-hidden shrink-0">
-                            <img :src="user?.user?.avatarUrl || 'https://cdn.silvercore.fr/static/files/silverteams/avatar/default.png'" />
+                            <img 
+                                :src="user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.name}&background=128a60&color=fff`" 
+                                :alt="user?.name" 
+                                @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${user?.name}&background=128a60&color=fff`"
+                            />
                         </div>
                         
                         <div class="flex flex-col justify-between">
@@ -199,10 +203,8 @@
 import { ref, reactive, computed } from 'vue';
 import Window from './Window.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
-import type { OrgMember } from '@/types/types';
-import { openedOrg } from '@/assets/var';
-import keycloak from '@/assets/keycloak';
 import ProfileUploader from '../common/ProfileUploader.vue';
+import { user } from '@/assets/var';
 
 defineProps<{
   isOpen: boolean;
@@ -211,14 +213,13 @@ defineProps<{
 const emit = defineEmits(['close']);
 
 const { Item: theme } = useSettingsItem('theme', 'dark');
-const user = computed<OrgMember | undefined>(() => openedOrg.value?.members?.find(member => member.user?.id == keycloak.userInfo?.sub));
 
-const isModified = computed<boolean>(() => formData.email !== user.value?.user?.email || formData.username !== user.value?.user?.name )
+const isModified = computed<boolean>(() => formData.email !== user.value?.email || formData.username !== user.value?.name )
 const activeTab = ref<string>('account');
 
 const formData = reactive({
-    username: user.value?.user?.name,
-    email: user.value?.user?.email
+    username: user.value?.name,
+    email: user.value?.email
 });
 
 const avatarChange = ref<boolean>(false);

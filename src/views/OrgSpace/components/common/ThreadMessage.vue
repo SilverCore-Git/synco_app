@@ -12,7 +12,7 @@
                         class="group/reply reply-context flex items-center gap-2 mb-1 text-xs text-(--text)/60 relative pl-13 cursor-pointer"
                     >
                         
-                        <div class="absolute left-4 top-2.5 w-7 h-2.5 border-l-2 border-t-2 border-white/20 group-hover/reply:border-white/40 rounded-tl-md" />
+                        <div class="z-10 absolute left-4 top-2.5 w-7 h-13 border-l-2 border-t-2 border-white/20 group-hover/reply:border-white/40 rounded-tl-md" />
 
                         <img 
                             :src="msg.replyMessage?.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${msg.replyMessage?.sender?.name}&background=128a60&color=fff`"
@@ -34,7 +34,7 @@
                     <div 
                         class="
                             absolute -top-5 right-3 sdropdown 
-                             flex-raw items-start z-80
+                            flex-raw items-start z-80
                             rounded-xl border border-(--text)/10
                             bg-(--bg) shadow-xl ring-1 ring-white/5 focus:outline-none
                         "
@@ -76,7 +76,7 @@
                     
                     </div>
 
-                    <div class="flex justify-start items-start gap-3">
+                    <div class="z-20 flex justify-start items-start gap-3">
 
                         <img 
                             v-if="msg.sender"
