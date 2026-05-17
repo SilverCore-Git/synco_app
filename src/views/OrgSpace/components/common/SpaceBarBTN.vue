@@ -27,7 +27,7 @@
             />
 
             <img 
-                v-if="icon && isHttp" 
+                v-if="icon && icon.includes('data:')" 
                 :src="icon" 
                 :alt="label"
                 class="
@@ -50,6 +50,10 @@
                     redhover ? 'group-hover:text-red-500' : 'group-hover:text-(--primary)'
                 ]"
             />
+            
+            <div v-else class="w-full h-full bg-(--bg) flex items-center justify-center group-hover:scale-110 group-active:scale-50 transition-all duration-300 ease-out ">
+                <span class="text-xl font-black text-(--primary)">{{ label.substring(0, 2).toUpperCase() }}</span>
+            </div>
 
         </button>
 
@@ -90,7 +94,6 @@
 
 <script lang="ts" setup>
 
-import { computed } from 'vue';
 
 const props = defineProps<{
     icon: string; // bi | http
@@ -103,8 +106,6 @@ const props = defineProps<{
 defineEmits<{
     (e: 'click'): void;
 }>();
-
-const isHttp = computed(() => props.icon.startsWith('http'));
 
 </script>
 

@@ -40,7 +40,7 @@
                     <div class="flex items-center gap-8 p-6 bg-(--bg2) rounded-2xl border border-white/5">
                         <div class="relative group">
                             <div class="w-24 h-24 rounded-2xl bg-(--bg) border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden transition-all group-hover:border-(--primary)/50">
-                                <i v-if="!formData.logo.startsWith('http')" :class="formData.logo" class="text-4xl text-(--primary)" />
+                                <i v-if="!formData.logo.startsWith('data:')" :class="formData.logo" class="text-4xl text-(--primary)" />
                                 <img v-else :src="formData.logo" class="w-full h-full object-cover" />
                                 
                                 <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
@@ -150,8 +150,8 @@ const emit = defineEmits(['close']);
 const activeTab = ref<string>('general');
 
 const formData = reactive({
-    name: props.space.name,
-    logo: props.space.logo
+    name: props.space?.name || '',
+    logo: props.space?.logo || ''
 });
 
 

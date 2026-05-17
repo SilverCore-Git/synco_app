@@ -108,7 +108,7 @@ const handleSubmit = async () => {
 
     <template #title>{{ title }}</template>
 
-    <div class="min-h-[320px]">
+    <div class="min-h-80">
 
       <div v-if="state === 1" class="space-y-4 animate-in fade-in slide-in-from-bottom-2">
         <label class="text-[10px] font-black text-(--text)/40 uppercase tracking-widest">Nom de l'espace</label>
@@ -124,10 +124,10 @@ const handleSubmit = async () => {
 
       <div v-else-if="state === 2" class="space-y-4 animate-in fade-in slide-in-from-right-4">
         <label class="text-[10px] font-black text-(--text)/40 uppercase tracking-widest">Identité visuelle</label>
-        <IconSelector v-model="form.logo" />
+        <IconSelector v-model="form.logo" @on-base64="(logo: string) => form.logo = logo" />
       </div>
 
-      <div v-else-if="state === 3" class="grid grid-cols-2 gap-6 h-[400px] animate-in fade-in slide-in-from-right-4">
+      <div v-else-if="state === 3" class="grid grid-cols-2 gap-6 h-100 animate-in fade-in slide-in-from-right-4">
       
         <div class="flex flex-col gap-3 overflow-hidden">
           <label class="text-[10px] font-black text-(--text)/40 uppercase tracking-widest">Disponibles</label>
@@ -164,7 +164,7 @@ const handleSubmit = async () => {
       <button 
         @click="handleSubmit"
         class="primary"
-        :disabled="loading || (state === 1 && !form.name.trim())"
+        :disabled="loading || (state === 1 && !form.name.trim()) || (state === 2 && !form.logo.trim())"
         :class="{ 'loader': loading }"
       >
         {{ state < 3 ? 'Continuer' : 'Créer l\'espace' }}
