@@ -100,17 +100,27 @@ export interface User {
   createdAt: string | Date;
   updatedAt: string | Date;
 }
+
 export interface Message {
-  id: string;
-  threadId: string;
-  senderId: string;
-  content: string; // Encrypted
-  nonce: string;
-  replyToId?: string;
-  edited?: boolean;
-  files?: StoredFile[];
-  createdAt: string | Date;
-  updatedAt: string | Date;
+    id: string;
+    threadId: string;
+    senderId: string;
+    replyToId: string | null;
+    transferId: string | null;
+    content: string;
+    nonce: string;
+    iv: string | null;
+    edited: boolean | null;
+    createdAt: string | Date;
+    updatedAt: string | Date;
+
+    sender?: User;
+    files?: StoredFile[];
+    
+    replyMessage?: Message | null;
+    replies?: Message[];
+    transferMessage?: Message | null;
+    transferredIn?: Message[];
 }
 
 export interface DMMessage {

@@ -7,26 +7,26 @@
                 >
 
                     <div 
-                        v-if="msg.replyToId && getReplyMessage(msg.replyToId)" 
-                        @click="router.push({ query: { ...route.query, select: getReplyMessage(msg.replyToId)?.id } })"
+                        v-if="msg.replyToId && msg.replyMessage" 
+                        @click="router.push({ query: { ...route.query, select: msg.replyMessage?.id } })"
                         class="group/reply reply-context flex items-center gap-2 mb-1 text-xs text-(--text)/60 relative pl-13 cursor-pointer"
                     >
                         
                         <div class="absolute left-4 top-2.5 w-7 h-2.5 border-l-2 border-t-2 border-white/20 group-hover/reply:border-white/40 rounded-tl-md" />
 
                         <img 
-                            :src="getReplyMessage(msg.replyToId)?.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${getReplyMessage(msg.replyToId)?.sender?.name}&background=128a60&color=fff`"
-                            :alt="getReplyMessage(msg.replyToId)?.sender?.name"
-                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${getReplyMessage(msg.replyToId!)?.sender?.name}&background=128a60&color=fff`"
+                            :src="msg.replyMessage?.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${msg.replyMessage?.sender?.name}&background=128a60&color=fff`"
+                            :alt="msg.replyMessage?.sender?.name"
+                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${msg.replyMessage?.sender?.name}&background=128a60&color=fff`"
                             class="w-4 h-4 rounded-full opacity-80 shrink-0"
                         />
                         
                         <span class="font-semibold text-(--primary)/80 ">
-                            @{{ getReplyMessage(msg.replyToId)?.sender?.name || 'Anonyme' }}
+                            @{{ msg.replyMessage?.sender?.name || 'Anonyme' }}
                         </span>
 
                         <div class="max-w-md opacity-70 pointer-events-none text-[11px] line-clamp-1 [&_p]:inline [&_h1]:inline [&_h2]:inline [&_h3]:inline">
-                            <MarkdownRender :content="getReplyMessage(msg.replyToId)?.content || ''" />
+                            <MarkdownRender :content="msg.replyMessage?.content || ''" />
                         </div>
 
                     </div>
@@ -231,21 +231,17 @@ import { encryptMessageWithContentKey } from '@/assets/utils/crypto';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import { useRoute, useRouter } from 'vue-router';
 
-interface sMessage extends Message {
-    sender?: { name: string; avatarUrl: string; };
-}
-
 const props = defineProps<{
-    msg: sMessage;
+    msg: Message;
     selectedMessage: string | null;
-    messages: sMessage[];
+    messages: Message[];
     currentThreadKey: CryptoKey | null;
 }>();
 
 interface DropdownBtn {
     icon: string,
     tooltip: string,
-    func: (msg: sMessage) => void,
+    func: (msg: Message) => void,
     class?: string;
 }
 
@@ -263,7 +259,7 @@ const dropdownBtns: DropdownBtn[] = [
     {
         icon: "bi-arrow-90deg-left",
         tooltip: "répondre",
-        func: (msg: sMessage) => setMessageWillBeResponded(msg)
+        func: (msg: Message) => setMessageWillBeResponded(msg)
     },
     {
         icon: "bi-arrow-90deg-right",
@@ -324,10 +320,6 @@ const editMessage = async (newContent: string) => {
         nonce: iv 
     });
 
-};
-
-const getReplyMessage = (replyToId: string) => {
-    return (props.messages || []).find(m => m.id === replyToId);
 };
 
 </script>

@@ -353,24 +353,19 @@ watch(() => selectedMessage.value, async (newId) => {
 
 const currentThreadKey = ref<CryptoKey | null>(null);
 
-interface sMessage extends Message {
-    iv?: string;
-    sender?: { name: string; avatarUrl: string; };
-}
-
 const selectedFiles = ref<File[]>([]);
 const files = ref<any[]>([]);
 const fileSendProgress = ref<null | number>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const TextareaRef = ref<InstanceType<typeof ThreadTextarea> | null>(null);
 const socket = ref<any>(null);
-const rawMessages = ref<Map<string, sMessage>>(new Map());
+const rawMessages = ref<Map<string, Message>>(new Map());
 const newMessage = ref<string>("");
 const messagesContainer = ref<HTMLElement | null>(null);
 const loading = ref<boolean>(true);
 const hasMore = ref<boolean>(true);
 const isFetchingMore = ref<boolean>(false);
-const sortedMessages = ref<sMessage[]>([]);
+const sortedMessages = ref<Message[]>([]);
 const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
 const lastMessageId = ref<string>('');
 
@@ -467,34 +462,59 @@ const scrollToSelectedMessage = async () => {
 
 };
 
-const processMessages = async (msgs: sMessage[]) => {
+const procesMessages = async (msgs: Message[]) => {
 
     if (!currentThreadKey.value) return msgs;
 
-    const decryptedMessages = await Promise.all(msgs.map(async m => {
+    const decryptSingleMessage = async (msg: Message | null | undefined): Promise<Message | null> => {
 
-        if (m.content && m.content.trim() !== "") 
-        {
+        if (!msg) return null;
+        
+        if (!msg.content || msg.content.trim() === "") return msg;
 
-            try {
-                
-                const vectorInit = m.iv && m.iv.trim() !== "" ? m.iv : m.nonce;
-                
-                if (!vectorInit || vectorInit.trim() === "") {
-                    return { ...m, content: "🔒 Erreur E2EE : Vecteur d'initialisation manquant." };
-                }
+        try {
 
-                const clearText = await decryptMessageWithContentKey(m.content, vectorInit, currentThreadKey.value!);
-                return { ...m, content: clearText };
-            } 
-            catch (cryptoErr) {
-                console.error(`[E2EE] Échec du déchiffrement pour le message ${m.id}:`, cryptoErr);
-                return { ...m, content: "🔒 Impossible de déchiffrer ce message (Chaîne ou IV invalide)." };
+            const vectorInit = msg.iv && msg.iv.trim() !== "" ? msg.iv : msg.nonce;
+            
+            if (!vectorInit || vectorInit.trim() === "") 
+            {
+                console.error('ProcesMessages : Erreur E2EE : Vecteur d\'initialisation manquant')
+                return { ...msg, content: "[⚠️ Impossible de déchiffrer ce message.]" };
             }
 
+            const clearText = await decryptMessageWithContentKey(msg.content, vectorInit, currentThreadKey.value!);
+            return { ...msg, content: clearText };
+
+        } 
+        catch (cryptoErr) {
+            console.error(`[E2EE] Échec du déchiffrement pour le message ${msg.id}:`, cryptoErr);
+            return { ...msg, content: "[⚠️ Impossible de déchiffrer ce message.]" };
         }
 
-        return m;
+    };
+
+    const decryptedMessages = await Promise.all(msgs.map(async m => {
+        
+        let decryptedMain = await decryptSingleMessage(m);
+        if (!decryptedMain) return m;
+
+        if (decryptedMain.replyMessage) 
+        {
+            const decryptedReply = await decryptSingleMessage(decryptedMain.replyMessage);
+            if (decryptedReply) {
+                decryptedMain.replyMessage = decryptedReply;
+            }
+        }
+
+        if (decryptedMain.transferMessage)
+        {
+            const decryptedTransfer = await decryptSingleMessage(decryptedMain.transferMessage);
+            if (decryptedTransfer) {
+                decryptedMain.transferMessage = decryptedTransfer;
+            }
+        }
+
+        return decryptedMain;
 
     }));
 
@@ -521,10 +541,10 @@ const initListener = () => {
 
     socket.value.off("thread-history").off("more-messages").off("new-message");
 
-    socket.value.on("thread-history", async (history: sMessage[]) => {
+    socket.value.on("thread-history", async (history: Message[]) => {
         rawMessages.value.clear();
         history.forEach(m => rawMessages.value.set(m.id, m));
-        sortedMessages.value = await processMessages(history);
+        sortedMessages.value = await procesMessages(history);
 
         loading.value = false;
         hasMore.value = history.length >= 15;
@@ -539,14 +559,14 @@ const initListener = () => {
         }
     });
 
-    socket.value.on("more-messages", async (more: sMessage[]) => {
+    socket.value.on("more-messages", async (more: Message[]) => {
         if (more.length === 0) { hasMore.value = false; isFetchingMore.value = false; return; }
         if (more.length < 20) hasMore.value = false;
 
         const container = messagesContainer.value;
         const scrollOffset = container ? container.scrollHeight - container.scrollTop : 0;
         
-        const decryptedMore = await processMessages(more);
+        const decryptedMore = await procesMessages(more);
         sortedMessages.value = [...decryptedMore, ...sortedMessages.value];
 
         await nextTick();
@@ -554,7 +574,7 @@ const initListener = () => {
         setTimeout(() => { isFetchingMore.value = false; }, 100);
     });
 
-    socket.value.on("new-message", async (msg: sMessage) => {
+    socket.value.on("new-message", async (msg: Message) => {
         let clearContent = msg.content;
         if (msg.content && msg.content.trim() !== "" && currentThreadKey.value) 
         {
@@ -583,7 +603,7 @@ const initListener = () => {
         sortedMessages.value = sortedMessages.value.filter(m => m.id !== msgId);
     });
 
-    socket.value.on('edit-message', async (editedMsg: sMessage) => {
+    socket.value.on('edit-message', async (editedMsg: Message) => {
         let decryptedContent = editedMsg.content;
         if (editedMsg.content && editedMsg.content.trim() !== "" && currentThreadKey.value) 
         {
@@ -709,7 +729,7 @@ const scrollToBottom = async (instant = false) => {
     }
 };
 
-const getMessageSenderName = (msg: sMessage): string => {
+const getMessageSenderName = (msg: Message): string => {
     return msg.sender?.name || 'Anonyme';
 };
 
