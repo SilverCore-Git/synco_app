@@ -45,17 +45,17 @@
                 >
 
                     <img 
-                        v-if="inviteData.organizationLogo && inviteData.organizationLogo.startsWith('http')" 
+                        v-if="inviteData.organizationLogo && inviteData.organizationLogo.startsWith('data:')" 
                         :src="inviteData.organizationLogo" 
                         :alt="inviteData.organizationName" 
-                        class="w-full h-full object-cover"
+                        class="
+                            w-full h-full transition-all rounded-xl
+                        "
                     />
 
-                    <i
-                        v-else-if="inviteData.organizationLogo"
-                        class="bi text-5xl"
-                        :class="inviteData.organizationLogo"
-                    />
+                    <div v-else class="w-full h-full bg-(--bg) flex items-center justify-center">
+                        <span class="text-4xl font-black text-(--primary)">{{ inviteData.organizationLogo.substring(0, 2).toUpperCase() }}</span>
+                    </div>
 
                 </div>
 
@@ -146,7 +146,7 @@ const acceptInvite = async () => {
         }
 
         setTimeout(() => {
-            router.push('/');
+            window.location.href = '/';
         }, 500)
 
     } 

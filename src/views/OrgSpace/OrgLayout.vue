@@ -9,7 +9,7 @@ import { openedOrg, organizations } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import usePeer from '@/composables/usePeer';
-import type { Category, Message } from '@/types/types';
+import type { Category, Message, OrgMember } from '@/types/types';
 import { useRoute } from 'vue-router';
 import useSettingsItem from '@/composables/useSettingsItem';
 import keycloak from '@/assets/keycloak';
@@ -53,6 +53,10 @@ const initSocketListener = async () => {
     const me = openedOrg.value?.members?.find(member => member.user?.id == keycloak.userInfo?.sub);
     if (me && me.user && me.user.data) me.user.data.status = 'online';
     
+
+    socket.value?.on('member:new', ({ member }: { member: OrgMember }) => {
+        openedOrg.value?.members?.push(member);
+    });
 
     socket.value?.on('user-status-changed', ({ status, userId }: { status: string, userId: string }) => {
         const member = openedOrg.value?.members?.find(m => m.userId === userId);            

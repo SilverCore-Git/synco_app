@@ -242,7 +242,7 @@
                                             <img 
                                                 :src="member.user?.avatarUrl" 
                                                 class="w-8 h-8 rounded-full border border-white/10" 
-                                                :class="isSelf(member.user?.clerkId!) ? 'ring-2 ring-(--primary)' : ''"
+                                                :class="isSelf(member.user?.id!) ? 'ring-2 ring-(--primary)' : ''"
                                             />
 
                                             <div class="flex flex-col">
@@ -259,7 +259,7 @@
                                         <select 
                                             :value="member?.role || 'unknow'"
                                             @change="updateRole(member.id, $event)"
-                                            :disabled="isSelf(member.user?.clerkId!) || !isAdmin"
+                                            :disabled="isSelf(member.user?.id!) || !isAdmin"
                                             class="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-(--text) focus:outline-none disabled:opacity-50"
                                         >
                                             <option value="OWNER">Propriétaire</option>
@@ -276,7 +276,7 @@
 
                                     <td class="px-6 py-4 text-right">
                                         <button 
-                                            v-if="!isSelf(member.user?.clerkId!) && isAdmin"
+                                            v-if="!isSelf(member.user?.id!) && isAdmin"
                                             @click="removeMember(member.id)"
                                             class="p-2 text-red-500/40 hover:text-red-500 transition-colors"
                                             title="Exclure le membre"
@@ -431,11 +431,24 @@ const updateRole = (memberId: string, event: Event) => {
     // Émettre un event Socket ici: socket.emit('update-member-role', { memberId, role: newRole })
 };
 
-const removeMember = (memberId: string) => {
-    if (confirm("Êtes-vous sûr de vouloir exclure ce membre ?")) {
-        console.log(`Removing member ${memberId}`);
-        // Émettre un event Socket ici: socket.emit('remove-member', { memberId })
+const removeMember = async (memberId: string) => {
+
+    if (confirm("Êtes-vous sûr de vouloir exclure ce membre ?")) 
+    {
+
+        const res = await sfetch(`/api/orgs/users/${openedOrg.value!.id}/kick/${memberId}`).then(res => res.json());
+
+        if (res.error)
+        {
+            toast.show(res.error, 'error');
+        }
+        else
+        {
+            toast.show(res.message, 'success');
+        }
+
     }
+    
 };
 
 
