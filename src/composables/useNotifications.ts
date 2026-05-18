@@ -1,12 +1,11 @@
 import { useToast } from "@/composables/useToast";
-import type { Message, OrgMember } from "@/types/types";
+import type { DMMessage, Message, OrgMember } from "@/types/types";
 import { ref, watch } from "vue";
 import useWSocket from "./useWSocket";
 import { useRoute } from "vue-router";
-import { openedOrg } from "@/assets/var";
 
 
-type NotificationType = 'toast' | 'notif:msg' | 'notif:call' | 'notif:privateMeet';
+type NotificationType = 'toast' | 'notif:msg' | 'notif:dmmsg' | 'notif:call' | 'notif:privateMeet';
 
 interface Notification {
 
@@ -20,6 +19,9 @@ interface Notification {
 
     // if notif:msg
     msg?: Message;
+
+    // if notif:dmmsg
+    dmmsg?: DMMessage;
 
     // if notif:call
     call?: OrgMember;
@@ -137,6 +139,15 @@ const notify = (type: NotificationType, payload: any, timeout?: number) => {
             type,
             createdAt: new Date(),
             msg: payload
+        });
+    }
+    else if (type === 'notif:dmmsg')
+    {
+        notifications.value.push({
+            id,
+            type,
+            createdAt: new Date(),
+            dmmsg: payload
         });
     }
     else if (type === 'notif:call')

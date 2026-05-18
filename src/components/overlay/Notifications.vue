@@ -52,6 +52,33 @@
 
                     </template>
 
+                    <template v-else-if="notif.type == 'notif:dmmsg'">
+
+                        <RouterLink
+                            :to="`/${openedOrg?.id}/chat/${notif.dmmsg?.senderId}`"
+                            class="flex items-center gap-3"
+                        >
+                            
+                            <div class="relative shrink-0">
+                                <img 
+                                    :src="notif.dmmsg?.sender?.avatarUrl  || `https://ui-avatars.com/api/?name=${notif.dmmsg?.sender?.name}&background=128a60&color=fff`"
+                                    class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
+                                />
+                            </div>
+
+                            <div class="flex-1 overflow-hidden" v-if="notif.msg">
+                                <h4 class="text-(--text) text-sm font-bold truncate">
+                                    {{ notif.dmmsg?.sender?.name }}
+                                </h4>
+                                <p class="text-(--text)/70 text-sm line-clamp-2 leading-snug">
+                                    {{ notif.dmmsg?.content }}
+                                </p>
+                            </div>
+
+                        </RouterLink>
+
+                    </template>
+
                     <template v-else-if="notif.type == 'notif:call'">
 
                         <div class="flex flex-col w-full">
@@ -209,6 +236,7 @@ const getStyles = (type: NotificationType, toastType?: string) => {
         };
 
         case 'notif:msg': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:dmmsg': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
         case 'notif:call': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
         case 'notif:privateMeet': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
 

@@ -12,7 +12,6 @@ import MembersSettings from './views/OrgSpace/views/settings/views/MembersSettin
 import InviteView from './views/inviteView.vue';
 import ThreadLayout from './views/OrgSpace/views/ThreadLayout.vue';
 import { nextTick } from 'vue';
-import PrivateMeetView from './views/OrgSpace/views/PrivateMeetView.vue';
 import SpaceFiles from './views/OrgSpace/views/SpaceFiles.vue';
 
 

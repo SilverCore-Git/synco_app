@@ -9,7 +9,7 @@ import { openedOrg, organizations, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import usePeer from '@/composables/usePeer';
-import type { Category, Message, OrgMember } from '@/types/types';
+import type { Category, DMMessage, Message, OrgMember } from '@/types/types';
 import { useRoute } from 'vue-router';
 import useSettingsItem from '@/composables/useSettingsItem';
 import keycloak from '@/assets/keycloak';
@@ -18,6 +18,7 @@ import { isMeeting } from '@/composables/usePrivatMeet';
 import CallOverlay from '@/components/peer/CallOverlay.vue';
 import isDesktopApp from '@/assets/isDesktopApp';
 import { useToast } from '@/composables/useToast';
+import { decryptFromPeer, privateKey } from '@/assets/utils/crypto';
 
 
 const props = defineProps<{
@@ -44,13 +45,10 @@ const initSocketListener = async () => {
     const space = openedOrg.value?.spaces;
     if (space)
     {
-
-        space.forEach(async space => {
+        space.forEach(space => {
             socket.value?.emit('join-space', { orgId: props.orgId, spaceId: space.id });
         })
-    
     } 
-
 
     const me = openedOrg.value?.members?.find(member => member.user?.id == keycloak.userInfo?.sub);
     if (me && me.user && me.user.data) me.user.data.status = 'online';
@@ -180,6 +178,43 @@ const initSocketListener = async () => {
 
         thread.hasUnread = true;
 
+    });
+
+    socket.value?.on('notif:dm:new-message', async (newMessage: DMMessage) => {
+        
+        const isMeTheSender = newMessage.senderId === user.value?.id;
+        const conversationPeerId = isMeTheSender ? newMessage.recipientId : newMessage.senderId;
+
+        if (route.name === 'OrgThreadChat' && route.query.userId === conversationPeerId) {
+            return;
+        }
+
+        try {
+
+            const msg: DMMessage = { ...newMessage };
+
+            const keyToUse = isMeTheSender 
+                ? msg.selfEncryptedAesKey 
+                : msg.encryptedAesKey;
+
+            if (msg.isE2EE && (!keyToUse || !privateKey.value)) 
+            {
+                msg.content = "🔒 Impossible de déchiffrer : Clé manquante.";
+                notify('notif:dmmsg', msg);
+                return;
+            }
+
+            if (msg.isE2EE) {
+                msg.content = await decryptFromPeer(msg.content, keyToUse!, msg.nonce, privateKey.value!);
+            }
+
+            notify('notif:dmmsg', msg);
+
+        } catch (cryptoErr) {
+            console.error("[E2EE DM Notif] Échec du déchiffrement de la notification :", cryptoErr);
+            const fallbackMsg = { ...newMessage, content: "🔒 Nouveau message (Déchiffrement impossible)" };
+            notify('notif:dmmsg', fallbackMsg);
+        }
     });
 
     socket.value?.on('privateMeet:incomingCall', async ({ callerId }: { callerId: string }) => {

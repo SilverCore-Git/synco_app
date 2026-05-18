@@ -124,15 +124,20 @@ export interface Message {
 }
 
 export interface DMMessage {
-  id: string;
-  senderId: string;
-  recipientId: string;
-  content: string;
-  nonce: string;
-  isE2EE: boolean;
-  files?: StoredFile[];
-  createdAt: string | Date;
-  updatedAt: string | Date;
+    id: string;
+    recipientId: string;
+    senderId: string;
+    isE2EE: boolean;
+    content: string;
+    nonce: string;
+    encryptedAesKey: string | null;
+    selfEncryptedAesKey: string | null;
+    createdAt: string | Date;
+    updatedAt: string | Date;
+
+    sender?: User;
+    recipient?: User;
+    files?: StoredFile[];
 }
 
 export interface OrgMember {
