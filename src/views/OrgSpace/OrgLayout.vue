@@ -5,7 +5,7 @@ import ThreadsBar from './components/layouts/ThreadsBar.vue';
 import SpaceBar from './components/layouts/SpaceBar.vue';
 import UserCard from './components/layouts/UserCard.vue';
 import UsersBar from './components/layouts/UsersBar.vue';
-import { openedOrg, organizations } from '@/assets/var';
+import { openedOrg, organizations, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import usePeer from '@/composables/usePeer';
@@ -17,6 +17,7 @@ import useNotifications from '@/composables/useNotifications';
 import { isMeeting } from '@/composables/usePrivatMeet';
 import CallOverlay from '@/components/peer/CallOverlay.vue';
 import isDesktopApp from '@/assets/isDesktopApp';
+import { useToast } from '@/composables/useToast';
 
 
 const props = defineProps<{
@@ -28,6 +29,7 @@ const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
 const { initPeer } = usePeer();
 const { notify } = useNotifications();
 const route = useRoute();
+const toast = useToast();
 
 const orgOnOpen = computed(() => {
     return organizations.value.find(org => org.id === route.params.orgId);
@@ -56,6 +58,30 @@ const initSocketListener = async () => {
 
     socket.value?.on('member:new', ({ member }: { member: OrgMember }) => {
         openedOrg.value?.members?.push(member);
+    });
+
+    socket.value?.on('member:kicked', ({ memberId }: { memberId: string }) => {
+
+        const me = openedOrg.value?.members?.find(member => member.user?.id == keycloak.userInfo?.sub);
+
+        if (me?.id == memberId)
+        {
+            openedOrg.value = null;
+            toast.show('Vous avez été éxpulsé de cet organisation.', 'info');
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 2000);
+            
+        }
+        else
+        {
+            const index = openedOrg.value!.members!.findIndex(m => m.id === memberId);
+            if (index !== -1) {
+                openedOrg.value!.members!.splice(index, 1);
+            }
+        }
+
+
     });
 
     socket.value?.on('user-status-changed', ({ status, userId }: { status: string, userId: string }) => {

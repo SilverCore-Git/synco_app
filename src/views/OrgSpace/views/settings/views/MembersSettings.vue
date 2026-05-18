@@ -436,7 +436,9 @@ const removeMember = async (memberId: string) => {
     if (confirm("Êtes-vous sûr de vouloir exclure ce membre ?")) 
     {
 
-        const res = await sfetch(`/api/orgs/users/${openedOrg.value!.id}/kick/${memberId}`).then(res => res.json());
+        const res = await sfetch(`/api/orgs/users/${openedOrg.value!.id}/kick/${memberId}`, {
+            method: 'POST'
+        }).then(res => res.json());
 
         if (res.error)
         {
@@ -448,7 +450,7 @@ const removeMember = async (memberId: string) => {
         }
 
     }
-    
+
 };
 
 
