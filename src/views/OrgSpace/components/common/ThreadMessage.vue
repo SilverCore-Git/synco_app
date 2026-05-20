@@ -2,10 +2,12 @@
 
                 <div
                     :key="msg.id" 
-                    class="group relative px-4 py-2 flex flex-col justify-start items-start hover:bg-white/5 rounded-lg transition-colors w-full"
+                    class="group relative px-4 py-2 flex flex-col justify-start items-start rounded-lg transition-colors w-full"
                     :class="[
                         selectedMessage == msg.id ? ' border border-(--primary) border-dashed animate-pulse' : '',
-                        user?.id == msg.replyMessage?.senderId ? 'border-l-2 border-(--primary-dark) bg-(--primary-dark)/30' : ''
+                        user?.id == msg.replyMessage?.senderId 
+                            ? 'border-l-2 border-(--primary-dark) bg-(--primary-dark)/30 hover:bg-(--primary-dark)/50' 
+                            : 'hover:bg-white/5'
                     ]"
                 >
 
@@ -46,6 +48,7 @@
 
                         <button
                             v-for="(btn, index) in dropdownBtns"
+                            v-show="btn.show(msg)"
                             :key="'dropdownBtns-' + index"
                             v-tooltip="btn.tooltip" 
                             class="dropdown-item-annimate dropdown-item-style"
@@ -256,6 +259,7 @@ interface DropdownBtn {
     tooltip: string,
     func: (msg: Message) => void,
     class?: string;
+    show: (msg: Message) => boolean;
 }
 
 const dropdownBtns: DropdownBtn[] = [
@@ -263,27 +267,32 @@ const dropdownBtns: DropdownBtn[] = [
         icon: "bi-clipboard-fill",
         tooltip: "copier",
         func: () => {},
+        show: () => true
     },
     {
         icon: "bi-pencil-fill",
         tooltip: "modifier",
-        func: () => openEditMessage()
+        func: () => openEditMessage(),
+        show: () => true
     },
     {
         icon: "bi-arrow-90deg-left",
         tooltip: "répondre",
-        func: (msg: Message) => setMessageWillBeResponded(msg)
+        func: (msg: Message) => setMessageWillBeResponded(msg),
+        show: () => true
     },
     // {
     //     icon: "bi-arrow-90deg-right",
     //     tooltip: "transférer",
-    //     func: (msg: Message) => setMessageWillBeTransfer(msg)
+    //     func: (msg: Message) => setMessageWillBeTransfer(msg),
+    //      show: () => true
     // },
     {
         icon: "bi-trash-fill",
         tooltip: "supprimer",
         func: () => openDeleteConfirm(),
-        class: "text-red-400! hover:bg-red-500/10!"
+        class: "text-red-400! hover:bg-red-500/10!",
+        show: (msg: Message) => msg.senderId == user.value?.id
     }
 ];
 
