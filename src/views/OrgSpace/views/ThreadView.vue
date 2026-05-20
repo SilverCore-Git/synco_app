@@ -51,7 +51,7 @@
 
                 </template>
 
-                <div v-else>
+                <div v-else class=" space-y-2">
                 
                     <div 
                             v-for="msg in sortedMessages" 

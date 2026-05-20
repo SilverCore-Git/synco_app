@@ -3,7 +3,10 @@
                 <div
                     :key="msg.id" 
                     class="group relative px-4 py-2 flex flex-col justify-start items-start hover:bg-white/5 rounded-lg transition-colors w-full"
-                    :class="selectedMessage == msg.id ? ' border border-(--primary) border-dashed animate-pulse' : ''"
+                    :class="[
+                        selectedMessage == msg.id ? ' border border-(--primary) border-dashed animate-pulse' : '',
+                        user?.id == msg.replyMessage?.senderId ? 'border-l-2 border-(--primary-dark) bg-(--primary-dark)/30' : ''
+                    ]"
                 >
 
                     <div 
@@ -239,6 +242,7 @@ import { downloadFile } from '@/assets/utils/downloadFile';
 import { encryptMessageWithContentKey } from '@/assets/utils/crypto';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import { useRoute, useRouter } from 'vue-router';
+import { user } from '@/assets/var';
 
 const props = defineProps<{
     msg: Message;

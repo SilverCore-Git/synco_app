@@ -1,11 +1,14 @@
 import type { User, Org } from "@/types/types";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 
 const organizations = ref<any[]>([]);
 const openedOrg = ref<Org | null>(null);
 const user = ref<User | null>(null);
 const isLoaded = ref<boolean>(false);
+const member = computed(() => {
+    return openedOrg.value?.members?.find(m => m.userId == user.value?.id);
+});
 
 
-export { organizations, openedOrg, isLoaded, user };
+export { organizations, openedOrg, isLoaded, user, member };
