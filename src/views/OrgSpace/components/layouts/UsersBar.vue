@@ -41,7 +41,7 @@
                     />
                     <span 
                         class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg2)"
-                        :class="getColorByStatus(member.user?.data.status)"
+                        :class="getColorByStatus(member.user!.data.status)"
                     />
                 </div>
 
@@ -81,7 +81,7 @@
                     />
                     <span 
                         class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg2)"
-                        :class="getColorByStatus(member.user?.data.status)"
+                        :class="getColorByStatus(member.user!.data.status)"
                     />
                 </div>
 

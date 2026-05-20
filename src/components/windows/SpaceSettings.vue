@@ -171,7 +171,7 @@ const members = computed(() => {
 
 watch(() => props.space, (newSpace) => {
     formData.name = newSpace.name;
-    formData.logo = newSpace.logo;
+    formData.logo = newSpace.logo!;
 }, { deep: true });
 
 const isModified = computed(() => {
@@ -186,7 +186,7 @@ const tabs = [
 
 const resetForm = () => {
     formData.name = props.space.name;
-    formData.logo = props.space.logo;
+    formData.logo = props.space.logo!;
 };
 
 const saveChanges = async () => {

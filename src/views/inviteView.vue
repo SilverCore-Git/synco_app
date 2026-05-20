@@ -87,15 +87,12 @@
 import sfetch from '@/assets/utils/sfetch';
 import SpinLoader from '@/components/SpinLoader.vue';
 import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
 
 
 const props = defineProps<{
     code: string;
 }>();
 
-
-const router = useRouter();
 
 const loading = ref<boolean>(true);
 const accepting = ref<boolean>(false);

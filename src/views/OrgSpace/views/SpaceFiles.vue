@@ -244,7 +244,7 @@
         multiple 
         ref="fileInputRef" 
         class="hidden" 
-        @change="(e) => handleFiles(e.target.files)"
+        @change="(e) => handleFiles((e.target as any)!.files)"
     />
 
     <CreateNewFolder

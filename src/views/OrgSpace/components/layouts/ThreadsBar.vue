@@ -280,7 +280,7 @@ const title = computed<string>(() => {
     }
 })
 
-const icon = computed<string | undefined>(() => {
+const icon = computed(() => {
     if (isHome.value) return 'bi-house';
     else if (isChat.value) return 'bi-chat-dots';
     else if (isSettings.value) return 'bi-gear';

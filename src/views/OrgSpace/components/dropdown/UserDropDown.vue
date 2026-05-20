@@ -22,8 +22,8 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
 
         socket.value?.emit('update-status', { orgId: openedOrg.value?.id, status });
 
-        const me = openedOrg.value?.members?.find(member => member.user?.clerkId == props.user?.clerkId);
-        if (me && me.user) me.user.data.status = status;
+        const me = openedOrg.value?.members?.find(member => member.user?.id == props.user?.id);
+        if (me && me.user) me.user.data!.status = status;
 
         emit('update:status', status);
 

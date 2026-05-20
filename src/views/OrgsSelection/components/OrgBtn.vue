@@ -50,11 +50,10 @@
 
 <script lang="ts" setup>
 
-import type { Org, OrgLittle } from '@/types/types';
 import { useRouter } from 'vue-router';
 
 const props = defineProps<{
-    org: Org | OrgLittle;
+    org: any;
     loader?: boolean;
 }>();
 

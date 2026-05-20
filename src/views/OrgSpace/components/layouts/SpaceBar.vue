@@ -70,7 +70,7 @@ const route = useRoute();
             >
                 <SpaceBarBTN
                     :key="'space-' + space.id + '-btn'"
-                    :icon="space.logo"
+                    :icon="space.logo!"
                     :label="space.name"
                     :active="
                         (

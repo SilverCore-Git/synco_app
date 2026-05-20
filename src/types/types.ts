@@ -1,5 +1,5 @@
 export type ThreadType = 'text' | 'vocal';
-export type UserStatus = 'online' | 'dnd' | 'idle' | 'offline';
+// export type UserStatus = 'online' | 'dnd' | 'idle' | 'offline';
 
 export interface StoredFile {
   id: string;
@@ -92,8 +92,8 @@ export interface User {
   keyIv?: string;           // Base64
   pinSalt?: string;           // String aléatoire
 
-  data?: {
-    status?: UserStatus;
+  data: {
+    status: string;
     [key: string]: any;
   };
   files?: StoredFile[];
