@@ -123,7 +123,7 @@
 
             <div 
                 v-if="selectedFiles.length > 0"
-                class="flex flex-wrap gap-2 mb-2 p-2 bg-(--bg)/80 backdrop-blur-3xl rounded-lg border border-white/5 relative overflow-hidden"
+                class="z-50 flex flex-wrap gap-2 mb-2 p-2 bg-(--bg)/80 backdrop-blur-3xl rounded-lg border border-white/5 relative overflow-hidden"
             >
             
                 <div v-if="fileSendProgress !== null" class="absolute inset-0 bg-(--bg)/40 z-10 pointer-events-none" />
