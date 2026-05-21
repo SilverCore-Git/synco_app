@@ -96,7 +96,7 @@
             <div 
                 v-if="messageWillBeResponded" 
                 class="
-                    mb-2 flex items-center gap-3 bg-(--bg)/80 backdrop-blur-3xl
+                    z-50 mb-2 flex items-center gap-3 bg-(--bg)/80 backdrop-blur-3xl
                     border border-(--primary)/30 rounded-lg px-4 py-3
                 "
             >

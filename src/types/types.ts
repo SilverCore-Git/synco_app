@@ -127,6 +127,7 @@ export interface DMMessage {
     id: string;
     recipientId: string;
     senderId: string;
+    replyToId: string | null;
     isE2EE: boolean;
     content: string;
     nonce: string;

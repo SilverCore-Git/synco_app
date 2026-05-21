@@ -1,13 +1,13 @@
-import type { Message } from "@/types/types";
+import type { DMMessage, Message } from "@/types/types";
 import { ref } from "vue";
 
 
-const messageWillBeResponded = ref<Message | null>(null);
+const messageWillBeResponded = ref<Message | DMMessage | null>(null);
 
 
 const useResponse = () => {
 
-    const setMessageWillBeResponded = (msg: Message | null) => {
+    const setMessageWillBeResponded = (msg: Message | DMMessage | null) => {
         messageWillBeResponded.value = msg;
     };
 

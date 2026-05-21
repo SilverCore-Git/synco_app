@@ -102,37 +102,16 @@
 
                     </template>
 
-                    <div
-                        v-else
-                        v-for="msg in messages" 
-                        :key="msg.id" 
-                        class="group px-4 py-1.5 flex flex-row justify-start items-start gap-3 hover:bg-white/2 rounded-lg transition-colors"
-                    >
+                    <div v-else>
 
-                        <img 
-                            :src="msg.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=128a60&color=fff`" 
-                            class="rounded-full w-9 h-9 border border-white/5 shrink-0" 
+                        <ChatMessage 
+                            v-for="msg in messages" 
+                            :key="msg.id" 
+
+                            :selected-message="null"
+                            :msg="msg"
+                            :messages="messages"
                         />
-
-                        <div class="min-w-0 flex-1">
-
-                            <div class="flex items-baseline gap-2">
-                             
-                                <span class="text-(--primary) font-bold text-xs tracking-tight">
-                                    {{ msg.sender?.name || 'Utilisateur' }}
-                                </span>
-                               
-                                <span class="text-(--text)/20 text-[10px] font-medium">
-                                    {{ formatTime(msg.createdAt) }}
-                                </span>
-                            
-                            </div>
-                            
-                            <p class="text-(--text)/85 text-sm leading-relaxed wrap-break-word whitespace-pre-wrap">
-                                {{ msg.content }}
-                            </p>
-
-                        </div>
 
                     </div>
 
@@ -150,7 +129,7 @@
         </main>
 
         <footer v-if="recipient" class="absolute bottom-0 inset-x-0 p-1 bg-transparent mt-auto">
-              
+
             <div v-if="isSomeoneTyping" class="h-5 flex justify-start items-center px-4 gap-2 select-none">
             
                 <div class="typing-indicator">
@@ -168,24 +147,213 @@
 
             </div>
 
-            <div class="relative flex items-center bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
-              
-                <ThreadTextarea
-                    v-model="newMessage"
-                    @send="sendMessage"
-                    @input="handleTyping"
-                    ref="inputComponent"
-                    :placeholder="'Message @' + recipient.name"
-                />
+            <transition name="fade-bottom">
 
-                <button 
-                    @click="sendMessage"
-                    :disabled="!newMessage.trim()"
-                    class="ml-3 transition-all hover:scale-110 disabled:opacity-20 disabled:scale-100"
-                    :class="newMessage.trim() ? 'text-(--primary)' : 'text-(--text)/40'"
+                <div 
+                    v-if="messageWillBeResponded" 
+                    class="
+                        z-50 mb-2 flex items-center gap-3 bg-(--bg)/80 backdrop-blur-3xl
+                        border border-(--primary)/30 rounded-lg px-4 py-3
+                    "
                 >
-                    <i class="bi bi-send-fill text-lg" />
-                </button>
+                    
+                    <div class="flex-1 min-w-0">
+                        <p class="text-md text-(--primary) font-semibold mb-1">
+                            Répondre à {{ getMessageSenderName(messageWillBeResponded) }}
+                        </p>
+                    </div>
+
+                    <button 
+                        @click="cancelReply"
+                        class="shrink-0 text-(--text)/40 hover:text-(--text)/70 transition-colors"
+                        title="Annuler la réponse"
+                    >
+                        <i class="bi bi-x-lg text-lg" />
+                    </button>
+
+                </div>
+
+            </transition>
+
+            <transition name="fade-bottom">
+
+                <div 
+                    v-if="selectedFiles.length > 0"
+                    class="z-50 flex flex-wrap gap-2 mb-2 p-2 bg-(--bg)/80 backdrop-blur-3xl rounded-lg border border-white/5 relative overflow-hidden"
+                >
+                
+                    <div v-if="fileSendProgress !== null" class="absolute inset-0 bg-(--bg)/40 z-10 pointer-events-none" />
+
+                    <div 
+                        v-for="(file, index) in selectedFiles" 
+                        :key="index" 
+                        class="relative group bg-(--bg) border border-white/10 rounded-md px-3 py-1 flex items-center gap-2 overflow-hidden"
+                    >
+                    
+                        <div 
+                            v-if="fileSendProgress !== null"
+                            class="absolute bottom-0 left-0 h-0.5 bg-(--primary) transition-all duration-300"
+                            :style="{ width: fileSendProgress + '%' }"
+                        />
+
+                        <div class="w-10 h-10 shrink-0 flex items-center justify-center rounded bg-(--bg) border border-(--text)/5">
+
+                            <template v-if="file.name.includes('67')">
+                                67
+                            </template>
+
+                            <template v-else-if="file.type.startsWith('image/')">
+                                <i class="bi bi-image text-(--primary)/60 text-xl" />
+                            </template>
+
+                            <template v-else-if="file.type.includes('pdf')">
+                                <i class="bi bi-file-earmark-pdf text-red-400 text-xl" />
+                            </template>
+
+                            <template v-else-if="file.type.includes('zip') || file.type.includes('rar') || file.type.includes('7z') || file.type.includes('tar')">
+                                <i class="bi bi-file-earmark-zip text-yellow-500 text-xl" />
+                            </template>
+
+                            <template v-else-if="file.type.includes('application/x-msdownload') || file.type.includes('exe')">
+                                <i class="bi bi-terminal-fill text-blue-400 text-xl" />
+                            </template>
+
+                            <template v-else-if="file.type.startsWith('text/') || file.type.includes('javascript') || file.type.includes('json') || file.type.includes('typescript')">
+                                <i class="bi bi-file-earmark-code text-indigo-400 text-xl" />
+                            </template>
+
+                            <template v-else-if="file.type.includes('word') || file.type.includes('officedocument.wordprocessingml')">
+                                <i class="bi bi-file-earmark-word text-blue-500 text-xl" />
+                            </template>
+
+                            <template v-else-if="file.type.includes('excel') || file.type.includes('spreadsheetml') || file.type.includes('csv')">
+                                <i class="bi bi-file-earmark-excel text-green-500 text-xl" />
+                            </template>
+
+                            <template v-else-if="file.type.includes('powerpoint') || file.type.includes('presentationml')">
+                                <i class="bi bi-file-earmark-ppt text-orange-500 text-xl" />
+                            </template>
+
+                            <template v-else-if="file.type.startsWith('video/')">
+                                <i class="bi bi-play-btn text-purple-400 text-xl" />
+                            </template>
+
+                            <template v-else-if="file.type.startsWith('audio/')">
+                                <i class="bi bi-music-note-beamed text-pink-400 text-xl" />
+                            </template>
+
+                            <template v-else>
+                                <i class="bi bi-file-earmark text-(--text)/40 text-xl" />
+                            </template>
+
+                        </div>
+
+                        <span class="text-xs truncate max-w-50">{{ file.name }}</span>
+
+                        <button 
+                            v-if="fileSendProgress === null"
+                            @click="removeFile(index)" 
+                            class="text-red-400 hover:text-red-500"
+                        >
+                            <i class="bi bi-x-circle-fill" />
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </transition>
+
+            <div 
+                class="relative flex flex-col w-full"
+                @dragover.prevent="isDragging = true"
+                @dragleave.prevent="isDragging = false"
+                @drop.prevent="handleDrop"
+            >
+            
+                <div 
+                    v-if="isDragging" 
+                    class="
+                        absolute inset-0 z-50 bg-(--primary)/10
+                        border-2 border-dashed border-(--primary) 
+                        rounded-xl flex items-center justify-center 
+                        pointer-events-none
+                    "
+                >
+                    <span class="text-(--primary) font-bold">
+                        Relâchez pour ajouter
+                    </span>
+                </div>
+
+                <div class="relative flex items-center bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
+                    
+                    <input 
+                        type="file" 
+                        multiple 
+                        ref="fileInputRef" 
+                        class="hidden" 
+                        @change="(e) => handleFiles((e.target as HTMLInputElement).files)"
+                    />
+
+                    <button 
+                        @click="triggerFileSearch"
+                        class="mr-3 text-(--text)/40 hover:text-(--primary) transition-colors"
+                    >
+                        <i class="bi bi-plus-circle-fill text-xl" />
+                    </button>
+                    
+                    <ThreadTextarea
+                        v-model="newMessage"
+                        @send="sendMessage"
+                        @input="handleTyping"
+                        ref="TextareaRef"
+                        :placeholder="'Message @' + recipient.name"
+                    />
+
+                    <div 
+                        v-show="!(selectedFiles.length && !files.length)"
+                        class="flex gap-3 ml-3"
+                    >
+
+                        <button 
+                            @click="sendMessage"
+                            :disabled="(!newMessage.trim() && selectedFiles.length === 0) "
+                            :class="(newMessage.trim() || selectedFiles.length > 0) ? 'text-(--primary)' : 'text-(--text)/40 opacity-50'"
+                            class="transition-colors"
+                        >
+                            <i class="bi bi-send-fill" />
+                        </button>
+
+                    </div>
+
+                    <button 
+                        v-if="(selectedFiles.length && !files.length)"
+                        @click="validUpload" 
+                        class="primary flex items-center gap-2 min-w-24 justify-center relative overflow-hidden w-full"
+                        :disabled="fileSendProgress !== null"
+                    >
+
+                        <template v-if="fileSendProgress !== null">
+
+                            <i class="bi bi-arrow-repeat animate-spin text-lg" />
+                            
+                            <span v-if="fileSendProgress == 100">Finalisation...</span>
+                            <span v-else>{{ fileSendProgress }}%</span>
+                            
+                            <div 
+                                class="absolute inset-0 bg-white/10 pointer-events-none transition-all duration-300"
+                                :style="{ width: fileSendProgress + '%' }"
+                            />
+
+                        </template>
+                        
+                        <template v-else>
+                            Valider les pièces jointes
+                        </template>
+
+                    </button>
+
+                </div>
 
             </div>
 
@@ -217,15 +385,20 @@ import waitFor from '@/assets/utils/waitfor';
 
 import { E2EEUnloked, privateKey, encryptForPeer, decryptFromPeer, encryptAesKeyWithRsa } from '@/assets/utils/crypto';
 import PrivateMeetView from './PrivateMeetView.vue';
+import ChatMessage from '../components/common/ChatMessage.vue';
+import { uploadFiles } from '@/assets/uploadFile';
+import useResponse from '@/composables/useResponse';
 
 
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const { startCall } = usePeer();
+const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
 
 const socket = ref<Socket | null>(null);
 
+const TextareaRef = ref<InstanceType<typeof ThreadTextarea> | null>(null);
 const isPrivateMeet = computed(() => route.name == 'OrgThreadChatPrivateMeet');
 const isE2EEEnabled = ref<boolean>(true);
 const messages = ref<any[]>([]);
@@ -236,13 +409,124 @@ const isFetchingMore = ref<boolean>(false);
 const hasMore = ref<boolean>(true);
 const isSomeoneTyping = ref<boolean>(false);
 let typingTimeout: any = null;
-const inputComponent = ref<any>(null);
+
+const selectedFiles = ref<File[]>([]);
+const files = ref<any[]>([]);
+const fileSendProgress = ref<null | number>(null);
+const fileInputRef = ref<HTMLInputElement | null>(null);
+
+const selectedMessage = computed<string>(() => String(route.query.select));
+watch(() => selectedMessage.value, async (newId) => {
+    if (newId && newId !== 'undefined') 
+    {
+
+        await scrollToSelectedMessage();
+        
+        setTimeout(() => {
+            router.push({ query: { ...route.query, select: undefined } });
+        }, 5000);
+        
+    }
+}, { immediate: true });
 
 const recipient = computed(() => {
     const userId = route.params.userId;
     if (!openedOrg.value?.members) return null;
     return openedOrg.value.members.find((m: OrgMember) => m.id === userId)?.user;
 });
+
+
+
+
+const triggerFileSearch = () => fileInputRef.value?.click();
+
+const handleFiles = (filesList: FileList | File[] | null) => {
+
+    if (!filesList) return;
+    isDragging.value = false;
+    const newFiles = Array.from(filesList);
+    const LIMIT = 10;
+    const MAX_SIZE_GB = 10; 
+    const MAX_SIZE_BYTES = MAX_SIZE_GB * 1024 * 1024 * 1024;
+
+    if (selectedFiles.value.length >= LIMIT) 
+    {
+        return toast.show(`Limite de ${LIMIT} fichiers atteinte.`, 'warning');
+    }
+
+    const availableSlots = LIMIT - selectedFiles.value.length;
+
+    if (newFiles.length > availableSlots) 
+    {
+        const filesToAdd = newFiles.slice(0, availableSlots);
+        selectedFiles.value.push(...filesToAdd);
+        
+        return toast.show(
+            `Seuls les ${availableSlots} premiers fichiers ont été ajoutés (max ${LIMIT}).`, 
+            'warning'
+        );
+    }
+    
+    const validFiles = newFiles.filter(file => {
+        if (file.size > MAX_SIZE_BYTES) {
+            toast.show(`Le fichier ${file.name} est trop lourd (max ${MAX_SIZE_GB}Go)`, 'error');
+            return false;
+        }
+        return true;
+    });
+
+    selectedFiles.value.push(...validFiles);
+
+};
+
+const handlePaste = (e: ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    
+    for (const item of items) 
+    {
+        if (item.kind === 'file') 
+        {
+            const file = item.getAsFile();
+            if (file) handleFiles([file]);
+        }
+    }
+};
+
+const cancelReply = () => {
+    setMessageWillBeResponded(null);
+};
+
+watch(() => messageWillBeResponded.value, () => {
+    TextareaRef.value?.textarea?.focus();
+});
+
+const isDragging = ref<boolean>(false);
+const handleDrop = (e: DragEvent) => {
+    isDragging.value = false;
+    if (e.dataTransfer?.files) handleFiles(e.dataTransfer.files);
+};
+
+const removeFile = (index: number) => {
+    selectedFiles.value.splice(index, 1);
+};
+
+const validUpload = async () => {
+    fileSendProgress.value = 0;
+    files.value = await uploadFiles(
+        selectedFiles.value,
+        {
+            workspaceId: String(route.params.spaceId),
+        },
+        (percent: number) => {
+            fileSendProgress.value = percent;
+        }
+    )
+}
+
+
+
+
 
 const decryptMessageContent = async (msg: any) => {
     
@@ -296,6 +580,23 @@ const joinDM = async (userId: string) => {
     
     socket.value?.emit("join-dm", { recipientId: userId });
 
+};
+
+const scrollToSelectedMessage = async () => {
+
+    if (!selectedMessage.value || selectedMessage.value === 'undefined') return;
+
+    await nextTick();
+
+    const targetEl = document.getElementById(`msg-${selectedMessage.value}`);
+    if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    console.log(targetEl)
+
+};
+
+const getMessageSenderName = (msg: Message): string => {
+    return msg.sender?.name || 'Anonyme';
 };
 
 const sendMessage = async () => {
@@ -401,7 +702,7 @@ const mount = async () => {
     }
     if (E2EEUnloked.value) 
     {
-        inputComponent.value?.textarea?.focus();
+        TextareaRef.value?.textarea?.focus();
     }
 };
 
