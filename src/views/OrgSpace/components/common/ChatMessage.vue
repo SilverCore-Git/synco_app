@@ -317,7 +317,7 @@ const openEditMessage = () => {
 
 const deleteMessage = async () => {
     const socket = await useWSocket();
-    socket.value?.emit('delete-message', props.msg.id);
+    socket.value?.emit('dm:delete-message', props.msg.id);
     showDeleteConfirm.value = false;
 };
 
@@ -327,7 +327,7 @@ const editMessage = async (newContent: string) => {
 
     const socket = await useWSocket();
         
-    socket.value?.emit('edit-message', { 
+    socket.value?.emit('dm:edit-message', { 
         id: props.msg.id, 
         content: ciphertext, 
         nonce: iv 

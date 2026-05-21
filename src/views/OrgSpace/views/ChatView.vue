@@ -371,7 +371,7 @@
 
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import type { OrgMember } from '@/types/types';
+import type { DMMessage, OrgMember } from '@/types/types';
 import { openedOrg, user } from '@/assets/var';
 import useWSocket from '@/composables/useWSocket';
 import type { Socket } from 'socket.io-client';
@@ -567,6 +567,35 @@ const initListener = () => {
         scrollToBottom();
     });
 
+    socket.value.on('dm:delete-message', (msgId: string) => {
+        messages.value = messages.value.filter(m => m.id !== msgId);
+    });
+
+    socket.value.on('dm:edit-message', async (editedMsg: DMMessage) => {
+
+        let decryptedContent = editedMsg.content;
+
+        if (editedMsg.content && editedMsg.content.trim() !== "") 
+        {
+            try {
+
+
+                const keyToUse = (editedMsg.senderId === user.value?.id) 
+                    ? editedMsg.selfEncryptedAesKey 
+                    : editedMsg.encryptedAesKey;
+
+                decryptedContent = await decryptFromPeer(editedMsg.content, keyToUse!, editedMsg.nonce, privateKey.value!);
+
+            } catch (err) {
+                decryptedContent = "🔒 Échec du déchiffrement lors de l'édition.";
+            }
+        }
+        
+        const updatedMsg = { ...editedMsg, content: decryptedContent };
+        messages.value = messages.value.map(m => m.id === editedMsg.id ? updatedMsg : m);
+
+    });
+
     socket.value.on("dm:user-typing", (data: { isTyping: boolean }) => {
         isSomeoneTyping.value = data.isTyping;
     });
@@ -595,7 +624,7 @@ const scrollToSelectedMessage = async () => {
 
 };
 
-const getMessageSenderName = (msg: Message): string => {
+const getMessageSenderName = (msg: DMMessage): string => {
     return msg.sender?.name || 'Anonyme';
 };
 
