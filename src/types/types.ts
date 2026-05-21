@@ -134,10 +134,14 @@ export interface DMMessage {
     selfEncryptedAesKey: string | null;
     createdAt: string | Date;
     updatedAt: string | Date;
+    edited: boolean | null;
 
     sender?: User;
     recipient?: User;
     files?: StoredFile[];
+
+    replyMessage?: Message | null;
+    replies?: Message[];
 }
 
 export interface OrgMember {
