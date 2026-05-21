@@ -233,10 +233,10 @@ import useWSocket from '@/composables/useWSocket';
 import EditMessage from '../popup/EditMessage.vue';
 import type { DMMessage } from '@/types/types';
 import { downloadFile } from '@/assets/utils/downloadFile';
-import { encryptMessageWithContentKey } from '@/assets/utils/crypto';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { user } from '@/assets/var';
+import { encryptAesKeyWithRsa, encryptForPeer } from '@/assets/utils/crypto';
 
 const props = defineProps<{
     msg: DMMessage;
@@ -323,14 +323,23 @@ const deleteMessage = async () => {
 
 const editMessage = async (newContent: string) => {
 
-    const { ciphertext, iv } = await encryptMessageWithContentKey(newContent, props.currentThreadKey!);
+    const myPubKey = user.value?.publicKey;
+
+    const { ciphertext, encryptedAesKey, iv, rawKey } = await encryptForPeer(newContent, props.msg.sender?.publicKey!);
+
+    const selfEncryptedAesKey = await encryptAesKeyWithRsa(
+        rawKey,
+        myPubKey
+    );
 
     const socket = await useWSocket();
         
     socket.value?.emit('dm:edit-message', { 
         id: props.msg.id, 
-        content: ciphertext, 
-        nonce: iv 
+        newContent: ciphertext,
+        encryptedAesKey,
+        selfEncryptedAesKey: selfEncryptedAesKey,
+        nonce: iv,
     });
 
 };
