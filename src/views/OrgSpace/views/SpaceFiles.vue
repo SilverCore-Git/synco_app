@@ -111,36 +111,20 @@
                     class="grid grid-cols-1 gap-3"
                 >
                     
-                    <div 
+                    <FolderCard 
                         v-for="folder in filteredFolders" 
-                        :key="folder.id"
+                        :key="folder.id" 
                         draggable="true"
+                        :folder="folder"
+                        :draggedIntoFolderId="draggedIntoFolderId"
+                        :draggedSourceFolderId="draggedSourceFolderId"
+                        :allFiles="allFiles"
                         @dragstart="handleFolderDragStart($event, folder.id)"
-                        @click="currentFolderId = folder.id"
                         @dragover.prevent="draggedIntoFolderId = folder.id"
                         @dragleave="draggedIntoFolderId = null"
                         @drop="handleDrop($event, folder.id)"
-                        class="max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border border-white/5 rounded-xl transition-all cursor-pointer shadow-sm"
-                        :class="[
-                            draggedIntoFolderId === folder.id ? 'ring-2 ring-(--primary) bg-(--primary)/10 border-(--primary)/50' : 'hover:border-(--primary)/50 hover:bg-(--primary)/5',
-                            draggedSourceFolderId === folder.id ? 'opacity-40 grayscale-50' : ''
-                        ]"
-                    >
-
-                        <div class="w-10 h-10 flex items-center justify-center rounded-lg bg-yellow-500/10 text-yellow-500 group-hover:scale-110 transition-transform">
-                            <i class="bi bi-folder-fill text-xl" />
-                        </div>
-
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-semibold text-(--text)/90 truncate">{{ folder.name }}</p>
-                            <p class="text-[9px] text-(--text)/40 font-bold uppercase tracking-tighter">
-                                {{ allFiles.filter(f => f.folderId === folder.id).length }} fichiers
-                            </p>
-                        </div>
-
-                        <i class="bi bi-chevron-right text-(--text)/20 group-hover:text-(--primary) transition-colors" />
-
-                    </div>
+                        @click="currentFolderId = folder.id"
+                    />
 
                 </div>
 
@@ -152,71 +136,15 @@
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-4">
 
-                        <div 
+                        <FileCard
                             v-for="file in filteredFiles" 
                             :key="file.id"
                             draggable="true"
+                            :file="file"
+                            :draggedFileId="draggedFileId"
                             @dragstart="handleDragStart($event, file.id)"
                             @dragend="draggedFileId = null"
-                            :class="draggedFileId === file.id ? 'opacity-40 scale-95' : ''"
-                            class="
-                                group relative flex flex-col bg-(--bg2)/40 
-                                border border-white/5 rounded-2xl p-3 
-                                hover:bg-(--bg3) hover:border-(--primary)/30 
-                                transition-all cursor-pointer shadow-sm 
-                                hover:shadow-xl hover:-translate-y-1
-                            "
-                        >
-                        
-                            <div 
-                                class="
-                                    relative aspect-square mb-3 rounded-xl bg-black/20 
-                                    flex items-center justify-center overflow-hidden 
-                                    border border-white/5 
-                                "
-                            >
-                                
-                                <i 
-                                    :class="[getFileInfo(file).icon, getFileInfo(file).color]" 
-                                    class="text-4xl transition-transform group-hover:scale-110 duration-300" 
-                                />
-
-                                <div class="absolute bottom-2 right-2 px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-md border border-white/10 text-[9px] font-black uppercase text-white/70">
-                                    {{ file.originalName.split('.').pop() }}
-                                </div>
-
-                                <div 
-                                    class="
-                                        absolute inset-0 bg-black/60 opacity-0 
-                                        group-hover:opacity-100 transition-opacity 
-                                        flex items-center justify-center gap-2
-                                    "
-                                >
-                                
-                                    <button class="glass" @click="downloadFile(file.id)">
-                                        <i class="bi bi-download" />
-                                    </button>
-
-                                    <button class="glass">
-                                        <i class="bi bi-three-dots-vertical" />
-                                    </button>
-
-                                </div>
-
-                            </div>
-
-                            <div class="flex flex-col gap-0.5 min-w-0">
-                                <span class="text-xs font-semibold text-(--text)/90 truncate group-hover:text-(--primary) transition-colors" :title="file.originalName">
-                                    {{ file.originalName }}
-                                </span>
-                                
-                                <div class="flex items-center justify-between text-[9px] font-bold text-(--text)/30 uppercase tracking-tighter">
-                                    <span>{{ formatSize(file.size) }}</span>
-                                    <span v-if="file.createdAt">{{ formatDate(file.createdAt) }}</span>
-                                </div>
-                            </div>
-                            
-                        </div>
+                        />
 
                     </div>
 
@@ -265,12 +193,12 @@ import { useRoute } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import useSettingsItem from '@/composables/useSettingsItem';
 import type { Folder, StoredFile } from '@/types/types';
-import { getFileInfo } from '@/assets/utils/getFileIcon';
-import { downloadFile } from '@/assets/utils/downloadFile';
 import { openedOrg } from '@/assets/var';
 import CreateNewFolder from '../components/popup/CreateNewFolder.vue';
 import { useToast } from '@/composables/useToast';
 import { uploadFiles } from '@/assets/uploadFile';
+import FolderCard from '../components/SpaceFiles/FolderCard.vue';
+import FileCard from '../components/SpaceFiles/FileCard.vue';
 
 
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
@@ -335,25 +263,6 @@ const filteredFiles = computed(() => {
     });
 
 });
-
-
-const formatSize = (bytes: number) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-};
-
-const formatDate = (date: string | Date) => {
-    const d = new Date(date);
-    return d.toLocaleDateString('fr-FR', { 
-        day: '2-digit', 
-        month: '2-digit', 
-        year: 'numeric' 
-    });
-};
-
 
 const filteredFolders = computed(() => {
 
