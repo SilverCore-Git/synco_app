@@ -108,7 +108,7 @@
                             v-for="msg in messages" 
                             :key="msg.id" 
 
-                            :selected-message="null"
+                            :selected-message="selectedMessage"
                             :msg="msg"
                             :messages="messages"
                         />
@@ -713,7 +713,7 @@ const sendMessage = async () => {
     setMessageWillBeResponded(null);
     newMessage.value = "";
     stopTyping();
-    
+
 };
 
 const createPrivateMeet = () => {
