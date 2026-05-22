@@ -198,53 +198,7 @@
 
                         <div class="w-10 h-10 shrink-0 flex items-center justify-center rounded bg-(--bg) border border-(--text)/5">
 
-                            <template v-if="file.name.includes('67')">
-                                67
-                            </template>
-
-                            <template v-else-if="file.type.startsWith('image/')">
-                                <i class="bi bi-image text-(--primary)/60 text-xl" />
-                            </template>
-
-                            <template v-else-if="file.type.includes('pdf')">
-                                <i class="bi bi-file-earmark-pdf text-red-400 text-xl" />
-                            </template>
-
-                            <template v-else-if="file.type.includes('zip') || file.type.includes('rar') || file.type.includes('7z') || file.type.includes('tar')">
-                                <i class="bi bi-file-earmark-zip text-yellow-500 text-xl" />
-                            </template>
-
-                            <template v-else-if="file.type.includes('application/x-msdownload') || file.type.includes('exe')">
-                                <i class="bi bi-terminal-fill text-blue-400 text-xl" />
-                            </template>
-
-                            <template v-else-if="file.type.startsWith('text/') || file.type.includes('javascript') || file.type.includes('json') || file.type.includes('typescript')">
-                                <i class="bi bi-file-earmark-code text-indigo-400 text-xl" />
-                            </template>
-
-                            <template v-else-if="file.type.includes('word') || file.type.includes('officedocument.wordprocessingml')">
-                                <i class="bi bi-file-earmark-word text-blue-500 text-xl" />
-                            </template>
-
-                            <template v-else-if="file.type.includes('excel') || file.type.includes('spreadsheetml') || file.type.includes('csv')">
-                                <i class="bi bi-file-earmark-excel text-green-500 text-xl" />
-                            </template>
-
-                            <template v-else-if="file.type.includes('powerpoint') || file.type.includes('presentationml')">
-                                <i class="bi bi-file-earmark-ppt text-orange-500 text-xl" />
-                            </template>
-
-                            <template v-else-if="file.type.startsWith('video/')">
-                                <i class="bi bi-play-btn text-purple-400 text-xl" />
-                            </template>
-
-                            <template v-else-if="file.type.startsWith('audio/')">
-                                <i class="bi bi-music-note-beamed text-pink-400 text-xl" />
-                            </template>
-
-                            <template v-else>
-                                <i class="bi bi-file-earmark text-(--text)/40 text-xl" />
-                            </template>
+                            <i class="bi text-xl" :class="[ getFileInfo(file as any).color, getFileInfo(file as any).icon ]" />
 
                         </div>
 
@@ -388,6 +342,7 @@ import PrivateMeetView from './PrivateMeetView.vue';
 import ChatMessage from '../components/common/ChatMessage.vue';
 import { uploadFiles } from '@/assets/uploadFile';
 import useResponse from '@/composables/useResponse';
+import { getFileInfo } from '@/assets/utils/getFileIcon';
 
 
 const route = useRoute();

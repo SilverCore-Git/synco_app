@@ -130,53 +130,7 @@
                                 
                                     <div class="w-10 h-10 shrink-0 flex items-center justify-center rounded bg-(--bg) border border-(--text)/5">
 
-                                        <template v-if="file.originalName.includes('67')">
-                                            67
-                                        </template>
-
-                                        <template v-else-if="file.mimeType.startsWith('image/')">
-                                            <i class="bi bi-image text-(--primary)/60 text-xl" />
-                                        </template>
-
-                                        <template v-else-if="file.mimeType.includes('pdf')">
-                                            <i class="bi bi-file-earmark-pdf text-red-400 text-xl" />
-                                        </template>
-
-                                        <template v-else-if="file.mimeType.includes('zip') || file.mimeType.includes('rar') || file.mimeType.includes('7z') || file.mimeType.includes('tar')">
-                                            <i class="bi bi-file-earmark-zip text-yellow-500 text-xl" />
-                                        </template>
-
-                                        <template v-else-if="file.mimeType.includes('application/x-msdownload') || file.mimeType.includes('exe') || file.originalName.endsWith('.exe') || file.originalName.endsWith('.msi')">
-                                            <i class="bi bi-terminal-fill text-blue-400 text-xl" />
-                                        </template>
-
-                                        <template v-else-if="file.mimeType.startsWith('text/') || file.mimeType.includes('javascript') || file.mimeType.includes('json') || file.mimeType.includes('typescript')">
-                                            <i class="bi bi-file-earmark-code text-indigo-400 text-xl" />
-                                        </template>
-
-                                        <template v-else-if="file.mimeType.includes('word') || file.mimeType.includes('officedocument.wordprocessingml')">
-                                            <i class="bi bi-file-earmark-word text-blue-500 text-xl" />
-                                        </template>
-
-                                        <template v-else-if="file.mimeType.includes('excel') || file.mimeType.includes('spreadsheetml') || file.mimeType.includes('csv')">
-                                            <i class="bi bi-file-earmark-excel text-green-500 text-xl" />
-                                        </template>
-
-                                        <template v-else-if="file.mimeType.includes('powerpoint') || file.mimeType.includes('presentationml')">
-                                            <i class="bi bi-file-earmark-ppt text-orange-500 text-xl" />
-                                        </template>
-
-                                        <template v-else-if="file.mimeType.startsWith('video/')">
-                                            <i class="bi bi-play-btn text-purple-400 text-xl" />
-                                        </template>
-
-                                        <template v-else-if="file.mimeType.startsWith('audio/')">
-                                            <i class="bi bi-music-note-beamed text-pink-400 text-xl" />
-                                        </template>
-
-                                        <template v-else>
-                                            <i class="bi bi-file-earmark text-(--text)/40 text-xl" />
-                                        </template>
+                                        <i class="bi text-xl" :class="[ getFileInfo(file).color, getFileInfo(file).icon ]" />
 
                                     </div>
 
@@ -237,6 +191,7 @@ import MarkdownRender from '../../views/MarkdownRender.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { user } from '@/assets/var';
 import { encryptAesKeyWithRsa, encryptForPeer } from '@/assets/utils/crypto';
+import { getFileInfo } from '@/assets/utils/getFileIcon';
 
 const props = defineProps<{
     msg: DMMessage;
