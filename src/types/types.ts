@@ -159,6 +159,7 @@ export interface OrgMember {
 export interface Folder {
   id: string;
   name: string;
+  color?: string;
   
   orgId: string;
   workspaceId: string | null;
