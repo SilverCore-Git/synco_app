@@ -141,8 +141,8 @@ export interface DMMessage {
     recipient?: User;
     files?: StoredFile[];
 
-    replyMessage?: Message | null;
-    replies?: Message[];
+    replyMessage?: DMMessage | null;
+    replies?: DMMessage[];
 }
 
 export interface OrgMember {

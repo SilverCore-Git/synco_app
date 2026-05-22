@@ -524,27 +524,52 @@ const validUpload = async () => {
     )
 }
 
+const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<DMMessage | null> => {
 
+        if (!msg) return null;
+        
+        if (!msg.content || msg.content.trim() === "") return msg;
 
-
-
-const decryptMessageContent = async (msg: any) => {
-    
-    if (msg.isE2EE && privateKey.value) 
-    {
         try {
 
             const keyToUse = (msg.senderId === user.value?.id) 
                 ? msg.selfEncryptedAesKey 
                 : msg.encryptedAesKey;
 
-            msg.content = await decryptFromPeer(msg.content, keyToUse, msg.nonce, privateKey.value);
+            const clearText = await decryptFromPeer(msg.content, keyToUse!, msg.nonce, privateKey.value!);
+            return { ...msg, content: clearText };
 
-        } catch (e) {
-            msg.content = "🔒 [Erreur de déchiffrement]";
+        } 
+        catch (cryptoErr) {
+            console.error(`[E2EE] Échec du déchiffrement pour le message ${msg.id}:`, cryptoErr);
+            return { ...msg, content: "[⚠️ Impossible de déchiffrer ce message.]" };
         }
-    }
-    return msg;
+
+};
+
+const procesMessages = async (msgs: DMMessage[]) => {
+
+    const decryptedMessages = await Promise.all(msgs.map(async m => {
+        
+        let decryptedMain = await decryptSingleMessage(m);
+        if (!decryptedMain) return m;
+
+        if (decryptedMain.replyMessage) 
+        {
+            const decryptedReply = await decryptSingleMessage(decryptedMain.replyMessage);
+            if (decryptedReply) {
+                decryptedMain.replyMessage = decryptedReply;
+            }
+        }
+
+        return decryptedMain;
+
+    }));
+
+    return decryptedMessages.sort((a, b) => {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+
 };
 
 const initListener = () => {
@@ -555,13 +580,13 @@ const initListener = () => {
     events.forEach(ev => socket.value?.off(ev));
 
     socket.value.on('dm:history', async (history: any[]) => {
-        messages.value = await Promise.all(history.map(msg => decryptMessageContent(msg)));
+        messages.value = await procesMessages(history);
         loading.value = false;
         scrollToBottom(true);
     });
 
     socket.value.on("dm:new-message", async (msg: any) => {
-        const decryptedMsg = await decryptMessageContent(msg);
+        const decryptedMsg = await decryptSingleMessage(msg);
         messages.value.push(decryptedMsg);
         isSomeoneTyping.value = false;
         scrollToBottom();
@@ -681,11 +706,14 @@ const sendMessage = async () => {
         encryptedAesKey: finalEncryptedAesKey,
         selfEncryptedAesKey: selfEncryptedAesKey,
         nonce: finalIv,
-        isE2EE: useEncryption
+        isE2EE: useEncryption,
+        replyToId: messageWillBeResponded.value?.id,
     });
 
+    setMessageWillBeResponded(null);
     newMessage.value = "";
     stopTyping();
+    
 };
 
 const createPrivateMeet = () => {
