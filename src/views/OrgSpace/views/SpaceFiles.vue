@@ -203,8 +203,8 @@
 
 <script lang="ts" setup>
 
-import { computed, onMounted, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import useSettingsItem from '@/composables/useSettingsItem';
 import type { Folder, StoredFile } from '@/types/types';
@@ -218,6 +218,7 @@ import FileCard from '../components/SpaceFiles/FileCard.vue';
 
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
 const route = useRoute();
+const router = useRouter();
 const toast = useToast();
 
 const searchQuery = ref<string>('');
@@ -315,6 +316,19 @@ const breadcrumbs = computed(() => {
     return crumbs;
 
 });
+
+
+watch(() => breadcrumbs.value.length, () => {
+    router.push({
+        name: route.name || undefined, 
+        params: route.params,
+        query: {
+            ...route.query, 
+            path: '/' + breadcrumbs.value.map(b => b.id).join('/') 
+        } 
+    });
+});
+
 
 const goBack = () => {
     
@@ -504,16 +518,28 @@ const handleFiles = async (files: FileList | File[]) => {
 
 
 onMounted(async() => {
+    
     try {
+
         const res = await sfetch(`/api/spaces/${route.params.spaceId}/files`);
         const data = await res.json();
         allFiles.value = data.files || [];
         allFolders.value = data.folders || [];
+
+        const urlPath = route.query.path as string;
+
+        if (urlPath) 
+        {
+            const pathIds = urlPath.split('/');
+            currentFolderId.value = pathIds.length > 0 ? pathIds?.[pathIds.length - 1] || 'root' : 'root';
+        }   
+
     } catch (e) {
         console.error("Erreur:", e);
     } finally {
         loading.value = false;
     }
+
 });
 
 </script>
