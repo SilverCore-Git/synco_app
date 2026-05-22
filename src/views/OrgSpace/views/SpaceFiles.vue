@@ -106,7 +106,10 @@
                     </div>
                 </div>
 
-                <div v-if="filteredFolders.length > 0" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                <div 
+                    v-if="filteredFolders.length > 0"
+                    class="grid grid-cols-1 gap-3"
+                >
                     
                     <div 
                         v-for="folder in filteredFolders" 
@@ -117,7 +120,7 @@
                         @dragover.prevent="draggedIntoFolderId = folder.id"
                         @dragleave="draggedIntoFolderId = null"
                         @drop="handleDrop($event, folder.id)"
-                        class="group flex items-center gap-3 p-3 bg-(--bg2)/40 border border-white/5 rounded-xl transition-all cursor-pointer shadow-sm"
+                        class="max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border border-white/5 rounded-xl transition-all cursor-pointer shadow-sm"
                         :class="[
                             draggedIntoFolderId === folder.id ? 'ring-2 ring-(--primary) bg-(--primary)/10 border-(--primary)/50' : 'hover:border-(--primary)/50 hover:bg-(--primary)/5',
                             draggedSourceFolderId === folder.id ? 'opacity-40 grayscale-50' : ''
