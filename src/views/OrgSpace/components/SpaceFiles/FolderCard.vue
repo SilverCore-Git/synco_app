@@ -11,7 +11,7 @@
     >
 
             <div 
-                @click="showEditFolder = true"
+                @click.stop="showEditFolder = true"
                 class="
                     group/icon w-10 h-10 flex items-center justify-center 
                     rounded-lg group-hover:scale-110 transition-transform cursor-pointer

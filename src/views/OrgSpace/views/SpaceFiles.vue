@@ -125,21 +125,26 @@
                     v-if="filteredFolders.length > 0"
                     class="grid grid-cols-1 gap-3"
                 >
+
+                <div
+                    v-for="folder in filteredFolders" 
+                    :key="folder.id" 
+                    draggable="true"
+                    @dragstart="handleFolderDragStart($event, folder.id)"
+                    @dragover.prevent="draggedIntoFolderId = folder.id"
+                    @dragleave="draggedIntoFolderId = null"
+                    @drop="handleDrop($event, folder.id)"
+                    @click="currentFolderId = folder.id"
+                >
                     
-                    <FolderCard 
-                        v-for="folder in filteredFolders" 
-                        :key="folder.id" 
-                        draggable="true"
+                    <FolderCard
                         :folder="folder"
                         :draggedIntoFolderId="draggedIntoFolderId"
                         :draggedSourceFolderId="draggedSourceFolderId"
                         :allFiles="allFiles"
-                        @dragstart="handleFolderDragStart($event, folder.id)"
-                        @dragover.prevent="draggedIntoFolderId = folder.id"
-                        @dragleave="draggedIntoFolderId = null"
-                        @drop="handleDrop($event, folder.id)"
-                        @click="currentFolderId = folder.id"
                     />
+
+                </div>
 
                 </div>
 
