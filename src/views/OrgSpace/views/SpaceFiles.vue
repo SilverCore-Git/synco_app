@@ -72,18 +72,33 @@
 
                     <button 
                         @click="currentFolderId = 'root'"
+                        @drop="handleDrop($event, 'root')"
+                        @dragstart="handleFolderDragStart($event, 'root')"
+                        @dragover.prevent="draggedIntoFolderId = 'root'"
+                        @dragleave="draggedIntoFolderId = null"
                         class="hover:text-(--primary) transition-colors shrink-0 text-[10px] font-black uppercase tracking-widest"
-                        :class="currentFolderId === 'root' ? 'text-(--primary)' : 'text-(--text)/40'"
+                        :class="currentFolderId === 'root' || draggedIntoFolderId === 'root' ? 'text-(--primary)' : 'text-(--text)/40'"
                     >
                         Racine
                     </button>
                         
-                    <template v-for="crumb in breadcrumbs" :key="crumb.id">
+                    <template 
+                        v-for="crumb in breadcrumbs" 
+                        :key="crumb.id"
+                    >
                         <i class="bi bi-chevron-right text-[10px] text-(--text)/40" />
                         <button 
                             @click="currentFolderId = crumb.id"
-                            class="hover:text-(--primary) transition-colors shrink-0 max-w-[120px] truncate text-[10px] font-black uppercase tracking-widest"
-                            :class="currentFolderId === crumb.id ? 'text-(--primary)' : 'text-(--text)/40'"
+                            @drop="handleDrop($event, crumb.id)"
+                            @dragstart="handleFolderDragStart($event, crumb.id)"
+                            @dragover.prevent="draggedIntoFolderId = crumb.id"
+                            @dragleave="draggedIntoFolderId = null"
+                            class="
+                                hover:text-(--primary) transition-colors shrink-0 
+                                max-w-30 truncate text-[10px] font-black 
+                                uppercase tracking-widest
+                            "
+                            :class="currentFolderId === crumb.id || draggedIntoFolderId === crumb.id ? 'text-(--primary)' : 'text-(--text)/40'"
                         >
                             {{ crumb.name }}
                         </button>
