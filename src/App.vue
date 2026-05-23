@@ -83,6 +83,7 @@ const submit = async () => {
     toast.show('Erreur de déchiffrement', 'error');
   } finally {
     pinLoading.value = false;
+    window.removeEventListener('keydown', handleInput);
   }
 
 }

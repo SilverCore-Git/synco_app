@@ -234,7 +234,7 @@ const dropdownBtns: DropdownBtn[] = [
         icon: "bi-arrow-90deg-left",
         tooltip: "répondre",
         func: (msg: Message) => setMessageWillBeResponded(msg),
-        show: (msg: Message) => msg.senderId == user.value?.id
+        show: () => true
     },
     // {
     //     icon: "bi-arrow-90deg-right",
