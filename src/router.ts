@@ -21,7 +21,6 @@ const routes = [
     path: '/',
     name: 'OrgSelection',
     component: OrgSelection,
-    meta: { title: 'SilverTeams' }
   },
 
   {
@@ -29,7 +28,6 @@ const routes = [
     name: 'InviteView',
     component: InviteView,
     props: true,
-    meta: { title: 'SilverTeams' }
   },
 
   {
@@ -42,65 +40,58 @@ const routes = [
     name: 'OrgLayout',
     component: OrgLayout,
     props: true,
-    meta: { title: 'SilverTeams' },
     children: [
       {
         path: 'home',
         name: 'OrgHome',
         props: true,
         component: OrgHome,
-        meta: { title: 'SilverTeams' }
       },
       {
         path: 'settings',
         name: 'OrgSettings',
         props: true,
         component: SettingsLayout,
-        meta: { title: 'SilverTeams' },
+        
         children: [
           {
             path: 'general',
             name: 'OrgSettingsGeneral',
             props: true,
             component: GeneralSettings,
-            meta: { title: 'SilverTeams' }
           },
           {
             path: 'members',
             name: 'OrgSettingsMembers',
             props: true,
             component: MembersSettings,
-            meta: { title: 'SilverTeams' }
           }
         ]
+
       },
       {
         path: 'home/:threadId',
         name: 'OrgThreadHome',
         props: true,
         component: ThreadLayout,
-        meta: { title: 'SilverTeams' }
       },
       {
         path: 'chat',
         name: 'OrgChat',
         props: true,
         component: ChatView,
-        meta: { title: 'SilverTeams' }
       },
       {
         path: 'chat/:userId',
         name: 'OrgThreadChat',
         props: true,
         component: ChatView,
-        meta: { title: 'SilverTeams' }
       },
       {
         path: 'chat/privateMeet/:userId',
         name: 'OrgThreadChatPrivateMeet',
         props: true,
         component: ChatView,
-        meta: { title: 'SilverTeams' }
       },
       
       {
@@ -108,21 +99,18 @@ const routes = [
         name: 'SpaceView',
         component: SpaceView,
         props: true,
-        meta: { title: 'SilverTeams' },
       },
       {
         path: ':spaceId/:threadId',
         name: 'SpaceThreadView',
         component: ThreadLayout,
         props: true,
-        meta: { title: 'SilverTeams' },
       },
       {
         path: ':spaceId/files',
         name: 'SpaceFiles',
         component: SpaceFiles,
         props: true,
-        meta: { title: 'SilverTeams' },
       }
 
     ]
