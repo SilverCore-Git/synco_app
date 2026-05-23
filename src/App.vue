@@ -91,6 +91,12 @@ const pinForgot = () => {
   alert('t mort');
 }
 
+const handleInput = (e: KeyboardEvent) => {
+  if (e.key >= '0' && e.key <= '9') press(e.key);
+  else if (e.key === 'Enter' && pin.value.length >= 4) submit();
+  else if (e.key === 'Backspace') pin.value = pin.value.slice(0, -1);
+}
+
 onMounted(async () => {
 
   const res = await fetch(`${import.meta.env.VITE_API_URL}/health`);
@@ -106,10 +112,13 @@ onMounted(async () => {
 
   if (authenticated.value) await init.run();
 
+  window.addEventListener('keydown', handleInput);
+
 })
 
 onUnmounted(() => {
   lockSecurity(); 
+  window.removeEventListener('keydown', handleInput);
 });
 
 </script>
