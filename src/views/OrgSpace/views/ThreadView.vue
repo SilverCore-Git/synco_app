@@ -103,7 +103,7 @@
                 
                 <div class="flex-1 min-w-0">
                     <p class="text-md text-(--primary) font-semibold mb-1">
-                        Répondre à {{ getMessageSenderName(messageWillBeResponded) }}
+                        Répondre à {{ getMessageSenderName(messageWillBeResponded as Message) }}
                     </p>
                 </div>
 
