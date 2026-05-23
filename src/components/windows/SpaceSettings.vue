@@ -138,6 +138,7 @@ import MembersManager from '../settings/MembersManager.vue';
 import { openedOrg } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
+import { encryptThreadKeyForMember, generateThreadKey } from '@/assets/utils/crypto';
 
 const props = defineProps<{
     space: WorkSpace;
@@ -241,9 +242,50 @@ const addMember = async (member: OrgMember) => {
 
     props.space.membersId.push(member.userId);
 
+    let encryptedKeysPayload: Array<{ userId: string; encryptedKey: string }> = [];
+
+    try {
+                
+        const space = openedOrg.value?.spaces?.find(s => s.id === props.space.id);
+                
+        const members = openedOrg.value?.members?.filter(m => space?.membersId.includes(m.userId)).map(m => m!.user!) || [];
+
+        const newThreadKey = await generateThreadKey();
+
+        for (const member of members) 
+        {
+                    
+            if (member.publicKey && typeof member.publicKey === 'string' && member.publicKey.trim().startsWith('{')) 
+            {
+                const encryptedKey = await encryptThreadKeyForMember(newThreadKey, member.publicKey);
+                encryptedKeysPayload.push({
+                    userId: member.id,
+                    encryptedKey: encryptedKey
+                });
+            }
+            else if (member.publicKey) 
+            {
+                console.warn(`[E2EE] Clé ignorée pour l'utilisateur ${member.id} (Format non-JWK ou pollué par Keycloak).`);
+            }
+        }
+
+        if (encryptedKeysPayload.length === 0) 
+        {
+            throw new Error("Aucun membre du salon ne possède de clé de chiffrement E2EE valide.");
+        }
+
+    } catch (cryptoErr: any) {
+        console.error('[E2EE] Erreur lors de la préparation des clés :', cryptoErr);
+        toast.show(`Échec de la sécurité : ${cryptoErr.message || "Clés invalides."}`, 'error');
+        return;
+    }
+
     const res = await sfetch(`/api/spaces/${props.space.id}/members`, {
         method: 'PATCH',
-        body: JSON.stringify({ membersId: props.space.membersId }),
+        body: JSON.stringify({ 
+            membersId: props.space.membersId, 
+            keys: encryptedKeysPayload
+        }),
     });
 
     if (res.ok) 
