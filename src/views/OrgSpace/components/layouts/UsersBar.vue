@@ -159,10 +159,19 @@ import { computed } from 'vue';
 import { openedOrg } from '@/assets/var';
 import getColorByStatus from '@/assets/utils/getColorByStatus';
 import isDesktopApp from '@/assets/isDesktopApp';
+import { useRoute } from 'vue-router';
+
+const route = useRoute();
 
 const members = computed(() => {
 
     if (!openedOrg.value?.members) return [];
+
+    if (route.params.spaceId) {
+        const spaceMemberIds = openedOrg.value.spaces?.find(s => s.id === route.params.spaceId)?.membersId || [];
+        return openedOrg.value.members.filter(m => spaceMemberIds.includes(m.userId));
+    }
+
     return openedOrg.value.members;
 
 });
