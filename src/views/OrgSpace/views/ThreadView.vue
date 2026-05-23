@@ -3,7 +3,7 @@
     <main 
         ref="messagesContainer"
         @scroll="handleScroll"
-        class="flex-1 overflow-y-auto p-4 w-full h-full"
+        class="flex-1 overflow-y-auto px-4 w-full h-full"
         :class="messageWillBeResponded || selectedFiles.length ? 'mb-32' : 'mb-14'"
     >
 
@@ -51,7 +51,7 @@
 
                 </template>
 
-                <div v-else class=" space-y-2">
+                <div v-else class=" space-y-2 py-6">
                 
                     <div 
                             v-for="msg in sortedMessages" 
@@ -142,7 +142,7 @@
 
                     <div class="w-10 h-10 shrink-0 flex items-center justify-center rounded bg-(--bg) border border-(--text)/5">
 
-<template v-if="file.name.includes('67')">
+                        <template v-if="file.name.includes('67')">
                             67
                         </template>
 
@@ -325,7 +325,6 @@ import SpinLoader from '@/components/SpinLoader.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import useResponse from '@/composables/useResponse';
 import { uploadFiles } from '@/assets/uploadFile';
-import { getFileInfo } from '@/assets/utils/getFileIcon';
 
 
 const props = defineProps<{ 
