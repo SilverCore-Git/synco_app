@@ -5,7 +5,7 @@
                     class="group relative px-4 py-2 flex flex-col justify-start items-start rounded-lg transition-colors w-full"
                     :class="[
                         selectedMessage == msg.id ? ' border border-(--primary) border-dashed animate-pulse' : '',
-                        user?.id == msg.replyMessage?.senderId 
+                        user?.id == msg.replyMessage?.senderId || isTagMe
                             ? 'border-l-2 border-(--primary-dark) bg-(--primary-dark)/30 hover:bg-(--primary-dark)/50' 
                             : 'hover:bg-white/5'
                     ]"
@@ -31,7 +31,7 @@
                         </span>
 
                         <div class="max-w-md opacity-70 pointer-events-none text-[11px] line-clamp-1 [&_p]:inline [&_h1]:inline [&_h2]:inline [&_h3]:inline">
-                            <MarkdownRender :content="msg.replyMessage?.content || ''" />
+                            <MarkdownRender :content="msg.content" />
                         </div>
 
                     </div>
@@ -106,7 +106,7 @@
 
                             </div>
 
-                            <div class="text-(--text)/80 text-sm leading-relaxed wrap-break-word">
+                            <div ref="messageContentRef" class="text-(--text)/80 text-sm leading-relaxed wrap-break-word">
                                 <MarkdownRender :content="msg.content" />
                                 <span v-if="msg.edited" class="text-[10px] text-(--text)/30"> (modifié)</span>
                             </div>
@@ -189,7 +189,7 @@
 
 <script setup lang="ts">
 
-import { ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
 import useWSocket from '@/composables/useWSocket';
@@ -258,6 +258,63 @@ const { setMessageWillBeResponded } = useResponse();
 const showPlusDropdown = ref<boolean>(false);
 const showDeleteConfirm = ref<boolean>(false);
 const showEditMessage = ref<boolean>(false);
+const messageContentRef = ref<HTMLElement | null>(null);
+
+
+const isTagMe = computed(() => {
+
+    if (!props.msg.content || !user.value) return false;
+    
+    const regex = new RegExp(`@${user.value.name}\\b`, 'i');
+    return regex.test(props.msg.content);
+
+});
+
+const applyMentions = () => {
+
+    if (!messageContentRef.value) return;
+    
+    const walker = document.createTreeWalker(
+        messageContentRef.value, 
+        NodeFilter.SHOW_TEXT, 
+        {
+            acceptNode: (node) => {
+                if (node.parentElement?.classList.contains('mention-tag')) {
+                    return NodeFilter.FILTER_REJECT;
+                }
+                return NodeFilter.FILTER_ACCEPT;
+            }
+        }
+    );
+    
+    let node;
+    const nodesToReplace: { oldNode: ChildNode, newNode: HTMLElement }[] = [];
+    
+    while (node = walker.nextNode())
+    {
+        const text = node.textContent || '';
+        if (text.includes('@')) 
+        {
+            const span = document.createElement('span');
+            span.innerHTML = text.replace(
+                /@(\w+)/g, 
+                '<span class="mention-tag">@$1</span>'
+            );
+            nodesToReplace.push({ oldNode: node as any, newNode: span });
+        }
+    }
+
+    nodesToReplace.forEach(({ oldNode, newNode }) => {
+        oldNode.parentNode?.replaceChild(newNode, oldNode);
+    });
+
+};
+
+watch(() => props.msg.content, async () => {
+    await nextTick();
+    applyMentions();
+}, { immediate: true });
+
 
 const formatTime = (d: string) => {
   return new Date(d).toLocaleString('fr-FR', {
@@ -299,4 +356,26 @@ const editMessage = async (newContent: string) => {
 
 };
 
+
 </script>
+
+<style scoped>
+
+:deep(.mention-tag) {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0.4rem;
+    margin: 0 0.1rem;
+    border-radius: 0.375rem;
+    font-weight: 600;
+    background-color: var(--primary-dark);
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+:deep(.mention-tag:hover) {
+    filter: brightness(1.2);
+}
+
+</style>
