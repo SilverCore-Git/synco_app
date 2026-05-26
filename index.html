@@ -15,16 +15,77 @@
   </head>
 
   <style>
+
     html, body {
       background-color: #121214;
       margin: 0;
       padding: 0;
     }
+
+    .shimmer {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      pointer-events: none;
+      
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.4) 50%,
+        transparent 100%
+      );
+      
+      animation: shine 4s infinite linear;
+    }
+
+    @keyframes shine {
+      0% { transform: translateX(-150%) skewX(-20deg); }
+      30% { transform: translateX(150%) skewX(-20deg); }
+      
+      31% { transform: translateX(-150%) skewX(-20deg); }
+      100% { transform: translateX(-150%) skewX(-20deg); }
+    }
+
   </style>
 
   <body>
 
-    <div id="app"></div>
+    <div id="app">
+
+      <div style="
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--bg);
+        user-select: none;
+    ">
+
+        <div style="
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border-radius: 0.75rem;
+        ">
+          
+          <img 
+            src="/favicon.ico" 
+            alt="Logo" 
+            style="height: 80px; z-index: 10; position: relative;" 
+          />
+          <div class="shimmer" />
+
+        </div>
+
+      </div>
+
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
 
   </body>

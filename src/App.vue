@@ -7,11 +7,9 @@ import { isLoaded, user } from './assets/var';
 import Notifications from './components/overlay/Notifications.vue';
 import useSettingsItem from './composables/useSettingsItem';
 import keycloak, { initKC } from './assets/keycloak';
-import LogoLoader from './components/LogoLoader.vue';
 import { E2EEUnloked, lockSecurity, setupFirstTimeSecurity, unlockSecurity } from './assets/utils/crypto';
 import sfetch from './assets/utils/sfetch';
 import { useToast } from './composables/useToast';
-import SpinLoader from './components/SpinLoader.vue';
 import TopBar from './components/layout/topBar.vue';
 
 const toast = useToast();
@@ -161,7 +159,7 @@ onUnmounted(() => {
         <div class="w-full h-full" key="lock" v-else>
 
           <div v-if="pinLoading" class="w-full h-full flex flex-col items-center justify-center bg-(--bg3) p-6 select-none" >
-            <SpinLoader />
+            <Loader />
           </div>
         
           <div v-else class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none">
@@ -170,12 +168,11 @@ onUnmounted(() => {
 
                 <div class="flex flex-col items-center gap-4 mb-3">
 
-                  <div class="w-16 h-16 bg-(--primary)/10 text-(--primary) rounded-2xl flex items-center justify-center animate-in zoom-in duration-500">
-                      <i class="bi bi-shield-lock-fill text-3xl" />
-                  </div>
-                  <h1 class="uppercase text-4xl md:text-5xl font-black tracking-tighter">
-                    silver<span class="text-(--primary)">teams</span>
-                  </h1>
+                  <img 
+                    src="/banner.svg" 
+                    alt="Logo" 
+                    class=" h-16" 
+                  />
 
                 </div>
 
@@ -256,7 +253,7 @@ onUnmounted(() => {
     </div>
 
     <div v-else>
-      <LogoLoader />
+      <Loader />
     </div>
 
   </div>
