@@ -35,20 +35,20 @@ body.dark {
 }
 
 body.light {
-
-  --primary: #16ac77; 
-  --primary-dark: #a4e1ca;
-  --primary-hover: #128a60;
-
-  --bg: #cbcbcb;
-  --bg2: #dedede;
-  --bg3: #f4f4f4;
   
-  --black: #ffffff;
-  --white: #000000;
+  --primary: #108e62;
+  --primary-dark: #e6f6f0;
+  --primary-hover: #0d7551;
 
-  --text: #2d2f30;
+  --bg: #ffffff;
+  --bg2: #f4f4f5;
+  --bg3: #e4e4e7;
+  
+  --black: #000;
+  --white: #fff;
 
+  --text: #27272a; 
+  
 }
 
 body {
