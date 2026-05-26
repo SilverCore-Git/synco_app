@@ -7,11 +7,18 @@
         >
 
             <div v-if="thread && openedOrg" class="flex items-center gap-2">
+
+                <button @click="router.push({ query: { ...route.query, showView: '0' } })">
+                    <i class="bi bi-arrow-left text-2xl text-(--text)/80" />
+                </button>
+
                 <i v-if="thread.type === 'text'" class="bi bi-hash text-2xl text-(--text)/40" />
                 <i v-else class="bi bi-volume-up-fill text-xl text-(--text)/40" />
+
                 <h2 class="font-bold text-(--text) tracking-wide lowercase">
                     {{ thread.name }}
                 </h2>
+
             </div>
             
             <div class="ml-auto flex items-center gap-4 text-(--text)/40">
@@ -49,7 +56,7 @@
 <script lang="ts" setup>
 
 import { computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import VoiceThreadView from './VoiceThreadView.vue';
 import ThreadView from './ThreadView.vue';
 import type { Thread, WorkSpace } from '@/types/types';
@@ -58,6 +65,7 @@ import SpinLoader from '@/components/SpinLoader.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
 
 const route = useRoute();
+const router = useRouter();
 const isVoice = computed<boolean>(() => route.query.type == 'vocal');
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
 

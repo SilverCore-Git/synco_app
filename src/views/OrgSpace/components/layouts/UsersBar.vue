@@ -8,10 +8,21 @@
         :class="isDesktopApp() ? 'border-t' : ''"
     >
 
-        <div class="px-4 min-h-14 flex justify-start items-center border-b border-white/5 bg-(--bg2)">
+        <div class="px-4 min-h-14 flex justify-between items-center border-b border-white/5 bg-(--bg2)">
+
             <h3 class="text-xs font-semibold text-(--text)/50 uppercase tracking-wider">
-                Membres ({{ openedOrg?.members?.length || 0 }})
+                Membres ({{ members?.length || 0 }})
             </h3>
+
+            <button 
+                v-if="isLittleScreen"
+                @click="showUsersBar = !showUsersBar"
+                class="hover:text-(--text) transition-colors"
+                :class="showUsersBar ? 'text-(--text)' : ''"
+            >
+                <i class="bi bi-people-fill" />
+            </button>
+
         </div>
 
         <div v-if="openedOrg?.members" class="flex-1 overflow-y-auto p-2 space-y-1 ">
@@ -160,8 +171,14 @@ import { openedOrg } from '@/assets/var';
 import getColorByStatus from '@/assets/utils/getColorByStatus';
 import isDesktopApp from '@/assets/isDesktopApp';
 import { useRoute } from 'vue-router';
+import useSettingsItem from '@/composables/useSettingsItem';
 
 const route = useRoute();
+const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
+
+defineProps<{
+    isLittleScreen: boolean;
+}>();
 
 const members = computed(() => {
 

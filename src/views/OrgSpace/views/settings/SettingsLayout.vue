@@ -7,10 +7,16 @@
         >
 
             <div class="flex items-center gap-2">
+
+                <button @click="router.push({ query: { ...route.query, showView: '0' } })">
+                    <i class="bi bi-arrow-left text-2xl text-(--text)/80" />
+                </button>
+
                 <i class="bi text-2xl text-(--text)/40" :class="setting?.icon" />
                 <h2 class="font-bold text-(--text) tracking-wide lowercase">
                     {{ setting?.name }}
                 </h2>
+                
             </div>
 
         </header>

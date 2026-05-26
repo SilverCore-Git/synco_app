@@ -93,7 +93,7 @@
                     <RouterLink
                         v-for="view in settingsViews"
                         :key="'settings-' + view.name + '-link'"
-                        :to="{ name: view.route }"
+                        :to="{ name: view.route, query: { ...route.query, showView: '1' } }"
                         class="w-full"
                     >
                         <SettingsViewBtn
@@ -149,7 +149,7 @@
                     <RouterLink
                         v-for="member in openedOrg?.members"
                         :key="member.id + '-link'"
-                        :to="{ name: 'OrgThreadChat', params: { userId: member.id } }"
+                        :to="{ name: 'OrgThreadChat', params: { userId: member.id }, query: { showView: '1' } }"
                         class="w-full"
                     >
                         <ChatUserBtn
@@ -211,7 +211,7 @@
                                 name="Fichiers"
                                 icon="bi-file-earmark"
                                 :active="route.name == 'SpaceFiles'"
-                                @click="router.push({ name: 'SpaceFiles' })"
+                                @click="router.push({ name: 'SpaceFiles', query: { showView: '1' } })"
                             />
 
                             <hr v-if="!isHome" class=" w-full h-0.5 bg-(--text)/50 border-none rounded-full my-1" />

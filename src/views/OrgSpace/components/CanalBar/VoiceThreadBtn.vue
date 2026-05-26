@@ -129,7 +129,7 @@ const handleAction = async () => {
     {
         const name = (route.name == 'OrgHome' || route.name == 'OrgThreadHome') 
                  ? 'OrgThreadHome' : 'SpaceThreadView';
-        router.push({ name, params: { ...route.params, threadId: props.thread.id }, query: { ...route.query,  type: 'vocal' } })
+        router.push({ name, params: { ...route.params, threadId: props.thread.id }, query: { ...route.query,  type: 'vocal', showView: '1' } })
     } 
     else 
     {

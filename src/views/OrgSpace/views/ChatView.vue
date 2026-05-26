@@ -9,6 +9,11 @@
 
             <div class="flex items-center gap-3">
 
+                <button @click="router.push({ query: { ...route.query, showView: '0' } })">
+                    <i class="bi bi-arrow-left text-2xl text-(--text)/80" />
+                </button>
+
+
                 <img 
                     :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${recipient?.name}&background=128a60&color=fff`" 
                     :alt="recipient.name"

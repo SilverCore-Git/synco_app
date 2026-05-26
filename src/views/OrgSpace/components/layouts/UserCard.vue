@@ -1,6 +1,9 @@
 <template>
 
-    <div class="absolute bottom-1 left-1 w-75 flex flex-col gap-1">
+    <div 
+        class="absolute bottom-1 left-1 flex flex-col gap-1"
+        :class="isLittleScreen ? 'w-full' : 'w-75'"
+    >
 
         <Transition name="fade-slide-in-up">
             
@@ -165,6 +168,10 @@ import { ConnectionQuality } from 'livekit-client';
 import { useRoute } from 'vue-router';
 import UserSettings from '@/components/windows/UserSettings.vue';
 import keycloak from '@/assets/keycloak';
+
+defineProps<{
+    isLittleScreen: boolean;
+}>();
 
 const route = useRoute();
 const { 

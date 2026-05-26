@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-import { computed, onBeforeUnmount, onMounted } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import ThreadsBar from './components/layouts/ThreadsBar.vue';
 import SpaceBar from './components/layouts/SpaceBar.vue';
 import UserCard from './components/layouts/UserCard.vue';
@@ -31,6 +31,10 @@ const { initPeer } = usePeer();
 const { notify } = useNotifications();
 const route = useRoute();
 const toast = useToast();
+
+const mediaQuery = window.matchMedia('(max-width: 1024px)');
+const isLittleScreen = ref<boolean>(mediaQuery.matches);
+const showRouterView = computed(() => route.query.showView !== '0');
 
 const orgOnOpen = computed(() => {
     return organizations.value.find(org => org.id === route.params.orgId);
@@ -271,12 +275,31 @@ const initSocketListener = async () => {
 
 }
 
+function handleTabletChange(e: any) 
+{
+    if (e.matches) 
+    {
+        showUsersBar.value = false;
+        isLittleScreen.value = true;
+    } 
+    else 
+    {
+        showUsersBar.value = true;
+        isLittleScreen.value = false;
+    }
+}
+
 onMounted(async () => {
-   openedOrg.value = await sfetch(`/api/orgs/${props.orgId}`).then(res => res.json()); 
-   await Promise.all([
-        initSocketListener(),
-        initPeer()
-   ])
+
+    openedOrg.value = await sfetch(`/api/orgs/${props.orgId}`).then(res => res.json()); 
+    await Promise.all([
+            initSocketListener(),
+            initPeer()
+    ])
+
+    handleTabletChange(mediaQuery);
+    mediaQuery.addEventListener('change', handleTabletChange);
+
 });
 
 onBeforeUnmount(async () => {
@@ -299,23 +322,37 @@ onBeforeUnmount(async () => {
         >
 
             <SpaceBar class="h-full" />
-            <ThreadsBar class="h-full w-60 max-w-60 min-w-60 " :class="isDesktopApp() ? 'rounded-tl-2xl' : ''" />
-
-            <div 
-                class="relative flex-1 h-full min-w-0 overflow-hidden bg-(--bg3)"
-                :class="isDesktopApp() ? 'border-t border-white/10' : ''"
-            >
-                <RouterView />
-            </div>
+            <ThreadsBar 
+                class="h-full " 
+                :class="[
+                    isDesktopApp() ? 'rounded-tl-2xl' : '',
+                    isLittleScreen ? 'w-full' : 'w-60 max-w-60 min-w-60'
+                ]" 
+            />
 
             <Transition name="slide-in-right">
+                <div 
+                    v-show="showRouterView"
+                    class=" overflow-hidden bg-(--bg3)"
+                    :class="[
+                        isDesktopApp() ? 'border-t border-white/10' : '',
+                        isLittleScreen ? 'fixed top-0 right-0 h-full w-full z-50 bg-(--bg) shadow-lg' : 'relative flex-1 h-full min-w-0'
+                    ]"
+                >
+                    <RouterView />
+                </div>
+            </Transition>
+
+            <Transition name="slide-in-right-20">
                 <UsersBar 
                     v-if="showUsersBar" 
+                    :isLittleScreen="isLittleScreen"
                     class="w-60 max-w-60 min-w-60" 
+                    :class="isLittleScreen ? 'fixed top-0 right-0 h-full z-50 bg-(--bg) shadow-lg' : 'relative'"
                 />
             </Transition>
 
-            <UserCard />
+            <UserCard :isLittleScreen="isLittleScreen" />
 
         </div>
 

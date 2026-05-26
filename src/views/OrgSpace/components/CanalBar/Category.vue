@@ -142,7 +142,7 @@ const handleDragEnd = async () => {
 const navigateToThread = (threadId: string) => {
     const name = (route.name == 'OrgHome' || route.name == 'OrgThreadHome') 
                  ? 'OrgThreadHome' : 'SpaceThreadView';
-    router.push({ name, params: { ...route.params, threadId }, query: { ...route.query, type: 'text' } });
+    router.push({ name, params: { ...route.params, threadId }, query: { ...route.query, type: 'text', showView: '1' } });
 };
 
 </script>
