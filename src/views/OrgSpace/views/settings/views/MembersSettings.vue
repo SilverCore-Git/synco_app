@@ -416,8 +416,8 @@ const sendInvite = async () => {
 
 };
 
-const updateRole = (memberId: string, event: Event) => {
-    const newRole = (event.target as HTMLSelectElement).value;
+const updateRole = (_memberId: string, _event: Event) => {
+    //const newRole = (event.target as HTMLSelectElement).value;
     // do api call
     toast.show('Rôle mis à jour (simulation)', 'success');
 };

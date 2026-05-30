@@ -197,7 +197,7 @@
 
 <script setup lang="ts">
 
-import { ref, reactive, computed } from 'vue';
+import { ref } from 'vue';
 import Window from './Window.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
 import ProfileUploader from '../common/ProfileUploader.vue';
@@ -211,13 +211,13 @@ const emit = defineEmits(['close']);
 
 const { Item: theme } = useSettingsItem('theme', 'dark');
 
-const isModified = computed<boolean>(() => formData.email !== user.value?.email || formData.username !== user.value?.name )
+// const isModified = computed<boolean>(() => formData.email !== user.value?.email || formData.username !== user.value?.name )
 const activeTab = ref<string>('account');
 
-const formData = reactive({
-    username: user.value?.name,
-    email: user.value?.email
-});
+// const formData = reactive({
+//     username: user.value?.name,
+//     email: user.value?.email
+// });
 
 const avatarChange = ref<boolean>(false);
 

@@ -164,7 +164,7 @@
                     
                     <div class="flex-1 min-w-0">
                         <p class="text-md text-(--primary) font-semibold mb-1">
-                            Répondre à {{ getMessageSenderName(messageWillBeResponded) }}
+                            Répondre à {{ getMessageSenderName(messageWillBeResponded as any) }}
                         </p>
                     </div>
 
@@ -439,19 +439,19 @@ const handleFiles = (filesList: FileList | File[] | null) => {
 
 };
 
-const handlePaste = (e: ClipboardEvent) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
+// const handlePaste = (e: ClipboardEvent) => {
+//     const items = e.clipboardData?.items;
+//     if (!items) return;
     
-    for (const item of items) 
-    {
-        if (item.kind === 'file') 
-        {
-            const file = item.getAsFile();
-            if (file) handleFiles([file]);
-        }
-    }
-};
+//     for (const item of items) 
+//     {
+//         if (item.kind === 'file') 
+//         {
+//             const file = item.getAsFile();
+//             if (file) handleFiles([file]);
+//         }
+//     }
+// };
 
 const cancelReply = () => {
     setMessageWillBeResponded(null);
@@ -680,8 +680,6 @@ const createPrivateMeet = () => {
     const memberId = openedOrg.value?.members?.find((m: OrgMember) => m.id === route.params.userId)?.id;
     router.push({ name: 'OrgThreadChatPrivateMeet', params: { userId: memberId } });
 };
-
-const formatTime = (date: any) => new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 const handleScroll = (e: Event) => {
     const container = e.target as HTMLElement;
