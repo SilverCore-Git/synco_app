@@ -20,7 +20,7 @@
                 </button>
 
                 <div class="mt-auto pt-4 border-t border-white/5">
-                    <button class="danger w-full">
+                    <button class="danger w-full" @click="showExitConfirm = true">
                         <i class="bi bi-door-open-fill text-lg" />
                         Quitter le Space
                     </button>
@@ -124,6 +124,14 @@
         </div>
 
     </Window>
+
+    <ConfirmDelete
+        :show="showExitConfirm" 
+        @confirm="exitSpace" 
+        @cancel="showExitConfirm = false"
+        :itemName="space.name"
+        buttonText="Quitter l'espace"
+    />
     
 </template>
 
@@ -135,10 +143,11 @@ import type { OrgMember, WorkSpace } from '@/types/types';
 import SaveUpdateOverlay from '../overlay/SaveUpdateOverlay.vue';
 import { useToast } from '@/composables/useToast';
 import MembersManager from '../settings/MembersManager.vue';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import { encryptThreadKeyForMember, generateThreadKey } from '@/assets/utils/crypto';
+import ConfirmDelete from '../common/ConfirmDelete.vue';
 
 const props = defineProps<{
     space: WorkSpace;
@@ -148,6 +157,7 @@ const props = defineProps<{
 const toast = useToast();
 const emit = defineEmits(['close']);
 
+const showExitConfirm = ref<boolean>(false);
 const activeTab = ref<string>('general');
 
 const formData = reactive({
@@ -181,8 +191,7 @@ const isModified = computed(() => {
 
 const tabs = [
     { id: 'general', label: 'Général', icon: 'bi bi-grid-fill' },
-    { id: 'members', label: 'Membres', icon: 'bi bi-people-fill' },
-    { id: 'security', label: 'Sécurité', icon: 'bi bi-shield-lock-fill' },
+    { id: 'members', label: 'Membres', icon: 'bi bi-people-fill' }
 ];
 
 const resetForm = () => {
@@ -324,6 +333,20 @@ const removeMember = async (id: string) => {
         }
         
     }
+
+};
+
+const exitSpace = async () => {
+
+    await removeMember(openedOrg.value?.members?.find(m => m.userId === user.value?.id)?.userId || '');
+
+    openedOrg.value?.spaces?.splice(
+        openedOrg.value.spaces?.findIndex(s => s.id === props.space.id) || 0, 
+        1
+    );
+
+    showExitConfirm.value = false;
+    emit('close');
 
 };
 

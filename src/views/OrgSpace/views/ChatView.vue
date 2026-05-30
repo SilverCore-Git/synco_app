@@ -9,7 +9,7 @@
 
             <div class="flex items-center gap-3">
 
-                <button @click="router.push({ query: { ...route.query, showView: '0' } })">
+                <button v-if="isLittleScreen" @click="router.push({ query: { ...route.query, showView: '0' } })">
                     <i class="bi bi-arrow-left text-2xl text-(--text)/80" />
                 </button>
 
@@ -331,7 +331,7 @@
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { DMMessage, OrgMember } from '@/types/types';
-import { openedOrg, user } from '@/assets/var';
+import { isLittleScreen, openedOrg, user } from '@/assets/var';
 import useWSocket from '@/composables/useWSocket';
 import type { Socket } from 'socket.io-client';
 import getColorByStatus from '@/assets/utils/getColorByStatus';

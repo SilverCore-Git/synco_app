@@ -1,11 +1,11 @@
 <script setup lang="ts">
 
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted } from 'vue';
 import ThreadsBar from './components/layouts/ThreadsBar.vue';
 import SpaceBar from './components/layouts/SpaceBar.vue';
 import UserCard from './components/layouts/UserCard.vue';
 import UsersBar from './components/layouts/UsersBar.vue';
-import { openedOrg, organizations, user } from '@/assets/var';
+import { isLittleScreen, openedOrg, organizations, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import usePeer from '@/composables/usePeer';
@@ -33,7 +33,6 @@ const route = useRoute();
 const toast = useToast();
 
 const mediaQuery = window.matchMedia('(max-width: 1024px)');
-const isLittleScreen = ref<boolean>(mediaQuery.matches);
 const showRouterView = computed(() => route.query.showView !== '0');
 
 const orgOnOpen = computed(() => {
@@ -299,6 +298,7 @@ onMounted(async () => {
 
     handleTabletChange(mediaQuery);
     mediaQuery.addEventListener('change', handleTabletChange);
+    isLittleScreen.value = mediaQuery.matches;
 
 });
 

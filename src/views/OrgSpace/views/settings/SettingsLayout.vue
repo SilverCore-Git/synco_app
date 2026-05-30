@@ -8,7 +8,7 @@
 
             <div class="flex items-center gap-2">
 
-                <button @click="router.push({ query: { ...route.query, showView: '0' } })">
+                <button v-if="isLittleScreen" @click="router.push({ query: { ...route.query, showView: '0' } })">
                     <i class="bi bi-arrow-left text-2xl text-(--text)/80" />
                 </button>
 
@@ -35,6 +35,7 @@ import { computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { settingsViews } from './settings';
 import isAdmin from '@/assets/isAdmin';
+import { isLittleScreen } from '@/assets/var';
 
 const route = useRoute();
 const router = useRouter();

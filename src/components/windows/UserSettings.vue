@@ -48,9 +48,6 @@
                             <button @click="avatarChange = true" class="primary">
                                 Changer l'avatar
                             </button>
-                            <button class="danger">
-                                Supprimer
-                            </button>
                         </div>
 
                         <ProfileUploader 
@@ -60,7 +57,7 @@
 
                     </div>
 
-                    <div class="space-y-5 max-w-md">
+                    <!-- <div class="space-y-5 max-w-md">
                        
                         <div class="space-y-1.5">
 
@@ -95,7 +92,7 @@
                         >
                             Enregistrer les modifications
                         </button>
-                    </div>
+                    </div> -->
 
                 </section>
 
@@ -226,9 +223,7 @@ const avatarChange = ref<boolean>(false);
 
 const tabs = [
     { id: 'account', label: 'Mon Compte', icon: 'bi bi-person-fill' },
-    { id: 'appearance', label: 'Apparence', icon: 'bi bi-palette-fill' },
-    { id: 'notifications', label: 'Notifications', icon: 'bi bi-bell-fill' },
-    { id: 'security', label: 'Sécurité', icon: 'bi bi-shield-lock-fill' },
+    { id: 'appearance', label: 'Apparence', icon: 'bi bi-palette-fill' }
 ];
 
 </script>
