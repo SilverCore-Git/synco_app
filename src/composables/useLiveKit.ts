@@ -9,6 +9,7 @@ import {
 import { openedOrg } from '@/assets/var';
 import E2EEWorker from '../../node_modules/livekit-client/dist/livekit-client.e2ee.worker.js?worker&url';
 import useWSocket from './useWSocket';
+import type { OrgMember } from '@/types/types';
 
 
 const room = shallowRef<Room | null>(null);
@@ -45,7 +46,7 @@ function useLiveKit()
             identity: p.identity,
             isSpeaking: p.isSpeaking,
             isMicrophoneEnabled: p.isMicrophoneEnabled,
-            metadata: p.metadata, // string json
+            metadata: JSON.stringify(openedOrg.value?.members?.find((m: OrgMember) => m.userId === p.identity)?.user),
         }));
 
     };
