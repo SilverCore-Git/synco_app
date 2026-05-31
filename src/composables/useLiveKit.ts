@@ -74,7 +74,7 @@ function useLiveKit()
         
     };
 
-    const connectToRoom = async (url: string, token: string, threadId: string, spaceId: string) => {
+    const connectToRoom = async (_url: string, token: string, threadId: string, spaceId: string) => {
         
         if (room.value) 
         {
@@ -132,7 +132,7 @@ function useLiveKit()
         });
 
         try {
-            await newRoom.connect(url, token);
+            await newRoom.connect(import.meta.env.VITE_LIVEKIT_URL, token);
             room.value = newRoom;
             isConnected.value = true;
             await newRoom.localParticipant.setMicrophoneEnabled(true);
