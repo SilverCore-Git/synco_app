@@ -1,4 +1,5 @@
-import { createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHistory, createMemoryHistory } from 'vue-router';
+import isDesktopApp from './assets/isDesktopApp';
 
 
 import OrgSelection from './views/OrgsSelection/OrgSelection.vue';
@@ -121,7 +122,9 @@ const routes = [
 
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: isDesktopApp()
+    ? createMemoryHistory(import.meta.env.BASE_URL)
+    : createWebHistory(import.meta.env.BASE_URL),
   routes,
   scrollBehavior(to, _from, _savedPosition) 
   {

@@ -1,4 +1,5 @@
 import keycloak from "@/assets/keycloak";
+import isDesktopApp from "@/assets/isDesktopApp";
 import { io, type Socket } from "socket.io-client";
 import { ref, type Ref } from "vue";
 
@@ -29,12 +30,19 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
 
         if (!token) throw new Error("No token found");
 
-        socket.value = io(import.meta.env?.VITE_SOCKET_URL || 'localhost:3467', {
+        // Adapt Socket.io URL for Tauri (may use different hostname/port)
+        const socketUrl = isDesktopApp()
+          ? (import.meta.env?.VITE_SOCKET_URL_DESKTOP || import.meta.env?.VITE_SOCKET_URL || 'localhost:3467')
+          : (import.meta.env?.VITE_SOCKET_URL || 'localhost:3467');
+
+        socket.value = io(socketUrl, {
             path: import.meta.env?.VITE_SOCKET_PATH || '/socket.io',
             auth: { token },
             reconnection: true,
             reconnectionAttempts: 5,
             protocols: import.meta.env.DEV == false ? ["websocket"] : ["websocket", "polling"],
+            // In Tauri (desktop), we don't need secure flag since it's local
+            ...(isDesktopApp() ? { secure: false } : {}),
         });
 
         socket.value.on("connect", () => {

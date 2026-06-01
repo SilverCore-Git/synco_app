@@ -1,0 +1,50 @@
+{
+  "productName": "Synco",
+  "version": "0.1.0",
+  "identifier": "com.silvercore.synco",
+  "build": {
+    "beforeBuildCommand": "bun run build",
+    "beforeDevCommand": "bun run dev:web",
+    "devUrl": "http://localhost:5174",
+    "frontendDist": "../dist",
+    "features": []
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Synco",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 800,
+        "minHeight": 600,
+        "decorations": true,
+        "resizable": true,
+        "fullscreen": false,
+        "maximized": false,
+        "visible": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' https: wss: ws:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self' https: wss: ws: http://localhost:*"
+    },
+    "withGlobalTauri": true
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "appimage"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "category": "Productivity",
+    "shortDescription": "Team collaboration and communication app",
+    "longDescription": "Synco - Team communication and collaboration platform with built-in video conferencing",
+    "linux": {},
+    "macOS": {
+      "minimumSystemVersion": "10.13"
+    },
+    "windows": {}
+  }
+}

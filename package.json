@@ -4,8 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 5174",
+    "dev": "tauri dev",
+    "dev:web": "vite --port 5174",
     "build": "vue-tsc -b && vite build",
+    "build:tauri": "vue-tsc -b && vite build && tauri build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -29,6 +31,8 @@
     "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
+    "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/cli": "^2.11.2",
     "@types/dompurify": "^3.0.5",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.10.0",

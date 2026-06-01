@@ -25,3 +25,8 @@ dist-ssr
 /.vite
 .env
 .env.prod
+.env.desktop
+
+# Tauri
+src-tauri/target
+src-tauri/Cargo.lock
