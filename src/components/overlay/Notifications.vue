@@ -190,14 +190,14 @@
 import getSpaceIdByThreadId from '@/assets/utils/getSpaceWithThreadId';
 import { openedOrg } from '@/assets/var';
 import useNotifications, { type NotificationType } from '@/composables/useNotifications';
-import usePeer from '@/composables/usePeer';
+import useSecurePeer from '@/composables/useSecurePeer';
 import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 
 
 const { notifications, initListener, remove } = useNotifications();
 const router = useRouter();
-const { acceptCall, rejectCall } = usePeer();
+const { acceptCall, rejectCall } = useSecurePeer();
 
 
 const sortedNotifications = computed(() => {

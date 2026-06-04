@@ -338,7 +338,7 @@ import getColorByStatus from '@/assets/utils/getColorByStatus';
 import getTextByStatus from '@/assets/utils/getTextByStatus';
 import { useToast } from '@/composables/useToast';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
-import usePeer from '@/composables/usePeer';
+import useSecurePeer from '@/composables/useSecurePeer';
 import DropDown from '@/components/DropDown.vue';
 import waitFor from '@/assets/utils/waitfor';
 
@@ -353,7 +353,7 @@ import { getFileInfo } from '@/assets/utils/getFileIcon';
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
-const { startCall } = usePeer();
+const { startCall } = useSecurePeer();
 const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
 
 const socket = ref<Socket | null>(null);

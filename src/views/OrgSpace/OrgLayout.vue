@@ -8,7 +8,7 @@ import UsersBar from './components/layouts/UsersBar.vue';
 import { isLittleScreen, openedOrg, organizations, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
-import usePeer from '@/composables/usePeer';
+import useSecurePeer from '@/composables/useSecurePeer';
 import type { Category, DMMessage, Message, OrgMember } from '@/types/types';
 import { useRoute } from 'vue-router';
 import useSettingsItem from '@/composables/useSettingsItem';
@@ -27,7 +27,7 @@ const props = defineProps<{
 
 
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
-const { initPeer } = usePeer();
+const { initPeer } = useSecurePeer();
 const { notify } = useNotifications();
 const route = useRoute();
 const toast = useToast();
