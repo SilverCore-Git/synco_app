@@ -15,7 +15,7 @@ import useSettingsItem from '@/composables/useSettingsItem';
 import keycloak from '@/assets/keycloak';
 import useNotifications from '@/composables/useNotifications';
 import { isMeeting } from '@/composables/usePrivatMeet';
-import CallOverlay from '@/components/peer/CallOverlay.vue';
+
 import isDesktopApp from '@/assets/isDesktopApp';
 import { useToast } from '@/composables/useToast';
 import { decryptFromPeer, privateKey } from '@/assets/utils/crypto';
@@ -355,7 +355,5 @@ onBeforeUnmount(async () => {
             <UserCard :isLittleScreen="isLittleScreen" />
 
         </div>
-
-        <CallOverlay />
 
 </template>
