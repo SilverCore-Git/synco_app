@@ -4,7 +4,7 @@
         <!-- Fullscreen Call Mode -->
         <Transition name="fade">
             <div 
-                v-if="isCalling && !isMinimized && remoteStreams.size > 0"
+                v-if="isCalling && !isMinimized"
                 class="fixed inset-0 z-[1000] bg-(--black)/95 flex items-center justify-center p-4"
                 @click.self="isMinimized = true"
             >
