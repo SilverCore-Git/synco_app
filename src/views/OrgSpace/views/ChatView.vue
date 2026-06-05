@@ -40,10 +40,6 @@
             
             <div class="ml-auto flex items-center gap-4 text-(--text)/40">
 
-                <button @click="startCall(recipient)" class="hover:text-(--text) transition-colors">
-                    <i class="bi bi-telephone-fill" />
-                </button>
-
                 <DropDown align="right">
 
                     <template #trigger>
@@ -338,7 +334,6 @@ import getColorByStatus from '@/assets/utils/getColorByStatus';
 import getTextByStatus from '@/assets/utils/getTextByStatus';
 import { useToast } from '@/composables/useToast';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
-import useSecurePeer from '@/composables/useSecurePeer';
 import DropDown from '@/components/DropDown.vue';
 import waitFor from '@/assets/utils/waitfor';
 
@@ -353,7 +348,6 @@ import { getFileInfo } from '@/assets/utils/getFileIcon';
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
-const { startCall } = useSecurePeer();
 const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
 
 const socket = ref<Socket | null>(null);

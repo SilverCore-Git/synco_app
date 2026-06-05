@@ -5,12 +5,15 @@ import DropDown from '@/components/DropDown.vue';
 import useWSocket from '@/composables/useWSocket';
 import { openedOrg } from '@/assets/var';
 import keycloak from '@/assets/keycloak';
+import useSecurePeer from '@/composables/useSecurePeer';
 
 const props = defineProps<{
     user: User | undefined;
 }>();
 
 const emit = defineEmits(['update:status']);
+
+const { startCall } = useSecurePeer();
 
 const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
 
@@ -81,6 +84,19 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
                     Invisible
                 </button>
 
+            </div>
+
+            <div class="h-px bg-white/5 my-1" />
+
+            <div class="p-1">
+                <button 
+                    v-if="props.user?.id !== keycloak.subject"
+                    @click="startCall(props.user!)"
+                    class="dropdown-item-style dropdown-item-annimate gap-2 text-green-400 hover:bg-green-500/10 hover:text-green-300"
+                >
+                    <i class="bi bi-telephone-fill" />
+                    Appel vocal
+                </button>
             </div>
 
             <div class="h-px bg-white/5 my-1" />

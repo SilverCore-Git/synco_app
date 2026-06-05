@@ -1,16 +1,13 @@
 <template>
     <Teleport to="body">
         
-        <!-- Floating Call Window (can be minimized or fullscreen) -->
+        <!-- Fullscreen Call Mode -->
         <Transition name="fade">
-            <div v-if="isCalling || remoteStreams.size" class="z-1000">
-                
-                <!-- Fullscreen Mode -->
-                <div 
-                    v-if="!isMinimized"
-                    class="fixed inset-0 z-[1000] bg-(--black)/95 flex items-center justify-center p-4"
-                    @click.self="isMinimized = true"
-                >
+            <div 
+                v-if="isCalling && !isMinimized && remoteStreams.size > 0"
+                class="fixed inset-0 z-[1000] bg-(--black)/95 flex items-center justify-center p-4"
+                @click.self="isMinimized = true"
+            >
                     <div 
                         class="
                             relative w-full max-w-6xl aspect-video 
@@ -150,129 +147,155 @@
 
                     </div>
                 </div>
+        </Transition>
 
-                <!-- Minimized Floating Window -->
+        <!-- Minimized Floating Window -->
+        <Transition name="slide-fade">
+            <div v-if="isCalling && isMinimized" class="z-[1001]">
                 <DraggableWindow 
-                    v-else 
                     :initialX="windowX"
                     :initialY="windowY"
                     :active="true"
                     width="320px"
                     height="180px"
                 >
-                    <template #header>
-                        <div 
-                            class="
-                                relative w-full h-full bg-(--bg2) rounded-2xl 
-                                overflow-hidden shadow-2xl border border-(--white)/10
-                                group
-                            "
-                        >
-                            <!-- Header with close/minimize and timer -->
-                            <div class="absolute top-2 left-2 right-2 z-10 flex items-center justify-between">
-                                <button 
-                                    @click="handleEndCall"
-                                    class="rounded-full bg-red-500/80 hover:bg-red-500 p-1.5 text-white transition-colors"
-                                    title="Raccrocher"
-                                >
-                                    <i class="bi bi-telephone-x-fill text-sm" />
-                                </button>
-                                
-                                <div v-if="callTimer" class="px-2 py-1 rounded bg-(--black)/40">
-                                    <span class="text-xs font-mono text-(--white)">{{ callTimer }}</span>
-                                </div>
-
-                                <button 
-                                    @click="isMinimized = false"
-                                    class="rounded-full bg-(--primary)/80 hover:bg-(--primary) p-1.5 text-white transition-colors"
-                                    title="Plein écran"
-                                >
-                                    <i class="bi bi-arrows-angle-expand text-sm" />
-                                </button>
+                <template #header>
+                    <div 
+                        class="
+                            relative w-full h-full bg-(--bg2) rounded-2xl 
+                            overflow-hidden shadow-2xl border border-(--white)/10
+                            group
+                        "
+                    >
+                        <!-- Header with close/minimize and timer -->
+                        <div class="absolute top-2 left-2 right-2 z-10 flex items-center justify-between">
+                            <button 
+                                @click="handleEndCall"
+                                class="rounded-full bg-red-500/80 hover:bg-red-500 p-1.5 text-white transition-colors"
+                                title="Raccrocher"
+                            >
+                                <i class="bi bi-telephone-x-fill text-sm" />
+                            </button>
+                            
+                            <div v-if="callTimer" class="px-2 py-1 rounded bg-(--black)/40">
+                                <span class="text-xs font-mono text-(--white)">{{ callTimer }}</span>
                             </div>
 
-                            <!-- Video Content -->
-                            <div class="w-full h-full relative pt-8">
-                                
-                                <!-- Remote Streams -->
-                                <div v-if="remoteStreams.size" class="w-full h-full">
-                                    <video 
-                                        :srcObject="Array.from(remoteStreams.values())[0]" 
-                                        autoplay 
-                                        class="w-full h-full object-cover"
-                                    />
-                                    <div class="absolute bottom-1 left-1 bg-(--black)/70 px-1.5 py-0.5 rounded text-[10px]">
-                                        <span class="text-(--white) font-medium truncate max-w-[120px] block">{{ getParticipantName(Array.from(remoteStreams.keys())[0]) }}</span>
-                                    </div>
-                                </div>
-                                
-                                <!-- Waiting State -->
-                                <div v-else class="w-full h-full flex flex-col items-center justify-center gap-1 text-(--white)/40">
-                                    <div class="w-10 h-10 rounded-full bg-(--white)/5 flex items-center justify-center animate-pulse">
-                                        <i class="bi bi-person-fill text-xl" />
-                                    </div>
-                                    <p class="text-xs font-medium">En appel...</p>
-                                </div>
+                            <button 
+                                @click="isMinimized = false"
+                                class="rounded-full bg-(--primary)/80 hover:bg-(--primary) p-1.5 text-white transition-colors"
+                                title="Plein écran"
+                            >
+                                <i class="bi bi-arrows-angle-expand text-sm" />
+                            </button>
+                        </div>
 
-                                <!-- Local Video Preview (small) -->
-                                <div 
-                                    v-if="localStream && isCamOn" 
-                                    class="
-                                        absolute bottom-2 right-2 w-20 aspect-video 
-                                        overflow-hidden border border-(--white)/20 
-                                        shadow-lg bg-(--black) rounded-lg
-                                    "
-                                >
-                                    <video 
-                                        :srcObject="localStream" 
-                                        autoplay 
-                                        muted 
-                                        class="w-full h-full object-cover mirror"
-                                    />
+                        <!-- Video Content -->
+                        <div class="w-full h-full relative pt-8">
+                            
+                            <!-- Remote Streams -->
+                            <div v-if="remoteStreams.size" class="w-full h-full">
+                                <video 
+                                    :srcObject="Array.from(remoteStreams.values())[0] as MediaStream" 
+                                    autoplay 
+                                    class="w-full h-full object-cover"
+                                />
+                                <div class="absolute bottom-1 left-1 bg-(--black)/70 px-1.5 py-0.5 rounded text-[10px]">
+                                    <span class="text-(--white) font-medium truncate max-w-[120px] block">{{ getParticipantName(Array.from(remoteStreams.keys())[0] as string) }}</span>
                                 </div>
-
-                                <!-- Security Badge (minimized) -->
-                                <div 
-                                    v-if="securityStatus?.encrypted" 
-                                    class="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-[10px] font-medium"
-                                >
-                                    <i class="bi bi-shield-check-fill text-xs" />
-                                    <span class="ml-0.5">E2EE</span>
+                            </div>
+                            
+                            <!-- Waiting State -->
+                            <div v-else class="w-full h-full flex flex-col items-center justify-center gap-1 text-(--white)/40">
+                                <div class="w-10 h-10 rounded-full bg-(--white)/5 flex items-center justify-center animate-pulse">
+                                    <i class="bi bi-person-fill text-xl" />
                                 </div>
-
+                                <p class="text-xs font-medium">En appel...</p>
                             </div>
 
-                            <!-- Hover Controls (minimized) -->
+                            <!-- Local Video Preview (small) -->
                             <div 
+                                v-if="localStream && isCamOn" 
                                 class="
-                                    absolute left-1/2 -translate-x-1/2 -bottom-10 
-                                    flex items-center bg-(--black)/60 border-(--white)/10
-                                    backdrop-blur-xl rounded-full border-t p-1.5
-                                    opacity-0 group-hover:opacity-100 group-hover:-bottom-2
-                                    transition-all duration-200
+                                    absolute bottom-2 right-2 w-20 aspect-video 
+                                    overflow-hidden border border-(--white)/20 
+                                    shadow-lg bg-(--black) rounded-lg
                                 "
                             >
-                                <button
-                                    @click="toggleMic"
-                                    :class="!isMicOn ? 'bg-red-500/50 text-red-200' : ''"
-                                    class="rounded-full bg-(--white)/10 hover:bg-(--white)/20 text-(--white) transition-all w-9 h-9 text-lg mx-1"
-                                >
-                                    <i class="bi" :class="isMicOn ? 'bi-mic-fill' : 'bi-mic-mute-fill'" />
-                                </button>
+                                <video 
+                                    :srcObject="localStream" 
+                                    autoplay 
+                                    muted 
+                                    class="w-full h-full object-cover mirror"
+                                />
+                            </div>
 
-                                <button
-                                    @click="toggleCam"
-                                    :class="!isCamOn ? 'bg-(--white)/5 text-(--white)/50' : ''"
-                                    class="rounded-full bg-(--white)/10 hover:bg-(--white)/20 text-(--white) transition-all w-9 h-9 text-lg mx-1"
-                                >
-                                    <i class="bi" :class="isCamOn ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'" />
-                                </button>
+                            <!-- Security Badge (minimized) -->
+                            <div 
+                                v-if="securityStatus?.encrypted" 
+                                class="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-[10px] font-medium"
+                            >
+                                <i class="bi bi-shield-check-fill text-xs" />
+                                <span class="ml-0.5">E2EE</span>
                             </div>
 
                         </div>
-                    </template>
-                </DraggableWindow>
 
+                        <!-- Hover Controls (minimized) -->
+                        <div 
+                            class="
+                                absolute left-1/2 -translate-x-1/2 -bottom-10 
+                                flex items-center bg-(--black)/60 border-(--white)/10
+                                backdrop-blur-xl rounded-full border-t p-1.5
+                                opacity-0 group-hover:opacity-100 group-hover:-bottom-2
+                                transition-all duration-200
+                            "
+                        >
+                            <button
+                                @click="toggleMic"
+                                :class="!isMicOn ? 'bg-red-500/50 text-red-200' : ''"
+                                class="rounded-full bg-(--white)/10 hover:bg-(--white)/20 text-(--white) transition-all w-9 h-9 text-lg mx-1"
+                            >
+                                <i class="bi" :class="isMicOn ? 'bi-mic-fill' : 'bi-mic-mute-fill'" />
+                            </button>
+
+                            <button
+                                @click="toggleCam"
+                                :class="!isCamOn ? 'bg-(--white)/5 text-(--white)/50' : ''"
+                                class="rounded-full bg-(--white)/10 hover:bg-(--white)/20 text-(--white) transition-all w-9 h-9 text-lg mx-1"
+                            >
+                                <i class="bi" :class="isCamOn ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'" />
+                            </button>
+                        </div>
+
+                    </div>
+                </template>
+            </DraggableWindow>
+            </div>
+        </Transition>
+
+        <!-- Floating Call Indicator (when minimized) -->
+        <Transition name="fade">
+            <div 
+                v-if="isCalling && isMinimized"
+                class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[999]"
+            >
+                <div 
+                    class="
+                        flex items-center gap-2 bg-(--bg2) border border-(--white)/10
+                        rounded-full px-4 py-2 shadow-2xl backdrop-blur-md
+                    "
+                >
+                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    <span class="text-sm font-medium text-(--text)">Appel en cours</span>
+                    <button 
+                        @click="isMinimized = false"
+                        class="text-(--text)/40 hover:text-(--text) transition-colors"
+                        title="Ouvrir l'appel"
+                    >
+                        <i class="bi bi-arrows-angle-expand" />
+                    </button>
+                </div>
             </div>
         </Transition>
 
@@ -406,6 +429,20 @@ onUnmounted(() => {
 .fade-leave-to {
     opacity: 0;
     transform: scale(0.95);
+}
+
+.slide-fade-enter-active {
+    transition: all 0.3s ease-out;
+}
+
+.slide-fade-leave-active {
+    transition: all 0.2s cubic-bezier(1.0, 0.5, 0.8, 1.0);
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+    transform: translateX(20px);
+    opacity: 0;
 }
 
 </style>

@@ -45,18 +45,21 @@ const { isCalling, remoteStreams } = useSecurePeer();
         <div class="flex h-full items-center gap-2">
             
             <!-- Call Status Indicator -->
-            <div 
+            <button
                 v-if="isCalling || remoteStreams.size > 0"
-                class="flex items-center gap-1 px-3 py-1 rounded-full bg-(--primary)/20 border border-(--primary)/30"
+                @click="$router.push({ name: 'OrgThreadChat' })"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-(--primary)/20 border border-(--primary)/30 hover:bg-(--primary)/30 transition-colors"
+                title="Appel en cours - Cliquez pour ouvrir"
             >
                 <div class="relative">
-                    <i class="bi bi-telephone-fill text-(--primary) text-sm animate-pulse" />
+                    <i class="bi bi-telephone-fill text-(--primary) text-sm" :class="{ 'animate-pulse': isCalling }" />
                     <span v-if="remoteStreams.size > 0" class="absolute -top-1 -right-1 w-3 h-3 bg-(--primary) rounded-full border border-(--bg)" />
                 </div>
                 <span v-if="remoteStreams.size > 0" class="text-xs text-(--primary) font-medium">
                     {{ remoteStreams.size }} {{ remoteStreams.size === 1 ? 'en appel' : 'en appel' }}
                 </span>
-            </div>
+                <i class="bi bi-chevron-down text-xs text-(--primary)/60" />
+            </button>
 
             <button class="default w-4">
                 <i class="bi bi-dash-lg" />
