@@ -32,7 +32,7 @@
 
         </div>
 
-        <div class="flex flex-col overflow-hidden gap-1">
+        <div class="flex flex-col flex-1 min-w-0">
             <span class="text-sm font-bold truncate tracking-tight">
                 {{ user?.user?.name }}
             </span>
@@ -40,6 +40,15 @@
                 {{ user?.role }}
             </span>
         </div>
+
+        <button
+            v-if="user?.user?.id !== keycloak.subject"
+            @click.stop="startCall(user.user!)"
+            class="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-(--primary)/10 text-(--text)/40 hover:text-(--primary) transition-all"
+            title="Appel vocal"
+        >
+            <i class="bi bi-telephone-fill text-sm" />
+        </button>
 
     </button>
 
@@ -49,6 +58,8 @@
 
 import getColorByStatus from '@/assets/utils/getColorByStatus';
 import type { OrgMember } from '@/types/types';
+import useSecurePeer from '@/composables/useSecurePeer';
+import keycloak from '@/assets/keycloak';
 
 defineProps<{
   user: OrgMember;
@@ -56,5 +67,6 @@ defineProps<{
 }>();
 
 const emit = defineEmits(['click']);
+const { startCall } = useSecurePeer();
 
 </script>

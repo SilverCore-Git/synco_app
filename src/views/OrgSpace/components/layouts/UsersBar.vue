@@ -56,7 +56,7 @@
                     />
                 </div>
 
-                <div class="flex flex-col">
+                <div class="flex flex-col flex-1 min-w-0">
                     <span class="text-sm font-medium text-(--text) truncate">
                         {{ member.user?.name }}
                     </span>
@@ -64,6 +64,15 @@
                         {{ member.role }}
                     </span>
                 </div>
+
+                <button
+                    v-if="member.user?.id !== keycloak.subject"
+                    @click.prevent="startCall(member.user!)"
+                    class="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-(--primary)/10 text-(--text)/40 hover:text-(--primary) transition-all"
+                    title="Appel vocal"
+                >
+                    <i class="bi bi-telephone-fill text-sm" />
+                </button>
 
             </router-link>
 
@@ -96,7 +105,7 @@
                     />
                 </div>
 
-                <div class="flex flex-col">
+                <div class="flex flex-col flex-1 min-w-0">
                     <span class="text-sm font-medium text-(--text) truncate">
                         {{ member.user?.name }}
                     </span>
@@ -172,9 +181,12 @@ import getColorByStatus from '@/assets/utils/getColorByStatus';
 import isDesktopApp from '@/assets/isDesktopApp';
 import { useRoute } from 'vue-router';
 import useSettingsItem from '@/composables/useSettingsItem';
+import useSecurePeer from '@/composables/useSecurePeer';
+import keycloak from '@/assets/keycloak';
 
 const route = useRoute();
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
+const { startCall } = useSecurePeer();
 
 defineProps<{
     isLittleScreen: boolean;
