@@ -11,11 +11,17 @@ import { E2EEUnloked, lockSecurity, setupFirstTimeSecurity, unlockSecurity } fro
 import sfetch from './assets/utils/sfetch';
 import { useToast } from './composables/useToast';
 import TopBar from './components/layout/topBar.vue';
+import useSecurePeer from './composables/useSecurePeer';
+import CallOverlay from './components/peer/CallOverlay.vue';
+import waitFor from './assets/utils/waitfor';
 
 const toast = useToast();
 const { Item: theme } = useSettingsItem('theme', 'dark');
 const pin = ref<string>('');
 const pinLoading = ref<boolean>(false);
+
+// Initialize P2P peer connection
+const { initPeer } = useSecurePeer();
 
 watch(() => theme.value, () => {
   document.body.className = theme.value;
@@ -109,7 +115,12 @@ onMounted(async () => {
 
   await initKC();
 
-  if (authenticated.value) await init.run();
+  if (authenticated.value) {
+      await init.run();
+      // Initialize P2P peer connection after user is loaded
+      await waitFor(() => user.value !== null);
+      await initPeer();
+  }
 
   window.addEventListener('keydown', handleInput);
 
@@ -137,7 +148,8 @@ onUnmounted(() => {
     <div v-if="authenticated" class="h-full w-full">
 
       <Notifications />
-        
+      <CallOverlay />
+      
       <Transition name="page-lock" mode="out-in">
 
         <div

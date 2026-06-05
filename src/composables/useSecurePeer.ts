@@ -618,16 +618,11 @@ export default function useSecurePeer() {
             const encoder = new TextEncoder();
             const iv = crypto.getRandomValues(new Uint8Array(12));
             
-            const ciphertext = await crypto.subtle.encrypt(
+            await crypto.subtle.encrypt(
                 { name: 'AES-GCM', iv },
                 encryptionKey,
                 encoder.encode(message)
             );
-
-            // Get the data channel from the peer connection
-            const dataChannel = Array.from(
-                (session.call.peerConnection as any).getSenders()
-            ).length > 0 ? null : null; // Data channel is managed separately
 
             // For now, use the session's data channel if available
             // This is a simplified implementation

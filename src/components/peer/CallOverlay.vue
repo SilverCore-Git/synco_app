@@ -59,6 +59,14 @@
                                 </div>
                             </div>
 
+                            <!-- Call Status Info -->
+                            <div 
+                                v-if="!isMinimized && callStatus"
+                                class="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full bg-(--black)/50 backdrop-blur-md border border-(--white)/20"
+                            >
+                                <span class="text-sm font-medium text-(--white)">{{ callStatus }}</span>
+                            </div>
+
                             <div 
                                 class="
                                     absolute top-0 left-0 
@@ -76,27 +84,38 @@
                                 />
                             </button></div>
                             
-                            <div v-if="remoteStreams.size" class="grid flex-1 gap-4">
-                                <video 
+                            <!-- Remote Video Streams -->
+                            <div v-if="remoteStreams.size" class="grid flex-1 gap-4 p-4">
+                                <div 
                                     v-for="[id, stream] of remoteStreams"
                                     :key="id"
-                                    :srcObject="stream" 
-                                    autoplay 
-                                    class="w-full h-full object-cover bg-(--black)"
-                                />
+                                    class="relative bg-(--black) rounded-xl overflow-hidden"
+                                >
+                                    <video 
+                                        :srcObject="stream" 
+                                        autoplay 
+                                        class="w-full h-full object-cover"
+                                    />
+                                    <!-- Participant name overlay -->
+                                    <div class="absolute bottom-2 left-2 bg-(--black)/70 px-2 py-1 rounded">
+                                        <span class="text-xs text-(--white) font-medium">{{ getParticipantName(id) }}</span>
+                                    </div>
+                                </div>
                             </div>
                             
+                            <!-- Waiting/Connecting State -->
                             <div v-else class="w-full h-full flex flex-col items-center justify-center gap-4 text-(--white)/20">
                                 <div class="w-24 h-24 rounded-full bg-(--white)/5 flex items-center justify-center animate-pulse">
                                     <i class="bi bi-person-fill text-5xl"></i>
                                 </div>
-                                <p class="text-lg font-medium animate-pulse">Appel en cours...</p>
+                                <p class="text-lg font-medium animate-pulse">{{ callStateText }}</p>
                                 <div v-if="securityStatus?.encrypted" class="flex items-center gap-2 text-green-400/60 text-sm">
                                     <i class="bi bi-lock-fill"></i>
                                     <span>Appel sécurisé E2EE</span>
                                 </div>
                             </div>
 
+                            <!-- Local Video Preview -->
                             <div 
                                 class="
                                     aspect-video  overflow-hidden absolute
@@ -115,58 +134,32 @@
                                     muted 
                                     class="w-full h-full object-cover mirror"
                                 />
+                                <div v-else class="w-full h-full flex items-center justify-center bg-(--black)/50">
+                                    <i class="bi bi-camera-video-off-fill text-(--white)/30 text-2xl" />
+                                </div>
+                            </div>
+
+                            <!-- Call Timer -->
+                            <div 
+                                v-if="!isMinimized && isCalling && callTimer"
+                                class="absolute bottom-20 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full bg-(--black)/50 backdrop-blur-md"
+                            >
+                                <span class="text-lg font-mono text-(--white)">{{ callTimer }}</span>
                             </div>
 
                         </div>
 
-                        <div 
-                            class="
-                                absolute left-1/2 -translate-x-1/2 flex
-                                items-center bg-(--black)/40 border-(--white)/10
-                                backdrop-blur-xl rounded-full border-t 
-                                transition-all duration-200
-                            "
-                            :class="
-                                isMinimized
-                                    ? '-bottom-10 gap-3 px-4 py-2 opacity-0 group-hover:bottom-0 group-hover:opacity-100'
-                                    : 'bottom-25 gap-6 px-8 py-4 '
-                            "
-                        >
-                            
-                            <button 
-                                @click="toggleMic"
-                                :class="[
-                                    isMinimized ? 'w-10 h-10 text-lg' : 'w-12 h-12 text-xl',
-                                    !isMicOn ? 'bg-red-500/50 text-red-200' : ''
-                                ]" 
-                                class="rounded-full bg-(--white)/10 hover:bg-(--white)/20 text-(--white) transition-all"
-                                :title="isMicOn ? 'Couper le micro' : 'Activer le micro'"
-                            >
-                                <i class="bi" :class="isMicOn ? 'bi-mic-fill' : 'bi-mic-mute-fill'" />
-                            </button>
-
-                            <button 
-                                @click="toggleCam"
-                                :class="[
-                                    isMinimized ? 'w-10 h-10 text-lg' : 'w-12 h-12 text-xl',
-                                    !isCamOn ? 'bg-(--white)/5 text-(--white)/50' : ''
-                                ]" 
-                                class="rounded-full bg-(--white)/10 hover:bg-(--white)/20 text-(--white) transition-all"
-                                :title="isCamOn ? 'Désactiver la caméra' : 'Activer la caméra'"
-                            >
-                                <i class="bi" :class="isCamOn ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'" />
-                            </button>
-
-                            <button 
-                                @click="handleEndCall"
-                                :class="isMinimized ? 'w-12 h-12 text-xl' : 'w-14 h-14 text-2xl'" 
-                                class="rounded-full bg-red-500 hover:bg-red-600 text-(--white) shadow-lg shadow-red-500/20 transition-all hover:scale-110 flex items-center justify-center"
-                                title="Raccrocher"
-                            >
-                                <i class="bi bi-telephone-x-fill" />
-                            </button>
-
-                        </div>
+                        <!-- Call Controls -->
+                        <CallControls
+                            :isMinimized="isMinimized"
+                            :isMicOn="isMicOn"
+                            :isCamOn="isCamOn"
+                            :isScreenSharing="isScreenSharing"
+                            @toggleMic="toggleMic"
+                            @toggleCam="toggleCam"
+                            @toggleScreenShare="toggleScreenShare"
+                            @endCall="handleEndCall"
+                        />
 
                     </div>
 
@@ -184,8 +177,10 @@
 <script setup lang="ts">
 
 import useSecurePeer from '@/composables/useSecurePeer';
-import { computed, onUnmounted, ref } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import DraggableWindow from '../common/DraggableWindow.vue';
+import CallControls from './CallControls.vue';
+import { openedOrg } from '@/assets/var';
 
 const isMinimized = ref<boolean>(false);
 const initialX = ref<number>(window.innerWidth - 400 - 32);
@@ -197,12 +192,20 @@ const {
     localStream,
     isMicOn,
     isCamOn,
+    isScreenSharing,
     endCall,
     toggleMic,
     toggleCam,
-    getCallSecurityStatus,
-    callSecurityStatus
+    toggleScreenShare,
+    getCallSecurityStatus
 } = useSecurePeer();
+
+// Call timer
+const callStartTime = ref<number | null>(null);
+const callTimer = ref<string>('');
+
+// Call status
+const callStatus = ref<string>('');
 
 // Compute security status for display
 const securityStatus = computed(() => {
@@ -214,6 +217,58 @@ const securityStatus = computed(() => {
     }
     return null;
 });
+
+// Get participant name by peer ID
+const getParticipantName = (peerId: string): string => {
+    if (!openedOrg.value?.members) return 'Utilisateur';
+    const member = openedOrg.value.members.find(m => m.user?.id === peerId);
+    return member?.user?.name || peerId.substring(0, 8);
+};
+
+// Call state text
+const callStateText = computed(() => {
+    if (isCalling.value) {
+        if (remoteStreams.value.size > 0) {
+            return 'Appel en cours';
+        }
+        return 'Connecting...';
+    }
+    return 'Appel en cours...';
+});
+
+// Start call timer when call begins
+watch(() => isCalling.value, (newVal) => {
+    if (newVal && !callStartTime.value) {
+        callStartTime.value = Date.now();
+        updateTimer();
+        const timerInterval = setInterval(updateTimer, 1000);
+        
+        onUnmounted(() => {
+            clearInterval(timerInterval);
+        });
+    } else if (!newVal) {
+        callStartTime.value = null;
+        callTimer.value = '';
+    }
+}, { immediate: true });
+
+const updateTimer = () => {
+    if (!callStartTime.value) {
+        callTimer.value = '';
+        return;
+    }
+    
+    const seconds = Math.floor((Date.now() - callStartTime.value) / 1000);
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    callTimer.value = [
+        hours.toString().padStart(2, '0'),
+        minutes.toString().padStart(2, '0'),
+        secs.toString().padStart(2, '0')
+    ].join(':');
+};
 
 const handleEndCall = () => {
     endCall();

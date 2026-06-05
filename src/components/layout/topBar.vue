@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import isDesktopApp from '@/assets/isDesktopApp';
 import { openedOrg } from '@/assets/var';
+import useSecurePeer from '@/composables/useSecurePeer';
+
+const { isCalling, remoteStreams } = useSecurePeer();
 
 </script>
 
@@ -39,7 +42,21 @@ import { openedOrg } from '@/assets/var';
 
         </div>
 
-        <div class="flex h-full">
+        <div class="flex h-full items-center gap-2">
+            
+            <!-- Call Status Indicator -->
+            <div 
+                v-if="isCalling || remoteStreams.size > 0"
+                class="flex items-center gap-1 px-3 py-1 rounded-full bg-(--primary)/20 border border-(--primary)/30"
+            >
+                <div class="relative">
+                    <i class="bi bi-telephone-fill text-(--primary) text-sm animate-pulse" />
+                    <span v-if="remoteStreams.size > 0" class="absolute -top-1 -right-1 w-3 h-3 bg-(--primary) rounded-full border border-(--bg)" />
+                </div>
+                <span v-if="remoteStreams.size > 0" class="text-xs text-(--primary) font-medium">
+                    {{ remoteStreams.size }} {{ remoteStreams.size === 1 ? 'en appel' : 'en appel' }}
+                </span>
+            </div>
 
             <button class="default w-4">
                 <i class="bi bi-dash-lg" />
