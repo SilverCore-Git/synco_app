@@ -1,173 +1,280 @@
 <template>
 
     <Teleport to="body">
-            
+        
+        <!-- Fullscreen Call Window -->
         <Transition name="fade">
-
-            <div v-if="isCalling || remoteStreams.size">
-
-                <DraggableWindow 
-                    :initialX="initialX"
-                    :initialY="initialY"
-                    :active="isMinimized"
+            <div 
+                v-if="(isCalling || remoteStreams.size) && !isMinimized"
+                class="fixed inset-0 z-100 p-6 bg-(--black)/95 flex flex-col items-center justify-center"
+            >
+                <div 
+                    class="
+                        relative w-full max-w-6xl 
+                        aspect-video bg-(--white)/5 
+                        rounded-3xl overflow-hidden 
+                        shadow-2xl border border-(--white)/10
+                    "
                 >
-                <template #header>
+
+                    <!-- Security Status Badge -->
+                    <div 
+                        v-if="securityStatus"
+                        class="absolute top-4 left-4 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border"
+                        :class="securityStatus.encrypted 
+                            ? 'bg-green-500/20 border-green-500/30 text-green-400' 
+                            : 'bg-yellow-500/20 border-yellow-500/30 text-yellow-400'"
+                    >
+                        <i class="bi" :class="securityStatus.encrypted ? 'bi-shield-check-fill' : 'bi-shield-exclamation'"></i>
+                        <span class="text-xs font-medium">
+                            {{ securityStatus.encrypted ? 'E2EE Activé' : 'Chiffrement en cours...' }}
+                        </span>
+                    </div>
+
+                    <!-- Fingerprint for SAS verification -->
+                    <div 
+                        v-if="securityStatus?.fingerprint"
+                        class="absolute top-4 right-4 z-20 px-3 py-1.5 rounded-full bg-(--white)/10 backdrop-blur-md border border-(--white)/20"
+                    >
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-(--white)/60">SAS:</span>
+                            <span class="text-xs font-mono text-(--white) tracking-wider">{{ securityStatus.fingerprint }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Call Status Info -->
+                    <div 
+                        v-if="callStatus"
+                        class="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full bg-(--black)/50 backdrop-blur-md border border-(--white)/20"
+                    >
+                        <span class="text-sm font-medium text-(--white)">{{ callStatus }}</span>
+                    </div>
 
                     <div 
                         class="
-                            z-100 justify-center 
-                            flex flex-col items-center group
+                            absolute top-0 left-0 
+                            transition-all duration-200
                         "
-                        :class="
-                            isMinimized 
-                                ? 'bottom-8 right-8 w-100' 
-                                : 'fixed inset-0 p-6  bg-(--black)/95'
-                            "
-                    >
-                        
-                        <div 
-                            class="
-                                relative w-full max-w-6xl 
-                                aspect-video bg-(--white)/5 
-                                rounded-3xl overflow-hidden 
-                                shadow-2xl border border-(--white)/10
-                            "
-                        >
-
-                            <!-- Security Status Badge -->
-                            <div 
-                                v-if="!isMinimized && securityStatus"
-                                class="absolute top-4 left-4 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border"
-                                :class="securityStatus.encrypted 
-                                    ? 'bg-green-500/20 border-green-500/30 text-green-400' 
-                                    : 'bg-yellow-500/20 border-yellow-500/30 text-yellow-400'"
-                            >
-                                <i class="bi" :class="securityStatus.encrypted ? 'bi-shield-check-fill' : 'bi-shield-exclamation'"></i>
-                                <span class="text-xs font-medium">
-                                    {{ securityStatus.encrypted ? 'E2EE Activé' : 'Chiffrement en cours...' }}
-                                </span>
-                            </div>
-
-                            <!-- Fingerprint for SAS verification -->
-                            <div 
-                                v-if="!isMinimized && securityStatus?.fingerprint"
-                                class="absolute top-4 right-4 z-20 px-3 py-1.5 rounded-full bg-(--white)/10 backdrop-blur-md border border-(--white)/20"
-                            >
-                                <div class="flex items-center gap-2">
-                                    <span class="text-xs text-(--white)/60">SAS:</span>
-                                    <span class="text-xs font-mono text-(--white) tracking-wider">{{ securityStatus.fingerprint }}</span>
-                                </div>
-                            </div>
-
-                            <!-- Call Status Info -->
-                            <div 
-                                v-if="!isMinimized && callStatus"
-                                class="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full bg-(--black)/50 backdrop-blur-md border border-(--white)/20"
-                            >
-                                <span class="text-sm font-medium text-(--white)">{{ callStatus }}</span>
-                            </div>
-
-                            <div 
-                                class="
-                                    absolute top-0 left-0 
-                                    transition-all duration-200
-                                "
-                            ><button class="default">
-                                <i 
-                                    class="text-2xl bi" 
-                                    :class="
-                                        isMinimized
-                                            ? 'bi-arrows-angle-expand opacity-0 group-hover:opacity-100 '
-                                            : 'bi-arrows-angle-contract'
-                                    "
-                                    @click="isMinimized = !isMinimized" 
-                                />
-                            </button></div>
-                            
-                            <!-- Remote Video Streams -->
-                            <div v-if="remoteStreams.size" class="grid flex-1 gap-4 p-4">
-                                <div 
-                                    v-for="[id, stream] of remoteStreams"
-                                    :key="id"
-                                    class="relative bg-(--black) rounded-xl overflow-hidden"
-                                >
-                                    <video 
-                                        :srcObject="stream" 
-                                        autoplay 
-                                        class="w-full h-full object-cover"
-                                    />
-                                    <!-- Participant name overlay -->
-                                    <div class="absolute bottom-2 left-2 bg-(--black)/70 px-2 py-1 rounded">
-                                        <span class="text-xs text-(--white) font-medium">{{ getParticipantName(id) }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Waiting/Connecting State -->
-                            <div v-else class="w-full h-full flex flex-col items-center justify-center gap-4 text-(--white)/20">
-                                <div class="w-24 h-24 rounded-full bg-(--white)/5 flex items-center justify-center animate-pulse">
-                                    <i class="bi bi-person-fill text-5xl"></i>
-                                </div>
-                                <p class="text-lg font-medium animate-pulse">{{ callStateText }}</p>
-                                <div v-if="securityStatus?.encrypted" class="flex items-center gap-2 text-green-400/60 text-sm">
-                                    <i class="bi bi-lock-fill"></i>
-                                    <span>Appel sécurisé E2EE</span>
-                                </div>
-                            </div>
-
-                            <!-- Local Video Preview -->
-                            <div 
-                                class="
-                                    aspect-video  overflow-hidden absolute
-                                    border-2 border-(--white)/20 shadow-xl bg-(--black)
-                                "
-                                :class="
-                                    isMinimized 
-                                        ? ' bottom-2 right-2 w-35 rounded-2xl '
-                                        : ' bottom-6 right-6 w-48 rounded-xl '
-                                "
-                            >
-                                <video 
-                                    v-if="localStream"
-                                    :srcObject="localStream" 
-                                    autoplay 
-                                    muted 
-                                    class="w-full h-full object-cover mirror"
-                                />
-                                <div v-else class="w-full h-full flex items-center justify-center bg-(--black)/50">
-                                    <i class="bi bi-camera-video-off-fill text-(--white)/30 text-2xl" />
-                                </div>
-                            </div>
-
-                            <!-- Call Timer -->
-                            <div 
-                                v-if="!isMinimized && isCalling && callTimer"
-                                class="absolute bottom-20 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full bg-(--black)/50 backdrop-blur-md"
-                            >
-                                <span class="text-lg font-mono text-(--white)">{{ callTimer }}</span>
-                            </div>
-
-                        </div>
-
-                        <!-- Call Controls -->
-                        <CallControls
-                            :isMinimized="isMinimized"
-                            :isMicOn="isMicOn"
-                            :isCamOn="isCamOn"
-                            :isScreenSharing="isScreenSharing"
-                            @toggleMic="toggleMic"
-                            @toggleCam="toggleCam"
-                            @toggleScreenShare="toggleScreenShare"
-                            @endCall="handleEndCall"
+                    ><button class="default">
+                        <i 
+                            class="text-2xl bi bi-arrows-angle-contract"
+                            @click="isMinimized = !isMinimized" 
                         />
-
+                    </button></div>
+                    
+                    <!-- Remote Video Streams -->
+                    <div v-if="remoteStreams.size" class="grid flex-1 gap-4 p-4">
+                        <div 
+                            v-for="[id, stream] of remoteStreams"
+                            :key="id"
+                            class="relative bg-(--black) rounded-xl overflow-hidden"
+                        >
+                            <video 
+                                :srcObject="stream" 
+                                autoplay 
+                                class="w-full h-full object-cover"
+                            />
+                            <!-- Participant name overlay -->
+                            <div class="absolute bottom-2 left-2 bg-(--black)/70 px-2 py-1 rounded">
+                                <span class="text-xs text-(--white) font-medium">{{ getParticipantName(id) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Waiting/Connecting State -->
+                    <div v-else class="w-full h-full flex flex-col items-center justify-center gap-4 text-(--white)/20">
+                        <div class="w-24 h-24 rounded-full bg-(--white)/5 flex items-center justify-center animate-pulse">
+                            <i class="bi bi-person-fill text-5xl"></i>
+                        </div>
+                        <p class="text-lg font-medium animate-pulse">{{ callStateText }}</p>
+                        <div v-if="securityStatus?.encrypted" class="flex items-center gap-2 text-green-400/60 text-sm">
+                            <i class="bi bi-lock-fill"></i>
+                            <span>Appel sécurisé E2EE</span>
+                        </div>
                     </div>
 
-                </template>
-                </DraggableWindow>
+                    <!-- Local Video Preview -->
+                    <div 
+                        class="
+                            aspect-video overflow-hidden absolute
+                            border-2 border-(--white)/20 shadow-xl bg-(--black)
+                            bottom-6 right-6 w-48 rounded-xl
+                        "
+                    >
+                        <video 
+                            v-if="localStream"
+                            :srcObject="localStream" 
+                            autoplay 
+                            muted 
+                            class="w-full h-full object-cover mirror"
+                        />
+                        <div v-else class="w-full h-full flex items-center justify-center bg-(--black)/50">
+                            <i class="bi bi-camera-video-off-fill text-(--white)/30 text-2xl" />
+                        </div>
+                    </div>
 
+                    <!-- Call Timer -->
+                    <div 
+                        v-if="isCalling && callTimer"
+                        class="absolute bottom-20 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full bg-(--black)/50 backdrop-blur-md"
+                    >
+                        <span class="text-lg font-mono text-(--white)">{{ callTimer }}</span>
+                    </div>
+
+                    <!-- Call Controls -->
+                    <div 
+                        class="
+                            absolute left-1/2 -translate-x-1/2 flex
+                            items-center bg-(--black)/40 border-(--white)/10
+                            backdrop-blur-xl rounded-full border-t
+                            bottom-25 gap-6 px-8 py-4
+                        "
+                    >
+                        <button
+                            @click="toggleScreenShare"
+                            :class="isScreenSharing ? 'bg-(--primary)/30 text-(--primary)' : ''"
+                            class="rounded-full bg-(--white)/10 hover:bg-(--white)/20 text-(--white) transition-all w-12 h-12 text-xl"
+                            title="Partager l'écran"
+                        >
+                            <i class="bi" :class="isScreenSharing ? 'bi-stop-circle-fill' : 'bi-display-fill'" />
+                        </button>
+
+                        <button
+                            @click="toggleMic"
+                            :class="!isMicOn ? 'bg-red-500/50 text-red-200' : ''"
+                            class="rounded-full bg-(--white)/10 hover:bg-(--white)/20 text-(--white) transition-all w-12 h-12 text-xl"
+                            :title="isMicOn ? 'Couper le micro' : 'Activer le micro'"
+                        >
+                            <i class="bi" :class="isMicOn ? 'bi-mic-fill' : 'bi-mic-mute-fill'" />
+                        </button>
+
+                        <button
+                            @click="toggleCam"
+                            :class="!isCamOn ? 'bg-(--white)/5 text-(--white)/50' : ''"
+                            class="rounded-full bg-(--white)/10 hover:bg-(--white)/20 text-(--white) transition-all w-12 h-12 text-xl"
+                            :title="isCamOn ? 'Désactiver la caméra' : 'Activer la caméra'"
+                        >
+                            <i class="bi" :class="isCamOn ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'" />
+                        </button>
+
+                        <button
+                            @click="handleEndCall"
+                            class="rounded-full bg-red-500 hover:bg-red-600 text-(--white) shadow-lg shadow-red-500/20 transition-all hover:scale-110 flex items-center justify-center w-14 h-14 text-2xl"
+                            title="Raccrocher"
+                        >
+                            <i class="bi bi-telephone-x-fill" />
+                        </button>
+                    </div>
+
+                </div>
             </div>
+        </Transition>
 
+        <!-- Minimized Call Window -->
+        <Transition name="fade">
+            <DraggableWindow 
+                v-if="(isCalling || remoteStreams.size) && isMinimized"
+                :initialX="initialX"
+                :initialY="initialY"
+                :active="true"
+                width="400px"
+                height="220px"
+            >
+                <template #header>
+                    <div 
+                        class="
+                            relative w-full aspect-video bg-(--white)/5 
+                            rounded-2xl overflow-hidden 
+                            shadow-2xl border border-(--white)/10
+                            group
+                        "
+                    >
+                        <div 
+                            class="
+                                absolute top-0 left-0 
+                                transition-all duration-200 z-10
+                            "
+                        ><button class="default">
+                            <i 
+                                class="text-2xl bi bi-arrows-angle-expand opacity-0 group-hover:opacity-100"
+                                @click="isMinimized = !isMinimized" 
+                            />
+                        </button></div>
+                        
+                        <!-- Remote Video Streams -->
+                        <div v-if="remoteStreams.size" class="w-full h-full grid gap-2 p-2">
+                            <div 
+                                v-for="[id, stream] of remoteStreams"
+                                :key="id"
+                                class="relative bg-(--black) rounded-lg overflow-hidden"
+                            >
+                                <video 
+                                    :srcObject="stream" 
+                                    autoplay 
+                                    class="w-full h-full object-cover"
+                                />
+                                <div class="absolute bottom-1 left-1 bg-(--black)/70 px-1 py-0.5 rounded text-[10px]">
+                                    <span class="text-xs text-(--white) font-medium">{{ getParticipantName(id).substring(0, 6) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Waiting/Connecting State -->
+                        <div v-else class="w-full h-full flex flex-col items-center justify-center gap-2 text-(--white)/20">
+                            <div class="w-12 h-12 rounded-full bg-(--white)/5 flex items-center justify-center animate-pulse">
+                                <i class="bi bi-person-fill text-2xl"></i>
+                            </div>
+                            <p class="text-xs font-medium animate-pulse">En appel...</p>
+                        </div>
+
+                        <!-- Local Video Preview (minimized) -->
+                        <div 
+                            class="
+                                aspect-video overflow-hidden absolute
+                                border-2 border-(--white)/20 shadow-xl bg-(--black)
+                                bottom-2 right-2 w-20 rounded-xl
+                            "
+                        >
+                            <video 
+                                v-if="localStream"
+                                :srcObject="localStream" 
+                                autoplay 
+                                muted 
+                                class="w-full h-full object-cover mirror"
+                            />
+                            <div v-else class="w-full h-full flex items-center justify-center bg-(--black)/50">
+                                <i class="bi bi-camera-video-off-fill text-(--white)/30 text-lg" />
+                            </div>
+                        </div>
+
+                        <!-- Minimized Call Controls -->
+                        <div 
+                            class="
+                                absolute left-1/2 -translate-x-1/2 flex
+                                items-center bg-(--black)/40 border-(--white)/10
+                                backdrop-blur-xl rounded-full border-t
+                                -bottom-10 gap-3 px-4 py-2 opacity-0 group-hover:bottom-0 group-hover:opacity-100 transition-all duration-200
+                            "
+                        >
+                            <button
+                                @click="toggleMic"
+                                :class="!isMicOn ? 'bg-red-500/50 text-red-200' : ''"
+                                class="rounded-full bg-(--white)/10 hover:bg-(--white)/20 text-(--white) transition-all w-10 h-10 text-lg"
+                            >
+                                <i class="bi" :class="isMicOn ? 'bi-mic-fill' : 'bi-mic-mute-fill'" />
+                            </button>
+
+                            <button
+                                @click="handleEndCall"
+                                class="rounded-full bg-red-500 hover:bg-red-600 text-(--white) shadow-lg shadow-red-500/20 transition-all hover:scale-110 flex items-center justify-center w-10 h-10 text-lg"
+                            >
+                                <i class="bi bi-telephone-x-fill" />
+                            </button>
+                        </div>
+
+                    </div>
+                </template>
+            </DraggableWindow>
         </Transition>
 
     </Teleport>
@@ -179,7 +286,6 @@
 import useSecurePeer from '@/composables/useSecurePeer';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import DraggableWindow from '../common/DraggableWindow.vue';
-import CallControls from './CallControls.vue';
 import { openedOrg } from '@/assets/var';
 
 const isMinimized = ref<boolean>(false);
