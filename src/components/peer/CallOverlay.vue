@@ -149,16 +149,17 @@
                 </div>
         </Transition>
 
-        <!-- Minimized Floating Window -->
+        <!-- Minimized Floating Window (16:9) -->
         <Transition name="slide-fade">
-            <div v-if="isCalling && isMinimized" class="z-[1001]">
-                <DraggableWindow 
-                    :initialX="windowX"
-                    :initialY="windowY"
-                    :active="true"
-                    width="320px"
-                    height="180px"
-                >
+            <DraggableWindow 
+                v-if="isCalling && isMinimized"
+                :initialX="windowX"
+                :initialY="windowY"
+                :active="true"
+                width="320px"
+                height="180px"
+                class="z-[1001]"
+            >
                 <template #header>
                     <div 
                         class="
@@ -271,32 +272,6 @@
                     </div>
                 </template>
             </DraggableWindow>
-            </div>
-        </Transition>
-
-        <!-- Floating Call Indicator (when minimized) -->
-        <Transition name="fade">
-            <div 
-                v-if="isCalling && isMinimized"
-                class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[999]"
-            >
-                <div 
-                    class="
-                        flex items-center gap-2 bg-(--bg2) border border-(--white)/10
-                        rounded-full px-4 py-2 shadow-2xl backdrop-blur-md
-                    "
-                >
-                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    <span class="text-sm font-medium text-(--text)">Appel en cours</span>
-                    <button 
-                        @click="isMinimized = false"
-                        class="text-(--text)/40 hover:text-(--text) transition-colors"
-                        title="Ouvrir l'appel"
-                    >
-                        <i class="bi bi-arrows-angle-expand" />
-                    </button>
-                </div>
-            </div>
         </Transition>
 
     </Teleport>
