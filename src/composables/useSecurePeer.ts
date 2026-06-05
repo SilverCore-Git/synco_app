@@ -33,12 +33,14 @@ interface SecureCallSession {
     e2eeKeyId: number;
     keyAgreementComplete: boolean;
     authenticated: boolean;
+    keyExchangeTimeout: any | null;
 }
 
 interface KeyExchangeMessage {
     type: 'KEY_EXCHANGE_REQUEST' | 'KEY_EXCHANGE_RESPONSE' | 'KEY_CONFIRMATION';
     publicKeyJWK?: string;
     timestamp?: number;
+    callId?: string;
 }
 
 interface SecurityStatus {
@@ -79,6 +81,9 @@ ringtone.loop = true;
 // ============================================================================
 // Key Agreement Protocol (ECDH + HKDF)
 // ============================================================================
+
+// Key exchange timeout (10 seconds)
+const KEY_EXCHANGE_TIMEOUT = 10000;
 
 /**
  * Generate an ECDH key pair for key agreement
@@ -152,9 +157,22 @@ export default function useSecurePeer() {
      * Additional E2EE for signaling is handled via data channels
      */
     const initPeer = async () => {
-        if (peer.value && !peer.value.destroyed) {
-            if (peer.value.disconnected) peer.value.reconnect();
-            return;
+        // Cleanup existing peer if destroyed or disconnected
+        if (peer.value) {
+            if (peer.value.destroyed) {
+                cleanupPeer();
+            } else if (peer.value.disconnected) {
+                try {
+                    await peer.value.reconnect();
+                    return;
+                } catch (e) {
+                    console.error('[SECURE-PEER] Reconnect failed, recreating peer:', e);
+                    cleanupPeer();
+                }
+            } else {
+                // Peer is already connected
+                return;
+            }
         }
 
         const userInfo = await keycloak.loadUserInfo();
@@ -183,7 +201,33 @@ export default function useSecurePeer() {
 
         peer.value.on('error', (err) => {
             console.error('[SECURE-PEER] Error:', err);
+            // Don't automatically reconnect on all errors - let the caller handle it
         });
+
+        peer.value.on('disconnected', () => {
+            console.warn('[SECURE-PEER] Peer disconnected from server');
+        });
+
+        peer.value.on('close', () => {
+            console.warn('[SECURE-PEER] Peer connection closed');
+        });
+    };
+
+    const cleanupPeer = () => {
+        if (peer.value) {
+            try {
+                peer.value.off('call');
+                peer.value.off('error');
+                peer.value.off('disconnected');
+                peer.value.off('close');
+                if (!peer.value.destroyed) {
+                    peer.value.destroy();
+                }
+            } catch (e) {
+                console.error('[SECURE-PEER] Error cleaning up peer:', e);
+            }
+            peer.value = null;
+        }
     };
 
     /**
@@ -210,14 +254,36 @@ export default function useSecurePeer() {
      * Set up secure data channel for encrypted signaling
      */
     const setupSecureDataChannel = (channel: RTCDataChannel, peerId: string) => {
+        const session = activeCalls.value.get(peerId);
+        if (!session) return;
+
         channel.onopen = async () => {
             console.log('[SECURE-PEER] Data channel open with:', peerId);
+            
+            // Set timeout for key exchange
+            session.keyExchangeTimeout = setTimeout(() => {
+                console.warn('[SECURE-PEER] Key exchange timeout for:', peerId);
+                const calls = activeCalls.value;
+                const currentSession = calls.get(peerId);
+                if (currentSession && !currentSession.keyAgreementComplete) {
+                    currentSession.keyAgreementComplete = false;
+                    currentSession.authenticated = false;
+                    const status = callSecurityStatus.value;
+                    status.set(peerId, {
+                        encrypted: false,
+                        authenticated: false,
+                        fingerprint: 'TIMEOUT'
+                    });
+                    callSecurityStatus.value = status;
+                }
+            }, KEY_EXCHANGE_TIMEOUT);
             
             // Send our public key for key agreement
             const handshake: KeyExchangeMessage = {
                 type: 'KEY_EXCHANGE_REQUEST',
                 publicKeyJWK: sessionPublicKeyJWK.value,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                callId: session.callId
             };
             channel.send(JSON.stringify(handshake));
         };
@@ -234,6 +300,15 @@ export default function useSecurePeer() {
         channel.onerror = (err) => {
             console.error('[SECURE-PEER] Data channel error:', err);
         };
+
+        channel.onclose = () => {
+            console.log('[SECURE-PEER] Data channel closed for:', peerId);
+            // Clear timeout on channel close
+            if (session.keyExchangeTimeout) {
+                clearTimeout(session.keyExchangeTimeout);
+                session.keyExchangeTimeout = null;
+            }
+        };
     };
 
     /**
@@ -245,70 +320,113 @@ export default function useSecurePeer() {
         channel: RTCDataChannel
     ) => {
         const session = activeCalls.value.get(peerId);
-        if (!session) return;
+        if (!session) {
+            console.warn('[SECURE-PEER] Received key exchange for unknown peer:', peerId);
+            return;
+        }
 
-        switch (message.type) {
-            case 'KEY_EXCHANGE_REQUEST':
-                if (message.publicKeyJWK && sessionPrivateKey.value) {
-                    // Derive shared secret
-                    const sharedKey = await deriveSharedSecret(
-                        sessionPrivateKey.value,
-                        message.publicKeyJWK
-                    );
-                    
-                    const keys = callEncryptionKeys.value;
-                    keys.set(peerId, sharedKey);
-                    callEncryptionKeys.value = keys;
-                    
-                    session.e2eeKey = sharedKey;
-                    session.keyAgreementComplete = true;
+        // Validate timestamp (prevent replay attacks - accept messages within last 30 seconds)
+        if (message.timestamp && Math.abs(Date.now() - message.timestamp) > 30000) {
+            console.warn('[SECURE-PEER] Rejecting old key exchange message (possible replay attack)');
+            return;
+        }
 
-                    // Send confirmation
-                    const response: KeyExchangeMessage = {
-                        type: 'KEY_EXCHANGE_RESPONSE',
-                        publicKeyJWK: sessionPublicKeyJWK.value,
-                        timestamp: Date.now()
-                    };
-                    channel.send(JSON.stringify(response));
+        // Validate callId matches current session (prevent session confusion)
+        if (message.callId && message.callId !== session.callId) {
+            console.warn('[SECURE-PEER] CallId mismatch, possible session hijacking attempt');
+            return;
+        }
 
-                    // Generate authentication fingerprint
-                    const fingerprint = await generateFingerprint(sharedKey, session.callId);
-                    const status = callSecurityStatus.value;
-                    status.set(peerId, {
-                        encrypted: true,
-                        authenticated: false,
-                        fingerprint
-                    });
-                    callSecurityStatus.value = status;
-                }
-                break;
+        try {
+            switch (message.type) {
+                case 'KEY_EXCHANGE_REQUEST':
+                    if (message.publicKeyJWK && sessionPrivateKey.value) {
+                        // Clear timeout as we have activity
+                        if (session.keyExchangeTimeout) {
+                            clearTimeout(session.keyExchangeTimeout);
+                        }
+                        
+                        // Derive shared secret
+                        const sharedKey = await deriveSharedSecret(
+                            sessionPrivateKey.value,
+                            message.publicKeyJWK
+                        );
+                        
+                        const keys = callEncryptionKeys.value;
+                        keys.set(peerId, sharedKey);
+                        callEncryptionKeys.value = keys;
+                        
+                        session.e2eeKey = sharedKey;
+                        session.keyAgreementComplete = true;
 
-            case 'KEY_EXCHANGE_RESPONSE':
-                if (message.publicKeyJWK && sessionPrivateKey.value) {
-                    // Derive shared secret
-                    const sharedKey = await deriveSharedSecret(
-                        sessionPrivateKey.value,
-                        message.publicKeyJWK
-                    );
-                    
-                    const keys = callEncryptionKeys.value;
-                    keys.set(peerId, sharedKey);
-                    callEncryptionKeys.value = keys;
-                    
-                    session.e2eeKey = sharedKey;
-                    session.keyAgreementComplete = true;
+                        // Send confirmation with callId
+                        const response: KeyExchangeMessage = {
+                            type: 'KEY_EXCHANGE_RESPONSE',
+                            publicKeyJWK: sessionPublicKeyJWK.value,
+                            timestamp: Date.now(),
+                            callId: session.callId
+                        };
+                        channel.send(JSON.stringify(response));
 
-                    // Generate authentication fingerprint
-                    const fingerprint = await generateFingerprint(sharedKey, session.callId);
-                    const status = callSecurityStatus.value;
-                    status.set(peerId, {
-                        encrypted: true,
-                        authenticated: true,
-                        fingerprint
-                    });
-                    callSecurityStatus.value = status;
-                }
-                break;
+                        // Generate authentication fingerprint
+                        const fingerprint = await generateFingerprint(sharedKey, session.callId);
+                        const status = callSecurityStatus.value;
+                        status.set(peerId, {
+                            encrypted: true,
+                            authenticated: false,
+                            fingerprint
+                        });
+                        callSecurityStatus.value = status;
+                        
+                        console.log('[SECURE-PEER] Key exchange completed for:', peerId);
+                    }
+                    break;
+
+                case 'KEY_EXCHANGE_RESPONSE':
+                    if (message.publicKeyJWK && sessionPrivateKey.value) {
+                        // Clear timeout
+                        if (session.keyExchangeTimeout) {
+                            clearTimeout(session.keyExchangeTimeout);
+                            session.keyExchangeTimeout = null;
+                        }
+                        
+                        // Derive shared secret
+                        const sharedKey = await deriveSharedSecret(
+                            sessionPrivateKey.value,
+                            message.publicKeyJWK
+                        );
+                        
+                        const keys = callEncryptionKeys.value;
+                        keys.set(peerId, sharedKey);
+                        callEncryptionKeys.value = keys;
+                        
+                        session.e2eeKey = sharedKey;
+                        session.keyAgreementComplete = true;
+
+                        // Generate authentication fingerprint
+                        const fingerprint = await generateFingerprint(sharedKey, session.callId);
+                        const status = callSecurityStatus.value;
+                        status.set(peerId, {
+                            encrypted: true,
+                            authenticated: true,
+                            fingerprint
+                        });
+                        callSecurityStatus.value = status;
+                        
+                        console.log('[SECURE-PEER] Key exchange completed and authenticated for:', peerId);
+                    }
+                    break;
+            }
+        } catch (error) {
+            console.error('[SECURE-PEER] Key exchange error:', error);
+            // On error, mark as failed but keep connection alive
+            const status = callSecurityStatus.value;
+            status.set(peerId, {
+                encrypted: false,
+                authenticated: false,
+                fingerprint: 'ERROR'
+            });
+            callSecurityStatus.value = status;
         }
     };
 
@@ -321,12 +439,13 @@ export default function useSecurePeer() {
         // Create secure session
         const session: SecureCallSession = {
             call,
-            callId: `${peerId}-${Date.now()}`,
+            callId: `${peerId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             peerId,
             e2eeKey: null,
-            e2eeKeyId: 0,
+            e2eeKeyId: Date.now(),
             keyAgreementComplete: false,
-            authenticated: false
+            authenticated: false,
+            keyExchangeTimeout: null
         };
         
         const calls = activeCalls.value;
@@ -474,11 +593,37 @@ export default function useSecurePeer() {
         }
 
         if (!peer.value || peer.value.destroyed) {
-            return console.error("[SECURE-PEER] L'instance Peer n'est pas initialisée.");
+            console.log('[SECURE-PEER] Initialisation de l\'instance Peer...');
+            await initPeer();
+            // Wait a bit for peer to be ready
+            await new Promise(resolve => setTimeout(resolve, 500));
+            if (!peer.value || peer.value.destroyed) {
+                return console.error("[SECURE-PEER] Impossible d'initialiser Peer.");
+            }
         }
 
         if (peer.value.disconnected) {
-            peer.value.reconnect();
+            try {
+                console.log('[SECURE-PEER] Tentative de reconnexion...');
+                await peer.value.reconnect();
+                // Wait for reconnection
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                if (peer.value.disconnected) {
+                    console.error('[SECURE-PEER] Échec de la reconnexion');
+                    cleanupCall();
+                    return;
+                }
+            } catch (e) {
+                console.error('[SECURE-PEER] Erreur de reconnexion:', e);
+                cleanupCall();
+                return;
+            }
+        }
+
+        // Prevent duplicate calls
+        if (isCalling.value || enteringCall.value || activeCalls.value.size > 0) {
+            console.warn('[SECURE-PEER] Un appel est déjà en cours');
+            return;
         }
 
         try {
@@ -514,6 +659,13 @@ export default function useSecurePeer() {
      * Remove peer from call
      */
     const removePeerFromCall = (peerId: string) => {
+        const session = activeCalls.value.get(peerId);
+        
+        // Clear any pending timeouts
+        if (session?.keyExchangeTimeout) {
+            clearTimeout(session.keyExchangeTimeout);
+        }
+        
         const streams = remoteStreams.value;
         streams.delete(peerId);
         remoteStreams.value = streams;
@@ -543,6 +695,14 @@ export default function useSecurePeer() {
         screenStream.value?.getTracks().forEach(track => track.stop());
         localStream.value = null;
         screenStream.value = null;
+        
+        // Clear all timeouts for active calls
+        activeCalls.value.forEach(session => {
+            if (session.keyExchangeTimeout) {
+                clearTimeout(session.keyExchangeTimeout);
+            }
+        });
+        
         remoteStreams.value = new Map();
         activeCalls.value = new Map();
         callEncryptionKeys.value = new Map();
@@ -551,6 +711,7 @@ export default function useSecurePeer() {
         isCalling.value = false;
         isCamOn.value = false;
         isScreenSharing.value = false;
+        // Don't cleanup peer here - let the caller decide if they want to keep it
     };
 
     /**
@@ -639,6 +800,7 @@ export default function useSecurePeer() {
         startCall,
         endCall,
         acceptCall,
+        cleanupPeer,
         rejectCall: () => {
             if (!enteringCall.value) return;
             enteringCall.value.close();

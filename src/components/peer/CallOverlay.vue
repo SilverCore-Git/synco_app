@@ -149,7 +149,7 @@
                 </div>
         </Transition>
 
-        <!-- Minimized Floating Window (16:9) -->
+        <!-- Minimized Floating Window (16:9) - Only one instance per call -->
         <Transition name="slide-fade">
             <DraggableWindow 
                 v-if="isCalling && isMinimized"
@@ -159,6 +159,7 @@
                 width="320px"
                 height="180px"
                 class="z-[1001]"
+                :key="remoteStreams.size > 0 ? `call-${Array.from(remoteStreams.keys())[0]}` : 'call-waiting'"
             >
                 <template #header>
                     <div 
@@ -206,12 +207,11 @@
                                 </div>
                             </div>
                             
-                            <!-- Waiting State -->
-                            <div v-else class="w-full h-full flex flex-col items-center justify-center gap-1 text-(--white)/40">
+                            <!-- Waiting State - Minimal, timer shows call is active -->
+                            <div v-else class="w-full h-full flex items-center justify-center">
                                 <div class="w-10 h-10 rounded-full bg-(--white)/5 flex items-center justify-center animate-pulse">
                                     <i class="bi bi-person-fill text-xl" />
                                 </div>
-                                <p class="text-xs font-medium">En appel...</p>
                             </div>
 
                             <!-- Local Video Preview (small) -->

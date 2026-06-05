@@ -40,8 +40,8 @@
             
             <div class="ml-auto flex items-center gap-4 text-(--text)/40">
 
-                <button @click="startCall(recipient)" class="hover:text-(--text) transition-colors">
-                    <i class="bi bi-telephone-fill" />
+                <button @click="startCall(recipient)" class="hover:text-(--text) transition-colors" title="Appeler">
+                    <i class="bi bi-telephone-fill text-xl" />
                 </button>
 
                 <DropDown align="right">
