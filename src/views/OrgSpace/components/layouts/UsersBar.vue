@@ -31,121 +31,81 @@
                 En ligne — {{ members.filter(member => member.user?.data.status !== 'offline').length }}
             </p>
             
-            <div
+            <router-link
                 v-for="member in members.filter(member => member.user?.data.status !== 'offline')"
                 :key="member.id"
-                class="relative group"
+                :to="{ name: 'OrgThreadChat', params: { userId: member.id } }"
+                class="
+                    flex items-center gap-3 px-3 py-2 rounded-lg
+                    hover:bg-white/3 transition-colors
+                    group
+                "
+                active-class="bg-white/[0.05]"
             >
-                <router-link
-                    :to="{ name: 'OrgThreadChat', params: { userId: member.id } }"
-                    class="
-                        flex items-center gap-3 px-3 py-2 rounded-lg
-                        hover:bg-white/3 transition-colors
-                        group
-                    "
-                    active-class="bg-white/[0.05]"
-                >
 
-                    <div class="relative">
-                        <img 
-                            :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=128a60&color=fff`" 
-                            :alt="member.user?.name"
-                            class="w-8 h-8 rounded-full"
-                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${member.user?.name}&background=128a60&color=fff`"
-                        />
-                        <span 
-                            class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg2)"
-                            :class="getColorByStatus(member.user!.data.status)"
-                        />
-                    </div>
+                <div class="relative">
+                    <img 
+                        :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=128a60&color=fff`" 
+                        :alt="member.user?.name"
+                        class="w-8 h-8 rounded-full"
+                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${member.user?.name}&background=128a60&color=fff`"
+                    />
+                    <span 
+                        class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg2)"
+                        :class="getColorByStatus(member.user!.data.status)"
+                    />
+                </div>
 
-                    <div class="flex flex-col">
-                        <span class="text-sm font-medium text-(--text) truncate">
-                            {{ member.user?.name }}
-                        </span>
-                        <span class="text-xs text-(--text)/40">
-                            {{ member.role }}
-                        </span>
-                    </div>
+                <div class="flex flex-col">
+                    <span class="text-sm font-medium text-(--text) truncate">
+                        {{ member.user?.name }}
+                    </span>
+                    <span class="text-xs text-(--text)/40">
+                        {{ member.role }}
+                    </span>
+                </div>
 
-                </router-link>
-
-                <!-- Call Button -->
-                <button
-                    v-if="member.user?.id !== currentUserId"
-                    @click="startP2PCall(member.user)"
-                    class="
-                        absolute top-1/2 -translate-y-1/2 right-3
-                        w-7 h-7 rounded-full bg-(--primary) hover:bg-(--primary-hover)
-                        text-white flex items-center justify-center
-                        transition-all duration-200 opacity-0 group-hover:opacity-100
-                        shadow-lg shadow-(--primary)/30
-                    "
-                    title="Appel P2P"
-                >
-                    <i class="bi bi-telephone-fill text-xs" />
-                </button>
-            </div>
+            </router-link>
 
             <p v-if="members.filter(member => member.user?.data.status === 'offline').length > 0" class=" py-1 text-xs text-(--text)/60">
                 Hors ligne — {{ members.filter(member => member.user?.data.status === 'offline').length }}
             </p>
 
-            <div
+            <router-link
                 v-for="member in members.filter(member => member.user?.data.status === 'offline')"
                 :key="member.id"
-                class="relative group"
+                :to="{ name: 'OrgThreadChat', params: { userId: member.id } }"
+                class="
+                    flex items-center gap-3 px-3 py-2 rounded-lg
+                    hover:bg-white/3 transition-colors 
+                    group opacity-50 
+                "
+                active-class="bg-white/[0.05]"
             >
-                <router-link
-                    :to="{ name: 'OrgThreadChat', params: { userId: member.id } }"
-                    class="
-                        flex items-center gap-3 px-3 py-2 rounded-lg
-                        hover:bg-white/3 transition-colors 
-                        group opacity-50 
-                    "
-                    active-class="bg-white/[0.05]"
-                >
 
-                    <div class="relative">
-                        <img 
-                            :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=128a60&color=fff`" 
-                            :alt="member.user?.name"
-                            class="w-8 h-8 rounded-full"
-                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${member.user?.name}&background=128a60&color=fff`"
-                        />
-                        <span 
-                            class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg2)"
-                            :class="getColorByStatus(member.user!.data.status)"
-                        />
-                    </div>
+                <div class="relative">
+                    <img 
+                        :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=128a60&color=fff`" 
+                        :alt="member.user?.name"
+                        class="w-8 h-8 rounded-full"
+                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${member.user?.name}&background=128a60&color=fff`"
+                    />
+                    <span 
+                        class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg2)"
+                        :class="getColorByStatus(member.user!.data.status)"
+                    />
+                </div>
 
-                    <div class="flex flex-col">
-                        <span class="text-sm font-medium text-(--text) truncate">
-                            {{ member.user?.name }}
-                        </span>
-                        <span class="text-xs text-(--text)/40">
-                            {{ member.role }}
-                        </span>
-                    </div>
+                <div class="flex flex-col">
+                    <span class="text-sm font-medium text-(--text) truncate">
+                        {{ member.user?.name }}
+                    </span>
+                    <span class="text-xs text-(--text)/40">
+                        {{ member.role }}
+                    </span>
+                </div>
 
-                </router-link>
-
-                <!-- Call Button (also for offline users) -->
-                <button
-                    v-if="member.user?.id !== currentUserId"
-                    @click="startP2PCall(member.user)"
-                    class="
-                        absolute top-1/2 -translate-y-1/2 right-3
-                        w-7 h-7 rounded-full bg-(--primary) hover:bg-(--primary-hover)
-                        text-white flex items-center justify-center
-                        transition-all duration-200 opacity-0 group-hover:opacity-100
-                        shadow-lg shadow-(--primary)/30
-                    "
-                    title="Appel P2P"
-                >
-                    <i class="bi bi-telephone-fill text-xs" />
-                </button>
-            </div>
+            </router-link>
 
         </div>
 
@@ -207,18 +167,14 @@
 <script lang="ts" setup>
 
 import { computed } from 'vue';
-import { openedOrg, user } from '@/assets/var';
+import { openedOrg } from '@/assets/var';
 import getColorByStatus from '@/assets/utils/getColorByStatus';
 import isDesktopApp from '@/assets/isDesktopApp';
 import { useRoute } from 'vue-router';
 import useSettingsItem from '@/composables/useSettingsItem';
-import useSecurePeer from '@/composables/useSecurePeer';
 
 const route = useRoute();
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
-const { startCall } = useSecurePeer();
-
-const currentUserId = user.value?.id;
 
 defineProps<{
     isLittleScreen: boolean;
@@ -236,11 +192,5 @@ const members = computed(() => {
     return openedOrg.value.members;
 
 });
-
-const startP2PCall = (recipient: any) => {
-    if (recipient?.id) {
-        startCall(recipient);
-    }
-};
 
 </script>
