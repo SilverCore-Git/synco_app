@@ -115,9 +115,9 @@
                             <MessageReactions
                                 :message-id="msg.id"
                                 :reactions="msg.reactions"
+                                :is-dm="true"
                                 @reaction-updated="(newReactions: any) => msg.reactions = newReactions"
-                                @add-reaction="handleAddReaction"
-                                @reaction-updated="(newReactions: any) => msg.reactions = newReactions"
+                                @add-reaction="(payload) => handleAddReaction(payload)"
                             />
 
                             <div 
@@ -168,22 +168,6 @@
 
                     </div>
 
-                        <!-- Emoji reaction picker dropdown -->
-                        <div
-                            v-if="showReactionPicker && selectedMessageForReaction?.id === msg.id"
-                            @click.away="showReactionPicker = false"
-                            class="absolute z-50 bg-(--bg) border border-white/5 rounded-xl shadow-xl p-2"
-                            style="right: 100px; top: -10px;"
-                        >
-                            <button
-                                v-for="emoji in availableEmojis"
-                                :key="emoji"
-                                @click="addReaction(emoji)"
-                                class="text-2xl p-1 rounded-lg hover:bg-white/10 transition-colors"
-                            >
-                                {{ emoji }}
-                            </button>
-                        </div>
                 </div>
 
         <ConfirmDelete 
@@ -269,12 +253,6 @@ const dropdownBtns: DropdownBtn[] = [
         func: () => openDeleteConfirm(),
         class: "text-red-400! hover:bg-red-500/10!",
         show: (msg: DMMessage) => msg.senderId == user.value?.id
-    },
-    {
-        icon: "bi-emoji-smile-fill",
-        tooltip: "Ajouter une réaction",
-        func: (msg: DMMessage) => toggleReactionPicker(msg),
-        show: () => true
     }
 ];
 
@@ -285,18 +263,6 @@ const { setMessageWillBeResponded } = useResponse();
 const showPlusDropdown = ref<boolean>(false);
 const showDeleteConfirm = ref<boolean>(false);
 const showEditMessage = ref<boolean>(false);
-const showReactionPicker = ref<boolean>(false);
-const selectedMessageForReaction = ref<DMMessage | null>(null);
-
-// Available emojis for reactions
-const availableEmojis = [
-  '👍', '❤️', '🔥', '😂', '😢', '👏', '🎉', '🚀',
-  '✨', '💯', '😮', '😎', '🤔', '🎯', '✅'
-];
-// Reaction picker functions
-const toggleReactionPicker = (msg: DMMessage) => {
-    selectedMessageForReaction.value = msg;
-    showReactionPicker.value = !showReactionPicker.value;
 
 const handleAddReaction = async (payload: { messageId: string; emoji: string; isDM: boolean }) => {
     if (!user.value?.id) {
@@ -314,57 +280,6 @@ const handleAddReaction = async (payload: { messageId: string; emoji: string; is
             toast.show(response.error, 'error');
         }
     });
-};
-};
-
-const addReaction = async (emoji: string) => {
-    const msg = selectedMessageForReaction.value;
-    if (!msg || !user.value?.id) return;
-
-    try {
-        // Optimistic update
-        const currentReactions = msg.reactions || {};
-        const hasReacted = currentReactions[emoji]?.users?.some((u: any) => u.id === user.value?.id);
-        
-        const newReactions = { ...currentReactions };
-        if (hasReacted) {
-            // Remove reaction
-            if (newReactions[emoji]) {
-                newReactions[emoji] = {
-                    ...newReactions[emoji],
-                    count: newReactions[emoji].count - 1,
-                    users: newReactions[emoji].users?.filter((u: any) => u.id !== user.value?.id) || []
-                };
-                if (newReactions[emoji].count <= 0) {
-                    delete newReactions[emoji];
-                }
-            }
-        } else {
-            // Add reaction
-            newReactions[emoji] = {
-                count: (newReactions[emoji]?.count || 0) + 1,
-                users: [
-                    ...(newReactions[emoji]?.users || []) as any[],
-                    { id: user.value.id, name: user.value.name, avatarUrl: user.value.avatarUrl }
-                ]
-            };
-        }
-        
-        msg.reactions = newReactions;
-        
-        // Send to server via WebSocket
-        socket.value?.emit('add-dm-reaction', {
-            dmMessageId: msg.id,
-            emoji
-        });
-        
-        showReactionPicker.value = false;
-        selectedMessageForReaction.value = null;
-        
-    } catch (error) {
-        console.error('Error adding reaction:', error);
-        toast.show('Erreur lors de l\'ajout de la réaction', 'error');
-    }
 };
 
 // Handle reaction updates from socket

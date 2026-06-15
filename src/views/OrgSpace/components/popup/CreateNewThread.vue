@@ -95,7 +95,7 @@ import { openedOrg, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import type { Thread } from '@/types/types';
 import { useToast } from '@/composables/useToast';
-import { generateThreadKey, encryptThreadKeyForMember } from '@/assets/utils/crypto';
+import { generateThreadKey, encryptThreadKeyForMember, E2EEUnloked, privateKey } from '@/assets/utils/crypto';
 
 const route = useRoute();
 const router = useRouter();
@@ -157,7 +157,17 @@ const handleSubmit = async () => {
 
                 // Vérifier que le membre courant a une clé E2EE valide
                 if (!currentUser?.publicKey || typeof currentUser.publicKey !== 'string' || !currentUser.publicKey.trim().startsWith('{')) {
-                    throw new Error("Votre clé de chiffrement E2EE n'est pas configurée. Veuillez recharger la page ou réinitialiser votre PIN.");
+                    throw new Error("Votre clé publique de chiffrement E2EE n'est pas configurée.");
+                }
+                
+                // Vérifier que la clé privée est déchiffrée et disponible
+                if (!E2EEUnloked.value) {
+                    throw new Error("Votre session E2EE n'est pas déverrouillée. Veuillez entrer votre code PIN.");
+                }
+                
+                // Vérifier que la clé privée existe
+                if (!privateKey.value) {
+                    throw new Error("Votre clé privée n'est pas chargée. Veuillez recharger la page ou réinitialiser votre PIN.");
                 }
 
                 const newThreadKey = await generateThreadKey();
