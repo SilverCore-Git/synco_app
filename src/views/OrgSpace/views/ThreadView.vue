@@ -462,6 +462,26 @@ const scrollToSelectedMessage = async () => {
 
 };
 
+// Utility function to transform Prisma reaction array to grouped object
+const formatReactions = (reactions: any[]) => {
+    if (!reactions || reactions.length === 0) return {};
+    
+    return reactions.reduce((acc: Record<string, { count: number, users: Array<{ id: string; name: string; avatarUrl?: string }> }>, reaction) => {
+        if (!acc[reaction.emoji]) {
+            acc[reaction.emoji] = { count: 0, users: [] };
+        }
+        acc[reaction.emoji].count++;
+        if (reaction.user) {
+            acc[reaction.emoji].users.push({
+                id: reaction.user.id,
+                name: reaction.user.name,
+                avatarUrl: reaction.user.avatarUrl
+            });
+        }
+        return acc;
+    }, {});
+};
+
 const procesMessages = async (msgs: Message[]) => {
 
     if (!currentThreadKey.value) return msgs;
@@ -483,7 +503,11 @@ const procesMessages = async (msgs: Message[]) => {
             }
 
             const clearText = await decryptMessageWithContentKey(msg.content, vectorInit, currentThreadKey.value!);
-            return { ...msg, content: clearText };
+            
+            // Format reactions if they exist (from Prisma array to grouped object)
+            const formattedReactions = msg.reactions ? formatReactions(msg.reactions as any) : {};
+            
+            return { ...msg, content: clearText, reactions: formattedReactions };
 
         } 
         catch (cryptoErr) {
@@ -512,6 +536,11 @@ const procesMessages = async (msgs: Message[]) => {
             if (decryptedTransfer) {
                 decryptedMain.transferMessage = decryptedTransfer;
             }
+        }
+
+        // Ensure reactions are formatted even if message content was empty
+        if (m.reactions) {
+            decryptedMain.reactions = formatReactions(m.reactions as any);
         }
 
         return decryptedMain;
@@ -587,7 +616,9 @@ const initListener = () => {
             }
         }
         
-        const decrypted = { ...msg, content: clearContent };
+        // Format reactions if they exist
+        const formattedReactions = msg.reactions ? formatReactions(msg.reactions as any) : {};
+        const decrypted = { ...msg, content: clearContent, reactions: formattedReactions };
         sortedMessages.value.push(decrypted);
         
         const container = messagesContainer.value;
@@ -614,7 +645,9 @@ const initListener = () => {
                 decryptedContent = "🔒 Échec du déchiffrement lors de l'édition.";
             }
         }
-        const updatedMsg = { ...editedMsg, content: decryptedContent };
+        // Format reactions if they exist
+        const formattedReactions = editedMsg.reactions ? formatReactions(editedMsg.reactions as any) : {};
+        const updatedMsg = { ...editedMsg, content: decryptedContent, reactions: formattedReactions };
         rawMessages.value.set(editedMsg.id, updatedMsg);
         sortedMessages.value = sortedMessages.value.map(m => m.id === editedMsg.id ? updatedMsg : m);
     });
