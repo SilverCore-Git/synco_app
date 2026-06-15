@@ -14,6 +14,7 @@ import TopBar from './components/layout/topBar.vue';
 import useSecurePeer from './composables/useSecurePeer';
 import CallOverlay from './components/peer/CallOverlay.vue';
 import waitFor from './assets/utils/waitfor';
+import Popup from './components/Popup.vue';
 
 const toast = useToast();
 const { Item: theme } = useSettingsItem('theme', 'dark');
@@ -28,7 +29,12 @@ watch(() => theme.value, () => {
 })
 
 const authenticated = ref<boolean>(false);
-const pinSetup = computed(() => user.value?.pinSalt && user.value?.keyIv);
+const pinSetup = computed(() => 
+  user.value?.pinSalt?.trim() && 
+  user.value?.keyIv?.trim() && 
+  user.value?.encryptedPrivateKey?.trim()
+);
+const isResettingPIN = ref<boolean>(false);
 
 const press = (num: string) => {
   if (pin.value.length < 4) 
@@ -43,6 +49,30 @@ const submit = async () => {
   pinLoading.value = true;
 
   try {
+
+    if (isResettingPIN.value) {
+      // Mode réinitialisation : créer de nouvelles clés
+      const E2EEThings = await setupFirstTimeSecurity(pin.value);
+      
+      const res = await sfetch('/api/users/me/resetE2EE', {
+        method: 'POST',
+        body: JSON.stringify(E2EEThings)
+      });
+      
+      if (res.ok) {
+        await refetchUser();
+        isResettingPIN.value = false;
+        const response = await res.json();
+        toast.show(response.message || 'PIN réinitialisé.', 'warning', 10000);
+        pin.value = '';
+      } else {
+        const err = (await res.json()).error;
+        toast.show(err || 'Erreur lors de la réinitialisation', 'error');
+        isResettingPIN.value = false; // Réinitialiser le mode même en cas d'erreur
+        pin.value = '';
+      }
+      return;
+    }
 
     if (pinSetup.value) 
     {
@@ -92,9 +122,18 @@ const submit = async () => {
 
 }
 
+const showResetConfirm = ref<boolean>(false);
+
 const pinForgot = () => {
-  alert('t mort');
-}
+  showResetConfirm.value = true;
+};
+
+const resetPIN = async () => {
+  showResetConfirm.value = false;
+  isResettingPIN.value = true;
+  pin.value = '';
+  toast.show('Veuillez définir un nouveau code PIN', 'info');
+};
 
 const handleInput = (e: KeyboardEvent) => {
   if (e.key >= '0' && e.key <= '9') press(e.key);
@@ -189,12 +228,15 @@ onUnmounted(() => {
                 </div>
 
                 <h2 class="text-xl font-bold text-(--text)">
-                  {{ pinSetup ? 'Déverrouillez votre session' : 'Configurez votre accès sécurisé' }}
+                  {{ isResettingPIN ? 'Définissez un nouveau code PIN' : pinSetup ? 'Déverrouillez votre session' : 'Configurez votre accès sécurisé' }}
                 </h2>
 
-                <p v-if="!pinSetup" class="text-sm text-(--text)/50 mt-2 leading-relaxed">
+                <p v-if="!pinSetup || isResettingPIN" class="text-sm text-(--text)/50 mt-2 leading-relaxed">
                   Ce code PIN est la clé de vos conversations. <br/>
                   <span class="text-amber-500/80 font-medium">S'il est perdu, elles resteront illisibles.</span>
+                </p>
+                <p v-if="isResettingPIN" class="text-sm text-amber-500/80 mt-2 font-medium">
+                  Attention : vos anciens messages deviendront indéchiffrables.
                 </p>
 
             </div>
@@ -249,12 +291,27 @@ onUnmounted(() => {
             </div>
 
             <button 
-              v-if="pinSetup" 
+              v-if="pinSetup && !isResettingPIN" 
               @click="pinForgot"
               class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text)/30 hover:text-(--primary) transition-colors"
             >
                 Code PIN oublié ?
             </button>
+
+            <Popup :isOpen="showResetConfirm" @close="showResetConfirm = false">
+              <template #title>Réinitialiser le code PIN</template>
+              <p class="text-(--text)/80 text-sm">
+                Cela réinitialisera votre clé de chiffrement. 
+                <span class="text-amber-500 font-medium">Tous vos anciens messages deviendront illisibles.</span>
+              </p>
+              <p class="text-(--text)/60 text-xs mt-4">
+                Cette action ne peut pas être annulée.
+              </p>
+              <template #footer>
+                <button @click="showResetConfirm = false" class="default">Annuler</button>
+                <button @click="resetPIN" class="danger">Réinitialiser</button>
+              </template>
+            </Popup>
             
           </div>
 

@@ -10,7 +10,7 @@
             style="display: none"
         />
         
-        <button @click="triggerFileSelect()" class="primary">Sélectionner une photo</button>
+        <button @click.stop="triggerFileSelect()" type="button" class="primary">Sélectionner une photo</button>
 
         <div v-if="imageSrc" class="cropper-wrapper">
 
@@ -24,7 +24,7 @@
                 }"
             />
             
-            <button @click="cropAndUpload" :disabled="loading" class="primary">
+            <button @click.stop="cropAndUpload" :disabled="loading" type="button" class="primary">
                 {{ loading ? 'Envoi...' : 'Valider le recadrage' }}
             </button>
 

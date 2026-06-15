@@ -14,6 +14,7 @@ const toast = useToast();
 const me = ref<User | undefined>(undefined);
 
 const showCreateNewOrg = ref<boolean>(false);
+const canCreateOrg = ref<boolean>(false);
 const newOrgForm = reactive({
   name: '',
   logo: ''
@@ -49,6 +50,9 @@ const createNewOrg = async () => {
 
 onMounted(async () => {
     me.value = await sfetch('/api/users/me').then(res => res.json());
+    const res = await sfetch('/api/users/me/cancreateorg');
+    const data = await res.json();
+    canCreateOrg.value = data.canCreateOrg;
 })
 
 </script>
@@ -77,6 +81,12 @@ onMounted(async () => {
             
             </div>
 
+            <div v-if="canCreateOrg" @click="showCreateNewOrg = !showCreateNewOrg">
+                <OrgBtn
+                    :org="{ id: '', name: 'Créer une organisation', logo: 'bi-plus', role: '', memberCount: '' }"
+                />
+            </div>
+
         </div>
 
     </div>
@@ -99,7 +109,7 @@ onMounted(async () => {
 
         <span class="text-md my-10">ou</span>
 
-        <div @click="showCreateNewOrg = !showCreateNewOrg">
+        <div v-if="canCreateOrg" @click="showCreateNewOrg = !showCreateNewOrg">
             <OrgBtn
                 :org="{ id: '', name: 'Créer une organisation', logo: 'bi-plus', role: '', memberCount: '' }"
             />
@@ -140,7 +150,7 @@ onMounted(async () => {
                     Icon de l'espace
                 </label>
 
-                <IconSelector v-model="newOrgForm.logo" />
+                <IconSelector @on-base64="(logo: string) => newOrgForm.logo = logo" />
 
             </div>
 

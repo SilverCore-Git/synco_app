@@ -91,7 +91,7 @@
 import { ref, reactive, nextTick, watch, computed } from 'vue';
 import Popup from '@/components/Popup.vue';
 import { useRoute, useRouter } from 'vue-router';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import type { Thread } from '@/types/types';
 import { useToast } from '@/composables/useToast';
@@ -147,7 +147,18 @@ const handleSubmit = async () => {
                 
                 const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
                 
-                const members = openedOrg.value?.members?.filter(m => space?.membersId.includes(m.userId)).map(m => m!.user!) || [];
+                let members = openedOrg.value?.members?.filter(m => space?.membersId.includes(m.userId)).map(m => m!.user!) || [];
+                
+                // S'assurer que le membre courant est inclus avec sa publicKey à jour
+                const currentUser = user.value;
+                if (currentUser && !members.some(m => m.id === currentUser.id)) {
+                    members = [...members, currentUser];
+                }
+
+                // Vérifier que le membre courant a une clé E2EE valide
+                if (!currentUser?.publicKey || typeof currentUser.publicKey !== 'string' || !currentUser.publicKey.trim().startsWith('{')) {
+                    throw new Error("Votre clé de chiffrement E2EE n'est pas configurée. Veuillez recharger la page ou réinitialiser votre PIN.");
+                }
 
                 const newThreadKey = await generateThreadKey();
 

@@ -623,7 +623,23 @@ const initListener = () => {
 
 const joinThread = async (id: string) => {
 
-    if (!socket.value) return;
+    if (!socket.value) {
+        loading.value = false;
+        return;
+    }
+    
+    // Attendre que la socket soit connectée
+    if (!socket.value.connected) {
+        await new Promise((resolve) => {
+            if (socket.value?.connected) {
+                resolve(true);
+            } else {
+                socket.value?.once('connect', () => resolve(true));
+                // Timeout au cas où
+                setTimeout(() => resolve(true), 5000);
+            }
+        });
+    }
     
     loading.value = true;
     currentThreadKey.value = null;
@@ -636,13 +652,32 @@ const joinThread = async (id: string) => {
         return;
     }
 
-    socket.value.emit("get-thread-access", { threadId: id }, async (response: { encryptedKey?: string, error?: string }) => {
+    // Timeout pour éviter de rester bloqué
+    const timeoutId = setTimeout(() => {
+        loading.value = false;
+        toast.show('[E2EE] Timeout lors de la récupération de la clé du salon.', 'error');
+    }, 10000);
+
+    socket.value.emit("get-thread-access", { threadId: id }, async (response: { encryptedKey?: string, error?: string, needsReadd?: boolean }) => {
+        clearTimeout(timeoutId);
 
         if (response.error || !response.encryptedKey) 
         {
+            // Special case: user needs to be re-added to thread (after E2EE reset)
+            if (response.error && response.needsReadd) {
+                loading.value = false;
+                router.push({ 
+                    name: 'OrgHome', 
+                    params: { orgId: route.params.orgId }, 
+                    query: { noRedirect: 'true' } 
+                });
+                toast.show(response.error, 'warning', 10000);
+                return;
+            }
+            
             loading.value = false;
             console.error('[E2EE] erreur serveur : ', response)
-            toast.show('[E2EE] Accès refusé ou impossible de récupérer la clé du salon.', 'error');
+            toast.show(response.error || '[E2EE] Accès refusé ou impossible de récupérer la clé du salon.', 'error');
             return;
         }
 
