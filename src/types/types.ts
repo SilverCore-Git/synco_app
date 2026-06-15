@@ -101,6 +101,15 @@ export interface User {
   updatedAt: string | Date;
 }
 
+export interface MessageReaction {
+    id: string;
+    messageId: string;
+    userId: string;
+    emoji: string;
+    createdAt: string | Date;
+    user?: User;
+}
+
 export interface Message {
     id: string;
     threadId: string;
@@ -113,6 +122,7 @@ export interface Message {
     edited: boolean | null;
     createdAt: string | Date;
     updatedAt: string | Date;
+    reactions?: Record<string, { count: number; users: User[] }>;
 
     sender?: User;
     files?: StoredFile[];
@@ -121,6 +131,15 @@ export interface Message {
     replies?: Message[];
     transferMessage?: Message | null;
     transferredIn?: Message[];
+}
+
+export interface DMMessageReaction {
+    id: string;
+    dmMessageId: string;
+    userId: string;
+    emoji: string;
+    createdAt: string | Date;
+    user?: User;
 }
 
 export interface DMMessage {
@@ -136,6 +155,7 @@ export interface DMMessage {
     createdAt: string | Date;
     updatedAt: string | Date;
     edited: boolean | null;
+    reactions?: Record<string, { count: number; users: User[] }>;
 
     sender?: User;
     recipient?: User;
