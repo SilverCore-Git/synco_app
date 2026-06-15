@@ -110,6 +110,13 @@
                                 <MarkdownRender :content="msg.content" />
                                 <span v-if="msg.edited" class="text-[10px] text-(--text)/30"> (modifié)</span>
                             </div>
+                            
+                            <!-- Message reactions -->
+                            <MessageReactions
+                                :message-id="msg.id"
+                                :reactions="msg.reactions"
+                                @reaction-updated="(newReactions: any) => msg.reactions = newReactions"
+                            />
 
                             <div 
                                 v-if="msg.files && msg.files.length > 0" 
@@ -194,6 +201,7 @@ import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
 import useWSocket from '@/composables/useWSocket';
 import EditMessage from '../popup/EditMessage.vue';
+import MessageReactions from '@/components/common/MessageReactions.vue';
 import type { Message } from '@/types/types';
 import { downloadFile } from '@/assets/utils/downloadFile';
 import { encryptMessageWithContentKey } from '@/assets/utils/crypto';
