@@ -116,6 +116,7 @@
                                 :message-id="msg.id"
                                 :reactions="msg.reactions"
                                 @reaction-updated="(newReactions: any) => msg.reactions = newReactions"
+                                @add-reaction="handleAddReaction"
                             />
 
                             <div 
@@ -334,6 +335,24 @@ const isTagMe = computed(() => {
 const toggleReactionPicker = (msg: Message) => {
     selectedMessageForReaction.value = msg;
     showReactionPicker.value = !showReactionPicker.value;
+};
+
+const handleAddReaction = async (payload: { messageId: string; emoji: string; isDM: boolean }) => {
+    if (!user.value?.id) {
+        toast.show('Veuillez vous connecter pour ajouter une réaction', 'error');
+        return;
+    }
+    
+    // Send to server via WebSocket
+    const eventName = payload.isDM ? 'add-dm-reaction' : 'add-message-reaction';
+    socket.value?.emit(eventName, { 
+        messageId: payload.messageId,
+        emoji: payload.emoji
+    }, (response: any) => {
+        if (response.error) {
+            toast.show(response.error, 'error');
+        }
+    });
 };
 
 const addReaction = async (emoji: string) => {

@@ -115,7 +115,8 @@
                             <MessageReactions
                                 :message-id="msg.id"
                                 :reactions="msg.reactions"
-                                :is-dm="true"
+                                @reaction-updated="(newReactions: any) => msg.reactions = newReactions"
+                                @add-reaction="handleAddReaction"
                                 @reaction-updated="(newReactions: any) => msg.reactions = newReactions"
                             />
 
@@ -204,10 +205,9 @@
 
 <script setup lang="ts">
 
-import { ref } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
-import { ref, onUnmounted } from 'vue';
+import { ref } from 'vue';
 import useWSocket from '@/composables/useWSocket';
 import EditMessage from '../popup/EditMessage.vue';
 import MessageReactions from '@/components/common/MessageReactions.vue';
@@ -291,10 +291,30 @@ const selectedMessageForReaction = ref<DMMessage | null>(null);
 // Available emojis for reactions
 const availableEmojis = [
   '👍', '❤️', '🔥', '😂', '😢', '👏', '🎉', '🚀',
+  '✨', '💯', '😮', '😎', '🤔', '🎯', '✅'
+];
 // Reaction picker functions
 const toggleReactionPicker = (msg: DMMessage) => {
     selectedMessageForReaction.value = msg;
     showReactionPicker.value = !showReactionPicker.value;
+
+const handleAddReaction = async (payload: { messageId: string; emoji: string; isDM: boolean }) => {
+    if (!user.value?.id) {
+        toast.show('Veuillez vous connecter pour ajouter une réaction', 'error');
+        return;
+    }
+    
+    // Send to server via WebSocket
+    const eventName = payload.isDM ? 'add-dm-reaction' : 'add-message-reaction';
+    socket.value?.emit(eventName, { 
+        messageId: payload.messageId,
+        emoji: payload.emoji
+    }, (response: any) => {
+        if (response.error) {
+            toast.show(response.error, 'error');
+        }
+    });
+};
 };
 
 const addReaction = async (emoji: string) => {
@@ -324,7 +344,7 @@ const addReaction = async (emoji: string) => {
             newReactions[emoji] = {
                 count: (newReactions[emoji]?.count || 0) + 1,
                 users: [
-                    ...(newReactions[emoji]?.users || []),
+                    ...(newReactions[emoji]?.users || []) as any[],
                     { id: user.value.id, name: user.value.name, avatarUrl: user.value.avatarUrl }
                 ]
             };
@@ -357,10 +377,6 @@ const handleReactionUpdate = (data: { dmMessageId: string; reactions: Record<str
 if (socket.value) {
     socket.value.on('dm-reaction-updated', handleReactionUpdate);
 }
-
-
-  '✨', '💯', '😮', '😎', '🤔', '🎯', '✅'
-];
 
 const formatTime = (d: string) => {
   return new Date(d).toLocaleString('fr-FR', {

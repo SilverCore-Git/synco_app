@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue';
 import { useToast } from '@/composables/useToast';
-import useWSocket from '@/composables/useWSocket';
 import { user } from '@/assets/var';
 
 export interface ReactionGroup {
@@ -17,11 +16,9 @@ const props = defineProps<{
   isDM?: boolean;
 }>();
 
-const emit = defineEmits(['reaction-updated']);
+const emit = defineEmits(['reaction-updated', 'add-reaction']);
 
 const toast = useToast();
-const socket = await useWSocket();
-
 const currentUserId = computed(() => user.value?.id);
 
 const showReactionPicker = ref(false);
@@ -48,20 +45,16 @@ const toggleReaction = async (emoji: string) => {
   if (!props.messageId) return;
 
   try {
-    const eventName = props.isDM ? 'add-dm-reaction' : 'add-message-reaction';
-    const endpoint = props.isDM 
-      ? `/api/reactions/dm/${props.messageId}/reactions`
-      : `/api/reactions/messages/${props.messageId}/reactions`;
-
-    // Optimistic update
-    const currentReactions = props.reactions || {};
-    const reactionKey = emoji;
     const userId = currentUserId.value;
     
     if (!userId) {
       toast.show('Veuillez vous connecter pour ajouter une réaction', 'error');
       return;
     }
+
+    // Optimistic update
+    const currentReactions = props.reactions || {};
+    const reactionKey = emoji;
     
     // Check if user already reacted with this emoji
     const hasReacted = currentReactions[reactionKey]?.users?.some(u => u.id === userId);
@@ -97,18 +90,12 @@ const toggleReaction = async (emoji: string) => {
 
     // Emit update event for optimistic UI
     emit('reaction-updated', newReactions);
-
-    // Send to server
-    socket.value?.emit(eventName, { 
-      messageId: props.messageId, 
-      emoji 
-    }, (response: any) => {
-      if (response.error) {
-        toast.show(response.error, 'error');
-        // Revert optimistic update on error
-        emit('reaction-updated', props.reactions);
-      }
-      // On success, the socket will receive the update via broadcast
+    
+    // Emit event to parent to send to server
+    emit('add-reaction', { 
+      messageId: props.messageId,
+      emoji,
+      isDM: props.isDM
     });
 
   } catch (error) {
@@ -119,26 +106,7 @@ const toggleReaction = async (emoji: string) => {
   }
 };
 
-// Handle socket events for reaction updates
-const handleReactionUpdate = (data: { messageId: string; reactions: Record<string, { count: number; users: any[] }> }) => {
-  if (data.messageId === props.messageId) {
-    emit('reaction-updated', data.reactions);
-  }
-};
-
-// Register socket listeners
-if (socket.value) {
-  socket.value.on('message-reaction-updated', handleReactionUpdate);
-  socket.value.on('dm-reaction-updated', handleReactionUpdate);
-}
-
-// Cleanup on unmount
-onUnmounted(() => {
-  if (socket.value) {
-    socket.value.off('message-reaction-updated', handleReactionUpdate);
-    socket.value.off('dm-reaction-updated', handleReactionUpdate);
-  }
-});
+// No socket handling here - parent component handles it
 </script>
 
 <template>
