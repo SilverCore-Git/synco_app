@@ -5,9 +5,10 @@
                     class="group relative px-4 py-2 flex flex-col justify-start items-start rounded-lg transition-colors w-full"
                     :class="[
                         selectedMessage == msg.id ? ' border border-(--primary) border-dashed animate-pulse' : '',
-                        user?.id == msg.replyMessage?.senderId 
+                        user?.id == msg.replyMessage?.senderId || isTagMe
                             ? 'border-l-2 border-(--primary-dark) bg-(--primary-dark)/30 hover:bg-(--primary-dark)/50' 
-                            : 'hover:bg-white/5'
+                            : 'hover:bg-white/5',
+                        showReactionPicker ? 'z-100' : 'z-10'
                     ]"
                 >
 
@@ -106,7 +107,7 @@
 
                             </div>
 
-                            <div class="text-(--text)/80 text-sm leading-relaxed wrap-break-word">
+                            <div ref="messageContentRef" class="text-(--text)/80 text-sm leading-relaxed wrap-break-word">
                                 <MarkdownRender :content="msg.content" />
                                 <span v-if="msg.edited" class="text-[10px] text-(--text)/30"> (modifié)</span>
                             </div>
@@ -116,8 +117,10 @@
                                 :message-id="msg.id"
                                 :reactions="msg.reactions"
                                 :is-dm="true"
+                                :showReactionPicker="showReactionPicker"
                                 @reaction-updated="(newReactions: any) => msg.reactions = newReactions"
                                 @add-reaction="(payload) => handleAddReaction(payload)"
+                                @reaction-picker-closed="showReactionPicker = false"
                             />
 
                             <div 
@@ -189,9 +192,9 @@
 
 <script setup lang="ts">
 
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
-import { ref } from 'vue';
 import useWSocket from '@/composables/useWSocket';
 import EditMessage from '../popup/EditMessage.vue';
 import MessageReactions from '@/components/common/MessageReactions.vue';
@@ -204,8 +207,8 @@ import { encryptAesKeyWithRsa, encryptForPeer } from '@/assets/utils/crypto';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useToast } from '@/composables/useToast';
 
-const socket = await useWSocket();
 const toast = useToast();
+const showReactionPicker = ref<boolean>(false);
 
 const props = defineProps<{
     msg: DMMessage;
@@ -248,6 +251,12 @@ const dropdownBtns: DropdownBtn[] = [
     //      show: () => true
     // },
     {
+        icon: "bi-emoji-grin-fill",
+        tooltip: "réagir",
+        func: () => showReactionPicker.value = !showReactionPicker.value,
+        show: () => true
+    },
+    {
         icon: "bi-trash-fill",
         tooltip: "supprimer",
         func: () => openDeleteConfirm(),
@@ -263,8 +272,21 @@ const { setMessageWillBeResponded } = useResponse();
 const showPlusDropdown = ref<boolean>(false);
 const showDeleteConfirm = ref<boolean>(false);
 const showEditMessage = ref<boolean>(false);
+const messageContentRef = ref<HTMLElement | null>(null);
+
+const isTagMe = computed(() => {
+
+    if (!props.msg.content || !user.value) return false;
+    
+    const regex = new RegExp(`@${user.value.name}\\b`, 'i');
+    return regex.test(props.msg.content);
+
+});
 
 const handleAddReaction = async (payload: { messageId: string; emoji: string; isDM: boolean }) => {
+   
+    const socket = await useWSocket();
+   
     if (!user.value?.id) {
         toast.show('Veuillez vous connecter pour ajouter une réaction', 'error');
         return;
@@ -289,9 +311,66 @@ const handleReactionUpdate = (data: { dmMessageId: string; reactions: Record<str
     }
 };
 
-if (socket.value) {
-    socket.value.on('dm-reaction-updated', handleReactionUpdate);
-}
+onMounted(async () => {
+    const socket = await useWSocket();
+    if (socket.value) {
+        socket.value.on('dm-reaction-updated', handleReactionUpdate);
+    }
+});
+
+
+onUnmounted(async () => {
+    const socket = await useWSocket();
+
+    if (socket.value) {
+        socket.value.off('dm-reaction-updated', handleReactionUpdate);
+    }
+});
+
+const applyMentions = () => {
+
+    if (!messageContentRef.value) return;
+    
+    const walker = document.createTreeWalker(
+        messageContentRef.value, 
+        NodeFilter.SHOW_TEXT, 
+        {
+            acceptNode: (node) => {
+                if (node.parentElement?.classList.contains('mention-tag')) {
+                    return NodeFilter.FILTER_REJECT;
+                }
+                return NodeFilter.FILTER_ACCEPT;
+            }
+        }
+    );
+    
+    let node;
+    const nodesToReplace: { oldNode: ChildNode, newNode: HTMLElement }[] = [];
+    
+    while (node = walker.nextNode())
+    {
+        const text = node.textContent || '';
+        if (text.includes('@')) 
+        {
+            const span = document.createElement('span');
+            span.innerHTML = text.replace(
+                /@(\w+)/g, 
+                '<span class="mention-tag">@$1</span>'
+            );
+            nodesToReplace.push({ oldNode: node as any, newNode: span });
+        }
+    }
+
+    nodesToReplace.forEach(({ oldNode, newNode }) => {
+        oldNode.parentNode?.replaceChild(newNode, oldNode);
+    });
+
+};
+
+watch(() => props.msg.content, async () => {
+    await nextTick();
+    applyMentions();
+}, { immediate: true });
 
 const formatTime = (d: string) => {
   return new Date(d).toLocaleString('fr-FR', {
@@ -343,3 +422,24 @@ const editMessage = async (newContent: string) => {
 };
 
 </script>
+
+<style scoped>
+
+:deep(.mention-tag) {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0.4rem;
+    margin: 0 0.1rem;
+    border-radius: 0.375rem;
+    font-weight: 600;
+    background-color: var(--primary-dark);
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+:deep(.mention-tag:hover) {
+    filter: brightness(1.2);
+}
+
+</style>

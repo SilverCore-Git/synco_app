@@ -66,7 +66,7 @@
                                 />
                             </div>
 
-                            <div class="flex-1 overflow-hidden" v-if="notif.msg">
+                            <div class="flex-1 overflow-hidden" v-if="notif.dmmsg">
                                 <h4 class="text-(--text) text-sm font-bold truncate">
                                     {{ notif.dmmsg?.sender?.name }}
                                 </h4>

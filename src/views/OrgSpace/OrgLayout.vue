@@ -184,11 +184,13 @@ const initSocketListener = async () => {
     });
 
     socket.value?.on('notif:dm:new-message', async (newMessage: DMMessage) => {
-        
+
         const isMeTheSender = newMessage.senderId === user.value?.id;
         const conversationPeerId = isMeTheSender ? newMessage.recipientId : newMessage.senderId;
 
-        if (route.name === 'OrgThreadChat' && route.query.userId === conversationPeerId) {
+        const isCurrentConversation = (route.name === 'OrgThreadChat' || route.name === 'OrgThreadChatPrivateMeet') && route.params.userId === conversationPeerId;
+
+        if (isCurrentConversation) {
             return;
         }
 
@@ -199,6 +201,7 @@ const initSocketListener = async () => {
             const keyToUse = isMeTheSender 
                 ? msg.selfEncryptedAesKey 
                 : msg.encryptedAesKey;
+
 
             if (msg.isE2EE && (!keyToUse || !privateKey.value)) 
             {
