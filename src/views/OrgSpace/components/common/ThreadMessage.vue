@@ -119,6 +119,8 @@
                                 :reactions="msg.reactions"
                                 @reaction-updated="(newReactions: any) => msg.reactions = newReactions"
                                 @add-reaction="handleAddReaction"
+                                @reaction-picker-closed="showReactionPicker = false"
+                                :showReactionPicker="showReactionPicker"
                             />
 
                             <div 
@@ -190,7 +192,7 @@
 
 <script setup lang="ts">
 
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
 import useWSocket from '@/composables/useWSocket';
@@ -204,10 +206,9 @@ import { useRoute, useRouter } from 'vue-router';
 import { user } from '@/assets/var';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useToast } from '@/composables/useToast';
-import useSecurePeer from '@/composables/useSecurePeer';
 
-const socket = await useWSocket();
 const toast = useToast();
+const showReactionPicker = ref<boolean>(false);
 
 const props = defineProps<{
     msg: Message;
@@ -250,6 +251,12 @@ const dropdownBtns: DropdownBtn[] = [
     //      show: () => true
     // },
     {
+        icon: "bi-emoji-grin-fill",
+        tooltip: "réagir",
+        func: () => showReactionPicker.value = !showReactionPicker.value,
+        show: () => true
+    },
+    {
         icon: "bi-trash-fill",
         tooltip: "supprimer",
         func: () => openDeleteConfirm(),
@@ -269,12 +276,17 @@ const handleReactionUpdate = (data: { messageId: string; reactions: Record<strin
     }
 };
 
-if (socket.value) {
-    socket.value.on('message-reaction-updated', handleReactionUpdate);
-}
+onMounted(async () => {
+    const socket = await useWSocket();
+    if (socket.value) {
+        socket.value.on('message-reaction-updated', handleReactionUpdate);
+    }
+});
 
-import { onUnmounted } from 'vue';
-onUnmounted(() => {
+
+onUnmounted(async () => {
+    const socket = await useWSocket();
+
     if (socket.value) {
         socket.value.off('message-reaction-updated', handleReactionUpdate);
     }
@@ -296,6 +308,9 @@ const isTagMe = computed(() => {
 });
 
 const handleAddReaction = async (payload: { messageId: string; emoji: string; isDM: boolean }) => {
+   
+    const socket = await useWSocket();
+   
     if (!user.value?.id) {
         toast.show('Veuillez vous connecter pour ajouter une réaction', 'error');
         return;
@@ -398,7 +413,6 @@ const editMessage = async (newContent: string) => {
     });
 
 };
-
 
 </script>
 
