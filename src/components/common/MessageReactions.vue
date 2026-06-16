@@ -124,12 +124,12 @@ const toggleReaction = async (emoji: string) => {
 
     <!-- Emoji picker dropdown -->
      <Transition name="fade" mode="out-in">
-      <div v-if="showReactionPicker" class="absolute z-50 mt-2">
+      <div v-if="showReactionPicker" class="absolute z-100 mt-2">
         <EmojiPicker @select="toggleReaction" />
       </div>
     </Transition>
 
-    <div class=" fixed inset-0 z-40" v-if="showReactionPicker" @click="emit('reaction-picker-closed')" />
+    <div class=" fixed inset-0 z-90" v-if="showReactionPicker" @click="emit('reaction-picker-closed')" />
 
   </div>
 </template>

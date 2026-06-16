@@ -7,7 +7,8 @@
                         selectedMessage == msg.id ? ' border border-(--primary) border-dashed animate-pulse' : '',
                         user?.id == msg.replyMessage?.senderId || isTagMe
                             ? 'border-l-2 border-(--primary-dark) bg-(--primary-dark)/30 hover:bg-(--primary-dark)/50' 
-                            : 'hover:bg-white/5'
+                            : 'hover:bg-white/5',
+                        showReactionPicker ? 'z-100' : 'z-10'
                     ]"
                 >
 

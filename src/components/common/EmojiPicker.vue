@@ -1,7 +1,8 @@
 <template>
   <div 
-    class="z-100 w-72 sm:w-80 h-96 bg-(--bg) border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden font-['Outfit',sans-serif] text-white select-none"
+    class=" w-72 sm:w-80 h-96 bg-(--bg) border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden font-['Outfit',sans-serif] text-white select-none relative z-50"
     @click.stop
+    style="background-color: var(--bg);"
   >
     <div class="p-3 border-b border-white/5 bg-(--bg2) flex items-center gap-2">
       <i class="bi bi-search text-white/40 text-sm pl-1" />
