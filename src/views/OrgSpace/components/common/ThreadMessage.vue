@@ -118,6 +118,7 @@
                             <MessageReactions
                                 :message-id="msg.id"
                                 :reactions="msg.reactions"
+                                :is-dm="false"
                                 @reaction-updated="(newReactions: any) => msg.reactions = newReactions"
                                 @add-reaction="handleAddReaction"
                                 @reaction-picker-closed="showReactionPicker = false"
