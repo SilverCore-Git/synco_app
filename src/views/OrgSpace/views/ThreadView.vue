@@ -505,7 +505,10 @@ const procesMessages = async (msgs: Message[]) => {
             const clearText = await decryptMessageWithContentKey(msg.content, vectorInit, currentThreadKey.value!);
             
             // Format reactions if they exist (from Prisma array to grouped object)
-            const formattedReactions = msg.reactions ? formatReactions(msg.reactions as any) : {};
+            // reactions can be either an array (from Prisma) or already grouped (from WebSocket updates)
+            const formattedReactions = msg.reactions 
+                ? (Array.isArray(msg.reactions) ? formatReactions(msg.reactions as any) : msg.reactions)
+                : {};
             
             return { ...msg, content: clearText, reactions: formattedReactions };
 
@@ -540,7 +543,9 @@ const procesMessages = async (msgs: Message[]) => {
 
         // Ensure reactions are formatted even if message content was empty
         if (m.reactions) {
-            decryptedMain.reactions = formatReactions(m.reactions as any);
+            decryptedMain.reactions = Array.isArray(m.reactions) 
+                ? formatReactions(m.reactions as any) 
+                : m.reactions;
         }
 
         return decryptedMain;
@@ -617,7 +622,10 @@ const initListener = () => {
         }
         
         // Format reactions if they exist
-        const formattedReactions = msg.reactions ? formatReactions(msg.reactions as any) : {};
+        // reactions can be either an array (from Prisma) or already grouped (from WebSocket)
+        const formattedReactions = msg.reactions 
+            ? (Array.isArray(msg.reactions) ? formatReactions(msg.reactions as any) : msg.reactions)
+            : {};
         const decrypted = { ...msg, content: clearContent, reactions: formattedReactions };
         sortedMessages.value.push(decrypted);
         
@@ -646,7 +654,10 @@ const initListener = () => {
             }
         }
         // Format reactions if they exist
-        const formattedReactions = editedMsg.reactions ? formatReactions(editedMsg.reactions as any) : {};
+        // reactions can be either an array (from Prisma) or already grouped (from WebSocket)
+        const formattedReactions = editedMsg.reactions 
+            ? (Array.isArray(editedMsg.reactions) ? formatReactions(editedMsg.reactions as any) : editedMsg.reactions)
+            : {};
         const updatedMsg = { ...editedMsg, content: decryptedContent, reactions: formattedReactions };
         rawMessages.value.set(editedMsg.id, updatedMsg);
         sortedMessages.value = sortedMessages.value.map(m => m.id === editedMsg.id ? updatedMsg : m);

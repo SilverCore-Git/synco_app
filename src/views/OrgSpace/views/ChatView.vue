@@ -499,7 +499,10 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<
             const clearText = await decryptFromPeer(msg.content, keyToUse!, msg.nonce, privateKey.value!);
             
             // Format reactions if they exist
-            const formattedReactions = msg.reactions ? formatReactions(msg.reactions as any) : {};
+            // reactions can be either an array (from Prisma) or already grouped (from WebSocket)
+            const formattedReactions = msg.reactions 
+                ? (Array.isArray(msg.reactions) ? formatReactions(msg.reactions as any) : msg.reactions)
+                : {};
             
             return { ...msg, content: clearText, reactions: formattedReactions };
 
@@ -548,7 +551,9 @@ const procesMessages = async (msgs: DMMessage[]) => {
 
         // Ensure reactions are formatted even if message content was empty
         if (m.reactions) {
-            decryptedMain.reactions = formatReactions(m.reactions as any);
+            decryptedMain.reactions = Array.isArray(m.reactions) 
+                ? formatReactions(m.reactions as any) 
+                : m.reactions;
         }
 
         return decryptedMain;
@@ -606,7 +611,10 @@ const initListener = () => {
         }
         
         // Format reactions if they exist
-        const formattedReactions = editedMsg.reactions ? formatReactions(editedMsg.reactions as any) : {};
+        // reactions can be either an array (from Prisma) or already grouped (from WebSocket)
+        const formattedReactions = editedMsg.reactions 
+            ? (Array.isArray(editedMsg.reactions) ? formatReactions(editedMsg.reactions as any) : editedMsg.reactions)
+            : {};
         const updatedMsg = { ...editedMsg, content: decryptedContent, reactions: formattedReactions };
         messages.value = messages.value.map(m => m.id === editedMsg.id ? updatedMsg : m);
 
