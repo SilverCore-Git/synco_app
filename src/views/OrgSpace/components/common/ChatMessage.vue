@@ -115,7 +115,7 @@
                             <!-- Message reactions -->
                             <MessageReactions
                                 :message-id="msg.id"
-                                :reactions="msg.reactions"
+                                :reactions="formatDMReactions(msg.reactions)"
                                 :is-dm="true"
                                 :showReactionPicker="showReactionPicker"
                                 @reaction-updated="(newReactions: any) => msg.reactions = newReactions"
@@ -198,7 +198,7 @@ import useResponse from '@/composables/useResponse';
 import useWSocket from '@/composables/useWSocket';
 import EditMessage from '../popup/EditMessage.vue';
 import MessageReactions from '@/components/common/MessageReactions.vue';
-import type { DMMessage } from '@/types/types';
+import type { DMMessage, DMMessageReaction, ReactionUser } from '@/types/types';
 import { downloadFile } from '@/assets/utils/downloadFile';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -209,6 +209,35 @@ import { useToast } from '@/composables/useToast';
 
 const toast = useToast();
 const showReactionPicker = ref<boolean>(false);
+
+// Format DM reactions to match MessageReactions expected format
+const formatDMReactions = (reactions: DMMessageReaction[] | Record<string, { count: number; users: ReactionUser[] }> | any[] | undefined): Record<string, { count: number; users: ReactionUser[] }> | undefined => {
+    if (!reactions) return undefined;
+    
+    if (Array.isArray(reactions)) {
+        // Transform array of DMMessageReaction to grouped Record
+        const grouped: Record<string, { count: number; users: ReactionUser[] }> = {};
+        for (const reaction of reactions as any[]) {
+            const emoji = reaction?.emoji;
+            if (!emoji) continue;
+            if (!grouped[emoji]) {
+                grouped[emoji] = { count: 0, users: [] };
+            }
+            grouped[emoji].count++;
+            const reactionUser = reaction?.user as ReactionUser | undefined;
+            if (reactionUser?.id) {
+                grouped[emoji].users.push({
+                    id: reactionUser.id,
+                    name: reactionUser.name || '',
+                    avatarUrl: reactionUser.avatarUrl
+                });
+            }
+        }
+        return grouped;
+    }
+    
+    return reactions as Record<string, { count: number; users: ReactionUser[] }>;
+};
 
 const props = defineProps<{
     msg: DMMessage;

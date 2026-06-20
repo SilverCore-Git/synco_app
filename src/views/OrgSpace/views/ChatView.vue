@@ -508,7 +508,8 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<
             ? msg.selfEncryptedAesKey 
             : msg.encryptedAesKey;
 
-        if (!keyToUse || !msg.nonce) {
+        // Only attempt decryption if message is marked as E2EE and has the required keys
+        if (!msg.isE2EE || !keyToUse || !msg.nonce) {
             // Format reactions if they exist
             const formattedReactions = msg.reactions 
                 ? (Array.isArray(msg.reactions) ? formatReactions(msg.reactions as any) : msg.reactions)
@@ -540,11 +541,13 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<
 
 };
 
+import type { ReactionUser } from '@/types/types';
+
 // Utility function to transform Prisma reaction array to grouped object
 const formatReactions = (reactions: any[]) => {
     if (!reactions || reactions.length === 0) return {};
     
-    return reactions.reduce((acc: Record<string, { count: number, users: Array<{ id: string; name: string; avatarUrl?: string }> }>, reaction) => {
+    return reactions.reduce((acc: Record<string, { count: number, users: ReactionUser[] }>, reaction) => {
         if (!acc[reaction.emoji]) {
             acc[reaction.emoji] = { count: 0, users: [] };
         }

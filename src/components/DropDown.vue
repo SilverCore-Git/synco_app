@@ -1,8 +1,9 @@
 <template>
 
-    <div class="relative inline-block text-left " ref="dropdownRef">
+    <div class="relative inline-block text-left ">
 
         <div 
+            ref="triggerRef"
             @click="click !== 'right' ? toggleDropdown($event) : console.log" 
             @contextmenu.prevent="click == 'right' ? toggleDropdown($event) : console.log" 
             :class="click !== 'right' ? 'cursor-pointer' : ''"
@@ -19,29 +20,22 @@
             leave-from-class="transform scale-100 opacity-100"
             leave-to-class="transform scale-95 opacity-0"
         >
-
-            <div
-                v-if="isOpen || show"
-                class="
-                    absolute z-50 mt-2 w-56 rounded-xl border border-(--text)/10
-                    bg-(--bg) shadow-xl ring-1 ring-white/5 focus:outline-none
-                "
-                :class="[
-                    align === 'right' ? 'right-0' : align === 'left' ? 'left-0' : '',
-                    props.contentInerTW || '' 
-                ]"
-                :style="align == 'mouse' ? {
-                    top: pos.y - 10 + 'px',
-                    left: pos.x - 70 + 'px'
-                } : {}"
-            >
-
-                <div class="p-1.5 sdropdown">
-                    <slot name="content" />
+            <Teleport to="body" :disabled="!isOpen && !show">
+                <div
+                    v-if="isOpen || show"
+                    ref="dropdownContentRef"
+                    class="
+                        fixed z-[1000] mt-2 w-56 rounded-xl border border-(--text)/10
+                        bg-(--bg) shadow-xl ring-1 ring-white/5 focus:outline-none
+                    "
+                    :class="props.contentInerTW || ''"
+                    :style="getDropdownPosition()"
+                >
+                    <div class="p-1.5 sdropdown">
+                        <slot name="content" />
+                    </div>
                 </div>
-
-            </div>
-
+            </Teleport>
         </transition>
 
     </div>
@@ -50,7 +44,7 @@
 
 <script setup lang="ts">
 
-import { ref, onMounted, onUnmounted, reactive } from 'vue';
+import { ref, onMounted, onUnmounted, reactive, watchEffect } from 'vue';
 
 const props = defineProps<{
   align?: 'left' | 'right' | 'mouse';
@@ -60,7 +54,8 @@ const props = defineProps<{
 }>();
 
 
-const dropdownRef = ref<HTMLElement | null>(null);
+const triggerRef = ref<HTMLElement | null>(null);
+const dropdownContentRef = ref<HTMLElement | null>(null);
 const isOpen = ref<boolean>(false);
 const pos = reactive({ x: 0, y: 0 });
 
@@ -75,11 +70,56 @@ const toggleDropdown = (e?: MouseEvent) => {
     }
 };
 
+const getDropdownPosition = () => {
+    if (!triggerRef.value) return {};
+    
+    const triggerRect = triggerRef.value.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const dropdownHeight = 200; // Approximate height
+    
+    let top = triggerRect.bottom + window.scrollY + 8;
+    let left = triggerRect.left + window.scrollX;
+    
+    // Alignement à droite
+    if (props.align === 'right') {
+        left = triggerRect.right + window.scrollX - 56 - 8; // width is 56
+    } else if (props.align === 'mouse') {
+        top = pos.y - 10 + window.scrollY;
+        left = pos.x - 70 + window.scrollX;
+    }
+    
+    // Vérifier si le dropdown dépasse en bas
+    if (top + dropdownHeight > viewportHeight + window.scrollY) {
+        top = triggerRect.top + window.scrollY - dropdownHeight - 8;
+    }
+    
+    return {
+        top: `${top}px`,
+        left: `${left}px`,
+        minWidth: `${triggerRect.width}px`
+    };
+};
+
 const closeDropdown = () => (isOpen.value = false);
 
+// Recalculate position when dropdown opens or window resizes
+watchEffect(() => {
+    if (isOpen.value || props.show) {
+        getDropdownPosition();
+    }
+});
+
 const handleClickOutside = (event: MouseEvent) => {
-    if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) 
-    {
+    const target = event.target as Node;
+    
+    // Check if click is inside the trigger
+    const isInTrigger = triggerRef.value?.contains(target);
+    
+    // Check if click is inside the dropdown content
+    const isInDropdownContent = dropdownContentRef.value?.contains(target);
+    
+    // Close only if click is outside both trigger and dropdown content
+    if (!isInTrigger && !isInDropdownContent) {
         closeDropdown();
     }
 };

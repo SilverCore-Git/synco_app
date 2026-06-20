@@ -1,19 +1,20 @@
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useToast } from '@/composables/useToast';
 import { user } from '@/assets/var';
 import EmojiPicker from './EmojiPicker.vue';
+import type { ReactionUser } from '@/types/types';
 
 export interface ReactionGroup {
   emoji: string;
   count: number;
-  users: Array<{ id: string; name: string; avatarUrl?: string }>;
+  users: ReactionUser[];
   hasReacted: boolean;
 }
 
 const props = defineProps<{
   messageId: string;
-  reactions?: Record<string, { count: number; users: Array<{ id: string; name: string; avatarUrl?: string }> }>;
+  reactions?: Record<string, { count: number; users: ReactionUser[] }>;
   isDM?: boolean;
   showReactionPicker: boolean;
 }>();
@@ -23,7 +24,12 @@ const emit = defineEmits(['reaction-updated', 'add-reaction', 'reaction-picker-c
 const toast = useToast();
 const currentUserId = computed(() => user.value?.id);
 
-const showReactionPicker = computed(() => props.showReactionPicker);
+const internalShowReactionPicker = ref<boolean>(false);
+
+// Watch for prop changes
+watch(() => props.showReactionPicker, (val) => {
+    internalShowReactionPicker.value = val;
+});
 
 const formattedReactions = computed<ReactionGroup[]>(() => {
   if (!props.reactions) return [];
@@ -99,7 +105,7 @@ const toggleReaction = async (emoji: string) => {
     console.error('Error toggling reaction:', error);
     toast.show('Erreur lors de l\'ajout de la réaction', 'error');
   } finally {
-    showReactionPicker.value = false;
+    internalShowReactionPicker.value = false;
   }
 };
 
@@ -124,12 +130,12 @@ const toggleReaction = async (emoji: string) => {
 
     <!-- Emoji picker dropdown -->
      <Transition name="fade" mode="out-in">
-      <div v-if="showReactionPicker" class="absolute z-100 mt-2">
+      <div v-if="internalShowReactionPicker" class="absolute z-100 mt-2">
         <EmojiPicker @select="toggleReaction" />
       </div>
     </Transition>
 
-    <div class=" fixed inset-0 z-90" v-if="showReactionPicker" @click="emit('reaction-picker-closed')" />
+    <div class=" fixed inset-0 z-90" v-if="internalShowReactionPicker" @click="emit('reaction-picker-closed')" />
 
   </div>
 </template>

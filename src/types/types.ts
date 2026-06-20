@@ -81,6 +81,12 @@ export interface WorkSpace {
   files?: StoredFile[];
 }
 
+export interface ReactionUser {
+  id: string;
+  name: string;
+  avatarUrl?: string;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -122,7 +128,7 @@ export interface Message {
     edited: boolean | null;
     createdAt: string | Date;
     updatedAt: string | Date;
-    reactions?: Record<string, { count: number; users: User[] }>;
+    reactions?: Record<string, { count: number; users: ReactionUser[] }> | MessageReaction[] | any[];
 
     sender?: User;
     files?: StoredFile[];
@@ -155,7 +161,7 @@ export interface DMMessage {
     createdAt: string | Date;
     updatedAt: string | Date;
     edited: boolean | null;
-    reactions?: Record<string, { count: number; users: User[] }>;
+    reactions?: Record<string, { count: number; users: ReactionUser[] }> | DMMessageReaction[] | any[];
 
     sender?: User;
     recipient?: User;

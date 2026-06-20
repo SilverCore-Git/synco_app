@@ -33,16 +33,17 @@
                                         absolute inset-0 bg-black/60 opacity-0 
                                         group-hover:opacity-100 transition-opacity 
                                         flex items-center justify-center gap-2
+                                        pointer-events-none
                                     "
                                 >
                                 
-                                    <button class="glass" @click.stop="downloadFile(file.id)">
+                                    <button class="glass pointer-events-auto" @click.stop="downloadFile(file.id)">
                                         <i class="bi bi-download" />
                                     </button>
 
-                                    <DropDown align="right">
+                                    <DropDown align="right" class="pointer-events-auto">
                                         <template #trigger>
-                                            <button class="glass" @click.stop>
+                                            <button class="glass pointer-events-auto" @click.stop>
                                                 <i class="bi bi-three-dots-vertical" />
                                             </button>
                                         </template>
@@ -92,7 +93,6 @@
 
 <script lang="ts" setup>
 
-import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { downloadFile } from '@/assets/utils/downloadFile';
