@@ -277,6 +277,13 @@
                         v-show="!(selectedFiles.length && !files.length)"
                         class="flex gap-3 ml-3"
                     >
+                        <button 
+                            @click="showEmojiPicker = !showEmojiPicker"
+                            class="text-(--text)/40 hover:text-(--primary) transition-colors"
+                            title="Ajouter un emoji"
+                        >
+                            <i class="bi bi-emoji-smile-fill text-xl" />
+                        </button>
 
                         <button 
                             @click="sendMessage"
@@ -318,6 +325,14 @@
 
                 </div>
 
+                <div 
+                    v-if="showEmojiPicker && recipient"
+                    class="absolute bottom-full left-0 mb-2 z-50 emoji-picker-container"
+                    @click.stop
+                >
+                    <EmojiPicker @select="insertEmoji" />
+                </div>
+
             </div>
 
         </footer>
@@ -343,6 +358,7 @@ import getTextByStatus from '@/assets/utils/getTextByStatus';
 import { useToast } from '@/composables/useToast';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import DropDown from '@/components/DropDown.vue';
+import EmojiPicker from '@/components/common/EmojiPicker.vue';
 import waitFor from '@/assets/utils/waitfor';
 import useSecurePeer from '@/composables/useSecurePeer';
 
@@ -380,6 +396,37 @@ const fileSendProgress = ref<null | number>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
 const selectedMessage = computed<string>(() => String(route.query.select));
+const showEmojiPicker = ref<boolean>(false);
+
+const insertEmoji = (emoji: string) => {
+  const textarea = TextareaRef.value?.textarea;
+  if (!textarea) return;
+  
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const newValue = newMessage.value.slice(0, start) + emoji + newMessage.value.slice(end);
+  
+  newMessage.value = newValue;
+  showEmojiPicker.value = false;
+  
+  nextTick(() => {
+    textarea.focus();
+    textarea.selectionStart = start + emoji.length;
+    textarea.selectionEnd = start + emoji.length;
+  });
+};
+
+// Fermer le picker si on clique en dehors
+const closeEmojiPickerOnOutsideClick = (event: MouseEvent) => {
+  const target = event.target as HTMLElement;
+  const emojiPickerElement = target.closest('.emoji-picker-container');
+  const emojiButtonElement = target.closest('button[title="Ajouter un emoji"]');
+  
+  if (!emojiPickerElement && !emojiButtonElement) {
+    showEmojiPicker.value = false;
+  }
+};
+
 watch(() => selectedMessage.value, async (newId) => {
     if (newId && newId !== 'undefined') 
     {
@@ -843,11 +890,15 @@ onMounted(async () => {
     await waitFor(() => openedOrg.value !== null);
     await waitFor(() => socket.value !== null);
 
-    await mount();    
+    await mount();
+    
+    // Ajouter l'écouteur pour fermer le picker sur clic extérieur
+    document.addEventListener('click', closeEmojiPickerOnOutsideClick);
 });
 
 onUnmounted(() => {
     stopTyping();
+    document.removeEventListener('click', closeEmojiPickerOnOutsideClick);
     const sock = socket.value;
     if (sock) {
         sock.off('dm:history');
