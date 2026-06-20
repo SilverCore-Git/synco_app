@@ -490,13 +490,31 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<
         
         if (!msg.content || msg.content.trim() === "") return msg;
 
+        // Check if E2EE is unlocked and we have a private key
+        if (!E2EEUnloked.value || !privateKey.value) {
+            // Format reactions if they exist
+            const formattedReactions = msg.reactions 
+                ? (Array.isArray(msg.reactions) ? formatReactions(msg.reactions as any) : msg.reactions)
+                : {};
+            return { ...msg, content: "[🔒 E2EE non déverrouillé]", reactions: formattedReactions };
+        }
+
+        // Check if this message has E2EE data
+        const keyToUse = (msg.senderId === user.value?.id) 
+            ? msg.selfEncryptedAesKey 
+            : msg.encryptedAesKey;
+
+        if (!keyToUse || !msg.nonce) {
+            // Format reactions if they exist
+            const formattedReactions = msg.reactions 
+                ? (Array.isArray(msg.reactions) ? formatReactions(msg.reactions as any) : msg.reactions)
+                : {};
+            return { ...msg, content: msg.content, reactions: formattedReactions };
+        }
+
         try {
 
-            const keyToUse = (msg.senderId === user.value?.id) 
-                ? msg.selfEncryptedAesKey 
-                : msg.encryptedAesKey;
-
-            const clearText = await decryptFromPeer(msg.content, keyToUse!, msg.nonce, privateKey.value!);
+            const clearText = await decryptFromPeer(msg.content, keyToUse, msg.nonce, privateKey.value);
             
             // Format reactions if they exist
             // reactions can be either an array (from Prisma) or already grouped (from WebSocket)
@@ -509,7 +527,11 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<
         } 
         catch (cryptoErr) {
             console.error(`[E2EE] Échec du déchiffrement pour le message ${msg.id}:`, cryptoErr);
-            return { ...msg, content: "[⚠️ Impossible de déchiffrer ce message.]" };
+            // Format reactions if they exist even on decryption failure
+            const formattedReactions = msg.reactions 
+                ? (Array.isArray(msg.reactions) ? formatReactions(msg.reactions as any) : msg.reactions)
+                : {};
+            return { ...msg, content: "[⚠️ Impossible de déchiffrer ce message.]", reactions: formattedReactions };
         }
 
 };
@@ -597,14 +619,11 @@ const initListener = () => {
         if (editedMsg.content && editedMsg.content.trim() !== "") 
         {
             try {
-
-
-                const keyToUse = (editedMsg.senderId === user.value?.id) 
-                    ? editedMsg.selfEncryptedAesKey 
-                    : editedMsg.encryptedAesKey;
-
-                decryptedContent = await decryptFromPeer(editedMsg.content, keyToUse!, editedMsg.nonce, privateKey.value!);
-
+                // Use decryptSingleMessage for consistent decryption handling
+                const decrypted = await decryptSingleMessage(editedMsg);
+                if (decrypted) {
+                    decryptedContent = decrypted.content;
+                }
             } catch (err) {
                 decryptedContent = "🔒 Échec du déchiffrement lors de l'édition.";
             }
