@@ -293,8 +293,6 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import useSettingsItem from '@/composables/useSettingsItem';
-import type { Folder, StoredFile } from '@/types/types';
-import { ref } from 'vue';
 import { openedOrg } from '@/assets/var';
 import CreateNewFolder from '../components/popup/CreateNewFolder.vue';
 import { useToast } from '@/composables/useToast';
