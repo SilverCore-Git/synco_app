@@ -107,7 +107,11 @@
 
                     </template>
 
-                    <div v-else>
+                    <template v-else>
+                        <!-- Loading more indicator -->
+                        <div v-if="isFetchingMore" class="px-4 py-2 flex justify-center">
+                            <div class="animate-spin h-5 w-5 border-2 border-(--primary) border-t-transparent rounded-full" />
+                        </div>
 
                         <ChatMessage 
                             v-for="msg in messages" 
@@ -118,7 +122,7 @@
                             :messages="messages"
                         />
 
-                    </div>
+                    </template>
 
                 </div>
 
@@ -595,10 +599,34 @@ const initListener = () => {
     const events = ["dm:history", "dm:new-message", "dm:user-typing"];
     events.forEach(ev => socket.value?.off(ev));
 
-    socket.value.on('dm:history', async (history: any[]) => {
+    socket.value.on('dm:history', async (data: { messages: any[]; hasMore: boolean } | any[]) => {
+        // Handle both old format (array) and new format (object with messages and hasMore)
+        const history = Array.isArray(data) ? data : data.messages;
+        const receivedHasMore = Array.isArray(data) ? true : data.hasMore;
+        
         messages.value = await procesMessages(history);
+        hasMore.value = receivedHasMore;
         loading.value = false;
         scrollToBottom(true);
+    });
+
+    socket.value.on('dm-more-messages', async (data: { messages: any[]; hasMore: boolean }) => {
+        if (!data.messages || data.messages.length === 0) {
+            hasMore.value = false;
+            isFetchingMore.value = false;
+            return;
+        }
+
+        const container = messagesContainer.value;
+        const scrollOffset = container ? container.scrollHeight - container.scrollTop : 0;
+
+        const decryptedMore = await procesMessages(data.messages);
+        messages.value = [...decryptedMore, ...messages.value];
+        hasMore.value = data.hasMore;
+
+        await nextTick();
+        if (container) container.scrollTop = container.scrollHeight - scrollOffset;
+        setTimeout(() => { isFetchingMore.value = false; }, 100);
     });
 
     socket.value.on("dm:new-message", async (msg: any) => {
@@ -741,7 +769,24 @@ const createPrivateMeet = () => {
 
 const handleScroll = (e: Event) => {
     const container = e.target as HTMLElement;
-    if (container.scrollTop < 20 && !isFetchingMore.value && hasMore.value) { /* load-more logic */ }
+    if (container.scrollTop < 100 && !isFetchingMore.value && hasMore.value) {
+        loadMoreDM();
+    }
+};
+
+const loadMoreDM = async () => {
+    if (messages.value.length === 0 || isFetchingMore.value || !recipient.value) return;
+    
+    isFetchingMore.value = true;
+    const firstMessageId = messages.value[0]?.id;
+    
+    if (firstMessageId) {
+        socket.value?.emit("load-more-dm", { 
+            recipientId: recipient.value.id, 
+            before: firstMessageId,
+            limit: 20
+        });
+    }
 };
 
 const handleTyping = () => {
@@ -800,6 +845,15 @@ onMounted(async () => {
 
 onUnmounted(() => {
     stopTyping();
+    const sock = socket.value;
+    if (sock) {
+        sock.off('dm:history');
+        sock.off('dm:new-message');
+        sock.off('dm:user-typing');
+        sock.off('dm:delete-message');
+        sock.off('dm:edit-message');
+        sock.off('dm-more-messages');
+    }
 });
 </script>
 
