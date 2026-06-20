@@ -581,7 +581,7 @@ const initListener = () => {
         sortedMessages.value = await procesMessages(history);
 
         loading.value = false;
-        hasMore.value = history.length >= 15;
+        hasMore.value = history.length >= 40;
         
         if (selectedMessage.value && selectedMessage.value !== 'undefined') 
         {
