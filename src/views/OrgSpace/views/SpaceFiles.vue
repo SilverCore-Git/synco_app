@@ -164,6 +164,8 @@
                             :draggedFileId="draggedFileId"
                             @dragstart="handleDragStart($event, file.id)"
                             @dragend="draggedFileId = null"
+                            @file-deleted="handleFileDeleted"
+                            @show-file-info="handleShowFileInfo"
                         />
 
                     </div>
@@ -204,6 +206,85 @@
         @save="createFolder"
     />
 
+    <!-- File Info Modal -->
+    <transition
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="transform scale-95 opacity-0"
+        enter-to-class="transform scale-100 opacity-100"
+        leave-active-class="transition duration-150 ease-in"
+        leave-from-class="transform scale-100 opacity-100"
+        leave-to-class="transform scale-95 opacity-0"
+    >
+        <div v-if="showFileInfoModal && selectedFileForInfo" class="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
+            <div class="bg-(--bg) rounded-2xl border border-white/10 shadow-2xl max-w-md w-full p-6 relative" @click.stop>
+                <button @click="showFileInfoModal = false" class="absolute top-4 right-4 text-(--text)/40 hover:text-(--text) transition-colors">
+                    <i class="bi bi-x-lg text-xl" />
+                </button>
+                
+                <h2 class="text-xl font-bold text-(--text) mb-6">
+                    <i class="bi bi-file-earmark mr-2" />
+                    Informations du fichier
+                </h2>
+                
+                <div class="space-y-4">
+                    <div class="flex items-center gap-3">
+                        <i class="bi bi-file-text text-(--text)/40 text-lg" />
+                        <div>
+                            <p class="text-[10px] font-black uppercase tracking-widest text-(--text)/40">Nom</p>
+                            <p class="font-semibold text-(--text)/90">{{ selectedFileForInfo.originalName }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-3">
+                        <i class="bi bi-filetype-pdf text-(--text)/40 text-lg" v-if="selectedFileForInfo.mimeType.includes('pdf')" />
+                        <i class="bi bi-filetype-doc text-(--text)/40 text-lg" v-else-if="selectedFileForInfo.mimeType.includes('word')" />
+                        <i class="bi bi-filetype-xls text-(--text)/40 text-lg" v-else-if="selectedFileForInfo.mimeType.includes('excel') || selectedFileForInfo.mimeType.includes('spreadsheet')" />
+                        <i class="bi bi-filetype-ppt text-(--text)/40 text-lg" v-else-if="selectedFileForInfo.mimeType.includes('powerpoint')" />
+                        <i class="bi bi-filetype-img text-(--text)/40 text-lg" v-else-if="selectedFileForInfo.mimeType.includes('image')" />
+                        <i class="bi bi-filetype-code text-(--text)/40 text-lg" v-else-if="selectedFileForInfo.mimeType.includes('text') || selectedFileForInfo.mimeType.includes('code')" />
+                        <i class="bi bi-file-earmark text-(--text)/40 text-lg" v-else />
+                        <div>
+                            <p class="text-[10px] font-black uppercase tracking-widest text-(--text)/40">Type</p>
+                            <p class="font-semibold text-(--text)/90">{{ selectedFileForInfo.mimeType }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-3">
+                        <i class="bi bi-hdd text-(--text)/40 text-lg" />
+                        <div>
+                            <p class="text-[10px] font-black uppercase tracking-widest text-(--text)/40">Taille</p>
+                            <p class="font-semibold text-(--text)/90">{{ formatFileSize(selectedFileForInfo.size) }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-3">
+                        <i class="bi bi-calendar text-(--text)/40 text-lg" />
+                        <div>
+                            <p class="text-[10px] font-black uppercase tracking-widest text-(--text)/40">Date de création</p>
+                            <p class="font-semibold text-(--text)/90">{{ formatDate(selectedFileForInfo.createdAt) }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-3">
+                        <i class="bi bi-shield-check text-(--text)/40 text-lg" />
+                        <div>
+                            <p class="text-[10px] font-black uppercase tracking-widest text-(--text)/40">Chiffrement</p>
+                            <p class="font-semibold text-(--text)/90">{{ selectedFileForInfo.isEncrypted ? 'Oui' : 'Non' }}</p>
+                        </div>
+                    </div>
+                    
+                    <div v-if="selectedFileForInfo.folderId" class="flex items-center gap-3">
+                        <i class="bi bi-folder text-(--text)/40 text-lg" />
+                        <div>
+                            <p class="text-[10px] font-black uppercase tracking-widest text-(--text)/40">Dossier</p>
+                            <p class="font-semibold text-(--text)/90">Dans un dossier</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </transition>
+
 </template>
 
 <script lang="ts" setup>
@@ -213,12 +294,14 @@ import { useRoute, useRouter } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import useSettingsItem from '@/composables/useSettingsItem';
 import type { Folder, StoredFile } from '@/types/types';
+import { ref } from 'vue';
 import { openedOrg } from '@/assets/var';
 import CreateNewFolder from '../components/popup/CreateNewFolder.vue';
 import { useToast } from '@/composables/useToast';
 import { uploadFiles } from '@/assets/uploadFile';
 import FolderCard from '../components/SpaceFiles/FolderCard.vue';
 import FileCard from '../components/SpaceFiles/FileCard.vue';
+import type { StoredFile, Folder } from '@/types/types';
 
 
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
@@ -546,5 +629,40 @@ onMounted(async() => {
     }
 
 });
+
+// File actions handlers
+const selectedFileForInfo = ref<StoredFile | null>(null);
+const showFileInfoModal = ref<boolean>(false);
+
+const handleFileDeleted = (fileId: string) => {
+    allFiles.value = allFiles.value.filter(f => f.id !== fileId);
+    toast.show('Fichier supprimé avec succès', 'success');
+};
+
+const handleShowFileInfo = (file: StoredFile) => {
+    selectedFileForInfo.value = file;
+    showFileInfoModal.value = true;
+};
+
+// Format file size for display
+const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+};
+
+// Format date for display
+const formatDate = (date: string | Date) => {
+    const d = new Date(date);
+    return d.toLocaleDateString('fr-FR', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+};
 
 </script>
