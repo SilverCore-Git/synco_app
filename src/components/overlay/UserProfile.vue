@@ -37,9 +37,9 @@
             <div class="relative px-6 -mt-16 mb-4">
               <div class="flex justify-center">
                 <img
-                  :src="profileUser.avatarUrl || `https://ui-avatars.com/api/?name=${profileUser.name}&background=128a60&color=fff`"
-                  :alt="profileUser.name"
-                  @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${profileUser.name}&background=128a60&color=fff`"
+                  :src="u.avatarUrl || `https://ui-avatars.com/api/?name=${u.name}&background=128a60&color=fff`"
+                  :alt="u.name"
+                  @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${u.name}&background=128a60&color=fff`"
                   class="w-28 h-28 rounded-full border-4 border-(--bg) object-cover ring-2 ring-(--primary)/30"
                 />
               </div>
@@ -48,10 +48,10 @@
             <!-- Nom et statut -->
             <div class="px-6 text-center mb-6">
               <h2 class="text-xl font-bold text-(--text) tracking-tight">
-                {{ profileUser.name }}
+                {{ u.name }}
               </h2>
-              <p v-if="profileUser.data?.status" class="text-sm text-(--text)/50 mt-1">
-                {{ getStatusText(profileUser.data.status || '') }}
+              <p v-if="u.data?.status" class="text-sm text-(--text)/50 mt-1">
+                {{ getStatusText(u.data.status || '') }}
               </p>
             </div>
 
@@ -59,29 +59,29 @@
             <div class="px-6 py-4 border-t border-white/5">
               
               <!-- Email -->
-              <div v-if="profileUser.email" class="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors">
+              <div v-if="u.email" class="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors">
                 <i class="bi bi-envelope text-(--text)/40 text-lg" />
-                <span class="text-sm text-(--text)/80 truncate">{{ profileUser.email }}</span>
+                <span class="text-sm text-(--text)/80 truncate">{{ u.email }}</span>
               </div>
 
               <!-- ID Utilisateur -->
               <div class="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors">
                 <i class="bi bi-person text-(--text)/40 text-lg" />
-                <span class="text-sm text-(--text)/80 truncate">ID: {{ profileUser.id.substring(0, 8) + '...' }}</span>
+                <span class="text-sm text-(--text)/80 truncate">ID: {{ u.id.substring(0, 8) + '...' }}</span>
               </div>
 
               <!-- Date d'inscription -->
-              <div v-if="profileUser.createdAt" class="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors">
+              <div v-if="u.createdAt" class="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors">
                 <i class="bi bi-calendar text-(--text)/40 text-lg" />
                 <span class="text-sm text-(--text)/80 truncate">
-                  Membre depuis {{ formatDate(profileUser.createdAt) }}
+                  Membre depuis {{ formatDate(u.createdAt) }}
                 </span>
               </div>
 
             </div>
 
             <!-- Actions (si ce n'est pas l'utilisateur courant) -->
-            <div v-if="profileUser.id !== user?.id" class="px-6 py-4 border-t border-white/5">
+            <div v-if="u.id !== user?.id" class="px-6 py-4 border-t border-white/5">
               <div class="flex gap-3">
                 <button
                   @click="sendMessage"
@@ -94,7 +94,7 @@
             </div>
 
             <!-- Section E2EE (si clé publique disponible) -->
-            <div v-if="profileUser.publicKey" class="px-6 py-4 border-t border-white/5">
+            <div v-if="u.publicKey" class="px-6 py-4 border-t border-white/5">
               <div class="flex items-center gap-2 text-green-400 text-xs">
                 <i class="bi bi-shield-check" />
                 <span>Chiffrement E2EE disponible</span>
@@ -122,7 +122,6 @@
 
 <script setup lang="ts">
 
-import { computed } from 'vue';
 import type { User } from '@/types/types';
 import { user } from '@/assets/var';
 
@@ -131,13 +130,14 @@ const props = defineProps<{
   profileUser: User | null;
 }>();
 
+// Helper to safely access profileUser (guarded by v-if="isOpen && profileUser")
+const u = props.profileUser!;
+
 const emit = defineEmits(['close', 'send-message']);
 
 const sendMessage = () => {
-  if (props.profileUser) {
-    emit('send-message', props.profileUser);
-    emit('close');
-  }
+  emit('send-message', u);
+  emit('close');
 };
 
 const getStatusText = (status: string) => {
