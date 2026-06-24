@@ -83,31 +83,13 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
 
         setupTokenRefreshListener();
 
-        await new Promise<void>((resolve, reject) => {
-            const timeout = setTimeout(() => {
-                reject(new Error("[WS] Timeout: Socket connection failed after 15 seconds"));
-            }, 15000);
-            
-            if (socket.value?.connected) {
-                clearTimeout(timeout);
-                resolve();
-            } else {
-                socket.value?.once('connect', () => {
-                    clearTimeout(timeout);
-                    resolve();
-                });
-            }
-        });
-
     } 
     catch (error) 
     {
         console.error("[WS] Auth Error:", error);
         isConnecting.value = false;
-        throw error;
     }
 
-    isConnecting.value = false;
     return socket as Ref<Socket | null>;
     
 };
@@ -123,5 +105,21 @@ const disconnectSocket = () => {
     }
 };
 
-export { disconnectSocket };
+const waitForSocketConnection = async (socketRef: Ref<Socket | null>, timeoutMs: number = 15000): Promise<boolean> => {
+    if (socketRef.value?.connected) return true;
+    
+    return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+            console.warn('[WS] Socket connection timeout after', timeoutMs, 'ms');
+            resolve(false);
+        }, timeoutMs);
+        
+        socketRef.value?.once('connect', () => {
+            clearTimeout(timeout);
+            resolve(true);
+        });
+    });
+};
+
+export { disconnectSocket, waitForSocketConnection };
 export default useWSocket;

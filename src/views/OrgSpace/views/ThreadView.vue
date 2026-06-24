@@ -341,6 +341,7 @@ import SpinLoader from '@/components/SpinLoader.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import useResponse from '@/composables/useResponse';
 import { uploadFiles } from '@/assets/uploadFile';
+import { waitForSocketConnection } from '@/composables/useWSocket';
 
 
 const props = defineProps<{ 
@@ -689,19 +690,7 @@ const joinThread = async (id: string) => {
         return;
     }
     
-    // Attendre que la socket soit connectée
-    if (!socket.value.connected) {
-        await new Promise((resolve) => {
-            if (socket.value?.connected) {
-                resolve(true);
-            } else {
-                socket.value?.once('connect', () => resolve(true));
-                // Timeout au cas où
-                setTimeout(() => resolve(true), 5000);
-            }
-        });
-    }
-    
+    // Socket should already be connected (checked in onMounted)
     loading.value = true;
     currentThreadKey.value = null;
     sortedMessages.value = [];
@@ -872,22 +861,22 @@ watch(() => props.thread?.id, (newId) => {
 }, { immediate: true });
 
 onMounted(async () => {
-    try {
-        const ws = await useWSocket();
-        socket.value = ws.value;
-        
-        initListener();
-        window.addEventListener('paste', handlePaste);
-        document.addEventListener('click', closeEmojiPickerOnOutsideClick);
+    const ws = await useWSocket();
+    socket.value = ws.value;
+    
+    initListener();
+    window.addEventListener('paste', handlePaste);
+    document.addEventListener('click', closeEmojiPickerOnOutsideClick);
 
-        if (route.params.threadId) 
-        {
-            await joinThread(String(route.params.threadId));
+    if (route.params.threadId) 
+    {
+        const connected = await waitForSocketConnection(socket, 15000);
+        if (!connected) {
+            loading.value = false;
+            toast.show('[E2EE] Impossible de se connecter au serveur. Vérifiez votre connexion et rechargez la page.', 'error');
+            return;
         }
-    } catch (socketError) {
-        console.error('[WS] Failed to initialize socket:', socketError);
-        loading.value = false;
-        toast.show('[E2EE] Impossible de se connecter au serveur. Vérifiez votre connexion et rechargez la page.', 'error');
+        await joinThread(String(route.params.threadId));
     }
 });
 

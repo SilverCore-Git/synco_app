@@ -1,7 +1,7 @@
 import { useToast } from "@/composables/useToast";
 import type { DMMessage, Message, OrgMember } from "@/types/types";
 import { ref, watch } from "vue";
-import useWSocket from "./useWSocket";
+import useWSocket, { waitForSocketConnection } from "./useWSocket";
 import { useRoute } from "vue-router";
 
 
@@ -182,6 +182,12 @@ const initListener = async () => {
 
     const route = useRoute();
     const socket = await useWSocket();
+    
+    const connected = await waitForSocketConnection(socket, 15000);
+    if (!connected) {
+        console.warn('[Notifications] Socket not connected, cannot setup listeners');
+        return;
+    }
 
     socket.value?.on('notif:new-message', async ({ message }: { message: Message }) => {
 
