@@ -259,6 +259,13 @@
                     v-show="!(selectedFiles.length && !files.length)"
                     class="flex gap-3 ml-3"
                 >
+                    <button
+                        @click="showEmojiPicker = !showEmojiPicker"
+                        class="text-(--text)/40 hover:text-(--primary) transition-colors"
+                        title="Ajouter un emoji"
+                    >
+                        <i class="bi bi-emoji-smile-fill text-xl" />
+                    </button>
 
                     <button 
                         @click="sendMessage"
@@ -269,6 +276,14 @@
                         <i class="bi bi-send-fill" />
                     </button>
 
+                </div>
+
+                <div
+                    v-if="showEmojiPicker && thread"
+                    class="absolute bottom-full left-0 mb-2 z-50 emoji-picker-container"
+                    @click.stop
+                >
+                    <EmojiPicker @select="insertEmoji" />
                 </div>
 
                 <button 
@@ -313,6 +328,7 @@ import { useRoute, useRouter } from 'vue-router';
 import type { Thread, Message } from '@/types/types';
 import useWSocket from '@/composables/useWSocket';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
+import EmojiPicker from '@/components/common/EmojiPicker.vue';
 import { 
     privateKey, 
     decryptThreadKeyWithRsa, 
@@ -368,6 +384,7 @@ const isFetchingMore = ref<boolean>(false);
 const sortedMessages = ref<Message[]>([]);
 const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
 const lastMessageId = ref<string>('');
+const showEmojiPicker = ref<boolean>(false);
 
 
 // file / pj
@@ -817,6 +834,35 @@ const cancelReply = () => {
     setMessageWillBeResponded(null);
 };
 
+const insertEmoji = (emoji: string) => {
+  const textarea = TextareaRef.value?.textarea;
+  if (!textarea) return;
+  
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const newValue = newMessage.value.slice(0, start) + emoji + newMessage.value.slice(end);
+  
+  newMessage.value = newValue;
+  showEmojiPicker.value = false;
+  
+  nextTick(() => {
+    textarea.focus();
+    textarea.selectionStart = start + emoji.length;
+    textarea.selectionEnd = start + emoji.length;
+  });
+};
+
+// Fermer le picker si on clique en dehors
+const closeEmojiPickerOnOutsideClick = (event: MouseEvent) => {
+  const target = event.target as HTMLElement;
+  const emojiPickerElement = target.closest('.emoji-picker-container');
+  const emojiButtonElement = target.closest('button[title="Ajouter un emoji"]');
+  
+  if (!emojiPickerElement && !emojiButtonElement) {
+    showEmojiPicker.value = false;
+  }
+};
+
 watch(() => messageWillBeResponded.value, () => {
     TextareaRef.value?.textarea?.focus();
 });
@@ -831,6 +877,7 @@ onMounted(async () => {
     
     initListener();
     window.addEventListener('paste', handlePaste);
+    document.addEventListener('click', closeEmojiPickerOnOutsideClick);
 
     if (route.params.threadId) 
     {
@@ -845,6 +892,7 @@ onUnmounted(() => {
         socket.value.off("thread-history").off("more-messages").off("new-message");
     }
     window.removeEventListener('paste', handlePaste);
+    document.removeEventListener('click', closeEmojiPickerOnOutsideClick);
 });
 
 </script>
