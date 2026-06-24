@@ -51,7 +51,7 @@
                 {{ profileUser.name }}
               </h2>
               <p v-if="profileUser.data?.status" class="text-sm text-(--text)/50 mt-1">
-                {{ getStatusText(profileUser.data.status) }}
+                {{ getStatusText(profileUser.data.status || '') }}
               </p>
             </div>
 
@@ -67,7 +67,7 @@
               <!-- ID Utilisateur -->
               <div class="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors">
                 <i class="bi bi-person text-(--text)/40 text-lg" />
-                <span class="text-sm text-(--text)/80 truncate">ID: {{ profileUser.id.substring(0, 8)}...}</span>
+                <span class="text-sm text-(--text)/80 truncate">ID: {{ profileUser.id.substring(0, 8) + '...' }}</span>
               </div>
 
               <!-- Date d'inscription -->
@@ -151,7 +151,8 @@ const getStatusText = (status: string) => {
 };
 
 const formatDate = (date: string | Date) => {
-  return new Date(date).toLocaleDateString('fr-FR', {
+  const dateObj = date instanceof Date ? date : new Date(date);
+  return dateObj.toLocaleDateString('fr-FR', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
