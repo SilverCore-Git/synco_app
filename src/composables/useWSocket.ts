@@ -51,7 +51,10 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
         const socketPath = import.meta.env?.VITE_SOCKET_PATH || '/socket';
         const isDev = import.meta.env.VITE_DEV === 'true';
         
-        socket.value = io(isDev ? undefined : (import.meta.env?.VITE_SOCKET_URL || 'https://localhost:3467'), {
+        const socketUrl = isDev ? undefined : (import.meta.env?.VITE_SOCKET_URL || 'https://localhost:3467');
+        console.log('[WS] Connecting to:', socketUrl || 'window.location.origin', 'with path:', socketPath);
+        
+        socket.value = io(socketUrl, {
             path: socketPath,
             auth: () => ({ token: getToken() }),
             reconnection: true,
@@ -108,14 +111,17 @@ const disconnectSocket = () => {
 const waitForSocketConnection = async (socketRef: Ref<Socket | null>, timeoutMs: number = 15000): Promise<boolean> => {
     if (socketRef.value?.connected) return true;
     
+    console.log('[WS] Waiting for socket connection...');
+    
     return new Promise((resolve) => {
         const timeout = setTimeout(() => {
-            console.warn('[WS] Socket connection timeout after', timeoutMs, 'ms');
+            console.error('[WS] Socket connection timeout after', timeoutMs, 'ms');
             resolve(false);
         }, timeoutMs);
         
         socketRef.value?.once('connect', () => {
             clearTimeout(timeout);
+            console.log('[WS] Socket connected successfully');
             resolve(true);
         });
     });
