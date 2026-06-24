@@ -250,7 +250,7 @@
                     v-show="!(selectedFiles.length && !files.length)"
                     v-model="newMessage"
                     @send="sendMessage"
-                    :placeholder="currentThreadKey ? 'Envoyer un message...' : 'Génération de la clé...'"
+                    :placeholder="currentThreadKey ? 'Envoyer un message...' : loading ? 'Génération de la clé...' : 'Erreur : Clé introuvable, rechargez la page'"
                     :disabled="!currentThreadKey"
                     ref="TextareaRef"
                 />
@@ -872,16 +872,22 @@ watch(() => props.thread?.id, (newId) => {
 }, { immediate: true });
 
 onMounted(async () => {
-    const ws = await useWSocket();
-    socket.value = ws.value;
-    
-    initListener();
-    window.addEventListener('paste', handlePaste);
-    document.addEventListener('click', closeEmojiPickerOnOutsideClick);
+    try {
+        const ws = await useWSocket();
+        socket.value = ws.value;
+        
+        initListener();
+        window.addEventListener('paste', handlePaste);
+        document.addEventListener('click', closeEmojiPickerOnOutsideClick);
 
-    if (route.params.threadId) 
-    {
-        await joinThread(String(route.params.threadId));
+        if (route.params.threadId) 
+        {
+            await joinThread(String(route.params.threadId));
+        }
+    } catch (socketError) {
+        console.error('[WS] Failed to initialize socket:', socketError);
+        loading.value = false;
+        toast.show('[E2EE] Impossible de se connecter au serveur. Vérifiez votre connexion et rechargez la page.', 'error');
     }
 });
 

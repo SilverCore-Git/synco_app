@@ -32,7 +32,7 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
     {
         return new Promise((resolve) => {
             const check = setInterval(() => {
-                if (socket.value) {
+                if (socket.value?.connected) {
                     clearInterval(check);
                     resolve(socket as Ref<Socket | null>);
                 }
@@ -48,14 +48,18 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
 
         if (!token) throw new Error("No token found");
 
-        socket.value = io(import.meta.env?.VITE_SOCKET_URL || 'localhost:3467', {
-            path: import.meta.env?.VITE_SOCKET_PATH || '/socket.io',
+        const socketPath = import.meta.env?.VITE_SOCKET_PATH || '/socket';
+        const isDev = import.meta.env.VITE_DEV === 'true';
+        
+        socket.value = io(isDev ? undefined : (import.meta.env?.VITE_SOCKET_URL || 'https://localhost:3467'), {
+            path: socketPath,
             auth: () => ({ token: getToken() }),
             reconnection: true,
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
-            protocols: import.meta.env.DEV == false ? ["websocket"] : ["websocket", "polling"],
+            transports: ['websocket'],
+            withCredentials: true,
         });
 
         socket.value.on("connect", () => {
@@ -79,13 +83,31 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
 
         setupTokenRefreshListener();
 
+        await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new Error("[WS] Timeout: Socket connection failed after 15 seconds"));
+            }, 15000);
+            
+            if (socket.value?.connected) {
+                clearTimeout(timeout);
+                resolve();
+            } else {
+                socket.value?.once('connect', () => {
+                    clearTimeout(timeout);
+                    resolve();
+                });
+            }
+        });
+
     } 
     catch (error) 
     {
         console.error("[WS] Auth Error:", error);
         isConnecting.value = false;
+        throw error;
     }
 
+    isConnecting.value = false;
     return socket as Ref<Socket | null>;
     
 };

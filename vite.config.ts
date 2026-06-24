@@ -18,6 +18,14 @@ export default defineConfig({
   },
   server: {
     https: true,
-    host: true
+    host: true,
+    proxy: {
+      '/socket': {
+        target: 'http://localhost:3467',
+        ws: true,
+        changeOrigin: true,
+        secure: false,
+      }
+    }
   }
 })
