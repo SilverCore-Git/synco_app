@@ -64,7 +64,6 @@
                         :active="route.params.threadId == thread.id"
                         :hasUnread="thread.hasUnread"
                         :key="'thread-text-' + thread.id"
-                        class="cursor-grab active:cursor-grabbing"
                         @click="navigateToThread(thread.id)"
                     />
 
@@ -73,7 +72,6 @@
                         :thread="thread"
                         :active="route.params.threadId == thread.id"
                         :key="'thread-vocal-' + thread.id"
-                        class="cursor-grab active:cursor-grabbing"
                     />
 
                 </template>

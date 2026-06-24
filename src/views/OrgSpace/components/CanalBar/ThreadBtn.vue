@@ -87,7 +87,7 @@ import type { Thread } from '@/types/types';
 import UpdateThread from '../popup/UpdateThread.vue';
 import { ref } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
-import useWSocket from '@/composables/useWSocket';
+import useWSocket, { waitForSocketConnection } from '@/composables/useWSocket';
 import { openedOrg } from '@/assets/var';
  
 const props = defineProps<{
@@ -96,6 +96,11 @@ const props = defineProps<{
   hasUnread?: boolean;
 }>();
 
+// Ignore attributes passed by Draggable (class, data-draggable)
+defineOptions({
+  inheritAttrs: false
+});
+
 const emit = defineEmits(['click']);
 
 const showEditThread = ref<boolean>(false);
@@ -103,6 +108,11 @@ const showConfirmDelete = ref<boolean>(false);
 
 const deleteThread = async () => {
     const socket = await useWSocket();
+    const connected = await waitForSocketConnection(socket, 15000);
+    if (!connected) {
+        console.error('[ThreadBtn] Socket not connected, cannot delete thread');
+        return;
+    }
     socket.value?.emit('thread:delete', ({ orgId: openedOrg.value?.id, threadId: props.thread.id }));
     showConfirmDelete.value = false;
 }
