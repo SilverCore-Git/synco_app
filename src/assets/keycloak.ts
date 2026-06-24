@@ -6,6 +6,46 @@ const keycloak = new Keycloak({
   clientId: (import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'silverteams_web_app'),
 });
 
+let tokenRefreshInterval: ReturnType<typeof setInterval> | null = null;
+const tokenListeners: Array<() => void> = [];
+
+const setupTokenRefresh = () => {
+  if (tokenRefreshInterval) {
+    clearInterval(tokenRefreshInterval);
+  }
+  
+  tokenRefreshInterval = setInterval(async () => {
+    try {
+      const refreshed = await keycloak.updateToken(30);
+      if (refreshed) {
+        console.log('[Keycloak] Token rafraîchi avec succès');
+        notifyTokenRefreshed();
+      }
+    } catch (error) {
+      console.error('[Keycloak] Erreur lors du rafraîchissement du token:', error);
+    }
+  }, 30000);
+};
+
+const notifyTokenRefreshed = () => {
+  tokenListeners.forEach(listener => {
+    try {
+      listener();
+    } catch (error) {
+      console.error('[Keycloak] Error in token refresh listener:', error);
+    }
+  });
+};
+
+const onTokenRefresh = (callback: () => void) => {
+  tokenListeners.push(callback);
+  return () => {
+    const index = tokenListeners.indexOf(callback);
+    if (index !== -1) {
+      tokenListeners.splice(index, 1);
+    }
+  };
+};
 
 const initKC = async () => {
 
@@ -15,6 +55,7 @@ const initKC = async () => {
       onLoad: 'check-sso',
       silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
       pkceMethod: 'S256',
+      checkLoginIframe: false,
     });
 
     if (authenticated) 
@@ -23,24 +64,15 @@ const initKC = async () => {
       const userInfo: any = await keycloak.loadUserInfo();
       window.localStorage.setItem('userId', userInfo.sub);
 
-      setInterval(async () => {
-        try {
-          const refreshed = await keycloak.updateToken(70);
-          if (refreshed) {
-            console.log('Token rafraîchi avec succès');
-          }
-        } catch (error) {
-          console.error('Erreur lors du rafraîchissement du token ou session expirée');
-        }
-      }, 60000); 
+      setupTokenRefresh();
 
     }
 
   } catch (error) {
-    console.error("Erreur d'initialisation Keycloak", error);
+    console.error("[Keycloak] Erreur d'initialisation Keycloak", error);
   }
 
 };
 
-export { initKC };
+export { initKC, setupTokenRefresh, onTokenRefresh };
 export default keycloak;
