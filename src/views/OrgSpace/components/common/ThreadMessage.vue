@@ -92,14 +92,18 @@
                             :src="msg.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=128a60&color=fff`"
                             :alt="msg.sender?.name"
                             @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=128a60&color=fff`"
-                            class="rounded-full w-9 h-9 object-cover shrink-0"
+                            @click.stop="msg.sender && openProfile(msg.sender)"
+                            class="rounded-full w-9 h-9 object-cover shrink-0 cursor-pointer hover:ring-2 hover:ring-(--primary)/50 transition-all"
                         />
 
                         <div class="min-w-0 flex-1">
 
                             <div class="flex items-baseline gap-2">
 
-                                <span class="text-(--primary) font-bold text-xs tracking-tighter truncate">
+                                <span 
+                                    class="text-(--primary) font-bold text-xs tracking-tighter truncate cursor-pointer hover:underline"
+                                    @click.stop="msg.sender && openProfile(msg.sender)"
+                                >
                                     {{ msg.sender?.name || 'Anonyme' }}
                                 </span>
 
@@ -208,6 +212,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { user } from '@/assets/var';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useToast } from '@/composables/useToast';
+import { openProfile } from '@/composables/useProfile';
 
 const toast = useToast();
 const showReactionPicker = ref<boolean>(false);

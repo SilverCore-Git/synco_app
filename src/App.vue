@@ -4,7 +4,9 @@ import Loader from './components/LogoLoader.vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import init, { refetchUser } from './assets/init';
 import { isLoaded, user } from './assets/var';
+import type { User } from '@/types/types';
 import Notifications from './components/overlay/Notifications.vue';
+import UserProfile from './components/overlay/UserProfile.vue';
 import useSettingsItem from './composables/useSettingsItem';
 import keycloak, { initKC } from './assets/keycloak';
 import { E2EEUnloked, lockSecurity, setupFirstTimeSecurity, unlockSecurity } from './assets/utils/crypto';
@@ -15,6 +17,7 @@ import useSecurePeer from './composables/useSecurePeer';
 import CallOverlay from './components/peer/CallOverlay.vue';
 import waitFor from './assets/utils/waitfor';
 import Popup from './components/Popup.vue';
+import { isProfileOpen, profileUser, closeProfile } from './composables/useProfile';
 
 const toast = useToast();
 const { Item: theme } = useSettingsItem('theme', 'dark');
@@ -23,6 +26,14 @@ const pinLoading = ref<boolean>(false);
 
 // Initialize P2P peer connection
 const { initPeer } = useSecurePeer();
+
+// Handler pour envoyer un message depuis le profil
+const handleSendMessageFromProfile = (targetUser: User) => {
+  // Navigation vers le DM avec l'utilisateur
+  // Cette logique peut être adaptée selon le routing de l'application
+  console.log('Send message to:', targetUser.name);
+  // TODO: Implémenter la navigation vers le DM avec targetUser.id
+};
 
 watch(() => theme.value, () => {
   document.body.className = theme.value;
@@ -188,6 +199,12 @@ onUnmounted(() => {
 
       <Notifications />
       <CallOverlay />
+      <UserProfile 
+        :isOpen="isProfileOpen" 
+        :profileUser="profileUser" 
+        @close="closeProfile"
+        @send-message="handleSendMessageFromProfile"
+      />
       
       <Transition name="page-lock" mode="out-in">
 
