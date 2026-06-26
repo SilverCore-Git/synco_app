@@ -50,9 +50,21 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
 
         const socketPath = import.meta.env?.VITE_SOCKET_PATH || '/socket';
         const isDev = import.meta.env.VITE_DEV === 'true';
+        const useHttps = import.meta.env?.VITE_USE_HTTPS !== 'false';
         
-        const socketUrl = isDev ? undefined : (import.meta.env?.VITE_SOCKET_URL || 'https://localhost:3467');
-        console.log('[WS] Connecting to:', socketUrl || 'window.location.origin', 'with path:', socketPath);
+        // Use explicit socket URL based on HTTPS configuration
+        // In production, use the configured URL; in dev, build it from current protocol
+        let socketUrl = import.meta.env?.VITE_SOCKET_URL;
+        
+        if (!socketUrl) {
+          // Build URL based on current configuration
+          const host = isDev ? '192.168.1.73' : 'localhost';
+          const port = isDev ? '3467' : '3467';
+          const protocol = useHttps ? 'https' : 'http';
+          socketUrl = `${protocol}://${host}:${port}`;
+        }
+        
+        console.log('[WS] Connecting to:', socketUrl, 'with path:', socketPath);
         
         socket.value = io(socketUrl, {
             path: socketPath,
@@ -63,6 +75,7 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             reconnectionDelayMax: 5000,
             transports: ['websocket'],
             withCredentials: true,
+            timeout: 20000, // Add explicit connection timeout (20s)
         });
 
         socket.value.on("connect", () => {
@@ -71,7 +84,9 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
         });
 
         socket.value.on("connect_error", (err) => {
-            console.error("[WS] Connection Error:", err.message);
+            console.error("[WS] Connection Error:", err.message, err.stack);
+            console.error("[WS] Socket URL:", socketUrl);
+            console.error("[WS] Token present:", !!getToken());
             isConnecting.value = false;
         });
 
@@ -82,6 +97,11 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             } else {
                 console.log("[WS] Attempting to reconnect...");
             }
+        });
+        
+        socket.value.on("connect_timeout", (timeout) => {
+            console.error("[WS] Connection timeout after", timeout, "ms");
+            isConnecting.value = false;
         });
 
         setupTokenRefreshListener();
@@ -116,14 +136,31 @@ const waitForSocketConnection = async (socketRef: Ref<Socket | null>, timeoutMs:
     return new Promise((resolve) => {
         const timeout = setTimeout(() => {
             console.error('[WS] Socket connection timeout after', timeoutMs, 'ms');
+            console.error('[WS] Socket state:', {
+                connected: socketRef.value?.connected,
+                connecting: socketRef.value?.connecting,
+                disconnected: socketRef.value?.disconnected,
+                id: socketRef.value?.id
+            });
             resolve(false);
         }, timeoutMs);
         
-        socketRef.value?.once('connect', () => {
+        const onConnect = () => {
             clearTimeout(timeout);
             console.log('[WS] Socket connected successfully');
+            socketRef.value?.off('connect_error', onError);
             resolve(true);
-        });
+        };
+        
+        const onError = (err: any) => {
+            clearTimeout(timeout);
+            console.error('[WS] Socket connection error while waiting:', err.message);
+            socketRef.value?.off('connect', onConnect);
+            resolve(false);
+        };
+        
+        socketRef.value?.once('connect', onConnect);
+        socketRef.value?.once('connect_error', onError);
     });
 };
 

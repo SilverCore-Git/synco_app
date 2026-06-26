@@ -154,7 +154,9 @@ const handleInput = (e: KeyboardEvent) => {
 
 onMounted(async () => {
 
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/health`);
+  const res = await fetch(`${import.meta.env.VITE_API_URL}/health`, {
+    credentials: 'include'
+  });
 
   if (!res.ok) return alert('Api error');
 
@@ -185,7 +187,7 @@ onUnmounted(() => {
 
 <template>
 
-  <Toast />
+  <Notifications />
 
   <div
     class="w-screen h-screen relative flex flex-col"

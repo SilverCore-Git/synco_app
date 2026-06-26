@@ -71,7 +71,7 @@ src/
 
 ## 📖 Documentation
 
-- [SYNCO_CHAT_SESSION_GUIDE.md](SYNCO_CHAT_SESSION_GUIDE.md) - Development guide
+- [vibe/guide.md](vibe/guide.md) - Development guide
 - [E2EE_IMPROVEMENTS.md](E2EE_IMPROVEMENTS.md) - E2EE roadmap
 
 ## 🛠️ Available Scripts
@@ -98,7 +98,7 @@ npm run type-check    # TypeScript validation
 
 ## 🤝 Contributing
 
-Please refer to the [Development Guide](SYNCO_CHAT_SESSION_GUIDE.md) for detailed contribution guidelines.
+Please refer to the [Development Guide](vibe/guide.md) for detailed contribution guidelines.
 
 ## 📞 Support
 
