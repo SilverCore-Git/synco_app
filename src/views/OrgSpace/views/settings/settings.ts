@@ -15,6 +15,11 @@ const settingsViews: settingsView[] = [
         name: 'Gestion des Membres',
         icon: 'bi-people-fill',
         route: 'OrgSettingsMembers'
+    },
+    {
+        name: 'Webhooks',
+        icon: 'bi-link-45deg',
+        route: 'OrgSettingsWebhooks'
     }
 ]
 
