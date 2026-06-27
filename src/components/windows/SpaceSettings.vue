@@ -135,6 +135,7 @@
                         <WebhookList
                             :webhooks="webhooks"
                             :loading="loadingWebhooks"
+                            :error="webhooksError"
                             @edit="openEditWebhook"
                             @delete="openDeleteWebhook"
                             @test="openTestWebhook"
@@ -268,8 +269,7 @@ const {
     loading: loadingWebhooks,
     error: webhooksError,
     listWebhooks,
-    deleteWebhook,
-    refreshWebhooks
+    deleteWebhook
 } = useWebhooks();
 
 
