@@ -503,24 +503,24 @@ async function testWebhook(
 }
 
 /**
- * Récupère les channels disponibles pour un space (pour cibler les messages)
+ * Récupère les channels (threads) disponibles pour un space
+ * Utilise les threads depuis le store local au lieu de faire un appel API
  */
 async function getSpaceChannels(spaceId: string): Promise<WebhookTargetChannel[] | null> {
   try {
-    const response = await sfetch(`/api/spaces/${spaceId}/channels`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
-    });
+    // Les threads sont déjà chargés dans le store via le socket
+    // On les récupère depuis openedOrg.value.spaces
+    const { openedOrg } = await import('@/assets/var');
     
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.message || 'Erreur lors de la récupération des channels');
-    }
+    const space = openedOrg?.value?.spaces?.find(s => s.id === spaceId);
     
-    const data = await response.json();
-    
-    if (data.success && data.channels) {
-      return data.channels;
+    if (space?.threads) {
+      // Mapper les threads vers le format attendu par les webhooks
+      return space.threads.map(thread => ({
+        id: thread.id,
+        name: thread.name,
+        type: thread.type
+      }));
     }
     
     return [];
