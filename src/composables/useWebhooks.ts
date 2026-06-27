@@ -504,28 +504,40 @@ async function testWebhook(
 
 /**
  * Récupère les channels (threads) disponibles pour un space
- * Utilise les threads depuis le store local au lieu de faire un appel API
+ * Utilise les threads depuis le store local (openedOrg) au lieu de faire un appel API
+ * Note: Les threads sont chargés via WebSocket au démarrage de l'application
  */
 async function getSpaceChannels(spaceId: string): Promise<WebhookTargetChannel[] | null> {
   try {
-    // Les threads sont déjà chargés dans le store via le socket
-    // On les récupère depuis openedOrg.value.spaces
     const { openedOrg } = await import('@/assets/var');
+    
+    // Attendre que openedOrg soit chargé si nécessaire
+    if (!openedOrg?.value) {
+      console.warn('[Webhooks] openedOrg non chargé, attente...');
+      // Attendre un peu et réessayer
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
     
     const space = openedOrg?.value?.spaces?.find(s => s.id === spaceId);
     
-    if (space?.threads) {
-      // Mapper les threads vers le format attendu par les webhooks
-      return space.threads.map(thread => ({
-        id: thread.id,
-        name: thread.name,
-        type: thread.type
-      }));
+    if (!space) {
+      console.warn(`[Webhooks] Space ${spaceId} non trouvé dans openedOrg`);
+      return null;
     }
     
-    return [];
+    if (!space.threads || space.threads.length === 0) {
+      console.warn(`[Webhooks] Aucun thread trouvé pour le space ${spaceId}`);
+      return [];
+    }
+    
+    // Mapper les threads vers le format attendu par les webhooks
+    return space.threads.map(thread => ({
+      id: thread.id,
+      name: thread.name,
+      type: thread.type
+    }));
   } catch (err: any) {
-    console.error('Erreur lors de la récupération des channels:', err);
+    console.error('[Webhooks] Erreur lors de la récupération des channels:', err);
     return null;
   }
 }
