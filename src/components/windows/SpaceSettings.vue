@@ -113,6 +113,36 @@
                     </div>
                 </section>
 
+                <section v-if="activeTab === 'webhooks'" class="animate-fade-in space-y-6">
+                    <div>
+                        <h3 class="text-2xl font-black text-(--white) mb-1">Webhooks</h3>
+                        <p class="text-sm text-(--text)/60">Configurez des webhooks pour recevoir des notifications depuis des services externes.</p>
+                    </div>
+
+                    <!-- Bouton pour créer un nouveau webhook -->
+                    <div class="flex justify-end">
+                        <button 
+                            @click="showCreateWebhookModal = true"
+                            class="primary gap-2 flex items-center"
+                        >
+                            <i class="bi bi-plus-lg" />
+                            Nouveau Webhook
+                        </button>
+                    </div>
+
+                    <!-- Liste des webhooks -->
+                    <div class="space-y-4">
+                        <WebhookList
+                            :webhooks="webhooks"
+                            :loading="loadingWebhooks"
+                            @edit="openEditWebhook"
+                            @delete="openDeleteWebhook"
+                            @test="openTestWebhook"
+                            @details="openDetailsWebhook"
+                        />
+                    </div>
+                </section>
+
             </main>
 
             <SaveUpdateOverlay 
@@ -133,6 +163,54 @@
         buttonText="Quitter l'espace"
     />
     
+    <!-- Webhooks Modals -->
+    <WebhookCreate
+        v-if="showCreateWebhookModal && props.space?.id"
+        :space-id="props.space.id"
+        @close="showCreateWebhookModal = false"
+        @created="onWebhookCreated"
+    />
+    
+    <WebhookEdit
+        v-if="showEditWebhookModal && editingWebhook"
+        :webhook="editingWebhook"
+        @close="showEditWebhookModal = false"
+        @updated="onWebhookUpdated"
+    />
+    
+    <WebhookDetails
+        v-if="showDetailsWebhookModal && detailsWebhook"
+        :webhook="detailsWebhook"
+        @close="showDetailsWebhookModal = false"
+        @edit="openEditWebhook"
+        @delete="openDeleteWebhook"
+        @test="openTestWebhook"
+    />
+    
+    <WebhookTest
+        v-if="showTestWebhookModal && testingWebhook"
+        :webhook="testingWebhook"
+        @close="showTestWebhookModal = false"
+    />
+    
+    <Popup :is-open="showDeleteWebhookConfirm" @close="showDeleteWebhookConfirm = false">
+        <template #title>Supprimer le Webhook</template>
+        
+        <div class="space-y-4">
+            <p class="text-(--text)/80">
+                Vous êtes sur le point de supprimer le webhook <strong>{{ deletingWebhook?.name }}</strong>.
+            </p>
+            <p class="text-(--text)/60 text-sm">
+                Cette action est irréversible. Tous les messages et logs associés seront également supprimés.
+            </p>
+        </div>
+        
+        <template #footer>
+            <button @click="showDeleteWebhookConfirm = false" class="default">Annuler</button>
+            <button @click="confirmDeleteWebhook" class="danger">Supprimer</button>
+        </template>
+    </Popup>
+    
 </template>
 
 <script setup lang="ts">
@@ -148,6 +226,14 @@ import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import { encryptThreadKeyForMember, generateThreadKey } from '@/assets/utils/crypto';
 import ConfirmDelete from '../common/ConfirmDelete.vue';
+import { useWebhooks } from '@/composables/useWebhooks';
+import type { Webhook } from '@/types/webhooks';
+import Popup from '@/components/Popup.vue';
+import WebhookList from '@/views/OrgSpace/views/settings/views/components/WebhookList.vue';
+import WebhookCreate from '@/views/OrgSpace/views/settings/views/components/WebhookCreate.vue';
+import WebhookEdit from '@/views/OrgSpace/views/settings/views/components/WebhookEdit.vue';
+import WebhookDetails from '@/views/OrgSpace/views/settings/views/components/WebhookDetails.vue';
+import WebhookTest from '@/views/OrgSpace/views/settings/views/components/WebhookTest.vue';
 
 const props = defineProps<{
     space: WorkSpace;
@@ -164,6 +250,27 @@ const formData = reactive({
     name: props.space?.name || '',
     logo: props.space?.logo || ''
 });
+
+// Webhooks state
+const showCreateWebhookModal = ref<boolean>(false);
+const showEditWebhookModal = ref<boolean>(false);
+const showDetailsWebhookModal = ref<boolean>(false);
+const showTestWebhookModal = ref<boolean>(false);
+const showDeleteWebhookConfirm = ref<boolean>(false);
+
+const editingWebhook = ref<Webhook | null>(null);
+const detailsWebhook = ref<Webhook | null>(null);
+const testingWebhook = ref<Webhook | null>(null);
+const deletingWebhook = ref<Webhook | null>(null);
+
+const {
+    webhooks,
+    loading: loadingWebhooks,
+    error: webhooksError,
+    listWebhooks,
+    deleteWebhook,
+    refreshWebhooks
+} = useWebhooks();
 
 
 const members = computed(() => {
@@ -191,8 +298,16 @@ const isModified = computed(() => {
 
 const tabs = [
     { id: 'general', label: 'Général', icon: 'bi bi-grid-fill' },
-    { id: 'members', label: 'Membres', icon: 'bi bi-people-fill' }
+    { id: 'members', label: 'Membres', icon: 'bi bi-people-fill' },
+    { id: 'webhooks', label: 'Webhooks', icon: 'bi bi-link-45deg' }
 ];
+
+// Charger les webhooks quand on ouvre l'onglet webhooks ou que le space change
+watch(() => [activeTab.value, props.space?.id], async ([newActiveTab, newSpaceId]) => {
+    if (newActiveTab === 'webhooks' && newSpaceId) {
+        await listWebhooks(newSpaceId);
+    }
+}, { immediate: false });
 
 const resetForm = () => {
     formData.name = props.space.name;
@@ -348,6 +463,55 @@ const exitSpace = async () => {
     showExitConfirm.value = false;
     emit('close');
 
+};
+
+// Webhooks methods
+const openEditWebhook = (webhook: Webhook) => {
+    editingWebhook.value = webhook;
+    showEditWebhookModal.value = true;
+};
+
+const openDeleteWebhook = (webhook: Webhook) => {
+    deletingWebhook.value = webhook;
+    showDeleteWebhookConfirm.value = true;
+};
+
+const openTestWebhook = (webhook: Webhook) => {
+    testingWebhook.value = webhook;
+    showTestWebhookModal.value = true;
+};
+
+const openDetailsWebhook = (webhook: Webhook) => {
+    detailsWebhook.value = webhook;
+    showDetailsWebhookModal.value = true;
+};
+
+const confirmDeleteWebhook = async () => {
+    if (deletingWebhook.value?.id) {
+        const success = await deleteWebhook(deletingWebhook.value.id);
+        if (success) {
+            showDeleteWebhookConfirm.value = false;
+            deletingWebhook.value = null;
+            if (props.space.id) {
+                await listWebhooks(props.space.id);
+            }
+        }
+    }
+};
+
+const onWebhookCreated = () => {
+    showCreateWebhookModal.value = false;
+    if (props.space.id) {
+        listWebhooks(props.space.id);
+    }
+};
+
+const onWebhookUpdated = () => {
+    showEditWebhookModal.value = false;
+    editingWebhook.value = null;
+    if (props.space.id) {
+        listWebhooks(props.space.id);
+    }
 };
 
 </script>

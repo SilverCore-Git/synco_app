@@ -9,7 +9,6 @@ import ChatView from './views/OrgSpace/views/ChatView.vue';
 import GeneralSettings from './views/OrgSpace/views/settings/views/GeneralSettings.vue';
 import SettingsLayout from './views/OrgSpace/views/settings/SettingsLayout.vue';
 import MembersSettings from './views/OrgSpace/views/settings/views/MembersSettings.vue';
-import WebhooksSettings from './views/OrgSpace/views/settings/views/WebhooksSettings.vue';
 import InviteView from './views/inviteView.vue';
 import ThreadLayout from './views/OrgSpace/views/ThreadLayout.vue';
 import { nextTick } from 'vue';
@@ -66,12 +65,6 @@ const routes = [
             name: 'OrgSettingsMembers',
             props: true,
             component: MembersSettings,
-          },
-          {
-            path: 'webhooks',
-            name: 'OrgSettingsWebhooks',
-            props: true,
-            component: WebhooksSettings,
           }
         ]
 
