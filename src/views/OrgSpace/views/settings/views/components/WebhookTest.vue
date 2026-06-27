@@ -176,8 +176,7 @@
 import { ref, computed } from 'vue';
 import Popup from '@/components/Popup.vue';
 import { useWebhooks } from '@/composables/useWebhooks';
-import type { Webhook, WebhookEmbed, TestWebhookPayload } from '@/types/webhooks';
-import { useToast } from '@/composables/useToast';
+import type { Webhook, TestWebhookPayload } from '@/types/webhooks';
 
 const props = defineProps<{
     webhook: Webhook;
@@ -188,7 +187,6 @@ const emit = defineEmits<{
 }>();
 
 const { testWebhook, generateDefaultTestPayload } = useWebhooks();
-const toast = useToast();
 
 // Payload par défaut
 const defaultPayload = generateDefaultTestPayload();

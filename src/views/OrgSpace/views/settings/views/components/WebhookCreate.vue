@@ -171,8 +171,7 @@ const emit = defineEmits<{
 const { 
     createWebhook, 
     getSpaceChannels,
-    formatPermission,
-    loading: apiLoading
+    formatPermission
 } = useWebhooks();
 
 // State du formulaire
@@ -235,19 +234,6 @@ const handleCreate = async () => {
     } finally {
         loading.value = false;
     }
-};
-
-// Format d'une permission
-const formatPermission = (permission: WebhookPermission): string => {
-    const labels: Record<WebhookPermission, string> = {
-        send_messages: 'Envoyer des messages',
-        send_embeds: 'Envoyer des embeds',
-        send_files: 'Envoyer des fichiers',
-        mention_everyone: 'Mentionner tout le monde (@everyone)',
-        mention_roles: 'Mentionner des rôles',
-        manage_webhook: 'Gérer le webhook'
-    };
-    return labels[permission] || permission;
 };
 
 </script>

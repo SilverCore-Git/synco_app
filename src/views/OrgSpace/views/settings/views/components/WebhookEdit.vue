@@ -166,14 +166,14 @@
 
 <script lang="ts" setup>
 
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import Popup from '@/components/Popup.vue';
 import { useWebhooks } from '@/composables/useWebhooks';
 import { ALL_WEBHOOK_PERMISSIONS, type Webhook, type WebhookPermission } from '@/types/webhooks';
 import type { WebhookTargetChannel } from '@/types/webhooks';
 
 const props = defineProps<{
-    webhook: Webhook;
+    webhook: Webhook & { targetChannelId?: string };
 }>();
 
 const emit = defineEmits<{
@@ -184,8 +184,7 @@ const emit = defineEmits<{
 const { 
     updateWebhook, 
     getSpaceChannels,
-    formatPermission,
-    loading: apiLoading
+    formatPermission
 } = useWebhooks();
 
 // State du formulaire
@@ -250,19 +249,6 @@ const handleUpdate = async () => {
     } finally {
         loading.value = false;
     }
-};
-
-// Format d'une permission
-const formatPermission = (permission: WebhookPermission): string => {
-    const labels: Record<WebhookPermission, string> = {
-        send_messages: 'Envoyer des messages',
-        send_embeds: 'Envoyer des embeds',
-        send_files: 'Envoyer des fichiers',
-        mention_everyone: 'Mentionner tout le monde (@everyone)',
-        mention_roles: 'Mentionner des rôles',
-        manage_webhook: 'Gérer le webhook'
-    };
-    return labels[permission] || permission;
 };
 
 </script>

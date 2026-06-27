@@ -2,7 +2,7 @@
 // Composable pour la gestion des Webhooks
 // ============================================
 
-import { ref, computed, type Ref } from 'vue';
+import { ref, computed } from 'vue';
 import sfetch from '@/assets/utils/sfetch';
 import { useToast } from './useToast';
 import type {
@@ -24,13 +24,8 @@ import type {
 } from '@/types/webhooks';
 import {
   generateWebhookToken,
-  generateWebhookSecret,
-  generateECDHKeyPair,
-  exportPublicKeyToPEM,
-  exportPrivateKeyToPKCS8,
-  importPrivateKeyFromPKCS8
+  generateWebhookSecret
 } from '@/assets/utils/webhookCrypto';
-import { privateKey, E2EEUnloked } from '@/assets/utils/crypto';
 import { user } from '@/assets/var';
 
 // ============================================
@@ -73,39 +68,13 @@ async function createWebhook(
     const token = generateWebhookToken();
     const secret = generateWebhookSecret();
     
-    // Si E2EE est activé, générer une paire de clés
-    let publicKey: string | undefined;
-    let privateKeyPKCS8: string | undefined;
-    let keyIv: string | undefined;
-    
-    if (dto.e2eeEnabled) {
-      const keyPair = await generateECDHKeyPair();
-      publicKey = await exportPublicKeyToPEM(keyPair.publicKey);
-      privateKeyPKCS8 = await exportPrivateKeyToPKCS8(keyPair.privateKey);
-      
-      // Chiffrer la clé privée avec la clé maître de l'utilisateur
-      if (E2EEUnloked.value && privateKey.value) {
-        const { encryptedPrivateKey, iv } = await import('@/assets/utils/crypto')
-          .then(m => m.encryptAesKeyWithRsa(
-            await crypto.subtle.exportKey('pkcs8', keyPair.privateKey),
-            JSON.stringify(user.value?.publicKey ? JSON.parse(user.value.publicKey) : {})
-          ));
-        
-        privateKeyPKCS8 = encryptedPrivateKey;
-        keyIv = iv;
-      }
-    }
-    
     const response = await sfetch(`/api/spaces/${spaceId}/webhooks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...dto,
         token,
-        secret,
-        publicKey,
-        privateKey: privateKeyPKCS8,
-        keyIv
+        secret
       })
     });
     

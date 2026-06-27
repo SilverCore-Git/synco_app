@@ -125,7 +125,7 @@
 <script lang="ts" setup>
 
 import { ref, computed, onMounted, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import Popup from '@/components/Popup.vue';
 import WebhookList from './components/WebhookList.vue';
 import WebhookCreate from './components/WebhookCreate.vue';
@@ -133,11 +133,9 @@ import WebhookEdit from './components/WebhookEdit.vue';
 import WebhookDetails from './components/WebhookDetails.vue';
 import WebhookTest from './components/WebhookTest.vue';
 import { useWebhooks } from '@/composables/useWebhooks';
-import { openedOrg } from '@/assets/var';
 import type { Webhook } from '@/types/webhooks';
 
 const route = useRoute();
-const router = useRouter();
 
 const { 
     webhooks, 

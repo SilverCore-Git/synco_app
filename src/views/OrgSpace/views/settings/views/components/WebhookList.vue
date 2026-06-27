@@ -149,7 +149,6 @@
 
 <script lang="ts" setup>
 
-import { computed } from 'vue';
 import type { Webhook } from '@/types/webhooks';
 
 const props = defineProps<{

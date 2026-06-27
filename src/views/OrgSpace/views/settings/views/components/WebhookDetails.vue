@@ -177,11 +177,9 @@
 
 <script lang="ts" setup>
 
-import { ref } from 'vue';
 import Popup from '@/components/Popup.vue';
 import { useWebhooks } from '@/composables/useWebhooks';
 import type { Webhook } from '@/types/webhooks';
-import { useToast } from '@/composables/useToast';
 
 const props = defineProps<{
     webhook: Webhook;
@@ -200,8 +198,6 @@ const {
     copyWebhookPublicKey,
     formatPermission
 } = useWebhooks();
-
-const toast = useToast();
 
 // Copie l'URL dans le clipboard
 const copyUrl = async () => {
@@ -229,19 +225,6 @@ const formatDateTime = (date: string | Date | undefined): string => {
         minute: '2-digit',
         second: '2-digit'
     });
-};
-
-// Formate une permission
-const formatPermission = (permission: string): string => {
-    const labels: Record<string, string> = {
-        send_messages: 'Envoyer des messages',
-        send_embeds: 'Envoyer des embeds',
-        send_files: 'Envoyer des fichiers',
-        mention_everyone: 'Mentionner tout le monde',
-        mention_roles: 'Mentionner des rôles',
-        manage_webhook: 'Gérer le webhook'
-    };
-    return labels[permission] || permission;
 };
 
 </script>
