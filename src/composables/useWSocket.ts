@@ -60,8 +60,19 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
           // Build URL based on current configuration
           const host = isDev ? '192.168.1.73' : 'localhost';
           const port = isDev ? '3467' : '3467';
-          const protocol = useHttps ? 'https' : 'http';
-          socketUrl = `${protocol}://${host}:${port}`;
+          // Force ws:// or wss:// protocol explicitly
+          const wsProtocol = useHttps ? 'wss' : 'ws';
+          socketUrl = `${wsProtocol}://${host}:${port}`;
+        } else {
+          // If VITE_SOCKET_URL is provided, ensure it uses the correct WebSocket protocol
+          // Convert http:// to ws:// and https:// to wss:// based on useHttps setting
+          if (useHttps) {
+            // When using HTTPS, ensure WebSocket uses wss://
+            socketUrl = socketUrl.replace(/^https?:\/\//i, 'wss://');
+          } else {
+            // When using HTTP, ensure WebSocket uses ws://
+            socketUrl = socketUrl.replace(/^https?:\/\//i, 'ws://');
+          }
         }
         
         console.log('[WS] Connecting to:', socketUrl, 'with path:', socketPath);
@@ -87,6 +98,28 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             console.error("[WS] Connection Error:", err.message, err.stack);
             console.error("[WS] Socket URL:", socketUrl);
             console.error("[WS] Token present:", !!getToken());
+            
+            // Check for self-signed certificate errors
+            if (err.message && (
+                err.message.includes('self-signed') ||
+                err.message.includes('MOZILLA_PKIX_ERROR_SELF_SIGNED_CERT') ||
+                err.message.includes('certificate') ||
+                err.message.includes('NS_ERROR')
+            )) {
+                console.error(
+                    "[WS] 🔒 SELF-SIGNED CERTIFICATE ERROR 🔒\n" +
+                    "To fix this in Firefox:\n" +
+                    "1. Open a new tab and go to: about:config\n" +
+                    "2. Accept the warning\n" +
+                    "3. Search for: security.cert_pinning.enforcement_level\n" +
+                    "4. Set it to 0 (disabled)\n" +
+                    "5. OR add exception: Click the lock icon in address bar → Connection secure → More information → Add Exception\n" +
+                    "\nAlternatively, use Chrome with these flags:\n" +
+                    "chrome://flags/#allow-insecure-localhost\n" +
+                    "chrome://flags/#enable-common-httphandler\n"
+                );
+            }
+            
             isConnecting.value = false;
         });
 
