@@ -108,15 +108,32 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             )) {
                 console.error(
                     "[WS] 🔒 SELF-SIGNED CERTIFICATE ERROR 🔒\n" +
-                    "To fix this in Firefox:\n" +
-                    "1. Open a new tab and go to: about:config\n" +
+                    "========================================\n" +
+                    "The backend uses a self-signed certificate.\n" +
+                    "To resolve this error:\n\n" +
+                    
+                    "🦊 Firefox:\n" +
+                    "1. Open: https://192.168.1.73:3467 in a new tab\n" +
+                    "2. Click 'Advanced' → 'Accept the Risk and Continue'\n" +
+                    "   OR\n" +
+                    "1. Go to about:config\n" +
                     "2. Accept the warning\n" +
-                    "3. Search for: security.cert_pinning.enforcement_level\n" +
-                    "4. Set it to 0 (disabled)\n" +
-                    "5. OR add exception: Click the lock icon in address bar → Connection secure → More information → Add Exception\n" +
-                    "\nAlternatively, use Chrome with these flags:\n" +
-                    "chrome://flags/#allow-insecure-localhost\n" +
-                    "chrome://flags/#enable-common-httphandler\n"
+                    "3. Search: security.cert_pinning.enforcement_level\n" +
+                    "4. Set to 0 (disabled)\n\n" +
+                    
+                    "🌐 Chrome/Edge:\n" +
+                    "Launch with command line flags:\n" +
+                    "  --ignore-certificate-errors\n" +
+                    "  --allow-running-insecure-content\n" +
+                    "OR install mkcert for trusted local development certificates\n\n" +
+                    
+                    "💡 Recommended:\n" +
+                    "Install mkcert to generate locally-trusted certificates:\n" +
+                    "  brew install mkcert      # macOS\n" +
+                    "  sudo apt install mkcert  # Debian/Ubuntu\n" +
+                    "  mkcert -install\n" +
+                    "  mkcert localhost 127.0.0.1 192.168.1.73\n" +
+                    "Then replace certs/server.{key,crt} with the generated files\n"
                 );
             }
             
