@@ -160,7 +160,7 @@
                     class="primary px-6 py-2 flex items-center gap-2"
                     :disabled="loading || !hasContent"
                 >
-                    <span v-if="loading" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                    <SpinLoader v-if="loading" class="!h-4 !w-4" />
                     <span v-else>Envoyer le Test</span>
                 </button>
             </div>
@@ -175,6 +175,7 @@
 
 import { ref, computed } from 'vue';
 import Popup from '@/components/Popup.vue';
+import SpinLoader from '@/components/SpinLoader.vue';
 import { useWebhooks } from '@/composables/useWebhooks';
 import type { Webhook, TestWebhookPayload } from '@/types/webhooks';
 

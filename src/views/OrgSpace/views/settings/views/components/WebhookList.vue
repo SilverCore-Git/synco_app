@@ -4,7 +4,7 @@
         
         <!-- État de chargement -->
         <div v-if="loading" class="flex items-center justify-center py-8">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-(--primary)"></div>
+            <SpinLoader />
             <span class="ml-3 text-(--text)/60">Chargement des webhooks...</span>
         </div>
 
@@ -149,6 +149,7 @@
 
 <script lang="ts" setup>
 
+import SpinLoader from '@/components/SpinLoader.vue';
 import type { Webhook } from '@/types/webhooks';
 
 const props = defineProps<{

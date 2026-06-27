@@ -153,7 +153,7 @@
                     class="primary px-6 py-2 flex items-center gap-2"
                     :disabled="loading || !isFormValid"
                 >
-                    <span v-if="loading" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                    <SpinLoader v-if="loading" class="!h-4 !w-4" />
                     <span v-else>Mettre à jour</span>
                 </button>
             </div>
@@ -168,6 +168,7 @@
 
 import { ref, computed, onMounted } from 'vue';
 import Popup from '@/components/Popup.vue';
+import SpinLoader from '@/components/SpinLoader.vue';
 import { useWebhooks } from '@/composables/useWebhooks';
 import { ALL_WEBHOOK_PERMISSIONS, type Webhook, type WebhookPermission } from '@/types/webhooks';
 import type { WebhookTargetChannel } from '@/types/webhooks';
