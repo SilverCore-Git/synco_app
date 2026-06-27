@@ -51,7 +51,7 @@
                     required
                     :disabled="loadingChannels"
                 >
-                    <option value="" disabled selected>
+                    <option value="" disabled>
                         {{ loadingChannels ? 'Chargement...' : 'Sélectionnez un channel' }}
                     </option>
                     <option 
