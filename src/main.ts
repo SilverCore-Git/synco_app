@@ -8,6 +8,10 @@ import FloatingVue from 'floating-vue'
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import 'floating-vue/dist/style.css'
 
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/firebase-messaging-sw.js');
+}
+
 const app = createApp(App);
 
 app.use(router);
