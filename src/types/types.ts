@@ -1,4 +1,5 @@
 export type ThreadType = 'text' | 'vocal';
+export type NotificationType = 'MESSAGE' | 'CALL' | 'MENTION' | 'INVITATION' | 'CUSTOM';
 // export type UserStatus = 'online' | 'dnd' | 'idle' | 'offline';
 
 export interface StoredFile {
