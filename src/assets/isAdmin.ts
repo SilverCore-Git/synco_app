@@ -8,8 +8,8 @@ const isAdmin = computed(() => {
 
     return (
         user?.userId === openedOrg.value?.ownerId
-        || user?.role === 'admin'
-        || user?.role === 'owner'
+        || user?.role === 'ADMIN'
+        || user?.role === 'OWNER'
     )
 
 })
