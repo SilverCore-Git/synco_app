@@ -82,7 +82,9 @@ const handleSubmit = async () => {
 
     if (data.error) throw new Error(data.error);
 
-    openedOrg.value?.spaces?.push(data);
+    // Recharger l'org complète pour synchroniser les données
+    openedOrg.value = await sfetch(`/api/orgs/${orgId}`).then(res => res.json());
+    
     toast.show('Espace de travail créé !', 'success');
     closeModal();
     router.push({ name: 'SpaceView', params: { orgId, spaceId: data.id } });
