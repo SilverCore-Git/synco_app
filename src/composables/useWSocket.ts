@@ -56,7 +56,11 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
         // In production, use the configured URL; in dev, build it from current protocol
         let socketUrl = import.meta.env?.VITE_SOCKET_URL;
         
-        if (!socketUrl) {
+        if (isDev) {
+            // In development, use Vite's proxy to avoid self-signed certificate errors on different ports
+            socketUrl = undefined;
+            console.log('[WS] Development mode: routing WebSocket through Vite proxy');
+        } else if (!socketUrl) {
           // Build URL based on current configuration
           const host = isDev ? '192.168.1.73' : 'localhost';
           const port = isDev ? '3467' : '3467';
@@ -75,9 +79,9 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
           }
         }
         
-        console.log('[WS] Connecting to:', socketUrl, 'with path:', socketPath);
+        console.log('[WS] Connecting to:', socketUrl || 'current origin via proxy', 'with path:', socketPath);
         
-        socket.value = io(socketUrl, {
+        socket.value = io(socketUrl || undefined, {
             path: socketPath,
             auth: () => ({ token: getToken() }),
             reconnection: true,
