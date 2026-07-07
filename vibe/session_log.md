@@ -403,4 +403,50 @@ Co-Authored-By: Mistral Vibe <vibe@mistral.ai>"
 --- 
 
 **Document maintenu par Mistral Vibe**  
-**Dernière mise à jour** : 26 Juin 2026
+**Dernière mise à jour** : 07 Juillet 2026
+
+---
+
+## 📅 **07 Juillet 2026 - Configuration Vibe Memory & Correction Accès Settings**
+
+**Durée** : 1h  
+**Priorité** : ⭐⭐⭐⭐⭐ (Haute)  
+**Complexité** : Basse  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+1. Mettre en place le système de mémoire à long terme (Vibe Memory) pour les agents IA avec création de règles strictes (`RULES.md`) et de templates (`session_template.md`).
+2. Corriger un bug critique empêchant le propriétaire de l'organisation d'accéder aux paramètres (`SettingsLayout`).
+
+### **Fichiers Créés**
+
+| Fichier | Description |
+|---------|-------------|
+| `vibe/RULES.md` | Règles strictes pour les agents IA |
+| `vibe/templates/session_template.md` | Modèle de log de session |
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `vibe/guide.md` | Mise à jour pour forcer l'utilisation du système de mémoire Vibe |
+| `src/assets/isAdmin.ts` | Correction logique : comparaison directe de `localStorage.getItem('userId')` avec `ownerId` pour garantir l'accès au propriétaire |
+
+### **Fonctionnalités Implémentées**
+✅ **Vibe Memory System** : Implémentation de la structure de mémoire à long terme dans `synco_app` et `synco_api`.  
+✅ **Bug Fix (Auth/Settings)** : Contournement de la dépendance à la liste `members` pour l'identification du propriétaire, évitant ainsi le rejet d'accès dû à un tableau incomplet ou non chargé.
+
+### **Commits**
+
+```bash
+git commit -m "docs(vibe): setup long-term memory system and RULES for AI agents"
+git commit -m "fix(auth): directly compare localStorage userId with ownerId to ensure owners have access even if not in members list"
+```
+
+**Date** : 07 Juillet 2026  
+
+### **Prochaines Étapes**
+1. Surveiller la stabilité de la vue `SettingsLayout`.
+2. Continuer l'intégration de nouvelles fonctionnalités en suivant les nouvelles règles `RULES.md`.
+
+---
