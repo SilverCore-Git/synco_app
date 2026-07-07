@@ -1,23 +1,21 @@
 import { computed } from "vue";
-import { openedOrg } from "./var";
+import { openedOrg, user } from "./var";
 
 const isAdmin = computed(() => {
-
-    const userId = localStorage.getItem('userId');
+    const currentUserId = user.value?.id || localStorage.getItem('userId');
     
-    if (userId && openedOrg.value?.ownerId === userId) {
+    if (currentUserId && openedOrg.value?.ownerId === currentUserId) {
         return true;
     }
 
-    const user = openedOrg.value?.members?.find(user => user.userId == userId);
+    const member = openedOrg.value?.members?.find(m => m.userId === currentUserId);
 
     return (
-        user?.role === 'ADMIN'
-        || user?.role === 'OWNER'
-        || user?.role === 'admin'
-        || user?.role === 'owner'
+        member?.role === 'ADMIN'
+        || member?.role === 'OWNER'
+        || member?.role === 'admin'
+        || member?.role === 'owner'
     )
-
 })
 
 export default isAdmin;

@@ -46,11 +46,13 @@ const setting = computed(() => {
 
 onMounted(() => {
 
-    if (!isAdmin) return router.push({ name: 'OrgHome' });
+    if (!isAdmin.value) return router.push({ name: 'OrgHome' });
 
-    const firstSetting = settingsViews[0];
-    if (!firstSetting) return;
-    router.push({ name: firstSetting.route });
+    if (route.name === 'OrgSettings') {
+        const firstSetting = settingsViews[0];
+        if (!firstSetting) return;
+        router.push({ name: firstSetting.route });
+    }
 
 });
 
