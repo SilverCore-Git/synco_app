@@ -10,6 +10,8 @@ const isAdmin = computed(() => {
         user?.userId === openedOrg.value?.ownerId
         || user?.role === 'ADMIN'
         || user?.role === 'OWNER'
+        || user?.role === 'admin'
+        || user?.role === 'owner'
     )
 
 })
