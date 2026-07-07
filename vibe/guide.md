@@ -492,9 +492,14 @@ Pour toute question ou problème :
 
 ---
 
-## Tu dois maintenir
+## Tu dois maintenir (Vibe Memory System)
 
-Tu dois faire dans chaque repo un dossier `vibe/` dans lequel tu ranges tout pour les agents IA, ce sera ta mémoire à long terme. Tu dois aussi maintenir ce fichier pour les prochaines sessions.
+Tu dois suivre strictement les instructions de `vibe/RULES.md`.
+Tu dois faire dans chaque repo un dossier `vibe/` dans lequel tu ranges tout pour les agents IA, ce sera ta mémoire à long terme :
+- **`RULES.md`** : Lis-le avant chaque session.
+- **`session_log.md`** : Ajoute un résumé de ta session à la fin en utilisant `vibe/templates/session_template.md`.
+- **`features/`** : Place ici les spécifications de fonctionnalités (`[FEATURE]_FEATURE.md`).
+- **`guide.md`** : Maintiens ce fichier à jour pour les prochaines sessions.
 
 ---
 
