@@ -2,7 +2,7 @@
 
     <Window :isOpen="isOpen" @close="emit('close')">
         
-        <div class="flex w-[850px] max-w-full h-[600px] bg-(--bg) text-(--text) rounded-xl overflow-hidden shadow-2xl">
+        <div class="flex w-full h-full text-(--text) overflow-hidden">
             
             <aside class="w-64 bg-(--bg2) border-r border-white/5 p-4 flex flex-col gap-2 shrink-0">
 
