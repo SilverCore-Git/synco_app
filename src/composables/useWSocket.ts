@@ -85,7 +85,18 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             }
         }
         
-        console.log('[WS] Connecting to:', socketUrl, 'with path:', socketPath);
+        console.warn('[WS] Connecting to:', socketUrl, 'with path:', socketPath);
+        
+        // Diagnostic: test if the proxy/backend is reachable
+        try {
+            const testUrl = (socketUrl || '') + socketPath + '/?EIO=4&transport=polling';
+            console.warn('[WS] Proxy test:', testUrl);
+            const res = await fetch(testUrl);
+            const text = await res.text();
+            console.warn('[WS] Proxy test result:', res.status, text.substring(0, 120));
+        } catch (proxyErr: any) {
+            console.error('[WS] ❌ Proxy/backend unreachable:', proxyErr.message);
+        }
         
         socket.value = io(socketUrl || undefined, {
             path: socketPath,
@@ -94,75 +105,25 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
-            transports: ['polling', 'websocket'], // Allow polling fallback for dev proxy
-            withCredentials: true,
-            timeout: 20000, // Add explicit connection timeout (20s)
+            transports: ['polling', 'websocket'],
+            withCredentials: false, // Not needed — we use token auth, not cookies
+            timeout: 20000,
         });
+        
+        // Socket instance created — release the lock so other callers get this socket
+        isConnecting.value = false;
 
         socket.value.on("connect", () => {
-            console.log("[WS] Connected with ID:", socket.value?.id);
-            isConnecting.value = false;
+            console.warn("[WS] ✅ Connected with ID:", socket.value?.id);
         });
 
         socket.value.on("connect_error", (err) => {
-            console.error("[WS] Connection Error:", err.message, err.stack);
-            console.error("[WS] Socket URL:", socketUrl);
+            console.error("[WS] ❌ Connection Error:", err.message);
             console.error("[WS] Token present:", !!getToken());
-            
-            // Check for self-signed certificate errors
-            if (err.message && (
-                err.message.includes('self-signed') ||
-                err.message.includes('MOZILLA_PKIX_ERROR_SELF_SIGNED_CERT') ||
-                err.message.includes('certificate') ||
-                err.message.includes('NS_ERROR')
-            )) {
-                console.error(
-                    "[WS] 🔒 SELF-SIGNED CERTIFICATE ERROR 🔒\n" +
-                    "========================================\n" +
-                    "The backend uses a self-signed certificate.\n" +
-                    "To resolve this error:\n\n" +
-                    
-                    "🦊 Firefox:\n" +
-                    "1. Open: https://192.168.1.73:3467 in a new tab\n" +
-                    "2. Click 'Advanced' → 'Accept the Risk and Continue'\n" +
-                    "   OR\n" +
-                    "1. Go to about:config\n" +
-                    "2. Accept the warning\n" +
-                    "3. Search: security.cert_pinning.enforcement_level\n" +
-                    "4. Set to 0 (disabled)\n\n" +
-                    
-                    "🌐 Chrome/Edge:\n" +
-                    "Launch with command line flags:\n" +
-                    "  --ignore-certificate-errors\n" +
-                    "  --allow-running-insecure-content\n" +
-                    "OR install mkcert for trusted local development certificates\n\n" +
-                    
-                    "💡 Recommended:\n" +
-                    "Install mkcert to generate locally-trusted certificates:\n" +
-                    "  brew install mkcert      # macOS\n" +
-                    "  sudo apt install mkcert  # Debian/Ubuntu\n" +
-                    "  mkcert -install\n" +
-                    "  mkcert localhost 127.0.0.1 192.168.1.73\n" +
-                    "Then replace certs/server.{key,crt} with the generated files\n"
-                );
-            }
-            
-            // Don't set isConnecting = false here — Socket.IO reconnection is active
-            // isConnecting will be set to false on 'connect' success or in the catch block
         });
 
         socket.value.on("disconnect", (reason) => {
-            console.log("[WS] Disconnected:", reason);
-            if (reason === "io server disconnect" || reason === "io client disconnect") {
-                console.log("[WS] The disconnection was initiated by the server/client");
-            } else {
-                console.log("[WS] Attempting to reconnect...");
-            }
-        });
-        
-        socket.value.on("connect_timeout", (timeout) => {
-            console.error("[WS] Connection timeout after", timeout, "ms");
-            isConnecting.value = false;
+            console.warn("[WS] Disconnected:", reason);
         });
 
         setupTokenRefreshListener();
