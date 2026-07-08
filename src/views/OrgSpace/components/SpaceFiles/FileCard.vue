@@ -43,7 +43,7 @@
 
                                     <DropDown align="right" class="pointer-events-auto">
                                         <template #trigger>
-                                            <button class="glass pointer-events-auto" @click.stop>
+                                            <button class="glass pointer-events-auto" @click.prevent>
                                                 <i class="bi bi-three-dots-vertical" />
                                             </button>
                                         </template>

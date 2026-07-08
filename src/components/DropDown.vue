@@ -86,17 +86,20 @@ const getDropdownPosition = () => {
     
     let top = triggerRect.bottom + window.scrollY + 8;
     
-    // Alignement à droite
-    if (props.align === 'right') {
-        left = triggerRect.right + window.scrollX - 56 - 8; // width is 56
-    } else if (props.align === 'mouse') {
-        top = pos.y - 10 + window.scrollY;
-        left = pos.x - 70 + window.scrollX;
-    }
-    
     // Vérifier si le dropdown dépasse en bas
     if (top + dropdownHeight > viewportHeight + window.scrollY) {
         top = triggerRect.top + window.scrollY - dropdownHeight - 8;
+    }
+
+    // Alignement à droite
+    if (props.align === 'right') {
+        return {
+            top: `${top}px`,
+            right: `${window.innerWidth - triggerRect.right - window.scrollX}px`
+        };
+    } else if (props.align === 'mouse') {
+        top = pos.y - 10 + window.scrollY;
+        left = pos.x - 70 + window.scrollX;
     }
     
     return {
