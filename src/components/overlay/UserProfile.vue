@@ -23,7 +23,7 @@
           >
 
             <!-- Banner -->
-            <div class="h-[100px] bg-gradient-to-tr from-(--primary-dark) to-(--primary) w-full relative">
+            <div class="h-[100px] bg-gradient-to-tr from-(--primary-dark) to-(--primary) w-full relative z-0">
                 <button
                     @click="emit('close')"
                     class="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/30 hover:bg-black/50 flex items-center justify-center text-white transition-colors"
@@ -32,23 +32,23 @@
                 </button>
             </div>
 
-            <!-- Avatar container -->
-            <div class="px-4 relative flex-1 overflow-y-auto">
-                <!-- Avatar wrapper overlapping banner -->
-                <div class="absolute -top-[52px] left-4 p-1.5 bg-(--bg) rounded-full">
-                    <div class="relative">
-                        <img
-                            :src="u.avatarUrl || `https://ui-avatars.com/api/?name=${u.name}&background=128a60&color=fff`"
-                            :alt="u.name"
-                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${u.name}&background=128a60&color=fff`"
-                            class="w-[84px] h-[84px] rounded-full object-cover"
-                        />
-                        <!-- Status indicator -->
-                        <div class="absolute bottom-0 right-0 w-6 h-6 rounded-full border-[4px] border-(--bg) flex items-center justify-center" :class="statusColorClass">
-                        </div>
+            <!-- Avatar overlapping banner (Outside scrolling container to prevent clipping) -->
+            <div class="absolute top-[48px] left-4 p-1.5 bg-(--bg) rounded-full z-10">
+                <div class="relative">
+                    <img
+                        :src="u.avatarUrl || `https://ui-avatars.com/api/?name=${u.name}&background=128a60&color=fff`"
+                        :alt="u.name"
+                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${u.name}&background=128a60&color=fff`"
+                        class="w-[84px] h-[84px] rounded-full object-cover"
+                    />
+                    <!-- Status indicator -->
+                    <div class="absolute bottom-0 right-0 w-6 h-6 rounded-full border-[4px] border-(--bg) flex items-center justify-center" :class="statusColorClass">
                     </div>
                 </div>
+            </div>
 
+            <!-- Content container -->
+            <div class="px-4 relative flex-1 overflow-y-auto z-0">
                 <!-- Spacer for the avatar overlapping -->
                 <div class="h-[46px]"></div>
 
@@ -79,21 +79,12 @@
                     <div class="w-full h-px bg-white/5 my-3"></div>
 
                     <!-- Membre depuis -->
-                    <div class="mb-4">
+                    <div>
                         <h3 class="text-[11px] font-bold text-(--text)/50 uppercase tracking-wide mb-2">Membre depuis</h3>
                         <p class="text-sm text-(--text)/90 flex items-center gap-2">
                             <i class="bi bi-calendar3 text-(--text)/50"></i>
                             {{ formatDate(u.createdAt) }}
                         </p>
-                    </div>
-
-                    <!-- E2EE Info -->
-                    <div v-if="u.publicKey">
-                        <h3 class="text-[11px] font-bold text-(--text)/50 uppercase tracking-wide mb-2">Sécurité</h3>
-                        <div class="flex items-center gap-2 text-green-400 text-xs bg-green-500/10 px-2.5 py-1.5 rounded-md w-fit border border-green-500/20 shadow-sm">
-                            <i class="bi bi-shield-check" />
-                            <span class="font-medium">Chiffrement E2EE disponible</span>
-                        </div>
                     </div>
 
                 </div>
