@@ -627,10 +627,9 @@ function formatPermission(permission: WebhookPermission): string {
   const labels: Record<WebhookPermission, string> = {
     send_messages: 'Envoyer des messages',
     send_embeds: 'Envoyer des embeds',
-    send_files: 'Envoyer des fichiers',
-    mention_everyone: 'Mentionner tout le monde (@everyone)',
-    mention_roles: 'Mentionner des rôles',
-    manage_webhook: 'Gérer le webhook'
+    send_attachments: 'Envoyer des pièces jointes',
+    manage_webhook: 'Gérer le webhook',
+    view_stats: 'Voir les statistiques'
   };
   return labels[permission] || permission;
 }

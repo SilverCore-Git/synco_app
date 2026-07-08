@@ -8,18 +8,16 @@
 export type WebhookPermission = 
   | 'send_messages'
   | 'send_embeds'
-  | 'send_files'
-  | 'mention_everyone'
-  | 'mention_roles'
-  | 'manage_webhook';
+  | 'send_attachments'
+  | 'manage_webhook'
+  | 'view_stats';
 
 export const ALL_WEBHOOK_PERMISSIONS: WebhookPermission[] = [
   'send_messages',
   'send_embeds',
-  'send_files',
-  'mention_everyone',
-  'mention_roles',
-  'manage_webhook'
+  'send_attachments',
+  'manage_webhook',
+  'view_stats'
 ];
 
 // ============================================
