@@ -32,7 +32,7 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
     {
         return new Promise((resolve) => {
             const check = setInterval(() => {
-                if (socket.value?.connected) {
+                if (!isConnecting.value) {
                     clearInterval(check);
                     resolve(socket as Ref<Socket | null>);
                 }
@@ -58,8 +58,8 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
         
         if (isDev) {
             // In development, use Vite's proxy to avoid self-signed certificate errors on different ports
-            socketUrl = undefined;
-            console.log('[WS] Development mode: routing WebSocket through Vite proxy');
+            socketUrl = window.location.origin;
+            console.log('[WS] Development mode: routing WebSocket through Vite proxy:', socketUrl);
         } else if (!socketUrl) {
           // Build URL based on current configuration
           const host = isDev ? '192.168.1.73' : 'localhost';
