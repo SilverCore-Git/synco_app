@@ -49,22 +49,23 @@
                                         </template>
                                         <template #content>
                                             <button 
-                                                @click.stop="showFileInfo(file)"
+                                                @click="showFileInfo(file)"
                                                 class="dropdown-item-annimate dropdown-item-style gap-2"
                                             >
                                                 <i class="bi bi-info-circle" />
                                                 Voir les infos
                                             </button>
                                             <button 
-                                                @click.stop="viewMessagesWithFile(file)"
+                                                v-if="file.messageId || file.dmMessageId"
+                                                @click="viewMessagesWithFile(file)"
                                                 class="dropdown-item-annimate dropdown-item-style gap-2"
                                             >
                                                 <i class="bi bi-chat-left" />
-                                                Voir les messages
+                                                Voir le message
                                             </button>
                                             <button 
-                                                @click.stop="deleteFile(file)"
-                                                class="dropdown-item-annimate dropdown-item-style gap-2 text-red-400 hover:bg-red-500/10"
+                                                @click="deleteFile(file)"
+                                                class="dropdown-item-annimate dropdown-item-style gap-2 text-red-500! hover:bg-red-500/5!"
                                             >
                                                 <i class="bi bi-trash" />
                                                 Supprimer

@@ -31,7 +31,7 @@
                     :class="props.contentInerTW || ''"
                     :style="getDropdownPosition()"
                 >
-                    <div class="p-1.5 sdropdown">
+                    <div class="p-1.5 sdropdown" @click="closeDropdown">
                         <slot name="content" />
                     </div>
                 </div>
