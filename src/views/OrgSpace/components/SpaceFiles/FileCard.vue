@@ -94,7 +94,7 @@
 
 <script lang="ts" setup>
 
-import { useRouter, useRoute } from 'vue-router';
+import { useRouter } from 'vue-router';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { downloadFile } from '@/assets/utils/downloadFile';
 import DropDown from '@/components/DropDown.vue';
@@ -104,7 +104,6 @@ import sfetch from '@/assets/utils/sfetch';
 
 const toast = useToast();
 const router = useRouter();
-const route = useRoute();
 
 const props = defineProps<{
     file: StoredFile,
@@ -136,13 +135,52 @@ const showFileInfo = (file: StoredFile) => {
 };
 
 // View message that contains this file
-const viewMessagesWithFile = (file: StoredFile) => {
-    const messageId = file.messageId || file.dmMessageId;
-    if (!messageId) return;
-
-    router.push({
-        query: { ...route.query, select: messageId }
-    });
+const viewMessagesWithFile = async (file: StoredFile) => {
+    try {
+        if (!file.workspaceId) {
+            toast.show('Ce fichier n\'est pas lié à un espace', 'error');
+            return;
+        }
+        
+        // Fetch messages containing this file
+        const response = await sfetch(`/api/spaces/${file.workspaceId}/files/${file.id}/messages`, {
+            method: 'GET'
+        });
+        
+        const data = await response.json();
+        
+        // If there are thread messages, navigate to the space thread
+        if (data.threadMessages && data.threadMessages.length > 0) {
+            const firstThreadMessage = data.threadMessages[0];
+            router.push({
+                name: 'SpaceThreadView',
+                params: { 
+                    orgId: route.params.orgId,
+                    spaceId: file.workspaceId,
+                    threadId: firstThreadMessage.threadId 
+                },
+                query: { select: firstThreadMessage.id }
+            });
+        } 
+        // If there are DM messages, navigate to the DM chat
+        else if (data.dmMessages && data.dmMessages.length > 0) {
+            const dm = data.dmMessages[0];
+            router.push({
+                name: 'OrgThreadChat',
+                params: { 
+                    orgId: route.params.orgId,
+                    userId: dm.senderId
+                },
+                query: { select: dm.id }
+            });
+        }
+        else {
+            toast.show('Aucun message ne contient ce fichier', 'info');
+        }
+    } catch (error) {
+        console.error('Error fetching file messages:', error);
+        toast.show('Erreur lors de la récupération des messages', 'error');
+    }
 };
 
 // Delete file
