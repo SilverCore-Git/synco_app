@@ -12,8 +12,8 @@
                     v-for="tab in tabs" 
                     :key="tab.id"
                     @click="activeTab = tab.id"
-                    class="tab"
-                    :class="activeTab === tab.id ? 'active' : ''"
+                    class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm font-bold transition-all duration-200"
+                    :class="activeTab === tab.id ? 'text-(--white) bg-white/10 shadow-sm' : 'text-(--text)/60 hover:text-(--white) hover:bg-white/5'"
                 >
                     <i :class="tab.icon" class="text-lg" />
                     {{ tab.label }}
@@ -328,14 +328,6 @@ const tabs = [
 </script>
 
 <style scoped>
-
-.tab {
-    @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm font-bold text-(--text)/60 hover:text-(--white) hover:bg-white/5 transition-all duration-200;
-}
-
-.tab.active {
-    @apply text-(--white) bg-white/10 shadow-sm;
-}
 
 .animate-fade-in {
     animation: fadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
