@@ -13,25 +13,28 @@ export const openProfile = (userToShow: User, event?: MouseEvent) => {
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
     
-    // Check if we have enough space on the right, otherwise open on the left
-    const spaceOnRight = window.innerWidth - rect.right;
-    const cardWidth = 320; // Approx card width
+    const cardWidth = 320; 
+    const cardHeight = 450; // Approximative max height
     
-    if (spaceOnRight > cardWidth + 20) {
-        // Open to the right of the avatar
-        profilePosition.value = {
-            top: Math.max(20, Math.min(rect.top, window.innerHeight - 400)), // Prevent going off-screen vertically
-            left: rect.right + 15,
-            align: 'left'
-        };
-    } else {
-        // Open to the left of the avatar
-        profilePosition.value = {
-            top: Math.max(20, Math.min(rect.top, window.innerHeight - 400)),
-            left: rect.left - cardWidth - 15,
-            align: 'right'
-        };
+    let top = rect.top;
+    if (top + cardHeight > window.innerHeight - 20) {
+        top = window.innerHeight - cardHeight - 20;
     }
+    top = Math.max(20, top);
+    
+    let left = rect.right + 15;
+    let align: 'left' | 'right' = 'left';
+    
+    if (left + cardWidth > window.innerWidth - 20) {
+        left = rect.left - cardWidth - 15;
+        align = 'right';
+        if (left < 20) {
+            // Screen too narrow to place on sides, center horizontally
+            left = (window.innerWidth - cardWidth) / 2;
+        }
+    }
+    
+    profilePosition.value = { top, left, align };
   } else {
     profilePosition.value = null; // Centered fallback
   }
