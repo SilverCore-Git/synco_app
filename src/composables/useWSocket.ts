@@ -53,30 +53,13 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
         const useHttps = import.meta.env?.VITE_USE_HTTPS !== 'false';
         
         // Use explicit socket URL based on HTTPS configuration
-        // In production, use the configured URL; in dev, build it from current protocol
-        let socketUrl = import.meta.env?.VITE_SOCKET_URL;
+        let socketUrl = import.meta.env?.VITE_SOCKET_URL || 'https://localhost:3467';
         
-        if (isDev) {
-            // In development, use Vite's proxy to avoid self-signed certificate errors on different ports
-            socketUrl = window.location.origin;
-            console.log('[WS] Development mode: routing WebSocket through Vite proxy:', socketUrl);
-        } else if (!socketUrl) {
-          // Build URL based on current configuration
-          const host = isDev ? '192.168.1.73' : 'localhost';
-          const port = isDev ? '3467' : '3467';
-          // Force ws:// or wss:// protocol explicitly
-          const wsProtocol = useHttps ? 'wss' : 'ws';
-          socketUrl = `${wsProtocol}://${host}:${port}`;
+        // Ensure we use https/http for socket.io instead of wss/ws to allow polling fallback
+        if (useHttps) {
+            socketUrl = socketUrl.replace(/^wss?:\/\//i, 'https://');
         } else {
-          // If VITE_SOCKET_URL is provided, ensure it uses the correct WebSocket protocol
-          // Convert http:// to ws:// and https:// to wss:// based on useHttps setting
-          if (useHttps) {
-            // When using HTTPS, ensure WebSocket uses wss://
-            socketUrl = socketUrl.replace(/^https?:\/\//i, 'wss://');
-          } else {
-            // When using HTTP, ensure WebSocket uses ws://
-            socketUrl = socketUrl.replace(/^https?:\/\//i, 'ws://');
-          }
+            socketUrl = socketUrl.replace(/^wss?:\/\//i, 'http://');
         }
         
         console.log('[WS] Connecting to:', socketUrl || 'current origin via proxy', 'with path:', socketPath);
@@ -88,7 +71,7 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
-            transports: ['websocket'],
+            transports: ['polling', 'websocket'], // Allow polling fallback for dev proxy
             withCredentials: true,
             timeout: 20000, // Add explicit connection timeout (20s)
         });
