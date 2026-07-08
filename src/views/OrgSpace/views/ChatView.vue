@@ -543,11 +543,7 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<
 
         // Check if E2EE is unlocked and we have a private key
         if (!E2EEUnloked.value || !privateKey.value) {
-            // Format reactions if they exist
-            const formattedReactions = msg.reactions 
-                ? (Array.isArray(msg.reactions) ? formatReactions(msg.reactions as any) : msg.reactions)
-                : {};
-            return { ...msg, content: "[🔒 E2EE non déverrouillé]", reactions: formattedReactions };
+            return { ...msg, content: "[🔒 E2EE non déverrouillé]" };
         }
 
         // Check if this message has E2EE data
@@ -557,58 +553,23 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<
 
         // Only attempt decryption if message is marked as E2EE and has the required keys
         if (!msg.isE2EE || !keyToUse || !msg.nonce) {
-            // Format reactions if they exist
-            const formattedReactions = msg.reactions 
-                ? (Array.isArray(msg.reactions) ? formatReactions(msg.reactions as any) : msg.reactions)
-                : {};
-            return { ...msg, content: msg.content, reactions: formattedReactions };
+            return { ...msg, content: msg.content };
         }
 
         try {
 
             const clearText = await decryptFromPeer(msg.content, keyToUse, msg.nonce, privateKey.value);
-            
-            // Format reactions if they exist
-            // reactions can be either an array (from Prisma) or already grouped (from WebSocket)
-            const formattedReactions = msg.reactions 
-                ? (Array.isArray(msg.reactions) ? formatReactions(msg.reactions as any) : msg.reactions)
-                : {};
-            
-            return { ...msg, content: clearText, reactions: formattedReactions };
+            return { ...msg, content: clearText };
 
         } 
         catch (cryptoErr) {
             console.error(`[E2EE] Échec du déchiffrement pour le message ${msg.id}:`, cryptoErr);
-            // Format reactions if they exist even on decryption failure
-            const formattedReactions = msg.reactions 
-                ? (Array.isArray(msg.reactions) ? formatReactions(msg.reactions as any) : msg.reactions)
-                : {};
-            return { ...msg, content: "[⚠️ Impossible de déchiffrer ce message.]", reactions: formattedReactions };
+            return { ...msg, content: "[⚠️ Impossible de déchiffrer ce message.]" };
         }
 
 };
 
-import type { ReactionUser } from '@/types/types';
 
-// Utility function to transform Prisma reaction array to grouped object
-const formatReactions = (reactions: any[]) => {
-    if (!reactions || reactions.length === 0) return {};
-    
-    return reactions.reduce((acc: Record<string, { count: number, users: ReactionUser[] }>, reaction) => {
-        if (!acc[reaction.emoji]) {
-            acc[reaction.emoji] = { count: 0, users: [] };
-        }
-        acc[reaction.emoji].count++;
-        if (reaction.user) {
-            acc[reaction.emoji].users.push({
-                id: reaction.user.id,
-                name: reaction.user.name,
-                avatarUrl: reaction.user.avatarUrl
-            });
-        }
-        return acc;
-    }, {});
-};
 
 const procesMessages = async (msgs: DMMessage[]) => {
 
@@ -623,13 +584,6 @@ const procesMessages = async (msgs: DMMessage[]) => {
             if (decryptedReply) {
                 decryptedMain.replyMessage = decryptedReply;
             }
-        }
-
-        // Ensure reactions are formatted even if message content was empty
-        if (m.reactions) {
-            decryptedMain.reactions = Array.isArray(m.reactions) 
-                ? formatReactions(m.reactions as any) 
-                : m.reactions;
         }
 
         return decryptedMain;
@@ -707,12 +661,7 @@ const initListener = () => {
             }
         }
         
-        // Format reactions if they exist
-        // reactions can be either an array (from Prisma) or already grouped (from WebSocket)
-        const formattedReactions = editedMsg.reactions 
-            ? (Array.isArray(editedMsg.reactions) ? formatReactions(editedMsg.reactions as any) : editedMsg.reactions)
-            : {};
-        const updatedMsg = { ...editedMsg, content: decryptedContent, reactions: formattedReactions };
+        const updatedMsg = { ...editedMsg, content: decryptedContent };
         messages.value = messages.value.map(m => m.id === editedMsg.id ? updatedMsg : m);
 
     });

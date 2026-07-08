@@ -15,7 +15,7 @@ export interface ReactionGroup {
 const props = defineProps<{
   messageId: string;
   reactions?: Record<string, { count: number; users: ReactionUser[] }>;
-  isDM?: boolean;
+  isDm?: boolean;
   showReactionPicker: boolean;
 }>();
 
@@ -98,7 +98,7 @@ const toggleReaction = async (emoji: string) => {
     emit('add-reaction', { 
       messageId: props.messageId,
       emoji,
-      isDM: props.isDM
+      isDM: props.isDm
     });
 
   } catch (error) {
