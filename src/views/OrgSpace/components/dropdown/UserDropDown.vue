@@ -45,7 +45,7 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
     <DropDown 
         align="left" 
         content-iner-t-w="
-            absolute! -top-74! z-100 sdropdown min-w-72.5 shadow-none!
+            z-100 sdropdown min-w-[290px] shadow-none!
             ring-transparent! border-b-transparent! rounded-b-none! 
         "
     >

@@ -27,12 +27,14 @@ const pinLoading = ref<boolean>(false);
 // Initialize P2P peer connection
 const { initPeer } = useSecurePeer();
 
+import router from '@/router';
+import { openedOrg } from '@/assets/var';
+
 // Handler pour envoyer un message depuis le profil
 const handleSendMessageFromProfile = (targetUser: User) => {
-  // Navigation vers le DM avec l'utilisateur
-  // Cette logique peut être adaptée selon le routing de l'application
-  console.log('Send message to:', targetUser.name);
-  // TODO: Implémenter la navigation vers le DM avec targetUser.id
+  if (openedOrg.value?.id) {
+    router.push(`/${openedOrg.value.id}/chat/${targetUser.id}`);
+  }
 };
 
 watch(() => theme.value, () => {
