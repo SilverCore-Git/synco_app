@@ -1,4 +1,5 @@
 import Keycloak from "keycloak-js";
+import { kcToken } from "./var";
 
 const keycloak = new Keycloak({
   url: (import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080/auth'),
@@ -19,6 +20,7 @@ const setupTokenRefresh = () => {
       const refreshed = await keycloak.updateToken(30);
       if (refreshed) {
         console.log('[Keycloak] Token rafraîchi avec succès');
+        kcToken.value = keycloak.token || '';
         notifyTokenRefreshed();
       }
     } catch (error) {
@@ -63,6 +65,7 @@ const initKC = async () => {
       
       const userInfo: any = await keycloak.loadUserInfo();
       window.localStorage.setItem('userId', userInfo.sub);
+      kcToken.value = keycloak.token || '';
 
       setupTokenRefresh();
 

@@ -5,6 +5,7 @@ import { computed, ref } from "vue";
 const organizations = ref<any[]>([]);
 const openedOrg = ref<Org | null>(null);
 const user = ref<User | null>(null);
+const kcToken = ref<string>('');
 const isLoaded = ref<boolean>(false);
 const isLittleScreen = ref<boolean>(false);
 const member = computed(() => {
@@ -12,4 +13,4 @@ const member = computed(() => {
 });
 
 
-export { organizations, openedOrg, isLoaded, user, member, isLittleScreen };
+export { organizations, openedOrg, isLoaded, user, member, isLittleScreen, kcToken };
