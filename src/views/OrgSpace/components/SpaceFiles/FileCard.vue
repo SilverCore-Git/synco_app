@@ -94,7 +94,7 @@
 
 <script lang="ts" setup>
 
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { downloadFile } from '@/assets/utils/downloadFile';
 import DropDown from '@/components/DropDown.vue';
@@ -104,6 +104,7 @@ import sfetch from '@/assets/utils/sfetch';
 
 const toast = useToast();
 const router = useRouter();
+const route = useRoute();
 
 const props = defineProps<{
     file: StoredFile,
