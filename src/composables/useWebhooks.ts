@@ -68,7 +68,7 @@ async function createWebhook(
     const token = generateWebhookToken();
     const secret = generateWebhookSecret();
     
-    const response = await sfetch(`/api/spaces/${spaceId}/webhooks`, {
+    const response = await sfetch(`/api/space/${spaceId}/webhooks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -109,7 +109,7 @@ async function listWebhooks(spaceId: string): Promise<ListWebhooksResponse | nul
   error.value = null;
   
   try {
-    const response = await sfetch(`/api/spaces/${spaceId}/webhooks`, {
+    const response = await sfetch(`/api/space/${spaceId}/webhooks`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });
