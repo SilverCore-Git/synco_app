@@ -16,102 +16,99 @@
 
           <div
             v-if="isOpen && profileUser"
-            class="bg-(--bg) border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
-            :class="profilePosition ? 'absolute w-[320px] max-h-[calc(100vh-40px)]' : 'w-full max-w-sm relative'"
+            class="bg-(--bg) rounded-xl shadow-2xl overflow-hidden flex flex-col font-sans"
+            :class="profilePosition ? 'absolute w-[340px] max-h-[calc(100vh-40px)]' : 'w-full max-w-sm relative'"
             :style="profilePosition ? { top: `${profilePosition.top}px`, left: `${profilePosition.left}px` } : {}"
             @click.stop
           >
 
-            <!-- Header avec bannière -->
-            <div class="relative h-32 bg-gradient-to-r from-(--primary) to-(--primary-dark)/70">
-              <button
-                @click="emit('close')"
-                class="
-                  absolute top-4 right-4 z-10
-                  p-2 rounded-lg hover:bg-white/20
-                  text-white hover:text-white
-                  active:scale-90 transition-all duration-200
-                "
-              >
-                <i class="bi bi-x-lg text-xl" />
-              </button>
-            </div>
-
-            <!-- Avatar et infos principales -->
-            <div class="relative px-6 -mt-16 mb-4">
-              <div class="flex justify-center">
-                <img
-                  :src="u.avatarUrl || `https://ui-avatars.com/api/?name=${u.name}&background=128a60&color=fff`"
-                  :alt="u.name"
-                  @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${u.name}&background=128a60&color=fff`"
-                  class="w-28 h-28 rounded-full border-4 border-(--bg) object-cover ring-2 ring-(--primary)/30"
-                />
-              </div>
-            </div>
-
-            <!-- Nom et statut -->
-            <div class="px-6 text-center mb-6">
-              <h2 class="text-xl font-bold text-(--text) tracking-tight">
-                {{ u.name }}
-              </h2>
-              <p v-if="u.data?.status" class="text-sm text-(--text)/50 mt-1">
-                {{ getStatusText(u.data.status || '') }}
-              </p>
-            </div>
-
-            <!-- Section Infos -->
-            <div class="px-6 py-4 border-t border-white/5">
-              
-              <!-- Email -->
-              <div v-if="u.email" class="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors">
-                <i class="bi bi-envelope text-(--text)/40 text-lg" />
-                <span class="text-sm text-(--text)/80 truncate">{{ u.email }}</span>
-              </div>
-
-              <!-- ID Utilisateur -->
-              <div class="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors">
-                <i class="bi bi-person text-(--text)/40 text-lg" />
-                <span class="text-sm text-(--text)/80 truncate">ID: {{ u.id.substring(0, 8) + '...' }}</span>
-              </div>
-
-              <!-- Date d'inscription -->
-              <div v-if="u.createdAt" class="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors">
-                <i class="bi bi-calendar text-(--text)/40 text-lg" />
-                <span class="text-sm text-(--text)/80 truncate">
-                  Membre depuis {{ formatDate(u.createdAt) }}
-                </span>
-              </div>
-
-            </div>
-
-            <!-- Actions (si ce n'est pas l'utilisateur courant) -->
-            <div v-if="u.id !== user?.id" class="px-6 py-4 border-t border-white/5">
-              <div class="flex gap-3">
+            <!-- Banner -->
+            <div class="h-[100px] bg-gradient-to-tr from-(--primary-dark) to-(--primary) w-full relative">
                 <button
-                  @click="sendMessage"
-                  class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-(--primary)/20 hover:bg-(--primary)/30 text-(--primary) font-medium transition-colors"
+                    @click="emit('close')"
+                    class="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/30 hover:bg-black/50 flex items-center justify-center text-white transition-colors"
                 >
-                  <i class="bi bi-chat-dots" />
-                  Envoyer un message
+                    <i class="bi bi-x" />
                 </button>
-              </div>
             </div>
 
-            <!-- Section E2EE (si clé publique disponible) -->
-            <div v-if="u.publicKey" class="px-6 py-4 border-t border-white/5">
-              <div class="flex items-center gap-2 text-green-400 text-xs">
-                <i class="bi bi-shield-check" />
-                <span>Chiffrement E2EE disponible</span>
-              </div>
-            </div>
+            <!-- Avatar container -->
+            <div class="px-4 relative flex-1 overflow-y-auto">
+                <!-- Avatar wrapper overlapping banner -->
+                <div class="absolute -top-[52px] left-4 p-1.5 bg-(--bg) rounded-full">
+                    <div class="relative">
+                        <img
+                            :src="u.avatarUrl || `https://ui-avatars.com/api/?name=${u.name}&background=128a60&color=fff`"
+                            :alt="u.name"
+                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${u.name}&background=128a60&color=fff`"
+                            class="w-[84px] h-[84px] rounded-full object-cover"
+                        />
+                        <!-- Status indicator -->
+                        <div class="absolute bottom-0 right-0 w-6 h-6 rounded-full border-[4px] border-(--bg) flex items-center justify-center" :class="statusColorClass">
+                        </div>
+                    </div>
+                </div>
 
-            <!-- Footer -->
-            <div class="px-6 py-3 border-t border-white/5 text-center">
-              <span class="text-[10px] text-(--text)/30">
-                SilverTeams - Profil Utilisateur
-              </span>
-            </div>
+                <!-- Spacer for the avatar overlapping -->
+                <div class="h-[46px]"></div>
 
+                <!-- Content Card -->
+                <div class="bg-(--bg2) rounded-lg p-4 mb-4 mt-3 border border-white/5 shadow-inner">
+                    <!-- Name -->
+                    <h2 class="text-xl font-bold text-(--text) leading-tight">{{ u.name }}</h2>
+                    <p class="text-sm text-(--text)/60 mb-3">{{ u.email }}</p>
+                    
+                    <div class="w-full h-px bg-white/5 my-3"></div>
+
+                    <!-- Role Section -->
+                    <div class="mb-4">
+                        <h3 class="text-[11px] font-bold text-(--text)/50 uppercase tracking-wide mb-2">Rôles</h3>
+                        <div class="flex flex-wrap gap-1.5">
+                            <span 
+                                class="flex items-center gap-1.5 px-2 py-1 rounded bg-(--bg) border border-white/5 text-xs font-medium text-(--text)/90 shadow-sm"
+                            >
+                                <div class="w-2.5 h-2.5 rounded-full shadow-sm" :class="roleColorClass"></div>
+                                {{ translatedRole }}
+                            </span>
+                            <span v-if="u.id === user?.id" class="flex items-center gap-1.5 px-2 py-1 rounded bg-(--bg) border border-white/5 text-xs font-medium text-(--text)/90 shadow-sm">
+                                Vous
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="w-full h-px bg-white/5 my-3"></div>
+
+                    <!-- Membre depuis -->
+                    <div class="mb-4">
+                        <h3 class="text-[11px] font-bold text-(--text)/50 uppercase tracking-wide mb-2">Membre depuis</h3>
+                        <p class="text-sm text-(--text)/90 flex items-center gap-2">
+                            <i class="bi bi-calendar3 text-(--text)/50"></i>
+                            {{ formatDate(u.createdAt) }}
+                        </p>
+                    </div>
+
+                    <!-- E2EE Info -->
+                    <div v-if="u.publicKey">
+                        <h3 class="text-[11px] font-bold text-(--text)/50 uppercase tracking-wide mb-2">Sécurité</h3>
+                        <div class="flex items-center gap-2 text-green-400 text-xs bg-green-500/10 px-2.5 py-1.5 rounded-md w-fit border border-green-500/20 shadow-sm">
+                            <i class="bi bi-shield-check" />
+                            <span class="font-medium">Chiffrement E2EE disponible</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Action Button -->
+                <div v-if="u.id !== user?.id" class="mb-4">
+                    <button
+                        @click="sendMessage"
+                        class="w-full py-2.5 rounded-md text-sm font-semibold bg-(--primary) hover:bg-(--primary-dark) text-white transition-colors flex items-center justify-center gap-2 shadow-lg shadow-(--primary)/20"
+                    >
+                        <i class="bi bi-chat-left-text-fill"></i>
+                        Envoyer un message
+                    </button>
+                </div>
+            </div>
           </div>
 
         </Transition>
@@ -128,7 +125,7 @@
 
 import { computed } from 'vue';
 import type { User } from '@/types/types';
-import { user } from '@/assets/var';
+import { user, openedOrg } from '@/assets/var';
 import { profilePosition } from '@/composables/useProfile';
 
 const props = defineProps<{
@@ -136,8 +133,34 @@ const props = defineProps<{
   profileUser: User | null;
 }>();
 
-// Helper to safely access profileUser (guarded by v-if="isOpen && profileUser")
 const u = computed(() => props.profileUser!);
+
+const role = computed(() => {
+    if (!openedOrg.value?.members || !u.value?.id) return 'member';
+    const member = openedOrg.value.members.find(m => m.userId === u.value.id);
+    return member?.role || 'member';
+});
+
+const translatedRole = computed(() => {
+    if (role.value === 'owner' || role.value === 'ADMIN' || role.value === 'admin') return 'Administrateur';
+    return 'Membre';
+});
+
+const roleColorClass = computed(() => {
+    if (role.value === 'owner' || role.value === 'ADMIN' || role.value === 'admin') return 'bg-orange-500';
+    return 'bg-(--primary)';
+});
+
+const userStatus = computed(() => u.value?.data?.status || 'offline');
+
+const statusColorClass = computed(() => {
+    switch (userStatus.value) {
+        case 'online': return 'bg-green-500';
+        case 'idle': return 'bg-yellow-500';
+        case 'dnd': return 'bg-red-500';
+        default: return 'bg-gray-500';
+    }
+});
 
 const emit = defineEmits(['close', 'send-message']);
 
@@ -146,21 +169,11 @@ const sendMessage = () => {
   emit('close');
 };
 
-const getStatusText = (status: string) => {
-  const statusMap: Record<string, string> = {
-    online: 'En ligne',
-    idle: 'Inactif',
-    dnd: 'Ne pas déranger',
-    offline: 'Hors ligne',
-  };
-  return statusMap[status] || status;
-};
-
 const formatDate = (date: string | Date) => {
   const dateObj = date instanceof Date ? date : new Date(date);
   return dateObj.toLocaleDateString('fr-FR', {
     day: 'numeric',
-    month: 'long',
+    month: 'short',
     year: 'numeric',
   });
 };
@@ -199,6 +212,21 @@ const formatDate = (date: string | Date) => {
 .slide-fade-leave-to {
   opacity: 0;
   transform: translateY(-10px) scale(0.98);
+}
+
+/* Scrollbar minimale pour le panneau intérieur si jamais ça déborde sur petit écran */
+.overflow-y-auto::-webkit-scrollbar {
+    width: 6px;
+}
+.overflow-y-auto::-webkit-scrollbar-track {
+    background: transparent;
+}
+.overflow-y-auto::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+.overflow-y-auto:hover::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
 }
 
 </style>
