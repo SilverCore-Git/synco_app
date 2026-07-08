@@ -865,7 +865,7 @@ watch(() => messageWillBeResponded.value, () => {
 
 watch(() => props.thread?.id, (newId) => {
     if (newId) joinThread(newId as string);
-}, { immediate: true });
+});
 
 onMounted(async () => {
     const ws = await useWSocket();
