@@ -47,19 +47,16 @@
 import { ref, onMounted, onUnmounted, reactive, watchEffect } from 'vue';
 
 const props = defineProps<{
-  align?: 'left' | 'right' | 'mouse';
+  align?: 'left' | 'right' | 'mouse' | 'top';
   click?: 'right' | 'left';
   show?: boolean;
   contentInerTW?: string;
 }>();
 
-
 const triggerRef = ref<HTMLElement | null>(null);
 const dropdownContentRef = ref<HTMLElement | null>(null);
 const isOpen = ref<boolean>(false);
 const pos = reactive({ x: 0, y: 0 });
-
-
 
 const toggleDropdown = (e?: MouseEvent) => {
     isOpen.value = !isOpen.value
@@ -77,8 +74,17 @@ const getDropdownPosition = () => {
     const viewportHeight = window.innerHeight;
     const dropdownHeight = 200; // Approximate height
     
-    let top = triggerRect.bottom + window.scrollY + 8;
     let left = triggerRect.left + window.scrollX;
+    
+    if (props.align === 'top') {
+        return {
+            bottom: `${viewportHeight - triggerRect.top + 8}px`,
+            left: `${left}px`,
+            minWidth: `${triggerRect.width}px`
+        };
+    }
+    
+    let top = triggerRect.bottom + window.scrollY + 8;
     
     // Alignement à droite
     if (props.align === 'right') {

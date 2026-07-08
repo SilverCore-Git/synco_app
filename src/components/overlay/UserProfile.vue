@@ -142,7 +142,11 @@ const roleColorClass = computed(() => {
     return 'bg-(--primary)';
 });
 
-const userStatus = computed(() => u.value?.data?.status || 'offline');
+const userStatus = computed(() => {
+    if (!openedOrg.value?.members || !u.value?.id) return u.value?.data?.status || 'offline';
+    const member = openedOrg.value.members.find(m => m.userId === u.value.id);
+    return member?.user?.data?.status || u.value?.data?.status || 'offline';
+});
 
 const statusColorClass = computed(() => {
     switch (userStatus.value) {
