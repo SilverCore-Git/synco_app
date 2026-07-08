@@ -44,25 +44,48 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
 
     try {
 
-        const token = getToken();
-
-        if (!token) throw new Error("No token found");
+        // Wait for Keycloak token to be available (auth may still be in progress)
+        let token = getToken();
+        if (!token) {
+            console.log('[WS] Token not yet available, waiting for Keycloak authentication...');
+            token = await new Promise<string>((resolve, reject) => {
+                let elapsed = 0;
+                const interval = setInterval(() => {
+                    const t = getToken();
+                    if (t) {
+                        clearInterval(interval);
+                        resolve(t);
+                    }
+                    elapsed += 200;
+                    if (elapsed >= 10000) {
+                        clearInterval(interval);
+                        reject(new Error("No token found after 10s wait"));
+                    }
+                }, 200);
+            });
+        }
 
         const socketPath = import.meta.env?.VITE_SOCKET_PATH || '/socket';
         const isDev = import.meta.env.VITE_DEV === 'true';
         const useHttps = import.meta.env?.VITE_USE_HTTPS !== 'false';
         
-        // Use explicit socket URL based on HTTPS configuration
-        let socketUrl = import.meta.env?.VITE_SOCKET_URL || 'https://localhost:3467';
-        
-        // Ensure we use https/http for socket.io instead of wss/ws to allow polling fallback
-        if (useHttps) {
-            socketUrl = socketUrl.replace(/^wss?:\/\//i, 'https://');
+        // In development, route through Vite's proxy to avoid self-signed cert rejection
+        // In production, connect directly to the socket server
+        let socketUrl: string | undefined;
+        if (isDev) {
+            // Vite proxy at /socket forwards to https://localhost:3467/socket
+            socketUrl = window.location.origin;
+            console.log('[WS] Dev mode: routing through Vite proxy at', socketUrl);
         } else {
-            socketUrl = socketUrl.replace(/^wss?:\/\//i, 'http://');
+            socketUrl = import.meta.env?.VITE_SOCKET_URL || 'https://localhost:3467';
+            if (useHttps) {
+                socketUrl = socketUrl.replace(/^wss?:\/\//i, 'https://');
+            } else {
+                socketUrl = socketUrl.replace(/^wss?:\/\//i, 'http://');
+            }
         }
         
-        console.log('[WS] Connecting to:', socketUrl || 'current origin via proxy', 'with path:', socketPath);
+        console.log('[WS] Connecting to:', socketUrl, 'with path:', socketPath);
         
         socket.value = io(socketUrl || undefined, {
             path: socketPath,
@@ -124,7 +147,8 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
                 );
             }
             
-            isConnecting.value = false;
+            // Don't set isConnecting = false here — Socket.IO reconnection is active
+            // isConnecting will be set to false on 'connect' success or in the catch block
         });
 
         socket.value.on("disconnect", (reason) => {
@@ -167,6 +191,7 @@ const disconnectSocket = () => {
 
 const waitForSocketConnection = async (socketRef: Ref<Socket | null>, timeoutMs: number = 15000): Promise<boolean> => {
     if (socketRef.value?.connected) return true;
+    if (!socketRef.value) return false;
     
     console.log('[WS] Waiting for socket connection...');
     
@@ -175,29 +200,34 @@ const waitForSocketConnection = async (socketRef: Ref<Socket | null>, timeoutMs:
             console.error('[WS] Socket connection timeout after', timeoutMs, 'ms');
             console.error('[WS] Socket state:', {
                 connected: socketRef.value?.connected,
-                connecting: socketRef.value?.connecting,
                 disconnected: socketRef.value?.disconnected,
                 id: socketRef.value?.id
             });
+            cleanup();
             resolve(false);
         }, timeoutMs);
         
-        const onConnect = () => {
+        const cleanup = () => {
             clearTimeout(timeout);
+            socketRef.value?.off('connect', onConnect);
+            socketRef.value?.io?.off('reconnect_failed', onReconnectFailed);
+        };
+        
+        const onConnect = () => {
             console.log('[WS] Socket connected successfully');
-            socketRef.value?.off('connect_error', onError);
+            cleanup();
             resolve(true);
         };
         
-        const onError = (err: any) => {
-            clearTimeout(timeout);
-            console.error('[WS] Socket connection error while waiting:', err.message);
-            socketRef.value?.off('connect', onConnect);
+        const onReconnectFailed = () => {
+            console.error('[WS] All reconnection attempts exhausted');
+            cleanup();
             resolve(false);
         };
         
-        socketRef.value?.once('connect', onConnect);
-        socketRef.value?.once('connect_error', onError);
+        socketRef.value?.on('connect', onConnect);
+        // Only fail when ALL reconnection attempts are exhausted, not on first error
+        socketRef.value?.io?.on('reconnect_failed', onReconnectFailed);
     });
 };
 
