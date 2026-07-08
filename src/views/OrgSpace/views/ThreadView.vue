@@ -250,7 +250,7 @@
                     v-show="!(selectedFiles.length && !files.length)"
                     v-model="newMessage"
                     @send="sendMessage"
-                    :placeholder="currentThreadKey ? 'Envoyer un message...' : loading ? 'Génération de la clé...' : 'Erreur : Clé introuvable, rechargez la page'"
+                    :placeholder="currentThreadKey ? 'Envoyer un message...' : loading ? 'Génération de la clé...' : (debugMsg || 'Erreur : Clé introuvable, rechargez la page')"
                     :disabled="!currentThreadKey"
                     ref="TextareaRef"
                 />
@@ -380,6 +380,7 @@ const rawMessages = ref<Map<string, Message>>(new Map());
 const newMessage = ref<string>("");
 const messagesContainer = ref<HTMLElement | null>(null);
 const loading = ref<boolean>(true);
+const debugMsg = ref<string>('');
 const hasMore = ref<boolean>(true);
 const isFetchingMore = ref<boolean>(false);
 const sortedMessages = ref<Message[]>([]);
@@ -686,6 +687,7 @@ const initListener = () => {
 const joinThread = async (id: string) => {
 
     if (!socket.value) {
+        debugMsg.value = 'Erreur : Pas de connexion Socket active.';
         loading.value = false;
         return;
     }
@@ -697,6 +699,7 @@ const joinThread = async (id: string) => {
 
     if (!privateKey.value) 
     {
+        debugMsg.value = 'Erreur : Clé privée introuvable (verrouillé).';
         loading.value = false;
         toast.show('[E2EE] Votre clé privée est introuvable. Veuillez déverrouiller votre espace sécurisé (PIN).', 'error');
         return;
@@ -704,6 +707,7 @@ const joinThread = async (id: string) => {
 
     // Timeout pour éviter de rester bloqué
     const timeoutId = setTimeout(() => {
+        debugMsg.value = 'Erreur : Timeout API (10s) de get-thread-access.';
         loading.value = false;
         toast.show('[E2EE] Timeout lors de la récupération de la clé du salon.', 'error');
     }, 10000);
@@ -715,6 +719,7 @@ const joinThread = async (id: string) => {
         {
             // Special case: user needs to be re-added to thread (after E2EE reset)
             if (response.error && response.needsReadd) {
+                debugMsg.value = 'Erreur : Accès réinitialisé. ' + response.error;
                 loading.value = false;
                 router.push({ 
                     name: 'OrgHome', 
@@ -725,6 +730,7 @@ const joinThread = async (id: string) => {
                 return;
             }
             
+            debugMsg.value = 'Erreur serveur : ' + (response.error || 'Clé non retournée');
             loading.value = false;
             console.error('[E2EE] erreur serveur : ', response)
             toast.show(response.error || '[E2EE] Accès refusé ou impossible de récupérer la clé du salon.', 'error');
@@ -750,6 +756,7 @@ const joinThread = async (id: string) => {
             TextareaRef.value?.textarea?.focus();
 
         } catch (cryptoErr) {
+            debugMsg.value = 'Erreur : Déchiffrement RSA échoué.';
             console.error("[E2EE] Échec Déchiffrement Salon:", cryptoErr);
             toast.show('[E2EE] Échec du déchiffrement de la clé de session du salon.', 'error');
         } finally {
@@ -872,6 +879,7 @@ onMounted(async () => {
     {
         const connected = await waitForSocketConnection(socket, 15000);
         if (!connected) {
+            debugMsg.value = 'Erreur : Timeout connexion WebSocket (15s). Proxy Vite inopérant ?';
             loading.value = false;
             toast.show('[E2EE] Impossible de se connecter au serveur. Vérifiez votre connexion et rechargez la page.', 'error');
             return;
