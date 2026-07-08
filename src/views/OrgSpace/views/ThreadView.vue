@@ -280,7 +280,7 @@
 
                 <div
                     v-if="showEmojiPicker && thread"
-                    class="absolute bottom-full left-0 mb-2 z-50 emoji-picker-container"
+                    class="absolute bottom-full right-0 mb-2 z-50 emoji-picker-container"
                     @click.stop
                 >
                     <EmojiPicker @select="insertEmoji" />

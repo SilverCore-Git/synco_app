@@ -125,6 +125,7 @@
                                 @reaction-updated="(newReactions: any) => msg.reactions = newReactions"
                                 @add-reaction="(payload) => handleAddReaction(payload)"
                                 @reaction-picker-closed="showReactionPicker = false"
+                                :alignRight="msg.senderId === user?.id"
                             />
 
                             <div 

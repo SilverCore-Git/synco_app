@@ -17,6 +17,7 @@ const props = defineProps<{
   reactions?: Record<string, { count: number; users: ReactionUser[] }>;
   isDm?: boolean;
   showReactionPicker: boolean;
+  alignRight?: boolean;
 }>();
 
 const emit = defineEmits(['reaction-updated', 'add-reaction', 'reaction-picker-closed']);
@@ -130,7 +131,7 @@ const toggleReaction = async (emoji: string) => {
 
     <!-- Emoji picker dropdown -->
      <Transition name="fade" mode="out-in">
-      <div v-if="internalShowReactionPicker" class="absolute z-100 mt-2">
+      <div v-if="internalShowReactionPicker" class="absolute z-100 bottom-full mb-2" :class="alignRight ? 'right-0' : 'left-0'">
         <EmojiPicker @select="toggleReaction" />
       </div>
     </Transition>

@@ -127,6 +127,7 @@
                                 @add-reaction="handleAddReaction"
                                 @reaction-picker-closed="showReactionPicker = false"
                                 :showReactionPicker="showReactionPicker"
+                                :alignRight="msg.senderId === user?.id"
                             />
 
                             <div 
