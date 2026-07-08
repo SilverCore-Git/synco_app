@@ -101,10 +101,9 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
         
         socket.value = io(socketUrl || undefined, {
             path: socketPath,
-            auth: () => {
+            auth: (cb) => {
                 const t = getToken();
-                console.warn('[WS] Auth callback → token length:', t?.length, 'first 20 chars:', t?.substring(0, 20));
-                return { token: t };
+                cb({ token: t });
             },
             reconnection: true,
             reconnectionAttempts: 5,
