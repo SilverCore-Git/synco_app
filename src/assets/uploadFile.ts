@@ -15,6 +15,12 @@ export default async function uploadFile(
 ): Promise<any> 
 {
 
+    try {
+        await keycloak.updateToken(60);
+    } catch (e) {
+        console.warn("Failed to refresh token before upload", e);
+    }
+
     return new Promise((resolve, reject) => {
 
         const formData = new FormData();

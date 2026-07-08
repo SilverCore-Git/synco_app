@@ -2,6 +2,12 @@ import keycloak from "../keycloak";
 
 export default async function sfetch(url: string, arg?: any) {
     
+    try {
+        await keycloak.updateToken(30);
+    } catch (e) {
+        console.warn("Failed to refresh token in sfetch", e);
+    }
+
     const headers: Record<string, string> = { ...arg?.headers };
 
     if (keycloak.token) 
