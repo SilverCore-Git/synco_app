@@ -6,15 +6,19 @@
 
       <div
         v-if="isOpen"
-        class="fixed inset-0 z-200 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
+        class="fixed inset-0 z-200 flex"
+        :class="!profilePosition ? 'items-center justify-center p-4 bg-black/70 backdrop-blur-md' : ''"
         @click.self="emit('close')"
+        @contextmenu.prevent.self="emit('close')"
       >
 
-        <Transition name="pop" appear>
+        <Transition :name="profilePosition ? 'slide-fade' : 'pop'" appear>
 
           <div
             v-if="isOpen && profileUser"
-            class="w-full max-w-sm bg-(--bg) border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+            class="bg-(--bg) border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            :class="profilePosition ? 'absolute w-[320px] max-h-[calc(100vh-40px)]' : 'w-full max-w-sm relative'"
+            :style="profilePosition ? { top: `${profilePosition.top}px`, left: `${profilePosition.left}px` } : {}"
             @click.stop
           >
 
@@ -125,6 +129,7 @@
 import { computed } from 'vue';
 import type { User } from '@/types/types';
 import { user } from '@/assets/var';
+import { profilePosition } from '@/composables/useProfile';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -183,6 +188,17 @@ const formatDate = (date: string | Date) => {
 .pop-leave-to {
   opacity: 0;
   transform: scale(0.9) translateY(-20px);
+}
+
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.98);
 }
 
 </style>

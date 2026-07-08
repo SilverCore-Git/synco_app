@@ -92,7 +92,7 @@
                             :src="msg.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=128a60&color=fff`"
                             :alt="msg.sender?.name"
                             @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=128a60&color=fff`"
-                            @click.stop="msg.sender && openProfile(msg.sender)"
+                            @click.stop="(e) => msg.sender && openProfile(msg.sender, e)"
                             class="rounded-full w-9 h-9 object-cover shrink-0 cursor-pointer hover:ring-2 hover:ring-(--primary)/50 transition-all"
                         />
 
@@ -102,7 +102,7 @@
 
                                 <span 
                                     class="text-(--primary) font-bold text-xs tracking-tighter truncate cursor-pointer hover:underline"
-                                    @click.stop="msg.sender && openProfile(msg.sender)"
+                                    @click.stop="(e) => msg.sender && openProfile(msg.sender, e)"
                                 >
                                     {{ msg.sender?.name || 'Anonyme' }}
                                 </span>
