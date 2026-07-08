@@ -97,15 +97,20 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
         } catch (proxyErr: any) {
             console.error('[WS] ❌ Proxy/backend unreachable:', proxyErr.message);
         }
+        console.warn('[WS] Keycloak state:', { authenticated: keycloak.authenticated, tokenLength: keycloak.token?.length, subject: keycloak.subject });
         
         socket.value = io(socketUrl || undefined, {
             path: socketPath,
-            auth: () => ({ token: getToken() }),
+            auth: () => {
+                const t = getToken();
+                console.warn('[WS] Auth callback → token length:', t?.length, 'first 20 chars:', t?.substring(0, 20));
+                return { token: t };
+            },
             reconnection: true,
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
-            transports: ['polling', 'websocket'],
+            transports: ['polling'], // Force polling only to bypass Vite proxy WebSocket drop issues
             withCredentials: false, // Not needed — we use token auth, not cookies
             timeout: 20000,
         });
