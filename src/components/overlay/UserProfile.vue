@@ -122,6 +122,7 @@
 
 <script setup lang="ts">
 
+import { computed } from 'vue';
 import type { User } from '@/types/types';
 import { user } from '@/assets/var';
 
@@ -131,12 +132,12 @@ const props = defineProps<{
 }>();
 
 // Helper to safely access profileUser (guarded by v-if="isOpen && profileUser")
-const u = props.profileUser!;
+const u = computed(() => props.profileUser!);
 
 const emit = defineEmits(['close', 'send-message']);
 
 const sendMessage = () => {
-  emit('send-message', u);
+  emit('send-message', u.value);
   emit('close');
 };
 
