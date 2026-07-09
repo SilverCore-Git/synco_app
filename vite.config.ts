@@ -35,7 +35,6 @@ export default defineConfig({
     }
   },
   server: {
-    https: useHttps,
     host: true,
     proxy: {
       '/socket': {

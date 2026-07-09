@@ -1,18 +1,16 @@
 import { ref, onMounted, onUnmounted } from 'vue';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+import { getToken, onMessage } from 'firebase/messaging';
 import { initializeFirebase, isFirebaseConfigured, getVapidKey, getFirebaseMessaging } from '../config/firebase';
-import { useUserStore } from '../stores/user';
+import { user } from '../assets/var';
 import { useNotification } from './useNotification';
 import sfetch from '../assets/utils/sfetch';
-import type { AppNotification } from './useNotification';
 
 /**
  * Composable pour gérer Firebase Cloud Messaging (FCM) pour le web
  * Permet de recevoir des notifications push même quand l'onglet est fermé
  */
 export function useFCM() {
-  const userStore = useUserStore();
-  const { sendNotification, markAsRead } = useNotification();
+  const { sendNotification } = useNotification();
   
   // State
   const fcmToken = ref<string | null>(null);
@@ -77,7 +75,7 @@ export function useFCM() {
       fcmToken.value = token;
       
       // Enregistrer le token sur le serveur backend
-      if (userStore.user?.id) {
+      if (user.value?.id) {
         await registerTokenOnServer(token);
       }
 
@@ -101,7 +99,7 @@ export function useFCM() {
    */
   const registerTokenOnServer = async (token: string): Promise<boolean> => {
     try {
-      if (!userStore.user?.id) {
+      if (!user.value?.id) {
         console.warn('[FCM] No user ID, cannot register token on server');
         return false;
       }
@@ -201,7 +199,7 @@ export function useFCM() {
 
       const notification = {
         id: payload.data?.id || crypto.randomUUID(),
-        userId: userStore.user?.id || '',
+        userId: user.value?.id || '',
         type: payload.data?.type as any || 'CUSTOM',
         title: payload.notification?.title || payload.data?.title || 'Nouvelle notification',
         body: payload.notification?.body || payload.data?.body || 'Vous avez une nouvelle notification',
@@ -240,7 +238,7 @@ export function useFCM() {
         fcmToken.value = currentToken;
         
         // Mettre à jour le token sur le serveur
-        if (userStore.user?.id) {
+        if (user.value?.id) {
           await registerTokenOnServer(currentToken);
         }
         

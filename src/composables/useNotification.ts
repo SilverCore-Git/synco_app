@@ -1,6 +1,6 @@
 import { ref, computed, type Ref } from 'vue';
-import { useWSocket } from './useWSocket';
-import { useUserStore } from '../stores/user';
+import useWSocket from './useWSocket';
+import { user } from '../assets/var';
 import { useToast } from './useToast';
 import { useRouter } from 'vue-router';
 import sfetch from '../assets/utils/sfetch';
@@ -74,8 +74,7 @@ export interface NotificationTokenInfo {
  * @returns Object avec state et méthodes pour les notifications
  */
 export function useNotification() {
-  const { socket } = useWSocket();
-  const userStore = useUserStore();
+  let socket: Ref<any> | null = null;
   const toast = useToast();
   const router = useRouter();
 
@@ -111,6 +110,9 @@ export function useNotification() {
     if (isInitialized.value) return;
 
     try {
+      // Get socket instance
+      socket = await useWSocket();
+
       // Charger les notifications existantes
       await loadNotifications();
       
@@ -163,7 +165,7 @@ export function useNotification() {
       }
     } catch (error) {
       console.error('[Notifications] Failed to load notifications:', error);
-      toast.error('Échec du chargement des notifications');
+      toast.show('Échec du chargement des notifications', 'error');
     }
   };
 
@@ -205,7 +207,7 @@ export function useNotification() {
     payload: Omit<CreateNotificationPayload, 'userId'> & { userId?: string }
   ): Promise<SendNotificationResult> => {
     // Si un userId est fourni, l'utiliser, sinon utiliser le userId du store
-    const targetUserId = payload.userId || userStore.user?.id;
+    const targetUserId = payload.userId || user.value?.id;
     
     if (!targetUserId) {
       return {
@@ -214,7 +216,7 @@ export function useNotification() {
       };
     }
 
-    if (!socket.value) {
+    if (!socket?.value) {
       return {
         success: false,
         error: 'WebSocket not connected'
@@ -222,7 +224,7 @@ export function useNotification() {
     }
 
     return new Promise((resolve) => {
-      socket.value?.emit(
+      socket?.value?.emit(
         'notification:send',
         {
           userId: targetUserId,
@@ -256,10 +258,10 @@ export function useNotification() {
       });
 
       // Notifier via WebSocket pour synchroniser les autres onglets
-      socket.value?.emit('notification:mark-read', { notificationId });
+      socket?.value?.emit('notification:mark-read', { notificationId });
     } catch (error) {
       console.error('[Notifications] Failed to mark as read:', error);
-      toast.error('Échec de la mise à jour');
+      toast.show('Échec de la mise à jour', 'error');
       
       // Revertir si l'API échoue
       const notification = notifications.value.find(n => n.id === notificationId);
@@ -285,10 +287,10 @@ export function useNotification() {
       });
 
       // Notifier via WebSocket
-      socket.value?.emit('notification:mark-all-read');
+      socket?.value?.emit('notification:mark-all-read');
     } catch (error) {
       console.error('[Notifications] Failed to mark all as read:', error);
-      toast.error('Échec de la mise à jour');
+      toast.show('Échec de la mise à jour', 'error');
       
       // Recharger les notifications pour revertir
       await loadNotifications();
@@ -308,7 +310,7 @@ export function useNotification() {
       notifications.value = notifications.value.filter(n => n.id !== notificationId);
     } catch (error) {
       console.error('[Notifications] Failed to delete notification:', error);
-      toast.error('Échec de la suppression');
+      toast.show('Échec de la suppression', 'error');
     }
   };
 
@@ -318,7 +320,7 @@ export function useNotification() {
    * Configurer les listeners WebSocket
    */
   const setupWebSocketListeners = (): void => {
-    if (!socket.value) return;
+    if (!socket?.value) return;
 
     // Nouvelle notification push reçue
     socket.value.on('notification:push', (notification: AppNotification) => {
@@ -352,22 +354,7 @@ export function useNotification() {
    * Afficher une notification toast
    */
   const showToastNotification = (notification: AppNotification): void => {
-    toast.show({
-      title: notification.title,
-      message: notification.body,
-      type: getToastType(notification.type),
-      duration: 8000,
-      action: {
-        label: 'Voir',
-        onClick: () => {
-          handleNotificationClick(notification);
-        }
-      },
-      onClose: () => {
-        // Optionnel : marquer comme lue après affichage
-        // markAsRead(notification.id);
-      }
-    });
+    toast.show(notification.body, getToastType(notification.type), 8000);
   };
 
   /**

@@ -150,7 +150,7 @@ onMounted(async () => {
                     Icon de l'espace
                 </label>
 
-                <IconSelector @on-base64="(logo: string) => newOrgForm.logo = logo" />
+                <IconSelector :model-value="newOrgForm.logo" @on-base64="(logo: string) => newOrgForm.logo = logo" />
 
             </div>
 

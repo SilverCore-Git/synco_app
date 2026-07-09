@@ -489,9 +489,9 @@ const formatReactions = (reactions: any[]) => {
         if (!acc[reaction.emoji]) {
             acc[reaction.emoji] = { count: 0, users: [] };
         }
-        acc[reaction.emoji].count++;
+        acc[reaction.emoji]!.count++;
         if (reaction.user) {
-            acc[reaction.emoji].users.push({
+            acc[reaction.emoji]!.users.push({
                 id: reaction.user.id,
                 name: reaction.user.name,
                 avatarUrl: reaction.user.avatarUrl
@@ -508,8 +508,8 @@ const procesMessages = async (msgs: Message[]) => {
     const decryptSingleMessage = async (msg: Message | null | undefined): Promise<Message | null> => {
 
         if (!msg) return null;
-        
         if (!msg.content || msg.content.trim() === "") return msg;
+        if (msg.isWebhook) return msg;
 
         try {
 
@@ -629,7 +629,9 @@ const initListener = () => {
 
     socket.value.on("new-message", async (msg: Message) => {
         let clearContent = msg.content;
-        if (msg.content && msg.content.trim() !== "" && currentThreadKey.value) 
+        if (msg.isWebhook) {
+            clearContent = msg.content; // Skip decryption for webhooks
+        } else if (msg.content && msg.content.trim() !== "" && currentThreadKey.value) 
         {
             try {
                 const vectorInit = msg.iv && msg.iv.trim() !== "" ? msg.iv : msg.nonce;

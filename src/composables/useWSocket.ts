@@ -78,10 +78,12 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             console.log('[WS] Dev mode: routing through Vite proxy at', socketUrl);
         } else {
             socketUrl = import.meta.env?.VITE_SOCKET_URL || 'https://localhost:3467';
-            if (useHttps) {
-                socketUrl = socketUrl.replace(/^wss?:\/\//i, 'https://');
-            } else {
-                socketUrl = socketUrl.replace(/^wss?:\/\//i, 'http://');
+            if (socketUrl) {
+                if (useHttps) {
+                    socketUrl = socketUrl.replace(/^wss?:\/\//i, 'https://');
+                } else {
+                    socketUrl = socketUrl.replace(/^wss?:\/\//i, 'http://');
+                }
             }
         }
         

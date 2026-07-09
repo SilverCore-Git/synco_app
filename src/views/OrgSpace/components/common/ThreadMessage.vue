@@ -140,7 +140,7 @@
                             <!-- Message reactions -->
                             <MessageReactions
                                 :message-id="msg.id"
-                                :reactions="msg.reactions"
+                                :reactions="(msg.reactions as any)"
                                 :is-dm="false"
                                 @reaction-updated="(newReactions: any) => msg.reactions = newReactions"
                                 @add-reaction="handleAddReaction"
