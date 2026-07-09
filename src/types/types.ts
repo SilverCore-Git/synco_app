@@ -138,6 +138,12 @@ export interface Message {
     replies?: Message[];
     transferMessage?: Message | null;
     transferredIn?: Message[];
+    
+    isWebhook?: boolean;
+    webhookId?: string | null;
+    webhookName?: string | null;
+    webhookAvatar?: string | null;
+    embeds?: any[];
 }
 
 export interface DMMessageReaction {
