@@ -4,6 +4,7 @@ import {
     RoomEvent,  
     RemoteTrack,
     Track,
+    Participant,
     ExternalE2EEKeyProvider
 } from 'livekit-client';
 import { openedOrg } from '@/assets/var';
@@ -14,13 +15,14 @@ import type { OrgMember } from '@/types/types';
 
 const room = shallowRef<Room | null>(null);
 const isConnected = ref<boolean>(false);
-const allParticipants = ref<any[]>([]);
+const allParticipants = shallowRef<Participant[]>([]);
 const audioTracks = ref<Map<string, RemoteTrack>>(new Map());
 const videoTracks = ref<Map<string, RemoteTrack>>(new Map());
 
 const isMicEnabled = ref<boolean>(false);
 const isCameraEnabled = ref<boolean>(false);
 const isScreenShareEnabled = ref<boolean>(false);
+const isDeafened = ref<boolean>(false);
 const keyProvider = new ExternalE2EEKeyProvider();
 
 
@@ -38,7 +40,7 @@ async function getE2EEKey(threadId: string): Promise<string>
 function useLiveKit() 
 {
     
-    const getCleanParticipants = (r: Room) => {
+    const getWSData = (r: Room) => {
 
         const list = [r.localParticipant, ...Array.from(r.remoteParticipants.values())];
 
@@ -46,6 +48,8 @@ function useLiveKit()
             identity: p.identity,
             isSpeaking: p.isSpeaking,
             isMicrophoneEnabled: p.isMicrophoneEnabled,
+            isCameraEnabled: p.isCameraEnabled,
+            isScreenShareEnabled: p.isScreenShareEnabled,
             metadata: JSON.stringify(openedOrg.value?.members?.find((m: OrgMember) => m.userId === p.identity)?.user),
         }));
 
@@ -57,7 +61,7 @@ function useLiveKit()
         if (!socket) return;
 
         socket.emit('voc:update', { 
-            participants: customList || (room.value ? getCleanParticipants(room.value) : []), 
+            participants: customList || (room.value ? getWSData(room.value) : []), 
             threadId, 
             orgId: openedOrg.value?.id, 
             spaceId 
@@ -100,7 +104,7 @@ function useLiveKit()
         });
 
         const handleSync = () => {
-            allParticipants.value = getCleanParticipants(newRoom);
+            allParticipants.value = [newRoom.localParticipant, ...Array.from(newRoom.remoteParticipants.values())];
             broadcastUpdate(threadId, spaceId);
         };
 
@@ -173,6 +177,8 @@ function useLiveKit()
         isCameraEnabled,
         isMicEnabled,
         isScreenShareEnabled,
+        isDeafened,
+        getWSData,
         connectToRoom,
         leaveRoom,
         toggleCamera: async (en: boolean) => {
@@ -190,6 +196,14 @@ function useLiveKit()
             await room.value.localParticipant.setScreenShareEnabled(en);
             isScreenShareEnabled.value = en;
         },
+        toggleDeafen: (en: boolean) => {
+            isDeafened.value = en;
+            audioTracks.value.forEach(track => {
+                track.attachedElements.forEach(el => {
+                    el.muted = en;
+                });
+            });
+        }
     };
 
 }

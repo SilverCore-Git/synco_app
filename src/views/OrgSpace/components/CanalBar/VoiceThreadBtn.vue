@@ -57,14 +57,14 @@
 
                 <div class="relative">
                     <img 
-                        :src="safeParseMeta(p.metadata).avatarUrl" 
+                        :src="getMeta(p).avatarUrl || `https://ui-avatars.com/api/?name=${getMeta(p).name}`" 
                         class="w-5 h-5 rounded-full object-cover transition-transform"
                         :class="p.isSpeaking ? 'scale-110 ring-2 ring-(--primary)' : ''"
                     />
                 </div>
                 
                 <span class="text-xs truncate font-medium">
-                    {{ safeParseMeta(p.metadata).name || 'Anonyme' }}
+                    {{ getMeta(p).name || 'Anonyme' }}
                 </span>
 
                 <i v-if="!p.isMicrophoneEnabled" class="bi bi-mic-mute-fill text-[10px] ml-auto opacity-40" />
@@ -85,6 +85,7 @@ import useLiveKit from '@/composables/useLiveKit';
 import sfetch from '@/assets/utils/sfetch';
 import { useRoute, useRouter } from 'vue-router';
 import useWSocket from '@/composables/useWSocket';
+import { openedOrg } from '@/assets/var';
 
 
 const props = defineProps<{
@@ -96,7 +97,7 @@ const route = useRoute();
 const router = useRouter();
 
 
-const { room, isConnected, connectToRoom, allParticipants } = useLiveKit();
+const { room, isConnected, connectToRoom, allParticipants, getWSData } = useLiveKit();
 
 const socketParticipants = ref<any[]>([]);
 
@@ -115,12 +116,10 @@ const isAnyoneSpeaking = computed(() => {
 });
 
 
-const safeParseMeta = (metadata: string | undefined) => {
-    try {
-        return metadata ? JSON.parse(metadata) : { name: '', avatarUrl: '' };
-    } catch {
-        return { name: 'Anonyme', avatarUrl: '' };
-    }
+const getMeta = (p: any): any => {
+    if (!openedOrg.value?.members) return {};
+    const member = openedOrg.value.members.find(m => String(m.user?.id) === String(p.identity));
+    return member?.user || {};
 };
 
 const handleAction = async () => {
@@ -156,7 +155,7 @@ onMounted(async () => {
     if (!socket) return;
 
     socket.on('voc:update', ({ participants, threadId }) => {
-        if (threadId === props.thread.id && !isActiveInRoom.value) 
+        if (threadId === props.thread.id) 
         {
             socketParticipants.value = participants;
         }
@@ -164,10 +163,10 @@ onMounted(async () => {
 
     socket.on('voc:get-update', ({ threadId }) => {
 
-        if (threadId === props.thread.id && isActiveInRoom.value) 
+        if (threadId === props.thread.id && isActiveInRoom.value && room.value) 
         {
             socket.emit('voc:update', { 
-                participants: allParticipants.value, 
+                participants: getWSData(room.value), 
                 threadId: props.thread.id, 
                 orgId: route.params.orgId, 
                 spaceId: route.params.spaceId 

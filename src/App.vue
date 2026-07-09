@@ -213,7 +213,7 @@ onUnmounted(() => {
       <Transition name="page-lock" mode="out-in">
 
         <div
-          v-if="E2EEUnloked && !pinLoading"
+          v-if="E2EEUnloked && !pinLoading && user?.id"
           class="w-full h-full"
           key="app"
         >

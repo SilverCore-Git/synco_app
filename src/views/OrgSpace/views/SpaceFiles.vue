@@ -66,8 +66,30 @@
 
             </div>
 
-            <section class="flex flex-col gap-4">
+            <section class="flex flex-col gap-4 relative min-h-[50vh]">
                 
+                <div v-if="loading" class="w-full flex flex-col gap-8 animate-pulse">
+                    
+                    <div class="flex items-center gap-2 px-1">
+                        <div class="w-12 h-3 bg-(--text)/10 rounded-full"></div>
+                        <div class="w-3 h-3 bg-(--text)/10 rounded-full"></div>
+                        <div class="w-20 h-3 bg-(--text)/10 rounded-full"></div>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-3">
+                        <div v-for="i in 2" :key="'sf-'+i" class="w-full h-[72px] bg-(--text)/5 rounded-xl border border-white/5"></div>
+                    </div>
+
+                    <div class="mt-4">
+                        <div class="w-40 h-3 bg-(--text)/10 rounded-full mb-4 mx-1"></div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-4">
+                            <div v-for="i in 12" :key="'sk-'+i" class="w-full aspect-square bg-(--text)/5 rounded-2xl border border-white/5"></div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <template v-else>
                 <nav class="flex items-center justify-start px-1 text-sm overflow-x-auto no-scrollbar">
 
                     <button 
@@ -175,6 +197,8 @@
                         <p class="text-sm font-medium">Ce dossier est vide</p>
                     </div>
                 </div>
+
+                </template>
 
             </section>
 
