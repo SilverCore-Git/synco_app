@@ -39,7 +39,7 @@
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-3">
                             <div class="relative">
-                                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-(--primary)/20 to-(--primary)/40 flex items-center justify-center">
+                                <div class="w-10 h-10 rounded-xl bg-(--primary)/20 flex items-center justify-center">
                                     <i class="bi bi-link-45deg text-(--primary) text-lg" />
                                 </div>
                                 <div 

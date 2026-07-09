@@ -24,11 +24,21 @@
                 "
             >
                     
-                <VideoTrack 
-                    v-if="userFocused.isCameraEnabled || userFocused.isScreenShareEnabled"
-                    :participant="userFocused"
-                    class="w-full h-full object-cover"
-                />
+                <div v-if="userFocused.isCameraEnabled || userFocused.isScreenShareEnabled" class="w-full h-full flex flex-col xl:flex-row bg-black">
+                    <VideoTrack 
+                        v-if="userFocused.isScreenShareEnabled"
+                        :participant="userFocused"
+                        :source="Track.Source.ScreenShare"
+                        class="w-full h-full object-contain flex-1"
+                    />
+                    <VideoTrack 
+                        v-if="userFocused.isCameraEnabled"
+                        :participant="userFocused"
+                        :source="Track.Source.Camera"
+                        class="object-cover"
+                        :class="userFocused.isScreenShareEnabled ? 'absolute bottom-4 right-4 w-48 xl:w-64 aspect-video rounded-xl border border-white/20 shadow-2xl z-20' : 'w-full h-full flex-1'"
+                    />
+                </div>
 
                 <div v-else class="flex flex-col items-center gap-4">
 
@@ -82,11 +92,21 @@
                     "
                 >
                         
-                    <VideoTrack 
-                        v-if="p.isCameraEnabled || p.isScreenShareEnabled"
-                        :participant="p"
-                        class="w-full h-full object-cover"
-                    />
+                    <div v-if="p.isCameraEnabled || p.isScreenShareEnabled" class="w-full h-full flex flex-col bg-black">
+                        <VideoTrack 
+                            v-if="p.isScreenShareEnabled"
+                            :participant="p"
+                            :source="Track.Source.ScreenShare"
+                            class="w-full h-full object-contain flex-1"
+                        />
+                        <VideoTrack 
+                            v-if="p.isCameraEnabled"
+                            :participant="p"
+                            :source="Track.Source.Camera"
+                            class="object-cover"
+                            :class="p.isScreenShareEnabled ? 'absolute bottom-2 right-2 w-24 aspect-video rounded-lg border border-white/20 shadow-2xl z-20' : 'w-full h-full flex-1'"
+                        />
+                    </div>
 
                     <div v-else class="flex flex-col items-center gap-4">
 
@@ -151,11 +171,21 @@
                 "
             >
                     
-                <VideoTrack 
-                    v-if="p.isCameraEnabled || p.isScreenShareEnabled"
-                    :participant="p"
-                    class="w-full h-full object-cover"
-                />
+                <div v-if="p.isCameraEnabled || p.isScreenShareEnabled" class="w-full h-full flex flex-col bg-black">
+                    <VideoTrack 
+                        v-if="p.isScreenShareEnabled"
+                        :participant="p"
+                        :source="Track.Source.ScreenShare"
+                        class="w-full h-full object-contain flex-1"
+                    />
+                    <VideoTrack 
+                        v-if="p.isCameraEnabled"
+                        :participant="p"
+                        :source="Track.Source.Camera"
+                        class="object-cover"
+                        :class="p.isScreenShareEnabled ? 'absolute bottom-3 right-3 w-32 aspect-video rounded-xl border border-white/20 shadow-2xl z-20' : 'w-full h-full flex-1'"
+                    />
+                </div>
 
                 <div v-else class="flex flex-col items-center gap-4">
 
@@ -224,6 +254,8 @@ import useLiveKit from '@/composables/useLiveKit';
 import VideoTrack from '../components/common/VideoTrack.vue';
 import type { Thread } from '@/types/types';
 import { ref } from 'vue';
+import { openedOrg } from '@/assets/var';
+import { Track } from 'livekit-client';
 
 const { allParticipants, isConnected } = useLiveKit();
 
@@ -234,8 +266,10 @@ defineProps<{
 
 const userFocused = ref<any>(null);
 
-const getMeta = (p: any) => {
-    try { return JSON.parse(p.metadata || '{}'); } catch { return {}; }
+const getMeta = (p: any): any => {
+    if (!openedOrg.value?.members) return {};
+    const member = openedOrg.value.members.find(m => String(m.user?.id) === String(p.identity));
+    return member?.user || {};
 };
 
 </script>
