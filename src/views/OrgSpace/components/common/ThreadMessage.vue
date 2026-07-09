@@ -73,6 +73,7 @@
                         >
 
                             <button 
+                                v-if="msg.senderId == user?.id || member?.role === 'ADMIN' || member?.role === 'admin'"
                                 @click="openDeleteConfirm" 
                                 class="dropdown-item-annimate dropdown-item-style  text-red-400! hover:bg-red-500/10!"
                             >
@@ -88,7 +89,14 @@
                     <div class="z-20 flex justify-start items-start gap-3">
 
                         <img 
-                            v-if="msg.sender"
+                            v-if="msg.isWebhook"
+                            :src="msg.webhookAvatar || `https://ui-avatars.com/api/?name=${msg.webhookName || 'Webhook'}&background=7c3aed&color=fff`"
+                            :alt="msg.webhookName || 'Webhook'"
+                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${msg.webhookName || 'Webhook'}&background=7c3aed&color=fff`"
+                            class="rounded-full w-9 h-9 object-cover shrink-0 cursor-default"
+                        />
+                        <img 
+                            v-else-if="msg.sender"
                             :src="msg.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=128a60&color=fff`"
                             :alt="msg.sender?.name"
                             @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=128a60&color=fff`"
@@ -101,7 +109,17 @@
                             <div class="flex items-baseline gap-2">
 
                                 <span 
-                                    class="text-(--primary) font-bold text-xs tracking-tighter truncate cursor-pointer hover:underline"
+                                    v-if="msg.isWebhook"
+                                    class="text-(--text) font-bold text-xs tracking-tighter truncate"
+                                >
+                                    {{ msg.webhookName || 'Webhook' }}
+                                    <span class="ml-1 bg-(--primary) text-white text-[9px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider inline-flex items-center">
+                                        <i class="bi bi-robot mr-1 text-[8px]"></i> BOT
+                                    </span>
+                                </span>
+                                <span 
+                                    v-else
+                                    class="text-(--text) font-bold text-xs tracking-tighter truncate cursor-pointer hover:underline"
                                     @click.stop="(e) => msg.sender && openProfile(msg.sender, e)"
                                 >
                                     {{ msg.sender?.name || 'Anonyme' }}
@@ -210,7 +228,7 @@ import { downloadFile } from '@/assets/utils/downloadFile';
 import { encryptMessageWithContentKey } from '@/assets/utils/crypto';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import { useRoute, useRouter } from 'vue-router';
-import { user } from '@/assets/var';
+import { user, member } from '@/assets/var';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useToast } from '@/composables/useToast';
 import { openProfile } from '@/composables/useProfile';

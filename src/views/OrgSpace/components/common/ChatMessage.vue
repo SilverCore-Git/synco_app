@@ -73,6 +73,7 @@
                         >
 
                             <button 
+                                v-if="msg.senderId == user?.id"
                                 @click="openDeleteConfirm" 
                                 class="dropdown-item-annimate dropdown-item-style  text-red-400! hover:bg-red-500/10!"
                             >
