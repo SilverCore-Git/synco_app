@@ -53,12 +53,9 @@ export interface Org {
     memberCount: number;
     onlineCount: number;
   };
-  config: {
-    maxNotesPerSpace: number;
-    maxFileStoragePerSpace: number;
-    maxUsersPerSpace: number;
-    maxTotalUsers: number;
-  };
+  maxUsers: number;
+  maxStorage: number | string | bigint;
+  features: string[];
   home: {
     categories: Category[];
     threads: Thread[];
@@ -67,7 +64,6 @@ export interface Org {
   spaces?: WorkSpace[];
   files?: StoredFile[];
   createdAt: string | Date;
-  maxTotalUsers: number;
 }
 
 export interface WorkSpace {
