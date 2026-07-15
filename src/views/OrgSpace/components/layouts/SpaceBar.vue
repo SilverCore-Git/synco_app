@@ -65,7 +65,6 @@ const route = useRoute();
                 <SpaceBarBTN
                     icon="bi-list-check"
                     label="Mes Tâches"
-                    iconFillOnActive
                     :active="route.name === 'TasksGlobal'"
                 />
             </RouterLink>
