@@ -20,7 +20,7 @@
                     <div class="w-full md:w-64">
                         <CapacityGauge 
                             :used="openedOrg?.members?.length || 0"
-                            :max="openedOrg?.maxTotalUsers || 100"
+                            :max="openedOrg?.maxUsers || 100"
                             unit="Membres"
                             icon="bi-person-badge"
                             title="Capacité du serveur"

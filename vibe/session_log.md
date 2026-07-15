@@ -450,3 +450,35 @@ git commit -m "fix(auth): directly compare localStorage userId with ownerId to e
 2. Continuer l'intégration de nouvelles fonctionnalités en suivant les nouvelles règles `RULES.md`.
 
 ---
+
+## 📅 **15 Juillet 2026 - Correction du loader dans les Threads**
+
+**Durée** : 15 min  
+**Priorité** : ⭐⭐⭐ (Moyenne)  
+**Complexité** : Basse  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Corriger un bug visuel où le skeleton loader disparaissait prématurément lors du chargement de salons contenant beaucoup de messages.
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/views/OrgSpace/views/ThreadView.vue` | Suppression de la réinitialisation prématurée de `loading.value = false` dans le bloc `finally` de `joinThread`. |
+
+### **Fonctionnalités Implémentées**
+✅ **Correction UI** : Le skeleton loader reste visible pendant que les messages du thread sont récupérés via WebSockets et déchiffrés (E2EE), évitant d'afficher une page vide à l'utilisateur.
+
+### **Commit**
+
+```bash
+git commit -m "fix(ui): keep skeleton loader visible while decrypting thread history"
+```
+
+**Date** : 15 Juillet 2026  
+
+### **Prochaines Étapes**
+1. Vérifier si d'autres vues présentent des comportements similaires de chargement prématuré (bien que `ChatView` soit déjà correct).
+
+---
