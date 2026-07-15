@@ -56,6 +56,7 @@ export interface Org {
   maxUsers: number;
   maxStorage: number | string | bigint;
   features: string[];
+  activeModules?: Record<string, any>;
   home: {
     categories: Category[];
     threads: Thread[];
@@ -204,4 +205,45 @@ export interface Folder {
   parent?: Folder | null;
   subFolders?: Folder[];
   files?: StoredFile[];
+}
+
+export interface TodoList {
+  id: string;
+  title: string;
+  description?: string | null;
+  creatorId: string;
+  creator?: User;
+  assigneeId?: string | null;
+  assignee?: User | null;
+  spaceId?: string | null;
+  space?: WorkSpace | null;
+  organizationId: string;
+  organization?: Org;
+  tasks?: Task[];
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  description?: string | null;
+  status: 'TODO' | 'IN_PROGRESS' | 'DONE';
+  dueDate?: string | Date | null;
+  assignees?: User[];
+  creatorId: string;
+  creator?: User;
+  todoListId?: string | null;
+  todoList?: TodoList | null;
+  spaceId?: string | null;
+  space?: WorkSpace | null;
+  organizationId: string;
+  organization?: Org;
+  
+  parentTaskId?: string | null;
+  parentTask?: Task | null;
+  subtasks?: Task[];
+  
+  createdAt: string | Date;
+  updatedAt: string | Date;
 }

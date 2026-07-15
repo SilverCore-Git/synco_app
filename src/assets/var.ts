@@ -12,5 +12,9 @@ const member = computed(() => {
     return openedOrg.value?.members?.find(m => m.userId == user.value?.id);
 });
 
+const todoEnabled = computed(() => {
+    return openedOrg.value?.activeModules?.todo === true;
+});
 
-export { organizations, openedOrg, isLoaded, user, member, isLittleScreen, kcToken };
+
+export { organizations, openedOrg, isLoaded, user, member, isLittleScreen, kcToken, todoEnabled };

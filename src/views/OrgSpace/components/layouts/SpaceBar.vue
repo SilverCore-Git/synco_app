@@ -3,7 +3,7 @@
 import SpaceBarBTN from '../common/SpaceBarBTN.vue';
 import { useRoute, useRouter } from 'vue-router';
 import CreateNewSpace from '../popup/CreateNewSpace.vue';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, todoEnabled } from '@/assets/var';
 import isAdmin from '@/assets/isAdmin';
 
 const router = useRouter();
@@ -58,6 +58,15 @@ const route = useRoute();
                     label="Messages privées"
                     iconFillOnActive
                     :active="route.name === 'OrgChat' || route.name === 'OrgThreadChat'"
+                />
+            </RouterLink>
+
+            <RouterLink v-if="todoEnabled" :to="`/${openedOrg.id}/tasks`">
+                <SpaceBarBTN
+                    icon="bi-list-check"
+                    label="Mes Tâches"
+                    iconFillOnActive
+                    :active="route.name === 'TasksGlobal'"
                 />
             </RouterLink>
             

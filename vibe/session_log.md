@@ -482,3 +482,43 @@ git commit -m "fix(ui): keep skeleton loader visible while decrypting thread his
 1. Vérifier si d'autres vues présentent des comportements similaires de chargement prématuré (bien que `ChatView` soit déjà correct).
 
 ---
+
+## 📅 **15 Juillet 2026 - Implémentation du Module Todo List**
+
+**Durée** : Session complète
+**Priorité** : ⭐⭐⭐⭐ (Haute)
+**Complexité** : Élevée
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Implémenter le module de "Todo List et Suivi de Projet" de manière modulaire (Backend + Frontend).
+
+### **Fichiers Créés**
+- `synco_api/src/routes/tasks.ts` : API CRUD pour les tâches.
+- `synco_api/src/middleware/todoModule.ts` : Middleware bloquant si le module n'est pas activé.
+- `synco_app/src/views/OrgSpace/views/TasksGlobal.vue` : Vue de tableau de bord personnel.
+- `synco_app/src/views/OrgSpace/views/TasksSpace.vue` : Vue des tâches d'un espace.
+
+### **Fichiers Modifiés**
+- `synco_api/prisma/schema.prisma` : Ajout du modèle `Task` (chiffré E2EE) et de `activeModules` sur `Organization`.
+- `synco_app/src/types/types.ts` : Définition des types pour les tâches.
+- `synco_app/src/assets/var.ts` : Ajout du store/computed `todoEnabled`.
+- `synco_app/src/router.ts` : Ajout des routes avec `defineAsyncComponent` / chargement dynamique.
+- `synco_app/src/views/OrgSpace/components/layouts/SpaceBar.vue` : Rendu conditionnel du bouton de Tâches Globales.
+- `synco_app/src/views/OrgSpace/components/layouts/ThreadsBar.vue` : Rendu conditionnel du bouton de Tâches de l'Espace.
+
+### **Fonctionnalités Implémentées**
+✅ **Base de Données** : Nouveau modèle chiffré au repos pour les tâches, relationnel avec User et Space.
+✅ **Modularité** : Le module est totalement débrayable (condition `todoEnabled` côté front, middleware `checkTodoEnabled` côté back).
+✅ **Vues Front** : Interface simple pour ajouter, assigner, cocher (done/todo), et supprimer des tâches.
+
+### **Commits**
+```bash
+git commit -m "feat(todo): implémentation du module de Todo List (Backend + Frontend)"
+```
+**Date** : 15 Juillet 2026
+
+### **Prochaines Étapes**
+1. Tester la fluidité en production.
+2. Ajouter le système de Kanban en vue contextuelle.
+---

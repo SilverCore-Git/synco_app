@@ -95,6 +95,29 @@
 
                 <hr class="border-white/5" />
 
+                <section class="space-y-6">
+                    <div class="flex flex-col gap-1">
+                        <h3 class="text-lg font-bold">Modules & Fonctionnalités</h3>
+                        <p class="text-sm text-(--text)/40">Activez ou désactivez des fonctionnalités spécifiques pour l'organisation.</p>
+                    </div>
+
+                    <div class="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl">
+                        <div class="flex items-center gap-3">
+                            <i class="bi bi-list-check text-2xl text-(--primary)"></i>
+                            <div>
+                                <h4 class="font-bold text-sm text-(--text)">Module Tâches (Todo List)</h4>
+                                <p class="text-xs text-(--text)/40">Activer la gestion des tâches globales et par projet.</p>
+                            </div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" v-model="orgData.todoEnabled" class="sr-only peer">
+                            <div class="w-11 h-6 bg-black/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
+                        </label>
+                    </div>
+                </section>
+
+                <hr class="border-white/5" />
+
                 <section class="p-6 rounded-3xl bg-red-500/5 border border-red-500/10 space-y-4">
 
                     <div class="flex items-center gap-3 text-red-500">
@@ -168,18 +191,22 @@ const showDeleteOrg = ref<boolean>(false);
     
 const orgData = ref({
     name: openedOrg.value?.name || '',
-    logo: openedOrg.value?.logo || ''
+    logo: openedOrg.value?.logo || '',
+    todoEnabled: openedOrg.value?.activeModules?.todo || false
 });
 
 const hasChanges = computed(() => {
     return (
         orgData.value.name !== openedOrg.value?.name
         || orgData.value.logo !== openedOrg.value?.logo
+        || orgData.value.todoEnabled !== (openedOrg.value?.activeModules?.todo || false)
     )
 });
 
 const resetChanges = () => {
     orgData.value.name = openedOrg.value?.name || '';
+    orgData.value.logo = openedOrg.value?.logo || '';
+    orgData.value.todoEnabled = openedOrg.value?.activeModules?.todo || false;
 };
 
 const saveSettings = async () => {
@@ -196,7 +223,11 @@ const saveSettings = async () => {
             method: 'PATCH',
             body: JSON.stringify({
                 name: orgData.value.name,
-                logo: orgData.value.logo
+                logo: orgData.value.logo,
+                activeModules: {
+                    ...(openedOrg.value?.activeModules || {}),
+                    todo: orgData.value.todoEnabled
+                }
             })
         }).then(res => res.json())
 
@@ -211,6 +242,10 @@ const saveSettings = async () => {
 
             openedOrg.value.name = orgData.value.name;
             openedOrg.value.logo = orgData.value.logo;
+            openedOrg.value.activeModules = {
+                ...(openedOrg.value.activeModules || {}),
+                todo: orgData.value.todoEnabled
+            };
 
             const curentOrg = organizations.value.find(org => org.id === openedOrg.value?.id);
 
@@ -218,6 +253,7 @@ const saveSettings = async () => {
             {
                 curentOrg.name = orgData.value.name;
                 curentOrg.logo = orgData.value.logo;
+                curentOrg.activeModules = openedOrg.value.activeModules;
             }
 
             socket.value?.emit('update-org-data', { 
@@ -272,6 +308,7 @@ watch(() => openedOrg.value, (newOrg) => {
     {
         orgData.value.name = newOrg.name;
         orgData.value.logo = newOrg.logo || '';
+        orgData.value.todoEnabled = newOrg.activeModules?.todo || false;
     }
 }, { deep: true });
 
