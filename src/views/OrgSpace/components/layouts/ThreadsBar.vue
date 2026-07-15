@@ -207,11 +207,19 @@
                         >
 
                             <SettingsViewBtn 
-                                v-if="!isHome"
+                                v-if="!isHome && filesEnabled"
                                 name="Fichiers"
                                 icon="bi-file-earmark"
                                 :active="route.name == 'SpaceFiles'"
                                 @click="router.push({ name: 'SpaceFiles', query: { showView: '1' } })"
+                            />
+
+                            <SettingsViewBtn 
+                                v-if="!isHome && todoEnabled"
+                                name="Tâches"
+                                icon="bi-check2-square"
+                                :active="route.name == 'TasksSpace'"
+                                @click="router.push({ name: 'TasksSpace', query: { showView: '1' } })"
                             />
 
                             <hr v-if="!isHome" class=" w-full h-0.5 bg-(--text)/50 border-none rounded-full my-1" />
@@ -248,7 +256,7 @@
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { Thread, WorkSpace } from '@/types/types';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, todoEnabled, filesEnabled } from '@/assets/var';
 import ThreadDropDown from '../dropdown/ThreadDropDown.vue';
 import ThreadBarDropDown from '../dropdown/ThreadBarDropDown.vue';
 import ChatUserBtn from '../CanalBar/ChatUserBtn.vue';

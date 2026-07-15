@@ -118,6 +118,18 @@ const routes = [
         name: 'SpaceFiles',
         component: SpaceFiles,
         props: true,
+      },
+      {
+        path: 'tasks',
+        name: 'TasksGlobal',
+        component: () => import('./views/OrgSpace/views/TasksGlobal.vue'),
+        props: true,
+      },
+      {
+        path: ':spaceId/tasks',
+        name: 'TasksSpace',
+        component: () => import('./views/OrgSpace/views/TasksSpace.vue'),
+        props: true,
       }
 
     ]

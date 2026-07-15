@@ -3,7 +3,7 @@
 import SpaceBarBTN from '../common/SpaceBarBTN.vue';
 import { useRoute, useRouter } from 'vue-router';
 import CreateNewSpace from '../popup/CreateNewSpace.vue';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, todoEnabled } from '@/assets/var';
 import isAdmin from '@/assets/isAdmin';
 
 const router = useRouter();
@@ -60,6 +60,14 @@ const route = useRoute();
                     :active="route.name === 'OrgChat' || route.name === 'OrgThreadChat'"
                 />
             </RouterLink>
+
+            <RouterLink v-if="todoEnabled" :to="`/${openedOrg.id}/tasks`">
+                <SpaceBarBTN
+                    icon="bi-list-check"
+                    label="Mes Tâches"
+                    :active="route.name === 'TasksGlobal'"
+                />
+            </RouterLink>
             
             <hr class=" w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
 
@@ -72,13 +80,7 @@ const route = useRoute();
                     :key="'space-' + space.id + '-btn'"
                     :icon="space.logo!"
                     :label="space.name"
-                    :active="
-                        (
-                            route.name === 'SpaceView' 
-                            || route.name === 'SpaceThreadView'
-                        )
-                        && route.path.includes(space.id)
-                    "
+                    :active="route.path.includes(space.id)"
                 />
             </RouterLink>
 

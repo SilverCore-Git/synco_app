@@ -12,5 +12,15 @@ const member = computed(() => {
     return openedOrg.value?.members?.find(m => m.userId == user.value?.id);
 });
 
+const todoEnabled = computed(() => {
+    if (!openedOrg.value) return false;
+    return openedOrg.value.activeModules?.todo || false;
+});
 
-export { organizations, openedOrg, isLoaded, user, member, isLittleScreen, kcToken };
+const filesEnabled = computed(() => {
+    if (!openedOrg.value) return false;
+    return openedOrg.value.activeModules?.files !== false; // defaults to true
+});
+
+
+export { organizations, openedOrg, isLoaded, user, member, isLittleScreen, kcToken, todoEnabled, filesEnabled };

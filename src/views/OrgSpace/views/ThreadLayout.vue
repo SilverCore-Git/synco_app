@@ -8,9 +8,7 @@
 
             <div v-if="thread && openedOrg" class="flex items-center gap-2">
 
-                <button v-if="isLittleScreen" @click="router.push({ query: { ...route.query, showView: '0' } })">
-                    <i class="bi bi-arrow-left text-2xl text-(--text)/80" />
-                </button>
+                <MobileBackBtn />
 
                 <i v-if="thread.type === 'text'" class="bi bi-hash text-2xl text-(--text)/40" />
                 <i v-else class="bi bi-volume-up-fill text-xl text-(--text)/40" />
@@ -59,6 +57,7 @@ import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import VoiceThreadView from './VoiceThreadView.vue';
 import ThreadView from './ThreadView.vue';
+import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import type { Thread, WorkSpace } from '@/types/types';
 import { isLittleScreen, openedOrg } from '@/assets/var';
 import SpinLoader from '@/components/SpinLoader.vue';
