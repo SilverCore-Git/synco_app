@@ -54,17 +54,17 @@
 <script lang="ts" setup>
 
 import { computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import VoiceThreadView from './VoiceThreadView.vue';
 import ThreadView from './ThreadView.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import type { Thread, WorkSpace } from '@/types/types';
-import { isLittleScreen, openedOrg } from '@/assets/var';
+import { openedOrg } from '@/assets/var';
 import SpinLoader from '@/components/SpinLoader.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
 
 const route = useRoute();
-const router = useRouter();
+
 const isVoice = computed<boolean>(() => route.query.type == 'vocal');
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
 

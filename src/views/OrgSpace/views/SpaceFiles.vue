@@ -321,7 +321,7 @@ import useSettingsItem from '@/composables/useSettingsItem';
 import { openedOrg } from '@/assets/var';
 import CreateNewFolder from '../components/popup/CreateNewFolder.vue';
 import { useToast } from '@/composables/useToast';
-import { getFileIcon, getFileInfo } from '@/assets/utils/getFileIcon';
+
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import { uploadFiles } from '@/assets/uploadFile';
 import FolderCard from '../components/SpaceFiles/FolderCard.vue';

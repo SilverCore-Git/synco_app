@@ -36,7 +36,7 @@
                 <button @click="filterUserId = null" class="px-4 py-2 rounded-xl font-bold text-xs transition-all" :class="!filterUserId ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10'">
                     Toutes les tâches
                 </button>
-                <button @click="filterUserId = user?.id" class="px-4 py-2 rounded-xl font-bold text-xs transition-all" :class="filterUserId === user?.id ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10'">
+                <button @click="filterUserId = user?.id || null" class="px-4 py-2 rounded-xl font-bold text-xs transition-all" :class="filterUserId === user?.id ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10'">
                     Mes tâches
                 </button>
                 <div class="w-px h-6 bg-white/10 mx-2"></div>
@@ -161,7 +161,7 @@ import { useRoute } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import { openedOrg, user } from '@/assets/var';
 import type { Task, OrgMember } from '@/types/types';
-import SpinLoader from '@/components/SpinLoader.vue';
+
 import { useToast } from '@/composables/useToast';
 import useSettingsItem from '@/composables/useSettingsItem';
 import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
