@@ -761,7 +761,6 @@ const joinThread = async (id: string) => {
             debugMsg.value = 'Erreur : Déchiffrement RSA échoué.';
             console.error("[E2EE] Échec Déchiffrement Salon:", cryptoErr);
             toast.show('[E2EE] Échec du déchiffrement de la clé de session du salon.', 'error');
-        } finally {
             loading.value = false;
         }
 
