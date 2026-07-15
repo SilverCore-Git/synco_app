@@ -8,9 +8,7 @@
 
             <div class="flex items-center gap-2">
 
-                <button v-if="isLittleScreen" @click="router.push({ query: { ...route.query, showView: '0' } })">
-                    <i class="bi bi-arrow-left text-2xl text-(--text)/80" />
-                </button>
+                <MobileBackBtn />
 
                 <i class="bi text-2xl text-(--text)/40" :class="setting?.icon" />
                 <h2 class="font-bold text-(--text) tracking-wide lowercase">
@@ -35,7 +33,7 @@ import { computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { settingsViews } from './settings';
 import isAdmin from '@/assets/isAdmin';
-import { isLittleScreen } from '@/assets/var';
+import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 
 const route = useRoute();
 const router = useRouter();

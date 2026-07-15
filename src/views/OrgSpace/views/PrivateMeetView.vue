@@ -8,6 +8,7 @@
         >
 
             <div class="flex items-center gap-3">
+                <MobileBackBtn />
 
                <div class="flex items-center gap-1.5 bg-green-500/10 px-3 py-2 rounded-2xl border border-green-500/20">
                     <i class="bi bi-shield-lock-fill text-[12px] text-green-500" />
@@ -131,6 +132,7 @@ import { openedOrg, user } from '@/assets/var';
 import type { OrgMember } from '@/types/types';
 import usePrivateMeet, { isMeeting } from '@/composables/usePrivatMeet';
 import SpinLoader from '@/components/SpinLoader.vue';
+import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import useWSocket from '@/composables/useWSocket';
 import waitFor from '@/assets/utils/waitfor';
 

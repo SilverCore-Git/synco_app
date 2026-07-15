@@ -9,9 +9,7 @@
 
             <div class="flex items-center gap-3">
 
-                <button v-if="isLittleScreen" @click="router.push({ query: { ...route.query, showView: '0' } })">
-                    <i class="bi bi-arrow-left text-2xl text-(--text)/80" />
-                </button>
+                <MobileBackBtn />
 
 
                 <img 
@@ -359,6 +357,7 @@ import { useToast } from '@/composables/useToast';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import DropDown from '@/components/DropDown.vue';
 import EmojiPicker from '@/components/common/EmojiPicker.vue';
+import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import waitFor from '@/assets/utils/waitfor';
 import useSecurePeer from '@/composables/useSecurePeer';
 

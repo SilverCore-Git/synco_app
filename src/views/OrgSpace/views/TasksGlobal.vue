@@ -1,11 +1,10 @@
 <template>
     <div class="flex flex-col h-full relative overflow-hidden w-full">
-        <header class="h-14 flex items-center px-4 border-b border-white/5 bg-(--bg2) backdrop-blur-md z-10 shrink-0">
-            <div class="flex items-center gap-2">
-                <i class="bi bi-kanban text-xl text-(--primary)" />
-                <h2 class="font-bold text-(--text) tracking-wide">
-                    Mes Tâches
-                </h2>
+        <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-white/5 bg-(--bg2) z-10 shrink-0">
+            <div class="flex items-center gap-3">
+                <MobileBackBtn />
+                <i class="bi bi-check2-square text-white"></i>
+                <h3 class="font-semibold text-white">Mes Tâches</h3>
             </div>
             
             <div class="ml-auto flex items-center gap-2">
@@ -16,7 +15,7 @@
                     </button>
                 </CreateTaskModal>
             </div>
-        </header>
+        </div>
 
         <main class="flex-1 overflow-y-auto p-6 w-full h-full space-y-8">
             <div v-if="loading" class="w-full flex flex-col gap-12 animate-pulse pb-10">
@@ -173,6 +172,7 @@ import type { Task, TodoList, WorkSpace } from '@/types/types';
 import SpinLoader from '@/components/SpinLoader.vue';
 import { useToast } from '@/composables/useToast';
 import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
+import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import { user } from '@/assets/var';
 import confetti from 'canvas-confetti';

@@ -80,13 +80,7 @@ const route = useRoute();
                     :key="'space-' + space.id + '-btn'"
                     :icon="space.logo!"
                     :label="space.name"
-                    :active="
-                        (
-                            route.name === 'SpaceView' 
-                            || route.name === 'SpaceThreadView'
-                        )
-                        && route.path.includes(space.id)
-                    "
+                    :active="route.path.includes(space.id)"
                 />
             </RouterLink>
 

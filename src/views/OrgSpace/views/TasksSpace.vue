@@ -2,6 +2,7 @@
     <div class="flex flex-col h-full relative overflow-hidden w-full ">
         <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-white/5 bg-(--bg2) z-10 shrink-0">
             <div class="flex items-center gap-3">
+                <MobileBackBtn />
                 <i class="bi bi-check2-square text-white"></i>
                 <h3 class="font-semibold text-white">Tâches</h3>
             </div>
@@ -164,6 +165,7 @@ import SpinLoader from '@/components/SpinLoader.vue';
 import { useToast } from '@/composables/useToast';
 import useSettingsItem from '@/composables/useSettingsItem';
 import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
+import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import confetti from 'canvas-confetti';
 

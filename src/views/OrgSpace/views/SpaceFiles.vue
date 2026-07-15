@@ -3,11 +3,12 @@
     <div class="flex flex-col h-full relative overflow-hidden w-full">
 
         <header
-            class="h-14 flex items-center px-4 border-b border-white/5 bg-(--bg2) backdrop-blur-md z-10"
+            class="h-14 flex items-center px-4 border-b border-white/5 bg-(--bg2) backdrop-blur-md z-10 w-full shrink-0"
         >
 
             <div class="flex items-center gap-2">
-                <i class="bi bi-file-earmark text-xl text-(--text)/40" />
+                <MobileBackBtn />
+                <i class="bi bi-folder-fill text-2xl text-(--text)/40" />
                 <h2 class="font-bold text-(--text) tracking-wide lowercase">
                     Fichiers
                 </h2>
@@ -320,6 +321,8 @@ import useSettingsItem from '@/composables/useSettingsItem';
 import { openedOrg } from '@/assets/var';
 import CreateNewFolder from '../components/popup/CreateNewFolder.vue';
 import { useToast } from '@/composables/useToast';
+import { getFileIcon, getFileInfo } from '@/assets/utils/getFileIcon';
+import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import { uploadFiles } from '@/assets/uploadFile';
 import FolderCard from '../components/SpaceFiles/FolderCard.vue';
 import FileCard from '../components/SpaceFiles/FileCard.vue';
