@@ -13,8 +13,14 @@ const member = computed(() => {
 });
 
 const todoEnabled = computed(() => {
-    return openedOrg.value?.activeModules?.todo === true;
+    if (!openedOrg.value) return false;
+    return openedOrg.value.activeModules?.todo || false;
+});
+
+const filesEnabled = computed(() => {
+    if (!openedOrg.value) return false;
+    return openedOrg.value.activeModules?.files !== false; // defaults to true
 });
 
 
-export { organizations, openedOrg, isLoaded, user, member, isLittleScreen, kcToken, todoEnabled };
+export { organizations, openedOrg, isLoaded, user, member, isLittleScreen, kcToken, todoEnabled, filesEnabled };

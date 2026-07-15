@@ -1,5 +1,5 @@
 <template>
-    <div class="flex flex-col h-full relative overflow-hidden w-full bg-(--bg)">
+    <div class="flex flex-col h-full relative overflow-hidden w-full ">
         <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-white/5 bg-(--bg2) z-10 shrink-0">
             <div class="flex items-center gap-3">
                 <i class="bi bi-check2-square text-white"></i>
@@ -16,9 +16,15 @@
                         <i class="bi bi-plus-lg"></i> Créer une tâche
                     </button>
                 </CreateTaskModal>
-                <button @click="showUsersBar = !showUsersBar" class="hover:text-white text-white/40 transition-colors" :class="showUsersBar ? 'text-white' : ''">
-                    <i class="bi bi-people-fill text-lg" />
-                </button>
+                <div class="ml-auto flex items-center gap-4 text-(--text)/40">
+                    <button 
+                        @click="showUsersBar = !showUsersBar"
+                        class="hover:text-(--text) transition-colors"
+                        :class="showUsersBar ? 'text-(--text)' : ''"
+                    >
+                        <i class="bi bi-people-fill" />
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -42,15 +48,26 @@
                 </button>
             </div>
 
-            <div v-if="loading" class="flex justify-center items-center py-20">
-                <SpinLoader />
+            <div v-if="loading" class="w-full flex flex-col gap-6 animate-pulse pb-10 h-full">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start h-full">
+                    <div v-for="i in 3" :key="'skel-col-'+i" class="bg-black/20 rounded-2xl p-4 flex flex-col gap-4 border border-white/5 min-h-[60vh]">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-xl bg-white/10"></div>
+                                <div class="w-24 h-4 bg-white/10 rounded-full"></div>
+                            </div>
+                            <div class="w-6 h-4 bg-white/10 rounded-full"></div>
+                        </div>
+                        <div v-for="j in 3" :key="'skel-card-'+j" class="bg-white/5 border border-white/5 p-4 rounded-xl h-28"></div>
+                    </div>
+                </div>
             </div>
             
             <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start h-full pb-10">
                 
                 <!-- Columns -->
                 <div v-for="col in columns" :key="col.id" 
-                     class="bg-black/20 border rounded-2xl p-4 min-h-[500px] flex flex-col transition-all"
+                     class="bg-(--bg2)/40 border rounded-2xl p-4 min-h-[500px] flex flex-col transition-all"
                      :class="draggedOverCol === col.id ? 'border-(--primary) bg-(--primary)/5 shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)]' : 'border-white/5'"
                      @dragover.prevent
                      @dragenter.prevent="draggedOverCol = col.id"

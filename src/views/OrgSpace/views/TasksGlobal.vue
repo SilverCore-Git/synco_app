@@ -19,8 +19,28 @@
         </header>
 
         <main class="flex-1 overflow-y-auto p-6 w-full h-full space-y-8">
-            <div v-if="loading" class="flex justify-center items-center py-20">
-                <SpinLoader />
+            <div v-if="loading" class="w-full flex flex-col gap-12 animate-pulse pb-10">
+                <div v-for="s in 2" :key="'skel-space-'+s" class="space-y-4">
+                    <div class="flex items-center justify-between border-b border-white/10 pb-2">
+                        <div class="flex items-center gap-3">
+                            <div class="w-6 h-6 bg-white/10 rounded-md"></div>
+                            <div class="w-32 h-5 bg-white/10 rounded-full"></div>
+                            <div class="w-16 h-4 bg-white/5 rounded-full ml-2"></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 items-start">
+                        <div v-for="i in 3" :key="'skel-col-'+i" class="bg-black/20 rounded-2xl p-4 flex flex-col gap-4 border border-white/5 min-h-[40vh]">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-6 h-6 rounded-lg bg-white/10"></div>
+                                    <div class="w-20 h-3 bg-white/10 rounded-full"></div>
+                                </div>
+                                <div class="w-5 h-3 bg-white/10 rounded-full"></div>
+                            </div>
+                            <div v-for="j in 2" :key="'skel-card-'+j" class="bg-white/5 border border-white/5 p-4 rounded-xl h-28"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <div v-else class="space-y-12 pb-10">
