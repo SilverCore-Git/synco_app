@@ -391,10 +391,11 @@ const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
 const lastMessageId = ref<string>('');
 const showEmojiPicker = ref<boolean>(false);
 
-const vectorWorker = new VectorWorker();
-vectorWorker.onmessage = async (e) => {
+import globalVectorWorker from '@/services/GlobalVectorWorker';
+
+const handleWorkerMessage = async (e: MessageEvent) => {
     const { status, id, vector, text, type, metadata } = e.data;
-    if (status === 'complete' && currentThreadKey.value) {
+    if (status === 'complete' && currentThreadKey.value && type === 'MESSAGE') {
         const workspaceId = (route.params.spaceId as string) || null;
         if (!workspaceId) return; // Only indexing workspace threads for now
 
@@ -420,6 +421,17 @@ vectorWorker.onmessage = async (e) => {
         );
     }
 };
+
+onMounted(async () => {
+    globalVectorWorker.addEventListener('message', handleWorkerMessage);
+    await initChat();
+});
+
+onUnmounted(() => {
+    globalVectorWorker.removeEventListener('message', handleWorkerMessage);
+    saveCurrentText();
+    stopListener();
+});
 
 
 // file / pj
@@ -692,7 +704,7 @@ const initListener = () => {
 
         // Generate vector for the newly received message if we have the content
         if (clearContent && !clearContent.startsWith("🔒") && !msg.isWebhook) {
-            vectorWorker.postMessage({
+            globalVectorWorker.postMessage({
                 id: msg.id,
                 text: clearContent,
                 type: 'MESSAGE',
@@ -840,7 +852,7 @@ const sendMessage = async () => {
 
         // Trigger vector generation in background
         if (confirmedMessage && confirmedMessage.id) {
-            vectorWorker.postMessage({
+            globalVectorWorker.postMessage({
                 id: confirmedMessage.id,
                 text: newMessage.value,
                 type: 'MESSAGE',
@@ -931,6 +943,7 @@ onMounted(async () => {
     initListener();
     window.addEventListener('paste', handlePaste);
     document.addEventListener('click', closeEmojiPickerOnOutsideClick);
+    globalVectorWorker.addEventListener('message', handleWorkerMessage);
 
     if (route.params.threadId) 
     {
@@ -953,6 +966,7 @@ onUnmounted(() => {
     }
     window.removeEventListener('paste', handlePaste);
     document.removeEventListener('click', closeEmojiPickerOnOutsideClick);
+    globalVectorWorker.removeEventListener('message', handleWorkerMessage);
 });
 
 </script>

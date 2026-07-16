@@ -32,6 +32,12 @@
                 <p v-if="downloadProgress > 0" class="text-xs mt-2 text-(--text)/30">Téléchargement du modèle IA: {{ downloadProgress }}%</p>
             </div>
             
+            <div v-else-if="error" class="flex flex-col items-center justify-center py-8 text-red-400">
+                <i class="bi bi-exclamation-triangle text-4xl mb-3" />
+                <p>Erreur lors de la recherche :</p>
+                <p class="text-xs mt-2 text-red-400/70 text-center max-w-xs">{{ error }}</p>
+            </div>
+
             <div v-else-if="results.length === 0" class="flex flex-col items-center justify-center py-8 text-(--text)/40">
                 <i class="bi bi-emoji-frown text-4xl mb-3" />
                 <p>Aucun résultat trouvé pour "{{ query }}"</p>
@@ -73,7 +79,7 @@
 import { ref, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
-import VectorWorker from '@/workers/vector.worker?worker';
+import globalVectorWorker from '@/services/GlobalVectorWorker';
 
 const props = defineProps<{ show: boolean }>();
 const emit = defineEmits(['close']);
@@ -84,18 +90,24 @@ const router = useRouter();
 const inputRef = ref<HTMLInputElement | null>(null);
 const query = ref('');
 const loading = ref(false);
+const error = ref<string | null>(null);
 const results = ref<any[]>([]);
 const downloadProgress = ref(0);
 
 let searchTimeout: any = null;
 
-const vectorWorker = new VectorWorker();
+globalVectorWorker.onerror = (err) => {
+    console.error("[SpaceSearchModal] Worker global error:", err);
+    error.value = "Erreur fatale du Worker: " + (err.message || "Impossible de charger le moteur IA.");
+    loading.value = false;
+};
 
-vectorWorker.onmessage = async (e) => {
+const handleWorkerMessage = async (e: MessageEvent) => {
     const { status, vector, type } = e.data;
     
     if (status === 'error') {
         console.error("[SpaceSearchModal] Worker error:", e.data.error);
+        error.value = e.data.error || "Erreur interne du Worker de vectorisation";
         loading.value = false;
         return;
     }
@@ -134,13 +146,15 @@ const handleInput = () => {
     if (!query.value.trim()) {
         results.value = [];
         loading.value = false;
+        error.value = null;
         return;
     }
 
     loading.value = true;
+    error.value = null;
     
     searchTimeout = setTimeout(() => {
-        vectorWorker.postMessage({
+        globalVectorWorker.postMessage({
             id: 'query_' + Date.now(),
             text: query.value,
             type: 'QUERY'
@@ -179,10 +193,21 @@ const goToResult = (res: any) => {
     }
 };
 
+import { onMounted, onUnmounted } from 'vue';
+
+onMounted(() => {
+    globalVectorWorker.addEventListener('message', handleWorkerMessage);
+});
+
+onUnmounted(() => {
+    globalVectorWorker.removeEventListener('message', handleWorkerMessage);
+});
+
 watch(() => props.show, async (isOpened) => {
     if (isOpened) {
         query.value = '';
         results.value = [];
+        error.value = null;
         await nextTick();
         inputRef.value?.focus();
     }
