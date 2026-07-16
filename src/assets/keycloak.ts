@@ -10,8 +10,6 @@ const keycloak = new Keycloak({
 let tokenRefreshInterval: ReturnType<typeof setInterval> | null = null;
 const tokenListeners: Array<() => void> = [];
 
-const isDev = import.meta.env.VITE_DEV === 'true';
-
 const setupTokenRefresh = () => {
   if (tokenRefreshInterval) {
     clearInterval(tokenRefreshInterval);
@@ -21,13 +19,12 @@ const setupTokenRefresh = () => {
     try {
       const refreshed = await keycloak.updateToken(30);
       if (refreshed) {
-        if (isDev) console.log('[Keycloak] Token rafraîchi avec succès');
+        console.log('[Keycloak] Token rafraîchi avec succès');
         kcToken.value = keycloak.token || '';
         notifyTokenRefreshed();
       }
     } catch (error) {
-      console.error('[Keycloak] Erreur lors du rafraîchissement du token, redirection login:', error);
-      keycloak.login();
+      console.error('[Keycloak] Erreur lors du rafraîchissement du token:', error);
     }
   }, 30000);
 };
@@ -52,26 +49,30 @@ const onTokenRefresh = (callback: () => void) => {
   };
 };
 
-const initKC = async (): Promise<boolean> => {
+const initKC = async () => {
 
   try {
 
     const authenticated = await keycloak.init({
-      onLoad: 'login-required',
+      onLoad: 'check-sso',
+      silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
+      pkceMethod: 'S256',
       checkLoginIframe: false,
     });
 
-    if (authenticated) {
-      await keycloak.loadUserInfo();
+    if (authenticated) 
+    {
+      
+      const userInfo: any = await keycloak.loadUserInfo();
+      window.localStorage.setItem('userId', userInfo.sub);
       kcToken.value = keycloak.token || '';
 
       setupTokenRefresh();
+
     }
-    return authenticated;
 
   } catch (error) {
     console.error("[Keycloak] Erreur d'initialisation Keycloak", error);
-    return false;
   }
 
 };

@@ -8,7 +8,7 @@ import type { User } from '@/types/types';
 import Notifications from './components/overlay/Notifications.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
 import useSettingsItem from './composables/useSettingsItem';
-import { initKC } from './assets/keycloak';
+import keycloak, { initKC } from './assets/keycloak';
 import { E2EEUnloked, lockSecurity, setupFirstTimeSecurity, unlockSecurity } from './assets/utils/crypto';
 import sfetch from './assets/utils/sfetch';
 import { useToast } from './composables/useToast';
@@ -162,7 +162,12 @@ onMounted(async () => {
 
   if (!res.ok) return alert('Api error');
 
-  authenticated.value = await initKC();
+  authenticated.value = await keycloak.init({
+      onLoad: "login-required",
+      checkLoginIframe: false
+  });
+
+  await initKC();
 
   if (authenticated.value) {
       await init.run();
@@ -208,7 +213,7 @@ onUnmounted(() => {
       <Transition name="page-lock" mode="out-in">
 
         <div
-          v-if="E2EEUnloked && !pinLoading && user?.id"
+          v-if="E2EEUnloked && !pinLoading"
           class="w-full h-full"
           key="app"
         >
