@@ -19,8 +19,8 @@ class LocalSearchVectorDB {
         this.db = await create({
             schema: {
                 id: 'string',
-                workspaceId: 'string',
-                type: 'string',
+                workspaceId: 'enum', // 'enum' empêche la tokenisation (match exact)
+                type: 'enum',
                 textContent: 'string',
                 vector: 'vector[384]', // MiniLM-L12-v2 produces 384-dimensional vectors
                 metadata: 'string'
@@ -33,7 +33,7 @@ class LocalSearchVectorDB {
     async insertDocument(doc: LocalVectorDocument) {
         if (!this.initialized || !this.db) await this.init();
         
-        await insert(this.db, {
+        await insert(this.db!, {
             id: doc.id,
             workspaceId: doc.workspaceId,
             type: doc.type,
@@ -41,6 +41,7 @@ class LocalSearchVectorDB {
             vector: doc.vector,
             metadata: doc.metadata ? JSON.stringify(doc.metadata) : undefined
         });
+        console.log("[LocalSearchVectorDB] Inserted doc:", doc.id, "workspace:", doc.workspaceId);
 
     }
 
@@ -60,7 +61,9 @@ class LocalSearchVectorDB {
             searchParams.where = { workspaceId };
         }
 
-        const searchResult = await search(this.db, searchParams);
+        console.log("[LocalSearchVectorDB] searching with params:", searchParams);
+        const searchResult = await search(this.db!, searchParams);
+        console.log("[LocalSearchVectorDB] raw hits:", searchResult.hits.length);
 
         // Parser le metadata de chaque hit
         const results = searchResult.hits.map(hit => {

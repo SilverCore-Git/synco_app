@@ -102,7 +102,9 @@ vectorWorker.onmessage = async (e) => {
 
         try {
             const searchResults = await localSearchDB.searchByVector(vector, workspaceId, 20);
+            console.log("[SpaceSearchModal] results before filter:", searchResults);
             results.value = searchResults.filter((r: any) => r.score > 0.4); // Threshold
+            console.log("[SpaceSearchModal] results after filter:", results.value);
         } catch (err) {
             console.error("Search failed:", err);
         } finally {

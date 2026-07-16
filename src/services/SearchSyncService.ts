@@ -7,6 +7,7 @@ export class SearchSyncService {
      */
     static async syncIndex(
         workspaceId: string | null,
+        threadId: string | null,
         type: 'MESSAGE' | 'FILE' | 'TODO',
         resourceId: string,
         textContent: string,
@@ -36,6 +37,7 @@ export class SearchSyncService {
                 method: 'POST',
                 body: JSON.stringify({
                     workspaceId,
+                    threadId,
                     type,
                     resourceId,
                     encryptedBlob,
@@ -49,12 +51,12 @@ export class SearchSyncService {
     }
 
     /**
-     * Récupère les index chiffrés du serveur, les déchiffre et les insère dans Orama.
+     * Récupère les index chiffrés d'un thread du serveur, les déchiffre et les insère dans Orama.
      */
-    static async restoreWorkspaceIndexes(workspaceId: string, aesKey: CryptoKey) {
+    static async restoreThreadIndexes(threadId: string, aesKey: CryptoKey) {
         try {
-            const res = await sfetch(`/api/search-index/workspace/${workspaceId}`);
-            if (!res.ok) throw new Error('Failed to fetch indexes');
+            const res = await sfetch(`/api/search-index/thread/${threadId}`);
+            if (!res.ok) throw new Error('Failed to fetch thread indexes');
             
             const indexes = await res.json();
             
@@ -78,14 +80,15 @@ export class SearchSyncService {
                         workspaceId: index.workspaceId,
                         type: index.type,
                         textContent,
-                        vector
+                        vector,
+                        metadata: { threadId }
                     });
                 } catch (e) {
-                    console.error("[SearchSyncService] Failed to decrypt an index for resource", index.resourceId, e);
+                    // Ignorer les erreurs de déchiffrement silencieusement
                 }
             }
         } catch (error) {
-            console.error("[SearchSyncService] Error restoring indexes:", error);
+            console.error("[SearchSyncService] Error restoring thread indexes:", error);
         }
     }
 }

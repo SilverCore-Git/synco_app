@@ -411,6 +411,7 @@ vectorWorker.onmessage = async (e) => {
         // Sync to backend (E2EE)
         await SearchSyncService.syncIndex(
             workspaceId,
+            thread.value?.id || null,
             type,
             id,
             text,
@@ -785,6 +786,9 @@ const joinThread = async (id: string) => {
 
             const decryptedKey = await decryptThreadKeyWithRsa(response.encryptedKey, privateKey.value!);
             currentThreadKey.value = decryptedKey;
+
+            // Restore search indexes for this thread
+            SearchSyncService.restoreThreadIndexes(id, decryptedKey);
 
             socket.value.emit("join-thread", { 
                 threadId: id
