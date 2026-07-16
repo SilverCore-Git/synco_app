@@ -1,4 +1,4 @@
-import { api } from '../config/api';
+import sfetch from '@/assets/utils/sfetch';
 import { localSearchDB } from './LocalSearchVectorDB';
 
 export class SearchSyncService {
@@ -32,12 +32,15 @@ export class SearchSyncService {
             const ivBase64 = btoa(String.fromCharCode(...iv));
 
             // Envoyer au backend
-            await api.post('/search-index', {
-                workspaceId,
-                type,
-                resourceId,
-                encryptedBlob,
-                iv: ivBase64
+            await sfetch('/api/search-index', {
+                method: 'POST',
+                body: JSON.stringify({
+                    workspaceId,
+                    type,
+                    resourceId,
+                    encryptedBlob,
+                    iv: ivBase64
+                })
             });
 
         } catch (error) {
@@ -50,7 +53,10 @@ export class SearchSyncService {
      */
     static async restoreWorkspaceIndexes(workspaceId: string, aesKey: CryptoKey) {
         try {
-            const { data: indexes } = await api.get(`/search-index/workspace/${workspaceId}`);
+            const res = await sfetch(`/api/search-index/workspace/${workspaceId}`);
+            if (!res.ok) throw new Error('Failed to fetch indexes');
+            
+            const indexes = await res.json();
             
             for (const index of indexes) {
                 try {
