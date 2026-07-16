@@ -5,12 +5,13 @@ import DropDown from '@/components/DropDown.vue';
 import useWSocket from '@/composables/useWSocket';
 import { openedOrg } from '@/assets/var';
 import keycloak from '@/assets/keycloak';
-import useSecurePeer from '@/composables/useSecurePeer';
 import { computed } from 'vue';
 
 const props = defineProps<{
     user: User | undefined;
 }>();
+
+const emit = defineEmits(['update:status']);
 
 const statusColorClass = computed(() => {
     switch (props.user?.data?.status) {
@@ -48,7 +49,6 @@ const formatDate = (date: string | Date | undefined) => {
   });
 };
 
-const { startCall } = useSecurePeer();
 
 const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
 

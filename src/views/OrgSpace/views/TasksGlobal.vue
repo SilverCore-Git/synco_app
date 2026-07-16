@@ -169,7 +169,6 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import type { Task, TodoList } from '@/types/types';
-
 import { useToast } from '@/composables/useToast';
 import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
@@ -209,7 +208,7 @@ const spacesGroups = computed(() => {
         if (!task.assignees?.some(a => a.id === user.value?.id)) return;
 
         if (!task.spaceId) {
-            groups['personal']?.tasks.push(task);
+            groups['personal']!.tasks.push(task);
         } else {
             if (!groups[task.spaceId]) {
                 groups[task.spaceId] = {
@@ -218,7 +217,7 @@ const spacesGroups = computed(() => {
                     tasks: []
                 };
             }
-            groups[task.spaceId]?.tasks.push(task);
+            groups[task.spaceId]!.tasks.push(task);
         }
     });
 

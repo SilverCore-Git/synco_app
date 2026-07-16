@@ -56,17 +56,15 @@ const initKC = async () => {
 
   try {
 
-    const authenticated = await keycloak.init({
+    await keycloak.init({
       onLoad: 'check-sso',
       silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
       pkceMethod: 'S256',
       checkLoginIframe: false,
     });
 
-    if (authenticated) 
-    {
-      
-      const userInfo: any = await keycloak.loadUserInfo();
+    if (keycloak.authenticated) {
+      await keycloak.loadUserInfo();
       kcToken.value = keycloak.token || '';
 
       setupTokenRefresh();
