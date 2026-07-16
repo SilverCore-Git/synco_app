@@ -307,7 +307,7 @@
 <script lang="ts" setup>
 
 import { ref, computed, onMounted } from 'vue';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, user } from '@/assets/var';
 import isAdmin from '@/assets/isAdmin';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
@@ -338,7 +338,7 @@ const filteredMembers = computed(() => {
 });
 
 const isSelf = (userId: string) => {
-    return localStorage.getItem('userId') === userId;
+    return user.value?.id === userId;
 };
 
 const copyInvite = () => {

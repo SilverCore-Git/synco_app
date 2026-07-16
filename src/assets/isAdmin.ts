@@ -2,7 +2,7 @@ import { computed } from "vue";
 import { openedOrg, user } from "./var";
 
 const isAdmin = computed(() => {
-    const currentUserId = user.value?.id || localStorage.getItem('userId');
+    const currentUserId = user.value?.id;
     
     if (currentUserId && openedOrg.value?.ownerId === currentUserId) {
         return true;

@@ -4,7 +4,7 @@ import { ref, reactive, nextTick, watch, computed } from 'vue';
 import Popup from '@/components/Popup.vue';
 import { useRoute, useRouter } from 'vue-router';
 import IconSelector from '@/components/common/IconSelector.vue';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import type { OrgMember } from '@/types/types';
 import { useToast } from '@/composables/useToast';
@@ -18,7 +18,7 @@ const loading = ref<boolean>(false);
 const state = ref<1 | 2 | 3>(1);
 const nameInput = ref<HTMLInputElement | null>(null);
 
-const currentUserId = computed(() => localStorage.getItem('userId'));
+const currentUserId = computed(() => user.value?.id);
 
 const form = reactive({
   name: '',

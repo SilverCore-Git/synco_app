@@ -64,7 +64,6 @@ const initKC = async () => {
     {
       
       const userInfo: any = await keycloak.loadUserInfo();
-      window.localStorage.setItem('userId', userInfo.sub);
       kcToken.value = keycloak.token || '';
 
       setupTokenRefresh();
