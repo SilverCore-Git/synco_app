@@ -110,7 +110,7 @@
                                 <input 
                                     type="text" 
                                     v-model="formData.job" 
-                                    placeholder="Ex: Développeur Full-Stack"
+                                    placeholder="Mon poste"
                                     class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-(--white) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
                                 />
                             </div>
@@ -147,31 +147,65 @@
                 <!-- SECURITY -->
                 <section 
                     v-if="activeTab === 'security'" 
-                    class="animate-fade-in space-y-8"
+                    class="animate-fade-in"
                 >
-                    <div>
-                        <h3 class="text-2xl font-black text-(--white) mb-1">Sécurité (E2EE)</h3>
-                        <p class="text-sm text-(--text)/60">Gérez vos paramètres de chiffrement de bout en bout (E2EE).</p>
+                    <div class="mb-6">
+                        <h3 class="text-xl font-black text-(--white) mb-1">Sécurité & Confidentialité</h3>
+                        <p class="text-sm text-(--text)/60">Vos conversations sont entièrement privées et illisibles par quiconque (y compris nous).</p>
                     </div>
 
-                    <div class="bg-(--bg2) p-6 rounded-xl border border-white/5 space-y-6">
+                    <div class="max-w-2xl space-y-6">
                         
-                        <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-full flex items-center justify-center shrink-0" :class="E2EEUnloked ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'">
-                                <i class="bi text-2xl" :class="E2EEUnloked ? 'bi-shield-check' : 'bi-shield-lock'" />
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-(--white) text-lg">Statut du chiffrement</h4>
-                                <p class="text-sm text-(--text)/70 mt-1">
-                                    {{ E2EEUnloked ? 'Vos clés E2EE sont déverrouillées. Vos messages sont chiffrés.' : 'Vos clés E2EE sont actuellement verrouillées.' }}
-                                </p>
+                        <!-- Carte Principale de Statut -->
+                        <div class="relative rounded-xl overflow-hidden border border-white/5 shadow-xl bg-(--bg2) p-1">
+                            <!-- Fond animé si déverrouillé -->
+                            <div v-if="E2EEUnloked" class="absolute inset-0 bg-green-500/5 z-0"></div>
+                            <div v-else class="absolute inset-0 bg-red-500/5 z-0"></div>
+                            
+                            <div class="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-5 bg-(--bg) rounded-lg p-6 border border-white/5">
+                                
+                                <div class="relative group">
+                                    <div class="absolute inset-0 blur-xl rounded-full opacity-40 transition-opacity" :class="E2EEUnloked ? 'bg-green-500' : 'bg-red-500'"></div>
+                                    <div class="w-16 h-16 rounded-2xl flex items-center justify-center relative shadow-inner border border-white/10" :class="E2EEUnloked ? 'bg-gradient-to-br from-green-500/20 to-green-600/10 text-green-500' : 'bg-gradient-to-br from-red-500/20 to-red-600/10 text-red-500'">
+                                        <i class="bi text-3xl" :class="E2EEUnloked ? 'bi-shield-check' : 'bi-shield-lock'" />
+                                    </div>
+                                </div>
+                                
+                                <div class="text-center sm:text-left flex-1">
+                                    <h4 class="font-black text-(--white) text-lg mb-1 flex items-center justify-center sm:justify-start gap-2">
+                                        <span class="w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]" :class="E2EEUnloked ? 'bg-green-500 text-green-500' : 'bg-red-500 text-red-500'"></span>
+                                        {{ E2EEUnloked ? 'Vos données sont protégées' : 'Vos données sont verrouillées' }}
+                                    </h4>
+                                    <p class="text-sm text-(--text)/70 leading-relaxed">
+                                        {{ E2EEUnloked 
+                                            ? 'Tout est en ordre ! Vos messages, fichiers et appels sont parfaitement sécurisés. Vous êtes le seul à pouvoir les lire.' 
+                                            : 'Saisissez votre code PIN lors de votre connexion pour déverrouiller vos messages en toute sécurité.' 
+                                        }}
+                                    </p>
+                                </div>
+
                             </div>
                         </div>
 
-                        <div class="pt-6 border-t border-white/5 space-y-3" v-if="user?.publicKey">
-                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text)/50">Votre empreinte publique (Public Key)</h4>
-                            <div class="bg-(--bg) p-3 rounded-lg border border-white/10 font-mono text-[10px] text-(--text)/50 break-all select-all">
-                                {{ user.publicKey }}
+                        <!-- Clé publique -->
+                        <div class="bg-(--bg2) p-6 rounded-xl border border-white/5 shadow-sm" v-if="user?.publicKey">
+                            <div class="flex items-center gap-3 mb-4">
+                                <i class="bi bi-person-badge-fill text-(--primary) text-xl"></i>
+                                <div>
+                                    <h4 class="font-bold text-(--white)">Votre Identifiant de Sécurité</h4>
+                                    <p class="text-[11px] text-(--text)/50 uppercase tracking-widest mt-0.5">La signature qui garantit votre identité</p>
+                                </div>
+                            </div>
+                            
+                            <p class="text-xs text-(--text)/60 mb-3">
+                                Cette longue suite de caractères est votre signature unique. Elle permet au système de s'assurer que personne ne peut se faire passer pour vous. Vous n'avez pas besoin de la mémoriser !
+                            </p>
+
+                            <div class="relative group">
+                                <div class="bg-(--bg) p-4 rounded-lg border border-white/10 font-mono text-xs text-(--text)/60 break-all select-all leading-relaxed shadow-inner overflow-hidden max-h-32 hover:max-h-full transition-all duration-500">
+                                    {{ user.publicKey }}
+                                </div>
+                                <div class="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-(--bg) to-transparent pointer-events-none group-hover:opacity-0 transition-opacity duration-300"></div>
                             </div>
                         </div>
 
