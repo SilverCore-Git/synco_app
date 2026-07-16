@@ -90,16 +90,18 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
         console.warn('[WS] Connecting to:', socketUrl, 'with path:', socketPath);
         
         // Diagnostic: test if the proxy/backend is reachable
-        try {
-            const testUrl = (socketUrl || '') + socketPath + '/?EIO=4&transport=polling';
-            console.warn('[WS] Proxy test:', testUrl);
-            const res = await fetch(testUrl);
-            const text = await res.text();
-            console.warn('[WS] Proxy test result:', res.status, text.substring(0, 120));
-        } catch (proxyErr: any) {
-            console.error('[WS] ❌ Proxy/backend unreachable:', proxyErr.message);
+        if (isDev) {
+            try {
+                const testUrl = (socketUrl || '') + socketPath + '/?EIO=4&transport=polling';
+                console.warn('[WS] Proxy test:', testUrl);
+                const res = await fetch(testUrl);
+                const text = await res.text();
+                console.warn('[WS] Proxy test result:', res.status, text.substring(0, 120));
+            } catch (proxyErr: any) {
+                console.error('[WS] ❌ Proxy/backend unreachable:', proxyErr.message);
+            }
+            console.warn('[WS] Keycloak state:', { authenticated: keycloak.authenticated, tokenLength: keycloak.token?.length, subject: keycloak.subject });
         }
-        console.warn('[WS] Keycloak state:', { authenticated: keycloak.authenticated, tokenLength: keycloak.token?.length, subject: keycloak.subject });
         
         socket.value = io(socketUrl || undefined, {
             path: socketPath,
