@@ -87,6 +87,7 @@
 
                     <div class="flex-1 space-y-4">
                         <div v-for="task in filteredTasks(col.id)" :key="task.id" 
+                             :id="'task-' + task.id"
                              draggable="true"
                              @dragstart="onDragStart($event, task)"
                              @click="openTaskDetails(task)"
@@ -236,6 +237,50 @@ const loadTasks = async () => {
             const data = await res.json();
             // In the new model, we just use unlistedTasks for the space Kanban
             tasks.value = data.unlistedTasks;
+
+            // Handle deep linking from search
+            if (route.query.select) {
+                const searchId = route.query.select as string;
+                let foundTask = data.unlistedTasks.find((t: any) => t.id === searchId);
+                
+                if (!foundTask && data.lists) {
+                    for (const list of data.lists) {
+                        if (list.tasks) {
+                            const t = list.tasks.find((t: any) => t.id === searchId);
+                            if (t) { foundTask = t; break; }
+                        }
+                    }
+                }
+
+                if (foundTask) {
+                    selectedTask.value = foundTask;
+                    
+                    // Highlight the card if it's in the Kanban
+                    setTimeout(() => {
+                        const el = document.getElementById('task-' + searchId);
+                        if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            const originalTransition = el.style.transition;
+                            const originalTransform = el.style.transform;
+                            const originalBoxShadow = el.style.boxShadow;
+                            
+                            el.style.transition = 'all 0.3s ease';
+                            el.style.transform = 'scale(1.05)';
+                            el.style.boxShadow = '0 0 0 4px var(--primary), 0 10px 30px rgba(0,0,0,0.5)';
+                            el.style.zIndex = '10';
+                            
+                            setTimeout(() => {
+                                el.style.transform = originalTransform;
+                                el.style.boxShadow = originalBoxShadow;
+                                el.style.zIndex = '';
+                                setTimeout(() => el.style.transition = originalTransition, 300);
+                            }, 3000);
+                        }
+                    }, 500);
+
+                    router.replace({ query: { ...route.query, select: undefined } });
+                }
+            }
         }
     } catch (e) {
         toast.show("Erreur chargement des tâches", "error");

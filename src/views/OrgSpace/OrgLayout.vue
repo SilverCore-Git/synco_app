@@ -68,8 +68,8 @@ watch(() => [openedOrg.value, route.params.spaceId], ([newOrg, spaceIdParam]) =>
                     });
                 }
 
-                // Also fetch and index all files in this workspace for instant name search
                 import('@/assets/utils/sfetch').then(({ default: sfetch }) => {
+                    // Fetch files
                     sfetch(`/api/spaces/${spaceId}/files`).then(res => res.json()).then(data => {
                         if (data && data.files) {
                             for (const file of data.files) {
@@ -84,6 +84,31 @@ watch(() => [openedOrg.value, route.params.spaceId], ([newOrg, spaceIdParam]) =>
                             }
                         }
                     }).catch(err => console.error("Failed to fetch space files for indexing:", err));
+
+                    // Fetch tasks
+                    sfetch(`/api/tasks/${newOrg.id}/spaces/${spaceId}/lists`).then(res => res.json()).then(data => {
+                        if (data) {
+                            const allTasks = [];
+                            if (data.lists) {
+                                data.lists.forEach((list: any) => {
+                                    if (list.tasks) allTasks.push(...list.tasks);
+                                });
+                            }
+                            if (data.unlistedTasks) {
+                                allTasks.push(...data.unlistedTasks);
+                            }
+                            for (const task of allTasks) {
+                                localSearchDB.insertDocument({
+                                    id: task.id,
+                                    workspaceId: spaceId,
+                                    type: 'TODO',
+                                    textContent: task.title + (task.description ? ' ' + task.description : ''),
+                                    vector: dummyVector,
+                                    metadata: { listId: task.todoListId }
+                                });
+                            }
+                        }
+                    }).catch(err => console.error("Failed to fetch space tasks for indexing:", err));
                 });
             }
         });

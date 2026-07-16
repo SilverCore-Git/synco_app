@@ -213,7 +213,7 @@ const goToResult = (res: any) => {
         router.push({ 
             name: 'TasksSpace',
             params: { orgId: route.params.orgId, spaceId: route.params.spaceId },
-            query: { showView: '1' }
+            query: { showView: '1', select: res.id }
         });
     } else if (res.type === 'THREAD') {
         router.push({ 
