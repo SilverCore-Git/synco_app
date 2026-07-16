@@ -29,6 +29,7 @@
             <div v-if="loading" class="flex flex-col items-center justify-center py-8 text-(--text)/40">
                 <i class="bi bi-robot text-4xl mb-3 animate-pulse text-(--primary)" />
                 <p>Vectorisation et recherche en cours...</p>
+                <p v-if="downloadProgress > 0" class="text-xs mt-2 text-(--text)/30">Téléchargement du modèle IA: {{ downloadProgress }}%</p>
             </div>
             
             <div v-else-if="results.length === 0" class="flex flex-col items-center justify-center py-8 text-(--text)/40">
@@ -84,6 +85,7 @@ const inputRef = ref<HTMLInputElement | null>(null);
 const query = ref('');
 const loading = ref(false);
 const results = ref<any[]>([]);
+const downloadProgress = ref(0);
 
 let searchTimeout: any = null;
 
@@ -92,6 +94,19 @@ const vectorWorker = new VectorWorker();
 vectorWorker.onmessage = async (e) => {
     const { status, vector, type } = e.data;
     
+    if (status === 'error') {
+        console.error("[SpaceSearchModal] Worker error:", e.data.error);
+        loading.value = false;
+        return;
+    }
+
+    if (status === 'progress') {
+        if (e.data.progress && e.data.progress.progress !== undefined) {
+            downloadProgress.value = Math.round(e.data.progress.progress);
+        }
+        return;
+    }
+
     // We expect the worker to return our query vector with type 'QUERY'
     if (status === 'complete' && type === 'QUERY') {
         const workspaceId = String(route.params.spaceId) || null;
