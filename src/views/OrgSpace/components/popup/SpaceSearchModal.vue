@@ -200,7 +200,7 @@ const goToResult = (res: any) => {
             router.push({ 
                 name: 'SpaceThreadView', 
                 params: { orgId: route.params.orgId, spaceId: route.params.spaceId, threadId: res.metadata.threadId },
-                query: { showView: '1', messageId: res.id }
+                query: { showView: '1', select: res.id }
             });
         } else if (res.type === 'FILE') {
             router.push({ 
