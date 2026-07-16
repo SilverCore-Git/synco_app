@@ -210,7 +210,8 @@ const toggleSubtaskStatus = async (subtask: Task) => {
                     particleCount: 100,
                     spread: 70,
                     origin: { y: 0.6 },
-                    colors: ['#4ade80', '#3b82f6', '#fbbf24', '#f87171']
+                    colors: ['#4ade80', '#3b82f6', '#fbbf24', '#f87171'],
+                    zIndex: 10000
                 });
             } catch (e) {}
         }
