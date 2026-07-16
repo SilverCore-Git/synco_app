@@ -295,7 +295,15 @@ export async function setupFirstTimeSecurity (pin: string)
     );
 
     const publicKeyJWK = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
-    privateKey.value = keyPair.privateKey;
+    
+    const nonExtractablePrivateKey = await crypto.subtle.importKey(
+        "pkcs8",
+        exportedPriv,
+        { name: "RSA-OAEP", hash: "SHA-256" },
+        false,
+        ["decrypt"]
+    );
+    privateKey.value = nonExtractablePrivateKey;
 
     return {
         publicKey: JSON.stringify(publicKeyJWK),
