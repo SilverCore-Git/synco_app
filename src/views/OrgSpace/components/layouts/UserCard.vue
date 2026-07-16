@@ -32,6 +32,14 @@
                     </div>
 
                     <button 
+                        @click.stop="toggleMicrophone(!isMicEnabled)" 
+                        class="p-1.5 rounded-md transition-all active:scale-90"
+                        :class="isMicEnabled ? 'text-(--text)/40 hover:bg-(--primary)/10 hover:text-(--primary)' : 'text-red-500 bg-red-500/10'"
+                    >
+                        <i class="bi" :class="isMicEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'" />
+                    </button>
+
+                    <button 
                         @click="leaveRoom(String(room?.name), String(route.params.spaceId))" 
                         class="p-2 w-9 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-lg transition-all active:scale-90"
                         title="Déconnecter le vocal"
@@ -120,18 +128,6 @@
                         </div>
 
                         <div class="flex items-center gap-0.5">
-
-                            <button 
-                                @click.stop="toggleMicrophone(!isMicEnabled)" 
-                                class="p-1.5 rounded-md transition-all active:scale-90"
-                                :class="isMicEnabled ? 'text-(--text)/40 hover:bg-(--primary)/10 hover:text-(--primary)' : 'text-red-500 bg-red-500/10'"
-                            >
-                                <i class="bi" :class="isMicEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'" />
-                            </button>
-
-                            <button @click.stop="" class="p-1.5 rounded-md hover:bg-(--primary)/10 active:scale-90 text-(--text)/40 hover:text-(--text) transition-all">
-                                <i class="bi bi-headphones text-sm" />
-                            </button>
 
                             <button @click.stop="showUserSettings = !showUserSettings" class="p-1.5 rounded-md hover:bg-(--primary)/10 active:scale-90 text-(--text)/40 hover:text-(--text) transition-all group/settings">
                                 <i class="bi bi-gear-fill text-sm group-hover/settings:rotate-45 transition-transform duration-300" />
