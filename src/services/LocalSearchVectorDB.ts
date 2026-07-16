@@ -33,16 +33,23 @@ class LocalSearchVectorDB {
     async insertDocument(doc: LocalVectorDocument) {
         if (!this.initialized || !this.db) await this.init();
         
-        await insert(this.db!, {
-            id: doc.id,
-            workspaceId: doc.workspaceId,
-            type: doc.type,
-            textContent: doc.textContent,
-            vector: doc.vector,
-            metadata: doc.metadata ? JSON.stringify(doc.metadata) : undefined
-        });
-        console.log("[LocalSearchVectorDB] Inserted doc:", doc.id, "workspace:", doc.workspaceId);
-
+        try {
+            await insert(this.db!, {
+                id: doc.id,
+                workspaceId: doc.workspaceId,
+                type: doc.type,
+                textContent: doc.textContent,
+                vector: doc.vector,
+                metadata: doc.metadata ? JSON.stringify(doc.metadata) : undefined
+            });
+            console.log("[LocalSearchVectorDB] Inserted doc:", doc.id, "workspace:", doc.workspaceId);
+        } catch (e: any) {
+            if (e.message && e.message.includes('already exists')) {
+                // Ignore silentement les doublons (ex: quand le watcher OrgLayout se redéclenche)
+            } else {
+                console.error("[LocalSearchVectorDB] Insert failed:", e);
+            }
+        }
     }
 
     async searchByVector(vector: number[], textQuery: string, workspaceId?: string, limit = 10) {
