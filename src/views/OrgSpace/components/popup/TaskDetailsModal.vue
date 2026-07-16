@@ -110,6 +110,7 @@ import type { Task } from '@/types/types';
 import sfetch from '@/assets/utils/sfetch';
 import { useRoute } from 'vue-router';
 import { useToast } from '@/composables/useToast';
+import confetti from 'canvas-confetti';
 
 const props = defineProps<{
     task: Task | null;
@@ -202,6 +203,18 @@ const toggleSubtaskStatus = async (subtask: Task) => {
             method: 'PUT',
             body: JSON.stringify({ status: newStatus })
         });
+        
+        if (newStatus === 'DONE') {
+            try {
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: ['#4ade80', '#3b82f6', '#fbbf24', '#f87171']
+                });
+            } catch (e) {}
+        }
+        
         emit('update', props.task); // Force reactivity up
     } catch (e) {
         subtask.status = oldStatus;
