@@ -90,7 +90,7 @@ let searchTimeout: any = null;
 const vectorWorker = new VectorWorker();
 
 vectorWorker.onmessage = async (e) => {
-    const { status, id, vector, type } = e.data;
+    const { status, vector, type } = e.data;
     
     // We expect the worker to return our query vector with type 'QUERY'
     if (status === 'complete' && type === 'QUERY') {

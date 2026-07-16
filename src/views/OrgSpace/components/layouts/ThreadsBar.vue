@@ -254,9 +254,9 @@
 
         </template>
 
-    </div>
+        <SpaceSearchModal :show="showSearchModal" @close="showSearchModal = false" />
 
-    <SpaceSearchModal :show="showSearchModal" @close="showSearchModal = false" />
+    </div>
 
 </template>
 
