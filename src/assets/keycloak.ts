@@ -52,27 +52,28 @@ const onTokenRefresh = (callback: () => void) => {
   };
 };
 
-const initKC = async () => {
+const initKC = async (): Promise<boolean> => {
 
   try {
 
-    await keycloak.init({
-      onLoad: 'check-sso',
-      silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
+    const authenticated = await keycloak.init({
+      onLoad: 'login-required',
       pkceMethod: 'S256',
       checkLoginIframe: false,
     });
 
-    if (keycloak.authenticated) {
+    if (authenticated) {
       await keycloak.loadUserInfo();
       kcToken.value = keycloak.token || '';
 
       setupTokenRefresh();
-
     }
+
+    return authenticated;
 
   } catch (error) {
     console.error("[Keycloak] Erreur d'initialisation Keycloak", error);
+    return false;
   }
 
 };
