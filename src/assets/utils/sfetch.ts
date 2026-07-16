@@ -27,11 +27,26 @@ export default async function sfetch(url: string, arg?: any) {
         }
     }
 
-    return await fetch(`${import.meta.env.VITE_API_URL}${url}`, {
+    const apiUrl = import.meta.env.VITE_API_URL;
+    if (!apiUrl || (!apiUrl.startsWith('http://') && !apiUrl.startsWith('https://'))) {
+        console.error('Configuration invalide: VITE_API_URL doit être une URL HTTP(S) valide');
+        throw new Error('Invalid API URL configuration');
+    }
+
+    const response = await fetch(`${apiUrl}${url}`, {
         ...arg,
         method: arg?.method || 'GET',
         headers,
         credentials: 'include'
     });
+
+    if (!response.ok) {
+        console.error(`[sfetch] API Error ${response.status} on ${url}`);
+        if (response.status === 401) {
+            keycloak.login();
+        }
+    }
+
+    return response;
     
 }
