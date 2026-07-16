@@ -176,7 +176,7 @@ const goToResult = (res: any) => {
             router.push({ 
                 name: 'SpaceFiles', 
                 params: { orgId: route.params.orgId, spaceId: route.params.spaceId },
-                query: { showView: '1', folderId: res.metadata?.folderId || 'root', highlightFileId: res.id }
+                query: { showView: '1', path: undefined, folderId: res.metadata?.folderId || 'root', highlightFileId: res.id }
             });
         }
     } else if (res.type === 'TODO') {

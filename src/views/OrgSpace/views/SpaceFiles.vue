@@ -456,13 +456,15 @@ const breadcrumbs = computed(() => {
 });
 
 
-watch(() => breadcrumbs.value.length, () => {
+watch(() => currentFolderId.value, () => {
     router.push({
         name: route.name || undefined, 
         params: route.params,
         query: {
             ...route.query, 
-            path: '/' + breadcrumbs.value.map(b => b.id).join('/') 
+            path: '/' + breadcrumbs.value.map(b => b.id).join('/'),
+            folderId: undefined, // Clear folderId since we now use path
+            highlightFileId: undefined // Don't persist highlight on normal navigation
         } 
     });
 });
