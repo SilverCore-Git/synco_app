@@ -342,6 +342,9 @@ import ThreadMessage from '../components/common/ThreadMessage.vue';
 import useResponse from '@/composables/useResponse';
 import { uploadFiles } from '@/assets/uploadFile';
 import { waitForSocketConnection } from '@/composables/useWSocket';
+import VectorWorker from '@/workers/vector.worker?worker';
+import { SearchSyncService } from '@/services/SearchSyncService';
+import { localSearchDB } from '@/services/LocalSearchVectorDB';
 
 
 const props = defineProps<{ 
@@ -387,6 +390,34 @@ const sortedMessages = ref<Message[]>([]);
 const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
 const lastMessageId = ref<string>('');
 const showEmojiPicker = ref<boolean>(false);
+
+const vectorWorker = new VectorWorker();
+vectorWorker.onmessage = async (e) => {
+    const { status, id, vector, text, type } = e.data;
+    if (status === 'complete' && currentThreadKey.value) {
+        const workspaceId = (route.params.spaceId as string) || null;
+        if (!workspaceId) return; // Only indexing workspace threads for now
+
+        // Insert locally
+        await localSearchDB.insertDocument({
+            id,
+            workspaceId,
+            type,
+            textContent: text,
+            vector
+        });
+        
+        // Sync to backend (E2EE)
+        await SearchSyncService.syncIndex(
+            workspaceId,
+            type,
+            id,
+            text,
+            vector,
+            currentThreadKey.value
+        );
+    }
+};
 
 
 // file / pj
@@ -656,6 +687,15 @@ const initListener = () => {
             const isNearBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 200;
             if (isNearBottom) scrollToBottom();
         }
+
+        // Generate vector for the newly received message if we have the content
+        if (clearContent && !clearContent.startsWith("🔒") && !msg.isWebhook) {
+            vectorWorker.postMessage({
+                id: msg.id,
+                text: clearContent,
+                type: 'MESSAGE'
+            });
+        }
     });
 
     socket.value.on('delete-message', (msgId: string) => {
@@ -791,6 +831,15 @@ const sendMessage = async () => {
                 else resolve(response);
             });
         });
+
+        // Trigger vector generation in background
+        if (confirmedMessage && confirmedMessage.id) {
+            vectorWorker.postMessage({
+                id: confirmedMessage.id,
+                text: newMessage.value,
+                type: 'MESSAGE'
+            });
+        }
 
         lastMessageId.value = confirmedMessage.id;
 
