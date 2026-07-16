@@ -1,5 +1,4 @@
 import { create, insert, search, type AnyOrama } from '@orama/orama';
-import { persist, restore } from '@orama/plugin-data-persistence';
 
 export interface LocalVectorDocument {
     id: string;              // UUID unique
@@ -26,17 +25,6 @@ class LocalSearchVectorDB {
             }
         });
 
-        // Essayer de restaurer depuis IndexedDB
-        try {
-            const restoredDb = await restore('indexeddb', 'synco-vector-db');
-            if (restoredDb) {
-               // @ts-ignore
-               this.db = restoredDb;
-            }
-        } catch (e) {
-            console.log("[LocalSearchVectorDB] No previous DB found or error restoring:", e);
-        }
-
         this.initialized = true;
     }
 
@@ -51,8 +39,6 @@ class LocalSearchVectorDB {
             vector: doc.vector,
         });
 
-        // Persister dans IndexedDB
-        await persist(this.db, 'indexeddb', 'synco-vector-db');
     }
 
     async searchByVector(vector: number[], workspaceId?: string, limit = 10) {
