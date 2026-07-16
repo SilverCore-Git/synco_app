@@ -19,7 +19,9 @@ class PipelineSingleton {
 self.addEventListener('message', async (event) => {
     const { id, text, type, metadata } = event.data;
 
-    if (!text) return;
+    if (!text) {
+        return;
+    }
 
     try {
         const extractor = await PipelineSingleton.getInstance((x: any) => {
