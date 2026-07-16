@@ -327,6 +327,9 @@ import { uploadFiles } from '@/assets/uploadFile';
 import FolderCard from '../components/SpaceFiles/FolderCard.vue';
 import FileCard from '../components/SpaceFiles/FileCard.vue';
 import type { StoredFile, Folder } from '@/types/types';
+import { extractTextFromPDF } from '@/assets/utils/pdfExtractor';
+import VectorWorker from '@/workers/vector.worker?worker';
+import { localSearchDB } from '@/services/LocalSearchVectorDB';
 
 
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
@@ -347,6 +350,26 @@ const fileInputRef = ref<HTMLInputElement | null>(null);
 const draggedFileId = ref<string | null>(null);
 const draggedSourceFolderId = ref<string | null>(null);
 const draggedIntoFolderId = ref<string | null>(null);
+
+const vectorWorker = new VectorWorker();
+vectorWorker.onmessage = async (e) => {
+    const { status, id, vector, text, type } = e.data;
+    if (status === 'complete') {
+        const workspaceId = String(route.params.spaceId) || null;
+        if (!workspaceId) return;
+
+        // Save locally
+        await localSearchDB.insertDocument({
+            id,
+            workspaceId,
+            type,
+            textContent: text,
+            vector
+        });
+        
+        // Note: Backend sync skipped here as we need a symmetric workspace key which might not exist globally.
+    }
+};
 
 
 const filteredFiles = computed(() => {
@@ -617,6 +640,23 @@ const handleFiles = async (files: FileList | File[]) => {
         {
             allFiles.value.push(...uploadedFiles);
             toast.show(`${uploadedFiles.length} fichier(s) ajouté(s)`, "success");
+
+            // Process PDFs for semantic search
+            for (let i = 0; i < selectedFiles.length; i++) {
+                const file = selectedFiles[i];
+                const uploadedFile = uploadedFiles[i];
+                if (file && uploadedFile && file.type.includes('pdf')) {
+                    extractTextFromPDF(file).then(text => {
+                        if (text && text.trim() !== '') {
+                            vectorWorker.postMessage({
+                                id: uploadedFile.id,
+                                text,
+                                type: 'FILE'
+                            });
+                        }
+                    }).catch(err => console.error("PDF Extraction failed:", err));
+                }
+            }
         }
 
     } catch (e) {
