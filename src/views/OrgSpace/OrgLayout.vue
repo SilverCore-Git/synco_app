@@ -79,7 +79,7 @@ watch(() => openedOrg.value, (newOrg) => {
                                     type: 'FILE',
                                     textContent: file.originalName,
                                     vector: dummyVector,
-                                    metadata: { fileUrl: file.url }
+                                    metadata: { folderId: file.folderId || 'root', fileUrl: file.url }
                                 });
                             }
                         }
