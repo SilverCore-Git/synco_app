@@ -715,13 +715,24 @@ const handleRouteQuery = () => {
             const el = document.getElementById('file-' + highlightFileId);
             if (el) {
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                // Add highlight animation via child element or wrapper
-                el.classList.add('ring-2', 'ring-(--primary)', 'ring-offset-2', 'ring-offset-(--bg1)', 'rounded-xl', 'transition-all');
+                // Add highlight animation via guaranteed inline styles
+                const originalTransition = el.style.transition;
+                const originalTransform = el.style.transform;
+                const originalBoxShadow = el.style.boxShadow;
+                
+                el.style.transition = 'all 0.3s ease';
+                el.style.transform = 'scale(1.05)';
+                el.style.boxShadow = '0 0 0 4px var(--primary), 0 10px 30px rgba(0,0,0,0.5)';
+                el.style.zIndex = '10';
+                
                 setTimeout(() => {
-                    el.classList.remove('ring-2', 'ring-(--primary)', 'ring-offset-2', 'ring-offset-(--bg1)');
+                    el.style.transform = originalTransform;
+                    el.style.boxShadow = originalBoxShadow;
+                    el.style.zIndex = '';
+                    setTimeout(() => el.style.transition = originalTransition, 300);
                 }, 3000);
             }
-        }, 500);
+        }, 600); // 600ms to ensure DOM is ready
     }
 };
 
