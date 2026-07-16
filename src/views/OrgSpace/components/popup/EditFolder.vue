@@ -48,7 +48,7 @@
                         <i 
                             v-if="form.color === color.value" 
                             class="bi bi-check-lg text-xs"
-                            :class="color.value === 'white' ? 'text-black' : 'text-white'"
+                            :class="color.value === 'white' ? 'text-black' : 'text-(--text)'"
                         />
                     </button>
                 </div>

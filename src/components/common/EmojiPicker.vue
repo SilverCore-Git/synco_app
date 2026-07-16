@@ -5,7 +5,7 @@
     style="background-color: var(--bg);"
   >
     <div class="p-3 border-b border-white/5 bg-(--bg2) flex items-center gap-2">
-      <i class="bi bi-search text-white/40 text-sm pl-1" />
+      <i class="bi bi-search text-(--text)/40 text-sm pl-1" />
       <input 
         v-model="searchQuery"
         type="text" 
@@ -65,7 +65,7 @@
           :id="'cat-' + category.id"
           class="space-y-2 category-section"
         >
-          <h3 class="text-xs font-semibold uppercase tracking-wider text-white/40 pl-1 pt-1">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-(--text)/40 pl-1 pt-1">
             {{ category.name }}
           </h3>
           <div class="grid grid-cols-7 sm:grid-cols-8 gap-1">

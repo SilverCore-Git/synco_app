@@ -18,7 +18,7 @@
                     <i class="bi bi-hash text-4xl text-(--text)/60" />
                 </div>
 
-                <h1 class="text-3xl font-black text-white mb-2">#{{ thread.name }}</h1>
+                <h1 class="text-3xl font-black text-(--text) mb-2">#{{ thread.name }}</h1>
 
                 <p class="text-(--text)/50 flex items-center gap-2">
                     C'est le début de l'histoire de ce thread.

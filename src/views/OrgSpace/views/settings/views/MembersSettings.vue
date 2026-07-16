@@ -8,7 +8,7 @@
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
 
                     <div>
-                        <h1 class="text-2xl font-bold text-white flex items-center gap-3">
+                        <h1 class="text-2xl font-bold text-(--text) flex items-center gap-3">
                             <i class="bi bi-people-fill text-(--primary)" />
                             Gestion de l'équipe
                         </h1>
@@ -39,7 +39,7 @@
                             <div class="w-10 h-10 rounded-xl bg-(--primary-dark)/50 text-(--primary) flex items-center justify-center mb-4 border border-(--primary)/20">
                                 <i class="bi bi-link-45deg text-xl" />
                             </div>
-                            <h3 class="text-lg font-bold text-white">Lien d'invitation</h3>
+                            <h3 class="text-lg font-bold text-(--text)">Lien d'invitation</h3>
                             <p class="text-sm text-(--text)/60 mt-1">
                                 Partagez ce lien unique pour permettre à d'autres de rejoindre l'organisation instantanément.
                             </p>
@@ -68,7 +68,7 @@
                             <div class="w-10 h-10 rounded-xl bg-(--bg3) text-(--text) flex items-center justify-center mb-4 border border-(--text)/10">
                                 <i class="bi bi-person-plus text-xl" />
                             </div>
-                            <h3 class="text-lg font-bold text-white">Ajout manuel</h3>
+                            <h3 class="text-lg font-bold text-(--text)">Ajout manuel</h3>
                             <p class="text-sm text-(--text)/60 mt-1">
                                 Entrez l'identifiant (ID) unique d'un utilisateur pour l'ajouter directement.
                             </p>
@@ -110,7 +110,7 @@
                     
                     <div class="p-6 border-b border-(--text)/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-(--bg3)/30">
 
-                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <h3 class="text-lg font-bold text-(--text) flex items-center gap-2">
                             Membres 
                             <span class="bg-(--primary)/10 text-(--primary) py-0.5 px-2 rounded-md text-xs">
                                 {{ openedOrg?.members?.length || 0 }}
@@ -123,7 +123,7 @@
                                 v-model="searchQuery"
                                 type="text" 
                                 placeholder="Rechercher un nom ou un email..."
-                                class="w-full bg-(--bg3) border border-(--text)/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-(--primary)/40 transition-all placeholder:text-(--text)/30"
+                                class="w-full bg-(--bg3) border border-(--text)/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-(--text) focus:outline-none focus:border-(--primary)/40 transition-all placeholder:text-(--text)/30"
                             />
                         </div>
 
@@ -158,7 +158,7 @@
                                                 <div v-if="isSelf(member.user?.id!)" class="absolute -bottom-1 -right-1 bg-(--primary) w-3.5 h-3.5 rounded-full border-2 border-(--bg2)" title="Vous" />
                                             </div>
                                             <div class="flex flex-col">
-                                                <span class="text-sm font-bold text-white group-hover:text-(--primary) transition-colors">
+                                                <span class="text-sm font-bold text-(--text) group-hover:text-(--primary) transition-colors">
                                                     {{ member.user?.name || 'Utilisateur inconnu' }}
                                                 </span>
                                                 <span class="text-[11px] text-(--text)/50">{{ member.user?.email }}</span>
@@ -214,7 +214,7 @@
                 <section v-if="inviteLinks.length > 0" class="bg-(--bg2) rounded-3xl border border-(--text)/10 overflow-hidden flex flex-col">
 
                     <div class="p-6 border-b border-(--text)/5 flex justify-between items-center bg-(--bg3)/30">
-                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <h3 class="text-lg font-bold text-(--text) flex items-center gap-2">
                             Liens actifs
                             <span class="bg-(--text)/10 text-(--text) py-0.5 px-2 rounded-md text-xs">
                                 {{ inviteLinks.length }}
@@ -247,7 +247,7 @@
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 text-sm">
-                                        <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-white'">
+                                        <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-(--text)'">
                                             {{ link.uses }}
                                         </span>
                                         <span class="text-(--text)/40"> / {{ link.maxUses || '∞' }}</span>

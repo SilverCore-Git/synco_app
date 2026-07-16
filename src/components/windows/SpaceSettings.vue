@@ -6,7 +6,7 @@
             
             <aside class="w-64 bg-(--bg2) border-r border-white/5 p-4 flex flex-col gap-2 shrink-0">
 
-                <h2 class="text-xl font-black text-(--white) mb-4 px-3 pt-2">Paramètres</h2>
+                <h2 class="text-xl font-black text-(--text) mb-4 px-3 pt-2">Paramètres</h2>
                 
                 <button 
                     v-for="tab in tabs" 
@@ -33,7 +33,7 @@
                 <section v-if="activeTab === 'general'" class="animate-fade-in space-y-8">
 
                     <div>
-                        <h3 class="text-2xl font-black text-(--white) mb-1">Vue d'ensemble</h3>
+                        <h3 class="text-2xl font-black text-(--text) mb-1">Vue d'ensemble</h3>
                         <p class="text-sm text-(--text)/60">Configurez l'identité visuelle de votre espace de travail.</p>
                     </div>
 
@@ -44,7 +44,7 @@
                                 <img v-else :src="formData.logo" class="w-full h-full object-cover" />
                                 
                                 <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
-                                    <i class="bi bi-camera-fill text-white text-xl" />
+                                    <i class="bi bi-camera-fill text-(--text) text-xl" />
                                 </div>
                             </div>
                         </div>
@@ -56,7 +56,7 @@
                                     type="text" 
                                     v-model="formData.name" 
                                     placeholder="Nom de l'espace"
-                                    class="w-full bg-(--bg) border border-white/10 rounded-lg px-4 py-2.5 text-(--white) focus:outline-none focus:border-(--primary) transition-all"
+                                    class="w-full bg-(--bg) border border-white/10 rounded-lg px-4 py-2.5 text-(--text) focus:outline-none focus:border-(--primary) transition-all"
                                 />
                             </div>
                         </div>
@@ -66,7 +66,7 @@
                         <h4 class="text-xs font-black uppercase tracking-widest text-(--text)/50">ID de l'espace</h4>
                         <div class="flex items-center gap-2 bg-(--bg2) p-3 rounded-lg border border-white/5">
                             <code class="text-(--primary) text-sm flex-1">{{ space.id }}</code>
-                            <button class="text-xs font-bold hover:text-(--white)">Copier</button>
+                            <button class="text-xs font-bold hover:text-(--text)">Copier</button>
                         </div>
                     </div>
                 </section>
@@ -75,7 +75,7 @@
 
                     <div class="flex items-center justify-between">
                         <div>
-                            <h3 class="text-2xl font-black text-(--white) mb-1">Gestion des membres</h3>
+                            <h3 class="text-2xl font-black text-(--text) mb-1">Gestion des membres</h3>
                             <p class="text-sm text-(--text)/60">Invitez ou supprimez des membres de votre espace.</p>
                         </div>
                     </div>
@@ -91,7 +91,7 @@
 
                 <section v-if="activeTab === 'security'" class="animate-fade-in space-y-6">
                     <div>
-                        <h3 class="text-2xl font-black text-(--white) mb-1">Sécurité & Permissions</h3>
+                        <h3 class="text-2xl font-black text-(--text) mb-1">Sécurité & Permissions</h3>
                         <p class="text-sm text-(--text)/60">Contrôlez qui peut voir et modifier ce salon.</p>
                     </div>
 
@@ -103,7 +103,7 @@
 
                         <div class="flex items-center justify-between p-4 bg-(--bg2) rounded-xl border border-white/5">
                             <div>
-                                <h4 class="font-bold text-(--white)">Espace Privé</h4>
+                                <h4 class="font-bold text-(--text)">Espace Privé</h4>
                                 <p class="text-sm text-(--text)/60">Seuls les membres invités peuvent voir ce space</p>
                             </div>
                             <div class="w-12 h-6 bg-(--primary) rounded-full relative cursor-pointer">
@@ -115,7 +115,7 @@
 
                 <section v-if="activeTab === 'webhooks'" class="animate-fade-in space-y-6">
                     <div>
-                        <h3 class="text-2xl font-black text-(--white) mb-1">Webhooks</h3>
+                        <h3 class="text-2xl font-black text-(--text) mb-1">Webhooks</h3>
                         <p class="text-sm text-(--text)/60">Configurez des webhooks pour recevoir des notifications depuis des services externes.</p>
                     </div>
 

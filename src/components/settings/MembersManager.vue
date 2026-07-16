@@ -6,7 +6,7 @@
 
             <div class="flex items-center gap-4">
 
-                <h3 class="text-lg font-bold text-(--white)">
+                <h3 class="text-lg font-bold text-(--text)">
                     Membres 
                     <span class="text-(--text)/30 font-medium ml-2 text-sm">
                         {{ filteredMembers.length }}
@@ -74,7 +74,7 @@
                                     </div>
 
                                     <div class="flex flex-col">
-                                        <span class="text-sm font-bold text-(--white) flex items-center gap-2">
+                                        <span class="text-sm font-bold text-(--text) flex items-center gap-2">
                                             {{ member.user?.name || 'Utilisateur inconnu' }}
                                             <span v-if="isSelf(member.userId)" class="text-[9px] bg-(--white)/10 px-1.5 py-0.5 rounded text-(--text)/60">VOUS</span>
                                         </span>
@@ -132,7 +132,7 @@
                         :src="orgMember.user?.avatarUrl || 'https://cdn.silvercore.fr/static/files/silverteams/avatar/default.png'" 
                         class="w-8 h-8 rounded-full" 
                     />
-                    <span class="text-sm font-bold text-(--white)/80">{{ orgMember.user?.name }}</span>
+                    <span class="text-sm font-bold text-(--text)/80">{{ orgMember.user?.name }}</span>
                 </div>
 
                 <button @click="invite(orgMember)" class="text-(--primary) text-xs font-black opacity-0 group-hover:opacity-100 transition-opacity">

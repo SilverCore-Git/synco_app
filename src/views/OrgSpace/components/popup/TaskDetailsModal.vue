@@ -12,7 +12,7 @@
             <!-- Header -->
             <div class="flex justify-between items-start gap-4">
                 <div class="flex-1 min-w-0">
-                    <h3 v-if="!isEditing" class="text-xl font-bold text-white mb-2 break-words">{{ task.title }}</h3>
+                    <h3 v-if="!isEditing" class="text-xl font-bold text-(--text) mb-2 break-words">{{ task.title }}</h3>
                     <input v-else v-model="editForm.title" type="text" class="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-white mb-2 font-bold" />
                     
                     <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-semibold text-(--text)/50 uppercase">
@@ -48,7 +48,7 @@
             <!-- Subtasks -->
             <div v-if="!isEditing" class="space-y-3">
                 <div class="flex items-center justify-between border-b border-white/10 pb-2">
-                    <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                    <h4 class="text-sm font-bold text-(--text) flex items-center gap-2">
                         <i class="bi bi-list-nested text-(--primary)"></i>
                         Sous-tâches
                         <span class="bg-white/10 text-xs px-2 py-0.5 rounded-full font-normal">

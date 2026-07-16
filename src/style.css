@@ -37,10 +37,10 @@ body.dark {
 body.light {
   
   --primary: #108e62;
-  --primary-dark: #e6f6f0;
+  --primary-dark: #a7f3d0;
   --primary-hover: #0d7551;
 
-  --bg: #ffffff;
+  --bg: #fafafa;
   --bg2: #f4f4f5;
   --bg3: #e4e4e7;
   
@@ -263,7 +263,7 @@ select {
 
 
 button.glass {
-  @apply p-2 bg-white/10 hover:bg-(--primary) rounded-full backdrop-blur-md text-white border border-white/10 transition-colors;
+  @apply p-2 bg-white/10 hover:bg-(--primary) rounded-full backdrop-blur-md text-(--text) border border-white/10 transition-colors;
 }
 
 button.primary,
@@ -313,7 +313,7 @@ button.primary {
   font-size: 1em;
   font-weight: 500;
   background-color: var(--primary);
-  color: white;
+  color: var(--white);
   cursor: pointer;
   transition: all 0.25s;
   cursor: pointer;
@@ -329,7 +329,7 @@ button.primary.green {
   font-size: 1em;
   font-weight: 500;
   background-color: var(--color-green-600);
-  color: white;
+  color: var(--white);
   cursor: pointer;
   transition: all 0.25s;
   cursor: pointer;
@@ -341,7 +341,7 @@ button.primary.green:hover {
   font-size: 1em;
   font-weight: 500;
   background-color: var(--color-green-800);
-  color: white;
+  color: var(--white);
   cursor: pointer;
   transition: all 0.25s;
 }
@@ -366,7 +366,7 @@ button.danger {
 button:hover.primary {
   border-color: var(--primary-hover);
   background-color: var(--primary);
-  color: white;
+  color: var(--white);
 }
 
 button:hover.second.nohover {
@@ -376,7 +376,7 @@ button:hover.second.nohover {
 
 button:hover.second {
   background-color: var(--primary);
-  color: white;
+  color: var(--white);
 }
 
 
@@ -436,7 +436,7 @@ button.premium {
   font-size: 1em;
   font-weight: 600;
   background: linear-gradient(135deg, var(--primary)); 
-  color: white;
+  color: var(--white);
   cursor: pointer;
   transition: all 0.3s ease;
   border-radius: 12px;
@@ -488,7 +488,7 @@ button.tab.active {
 }
 
 button.tab:not(.active) {
-  @apply hover:bg-white/5 hover:text-(--white);
+  @apply hover:bg-white/5 hover:text-(--text);
 }
 
 

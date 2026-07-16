@@ -6,14 +6,14 @@
             
             <aside class="w-64 bg-(--bg2) border-r border-white/5 p-4 flex flex-col gap-2 shrink-0">
 
-                <h2 class="text-xl font-black text-(--white) mb-4 px-3 pt-2">Paramètres</h2>
+                <h2 class="text-xl font-black text-(--text) mb-4 px-3 pt-2">Paramètres</h2>
                 
                 <button 
                     v-for="tab in tabs" 
                     :key="tab.id"
                     @click="activeTab = tab.id"
                     class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm font-bold transition-all duration-200"
-                    :class="activeTab === tab.id ? 'text-(--white) bg-white/10 shadow-sm' : 'text-(--text)/60 hover:text-(--white) hover:bg-white/5'"
+                    :class="activeTab === tab.id ? 'text-(--text) bg-white/10 shadow-sm' : 'text-(--text)/60 hover:text-(--text) hover:bg-white/5'"
                 >
                     <i :class="tab.icon" class="text-lg" />
                     {{ tab.label }}
@@ -67,7 +67,7 @@
                     </div>
 
                     <div class="mb-6">
-                        <h3 class="text-xl font-black text-(--white) mb-1">Informations personnelles</h3>
+                        <h3 class="text-xl font-black text-(--text) mb-1">Informations personnelles</h3>
                         <p class="text-sm text-(--text)/60">Mettez à jour votre profil et vos coordonnées.</p>
                     </div>
 
@@ -82,7 +82,7 @@
                                 <input 
                                     type="text" 
                                     v-model="formData.name" 
-                                    class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-(--white) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                    class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
                                 />
                             </div>
                         </div>
@@ -96,7 +96,7 @@
                                 <input 
                                     type="email" 
                                     v-model="formData.email" 
-                                    class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-(--white) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                    class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
                                 />
                             </div>
                         </div>
@@ -111,7 +111,7 @@
                                     type="text" 
                                     v-model="formData.job" 
                                     placeholder="Mon poste"
-                                    class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-(--white) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                    class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
                                 />
                             </div>
                         </div>
@@ -123,7 +123,7 @@
                                     v-model="formData.description" 
                                     placeholder="Dites-nous en plus sur vous..."
                                     rows="3"
-                                    class="w-full bg-(--bg2) border border-white/5 rounded-xl p-4 text-(--white) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner resize-none"
+                                    class="w-full bg-(--bg2) border border-white/5 rounded-xl p-4 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner resize-none"
                                 ></textarea>
                             </div>
                         </div>
@@ -150,7 +150,7 @@
                     class="animate-fade-in"
                 >
                     <div class="mb-6">
-                        <h3 class="text-xl font-black text-(--white) mb-1">Sécurité & Confidentialité</h3>
+                        <h3 class="text-xl font-black text-(--text) mb-1">Sécurité & Confidentialité</h3>
                         <p class="text-sm text-(--text)/60">Vos conversations sont entièrement privées et illisibles par quiconque (y compris nous).</p>
                     </div>
 
@@ -172,7 +172,7 @@
                                 </div>
                                 
                                 <div class="text-center sm:text-left flex-1">
-                                    <h4 class="font-black text-(--white) text-lg mb-1 flex items-center justify-center sm:justify-start gap-2">
+                                    <h4 class="font-black text-(--text) text-lg mb-1 flex items-center justify-center sm:justify-start gap-2">
                                         <span class="w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]" :class="E2EEUnloked ? 'bg-green-500 text-green-500' : 'bg-red-500 text-red-500'"></span>
                                         {{ E2EEUnloked ? 'Vos données sont protégées' : 'Vos données sont verrouillées' }}
                                     </h4>
@@ -192,7 +192,7 @@
                             <div class="flex items-center gap-3 mb-4">
                                 <i class="bi bi-person-badge-fill text-(--primary) text-xl"></i>
                                 <div>
-                                    <h4 class="font-bold text-(--white)">Votre Identifiant de Sécurité</h4>
+                                    <h4 class="font-bold text-(--text)">Votre Identifiant de Sécurité</h4>
                                     <p class="text-[11px] text-(--text)/50 uppercase tracking-widest mt-0.5">La signature qui garantit votre identité</p>
                                 </div>
                             </div>
@@ -219,7 +219,7 @@
                 >
 
                     <div>
-                        <h3 class="text-2xl font-black text-(--white) mb-1">Apparence</h3>
+                        <h3 class="text-2xl font-black text-(--text) mb-1">Apparence</h3>
                         <p class="text-sm text-(--text)/60">Personnalisez l'interface de SilverTeams à votre goût.</p>
                     </div>
 
@@ -243,7 +243,7 @@
                                     <div class="w-full h-24 bg-(--bg) rounded-lg border border-white/10 flex items-center justify-center shadow-inner">
                                         <i class="bi bi-moon-stars-fill text-(--primary) text-3xl drop-shadow-md" />
                                     </div>
-                                    <span class="font-bold text-(--white)">Sombre</span>
+                                    <span class="font-bold text-(--text)">Sombre</span>
                                     <div v-if="theme == 'dark'" class="absolute top-2 right-2 w-3 h-3 bg-(--primary) rounded-full shadow-[0_0_10px_var(--primary)]"></div>
                                 </button>
 
@@ -259,7 +259,7 @@
                                     <div class="w-full h-24 bg-gray-100 rounded-lg border border-black/10 flex items-center justify-center shadow-inner">
                                         <i class="bi bi-sun-fill text-yellow-500 text-3xl drop-shadow-md" />
                                     </div>
-                                    <span class="font-bold text-(--white)">Clair</span>
+                                    <span class="font-bold text-(--text)">Clair</span>
                                     <div v-if="theme == 'light'" class="absolute top-2 right-2 w-3 h-3 bg-(--primary) rounded-full shadow-[0_0_10px_var(--primary)]"></div>
                                 </button>
 
@@ -278,7 +278,7 @@
                 >
 
                     <div>
-                        <h3 class="text-2xl font-black text-(--white) mb-1">Notifications</h3>
+                        <h3 class="text-2xl font-black text-(--text) mb-1">Notifications</h3>
                         <p class="text-sm text-(--text)/60">Gérez comment et quand vous êtes alerté.</p>
                     </div>
 
@@ -288,7 +288,7 @@
                             class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-white/5 cursor-pointer hover:bg-white/5 transition-all"
                         >
                             <div>
-                                <h4 class="font-bold text-(--white)">Sons des messages</h4>
+                                <h4 class="font-bold text-(--text)">Sons des messages</h4>
                                 <p class="text-sm text-(--text)/60 mt-0.5">Jouer un son lors de la réception d'un message</p>
                             </div>
                             <div 
@@ -307,7 +307,7 @@
                             class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-white/5 cursor-pointer hover:bg-white/5 transition-all"
                         >
                             <div>
-                                <h4 class="font-bold text-(--white)">Mentions @ uniquement</h4>
+                                <h4 class="font-bold text-(--text)">Mentions @ uniquement</h4>
                                 <p class="text-sm text-(--text)/60 mt-0.5">M'alerter uniquement quand on me mentionne directement</p>
                             </div>
                             <div 

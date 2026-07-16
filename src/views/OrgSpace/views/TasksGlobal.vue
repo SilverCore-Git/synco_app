@@ -3,8 +3,8 @@
         <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-white/5 bg-(--bg2) z-10 shrink-0">
             <div class="flex items-center gap-3">
                 <MobileBackBtn />
-                <i class="bi bi-check2-square text-white"></i>
-                <h3 class="font-semibold text-white">Mes Tâches</h3>
+                <i class="bi bi-check2-square text-(--text)"></i>
+                <h3 class="font-semibold text-(--text)">Mes Tâches</h3>
             </div>
             
             <div class="ml-auto flex items-center gap-2">
