@@ -58,7 +58,7 @@ class LocalSearchVectorDB {
         };
 
         if (workspaceId) {
-            searchParams.where = { workspaceId };
+            searchParams.where = { workspaceId: { eq: workspaceId } };
         }
 
         console.log("[LocalSearchVectorDB] searching with params:", searchParams);
