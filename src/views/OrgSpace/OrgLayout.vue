@@ -19,6 +19,7 @@ import { isMeeting } from '@/composables/usePrivatMeet';
 import isDesktopApp from '@/assets/isDesktopApp';
 import { useToast } from '@/composables/useToast';
 import { decryptFromPeer, privateKey } from '@/assets/utils/crypto';
+import { SearchSyncService } from '@/services/SearchSyncService';
 
 
 const props = defineProps<{
@@ -38,6 +39,56 @@ const showRouterView = computed(() => route.query.showView !== '0');
 const orgOnOpen = computed(() => {
     return organizations.value.find(org => org.id === route.params.orgId);
 });
+
+import { watch, toRaw } from 'vue';
+
+watch(() => route.params.spaceId, async (newSpaceId, oldSpaceId) => {
+    if (newSpaceId && newSpaceId !== oldSpaceId && privateKey.value) {
+        const spaceId = newSpaceId as string;
+        // Build the entire workspace search index in the background using E2EE keys
+        await SearchSyncService.restoreWorkspaceIndexes(spaceId, toRaw(privateKey.value));
+    }
+}, { immediate: true });
+
+watch(() => openedOrg.value, (newOrg) => {
+    if (newOrg && route.params.spaceId) {
+        const spaceId = route.params.spaceId as string;
+        // Add thread names to the search index for exact BM25 matching (fast, no vector generation needed)
+        import('@/services/LocalSearchVectorDB').then(({ localSearchDB }) => {
+            const currentSpace = newOrg.spaces?.find(s => s.id === spaceId);
+            if (currentSpace && currentSpace.threads) {
+                const dummyVector = Array(384).fill(0);
+                for (const thread of currentSpace.threads) {
+                    localSearchDB.insertDocument({
+                        id: thread.id,
+                        workspaceId: spaceId,
+                        type: 'THREAD',
+                        textContent: thread.name,
+                        vector: dummyVector
+                    });
+                }
+
+                // Also fetch and index all files in this workspace for instant name search
+                import('@/assets/utils/sfetch').then(({ default: sfetch }) => {
+                    sfetch(`/api/spaces/${spaceId}/files`).then(res => res.json()).then(data => {
+                        if (data && data.files) {
+                            for (const file of data.files) {
+                                localSearchDB.insertDocument({
+                                    id: file.id,
+                                    workspaceId: spaceId,
+                                    type: 'FILE',
+                                    textContent: file.originalName,
+                                    vector: dummyVector,
+                                    metadata: { fileUrl: file.url }
+                                });
+                            }
+                        }
+                    }).catch(err => console.error("Failed to fetch space files for indexing:", err));
+                });
+            }
+        });
+    }
+}, { immediate: true });
 
 const initSocketListener = async () => {
 
@@ -161,6 +212,16 @@ const initSocketListener = async () => {
                     {
                         space.threads[tIndex] = updatedThread;
                     }
+
+                    import('@/services/LocalSearchVectorDB').then(({ localSearchDB }) => {
+                        localSearchDB.insertDocument({
+                            id: updatedThread.id,
+                            workspaceId: spaceId,
+                            type: 'THREAD',
+                            textContent: updatedThread.name,
+                            vector: Array(384).fill(0)
+                        });
+                    });
 
                 });
 

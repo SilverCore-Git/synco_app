@@ -342,7 +342,7 @@ import ThreadMessage from '../components/common/ThreadMessage.vue';
 import useResponse from '@/composables/useResponse';
 import { uploadFiles } from '@/assets/uploadFile';
 import { waitForSocketConnection } from '@/composables/useWSocket';
-import VectorWorker from '@/workers/vector.worker?worker';
+
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 
@@ -422,16 +422,7 @@ const handleWorkerMessage = async (e: MessageEvent) => {
     }
 };
 
-onMounted(async () => {
-    globalVectorWorker.addEventListener('message', handleWorkerMessage);
-    await initChat();
-});
 
-onUnmounted(() => {
-    globalVectorWorker.removeEventListener('message', handleWorkerMessage);
-    saveCurrentText();
-    stopListener();
-});
 
 
 // file / pj
@@ -704,10 +695,18 @@ const initListener = () => {
 
         // Generate vector for the newly received message if we have the content
         if (clearContent && !clearContent.startsWith("🔒") && !msg.isWebhook) {
+            const hasFiles = Array.isArray(msg.files) && msg.files.length > 0;
+            let vectorText = clearContent;
+            if (hasFiles) {
+                const fileNames = msg.files.map((f: any) => f.originalName || '').join(' ');
+                vectorText = clearContent.trim() === '' ? fileNames : `${clearContent}\n${fileNames}`;
+                if (!vectorText.trim()) vectorText = 'Fichier joint';
+            }
+
             globalVectorWorker.postMessage({
                 id: msg.id,
-                text: clearContent,
-                type: 'MESSAGE',
+                text: vectorText,
+                type: hasFiles ? 'FILE' : 'MESSAGE',
                 metadata: { threadId: thread.value?.id }
             });
         }
@@ -799,9 +798,6 @@ const joinThread = async (id: string) => {
             const decryptedKey = await decryptThreadKeyWithRsa(response.encryptedKey, privateKey.value!);
             currentThreadKey.value = decryptedKey;
 
-            // Restore search indexes for this thread
-            SearchSyncService.restoreThreadIndexes(id, decryptedKey);
-
             socket.value.emit("join-thread", { 
                 threadId: id
             });
@@ -852,10 +848,18 @@ const sendMessage = async () => {
 
         // Trigger vector generation in background
         if (confirmedMessage && confirmedMessage.id) {
+            const hasFiles = Array.isArray(selectedFiles.value) && selectedFiles.value.length > 0;
+            let vectorText = newMessage.value;
+            if (hasFiles) {
+                const fileNames = selectedFiles.value.map(f => f.name).join(' ');
+                vectorText = newMessage.value.trim() === '' ? fileNames : `${newMessage.value}\n${fileNames}`;
+                if (!vectorText.trim()) vectorText = 'Fichier joint';
+            }
+
             globalVectorWorker.postMessage({
                 id: confirmedMessage.id,
-                text: newMessage.value,
-                type: 'MESSAGE',
+                text: vectorText,
+                type: hasFiles ? 'FILE' : 'MESSAGE',
                 metadata: { threadId: thread.value?.id }
             });
         }

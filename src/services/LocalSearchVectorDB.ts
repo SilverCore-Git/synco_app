@@ -3,7 +3,7 @@ import { create, insert, search, type AnyOrama } from '@orama/orama';
 export interface LocalVectorDocument {
     id: string;              // UUID unique
     workspaceId: string;
-    type: "MESSAGE" | "FILE" | "TODO";
+    type: "MESSAGE" | "FILE" | "TODO" | "THREAD";
     textContent: string;     // Texte extrait du PDF ou message en clair
     vector: number[];        // Le vecteur mathématique (384 dimensions)
     metadata?: any;          // Pour stocker threadId, etc.
@@ -45,14 +45,21 @@ class LocalSearchVectorDB {
 
     }
 
-    async searchByVector(vector: number[], workspaceId?: string, limit = 10) {
+    async searchByVector(vector: number[], textQuery: string, workspaceId?: string, limit = 10) {
         if (!this.initialized || !this.db) await this.init();
 
         const searchParams: any = {
-            mode: 'vector',
+            term: textQuery,
+            mode: 'hybrid',
+            tolerance: 2,
+            exact: false,
             vector: {
                 value: vector,
                 property: 'vector',
+            },
+            hybridWeights: {
+                text: 0.5,
+                vector: 0.5,
             },
             limit,
         };

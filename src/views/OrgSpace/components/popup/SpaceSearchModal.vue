@@ -28,8 +28,8 @@
         <div class="max-h-[60vh] overflow-y-auto p-2" v-if="query.length > 0">
             <div v-if="loading" class="flex flex-col items-center justify-center py-8 text-(--text)/40">
                 <i class="bi bi-robot text-4xl mb-3 animate-pulse text-(--primary)" />
-                <p>Vectorisation et recherche en cours...</p>
-                <p v-if="downloadProgress > 0" class="text-xs mt-2 text-(--text)/30">Téléchargement du modèle IA: {{ downloadProgress }}%</p>
+                <p>Recherche en cours...</p>
+                <p v-if="downloadProgress > 0 && downloadProgress < 100" class="text-xs mt-2 text-(--text)/30">Premier démarrage du moteur : {{ downloadProgress }}%</p>
             </div>
             
             <div v-else-if="error" class="flex flex-col items-center justify-center py-8 text-red-400">
@@ -54,11 +54,12 @@
                         <i v-if="res.type === 'MESSAGE'" class="bi bi-chat-dots text-blue-400 text-lg" />
                         <i v-else-if="res.type === 'FILE'" class="bi bi-file-earmark-text text-green-400 text-lg" />
                         <i v-else-if="res.type === 'TODO'" class="bi bi-check2-square text-orange-400 text-lg" />
+                        <i v-else-if="res.type === 'THREAD'" class="bi bi-hash text-(--primary) text-lg" />
                     </div>
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-xs font-black tracking-wider uppercase text-(--text)/40">
-                                {{ res.type === 'MESSAGE' ? 'Message' : res.type === 'FILE' ? 'Fichier' : 'Tâche' }}
+                                {{ res.type === 'MESSAGE' ? 'Message' : res.type === 'FILE' ? 'Fichier' : res.type === 'TODO' ? 'Tâche' : 'Salon' }}
                             </span>
                             <span class="text-[10px] text-(--primary)/60 font-bold bg-(--primary)/10 px-2 py-0.5 rounded">{{ (res.score * 100).toFixed(0) }}% certitude</span>
                         </div>
@@ -96,14 +97,14 @@ const downloadProgress = ref(0);
 
 let searchTimeout: any = null;
 
-globalVectorWorker.onerror = (err) => {
+globalVectorWorker.onerror = (err: any) => {
     console.error("[SpaceSearchModal] Worker global error:", err);
     error.value = "Erreur fatale du Worker: " + (err.message || "Impossible de charger le moteur IA.");
     loading.value = false;
 };
 
 const handleWorkerMessage = async (e: MessageEvent) => {
-    const { status, vector, type } = e.data;
+    const { status, vector, type, text } = e.data;
     
     if (status === 'error') {
         console.error("[SpaceSearchModal] Worker error:", e.data.error);
@@ -128,12 +129,10 @@ const handleWorkerMessage = async (e: MessageEvent) => {
         }
 
         try {
-            const searchResults = await localSearchDB.searchByVector(vector, workspaceId, 20);
-            console.log("[SpaceSearchModal] results before filter:", searchResults);
-            results.value = searchResults.filter((r: any) => r.score > 0.4); // Threshold
-            console.log("[SpaceSearchModal] results after filter:", results.value);
+            const searchResults = await localSearchDB.searchByVector(vector, text, workspaceId, 20);
+            results.value = searchResults; // Removing 0.4 threshold because hybrid search scores are different
         } catch (err) {
-            console.error("Search failed:", err);
+            console.error("[SpaceSearchModal] Search failed with error:", err);
         } finally {
             loading.value = false;
         }
@@ -154,8 +153,9 @@ const handleInput = () => {
     error.value = null;
     
     searchTimeout = setTimeout(() => {
+        const queryId = 'query_' + Date.now();
         globalVectorWorker.postMessage({
-            id: 'query_' + Date.now(),
+            id: queryId,
             text: query.value,
             type: 'QUERY'
         });
@@ -165,29 +165,30 @@ const handleInput = () => {
 const goToResult = (res: any) => {
     emit('close');
     
-    if (res.type === 'MESSAGE') {
+    if (res.type === 'MESSAGE' || res.type === 'FILE') {
         if (res.metadata?.threadId) {
             router.push({ 
                 name: 'SpaceThreadView', 
                 params: { orgId: route.params.orgId, spaceId: route.params.spaceId, threadId: res.metadata.threadId },
-                query: { select: res.id, showView: '1' }
+                query: { showView: '1', messageId: res.id }
+            });
+        } else if (res.type === 'FILE') {
+            router.push({ 
+                name: 'SpaceFiles', 
+                params: { orgId: route.params.orgId, spaceId: route.params.spaceId },
+                query: { showView: '1', folderId: res.metadata?.folderId || 'root', highlightFileId: res.id }
             });
         }
-    } else if (res.type === 'FILE') {
-        let queryParams: any = { showView: '1' };
-        if (res.metadata?.folderId) {
-            // Need to reconstruct path theoretically, but jumping to folder is enough for now
-            // We just navigate to SpaceFiles
-        }
-        router.push({ 
-            name: 'SpaceFiles',
-            params: { orgId: route.params.orgId, spaceId: route.params.spaceId },
-            query: queryParams
-        });
     } else if (res.type === 'TODO') {
         router.push({ 
             name: 'TasksSpace',
             params: { orgId: route.params.orgId, spaceId: route.params.spaceId },
+            query: { showView: '1' }
+        });
+    } else if (res.type === 'THREAD') {
+        router.push({ 
+            name: 'SpaceThreadView', 
+            params: { orgId: route.params.orgId, spaceId: route.params.spaceId, threadId: res.id },
             query: { showView: '1' }
         });
     }

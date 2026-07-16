@@ -181,6 +181,7 @@
 
                         <FileCard
                             v-for="file in filteredFiles" 
+                            :id="'file-' + file.id"
                             :key="file.id"
                             draggable="true"
                             :file="file"
@@ -682,12 +683,33 @@ onMounted(async() => {
         allFolders.value = data.folders || [];
 
         const urlPath = route.query.path as string;
+        const folderId = route.query.folderId as string;
+        const highlightFileId = route.query.highlightFileId as string;
 
         if (urlPath) 
         {
             const pathIds = urlPath.split('/');
             currentFolderId.value = pathIds.length > 0 ? pathIds?.[pathIds.length - 1] || 'root' : 'root';
-        }   
+        }
+        else if (folderId) 
+        {
+            currentFolderId.value = folderId;
+        }
+
+        if (highlightFileId) 
+        {
+            setTimeout(() => {
+                const el = document.getElementById('file-' + highlightFileId);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // Add highlight animation via child element or wrapper
+                    el.classList.add('ring-2', 'ring-(--primary)', 'ring-offset-2', 'ring-offset-(--bg1)', 'rounded-xl', 'transition-all');
+                    setTimeout(() => {
+                        el.classList.remove('ring-2', 'ring-(--primary)', 'ring-offset-2', 'ring-offset-(--bg1)');
+                    }, 3000);
+                }
+            }, 500);
+        }
 
     } catch (e) {
         console.error("Erreur:", e);
