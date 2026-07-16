@@ -207,6 +207,14 @@
                         >
 
                             <SettingsViewBtn 
+                                v-if="!isHome"
+                                name="Rechercher"
+                                icon="bi-search"
+                                :active="showSearchModal"
+                                @click="showSearchModal = true"
+                            />
+
+                            <SettingsViewBtn 
                                 v-if="!isHome && filesEnabled"
                                 name="Fichiers"
                                 icon="bi-file-earmark"
@@ -248,6 +256,8 @@
 
     </div>
 
+    <SpaceSearchModal :show="showSearchModal" @close="showSearchModal = false" />
+
 </template>
 
 
@@ -265,6 +275,7 @@ import { settingsViews } from '../../views/settings/settings';
 import isAdmin from '@/assets/isAdmin';
 import Category from '../CanalBar/Category.vue';
 import isDesktopApp from '@/assets/isDesktopApp';
+import SpaceSearchModal from '../popup/SpaceSearchModal.vue';
 
 
 const route = useRoute();
@@ -274,6 +285,7 @@ const isChat = computed(() => route.name == 'OrgChat' || route.name == 'OrgThrea
 const isHome = computed(()=> route.name == 'OrgHome' || route.name == 'OrgThreadHome');
 const isSettings = computed(()=> route.name?.toString().startsWith('OrgSettings'));
 const showDropDown = ref<boolean>(false);
+const showSearchModal = ref<boolean>(false);
 
 
 const title = computed<string>(() => {

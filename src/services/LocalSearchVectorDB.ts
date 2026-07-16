@@ -6,6 +6,7 @@ export interface LocalVectorDocument {
     type: "MESSAGE" | "FILE" | "TODO";
     textContent: string;     // Texte extrait du PDF ou message en clair
     vector: number[];        // Le vecteur mathématique (384 dimensions)
+    metadata?: any;          // Pour stocker threadId, etc.
 }
 
 class LocalSearchVectorDB {
@@ -22,6 +23,7 @@ class LocalSearchVectorDB {
                 type: 'string',
                 textContent: 'string',
                 vector: 'vector[384]', // MiniLM-L12-v2 produces 384-dimensional vectors
+                metadata: 'string'
             }
         });
 
@@ -37,6 +39,7 @@ class LocalSearchVectorDB {
             type: doc.type,
             textContent: doc.textContent,
             vector: doc.vector,
+            metadata: doc.metadata ? JSON.stringify(doc.metadata) : undefined
         });
 
     }
@@ -57,7 +60,23 @@ class LocalSearchVectorDB {
             searchParams.where = { workspaceId };
         }
 
-        return await search(this.db, searchParams);
+        const searchResult = await search(this.db, searchParams);
+
+        // Parser le metadata de chaque hit
+        const results = searchResult.hits.map(hit => {
+            const document = hit.document as any;
+            if (document.metadata) {
+                try {
+                    document.metadata = JSON.parse(document.metadata);
+                } catch (e) {}
+            }
+            return {
+                ...document,
+                score: hit.score
+            };
+        });
+
+        return results;
     }
 }
 

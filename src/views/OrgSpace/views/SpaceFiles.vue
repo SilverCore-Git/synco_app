@@ -353,7 +353,7 @@ const draggedIntoFolderId = ref<string | null>(null);
 
 const vectorWorker = new VectorWorker();
 vectorWorker.onmessage = async (e) => {
-    const { status, id, vector, text, type } = e.data;
+    const { status, id, vector, text, type, metadata } = e.data;
     if (status === 'complete') {
         const workspaceId = String(route.params.spaceId) || null;
         if (!workspaceId) return;
@@ -364,7 +364,8 @@ vectorWorker.onmessage = async (e) => {
             workspaceId,
             type,
             textContent: text,
-            vector
+            vector,
+            metadata
         });
         
         // Note: Backend sync skipped here as we need a symmetric workspace key which might not exist globally.
@@ -651,7 +652,8 @@ const handleFiles = async (files: FileList | File[]) => {
                             vectorWorker.postMessage({
                                 id: uploadedFile.id,
                                 text,
-                                type: 'FILE'
+                                type: 'FILE',
+                                metadata: { folderId: currentFolderId.value }
                             });
                         }
                     }).catch(err => console.error("PDF Extraction failed:", err));

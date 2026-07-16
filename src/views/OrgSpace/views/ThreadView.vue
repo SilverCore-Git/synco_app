@@ -393,7 +393,7 @@ const showEmojiPicker = ref<boolean>(false);
 
 const vectorWorker = new VectorWorker();
 vectorWorker.onmessage = async (e) => {
-    const { status, id, vector, text, type } = e.data;
+    const { status, id, vector, text, type, metadata } = e.data;
     if (status === 'complete' && currentThreadKey.value) {
         const workspaceId = (route.params.spaceId as string) || null;
         if (!workspaceId) return; // Only indexing workspace threads for now
@@ -404,7 +404,8 @@ vectorWorker.onmessage = async (e) => {
             workspaceId,
             type,
             textContent: text,
-            vector
+            vector,
+            metadata
         });
         
         // Sync to backend (E2EE)
@@ -693,7 +694,8 @@ const initListener = () => {
             vectorWorker.postMessage({
                 id: msg.id,
                 text: clearContent,
-                type: 'MESSAGE'
+                type: 'MESSAGE',
+                metadata: { threadId: thread.value?.id }
             });
         }
     });
@@ -837,7 +839,8 @@ const sendMessage = async () => {
             vectorWorker.postMessage({
                 id: confirmedMessage.id,
                 text: newMessage.value,
-                type: 'MESSAGE'
+                type: 'MESSAGE',
+                metadata: { threadId: thread.value?.id }
             });
         }
 

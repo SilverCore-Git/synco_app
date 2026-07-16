@@ -17,7 +17,7 @@ class PipelineSingleton {
 }
 
 self.addEventListener('message', async (event) => {
-    const { id, text, type } = event.data;
+    const { id, text, type, metadata } = event.data;
 
     if (!text) return;
 
@@ -34,7 +34,8 @@ self.addEventListener('message', async (event) => {
             status: 'complete',
             vector: Array.from(output.data),
             text,
-            type
+            type,
+            metadata
         });
     } catch (error: any) {
         console.error("[VectorWorker] Error generating vector:", error);
