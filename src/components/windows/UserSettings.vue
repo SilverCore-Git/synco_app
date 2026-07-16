@@ -26,28 +26,37 @@
                 <!-- ACCOUNT -->
                 <section 
                     v-if="activeTab === 'account'" 
-                    class="animate-fade-in space-y-8"
+                    class="animate-fade-in"
                 >
 
-                    <div>
-                        <h3 class="text-2xl font-black text-(--white) mb-1">Mon Compte</h3>
-                        <p class="text-sm text-(--text)/60">Gérez vos informations personnelles et votre profil.</p>
-                    </div>
-
-                    <div class="flex items-center justify-between gap-6 p-4 bg-(--bg2) rounded-xl border border-white/5">
-                       
-                        <div class="w-22 h-22 rounded-full bg-(--bg) border-2 border-(--primary) flex items-center justify-center overflow-hidden shrink-0">
-                            <img 
-                                :src="user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.name}&background=128a60&color=fff`" 
-                                :alt="user?.name" 
-                                @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${user?.name}&background=128a60&color=fff`"
-                                class="w-full h-full object-cover"
-                            />
-                        </div>
+                    <!-- Profil Banner inspiré de UserDropDown -->
+                    <div class="w-full relative rounded-xl overflow-hidden bg-(--bg2) border border-white/5 mb-8 shadow-xl">
+                        <!-- Banner -->
+                        <div class="h-[120px] bg-gradient-to-tr from-(--primary-dark) to-(--primary) w-full relative z-0"></div>
                         
-                        <div class="flex flex-col justify-between">
-                            <button @click="avatarChange = true" class="primary px-6 py-2">
-                                Changer l'avatar
+                        <!-- Avatar & Actions -->
+                        <div class="px-6 relative flex justify-between items-end pb-6">
+                            <!-- Overlapping Avatar -->
+                            <div class="absolute -top-12 left-6 p-1.5 bg-(--bg2) rounded-full z-10 shadow-lg">
+                                <div class="relative w-[100px] h-[100px] rounded-full overflow-hidden bg-(--bg)">
+                                    <img 
+                                        :src="user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.name}&background=128a60&color=fff`" 
+                                        :alt="user?.name" 
+                                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${user?.name}&background=128a60&color=fff`"
+                                        class="w-full h-full object-cover"
+                                    />
+                                </div>
+                            </div>
+
+                            <!-- Spacer pour l'avatar -->
+                            <div class="w-[110px]"></div>
+
+                            <button 
+                                @click="avatarChange = true" 
+                                class="mt-4 primary flex items-center gap-2 text-sm"
+                            >
+                                <i class="bi bi-camera-fill"></i>
+                                Modifier l'avatar
                             </button>
                         </div>
 
@@ -55,37 +64,52 @@
                             :show="avatarChange" 
                             @close="avatarChange = false" 
                         />
-
                     </div>
 
-                    <div class="space-y-5 max-w-md bg-(--bg2) p-6 rounded-xl border border-white/5">
+                    <div class="mb-6">
+                        <h3 class="text-xl font-black text-(--white) mb-1">Informations personnelles</h3>
+                        <p class="text-sm text-(--text)/60">Mettez à jour votre profil et vos coordonnées.</p>
+                    </div>
+
+                    <div class="space-y-6 max-w-lg">
                        
                         <div class="space-y-1.5">
-                            <label class="text-sm font-bold text-(--text)">Nom d'utilisateur</label>
-                            <input 
-                                type="text" 
-                                v-model="formData.name" 
-                                class="w-full bg-(--bg) border border-white/10 rounded-lg px-4 py-2.5 text-(--white) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all"
-                            />
+                            <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">Nom d'utilisateur</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
+                                    <i class="bi bi-person-fill"></i>
+                                </div>
+                                <input 
+                                    type="text" 
+                                    v-model="formData.name" 
+                                    class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-(--white) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                />
+                            </div>
                         </div>
 
                         <div class="space-y-1.5">
-                            <label class="text-sm font-bold text-(--text)">Adresse Email</label>
-                            <input 
-                                type="email" 
-                                v-model="formData.email" 
-                                class="w-full bg-(--bg) border border-white/10 rounded-lg px-4 py-2.5 text-(--white) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all"
-                            />
+                            <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">Adresse Email</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
+                                    <i class="bi bi-envelope-fill"></i>
+                                </div>
+                                <input 
+                                    type="email" 
+                                    v-model="formData.email" 
+                                    class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-(--white) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                />
+                            </div>
                         </div>
                         
-                        <div class="pt-4 flex justify-end">
+                        <div class="pt-4">
                             <button  
                                 @click="updateProfile"
-                                class="primary px-6 py-2 text-sm font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all" 
+                                class="w-full sm:w-auto primary flex items-center justify-center gap-2 text-sm" 
                                 :disabled="!isModified || isUpdating"
                             >
-                                <span v-if="isUpdating">Enregistrement...</span>
-                                <span v-else>Enregistrer les modifications</span>
+                                <i v-if="isUpdating" class="bi bi-arrow-repeat animate-spin"></i>
+                                <i v-else class="bi bi-check-circle-fill"></i>
+                                <span>{{ isUpdating ? 'Enregistrement...' : 'Enregistrer les modifications' }}</span>
                             </button>
                         </div>
 
