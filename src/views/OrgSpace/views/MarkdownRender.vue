@@ -28,7 +28,8 @@ const renderedHtml = computed(() => {
             'p', 'br', 'strong', 'em', 'del', 'code', 'pre', 
             'ul', 'ol', 'li', 'blockquote', 'a', 'h1', 'h2', 'h3'
         ],
-        ALLOWED_ATTR: ['href', 'target', 'class']
+        ALLOWED_ATTR: ['href', 'target', 'class'],
+        ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i
     });
 
 });
