@@ -113,7 +113,7 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
-            transports: ['polling', 'websocket'], // Use polling first to bypass proxy issues, then upgrade
+            transports: ['polling'], // Force polling to bypass Vite/Cloudflare proxy WebSocket drop issues
             withCredentials: false, // Not needed — we use token auth, not cookies
             timeout: 20000,
         });
