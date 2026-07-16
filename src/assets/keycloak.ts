@@ -57,19 +57,23 @@ const initKC = async (): Promise<boolean> => {
   try {
 
     const authenticated = await keycloak.init({
-      onLoad: 'login-required',
+      onLoad: 'check-sso',
+      silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
       pkceMethod: 'S256',
       checkLoginIframe: false,
     });
 
-    if (authenticated) {
-      await keycloak.loadUserInfo();
-      kcToken.value = keycloak.token || '';
-
-      setupTokenRefresh();
+    if (!authenticated) {
+      const cleanUrl = window.location.origin + window.location.pathname;
+      await keycloak.login({ redirectUri: cleanUrl });
+      return false;
     }
 
-    return authenticated;
+    await keycloak.loadUserInfo();
+    kcToken.value = keycloak.token || '';
+
+    setupTokenRefresh();
+    return true;
 
   } catch (error) {
     console.error("[Keycloak] Erreur d'initialisation Keycloak", error);

@@ -43,7 +43,8 @@ export default async function sfetch(url: string, arg?: any) {
     if (!response.ok) {
         console.error(`[sfetch] API Error ${response.status} on ${url}`);
         if (response.status === 401) {
-            keycloak.login();
+            const cleanUrl = window.location.origin + window.location.pathname;
+            keycloak.login({ redirectUri: cleanUrl });
         }
     }
 
