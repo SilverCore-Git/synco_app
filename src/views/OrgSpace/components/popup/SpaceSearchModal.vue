@@ -43,31 +43,47 @@
                 <p>Aucun résultat trouvé pour "{{ query }}"</p>
             </div>
 
-            <div v-else class="space-y-2">
-                <button 
-                    v-for="res in results" 
-                    :key="res.id"
-                    @click="goToResult(res)"
-                    class="w-full text-left p-3 rounded-xl hover:bg-white/5 transition-colors flex items-start gap-3 border border-transparent hover:border-white/5"
-                >
-                    <div class="mt-1">
-                        <i v-if="res.type === 'MESSAGE'" class="bi bi-chat-dots text-blue-400 text-lg" />
-                        <i v-else-if="res.type === 'FILE'" class="bi bi-file-earmark-text text-green-400 text-lg" />
-                        <i v-else-if="res.type === 'TODO'" class="bi bi-check2-square text-orange-400 text-lg" />
-                        <i v-else-if="res.type === 'THREAD'" class="bi bi-hash text-(--primary) text-lg" />
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center justify-between mb-1">
-                            <span class="text-xs font-black tracking-wider uppercase text-(--text)/40">
-                                {{ res.type === 'MESSAGE' ? 'Message' : res.type === 'FILE' ? 'Fichier' : res.type === 'TODO' ? 'Tâche' : 'Salon' }}
-                            </span>
-                            <span class="text-[10px] text-(--primary)/60 font-bold bg-(--primary)/10 px-2 py-0.5 rounded">{{ (res.score * 100).toFixed(0) }}% certitude</span>
+            <div v-else class="space-y-6 pb-4">
+                
+                <div v-for="group in ['THREAD', 'FILE', 'TODO', 'MESSAGE']" :key="group">
+                    <div v-if="groupedResults[group] && groupedResults[group].length > 0">
+                        <h3 class="text-[10px] font-black tracking-widest uppercase text-(--text)/30 mb-2 px-2 flex items-center gap-2">
+                            <i class="bi" :class="{
+                                'bi-hash text-(--primary)': group === 'THREAD',
+                                'bi-file-earmark-text text-green-400': group === 'FILE',
+                                'bi-check2-square text-orange-400': group === 'TODO',
+                                'bi-chat-dots text-blue-400': group === 'MESSAGE'
+                            }" />
+                            {{ group === 'THREAD' ? 'Salons' : group === 'FILE' ? 'Fichiers' : group === 'TODO' ? 'Tâches' : 'Messages' }}
+                            <span class="text-(--text)/20 font-normal">({{ groupedResults[group].length }})</span>
+                        </h3>
+                        
+                        <div class="space-y-1">
+                            <button 
+                                v-for="res in groupedResults[group]" 
+                                :key="res.id"
+                                @click="goToResult(res)"
+                                class="w-full text-left p-3 rounded-xl hover:bg-white/5 transition-colors flex items-start gap-3 border border-transparent hover:border-white/5 group/btn"
+                            >
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <p class="text-sm font-medium text-white line-clamp-1 group-hover/btn:text-(--primary) transition-colors">
+                                            {{ res.textContent }}
+                                        </p>
+                                        <span class="text-[10px] text-(--primary)/60 font-bold bg-(--primary)/10 px-2 py-0.5 rounded shrink-0 ml-3">
+                                            {{ (res.score * 100).toFixed(0) }}%
+                                        </span>
+                                    </div>
+                                    <!-- Si c'est un message long, on montre la suite avec opacity reduite -->
+                                    <p v-if="group === 'MESSAGE'" class="text-xs text-(--text)/50 line-clamp-2 mt-1 font-mono">
+                                        {{ res.textContent }}
+                                    </p>
+                                </div>
+                            </button>
                         </div>
-                        <p class="text-sm text-(--text)/90 line-clamp-2">
-                            {{ res.textContent }}
-                        </p>
                     </div>
-                </button>
+                </div>
+
             </div>
         </div>
 
@@ -94,6 +110,20 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 const results = ref<any[]>([]);
 const downloadProgress = ref(0);
+
+const groupedResults = computed(() => {
+    const groups: Record<string, any[]> = {
+        'THREAD': [],
+        'FILE': [],
+        'TODO': [],
+        'MESSAGE': []
+    };
+    for (const res of results.value) {
+        if (groups[res.type]) groups[res.type].push(res);
+        else groups['MESSAGE'].push(res);
+    }
+    return groups;
+});
 
 let searchTimeout: any = null;
 
@@ -159,7 +189,7 @@ const handleInput = () => {
             text: query.value,
             type: 'QUERY'
         });
-    }, 500); // 500ms debounce
+    }, 250); // 250ms debounce for much faster feeling
 };
 
 const goToResult = (res: any) => {
