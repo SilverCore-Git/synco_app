@@ -56,8 +56,15 @@
                 <div class="bg-(--bg2) rounded-lg p-4 mb-4 mt-3 border border-white/5 shadow-inner">
                     <!-- Name -->
                     <h2 class="text-xl font-bold text-(--text) leading-tight">{{ u.name }}</h2>
+                    <p class="text-xs text-(--primary) font-bold uppercase tracking-wider mb-1" v-if="u.job">{{ u.job }}</p>
                     <p class="text-sm text-(--text)/60 mb-3">{{ u.email }}</p>
                     
+                    <div v-if="u.description">
+                        <div class="w-full h-px bg-white/5 my-3"></div>
+                        <h3 class="text-[11px] font-bold text-(--text)/50 uppercase tracking-wide mb-2">À propos</h3>
+                        <p class="text-sm text-(--text)/80 leading-relaxed">{{ u.description }}</p>
+                    </div>
+
                     <div class="w-full h-px bg-white/5 my-3"></div>
 
                     <!-- Role Section -->

@@ -101,6 +101,33 @@
                             </div>
                         </div>
                         
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">Poste</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
+                                    <i class="bi bi-briefcase-fill"></i>
+                                </div>
+                                <input 
+                                    type="text" 
+                                    v-model="formData.job" 
+                                    placeholder="Ex: Développeur Full-Stack"
+                                    class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-(--white) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">Description</label>
+                            <div class="relative">
+                                <textarea 
+                                    v-model="formData.description" 
+                                    placeholder="Dites-nous en plus sur vous..."
+                                    rows="3"
+                                    class="w-full bg-(--bg2) border border-white/5 rounded-xl p-4 text-(--white) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner resize-none"
+                                ></textarea>
+                            </div>
+                        </div>
+                        
                         <div class="pt-4">
                             <button  
                                 @click="updateProfile"
@@ -299,7 +326,9 @@ const isUpdating = ref<boolean>(false);
 
 const formData = reactive({
     name: '',
-    email: ''
+    email: '',
+    job: '',
+    description: ''
 });
 
 // Sync user data to form
@@ -307,11 +336,16 @@ watch(user, (newVal) => {
     if (newVal) {
         formData.name = newVal.name || '';
         formData.email = newVal.email || '';
+        formData.job = newVal.job || '';
+        formData.description = newVal.description || '';
     }
 }, { immediate: true });
 
 const isModified = computed(() => {
-    return formData.name !== user.value?.name || formData.email !== user.value?.email;
+    return formData.name !== user.value?.name || 
+           formData.email !== user.value?.email ||
+           formData.job !== (user.value?.job || '') ||
+           formData.description !== (user.value?.description || '');
 });
 
 const updateProfile = async () => {
@@ -323,7 +357,9 @@ const updateProfile = async () => {
             method: 'PATCH',
             body: JSON.stringify({
                 name: formData.name,
-                email: formData.email
+                email: formData.email,
+                job: formData.job,
+                description: formData.description
             })
         });
         

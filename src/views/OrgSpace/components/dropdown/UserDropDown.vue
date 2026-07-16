@@ -115,7 +115,14 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
                     <!-- Infos -->
                     <div class="bg-(--bg2) rounded-lg p-3 mt-2 border border-white/5 shadow-inner">
                         <h2 class="text-lg font-bold text-(--text) leading-tight">{{ user?.name }}</h2>
+                        <p class="text-xs text-(--primary) font-bold uppercase tracking-wider mb-1" v-if="user?.job">{{ user?.job }}</p>
                         <p class="text-xs text-(--text)/60 mb-2">{{ user?.email }}</p>
+                        
+                        <div v-if="user?.description">
+                            <div class="w-full h-px bg-white/5 my-2"></div>
+                            <h3 class="text-[10px] font-bold text-(--text)/50 uppercase tracking-wide mb-1.5">À propos</h3>
+                            <p class="text-xs text-(--text)/80 leading-relaxed line-clamp-3">{{ user?.description }}</p>
+                        </div>
                         
                         <div class="w-full h-px bg-white/5 my-2"></div>
 

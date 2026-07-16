@@ -90,6 +90,8 @@ export interface User {
   email: string;
   name: string;
   avatarUrl?: string;
+  job?: string;
+  description?: string;
 
   publicKey?: string; // Format JWK (string JSON)
   encryptedPrivateKey?: string; // Base64
