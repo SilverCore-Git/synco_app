@@ -102,23 +102,24 @@
     <div v-if="!localLLM.isInitialized.value" class="px-6 py-4 border-t border-white/5 bg-black/20 flex flex-col gap-3 shrink-0">
       
       <!-- WebGPU Non supporté (Erreur bloquante) -->
-      <div v-if="!localLLM.hasWebGPU.value" class="flex items-center gap-4 bg-red-500/10 border border-red-500/20 p-4 rounded-xl mb-4">
-        <i class="bi bi-x-circle-fill text-3xl text-red-500"></i>
-        <div>
-          <h4 class="text-red-500 font-black text-sm uppercase tracking-wider">Matériel non compatible</h4>
-          <p class="text-xs text-red-500/90 mt-1 font-medium">
-            L'agent IA nécessite l'accélération matérielle (WebGPU) pour fonctionner. 
-            Aucune carte graphique compatible n'a été détectée dans votre navigateur. 
-            L'exécution en local est impossible.
+      <div v-if="!localLLM.hasWebGPU.value" class="flex items-start gap-4 bg-red-950/40 border-l-4 border-red-500 p-5 rounded-r-xl rounded-l-sm mb-5 shadow-lg">
+        <div class="bg-red-500/20 p-2 rounded-full shrink-0 mt-1">
+          <i class="bi bi-x-circle-fill text-2xl text-red-500"></i>
+        </div>
+        <div class="flex-1">
+          <h4 class="text-red-400 font-black text-base uppercase tracking-wider mb-2">Matériel non compatible</h4>
+          <p class="text-sm text-white/90 leading-relaxed mb-4">
+            L'agent IA nécessite l'accélération matérielle <strong>WebGPU</strong> pour fonctionner. 
+            Aucune carte graphique compatible n'a été détectée dans votre navigateur. L'exécution en local est donc désactivée.
           </p>
           
-          <div class="bg-black/20 p-3 rounded-lg border border-red-500/20 text-xs text-red-500/80 mt-3">
-            <strong>Diagnostic :</strong>
-            <ul class="list-disc ml-5 mt-1 space-y-1">
-              <li><strong>Si vous êtes sous Linux :</strong> L'accélération WebGPU n'est souvent pas supportée ou très instable. Nous vous recommandons vivement d'utiliser <strong>Chromium/Google Chrome sous Windows ou macOS</strong> pour profiter de l'IA locale.</li>
-              <li>Vérifiez que vos pilotes graphiques sont à jour.</li>
-              <li v-if="!!navigator?.gpu">WebGPU est activé dans le navigateur, mais ne parvient pas à trouver la carte (problème OS/Drivers).</li>
-              <li v-else>Assurez-vous d'utiliser une version récente de Google Chrome, Edge ou Brave.</li>
+          <div class="bg-black/40 p-4 rounded-lg border border-white/5 text-sm text-white/80">
+            <p class="font-bold text-red-300 mb-2 flex items-center gap-2"><i class="bi bi-wrench-adjustable"></i> Pistes de résolution :</p>
+            <ul class="list-disc ml-5 space-y-2">
+              <li><strong>Linux :</strong> L'accélération WebGPU est souvent bloquée. Nous recommandons d'utiliser <strong>Chromium ou Chrome sous Windows ou macOS</strong> pour profiter de l'IA locale.</li>
+              <li><strong>Pilotes :</strong> Vérifiez que vos pilotes graphiques sont à jour.</li>
+              <li v-if="!!navigator?.gpu">WebGPU est activé dans votre navigateur, mais l'accès à la carte graphique a échoué (problème OS/Drivers).</li>
+              <li v-else>Assurez-vous d'utiliser une version récente de <strong>Google Chrome, Edge ou Brave</strong>.</li>
             </ul>
           </div>
         </div>
