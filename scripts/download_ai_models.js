@@ -15,8 +15,19 @@ const models = [
         hfRepo: "mlc-ai/SmolLM2-135M-Instruct-q0f16-MLC",
         wasmUrl: "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_84/base/SmolLM2-135M-Instruct-q0f16_cs1k-webgpu.wasm",
         wasmName: "SmolLM2-135M-Instruct-q0f16_cs1k-webgpu.wasm"
+    },
+    {
+        id: "Qwen2-1.5B-Instruct-q4f16_1-MLC",
+        hfRepo: "mlc-ai/Qwen2-1.5B-Instruct-q4f16_1-MLC",
+        wasmUrl: "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_84/base/Qwen2-1.5B-Instruct-q4f16_1_cs1k-webgpu.wasm",
+        wasmName: "Qwen2-1.5B-Instruct-q4f16_1_cs1k-webgpu.wasm"
+    },
+    {
+        id: "Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
+        hfRepo: "mlc-ai/Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
+        wasmUrl: "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_84/base/Mistral-7B-Instruct-v0.3-q4f16_1_cs1k-webgpu.wasm",
+        wasmName: "Mistral-7B-Instruct-v0.3-q4f16_1_cs1k-webgpu.wasm"
     }
-    // Add Qwen and Mistral here later when needed
 ];
 
 async function downloadFile(url, dest) {
@@ -46,7 +57,7 @@ async function main() {
 
     for (const model of models) {
         console.log(`\n=== Processing Model: ${model.id} ===`);
-        const modelPath = path.join(MODELS_DIR, model.id);
+        const modelPath = path.join(MODELS_DIR, model.id, 'resolve', 'main');
         if (!fs.existsSync(modelPath)) fs.mkdirSync(modelPath, { recursive: true });
 
         // 1. Download HuggingFace files
