@@ -25,6 +25,38 @@
             </button>
         </div>
 
+        <!-- Filtres -->
+        <div class="px-4 py-2 flex items-center gap-2 border-b border-white/5 overflow-x-auto scrollbar-hide bg-black/10">
+            <button 
+                @click="toggleFilter('FILE')"
+                class="px-3 py-1 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5"
+                :class="activeFilters['FILE'] ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-white/5 text-white/40 hover:bg-white/10 border border-transparent'"
+            >
+                <i class="bi bi-file-earmark-text"></i> Fichiers
+            </button>
+            <button 
+                @click="toggleFilter('TODO')"
+                class="px-3 py-1 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5"
+                :class="activeFilters['TODO'] ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'bg-white/5 text-white/40 hover:bg-white/10 border border-transparent'"
+            >
+                <i class="bi bi-check2-square"></i> Tâches
+            </button>
+            <button 
+                @click="toggleFilter('MESSAGE')"
+                class="px-3 py-1 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5"
+                :class="activeFilters['MESSAGE'] ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-white/5 text-white/40 hover:bg-white/10 border border-transparent'"
+            >
+                <i class="bi bi-chat-dots"></i> Messages
+            </button>
+            <button 
+                @click="toggleFilter('THREAD')"
+                class="px-3 py-1 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5"
+                :class="activeFilters['THREAD'] ? 'bg-(--primary)/20 text-(--primary) border border-(--primary)/30' : 'bg-white/5 text-white/40 hover:bg-white/10 border border-transparent'"
+            >
+                <i class="bi bi-hash"></i> Salons
+            </button>
+        </div>
+
         <div class="max-h-[60vh] overflow-y-auto p-2" v-if="query.length > 0">
             <div v-if="loading" class="flex flex-col items-center justify-center py-8 text-(--text)/40">
                 <i class="bi bi-robot text-4xl mb-3 animate-pulse text-(--primary)" />
@@ -111,6 +143,20 @@ const error = ref<string | null>(null);
 const results = ref<any[]>([]);
 const downloadProgress = ref(0);
 
+const activeFilters = ref<Record<string, boolean>>({
+    THREAD: true,
+    FILE: true,
+    TODO: true,
+    MESSAGE: true
+});
+
+const toggleFilter = (type: string) => {
+    activeFilters.value[type] = !activeFilters.value[type];
+    if (query.value.trim()) {
+        handleInput();
+    }
+};
+
 const groupedResults = computed(() => {
     const groups: Record<string, any[]> = {
         'THREAD': [],
@@ -119,6 +165,7 @@ const groupedResults = computed(() => {
         'MESSAGE': []
     };
     for (const res of results.value) {
+        if (!activeFilters.value[res.type]) continue;
         if (groups[res.type]) groups[res.type].push(res);
         else groups['MESSAGE'].push(res);
     }
@@ -159,7 +206,8 @@ const handleWorkerMessage = async (e: MessageEvent) => {
         }
 
         try {
-            const searchResults = await localSearchDB.searchByVector(vector, text, workspaceId, 20);
+            const types = Object.keys(activeFilters.value).filter(k => activeFilters.value[k]);
+            const searchResults = await localSearchDB.searchByVector(vector, text, workspaceId, 50, types);
             results.value = searchResults; // Removing 0.4 threshold because hybrid search scores are different
         } catch (err) {
             console.error("[SpaceSearchModal] Search failed with error:", err);

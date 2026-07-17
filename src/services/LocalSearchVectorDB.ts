@@ -52,7 +52,7 @@ class LocalSearchVectorDB {
         }
     }
 
-    async searchByVector(vector: number[], textQuery: string, workspaceId?: string, limit = 10) {
+    async searchByVector(vector: number[], textQuery: string, workspaceId?: string, limit = 10, types?: string[]) {
         if (!this.initialized || !this.db) await this.init();
 
         const searchParams: any = {
@@ -71,8 +71,14 @@ class LocalSearchVectorDB {
             limit,
         };
 
-        if (workspaceId) {
-            searchParams.where = { workspaceId: { eq: workspaceId } };
+        if (workspaceId || (types && types.length > 0)) {
+            searchParams.where = {};
+            if (workspaceId) {
+                searchParams.where.workspaceId = workspaceId;
+            }
+            if (types && types.length > 0) {
+                searchParams.where.type = { in: types };
+            }
         }
 
         console.log("[LocalSearchVectorDB] searching with params:", searchParams);
