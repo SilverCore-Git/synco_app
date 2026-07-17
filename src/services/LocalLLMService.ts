@@ -12,21 +12,21 @@ export interface LLMModel {
 export const availableModels: LLMModel[] = [
     {
         id: "Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
-        name: "Mistral 7B Instruct (France 🇫🇷)",
+        name: "Mistral 7B Instruct",
         size: "4.1 GB",
         vram: 4096,
         tier: 1
     },
     {
         id: "Qwen2-1.5B-Instruct-q4f16_1-MLC",
-        name: "Qwen2 1.5B (Open Source 🌍)",
+        name: "Qwen2 1.5B",
         size: "1.1 GB",
         vram: 1536,
         tier: 2
     },
     {
         id: "SmolLM2-135M-Instruct-q4f16_1-MLC",
-        name: "SmolLM2 135M (Europe 🇪🇺)",
+        name: "SmolLM2 135M",
         size: "0.2 GB",
         vram: 512,
         tier: 3
@@ -56,12 +56,9 @@ class LocalLLMService {
             const info = await adapter.requestAdapterInfo();
             const device = await adapter.requestDevice();
             
-            // Estimation basique via limits si disponible, sinon on suppose Tier 2 par défaut
-            // En réalité, la plupart des GPUs supportant WebGPU peuvent faire tourner du 1.5B (Tier 2)
-            // S'il s'agit d'un GPU intégré faible, on reste sur Tier 2. Si c'est un GPU dédié, Tier 1.
-            
-            // Pour simplifier l'exemple, on retourne Tier 2 par défaut si WebGPU est actif.
-            return availableModels.find(m => m.tier === 2)!;
+            // Estimation basique via limits si disponible
+            // On retourne Tier 1 par défaut si WebGPU est actif (ex: 4060).
+            return availableModels.find(m => m.tier === 1)!;
         } catch (error) {
             console.error("[LocalLLMService] Erreur lors de l'évaluation du hardware:", error);
             return availableModels.find(m => m.tier === 3)!;

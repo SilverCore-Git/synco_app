@@ -59,24 +59,42 @@
       </div>
     </div>
 
-    <!-- Loading / Status Bar -->
-    <div v-if="!localLLM.isInitialized.value" class="px-6 py-3 border-t border-white/5 bg-black/20 flex flex-col gap-2 z-10 shrink-0">
-      <div class="flex items-center justify-between text-xs text-white/50">
-        <span class="flex items-center gap-2">
-          <i class="bi bi-cloud-arrow-down animate-bounce"></i>
-          Téléchargement et initialisation du modèle IA...
-        </span>
-        <span class="font-mono">{{ localLLM.downloadProgress.value }}%</span>
+    <!-- Loading / Status Bar / Manual Start -->
+    <div v-if="!localLLM.isInitialized.value" class="px-6 py-4 border-t border-white/5 bg-black/20 flex flex-col gap-3 shrink-0">
+      
+      <div v-if="!hasStartedInit" class="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="text-sm">
+          <p class="font-bold text-white/80">L'Agent IA est prêt à être installé</p>
+          <p class="text-white/50 text-xs">Modèle recommandé : <span class="font-mono text-(--primary)">{{ availableModels.find(m => m.id === selectedModelId)?.name || 'Aucun' }}</span></p>
+        </div>
+        <button 
+          @click="startInit" 
+          class="bg-(--primary) hover:brightness-110 text-white px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all active:scale-95"
+        >
+          <i class="bi bi-cloud-arrow-down-fill"></i>
+          Télécharger & Initialiser
+        </button>
       </div>
-      <div class="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-        <div class="h-full bg-(--primary) transition-all duration-300" :style="{ width: localLLM.downloadProgress.value + '%' }"></div>
+
+      <div v-else class="flex flex-col gap-2">
+        <div class="flex items-center justify-between text-xs text-white/50">
+          <span class="flex items-center gap-2">
+            <i class="bi bi-cloud-arrow-down animate-bounce text-(--primary)"></i>
+            Téléchargement et initialisation... (Ne fermez pas la page)
+          </span>
+          <span class="font-mono">{{ localLLM.downloadProgress.value }}%</span>
+        </div>
+        <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+          <div class="h-full bg-(--primary) transition-all duration-300" :style="{ width: localLLM.downloadProgress.value + '%' }"></div>
+        </div>
+        <p class="text-[10px] text-white/30 text-center mt-1 font-mono truncate">{{ localLLM.downloadText.value }}</p>
       </div>
-      <p class="text-[10px] text-white/30 text-center mt-1">{{ localLLM.downloadText.value }}</p>
+
     </div>
 
-    <!-- Input Area (adjusted for UserCard which is w-75 (~300px) on the left) -->
-    <div class="p-4 border-t border-white/5 bg-(--bg2) shrink-0 z-10">
-      <form @submit.prevent="sendMessage" class="relative w-1/3 min-w-[300px] max-w-2xl ml-[320px] flex items-end gap-2">
+    <!-- Input Area (No z-10 so UserCard overlaps if needed, ml-[320px] avoids UserCard) -->
+    <div class="p-4 border-t border-white/5 shrink-0 relative">
+      <form @submit.prevent="sendMessage" class="relative ml-0 lg:ml-[320px] w-full lg:w-[calc(100%-320px)] max-w-4xl flex items-end gap-2 mx-auto lg:mx-0">
         <textarea 
           v-model="inputMsg"
           rows="1"
@@ -111,6 +129,7 @@ const formatMessage = (text: string) => {
 
 const selectedModelId = ref<string>('');
 const isGenerating = ref(false);
+const hasStartedInit = ref(false);
 const inputMsg = ref('');
 const messages = ref<{role: 'user'|'assistant', content: string}[]>([]);
 const chatContainer = ref<HTMLElement | null>(null);
@@ -124,10 +143,23 @@ const scrollToBottom = async () => {
 
 const loadModel = async () => {
   if (!selectedModelId.value) return;
+  // If the user changes the select, we don't auto load unless they already started once
+  if (hasStartedInit.value) {
+    try {
+      await localLLM.init(selectedModelId.value);
+    } catch (e) {
+      console.error("Impossible de charger le modèle", e);
+    }
+  }
+};
+
+const startInit = async () => {
+  if (!selectedModelId.value) return;
+  hasStartedInit.value = true;
   try {
     await localLLM.init(selectedModelId.value);
   } catch (e) {
-    console.error("Impossible de charger le modèle", e);
+    console.error("Impossible d'initialiser le modèle", e);
   }
 };
 
@@ -166,8 +198,8 @@ onMounted(async () => {
   if (!localLLM.isInitialized.value) {
     const recommended = await localLLM.getRecommendedModel();
     selectedModelId.value = recommended.id;
-    await loadModel();
   } else {
+    hasStartedInit.value = true;
     selectedModelId.value = localLLM.currentModel.value?.id || '';
   }
 });
