@@ -4,6 +4,15 @@ export default async function sfetch(url: string, arg?: any) {
     
     const headers: Record<string, string> = { ...arg?.headers };
 
+    if (keycloak.authenticated) {
+        try {
+            await keycloak.updateToken(30);
+        } catch (error) {
+            console.error('[sfetch] Failed to refresh token:', error);
+            keycloak.login();
+        }
+    }
+
     if (keycloak.token) 
     {
         headers['Authorization'] = `Bearer ${keycloak.token}`;

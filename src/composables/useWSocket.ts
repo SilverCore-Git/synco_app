@@ -110,7 +110,7 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
                 cb({ token: t });
             },
             reconnection: true,
-            reconnectionAttempts: 5,
+            reconnectionAttempts: Infinity,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
             transports: ['polling'], // Force polling to bypass Vite/Cloudflare proxy WebSocket drop issues
@@ -125,9 +125,17 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             console.warn("[WS] ✅ Connected with ID:", socket.value?.id);
         });
 
-        socket.value.on("connect_error", (err) => {
+        socket.value.on("connect_error", async (err) => {
             console.error("[WS] ❌ Connection Error:", err.message);
             console.error("[WS] Token present:", !!getToken());
+            // Si l'erreur est liée à l'authentification (ex: token expiré), on force un rafraîchissement
+            if (keycloak.authenticated) {
+                try {
+                    await keycloak.updateToken(30);
+                } catch (e) {
+                    console.error("[WS] Failed to refresh token after connection error", e);
+                }
+            }
         });
 
         socket.value.on("disconnect", (reason) => {
