@@ -185,6 +185,10 @@ import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
 import { useRoute } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
+import globalVectorWorker from '@/services/GlobalVectorWorker';
+import { localSearchDB } from '@/services/LocalSearchVectorDB';
+import { generateThreadKey, encryptThreadKeyForMember, E2EEUnloked, privateKey } from '@/assets/utils/crypto';
+import { openedOrg, user } from '@/assets/var';
 
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
 
@@ -279,8 +283,9 @@ const handleToolCall = async (toolCall: any, accepted: boolean, msgIndex: number
   let result = "";
   try {
     const args = JSON.parse(toolCall.arguments);
+    const orgId = useRoute().params.orgId;
+    
     if (toolCall.name === 'create_space') {
-       const orgId = useRoute().params.orgId;
        const res = await sfetch(`/api/spaces/org/${orgId}`, {
          method: 'POST',
          body: JSON.stringify({ name: args.name, logo: args.logo, membersId: [] })
@@ -288,6 +293,99 @@ const handleToolCall = async (toolCall: any, accepted: boolean, msgIndex: number
        const data = await res.json();
        if (data.error) throw new Error(data.error);
        result = `Espace '${args.name}' créé avec succès. L'utilisateur peut y accéder.`;
+       
+    } else if (toolCall.name === 'create_task') {
+       const payload = {
+           title: args.title,
+           description: args.description || null,
+           dueDate: null,
+           spaceId: null,
+           assigneeIds: user.value?.id ? [user.value.id] : [],
+           parentTaskId: null,
+           status: 'TODO'
+       };
+       const res = await sfetch(`/api/tasks/${orgId}/tasks`, {
+           method: 'POST',
+           body: JSON.stringify(payload)
+       });
+       const data = await res.json();
+       if (!res.ok || data.error) throw new Error(data.error || "Erreur serveur");
+       result = `Tâche '${args.title}' créée avec succès (assignée à l'utilisateur courant).`;
+       
+    } else if (toolCall.name === 'search_messages') {
+        const query = args.query;
+        const workerId = Date.now().toString();
+        
+        const vectorPromise = new Promise<number[]>((resolve, reject) => {
+            const handler = (e: MessageEvent) => {
+                if (e.data.id === workerId && e.data.status === 'complete') {
+                    globalVectorWorker.removeEventListener('message', handler);
+                    resolve(e.data.vector);
+                } else if (e.data.id === workerId && e.data.status === 'error') {
+                    globalVectorWorker.removeEventListener('message', handler);
+                    reject(new Error(e.data.error));
+                }
+            };
+            globalVectorWorker.addEventListener('message', handler);
+        });
+        
+        globalVectorWorker.postMessage({ id: workerId, text: query, type: 'SEARCH' });
+        const vector = await vectorPromise;
+        const searchResults = await localSearchDB.searchByVector(vector, query, undefined, 5);
+        
+        if (searchResults.length === 0) {
+            result = `Aucun résultat trouvé dans la base sémantique pour "${query}".`;
+        } else {
+            result = `Résultats de recherche pour "${query}" :\n\n` + searchResults.map((r: any, i) => `[Résultat ${i+1}]\nType: ${r.type}\nContenu: ${r.textContent}`).join('\n\n');
+        }
+
+    } else if (toolCall.name === 'create_thread') {
+       const spaceId = args.spaceId || undefined;
+       const isHome = !spaceId;
+       
+       const space = spaceId ? openedOrg.value?.spaces?.find(s => s.id === spaceId) : null;
+       let members = spaceId && space ? openedOrg.value?.members?.filter(m => space.membersId.includes(m.userId)).map(m => m!.user!) || [] 
+                     : openedOrg.value?.members?.map(m => m.user!) || [];
+       
+       const currentUser = user.value;
+       if (currentUser && !members.some(m => m.id === currentUser.id)) {
+           members = [...members, currentUser];
+       }
+       
+       if (!currentUser?.publicKey || !E2EEUnloked.value || !privateKey.value) {
+           throw new Error("La session E2EE de l'utilisateur n'est pas déverrouillée. Il doit entrer son code PIN pour générer les clés de chiffrement du salon.");
+       }
+       
+       const newThreadKey = await generateThreadKey();
+       let encryptedKeysPayload = [];
+       for (const member of members) {
+           if (member.publicKey && typeof member.publicKey === 'string' && member.publicKey.trim().startsWith('{')) {
+               const encryptedKey = await encryptThreadKeyForMember(newThreadKey, member.publicKey);
+               encryptedKeysPayload.push({ userId: member.id, encryptedKey });
+           }
+       }
+       
+       if (encryptedKeysPayload.length === 0) {
+           throw new Error("Aucun membre ne possède de clé publique E2EE valide.");
+       }
+       
+       const payload = {
+           name: args.name,
+           type: args.type || 'text',
+           keys: encryptedKeysPayload,
+           index: 0
+       };
+       
+       const endpoint = isHome ? `/api/threads/org/${orgId}` : `/api/threads/space/${spaceId}`;
+       const res = await sfetch(endpoint, {
+           method: 'POST',
+           body: JSON.stringify(payload)
+       });
+       const data = await res.json();
+       if (data.error) throw new Error(data.error);
+       
+       result = `Salon '${args.name}' (type: ${args.type}) créé avec succès (ID: ${data.id}). Les clés E2EE ont été générées et distribuées.`;
+
     } else {
        result = "Erreur: Outil inconnu.";
     }

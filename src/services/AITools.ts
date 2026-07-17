@@ -18,6 +18,69 @@ export const availableTools = [
                 },
                 required: ["name", "logo"]
             }
+    },
+    {
+        type: "function",
+        function: {
+            name: "search_messages",
+            description: "Rechercher sémantiquement dans les anciens messages, documents ou salons pour retrouver une information passée.",
+            parameters: {
+                type: "object",
+                properties: {
+                    query: {
+                        type: "string",
+                        description: "La phrase ou les mots clés à rechercher (ex: 'mot de passe wifi', 'résumé de la réunion de lundi')."
+                    }
+                },
+                required: ["query"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "create_task",
+            description: "Créer une nouvelle tâche (Todo) pour l'organisation.",
+            parameters: {
+                type: "object",
+                properties: {
+                    title: {
+                        type: "string",
+                        description: "Le titre court de la tâche (ex: 'Envoyer le rapport mensuel')."
+                    },
+                    description: {
+                        type: "string",
+                        description: "La description détaillée de la tâche. Peut contenir plusieurs lignes."
+                    }
+                },
+                required: ["title"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "create_thread",
+            description: "Créer un nouveau salon de discussion (textuel sécurisé ou vocal) dans un espace existant, ou à la racine de l'organisation.",
+            parameters: {
+                type: "object",
+                properties: {
+                    name: {
+                        type: "string",
+                        description: "Le nom du salon."
+                    },
+                    type: {
+                        type: "string",
+                        description: "Le type de salon : 'text' pour un chat textuel, 'voice' pour un salon vocal.",
+                        enum: ["text", "voice"]
+                    },
+                    spaceId: {
+                        type: "string",
+                        description: "Optionnel. L'ID de l'espace parent. Si omis, le salon sera créé à l'accueil."
+                    }
+                },
+                required: ["name", "type"]
+            }
         }
     }
 ];
