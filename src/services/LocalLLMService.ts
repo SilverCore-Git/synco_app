@@ -36,6 +36,7 @@ export const availableModels: LLMModel[] = [
 class LocalLLMService {
     engine: webllm.MLCEngine | null = null;
     isInitialized = ref(false);
+    hasWebGPU = ref(!!navigator.gpu);
     downloadProgress = ref(0);
     downloadText = ref("");
     currentModel = ref<LLMModel | null>(null);
