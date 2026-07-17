@@ -76,21 +76,54 @@ watch(() => [openedOrg.value, route.params.spaceId], ([newOrg, spaceIdParam]) =>
                             const getFileKeywords = (filename: string) => {
                                 const ext = filename.split('.').pop()?.toLowerCase();
                                 const keywords: Record<string, string> = {
-                                    'png': 'image photo image',
-                                    'jpg': 'image photo image',
-                                    'jpeg': 'image photo image',
+                                    // Images
+                                    'png': 'image photo',
+                                    'jpg': 'image photo',
+                                    'jpeg': 'image photo',
                                     'gif': 'image animée',
-                                    'pdf': 'document texte',
-                                    'doc': 'document texte word',
-                                    'docx': 'document texte word',
-                                    'xls': 'tableur excel',
-                                    'xlsx': 'tableur excel',
-                                    'mp4': 'vidéo film',
-                                    'mp3': 'audio musique',
-                                    'zip': 'archive compressé',
-                                    'rar': 'archive compressé'
+                                    'svg': 'image vecteur',
+                                    'webp': 'image photo',
+                                    'heic': 'image photo',
+                                    // Documents
+                                    'pdf': 'pdf document texte',
+                                    'doc': 'word document texte',
+                                    'docx': 'word document texte',
+                                    'txt': 'texte document',
+                                    'md': 'texte markdown',
+                                    'rtf': 'texte document',
+                                    // Tableurs
+                                    'xls': 'excel tableur tableau',
+                                    'xlsx': 'excel tableur tableau',
+                                    'csv': 'excel tableur donnees',
+                                    // Presentations
+                                    'ppt': 'powerpoint presentation diaporama',
+                                    'pptx': 'powerpoint presentation diaporama',
+                                    // Vidéos
+                                    'mp4': 'video vidéo film',
+                                    'mov': 'video vidéo film',
+                                    'avi': 'video vidéo film',
+                                    'mkv': 'video vidéo film',
+                                    'webm': 'video vidéo film',
+                                    // Audios
+                                    'mp3': 'audio son musique',
+                                    'wav': 'audio son musique',
+                                    'ogg': 'audio son musique',
+                                    'm4a': 'audio son musique',
+                                    // Archives
+                                    'zip': 'archive compressé zip',
+                                    'rar': 'archive compressé rar',
+                                    '7z': 'archive compressé',
+                                    'tar': 'archive compressé',
+                                    'gz': 'archive compressé',
+                                    // Code
+                                    'js': 'code script javascript',
+                                    'ts': 'code script typescript',
+                                    'html': 'code web',
+                                    'css': 'code style',
+                                    'json': 'code donnees json',
+                                    'py': 'code script python'
                                 };
-                                return ext && keywords[ext] ? ` (${keywords[ext]})` : '';
+                                return ext && keywords[ext] ? ` (${keywords[ext]} ${ext})` : ` (${ext})`;
                             };
 
                             for (const file of data.files) {
