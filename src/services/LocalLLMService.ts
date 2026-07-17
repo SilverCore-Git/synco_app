@@ -25,7 +25,7 @@ export const availableModels: LLMModel[] = [
         tier: 2
     },
     {
-        id: "SmolLM2-135M-Instruct-q4f16_1-MLC",
+        id: "SmolLM2-135M-Instruct-q0f16-MLC",
         name: "SmolLM2 135M",
         size: "0.2 GB",
         vram: 512,
