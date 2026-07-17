@@ -4,11 +4,9 @@
     <!-- Header / Model Selection -->
     <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-white/5 bg-(--bg2) z-10 shrink-0">
       <div class="flex items-center gap-3">
-        <i class="bi bi-robot text-xl text-(--primary)"></i>
-        <div>
-          <h2 class="font-bold text-white leading-tight">Agent IA (Local)</h2>
-          <p class="text-[10px] text-(--text)/50">Zéro fuite de données • Exécuté via WebGPU</p>
-        </div>
+        <MobileBackBtn />
+        <i class="bi bi-robot text-xl text-(--text)"></i>
+        <h3 class="font-semibold text-(--text)">Synco AI</h3>
       </div>
 
       <div class="flex items-center gap-3">
@@ -35,8 +33,8 @@
       <!-- Welcome Message -->
       <div v-if="messages.length === 0" class="flex-1 flex flex-col items-center justify-center text-center opacity-50">
         <i class="bi bi-cpu text-6xl mb-4 text-(--primary) opacity-50"></i>
-        <h3 class="text-xl font-bold mb-2">Bonjour, je suis votre assistant Synco.</h3>
-        <p class="max-w-md text-sm">Je tourne entièrement en local sur votre machine. Demandez-moi de créer des ressources, d'interroger la documentation ou de rédiger des textes, le tout en préservant 100% de votre vie privée.</p>
+        <h3 class="text-xl font-bold mb-2">Bonjour, je suis Synco AI.</h3>
+        <p class="max-w-md text-sm">Je tourne entièrement en local sur votre machine. Posez-moi vos questions, demandez-moi d'analyser vos ressources ou de rédiger des textes, le tout en préservant 100% de votre vie privée.</p>
       </div>
 
       <!-- Messages -->
@@ -52,7 +50,7 @@
         >
           <div class="flex items-center gap-2 mb-2 opacity-50 text-[10px] uppercase font-bold tracking-wider">
             <i :class="msg.role === 'user' ? 'bi-person' : 'bi-robot'"></i>
-            {{ msg.role === 'user' ? 'Vous' : 'Agent IA' }}
+            {{ msg.role === 'user' ? 'Vous' : 'Synco AI' }}
           </div>
           <div v-html="formatMessage(msg.content)" class="prose prose-invert max-w-none prose-sm"></div>
         </div>
@@ -64,8 +62,8 @@
       
       <div v-if="!hasStartedInit" class="flex flex-col md:flex-row items-center justify-between gap-4">
         <div class="text-sm">
-          <p class="font-bold text-white/80">L'Agent IA est prêt à être installé</p>
-          <p class="text-white/50 text-xs">Modèle recommandé : <span class="font-mono text-(--primary)">{{ availableModels.find(m => m.id === selectedModelId)?.name || 'Aucun' }}</span></p>
+          <p class="font-bold text-white/80">Téléchargement initial de Synco AI requis</p>
+          <p class="text-white/50 text-xs">Modèle recommandé pour votre matériel : <span class="font-mono text-(--primary)">{{ availableModels.find(m => m.id === selectedModelId)?.name || 'Aucun' }}</span></p>
         </div>
         <button 
           @click="startInit" 
@@ -94,24 +92,24 @@
 
     <!-- Input Area (No z-10 so UserCard overlaps if needed, ml-[320px] avoids UserCard) -->
     <div class="p-4 border-t border-white/5 shrink-0 relative">
-      <form @submit.prevent="sendMessage" class="relative ml-0 lg:ml-[320px] w-full lg:w-[calc(100%-320px)] max-w-4xl flex items-end gap-2 mx-auto lg:mx-0">
-        <textarea 
+      <form @submit.prevent="sendMessage" class="relative ml-0 lg:ml-[320px] w-full lg:w-[calc(100%-320px)] max-w-4xl flex items-end gap-3 mx-auto lg:mx-0 bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
+        
+        <ThreadTextarea 
           v-model="inputMsg"
-          rows="1"
           placeholder="Demandez-moi n'importe quoi..."
-          class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-(--primary) transition-colors resize-none disabled:opacity-50"
-          :disabled="!localLLM.isInitialized.value || isGenerating"
-          @keydown.enter.prevent="sendMessage"
-        ></textarea>
+          @send="sendMessage"
+        />
         
         <button 
-          type="submit"
-          class="shrink-0 h-[46px] w-[46px] rounded-xl flex items-center justify-center transition-colors disabled:opacity-50"
-          :class="isGenerating ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-(--primary) text-white hover:brightness-110'"
+          type="button"
+          @click="isGenerating ? null : sendMessage()"
+          class="shrink-0 mb-1 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50"
+          :class="isGenerating ? 'text-red-500 hover:text-red-400' : 'text-(--primary) hover:brightness-110'"
           :disabled="!localLLM.isInitialized.value || (!inputMsg.trim() && !isGenerating)"
         >
-          <i :class="isGenerating ? 'bi-stop-fill' : 'bi-send-fill'"></i>
+          <i :class="isGenerating ? 'bi-stop-fill text-xl' : 'bi-send-fill text-xl'"></i>
         </button>
+
       </form>
     </div>
 
@@ -121,6 +119,8 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue';
 import { localLLM, availableModels } from '@/services/LocalLLMService';
+import ThreadTextarea from '../components/common/ThreadTextarea.vue';
+import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 
 // On utilise marked pour le formatage, ou simplement un remplacement basique pour l'instant
 const formatMessage = (text: string) => {

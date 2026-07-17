@@ -132,7 +132,7 @@
                         <div class="flex items-center gap-3">
                             <i class="bi bi-robot text-2xl text-(--primary)"></i>
                             <div>
-                                <h4 class="font-bold text-sm text-(--text)">Agent IA (Local)</h4>
+                                <h4 class="font-bold text-sm text-(--text)">Synco AI</h4>
                                 <p class="text-xs text-(--text)/40">Activer l'assistant IA exécuté localement dans le navigateur (WebGPU).</p>
                             </div>
                         </div>

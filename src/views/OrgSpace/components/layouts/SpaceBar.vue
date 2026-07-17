@@ -72,7 +72,7 @@ const route = useRoute();
             <RouterLink v-if="aiEnabled" :to="`/${openedOrg.id}/ai`">
                 <SpaceBarBTN
                     icon="bi-robot"
-                    label="Agent IA (Local)"
+                    label="Synco AI"
                     :active="route.name === 'OrgAI'"
                 />
             </RouterLink>
