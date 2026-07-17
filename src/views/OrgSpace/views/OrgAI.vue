@@ -101,23 +101,24 @@
     <!-- Loading / Status Bar / Manual Start -->
     <div v-if="!localLLM.isInitialized.value" class="px-6 py-4 border-t border-white/5 bg-black/20 flex flex-col gap-3 shrink-0">
       
-      <!-- WebGPU Non supporté (Warning) -->
-      <div v-if="!localLLM.hasWebGPU.value" class="flex items-center gap-4 bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-xl mb-4">
-        <i class="bi bi-exclamation-triangle text-2xl text-yellow-500"></i>
+      <!-- WebGPU Non supporté (Erreur bloquante) -->
+      <div v-if="!localLLM.hasWebGPU.value" class="flex items-center gap-4 bg-red-500/10 border border-red-500/20 p-4 rounded-xl mb-4">
+        <i class="bi bi-x-circle-fill text-3xl text-red-500"></i>
         <div>
-          <h4 class="text-yellow-500 font-bold text-sm">Performances réduites (WebGPU non détecté ou adaptateur introuvable)</h4>
-          <p class="text-xs text-yellow-500/80 mt-1">
-            Votre navigateur ne parvient pas à utiliser l'accélération matérielle (WebGPU). L'agent IA nécessite l'accès au GPU pour fonctionner correctement.
+          <h4 class="text-red-500 font-black text-sm uppercase tracking-wider">Matériel non compatible</h4>
+          <p class="text-xs text-red-500/90 mt-1 font-medium">
+            L'agent IA nécessite l'accélération matérielle (WebGPU) pour fonctionner. 
+            Aucune carte graphique compatible n'a été détectée dans votre navigateur. 
+            L'exécution en local est impossible.
           </p>
           
-          <!-- Astuce Linux/Chromium si navigator.gpu est défini mais qu'aucun adaptateur n'a été trouvé -->
-          <div v-if="!!navigator?.gpu" class="bg-black/20 p-3 rounded-lg border border-yellow-500/20 text-xs text-yellow-500/90 mt-3">
-            <strong>Diagnostic :</strong> L'API WebGPU est bien activée, mais aucun adaptateur (carte graphique) n'a été trouvé. 
-            <br>Si vous êtes sous <strong>Linux avec Chromium/Brave</strong>, c'est un problème connu. Vous devez :
+          <div class="bg-black/20 p-3 rounded-lg border border-red-500/20 text-xs text-red-500/80 mt-3">
+            <strong>Diagnostic :</strong>
             <ul class="list-disc ml-5 mt-1 space-y-1">
-              <li>Aller dans <code class="bg-black/50 px-1 rounded text-white select-all">chrome://flags/#enable-vulkan</code> et l'activer (<strong>Enabled</strong>).</li>
-              <li>Vérifier que les pilotes propriétaires NVIDIA sont bien installés et utilisés.</li>
-              <li>Redémarrer le navigateur.</li>
+              <li><strong>Si vous êtes sous Linux :</strong> L'accélération WebGPU n'est souvent pas supportée ou très instable. Nous vous recommandons vivement d'utiliser <strong>Chromium/Google Chrome sous Windows ou macOS</strong> pour profiter de l'IA locale.</li>
+              <li>Vérifiez que vos pilotes graphiques sont à jour.</li>
+              <li v-if="!!navigator?.gpu">WebGPU est activé dans le navigateur, mais ne parvient pas à trouver la carte (problème OS/Drivers).</li>
+              <li v-else>Assurez-vous d'utiliser une version récente de Google Chrome, Edge ou Brave.</li>
             </ul>
           </div>
         </div>
