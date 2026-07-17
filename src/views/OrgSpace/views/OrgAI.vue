@@ -60,21 +60,19 @@
     <!-- Loading / Status Bar / Manual Start -->
     <div v-if="!localLLM.isInitialized.value" class="px-6 py-4 border-t border-white/5 bg-black/20 flex flex-col gap-3 shrink-0">
       
-      <!-- WebGPU Non supporté -->
-      <div v-if="!localLLM.hasWebGPU.value" class="flex items-center gap-4 bg-red-500/10 border border-red-500/20 p-4 rounded-xl">
-        <i class="bi bi-exclamation-triangle text-2xl text-red-400"></i>
+      <!-- WebGPU Non supporté (Warning) -->
+      <div v-if="!localLLM.hasWebGPU.value" class="flex items-center gap-4 bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-xl mb-2">
+        <i class="bi bi-exclamation-triangle text-2xl text-yellow-500"></i>
         <div>
-          <h4 class="text-red-400 font-bold text-sm">Navigateur Incompatible (WebGPU manquant)</h4>
-          <p class="text-xs text-red-400/70 mt-1">
-            Synco AI nécessite l'API WebGPU pour s'exécuter localement. Cette fonctionnalité est désactivée par défaut sur Linux ou sur les anciens navigateurs. 
-            Veuillez activer le flag expérimental WebGPU dans votre navigateur pour continuer.
+          <h4 class="text-yellow-500 font-bold text-sm">Performances réduites (WebGPU non détecté)</h4>
+          <p class="text-xs text-yellow-500/80 mt-1">
+            Votre navigateur ne supporte pas l'accélération matérielle (WebGPU). L'agent tentera de s'exécuter sur le processeur (CPU), ce qui sera <b>considérablement plus lent</b>. Pour une expérience optimale, utilisez Google Chrome ou activez WebGPU dans vos paramètres.
           </p>
         </div>
       </div>
 
       <!-- Installation classique -->
-      <template v-else>
-        <div v-if="!hasStartedInit" class="flex flex-col md:flex-row items-center justify-between gap-4">
+      <div v-if="!hasStartedInit" class="flex flex-col md:flex-row items-center justify-between gap-4">
         <div class="text-sm">
           <p class="font-bold text-white/80">Téléchargement initial de Synco AI requis</p>
           <p class="text-white/50 text-xs">Modèle recommandé pour votre matériel : <span class="font-mono text-(--primary)">{{ availableModels.find(m => m.id === selectedModelId)?.name || 'Aucun' }}</span></p>
@@ -101,7 +99,6 @@
         </div>
         <p class="text-[10px] text-white/30 text-center mt-1 font-mono truncate">{{ localLLM.downloadText.value }}</p>
       </div>
-      </template>
 
     </div>
 
