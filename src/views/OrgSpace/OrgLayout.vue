@@ -100,7 +100,11 @@ watch(() => [openedOrg.value, route.params.spaceId], ([newOrg, spaceIdParam]) =>
                                     type: 'FILE',
                                     textContent: file.originalName + getFileKeywords(file.originalName),
                                     vector: dummyVector,
-                                    metadata: { folderId: file.folderId || 'root', fileUrl: file.url }
+                                    metadata: { 
+                                        folderId: file.folderId || 'root', 
+                                        fileUrl: file.url,
+                                        originalName: file.originalName
+                                    }
                                 });
                             }
                         }

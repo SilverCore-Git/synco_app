@@ -16,7 +16,7 @@
                 ref="inputRef"
                 v-model="query"
                 type="text" 
-                placeholder="Rechercher par sens ou mot-clé (Ultra Recherche)..."
+                placeholder="Rechercher par sens ou mot-clé (Deep search)..."
                 class="w-full bg-transparent text-lg text-(--text) placeholder:text-(--text)/30 focus:outline-none"
                 @input="handleInput"
             />
@@ -68,7 +68,7 @@
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center justify-between mb-1">
                                         <p class="text-sm font-medium text-white line-clamp-1 group-hover/btn:text-(--primary) transition-colors">
-                                            {{ res.textContent }}
+                                            {{ group === 'FILE' ? (res.metadata?.originalName || res.textContent) : res.textContent }}
                                         </p>
                                         <span class="text-[10px] text-(--primary)/60 font-bold bg-(--primary)/10 px-2 py-0.5 rounded shrink-0 ml-3">
                                             {{ (res.score * 100).toFixed(0) }}%
