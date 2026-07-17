@@ -1,12 +1,17 @@
 import { pipeline, env, type TextGenerationPipeline } from '@xenova/transformers';
 
 let cpuPipeline: TextGenerationPipeline | null = null;
-let currentGenerationResolve: ((val: boolean) => void) | null = null;
+let shouldStop = false;
 
 self.onmessage = async (e: MessageEvent) => {
     const { type, payload, id } = e.data;
 
     try {
+        if (type === 'STOP') {
+            shouldStop = true;
+            return;
+        }
+        
         if (type === 'INIT') {
             const baseUrl = payload.baseUrl;
             env.allowLocalModels = true;
@@ -24,6 +29,7 @@ self.onmessage = async (e: MessageEvent) => {
         
         else if (type === 'GENERATE') {
             if (!cpuPipeline) throw new Error("Pipeline non initialisée");
+            shouldStop = false;
             const { messages } = payload;
 
             const textPrompt = cpuPipeline.tokenizer.apply_chat_template(messages, {
@@ -47,6 +53,10 @@ self.onmessage = async (e: MessageEvent) => {
                 do_sample: true,
                 // @ts-ignore
                 callback_function: (beams: any[]) => {
+                    if (shouldStop) {
+                        throw new Error("USER_STOPPED");
+                    }
+                    
                     const decodedText = cpuPipeline!.tokenizer.decode(beams[0].output_token_ids, { skip_special_tokens: true });
                     
                     if (decodedText.startsWith(previousText)) {
@@ -70,6 +80,10 @@ self.onmessage = async (e: MessageEvent) => {
         }
         
     } catch (error: any) {
-        self.postMessage({ type: 'ERROR', payload: error.message || String(error), id });
+        if (error.message === "USER_STOPPED" || String(error).includes("USER_STOPPED")) {
+            self.postMessage({ type: 'GENERATE_DONE', id });
+        } else {
+            self.postMessage({ type: 'ERROR', payload: error.message || String(error), id });
+        }
     }
 };
