@@ -139,7 +139,10 @@ class LocalLLMService {
         this.downloadProgress.value = 0;
         this.downloadText.value = "Initialisation du moteur CPU...";
         
-        env.allowLocalModels = false; // Always fetch from HuggingFace for CPU models right now
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+        env.allowLocalModels = true;
+        env.allowRemoteModels = false;
+        env.localModelPath = baseUrl + '/models/';
 
         try {
             this.cpuPipeline = await pipeline('text-generation', 'Xenova/Qwen1.5-0.5B-Chat', {
