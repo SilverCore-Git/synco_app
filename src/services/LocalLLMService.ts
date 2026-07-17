@@ -83,27 +83,29 @@ class LocalLLMService {
             this.downloadText.value = report.text;
         };
 
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
         const customAppConfig: webllm.AppConfig = {
             ...webllm.prebuiltAppConfig,
             model_list: [
                 {
-                    model: "/models/Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
+                    model: baseUrl + "/models/Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
                     model_id: "Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
-                    model_lib: "/models/wasm/Mistral-7B-Instruct-v0.3-q4f16_1_cs1k-webgpu.wasm",
+                    model_lib: baseUrl + "/models/wasm/Mistral-7B-Instruct-v0.3-q4f16_1_cs1k-webgpu.wasm",
                     vram_required_MB: 4096,
                     low_resource_required: false
                 },
                 {
-                    model: "/models/Qwen2-1.5B-Instruct-q4f16_1-MLC",
+                    model: baseUrl + "/models/Qwen2-1.5B-Instruct-q4f16_1-MLC",
                     model_id: "Qwen2-1.5B-Instruct-q4f16_1-MLC",
-                    model_lib: "/models/wasm/Qwen2-1.5B-Instruct-q4f16_1_cs1k-webgpu.wasm",
+                    model_lib: baseUrl + "/models/wasm/Qwen2-1.5B-Instruct-q4f16_1_cs1k-webgpu.wasm",
                     vram_required_MB: 1536,
                     low_resource_required: true
                 },
                 {
-                    model: "/models/SmolLM2-135M-Instruct-q0f16-MLC",
+                    model: baseUrl + "/models/SmolLM2-135M-Instruct-q0f16-MLC",
                     model_id: "SmolLM2-135M-Instruct-q0f16-MLC",
-                    model_lib: "/models/wasm/SmolLM2-135M-Instruct-q0f16_cs1k-webgpu.wasm",
+                    model_lib: baseUrl + "/models/wasm/SmolLM2-135M-Instruct-q0f16_cs1k-webgpu.wasm",
                     vram_required_MB: 512,
                     low_resource_required: true
                 }
