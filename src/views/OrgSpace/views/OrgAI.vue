@@ -61,8 +61,27 @@
             {{ msg.role === 'user' ? 'Vous' : 'Synco AI' }}
           </div>
           <div v-html="formatMessage(msg.content)" class="prose prose-invert max-w-none prose-sm"></div>
+
+          <!-- Tool Call Widget -->
+          <div v-if="msg.tool_call" class="mt-4 bg-black/40 border border-(--primary)/30 rounded-xl p-4">
+            <div class="flex items-center gap-2 mb-2 text-(--primary) font-bold text-xs uppercase">
+              <i class="bi bi-wrench-adjustable-circle"></i> Demande d'action
+            </div>
+            <p class="text-sm">Je souhaite exécuter : <code class="bg-black/50 px-2 py-1 rounded text-(--primary) font-bold">{{ msg.tool_call.name }}</code></p>
+            <div class="text-xs text-white/50 mt-1 break-all">Paramètres : {{ msg.tool_call.arguments }}</div>
+            
+            <div class="flex gap-2 mt-4" v-if="msg.tool_call.status === 'pending'">
+               <button @click="handleToolCall(msg.tool_call, true, index)" class="bg-green-500/20 text-green-500 border border-green-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-500/30 transition-colors">Accepter</button>
+               <button @click="handleToolCall(msg.tool_call, false, index)" class="bg-red-500/20 text-red-500 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/30 transition-colors">Refuser</button>
+            </div>
+            <div v-else-if="msg.tool_call.status === 'accepted'" class="text-green-500 text-xs font-bold mt-3"><i class="bi bi-check-lg mr-1"></i> Action acceptée et exécutée.</div>
+            <div v-else-if="msg.tool_call.status === 'rejected'" class="text-red-500 text-xs font-bold mt-3"><i class="bi bi-x-lg mr-1"></i> Action refusée.</div>
+          </div>
         </div>
       </div>
+      
+      <!-- System/Tool internal messages (hidden or subtle) -->
+      <div v-if="false"></div>
     </div>
 
     <!-- Loading / Status Bar / Manual Start -->
@@ -164,6 +183,8 @@ import { localLLM, availableModels } from '@/services/LocalLLMService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
+import { useRoute } from 'vue-router';
+import sfetch from '@/assets/utils/sfetch';
 
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
 
@@ -172,11 +193,17 @@ const formatMessage = (text: string) => {
   return text.replace(/\n/g, '<br>').replace(/```([\s\S]*?)```/g, '<pre class="bg-black/50 p-3 rounded-lg border border-white/10 overflow-x-auto my-2"><code>$1</code></pre>');
 };
 
+interface ChatMessage {
+  role: 'user' | 'assistant' | 'system' | 'tool';
+  content: string;
+  tool_call?: { name: string; arguments: string; status: 'pending' | 'accepted' | 'rejected' };
+}
+
 const selectedModelId = ref<string>('');
 const isGenerating = ref(false);
 const hasStartedInit = ref(false);
 const inputMsg = ref('');
-const messages = ref<{role: 'user'|'assistant', content: string}[]>([]);
+const messages = ref<ChatMessage[]>([]);
 const chatContainer = ref<HTMLElement | null>(null);
 
 const scrollToBottom = async () => {
@@ -239,17 +266,56 @@ const stopGeneration = () => {
   }
 };
 
-const sendMessage = async () => {
+const handleToolCall = async (toolCall: any, accepted: boolean, msgIndex: number) => {
+  if (!accepted) {
+    toolCall.status = 'rejected';
+    messages.value.push({ role: 'system', content: `L'utilisateur a refusé l'exécution de l'outil ${toolCall.name}. Demande-lui pourquoi ou propose une alternative.` });
+    sendMessage("Action refusée par l'utilisateur.");
+    return;
+  }
+
+  toolCall.status = 'accepted';
+  
+  let result = "";
+  try {
+    const args = JSON.parse(toolCall.arguments);
+    if (toolCall.name === 'create_space') {
+       const orgId = useRoute().params.orgId;
+       const res = await sfetch(`/api/spaces/org/${orgId}`, {
+         method: 'POST',
+         body: JSON.stringify({ name: args.name, logo: args.logo, membersId: [] })
+       });
+       const data = await res.json();
+       if (data.error) throw new Error(data.error);
+       result = `Espace '${args.name}' créé avec succès. L'utilisateur peut y accéder.`;
+    } else {
+       result = "Erreur: Outil inconnu.";
+    }
+  } catch (e: any) {
+    result = "Erreur technique lors de l'exécution : " + e.message;
+  }
+
+  messages.value.push({
+    role: 'tool',
+    content: result,
+  });
+
+  sendMessage("Résultat de l'outil : " + result);
+};
+
+const sendMessage = async (hiddenPrompt?: string) => {
   if (isGenerating.value) {
     stopGeneration();
     return;
   }
 
-  const text = inputMsg.value.trim();
-  if (!text || !localLLM.isInitialized.value) return;
+  const text = hiddenPrompt || inputMsg.value.trim();
+  if (!text && !hiddenPrompt) return;
 
-  inputMsg.value = '';
-  messages.value.push({ role: 'user', content: text });
+  if (!hiddenPrompt) {
+    inputMsg.value = '';
+    messages.value.push({ role: 'user', content: text });
+  }
   
   const assistantMsgIndex = messages.value.length;
   messages.value.push({ role: 'assistant', content: '' });
@@ -258,10 +324,33 @@ const sendMessage = async () => {
   await scrollToBottom();
 
   try {
-    const generator = await localLLM.chat(messages.value.slice(0, -1) as any); // On envoie l'historique
+    const systemPrompt = `Tu es Synco AI, un assistant IA français, sécurisé et souverain fonctionnant 100% en local. Tes réponses doivent être concises, utiles, et toujours en français.
+Tu as accès à plusieurs outils pour interagir avec le système :
+- Créer des salons (espaces/threads)
+- Créer et envoyer des messages
+- Effectuer des recherches (y compris sémantiques)
+- Créer, lire et modifier des tâches (todos)
+- Consulter la documentation complète d'aide de l'application
+Important : Tu dois proposer ces actions à l'utilisateur, et tu as besoin de son acceptation pour les exécuter.`;
+    
+    const chatContext = [
+      { role: 'system', content: systemPrompt },
+      ...messages.value.slice(0, -1).map(m => ({ role: m.role, content: m.content }))
+    ];
+
+    const generator = await localLLM.chat(chatContext as any); // On envoie l'historique avec le prompt système
+
     for await (const chunk of generator) {
       if (!isGenerating.value) break;
-      messages.value[assistantMsgIndex]!.content += chunk;
+      if (typeof chunk === 'object' && chunk.type === 'tool_call') {
+        messages.value[assistantMsgIndex]!.tool_call = {
+          name: chunk.name,
+          arguments: chunk.arguments,
+          status: 'pending'
+        };
+      } else {
+        messages.value[assistantMsgIndex]!.content += chunk;
+      }
       await scrollToBottom();
     }
   } catch (error: any) {

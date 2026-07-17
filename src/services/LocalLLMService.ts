@@ -1,5 +1,6 @@
 import * as webllm from '@mlc-ai/web-llm';
 import { ref } from 'vue';
+import { availableTools } from './AITools';
 export interface LLMModel {
     id: string;
     name: string;
@@ -233,12 +234,45 @@ class LocalLLMService {
                 if (resolveNext) resolveNext(true);
             });
 
+            let buffer = "";
+            let yieldingBuffer = false;
+
             while (!isDone || queue.length > 0) {
                 if (queue.length > 0) {
-                    yield queue.shift()!;
+                    const chunk = queue.shift()!;
+                    buffer += chunk;
+                    
+                    if (buffer.includes('<tool_call>')) {
+                        yieldingBuffer = true; // Stop yielding normal text
+                    }
+                    
+                    if (yieldingBuffer && buffer.includes('</tool_call>')) {
+                        const match = buffer.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
+                        if (match) {
+                            try {
+                                const toolObj = JSON.parse(match[1]);
+                                yield { type: 'tool_call', name: toolObj.name, arguments: JSON.stringify(toolObj.arguments) };
+                            } catch (e) {
+                                console.error("Erreur de parsing tool call:", e);
+                            }
+                            buffer = buffer.replace(match[0], '');
+                        }
+                        yieldingBuffer = false;
+                    }
+                    
+                    if (!yieldingBuffer) {
+                        // Yield only the chunk if we are not buffering, or yield the flushed buffer
+                        if (buffer) {
+                            yield buffer;
+                            buffer = "";
+                        }
+                    }
                 } else if (!isDone) {
                     await new Promise(r => resolveNext = r);
                 }
+            }
+            if (buffer && !yieldingBuffer) {
+                yield buffer;
             }
             return;
         }
@@ -251,13 +285,41 @@ class LocalLLMService {
             messages,
             stream: true,
             temperature: 0.7,
+            tools: availableTools as any // Pass the tools to WebLLM
         });
 
+        let currentToolCall: { name: string, arguments: string } | null = null;
+
         for await (const chunk of asyncChunkGenerator) {
-            const content = chunk.choices[0]?.delta?.content;
+            const delta = chunk.choices[0]?.delta;
+            
+            // Check for tool calls (OpenAI format)
+            if (delta?.tool_calls && delta.tool_calls.length > 0) {
+                const toolCall = delta.tool_calls[0];
+                if (toolCall.function?.name) {
+                    currentToolCall = { name: toolCall.function.name, arguments: toolCall.function.arguments || '' };
+                } else if (currentToolCall && toolCall.function?.arguments) {
+                    currentToolCall.arguments += toolCall.function.arguments;
+                }
+            }
+            
+            const content = delta?.content;
             if (content) {
                 yield content;
             }
+        }
+
+        // If a tool was called, yield it as a special object
+        if (currentToolCall) {
+            yield { type: 'tool_call', ...currentToolCall };
+        }
+    }
+
+    interrupt() {
+        if (this.isCPUFallback.value && this.worker) {
+            this.worker.postMessage({ type: 'STOP' });
+        } else if (this.engine) {
+            this.engine.interruptGenerate();
         }
     }
 }
