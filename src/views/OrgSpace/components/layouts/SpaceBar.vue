@@ -69,6 +69,14 @@ const route = useRoute();
                 />
             </RouterLink>
             
+            <RouterLink :to="`/${openedOrg.id}/ai`">
+                <SpaceBarBTN
+                    icon="bi-robot"
+                    label="Agent IA (Local)"
+                    :active="route.name === 'OrgAI'"
+                />
+            </RouterLink>
+            
             <hr class=" w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
 
             <RouterLink

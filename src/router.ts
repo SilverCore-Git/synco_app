@@ -120,6 +120,12 @@ const routes = [
         props: true,
       },
       {
+        path: 'ai',
+        name: 'OrgAI',
+        component: () => import('./views/OrgSpace/views/OrgAI.vue'),
+        props: true,
+      },
+      {
         path: 'tasks',
         name: 'TasksGlobal',
         component: () => import('./views/OrgSpace/views/TasksGlobal.vue'),

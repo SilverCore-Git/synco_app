@@ -11,6 +11,7 @@
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
     "@firebase/messaging": "^0.13.0",
+    "@mlc-ai/web-llm": "^0.2.84",
     "@orama/orama": "^3.1.18",
     "@tailwindcss/vite": "^4.1.17",
     "@types/canvas-confetti": "^1.9.0",
