@@ -158,7 +158,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import { openedOrg, user } from '@/assets/var';
 import type { Task, OrgMember } from '@/types/types';
@@ -171,6 +171,7 @@ import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import confetti from 'canvas-confetti';
 
 const route = useRoute();
+const router = useRouter();
 const toast = useToast();
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
 

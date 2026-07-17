@@ -698,7 +698,7 @@ const initListener = () => {
             const hasFiles = Array.isArray(msg.files) && msg.files.length > 0;
             let vectorText = clearContent;
             if (hasFiles) {
-                const fileNames = msg.files.map((f: any) => f.originalName || '').join(' ');
+                const fileNames = msg.files?.map((f: any) => f.originalName || '').join(' ') || '';
                 vectorText = clearContent.trim() === '' ? fileNames : `${clearContent}\n${fileNames}`;
                 if (!vectorText.trim()) vectorText = 'Fichier joint';
             }

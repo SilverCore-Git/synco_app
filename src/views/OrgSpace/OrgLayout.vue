@@ -50,12 +50,12 @@ watch(() => route.params.spaceId, async (newSpaceId, oldSpaceId) => {
     }
 }, { immediate: true });
 
-watch(() => [openedOrg.value, route.params.spaceId], ([newOrg, spaceIdParam]) => {
+watch(() => [openedOrg.value, route.params.spaceId] as const, ([newOrg, spaceIdParam]) => {
     if (newOrg && spaceIdParam) {
         const spaceId = spaceIdParam as string;
         // Add thread names to the search index for exact BM25 matching (fast, no vector generation needed)
         import('@/services/LocalSearchVectorDB').then(({ localSearchDB }) => {
-            const currentSpace = newOrg.spaces?.find(s => s.id === spaceId);
+            const currentSpace = newOrg.spaces?.find((s: any) => s.id === spaceId);
             if (currentSpace && currentSpace.threads) {
                 const dummyVector = Array(384).fill(0);
                 for (const thread of currentSpace.threads) {

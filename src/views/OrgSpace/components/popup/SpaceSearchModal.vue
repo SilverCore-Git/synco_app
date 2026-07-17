@@ -166,8 +166,8 @@ const groupedResults = computed(() => {
     };
     for (const res of results.value) {
         if (!activeFilters.value[res.type]) continue;
-        if (groups[res.type]) groups[res.type].push(res);
-        else groups['MESSAGE'].push(res);
+        if (groups[res.type]) groups[res.type]!.push(res);
+        else groups['MESSAGE']!.push(res);
     }
     return groups;
 });

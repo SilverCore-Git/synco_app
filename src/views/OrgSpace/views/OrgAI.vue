@@ -118,7 +118,7 @@
             <ul class="list-disc ml-5 space-y-2">
               <li><strong>Linux :</strong> L'accélération WebGPU est souvent bloquée. Nous recommandons d'utiliser <strong>Chromium ou Chrome sous Windows ou macOS</strong> pour profiter de l'IA locale.</li>
               <li><strong>Pilotes :</strong> Vérifiez que vos pilotes graphiques sont à jour.</li>
-              <li v-if="!!navigator?.gpu">WebGPU est activé dans votre navigateur, mais l'accès à la carte graphique a échoué (problème OS/Drivers).</li>
+              <li v-if="hasNavigatorGpu">WebGPU est activé dans votre navigateur, mais l'accès à la carte graphique a échoué (problème OS/Drivers).</li>
               <li v-else>Assurez-vous d'utiliser une version récente de <strong>Google Chrome, Edge ou Brave</strong>.</li>
             </ul>
           </div>
@@ -233,6 +233,7 @@ interface ChatMessage {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
   tool_call?: { name: string; arguments: string; status: 'pending' | 'accepted' | 'rejected' };
+  tool_data?: any;
 }
 
 const selectedModelId = ref<string>('');
@@ -242,6 +243,7 @@ const hasStartedInit = ref(false);
 const inputMsg = ref('');
 const messages = ref<ChatMessage[]>([]);
 const chatContainer = ref<HTMLElement | null>(null);
+const hasNavigatorGpu = typeof navigator !== 'undefined' && !!(navigator as any).gpu;
 
 const scrollToBottom = async () => {
   await nextTick();
@@ -286,7 +288,7 @@ const isModelCached = ref(false);
 const checkCacheStatus = async () => {
   if (selectedModelId.value) {
     try {
-      isModelCached.value = await webllm.hasModelInCache(selectedModelId.value, localLLM.customAppConfig);
+      isModelCached.value = await webllm.hasModelInCache(selectedModelId.value);
       if (isModelCached.value && localLLM.currentModel.value?.id !== selectedModelId.value && !hasStartedInit.value) {
         // Auto-initialiser silencieusement si c'est déjà en cache
         startInit();
@@ -326,7 +328,7 @@ const newSession = () => {
   messages.value = [];
 };
 
-const handleToolCall = async (toolCall: any, accepted: boolean, msgIndex: number) => {
+const handleToolCall = async (toolCall: any, accepted: boolean, _msgIndex: number) => {
   if (!accepted) {
     toolCall.status = 'rejected';
     messages.value.push({ role: 'system', content: `L'utilisateur a refusé l'exécution de l'outil ${toolCall.name}. Demande-lui pourquoi ou propose une alternative.` });

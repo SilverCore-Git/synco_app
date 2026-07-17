@@ -1,6 +1,6 @@
 import * as webllm from '@mlc-ai/web-llm';
 import { ref } from 'vue';
-import { availableTools } from './AITools';
+
 export interface LLMModel {
     id: string;
     name: string;
@@ -36,7 +36,7 @@ export const availableModels: LLMModel[] = [
 class LocalLLMService {
     engine: webllm.MLCEngine | null = null;
     isInitialized = ref(false);
-    hasWebGPU = ref(!!navigator.gpu);
+    hasWebGPU = ref(typeof navigator !== 'undefined' && !!(navigator as any).gpu);
     downloadProgress = ref(0);
     downloadText = ref("");
     currentModel = ref<LLMModel | null>(null);
@@ -45,13 +45,13 @@ class LocalLLMService {
 
     async getRecommendedModel(): Promise<LLMModel> {
         try {
-            if (!navigator.gpu) {
+            if (typeof navigator === 'undefined' || !(navigator as any).gpu) {
                 console.warn("[LocalLLMService] WebGPU non supporté. On recommande le modèle Tier 3.");
                 this.hasWebGPU.value = false;
                 return availableModels.find(m => m.tier === 3)!;
             }
 
-            const adapter = await navigator.gpu.requestAdapter();
+            const adapter = await (navigator as any).gpu.requestAdapter();
             if (!adapter) {
                 this.hasWebGPU.value = false;
                 return availableModels.find(m => m.tier === 3)!;
@@ -121,8 +121,6 @@ class LocalLLMService {
             this.downloadText.value = report.text;
         };
 
-        const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-
         const customAppConfig: webllm.AppConfig = {
             ...webllm.prebuiltAppConfig,
             // On laisse WebLLM utiliser les URLs HuggingFace par défaut pour les modèles f32
@@ -178,7 +176,7 @@ class LocalLLMService {
 
             // 2. Chercher une balise XML complète
             const xmlMatch = buffer.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
-            if (xmlMatch) {
+            if (xmlMatch && xmlMatch[1]) {
                 try {
                     const parsed = JSON.parse(xmlMatch[1].trim());
                     yield { type: 'tool_call', ...parsed };
