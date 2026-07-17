@@ -11,24 +11,24 @@ export interface LLMModel {
 
 export const availableModels: LLMModel[] = [
     {
-        id: "Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
-        name: "Mistral 7B Instruct",
+        id: "Mistral-7B-Instruct-v0.3-q4f32_1-MLC",
+        name: "Mistral 7B",
         size: "4.1 GB",
         vram: 4096,
         tier: 1
     },
     {
-        id: "Qwen2-1.5B-Instruct-q4f16_1-MLC",
-        name: "Qwen2 1.5B",
-        size: "1.1 GB",
-        vram: 1536,
+        id: "Ministral-3-3B-Instruct-2512-BF16-q4f32_1-MLC",
+        name: "Ministral 3B",
+        size: "2.2 GB",
+        vram: 3072,
         tier: 2
     },
     {
-        id: "SmolLM2-135M-Instruct-q0f16-MLC",
-        name: "SmolLM2 135M",
-        size: "0.2 GB",
-        vram: 512,
+        id: "SmolLM2-1.7B-Instruct-q4f32_1-MLC",
+        name: "SmolLM2 1.7B",
+        size: "1.1 GB",
+        vram: 1536,
         tier: 3
     }
 ];
@@ -37,79 +37,69 @@ class LocalLLMService {
     engine: webllm.MLCEngine | null = null;
     isInitialized = ref(false);
     hasWebGPU = ref(!!navigator.gpu);
-    isCPUFallback = ref(false);
     downloadProgress = ref(0);
     downloadText = ref("");
     currentModel = ref<LLMModel | null>(null);
-    worker: Worker | null = null;
-    messageQueue: Map<string, { resolve: any, reject: any, onChunk?: (chunk: string) => void }> = new Map();
 
-    constructor() {
-        if (typeof window !== 'undefined') {
-            this.worker = new Worker(new URL('../workers/llm.worker.ts', import.meta.url), { type: 'module' });
-            this.worker.onmessage = this.handleWorkerMessage.bind(this);
-        }
-    }
-
-    private handleWorkerMessage(e: MessageEvent) {
-        const { type, payload, id } = e.data;
-        
-        if (type === 'PROGRESS') {
-            if (payload.status === "progress") {
-                this.downloadProgress.value = Math.round((payload.loaded / payload.total) * 100);
-                if (this.downloadProgress.value >= 100) {
-                    this.downloadText.value = "Chargement terminé. Initialisation du modèle en mémoire...";
-                } else {
-                    this.downloadText.value = "Chargement (" + payload.file + ") : " + this.downloadProgress.value + "%";
-                }
-            } else if (payload.status === "ready") {
-                this.downloadText.value = "Prêt.";
-                this.downloadProgress.value = 100;
-            } else if (payload.status === "init") {
-                this.downloadText.value = "Préparation de l'environnement...";
-            } else {
-                this.downloadText.value = "Initialisation en cours...";
-            }
-        } 
-        
-        else if (id && this.messageQueue.has(id)) {
-            const handlers = this.messageQueue.get(id)!;
-            if (type === 'INIT_DONE') {
-                handlers.resolve();
-                this.messageQueue.delete(id);
-            } else if (type === 'GENERATE_DONE') {
-                handlers.resolve();
-                this.messageQueue.delete(id);
-            } else if (type === 'CHUNK' && handlers.onChunk) {
-                handlers.onChunk(payload);
-            } else if (type === 'ERROR') {
-                handlers.reject(new Error(payload));
-                this.messageQueue.delete(id);
-            }
-        }
-    }
+    constructor() {}
 
     async getRecommendedModel(): Promise<LLMModel> {
         try {
             if (!navigator.gpu) {
                 console.warn("[LocalLLMService] WebGPU non supporté. On recommande le modèle Tier 3.");
+                this.hasWebGPU.value = false;
                 return availableModels.find(m => m.tier === 3)!;
             }
 
             const adapter = await navigator.gpu.requestAdapter();
             if (!adapter) {
+                this.hasWebGPU.value = false;
                 return availableModels.find(m => m.tier === 3)!;
             }
 
-            // Pour Chrome, requestAdapterInfo est parfois asynchrone, on gère les 2
-            const info = await adapter.requestAdapterInfo();
-            const device = await adapter.requestDevice();
-            
-            // Estimation basique via limits si disponible
-            // On retourne Tier 1 par défaut si WebGPU est actif (ex: 4060).
-            return availableModels.find(m => m.tier === 1)!;
+            let info: any = null;
+            if (adapter.requestAdapterInfo) {
+                // Some older browsers might require this to be async, some synchronous.
+                info = await adapter.requestAdapterInfo();
+            } else {
+                info = (adapter as any).info || {};
+            }
+
+            const description = (info.description || info.architecture || info.device || "").toLowerCase();
+            const vendor = (info.vendor || "").toLowerCase();
+
+            // M-series Apple Silicon
+            if (vendor.includes('apple') || description.includes('apple')) {
+                if (description.includes('max') || description.includes('pro') || description.includes('ultra')) {
+                    return availableModels.find(m => m.tier === 1)!;
+                }
+                return availableModels.find(m => m.tier === 2)!;
+            }
+
+            // Nvidia
+            if (vendor.includes('nvidia') || description.includes('rtx') || description.includes('geforce') || description.includes('gtx')) {
+                if (description.match(/rtx\s*(30[6-9]\d|40[6-9]\d|40\d\d|30\d\d|a\d000)/)) {
+                    return availableModels.find(m => m.tier === 1)!;
+                }
+                if (description.match(/rtx|gtx\s*(1660|1070|1080|980|1060|2060|2070|2080)/)) {
+                    return availableModels.find(m => m.tier === 2)!;
+                }
+                return availableModels.find(m => m.tier === 2)!; // Default Nvidia is tier 2
+            }
+
+            // AMD Radeon
+            if (vendor.includes('amd') || description.includes('radeon') || description.includes('rx')) {
+                if (description.match(/rx\s*(6[7-9]\d\d|7[7-9]\d\d|6900|7900)/)) {
+                    return availableModels.find(m => m.tier === 1)!;
+                }
+                return availableModels.find(m => m.tier === 2)!;
+            }
+
+            // Default fallback for Intel or unknown GPUs
+            return availableModels.find(m => m.tier === 3)!;
         } catch (error) {
             console.error("[LocalLLMService] Erreur lors de l'évaluation du hardware:", error);
+            this.hasWebGPU.value = false;
             return availableModels.find(m => m.tier === 3)!;
         }
     }
@@ -119,7 +109,7 @@ class LocalLLMService {
             this.engine.unload();
             this.engine = null;
         }
-        
+
         this.isInitialized.value = false;
         this.downloadProgress.value = 0;
         this.downloadText.value = "Initialisation...";
@@ -135,29 +125,8 @@ class LocalLLMService {
 
         const customAppConfig: webllm.AppConfig = {
             ...webllm.prebuiltAppConfig,
-            model_list: [
-                {
-                    model: baseUrl + "/models/Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
-                    model_id: "Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
-                    model_lib: baseUrl + "/models/wasm/Mistral-7B-Instruct-v0.3-q4f16_1_cs1k-webgpu.wasm",
-                    vram_required_MB: 4096,
-                    low_resource_required: false
-                },
-                {
-                    model: baseUrl + "/models/Qwen2-1.5B-Instruct-q4f16_1-MLC",
-                    model_id: "Qwen2-1.5B-Instruct-q4f16_1-MLC",
-                    model_lib: baseUrl + "/models/wasm/Qwen2-1.5B-Instruct-q4f16_1_cs1k-webgpu.wasm",
-                    vram_required_MB: 1536,
-                    low_resource_required: true
-                },
-                {
-                    model: baseUrl + "/models/SmolLM2-135M-Instruct-q0f16-MLC",
-                    model_id: "SmolLM2-135M-Instruct-q0f16-MLC",
-                    model_lib: baseUrl + "/models/wasm/SmolLM2-135M-Instruct-q0f16_cs1k-webgpu.wasm",
-                    vram_required_MB: 512,
-                    low_resource_required: true
-                }
-            ]
+            // On laisse WebLLM utiliser les URLs HuggingFace par défaut pour les modèles f32
+            // puisqu'ils ne sont pas mis en cache sur le serveur local (seuls les f16 le sont).
         };
 
         try {
@@ -173,152 +142,84 @@ class LocalLLMService {
         }
     }
 
-    async initCPU() {
-        if (this.engine) {
-            this.engine.unload();
-            this.engine = null;
-        }
-
-        this.isCPUFallback.value = true;
-        this.isInitialized.value = false;
-        this.downloadProgress.value = 0;
-        this.downloadText.value = "Initialisation du moteur CPU...";
-        
-        const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-        
-        try {
-            await new Promise<void>((resolve, reject) => {
-                const id = 'init_' + Date.now();
-                this.messageQueue.set(id, { resolve, reject });
-                this.worker!.postMessage({ type: 'INIT', payload: { baseUrl }, id });
-            });
-            this.isInitialized.value = true;
-        } catch (error) {
-            console.error("[LocalLLMService] Erreur d'initialisation CPU:", error);
-            this.downloadText.value = "Erreur CPU.";
-            throw error;
-        }
-    }
-
     async *chat(messages: any[]) {
-        if (this.isCPUFallback.value && this.worker) {
-            let resolveNext: ((val: any) => void) | null = null;
-            const queue: string[] = [];
-            let isDone = false;
-            
-            const id = 'gen_' + Date.now();
-            const genPromise = new Promise<void>((resolve, reject) => {
-                this.messageQueue.set(id, { 
-                    resolve, 
-                    reject,
-                    onChunk: (chunk: string) => {
-                        queue.push(chunk);
-                        if (resolveNext) {
-                            resolveNext(true);
-                            resolveNext = null;
-                        }
-                    }
-                });
-                
-                // Clone messages to remove Vue Proxy before postMessage
-                const plainMessages = JSON.parse(JSON.stringify(messages));
-                this.worker!.postMessage({ type: 'GENERATE', payload: { messages: plainMessages }, id });
-            });
-
-            genPromise.then(() => {
-                isDone = true;
-                if (resolveNext) resolveNext(true);
-            }).catch(err => {
-                console.error("[CPU] Erreur de génération:", err);
-                isDone = true;
-                if (resolveNext) resolveNext(true);
-            });
-
-            let buffer = "";
-            let yieldingBuffer = false;
-
-            while (!isDone || queue.length > 0) {
-                if (queue.length > 0) {
-                    const chunk = queue.shift()!;
-                    buffer += chunk;
-                    
-                    if (buffer.includes('<tool_call>')) {
-                        yieldingBuffer = true; // Stop yielding normal text
-                    }
-                    
-                    if (yieldingBuffer && buffer.includes('</tool_call>')) {
-                        const match = buffer.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
-                        if (match) {
-                            try {
-                                const toolObj = JSON.parse(match[1]);
-                                yield { type: 'tool_call', name: toolObj.name, arguments: JSON.stringify(toolObj.arguments) };
-                            } catch (e) {
-                                console.error("Erreur de parsing tool call:", e);
-                            }
-                            buffer = buffer.replace(match[0], '');
-                        }
-                        yieldingBuffer = false;
-                    }
-                    
-                    if (!yieldingBuffer) {
-                        // Yield only the chunk if we are not buffering, or yield the flushed buffer
-                        if (buffer) {
-                            yield buffer;
-                            buffer = "";
-                        }
-                    }
-                } else if (!isDone) {
-                    await new Promise(r => resolveNext = r);
-                }
-            }
-            if (buffer && !yieldingBuffer) {
-                yield buffer;
-            }
-            return;
-        }
-
         if (!this.engine || !this.isInitialized.value) {
             throw new Error("L'agent IA n'est pas prêt.");
         }
+
 
         const asyncChunkGenerator = await this.engine.chat.completions.create({
             messages,
             stream: true,
             temperature: 0.7,
-            tools: availableTools as any // Pass the tools to WebLLM
         });
 
-        let currentToolCall: { name: string, arguments: string } | null = null;
+        let buffer = "";
 
         for await (const chunk of asyncChunkGenerator) {
-            const delta = chunk.choices[0]?.delta;
+            const content = chunk.choices[0]?.delta?.content || "";
+            if (!content) continue;
             
-            // Check for tool calls (OpenAI format)
-            if (delta?.tool_calls && delta.tool_calls.length > 0) {
-                const toolCall = delta.tool_calls[0];
-                if (toolCall.function?.name) {
-                    currentToolCall = { name: toolCall.function.name, arguments: toolCall.function.arguments || '' };
-                } else if (currentToolCall && toolCall.function?.arguments) {
-                    currentToolCall.arguments += toolCall.function.arguments;
+            buffer += content;
+            
+            // 1. Chercher un JSON brut complet avec regex
+            // On utilise s (dotall) au cas où il y aurait des retours à la ligne
+            const jsonMatch = buffer.match(/\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"arguments"\s*:\s*\{[\s\S]*?\}\s*\}/);
+            if (jsonMatch) {
+                try {
+                    const parsed = JSON.parse(jsonMatch[0]);
+                    yield { type: 'tool_call', ...parsed };
+                    buffer = buffer.replace(jsonMatch[0], ""); // Enlever le JSON du buffer
+                    continue; // On continue avec le reste du buffer
+                } catch(e) {
+                    // Pas encore un JSON valide, on attend
                 }
             }
+
+            // 2. Chercher une balise XML complète
+            const xmlMatch = buffer.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
+            if (xmlMatch) {
+                try {
+                    const parsed = JSON.parse(xmlMatch[1].trim());
+                    yield { type: 'tool_call', ...parsed };
+                    buffer = buffer.replace(xmlMatch[0], "");
+                    continue;
+                } catch(e) {
+                    console.error("[WebGPU] Failed to parse XML tool call", e);
+                }
+            }
+
+            // 3. Purge intelligente du buffer
+            // On ne veut pas afficher les morceaux de JSON ou XML en cours de construction
+            let safeToFlushIndex = buffer.length;
             
-            const content = delta?.content;
-            if (content) {
-                yield content;
+            const lastBrace = buffer.lastIndexOf('{');
+            const lastAngle = buffer.lastIndexOf('<');
+            
+            if (lastBrace !== -1) safeToFlushIndex = Math.min(safeToFlushIndex, lastBrace);
+            if (lastAngle !== -1) safeToFlushIndex = Math.min(safeToFlushIndex, lastAngle);
+            
+            // Si le buffer est bloqué par une accolade depuis trop longtemps (faux positif), on force la purge
+            if (buffer.length > 300 && !buffer.includes('{"name"') && !buffer.includes('<tool_call>')) {
+                safeToFlushIndex = buffer.length;
+            }
+
+            if (safeToFlushIndex > 0) {
+                yield buffer.substring(0, safeToFlushIndex);
+                buffer = buffer.substring(safeToFlushIndex);
             }
         }
 
-        // If a tool was called, yield it as a special object
-        if (currentToolCall) {
-            yield { type: 'tool_call', ...currentToolCall };
+        if (buffer.trim()) {
+            // Nettoyage final pour ne pas cracher de restes de code JSON cassé
+            if (!buffer.includes('{"name"') && !buffer.includes('<tool_call>')) {
+                yield buffer;
+            }
         }
     }
 
     interrupt() {
-        if (this.isCPUFallback.value && this.worker) {
-            this.worker.postMessage({ type: 'STOP' });
-        } else if (this.engine) {
+        if (this.engine) {
             this.engine.interruptGenerate();
         }
     }

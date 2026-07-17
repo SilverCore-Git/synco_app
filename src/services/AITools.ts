@@ -18,6 +18,7 @@ export const availableTools = [
                 },
                 required: ["name", "logo"]
             }
+        }
     },
     {
         type: "function",

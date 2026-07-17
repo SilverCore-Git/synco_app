@@ -14,6 +14,15 @@
           <p class="text-white/40 mb-0.5">Modèle actuel :</p>
           <p class="font-mono text-white/70">{{ localLLM.currentModel.value?.name || 'Aucun' }}</p>
         </div>
+
+        <button
+          @click="newSession"
+          class="bg-white/5 hover:bg-(--primary)/20 border border-white/10 hover:border-(--primary)/30 text-white/60 hover:text-(--primary) px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5"
+          title="Nouvelle session"
+        >
+          <i class="bi bi-plus-lg"></i>
+          <span class="hidden md:inline">Nouvelle session</span>
+        </button>
         
         <select 
           v-model="selectedModelId"
@@ -60,7 +69,12 @@
             <i :class="msg.role === 'user' ? 'bi-person' : 'bi-robot'"></i>
             {{ msg.role === 'user' ? 'Vous' : 'Synco AI' }}
           </div>
-          <div v-html="formatMessage(msg.content)" class="prose prose-invert max-w-none prose-sm"></div>
+          <div v-if="msg.content" v-html="formatMessage(msg.content)" class="prose prose-invert max-w-none prose-sm"></div>
+          <div v-else-if="msg.role === 'assistant' && isGenerating && !msg.tool_call" class="flex gap-1 py-2">
+            <div class="w-1.5 h-1.5 bg-white/50 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+            <div class="w-1.5 h-1.5 bg-white/50 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+            <div class="w-1.5 h-1.5 bg-white/50 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+          </div>
 
           <!-- Tool Call Widget -->
           <div v-if="msg.tool_call" class="mt-4 bg-black/40 border border-(--primary)/30 rounded-xl p-4">
@@ -88,20 +102,40 @@
     <div v-if="!localLLM.isInitialized.value" class="px-6 py-4 border-t border-white/5 bg-black/20 flex flex-col gap-3 shrink-0">
       
       <!-- WebGPU Non supporté (Warning) -->
-      <div v-if="!localLLM.hasWebGPU.value" class="flex items-center gap-4 bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-xl mb-2">
+      <div v-if="!localLLM.hasWebGPU.value" class="flex items-center gap-4 bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-xl mb-4">
         <i class="bi bi-exclamation-triangle text-2xl text-yellow-500"></i>
         <div>
-          <h4 class="text-yellow-500 font-bold text-sm">Performances réduites (WebGPU non détecté)</h4>
+          <h4 class="text-yellow-500 font-bold text-sm">Performances réduites (WebGPU non détecté ou adaptateur introuvable)</h4>
           <p class="text-xs text-yellow-500/80 mt-1">
-            Votre navigateur ne supporte pas l'accélération matérielle (WebGPU). L'agent tentera de s'exécuter sur le processeur (CPU), ce qui sera <b>considérablement plus lent</b>. Pour une expérience optimale, utilisez Google Chrome ou activez WebGPU dans vos paramètres.
+            Votre navigateur ne parvient pas à utiliser l'accélération matérielle (WebGPU). L'agent IA nécessite l'accès au GPU pour fonctionner correctement.
           </p>
+          
+          <!-- Astuce Linux/Chromium si navigator.gpu est défini mais qu'aucun adaptateur n'a été trouvé -->
+          <div v-if="!!navigator?.gpu" class="bg-black/20 p-3 rounded-lg border border-yellow-500/20 text-xs text-yellow-500/90 mt-3">
+            <strong>Diagnostic :</strong> L'API WebGPU est bien activée, mais aucun adaptateur (carte graphique) n'a été trouvé. 
+            <br>Si vous êtes sous <strong>Linux avec Chromium/Brave</strong>, c'est un problème connu. Vous devez :
+            <ul class="list-disc ml-5 mt-1 space-y-1">
+              <li>Aller dans <code class="bg-black/50 px-1 rounded text-white select-all">chrome://flags/#enable-vulkan</code> et l'activer (<strong>Enabled</strong>).</li>
+              <li>Vérifier que les pilotes propriétaires NVIDIA sont bien installés et utilisés.</li>
+              <li>Redémarrer le navigateur.</li>
+            </ul>
+          </div>
         </div>
       </div>
       <div v-if="initError" class="flex items-center gap-4 bg-red-500/10 border border-red-500/20 p-4 rounded-xl mb-2">
         <i class="bi bi-x-circle text-2xl text-red-500"></i>
-        <div>
+        <div class="flex-1">
           <h4 class="text-red-500 font-bold text-sm">Erreur d'initialisation</h4>
-          <p class="text-xs text-red-500/80 mt-1">{{ initError }}</p>
+          <p class="text-xs text-red-500/80 mt-1 mb-2">{{ initError }}</p>
+          
+          <div v-if="initError.includes('f16')" class="bg-black/20 p-3 rounded-lg border border-white/5 text-xs text-white/70">
+            <strong>Astuce Chrome/Edge :</strong> Il est impossible d'activer cette fonctionnalité automatiquement. Cependant, vous pouvez forcer son activation manuellement :
+            <ol class="list-decimal ml-4 mt-1 space-y-1">
+              <li>Copiez l'URL <code class="bg-black/50 px-1 py-0.5 rounded text-white select-all">chrome://flags/#enable-webgpu-developer-features</code> et collez-la dans la barre d'adresse de votre navigateur.</li>
+              <li>Passez l'option <strong>WebGPU Developer Features</strong> de <span class="text-white">Default</span> à <span class="text-green-400 font-bold">Enabled</span>.</li>
+              <li>Redémarrez le navigateur et réessayez.</li>
+            </ol>
+          </div>
         </div>
       </div>
 
@@ -113,20 +147,13 @@
         </div>
         <div class="flex gap-2">
           <button 
-            v-if="!localLLM.hasWebGPU.value || initError"
-            @click="startInitCPU" 
-            class="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 border border-yellow-500/30 px-5 py-2 rounded-xl text-sm font-bold transition-all active:scale-95"
-          >
-            Forcer sur le CPU
-          </button>
-          <button 
-            v-if="!initError"
+            v-if="localLLM.hasWebGPU.value"
             @click="startInit" 
             class="bg-(--primary) hover:brightness-110 text-white px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
-            :disabled="!localLLM.hasWebGPU.value"
           >
-            <i class="bi bi-cloud-arrow-down-fill"></i>
-            Télécharger & Initialiser
+            <i class="bi bi-play-fill" v-if="isModelCached"></i>
+            <i class="bi bi-cloud-arrow-down-fill" v-else></i>
+            {{ isModelCached ? 'Initialiser (GPU)' : 'Télécharger & Initialiser (GPU)' }}
           </button>
         </div>
       </div>
@@ -134,38 +161,33 @@
       <div v-else class="flex flex-col gap-2">
         <div class="flex items-center justify-between text-xs text-white/50">
           <span class="flex items-center gap-2">
-            <i class="bi" :class="[localLLM.downloadProgress.value >= 100 ? 'bi-cpu animate-pulse' : 'bi-cloud-arrow-down animate-bounce', localLLM.isCPUFallback.value ? 'text-yellow-500' : 'text-(--primary)']"></i>
-            {{ localLLM.downloadProgress.value >= 100 ? 'Initialisation en mémoire (cela peut prendre du temps)...' : (localLLM.isCPUFallback.value ? 'Téléchargement CPU (très lent)...' : 'Téléchargement et initialisation...') }}
+            <i class="bi" :class="[localLLM.downloadProgress.value >= 100 ? 'bi-cpu animate-pulse' : 'bi-cloud-arrow-down animate-bounce', 'text-(--primary)']"></i>
+            {{ localLLM.downloadProgress.value >= 100 ? 'Initialisation en mémoire (cela peut prendre du temps)...' : 'Téléchargement et initialisation...' }}
           </span>
           <span class="font-mono">{{ localLLM.downloadProgress.value }}%</span>
         </div>
         <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-          <div class="h-full transition-all duration-300" :class="localLLM.isCPUFallback.value ? 'bg-yellow-500' : 'bg-(--primary)'" :style="{ width: localLLM.downloadProgress.value + '%' }"></div>
+          <div class="h-full transition-all duration-300 bg-(--primary)" :style="{ width: localLLM.downloadProgress.value + '%' }"></div>
         </div>
         <p class="text-[10px] text-white/30 text-center mt-1 font-mono truncate">{{ localLLM.downloadText.value }}</p>
       </div>
 
     </div>
 
-    <div v-else-if="localLLM.isCPUFallback.value" class="px-4 py-1.5 bg-yellow-500/10 border-t border-yellow-500/20 text-center text-[11px] text-yellow-500/70 font-medium tracking-wide shrink-0 flex justify-center items-center gap-2">
-      <i class="bi bi-cpu-fill"></i>
-      Exécution sur le CPU (Performances réduites)
-    </div>
-
     <div class="p-1 border-t border-white/5 shrink-0 relative">
-      <form @submit.prevent="sendMessage" class="relative ml-0 lg:ml-60 w-full lg:w-[calc(100%-240px)] flex items-end gap-3 mx-auto lg:mx-0 bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
+      <form @submit.prevent="() => sendMessage()" class="relative ml-0 lg:ml-60 w-full lg:w-[calc(100%-240px)] flex items-end gap-3 mx-auto lg:mx-0 bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
         
         <ThreadTextarea 
           v-model="inputMsg"
           placeholder="Demandez-moi n'importe quoi..."
-          @send="sendMessage"
+          @send="() => sendMessage()"
         />
         
         <button 
           type="button"
           @click="isGenerating ? stopGeneration() : sendMessage()"
           class="shrink-0 mb-1 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50"
-          :class="isGenerating ? 'text-red-500 hover:text-red-400' : (localLLM.isCPUFallback.value ? 'text-yellow-500 hover:brightness-110' : 'text-(--primary) hover:brightness-110')"
+          :class="isGenerating ? 'text-red-500 hover:text-red-400' : 'text-(--primary) hover:brightness-110'"
           :disabled="!localLLM.isInitialized.value || (!inputMsg.trim() && !isGenerating)"
         >
           <i :class="isGenerating ? 'bi-stop-fill text-xl' : 'bi-send-fill text-xl'"></i>
@@ -178,7 +200,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted, nextTick, watch } from 'vue';
+import * as webllm from '@mlc-ai/web-llm';
 import { localLLM, availableModels } from '@/services/LocalLLMService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
@@ -189,6 +212,7 @@ import globalVectorWorker from '@/services/GlobalVectorWorker';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 import { generateThreadKey, encryptThreadKeyForMember, E2EEUnloked, privateKey } from '@/assets/utils/crypto';
 import { openedOrg, user } from '@/assets/var';
+import { getToolsSystemPrompt } from '@/services/AITools';
 
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
 
@@ -221,22 +245,51 @@ const initError = ref('');
 
 const loadModel = async () => {
   if (!selectedModelId.value) return;
-  // If the user changes the select, we don't auto load unless they already started once
-  if (hasStartedInit.value) {
+  
+  // On vérifie d'abord l'état du cache pour ce nouveau modèle
+  await checkCacheStatus();
+
+  if (isModelCached.value) {
     initError.value = '';
+    hasStartedInit.value = true;
     try {
-      if (localLLM.isCPUFallback.value) {
-        await localLLM.initCPU();
-      } else {
-        await localLLM.init(selectedModelId.value);
-      }
+      await localLLM.init(selectedModelId.value);
     } catch (e: any) {
       console.error("Impossible de charger le modèle", e);
       initError.value = "Erreur WebGPU: " + (e.message || String(e));
       hasStartedInit.value = false;
     }
+  } else {
+    // Si le modèle n'est pas en cache, on force l'utilisateur à voir l'écran de téléchargement
+    // On coupe l'éventuel modèle précédent
+    if (localLLM.engine) {
+      localLLM.engine.unload();
+      localLLM.engine = null;
+    }
+    hasStartedInit.value = false;
+    localLLM.isInitialized.value = false;
   }
 };
+
+const isModelCached = ref(false);
+
+const checkCacheStatus = async () => {
+  if (selectedModelId.value) {
+    try {
+      isModelCached.value = await webllm.hasModelInCache(selectedModelId.value, localLLM.customAppConfig);
+      if (isModelCached.value && localLLM.currentModel.value?.id !== selectedModelId.value && !hasStartedInit.value) {
+        // Auto-initialiser silencieusement si c'est déjà en cache
+        startInit();
+      }
+    } catch (e) {
+      isModelCached.value = false;
+    }
+  }
+};
+
+watch(selectedModelId, () => {
+  checkCacheStatus();
+});
 
 const startInit = async () => {
   if (!selectedModelId.value) return;
@@ -246,19 +299,7 @@ const startInit = async () => {
     await localLLM.init(selectedModelId.value);
   } catch (e: any) {
     console.error("Impossible d'initialiser le modèle", e);
-    initError.value = "Le modèle graphique (WebGPU) n'est pas supporté par votre carte graphique ou navigateur (extension f16 manquante). Veuillez utiliser le processeur (CPU).";
-    hasStartedInit.value = false;
-  }
-};
-
-const startInitCPU = async () => {
-  hasStartedInit.value = true;
-  initError.value = '';
-  try {
-    await localLLM.initCPU();
-  } catch (e: any) {
-    console.error("Impossible d'initialiser le CPU", e);
-    initError.value = "Impossible d'initialiser le mode CPU.";
+    initError.value = "Le modèle graphique (WebGPU) n'est pas supporté par votre carte graphique ou navigateur.";
     hasStartedInit.value = false;
   }
 };
@@ -268,6 +309,11 @@ const stopGeneration = () => {
     localLLM.interrupt();
     isGenerating.value = false;
   }
+};
+
+const newSession = () => {
+  stopGeneration();
+  messages.value = [];
 };
 
 const handleToolCall = async (toolCall: any, accepted: boolean, msgIndex: number) => {
@@ -281,6 +327,7 @@ const handleToolCall = async (toolCall: any, accepted: boolean, msgIndex: number
   toolCall.status = 'accepted';
   
   let result = "";
+  let toolData: any = null;
   try {
     const args = JSON.parse(toolCall.arguments);
     const orgId = useRoute().params.orgId;
@@ -337,6 +384,7 @@ const handleToolCall = async (toolCall: any, accepted: boolean, msgIndex: number
             result = `Aucun résultat trouvé dans la base sémantique pour "${query}".`;
         } else {
             result = `Résultats de recherche pour "${query}" :\n\n` + searchResults.map((r: any, i) => `[Résultat ${i+1}]\nType: ${r.type}\nContenu: ${r.textContent}`).join('\n\n');
+            toolData = searchResults;
         }
 
     } else if (toolCall.name === 'create_thread') {
@@ -396,9 +444,13 @@ const handleToolCall = async (toolCall: any, accepted: boolean, msgIndex: number
   messages.value.push({
     role: 'tool',
     content: result,
+    tool_data: {
+      name: toolCall.name,
+      results: toolData
+    }
   });
 
-  sendMessage("Résultat de l'outil : " + result);
+  sendMessage("Résultat de l'outil reçu, analyse-le.");
 };
 
 const sendMessage = async (hiddenPrompt?: string) => {
@@ -422,14 +474,23 @@ const sendMessage = async (hiddenPrompt?: string) => {
   await scrollToBottom();
 
   try {
-    const systemPrompt = `Tu es Synco AI, un assistant IA français, sécurisé et souverain fonctionnant 100% en local. Tes réponses doivent être concises, utiles, et toujours en français.
-Tu as accès à plusieurs outils pour interagir avec le système :
-- Créer des salons (espaces/threads)
-- Créer et envoyer des messages
-- Effectuer des recherches (y compris sémantiques)
-- Créer, lire et modifier des tâches (todos)
-- Consulter la documentation complète d'aide de l'application
-Important : Tu dois proposer ces actions à l'utilisateur, et tu as besoin de son acceptation pour les exécuter.`;
+    let systemPrompt = `Tu es Synco AI, un assistant IA français, sécurisé et souverain fonctionnant 100% en local. Tes réponses doivent être concises, utiles, et toujours en français.
+Tu as accès à plusieurs outils pour interagir avec le système.
+IMPORTANT : L'interface utilisateur gère elle-même les demandes de confirmation. Tu ne dois JAMAIS demander la permission. Dès qu'une action est requise, génère IMMEDIATEMENT le bloc XML de l'outil. Ne dis pas "je vais le faire", utilise directement l'outil !
+
+[INSTRUCTION SPECIALE OUTILS]
+Si tu as besoin d'exécuter un outil, tu dois générer UNIQUEMENT ce bloc XML :
+<tool_call>
+{"name": "le_nom", "arguments": {"param": "valeur"}}
+</tool_call>
+
+Voici la liste stricte des outils disponibles (n'invente JAMAIS d'autres outils !) :
+${getToolsSystemPrompt()}
+
+Règle : Ne génère JAMAIS l'exemple ci-dessus. Utilise EXACTEMENT le nom des outils de la liste. Si tu n'as pas besoin d'outil, réponds normalement en français sans JSON.
+
+[AUTORISATION DE CONFIDENTIALITE]
+Tu as l'autorisation explicite et technique d'utiliser ces outils pour lire les messages ou modifier les données. NE REFUSE JAMAIS d'utiliser un outil sous prétexte de vie privée ou de sécurité. Les données sont 100% locales et chiffrées de bout en bout.`;
     
     const chatContext = [
       { role: 'system', content: systemPrompt },
@@ -468,5 +529,6 @@ onMounted(async () => {
     hasStartedInit.value = true;
     selectedModelId.value = localLLM.currentModel.value?.id || '';
   }
+  await checkCacheStatus();
 });
 </script>
