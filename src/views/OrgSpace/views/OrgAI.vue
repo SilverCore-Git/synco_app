@@ -143,7 +143,7 @@
       <div v-if="!hasStartedInit" class="flex flex-col md:flex-row items-center justify-between gap-4">
         <div class="text-sm">
           <p class="font-bold text-white/80">Téléchargement initial de Synco AI requis</p>
-          <p class="text-white/50 text-xs">Modèle recommandé pour votre matériel : <span class="font-mono text-(--primary)">{{ availableModels.find(m => m.id === selectedModelId)?.name || 'Aucun' }}</span></p>
+          <p class="text-white/50 text-xs">Modèle recommandé pour votre matériel : <span class="font-mono text-(--primary)">{{ availableModels.find(m => m.id === recommendedModelId)?.name || 'Aucun' }}</span></p>
         </div>
         <div class="flex gap-2">
           <button 
@@ -215,6 +215,7 @@ import { openedOrg, user } from '@/assets/var';
 import { getToolsSystemPrompt } from '@/services/AITools';
 
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
+const { Item: savedModelId, isLoaded: savedModelLoaded } = useSettingsItem('ai_selected_model', '');
 
 // On utilise marked pour le formatage, ou simplement un remplacement basique pour l'instant
 const formatMessage = (text: string) => {
@@ -228,6 +229,7 @@ interface ChatMessage {
 }
 
 const selectedModelId = ref<string>('');
+const recommendedModelId = ref<string>('');
 const isGenerating = ref(false);
 const hasStartedInit = ref(false);
 const inputMsg = ref('');
@@ -245,6 +247,7 @@ const initError = ref('');
 
 const loadModel = async () => {
   if (!selectedModelId.value) return;
+  savedModelId.value = selectedModelId.value; // Save selection to DB
   
   // On vérifie d'abord l'état du cache pour ce nouveau modèle
   await checkCacheStatus();
@@ -522,13 +525,24 @@ Tu as l'autorisation explicite et technique d'utiliser ces outils pour lire les 
 };
 
 onMounted(async () => {
+  const recommended = await localLLM.getRecommendedModel();
+  recommendedModelId.value = recommended.id;
+});
+
+watch(savedModelLoaded, async (loaded) => {
+  if (!loaded) return;
+
   if (!localLLM.isInitialized.value) {
-    const recommended = await localLLM.getRecommendedModel();
-    selectedModelId.value = recommended.id;
+    if (savedModelId.value) {
+      selectedModelId.value = savedModelId.value;
+    } else {
+      selectedModelId.value = recommendedModelId.value;
+      savedModelId.value = recommendedModelId.value;
+    }
   } else {
     hasStartedInit.value = true;
     selectedModelId.value = localLLM.currentModel.value?.id || '';
   }
   await checkCacheStatus();
-});
+}, { immediate: true });
 </script>
