@@ -24,6 +24,14 @@
             Tier {{ model.tier }} - {{ model.name }}
           </option>
         </select>
+        
+        <button 
+            @click="showUsersBar = !showUsersBar"
+            class="hover:text-(--text) transition-colors ml-2"
+            :class="showUsersBar ? 'text-(--text)' : 'text-(--text)/40'"
+        >
+            <i class="bi bi-people-fill text-lg" />
+        </button>
       </div>
     </div>
 
@@ -99,8 +107,8 @@
       <div v-else class="flex flex-col gap-2">
         <div class="flex items-center justify-between text-xs text-white/50">
           <span class="flex items-center gap-2">
-            <i class="bi bi-cloud-arrow-down animate-bounce" :class="localLLM.isCPUFallback.value ? 'text-yellow-500' : 'text-(--primary)'"></i>
-            {{ localLLM.isCPUFallback.value ? 'Téléchargement CPU (très lent)...' : 'Téléchargement et initialisation...' }} (Ne fermez pas la page)
+            <i class="bi" :class="[localLLM.downloadProgress.value >= 100 ? 'bi-cpu animate-pulse' : 'bi-cloud-arrow-down animate-bounce', localLLM.isCPUFallback.value ? 'text-yellow-500' : 'text-(--primary)']"></i>
+            {{ localLLM.downloadProgress.value >= 100 ? 'Initialisation en mémoire (cela peut prendre du temps)...' : (localLLM.isCPUFallback.value ? 'Téléchargement CPU (très lent)...' : 'Téléchargement et initialisation...') }}
           </span>
           <span class="font-mono">{{ localLLM.downloadProgress.value }}%</span>
         </div>
@@ -142,6 +150,9 @@ import { ref, onMounted, nextTick } from 'vue';
 import { localLLM, availableModels } from '@/services/LocalLLMService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
+import useSettingsItem from '@/composables/useSettingsItem';
+
+const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
 
 // On utilise marked pour le formatage, ou simplement un remplacement basique pour l'instant
 const formatMessage = (text: string) => {

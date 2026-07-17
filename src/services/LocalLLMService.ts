@@ -56,9 +56,16 @@ class LocalLLMService {
         if (type === 'PROGRESS') {
             if (payload.status === "progress") {
                 this.downloadProgress.value = Math.round((payload.loaded / payload.total) * 100);
-                this.downloadText.value = "Chargement (" + payload.file + ") : " + this.downloadProgress.value + "%";
+                if (this.downloadProgress.value >= 100) {
+                    this.downloadText.value = "Chargement terminé. Initialisation du modèle en mémoire...";
+                } else {
+                    this.downloadText.value = "Chargement (" + payload.file + ") : " + this.downloadProgress.value + "%";
+                }
             } else if (payload.status === "ready") {
                 this.downloadText.value = "Prêt.";
+                this.downloadProgress.value = 100;
+            } else if (payload.status === "init") {
+                this.downloadText.value = "Préparation de l'environnement...";
             } else {
                 this.downloadText.value = "Initialisation en cours...";
             }
@@ -211,7 +218,10 @@ class LocalLLMService {
                         }
                     }
                 });
-                this.worker!.postMessage({ type: 'GENERATE', payload: { messages }, id });
+                
+                // Clone messages to remove Vue Proxy before postMessage
+                const plainMessages = JSON.parse(JSON.stringify(messages));
+                this.worker!.postMessage({ type: 'GENERATE', payload: { messages: plainMessages }, id });
             });
 
             genPromise.then(() => {
