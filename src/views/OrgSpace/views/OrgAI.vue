@@ -177,11 +177,16 @@
     </div>
 
     <div class="p-1 border-t border-white/5 shrink-0 relative">
-      <form @submit.prevent="() => sendMessage()" class="relative ml-0 lg:ml-60 w-full lg:w-[calc(100%-240px)] flex items-end gap-3 mx-auto lg:mx-0 bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
+      <form 
+        @submit.prevent="() => sendMessage()" 
+        class="relative ml-0 lg:ml-60 w-full lg:w-[calc(100%-240px)] flex items-end gap-3 mx-auto lg:mx-0 border border-white/10 rounded-xl px-4 py-2 transition-all shadow-2xl"
+        :class="(!localLLM.isInitialized.value || isGenerating) ? 'bg-black/50 opacity-50 cursor-not-allowed' : 'bg-(--bg) focus-within:border-(--primary)/50'"
+      >
         
         <ThreadTextarea 
           v-model="inputMsg"
           placeholder="Demandez-moi n'importe quoi..."
+          :disabled="!localLLM.isInitialized.value || isGenerating"
           @send="() => sendMessage()"
         />
         

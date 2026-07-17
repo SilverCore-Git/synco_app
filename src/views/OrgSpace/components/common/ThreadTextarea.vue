@@ -21,7 +21,9 @@
                 resize-none w-full text-sm text-(--text) 
                 placeholder:text-(--text)/20
                 py-2 overflow-hidden
+                disabled:cursor-not-allowed disabled:text-white/40
             "
+            :disabled="disabled"
             @keydown.enter="handleEnter"
             @keydown="handleKeydown"
         />
@@ -40,6 +42,7 @@ import { useRoute } from 'vue-router';
 const props = defineProps<{
     modelValue: string;
     placeholder?: string;
+    disabled?: boolean;
 }>();
 
 const emit = defineEmits<{
