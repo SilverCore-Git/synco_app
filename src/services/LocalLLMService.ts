@@ -1,7 +1,5 @@
 import * as webllm from '@mlc-ai/web-llm';
 import { ref } from 'vue';
-import { pipeline, env, type TextGenerationPipeline } from '@xenova/transformers';
-
 export interface LLMModel {
     id: string;
     name: string;
@@ -39,10 +37,49 @@ class LocalLLMService {
     isInitialized = ref(false);
     hasWebGPU = ref(!!navigator.gpu);
     isCPUFallback = ref(false);
-    cpuPipeline: TextGenerationPipeline | null = null;
     downloadProgress = ref(0);
     downloadText = ref("");
     currentModel = ref<LLMModel | null>(null);
+    worker: Worker | null = null;
+    messageQueue: Map<string, { resolve: any, reject: any, onChunk?: (chunk: string) => void }> = new Map();
+
+    constructor() {
+        if (typeof window !== 'undefined') {
+            this.worker = new Worker(new URL('../workers/llm.worker.ts', import.meta.url), { type: 'module' });
+            this.worker.onmessage = this.handleWorkerMessage.bind(this);
+        }
+    }
+
+    private handleWorkerMessage(e: MessageEvent) {
+        const { type, payload, id } = e.data;
+        
+        if (type === 'PROGRESS') {
+            if (payload.status === "progress") {
+                this.downloadProgress.value = Math.round((payload.loaded / payload.total) * 100);
+                this.downloadText.value = "Chargement (" + payload.file + ") : " + this.downloadProgress.value + "%";
+            } else if (payload.status === "ready") {
+                this.downloadText.value = "Prêt.";
+            } else {
+                this.downloadText.value = "Initialisation en cours...";
+            }
+        } 
+        
+        else if (id && this.messageQueue.has(id)) {
+            const handlers = this.messageQueue.get(id)!;
+            if (type === 'INIT_DONE') {
+                handlers.resolve();
+                this.messageQueue.delete(id);
+            } else if (type === 'GENERATE_DONE') {
+                handlers.resolve();
+                this.messageQueue.delete(id);
+            } else if (type === 'CHUNK' && handlers.onChunk) {
+                handlers.onChunk(payload);
+            } else if (type === 'ERROR') {
+                handlers.reject(new Error(payload));
+                this.messageQueue.delete(id);
+            }
+        }
+    }
 
     async getRecommendedModel(): Promise<LLMModel> {
         try {
@@ -140,24 +177,13 @@ class LocalLLMService {
         this.downloadText.value = "Initialisation du moteur CPU...";
         
         const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-        env.allowLocalModels = true;
-        env.allowRemoteModels = false;
-        env.localModelPath = baseUrl + '/models/';
-
+        
         try {
-            this.cpuPipeline = await pipeline('text-generation', 'Xenova/Qwen1.5-0.5B-Chat', {
-                progress_callback: (x: any) => {
-                    if (x.status === "progress") {
-                        this.downloadProgress.value = Math.round((x.loaded / x.total) * 100);
-                        this.downloadText.value = "Chargement (" + x.file + ") : " + this.downloadProgress.value + "%";
-                    } else if (x.status === "ready") {
-                        this.downloadText.value = "Prêt.";
-                    } else {
-                        this.downloadText.value = "Initialisation en cours...";
-                    }
-                }
-            }) as TextGenerationPipeline;
-            
+            await new Promise<void>((resolve, reject) => {
+                const id = 'init_' + Date.now();
+                this.messageQueue.set(id, { resolve, reject });
+                this.worker!.postMessage({ type: 'INIT', payload: { baseUrl }, id });
+            });
             this.isInitialized.value = true;
         } catch (error) {
             console.error("[LocalLLMService] Erreur d'initialisation CPU:", error);
@@ -167,37 +193,31 @@ class LocalLLMService {
     }
 
     async *chat(messages: any[]) {
-        if (this.isCPUFallback.value && this.cpuPipeline) {
+        if (this.isCPUFallback.value && this.worker) {
             let resolveNext: ((val: any) => void) | null = null;
             const queue: string[] = [];
             let isDone = false;
-            let lastLength = 0;
-
-            const textPrompt = this.cpuPipeline.tokenizer.apply_chat_template(messages, {
-                tokenize: false,
-                add_generation_prompt: true
-            });
-
-            this.cpuPipeline(textPrompt as string, {
-                max_new_tokens: 512,
-                temperature: 0.7,
-                do_sample: true,
-                callback_function: (beams: any[]) => {
-                    const decodedText = this.cpuPipeline!.tokenizer.decode(beams[0].output_token_ids, { skip_special_tokens: true });
-                    const newText = decodedText.slice(lastLength);
-                    if (newText.length > 0) {
-                        queue.push(newText);
-                        lastLength = decodedText.length;
+            
+            const id = 'gen_' + Date.now();
+            const genPromise = new Promise<void>((resolve, reject) => {
+                this.messageQueue.set(id, { 
+                    resolve, 
+                    reject,
+                    onChunk: (chunk: string) => {
+                        queue.push(chunk);
                         if (resolveNext) {
                             resolveNext(true);
                             resolveNext = null;
                         }
                     }
-                }
-            }).then(() => {
+                });
+                this.worker!.postMessage({ type: 'GENERATE', payload: { messages }, id });
+            });
+
+            genPromise.then(() => {
                 isDone = true;
                 if (resolveNext) resolveNext(true);
-            }).catch((err: any) => {
+            }).catch(err => {
                 console.error("[CPU] Erreur de génération:", err);
                 isDone = true;
                 if (resolveNext) resolveNext(true);
