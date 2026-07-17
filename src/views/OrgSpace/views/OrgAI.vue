@@ -78,6 +78,13 @@
           </p>
         </div>
       </div>
+      <div v-if="initError" class="flex items-center gap-4 bg-red-500/10 border border-red-500/20 p-4 rounded-xl mb-2">
+        <i class="bi bi-x-circle text-2xl text-red-500"></i>
+        <div>
+          <h4 class="text-red-500 font-bold text-sm">Erreur d'initialisation</h4>
+          <p class="text-xs text-red-500/80 mt-1">{{ initError }}</p>
+        </div>
+      </div>
 
         <!-- Installation classique -->
       <div v-if="!hasStartedInit" class="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -87,13 +94,14 @@
         </div>
         <div class="flex gap-2">
           <button 
-            v-if="!localLLM.hasWebGPU.value"
+            v-if="!localLLM.hasWebGPU.value || initError"
             @click="startInitCPU" 
             class="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 border border-yellow-500/30 px-5 py-2 rounded-xl text-sm font-bold transition-all active:scale-95"
           >
             Forcer sur le CPU
           </button>
           <button 
+            v-if="!initError"
             @click="startInit" 
             class="bg-(--primary) hover:brightness-110 text-white px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
             :disabled="!localLLM.hasWebGPU.value"
@@ -120,6 +128,11 @@
 
     </div>
 
+    <div v-else-if="localLLM.isCPUFallback.value" class="px-4 py-1.5 bg-yellow-500/10 border-t border-yellow-500/20 text-center text-[11px] text-yellow-500/70 font-medium tracking-wide shrink-0 flex justify-center items-center gap-2">
+      <i class="bi bi-cpu-fill"></i>
+      Exécution sur le CPU (Performances réduites)
+    </div>
+
     <div class="p-1 border-t border-white/5 shrink-0 relative">
       <form @submit.prevent="sendMessage" class="relative ml-0 lg:ml-60 w-full lg:w-[calc(100%-240px)] flex items-end gap-3 mx-auto lg:mx-0 bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
         
@@ -131,7 +144,7 @@
         
         <button 
           type="button"
-          @click="isGenerating ? null : sendMessage()"
+          @click="isGenerating ? stopGeneration() : sendMessage()"
           class="shrink-0 mb-1 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50"
           :class="isGenerating ? 'text-red-500 hover:text-red-400' : (localLLM.isCPUFallback.value ? 'text-yellow-500 hover:brightness-110' : 'text-(--primary) hover:brightness-110')"
           :disabled="!localLLM.isInitialized.value || (!inputMsg.trim() && !isGenerating)"
@@ -173,18 +186,23 @@ const scrollToBottom = async () => {
   }
 };
 
+const initError = ref('');
+
 const loadModel = async () => {
   if (!selectedModelId.value) return;
   // If the user changes the select, we don't auto load unless they already started once
   if (hasStartedInit.value) {
+    initError.value = '';
     try {
       if (localLLM.isCPUFallback.value) {
         await localLLM.initCPU();
       } else {
         await localLLM.init(selectedModelId.value);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Impossible de charger le modèle", e);
+      initError.value = "Erreur WebGPU: " + (e.message || String(e));
+      hasStartedInit.value = false;
     }
   }
 };
@@ -192,25 +210,38 @@ const loadModel = async () => {
 const startInit = async () => {
   if (!selectedModelId.value) return;
   hasStartedInit.value = true;
+  initError.value = '';
   try {
     await localLLM.init(selectedModelId.value);
-  } catch (e) {
+  } catch (e: any) {
     console.error("Impossible d'initialiser le modèle", e);
+    initError.value = "Le modèle graphique (WebGPU) n'est pas supporté par votre carte graphique ou navigateur (extension f16 manquante). Veuillez utiliser le processeur (CPU).";
+    hasStartedInit.value = false;
   }
 };
 
 const startInitCPU = async () => {
   hasStartedInit.value = true;
+  initError.value = '';
   try {
     await localLLM.initCPU();
-  } catch (e) {
+  } catch (e: any) {
     console.error("Impossible d'initialiser le CPU", e);
+    initError.value = "Impossible d'initialiser le mode CPU.";
+    hasStartedInit.value = false;
+  }
+};
+
+const stopGeneration = () => {
+  if (isGenerating.value) {
+    localLLM.interrupt();
+    isGenerating.value = false;
   }
 };
 
 const sendMessage = async () => {
   if (isGenerating.value) {
-    // Bouton stop (à implémenter si besoin via AbortController)
+    stopGeneration();
     return;
   }
 
@@ -229,11 +260,14 @@ const sendMessage = async () => {
   try {
     const generator = await localLLM.chat(messages.value.slice(0, -1) as any); // On envoie l'historique
     for await (const chunk of generator) {
+      if (!isGenerating.value) break;
       messages.value[assistantMsgIndex]!.content += chunk;
       await scrollToBottom();
     }
   } catch (error: any) {
-    messages.value[assistantMsgIndex]!.content = `**Erreur:** ${error.message}`;
+    if (error.message !== "USER_STOPPED" && !String(error).includes("USER_STOPPED")) {
+      messages.value[assistantMsgIndex]!.content += `\n\n**Erreur:** ${error.message}`;
+    }
   } finally {
     isGenerating.value = false;
   }
