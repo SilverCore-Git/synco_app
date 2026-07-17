@@ -206,8 +206,7 @@ const handleWorkerMessage = async (e: MessageEvent) => {
         }
 
         try {
-            const types = Object.keys(activeFilters.value).filter(k => activeFilters.value[k]);
-            const searchResults = await localSearchDB.searchByVector(vector, text, workspaceId, 50, types);
+            const searchResults = await localSearchDB.searchByVector(vector, text, workspaceId, 50);
             results.value = searchResults; // Removing 0.4 threshold because hybrid search scores are different
         } catch (err) {
             console.error("[SpaceSearchModal] Search failed with error:", err);
