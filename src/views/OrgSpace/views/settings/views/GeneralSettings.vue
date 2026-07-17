@@ -128,6 +128,19 @@
                             <div class="w-11 h-6 bg-black/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
                         </label>
                     </div>
+                    <div class="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl mt-4">
+                        <div class="flex items-center gap-3">
+                            <i class="bi bi-robot text-2xl text-(--primary)"></i>
+                            <div>
+                                <h4 class="font-bold text-sm text-(--text)">Agent IA (Local)</h4>
+                                <p class="text-xs text-(--text)/40">Activer l'assistant IA exécuté localement dans le navigateur (WebGPU).</p>
+                            </div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" v-model="orgData.aiEnabled" class="sr-only peer">
+                            <div class="w-11 h-6 bg-black/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
+                        </label>
+                    </div>
                 </section>
 
                 <hr class="border-white/5" />
@@ -207,7 +220,8 @@ const orgData = ref({
     name: openedOrg.value?.name || '',
     logo: openedOrg.value?.logo || '',
     todoEnabled: openedOrg.value?.activeModules?.todo || false,
-    filesEnabled: openedOrg.value?.activeModules?.files !== false
+    filesEnabled: openedOrg.value?.activeModules?.files !== false,
+    aiEnabled: openedOrg.value?.activeModules?.ai === true
 });
 
 const hasChanges = computed(() => {
@@ -216,6 +230,7 @@ const hasChanges = computed(() => {
         || orgData.value.logo !== openedOrg.value?.logo
         || orgData.value.todoEnabled !== (openedOrg.value?.activeModules?.todo || false)
         || orgData.value.filesEnabled !== (openedOrg.value?.activeModules?.files !== false)
+        || orgData.value.aiEnabled !== (openedOrg.value?.activeModules?.ai === true)
     )
 });
 
@@ -224,6 +239,7 @@ const resetChanges = () => {
     orgData.value.logo = openedOrg.value?.logo || '';
     orgData.value.todoEnabled = openedOrg.value?.activeModules?.todo || false;
     orgData.value.filesEnabled = openedOrg.value?.activeModules?.files !== false;
+    orgData.value.aiEnabled = openedOrg.value?.activeModules?.ai === true;
 };
 
 const saveSettings = async () => {
@@ -244,7 +260,8 @@ const saveSettings = async () => {
                 activeModules: {
                     ...(openedOrg.value?.activeModules || {}),
                     todo: orgData.value.todoEnabled,
-                    files: orgData.value.filesEnabled
+                    files: orgData.value.filesEnabled,
+                    ai: orgData.value.aiEnabled
                 }
             })
         }).then(res => res.json())
@@ -263,7 +280,8 @@ const saveSettings = async () => {
             openedOrg.value.activeModules = {
                 ...(openedOrg.value.activeModules || {}),
                 todo: orgData.value.todoEnabled,
-                files: orgData.value.filesEnabled
+                files: orgData.value.filesEnabled,
+                ai: orgData.value.aiEnabled
             };
 
             const curentOrg = organizations.value.find(org => org.id === openedOrg.value?.id);

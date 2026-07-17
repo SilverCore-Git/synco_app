@@ -1,36 +1,36 @@
 <template>
-  <div class="h-full flex flex-col bg-(--bg) text-(--text)">
+  <div class="h-full flex flex-col w-full relative">
     
     <!-- Header / Model Selection -->
-    <div class="h-16 border-b border-white/5 flex items-center justify-between px-6 shrink-0">
+    <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-white/5 bg-(--bg2) z-10 shrink-0">
       <div class="flex items-center gap-3">
-        <i class="bi bi-robot text-2xl text-(--primary)"></i>
+        <i class="bi bi-robot text-xl text-(--primary)"></i>
         <div>
-          <h2 class="font-bold text-white">Agent IA (Local)</h2>
-          <p class="text-xs text-(--text)/50">Zéro fuite de données • Exécuté dans votre navigateur via WebGPU</p>
+          <h2 class="font-bold text-white leading-tight">Agent IA (Local)</h2>
+          <p class="text-[10px] text-(--text)/50">Zéro fuite de données • Exécuté via WebGPU</p>
         </div>
       </div>
 
       <div class="flex items-center gap-3">
-        <div class="text-xs text-right mr-2">
+        <div class="text-xs text-right mr-2 hidden md:block">
           <p class="text-white/40 mb-0.5">Modèle actuel :</p>
-          <p class="font-mono text-white/70">{{ localLLM.currentModel.value?.name || 'Aucun modèle sélectionné' }}</p>
+          <p class="font-mono text-white/70">{{ localLLM.currentModel.value?.name || 'Aucun' }}</p>
         </div>
         
         <select 
           v-model="selectedModelId"
           @change="loadModel"
-          class="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-(--primary) transition-colors"
+          class="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-(--primary) transition-colors"
         >
           <option v-for="model in availableModels" :key="model.id" :value="model.id">
-            Tier {{ model.tier }} - {{ model.name }} (~{{ model.size }})
+            Tier {{ model.tier }} - {{ model.name }}
           </option>
         </select>
       </div>
     </div>
 
     <!-- Chat Area -->
-    <div class="flex-1 overflow-y-auto p-6 space-y-6 flex flex-col" ref="chatContainer">
+    <div class="flex-1 overflow-y-auto p-6 space-y-6 flex flex-col w-full max-w-5xl mx-auto" ref="chatContainer">
       
       <!-- Welcome Message -->
       <div v-if="messages.length === 0" class="flex-1 flex flex-col items-center justify-center text-center opacity-50">
@@ -60,7 +60,7 @@
     </div>
 
     <!-- Loading / Status Bar -->
-    <div v-if="!localLLM.isInitialized.value" class="px-6 py-3 border-t border-white/5 bg-black/20 flex flex-col gap-2">
+    <div v-if="!localLLM.isInitialized.value" class="px-6 py-3 border-t border-white/5 bg-black/20 flex flex-col gap-2 z-10 shrink-0">
       <div class="flex items-center justify-between text-xs text-white/50">
         <span class="flex items-center gap-2">
           <i class="bi bi-cloud-arrow-down animate-bounce"></i>
@@ -74,13 +74,13 @@
       <p class="text-[10px] text-white/30 text-center mt-1">{{ localLLM.downloadText.value }}</p>
     </div>
 
-    <!-- Input Area -->
-    <div class="p-4 border-t border-white/5 shrink-0">
-      <form @submit.prevent="sendMessage" class="relative max-w-4xl mx-auto flex items-end gap-2">
+    <!-- Input Area (adjusted for UserCard which is w-75 (~300px) on the left) -->
+    <div class="p-4 border-t border-white/5 bg-(--bg2) shrink-0 z-10">
+      <form @submit.prevent="sendMessage" class="relative w-1/3 min-w-[300px] max-w-2xl ml-[320px] flex items-end gap-2">
         <textarea 
           v-model="inputMsg"
           rows="1"
-          placeholder="Demandez-moi n'importe quoi (ex: 'Crée un salon nommé Marketing')..."
+          placeholder="Demandez-moi n'importe quoi..."
           class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-(--primary) transition-colors resize-none disabled:opacity-50"
           :disabled="!localLLM.isInitialized.value || isGenerating"
           @keydown.enter.prevent="sendMessage"

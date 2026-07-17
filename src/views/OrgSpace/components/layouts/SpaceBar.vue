@@ -3,7 +3,7 @@
 import SpaceBarBTN from '../common/SpaceBarBTN.vue';
 import { useRoute, useRouter } from 'vue-router';
 import CreateNewSpace from '../popup/CreateNewSpace.vue';
-import { openedOrg, todoEnabled } from '@/assets/var';
+import { openedOrg, todoEnabled, aiEnabled } from '@/assets/var';
 import isAdmin from '@/assets/isAdmin';
 
 const router = useRouter();
@@ -69,7 +69,7 @@ const route = useRoute();
                 />
             </RouterLink>
             
-            <RouterLink :to="`/${openedOrg.id}/ai`">
+            <RouterLink v-if="aiEnabled" :to="`/${openedOrg.id}/ai`">
                 <SpaceBarBTN
                     icon="bi-robot"
                     label="Agent IA (Local)"
