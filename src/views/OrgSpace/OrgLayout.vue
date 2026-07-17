@@ -72,12 +72,33 @@ watch(() => [openedOrg.value, route.params.spaceId], ([newOrg, spaceIdParam]) =>
                     // Fetch files
                     sfetch(`/api/spaces/${spaceId}/files`).then(res => res.json()).then(data => {
                         if (data && data.files) {
+                            
+                            const getFileKeywords = (filename: string) => {
+                                const ext = filename.split('.').pop()?.toLowerCase();
+                                const keywords: Record<string, string> = {
+                                    'png': 'image photo image',
+                                    'jpg': 'image photo image',
+                                    'jpeg': 'image photo image',
+                                    'gif': 'image animée',
+                                    'pdf': 'document texte',
+                                    'doc': 'document texte word',
+                                    'docx': 'document texte word',
+                                    'xls': 'tableur excel',
+                                    'xlsx': 'tableur excel',
+                                    'mp4': 'vidéo film',
+                                    'mp3': 'audio musique',
+                                    'zip': 'archive compressé',
+                                    'rar': 'archive compressé'
+                                };
+                                return ext && keywords[ext] ? ` (${keywords[ext]})` : '';
+                            };
+
                             for (const file of data.files) {
                                 localSearchDB.insertDocument({
                                     id: file.id,
                                     workspaceId: spaceId,
                                     type: 'FILE',
-                                    textContent: file.originalName,
+                                    textContent: file.originalName + getFileKeywords(file.originalName),
                                     vector: dummyVector,
                                     metadata: { folderId: file.folderId || 'root', fileUrl: file.url }
                                 });
