@@ -1,5 +1,6 @@
 import * as webllm from '@mlc-ai/web-llm';
 import { ref } from 'vue';
+import { pipeline, env, type TextGenerationPipeline } from '@xenova/transformers';
 
 export interface LLMModel {
     id: string;
@@ -37,6 +38,8 @@ class LocalLLMService {
     engine: webllm.MLCEngine | null = null;
     isInitialized = ref(false);
     hasWebGPU = ref(!!navigator.gpu);
+    isCPUFallback = ref(false);
+    cpuPipeline: TextGenerationPipeline | null = null;
     downloadProgress = ref(0);
     downloadText = ref("");
     currentModel = ref<LLMModel | null>(null);
@@ -125,7 +128,88 @@ class LocalLLMService {
         }
     }
 
-    async *chat(messages: webllm.ChatCompletionMessageParam[]) {
+    async initCPU() {
+        if (this.engine) {
+            this.engine.unload();
+            this.engine = null;
+        }
+
+        this.isCPUFallback.value = true;
+        this.isInitialized.value = false;
+        this.downloadProgress.value = 0;
+        this.downloadText.value = "Initialisation du moteur CPU...";
+        
+        env.allowLocalModels = false; // Always fetch from HuggingFace for CPU models right now
+
+        try {
+            this.cpuPipeline = await pipeline('text-generation', 'Xenova/Qwen1.5-0.5B-Chat', {
+                progress_callback: (x: any) => {
+                    if (x.status === "progress") {
+                        this.downloadProgress.value = Math.round((x.loaded / x.total) * 100);
+                        this.downloadText.value = "Chargement (" + x.file + ") : " + this.downloadProgress.value + "%";
+                    } else if (x.status === "ready") {
+                        this.downloadText.value = "Prêt.";
+                    } else {
+                        this.downloadText.value = "Initialisation en cours...";
+                    }
+                }
+            }) as TextGenerationPipeline;
+            
+            this.isInitialized.value = true;
+        } catch (error) {
+            console.error("[LocalLLMService] Erreur d'initialisation CPU:", error);
+            this.downloadText.value = "Erreur CPU.";
+            throw error;
+        }
+    }
+
+    async *chat(messages: any[]) {
+        if (this.isCPUFallback.value && this.cpuPipeline) {
+            let resolveNext: ((val: any) => void) | null = null;
+            const queue: string[] = [];
+            let isDone = false;
+            let lastLength = 0;
+
+            const textPrompt = this.cpuPipeline.tokenizer.apply_chat_template(messages, {
+                tokenize: false,
+                add_generation_prompt: true
+            });
+
+            this.cpuPipeline(textPrompt as string, {
+                max_new_tokens: 512,
+                temperature: 0.7,
+                do_sample: true,
+                callback_function: (beams: any[]) => {
+                    const decodedText = this.cpuPipeline!.tokenizer.decode(beams[0].output_token_ids, { skip_special_tokens: true });
+                    const newText = decodedText.slice(lastLength);
+                    if (newText.length > 0) {
+                        queue.push(newText);
+                        lastLength = decodedText.length;
+                        if (resolveNext) {
+                            resolveNext(true);
+                            resolveNext = null;
+                        }
+                    }
+                }
+            }).then(() => {
+                isDone = true;
+                if (resolveNext) resolveNext(true);
+            }).catch((err: any) => {
+                console.error("[CPU] Erreur de génération:", err);
+                isDone = true;
+                if (resolveNext) resolveNext(true);
+            });
+
+            while (!isDone || queue.length > 0) {
+                if (queue.length > 0) {
+                    yield queue.shift()!;
+                } else if (!isDone) {
+                    await new Promise(r => resolveNext = r);
+                }
+            }
+            return;
+        }
+
         if (!this.engine || !this.isInitialized.value) {
             throw new Error("L'agent IA n'est pas prêt.");
         }

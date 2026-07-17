@@ -71,31 +71,41 @@
         </div>
       </div>
 
-      <!-- Installation classique -->
+        <!-- Installation classique -->
       <div v-if="!hasStartedInit" class="flex flex-col md:flex-row items-center justify-between gap-4">
         <div class="text-sm">
           <p class="font-bold text-white/80">Téléchargement initial de Synco AI requis</p>
           <p class="text-white/50 text-xs">Modèle recommandé pour votre matériel : <span class="font-mono text-(--primary)">{{ availableModels.find(m => m.id === selectedModelId)?.name || 'Aucun' }}</span></p>
         </div>
-        <button 
-          @click="startInit" 
-          class="bg-(--primary) hover:brightness-110 text-white px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all active:scale-95"
-        >
-          <i class="bi bi-cloud-arrow-down-fill"></i>
-          Télécharger & Initialiser
-        </button>
+        <div class="flex gap-2">
+          <button 
+            v-if="!localLLM.hasWebGPU.value"
+            @click="startInitCPU" 
+            class="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 border border-yellow-500/30 px-5 py-2 rounded-xl text-sm font-bold transition-all active:scale-95"
+          >
+            Forcer sur le CPU
+          </button>
+          <button 
+            @click="startInit" 
+            class="bg-(--primary) hover:brightness-110 text-white px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+            :disabled="!localLLM.hasWebGPU.value"
+          >
+            <i class="bi bi-cloud-arrow-down-fill"></i>
+            Télécharger & Initialiser
+          </button>
+        </div>
       </div>
 
       <div v-else class="flex flex-col gap-2">
         <div class="flex items-center justify-between text-xs text-white/50">
           <span class="flex items-center gap-2">
-            <i class="bi bi-cloud-arrow-down animate-bounce text-(--primary)"></i>
-            Téléchargement et initialisation... (Ne fermez pas la page)
+            <i class="bi bi-cloud-arrow-down animate-bounce" :class="localLLM.isCPUFallback.value ? 'text-yellow-500' : 'text-(--primary)'"></i>
+            {{ localLLM.isCPUFallback.value ? 'Téléchargement CPU (très lent)...' : 'Téléchargement et initialisation...' }} (Ne fermez pas la page)
           </span>
           <span class="font-mono">{{ localLLM.downloadProgress.value }}%</span>
         </div>
         <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-          <div class="h-full bg-(--primary) transition-all duration-300" :style="{ width: localLLM.downloadProgress.value + '%' }"></div>
+          <div class="h-full transition-all duration-300" :class="localLLM.isCPUFallback.value ? 'bg-yellow-500' : 'bg-(--primary)'" :style="{ width: localLLM.downloadProgress.value + '%' }"></div>
         </div>
         <p class="text-[10px] text-white/30 text-center mt-1 font-mono truncate">{{ localLLM.downloadText.value }}</p>
       </div>
@@ -115,7 +125,7 @@
           type="button"
           @click="isGenerating ? null : sendMessage()"
           class="shrink-0 mb-1 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50"
-          :class="isGenerating ? 'text-red-500 hover:text-red-400' : 'text-(--primary) hover:brightness-110'"
+          :class="isGenerating ? 'text-red-500 hover:text-red-400' : (localLLM.isCPUFallback.value ? 'text-yellow-500 hover:brightness-110' : 'text-(--primary) hover:brightness-110')"
           :disabled="!localLLM.isInitialized.value || (!inputMsg.trim() && !isGenerating)"
         >
           <i :class="isGenerating ? 'bi-stop-fill text-xl' : 'bi-send-fill text-xl'"></i>
@@ -157,7 +167,11 @@ const loadModel = async () => {
   // If the user changes the select, we don't auto load unless they already started once
   if (hasStartedInit.value) {
     try {
-      await localLLM.init(selectedModelId.value);
+      if (localLLM.isCPUFallback.value) {
+        await localLLM.initCPU();
+      } else {
+        await localLLM.init(selectedModelId.value);
+      }
     } catch (e) {
       console.error("Impossible de charger le modèle", e);
     }
@@ -171,6 +185,15 @@ const startInit = async () => {
     await localLLM.init(selectedModelId.value);
   } catch (e) {
     console.error("Impossible d'initialiser le modèle", e);
+  }
+};
+
+const startInitCPU = async () => {
+  hasStartedInit.value = true;
+  try {
+    await localLLM.initCPU();
+  } catch (e) {
+    console.error("Impossible d'initialiser le CPU", e);
   }
 };
 
