@@ -1,4 +1,4 @@
-import * as webllm from '@mlcai/web-llm';
+import * as webllm from '@mlc-ai/web-llm';
 import { ref } from 'vue';
 
 export interface LLMModel {
