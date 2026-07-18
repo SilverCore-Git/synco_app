@@ -10,9 +10,9 @@
       </div>
 
       <div class="flex items-center gap-3">
-        <div class="text-xs text-right mr-2 hidden md:block">
+        <div class="text-xs text-right mr-2 hidden md:block" v-if="aiIsLocal">
           <p class="text-white/40 mb-0.5">Modèle actuel :</p>
-          <p class="font-mono text-white/70">{{ localLLM.currentModel.value?.name || 'Aucun' }}</p>
+          <p class="font-mono text-white/70">{{ aiCurrentModelName }}</p>
         </div>
 
         <button
@@ -25,6 +25,7 @@
         </button>
         
         <select 
+          v-if="aiIsLocal"
           v-model="selectedModelId"
           @change="loadModel"
           class="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-(--primary) transition-colors"
@@ -99,10 +100,10 @@
     </div>
 
     <!-- Loading / Status Bar / Manual Start -->
-    <div v-if="!localLLM.isInitialized.value" class="px-6 py-4 border-t border-white/5 bg-black/20 flex flex-col gap-3 shrink-0">
+    <div v-if="aiIsLocal && !aiIsInitialized" class="px-6 py-4 border-t border-white/5 bg-black/20 flex flex-col gap-3 shrink-0">
       
       <!-- WebGPU Non supporté (Erreur bloquante) -->
-      <div v-if="!localLLM.hasWebGPU.value" class="flex items-start gap-4 bg-red-950/40 border-l-4 border-red-500 p-5 rounded-r-xl rounded-l-sm mb-5 shadow-lg">
+      <div v-if="!aiHasWebGPU" class="flex items-start gap-4 bg-red-950/40 border-l-4 border-red-500 p-5 rounded-r-xl rounded-l-sm mb-5 shadow-lg">
         <div class="bg-red-500/20 p-2 rounded-full shrink-0 mt-1">
           <i class="bi bi-x-circle-fill text-2xl text-red-500"></i>
         </div>
@@ -149,7 +150,7 @@
         </div>
         <div class="flex gap-2">
           <button 
-            v-if="localLLM.hasWebGPU.value"
+            v-if="aiHasWebGPU"
             @click="startInit" 
             class="bg-(--primary) hover:brightness-110 text-white px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
           >
@@ -163,15 +164,15 @@
       <div v-else class="flex flex-col gap-2">
         <div class="flex items-center justify-between text-xs text-white/50">
           <span class="flex items-center gap-2">
-            <i class="bi" :class="[localLLM.downloadProgress.value >= 100 ? 'bi-cpu animate-pulse' : 'bi-cloud-arrow-down animate-bounce', 'text-(--primary)']"></i>
-            {{ localLLM.downloadProgress.value >= 100 ? 'Initialisation en mémoire (cela peut prendre du temps)...' : 'Téléchargement et initialisation...' }}
+            <i class="bi" :class="[aiDownloadProgress >= 100 ? 'bi-cpu animate-pulse' : 'bi-cloud-arrow-down animate-bounce', 'text-(--primary)']"></i>
+            {{ aiDownloadProgress >= 100 ? 'Initialisation en mémoire (cela peut prendre du temps)...' : 'Téléchargement et initialisation...' }}
           </span>
-          <span class="font-mono">{{ localLLM.downloadProgress.value }}%</span>
+          <span class="font-mono">{{ aiDownloadProgress }}%</span>
         </div>
         <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-          <div class="h-full transition-all duration-300 bg-(--primary)" :style="{ width: localLLM.downloadProgress.value + '%' }"></div>
+          <div class="h-full transition-all duration-300 bg-(--primary)" :style="{ width: aiDownloadProgress + '%' }"></div>
         </div>
-        <p class="text-[10px] text-white/30 text-center mt-1 font-mono truncate">{{ localLLM.downloadText.value }}</p>
+        <p class="text-[10px] text-white/30 text-center mt-1 font-mono truncate">{{ aiDownloadText }}</p>
       </div>
 
     </div>
@@ -180,13 +181,13 @@
       <form 
         @submit.prevent="() => sendMessage()" 
         class="relative ml-0 lg:ml-60 w-full lg:w-[calc(100%-240px)] flex items-end gap-3 mx-auto lg:mx-0 border border-white/10 rounded-xl px-4 py-2 transition-all shadow-2xl"
-        :class="(!localLLM.isInitialized.value || isGenerating) ? 'bg-black/50 opacity-50 cursor-not-allowed' : 'bg-(--bg) focus-within:border-(--primary)/50'"
+        :class="(!aiIsInitialized || isGenerating) ? 'bg-black/50 opacity-50 cursor-not-allowed' : 'bg-(--bg) focus-within:border-(--primary)/50'"
       >
         
         <ThreadTextarea 
           v-model="inputMsg"
           placeholder="Demandez-moi n'importe quoi..."
-          :disabled="!localLLM.isInitialized.value || isGenerating"
+          :disabled="!aiIsInitialized || isGenerating"
           @send="() => sendMessage()"
         />
         
@@ -195,7 +196,7 @@
           @click="isGenerating ? stopGeneration() : sendMessage()"
           class="shrink-0 mb-1 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50"
           :class="isGenerating ? 'text-red-500 hover:text-red-400' : 'text-(--primary) hover:brightness-110'"
-          :disabled="!localLLM.isInitialized.value || (!inputMsg.trim() && !isGenerating)"
+          :disabled="!aiIsInitialized || (!inputMsg.trim() && !isGenerating)"
         >
           <i :class="isGenerating ? 'bi-stop-fill text-xl' : 'bi-send-fill text-xl'"></i>
         </button>
@@ -210,6 +211,7 @@
 import { ref, onMounted, nextTick, watch } from 'vue';
 import * as webllm from '@mlc-ai/web-llm';
 import { localLLM, availableModels } from '@/services/LocalLLMService';
+import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText } from '@/services/AIService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
@@ -255,9 +257,16 @@ const scrollToBottom = async () => {
 const initError = ref('');
 
 const loadModel = async () => {
-  if (!selectedModelId.value) return;
+  if (!selectedModelId.value && aiIsLocal.value) return;
   savedModelId.value = selectedModelId.value; // Save selection to DB
   
+  if (!aiIsLocal.value) {
+    // Les API distantes n'ont pas besoin de téléchargement WebGPU
+    hasStartedInit.value = true;
+    initError.value = '';
+    return;
+  }
+
   // On vérifie d'abord l'état du cache pour ce nouveau modèle
   await checkCacheStatus();
 
@@ -318,7 +327,7 @@ const startInit = async () => {
 
 const stopGeneration = () => {
   if (isGenerating.value) {
-    localLLM.interrupt();
+    aiService.interrupt();
     isGenerating.value = false;
   }
 };
@@ -509,7 +518,7 @@ Tu as l'autorisation explicite et technique d'utiliser ces outils pour lire les 
       ...messages.value.slice(0, -1).map(m => ({ role: m.role, content: m.content }))
     ];
 
-    const generator = await localLLM.chat(chatContext as any); // On envoie l'historique avec le prompt système
+    const generator = await aiService.chat(chatContext as any); // On envoie l'historique avec le prompt système
 
     for await (const chunk of generator) {
       if (!isGenerating.value) break;
@@ -541,7 +550,7 @@ onMounted(async () => {
 watch(savedModelLoaded, async (loaded) => {
   if (!loaded) return;
 
-  if (!localLLM.isInitialized.value) {
+  if (!aiIsInitialized.value) {
     if (savedModelId.value) {
       selectedModelId.value = savedModelId.value;
     } else {
@@ -550,7 +559,7 @@ watch(savedModelLoaded, async (loaded) => {
     }
   } else {
     hasStartedInit.value = true;
-    selectedModelId.value = localLLM.currentModel.value?.id || '';
+    selectedModelId.value = aiCurrentModelName.value || '';
   }
   await checkCacheStatus();
 }, { immediate: true });

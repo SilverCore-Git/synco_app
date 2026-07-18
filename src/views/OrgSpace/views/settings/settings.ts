@@ -20,6 +20,11 @@ const settingsViews: settingsView[] = [
         name: 'Webhooks',
         icon: 'bi-link-45deg',
         route: 'OrgSettingsWebhooks'
+    },
+    {
+        name: 'Intelligence Artificielle',
+        icon: 'bi-robot',
+        route: 'OrgSettingsAI'
     }
 ]
 

@@ -72,6 +72,12 @@ const routes = [
             name: 'OrgSettingsWebhooks',
             props: true,
             component: WebhooksSettings,
+          },
+          {
+            path: 'ai',
+            name: 'OrgSettingsAI',
+            props: true,
+            component: () => import('./views/OrgSpace/views/settings/views/AISettings.vue'),
           }
         ]
 
