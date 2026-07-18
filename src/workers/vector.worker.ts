@@ -1,7 +1,9 @@
 import { pipeline, env } from '@xenova/transformers';
 
 // Eviter de charger des modèles locaux par défaut, utiliser le CDN Xenova
-env.allowLocalModels = false;
+env.allowRemoteModels = false;
+env.allowLocalModels = true;
+env.localModelPath = '/models/';
 
 class PipelineSingleton {
     static task = 'feature-extraction' as const;

@@ -336,7 +336,7 @@ import {
     decryptMessageWithContentKey 
 } from '@/assets/utils/crypto';
 import { useToast } from '@/composables/useToast';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, user } from '@/assets/var';
 import SpinLoader from '@/components/SpinLoader.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import useResponse from '@/composables/useResponse';
@@ -417,7 +417,8 @@ const handleWorkerMessage = async (e: MessageEvent) => {
             id,
             text,
             vector,
-            currentThreadKey.value
+            currentThreadKey.value,
+            metadata
         );
     }
 };
@@ -707,7 +708,12 @@ const initListener = () => {
                 id: msg.id,
                 text: vectorText,
                 type: hasFiles ? 'FILE' : 'MESSAGE',
-                metadata: { threadId: thread.value?.id }
+                metadata: { 
+                    threadId: thread.value?.id,
+                    senderName: msg.sender?.name,
+                    senderAvatar: msg.sender?.avatarUrl,
+                    createdAt: msg.createdAt
+                }
             });
         }
     });
@@ -860,7 +866,12 @@ const sendMessage = async () => {
                 id: confirmedMessage.id,
                 text: vectorText,
                 type: hasFiles ? 'FILE' : 'MESSAGE',
-                metadata: { threadId: thread.value?.id }
+                metadata: { 
+                    threadId: thread.value?.id,
+                    senderName: user.value?.name,
+                    senderAvatar: user.value?.avatarUrl,
+                    createdAt: new Date().toISOString()
+                }
             });
         }
 

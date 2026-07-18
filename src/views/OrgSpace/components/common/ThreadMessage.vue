@@ -44,7 +44,7 @@
                             rounded-xl border border-(--text)/10
                             bg-(--bg) shadow-xl ring-1 ring-white/5 focus:outline-none
                         "
-                        :class="showPlusDropdown ? 'flex' : 'hidden group-hover:flex'"
+                        :class="(showPlusDropdown ? 'flex' : 'hidden group-hover:flex') + (isReadOnly ? ' !hidden' : '')"
                     >
 
                         <button
@@ -100,8 +100,9 @@
                             :src="msg.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=128a60&color=fff`"
                             :alt="msg.sender?.name"
                             @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=128a60&color=fff`"
-                            @click.stop="(e) => msg.sender && openProfile(msg.sender, e)"
-                            class="rounded-full w-9 h-9 object-cover shrink-0 cursor-pointer hover:ring-2 hover:ring-(--primary)/50 transition-all"
+                            @click.stop="(e) => !isReadOnly && msg.sender && openProfile(msg.sender, e)"
+                            class="rounded-full w-9 h-9 object-cover shrink-0"
+                            :class="!isReadOnly ? 'cursor-pointer hover:ring-2 hover:ring-(--primary)/50 transition-all' : ''"
                         />
 
                         <div class="min-w-0 flex-1">
@@ -119,8 +120,9 @@
                                 </span>
                                 <span 
                                     v-else
-                                    class="text-(--text) font-bold text-xs tracking-tighter truncate cursor-pointer hover:underline"
-                                    @click.stop="(e) => msg.sender && openProfile(msg.sender, e)"
+                                    class="text-(--text) font-bold text-xs tracking-tighter truncate"
+                                    :class="!isReadOnly ? 'cursor-pointer hover:underline' : ''"
+                                    @click.stop="(e) => !isReadOnly && msg.sender && openProfile(msg.sender, e)"
                                 >
                                     {{ msg.sender?.name || 'Anonyme' }}
                                 </span>
@@ -139,6 +141,7 @@
                             
                             <!-- Message reactions -->
                             <MessageReactions
+                                v-if="!isReadOnly || (msg.reactions && Object.keys(msg.reactions).length > 0)"
                                 :message-id="msg.id"
                                 :reactions="(msg.reactions as any)"
                                 :is-dm="false"
@@ -147,6 +150,7 @@
                                 @reaction-picker-closed="showReactionPicker = false"
                                 :showReactionPicker="showReactionPicker"
                                 :alignRight="msg.senderId === user?.id"
+                                :isReadOnly="isReadOnly"
                             />
 
                             <div 
@@ -240,9 +244,10 @@ const showReactionPicker = ref<boolean>(false);
 
 const props = defineProps<{
     msg: Message;
-    selectedMessage: string | null;
-    messages: Message[];
-    currentThreadKey: CryptoKey | null;
+    selectedMessage?: string | null;
+    messages?: Message[];
+    currentThreadKey?: CryptoKey | null;
+    isReadOnly?: boolean;
 }>();
 
 interface DropdownBtn {

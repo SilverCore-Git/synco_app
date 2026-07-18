@@ -59,6 +59,7 @@
       <div 
         v-for="(msg, index) in messages" 
         :key="index"
+        v-show="msg.role !== 'system' && !(msg.role === 'user' && msg.content && msg.content.startsWith('[SYSTEM]'))"
         class="flex w-full"
         :class="msg.role === 'user' ? 'justify-end' : 'justify-start'"
       >
@@ -80,17 +81,71 @@
           <!-- Tool Call Widget -->
           <div v-if="msg.tool_call" class="mt-4 bg-black/40 border border-(--primary)/30 rounded-xl p-4">
             <div class="flex items-center gap-2 mb-2 text-(--primary) font-bold text-xs uppercase">
-              <i class="bi bi-wrench-adjustable-circle"></i> Demande d'action
+              <i class="bi bi-search" v-if="msg.tool_call.name === 'search_messages'"></i>
+              <i class="bi bi-wrench-adjustable-circle" v-else></i> 
+              {{ msg.tool_call.name === 'search_messages' ? 'Recherche Globale' : "Demande d'action" }}
             </div>
-            <p class="text-sm">Je souhaite exécuter : <code class="bg-black/50 px-2 py-1 rounded text-(--primary) font-bold">{{ msg.tool_call.name }}</code></p>
-            <div class="text-xs text-white/50 mt-1 break-all">Paramètres : {{ msg.tool_call.arguments }}</div>
+            
+            <p class="text-sm" v-if="msg.tool_call.name === 'search_messages'">
+               Je fouille dans tous vos espaces pour trouver : 
+               <span class="text-white font-bold inline-block bg-white/10 px-2 py-0.5 rounded ml-1">
+                   "{{ getSearchQuery(msg.tool_call.arguments) }}"
+               </span>
+            </p>
+            <p class="text-sm" v-else>
+               Exécution de <code class="bg-black/50 px-2 py-1 rounded text-(--primary) font-bold">{{ msg.tool_call.name }}</code>
+            </p>
             
             <div class="flex gap-2 mt-4" v-if="msg.tool_call.status === 'pending'">
                <button @click="handleToolCall(msg.tool_call, true, index)" class="bg-green-500/20 text-green-500 border border-green-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-500/30 transition-colors">Accepter</button>
                <button @click="handleToolCall(msg.tool_call, false, index)" class="bg-red-500/20 text-red-500 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/30 transition-colors">Refuser</button>
             </div>
+            <div v-else-if="msg.tool_call.status === 'executing'" class="text-(--primary) text-xs font-bold mt-3 flex items-center gap-2">
+               <div class="w-3 h-3 border-2 border-(--primary) border-t-transparent rounded-full animate-spin"></div>
+               Exécution en cours...
+            </div>
             <div v-else-if="msg.tool_call.status === 'accepted'" class="text-green-500 text-xs font-bold mt-3"><i class="bi bi-check-lg mr-1"></i> Action acceptée et exécutée.</div>
             <div v-else-if="msg.tool_call.status === 'rejected'" class="text-red-500 text-xs font-bold mt-3"><i class="bi bi-x-lg mr-1"></i> Action refusée.</div>
+
+            <!-- Tool Results UI Rendering -->
+            <div 
+                v-if="msg.tool_call.status === 'accepted' && messages[index+1]?.tool_data?.name === 'search_messages' && messages[index+1]?.tool_data?.results?.length > 0" 
+                class="mt-4 flex flex-col gap-4 pt-4 border-t border-white/10"
+            >
+                <div class="text-xs text-white/50 uppercase font-bold tracking-wider">Résultats trouvés :</div>
+                <div 
+                    v-for="res in messages[index+1].tool_data.results" 
+                    :key="res.id"
+                    class="bg-black/30 border border-white/5 rounded-xl overflow-hidden"
+                >
+                    <div class="px-3 py-2 bg-white/5 border-b border-white/5 flex justify-between items-center text-[10px] text-white/50 uppercase font-bold tracking-wider">
+                        <div class="flex items-center gap-1.5 truncate pr-2">
+                            <i class="bi bi-folder2-open"></i> 
+                            <span class="truncate">{{ getSpaceAndThreadName(res.workspaceId, res.metadata?.threadId).spaceName }}</span> 
+                            <i class="bi bi-chevron-right text-[8px] opacity-50"></i> 
+                            <i class="bi bi-hash"></i> 
+                            <span class="truncate">{{ getSpaceAndThreadName(res.workspaceId, res.metadata?.threadId).threadName }}</span>
+                        </div>
+                        <button 
+                            @click="router.push(`/${openedOrg?.id}/${res.workspaceId}/${res.metadata?.threadId}?select=${res.id}`)" 
+                            class="text-(--primary) hover:text-white transition-colors flex items-center shrink-0"
+                        >
+                            <i class="bi bi-box-arrow-up-right mr-1"></i> Se téléporter
+                        </button>
+                    </div>
+                    <ThreadMessage 
+                        :msg="{
+                           id: res.id,
+                           content: res.textContent,
+                           createdAt: res.metadata?.createdAt ? new Date(res.metadata.createdAt) : new Date(),
+                           sender: { name: res.metadata?.senderName || 'Auteur inconnu', avatarUrl: res.metadata?.senderAvatar, id: 'unknown' },
+                           threadId: res.metadata?.threadId,
+                           reactions: {}
+                        } as any"
+                        :isReadOnly="true"
+                    />
+                </div>
+            </div>
           </div>
         </div>
       </div>
@@ -208,17 +263,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch } from 'vue';
+import { ref, onMounted, nextTick, watch, toRaw } from 'vue';
 import * as webllm from '@mlc-ai/web-llm';
 import { localLLM, availableModels } from '@/services/LocalLLMService';
-import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText } from '@/services/AIService';
+import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages } from '@/services/AIService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
+import ThreadMessage from '../components/common/ThreadMessage.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+
+const route = useRoute();
+const router = useRouter();
 import sfetch from '@/assets/utils/sfetch';
 import globalVectorWorker from '@/services/GlobalVectorWorker';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
+import { SearchSyncService } from '@/services/SearchSyncService';
 import { generateThreadKey, encryptThreadKeyForMember, E2EEUnloked, privateKey } from '@/assets/utils/crypto';
 import { openedOrg, user } from '@/assets/var';
 import { getToolsSystemPrompt } from '@/services/AITools';
@@ -228,7 +288,28 @@ const { Item: savedModelId, isLoaded: savedModelLoaded } = useSettingsItem('ai_s
 
 // On utilise marked pour le formatage, ou simplement un remplacement basique pour l'instant
 const formatMessage = (text: string) => {
-  return text.replace(/\n/g, '<br>').replace(/```([\s\S]*?)```/g, '<pre class="bg-black/50 p-3 rounded-lg border border-white/10 overflow-x-auto my-2"><code>$1</code></pre>');
+  let cleanText = text.replace(/<tool_call>[\s\S]*?(?:<\/tool_call>|$)/g, '');
+  return cleanText.trim().replace(/\n/g, '<br>').replace(/```([\s\S]*?)```/g, '<pre class="bg-black/50 p-3 rounded-lg border border-white/10 overflow-x-auto my-2"><code>$1</code></pre>');
+};
+
+const getSpaceAndThreadName = (workspaceId: string, threadId: string) => {
+    if (!openedOrg.value || !openedOrg.value.spaces) return { spaceName: 'Espace inconnu', threadName: 'Salon inconnu' };
+    const space = openedOrg.value.spaces.find((s: any) => s.id === workspaceId);
+    const thread = space?.threads?.find((t: any) => t.id === threadId);
+    return { 
+        spaceName: space?.name || 'Espace inconnu', 
+        threadName: thread?.name || 'Salon inconnu' 
+    };
+};
+
+const getSearchQuery = (argsStr: any) => {
+    try {
+        if (typeof argsStr === 'object') return argsStr.query || JSON.stringify(argsStr);
+        const args = JSON.parse(argsStr);
+        return args.query || argsStr;
+    } catch {
+        return argsStr;
+    }
 };
 
 interface ChatMessage {
@@ -243,7 +324,7 @@ const recommendedModelId = ref<string>('');
 const isGenerating = ref(false);
 const hasStartedInit = ref(false);
 const inputMsg = ref('');
-const messages = ref<ChatMessage[]>([]);
+const messages = aiSessionMessages as unknown as ReturnType<typeof ref<ChatMessage[]>>;
 const chatContainer = ref<HTMLElement | null>(null);
 const hasNavigatorGpu = typeof navigator !== 'undefined' && !!(navigator as any).gpu;
 
@@ -345,13 +426,13 @@ const handleToolCall = async (toolCall: any, accepted: boolean, _msgIndex: numbe
     return;
   }
 
-  toolCall.status = 'accepted';
+  toolCall.status = 'executing';
   
   let result = "";
   let toolData: any = null;
   try {
-    const args = JSON.parse(toolCall.arguments);
-    const orgId = useRoute().params.orgId;
+    const args = typeof toolCall.arguments === 'string' ? JSON.parse(toolCall.arguments) : toolCall.arguments;
+    const orgId = route.params.orgId;
     
     if (toolCall.name === 'create_space') {
        const res = await sfetch(`/api/spaces/org/${orgId}`, {
@@ -381,6 +462,14 @@ const handleToolCall = async (toolCall: any, accepted: boolean, _msgIndex: numbe
        result = `Tâche '${args.title}' créée avec succès (assignée à l'utilisateur courant).`;
        
     } else if (toolCall.name === 'search_messages') {
+        // Load all workspaces indices dynamically before searching
+        const org = openedOrg.value;
+        if (org && org.spaces && privateKey.value) {
+            for (const space of org.spaces) {
+                await SearchSyncService.restoreWorkspaceIndexes(space.id, toRaw(privateKey.value));
+            }
+        }
+        
         const query = args.query;
         const workerId = Date.now().toString();
         
@@ -462,16 +551,18 @@ const handleToolCall = async (toolCall: any, accepted: boolean, _msgIndex: numbe
     result = "Erreur technique lors de l'exécution : " + e.message;
   }
 
+  toolCall.status = 'accepted';
+  
   messages.value.push({
-    role: 'tool',
-    content: result,
+    role: 'user',
+    content: `[SYSTEM] Résultat de l'action '${toolCall.name}' :\n${result}`,
     tool_data: {
       name: toolCall.name,
       results: toolData
     }
   });
 
-  sendMessage("Résultat de l'outil reçu, analyse-le.");
+  // sendMessage("Résultat de l'outil reçu, analyse-le.");
 };
 
 const sendMessage = async (hiddenPrompt?: string) => {

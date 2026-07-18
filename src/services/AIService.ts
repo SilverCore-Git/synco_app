@@ -1,6 +1,6 @@
 import { openedOrg } from '@/assets/var';
 import { localLLM } from './LocalLLMService';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import sfetch from '@/assets/utils/sfetch';
 
 export interface AIProviderConfig {
@@ -195,10 +195,13 @@ export class AIService {
 
     private checkAndYieldTools(buffer: string): { yielded: boolean, toolCall?: any, safeText?: string, remainingBuffer: string } {
         // 1. JSON
-        const jsonMatch = buffer.match(/\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"arguments"\s*:\s*\{[\s\S]*?\}\s*\}/);
+        const jsonMatch = buffer.match(/\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"arguments"\s*:\s*(\{[\s\S]*?\}|"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*')\s*\}/);
         if (jsonMatch) {
             try {
                 const parsed = JSON.parse(jsonMatch[0]);
+                if (typeof parsed.arguments === 'string') {
+                    try { parsed.arguments = JSON.parse(parsed.arguments); } catch(e) {}
+                }
                 return { yielded: true, toolCall: { type: 'tool_call', ...parsed }, remainingBuffer: buffer.replace(jsonMatch[0], "") };
             } catch(e) {}
         }
@@ -207,7 +210,12 @@ export class AIService {
         const xmlMatch = buffer.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
         if (xmlMatch && xmlMatch[1]) {
             try {
-                const parsed = JSON.parse(xmlMatch[1].trim());
+                let inner = xmlMatch[1].trim();
+                inner = inner.replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
+                const parsed = JSON.parse(inner);
+                if (typeof parsed.arguments === 'string') {
+                    try { parsed.arguments = JSON.parse(parsed.arguments); } catch(e) {}
+                }
                 return { yielded: true, toolCall: { type: 'tool_call', ...parsed }, remainingBuffer: buffer.replace(xmlMatch[0], "") };
             } catch(e) {}
         }
@@ -241,4 +249,6 @@ export const aiCurrentModelName = computed(() => aiService.currentModelName);
 export const aiHasWebGPU = localLLM.hasWebGPU;
 export const aiDownloadProgress = localLLM.downloadProgress;
 export const aiDownloadText = localLLM.downloadText;
+
+export const aiSessionMessages = ref<any[]>([]);
 

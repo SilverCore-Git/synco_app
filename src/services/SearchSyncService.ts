@@ -13,11 +13,12 @@ export class SearchSyncService {
         resourceId: string,
         textContent: string,
         vector: number[],
-        aesKey: CryptoKey
+        aesKey: CryptoKey,
+        extraMetadata: any = {}
     ) {
         try {
             // Créer le payload en clair
-            const payload = JSON.stringify({ textContent, vector });
+            const payload = JSON.stringify({ textContent, vector, metadata: extraMetadata });
             const encoder = new TextEncoder();
             const data = encoder.encode(payload);
 
@@ -73,7 +74,7 @@ export class SearchSyncService {
                     );
 
                     const payloadString = new TextDecoder().decode(decryptedBuffer);
-                    const { textContent, vector } = JSON.parse(payloadString);
+                    const { textContent, vector, metadata } = JSON.parse(payloadString);
 
                     // Insérer dans la BD vectorielle locale
                     await localSearchDB.insertDocument({
@@ -82,7 +83,7 @@ export class SearchSyncService {
                         type: index.type,
                         textContent,
                         vector,
-                        metadata: { threadId }
+                        metadata: { threadId: index.threadId, ...(metadata || {}) }
                     });
                 } catch (e) {
                     // Ignorer les erreurs de déchiffrement silencieusement
@@ -132,7 +133,7 @@ export class SearchSyncService {
                     );
 
                     const payloadString = new TextDecoder().decode(decryptedBuffer);
-                    const { textContent, vector } = JSON.parse(payloadString);
+                    const { textContent, vector, metadata } = JSON.parse(payloadString);
 
                     await localSearchDB.insertDocument({
                         id: index.resourceId,
@@ -140,7 +141,7 @@ export class SearchSyncService {
                         type: index.type,
                         textContent,
                         vector,
-                        metadata: { threadId: index.threadId }
+                        metadata: { threadId: index.threadId, ...(metadata || {}) }
                     });
                 } catch (e) {
                     // Ignorer les erreurs de déchiffrement silencieusement (ex: vieux vecteurs ou clés désynchronisées)

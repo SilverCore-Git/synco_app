@@ -134,12 +134,13 @@ const providers = [
 ];
 
 const getAiConfig = () => {
-    return openedOrg.value?.activeModules?.aiConfig || {
-        provider: 'local',
+    const config = openedOrg.value?.activeModules?.aiConfig || {};
+    return {
+        provider: config.provider || 'local',
         apiKey: '', // API key is never populated from backend
-        hasApiKey: false,
-        endpointUrl: '',
-        modelId: ''
+        hasApiKey: config.hasApiKey || false,
+        endpointUrl: config.endpointUrl || '',
+        modelId: config.modelId || ''
     };
 };
 
@@ -149,7 +150,7 @@ const hasChanges = computed(() => {
     const initial = getAiConfig();
     return (
         orgData.value.provider !== initial.provider ||
-        orgData.value.apiKey !== '' ||
+        (orgData.value.apiKey || '') !== '' ||
         orgData.value.endpointUrl !== initial.endpointUrl ||
         orgData.value.modelId !== initial.modelId
     );
