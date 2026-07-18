@@ -329,7 +329,7 @@ import FolderCard from '../components/SpaceFiles/FolderCard.vue';
 import FileCard from '../components/SpaceFiles/FileCard.vue';
 import type { StoredFile, Folder } from '@/types/types';
 import { extractTextFromPDF } from '@/assets/utils/pdfExtractor';
-import VectorWorker from '@/workers/vector.worker?worker';
+import VectorWorker from '@/workers/semantic.worker?worker';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 
 

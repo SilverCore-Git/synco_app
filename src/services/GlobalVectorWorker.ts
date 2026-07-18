@@ -1,4 +1,4 @@
-import VectorWorker from '../workers/vector.worker.ts?worker';
+import VectorWorker from '../workers/semantic.worker.ts?worker';
 
 // Create a single global worker instance
 const globalVectorWorker = new VectorWorker();

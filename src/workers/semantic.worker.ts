@@ -1,9 +1,9 @@
 import { pipeline, env } from '@xenova/transformers';
 
-// Eviter de charger des modèles locaux par défaut, utiliser le CDN Xenova
-env.allowRemoteModels = false;
-env.allowLocalModels = true;
-env.localModelPath = '/models/';
+// Utiliser le CDN Xenova (Hugging Face)
+env.allowRemoteModels = true;
+env.allowLocalModels = false;
+env.useBrowserCache = true;
 
 class PipelineSingleton {
     static task = 'feature-extraction' as const;
@@ -12,6 +12,26 @@ class PipelineSingleton {
 
     static async getInstance(progress_callback?: Function) {
         if (this.instance === null) {
+            // FIX: Clear potentially corrupted cache from previous wrong settings
+            try {
+                const cache = await caches.open('transformers-cache');
+                const requests = await cache.keys();
+                for (const req of requests) {
+                    if (req.url.includes('paraphrase-multilingual-MiniLM-L12-v2')) {
+                        if (req.url.endsWith('.json')) {
+                            const res = await cache.match(req);
+                            const text = await res?.clone().text();
+                            if (text && text.trim().startsWith('<')) {
+                                // C'est du HTML de Vite (erreur 404), on supprime du cache
+                                await cache.delete(req);
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to clear bad cache", e);
+            }
+
             this.instance = pipeline(this.task, this.model, { progress_callback });
         }
         return this.instance;

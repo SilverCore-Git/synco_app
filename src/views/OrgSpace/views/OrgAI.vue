@@ -143,9 +143,71 @@
                            reactions: {}
                         } as any"
                         :isReadOnly="true"
+                        @select="router.push(`/${openedOrg?.id}/${res.workspaceId}/${res.metadata?.threadId}?select=${res.id}`)" 
                     />
                 </div>
             </div>
+            
+            <!-- Created Task Snippet -->
+            <div 
+                v-if="msg.tool_call.status === 'accepted' && messages[index+1]?.tool_data?.name === 'create_task' && messages[index+1]?.tool_data?.results" 
+                class="mt-4 pt-4 border-t border-white/10"
+            >
+                <div class="bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="selectedTask = messages[index+1].tool_data.results">
+                    <div class="flex items-center gap-3">
+                        <i class="bi bi-circle text-gray-400 text-xl"></i>
+                        <div>
+                            <p class="text-sm font-bold text-(--text) leading-snug">{{ messages[index+1].tool_data.results.title }}</p>
+                            <p class="text-xs text-white/40 mt-0.5" v-if="messages[index+1].tool_data.results.description">{{ messages[index+1].tool_data.results.description.substring(0, 50) }}{{ messages[index+1].tool_data.results.description.length > 50 ? '...' : '' }}</p>
+                        </div>
+                    </div>
+                    <button class="text-xs bg-white/5 hover:bg-white/10 text-white font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
+                        Ouvrir
+                        <i class="bi bi-box-arrow-up-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Created Space Snippet -->
+            <div 
+                v-if="msg.tool_call.status === 'accepted' && messages[index+1]?.tool_data?.name === 'create_space' && messages[index+1]?.tool_data?.results" 
+                class="mt-4 pt-4 border-t border-white/10"
+            >
+                <div class="bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="router.push(`/${openedOrg?.id}/${messages[index+1].tool_data.results.id}/`)">
+                    <div class="flex items-center gap-3">
+                        <i class="bi text-xl text-(--primary)" :class="messages[index+1].tool_data.results.logo || 'bi-folder'"></i>
+                        <div>
+                            <p class="text-sm font-bold text-(--text) leading-snug">{{ messages[index+1].tool_data.results.name }}</p>
+                            <p class="text-xs text-white/40 mt-0.5">Espace de travail</p>
+                        </div>
+                    </div>
+                    <button class="text-xs bg-white/5 hover:bg-white/10 text-white font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
+                        Ouvrir
+                        <i class="bi bi-box-arrow-up-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Created Thread Snippet -->
+            <div 
+                v-if="msg.tool_call.status === 'accepted' && messages[index+1]?.tool_data?.name === 'create_thread' && messages[index+1]?.tool_data?.results" 
+                class="mt-4 pt-4 border-t border-white/10"
+            >
+                <div class="bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="router.push(`/${openedOrg?.id}/${messages[index+1].tool_data.results.workspaceId || 'home'}/${messages[index+1].tool_data.results.id}`)">
+                    <div class="flex items-center gap-3">
+                        <i class="bi text-xl text-(--primary)" :class="messages[index+1].tool_data.results.type === 'vocal' ? 'bi-volume-up-fill' : 'bi-hash'"></i>
+                        <div>
+                            <p class="text-sm font-bold text-(--text) leading-snug">{{ messages[index+1].tool_data.results.name }}</p>
+                            <p class="text-xs text-white/40 mt-0.5">Salon {{ messages[index+1].tool_data.results.type === 'vocal' ? 'vocal' : 'textuel' }}</p>
+                        </div>
+                    </div>
+                    <button class="text-xs bg-white/5 hover:bg-white/10 text-white font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
+                        Rejoindre
+                        <i class="bi bi-box-arrow-up-right"></i>
+                    </button>
+                </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -259,6 +321,12 @@
       </form>
     </div>
 
+    <TaskDetailsModal 
+        :task="selectedTask" 
+        :isOpen="!!selectedTask"
+        @close="selectedTask = null"
+    />
+
   </div>
 </template>
 
@@ -269,6 +337,7 @@ import { localLLM, availableModels } from '@/services/LocalLLMService';
 import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages } from '@/services/AIService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
+import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
 import { useRoute, useRouter } from 'vue-router';
@@ -321,6 +390,7 @@ interface ChatMessage {
 
 const selectedModelId = ref<string>('');
 const recommendedModelId = ref<string>('');
+const selectedTask = ref<any>(null);
 const isGenerating = ref(false);
 const hasStartedInit = ref(false);
 const inputMsg = ref('');
@@ -441,6 +511,11 @@ const handleToolCall = async (toolCall: any, accepted: boolean, _msgIndex: numbe
        });
        const data = await res.json();
        if (data.error) throw new Error(data.error);
+       
+       if (openedOrg.value && openedOrg.value.spaces) {
+           openedOrg.value.spaces.push(data);
+       }
+       toolData = data;
        result = `Espace '${args.name}' créé avec succès. L'utilisateur peut y accéder.`;
        
     } else if (toolCall.name === 'create_task') {
@@ -459,7 +534,8 @@ const handleToolCall = async (toolCall: any, accepted: boolean, _msgIndex: numbe
        });
        const data = await res.json();
        if (!res.ok || data.error) throw new Error(data.error || "Erreur serveur");
-       result = `Tâche '${args.title}' créée avec succès (assignée à l'utilisateur courant).`;
+       result = `Tâche '${args.title}' créée avec succès.`;
+       toolData = data;
        
     } else if (toolCall.name === 'search_messages') {
         // Load all workspaces indices dynamically before searching
@@ -498,10 +574,19 @@ const handleToolCall = async (toolCall: any, accepted: boolean, _msgIndex: numbe
         }
 
     } else if (toolCall.name === 'create_thread') {
-       const spaceId = args.spaceId || undefined;
+       let spaceId = args.spaceId || undefined;
        const isHome = !spaceId;
        
-       const space = spaceId ? openedOrg.value?.spaces?.find(s => s.id === spaceId) : null;
+       const space = spaceId ? openedOrg.value?.spaces?.find(s => s.id === spaceId || s.name.toLowerCase() === spaceId.toLowerCase()) : null;
+       
+       if (!isHome && !space) {
+           throw new Error(`L'espace '${spaceId}' n'existe pas. Veuillez vérifier le nom de l'espace ou le créer d'abord.`);
+       }
+       if (space) {
+           spaceId = space.id;
+           args.spaceId = space.id;
+       }
+
        let members = spaceId && space ? openedOrg.value?.members?.filter(m => space.membersId.includes(m.userId)).map(m => m!.user!) || [] 
                      : openedOrg.value?.members?.map(m => m.user!) || [];
        
@@ -527,11 +612,23 @@ const handleToolCall = async (toolCall: any, accepted: boolean, _msgIndex: numbe
            throw new Error("Aucun membre ne possède de clé publique E2EE valide.");
        }
        
+       let categoryId = null;
+       if (isHome) {
+           categoryId = openedOrg.value?.home?.categories?.[0]?.id;
+       } else {
+           categoryId = space?.categories?.[0]?.id;
+       }
+
+       if (!categoryId) {
+           throw new Error("Aucune catégorie disponible pour créer le salon.");
+       }
+
        const payload = {
            name: args.name,
            type: args.type || 'text',
            keys: encryptedKeysPayload,
-           index: 0
+           index: 0,
+           categoryId: categoryId
        };
        
        const endpoint = isHome ? `/api/threads/org/${orgId}` : `/api/threads/space/${spaceId}`;
@@ -541,8 +638,20 @@ const handleToolCall = async (toolCall: any, accepted: boolean, _msgIndex: numbe
        });
        const data = await res.json();
        if (data.error) throw new Error(data.error);
-       
-       result = `Salon '${args.name}' (type: ${args.type}) créé avec succès (ID: ${data.id}). Les clés E2EE ont été générées et distribuées.`;
+       if (!isHome && spaceId) {
+           data.workspaceId = spaceId;
+       }
+        toolData = data;
+        if (isHome) {
+            if (!openedOrg.value?.home?.threads) {
+                if (openedOrg.value && openedOrg.value.home) openedOrg.value.home.threads = [];
+            }
+            openedOrg.value?.home?.threads?.push(data);
+        } else if (space) {
+            if (!space.threads) space.threads = [];
+            space.threads.push(data);
+        }
+        result = `Salon '${args.name}' (type: ${args.type}) créé avec succès (ID: ${data.id}). Les clés E2EE ont été générées et distribuées.`;
 
     } else {
        result = "Erreur: Outil inconnu.";
@@ -562,7 +671,9 @@ const handleToolCall = async (toolCall: any, accepted: boolean, _msgIndex: numbe
     }
   });
 
-  // sendMessage("Résultat de l'outil reçu, analyse-le.");
+  if (['create_task', 'create_space', 'create_thread'].includes(toolCall.name)) {
+      sendMessage("L'action a été effectuée avec succès. Réponds très brièvement en une seule phrase pour confirmer à l'utilisateur.");
+  }
 };
 
 const sendMessage = async (hiddenPrompt?: string) => {
