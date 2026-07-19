@@ -8,6 +8,7 @@ import sfetch from '@/assets/utils/sfetch';
 import Popup from '@/components/Popup.vue';
 import IconSelector from '@/components/common/IconSelector.vue';
 import { useToast } from '@/composables/useToast';
+import keycloak from '@/assets/keycloak';
 
 const toast = useToast();
 
@@ -68,9 +69,16 @@ onMounted(async () => {
 
 <template>
 
-    <div class="min-h-screen bg-(--bg2) flex flex-col items-center p-6 md:p-12 font-sans overflow-x-hidden">
+    <div class="min-h-screen bg-(--bg2) flex flex-col items-center p-6 md:p-12 font-sans overflow-x-hidden relative">
         
-        <header class="text-center mt-10 mb-12 space-y-4 w-full max-w-4xl">
+        <!-- Déconnexion -->
+        <div class="absolute top-6 right-6 md:top-8 md:right-8 z-10">
+            <button @click="keycloak.logout()" class="px-4 py-2 bg-white/5 hover:bg-red-500/10 text-(--text)/60 hover:text-red-500 rounded-xl transition-all flex items-center gap-2 text-sm font-bold border border-white/5 hover:border-red-500/20 shadow-sm">
+                <i class="bi bi-box-arrow-right"></i> Déconnexion
+            </button>
+        </div>
+
+        <header class="text-center mt-10 mb-12 space-y-4 w-full max-w-4xl relative z-0">
             <h1 class="uppercase text-3xl md:text-5xl font-bold tracking-tight">
                 SÉLECTIONNEZ VOTRE <span class="text-(--primary)">organisation</span>
             </h1>
