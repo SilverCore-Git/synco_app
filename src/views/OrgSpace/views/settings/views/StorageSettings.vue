@@ -30,7 +30,7 @@
 
                 </div>
 
-                <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <section class="grid grid-cols-1 gap-6">
                     <div class="p-6 rounded-2xl bg-(--bg2) border border-(--text)/10 flex flex-col space-y-4">
                         <h3 class="text-lg font-bold text-(--text) flex items-center gap-2">
                             <i class="bi bi-folder-fill text-(--primary)"></i>
@@ -44,19 +44,6 @@
                         </div>
                         <div v-else class="text-sm text-(--text)/40 italic mt-4">
                             Aucun espace de travail.
-                        </div>
-                    </div>
-                    
-                    <div class="p-6 rounded-2xl bg-(--bg2) border border-(--text)/10 flex flex-col justify-between space-y-4 relative overflow-hidden group">
-                        <div class="absolute -right-10 -top-10 w-32 h-32 bg-(--primary)/5 rounded-full blur-3xl group-hover:bg-(--primary)/10 transition-colors pointer-events-none" />
-                        <div class="flex items-start flex-col relative z-10">
-                            <div class="w-10 h-10 rounded-xl bg-(--primary-dark)/50 text-(--primary) flex items-center justify-center mb-4 border border-(--primary)/20">
-                                <i class="bi bi-file-earmark-bar-graph text-xl" />
-                            </div>
-                            <h3 class="text-lg font-bold text-(--text)">Statistiques globales</h3>
-                            <p class="text-sm text-(--text)/60 mt-1">
-                                Retrouvez ci-dessous la liste intégrale de tous les fichiers hébergés sur l'organisation.
-                            </p>
                         </div>
                     </div>
                 </section>
