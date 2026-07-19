@@ -14,6 +14,7 @@ import InviteView from './views/inviteView.vue';
 import ThreadLayout from './views/OrgSpace/views/ThreadLayout.vue';
 import { nextTick } from 'vue';
 import SpaceFiles from './views/OrgSpace/views/SpaceFiles.vue';
+import AdminPanel from './views/AdminPanel.vue';
 
 
 const routes = [
@@ -22,6 +23,12 @@ const routes = [
     path: '/',
     name: 'OrgSelection',
     component: OrgSelection,
+  },
+
+  {
+    path: '/admin',
+    name: 'AdminPanel',
+    component: AdminPanel,
   },
 
   {
