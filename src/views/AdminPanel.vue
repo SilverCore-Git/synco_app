@@ -302,13 +302,10 @@
               
               // Update local state
               const index = users.value.findIndex(u => u.id === updatedUser.id);
-              if (index !== -1) {
-                  users.value[index] = {
-                      ...users.value[index],
-                      maxOrgs: updatedUser.maxOrgs,
-                      orgMaxUsers: updatedUser.orgMaxUsers,
-                      orgMaxStorage: updatedUser.orgMaxStorage
-                  };
+              if (index !== -1 && users.value[index]) {
+                  users.value[index]!.maxOrgs = updatedUser.maxOrgs;
+                  users.value[index]!.orgMaxUsers = updatedUser.orgMaxUsers;
+                  users.value[index]!.orgMaxStorage = updatedUser.orgMaxStorage;
               }
               
               toast.show('Quotas mis à jour avec succès', 'success');

@@ -194,16 +194,7 @@ import IconSelector from '@/components/common/IconSelector.vue';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
-import CapacityGauge from '@/components/common/CapacityGauge.vue';
 import { useRouter } from 'vue-router';
-
-const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-};
 
 
 const toast = useToast();

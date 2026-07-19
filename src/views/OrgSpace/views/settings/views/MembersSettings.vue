@@ -264,9 +264,7 @@ import CapacityGauge from '@/components/common/CapacityGauge.vue';
 const toast = useToast();
 
 const searchQuery = ref<string>('');
-const inviteId = ref<string>('');
 const copied = ref<boolean>(false);
-const invited = ref<boolean>(false);
 const inviteLinks = ref<any[]>([]);
 const inviteLink = ref<string>('');
 
@@ -324,41 +322,6 @@ const deleteInvite = async (code: string, state: 1 | 2) => {
             toast.show('Erreur lors de la révocation du lien.', 'error');
         }
 
-    }
-
-};
-
-const sendInvite = async () => {
-
-    const cuidRegex = /^c[a-z0-9]{24}$/;
-
-    if (!inviteId.value || !cuidRegex.test(inviteId.value)) {
-        toast.show('Veuillez entrer un identifiant valide.', 'error');
-        return;
-    }
-
-    invited.value = true;
-
-    try {
-
-        const res = await sfetch(`/api/orgs/users/${openedOrg.value?.id}/invite/${inviteId.value}`, {
-            method: 'POST'
-        }).then(res => res.json());
-
-        if (res.error) 
-        {
-            toast.show(res.error, 'error');
-        } 
-        else 
-        {
-            toast.show('Invitation envoyée avec succès.', 'success');
-            inviteId.value = ''; 
-        }
-
-    } catch (err) {
-        toast.show('Erreur lors de l\'envoi de l\'invitation.', 'error');
-    } finally {
-        setTimeout(() => invited.value = false, 2000);
     }
 
 };

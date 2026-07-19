@@ -114,7 +114,7 @@
             >
                 <div class="text-xs text-white/50 uppercase font-bold tracking-wider">Résultats trouvés :</div>
                 <div 
-                    v-for="res in messages[index+1].tool_data.results" 
+                    v-for="res in messages[index+1]?.tool_data?.results" 
                     :key="res.id"
                     class="bg-black/30 border border-white/5 rounded-xl overflow-hidden"
                 >
@@ -153,12 +153,12 @@
                 v-if="msg.tool_call.status === 'accepted' && messages[index+1]?.tool_data?.name === 'create_task' && messages[index+1]?.tool_data?.results" 
                 class="mt-4 pt-4 border-t border-white/10"
             >
-                <div class="bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="selectedTask = messages[index+1].tool_data.results">
+                <div class="bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="selectedTask = messages[index+1]?.tool_data?.results">
                     <div class="flex items-center gap-3">
                         <i class="bi bi-circle text-gray-400 text-xl"></i>
                         <div>
-                            <p class="text-sm font-bold text-(--text) leading-snug">{{ messages[index+1].tool_data.results.title }}</p>
-                            <p class="text-xs text-white/40 mt-0.5" v-if="messages[index+1].tool_data.results.description">{{ messages[index+1].tool_data.results.description.substring(0, 50) }}{{ messages[index+1].tool_data.results.description.length > 50 ? '...' : '' }}</p>
+                            <p class="text-sm font-bold text-(--text) leading-snug">{{ messages[index+1]?.tool_data?.results.title }}</p>
+                            <p class="text-xs text-white/40 mt-0.5" v-if="messages[index+1]?.tool_data?.results.description">{{ messages[index+1]?.tool_data?.results.description.substring(0, 50) }}{{ messages[index+1]?.tool_data?.results.description.length > 50 ? '...' : '' }}</p>
                         </div>
                     </div>
                     <button class="text-xs bg-white/5 hover:bg-white/10 text-white font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
@@ -173,11 +173,11 @@
                 v-if="msg.tool_call.status === 'accepted' && messages[index+1]?.tool_data?.name === 'create_space' && messages[index+1]?.tool_data?.results" 
                 class="mt-4 pt-4 border-t border-white/10"
             >
-                <div class="bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="router.push(`/${openedOrg?.id}/${messages[index+1].tool_data.results.id}/`)">
+                <div class="bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="router.push(`/${openedOrg?.id}/${messages[index+1]?.tool_data?.results.id}/`)">
                     <div class="flex items-center gap-3">
-                        <i class="bi text-xl text-(--primary)" :class="messages[index+1].tool_data.results.logo || 'bi-folder'"></i>
+                        <i class="bi text-xl text-(--primary)" :class="messages[index+1]?.tool_data?.results.logo || 'bi-folder'"></i>
                         <div>
-                            <p class="text-sm font-bold text-(--text) leading-snug">{{ messages[index+1].tool_data.results.name }}</p>
+                            <p class="text-sm font-bold text-(--text) leading-snug">{{ messages[index+1]?.tool_data?.results.name }}</p>
                             <p class="text-xs text-white/40 mt-0.5">Espace de travail</p>
                         </div>
                     </div>
@@ -193,12 +193,12 @@
                 v-if="msg.tool_call.status === 'accepted' && messages[index+1]?.tool_data?.name === 'create_thread' && messages[index+1]?.tool_data?.results" 
                 class="mt-4 pt-4 border-t border-white/10"
             >
-                <div class="bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="router.push(`/${openedOrg?.id}/${messages[index+1].tool_data.results.workspaceId || 'home'}/${messages[index+1].tool_data.results.id}`)">
+                <div class="bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="router.push(`/${openedOrg?.id}/${messages[index+1]?.tool_data?.results.workspaceId || 'home'}/${messages[index+1]?.tool_data?.results.id}`)">
                     <div class="flex items-center gap-3">
-                        <i class="bi text-xl text-(--primary)" :class="messages[index+1].tool_data.results.type === 'vocal' ? 'bi-volume-up-fill' : 'bi-hash'"></i>
+                        <i class="bi text-xl text-(--primary)" :class="messages[index+1]?.tool_data?.results.type === 'vocal' ? 'bi-volume-up-fill' : 'bi-hash'"></i>
                         <div>
-                            <p class="text-sm font-bold text-(--text) leading-snug">{{ messages[index+1].tool_data.results.name }}</p>
-                            <p class="text-xs text-white/40 mt-0.5">Salon {{ messages[index+1].tool_data.results.type === 'vocal' ? 'vocal' : 'textuel' }}</p>
+                            <p class="text-sm font-bold text-(--text) leading-snug">{{ messages[index+1]?.tool_data?.results.name }}</p>
+                            <p class="text-xs text-white/40 mt-0.5">Salon {{ messages[index+1]?.tool_data?.results.type === 'vocal' ? 'vocal' : 'textuel' }}</p>
                         </div>
                     </div>
                     <button class="text-xs bg-white/5 hover:bg-white/10 text-white font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
@@ -331,7 +331,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch, toRaw } from 'vue';
+import { ref, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
 import * as webllm from '@mlc-ai/web-llm';
 import { localLLM, availableModels } from '@/services/LocalLLMService';
 import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages } from '@/services/AIService';
@@ -384,7 +384,7 @@ const getSearchQuery = (argsStr: any) => {
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
-  tool_call?: { name: string; arguments: string; status: 'pending' | 'accepted' | 'rejected' };
+  tool_call?: { name: string; arguments: string; status: 'pending' | 'accepted' | 'rejected' | 'executing' };
   tool_data?: any;
 }
 
@@ -394,7 +394,7 @@ const selectedTask = ref<any>(null);
 const isGenerating = ref(false);
 const hasStartedInit = ref(false);
 const inputMsg = ref('');
-const messages = aiSessionMessages as unknown as ReturnType<typeof ref<ChatMessage[]>>;
+const messages = aiSessionMessages as unknown as Ref<ChatMessage[]>;
 const chatContainer = ref<HTMLElement | null>(null);
 const hasNavigatorGpu = typeof navigator !== 'undefined' && !!(navigator as any).gpu;
 

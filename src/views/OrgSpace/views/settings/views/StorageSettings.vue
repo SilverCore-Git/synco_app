@@ -18,7 +18,7 @@
                             <div v-if="openedOrg?.spaces?.length" class="space-y-2 max-h-64 overflow-y-auto pr-2 border border-white/5 bg-(--bg2) p-4 rounded-xl shadow-inner">
                                 <div v-for="space in openedOrg?.spaces" :key="space.id" class="flex justify-between items-center text-sm p-3 bg-(--bg3) border border-white/5 rounded-lg hover:bg-white/5 transition-colors">
                                     <span class="flex items-center gap-2 font-medium"><i class="bi bi-folder text-(--primary)"></i> {{ space.name }}</span>
-                                    <span class="font-mono text-(--text)/60 text-xs">{{ formatBytes(Number(space.stats?.storageUsed || 0)) }}</span>
+                                    <span class="font-mono text-(--text)/60 text-xs">{{ formatBytes(Number((space as any).stats?.storageUsed || 0)) }}</span>
                                 </div>
                             </div>
                             <div v-else class="text-sm text-(--text)/40 italic mt-2 p-4 bg-(--bg2) rounded-xl border border-white/5 shadow-inner">
@@ -30,7 +30,7 @@
                     <div class="flex items-center md:justify-end">
                         <div class="w-full md:w-64">
                             <CapacityGauge 
-                                :used="Number(openedOrg?.stats?.totalStorageUsed || 0)"
+                                :used="Number((openedOrg as any)?.stats?.totalStorageUsed || 0)"
                                 :max="Number(openedOrg?.maxStorage || 0)"
                                 unit=""
                                 icon="bi-hdd-network"
@@ -165,7 +165,7 @@
         <ConfirmDelete 
             :show="!!fileToDelete"
             item-type="le fichier"
-            :item-name="fileToDelete?.originalName"
+            :item-name="fileToDelete?.originalName || ''"
             @cancel="fileToDelete = null"
             @confirm="deleteFile"
         />
@@ -195,11 +195,11 @@ const fetchFiles = async () => {
         if (res.ok) {
             files.value = await res.json();
         } else {
-            toast.error("Impossible de récupérer la liste des fichiers.");
+            toast.show("Impossible de récupérer la liste des fichiers.", "error");
         }
     } catch (err) {
         console.error(err);
-        toast.error("Erreur lors de la récupération des fichiers.");
+        toast.show("Erreur lors de la récupération des fichiers.", "error");
     } finally {
         loadingFiles.value = false;
     }
@@ -262,18 +262,17 @@ const deleteFile = async () => {
     try {
         const res = await sfetch(`/cdn/${fileToDelete.value.id}`, { method: 'DELETE' });
         if (res.ok) {
-            toast.success("Fichier supprimé avec succès.");
+            toast.show("Fichier supprimé avec succès.", "success");
             files.value = files.value.filter(f => f.id !== fileToDelete.value!.id);
-            // Deduct size logically if needed, but a reload of the org or files would be better
-            if (openedOrg.value?.stats?.totalStorageUsed !== undefined) {
-                openedOrg.value.stats.totalStorageUsed = Number(openedOrg.value.stats.totalStorageUsed) - Number(fileToDelete.value.size);
+            if ((openedOrg.value as any)?.stats?.totalStorageUsed !== undefined) {
+                (openedOrg.value as any).stats.totalStorageUsed = Number((openedOrg.value as any).stats.totalStorageUsed) - Number(fileToDelete.value.size);
             }
         } else {
-            toast.error("Erreur lors de la suppression du fichier.");
+            toast.show("Erreur lors de la suppression du fichier.", "error");
         }
     } catch (err) {
         console.error(err);
-        toast.error("Erreur inattendue.");
+        toast.show("Erreur inattendue.", "error");
     } finally {
         fileToDelete.value = null;
     }
