@@ -15,7 +15,6 @@ const me = ref<User | undefined>(undefined);
 
 const showCreateNewOrg = ref<boolean>(false);
 const canCreateOrg = ref<boolean>(false);
-const isAdmin = ref<boolean>(false);
 const newOrgForm = reactive({
   name: '',
   logo: ''
@@ -63,17 +62,6 @@ onMounted(async () => {
     const res = await sfetch('/api/users/me/cancreateorg');
     const data = await res.json();
     canCreateOrg.value = data.canCreateOrg;
-
-    // Check admin status
-    try {
-        const adminRes = await sfetch('/api/admin/isAdmin');
-        if (adminRes.ok) {
-            const adminData = await adminRes.json();
-            isAdmin.value = adminData.isAdmin === true;
-        }
-    } catch (e) {
-        isAdmin.value = false;
-    }
 })
 
 </script>
@@ -86,15 +74,6 @@ onMounted(async () => {
             <h1 class="uppercase text-3xl md:text-5xl font-bold tracking-tight">
                 SÉLECTIONNEZ VOTRE <span class="text-(--primary)">organisation</span>
             </h1>
-
-            <div v-if="isAdmin" class="mt-4">
-                <router-link 
-                    to="/admin" 
-                    class="inline-flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl hover:bg-red-500/20 transition-all font-bold text-sm"
-                >
-                    <i class="bi bi-shield-lock-fill"></i> Panel Administration
-                </router-link>
-            </div>
             
             <!-- Barre de recherche -->
             <div class="relative w-full max-w-md mx-auto mt-8">
