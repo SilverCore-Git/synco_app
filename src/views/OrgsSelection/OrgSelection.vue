@@ -90,7 +90,7 @@ onMounted(async () => {
         </header>
 
         <div class="w-full max-w-7xl">
-            <div v-if="filteredOrganizations.length > 0" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 place-items-stretch w-full max-w-6xl mx-auto">
+            <div v-if="filteredOrganizations.length > 0 || canCreateOrg" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 place-items-stretch w-full max-w-6xl mx-auto">
                 
                 <div 
                     v-for="org in filteredOrganizations" 
@@ -117,13 +117,6 @@ onMounted(async () => {
                 </div>
                 <h3 class="text-xl font-bold text-(--text)">Aucune organisation trouvée</h3>
                 <p class="text-(--text)/50 text-sm">Vérifiez l'orthographe ou essayez un autre nom.</p>
-                <button 
-                    v-if="canCreateOrg" 
-                    @click="showCreateNewOrg = true" 
-                    class="mt-4 bg-(--primary) hover:brightness-110 text-white px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all active:scale-95"
-                >
-                    <i class="bi bi-plus-lg"></i> Créer une organisation
-                </button>
             </div>
         </div>
 

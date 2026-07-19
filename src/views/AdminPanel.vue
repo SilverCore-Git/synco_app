@@ -5,7 +5,7 @@
       <nav class="sticky top-0 z-50 bg-(--bg)/80 backdrop-blur-xl border-b border-white/5 px-6 py-4">
         <div class="max-w-7xl mx-auto flex items-center justify-between">
           <div class="flex items-center gap-4">
-            <router-link to="/orgs" class="p-2 hover:bg-white/5 rounded-xl transition-colors">
+            <router-link to="/" class="p-2 hover:bg-white/5 rounded-xl transition-colors">
               <i class="bi bi-arrow-left text-xl"></i>
             </router-link>
             <div>
