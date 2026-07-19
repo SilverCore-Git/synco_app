@@ -60,8 +60,6 @@
 
                     </div>
 
-                    </div>
-
                 </section>
 
                 <section class="bg-(--bg2) rounded-3xl border border-(--text)/10 overflow-hidden flex flex-col">
