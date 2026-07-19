@@ -22,6 +22,11 @@ const settingsViews: settingsView[] = [
         route: 'OrgSettingsWebhooks'
     },
     {
+        name: 'Stockage',
+        icon: 'bi-hdd-network',
+        route: 'OrgSettingsStorage'
+    },
+    {
         name: 'Intelligence Artificielle',
         icon: 'bi-robot',
         route: 'OrgSettingsAI'

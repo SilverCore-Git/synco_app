@@ -85,6 +85,12 @@ const routes = [
             name: 'OrgSettingsAI',
             props: true,
             component: () => import('./views/OrgSpace/views/settings/views/AISettings.vue'),
+          },
+          {
+            path: 'storage',
+            name: 'OrgSettingsStorage',
+            props: true,
+            component: () => import('./views/OrgSpace/views/settings/views/StorageSettings.vue'),
           }
         ]
 

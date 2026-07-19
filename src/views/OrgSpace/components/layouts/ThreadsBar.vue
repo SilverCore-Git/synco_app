@@ -95,6 +95,7 @@
                         :key="'settings-' + view.name + '-link'"
                         :to="{ name: view.route, query: { ...route.query, showView: '1' } }"
                         class="w-full"
+                        v-show="view.route !== 'OrgSettingsStorage' || filesEnabled"
                     >
                         <SettingsViewBtn
                             :key="'settings-' + view.name + '-btn'"
