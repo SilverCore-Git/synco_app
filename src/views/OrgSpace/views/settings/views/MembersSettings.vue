@@ -60,48 +60,6 @@
 
                     </div>
 
-                    <div class="p-6 rounded-2xl bg-(--bg2) border border-(--text)/10 flex flex-col justify-between space-y-6 relative overflow-hidden group">
-                      
-                        <div class="absolute -right-10 -top-10 w-32 h-32 bg-(--primary)/5 rounded-full blur-3xl group-hover:bg-(--primary)/10 transition-colors pointer-events-none" />
-                        
-                        <div class="flex items-start flex-col relative z-10">
-                            <div class="w-10 h-10 rounded-xl bg-(--bg3) text-(--text) flex items-center justify-center mb-4 border border-(--text)/10">
-                                <i class="bi bi-person-plus text-xl" />
-                            </div>
-                            <h3 class="text-lg font-bold text-(--text)">Ajout manuel</h3>
-                            <p class="text-sm text-(--text)/60 mt-1">
-                                Entrez l'identifiant (ID) unique d'un utilisateur pour l'ajouter directement.
-                            </p>
-                        </div>
-
-                        <div class="flex gap-2 relative z-10">
-                            
-                            <input 
-                                v-model="inviteId"
-                                class="
-                                    flex-1 bg-(--bg3) border border-(--text)/10
-                                    rounded-xl px-4 py-3 text-sm text-white
-                                    font-mono truncate outline-none
-                                    placeholder:text-(--text)/30
-                                    focus:border-(--primary)/50 focus:ring-1 focus:ring-(--primary)/50
-                                    transition-all
-                                "
-                                placeholder="ex: ckm4z8x..."
-                                type="text"
-                                @keyup.enter="sendInvite"
-                            />
-
-                            <button 
-                                @click="sendInvite" 
-                                :disabled="invited || inviteId.length === 0"
-                                class="bg-(--bg3) hover:bg-(--text)/10 border border-(--text)/10 text-white rounded-xl px-4 py-2 text-sm font-medium transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <i class="bi" :class="invited ? 'bi-check-lg text-(--primary)' : 'bi-send'" />
-                                {{ invited ? 'Envoyé' : 'Inviter' }}
-                            </button>
-
-                        </div>
-
                     </div>
 
                 </section>

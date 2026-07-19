@@ -13,7 +13,7 @@
                     {{ title }}
                 </span>
                 <span class="text-[10px] text-(--text)/40 font-medium">
-                    {{ used }} / {{ max }} {{ unit }}
+                    {{ isBytes ? formatBytes(used) : used }} / {{ isBytes ? formatBytes(max) : max }} {{ unit }}
                 </span>
                 </div>
             </div>
@@ -71,7 +71,16 @@ const props = defineProps<{
     max: number;
     unit: string;
     icon?: string;
+    isBytes?: boolean;
 }>();
+
+const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+};
 
 const percentage = computed(() => {
   if (props.max <= 0) return 0;

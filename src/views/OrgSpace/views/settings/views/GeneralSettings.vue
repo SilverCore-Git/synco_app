@@ -141,6 +141,35 @@
                             <div class="w-11 h-6 bg-black/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
                         </label>
                     </div>
+                <section class="space-y-6">
+                    <div class="flex flex-col gap-1">
+                        <h3 class="text-lg font-bold">Stockage & Utilisation</h3>
+                        <p class="text-sm text-(--text)/40">Gérez l'espace de stockage de votre organisation.</p>
+                    </div>
+
+                    <div class="w-full">
+                        <CapacityGauge 
+                            :used="Number(openedOrg?.stats?.totalStorageUsed || 0)"
+                            :max="Number(openedOrg?.maxStorage || 0)"
+                            unit=""
+                            icon="bi-hdd-network"
+                            title="Stockage total"
+                            :isBytes="true"
+                        />
+                    </div>
+
+                    <div class="mt-4 p-4 bg-white/5 border border-white/10 rounded-xl space-y-3">
+                        <h4 class="font-bold text-sm text-(--text)">Détails par Workspace</h4>
+                        <div v-if="openedOrg?.spaces?.length" class="space-y-2">
+                            <div v-for="space in openedOrg?.spaces" :key="space.id" class="flex justify-between items-center text-sm p-2 bg-black/20 rounded-lg">
+                                <span class="flex items-center gap-2"><i class="bi bi-folder text-(--primary)"></i> {{ space.name }}</span>
+                                <span class="font-mono text-(--text)/60">{{ formatBytes(Number(space.stats?.storageUsed || 0)) }}</span>
+                            </div>
+                        </div>
+                        <div v-else class="text-xs text-(--text)/40 italic">
+                            Aucun espace de travail.
+                        </div>
+                    </div>
                 </section>
 
                 <hr class="border-white/5" />
@@ -205,7 +234,16 @@ import IconSelector from '@/components/common/IconSelector.vue';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
+import CapacityGauge from '@/components/common/CapacityGauge.vue';
 import { useRouter } from 'vue-router';
+
+const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+};
 
 
 const toast = useToast();
