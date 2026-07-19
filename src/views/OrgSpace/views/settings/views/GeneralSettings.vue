@@ -141,6 +141,10 @@
                             <div class="w-11 h-6 bg-black/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
                         </label>
                     </div>
+                </section>
+
+                <hr class="border-white/5" />
+
                 <section class="space-y-6">
                     <div class="flex flex-col gap-1">
                         <h3 class="text-lg font-bold">Stockage & Utilisation</h3>
