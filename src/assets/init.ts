@@ -32,7 +32,7 @@ class Init
     {
 
         const orgs = await sfetch('/api/users/me/organizations').then(res => res.json());
-        organizations.value = orgs;
+        organizations.value = Array.isArray(orgs) ? orgs : [];
 
     }
 

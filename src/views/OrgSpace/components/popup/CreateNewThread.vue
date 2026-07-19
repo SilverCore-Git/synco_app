@@ -235,6 +235,17 @@ const handleSubmit = async () => {
                 const thread: Thread = res;
                 const space = openedOrg.value?.spaces?.find(s => s.id === route.params.spaceId);
                 space?.threads?.push(thread);
+
+                import('@/services/LocalSearchVectorDB').then(({ localSearchDB }) => {
+                    localSearchDB.insertDocument({
+                        id: thread.id,
+                        workspaceId: spaceId,
+                        type: 'THREAD',
+                        textContent: thread.name,
+                        vector: Array(384).fill(0)
+                    });
+                });
+
                 await nextTick();
                 router.push({ name: 'SpaceView', params: { orgId: route.params.orgId, spaceId, threadId: res.id } });
             }

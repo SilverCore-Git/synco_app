@@ -103,6 +103,11 @@ export interface User {
     [key: string]: any;
   };
   files?: StoredFile[];
+  
+  maxOrgs?: number;
+  orgMaxUsers?: number;
+  orgMaxStorage?: number | string | bigint;
+
   createdAt: string | Date;
   updatedAt: string | Date;
 }

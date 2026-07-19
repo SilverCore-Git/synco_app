@@ -3,7 +3,7 @@
 import SpaceBarBTN from '../common/SpaceBarBTN.vue';
 import { useRoute, useRouter } from 'vue-router';
 import CreateNewSpace from '../popup/CreateNewSpace.vue';
-import { openedOrg, todoEnabled } from '@/assets/var';
+import { openedOrg, todoEnabled, aiEnabled } from '@/assets/var';
 import isAdmin from '@/assets/isAdmin';
 
 const router = useRouter();
@@ -66,6 +66,14 @@ const route = useRoute();
                     icon="bi-list-check"
                     label="Mes Tâches"
                     :active="route.name === 'TasksGlobal'"
+                />
+            </RouterLink>
+            
+            <RouterLink v-if="aiEnabled" :to="`/${openedOrg.id}/ai`">
+                <SpaceBarBTN
+                    icon="bi-robot"
+                    label="Synco AI"
+                    :active="route.name === 'OrgAI'"
                 />
             </RouterLink>
             

@@ -18,6 +18,7 @@ const props = defineProps<{
   isDm?: boolean;
   showReactionPicker: boolean;
   alignRight?: boolean;
+  isReadOnly?: boolean;
 }>();
 
 const emit = defineEmits(['reaction-updated', 'add-reaction', 'reaction-picker-closed']);
@@ -44,6 +45,7 @@ const formattedReactions = computed<ReactionGroup[]>(() => {
 });
 
 const toggleReaction = async (emoji: string) => {
+  if (props.isReadOnly) return;
   if (!props.messageId) return;
 
   emit('reaction-picker-closed');
@@ -120,9 +122,12 @@ const toggleReaction = async (emoji: string) => {
       <button
         v-for="reaction in formattedReactions"
         :key="reaction.emoji"
-        @click="toggleReaction(reaction.emoji)"
-        class="flex items-center gap-1 px-2 py-1 bg-(--bg2)/50 hover:bg-(--bg2)/80 rounded-xl text-sm transition-colors"
-        :class="reaction.hasReacted ? 'ring-1 ring-(--primary-dark)' : ''"
+        @click="!isReadOnly && toggleReaction(reaction.emoji)"
+        class="flex items-center gap-1 px-2 py-1 rounded-xl text-sm transition-colors"
+        :class="[
+          reaction.hasReacted ? 'ring-1 ring-(--primary-dark)' : '',
+          isReadOnly ? 'bg-(--bg2)/20 cursor-default opacity-70' : 'bg-(--bg2)/50 hover:bg-(--bg2)/80'
+        ]"
       >
         <span class="text-lg">{{ reaction.emoji }}</span>
         <span class="text-xs text-(--text)/60">{{ reaction.count }}</span>

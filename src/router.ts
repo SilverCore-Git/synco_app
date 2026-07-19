@@ -14,6 +14,7 @@ import InviteView from './views/inviteView.vue';
 import ThreadLayout from './views/OrgSpace/views/ThreadLayout.vue';
 import { nextTick } from 'vue';
 import SpaceFiles from './views/OrgSpace/views/SpaceFiles.vue';
+import AdminPanel from './views/AdminPanel.vue';
 
 
 const routes = [
@@ -22,6 +23,12 @@ const routes = [
     path: '/',
     name: 'OrgSelection',
     component: OrgSelection,
+  },
+
+  {
+    path: '/admin',
+    name: 'AdminPanel',
+    component: AdminPanel,
   },
 
   {
@@ -72,6 +79,18 @@ const routes = [
             name: 'OrgSettingsWebhooks',
             props: true,
             component: WebhooksSettings,
+          },
+          {
+            path: 'ai',
+            name: 'OrgSettingsAI',
+            props: true,
+            component: () => import('./views/OrgSpace/views/settings/views/AISettings.vue'),
+          },
+          {
+            path: 'storage',
+            name: 'OrgSettingsStorage',
+            props: true,
+            component: () => import('./views/OrgSpace/views/settings/views/StorageSettings.vue'),
           }
         ]
 
@@ -117,6 +136,12 @@ const routes = [
         path: ':spaceId/files',
         name: 'SpaceFiles',
         component: SpaceFiles,
+        props: true,
+      },
+      {
+        path: 'ai',
+        name: 'OrgAI',
+        component: () => import('./views/OrgSpace/views/OrgAI.vue'),
         props: true,
       },
       {

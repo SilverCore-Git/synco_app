@@ -22,5 +22,10 @@ const filesEnabled = computed(() => {
     return openedOrg.value.activeModules?.files !== false; // defaults to true
 });
 
+const aiEnabled = computed(() => {
+    if (!openedOrg.value) return false;
+    return openedOrg.value.activeModules?.ai === true;
+});
 
-export { organizations, openedOrg, isLoaded, user, member, isLittleScreen, kcToken, todoEnabled, filesEnabled };
+
+export { organizations, openedOrg, isLoaded, user, member, isLittleScreen, kcToken, todoEnabled, filesEnabled, aiEnabled };

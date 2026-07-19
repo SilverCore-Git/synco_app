@@ -181,6 +181,7 @@
 
                         <FileCard
                             v-for="file in filteredFiles" 
+                            :id="'file-' + file.id"
                             :key="file.id"
                             draggable="true"
                             :file="file"
@@ -327,6 +328,9 @@ import { uploadFiles } from '@/assets/uploadFile';
 import FolderCard from '../components/SpaceFiles/FolderCard.vue';
 import FileCard from '../components/SpaceFiles/FileCard.vue';
 import type { StoredFile, Folder } from '@/types/types';
+import { extractTextFromPDF } from '@/assets/utils/pdfExtractor';
+import VectorWorker from '@/workers/semantic.worker?worker';
+import { localSearchDB } from '@/services/LocalSearchVectorDB';
 
 
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
@@ -347,6 +351,27 @@ const fileInputRef = ref<HTMLInputElement | null>(null);
 const draggedFileId = ref<string | null>(null);
 const draggedSourceFolderId = ref<string | null>(null);
 const draggedIntoFolderId = ref<string | null>(null);
+
+const vectorWorker = new VectorWorker();
+vectorWorker.onmessage = async (e) => {
+    const { status, id, vector, text, type, metadata } = e.data;
+    if (status === 'complete') {
+        const workspaceId = String(route.params.spaceId) || null;
+        if (!workspaceId) return;
+
+        // Save locally
+        await localSearchDB.insertDocument({
+            id,
+            workspaceId,
+            type,
+            textContent: text,
+            vector,
+            metadata
+        });
+        
+        // Note: Backend sync skipped here as we need a symmetric workspace key which might not exist globally.
+    }
+};
 
 
 const filteredFiles = computed(() => {
@@ -431,13 +456,15 @@ const breadcrumbs = computed(() => {
 });
 
 
-watch(() => breadcrumbs.value.length, () => {
+watch(() => currentFolderId.value, () => {
     router.push({
         name: route.name || undefined, 
         params: route.params,
         query: {
             ...route.query, 
-            path: '/' + breadcrumbs.value.map(b => b.id).join('/') 
+            path: '/' + breadcrumbs.value.map(b => b.id).join('/'),
+            folderId: undefined, // Clear folderId since we now use path
+            highlightFileId: undefined // Don't persist highlight on normal navigation
         } 
     });
 });
@@ -617,6 +644,24 @@ const handleFiles = async (files: FileList | File[]) => {
         {
             allFiles.value.push(...uploadedFiles);
             toast.show(`${uploadedFiles.length} fichier(s) ajouté(s)`, "success");
+
+            // Process PDFs for semantic search
+            for (let i = 0; i < selectedFiles.length; i++) {
+                const file = selectedFiles[i];
+                const uploadedFile = uploadedFiles[i];
+                if (file && uploadedFile && file.type.includes('pdf')) {
+                    extractTextFromPDF(file).then(text => {
+                        if (text && text.trim() !== '') {
+                            vectorWorker.postMessage({
+                                id: uploadedFile.id,
+                                text,
+                                type: 'FILE',
+                                metadata: { folderId: currentFolderId.value }
+                            });
+                        }
+                    }).catch(err => console.error("PDF Extraction failed:", err));
+                }
+            }
         }
 
     } catch (e) {
@@ -639,13 +684,7 @@ onMounted(async() => {
         allFiles.value = data.files || [];
         allFolders.value = data.folders || [];
 
-        const urlPath = route.query.path as string;
-
-        if (urlPath) 
-        {
-            const pathIds = urlPath.split('/');
-            currentFolderId.value = pathIds.length > 0 ? pathIds?.[pathIds.length - 1] || 'root' : 'root';
-        }   
+        handleRouteQuery();
 
     } catch (e) {
         console.error("Erreur:", e);
@@ -654,6 +693,52 @@ onMounted(async() => {
     }
 
 });
+
+const handleRouteQuery = () => {
+    const urlPath = route.query.path as string;
+    const folderId = route.query.folderId as string;
+    const highlightFileId = route.query.highlightFileId as string;
+
+    if (urlPath) 
+    {
+        const pathIds = urlPath.split('/');
+        currentFolderId.value = pathIds.length > 0 ? pathIds?.[pathIds.length - 1] || 'root' : 'root';
+    }
+    else if (folderId) 
+    {
+        currentFolderId.value = folderId;
+    }
+
+    if (highlightFileId) 
+    {
+        setTimeout(() => {
+            const el = document.getElementById('file-' + highlightFileId);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Add highlight animation via guaranteed inline styles
+                const originalTransition = el.style.transition;
+                const originalTransform = el.style.transform;
+                const originalBoxShadow = el.style.boxShadow;
+                
+                el.style.transition = 'all 0.3s ease';
+                el.style.transform = 'scale(1.05)';
+                el.style.boxShadow = '0 0 0 4px var(--primary), 0 10px 30px rgba(0,0,0,0.5)';
+                el.style.zIndex = '10';
+                
+                setTimeout(() => {
+                    el.style.transform = originalTransform;
+                    el.style.boxShadow = originalBoxShadow;
+                    el.style.zIndex = '';
+                    setTimeout(() => el.style.transition = originalTransition, 300);
+                }, 3000);
+            }
+        }, 600); // 600ms to ensure DOM is ready
+    }
+};
+
+watch(() => route.query, () => {
+    handleRouteQuery();
+}, { deep: true });
 
 // File actions handlers
 const selectedFileForInfo = ref<StoredFile | null>(null);

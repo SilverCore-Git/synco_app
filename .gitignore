@@ -25,3 +25,5 @@ dist-ssr
 /.vite
 .env
 .env.prod
+\n# Local AI Models\npublic/models\n
+/public/models

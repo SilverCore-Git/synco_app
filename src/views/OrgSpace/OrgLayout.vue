@@ -19,6 +19,7 @@ import { isMeeting } from '@/composables/usePrivatMeet';
 import isDesktopApp from '@/assets/isDesktopApp';
 import { useToast } from '@/composables/useToast';
 import { decryptFromPeer, privateKey } from '@/assets/utils/crypto';
+import { SearchSyncService } from '@/services/SearchSyncService';
 
 
 const props = defineProps<{
@@ -38,6 +39,139 @@ const showRouterView = computed(() => route.query.showView !== '0');
 const orgOnOpen = computed(() => {
     return organizations.value.find(org => org.id === route.params.orgId);
 });
+
+import { watch, toRaw } from 'vue';
+
+watch(() => route.params.spaceId, async (newSpaceId, oldSpaceId) => {
+    if (newSpaceId && newSpaceId !== oldSpaceId && privateKey.value) {
+        const spaceId = newSpaceId as string;
+        // Build the entire workspace search index in the background using E2EE keys
+        await SearchSyncService.restoreWorkspaceIndexes(spaceId, toRaw(privateKey.value));
+    }
+}, { immediate: true });
+
+watch(() => [openedOrg.value, route.params.spaceId] as const, ([newOrg, spaceIdParam]) => {
+    if (newOrg && spaceIdParam) {
+        const spaceId = spaceIdParam as string;
+        // Add thread names to the search index for exact BM25 matching (fast, no vector generation needed)
+        import('@/services/LocalSearchVectorDB').then(({ localSearchDB }) => {
+            const currentSpace = newOrg.spaces?.find((s: any) => s.id === spaceId);
+            if (currentSpace && currentSpace.threads) {
+                const dummyVector = Array(384).fill(0);
+                for (const thread of currentSpace.threads) {
+                    localSearchDB.insertDocument({
+                        id: thread.id,
+                        workspaceId: spaceId,
+                        type: 'THREAD',
+                        textContent: thread.name,
+                        vector: dummyVector
+                    });
+                }
+
+                import('@/assets/utils/sfetch').then(({ default: sfetch }) => {
+                    // Fetch files
+                    sfetch(`/api/spaces/${spaceId}/files`).then(res => res.json()).then(data => {
+                        if (data && data.files) {
+                            
+                            const getFileKeywords = (filename: string) => {
+                                const ext = filename.split('.').pop()?.toLowerCase();
+                                const keywords: Record<string, string> = {
+                                    // Images
+                                    'png': 'image photo',
+                                    'jpg': 'image photo',
+                                    'jpeg': 'image photo',
+                                    'gif': 'image animée',
+                                    'svg': 'image vecteur',
+                                    'webp': 'image photo',
+                                    'heic': 'image photo',
+                                    // Documents
+                                    'pdf': 'pdf document texte',
+                                    'doc': 'word document texte',
+                                    'docx': 'word document texte',
+                                    'txt': 'texte document',
+                                    'md': 'texte markdown',
+                                    'rtf': 'texte document',
+                                    // Tableurs
+                                    'xls': 'excel tableur tableau',
+                                    'xlsx': 'excel tableur tableau',
+                                    'csv': 'excel tableur donnees',
+                                    // Presentations
+                                    'ppt': 'powerpoint presentation diaporama',
+                                    'pptx': 'powerpoint presentation diaporama',
+                                    // Vidéos
+                                    'mp4': 'video vidéo film',
+                                    'mov': 'video vidéo film',
+                                    'avi': 'video vidéo film',
+                                    'mkv': 'video vidéo film',
+                                    'webm': 'video vidéo film',
+                                    // Audios
+                                    'mp3': 'audio son musique',
+                                    'wav': 'audio son musique',
+                                    'ogg': 'audio son musique',
+                                    'm4a': 'audio son musique',
+                                    // Archives
+                                    'zip': 'archive compressé zip',
+                                    'rar': 'archive compressé rar',
+                                    '7z': 'archive compressé',
+                                    'tar': 'archive compressé',
+                                    'gz': 'archive compressé',
+                                    // Code
+                                    'js': 'code script javascript',
+                                    'ts': 'code script typescript',
+                                    'html': 'code web',
+                                    'css': 'code style',
+                                    'json': 'code donnees json',
+                                    'py': 'code script python'
+                                };
+                                return ext && keywords[ext] ? ` (${keywords[ext]} ${ext})` : ` (${ext})`;
+                            };
+
+                            for (const file of data.files) {
+                                localSearchDB.insertDocument({
+                                    id: file.id,
+                                    workspaceId: spaceId,
+                                    type: 'FILE',
+                                    textContent: file.originalName + getFileKeywords(file.originalName),
+                                    vector: dummyVector,
+                                    metadata: { 
+                                        folderId: file.folderId || 'root', 
+                                        fileUrl: file.url,
+                                        originalName: file.originalName
+                                    }
+                                });
+                            }
+                        }
+                    }).catch(err => console.error("Failed to fetch space files for indexing:", err));
+
+                    // Fetch tasks
+                    sfetch(`/api/tasks/${newOrg.id}/spaces/${spaceId}/lists`).then(res => res.json()).then(data => {
+                        if (data) {
+                            const allTasks = [];
+                            if (data.lists) {
+                                data.lists.forEach((list: any) => {
+                                    if (list.tasks) allTasks.push(...list.tasks);
+                                });
+                            }
+                            if (data.unlistedTasks) {
+                                allTasks.push(...data.unlistedTasks);
+                            }
+                            for (const task of allTasks) {
+                                localSearchDB.insertDocument({
+                                    id: task.id,
+                                    workspaceId: spaceId,
+                                    type: 'TODO',
+                                    textContent: task.title + (task.description ? ' ' + task.description : ''),
+                                    vector: dummyVector,
+                                    metadata: { listId: task.todoListId }
+                                });
+                            }
+                        }
+                    }).catch(err => console.error("Failed to fetch space tasks for indexing:", err));
+                });
+            }
+        });
+    }
+}, { immediate: true });
 
 const initSocketListener = async () => {
 
@@ -161,6 +295,16 @@ const initSocketListener = async () => {
                     {
                         space.threads[tIndex] = updatedThread;
                     }
+
+                    import('@/services/LocalSearchVectorDB').then(({ localSearchDB }) => {
+                        localSearchDB.insertDocument({
+                            id: updatedThread.id,
+                            workspaceId: spaceId,
+                            type: 'THREAD',
+                            textContent: updatedThread.name,
+                            vector: Array(384).fill(0)
+                        });
+                    });
 
                 });
 
@@ -326,7 +470,7 @@ onBeforeUnmount(async () => {
 
             <SpaceBar class="h-full" />
             <ThreadsBar 
-                v-if="route.name !== 'TasksGlobal'"
+                v-if="route.name !== 'TasksGlobal' && route.name !== 'OrgAI'"
                 class="h-full " 
                 :class="[
                     isDesktopApp() ? 'rounded-tl-2xl' : '',

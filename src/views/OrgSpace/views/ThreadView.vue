@@ -336,12 +336,15 @@ import {
     decryptMessageWithContentKey 
 } from '@/assets/utils/crypto';
 import { useToast } from '@/composables/useToast';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, user } from '@/assets/var';
 import SpinLoader from '@/components/SpinLoader.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import useResponse from '@/composables/useResponse';
 import { uploadFiles } from '@/assets/uploadFile';
 import { waitForSocketConnection } from '@/composables/useWSocket';
+
+import { SearchSyncService } from '@/services/SearchSyncService';
+import { localSearchDB } from '@/services/LocalSearchVectorDB';
 
 
 const props = defineProps<{ 
@@ -387,6 +390,40 @@ const sortedMessages = ref<Message[]>([]);
 const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
 const lastMessageId = ref<string>('');
 const showEmojiPicker = ref<boolean>(false);
+
+import globalVectorWorker from '@/services/GlobalVectorWorker';
+
+const handleWorkerMessage = async (e: MessageEvent) => {
+    const { status, id, vector, text, type, metadata } = e.data;
+    if (status === 'complete' && currentThreadKey.value && type === 'MESSAGE') {
+        const workspaceId = (route.params.spaceId as string) || null;
+        if (!workspaceId) return; // Only indexing workspace threads for now
+
+        // Insert locally
+        await localSearchDB.insertDocument({
+            id,
+            workspaceId,
+            type,
+            textContent: text,
+            vector,
+            metadata
+        });
+        
+        // Sync to backend (E2EE)
+        await SearchSyncService.syncIndex(
+            workspaceId,
+            thread.value?.id || null,
+            type,
+            id,
+            text,
+            vector,
+            currentThreadKey.value,
+            metadata
+        );
+    }
+};
+
+
 
 
 // file / pj
@@ -656,6 +693,29 @@ const initListener = () => {
             const isNearBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 200;
             if (isNearBottom) scrollToBottom();
         }
+
+        // Generate vector for the newly received message if we have the content
+        if (clearContent && !clearContent.startsWith("🔒") && !msg.isWebhook) {
+            const hasFiles = Array.isArray(msg.files) && msg.files.length > 0;
+            let vectorText = clearContent;
+            if (hasFiles) {
+                const fileNames = msg.files?.map((f: any) => f.originalName || '').join(' ') || '';
+                vectorText = clearContent.trim() === '' ? fileNames : `${clearContent}\n${fileNames}`;
+                if (!vectorText.trim()) vectorText = 'Fichier joint';
+            }
+
+            globalVectorWorker.postMessage({
+                id: msg.id,
+                text: vectorText,
+                type: hasFiles ? 'FILE' : 'MESSAGE',
+                metadata: { 
+                    threadId: thread.value?.id,
+                    senderName: msg.sender?.name,
+                    senderAvatar: msg.sender?.avatarUrl,
+                    createdAt: msg.createdAt
+                }
+            });
+        }
     });
 
     socket.value.on('delete-message', (msgId: string) => {
@@ -792,6 +852,29 @@ const sendMessage = async () => {
             });
         });
 
+        // Trigger vector generation in background
+        if (confirmedMessage && confirmedMessage.id) {
+            const hasFiles = Array.isArray(selectedFiles.value) && selectedFiles.value.length > 0;
+            let vectorText = newMessage.value;
+            if (hasFiles) {
+                const fileNames = selectedFiles.value.map(f => f.name).join(' ');
+                vectorText = newMessage.value.trim() === '' ? fileNames : `${newMessage.value}\n${fileNames}`;
+                if (!vectorText.trim()) vectorText = 'Fichier joint';
+            }
+
+            globalVectorWorker.postMessage({
+                id: confirmedMessage.id,
+                text: vectorText,
+                type: hasFiles ? 'FILE' : 'MESSAGE',
+                metadata: { 
+                    threadId: thread.value?.id,
+                    senderName: user.value?.name,
+                    senderAvatar: user.value?.avatarUrl,
+                    createdAt: new Date().toISOString()
+                }
+            });
+        }
+
         lastMessageId.value = confirmedMessage.id;
 
         setMessageWillBeResponded(null);
@@ -875,6 +958,7 @@ onMounted(async () => {
     initListener();
     window.addEventListener('paste', handlePaste);
     document.addEventListener('click', closeEmojiPickerOnOutsideClick);
+    globalVectorWorker.addEventListener('message', handleWorkerMessage);
 
     if (route.params.threadId) 
     {
@@ -897,6 +981,7 @@ onUnmounted(() => {
     }
     window.removeEventListener('paste', handlePaste);
     document.removeEventListener('click', closeEmojiPickerOnOutsideClick);
+    globalVectorWorker.removeEventListener('message', handleWorkerMessage);
 });
 
 </script>
