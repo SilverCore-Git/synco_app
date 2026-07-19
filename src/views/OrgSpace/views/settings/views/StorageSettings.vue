@@ -5,47 +5,41 @@
             
             <div class="max-w-5xl mx-auto space-y-12">
                 
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-
-                    <div>
-                        <h1 class="text-2xl font-bold text-(--text) flex items-center gap-3">
-                            <i class="bi bi-hdd-network text-(--primary)" />
-                            Stockage & Utilisation
-                        </h1>
-                        <p class="text-(--text)/60 text-sm mt-1">
-                            Consultez l'espace de stockage consommé par votre organisation et gérez les fichiers.
-                        </p>
-                    </div>
-                    
-                    <div class="w-full md:w-64">
-                        <CapacityGauge 
-                            :used="Number(openedOrg?.stats?.totalStorageUsed || 0)"
-                            :max="Number(openedOrg?.maxStorage || 0)"
-                            unit=""
-                            icon="bi-hdd-network"
-                            title="Stockage total"
-                            :isBytes="true"
-                        />
-                    </div>
-
+                <div class="mb-6">
+                    <h3 class="text-xl font-black text-(--text) mb-1">Stockage & Utilisation</h3>
+                    <p class="text-sm text-(--text)/60">Consultez l'espace de stockage consommé par votre organisation et gérez les fichiers.</p>
                 </div>
 
-                <section class="grid grid-cols-1 gap-6">
-                    <div class="p-6 rounded-2xl bg-(--bg2) border border-(--text)/10 flex flex-col space-y-4">
-                        <h3 class="text-lg font-bold text-(--text) flex items-center gap-2">
-                            <i class="bi bi-folder-fill text-(--primary)"></i>
-                            Détails par Espace de travail
-                        </h3>
-                        <div v-if="openedOrg?.spaces?.length" class="space-y-2 mt-4 max-h-64 overflow-y-auto pr-2">
-                            <div v-for="space in openedOrg?.spaces" :key="space.id" class="flex justify-between items-center text-sm p-3 bg-(--bg3) border border-(--text)/5 rounded-xl hover:bg-white/5 transition-colors">
-                                <span class="flex items-center gap-2 font-medium"><i class="bi bi-folder text-(--primary)"></i> {{ space.name }}</span>
-                                <span class="font-mono text-(--text)/60 text-xs">{{ formatBytes(Number(space.stats?.storageUsed || 0)) }}</span>
+                <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    <div class="space-y-4">
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">Détails par Espace de travail</label>
+                            <div v-if="openedOrg?.spaces?.length" class="space-y-2 max-h-64 overflow-y-auto pr-2 border border-white/5 bg-(--bg2) p-4 rounded-xl shadow-inner">
+                                <div v-for="space in openedOrg?.spaces" :key="space.id" class="flex justify-between items-center text-sm p-3 bg-(--bg3) border border-white/5 rounded-lg hover:bg-white/5 transition-colors">
+                                    <span class="flex items-center gap-2 font-medium"><i class="bi bi-folder text-(--primary)"></i> {{ space.name }}</span>
+                                    <span class="font-mono text-(--text)/60 text-xs">{{ formatBytes(Number(space.stats?.storageUsed || 0)) }}</span>
+                                </div>
+                            </div>
+                            <div v-else class="text-sm text-(--text)/40 italic mt-2 p-4 bg-(--bg2) rounded-xl border border-white/5 shadow-inner">
+                                Aucun espace de travail.
                             </div>
                         </div>
-                        <div v-else class="text-sm text-(--text)/40 italic mt-4">
-                            Aucun espace de travail.
+                    </div>
+
+                    <div class="flex items-center md:justify-end">
+                        <div class="w-full md:w-64">
+                            <CapacityGauge 
+                                :used="Number(openedOrg?.stats?.totalStorageUsed || 0)"
+                                :max="Number(openedOrg?.maxStorage || 0)"
+                                unit=""
+                                icon="bi-hdd-network"
+                                title="Stockage total"
+                                :isBytes="true"
+                            />
                         </div>
                     </div>
+
                 </section>
 
                 <section class="bg-(--bg2) rounded-3xl border border-(--text)/10 overflow-hidden flex flex-col">

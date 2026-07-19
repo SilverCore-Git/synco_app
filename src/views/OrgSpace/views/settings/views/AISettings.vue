@@ -6,22 +6,22 @@
 
             <div class="max-w-3xl mx-auto space-y-12">
 
-                <section class="space-y-6">
-
-                    <div class="flex flex-col gap-1">
-                        <h3 class="text-lg font-bold">Configuration de l'IA</h3>
-                        <p class="text-sm text-(--text)/40">Paramétrez le fournisseur de l'intelligence artificielle pour votre organisation. Ce paramétrage sera utilisé par tous les membres.</p>
+                <section>
+                    
+                    <div class="mb-6">
+                        <h3 class="text-xl font-black text-(--text) mb-1">Configuration de l'IA</h3>
+                        <p class="text-sm text-(--text)/60">Paramétrez le fournisseur de l'intelligence artificielle pour votre organisation. Ce paramétrage sera utilisé par tous les membres.</p>
                     </div>
 
                     <div class="space-y-8">
 
                         <div class="space-y-4">
-                            <label class="text-sm font-bold text-(--text)">Fournisseur IA</label>
+                            <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">Fournisseur IA</label>
                             
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <label v-for="prov in providers" :key="prov.id" 
-                                    class="relative flex items-center p-4 border rounded-2xl cursor-pointer transition-all hover:bg-white/5"
-                                    :class="orgData.provider === prov.id ? 'border-(--primary) bg-(--primary)/5' : 'border-white/10'">
+                                    class="relative flex items-center p-4 border rounded-xl cursor-pointer transition-all hover:bg-white/5"
+                                    :class="orgData.provider === prov.id ? 'border-(--primary) bg-(--primary)/5' : 'border-white/5 bg-(--bg2)'">
                                     
                                     <input type="radio" :value="prov.id" v-model="orgData.provider" name="provider" class="sr-only">
                                     <div class="flex flex-col gap-1 w-full">
@@ -37,45 +37,57 @@
                         </div>
 
                         <!-- Options Spécifiques -->
-                        <div v-if="orgData.provider !== 'local'" class="space-y-6 animate-fade-in p-6 bg-black/20 border border-white/5 rounded-2xl">
+                        <div v-if="orgData.provider !== 'local'" class="space-y-6 animate-fade-in p-6 bg-(--bg2) border border-white/5 rounded-xl shadow-inner">
                             
                             <!-- Clé API -->
-                            <div class="space-y-2">
-                                <label class="text-xs font-bold text-(--text)/40 uppercase ml-1">Clé API ({{ orgData.provider }})</label>
+                            <div class="space-y-1.5">
+                                <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">Clé API ({{ orgData.provider }})</label>
                                 <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
+                                        <i class="bi bi-key-fill"></i>
+                                    </div>
                                     <input 
                                         v-model="orgData.apiKey"
                                         :type="showApiKey ? 'text' : 'password'"
-                                        class="w-full bg-white/5 border border-white/10 px-4 py-3 pr-12 text-sm focus:outline-none rounded-xl focus:border-(--primary)/50 transition-all font-mono placeholder:text-(--text)/30"
+                                        class="w-full bg-(--bg) border border-white/5 px-4 py-3 pl-11 pr-12 text-sm focus:outline-none rounded-xl focus:border-(--primary) transition-all font-mono placeholder:text-(--text)/30 shadow-inner"
                                         :placeholder="orgData.hasApiKey ? '•••••••••••••••• (Clé configurée, tapez pour remplacer)' : 'sk-...'"
                                     />
                                     <button @click="showApiKey = !showApiKey" class="absolute right-4 top-1/2 -translate-y-1/2 text-(--text)/40 hover:text-(--text)">
                                         <i class="bi" :class="showApiKey ? 'bi-eye-slash' : 'bi-eye'"></i>
                                     </button>
                                 </div>
-
                             </div>
 
                             <!-- Endpoint URL (Custom only) -->
-                            <div class="space-y-2" v-if="orgData.provider === 'custom'">
-                                <label class="text-xs font-bold text-(--text)/40 uppercase ml-1">URL de l'Endpoint (Compatible OpenAI)</label>
-                                <input 
-                                    v-model="orgData.endpointUrl"
-                                    type="text"
-                                    class="w-full bg-white/5 border border-white/10 px-4 py-3 text-sm focus:outline-none rounded-xl focus:border-(--primary)/50 transition-all"
-                                    placeholder="https://mon-serveur.local:11434/v1"
-                                />
+                            <div class="space-y-1.5" v-if="orgData.provider === 'custom'">
+                                <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">URL de l'Endpoint</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
+                                        <i class="bi bi-link-45deg"></i>
+                                    </div>
+                                    <input 
+                                        v-model="orgData.endpointUrl"
+                                        type="text"
+                                        class="w-full bg-(--bg) border border-white/5 px-4 py-3 pl-11 text-sm focus:outline-none rounded-xl focus:border-(--primary) transition-all shadow-inner"
+                                        placeholder="https://mon-serveur.local:11434/v1"
+                                    />
+                                </div>
                             </div>
 
                             <!-- Model ID -->
-                            <div class="space-y-2">
-                                <label class="text-xs font-bold text-(--text)/40 uppercase ml-1">Modèle à utiliser</label>
-                                <input 
-                                    v-model="orgData.modelId"
-                                    type="text"
-                                    class="w-full bg-white/5 border border-white/10 px-4 py-3 text-sm focus:outline-none rounded-xl focus:border-(--primary)/50 transition-all font-mono"
-                                    :placeholder="defaultModelPlaceholder"
-                                />
+                            <div class="space-y-1.5">
+                                <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">Modèle à utiliser</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
+                                        <i class="bi bi-robot"></i>
+                                    </div>
+                                    <input 
+                                        v-model="orgData.modelId"
+                                        type="text"
+                                        class="w-full bg-(--bg) border border-white/5 px-4 py-3 pl-11 text-sm focus:outline-none rounded-xl focus:border-(--primary) transition-all font-mono shadow-inner"
+                                        :placeholder="defaultModelPlaceholder"
+                                    />
+                                </div>
                                 <div class="flex gap-2 mt-2 flex-wrap" v-if="recommendedModels.length > 0">
                                     <button 
                                         v-for="model in recommendedModels" 

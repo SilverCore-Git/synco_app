@@ -1,16 +1,13 @@
 <template>
 
-    <div class="space-y-6 p-6 max-w-6xl mx-auto">
+    <div class="space-y-6 p-6 lg:p-10 max-w-5xl mx-auto">
         
-        <!-- Header -->
-        <div class="flex justify-between items-center">
-            <div>
-                <h1 class="text-2xl font-bold text-(--text)">Webhooks</h1>
-                <p class="text-sm text-(--text)/60 mt-1">
-                    Configurez des webhooks pour recevoir des notifications automatiques depuis des services externes.
-                </p>
-            </div>
-            
+        <div class="mb-6">
+            <h3 class="text-xl font-black text-(--text) mb-1">Webhooks</h3>
+            <p class="text-sm text-(--text)/60">Configurez des webhooks pour recevoir des notifications automatiques depuis des services externes.</p>
+        </div>
+
+        <div class="mb-8">
             <button 
                 @click="showCreateModal = true"
                 class="primary gap-2 flex items-center"

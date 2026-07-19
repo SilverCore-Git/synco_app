@@ -5,59 +5,50 @@
             
             <div class="max-w-5xl mx-auto space-y-12">
                 
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-
-                    <div>
-                        <h1 class="text-2xl font-bold text-(--text) flex items-center gap-3">
-                            <i class="bi bi-people-fill text-(--primary)" />
-                            Gestion de l'équipe
-                        </h1>
-                        <p class="text-(--text)/60 text-sm mt-1">
-                            Gérez les membres, les rôles et les invitations de votre organisation.
-                        </p>
-                    </div>
-                    
-                    <div class="w-full md:w-64">
-                        <CapacityGauge 
-                            :used="openedOrg?.members?.length || 0"
-                            :max="openedOrg?.maxUsers || 100"
-                            unit="Membres"
-                            icon="bi-person-badge"
-                            title="Capacité du serveur"
-                        />
-                    </div>
-
+                <div class="mb-6">
+                    <h3 class="text-xl font-black text-(--text) mb-1">Gestion de l'équipe</h3>
+                    <p class="text-sm text-(--text)/60">Gérez les membres, les rôles et les invitations de votre organisation.</p>
                 </div>
 
-                <section class="grid grid-cols-1 gap-6">
+                <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                    <div class="p-6 rounded-2xl bg-(--bg2) border border-(--text)/10 flex flex-col justify-between space-y-6 relative overflow-hidden group">
-                      
-                        <div class="absolute -right-10 -top-10 w-32 h-32 bg-(--primary)/5 rounded-full blur-3xl group-hover:bg-(--primary)/10 transition-colors pointer-events-none" />
-                        
-                        <div class="flex items-start flex-col relative z-10">
-                            <div class="w-10 h-10 rounded-xl bg-(--primary-dark)/50 text-(--primary) flex items-center justify-center mb-4 border border-(--primary)/20">
-                                <i class="bi bi-link-45deg text-xl" />
+                    <div class="space-y-4">
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">Lien d'invitation</label>
+                            <div class="relative flex gap-2">
+                                <div class="relative flex-1">
+                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
+                                        <i class="bi bi-link-45deg"></i>
+                                    </div>
+                                    <input 
+                                        readonly
+                                        type="text"
+                                        :value="inviteLink || 'Cliquez pour générer un lien'"
+                                        class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner font-mono"
+                                    />
+                                </div>
+                                <button 
+                                    @click="inviteLink.length === 0 ? createInviteLink() : copyInvite()" 
+                                    class="bg-(--primary) hover:bg-(--primary-hover) text-white rounded-xl px-4 py-3 text-sm font-medium transition-all flex items-center gap-2"
+                                >
+                                    <i class="bi" :class="inviteLink.length === 0 ? 'bi-stars' : copied ? 'bi-check-lg' : 'bi-copy'" />
+                                    {{ inviteLink.length === 0 ? 'Générer' : copied ? 'Copié' : 'Copier' }}
+                                </button>
                             </div>
-                            <h3 class="text-lg font-bold text-(--text)">Lien d'invitation</h3>
-                            <p class="text-sm text-(--text)/60 mt-1">
-                                Partagez ce lien unique pour permettre à d'autres de rejoindre l'organisation instantanément.
-                            </p>
+                            <p class="text-xs text-(--text)/40">Partagez ce lien unique pour permettre à d'autres de rejoindre l'organisation instantanément.</p>
                         </div>
+                    </div>
 
-                        <div class="flex gap-2 relative z-10">
-                            <div class="flex-1 bg-(--bg3) border border-(--text)/10 rounded-xl px-4 py-3 text-sm text-(--text)/80 font-mono truncate flex items-center select-all">
-                                {{ inviteLink || 'Cliquez pour générer un lien' }}
-                            </div>
-                            <button 
-                                @click="inviteLink.length === 0 ? createInviteLink() : copyInvite()" 
-                                class="bg-(--primary) hover:bg-(--primary-hover) text-white rounded-xl px-4 py-2 text-sm font-medium transition-all flex items-center gap-2"
-                            >
-                                <i class="bi" :class="inviteLink.length === 0 ? 'bi-stars' : copied ? 'bi-check-lg' : 'bi-copy'" />
-                                {{ inviteLink.length === 0 ? 'Générer' : copied ? 'Copié' : 'Copier' }}
-                            </button>
+                    <div class="flex items-center md:justify-end">
+                        <div class="w-full md:w-64">
+                            <CapacityGauge 
+                                :used="openedOrg?.members?.length || 0"
+                                :max="openedOrg?.maxUsers || 100"
+                                unit="Membres"
+                                icon="bi-person-badge"
+                                title="Capacité du serveur"
+                            />
                         </div>
-
                     </div>
 
                 </section>
