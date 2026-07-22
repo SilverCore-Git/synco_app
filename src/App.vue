@@ -8,7 +8,7 @@ import type { User } from '@/types/types';
 import Notifications from './components/overlay/Notifications.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
 import useSettingsItem from './composables/useSettingsItem';
-import keycloak, { initKC } from './assets/keycloak';
+import keycloak from './assets/keycloak';
 import { E2EEUnloked, lockSecurity, setupFirstTimeSecurity, unlockSecurity } from './assets/utils/crypto';
 import sfetch from './assets/utils/sfetch';
 import { useToast } from './composables/useToast';
@@ -18,6 +18,8 @@ import CallOverlay from './components/peer/CallOverlay.vue';
 import waitFor from './assets/utils/waitfor';
 import Popup from './components/Popup.vue';
 import { isProfileOpen, profileUser, closeProfile } from './composables/useProfile';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp, type URLOpenListenerEvent } from '@capacitor/app';
 
 const toast = useToast();
 const { Item: theme } = useSettingsItem('theme', 'dark');
@@ -156,29 +158,69 @@ const handleInput = (e: KeyboardEvent) => {
 
 onMounted(async () => {
 
+  // Écouteur Deep Link (strictement identique à ton code d'origine)
+  CapApp.addListener('appUrlOpen', async (data: URLOpenListenerEvent) => {
+    console.log('[DeepLink] Reçu :', data.url);
+
+    if (data.url.includes('code=')) {
+      try {
+        const urlObj = new URL(data.url);
+        window.location.search = urlObj.search;
+        window.location.hash = urlObj.hash;
+      } catch (err) {
+        console.error('[Keycloak] Erreur Deep Link:', err);
+      }
+    }
+  });
+
   const res = await fetch(`${import.meta.env.VITE_API_URL}/health`, {
     credentials: 'include'
   });
 
   if (!res.ok) return alert('Api error');
 
-  authenticated.value = await keycloak.init({
-      onLoad: "login-required",
-      checkLoginIframe: false
-  });
+  const redirectUri = Capacitor.isNativePlatform()
+    ? 'fr.silvercore.synco://callback'
+    : window.location.origin;
 
-  await initKC();
+  // 1. Lecture simple du localStorage
+  const savedToken = localStorage.getItem('kc_token');
+  const savedRefreshToken = localStorage.getItem('kc_refreshToken');
 
+  // 2. Un seul init Keycloak (identique au tien, avec injection des tokens si présent)
+  try {
+    authenticated.value = await keycloak.init({
+      onLoad: 'login-required',
+      checkLoginIframe: false,
+      redirectUri: redirectUri,
+      responseMode: 'query',
+      token: savedToken || undefined,
+      refreshToken: savedRefreshToken || undefined
+    });
+  } catch (err) {
+    // Si les anciens tokens sont invalides/expirés, on purge et on relance le login
+    localStorage.removeItem('kc_token');
+    localStorage.removeItem('kc_refreshToken');
+    await keycloak.login({ redirectUri });
+    return;
+  }
+
+  // 3. Si connecté, on enregistre les tokens
   if (authenticated.value) {
-      await init.run();
-      // Initialize P2P peer connection after user is loaded
-      await waitFor(() => user.value !== null);
-      await initPeer();
+    if (keycloak.token) localStorage.setItem('kc_token', keycloak.token);
+    if (keycloak.refreshToken) localStorage.setItem('kc_refreshToken', keycloak.refreshToken);
+
+    const userInfo: any = await keycloak.loadUserInfo();
+    localStorage.setItem('userId', userInfo.sub);
+
+    await init.run();
+    await waitFor(() => user.value !== null);
+    await initPeer();
   }
 
   window.addEventListener('keydown', handleInput);
 
-})
+});
 
 onUnmounted(() => {
   lockSecurity(); 

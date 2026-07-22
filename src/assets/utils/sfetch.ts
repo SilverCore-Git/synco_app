@@ -1,4 +1,5 @@
 import keycloak from "../keycloak";
+import { Capacitor } from "@capacitor/core";
 
 export default async function sfetch(url: string, arg?: any) {
     
@@ -9,7 +10,13 @@ export default async function sfetch(url: string, arg?: any) {
             await keycloak.updateToken(30);
         } catch (error) {
             console.error('[sfetch] Failed to refresh token:', error);
-            keycloak.login();
+            const redirectUri = Capacitor.isNativePlatform() 
+              ? 'fr.silvercore.synco://callback' 
+              : window.location.origin;
+
+            keycloak.login({
+              redirectUri: redirectUri
+            });
         }
     }
 

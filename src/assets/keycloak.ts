@@ -1,5 +1,6 @@
 import Keycloak from "keycloak-js";
 import { kcToken } from "./var";
+import { Capacitor } from "@capacitor/core";
 
 const keycloak = new Keycloak({
   url: (import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080/auth'),
@@ -50,31 +51,29 @@ const onTokenRefresh = (callback: () => void) => {
 };
 
 const initKC = async () => {
-
   try {
+    const redirectUri = Capacitor.isNativePlatform()
+      ? 'fr.silvercore.synco://callback'
+      : window.location.origin;
 
     const authenticated = await keycloak.init({
       onLoad: 'check-sso',
       silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
       pkceMethod: 'S256',
       checkLoginIframe: false,
+      redirectUri: redirectUri
     });
 
-    if (authenticated) 
-    {
-      
+    if (authenticated) {
       const userInfo: any = await keycloak.loadUserInfo();
       window.localStorage.setItem('userId', userInfo.sub);
       kcToken.value = keycloak.token || '';
 
       setupTokenRefresh();
-
     }
-
   } catch (error) {
     console.error("[Keycloak] Erreur d'initialisation Keycloak", error);
   }
-
 };
 
 export { initKC, setupTokenRefresh, onTokenRefresh };
