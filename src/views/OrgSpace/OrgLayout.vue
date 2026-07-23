@@ -188,7 +188,10 @@ const initSocketListener = async () => {
     } 
 
     const me = openedOrg.value?.members?.find(member => member.user?.id == keycloak.userInfo?.sub);
-    if (me && me.user && me.user.data) me.user.data.status = 'online';
+    if (me && me.user && me.user.data) {
+        me.user.data.status = 'online';
+        socket.value?.emit('update-status', { orgId: props.orgId, status: 'online' });
+    }
     
 
     socket.value?.on('member:new', ({ member }: { member: OrgMember }) => {
