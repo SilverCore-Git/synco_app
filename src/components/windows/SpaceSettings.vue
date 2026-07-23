@@ -225,7 +225,7 @@ import MembersManager from '../settings/MembersManager.vue';
 import { openedOrg, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
-import { encryptThreadKeyForMember, generateThreadKey } from '@/assets/utils/crypto';
+import { encryptThreadKeyForMember, decryptThreadKeyWithRsa, privateKey } from '@/assets/utils/crypto';
 import ConfirmDelete from '../common/ConfirmDelete.vue';
 import { useWebhooks } from '@/composables/useWebhooks';
 import type { Webhook } from '@/types/webhooks';
@@ -366,41 +366,46 @@ const addMember = async (member: OrgMember) => {
 
     props.space.membersId.push(member.userId);
 
-    let encryptedKeysPayload: Array<{ userId: string; encryptedKey: string }> = [];
+    let threadKeysPayload: Array<{ threadId: string, keys: Array<{ userId: string; encryptedKey: string }> }> = [];
 
     try {
-                
-        const space = openedOrg.value?.spaces?.find(s => s.id === props.space.id);
-                
-        const members = openedOrg.value?.members?.filter(m => space?.membersId.includes(m.userId)).map(m => m!.user!) || [];
+        if (!privateKey.value) throw new Error("Clé privée introuvable. Veuillez déverrouiller votre espace sécurisé.");
 
-        const newThreadKey = await generateThreadKey();
+        const resKeys = await sfetch(`/api/spaces/${props.space.id}/keys`);
+        if (!resKeys.ok) throw new Error("Impossible de récupérer les clés des salons existants.");
+        const myKeys = await resKeys.json();
 
-        for (const member of members) 
+        for (const myKey of myKeys) 
         {
-                    
-            if (member.publicKey && typeof member.publicKey === 'string' && member.publicKey.trim().startsWith('{')) 
+            const rawThreadKey = await decryptThreadKeyWithRsa(myKey.encryptedKey, privateKey.value!);
+            
+            if (member.user?.publicKey && typeof member.user.publicKey === 'string' && member.user.publicKey.trim().startsWith('{')) 
             {
-                const encryptedKey = await encryptThreadKeyForMember(newThreadKey, member.publicKey);
-                encryptedKeysPayload.push({
-                    userId: member.id,
-                    encryptedKey: encryptedKey
+                const encryptedKeyForNew = await encryptThreadKeyForMember(rawThreadKey, member.user.publicKey);
+                threadKeysPayload.push({
+                    threadId: myKey.threadId,
+                    keys: [{
+                        userId: member.userId,
+                        encryptedKey: encryptedKeyForNew
+                    }]
                 });
             }
-            else if (member.publicKey) 
+            else if (member.user?.publicKey) 
             {
-                console.warn(`[E2EE] Clé ignorée pour l'utilisateur ${member.id} (Format non-JWK ou pollué par Keycloak).`);
+                console.warn(`[E2EE] Clé ignorée pour l'utilisateur ${member.userId} (Format non-JWK ou pollué par Keycloak).`);
             }
         }
 
-        if (encryptedKeysPayload.length === 0) 
+        if (threadKeysPayload.length === 0 && myKeys.length > 0) 
         {
-            throw new Error("Aucun membre du salon ne possède de clé de chiffrement E2EE valide.");
+            console.warn("Le nouveau membre n'a pas pu recevoir les clés E2EE.");
         }
 
     } catch (cryptoErr: any) {
         console.error('[E2EE] Erreur lors de la préparation des clés :', cryptoErr);
         toast.show(`Échec de la sécurité : ${cryptoErr.message || "Clés invalides."}`, 'error');
+        // On retire le membre car l'opération a échoué sécuritairement
+        props.space.membersId.pop();
         return;
     }
 
@@ -408,7 +413,7 @@ const addMember = async (member: OrgMember) => {
         method: 'PATCH',
         body: JSON.stringify({ 
             membersId: props.space.membersId, 
-            keys: encryptedKeysPayload
+            keys: threadKeysPayload
         }),
     });
 

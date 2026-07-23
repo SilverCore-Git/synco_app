@@ -629,7 +629,13 @@ const initListener = () => {
 
     if (!socket.value) return;
 
-    socket.value.off("thread-history").off("more-messages").off("new-message");
+    socket.value.off("thread-history").off("more-messages").off("new-message").off("keys-distributed");
+
+    socket.value.on("keys-distributed", async ({ threadId }: { threadId: string }) => {
+        if (threadId === thread.value?.id) {
+            joinThread(threadId);
+        }
+    });
 
     socket.value.on("thread-history", async (history: Message[]) => {
         rawMessages.value.clear();
@@ -781,15 +787,25 @@ const joinThread = async (id: string) => {
         {
             // Special case: user needs to be re-added to thread (after E2EE reset)
             if (response.error && response.needsReadd) {
-                debugMsg.value = 'Erreur : Accès réinitialisé. ' + response.error;
-                loading.value = false;
-                router.push({ 
-                    name: 'OrgHome', 
-                    params: { orgId: route.params.orgId }, 
-                    query: { noRedirect: 'true' } 
-                });
-                toast.show(response.error, 'warning', 10000);
-                return;
+                if (user.value?.publicKey) {
+                    socket.value.emit("request-thread-keys", {
+                        threadId: id,
+                        publicKey: user.value.publicKey
+                    });
+                    debugMsg.value = 'Récupération de la clé E2EE en cours... (en attente des autres membres)';
+                    loading.value = true;
+                    return;
+                } else {
+                    debugMsg.value = 'Erreur : Clé publique introuvable. ' + response.error;
+                    loading.value = false;
+                    router.push({ 
+                        name: 'OrgHome', 
+                        params: { orgId: route.params.orgId }, 
+                        query: { noRedirect: 'true' } 
+                    });
+                    toast.show(response.error, 'warning', 10000);
+                    return;
+                }
             }
             
             debugMsg.value = 'Erreur serveur : ' + (response.error || 'Clé non retournée');
