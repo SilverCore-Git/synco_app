@@ -12,7 +12,7 @@
                 class="
                     flex flex-col gap-2 p-2 bg-(--bg) rounded-xl 
                     border border-white/5 shadow-2xl
-                    animate-in fade-in slide-in-from-bottom-2 duration-300
+                    animate-in fade-in slide-in-from-bottom-2 duration-300 
                 "
             >
 
@@ -87,7 +87,7 @@
 
                 <template #trigger>
 
-                    <div class="flex items-center w-full gap-2 p-2 rounded-lg hover:bg-(--primary)/5 transition-colors group">
+                    <div class="flex items-center w-full gap-2 p-2 rounded-lg transition-colors group ">
                        
                         <div
                             v-if="openedOrg == null"
@@ -129,8 +129,8 @@
 
                         <div class="flex items-center gap-0.5">
 
-                            <button @click.stop="showUserSettings = !showUserSettings" class="p-1.5 rounded-md hover:bg-(--primary)/10 active:scale-90 text-(--text)/40 hover:text-(--text) transition-all group/settings">
-                                <i class="bi bi-gear-fill text-sm group-hover/settings:rotate-45 transition-transform duration-300" />
+                            <button @click.stop="showUserSettings = !showUserSettings" class="p-1.5 rounded-md active:scale-90 transition-all group/settings text-(--white) hover:text-(--primary) hover:rotate-45">
+                                <i class="bi bi-gear-fill text-md group-hover/settings:rotate-45 transition-transform duration-300" />
                             </button>
 
                         </div>

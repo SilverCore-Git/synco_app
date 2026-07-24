@@ -80,9 +80,9 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
     <DropDown 
         align="top" 
         content-iner-t-w="
-            z-100 sdropdown min-w-[290px] shadow-none! bottom-14!
-            ring-transparent! border-b-transparent! rounded-b-none! 
+            z-100 sdropdown min-w-[290px] shadow-none! bottom-17! w-75 
         "
+        style="left: -5px !important"
     >
         
         <template #trigger>
@@ -180,8 +180,8 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
 
             <div class="h-px bg-white/5 my-1" />
 
-            <div class="p-1">
-                <button @click="keycloak.logout()" class="text-red-500! hover:bg-red-500/5! dropdown-item-style dropdown-item-annimate">
+            <div class="p-1 pb-8">
+                <button @click="keycloak.logout()" class="text-red-500! hover:bg-red-500! hover:text-(--white)! dropdown-item-style dropdown-item-annimate">
                     <i class="bi bi-box-arrow-right mr-2" /> Déconnexion
                 </button>
             </div>

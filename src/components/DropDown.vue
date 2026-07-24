@@ -25,7 +25,7 @@
                     v-if="isOpen || show"
                     ref="dropdownContentRef"
                     class="
-                        fixed z-[1000] mt-2 w-56 rounded-xl border border-(--text)/10
+                        fixed z-[1000] mt-2 w-56 rounded-xl border border-white/5
                         bg-(--bg) shadow-xl ring-1 ring-white/5 focus:outline-none
                     "
                     :class="props.contentInerTW || ''"
