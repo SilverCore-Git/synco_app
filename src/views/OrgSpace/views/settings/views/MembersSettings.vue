@@ -27,9 +27,21 @@
                                         class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner font-mono"
                                     />
                                 </div>
+                                <div class="relative w-24 hidden sm:block" v-if="inviteLink.length === 0">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-(--text)/40" title="Nombre d'utilisations (0 = infini)">
+                                        <i class="bi bi-people"></i>
+                                    </div>
+                                    <input 
+                                        type="number"
+                                        v-model.number="inviteMaxUses"
+                                        min="0"
+                                        class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-9 pr-3 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner"
+                                        title="Nombre d'utilisations (0 = infini)"
+                                    />
+                                </div>
                                 <button 
                                     @click="inviteLink.length === 0 ? createInviteLink() : copyInvite()" 
-                                    class="bg-(--primary) hover:bg-(--primary-hover) text-white rounded-xl px-4 py-3 text-sm font-medium transition-all flex items-center gap-2"
+                                    class="bg-(--primary) hover:bg-(--primary-hover) text-white rounded-xl px-4 py-3 text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap"
                                 >
                                     <i class="bi" :class="inviteLink.length === 0 ? 'bi-stars' : copied ? 'bi-check-lg' : 'bi-copy'" />
                                     {{ inviteLink.length === 0 ? 'Générer' : copied ? 'Copié' : 'Copier' }}
@@ -76,83 +88,72 @@
 
                     </div>
 
-                    <div class="overflow-x-auto">
-
-                        <table class="w-full text-left border-collapse">
-
-                            <thead>
-                                <tr class="text-[10px] uppercase tracking-widest text-(--text)/50 bg-(--bg3)/50 border-b border-(--text)/5">
-                                    <th class="px-6 py-4 font-bold">Utilisateur</th>
-                                    <th class="px-6 py-4 font-bold">Rôle</th>
-                                    <th class="px-6 py-4 font-bold">Date d'arrivée</th>
-                                    <th class="px-6 py-4 font-bold text-right">Actions</th>
-                                </tr>
-                            </thead>
-
-                            <tbody class="divide-y divide-(--text)/5">
-                                <tr 
-                                    v-for="member in filteredMembers" 
-                                    :key="member.id" 
-                                    class="group hover:bg-(--bg3)/50 transition-colors"
-                                >
-                                    <td class="px-6 py-4">
-                                        <div class="flex items-center gap-3">
-                                            <div class="relative">
-                                                <img 
-                                                    :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=062d1f&color=16ac77`" 
-                                                    class="w-10 h-10 rounded-full object-cover bg-(--bg3) border border-(--text)/10" 
-                                                />
-                                                <div v-if="isSelf(member.user?.id!)" class="absolute -bottom-1 -right-1 bg-(--primary) w-3.5 h-3.5 rounded-full border-2 border-(--bg2)" title="Vous" />
-                                            </div>
-                                            <div class="flex flex-col">
-                                                <span class="text-sm font-bold text-(--text) group-hover:text-(--primary) transition-colors">
-                                                    {{ member.user?.name || 'Utilisateur inconnu' }}
-                                                </span>
-                                                <span class="text-[11px] text-(--text)/50">{{ member.user?.email }}</span>
-                                            </div>
-                                        </div>
-                                    </td>
-
-                                    <td class="px-6 py-4">
-                                        <select 
-                                            :value="member?.role || 'unknow'"
-                                            @change="updateRole(member.id, $event)"
-                                            :disabled="isSelf(member.user?.id!) || !isAdmin"
-                                            class="bg-(--bg3) border border-(--text)/10 rounded-lg px-3 py-1.5 text-xs text-(--text) focus:outline-none focus:border-(--primary)/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                                        >
-                                            <option value="OWNER">Propriétaire</option>
-                                            <option value="ADMIN">Administrateur</option>
-                                            <option value="MEMBER">Membre</option>
-                                            <option value="GUEST">Invité</option>
-                                        </select>
-                                    </td>
-
-                                    <td class="px-6 py-4 text-xs text-(--text)/50">
-                                        {{ new Date(member.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) }}
-                                    </td>
-
-                                    <td class="px-6 py-4 text-right">
-                                        <button 
-                                            v-if="!isSelf(member.user?.id!) && isAdmin"
-                                            @click="confirmKickMember(member.id, member.user?.name || 'ce membre')"
-                                            class="p-2 rounded-lg text-red-400 hover:bg-red-500/10 hover:text-red-500 transition-colors"
-                                            title="Exclure le membre"
-                                        >
-                                            <i class="bi bi-person-x text-lg" />
-                                        </button>
-                                        <span v-else class="text-[10px] text-(--text)/30 uppercase tracking-widest px-2">
-                                            -
+                    <div class="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        
+                        <div 
+                            v-for="member in filteredMembers" 
+                            :key="member.id" 
+                            class="bg-(--bg3) border border-(--text)/5 hover:border-(--primary)/50 rounded-2xl p-5 flex flex-col gap-4 transition-all group relative"
+                        >
+                            
+                            <!-- Header: Avatar & Info -->
+                            <div class="flex items-start justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="relative shrink-0">
+                                        <img 
+                                            :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=062d1f&color=16ac77`" 
+                                            class="w-12 h-12 rounded-full object-cover bg-(--bg2) border border-(--text)/10" 
+                                        />
+                                        <div v-if="isSelf(member.user?.id!)" class="absolute -bottom-1 -right-1 bg-(--primary) w-3.5 h-3.5 rounded-full border-2 border-(--bg3)" title="Vous" />
+                                    </div>
+                                    <div class="flex flex-col overflow-hidden">
+                                        <span class="text-sm font-bold text-(--text) group-hover:text-(--primary) transition-colors truncate">
+                                            {{ member.user?.name || 'Utilisateur inconnu' }}
                                         </span>
-                                    </td>
-                                </tr>
-                                <tr v-if="filteredMembers.length === 0">
-                                    <td colspan="4" class="px-6 py-12 text-center text-(--text)/40 text-sm">
-                                        Aucun membre ne correspond à votre recherche.
-                                    </td>
-                                </tr>
-                            </tbody>
+                                        <span class="text-xs text-(--text)/50 truncate">{{ member.user?.email }}</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Actions -->
+                                <button 
+                                    v-if="!isSelf(member.user?.id!) && isAdmin"
+                                    @click="confirmKickMember(member.id, member.user?.name || 'ce membre')"
+                                    class="p-2 -mr-2 -mt-2 rounded-lg text-red-400 hover:bg-red-500/10 hover:text-red-500 transition-colors shrink-0"
+                                    title="Exclure le membre"
+                                >
+                                    <i class="bi bi-person-x text-lg" />
+                                </button>
+                            </div>
 
-                        </table>
+                            <div class="w-full h-px bg-(--text)/5"></div>
+
+                            <!-- Footer: Role & Date -->
+                            <div class="flex items-center justify-between mt-auto">
+                                <div class="flex flex-col gap-1">
+                                    <span class="text-[10px] uppercase tracking-widest text-(--text)/40 font-bold">Rôle</span>
+                                    <select 
+                                        :value="member?.role || 'unknow'"
+                                        @change="updateRole(member.id, $event)"
+                                        :disabled="isSelf(member.user?.id!) || !isAdmin"
+                                        class="bg-(--bg2) border border-(--text)/10 rounded-lg px-2 py-1 text-xs text-(--text) focus:outline-none focus:border-(--primary)/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all -ml-1 w-max"
+                                    >
+                                        <option value="OWNER">Propriétaire</option>
+                                        <option value="ADMIN">Administrateur</option>
+                                        <option value="MEMBER">Membre</option>
+                                        <option value="GUEST">Invité</option>
+                                    </select>
+                                </div>
+                                <div class="flex flex-col gap-1 text-right">
+                                    <span class="text-[10px] uppercase tracking-widest text-(--text)/40 font-bold">Arrivée</span>
+                                    <span class="text-xs text-(--text)/60">{{ new Date(member.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) }}</span>
+                                </div>
+                            </div>
+                            
+                        </div>
+
+                        <div v-if="filteredMembers.length === 0" class="col-span-full py-12 text-center text-(--text)/40 text-sm border-2 border-dashed border-(--text)/5 rounded-2xl">
+                            Aucun membre ne correspond à votre recherche.
+                        </div>
 
                     </div>
 
@@ -169,61 +170,60 @@
                         </h3>
                     </div>
 
-                    <div class="overflow-x-auto">
+                    <div class="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
 
-                        <table class="w-full text-left border-collapse">
+                        <div 
+                            v-for="link in inviteLinks" 
+                            :key="link.id" 
+                            class="bg-(--bg3) border border-(--text)/5 hover:border-(--primary)/30 rounded-2xl p-5 flex flex-col gap-4 transition-all relative group"
+                        >
+                            
+                            <!-- Header -->
+                            <div class="flex items-center justify-between">
+                                <div class="flex flex-col gap-1">
+                                    <span class="text-[10px] uppercase tracking-widest text-(--text)/40 font-bold">Code d'invitation</span>
+                                    <span class="text-sm font-mono font-bold text-(--primary) bg-(--primary)/10 px-2.5 py-1 rounded-md border border-(--primary)/20 w-max">
+                                        {{ link.code.substring(0, 8) }}...
+                                    </span>
+                                </div>
+                                <div class="flex items-center gap-1 -mt-2 -mr-2">
+                                    <button 
+                                        @click="copyInviteLink(link.code)"
+                                        class="p-2 rounded-lg text-(--text)/60 hover:text-white hover:bg-(--text)/10 transition-colors"
+                                        title="Copier le lien complet"
+                                    >
+                                        <i class="bi bi-clipboard" />
+                                    </button>
+                                    <button 
+                                        @click="deleteInvite(link.code, 1)"
+                                        class="p-2 rounded-lg text-red-400/60 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                                        title="Révoquer le lien"
+                                    >
+                                        <i class="bi bi-trash" />
+                                    </button>
+                                </div>
+                            </div>
 
-                            <thead>
-                                <tr class="text-[10px] uppercase tracking-widest text-(--text)/50 bg-(--bg3)/50 border-b border-(--text)/5">
-                                    <th class="px-6 py-4 font-bold">Code</th>
-                                    <th class="px-6 py-4 font-bold">Utilisations</th>
-                                    <th class="px-6 py-4 font-bold">Expiration</th>
-                                    <th class="px-6 py-4 font-bold text-right">Actions</th>
-                                </tr>
-                            </thead>
+                            <div class="w-full h-px bg-(--text)/5"></div>
 
-                            <tbody class="divide-y divide-(--text)/5">
-                                <tr 
-                                    v-for="link in inviteLinks" 
-                                    :key="link.id" 
-                                    class="group hover:bg-(--bg3)/50 transition-colors"
-                                >
-                                    <td class="px-6 py-4">
-                                        <span class="text-sm font-mono text-(--text) bg-(--bg3) px-2.5 py-1 rounded-md border border-(--text)/10">
-                                            {{ link.code.substring(0, 8) }}...
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 text-sm">
-                                        <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-(--text)'">
+                            <!-- Footer -->
+                            <div class="flex items-center justify-between mt-auto">
+                                <div class="flex flex-col gap-1">
+                                    <span class="text-[10px] uppercase tracking-widest text-(--text)/40 font-bold">Utilisations</span>
+                                    <div class="text-sm">
+                                        <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-(--text) font-bold'">
                                             {{ link.uses }}
                                         </span>
-                                        <span class="text-(--text)/40"> / {{ link.maxUses || '∞' }}</span>
-                                    </td>
-                                    <td class="px-6 py-4 text-xs text-(--text)/50">
-                                        {{ link.expiresAt ? new Date(link.expiresAt).toLocaleDateString('fr-FR') : 'Jamais' }}
-                                    </td>
-                                    <td class="px-6 py-4 text-right">
-                                        <div class="flex items-center justify-end gap-1">
-                                            <button 
-                                                @click="copyInviteLink(link.code)"
-                                                class="p-2 rounded-lg text-(--text)/60 hover:text-white hover:bg-(--text)/10 transition-colors"
-                                                title="Copier le lien complet"
-                                            >
-                                                <i class="bi bi-clipboard" />
-                                            </button>
-                                            <button 
-                                                @click="deleteInvite(link.code, 1)"
-                                                class="p-2 rounded-lg text-red-400/60 hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                                                title="Révoquer le lien"
-                                            >
-                                                <i class="bi bi-trash" />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
+                                        <span class="text-(--text)/40 text-xs"> / {{ link.maxUses || '∞' }}</span>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-1 text-right">
+                                    <span class="text-[10px] uppercase tracking-widest text-(--text)/40 font-bold">Expiration</span>
+                                    <span class="text-xs text-(--text)/60">{{ link.expiresAt ? new Date(link.expiresAt).toLocaleDateString('fr-FR') : 'Jamais' }}</span>
+                                </div>
+                            </div>
 
-                        </table>
+                        </div>
 
                     </div>
 
@@ -267,6 +267,7 @@ const searchQuery = ref<string>('');
 const copied = ref<boolean>(false);
 const inviteLinks = ref<any[]>([]);
 const inviteLink = ref<string>('');
+const inviteMaxUses = ref<number>(1);
 
 // Modals state
 const showConfirmDelete = ref<string | null>(null);
@@ -367,12 +368,15 @@ const createInviteLink = async () => {
             method: 'POST',
             body: JSON.stringify({ 
                 organizationId: openedOrg.value?.id,
-                maxUses: 1, 
+                maxUses: inviteMaxUses.value > 0 ? inviteMaxUses.value : null, 
                 expiresInHours: 24
             })
         }).then(res => res.json());
 
         inviteLink.value = `${window.location.origin}/invite/${invite.code}`;
+        
+        // Add to the list to show immediately
+        inviteLinks.value.unshift(invite);
 
     } catch (err) {
         toast.show('Erreur lors de la création du lien.', 'error');
