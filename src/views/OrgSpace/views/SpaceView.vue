@@ -1,13 +1,26 @@
-<template></template>
+<template>
+    <div v-if="!hasThreads" class="flex flex-col items-center justify-center h-full w-full bg-(--bg3) text-(--text) p-6 relative">
+        <div class="absolute top-4 left-4 z-50">
+            <MobileBackBtn />
+        </div>
+        <i class="bi bi-chat-dots text-6xl text-white/10 mb-4"></i>
+        <h2 class="text-xl font-bold mb-2 text-center">Aucun salon</h2>
+        <p class="text-white/40 text-center max-w-sm">
+            Cet espace ne contient aucun salon textuel.
+        </p>
+    </div>
+</template>
 
 <script lang="ts" setup>
 
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { openedOrg } from '@/assets/var';
+import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 
 const route = useRoute();
 const router = useRouter();
+const hasThreads = ref(true);
 
 onMounted(() => {
 
@@ -40,8 +53,13 @@ onMounted(() => {
                 orgId: route.params.orgId,
                 spaceId: space.id,
                 threadId: targetThread.id
-            }
+            },
+            query: route.query
         });
+    }
+    else
+    {
+        hasThreads.value = false;
     }
 
 });
