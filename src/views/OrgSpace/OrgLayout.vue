@@ -248,6 +248,10 @@ const initSocketListener = async () => {
         }, Math.random() * 2000);
     });
 
+    socket.value?.on('todo-added', ({ task }: { task: any }) => {
+        toast.show(`Nouvelle tâche : ${task.title}`, 'info');
+    });
+
     socket.value?.on('space:updated', async ({ orgId, spaceId, data }: { orgId: string, spaceId: string, data: { logo: string, name: string, members: string[] } }) => {
         
         if (orgId !== props.orgId) return;

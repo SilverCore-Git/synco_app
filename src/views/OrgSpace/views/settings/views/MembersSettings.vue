@@ -10,7 +10,7 @@
                     <p class="text-sm text-(--text)/60">Gérez les membres, les rôles et les invitations de votre organisation.</p>
                 </div>
 
-                <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <section class="flex flex-col gap-6">
 
                     <div class="space-y-4">
                         <div class="space-y-1.5">
@@ -27,9 +27,21 @@
                                         class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner font-mono"
                                     />
                                 </div>
+                                <div class="relative w-24 hidden sm:block" v-if="inviteLink.length === 0">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-(--text)/40" title="Nombre d'utilisations (0 = infini)">
+                                        <i class="bi bi-people"></i>
+                                    </div>
+                                    <input 
+                                        type="number"
+                                        v-model.number="inviteMaxUses"
+                                        min="0"
+                                        class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-9 pr-3 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner"
+                                        title="Nombre d'utilisations (0 = infini)"
+                                    />
+                                </div>
                                 <button 
                                     @click="inviteLink.length === 0 ? createInviteLink() : copyInvite()" 
-                                    class="bg-(--primary) hover:bg-(--primary-hover) text-white rounded-xl px-4 py-3 text-sm font-medium transition-all flex items-center gap-2"
+                                    class="bg-(--primary) hover:bg-(--primary-hover) text-white rounded-xl px-4 py-3 text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap"
                                 >
                                     <i class="bi" :class="inviteLink.length === 0 ? 'bi-stars' : copied ? 'bi-check-lg' : 'bi-copy'" />
                                     {{ inviteLink.length === 0 ? 'Générer' : copied ? 'Copié' : 'Copier' }}
@@ -39,16 +51,14 @@
                         </div>
                     </div>
 
-                    <div class="flex items-center md:justify-end">
-                        <div class="w-full md:w-64">
-                            <CapacityGauge 
-                                :used="openedOrg?.members?.length || 0"
-                                :max="openedOrg?.maxUsers || 100"
-                                unit="Membres"
-                                icon="bi-person-badge"
-                                title="Capacité du serveur"
-                            />
-                        </div>
+                    <div class="w-full sm:w-64">
+                        <CapacityGauge 
+                            :used="openedOrg?.members?.length || 0"
+                            :max="openedOrg?.maxUsers || 100"
+                            unit="Membres"
+                            icon="bi-person-badge"
+                            title="Capacité du serveur"
+                        />
                     </div>
 
                 </section>
@@ -267,6 +277,7 @@ const searchQuery = ref<string>('');
 const copied = ref<boolean>(false);
 const inviteLinks = ref<any[]>([]);
 const inviteLink = ref<string>('');
+const inviteMaxUses = ref<number>(1);
 
 // Modals state
 const showConfirmDelete = ref<string | null>(null);
@@ -367,12 +378,15 @@ const createInviteLink = async () => {
             method: 'POST',
             body: JSON.stringify({ 
                 organizationId: openedOrg.value?.id,
-                maxUses: 1, 
+                maxUses: inviteMaxUses.value > 0 ? inviteMaxUses.value : null, 
                 expiresInHours: 24
             })
         }).then(res => res.json());
 
         inviteLink.value = `${window.location.origin}/invite/${invite.code}`;
+        
+        // Add to the list to show immediately
+        inviteLinks.value.unshift(invite);
 
     } catch (err) {
         toast.show('Erreur lors de la création du lien.', 'error');

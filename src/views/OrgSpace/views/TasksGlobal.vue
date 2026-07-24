@@ -175,6 +175,7 @@ import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import { user } from '@/assets/var';
 import confetti from 'canvas-confetti';
+import useWSocket from '@/composables/useWSocket';
 
 const route = useRoute();
 const toast = useToast();
@@ -356,7 +357,15 @@ const onTaskDeleted = (taskId: string) => {
     rawTasks.value = rawTasks.value.filter(t => t.id !== taskId);
 };
 
-onMounted(() => {
+onMounted(async () => {
     loadLists();
+    
+    const socket = await useWSocket();
+    socket.value?.on('todo-added', ({ task }: { task: Task }) => {
+        // Prevent duplicate tasks
+        if (!rawTasks.value.some(t => t.id === task.id)) {
+            rawTasks.value.unshift(task);
+        }
+    });
 });
 </script>
