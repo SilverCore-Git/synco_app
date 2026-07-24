@@ -18,7 +18,7 @@ import { isMeeting } from '@/composables/usePrivatMeet';
 
 import isDesktopApp from '@/assets/isDesktopApp';
 import { useToast } from '@/composables/useToast';
-import { decryptFromPeer, privateKey } from '@/assets/utils/crypto';
+import { decryptFromPeer, privateKey, decryptThreadKeyWithRsa, encryptThreadKeyForMember } from '@/assets/utils/crypto';
 import { SearchSyncService } from '@/services/SearchSyncService';
 
 
@@ -222,6 +222,30 @@ const initSocketListener = async () => {
     socket.value?.on('user-status-changed', ({ status, userId }: { status: string, userId: string }) => {
         const member = openedOrg.value?.members?.find(m => m.userId === userId);            
         if (member && member.user && member.user.data) member.user.data.status = status;
+    });
+
+    socket.value?.on('key-requested', async ({ threadId, requesterId, publicKey }: { threadId: string, requesterId: string, publicKey: string }) => {
+        if (!privateKey.value || !publicKey) return;
+
+        // Delay to avoid all users spamming the server at the exact same millisecond
+        setTimeout(() => {
+            socket.value?.emit("get-thread-access", { threadId }, async (res: any) => {
+                if (res.encryptedKey && !res.needsReadd) {
+                    try {
+                        const rawKey = await decryptThreadKeyWithRsa(res.encryptedKey, privateKey.value!);
+                        const newEncryptedKey = await encryptThreadKeyForMember(rawKey, publicKey);
+                        
+                        socket.value?.emit("distribute-thread-keys", {
+                            threadId,
+                            targetUserId: requesterId,
+                            encryptedKey: newEncryptedKey
+                        });
+                    } catch (e) {
+                        console.error("[E2EE] Failed to distribute key:", e);
+                    }
+                }
+            });
+        }, Math.random() * 2000);
     });
 
     socket.value?.on('space:updated', async ({ orgId, spaceId, data }: { orgId: string, spaceId: string, data: { logo: string, name: string, members: string[] } }) => {

@@ -31,16 +31,15 @@
                 En ligne — {{ members.filter(member => member.user?.data.status !== 'offline').length }}
             </p>
             
-            <router-link
+            <button
                 v-for="member in members.filter(member => member.user?.data.status !== 'offline')"
                 :key="member.id"
-                :to="{ name: 'OrgThreadChat', params: { userId: member.id } }"
+                @click="openProfile(member.user!, $event)"
                 class="
-                    flex items-center gap-3 px-3 py-2 rounded-lg
+                    w-full flex items-center gap-3 px-3 py-2 rounded-lg
                     hover:bg-white/3 transition-colors
-                    group
+                    group text-left
                 "
-                active-class="bg-white/[0.05]"
             >
 
                 <div class="relative">
@@ -74,22 +73,21 @@
                     <i class="bi bi-telephone-fill text-sm" />
                 </button>
 
-            </router-link>
+            </button>
 
             <p v-if="members.filter(member => member.user?.data.status === 'offline').length > 0" class=" py-1 text-xs text-(--text)/60">
                 Hors ligne — {{ members.filter(member => member.user?.data.status === 'offline').length }}
             </p>
 
-            <router-link
+            <button
                 v-for="member in members.filter(member => member.user?.data.status === 'offline')"
                 :key="member.id"
-                :to="{ name: 'OrgThreadChat', params: { userId: member.id } }"
+                @click="openProfile(member.user!, $event)"
                 class="
-                    flex items-center gap-3 px-3 py-2 rounded-lg
+                    w-full flex items-center gap-3 px-3 py-2 rounded-lg
                     hover:bg-white/3 transition-colors 
-                    group opacity-50 
+                    group opacity-50 text-left
                 "
-                active-class="bg-white/[0.05]"
             >
 
                 <div class="relative">
@@ -114,7 +112,7 @@
                     </span>
                 </div>
 
-            </router-link>
+            </button>
 
         </div>
 
@@ -183,6 +181,7 @@ import { useRoute } from 'vue-router';
 import useSettingsItem from '@/composables/useSettingsItem';
 import useSecurePeer from '@/composables/useSecurePeer';
 import keycloak from '@/assets/keycloak';
+import { openProfile } from '@/composables/useProfile';
 
 const route = useRoute();
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
