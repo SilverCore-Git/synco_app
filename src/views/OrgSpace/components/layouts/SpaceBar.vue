@@ -107,7 +107,7 @@ const route = useRoute();
     <nav
         v-else
         class="
-            h-full min-w-17 bg-(--bg) border-r border-white/5
+            h-full min-w-17 bg-(--bg) border-r border-(--border-color)
             flex justify-start items-center flex-col pt-2.5
         "
     >

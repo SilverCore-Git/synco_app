@@ -4,7 +4,7 @@
 
         <div class="flex w-full h-full bg-(--bg) text-(--text) rounded-xl overflow-hidden shadow-2xl relative">
             
-            <aside class="w-64 bg-(--bg2) border-r border-white/5 p-4 flex flex-col gap-2 shrink-0">
+            <aside class="w-64 bg-(--bg2) border-r border-(--border-color) p-4 flex flex-col gap-2 shrink-0">
 
                 <h2 class="text-xl font-black text-(--text) mb-4 px-3 pt-2">Paramètres</h2>
                 
@@ -19,7 +19,7 @@
                     {{ tab.label }}
                 </button>
 
-                <div class="mt-auto pt-4 border-t border-white/5">
+                <div class="mt-auto pt-4 border-t border-(--border-color)">
                     <button class="danger w-full" @click="showExitConfirm = true">
                         <i class="bi bi-door-open-fill text-lg" />
                         Quitter le Space
@@ -37,7 +37,7 @@
                         <p class="text-sm text-(--text)/60">Configurez l'identité visuelle de votre espace de travail.</p>
                     </div>
 
-                    <div class="flex items-center gap-8 p-6 bg-(--bg2) rounded-2xl border border-white/5">
+                    <div class="flex items-center gap-8 p-6 bg-(--bg2) rounded-2xl border border-(--border-color)">
                         <div class="relative group">
                             <div class="w-24 h-24 rounded-2xl bg-(--bg) border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden transition-all group-hover:border-(--primary)/50">
                                 <i v-if="!formData.logo.startsWith('data:')" :class="formData.logo" class="text-4xl text-(--primary)" />
@@ -64,7 +64,7 @@
 
                     <div class="space-y-4">
                         <h4 class="text-xs font-black uppercase tracking-widest text-(--text)/50">ID de l'espace</h4>
-                        <div class="flex items-center gap-2 bg-(--bg2) p-3 rounded-lg border border-white/5">
+                        <div class="flex items-center gap-2 bg-(--bg2) p-3 rounded-lg border border-(--border-color)">
                             <code class="text-(--primary) text-sm flex-1">{{ space.id }}</code>
                             <button class="text-xs font-bold hover:text-(--text)">Copier</button>
                         </div>
@@ -101,7 +101,7 @@
                             <p class="text-sm text-orange-200/80">Seuls le propriétaire et les administrateurs de l'organisation peuvent modifier ces réglages.</p>
                         </div>
 
-                        <div class="flex items-center justify-between p-4 bg-(--bg2) rounded-xl border border-white/5">
+                        <div class="flex items-center justify-between p-4 bg-(--bg2) rounded-xl border border-(--border-color)">
                             <div>
                                 <h4 class="font-bold text-(--text)">Espace Privé</h4>
                                 <p class="text-sm text-(--text)/60">Seuls les membres invités peuvent voir ce space</p>

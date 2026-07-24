@@ -1,7 +1,7 @@
 <template>
 
     <div 
-        class="max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border border-white/5 rounded-xl transition-all cursor-pointer shadow-sm"
+        class="max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border border-(--border-color) rounded-xl transition-all cursor-pointer shadow-sm"
         :class="[
             draggedIntoFolderId === folder.id 
                 ? 'ring-2 ring-(--primary) bg-(--primary)/10 border-(--primary)/50'

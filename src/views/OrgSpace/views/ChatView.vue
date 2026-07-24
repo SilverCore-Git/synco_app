@@ -4,7 +4,7 @@
         
         <header 
             v-if="recipient" 
-            class="h-14 flex items-center px-4 border-b border-white/5 bg-(--bg2)/80 backdrop-blur-md z-10"
+            class="h-14 flex items-center px-4 border-b border-(--border-color) bg-(--bg2)/80 backdrop-blur-md z-10"
         >
 
             <div class="flex items-center gap-3">
@@ -75,7 +75,7 @@
                 
             <div v-if="recipient" class="flex flex-col justify-end min-h-full w-full">
                     
-                <div class="mb-8 p-6 border-b border-white/5 bg-white/1 rounded-2xl mx-4">
+                <div class="mb-8 p-6 border-b border-(--border-color) bg-white/1 rounded-2xl mx-4">
                    
                     <div class="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4 overflow-hidden border-2 border-white/10">
                         <img 
@@ -186,7 +186,7 @@
 
                 <div 
                     v-if="selectedFiles.length > 0"
-                    class="z-50 flex flex-wrap gap-2 mb-2 p-2 bg-(--bg)/80 backdrop-blur-3xl rounded-lg border border-white/5 relative overflow-hidden"
+                    class="z-50 flex flex-wrap gap-2 mb-2 p-2 bg-(--bg)/80 backdrop-blur-3xl rounded-lg border border-(--border-color) relative overflow-hidden"
                 >
                 
                     <div v-if="fileSendProgress !== null" class="absolute inset-0 bg-(--bg)/40 z-10 pointer-events-none" />

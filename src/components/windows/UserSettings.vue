@@ -4,7 +4,7 @@
         
         <div class="flex w-full h-full text-(--text) overflow-hidden">
             
-            <aside class="w-64 bg-(--bg2) border-r border-white/5 p-4 flex flex-col gap-2 shrink-0">
+            <aside class="w-64 bg-(--bg2) border-r border-(--border-color) p-4 flex flex-col gap-2 shrink-0">
 
                 <h2 class="text-xl font-black text-(--text) mb-4 px-3 pt-2">Paramètres</h2>
                 
@@ -30,7 +30,7 @@
                 >
 
                     <!-- Profil Banner inspiré de UserDropDown -->
-                    <div class="w-full relative rounded-xl overflow-hidden bg-(--bg2) border border-white/5 mb-8 shadow-xl">
+                    <div class="w-full relative rounded-xl overflow-hidden bg-(--bg2) border border-(--border-color) mb-8 shadow-xl">
                         <!-- Banner -->
                         <div class="h-[120px] bg-gradient-to-tr from-(--primary-dark) to-(--primary) w-full relative z-0"></div>
                         
@@ -82,7 +82,7 @@
                                 <input 
                                     type="text" 
                                     v-model="formData.name" 
-                                    class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                    class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
                                 />
                             </div>
                         </div>
@@ -96,7 +96,7 @@
                                 <input 
                                     type="email" 
                                     v-model="formData.email" 
-                                    class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                    class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
                                 />
                             </div>
                         </div>
@@ -111,7 +111,7 @@
                                     type="text" 
                                     v-model="formData.job" 
                                     placeholder="Mon poste"
-                                    class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                    class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
                                 />
                             </div>
                         </div>
@@ -123,7 +123,7 @@
                                     v-model="formData.description" 
                                     placeholder="Dites-nous en plus sur vous..."
                                     rows="3"
-                                    class="w-full bg-(--bg2) border border-white/5 rounded-xl p-4 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner resize-none"
+                                    class="w-full bg-(--bg2) border border-(--border-color) rounded-xl p-4 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner resize-none"
                                 ></textarea>
                             </div>
                         </div>
@@ -157,12 +157,12 @@
                     <div class="max-w-2xl space-y-6">
                         
                         <!-- Carte Principale de Statut -->
-                        <div class="relative rounded-xl overflow-hidden border border-white/5 shadow-xl bg-(--bg2) p-1">
+                        <div class="relative rounded-xl overflow-hidden border border-(--border-color) shadow-xl bg-(--bg2) p-1">
                             <!-- Fond animé si déverrouillé -->
                             <div v-if="E2EEUnloked" class="absolute inset-0 bg-green-500/5 z-0"></div>
                             <div v-else class="absolute inset-0 bg-red-500/5 z-0"></div>
                             
-                            <div class="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-5 bg-(--bg) rounded-lg p-6 border border-white/5">
+                            <div class="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-5 bg-(--bg) rounded-lg p-6 border border-(--border-color)">
                                 
                                 <div class="relative group">
                                     <div class="absolute inset-0 blur-xl rounded-full opacity-40 transition-opacity" :class="E2EEUnloked ? 'bg-green-500' : 'bg-red-500'"></div>
@@ -188,7 +188,7 @@
                         </div>
 
                         <!-- Clé publique -->
-                        <div class="bg-(--bg2) p-6 rounded-xl border border-white/5 shadow-sm" v-if="user?.publicKey">
+                        <div class="bg-(--bg2) p-6 rounded-xl border border-(--border-color) shadow-sm" v-if="user?.publicKey">
                             <div class="flex items-center gap-3 mb-4">
                                 <i class="bi bi-person-badge-fill text-(--primary) text-xl"></i>
                                 <div>
@@ -236,7 +236,7 @@
                                     :class="
                                         theme == 'dark' 
                                             ? 'border-(--primary) bg-(--primary)/5 scale-100 shadow-[0_0_20px_var(--primary-glow)]' 
-                                            : 'border-white/5 bg-(--bg2) hover:border-white/20 scale-95 opacity-70 hover:opacity-100'
+                                            : 'border-(--border-color) bg-(--bg2) hover:border-white/20 scale-95 opacity-70 hover:opacity-100'
                                     "
                                     @click="theme = 'dark'"
                                 >
@@ -252,7 +252,7 @@
                                     :class="
                                         theme == 'light' 
                                             ? 'border-(--primary) bg-(--primary)/5 scale-100 shadow-[0_0_20px_var(--primary-glow)]' 
-                                            : 'border-white/5 bg-(--bg2) hover:border-white/20 scale-95 opacity-70 hover:opacity-100'
+                                            : 'border-(--border-color) bg-(--bg2) hover:border-white/20 scale-95 opacity-70 hover:opacity-100'
                                     "
                                     @click="theme = 'light'"
                                 >
@@ -285,7 +285,7 @@
                     <div class="space-y-4 max-w-lg">
                         <div 
                             @click="messageSounds = !messageSounds"
-                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-white/5 cursor-pointer hover:bg-white/5 transition-all"
+                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all"
                         >
                             <div>
                                 <h4 class="font-bold text-(--text)">Sons des messages</h4>
@@ -304,7 +304,7 @@
 
                         <div 
                             @click="mentionsOnly = !mentionsOnly"
-                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-white/5 cursor-pointer hover:bg-white/5 transition-all"
+                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all"
                         >
                             <div>
                                 <h4 class="font-bold text-(--text)">Mentions @ uniquement</h4>

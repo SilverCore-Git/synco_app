@@ -19,7 +19,7 @@
                     rows="4"
                     class="
                         w-full bg-(--bg2) text-(--text) text-sm rounded-xl p-4
-                        border border-white/5 focus:border-(--primary)/50
+                        border border-(--border-color) focus:border-(--primary)/50
                         outline-none resize-none transition-all duration-200
                         placeholder:text-(--text)/20
                     "

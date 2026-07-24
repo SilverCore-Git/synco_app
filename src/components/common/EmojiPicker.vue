@@ -4,7 +4,7 @@
     @click.stop
     style="background-color: var(--bg);"
   >
-    <div class="p-3 border-b border-white/5 bg-(--bg2) flex items-center gap-2">
+    <div class="p-3 border-b border-(--border-color) bg-(--bg2) flex items-center gap-2">
       <i class="bi bi-search text-(--text)/40 text-sm pl-1" />
       <input 
         v-model="searchQuery"
@@ -23,7 +23,7 @@
 
     <div 
       v-if="!searchQuery"
-      class="flex justify-between items-center px-3 py-2 bg-(--bg2) border-b border-white/5 text-sm overflow-x-auto no-scrollbar scroll-smooth"
+      class="flex justify-between items-center px-3 py-2 bg-(--bg2) border-b border-(--border-color) text-sm overflow-x-auto no-scrollbar scroll-smooth"
     >
       <button 
         v-for="category in emojiCategories" 

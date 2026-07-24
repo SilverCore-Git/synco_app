@@ -1,6 +1,6 @@
 <template>
     <div class="flex flex-col h-full relative overflow-hidden w-full ">
-        <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-white/5 bg-(--bg2) z-10 shrink-0">
+        <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-(--border-color) bg-(--bg2) z-10 shrink-0">
             <div class="flex items-center gap-3">
                 <MobileBackBtn />
                 <i class="bi bi-check2-square text-(--text)"></i>
@@ -51,7 +51,7 @@
 
             <div v-if="loading" class="w-full flex flex-col gap-6 animate-pulse pb-10 h-full">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start h-full">
-                    <div v-for="i in 3" :key="'skel-col-'+i" class="bg-black/20 rounded-2xl p-4 flex flex-col gap-4 border border-white/5 min-h-[60vh]">
+                    <div v-for="i in 3" :key="'skel-col-'+i" class="bg-black/20 rounded-2xl p-4 flex flex-col gap-4 border border-(--border-color) min-h-[60vh]">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-xl bg-white/10"></div>
@@ -59,7 +59,7 @@
                             </div>
                             <div class="w-6 h-4 bg-white/10 rounded-full"></div>
                         </div>
-                        <div v-for="j in 3" :key="'skel-card-'+j" class="bg-white/5 border border-white/5 p-4 rounded-xl h-28"></div>
+                        <div v-for="j in 3" :key="'skel-card-'+j" class="bg-white/5 border border-(--border-color) p-4 rounded-xl h-28"></div>
                     </div>
                 </div>
             </div>
@@ -69,7 +69,7 @@
                 <!-- Columns -->
                 <div v-for="col in columns" :key="col.id" 
                      class="bg-(--bg2)/40 border rounded-2xl p-4 min-h-[500px] flex flex-col transition-all"
-                     :class="draggedOverCol === col.id ? 'border-(--primary) bg-(--primary)/5 shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)]' : 'border-white/5'"
+                     :class="draggedOverCol === col.id ? 'border-(--primary) bg-(--primary)/5 shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)]' : 'border-(--border-color)'"
                      @dragover.prevent
                      @dragenter.prevent="draggedOverCol = col.id"
                      @dragleave.prevent="draggedOverCol = null"
@@ -118,7 +118,7 @@
                             </div>
 
                             <!-- Progress Bar (Gauge) -->
-                            <div class="mt-4 pt-3 border-t border-white/5" v-if="task.dueDate && task.status !== 'DONE'">
+                            <div class="mt-4 pt-3 border-t border-(--border-color)" v-if="task.dueDate && task.status !== 'DONE'">
                                 <div class="flex justify-between items-end mb-1.5">
                                     <span class="text-[9px] font-black uppercase tracking-widest text-(--text)/30">
                                         Échéance
@@ -134,7 +134,7 @@
                                 </div>
                             </div>
                             
-                            <div class="mt-4 pt-3 border-t border-white/5 flex items-center justify-center" v-else-if="task.status === 'DONE'">
+                            <div class="mt-4 pt-3 border-t border-(--border-color) flex items-center justify-center" v-else-if="task.status === 'DONE'">
                                 <span class="text-[10px] font-black uppercase tracking-widest text-green-500">
                                     <i class="bi bi-check-lg mr-1"></i> Terminée
                                 </span>

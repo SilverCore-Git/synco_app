@@ -30,7 +30,7 @@
                     Couleur du dossier
                 </label>
                 
-                <div class="grid grid-cols-6 gap-3 p-4 bg-(--bg2)/20 rounded-xl border border-white/5">
+                <div class="grid grid-cols-6 gap-3 p-4 bg-(--bg2)/20 rounded-xl border border-(--border-color)">
                     <button
                         v-for="color in presetColors"
                         :key="color.value"

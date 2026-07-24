@@ -11,7 +11,7 @@
                 v-if="isConnected"
                 class="
                     flex flex-col gap-2 p-2 bg-(--bg) rounded-xl 
-                    border border-white/5 shadow-2xl
+                    border border-(--border-color) shadow-2xl
                     animate-in fade-in slide-in-from-bottom-2 duration-300 
                 "
             >
@@ -78,7 +78,7 @@
         <div
             class="
                 h-14 bg-(--bg) rounded-xl
-                border border-white/5
+                border border-(--border-color)
                 p-1 flex items-center shadow-xl
             "
         >

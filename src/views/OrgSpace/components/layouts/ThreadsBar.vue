@@ -1,7 +1,7 @@
 <template>
 
     <div 
-        class="h-full w-full pb-20 bg-(--bg2) border-r border-l border-white/5 "
+        class="h-full w-full pb-20 bg-(--bg2) border-r border-l border-(--border-color) "
         :class="isDesktopApp() ? 'border-t' : ''"
     >
 
@@ -23,7 +23,7 @@
                         <div 
                             class="
                                 min-h-14 pl-5 px-3 flex justify-between items-center
-                                flex-row w-full border-b border-white/5
+                                flex-row w-full border-b border-(--border-color)
                             "
                         >
 
@@ -69,7 +69,7 @@
                 <div 
                     class="
                         min-h-14 pl-5 px-3 flex justify-between items-center
-                        flex-row w-full border-b border-white/5
+                        flex-row w-full border-b border-(--border-color)
                     "
                 >
 
@@ -126,7 +126,7 @@
                 <div 
                     class="
                         min-h-14 pl-5 px-3 flex justify-between items-center
-                        flex-row w-full border-b border-white/5
+                        flex-row w-full border-b border-(--border-color)
                     "
                 >
 
@@ -184,7 +184,7 @@
                         <div 
                             class="
                                 min-h-14 pl-5 px-3 flex justify-between items-center
-                                flex-row w-full border-b border-white/5
+                                flex-row w-full border-b border-(--border-color)
                             "
                         >
 

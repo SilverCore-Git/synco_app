@@ -15,13 +15,13 @@
                     <div class="space-y-4">
                         <div class="space-y-1.5">
                             <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">Détails par Espace de travail</label>
-                            <div v-if="openedOrg?.spaces?.length" class="space-y-2 max-h-64 overflow-y-auto pr-2 border border-white/5 bg-(--bg2) p-4 rounded-xl shadow-inner">
-                                <div v-for="space in openedOrg?.spaces" :key="space.id" class="flex justify-between items-center text-sm p-3 bg-(--bg3) border border-white/5 rounded-lg hover:bg-white/5 transition-colors">
+                            <div v-if="openedOrg?.spaces?.length" class="space-y-2 max-h-64 overflow-y-auto pr-2 border border-(--border-color) bg-(--bg2) p-4 rounded-xl shadow-inner">
+                                <div v-for="space in openedOrg?.spaces" :key="space.id" class="flex justify-between items-center text-sm p-3 bg-(--bg3) border border-(--border-color) rounded-lg hover:bg-white/5 transition-colors">
                                     <span class="flex items-center gap-2 font-medium"><i class="bi bi-folder text-(--primary)"></i> {{ space.name }}</span>
                                     <span class="font-mono text-(--text)/60 text-xs">{{ formatBytes(Number((space as any).stats?.storageUsed || 0)) }}</span>
                                 </div>
                             </div>
-                            <div v-else class="text-sm text-(--text)/40 italic mt-2 p-4 bg-(--bg2) rounded-xl border border-white/5 shadow-inner">
+                            <div v-else class="text-sm text-(--text)/40 italic mt-2 p-4 bg-(--bg2) rounded-xl border border-(--border-color) shadow-inner">
                                 Aucun espace de travail.
                             </div>
                         </div>

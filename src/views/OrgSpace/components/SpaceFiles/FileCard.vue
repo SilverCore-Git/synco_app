@@ -4,7 +4,7 @@
                             :class="draggedFileId === file.id ? 'opacity-40 scale-95' : ''"
                             class="
                                 group relative flex flex-col bg-(--bg2)/40 
-                                border border-white/5 rounded-2xl p-3 
+                                border border-(--border-color) rounded-2xl p-3 
                                 hover:bg-(--bg3) hover:border-(--primary)/30 
                                 transition-all cursor-pointer shadow-sm 
                                 hover:shadow-xl hover:-translate-y-1
@@ -15,7 +15,7 @@
                                 class="
                                     relative aspect-square mb-3 rounded-xl bg-black/20 
                                     flex items-center justify-center overflow-hidden 
-                                    border border-white/5 
+                                    border border-(--border-color) 
                                 "
                             >
                                 

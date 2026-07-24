@@ -24,7 +24,7 @@
                                         readonly
                                         type="text"
                                         :value="inviteLink || 'Cliquez pour générer un lien'"
-                                        class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner font-mono"
+                                        class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner font-mono"
                                     />
                                 </div>
                                 <button 

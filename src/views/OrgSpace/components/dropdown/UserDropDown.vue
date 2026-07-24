@@ -92,7 +92,7 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
         <template #content>
 
             <!-- Profil complet inspiré de UserProfile -->
-            <div class="w-full relative rounded-t-lg overflow-hidden bg-(--bg) border-b border-white/5 mb-1 pb-2">
+            <div class="w-full relative rounded-t-lg overflow-hidden bg-(--bg) border-b border-(--border-color) mb-1 pb-2">
                 <!-- Banner -->
                 <div class="h-[80px] bg-gradient-to-tr from-(--primary-dark) to-(--primary) w-full relative z-0"></div>
                 
@@ -113,7 +113,7 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
                     <div class="h-[28px]"></div>
 
                     <!-- Infos -->
-                    <div class="bg-(--bg2) rounded-lg p-3 mt-2 border border-white/5 shadow-inner">
+                    <div class="bg-(--bg2) rounded-lg p-3 mt-2 border border-(--border-color) shadow-inner">
                         <h2 class="text-lg font-bold text-(--text) leading-tight">{{ user?.name }}</h2>
                         <p class="text-xs text-(--primary) font-bold uppercase tracking-wider mb-1" v-if="user?.job">{{ user?.job }}</p>
                         <p class="text-xs text-(--text)/60 mb-2">{{ user?.email }}</p>
@@ -130,11 +130,11 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
                         <div class="mb-2">
                             <h3 class="text-[10px] font-bold text-(--text)/50 uppercase tracking-wide mb-1.5">Rôles</h3>
                             <div class="flex flex-wrap gap-1.5">
-                                <span class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-(--bg) border border-white/5 text-[10px] font-medium text-(--text)/90 shadow-sm">
+                                <span class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-(--bg) border border-(--border-color) text-[10px] font-medium text-(--text)/90 shadow-sm">
                                     <div class="w-2 h-2 rounded-full shadow-sm" :class="roleColorClass"></div>
                                     {{ translatedRole }}
                                 </span>
-                                <span v-if="user?.id === keycloak.subject" class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-(--bg) border border-white/5 text-[10px] font-medium text-(--text)/90 shadow-sm">
+                                <span v-if="user?.id === keycloak.subject" class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-(--bg) border border-(--border-color) text-[10px] font-medium text-(--text)/90 shadow-sm">
                                     Vous
                                 </span>
                             </div>

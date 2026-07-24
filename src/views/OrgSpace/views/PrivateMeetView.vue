@@ -4,7 +4,7 @@
         
         <header 
             v-if="recipient" 
-            class="h-14 flex items-center px-4 border-b border-white/5 bg-(--bg2)/80 backdrop-blur-md z-10"
+            class="h-14 flex items-center px-4 border-b border-(--border-color) bg-(--bg2)/80 backdrop-blur-md z-10"
         >
 
             <div class="flex items-center gap-3">
@@ -59,7 +59,7 @@
 
                         <img 
                             :src="`https://ui-avatars.com/api/?name=${msg.sender}&background=128a60&color=fff`"
-                            class="rounded-full w-9 h-9 border border-white/5 shrink-0"
+                            class="rounded-full w-9 h-9 border border-(--border-color) shrink-0"
                         />
 
                         <div class="min-w-0 flex-1">
