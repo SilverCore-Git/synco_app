@@ -10,7 +10,18 @@
                     <p class="text-sm text-(--text)/60">Consultez l'espace de stockage consommé par votre organisation et gérez les fichiers.</p>
                 </div>
 
-                <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <section class="flex flex-col gap-8">
+
+                    <div class="w-full">
+                        <CapacityGauge 
+                            :used="Number((openedOrg as any)?.stats?.totalStorageUsed || 0)"
+                            :max="Number(openedOrg?.maxStorage || 0)"
+                            unit=""
+                            icon="bi-hdd-network"
+                            title="Stockage total"
+                            :isBytes="true"
+                        />
+                    </div>
 
                     <div class="space-y-4">
                         <div class="space-y-1.5">
@@ -24,19 +35,6 @@
                             <div v-else class="text-sm text-(--text)/40 italic mt-2 p-4 bg-(--bg2) rounded-xl border border-white/5 shadow-inner">
                                 Aucun espace de travail.
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center md:justify-end">
-                        <div class="w-full md:w-64">
-                            <CapacityGauge 
-                                :used="Number((openedOrg as any)?.stats?.totalStorageUsed || 0)"
-                                :max="Number(openedOrg?.maxStorage || 0)"
-                                unit=""
-                                icon="bi-hdd-network"
-                                title="Stockage total"
-                                :isBytes="true"
-                            />
                         </div>
                     </div>
 
