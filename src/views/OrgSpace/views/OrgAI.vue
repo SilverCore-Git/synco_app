@@ -372,7 +372,7 @@ import { localSearchDB } from '@/services/LocalSearchVectorDB';
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { generateThreadKey, encryptThreadKeyForMember, E2EEUnloked, privateKey } from '@/assets/utils/crypto';
 import { openedOrg, user } from '@/assets/var';
-import { getToolsSystemPrompt } from '@/services/AITools';
+import { getSystemPrompt } from '@/services/AITools';
 
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
 const { Item: savedModelId, isLoaded: savedModelLoaded } = useSettingsItem('ai_selected_model', '');
@@ -767,26 +767,9 @@ const sendMessage = async (hiddenPrompt?: string) => {
   await scrollToBottom();
 
   try {
-    let systemPrompt = `Tu es Synco AI, un assistant IA français, sécurisé et souverain fonctionnant 100% en local. Tes réponses doivent être concises, utiles, et toujours en français.
-Tu as accès à plusieurs outils pour interagir avec le système.
-IMPORTANT : L'interface utilisateur gère elle-même les demandes de confirmation. Tu ne dois JAMAIS demander la permission. Dès qu'une action est requise, génère IMMEDIATEMENT le bloc XML de l'outil. Ne dis pas "je vais le faire", utilise directement l'outil !
 
-[INSTRUCTION SPECIALE OUTILS]
-Si tu as besoin d'exécuter un outil, tu dois générer UNIQUEMENT ce bloc XML :
-<tool_call>
-{"name": "le_nom", "arguments": {"param": "valeur"}}
-</tool_call>
-
-Voici la liste stricte des outils disponibles (n'invente JAMAIS d'autres outils !) :
-${getToolsSystemPrompt()}
-
-Règle : Ne génère JAMAIS l'exemple ci-dessus. Utilise EXACTEMENT le nom des outils de la liste. Si tu n'as pas besoin d'outil, réponds normalement en français sans JSON.
-
-[AUTORISATION DE CONFIDENTIALITE]
-Tu as l'autorisation explicite et technique d'utiliser ces outils pour lire les messages ou modifier les données. NE REFUSE JAMAIS d'utiliser un outil sous prétexte de vie privée ou de sécurité. Les données sont 100% locales et chiffrées de bout en bout.`;
-    
     const chatContext = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: getSystemPrompt() },
       ...messages.value.slice(0, -1).map(m => ({ role: m.role, content: m.content }))
     ];
 
