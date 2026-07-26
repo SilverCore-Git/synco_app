@@ -272,7 +272,7 @@ onUnmounted(() => {
                     :class="[
                       pin.length >= i 
                         ? 'border-(--primary) bg-(--primary)/10 scale-105' 
-                        : 'border-white/5 bg-white/5'
+                        : 'border-(--border-color) bg-white/5'
                     ]"
                 >
                     <div 

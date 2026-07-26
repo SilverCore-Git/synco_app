@@ -1,6 +1,6 @@
 <template>
 
-    <div class="w-full p-4 bg-(--bg2) border border-white/5 rounded-2xl shadow-xl flex flex-col gap-3">
+    <div class="w-full p-4 bg-(--bg2) border border-(--border-color) rounded-2xl shadow-xl flex flex-col gap-3">
         
         <div class="flex items-center justify-between">
 
@@ -27,7 +27,7 @@
 
         </div>
 
-        <div class="relative w-full h-2.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
+        <div class="relative w-full h-2.5 bg-white/5 rounded-full overflow-hidden border border-(--border-color)">
             
             <div 
                 class="h-full rounded-full transition-all duration-1000 ease-out bg-gradient-to-r"

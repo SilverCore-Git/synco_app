@@ -2,7 +2,7 @@
   <div class="h-full flex flex-col w-full relative">
     
     <!-- Header / Model Selection -->
-    <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-white/5 bg-(--bg2) z-10 shrink-0">
+    <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-(--border-color) bg-(--bg2) z-10 shrink-0">
       <div class="flex items-center gap-3">
         <MobileBackBtn />
         <i class="bi bi-robot text-xl text-(--text)"></i>
@@ -136,9 +136,9 @@
                 <div 
                     v-for="res in messages[index+1]?.tool_data?.results" 
                     :key="res.id"
-                    class="bg-black/30 border border-white/5 rounded-xl overflow-hidden"
+                    class="bg-black/30 border border-(--border-color) rounded-xl overflow-hidden"
                 >
-                    <div class="px-3 py-2 bg-white/5 border-b border-white/5 flex justify-between items-center text-[10px] text-white/50 uppercase font-bold tracking-wider">
+                    <div class="px-3 py-2 bg-white/5 border-b border-(--border-color) flex justify-between items-center text-[10px] text-white/50 uppercase font-bold tracking-wider">
                         <div class="flex items-center gap-1.5 truncate pr-2">
                             <i class="bi bi-folder2-open"></i> 
                             <span class="truncate">{{ getSpaceAndThreadName(res.workspaceId, res.metadata?.threadId).spaceName }}</span> 
@@ -238,7 +238,7 @@
     </div>
 
     <!-- Loading / Status Bar / Manual Start -->
-    <div v-if="aiIsLocal && !aiIsInitialized" class="px-6 py-4 border-t border-white/5 bg-black/20 flex flex-col gap-3 shrink-0">
+    <div v-if="aiIsLocal && !aiIsInitialized" class="px-6 py-4 border-t border-(--border-color) bg-black/20 flex flex-col gap-3 shrink-0">
       
       <!-- WebGPU Non supporté (Erreur bloquante) -->
       <div v-if="!aiHasWebGPU" class="flex items-start gap-4 bg-red-950/40 border-l-4 border-red-500 p-5 rounded-r-xl rounded-l-sm mb-5 shadow-lg">
@@ -252,7 +252,7 @@
             Aucune carte graphique compatible n'a été détectée dans votre navigateur. L'exécution en local est donc désactivée.
           </p>
           
-          <div class="bg-black/40 p-4 rounded-lg border border-white/5 text-sm text-white/80">
+          <div class="bg-black/40 p-4 rounded-lg border border-(--border-color) text-sm text-white/80">
             <p class="font-bold text-red-300 mb-2 flex items-center gap-2"><i class="bi bi-wrench-adjustable"></i> Pistes de résolution :</p>
             <ul class="list-disc ml-5 space-y-2">
               <li><strong>Linux :</strong> L'accélération WebGPU est souvent bloquée. Nous recommandons d'utiliser <strong>Chromium ou Chrome sous Windows ou macOS</strong> pour profiter de l'IA locale.</li>
@@ -269,7 +269,7 @@
           <h4 class="text-red-500 font-bold text-sm">Erreur d'initialisation</h4>
           <p class="text-xs text-red-500/80 mt-1 mb-2">{{ initError }}</p>
           
-          <div v-if="initError.includes('f16')" class="bg-black/20 p-3 rounded-lg border border-white/5 text-xs text-white/70">
+          <div v-if="initError.includes('f16')" class="bg-black/20 p-3 rounded-lg border border-(--border-color) text-xs text-white/70">
             <strong>Astuce Chrome/Edge :</strong> Il est impossible d'activer cette fonctionnalité automatiquement. Cependant, vous pouvez forcer son activation manuellement :
             <ol class="list-decimal ml-4 mt-1 space-y-1">
               <li>Copiez l'URL <code class="bg-black/50 px-1 py-0.5 rounded text-white select-all">chrome://flags/#enable-webgpu-developer-features</code> et collez-la dans la barre d'adresse de votre navigateur.</li>
@@ -315,7 +315,7 @@
 
     </div>
 
-    <div class="p-1 border-t border-white/5 shrink-0 relative">
+    <div class="p-1 border-t border-(--border-color) shrink-0 relative">
       <form 
         @submit.prevent="() => sendMessage()" 
         class="relative ml-0 lg:ml-60 w-full lg:w-[calc(100%-240px)] flex items-end gap-3 mx-auto lg:mx-0 border border-white/10 rounded-xl px-4 py-2 transition-all shadow-2xl"

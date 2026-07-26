@@ -21,7 +21,7 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <label v-for="prov in providers" :key="prov.id" 
                                     class="relative flex items-center p-4 border rounded-xl cursor-pointer transition-all hover:bg-white/5"
-                                    :class="orgData.provider === prov.id ? 'border-(--primary) bg-(--primary)/5' : 'border-white/5 bg-(--bg2)'">
+                                    :class="orgData.provider === prov.id ? 'border-(--primary) bg-(--primary)/5' : 'border-(--border-color) bg-(--bg2)'">
                                     
                                     <input type="radio" :value="prov.id" v-model="orgData.provider" name="provider" class="sr-only">
                                     <div class="flex flex-col gap-1 w-full">
@@ -37,7 +37,7 @@
                         </div>
 
                         <!-- Options Spécifiques -->
-                        <div v-if="orgData.provider !== 'local'" class="space-y-6 animate-fade-in p-6 bg-(--bg2) border border-white/5 rounded-xl shadow-inner">
+                        <div v-if="orgData.provider !== 'local'" class="space-y-6 animate-fade-in p-6 bg-(--bg2) border border-(--border-color) rounded-xl shadow-inner">
                             
                             <!-- Clé API -->
                             <div class="space-y-1.5">
@@ -49,7 +49,7 @@
                                     <input 
                                         v-model="orgData.apiKey"
                                         :type="showApiKey ? 'text' : 'password'"
-                                        class="w-full bg-(--bg) border border-white/5 px-4 py-3 pl-11 pr-12 text-sm focus:outline-none rounded-xl focus:border-(--primary) transition-all font-mono placeholder:text-(--text)/30 shadow-inner"
+                                        class="w-full bg-(--bg) border border-(--border-color) px-4 py-3 pl-11 pr-12 text-sm focus:outline-none rounded-xl focus:border-(--primary) transition-all font-mono placeholder:text-(--text)/30 shadow-inner"
                                         :placeholder="orgData.hasApiKey ? '•••••••••••••••• (Clé configurée, tapez pour remplacer)' : 'sk-...'"
                                     />
                                     <button @click="showApiKey = !showApiKey" class="absolute right-4 top-1/2 -translate-y-1/2 text-(--text)/40 hover:text-(--text)">
@@ -68,7 +68,7 @@
                                     <input 
                                         v-model="orgData.endpointUrl"
                                         type="text"
-                                        class="w-full bg-(--bg) border border-white/5 px-4 py-3 pl-11 text-sm focus:outline-none rounded-xl focus:border-(--primary) transition-all shadow-inner"
+                                        class="w-full bg-(--bg) border border-(--border-color) px-4 py-3 pl-11 text-sm focus:outline-none rounded-xl focus:border-(--primary) transition-all shadow-inner"
                                         placeholder="https://mon-serveur.local:11434/v1"
                                     />
                                 </div>
@@ -84,7 +84,7 @@
                                     <input 
                                         v-model="orgData.modelId"
                                         type="text"
-                                        class="w-full bg-(--bg) border border-white/5 px-4 py-3 pl-11 text-sm focus:outline-none rounded-xl focus:border-(--primary) transition-all font-mono shadow-inner"
+                                        class="w-full bg-(--bg) border border-(--border-color) px-4 py-3 pl-11 text-sm focus:outline-none rounded-xl focus:border-(--primary) transition-all font-mono shadow-inner"
                                         :placeholder="defaultModelPlaceholder"
                                     />
                                 </div>
@@ -113,7 +113,7 @@
         <Transition name="fade-bottom">
             <footer 
                 v-if="hasChanges" 
-                class="p-4 bg-(--bg2)/80 backdrop-blur-xl border-t border-white/5 flex justify-end gap-3"
+                class="p-4 bg-(--bg2)/80 backdrop-blur-xl border-t border-(--border-color) flex justify-end gap-3"
             >
                 <button @click="resetChanges" class="default">Annuler</button>
                 <button @click="saveSettings" class="primary" :class="saving ? 'loader' : ''">Enregistrer les modifications</button>
