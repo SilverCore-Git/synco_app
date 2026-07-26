@@ -326,6 +326,7 @@
         @close="selectedTask = null"
     />
 
+    </div>
   </div>
 </template>
 
