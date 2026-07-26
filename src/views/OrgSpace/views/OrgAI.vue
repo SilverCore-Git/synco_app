@@ -299,6 +299,7 @@
       >
         
         <ThreadTextarea 
+          ref="chatInputRef"
           v-model="inputMsg"
           placeholder="Demandez-moi n'importe quoi..."
           :disabled="!aiIsInitialized || isGenerating"
@@ -332,7 +333,7 @@
 import { ref, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
 import * as webllm from '@mlc-ai/web-llm';
 import { localLLM, availableModels } from '@/services/LocalLLMService';
-import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages, syncSession, fetchSessions } from '@/services/AIService';
+import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages, syncSession, fetchSessions, activeSessionId } from '@/services/AIService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
@@ -410,6 +411,14 @@ const selectedTask = ref<any>(null);
 const isGenerating = ref(false);
 const hasStartedInit = ref(false);
 const inputMsg = ref('');
+const chatInputRef = ref<any>(null);
+
+watch(activeSessionId, async (newVal) => {
+  await nextTick();
+  if (chatInputRef.value?.textarea) {
+    chatInputRef.value.textarea.focus();
+  }
+});
 const messages = aiSessionMessages as unknown as Ref<ChatMessage[]>;
 const chatContainer = ref<HTMLElement | null>(null);
 const hasNavigatorGpu = typeof navigator !== 'undefined' && !!(navigator as any).gpu;
