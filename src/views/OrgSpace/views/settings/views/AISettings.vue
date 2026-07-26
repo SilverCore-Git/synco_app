@@ -15,11 +15,11 @@
                         </div>
                     </div>
 
-                    <div v-if="!openedOrg?.features?.includes('ai')" class="mb-8 p-6 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-4">
-                        <i class="bi bi-shield-lock-fill text-red-500 text-2xl mt-1"></i>
+                    <div v-if="!openedOrg?.features?.includes('ai')" class="mb-8 p-6 bg-white/5 border border-white/10 rounded-xl flex items-start gap-4">
+                        <i class="bi bi-shield-lock-fill text-(--text)/50 text-2xl mt-1"></i>
                         <div>
-                            <h4 class="text-red-500 font-bold text-lg">Module Désactivé</h4>
-                            <p class="text-red-500/80 text-sm mt-1">L'administration globale a désactivé le module Synco AI pour cette organisation. Vous ne pouvez pas modifier ces paramètres.</p>
+                            <h4 class="text-(--text)/80 font-bold text-lg">Module non inclus</h4>
+                            <p class="text-(--text)/50 text-sm mt-1">Le module Synco AI n'est pas inclus dans votre abonnement actuel. Vous ne pouvez pas modifier ces paramètres.</p>
                         </div>
                     </div>
 

@@ -94,7 +94,7 @@
                             <div class="flex items-center gap-4">
                                 <i class="bi bi-list-check text-xl text-(--primary)" :class="{'opacity-50 grayscale': !openedOrg?.features?.includes('todo')}"></i>
                                 <div>
-                                    <h4 class="font-bold text-sm text-(--text)">Module Tâches <span v-if="!openedOrg?.features?.includes('todo')" class="ml-2 text-[10px] font-normal text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full">Désactivé par l'administration</span></h4>
+                                    <h4 class="font-bold text-sm text-(--text)">Module Tâches <span v-if="!openedOrg?.features?.includes('todo')" class="ml-2 text-[10px] font-normal text-(--text)/50 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full shadow-inner">Module non inclus dans l'abonnement</span></h4>
                                     <p class="text-xs text-(--text)/40">Activer la gestion des tâches globales et par projet.</p>
                                 </div>
                             </div>
@@ -108,7 +108,7 @@
                             <div class="flex items-center gap-4">
                                 <i class="bi bi-file-earmark text-xl text-(--primary)" :class="{'opacity-50 grayscale': !openedOrg?.features?.includes('files')}"></i>
                                 <div>
-                                    <h4 class="font-bold text-sm text-(--text)">Module Fichiers <span v-if="!openedOrg?.features?.includes('files')" class="ml-2 text-[10px] font-normal text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full">Désactivé par l'administration</span></h4>
+                                    <h4 class="font-bold text-sm text-(--text)">Module Fichiers <span v-if="!openedOrg?.features?.includes('files')" class="ml-2 text-[10px] font-normal text-(--text)/50 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full shadow-inner">Module non inclus dans l'abonnement</span></h4>
                                     <p class="text-xs text-(--text)/40">Activer le système de stockage de fichiers par projet.</p>
                                 </div>
                             </div>
@@ -122,7 +122,7 @@
                             <div class="flex items-center gap-4">
                                 <i class="bi bi-robot text-xl text-(--primary)" :class="{'opacity-50 grayscale': !openedOrg?.features?.includes('ai')}"></i>
                                 <div>
-                                    <h4 class="font-bold text-sm text-(--text)">Synco AI <span v-if="!openedOrg?.features?.includes('ai')" class="ml-2 text-[10px] font-normal text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full">Désactivé par l'administration</span></h4>
+                                    <h4 class="font-bold text-sm text-(--text)">Synco AI <span v-if="!openedOrg?.features?.includes('ai')" class="ml-2 text-[10px] font-normal text-(--text)/50 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full shadow-inner">Module non inclus dans l'abonnement</span></h4>
                                     <p class="text-xs text-(--text)/40">Activer l'assistant IA localement (WebGPU).</p>
                                 </div>
                             </div>
@@ -208,9 +208,9 @@ const showDeleteOrg = ref<boolean>(false);
 const orgData = ref({
     name: openedOrg.value?.name || '',
     logo: openedOrg.value?.logo || '',
-    todoEnabled: openedOrg.value?.activeModules?.todo || false,
-    filesEnabled: openedOrg.value?.activeModules?.files !== false,
-    aiEnabled: openedOrg.value?.activeModules?.ai === true
+    todoEnabled: openedOrg.value?.features?.includes('todo') ? (openedOrg.value?.activeModules?.todo || false) : false,
+    filesEnabled: openedOrg.value?.features?.includes('files') ? (openedOrg.value?.activeModules?.files !== false) : false,
+    aiEnabled: openedOrg.value?.features?.includes('ai') ? (openedOrg.value?.activeModules?.ai === true) : false
 });
 
 const hasChanges = computed(() => {
@@ -226,9 +226,9 @@ const hasChanges = computed(() => {
 const resetChanges = () => {
     orgData.value.name = openedOrg.value?.name || '';
     orgData.value.logo = openedOrg.value?.logo || '';
-    orgData.value.todoEnabled = openedOrg.value?.activeModules?.todo || false;
-    orgData.value.filesEnabled = openedOrg.value?.activeModules?.files !== false;
-    orgData.value.aiEnabled = openedOrg.value?.activeModules?.ai === true;
+    orgData.value.todoEnabled = openedOrg.value?.features?.includes('todo') ? (openedOrg.value?.activeModules?.todo || false) : false;
+    orgData.value.filesEnabled = openedOrg.value?.features?.includes('files') ? (openedOrg.value?.activeModules?.files !== false) : false;
+    orgData.value.aiEnabled = openedOrg.value?.features?.includes('ai') ? (openedOrg.value?.activeModules?.ai === true) : false;
 };
 
 const saveSettings = async () => {
@@ -334,7 +334,9 @@ watch(() => openedOrg.value, (newOrg) => {
     {
         orgData.value.name = newOrg.name;
         orgData.value.logo = newOrg.logo || '';
-        orgData.value.todoEnabled = newOrg.activeModules?.todo || false;
+        orgData.value.todoEnabled = newOrg.features?.includes('todo') ? (newOrg.activeModules?.todo || false) : false;
+        orgData.value.filesEnabled = newOrg.features?.includes('files') ? (newOrg.activeModules?.files !== false) : false;
+        orgData.value.aiEnabled = newOrg.features?.includes('ai') ? (newOrg.activeModules?.ai === true) : false;
     }
 }, { deep: true });
 
