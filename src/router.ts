@@ -26,9 +26,22 @@ const routes = [
   },
 
   {
-    path: '/admin',
+    path: '/root',
     name: 'AdminPanel',
     component: AdminPanel,
+    redirect: '/root/users',
+    children: [
+      {
+        path: 'users',
+        name: 'AdminUsers',
+        component: () => import('./views/admin/UsersQuota.vue'),
+      },
+      {
+        path: 'orgs',
+        name: 'AdminOrgs',
+        component: () => import('./views/admin/OrgsQuota.vue'),
+      }
+    ]
   },
 
   {
