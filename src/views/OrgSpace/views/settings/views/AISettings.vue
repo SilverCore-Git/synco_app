@@ -10,8 +10,8 @@
                     
                     <div class="mb-6 flex justify-between items-start">
                         <div>
-                            <h3 class="text-xl font-black text-(--text) mb-1">Configuration de l'IA</h3>
-                            <p class="text-sm text-(--text)/60">Paramétrez le fournisseur de l'intelligence artificielle pour votre organisation. Ce paramétrage sera utilisé par tous les membres.</p>
+                            <h3 class="text-xl font-black text-(--text) mb-1">Configuration de Synco AI</h3>
+                            <p class="text-sm text-(--text)/60">Paramétrez le fournisseur de Synco AI pour votre organisation. Ce paramétrage sera utilisé par tous les membres.</p>
                         </div>
                     </div>
 
