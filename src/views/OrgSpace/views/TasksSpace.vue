@@ -190,6 +190,7 @@ import type { Task, OrgMember } from '@/types/types';
 
 import { useToast } from '@/composables/useToast';
 import useSettingsItem from '@/composables/useSettingsItem';
+import useWSocket from '@/composables/useWSocket';
 import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
@@ -414,7 +415,22 @@ const onDrop = async (e: DragEvent, newStatus: string) => {
     }
 };
 
-onMounted(() => {
+onMounted(async () => {
     loadTasks();
+    
+    const socket = await useWSocket();
+    socket.value?.on('todo-added', ({ task }: { task: Task }) => {
+        if (task.spaceId === route.params.spaceId && !tasks.value.some(t => t.id === task.id)) {
+            tasks.value.unshift(task);
+        }
+    });
+    socket.value?.on('todo-updated', ({ task }: { task: Task }) => {
+        if (task.spaceId === route.params.spaceId) {
+            onTaskUpdated(task);
+        }
+    });
+    socket.value?.on('todo-deleted', ({ taskId }: { taskId: string }) => {
+        onTaskDeleted(taskId);
+    });
 });
 </script>

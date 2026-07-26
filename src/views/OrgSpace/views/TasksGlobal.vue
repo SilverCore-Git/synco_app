@@ -431,5 +431,11 @@ onMounted(async () => {
             rawTasks.value.unshift(task);
         }
     });
+    socket.value?.on('todo-updated', ({ task }: { task: Task }) => {
+        onTaskUpdated(task);
+    });
+    socket.value?.on('todo-deleted', ({ taskId }: { taskId: string }) => {
+        onTaskDeleted(taskId);
+    });
 });
 </script>
