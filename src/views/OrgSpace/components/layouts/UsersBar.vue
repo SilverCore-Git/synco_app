@@ -2,13 +2,13 @@
 
     <div
         class="
-            h-full w-full border-l border-white/5
+            h-full w-full border-l border-(--border-color)
             flex flex-col overflow-hidden  bg-(--bg3)
         "
         :class="isDesktopApp() ? 'border-t' : ''"
     >
 
-        <div class="px-4 min-h-14 flex justify-between items-center border-b border-white/5 bg-(--bg2)">
+        <div class="px-4 min-h-14 flex justify-between items-center border-b border-(--border-color) bg-(--bg2)">
 
             <h3 class="text-xs font-semibold text-(--text)/50 uppercase tracking-wider">
                 Membres ({{ members?.length || 0 }})

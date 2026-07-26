@@ -16,7 +16,7 @@
                 Type de salon
             </label>
 
-            <div class="flex flex-col gap-2 p-1 bg-(--bg2)/20 rounded-xl border border-white/5">
+            <div class="flex flex-col gap-2 p-1 bg-(--bg2)/20 rounded-xl border border-(--border-color)">
                 <button 
                     v-for="tab in [ 'text', 'vocal' ]" 
                     :key="'tab-' + tab"
@@ -145,9 +145,14 @@ const handleSubmit = async () => {
 
             try {
                 
-                const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
+                let members: any[] = [];
                 
-                let members = openedOrg.value?.members?.filter(m => space?.membersId.includes(m.userId)).map(m => m!.user!) || [];
+                if (isHome.value) {
+                    members = openedOrg.value?.members?.map(m => m!.user!) || [];
+                } else {
+                    const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
+                    members = openedOrg.value?.members?.filter(m => space?.membersId.includes(m.userId)).map(m => m!.user!) || [];
+                }
                 
                 // S'assurer que le membre courant est inclus avec sa publicKey à jour
                 const currentUser = user.value;

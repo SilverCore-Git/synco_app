@@ -1,51 +1,27 @@
 <template>
   <div class="h-full flex flex-col w-full relative">
     
-    <!-- Header / Model Selection -->
-    <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-white/5 bg-(--bg2) z-10 shrink-0">
-      <div class="flex items-center gap-3">
-        <MobileBackBtn />
-        <i class="bi bi-robot text-xl text-(--text)"></i>
-        <h3 class="font-semibold text-(--text)">Synco AI</h3>
-      </div>
-
-      <div class="flex items-center gap-3">
-        <div class="text-xs text-right mr-2 hidden md:block" v-if="aiIsLocal">
-          <p class="text-white/40 mb-0.5">Modèle actuel :</p>
-          <p class="font-mono text-white/70">{{ aiCurrentModelName }}</p>
+    <!-- Main Chat Area -->
+    <div class="flex-1 flex flex-col relative h-full">
+    
+      <!-- Header -->
+      <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-(--border-color) bg-(--bg2) z-10 shrink-0">
+        <div class="flex items-center gap-3">
+          <MobileBackBtn />
         </div>
 
-        <button
-          @click="newSession"
-          class="bg-white/5 hover:bg-(--primary)/20 border border-white/10 hover:border-(--primary)/30 text-white/60 hover:text-(--primary) px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5"
-          title="Nouvelle session"
-        >
-          <i class="bi bi-plus-lg"></i>
-          <span class="hidden md:inline">Nouvelle session</span>
-        </button>
-        
-        <select 
-          v-if="aiIsLocal"
-          v-model="selectedModelId"
-          @change="loadModel"
-          class="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-(--primary) transition-colors"
-        >
-          <option v-for="model in availableModels" :key="model.id" :value="model.id">
-            Tier {{ model.tier }} - {{ model.name }}
-          </option>
-        </select>
-        
-        <button 
-            @click="showUsersBar = !showUsersBar"
-            class="hover:text-(--text) transition-colors ml-2"
-            :class="showUsersBar ? 'text-(--text)' : 'text-(--text)/40'"
-        >
-            <i class="bi bi-people-fill text-lg" />
-        </button>
+        <div class="flex items-center gap-3">
+          <button 
+              @click="showUsersBar = !showUsersBar"
+              class="hover:text-(--text) transition-colors ml-2"
+              :class="showUsersBar ? 'text-(--text)' : 'text-(--text)/40'"
+          >
+              <i class="bi bi-people-fill text-lg" />
+          </button>
+        </div>
       </div>
-    </div>
 
-    <!-- Chat Area -->
+      <!-- Chat Container -->
     <div class="flex-1 overflow-y-auto p-6 space-y-6 flex flex-col w-full max-w-5xl mx-auto" ref="chatContainer">
       
       <!-- Welcome Message -->
@@ -71,7 +47,7 @@
             <i :class="msg.role === 'user' ? 'bi-person' : 'bi-robot'"></i>
             {{ msg.role === 'user' ? 'Vous' : 'Synco AI' }}
           </div>
-          <div v-if="msg.content" v-html="formatMessage(msg.content)" class="prose prose-invert max-w-none prose-sm"></div>
+          <div v-if="msg.content" v-html="formatMessage(msg.content)" @click="handleLinks" class="prose prose-invert max-w-none prose-sm"></div>
           <div v-else-if="msg.role === 'assistant' && isGenerating && !msg.tool_call" class="flex gap-1 py-2">
             <div class="w-1.5 h-1.5 bg-white/50 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
             <div class="w-1.5 h-1.5 bg-white/50 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
@@ -82,8 +58,10 @@
           <div v-if="msg.tool_call" class="mt-4 bg-black/40 border border-(--primary)/30 rounded-xl p-4">
             <div class="flex items-center gap-2 mb-2 text-(--primary) font-bold text-xs uppercase">
               <i class="bi bi-search" v-if="msg.tool_call.name === 'search_messages'"></i>
+              <i class="bi bi-book" v-else-if="msg.tool_call.name === 'read_documentation'"></i>
+              <i class="bi bi-check2-square" v-else-if="msg.tool_call.name === 'read_tasks'"></i>
               <i class="bi bi-wrench-adjustable-circle" v-else></i> 
-              {{ msg.tool_call.name === 'search_messages' ? 'Recherche Globale' : "Demande d'action" }}
+              {{ msg.tool_call.name === 'search_messages' ? 'Recherche Globale' : msg.tool_call.name === 'read_documentation' ? 'Consultation de la documentation' : msg.tool_call.name === 'read_tasks' ? 'Lecture des tâches' : "Demande d'action" }}
             </div>
             
             <p class="text-sm" v-if="msg.tool_call.name === 'search_messages'">
@@ -92,13 +70,31 @@
                    "{{ getSearchQuery(msg.tool_call.arguments) }}"
                </span>
             </p>
+            <p class="text-sm" v-else-if="msg.tool_call.name === 'read_documentation'">
+               Je consulte la documentation officielle de Synco pour vous répondre avec précision.
+            </p>
+            <p class="text-sm" v-else-if="msg.tool_call.name === 'read_tasks'">
+               Je consulte votre liste de tâches et son état d'avancement.
+            </p>
             <p class="text-sm" v-else>
                Exécution de <code class="bg-black/50 px-2 py-1 rounded text-(--primary) font-bold">{{ msg.tool_call.name }}</code>
             </p>
             
-            <div class="flex gap-2 mt-4" v-if="msg.tool_call.status === 'pending'">
-               <button @click="handleToolCall(msg.tool_call, true, index)" class="bg-green-500/20 text-green-500 border border-green-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-500/30 transition-colors">Accepter</button>
-               <button @click="handleToolCall(msg.tool_call, false, index)" class="bg-red-500/20 text-red-500 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/30 transition-colors">Refuser</button>
+            <div class="mt-4" v-if="msg.tool_call.status === 'pending'">
+               <div v-if="msg.tool_call.name === 'request_image_upload'" class="w-full">
+                  <IconSelector 
+                      model-value="" 
+                      @on-base64="(base64) => { 
+                          const id = 'img_' + Date.now(); 
+                          temporaryImages[id] = base64; 
+                          if (msg.tool_call) handleToolCall(msg.tool_call, true, index, id); 
+                      }" 
+                  />
+               </div>
+               <div v-else class="flex gap-2">
+                   <button @click="handleToolCall(msg.tool_call, true, index)" class="bg-green-500/20 text-green-500 border border-green-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-500/30 transition-colors">Accepter</button>
+                   <button @click="handleToolCall(msg.tool_call, false, index)" class="bg-red-500/20 text-red-500 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/30 transition-colors">Refuser</button>
+               </div>
             </div>
             <div v-else-if="msg.tool_call.status === 'executing'" class="text-(--primary) text-xs font-bold mt-3 flex items-center gap-2">
                <div class="w-3 h-3 border-2 border-(--primary) border-t-transparent rounded-full animate-spin"></div>
@@ -116,9 +112,9 @@
                 <div 
                     v-for="res in messages[index+1]?.tool_data?.results" 
                     :key="res.id"
-                    class="bg-black/30 border border-white/5 rounded-xl overflow-hidden"
+                    class="bg-black/30 border border-(--border-color) rounded-xl overflow-hidden"
                 >
-                    <div class="px-3 py-2 bg-white/5 border-b border-white/5 flex justify-between items-center text-[10px] text-white/50 uppercase font-bold tracking-wider">
+                    <div class="px-3 py-2 bg-white/5 border-b border-(--border-color) flex justify-between items-center text-[10px] text-white/50 uppercase font-bold tracking-wider">
                         <div class="flex items-center gap-1.5 truncate pr-2">
                             <i class="bi bi-folder2-open"></i> 
                             <span class="truncate">{{ getSpaceAndThreadName(res.workspaceId, res.metadata?.threadId).spaceName }}</span> 
@@ -153,7 +149,7 @@
                 v-if="msg.tool_call.status === 'accepted' && messages[index+1]?.tool_data?.name === 'create_task' && messages[index+1]?.tool_data?.results" 
                 class="mt-4 pt-4 border-t border-white/10"
             >
-                <div class="bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="selectedTask = messages[index+1]?.tool_data?.results">
+                <div class="w-full bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="selectedTask = messages[index+1]?.tool_data?.results">
                     <div class="flex items-center gap-3">
                         <i class="bi bi-circle text-gray-400 text-xl"></i>
                         <div>
@@ -173,9 +169,10 @@
                 v-if="msg.tool_call.status === 'accepted' && messages[index+1]?.tool_data?.name === 'create_space' && messages[index+1]?.tool_data?.results" 
                 class="mt-4 pt-4 border-t border-white/10"
             >
-                <div class="bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="router.push(`/${openedOrg?.id}/${messages[index+1]?.tool_data?.results.id}/`)">
+                <div class="w-full bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="router.push(`/${openedOrg?.id}/${messages[index+1]?.tool_data?.results.id}/`)">
                     <div class="flex items-center gap-3">
-                        <i class="bi text-xl text-(--primary)" :class="messages[index+1]?.tool_data?.results.logo || 'bi-folder'"></i>
+                        <img v-if="messages[index+1]?.tool_data?.results.logo?.startsWith('data:image')" :src="messages[index+1]?.tool_data?.results.logo" class="w-8 h-8 rounded-md object-cover" />
+                        <i v-else class="bi text-xl text-(--primary)" :class="messages[index+1]?.tool_data?.results.logo || 'bi-folder'"></i>
                         <div>
                             <p class="text-sm font-bold text-(--text) leading-snug">{{ messages[index+1]?.tool_data?.results.name }}</p>
                             <p class="text-xs text-white/40 mt-0.5">Espace de travail</p>
@@ -191,14 +188,14 @@
             <!-- Created Thread Snippet -->
             <div 
                 v-if="msg.tool_call.status === 'accepted' && messages[index+1]?.tool_data?.name === 'create_thread' && messages[index+1]?.tool_data?.results" 
-                class="mt-4 pt-4 border-t border-white/10"
+                class="mt-4 pt-4 border-t border-white/10 flex flex-col gap-2"
             >
-                <div class="bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="router.push(`/${openedOrg?.id}/${messages[index+1]?.tool_data?.results.workspaceId || 'home'}/${messages[index+1]?.tool_data?.results.id}`)">
+                <div v-for="th in messages[index+1]?.tool_data?.results" :key="th.id" class="w-full bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="router.push(`/${openedOrg?.id}/${th.workspaceId || 'home'}/${th.id}`)">
                     <div class="flex items-center gap-3">
-                        <i class="bi text-xl text-(--primary)" :class="messages[index+1]?.tool_data?.results.type === 'vocal' ? 'bi-volume-up-fill' : 'bi-hash'"></i>
+                        <i class="bi text-xl text-(--primary)" :class="th.type === 'vocal' ? 'bi-volume-up-fill' : 'bi-hash'"></i>
                         <div>
-                            <p class="text-sm font-bold text-(--text) leading-snug">{{ messages[index+1]?.tool_data?.results.name }}</p>
-                            <p class="text-xs text-white/40 mt-0.5">Salon {{ messages[index+1]?.tool_data?.results.type === 'vocal' ? 'vocal' : 'textuel' }}</p>
+                            <p class="text-sm font-bold text-(--text) leading-snug">{{ th.name }}</p>
+                            <p class="text-xs text-white/40 mt-0.5">Salon {{ th.type === 'vocal' ? 'vocal' : 'textuel' }}</p>
                         </div>
                     </div>
                     <button class="text-xs bg-white/5 hover:bg-white/10 text-white font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
@@ -217,7 +214,7 @@
     </div>
 
     <!-- Loading / Status Bar / Manual Start -->
-    <div v-if="aiIsLocal && !aiIsInitialized" class="px-6 py-4 border-t border-white/5 bg-black/20 flex flex-col gap-3 shrink-0">
+    <div v-if="aiIsLocal && !aiIsInitialized" class="px-6 py-4 border-t border-(--border-color) bg-black/20 flex flex-col gap-3 shrink-0">
       
       <!-- WebGPU Non supporté (Erreur bloquante) -->
       <div v-if="!aiHasWebGPU" class="flex items-start gap-4 bg-red-950/40 border-l-4 border-red-500 p-5 rounded-r-xl rounded-l-sm mb-5 shadow-lg">
@@ -231,7 +228,7 @@
             Aucune carte graphique compatible n'a été détectée dans votre navigateur. L'exécution en local est donc désactivée.
           </p>
           
-          <div class="bg-black/40 p-4 rounded-lg border border-white/5 text-sm text-white/80">
+          <div class="bg-black/40 p-4 rounded-lg border border-(--border-color) text-sm text-white/80">
             <p class="font-bold text-red-300 mb-2 flex items-center gap-2"><i class="bi bi-wrench-adjustable"></i> Pistes de résolution :</p>
             <ul class="list-disc ml-5 space-y-2">
               <li><strong>Linux :</strong> L'accélération WebGPU est souvent bloquée. Nous recommandons d'utiliser <strong>Chromium ou Chrome sous Windows ou macOS</strong> pour profiter de l'IA locale.</li>
@@ -248,7 +245,7 @@
           <h4 class="text-red-500 font-bold text-sm">Erreur d'initialisation</h4>
           <p class="text-xs text-red-500/80 mt-1 mb-2">{{ initError }}</p>
           
-          <div v-if="initError.includes('f16')" class="bg-black/20 p-3 rounded-lg border border-white/5 text-xs text-white/70">
+          <div v-if="initError.includes('f16')" class="bg-black/20 p-3 rounded-lg border border-(--border-color) text-xs text-white/70">
             <strong>Astuce Chrome/Edge :</strong> Il est impossible d'activer cette fonctionnalité automatiquement. Cependant, vous pouvez forcer son activation manuellement :
             <ol class="list-decimal ml-4 mt-1 space-y-1">
               <li>Copiez l'URL <code class="bg-black/50 px-1 py-0.5 rounded text-white select-all">chrome://flags/#enable-webgpu-developer-features</code> et collez-la dans la barre d'adresse de votre navigateur.</li>
@@ -294,14 +291,15 @@
 
     </div>
 
-    <div class="p-1 border-t border-white/5 shrink-0 relative">
+    <div class="p-1 border-t border-(--border-color) shrink-0 relative">
       <form 
         @submit.prevent="() => sendMessage()" 
-        class="relative ml-0 lg:ml-60 w-full lg:w-[calc(100%-240px)] flex items-end gap-3 mx-auto lg:mx-0 border border-white/10 rounded-xl px-4 py-2 transition-all shadow-2xl"
+        class="relative w-full max-w-5xl mx-auto flex items-end gap-3 border border-white/10 rounded-xl px-4 py-2 transition-all shadow-2xl"
         :class="(!aiIsInitialized || isGenerating) ? 'bg-black/50 opacity-50 cursor-not-allowed' : 'bg-(--bg) focus-within:border-(--primary)/50'"
       >
         
         <ThreadTextarea 
+          ref="chatInputRef"
           v-model="inputMsg"
           placeholder="Demandez-moi n'importe quoi..."
           :disabled="!aiIsInitialized || isGenerating"
@@ -327,6 +325,7 @@
         @close="selectedTask = null"
     />
 
+    </div>
   </div>
 </template>
 
@@ -334,11 +333,12 @@
 import { ref, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
 import * as webllm from '@mlc-ai/web-llm';
 import { localLLM, availableModels } from '@/services/LocalLLMService';
-import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages } from '@/services/AIService';
+import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages, syncSession, fetchSessions, activeSessionId } from '@/services/AIService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
+import IconSelector from '@/components/common/IconSelector.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -346,19 +346,36 @@ const route = useRoute();
 const router = useRouter();
 import sfetch from '@/assets/utils/sfetch';
 import globalVectorWorker from '@/services/GlobalVectorWorker';
+
+const { openedOrg } = useSettingsItem();
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { generateThreadKey, encryptThreadKeyForMember, E2EEUnloked, privateKey } from '@/assets/utils/crypto';
 import { openedOrg, user } from '@/assets/var';
-import { getToolsSystemPrompt } from '@/services/AITools';
+import { getSystemPrompt } from '@/services/AITools';
 
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
 const { Item: savedModelId, isLoaded: savedModelLoaded } = useSettingsItem('ai_selected_model', '');
 
-// On utilise marked pour le formatage, ou simplement un remplacement basique pour l'instant
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
+
+// On utilise marked pour le formatage avec DOMPurify pour la sécurité
 const formatMessage = (text: string) => {
   let cleanText = text.replace(/<tool_call>[\s\S]*?(?:<\/tool_call>|$)/g, '');
-  return cleanText.trim().replace(/\n/g, '<br>').replace(/```([\s\S]*?)```/g, '<pre class="bg-black/50 p-3 rounded-lg border border-white/10 overflow-x-auto my-2"><code>$1</code></pre>');
+  const html = marked.parse(cleanText) as string;
+  return DOMPurify.sanitize(html);
+};
+
+const handleLinks = (e: MouseEvent) => {
+   const target = (e.target as HTMLElement).closest('a');
+   if (target) {
+      const href = target.getAttribute('href');
+      if (href && href.startsWith('/')) {
+         e.preventDefault();
+         router.push(href);
+      }
+   }
 };
 
 const getSpaceAndThreadName = (workspaceId: string, threadId: string) => {
@@ -394,9 +411,18 @@ const selectedTask = ref<any>(null);
 const isGenerating = ref(false);
 const hasStartedInit = ref(false);
 const inputMsg = ref('');
+const chatInputRef = ref<any>(null);
+
+watch(activeSessionId, async (newVal) => {
+  await nextTick();
+  if (chatInputRef.value?.textarea) {
+    chatInputRef.value.textarea.focus();
+  }
+});
 const messages = aiSessionMessages as unknown as Ref<ChatMessage[]>;
 const chatContainer = ref<HTMLElement | null>(null);
 const hasNavigatorGpu = typeof navigator !== 'undefined' && !!(navigator as any).gpu;
+const temporaryImages = ref<Record<string, string>>({});
 
 const scrollToBottom = async () => {
   await nextTick();
@@ -483,13 +509,63 @@ const stopGeneration = () => {
   }
 };
 
-const newSession = () => {
-  stopGeneration();
-  messages.value = [];
+// newSession logic is now handled in ThreadsBar.vue via AIService
+
+const createThreadHelper = async (orgId: string, spaceId: string | undefined, name: string, type: string) => {
+    const isHome = !spaceId || spaceId === 'home';
+    const space = spaceId ? openedOrg.value?.spaces?.find(s => s.id === spaceId || s.name.toLowerCase() === spaceId.toLowerCase()) : null;
+    
+    if (!isHome && !space) {
+        throw new Error(`L'espace '${spaceId}' n'existe pas.`);
+    }
+    const actualSpaceId = space ? space.id : undefined;
+
+    let members = actualSpaceId && space ? openedOrg.value?.members?.filter(m => space.membersId.includes(m.userId)).map(m => m!.user!) || [] 
+                    : openedOrg.value?.members?.map(m => m.user!) || [];
+    
+    const currentUser = user.value;
+    if (currentUser && !members.some(m => m.id === currentUser.id)) {
+        members = [...members, currentUser];
+    }
+    
+    if (!currentUser?.publicKey || !E2EEUnloked.value || !privateKey.value) {
+        throw new Error("La session E2EE n'est pas déverrouillée.");
+    }
+    
+    const newThreadKey = await generateThreadKey();
+    let encryptedKeysPayload = [];
+    for (const member of members) {
+        if (member.publicKey && typeof member.publicKey === 'string' && member.publicKey.trim().startsWith('{')) {
+            const encryptedKey = await encryptThreadKeyForMember(newThreadKey, member.publicKey);
+            encryptedKeysPayload.push({ userId: member.id, encryptedKey });
+        }
+    }
+    
+    if (encryptedKeysPayload.length === 0) throw new Error("Aucun membre avec clé E2EE valide.");
+    
+    let categoryId = isHome ? openedOrg.value?.home?.categories?.[0]?.id : space?.categories?.[0]?.id;
+    if (!categoryId) throw new Error("Aucune catégorie disponible.");
+
+    const payload = { name, type: type || 'text', keys: encryptedKeysPayload, index: 0, categoryId };
+    
+    const endpoint = isHome ? `/api/threads/org/${orgId}` : `/api/threads/space/${actualSpaceId}`;
+    const res = await sfetch(endpoint, { method: 'POST', body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    
+    if (!isHome && actualSpaceId) data.workspaceId = actualSpaceId;
+    if (isHome) {
+        if (!openedOrg.value?.home?.threads) { if (openedOrg.value && openedOrg.value.home) openedOrg.value.home.threads = []; }
+        openedOrg.value?.home?.threads?.push(data);
+    } else if (space) {
+        if (!space.threads) space.threads = [];
+        space.threads.push(data);
+    }
+    return data;
 };
 
-const handleToolCall = async (toolCall: any, accepted: boolean, _msgIndex: number) => {
-  if (!accepted) {
+const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, accept: boolean, _assistantMsgIndex: number, imageId?: string) => {
+  if (!accept) {
     toolCall.status = 'rejected';
     messages.value.push({ role: 'system', content: `L'utilisateur a refusé l'exécution de l'outil ${toolCall.name}. Demande-lui pourquoi ou propose une alternative.` });
     sendMessage("Action refusée par l'utilisateur.");
@@ -502,21 +578,38 @@ const handleToolCall = async (toolCall: any, accepted: boolean, _msgIndex: numbe
   let toolData: any = null;
   try {
     const args = typeof toolCall.arguments === 'string' ? JSON.parse(toolCall.arguments) : toolCall.arguments;
-    const orgId = route.params.orgId;
+    const orgId = route.params.orgId as string;
     
     if (toolCall.name === 'create_space') {
+       if (args.logo && args.logo.startsWith('img_') && temporaryImages.value[args.logo]) {
+           args.logo = temporaryImages.value[args.logo];
+       }
        const res = await sfetch(`/api/spaces/org/${orgId}`, {
          method: 'POST',
          body: JSON.stringify({ name: args.name, logo: args.logo, membersId: [] })
        });
-       const data = await res.json();
-       if (data.error) throw new Error(data.error);
+       const spaceData = await res.json();
+       if (spaceData.error) throw new Error(spaceData.error);
        
        if (openedOrg.value && openedOrg.value.spaces) {
-           openedOrg.value.spaces.push(data);
+           openedOrg.value.spaces.push(spaceData);
        }
-       toolData = data;
-       result = `Espace '${args.name}' créé avec succès. L'utilisateur peut y accéder.`;
+       toolData = spaceData;
+       result = `Espace '${args.name}' créé avec succès.`;
+       
+       if (args.threads && Array.isArray(args.threads) && args.threads.length > 0) {
+           let threadsCreated = [];
+           for (const t of args.threads) {
+               try {
+                   const tData = await createThreadHelper(orgId, spaceData.id, t.name, t.type);
+                   threadsCreated.push(tData);
+               } catch (e) {
+                   console.error("Erreur lors de la création d'un salon rattaché:", e);
+               }
+           }
+           toolData.threads = threadsCreated;
+           result += ` ${threadsCreated.length} salons y ont été créés.`;
+       }
        
     } else if (toolCall.name === 'create_task') {
        const payload = {
@@ -574,84 +667,44 @@ const handleToolCall = async (toolCall: any, accepted: boolean, _msgIndex: numbe
         }
 
     } else if (toolCall.name === 'create_thread') {
-       let spaceId = args.spaceId || undefined;
-       const isHome = !spaceId;
-       
-       const space = spaceId ? openedOrg.value?.spaces?.find(s => s.id === spaceId || s.name.toLowerCase() === spaceId.toLowerCase()) : null;
-       
-       if (!isHome && !space) {
-           throw new Error(`L'espace '${spaceId}' n'existe pas. Veuillez vérifier le nom de l'espace ou le créer d'abord.`);
-       }
-       if (space) {
-           spaceId = space.id;
-           args.spaceId = space.id;
-       }
-
-       let members = spaceId && space ? openedOrg.value?.members?.filter(m => space.membersId.includes(m.userId)).map(m => m!.user!) || [] 
-                     : openedOrg.value?.members?.map(m => m.user!) || [];
-       
-       const currentUser = user.value;
-       if (currentUser && !members.some(m => m.id === currentUser.id)) {
-           members = [...members, currentUser];
-       }
-       
-       if (!currentUser?.publicKey || !E2EEUnloked.value || !privateKey.value) {
-           throw new Error("La session E2EE de l'utilisateur n'est pas déverrouillée. Il doit entrer son code PIN pour générer les clés de chiffrement du salon.");
-       }
-       
-       const newThreadKey = await generateThreadKey();
-       let encryptedKeysPayload = [];
-       for (const member of members) {
-           if (member.publicKey && typeof member.publicKey === 'string' && member.publicKey.trim().startsWith('{')) {
-               const encryptedKey = await encryptThreadKeyForMember(newThreadKey, member.publicKey);
-               encryptedKeysPayload.push({ userId: member.id, encryptedKey });
-           }
-       }
-       
-       if (encryptedKeysPayload.length === 0) {
-           throw new Error("Aucun membre ne possède de clé publique E2EE valide.");
-       }
-       
-       let categoryId = null;
-       if (isHome) {
-           categoryId = openedOrg.value?.home?.categories?.[0]?.id;
-       } else {
-           categoryId = space?.categories?.[0]?.id;
-       }
-
-       if (!categoryId) {
-           throw new Error("Aucune catégorie disponible pour créer le salon.");
-       }
-
-       const payload = {
-           name: args.name,
-           type: args.type || 'text',
-           keys: encryptedKeysPayload,
-           index: 0,
-           categoryId: categoryId
-       };
-       
-       const endpoint = isHome ? `/api/threads/org/${orgId}` : `/api/threads/space/${spaceId}`;
-       const res = await sfetch(endpoint, {
-           method: 'POST',
-           body: JSON.stringify(payload)
-       });
-       const data = await res.json();
-       if (data.error) throw new Error(data.error);
-       if (!isHome && spaceId) {
-           data.workspaceId = spaceId;
-       }
-        toolData = data;
-        if (isHome) {
-            if (!openedOrg.value?.home?.threads) {
-                if (openedOrg.value && openedOrg.value.home) openedOrg.value.home.threads = [];
+        const threads = args.threads || [];
+        if (threads.length === 0) throw new Error("Aucun salon spécifié.");
+        
+        let created = [];
+        for (const t of threads) {
+            try {
+                const tData = await createThreadHelper(orgId, t.spaceId, t.name, t.type);
+                created.push(tData);
+            } catch (e: any) {
+                console.error("Erreur création salon:", e);
+                throw new Error(`Erreur lors de la création du salon '${t.name}': ${e.message}`);
             }
-            openedOrg.value?.home?.threads?.push(data);
-        } else if (space) {
-            if (!space.threads) space.threads = [];
-            space.threads.push(data);
         }
-        result = `Salon '${args.name}' (type: ${args.type}) créé avec succès (ID: ${data.id}). Les clés E2EE ont été générées et distribuées.`;
+        toolData = created;
+        result = `${created.length} salon(s) créé(s) avec succès. Les clés E2EE ont été générées et distribuées.`;
+
+    } else if (toolCall.name === 'read_documentation') {
+        const docFiles = import.meta.glob('../../../../../doc/*.md', { query: '?raw', import: 'default', eager: true });
+        
+        let fullDoc = "# Documentation de Synco\n\n";
+        for (const [path, content] of Object.entries(docFiles)) {
+            const fileName = path.split('/').pop()?.replace('.md', '') || path;
+            fullDoc += `## Chapitre : ${fileName}\n\n${content}\n\n---\n\n`;
+        }
+        
+        toolData = { length: fullDoc.length };
+        result = fullDoc;
+
+    } else if (toolCall.name === 'request_image_upload') {
+        toolData = { id: imageId };
+        result = `L'utilisateur a fourni une image. Identifiant de l'image : '${imageId}'. Utilise EXACTEMENT cette valeur '${imageId}' pour le paramètre 'logo' de 'create_space'.`;
+
+    } else if (toolCall.name === 'read_tasks') {
+        const res = await sfetch(`/api/tasks/${orgId}/lists/me`);
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || "Erreur serveur");
+        result = "Voici les tâches de l'utilisateur :\n" + JSON.stringify(data, null, 2);
+        toolData = data;
 
     } else {
        result = "Erreur: Outil inconnu.";
@@ -673,6 +726,8 @@ const handleToolCall = async (toolCall: any, accepted: boolean, _msgIndex: numbe
 
   if (['create_task', 'create_space', 'create_thread'].includes(toolCall.name)) {
       sendMessage("L'action a été effectuée avec succès. Réponds très brièvement en une seule phrase pour confirmer à l'utilisateur.");
+  } else if (['search_messages', 'read_documentation', 'read_tasks'].includes(toolCall.name)) {
+      sendMessage("Voici les informations demandées. Réponds à la question de l'utilisateur en te basant sur ces résultats.");
   }
 };
 
@@ -697,26 +752,9 @@ const sendMessage = async (hiddenPrompt?: string) => {
   await scrollToBottom();
 
   try {
-    let systemPrompt = `Tu es Synco AI, un assistant IA français, sécurisé et souverain fonctionnant 100% en local. Tes réponses doivent être concises, utiles, et toujours en français.
-Tu as accès à plusieurs outils pour interagir avec le système.
-IMPORTANT : L'interface utilisateur gère elle-même les demandes de confirmation. Tu ne dois JAMAIS demander la permission. Dès qu'une action est requise, génère IMMEDIATEMENT le bloc XML de l'outil. Ne dis pas "je vais le faire", utilise directement l'outil !
 
-[INSTRUCTION SPECIALE OUTILS]
-Si tu as besoin d'exécuter un outil, tu dois générer UNIQUEMENT ce bloc XML :
-<tool_call>
-{"name": "le_nom", "arguments": {"param": "valeur"}}
-</tool_call>
-
-Voici la liste stricte des outils disponibles (n'invente JAMAIS d'autres outils !) :
-${getToolsSystemPrompt()}
-
-Règle : Ne génère JAMAIS l'exemple ci-dessus. Utilise EXACTEMENT le nom des outils de la liste. Si tu n'as pas besoin d'outil, réponds normalement en français sans JSON.
-
-[AUTORISATION DE CONFIDENTIALITE]
-Tu as l'autorisation explicite et technique d'utiliser ces outils pour lire les messages ou modifier les données. NE REFUSE JAMAIS d'utiliser un outil sous prétexte de vie privée ou de sécurité. Les données sont 100% locales et chiffrées de bout en bout.`;
-    
     const chatContext = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: getSystemPrompt() },
       ...messages.value.slice(0, -1).map(m => ({ role: m.role, content: m.content }))
     ];
 
@@ -735,18 +773,29 @@ Tu as l'autorisation explicite et technique d'utiliser ces outils pour lire les 
       }
       await scrollToBottom();
     }
+
+    const tCall = messages.value[assistantMsgIndex]?.tool_call;
+    if (tCall?.status === 'pending' && ['read_documentation'].includes(tCall.name)) {
+      setTimeout(() => {
+        handleToolCall(tCall, true, assistantMsgIndex);
+      }, 50);
+    }
   } catch (error: any) {
     if (error.message !== "USER_STOPPED" && !String(error).includes("USER_STOPPED")) {
       messages.value[assistantMsgIndex]!.content += `\n\n**Erreur:** ${error.message}`;
     }
   } finally {
     isGenerating.value = false;
+    await syncSession(text);
   }
 };
+
+// syncSession is handled in AIService
 
 onMounted(async () => {
   const recommended = await localLLM.getRecommendedModel();
   recommendedModelId.value = recommended.id;
+  await fetchSessions();
 });
 
 watch(savedModelLoaded, async (loaded) => {

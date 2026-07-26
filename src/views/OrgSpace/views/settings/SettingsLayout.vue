@@ -3,7 +3,7 @@
     <div v-if="isAdmin" class="flex flex-col h-full bg-(--bg) relative overflow-hidden w-full">
         
         <header 
-            class="min-h-14 flex items-center px-4 border-b border-white/5 bg-(--bg2) backdrop-blur-md z-10"
+            class="min-h-14 flex items-center px-4 border-b border-(--border-color) bg-(--bg2) backdrop-blur-md z-10"
         >
 
             <div class="flex items-center gap-2">

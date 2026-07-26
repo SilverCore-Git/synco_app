@@ -22,6 +22,7 @@ const newOrgForm = reactive({
 });
 
 const searchQuery = ref('');
+const isSuperAdmin = ref(false);
 
 const filteredOrganizations = computed(() => {
     if (!searchQuery.value.trim()) return organizations.value;
@@ -63,6 +64,13 @@ onMounted(async () => {
     const res = await sfetch('/api/users/me/cancreateorg');
     const data = await res.json();
     canCreateOrg.value = data.canCreateOrg;
+    
+    try {
+        const adminRes = await sfetch('/api/admin/isAdmin');
+        if (adminRes.ok) {
+            isSuperAdmin.value = (await adminRes.json()).isAdmin === true;
+        }
+    } catch(e) {}
 })
 
 </script>
@@ -71,8 +79,12 @@ onMounted(async () => {
 
     <div class="min-h-screen bg-(--bg2) flex flex-col items-center p-6 md:p-12 font-sans overflow-x-hidden relative">
         
-        <!-- Déconnexion -->
-        <div class="absolute top-6 right-6 md:top-8 md:right-8 z-10">
+        <!-- Déconnexion & Admin -->
+        <div class="absolute top-6 right-6 md:top-8 md:right-8 z-10 flex items-center gap-3">
+            <router-link v-if="isSuperAdmin" to="/root" class="px-4 py-2 bg-white/5 hover:bg-(--primary)/20 text-(--text)/60 hover:text-(--primary) rounded-xl transition-all flex items-center gap-2 text-sm font-bold border border-white/5 shadow-sm">
+                Panel admin
+            </router-link>
+
             <button @click="keycloak.logout()" class="px-4 py-2 bg-white/5 hover:bg-red-500/10 text-(--text)/60 hover:text-red-500 rounded-xl transition-all flex items-center gap-2 text-sm font-bold border border-white/5 hover:border-red-500/20 shadow-sm">
                 <i class="bi bi-box-arrow-right"></i> Déconnexion
             </button>
@@ -163,7 +175,7 @@ onMounted(async () => {
                     Icon de l'espace
                 </label>
 
-                <IconSelector :model-value="newOrgForm.logo" @on-base64="(logo: string) => newOrgForm.logo = logo" />
+                <IconSelector type="square" :model-value="newOrgForm.logo" @on-base64="(logo: string) => newOrgForm.logo = logo" />
 
             </div>
 

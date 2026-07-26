@@ -62,12 +62,15 @@ export class AIService {
         const orgId = openedOrg.value?.id;
         if (!orgId) throw new Error("Aucune organisation ouverte");
 
-        const url = `/api/orgs/${orgId}/ai/chat`;
+        const url = `/api/orgs/${orgId}/ai/proxy`;
 
         const response = await sfetch(url, {
             method: 'POST',
             body: JSON.stringify({
-                messages: messages
+                model: this.config.modelId || 'gpt-4o',
+                messages: messages,
+                stream: true,
+                temperature: 0.7
             }),
             signal: this.abortController.signal
         });
@@ -86,12 +89,28 @@ export class AIService {
         const orgId = openedOrg.value?.id;
         if (!orgId) throw new Error("Aucune organisation ouverte");
 
-        const url = `/api/orgs/${orgId}/ai/chat`;
+        const url = `/api/orgs/${orgId}/ai/proxy`;
+
+        const geminiMessages = messages
+          .filter((m: any) => m.role !== 'system')
+          .map((msg: any) => {
+              let role = msg.role === 'assistant' ? 'model' : 'user';
+              return { role, parts: [{ text: msg.content || '' }] };
+          }).filter((m: any) => m.parts && m.parts[0] && m.parts[0].text && m.parts[0].text.trim() !== '');
+
+        const systemMsgs = messages.filter((m: any) => m.role === 'system');
+        const systemInstruction = systemMsgs.length > 0 ? {
+            parts: [{ text: systemMsgs.map((m: any) => m.content).join('\n') }]
+        } : undefined;
+
+        const contents = geminiMessages.filter((m: any) => m.role !== 'system');
 
         const response = await sfetch(url, {
             method: 'POST',
             body: JSON.stringify({
-                messages: messages
+                contents,
+                systemInstruction,
+                generationConfig: { temperature: 0.7 }
             }),
             signal: this.abortController.signal
         });
@@ -252,3 +271,88 @@ export const aiDownloadText = localLLM.downloadText;
 
 export const aiSessionMessages = ref<any[]>([]);
 
+export const selectedModelId = ref<string>('');
+export const chatSessions = ref<any[]>([]);
+export const activeSessionId = ref<string | null>(null);
+
+export const fetchSessions = async () => {
+    if (!openedOrg.value) return;
+    try {
+        const res = await sfetch(`/api/orgs/${openedOrg.value.id}/ai/sessions`);
+        if (res.ok) {
+            chatSessions.value = await res.json();
+        }
+    } catch (e) {
+        console.error("Erreur chargement des sessions", e);
+    }
+};
+
+export const loadSession = async (id: string) => {
+    if (!openedOrg.value) return;
+    try {
+        const res = await sfetch(`/api/orgs/${openedOrg.value.id}/ai/sessions/${id}`);
+        if (res.ok) {
+            const session = await res.json();
+            activeSessionId.value = session.id;
+            aiSessionMessages.value = session.messages || [];
+        }
+    } catch (e) {
+        console.error("Erreur chargement de la session", e);
+    }
+};
+
+export const deleteSession = async (id: string) => {
+    if (!openedOrg.value) return;
+    try {
+        const res = await sfetch(`/api/orgs/${openedOrg.value.id}/ai/sessions/${id}`, {
+            method: 'DELETE'
+        });
+        if (res.ok) {
+            if (activeSessionId.value === id) {
+                aiSessionMessages.value = [];
+                activeSessionId.value = null;
+            }
+            await fetchSessions();
+        }
+    } catch (e) {
+        console.error("Erreur suppression de la session", e);
+    }
+};
+
+export const newSession = () => {
+    aiService.interrupt();
+    aiSessionMessages.value = [];
+    activeSessionId.value = null;
+};
+
+export const syncSession = async (lastPrompt: string) => {
+    if (!openedOrg.value) return;
+    try {
+        if (!activeSessionId.value) {
+            // Create session
+            const title = lastPrompt.substring(0, 30) + (lastPrompt.length > 30 ? '...' : '');
+            const res = await sfetch(`/api/orgs/${openedOrg.value.id}/ai/sessions`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    title,
+                    messages: aiSessionMessages.value
+                })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                activeSessionId.value = data.id;
+                await fetchSessions();
+            }
+        } else {
+            // Update session
+            await sfetch(`/api/orgs/${openedOrg.value.id}/ai/sessions/${activeSessionId.value}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    messages: aiSessionMessages.value
+                })
+            });
+        }
+    } catch (e) {
+        console.error("Erreur synchro session", e);
+    }
+};

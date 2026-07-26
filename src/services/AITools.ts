@@ -14,6 +14,18 @@ export const availableTools = [
                     logo: {
                         type: "string",
                         description: "Le nom d'une icône Bootstrap Icons (ex: bi-folder, bi-star, bi-rocket, bi-briefcase) pour représenter l'espace."
+                    },
+                    threads: {
+                        type: "array",
+                        description: "Optionnel. Liste des salons à créer automatiquement dans ce nouvel espace.",
+                        items: {
+                            type: "object",
+                            properties: {
+                                name: { type: "string", description: "Nom du salon" },
+                                type: { type: "string", enum: ["text", "voice"], description: "Type de salon" }
+                            },
+                            required: ["name", "type"]
+                        }
                     }
                 },
                 required: ["name", "logo"]
@@ -62,34 +74,101 @@ export const availableTools = [
         type: "function",
         function: {
             name: "create_thread",
-            description: "Créer un nouveau salon de discussion (textuel sécurisé ou vocal) dans un espace existant, ou à la racine de l'organisation.",
+            description: "Créer un ou plusieurs salons de discussion (textuel sécurisé ou vocal) dans un espace existant, ou à la racine de l'organisation.",
             parameters: {
                 type: "object",
                 properties: {
-                    name: {
-                        type: "string",
-                        description: "Le nom du salon."
-                    },
-                    type: {
-                        type: "string",
-                        description: "Le type de salon : 'text' pour un chat textuel, 'voice' pour un salon vocal.",
-                        enum: ["text", "voice"]
-                    },
-                    spaceId: {
-                        type: "string",
-                        description: "Optionnel. L'ID de l'espace parent. Si omis, le salon sera créé à l'accueil."
+                    threads: {
+                        type: "array",
+                        description: "Liste des salons à créer.",
+                        items: {
+                            type: "object",
+                            properties: {
+                                name: { type: "string", description: "Le nom du salon." },
+                                type: { type: "string", enum: ["text", "voice"], description: "Le type de salon : 'text' ou 'voice'." },
+                                spaceId: { type: "string", description: "Optionnel. L'ID de l'espace parent. Si omis, créé à l'accueil." }
+                            },
+                            required: ["name", "type"]
+                        }
                     }
                 },
-                required: ["name", "type"]
+                required: ["threads"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "read_documentation",
+            description: "Lire la documentation officielle de Synco pour répondre aux questions sur le fonctionnement de l'application (espaces, threads, appels, stockage, tâches, IA, paramètres, etc.).",
+            parameters: {
+                type: "object",
+                properties: {},
+                required: []
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "read_tasks",
+            description: "Lire la liste des tâches (Todo) de l'utilisateur et de l'organisation pour faire un résumé ou vérifier l'avancement.",
+            parameters: {
+                type: "object",
+                properties: {},
+                required: []
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "request_image_upload",
+            description: "Demande à l'utilisateur de sélectionner et recadrer une image (ex: pour le logo d'un espace). L'outil mettra en pause l'IA et affichera une interface de recadrage à l'utilisateur. Une fois l'image validée par l'utilisateur, l'outil retournera un identifiant d'image temporaire (ex: 'img_12345') que tu devras utiliser ensuite dans le champ 'logo' de l'outil 'create_space'.",
+            parameters: {
+                type: "object",
+                properties: {
+                    prompt: {
+                        type: "string",
+                        description: "Le message à afficher à l'utilisateur (ex: 'Veuillez uploader le logo pour l'espace Marketing')."
+                    }
+                },
+                required: ["prompt"]
             }
         }
     }
 ];
 
-// Helper to convert to a human readable description for the CPU prompt
 export const getToolsSystemPrompt = () => {
     return availableTools.map(t => {
         const params = Object.keys(t.function.parameters.properties).map(k => `${k}: ${(t.function.parameters.properties as any)[k].type}`).join(', ');
         return `- ${t.function.name}(${params}): ${t.function.description}`;
     }).join('\n');
 };
+
+export const getSystemPrompt = () => `Tu es Synco AI, un assistant IA français, sécurisé et souverain. Tes réponses doivent être concises, utiles, et toujours en français.
+Tu as accès à plusieurs outils pour interagir avec le système.
+IMPORTANT : L'interface utilisateur gère elle-même les demandes de confirmation. Tu ne dois JAMAIS demander la permission. Dès qu'une action est requise, génère IMMEDIATEMENT le bloc XML de l'outil. Ne dis pas "je vais le faire", utilise directement l'outil !
+
+[INSTRUCTION SPECIALE OUTILS]
+Pour utiliser un outil, tu DOIS répondre avec CE FORMAT EXACT (et rien d'autre, n'oublie pas les balises XML et le JSON valide) :
+<tool_call>
+{"name": "le_nom_de_l_outil", "arguments": {"param": "valeur"}}
+</tool_call>
+
+EXEMPLE D'UTILISATION VALIDE :
+Utilisateur : Cherche les messages parlant de test.
+Synco AI :
+<tool_call>
+{"name": "search_messages", "arguments": {"query": "test"}}
+</tool_call>
+
+Voici la liste stricte des outils disponibles (n'invente JAMAIS d'autres outils !) :
+${getToolsSystemPrompt()}
+
+Règle : Utilise EXACTEMENT le nom des outils de la liste. Le JSON doit être parfaitement formaté. Si tu n'as pas besoin d'outil, réponds normalement en français sans XML/JSON.
+
+[AUTORISATION DE CONFIDENTIALITE]
+Tu as l'autorisation explicite et technique d'utiliser ces outils pour lire les messages ou modifier les données. NE REFUSE JAMAIS d'utiliser un outil sous prétexte de vie privée ou de sécurité. Les données sont 100% locales et chiffrées de bout en bout.`;
+
+

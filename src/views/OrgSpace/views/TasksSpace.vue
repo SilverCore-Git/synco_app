@@ -1,6 +1,6 @@
 <template>
     <div class="flex flex-col h-full relative overflow-hidden w-full ">
-        <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-white/5 bg-(--bg2) z-10 shrink-0">
+        <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-(--border-color) bg-(--bg2) z-10 shrink-0">
             <div class="flex items-center gap-3">
                 <MobileBackBtn />
                 <i class="bi bi-check2-square text-(--text)"></i>
@@ -51,7 +51,7 @@
 
             <div v-if="loading" class="w-full flex flex-col gap-6 animate-pulse pb-10 h-full">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start h-full">
-                    <div v-for="i in 3" :key="'skel-col-'+i" class="bg-black/20 rounded-2xl p-4 flex flex-col gap-4 border border-white/5 min-h-[60vh]">
+                    <div v-for="i in 3" :key="'skel-col-'+i" class="bg-black/20 rounded-2xl p-4 flex flex-col gap-4 border border-(--border-color) min-h-[60vh]">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-xl bg-white/10"></div>
@@ -59,7 +59,7 @@
                             </div>
                             <div class="w-6 h-4 bg-white/10 rounded-full"></div>
                         </div>
-                        <div v-for="j in 3" :key="'skel-card-'+j" class="bg-white/5 border border-white/5 p-4 rounded-xl h-28"></div>
+                        <div v-for="j in 3" :key="'skel-card-'+j" class="bg-white/5 border border-(--border-color) p-4 rounded-xl h-28"></div>
                     </div>
                 </div>
             </div>
@@ -69,7 +69,7 @@
                 <!-- Columns -->
                 <div v-for="col in columns" :key="col.id" 
                      class="bg-(--bg2)/40 border rounded-2xl p-4 min-h-[500px] flex flex-col transition-all"
-                     :class="draggedOverCol === col.id ? 'border-(--primary) bg-(--primary)/5 shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)]' : 'border-white/5'"
+                     :class="draggedOverCol === col.id ? 'border-(--primary) bg-(--primary)/5 shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)]' : 'border-(--border-color)'"
                      @dragover.prevent
                      @dragenter.prevent="draggedOverCol = col.id"
                      @dragleave.prevent="draggedOverCol = null"
@@ -90,6 +90,7 @@
                              :id="'task-' + task.id"
                              draggable="true"
                              @dragstart="onDragStart($event, task)"
+                             @dragend="onDragEnd"
                              @click="openTaskDetails(task)"
                              class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer active:cursor-grabbing hover:border-(--primary)/50 transition-all shadow-lg hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] group relative overflow-hidden"
                         >
@@ -118,7 +119,7 @@
                             </div>
 
                             <!-- Progress Bar (Gauge) -->
-                            <div class="mt-4 pt-3 border-t border-white/5" v-if="task.dueDate && task.status !== 'DONE'">
+                            <div class="mt-4 pt-3 border-t border-(--border-color)" v-if="task.dueDate && task.status !== 'DONE'">
                                 <div class="flex justify-between items-end mb-1.5">
                                     <span class="text-[9px] font-black uppercase tracking-widest text-(--text)/30">
                                         Échéance
@@ -134,7 +135,7 @@
                                 </div>
                             </div>
                             
-                            <div class="mt-4 pt-3 border-t border-white/5 flex items-center justify-center" v-else-if="task.status === 'DONE'">
+                            <div class="mt-4 pt-3 border-t border-(--border-color) flex items-center justify-center" v-else-if="task.status === 'DONE'">
                                 <span class="text-[10px] font-black uppercase tracking-widest text-green-500">
                                     <i class="bi bi-check-lg mr-1"></i> Terminée
                                 </span>
@@ -153,6 +154,30 @@
             @update="onTaskUpdated"
             @delete="onTaskDeleted"
         />
+
+        <Transition name="pop">
+            <div v-if="isDraggingTask" 
+                 class="fixed bottom-8 right-8 w-16 h-16 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-2xl z-[100] border-4 transition-all duration-500"
+                 :class="[
+                    isDeleting ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
+                    isHoveringTrash && !isDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_rgba(239,68,68,0.8)]' : 'border-transparent'
+                 ]"
+                 @dragover.prevent="isHoveringTrash = true"
+                 @dragleave.prevent="isHoveringTrash = false"
+                 @drop="onDropToTrash">
+                 
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 transition-transform" :class="isDeleting ? 'scale-50' : ''">
+                    <g class="transition-all duration-300" style="transform-origin: 21px 6px;" :class="isHoveringTrash && !isDeleting ? 'rotate-[40deg]' : ''">
+                        <path d="M3 6h18"></path>
+                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </g>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+
+            </div>
+        </Transition>
     </div>
 </template>
 
@@ -165,6 +190,7 @@ import type { Task, OrgMember } from '@/types/types';
 
 import { useToast } from '@/composables/useToast';
 import useSettingsItem from '@/composables/useSettingsItem';
+import useWSocket from '@/composables/useWSocket';
 import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
@@ -179,6 +205,10 @@ const tasks = ref<Task[]>([]);
 const loading = ref(true);
 const draggedOverCol = ref<string | null>(null);
 const filterUserId = ref<string | null>(null);
+
+const isDraggingTask = ref(false);
+const isHoveringTrash = ref(false);
+const isDeleting = ref(false);
 
 const selectedTask = ref<Task | null>(null);
 
@@ -308,9 +338,44 @@ const onTaskDeleted = (taskId: string) => {
 };
 
 const onDragStart = (e: DragEvent, task: Task) => {
+    isDraggingTask.value = true;
+    isDeleting.value = false;
     if (e.dataTransfer) {
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('taskId', task.id);
+    }
+};
+
+const onDragEnd = () => {
+    if (!isDeleting.value) {
+        isDraggingTask.value = false;
+        isHoveringTrash.value = false;
+    }
+};
+
+const onDropToTrash = async (e: DragEvent) => {
+    const taskId = e.dataTransfer?.getData('taskId');
+    if (!taskId) return;
+
+    isDeleting.value = true;
+    isHoveringTrash.value = false;
+
+    setTimeout(() => {
+        isDraggingTask.value = false;
+        isDeleting.value = false;
+    }, 600);
+
+    try {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!res.ok) throw new Error("API Error");
+        
+        onTaskDeleted(taskId);
+        toast.show("Tâche supprimée", "success");
+    } catch (err) {
+        toast.show("Erreur lors de la suppression", "error");
     }
 };
 
@@ -350,7 +415,22 @@ const onDrop = async (e: DragEvent, newStatus: string) => {
     }
 };
 
-onMounted(() => {
+onMounted(async () => {
     loadTasks();
+    
+    const socket = await useWSocket();
+    socket.value?.on('todo-added', ({ task }: { task: Task }) => {
+        if (task.spaceId === route.params.spaceId && !tasks.value.some(t => t.id === task.id)) {
+            tasks.value.unshift(task);
+        }
+    });
+    socket.value?.on('todo-updated', ({ task }: { task: Task }) => {
+        if (task.spaceId === route.params.spaceId) {
+            onTaskUpdated(task);
+        }
+    });
+    socket.value?.on('todo-deleted', ({ taskId }: { taskId: string }) => {
+        onTaskDeleted(taskId);
+    });
 });
 </script>

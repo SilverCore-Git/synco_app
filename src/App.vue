@@ -377,16 +377,20 @@ onMounted(async () => {
 
             <div class="flex gap-4 mb-10 transition-transform duration-300">
 
-              <div v-for="i in 4" :key="i"
-                class="w-14 h-18 border-2 rounded-2xl flex items-center justify-center text-2xl transition-all duration-150"
-                :class="[
-                  pin.length >= i
-                    ? 'border-(--primary) bg-(--primary)/10 scale-105'
-                    : 'border-white/5 bg-white/5'
-                ]">
-                <div class="w-3 h-3 rounded-full transition-all duration-300"
-                  :class="pin.length >= i ? 'bg-(--primary)' : 'bg-white/10'" />
-              </div>
+                <div 
+                    v-for="i in 4" :key="i"
+                    class="w-14 h-18 border-2 rounded-2xl flex items-center justify-center text-2xl transition-all duration-150"
+                    :class="[
+                      pin.length >= i 
+                        ? 'border-(--primary) bg-(--primary)/10 scale-105' 
+                        : 'border-(--border-color) bg-white/5'
+                    ]"
+                >
+                    <div 
+                      class="w-3 h-3 rounded-full transition-all duration-300"
+                      :class="pin.length >= i ? 'bg-(--primary)' : 'bg-white/10'"
+                    />
+                </div>
 
             </div>
 

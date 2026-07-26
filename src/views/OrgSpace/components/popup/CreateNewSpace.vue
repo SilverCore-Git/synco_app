@@ -144,7 +144,7 @@ const handleSubmit = async () => {
           </div>
         </div>
 
-        <div class="flex flex-col gap-3 overflow-hidden border-l border-white/5 pl-4">
+        <div class="flex flex-col gap-3 overflow-hidden border-l border-(--border-color) pl-4">
           <label class="text-[10px] font-black text-(--text)/40 uppercase tracking-widest">Membres séléctionnés ({{ form.members.length }})</label>
           <div class="flex-1 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
             <div v-for="m in form.members" :key="m.id" class="flex items-center justify-between p-2 bg-(--primary)/10 border border-(--primary)/20 rounded-lg group">

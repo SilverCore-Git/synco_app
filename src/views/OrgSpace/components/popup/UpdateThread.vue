@@ -10,7 +10,7 @@
             <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
                 Type de salon
             </label>
-            <div class="flex items-center gap-3 p-3 bg-(--bg2)/20 rounded-xl border border-white/5 text-white/50">
+            <div class="flex items-center gap-3 p-3 bg-(--bg2)/20 rounded-xl border border-(--border-color) text-white/50">
                 <i class="bi" :class="form.type == 'text' ? 'bi-hash' : 'bi-volume-up-fill'" />
                 <span class="capitalize">{{ form.type === 'text' ? 'Salon textuel' : 'Salon vocal' }}</span>
                 <i class="bi bi-lock-fill ml-auto text-xs" />

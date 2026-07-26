@@ -5,13 +5,23 @@ import DropDown from '@/components/DropDown.vue';
 import useWSocket from '@/composables/useWSocket';
 import { openedOrg } from '@/assets/var';
 import keycloak from '@/assets/keycloak';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { getAverageColor } from '@/assets/utils/getAverageColor';
 
 const props = defineProps<{
     user: User | undefined;
 }>();
 
 const emit = defineEmits(['update:status']);
+
+const dominantColor = ref('#16ac77');
+
+watch(() => [props.user?.avatarUrl, props.user?.name], async () => {
+    if (props.user) {
+        const url = props.user.avatarUrl || `https://ui-avatars.com/api/?name=${props.user.name}&background=128a60&color=fff`;
+        dominantColor.value = await getAverageColor(url);
+    }
+}, { immediate: true });
 
 const statusColorClass = computed(() => {
     switch (props.user?.data?.status) {
@@ -80,9 +90,9 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
     <DropDown 
         align="top" 
         content-iner-t-w="
-            z-100 sdropdown min-w-[290px] shadow-none! bottom-14!
-            ring-transparent! border-b-transparent! rounded-b-none! 
+            z-100 sdropdown min-w-[290px] shadow-none! bottom-17! w-75 
         "
+        style="left: -5px !important"
     >
         
         <template #trigger>
@@ -92,9 +102,12 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
         <template #content>
 
             <!-- Profil complet inspiré de UserProfile -->
-            <div class="w-full relative rounded-t-lg overflow-hidden bg-(--bg) border-b border-white/5 mb-1 pb-2">
+            <div class="w-full relative rounded-t-lg overflow-hidden bg-(--bg) border-b border-(--border-color) mb-1 pb-2">
                 <!-- Banner -->
-                <div class="h-[80px] bg-gradient-to-tr from-(--primary-dark) to-(--primary) w-full relative z-0"></div>
+                <div 
+                    class="h-[80px] w-full relative z-0 transition-all duration-500"
+                    :style="{ background: `linear-gradient(to top right, rgba(0,0,0,0.3), transparent), ${dominantColor}` }"
+                ></div>
                 
                 <!-- Avatar -->
                 <div class="absolute top-[38px] left-4 p-1.5 bg-(--bg) rounded-full z-10 shadow-lg">
@@ -113,7 +126,7 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
                     <div class="h-[28px]"></div>
 
                     <!-- Infos -->
-                    <div class="bg-(--bg2) rounded-lg p-3 mt-2 border border-white/5 shadow-inner">
+                    <div class="bg-(--bg2) rounded-lg p-3 mt-2 border border-(--border-color) shadow-inner">
                         <h2 class="text-lg font-bold text-(--text) leading-tight">{{ user?.name }}</h2>
                         <p class="text-xs text-(--primary) font-bold uppercase tracking-wider mb-1" v-if="user?.job">{{ user?.job }}</p>
                         <p class="text-xs text-(--text)/60 mb-2">{{ user?.email }}</p>
@@ -130,11 +143,11 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
                         <div class="mb-2">
                             <h3 class="text-[10px] font-bold text-(--text)/50 uppercase tracking-wide mb-1.5">Rôles</h3>
                             <div class="flex flex-wrap gap-1.5">
-                                <span class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-(--bg) border border-white/5 text-[10px] font-medium text-(--text)/90 shadow-sm">
+                                <span class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-(--bg) border border-(--border-color) text-[10px] font-medium text-(--text)/90 shadow-sm">
                                     <div class="w-2 h-2 rounded-full shadow-sm" :class="roleColorClass"></div>
                                     {{ translatedRole }}
                                 </span>
-                                <span v-if="user?.id === keycloak.subject" class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-(--bg) border border-white/5 text-[10px] font-medium text-(--text)/90 shadow-sm">
+                                <span v-if="user?.id === keycloak.subject" class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-(--bg) border border-(--border-color) text-[10px] font-medium text-(--text)/90 shadow-sm">
                                     Vous
                                 </span>
                             </div>
@@ -180,8 +193,8 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
 
             <div class="h-px bg-white/5 my-1" />
 
-            <div class="p-1">
-                <button @click="keycloak.logout()" class="text-red-500! hover:bg-red-500/5! dropdown-item-style dropdown-item-annimate">
+            <div class="p-1 pb-8">
+                <button @click="keycloak.logout()" class="text-red-500! hover:bg-red-500! hover:text-(--white)! dropdown-item-style dropdown-item-annimate">
                     <i class="bi bi-box-arrow-right mr-2" /> Déconnexion
                 </button>
             </div>

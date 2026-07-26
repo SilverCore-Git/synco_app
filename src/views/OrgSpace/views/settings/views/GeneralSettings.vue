@@ -12,19 +12,22 @@
                         <p class="text-sm text-(--text)/60">Gérez les informations globales de votre organisation.</p>
                     </div>
 
-                    <div class="w-full relative rounded-xl overflow-hidden bg-(--bg2) border border-white/5 mb-8 shadow-xl">
+                    <div class="w-full relative rounded-xl overflow-hidden bg-(--bg2) border border-(--border-color) mb-8 shadow-xl">
                         <div class="h-[120px] bg-gradient-to-tr from-(--primary-dark) to-(--primary) w-full relative z-0"></div>
                         
                         <div class="px-6 relative flex justify-between items-end pb-6">
-                            <div class="absolute -top-12 left-6 p-1.5 bg-(--bg2) rounded-full z-10 shadow-lg">
-                                <div class="relative w-[100px] h-[100px] rounded-full overflow-hidden bg-(--bg) cursor-pointer" @click="showIconSelector = !showIconSelector">
+                            <div class="absolute -top-12 left-6 p-1.5 bg-(--bg2) rounded-xl z-10 shadow-lg">
+                                <div class="relative w-[100px] h-[100px] rounded-xl overflow-hidden bg-(--bg) cursor-pointer" @click="showIconSelector = !showIconSelector">
                                     <img 
                                         v-if="orgData.logo && orgData.logo.startsWith('data:')" 
                                         :src="orgData.logo" 
                                         class="w-full h-full object-cover" 
                                     />
                                     <div v-else class="w-full h-full bg-(--bg) flex items-center justify-center">
-                                        <span class="text-4xl font-black text-(--primary)">{{ orgData.name.substring(0, 2).toUpperCase() }}</span>
+                                        <span class="text-4xl font-black text-(--primary)">{{ orgData.name ? orgData.name.substring(0, 2).toUpperCase() : '...' }}</span>
+                                    </div>
+                                    <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                        <i class="bi bi-camera text-2xl text-white"></i>
                                     </div>
                                 </div>
                             </div>
@@ -32,6 +35,7 @@
                             <div class="w-[110px]"></div>
 
                             <button 
+                                type="button"
                                 @click="showIconSelector = !showIconSelector" 
                                 class="mt-4 primary flex items-center gap-2 text-sm"
                             >
@@ -43,7 +47,7 @@
                         <div class="fixed inset-0 cursor-auto z-50" @click="showIconSelector = false" v-if="showIconSelector" />
                         <Transition name="pop">
                             <div class="absolute z-50 left-6 top-16" v-if="showIconSelector">
-                                <IconSelector v-model:model-value="orgData.logo" @on-base64="(icon: string) => orgData.logo = icon" />
+                                <IconSelector type="square" v-model:model-value="orgData.logo" @on-base64="(icon: string) => orgData.logo = icon" />
                             </div>
                         </Transition>
                     </div>
@@ -59,7 +63,7 @@
                                 <input 
                                     v-model="orgData.name"
                                     type="text"
-                                    class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                    class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
                                     placeholder="Ex: SilverCore Team"
                                 />
                             </div>
@@ -75,7 +79,7 @@
                                     disabled
                                     type="text"
                                     :value="openedOrg?.id"
-                                    class="w-full bg-black/20 border border-white/5 rounded-xl pl-11 pr-4 py-3 text-(--text)/30 italic shadow-inner"
+                                    class="w-full bg-black/20 border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text)/30 italic shadow-inner"
                                 />
                             </div>
                         </div>
@@ -90,44 +94,44 @@
                     </div>
 
                     <div class="space-y-4">
-                        <div class="flex items-center justify-between p-4 bg-(--bg2) border border-white/5 rounded-xl">
+                        <div class="flex items-center justify-between p-4 bg-(--bg2) border border-(--border-color) rounded-xl">
                             <div class="flex items-center gap-4">
-                                <i class="bi bi-list-check text-xl text-(--primary)"></i>
+                                <i class="bi bi-list-check text-xl text-(--primary)" :class="{'opacity-50 grayscale': !openedOrg?.features?.includes('todo')}"></i>
                                 <div>
-                                    <h4 class="font-bold text-sm text-(--text)">Module Tâches</h4>
+                                    <h4 class="font-bold text-sm text-(--text)">Module Tâches <span v-if="!openedOrg?.features?.includes('todo')" class="ml-2 text-[10px] font-normal text-(--text)/50 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full shadow-inner">Module non inclus dans l'abonnement</span></h4>
                                     <p class="text-xs text-(--text)/40">Activer la gestion des tâches globales et par projet.</p>
                                 </div>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" v-model="orgData.todoEnabled" class="sr-only peer">
+                            <label class="relative inline-flex items-center" :class="{'cursor-not-allowed opacity-50': !openedOrg?.features?.includes('todo'), 'cursor-pointer': openedOrg?.features?.includes('todo')}">
+                                <input type="checkbox" v-model="orgData.todoEnabled" :disabled="!openedOrg?.features?.includes('todo')" class="sr-only peer">
                                 <div class="w-11 h-6 bg-black/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
                             </label>
                         </div>
 
-                        <div class="flex items-center justify-between p-4 bg-(--bg2) border border-white/5 rounded-xl">
+                        <div class="flex items-center justify-between p-4 bg-(--bg2) border border-(--border-color) rounded-xl">
                             <div class="flex items-center gap-4">
-                                <i class="bi bi-file-earmark text-xl text-(--primary)"></i>
+                                <i class="bi bi-file-earmark text-xl text-(--primary)" :class="{'opacity-50 grayscale': !openedOrg?.features?.includes('files')}"></i>
                                 <div>
-                                    <h4 class="font-bold text-sm text-(--text)">Module Fichiers</h4>
+                                    <h4 class="font-bold text-sm text-(--text)">Module Fichiers <span v-if="!openedOrg?.features?.includes('files')" class="ml-2 text-[10px] font-normal text-(--text)/50 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full shadow-inner">Module non inclus dans l'abonnement</span></h4>
                                     <p class="text-xs text-(--text)/40">Activer le système de stockage de fichiers par projet.</p>
                                 </div>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" v-model="orgData.filesEnabled" class="sr-only peer">
+                            <label class="relative inline-flex items-center" :class="{'cursor-not-allowed opacity-50': !openedOrg?.features?.includes('files'), 'cursor-pointer': openedOrg?.features?.includes('files')}">
+                                <input type="checkbox" v-model="orgData.filesEnabled" :disabled="!openedOrg?.features?.includes('files')" class="sr-only peer">
                                 <div class="w-11 h-6 bg-black/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
                             </label>
                         </div>
                         
-                        <div class="flex items-center justify-between p-4 bg-(--bg2) border border-white/5 rounded-xl">
+                        <div class="flex items-center justify-between p-4 bg-(--bg2) border border-(--border-color) rounded-xl">
                             <div class="flex items-center gap-4">
-                                <i class="bi bi-robot text-xl text-(--primary)"></i>
+                                <i class="bi bi-robot text-xl text-(--primary)" :class="{'opacity-50 grayscale': !openedOrg?.features?.includes('ai')}"></i>
                                 <div>
-                                    <h4 class="font-bold text-sm text-(--text)">Synco AI</h4>
+                                    <h4 class="font-bold text-sm text-(--text)">Synco AI <span v-if="!openedOrg?.features?.includes('ai')" class="ml-2 text-[10px] font-normal text-(--text)/50 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full shadow-inner">Module non inclus dans l'abonnement</span></h4>
                                     <p class="text-xs text-(--text)/40">Activer l'assistant IA localement (WebGPU).</p>
                                 </div>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" v-model="orgData.aiEnabled" class="sr-only peer">
+                            <label class="relative inline-flex items-center" :class="{'cursor-not-allowed opacity-50': !openedOrg?.features?.includes('ai'), 'cursor-pointer': openedOrg?.features?.includes('ai')}">
+                                <input type="checkbox" v-model="orgData.aiEnabled" :disabled="!openedOrg?.features?.includes('ai')" class="sr-only peer">
                                 <div class="w-11 h-6 bg-black/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
                             </label>
                         </div>
@@ -157,7 +161,7 @@
         <Transition name="fade-bottom">
             <footer 
                 v-if="hasChanges" 
-                class="p-4 bg-(--bg2)/80 backdrop-blur-xl border-t border-white/5 flex justify-end gap-3"
+                class="p-4 bg-(--bg2)/80 backdrop-blur-xl border-t border-(--border-color) flex justify-end gap-3"
             >
 
                 <button @click="resetChanges" class="default">
@@ -208,9 +212,9 @@ const showDeleteOrg = ref<boolean>(false);
 const orgData = ref({
     name: openedOrg.value?.name || '',
     logo: openedOrg.value?.logo || '',
-    todoEnabled: openedOrg.value?.activeModules?.todo || false,
-    filesEnabled: openedOrg.value?.activeModules?.files !== false,
-    aiEnabled: openedOrg.value?.activeModules?.ai === true
+    todoEnabled: openedOrg.value?.features?.includes('todo') ? (openedOrg.value?.activeModules?.todo || false) : false,
+    filesEnabled: openedOrg.value?.features?.includes('files') ? (openedOrg.value?.activeModules?.files !== false) : false,
+    aiEnabled: openedOrg.value?.features?.includes('ai') ? (openedOrg.value?.activeModules?.ai === true) : false
 });
 
 const hasChanges = computed(() => {
@@ -226,9 +230,9 @@ const hasChanges = computed(() => {
 const resetChanges = () => {
     orgData.value.name = openedOrg.value?.name || '';
     orgData.value.logo = openedOrg.value?.logo || '';
-    orgData.value.todoEnabled = openedOrg.value?.activeModules?.todo || false;
-    orgData.value.filesEnabled = openedOrg.value?.activeModules?.files !== false;
-    orgData.value.aiEnabled = openedOrg.value?.activeModules?.ai === true;
+    orgData.value.todoEnabled = openedOrg.value?.features?.includes('todo') ? (openedOrg.value?.activeModules?.todo || false) : false;
+    orgData.value.filesEnabled = openedOrg.value?.features?.includes('files') ? (openedOrg.value?.activeModules?.files !== false) : false;
+    orgData.value.aiEnabled = openedOrg.value?.features?.includes('ai') ? (openedOrg.value?.activeModules?.ai === true) : false;
 };
 
 const saveSettings = async () => {
@@ -334,7 +338,9 @@ watch(() => openedOrg.value, (newOrg) => {
     {
         orgData.value.name = newOrg.name;
         orgData.value.logo = newOrg.logo || '';
-        orgData.value.todoEnabled = newOrg.activeModules?.todo || false;
+        orgData.value.todoEnabled = newOrg.features?.includes('todo') ? (newOrg.activeModules?.todo || false) : false;
+        orgData.value.filesEnabled = newOrg.features?.includes('files') ? (newOrg.activeModules?.files !== false) : false;
+        orgData.value.aiEnabled = newOrg.features?.includes('ai') ? (newOrg.activeModules?.ai === true) : false;
     }
 }, { deep: true });
 

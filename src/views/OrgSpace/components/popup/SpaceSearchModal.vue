@@ -10,7 +10,7 @@
     <div v-if="show" class="fixed inset-0 z-[100] flex items-start justify-center pt-[10vh] bg-black/60 backdrop-blur-md p-4" @click="emit('close')">
       <div class="bg-(--bg) rounded-2xl border border-white/10 shadow-2xl max-w-2xl w-full flex flex-col overflow-hidden" @click.stop>
         
-        <div class="flex items-center px-4 py-3 border-b border-white/5">
+        <div class="flex items-center px-4 py-3 border-b border-(--border-color)">
             <i class="bi bi-search text-xl text-(--primary) mr-3" />
             <input 
                 ref="inputRef"
@@ -26,7 +26,7 @@
         </div>
 
         <!-- Filtres -->
-        <div class="px-4 py-2 flex items-center gap-2 border-b border-white/5 overflow-x-auto scrollbar-hide bg-black/10">
+        <div class="px-4 py-2 flex items-center gap-2 border-b border-(--border-color) overflow-x-auto scrollbar-hide bg-black/10">
             <button 
                 @click="toggleFilter('FILE')"
                 class="px-3 py-1 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5"
@@ -95,7 +95,7 @@
                                 v-for="res in groupedResults[group]" 
                                 :key="res.id"
                                 @click="goToResult(res)"
-                                class="w-full text-left p-3 rounded-xl hover:bg-white/5 transition-colors flex items-start gap-3 border border-transparent hover:border-white/5 group/btn"
+                                class="w-full text-left p-3 rounded-xl hover:bg-white/5 transition-colors flex items-start gap-3 border border-transparent hover:border-(--border-color) group/btn"
                             >
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center justify-between mb-1">

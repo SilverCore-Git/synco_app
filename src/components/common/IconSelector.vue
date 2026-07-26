@@ -1,6 +1,6 @@
 <template>
 
-  <div class="relative p-2 bg-(--bg2) rounded-2xl z-110 w-100 h-100 flex flex-col gap-2 border border-white/5" v-if="!loading">
+  <div class="relative p-2 bg-(--bg2) rounded-2xl z-110 w-full flex flex-col gap-2 border border-white/5" v-if="!loading">
 
         <input 
             type="file" 
@@ -12,24 +12,24 @@
         
         <button @click.stop="triggerFileSelect()" type="button" class="primary">Sélectionner une photo</button>
 
-        <div v-if="imageSrc" class="cropper-wrapper">
-
-            <cropper
-                ref="cropperRef"
-                class="cropper"
-                :src="imageSrc"
-                :stencil-component="CircleStencil"
-                :stencil-props="{
-                    aspectRatio: 1
-                }"
-            />
+        <div v-if="imageSrc" class="flex flex-col gap-3 mt-2">
+            <div class="max-h-[250px] w-full overflow-hidden rounded-xl relative bg-black/20">
+                <cropper
+                    ref="cropperRef"
+                    class="w-full h-full"
+                    :src="imageSrc"
+                    :stencil-component="type === 'square' ? undefined : CircleStencil"
+                    :stencil-props="{
+                        aspectRatio: 1
+                    }"
+                />
+            </div>
             
             <button @click.stop="cropAndUpload" :disabled="loading" type="button" class="primary">
                 {{ loading ? 'Envoi...' : 'Valider le recadrage' }}
             </button>
 
         </div>
-
 
   </div>
 
@@ -41,9 +41,12 @@ import { Cropper, CircleStencil } from 'vue-advanced-cropper';
 import 'vue-advanced-cropper/dist/style.css';
 import { ref } from 'vue';
 
-const props = defineProps<{
-  modelValue: string
-}>();
+const props = withDefaults(defineProps<{
+  modelValue: string;
+  type?: 'circle' | 'square';
+}>(), {
+  type: 'circle'
+});
 
 const emit = defineEmits(['update:modelValue', 'onBase64']);
 
