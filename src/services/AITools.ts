@@ -14,6 +14,18 @@ export const availableTools = [
                     logo: {
                         type: "string",
                         description: "Le nom d'une icône Bootstrap Icons (ex: bi-folder, bi-star, bi-rocket, bi-briefcase) pour représenter l'espace."
+                    },
+                    threads: {
+                        type: "array",
+                        description: "Optionnel. Liste des salons à créer automatiquement dans ce nouvel espace.",
+                        items: {
+                            type: "object",
+                            properties: {
+                                name: { type: "string", description: "Nom du salon" },
+                                type: { type: "string", enum: ["text", "voice"], description: "Type de salon" }
+                            },
+                            required: ["name", "type"]
+                        }
                     }
                 },
                 required: ["name", "logo"]
@@ -62,25 +74,25 @@ export const availableTools = [
         type: "function",
         function: {
             name: "create_thread",
-            description: "Créer un nouveau salon de discussion (textuel sécurisé ou vocal) dans un espace existant, ou à la racine de l'organisation.",
+            description: "Créer un ou plusieurs salons de discussion (textuel sécurisé ou vocal) dans un espace existant, ou à la racine de l'organisation.",
             parameters: {
                 type: "object",
                 properties: {
-                    name: {
-                        type: "string",
-                        description: "Le nom du salon."
-                    },
-                    type: {
-                        type: "string",
-                        description: "Le type de salon : 'text' pour un chat textuel, 'voice' pour un salon vocal.",
-                        enum: ["text", "voice"]
-                    },
-                    spaceId: {
-                        type: "string",
-                        description: "Optionnel. L'ID de l'espace parent. Si omis, le salon sera créé à l'accueil."
+                    threads: {
+                        type: "array",
+                        description: "Liste des salons à créer.",
+                        items: {
+                            type: "object",
+                            properties: {
+                                name: { type: "string", description: "Le nom du salon." },
+                                type: { type: "string", enum: ["text", "voice"], description: "Le type de salon : 'text' ou 'voice'." },
+                                spaceId: { type: "string", description: "Optionnel. L'ID de l'espace parent. Si omis, créé à l'accueil." }
+                            },
+                            required: ["name", "type"]
+                        }
                     }
                 },
-                required: ["name", "type"]
+                required: ["threads"]
             }
         }
     },

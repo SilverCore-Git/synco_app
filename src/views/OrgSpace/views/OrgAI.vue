@@ -161,7 +161,7 @@
                 v-if="msg.tool_call.status === 'accepted' && messages[index+1]?.tool_data?.name === 'create_task' && messages[index+1]?.tool_data?.results" 
                 class="mt-4 pt-4 border-t border-white/10"
             >
-                <div class="bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="selectedTask = messages[index+1]?.tool_data?.results">
+                <div class="w-full bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="selectedTask = messages[index+1]?.tool_data?.results">
                     <div class="flex items-center gap-3">
                         <i class="bi bi-circle text-gray-400 text-xl"></i>
                         <div>
@@ -181,7 +181,7 @@
                 v-if="msg.tool_call.status === 'accepted' && messages[index+1]?.tool_data?.name === 'create_space' && messages[index+1]?.tool_data?.results" 
                 class="mt-4 pt-4 border-t border-white/10"
             >
-                <div class="bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="router.push(`/${openedOrg?.id}/${messages[index+1]?.tool_data?.results.id}/`)">
+                <div class="w-full bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="router.push(`/${openedOrg?.id}/${messages[index+1]?.tool_data?.results.id}/`)">
                     <div class="flex items-center gap-3">
                         <i class="bi text-xl text-(--primary)" :class="messages[index+1]?.tool_data?.results.logo || 'bi-folder'"></i>
                         <div>
@@ -199,14 +199,14 @@
             <!-- Created Thread Snippet -->
             <div 
                 v-if="msg.tool_call.status === 'accepted' && messages[index+1]?.tool_data?.name === 'create_thread' && messages[index+1]?.tool_data?.results" 
-                class="mt-4 pt-4 border-t border-white/10"
+                class="mt-4 pt-4 border-t border-white/10 flex flex-col gap-2"
             >
-                <div class="bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="router.push(`/${openedOrg?.id}/${messages[index+1]?.tool_data?.results.workspaceId || 'home'}/${messages[index+1]?.tool_data?.results.id}`)">
+                <div v-for="th in messages[index+1]?.tool_data?.results" :key="th.id" class="w-full bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="router.push(`/${openedOrg?.id}/${th.workspaceId || 'home'}/${th.id}`)">
                     <div class="flex items-center gap-3">
-                        <i class="bi text-xl text-(--primary)" :class="messages[index+1]?.tool_data?.results.type === 'vocal' ? 'bi-volume-up-fill' : 'bi-hash'"></i>
+                        <i class="bi text-xl text-(--primary)" :class="th.type === 'vocal' ? 'bi-volume-up-fill' : 'bi-hash'"></i>
                         <div>
-                            <p class="text-sm font-bold text-(--text) leading-snug">{{ messages[index+1]?.tool_data?.results.name }}</p>
-                            <p class="text-xs text-white/40 mt-0.5">Salon {{ messages[index+1]?.tool_data?.results.type === 'vocal' ? 'vocal' : 'textuel' }}</p>
+                            <p class="text-sm font-bold text-(--text) leading-snug">{{ th.name }}</p>
+                            <p class="text-xs text-white/40 mt-0.5">Salon {{ th.type === 'vocal' ? 'vocal' : 'textuel' }}</p>
                         </div>
                     </div>
                     <button class="text-xs bg-white/5 hover:bg-white/10 text-white font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
@@ -511,8 +511,61 @@ const newSession = () => {
   messages.value = [];
 };
 
-const handleToolCall = async (toolCall: any, accepted: boolean, _msgIndex: number) => {
-  if (!accepted) {
+const createThreadHelper = async (orgId: string, spaceId: string | undefined, name: string, type: string) => {
+    const isHome = !spaceId || spaceId === 'home';
+    const space = spaceId ? openedOrg.value?.spaces?.find(s => s.id === spaceId || s.name.toLowerCase() === spaceId.toLowerCase()) : null;
+    
+    if (!isHome && !space) {
+        throw new Error(`L'espace '${spaceId}' n'existe pas.`);
+    }
+    const actualSpaceId = space ? space.id : undefined;
+
+    let members = actualSpaceId && space ? openedOrg.value?.members?.filter(m => space.membersId.includes(m.userId)).map(m => m!.user!) || [] 
+                    : openedOrg.value?.members?.map(m => m.user!) || [];
+    
+    const currentUser = user.value;
+    if (currentUser && !members.some(m => m.id === currentUser.id)) {
+        members = [...members, currentUser];
+    }
+    
+    if (!currentUser?.publicKey || !E2EEUnloked.value || !privateKey.value) {
+        throw new Error("La session E2EE n'est pas déverrouillée.");
+    }
+    
+    const newThreadKey = await generateThreadKey();
+    let encryptedKeysPayload = [];
+    for (const member of members) {
+        if (member.publicKey && typeof member.publicKey === 'string' && member.publicKey.trim().startsWith('{')) {
+            const encryptedKey = await encryptThreadKeyForMember(newThreadKey, member.publicKey);
+            encryptedKeysPayload.push({ userId: member.id, encryptedKey });
+        }
+    }
+    
+    if (encryptedKeysPayload.length === 0) throw new Error("Aucun membre avec clé E2EE valide.");
+    
+    let categoryId = isHome ? openedOrg.value?.home?.categories?.[0]?.id : space?.categories?.[0]?.id;
+    if (!categoryId) throw new Error("Aucune catégorie disponible.");
+
+    const payload = { name, type: type || 'text', keys: encryptedKeysPayload, index: 0, categoryId };
+    
+    const endpoint = isHome ? `/api/threads/org/${orgId}` : `/api/threads/space/${actualSpaceId}`;
+    const res = await sfetch(endpoint, { method: 'POST', body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    
+    if (!isHome && actualSpaceId) data.workspaceId = actualSpaceId;
+    if (isHome) {
+        if (!openedOrg.value?.home?.threads) { if (openedOrg.value && openedOrg.value.home) openedOrg.value.home.threads = []; }
+        openedOrg.value?.home?.threads?.push(data);
+    } else if (space) {
+        if (!space.threads) space.threads = [];
+        space.threads.push(data);
+    }
+    return data;
+};
+
+const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, accept: boolean, _assistantMsgIndex: number) => {
+  if (!accept) {
     toolCall.status = 'rejected';
     messages.value.push({ role: 'system', content: `L'utilisateur a refusé l'exécution de l'outil ${toolCall.name}. Demande-lui pourquoi ou propose une alternative.` });
     sendMessage("Action refusée par l'utilisateur.");
@@ -525,21 +578,35 @@ const handleToolCall = async (toolCall: any, accepted: boolean, _msgIndex: numbe
   let toolData: any = null;
   try {
     const args = typeof toolCall.arguments === 'string' ? JSON.parse(toolCall.arguments) : toolCall.arguments;
-    const orgId = route.params.orgId;
+    const orgId = route.params.orgId as string;
     
     if (toolCall.name === 'create_space') {
        const res = await sfetch(`/api/spaces/org/${orgId}`, {
          method: 'POST',
          body: JSON.stringify({ name: args.name, logo: args.logo, membersId: [] })
        });
-       const data = await res.json();
-       if (data.error) throw new Error(data.error);
+       const spaceData = await res.json();
+       if (spaceData.error) throw new Error(spaceData.error);
        
        if (openedOrg.value && openedOrg.value.spaces) {
-           openedOrg.value.spaces.push(data);
+           openedOrg.value.spaces.push(spaceData);
        }
-       toolData = data;
-       result = `Espace '${args.name}' créé avec succès. L'utilisateur peut y accéder.`;
+       toolData = spaceData;
+       result = `Espace '${args.name}' créé avec succès.`;
+       
+       if (args.threads && Array.isArray(args.threads) && args.threads.length > 0) {
+           let threadsCreated = [];
+           for (const t of args.threads) {
+               try {
+                   const tData = await createThreadHelper(orgId, spaceData.id, t.name, t.type);
+                   threadsCreated.push(tData);
+               } catch (e) {
+                   console.error("Erreur lors de la création d'un salon rattaché:", e);
+               }
+           }
+           toolData.threads = threadsCreated;
+           result += ` ${threadsCreated.length} salons y ont été créés.`;
+       }
        
     } else if (toolCall.name === 'create_task') {
        const payload = {
@@ -597,84 +664,21 @@ const handleToolCall = async (toolCall: any, accepted: boolean, _msgIndex: numbe
         }
 
     } else if (toolCall.name === 'create_thread') {
-       let spaceId = args.spaceId || undefined;
-       const isHome = !spaceId;
-       
-       const space = spaceId ? openedOrg.value?.spaces?.find(s => s.id === spaceId || s.name.toLowerCase() === spaceId.toLowerCase()) : null;
-       
-       if (!isHome && !space) {
-           throw new Error(`L'espace '${spaceId}' n'existe pas. Veuillez vérifier le nom de l'espace ou le créer d'abord.`);
-       }
-       if (space) {
-           spaceId = space.id;
-           args.spaceId = space.id;
-       }
-
-       let members = spaceId && space ? openedOrg.value?.members?.filter(m => space.membersId.includes(m.userId)).map(m => m!.user!) || [] 
-                     : openedOrg.value?.members?.map(m => m.user!) || [];
-       
-       const currentUser = user.value;
-       if (currentUser && !members.some(m => m.id === currentUser.id)) {
-           members = [...members, currentUser];
-       }
-       
-       if (!currentUser?.publicKey || !E2EEUnloked.value || !privateKey.value) {
-           throw new Error("La session E2EE de l'utilisateur n'est pas déverrouillée. Il doit entrer son code PIN pour générer les clés de chiffrement du salon.");
-       }
-       
-       const newThreadKey = await generateThreadKey();
-       let encryptedKeysPayload = [];
-       for (const member of members) {
-           if (member.publicKey && typeof member.publicKey === 'string' && member.publicKey.trim().startsWith('{')) {
-               const encryptedKey = await encryptThreadKeyForMember(newThreadKey, member.publicKey);
-               encryptedKeysPayload.push({ userId: member.id, encryptedKey });
-           }
-       }
-       
-       if (encryptedKeysPayload.length === 0) {
-           throw new Error("Aucun membre ne possède de clé publique E2EE valide.");
-       }
-       
-       let categoryId = null;
-       if (isHome) {
-           categoryId = openedOrg.value?.home?.categories?.[0]?.id;
-       } else {
-           categoryId = space?.categories?.[0]?.id;
-       }
-
-       if (!categoryId) {
-           throw new Error("Aucune catégorie disponible pour créer le salon.");
-       }
-
-       const payload = {
-           name: args.name,
-           type: args.type || 'text',
-           keys: encryptedKeysPayload,
-           index: 0,
-           categoryId: categoryId
-       };
-       
-       const endpoint = isHome ? `/api/threads/org/${orgId}` : `/api/threads/space/${spaceId}`;
-       const res = await sfetch(endpoint, {
-           method: 'POST',
-           body: JSON.stringify(payload)
-       });
-       const data = await res.json();
-       if (data.error) throw new Error(data.error);
-       if (!isHome && spaceId) {
-           data.workspaceId = spaceId;
-       }
-        toolData = data;
-        if (isHome) {
-            if (!openedOrg.value?.home?.threads) {
-                if (openedOrg.value && openedOrg.value.home) openedOrg.value.home.threads = [];
+        const threads = args.threads || [];
+        if (threads.length === 0) throw new Error("Aucun salon spécifié.");
+        
+        let created = [];
+        for (const t of threads) {
+            try {
+                const tData = await createThreadHelper(orgId, t.spaceId, t.name, t.type);
+                created.push(tData);
+            } catch (e: any) {
+                console.error("Erreur création salon:", e);
+                throw new Error(`Erreur lors de la création du salon '${t.name}': ${e.message}`);
             }
-            openedOrg.value?.home?.threads?.push(data);
-        } else if (space) {
-            if (!space.threads) space.threads = [];
-            space.threads.push(data);
         }
-        result = `Salon '${args.name}' (type: ${args.type}) créé avec succès (ID: ${data.id}). Les clés E2EE ont été générées et distribuées.`;
+        toolData = created;
+        result = `${created.length} salon(s) créé(s) avec succès. Les clés E2EE ont été générées et distribuées.`;
 
     } else if (toolCall.name === 'read_documentation') {
         const docFiles = import.meta.glob('../../../../../doc/*.md', { query: '?raw', import: 'default', eager: true });
