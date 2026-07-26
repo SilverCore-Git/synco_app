@@ -8,12 +8,22 @@
 
                 <section>
                     
-                    <div class="mb-6">
-                        <h3 class="text-xl font-black text-(--text) mb-1">Configuration de l'IA</h3>
-                        <p class="text-sm text-(--text)/60">Paramétrez le fournisseur de l'intelligence artificielle pour votre organisation. Ce paramétrage sera utilisé par tous les membres.</p>
+                    <div class="mb-6 flex justify-between items-start">
+                        <div>
+                            <h3 class="text-xl font-black text-(--text) mb-1">Configuration de l'IA</h3>
+                            <p class="text-sm text-(--text)/60">Paramétrez le fournisseur de l'intelligence artificielle pour votre organisation. Ce paramétrage sera utilisé par tous les membres.</p>
+                        </div>
                     </div>
 
-                    <div class="space-y-8">
+                    <div v-if="!openedOrg?.features?.includes('ai')" class="mb-8 p-6 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-4">
+                        <i class="bi bi-shield-lock-fill text-red-500 text-2xl mt-1"></i>
+                        <div>
+                            <h4 class="text-red-500 font-bold text-lg">Module Désactivé</h4>
+                            <p class="text-red-500/80 text-sm mt-1">L'administration globale a désactivé le module Synco AI pour cette organisation. Vous ne pouvez pas modifier ces paramètres.</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-8" :class="{'opacity-50 pointer-events-none grayscale': !openedOrg?.features?.includes('ai')}">
 
                         <div class="space-y-4">
                             <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">Fournisseur IA</label>

@@ -145,6 +145,44 @@
                         >
                         <p class="text-[10px] text-(--text)/40 mt-1">Stockage maximal en Gigaoctets alloué.</p>
                     </div>
+                    <div class="space-y-1.5 pt-4 border-t border-white/5">
+                        <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50 flex items-center gap-2 mb-3">
+                            <i class="bi bi-box-seam"></i> Modules Autorisés
+                        </label>
+                        
+                        <div class="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+                            <div>
+                                <p class="text-sm font-bold text-(--text)">Tâches</p>
+                                <p class="text-[10px] text-(--text)/40">Gestion des tâches et Kanban.</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" v-model="orgEditForm.features.todo" class="sr-only peer">
+                                <div class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
+                            </label>
+                        </div>
+                        
+                        <div class="flex items-center justify-between p-3 bg-white/5 rounded-xl mt-2">
+                            <div>
+                                <p class="text-sm font-bold text-(--text)">Fichiers</p>
+                                <p class="text-[10px] text-(--text)/40">Stockage et partage de fichiers.</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" v-model="orgEditForm.features.files" class="sr-only peer">
+                                <div class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
+                            </label>
+                        </div>
+
+                        <div class="flex items-center justify-between p-3 bg-white/5 rounded-xl mt-2">
+                            <div>
+                                <p class="text-sm font-bold text-(--text)">Synco AI</p>
+                                <p class="text-[10px] text-(--text)/40">Assistant IA intégré.</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" v-model="orgEditForm.features.ai" class="sr-only peer">
+                                <div class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
+                            </label>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="p-6 bg-(--bg2) border-t border-white/5 flex gap-3 justify-end">
@@ -184,6 +222,7 @@ interface AdminOrg {
     currentUsers: number;
     maxStorage: string | number;
     usedStorage: string | number;
+    features: string[];
 }
 
 const orgs = ref<AdminOrg[]>([]);
@@ -196,7 +235,12 @@ const selectedOrg = ref<AdminOrg | null>(null);
 const isSavingOrg = ref(false);
 const orgEditForm = ref({
     maxUsers: 0,
-    maxStorageGB: 0
+    maxStorageGB: 0,
+    features: {
+        todo: true,
+        files: true,
+        ai: true
+    }
 });
 
 const filteredOrgs = computed(() => {
@@ -239,7 +283,12 @@ const openOrgEditModal = (org: AdminOrg) => {
     selectedOrg.value = org;
     orgEditForm.value = {
         maxUsers: org.maxUsers,
-        maxStorageGB: Number(org.maxStorage) / (1024 * 1024 * 1024)
+        maxStorageGB: Number(org.maxStorage) / (1024 * 1024 * 1024),
+        features: {
+            todo: org.features?.includes('todo') ?? true,
+            files: org.features?.includes('files') ?? true,
+            ai: org.features?.includes('ai') ?? true,
+        }
     };
 };
 
@@ -255,11 +304,17 @@ const saveOrgQuotas = async () => {
     const storageBytes = Math.floor(safeStorageGB * 1024 * 1024 * 1024);
     
     try {
+        const featuresArray = [];
+        if (orgEditForm.value.features.todo) featuresArray.push('todo');
+        if (orgEditForm.value.features.files) featuresArray.push('files');
+        if (orgEditForm.value.features.ai) featuresArray.push('ai');
+
         const res = await sfetch(`/api/admin/organizations/${selectedOrg.value.id}`, {
             method: 'PATCH',
             body: JSON.stringify({
                 maxUsers: safeMaxUsers,
-                maxStorage: storageBytes.toString()
+                maxStorage: storageBytes.toString(),
+                features: featuresArray
             })
         });
         if (res.ok) {
@@ -268,8 +323,9 @@ const saveOrgQuotas = async () => {
             if (index !== -1 && orgs.value[index]) {
                 orgs.value[index]!.maxUsers = updatedOrg.maxUsers;
                 orgs.value[index]!.maxStorage = updatedOrg.maxStorage;
+                orgs.value[index]!.features = updatedOrg.features;
             }
-            toast.show('Quotas d\'organisation mis à jour', 'success');
+            toast.show('Quotas et configuration mis à jour', 'success');
             closeOrgModal();
         } else toast.show((await res.json()).error || 'Erreur', 'error');
     } catch (e) {

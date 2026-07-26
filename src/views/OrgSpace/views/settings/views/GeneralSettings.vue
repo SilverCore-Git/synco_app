@@ -92,42 +92,42 @@
                     <div class="space-y-4">
                         <div class="flex items-center justify-between p-4 bg-(--bg2) border border-(--border-color) rounded-xl">
                             <div class="flex items-center gap-4">
-                                <i class="bi bi-list-check text-xl text-(--primary)"></i>
+                                <i class="bi bi-list-check text-xl text-(--primary)" :class="{'opacity-50 grayscale': !openedOrg?.features?.includes('todo')}"></i>
                                 <div>
-                                    <h4 class="font-bold text-sm text-(--text)">Module Tâches</h4>
+                                    <h4 class="font-bold text-sm text-(--text)">Module Tâches <span v-if="!openedOrg?.features?.includes('todo')" class="ml-2 text-[10px] font-normal text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full">Désactivé par l'administration</span></h4>
                                     <p class="text-xs text-(--text)/40">Activer la gestion des tâches globales et par projet.</p>
                                 </div>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" v-model="orgData.todoEnabled" class="sr-only peer">
+                            <label class="relative inline-flex items-center" :class="{'cursor-not-allowed opacity-50': !openedOrg?.features?.includes('todo'), 'cursor-pointer': openedOrg?.features?.includes('todo')}">
+                                <input type="checkbox" v-model="orgData.todoEnabled" :disabled="!openedOrg?.features?.includes('todo')" class="sr-only peer">
                                 <div class="w-11 h-6 bg-black/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
                             </label>
                         </div>
 
                         <div class="flex items-center justify-between p-4 bg-(--bg2) border border-(--border-color) rounded-xl">
                             <div class="flex items-center gap-4">
-                                <i class="bi bi-file-earmark text-xl text-(--primary)"></i>
+                                <i class="bi bi-file-earmark text-xl text-(--primary)" :class="{'opacity-50 grayscale': !openedOrg?.features?.includes('files')}"></i>
                                 <div>
-                                    <h4 class="font-bold text-sm text-(--text)">Module Fichiers</h4>
+                                    <h4 class="font-bold text-sm text-(--text)">Module Fichiers <span v-if="!openedOrg?.features?.includes('files')" class="ml-2 text-[10px] font-normal text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full">Désactivé par l'administration</span></h4>
                                     <p class="text-xs text-(--text)/40">Activer le système de stockage de fichiers par projet.</p>
                                 </div>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" v-model="orgData.filesEnabled" class="sr-only peer">
+                            <label class="relative inline-flex items-center" :class="{'cursor-not-allowed opacity-50': !openedOrg?.features?.includes('files'), 'cursor-pointer': openedOrg?.features?.includes('files')}">
+                                <input type="checkbox" v-model="orgData.filesEnabled" :disabled="!openedOrg?.features?.includes('files')" class="sr-only peer">
                                 <div class="w-11 h-6 bg-black/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
                             </label>
                         </div>
                         
                         <div class="flex items-center justify-between p-4 bg-(--bg2) border border-(--border-color) rounded-xl">
                             <div class="flex items-center gap-4">
-                                <i class="bi bi-robot text-xl text-(--primary)"></i>
+                                <i class="bi bi-robot text-xl text-(--primary)" :class="{'opacity-50 grayscale': !openedOrg?.features?.includes('ai')}"></i>
                                 <div>
-                                    <h4 class="font-bold text-sm text-(--text)">Synco AI</h4>
+                                    <h4 class="font-bold text-sm text-(--text)">Synco AI <span v-if="!openedOrg?.features?.includes('ai')" class="ml-2 text-[10px] font-normal text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full">Désactivé par l'administration</span></h4>
                                     <p class="text-xs text-(--text)/40">Activer l'assistant IA localement (WebGPU).</p>
                                 </div>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" v-model="orgData.aiEnabled" class="sr-only peer">
+                            <label class="relative inline-flex items-center" :class="{'cursor-not-allowed opacity-50': !openedOrg?.features?.includes('ai'), 'cursor-pointer': openedOrg?.features?.includes('ai')}">
+                                <input type="checkbox" v-model="orgData.aiEnabled" :disabled="!openedOrg?.features?.includes('ai')" class="sr-only peer">
                                 <div class="w-11 h-6 bg-black/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
                             </label>
                         </div>
