@@ -111,6 +111,24 @@
                                 </div>
                             </div>
 
+                            <!-- Cloud Warning -->
+                            <div v-if="orgData.provider !== 'local' && orgData.provider !== 'custom'" class="space-y-4 bg-orange-500/10 border border-orange-500/20 p-4 rounded-xl mt-6">
+                                <div class="flex items-start gap-3">
+                                    <i class="bi bi-exclamation-triangle-fill text-orange-500 mt-0.5"></i>
+                                    <div>
+                                        <p class="text-sm text-orange-500/90 font-bold">Attention : Cloud Externe</p>
+                                        <p class="text-xs text-orange-500/70 mt-1">
+                                            L'utilisation d'un modèle cloud implique le transfert de vos données vers ce fournisseur. SilverCore se décharge de toute responsabilité concernant la confidentialité et la gestion des données envoyées sur ces serveurs externes.
+                                        </p>
+                                        <a href="#" class="text-xs text-orange-400 hover:text-orange-300 underline mt-2 inline-block">En savoir plus</a>
+                                    </div>
+                                </div>
+                                <label class="flex items-center gap-3 cursor-pointer pt-3 border-t border-orange-500/10">
+                                    <input type="checkbox" v-model="acceptCloudWarning" class="rounded border-orange-500/30 text-orange-500 focus:ring-orange-500 bg-black/20" />
+                                    <span class="text-xs text-orange-500/80">J'accepte et je comprends que mes données seront traitées par un service tiers.</span>
+                                </label>
+                            </div>
+
                         </div>
 
                     </div>
@@ -126,7 +144,17 @@
                 class="p-4 bg-(--bg2)/80 backdrop-blur-xl border-t border-(--border-color) flex justify-end gap-3"
             >
                 <button @click="resetChanges" class="default">Annuler</button>
-                <button @click="saveSettings" class="primary" :class="saving ? 'loader' : ''">Enregistrer les modifications</button>
+                <button 
+                    @click="saveSettings" 
+                    class="primary" 
+                    :class="[
+                        saving ? 'loader' : '',
+                        orgData.provider !== 'local' && orgData.provider !== 'custom' && !acceptCloudWarning ? 'opacity-50 grayscale-100 pointer-events-none' : ''
+                    ]"
+                    :disabled="orgData.provider !== 'local' && orgData.provider !== 'custom' && !acceptCloudWarning"
+                >
+                    Enregistrer les modifications
+                </button>
             </footer>
         </Transition>
 
@@ -146,6 +174,7 @@ const toast = useToast();
 
 const saving = ref<boolean>(false);
 const showApiKey = ref<boolean>(false);
+const acceptCloudWarning = ref<boolean>(false);
 
 const providers = [
     { id: 'local', name: 'WebGPU (Local Browser)', desc: 'Exécuté sur la carte graphique de l\'utilisateur. Gratuit, 100% privé, mais dépend des performances de chaque machine.' },
@@ -211,6 +240,9 @@ const saveSettings = async () => {
         }
         if (!orgData.value.modelId) {
             return toast.show('Veuillez indiquer l\'ID du modèle à utiliser.', 'error');
+        }
+        if (orgData.value.provider !== 'custom' && !acceptCloudWarning.value) {
+            return toast.show('Vous devez accepter les conditions d\'utilisation des services cloud externes.', 'error');
         }
     }
 
