@@ -120,7 +120,7 @@
                                         <p class="text-xs text-orange-500/70 mt-1">
                                             L'utilisation d'un modèle cloud implique le transfert de vos données vers ce fournisseur. SilverCore se décharge de toute responsabilité concernant la confidentialité et la gestion des données envoyées sur ces serveurs externes.
                                         </p>
-                                        <a href="#" class="text-xs text-orange-400 hover:text-orange-300 underline mt-2 inline-block">En savoir plus</a>
+                                        <a href="#" @click.prevent="showLearnMorePopup = true" class="text-xs text-orange-400 hover:text-orange-300 underline mt-2 inline-block">En savoir plus</a>
                                     </div>
                                 </div>
                                 <label class="flex items-center gap-3 cursor-pointer pt-3 border-t border-orange-500/10">
@@ -160,11 +160,31 @@
 
     </div>
 
+    <Popup :is-open="showLearnMorePopup" @close="showLearnMorePopup = false">
+        <template #title>Utilisation de services Cloud externes</template>
+        <div class="space-y-4 text-sm text-(--text)/80">
+            <p>En choisissant un fournisseur IA externe (tel que OpenAI, Google Gemini, Mistral AI, etc.), vous acceptez que les données de votre organisation (requêtes, documents analysés, historiques de conversation, etc.) soient transmises et traitées sur les serveurs de ce fournisseur.</p>
+            
+            <h4 class="font-bold text-(--text) mt-2">Ce que cela implique :</h4>
+            <ul class="list-disc pl-5 space-y-2">
+                <li><strong>Confidentialité des données :</strong> Les données transmises sont soumises à la politique de confidentialité du fournisseur choisi.</li>
+                <li><strong>Décharge de responsabilité :</strong> SilverCore agit uniquement comme un intermédiaire. Nous n'hébergeons pas ces données sur notre infrastructure E2EE et nous déclinons toute responsabilité quant à la gestion des données de la part du fournisseur cloud.</li>
+                <li><strong>Recommandation :</strong> Assurez-vous de ne pas envoyer d'informations sensibles (données médicales, mots de passe, secrets industriels) à travers un modèle d'IA tiers si vous n'avez pas un accord d'entreprise spécifique avec le fournisseur.</li>
+            </ul>
+
+            <p class="pt-2 font-medium">Si la confidentialité absolue est requise, privilégiez l'option <span class="text-(--primary)">WebGPU (Local)</span> ou un <span class="text-(--primary)">Serveur Client (Custom)</span> hébergé sur votre propre infrastructure privée.</p>
+        </div>
+        <template #footer>
+            <button @click="showLearnMorePopup = false" class="primary">J'ai compris</button>
+        </template>
+    </Popup>
+
 </template>
 
 <script lang="ts" setup>
 
 import { ref, computed, watch } from 'vue';
+import Popup from '@/components/Popup.vue';
 import { openedOrg, organizations } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
@@ -175,6 +195,7 @@ const toast = useToast();
 const saving = ref<boolean>(false);
 const showApiKey = ref<boolean>(false);
 const acceptCloudWarning = ref<boolean>(false);
+const showLearnMorePopup = ref<boolean>(false);
 
 const providers = [
     { id: 'local', name: 'WebGPU (Local Browser)', desc: 'Exécuté sur la carte graphique de l\'utilisateur. Gratuit, 100% privé, mais dépend des performances de chaque machine.' },
