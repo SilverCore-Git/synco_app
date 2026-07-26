@@ -201,7 +201,7 @@
                     <div class="space-y-1">
                         <button
                             @click="newSession"
-                            class="default w-full flex items-center justify-center gap-2 mb-4"
+                            class="default w-full flex items-center justify-start gap-2 mb-4"
                         >
                             <i class="bi bi-plus-lg"></i>
                             <span>
