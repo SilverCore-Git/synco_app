@@ -3,7 +3,7 @@
     <div class="flex flex-col h-full relative overflow-hidden w-full">
 
         <header
-            class="h-14 flex items-center px-4 border-b border-white/5 bg-(--bg2) backdrop-blur-md z-10 w-full shrink-0"
+            class="h-14 flex items-center px-4 border-b border-(--border-color) bg-(--bg2) backdrop-blur-md z-10 w-full shrink-0"
         >
 
             <div class="flex items-center gap-2">
@@ -78,13 +78,13 @@
                     </div>
 
                     <div class="grid grid-cols-1 gap-3">
-                        <div v-for="i in 2" :key="'sf-'+i" class="w-full h-[72px] bg-(--text)/5 rounded-xl border border-white/5"></div>
+                        <div v-for="i in 2" :key="'sf-'+i" class="w-full h-[72px] bg-(--text)/5 rounded-xl border border-(--border-color)"></div>
                     </div>
 
                     <div class="mt-4">
                         <div class="w-40 h-3 bg-(--text)/10 rounded-full mb-4 mx-1"></div>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-4">
-                            <div v-for="i in 12" :key="'sk-'+i" class="w-full aspect-square bg-(--text)/5 rounded-2xl border border-white/5"></div>
+                            <div v-for="i in 12" :key="'sk-'+i" class="w-full aspect-square bg-(--text)/5 rounded-2xl border border-(--border-color)"></div>
                         </div>
                     </div>
 

@@ -2,7 +2,7 @@
     <div class="min-h-screen bg-(--bg2) text-(--text) font-sans">
       
       <!-- Top Navigation -->
-      <nav class="sticky top-0 z-50 bg-(--bg)/80 backdrop-blur-xl border-b border-white/5 px-6 py-4">
+      <nav class="sticky top-0 z-50 bg-(--bg)/80 backdrop-blur-xl border-b border-(--border-color) px-6 py-4">
         <div class="max-w-7xl mx-auto flex items-center justify-between">
           <div class="flex items-center gap-4">
             <router-link to="/" class="p-2 hover:bg-white/5 rounded-xl transition-colors">
@@ -35,26 +35,26 @@
   
         <div v-else class="space-y-6">
             
-            <div class="flex flex-col md:flex-row gap-4 items-center justify-between bg-(--bg) p-4 rounded-2xl border border-white/5 shadow-lg">
+            <div class="flex flex-col md:flex-row gap-4 items-center justify-between bg-(--bg) p-4 rounded-2xl border border-(--border-color) shadow-lg">
                 <div class="relative w-full md:w-96">
                     <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-(--text)/40"></i>
                     <input 
                         v-model="searchQuery" 
                         type="text" 
                         placeholder="Rechercher un utilisateur (nom, email, ID)..."
-                        class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:border-(--primary)/50 focus:ring-1 focus:ring-(--primary)/50 transition-all"
+                        class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:border-(--primary)/50 focus:ring-1 focus:ring-(--primary)/50 transition-all"
                     >
                 </div>
-                <div class="text-sm font-bold text-(--text)/60 px-4 py-2 bg-(--bg2) rounded-xl border border-white/5">
+                <div class="text-sm font-bold text-(--text)/60 px-4 py-2 bg-(--bg2) rounded-xl border border-(--border-color)">
                     {{ filteredUsers.length }} utilisateur(s)
                 </div>
             </div>
   
-            <div class="bg-(--bg) border border-white/5 rounded-2xl overflow-hidden shadow-xl">
+            <div class="bg-(--bg) border border-(--border-color) rounded-2xl overflow-hidden shadow-xl">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
-                            <tr class="border-b border-white/5 bg-(--bg2)/50">
+                            <tr class="border-b border-(--border-color) bg-(--bg2)/50">
                                 <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text)/50">Utilisateur</th>
                                 <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text)/50 text-center">Orgs Créées / Max</th>
                                 <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text)/50 text-center">Max Users (par Org)</th>
@@ -120,7 +120,7 @@
           
           <div class="relative w-full max-w-md bg-(--bg) rounded-2xl shadow-2xl border border-white/10 overflow-hidden animate-fade-in-up">
               
-              <div class="p-6 border-b border-white/5 bg-(--bg2)">
+              <div class="p-6 border-b border-(--border-color) bg-(--bg2)">
                   <h3 class="text-xl font-black text-(--text)">Modifier les quotas</h3>
                   <p class="text-sm text-(--text)/60 mt-1">Pour l'utilisateur <span class="font-bold text-(--text)">{{ selectedUser.name }}</span></p>
               </div>
@@ -172,7 +172,7 @@
   
               </div>
   
-              <div class="p-6 bg-(--bg2) border-t border-white/5 flex gap-3 justify-end">
+              <div class="p-6 bg-(--bg2) border-t border-(--border-color) flex gap-3 justify-end">
                   <button 
                       @click="closeModal" 
                       class="px-5 py-2.5 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 text-(--text) transition-colors"

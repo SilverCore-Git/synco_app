@@ -12,7 +12,7 @@
                         <p class="text-sm text-(--text)/60">Gérez les informations globales de votre organisation.</p>
                     </div>
 
-                    <div class="w-full relative rounded-xl overflow-hidden bg-(--bg2) border border-white/5 mb-8 shadow-xl">
+                    <div class="w-full relative rounded-xl overflow-hidden bg-(--bg2) border border-(--border-color) mb-8 shadow-xl">
                         <div class="h-[120px] bg-gradient-to-tr from-(--primary-dark) to-(--primary) w-full relative z-0"></div>
                         
                         <div class="px-6 relative flex justify-between items-end pb-6">
@@ -59,7 +59,7 @@
                                 <input 
                                     v-model="orgData.name"
                                     type="text"
-                                    class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                    class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
                                     placeholder="Ex: SilverCore Team"
                                 />
                             </div>
@@ -75,7 +75,7 @@
                                     disabled
                                     type="text"
                                     :value="openedOrg?.id"
-                                    class="w-full bg-black/20 border border-white/5 rounded-xl pl-11 pr-4 py-3 text-(--text)/30 italic shadow-inner"
+                                    class="w-full bg-black/20 border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text)/30 italic shadow-inner"
                                 />
                             </div>
                         </div>
@@ -90,7 +90,7 @@
                     </div>
 
                     <div class="space-y-4">
-                        <div class="flex items-center justify-between p-4 bg-(--bg2) border border-white/5 rounded-xl">
+                        <div class="flex items-center justify-between p-4 bg-(--bg2) border border-(--border-color) rounded-xl">
                             <div class="flex items-center gap-4">
                                 <i class="bi bi-list-check text-xl text-(--primary)"></i>
                                 <div>
@@ -104,7 +104,7 @@
                             </label>
                         </div>
 
-                        <div class="flex items-center justify-between p-4 bg-(--bg2) border border-white/5 rounded-xl">
+                        <div class="flex items-center justify-between p-4 bg-(--bg2) border border-(--border-color) rounded-xl">
                             <div class="flex items-center gap-4">
                                 <i class="bi bi-file-earmark text-xl text-(--primary)"></i>
                                 <div>
@@ -118,7 +118,7 @@
                             </label>
                         </div>
                         
-                        <div class="flex items-center justify-between p-4 bg-(--bg2) border border-white/5 rounded-xl">
+                        <div class="flex items-center justify-between p-4 bg-(--bg2) border border-(--border-color) rounded-xl">
                             <div class="flex items-center gap-4">
                                 <i class="bi bi-robot text-xl text-(--primary)"></i>
                                 <div>
@@ -157,7 +157,7 @@
         <Transition name="fade-bottom">
             <footer 
                 v-if="hasChanges" 
-                class="p-4 bg-(--bg2)/80 backdrop-blur-xl border-t border-white/5 flex justify-end gap-3"
+                class="p-4 bg-(--bg2)/80 backdrop-blur-xl border-t border-(--border-color) flex justify-end gap-3"
             >
 
                 <button @click="resetChanges" class="default">

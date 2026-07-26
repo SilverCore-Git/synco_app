@@ -2,7 +2,7 @@
 
     <a
         :key="org.id"
-        class="group relative flex flex-col w-full h-[180px] bg-(--bg) border border-white/5 rounded-2xl overflow-hidden transition-all duration-300 transform cursor-pointer hover:-translate-y-1 hover:border-(--primary)/50 hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] active:scale-95"
+        class="group relative flex flex-col w-full h-[180px] bg-(--bg) border border-(--border-color) rounded-2xl overflow-hidden transition-all duration-300 transform cursor-pointer hover:-translate-y-1 hover:border-(--primary)/50 hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] active:scale-95"
         :href="isCreate ? '#' : `/${org.id}`"
         @click.prevent="isCreate ? null : handleClick()"
     >
@@ -17,7 +17,7 @@
         <!-- Normal Card -->
         <div v-else class="w-full h-full flex flex-col">
             <!-- Banner / Logo area -->
-            <div class="h-28 w-full relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent flex items-center justify-center border-b border-white/5">
+            <div class="h-28 w-full relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent flex items-center justify-center border-b border-(--border-color)">
                 <div v-if="loader" class="absolute inset-0 animate-pulse bg-white/10"></div>
                 <img 
                     v-if="org.logo && org.logo.startsWith('data:') && !loader" 

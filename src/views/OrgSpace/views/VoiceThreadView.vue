@@ -20,7 +20,7 @@
                 @click="userFocused = null"
                 class="
                     relative bg-(--bg2) rounded-3xl 
-                    overflow-hidden border border-white/5
+                    overflow-hidden border border-(--border-color)
                     flex items-center justify-center group
                     w-full max-h-[70vh] aspect-video
                     shadow-2xl cursor-pointer
@@ -86,7 +86,7 @@
                     @click="userFocused = p"
                     class="
                         relative bg-(--bg2) rounded-2xl 
-                        overflow-hidden border border-white/5
+                        overflow-hidden border border-(--border-color)
                         flex items-center justify-center group
                         w-48 aspect-video cursor-pointer hover:border-white/20
                         transition-colors shadow-lg
@@ -154,7 +154,7 @@
                 @click="userFocused = p"
                 class="
                     relative bg-(--bg2) rounded-3xl 
-                    overflow-hidden border border-white/5
+                    overflow-hidden border border-(--border-color)
                     flex items-center justify-center group
                     w-full max-w-sm 2xl:max-w-lg max-h-80 aspect-video
                     shadow-xl cursor-pointer hover:border-white/10 transition-all

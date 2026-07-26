@@ -5,7 +5,7 @@
         class="absolute bottom-full left-0 mb-2 w-64 bg-(--bg) border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 max-h-48 overflow-y-auto p-1 backdrop-blur-3xl"
     >
 
-        <div class="p-2 text-[10px] uppercase font-bold tracking-wider text-(--text)/40 border-b border-white/5">
+        <div class="p-2 text-[10px] uppercase font-bold tracking-wider text-(--text)/40 border-b border-(--border-color)">
             Membres du salon
         </div>
 

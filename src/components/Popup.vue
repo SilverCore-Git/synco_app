@@ -42,7 +42,7 @@
 
             <div 
               v-if="$slots.footer" 
-              class="px-6 py-4 bg-(--bg)/70 border-t border-white/5 flex justify-end gap-3"
+              class="px-6 py-4 bg-(--bg)/70 border-t border-(--border-color) flex justify-end gap-3"
             >
               <slot name="footer" />
             </div>

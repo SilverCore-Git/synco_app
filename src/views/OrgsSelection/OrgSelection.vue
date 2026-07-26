@@ -73,7 +73,7 @@ onMounted(async () => {
         
         <!-- Déconnexion -->
         <div class="absolute top-6 right-6 md:top-8 md:right-8 z-10">
-            <button @click="keycloak.logout()" class="px-4 py-2 bg-white/5 hover:bg-red-500/10 text-(--text)/60 hover:text-red-500 rounded-xl transition-all flex items-center gap-2 text-sm font-bold border border-white/5 hover:border-red-500/20 shadow-sm">
+            <button @click="keycloak.logout()" class="px-4 py-2 bg-white/5 hover:bg-red-500/10 text-(--text)/60 hover:text-red-500 rounded-xl transition-all flex items-center gap-2 text-sm font-bold border border-(--border-color) hover:border-red-500/20 shadow-sm">
                 <i class="bi bi-box-arrow-right"></i> Déconnexion
             </button>
         </div>
