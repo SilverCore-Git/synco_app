@@ -104,9 +104,21 @@
                Exécution de <code class="bg-black/50 px-2 py-1 rounded text-(--primary) font-bold">{{ msg.tool_call.name }}</code>
             </p>
             
-            <div class="flex gap-2 mt-4" v-if="msg.tool_call.status === 'pending'">
-               <button @click="handleToolCall(msg.tool_call, true, index)" class="bg-green-500/20 text-green-500 border border-green-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-500/30 transition-colors">Accepter</button>
-               <button @click="handleToolCall(msg.tool_call, false, index)" class="bg-red-500/20 text-red-500 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/30 transition-colors">Refuser</button>
+            <div class="mt-4" v-if="msg.tool_call.status === 'pending'">
+               <div v-if="msg.tool_call.name === 'request_image_upload'" class="w-full">
+                  <IconSelector 
+                      model-value="" 
+                      @on-base64="(base64) => { 
+                          const id = 'img_' + Date.now(); 
+                          temporaryImages[id] = base64; 
+                          if (msg.tool_call) handleToolCall(msg.tool_call, true, index, id); 
+                      }" 
+                  />
+               </div>
+               <div v-else class="flex gap-2">
+                   <button @click="handleToolCall(msg.tool_call, true, index)" class="bg-green-500/20 text-green-500 border border-green-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-500/30 transition-colors">Accepter</button>
+                   <button @click="handleToolCall(msg.tool_call, false, index)" class="bg-red-500/20 text-red-500 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/30 transition-colors">Refuser</button>
+               </div>
             </div>
             <div v-else-if="msg.tool_call.status === 'executing'" class="text-(--primary) text-xs font-bold mt-3 flex items-center gap-2">
                <div class="w-3 h-3 border-2 border-(--primary) border-t-transparent rounded-full animate-spin"></div>
@@ -183,7 +195,8 @@
             >
                 <div class="w-full bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="router.push(`/${openedOrg?.id}/${messages[index+1]?.tool_data?.results.id}/`)">
                     <div class="flex items-center gap-3">
-                        <i class="bi text-xl text-(--primary)" :class="messages[index+1]?.tool_data?.results.logo || 'bi-folder'"></i>
+                        <img v-if="messages[index+1]?.tool_data?.results.logo?.startsWith('data:image')" :src="messages[index+1]?.tool_data?.results.logo" class="w-8 h-8 rounded-md object-cover" />
+                        <i v-else class="bi text-xl text-(--primary)" :class="messages[index+1]?.tool_data?.results.logo || 'bi-folder'"></i>
                         <div>
                             <p class="text-sm font-bold text-(--text) leading-snug">{{ messages[index+1]?.tool_data?.results.name }}</p>
                             <p class="text-xs text-white/40 mt-0.5">Espace de travail</p>
@@ -347,6 +360,7 @@ import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
+import IconSelector from '@/components/common/IconSelector.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -420,6 +434,7 @@ const inputMsg = ref('');
 const messages = aiSessionMessages as unknown as Ref<ChatMessage[]>;
 const chatContainer = ref<HTMLElement | null>(null);
 const hasNavigatorGpu = typeof navigator !== 'undefined' && !!(navigator as any).gpu;
+const temporaryImages = ref<Record<string, string>>({});
 
 const scrollToBottom = async () => {
   await nextTick();
@@ -564,7 +579,7 @@ const createThreadHelper = async (orgId: string, spaceId: string | undefined, na
     return data;
 };
 
-const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, accept: boolean, _assistantMsgIndex: number) => {
+const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, accept: boolean, _assistantMsgIndex: number, imageId?: string) => {
   if (!accept) {
     toolCall.status = 'rejected';
     messages.value.push({ role: 'system', content: `L'utilisateur a refusé l'exécution de l'outil ${toolCall.name}. Demande-lui pourquoi ou propose une alternative.` });
@@ -581,6 +596,9 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
     const orgId = route.params.orgId as string;
     
     if (toolCall.name === 'create_space') {
+       if (args.logo && args.logo.startsWith('img_') && temporaryImages.value[args.logo]) {
+           args.logo = temporaryImages.value[args.logo];
+       }
        const res = await sfetch(`/api/spaces/org/${orgId}`, {
          method: 'POST',
          body: JSON.stringify({ name: args.name, logo: args.logo, membersId: [] })
@@ -682,12 +700,19 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
 
     } else if (toolCall.name === 'read_documentation') {
         const docFiles = import.meta.glob('../../../../../doc/*.md', { query: '?raw', import: 'default', eager: true });
-        result = "Documentation officielle de Synco :\n\n";
+        
+        let fullDoc = "# Documentation de Synco\n\n";
         for (const [path, content] of Object.entries(docFiles)) {
-            const fileName = path.split('/').pop() || path;
-            result += `--- Fichier : ${fileName} ---\n\n${content}\n\n`;
+            const fileName = path.split('/').pop()?.replace('.md', '') || path;
+            fullDoc += `## Chapitre : ${fileName}\n\n${content}\n\n---\n\n`;
         }
-        toolData = { loadedFiles: Object.keys(docFiles).length };
+        
+        toolData = { length: fullDoc.length };
+        result = fullDoc;
+
+    } else if (toolCall.name === 'request_image_upload') {
+        toolData = { id: imageId };
+        result = `L'utilisateur a fourni une image. Identifiant de l'image : '${imageId}'. Utilise EXACTEMENT cette valeur '${imageId}' pour le paramètre 'logo' de 'create_space'.`;
 
     } else if (toolCall.name === 'read_tasks') {
         const res = await sfetch(`/api/tasks/${orgId}/lists/me`);

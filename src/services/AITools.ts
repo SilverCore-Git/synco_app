@@ -119,6 +119,23 @@ export const availableTools = [
                 required: []
             }
         }
+    },
+    {
+        type: "function",
+        function: {
+            name: "request_image_upload",
+            description: "Demande à l'utilisateur de sélectionner et recadrer une image (ex: pour le logo d'un espace). L'outil mettra en pause l'IA et affichera une interface de recadrage à l'utilisateur. Une fois l'image validée par l'utilisateur, l'outil retournera un identifiant d'image temporaire (ex: 'img_12345') que tu devras utiliser ensuite dans le champ 'logo' de l'outil 'create_space'.",
+            parameters: {
+                type: "object",
+                properties: {
+                    prompt: {
+                        type: "string",
+                        description: "Le message à afficher à l'utilisateur (ex: 'Veuillez uploader le logo pour l'espace Marketing')."
+                    }
+                },
+                required: ["prompt"]
+            }
+        }
     }
 ];
 
