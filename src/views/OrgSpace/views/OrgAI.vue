@@ -71,7 +71,7 @@
             <i :class="msg.role === 'user' ? 'bi-person' : 'bi-robot'"></i>
             {{ msg.role === 'user' ? 'Vous' : 'Synco AI' }}
           </div>
-          <div v-if="msg.content" v-html="formatMessage(msg.content)" class="prose prose-invert max-w-none prose-sm"></div>
+          <div v-if="msg.content" v-html="formatMessage(msg.content)" @click="handleLinks" class="prose prose-invert max-w-none prose-sm"></div>
           <div v-else-if="msg.role === 'assistant' && isGenerating && !msg.tool_call" class="flex gap-1 py-2">
             <div class="w-1.5 h-1.5 bg-white/50 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
             <div class="w-1.5 h-1.5 bg-white/50 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
@@ -82,8 +82,10 @@
           <div v-if="msg.tool_call" class="mt-4 bg-black/40 border border-(--primary)/30 rounded-xl p-4">
             <div class="flex items-center gap-2 mb-2 text-(--primary) font-bold text-xs uppercase">
               <i class="bi bi-search" v-if="msg.tool_call.name === 'search_messages'"></i>
+              <i class="bi bi-book" v-else-if="msg.tool_call.name === 'read_documentation'"></i>
+              <i class="bi bi-check2-square" v-else-if="msg.tool_call.name === 'read_tasks'"></i>
               <i class="bi bi-wrench-adjustable-circle" v-else></i> 
-              {{ msg.tool_call.name === 'search_messages' ? 'Recherche Globale' : "Demande d'action" }}
+              {{ msg.tool_call.name === 'search_messages' ? 'Recherche Globale' : msg.tool_call.name === 'read_documentation' ? 'Consultation de la documentation' : msg.tool_call.name === 'read_tasks' ? 'Lecture des tâches' : "Demande d'action" }}
             </div>
             
             <p class="text-sm" v-if="msg.tool_call.name === 'search_messages'">
@@ -91,6 +93,12 @@
                <span class="text-white font-bold inline-block bg-white/10 px-2 py-0.5 rounded ml-1">
                    "{{ getSearchQuery(msg.tool_call.arguments) }}"
                </span>
+            </p>
+            <p class="text-sm" v-else-if="msg.tool_call.name === 'read_documentation'">
+               Je consulte la documentation officielle de Synco pour vous répondre avec précision.
+            </p>
+            <p class="text-sm" v-else-if="msg.tool_call.name === 'read_tasks'">
+               Je consulte votre liste de tâches et son état d'avancement.
             </p>
             <p class="text-sm" v-else>
                Exécution de <code class="bg-black/50 px-2 py-1 rounded text-(--primary) font-bold">{{ msg.tool_call.name }}</code>
@@ -355,10 +363,25 @@ import { getToolsSystemPrompt } from '@/services/AITools';
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
 const { Item: savedModelId, isLoaded: savedModelLoaded } = useSettingsItem('ai_selected_model', '');
 
-// On utilise marked pour le formatage, ou simplement un remplacement basique pour l'instant
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
+
+// On utilise marked pour le formatage avec DOMPurify pour la sécurité
 const formatMessage = (text: string) => {
   let cleanText = text.replace(/<tool_call>[\s\S]*?(?:<\/tool_call>|$)/g, '');
-  return cleanText.trim().replace(/\n/g, '<br>').replace(/```([\s\S]*?)```/g, '<pre class="bg-black/50 p-3 rounded-lg border border-white/10 overflow-x-auto my-2"><code>$1</code></pre>');
+  const html = marked.parse(cleanText) as string;
+  return DOMPurify.sanitize(html);
+};
+
+const handleLinks = (e: MouseEvent) => {
+   const target = (e.target as HTMLElement).closest('a');
+   if (target) {
+      const href = target.getAttribute('href');
+      if (href && href.startsWith('/')) {
+         e.preventDefault();
+         router.push(href);
+      }
+   }
 };
 
 const getSpaceAndThreadName = (workspaceId: string, threadId: string) => {
@@ -653,6 +676,22 @@ const handleToolCall = async (toolCall: any, accepted: boolean, _msgIndex: numbe
         }
         result = `Salon '${args.name}' (type: ${args.type}) créé avec succès (ID: ${data.id}). Les clés E2EE ont été générées et distribuées.`;
 
+    } else if (toolCall.name === 'read_documentation') {
+        const docFiles = import.meta.glob('../../../../../doc/*.md', { query: '?raw', import: 'default', eager: true });
+        result = "Documentation officielle de Synco :\n\n";
+        for (const [path, content] of Object.entries(docFiles)) {
+            const fileName = path.split('/').pop() || path;
+            result += `--- Fichier : ${fileName} ---\n\n${content}\n\n`;
+        }
+        toolData = { loadedFiles: Object.keys(docFiles).length };
+
+    } else if (toolCall.name === 'read_tasks') {
+        const res = await sfetch(`/api/tasks/${orgId}/lists/me`);
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || "Erreur serveur");
+        result = "Voici les tâches de l'utilisateur :\n" + JSON.stringify(data, null, 2);
+        toolData = data;
+
     } else {
        result = "Erreur: Outil inconnu.";
     }
@@ -673,6 +712,8 @@ const handleToolCall = async (toolCall: any, accepted: boolean, _msgIndex: numbe
 
   if (['create_task', 'create_space', 'create_thread'].includes(toolCall.name)) {
       sendMessage("L'action a été effectuée avec succès. Réponds très brièvement en une seule phrase pour confirmer à l'utilisateur.");
+  } else if (['search_messages', 'read_documentation', 'read_tasks'].includes(toolCall.name)) {
+      sendMessage("Voici les informations demandées. Réponds à la question de l'utilisateur en te basant sur ces résultats.");
   }
 };
 
@@ -734,6 +775,13 @@ Tu as l'autorisation explicite et technique d'utiliser ces outils pour lire les 
         messages.value[assistantMsgIndex]!.content += chunk;
       }
       await scrollToBottom();
+    }
+
+    const tCall = messages.value[assistantMsgIndex]?.tool_call;
+    if (tCall?.status === 'pending' && ['read_documentation'].includes(tCall.name)) {
+      setTimeout(() => {
+        handleToolCall(tCall, true, assistantMsgIndex);
+      }, 50);
     }
   } catch (error: any) {
     if (error.message !== "USER_STOPPED" && !String(error).includes("USER_STOPPED")) {

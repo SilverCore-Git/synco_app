@@ -83,6 +83,30 @@ export const availableTools = [
                 required: ["name", "type"]
             }
         }
+    },
+    {
+        type: "function",
+        function: {
+            name: "read_documentation",
+            description: "Lire la documentation officielle de Synco pour répondre aux questions sur le fonctionnement de l'application (espaces, threads, appels, stockage, tâches, IA, paramètres, etc.).",
+            parameters: {
+                type: "object",
+                properties: {},
+                required: []
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "read_tasks",
+            description: "Lire la liste des tâches (Todo) de l'utilisateur et de l'organisation pour faire un résumé ou vérifier l'avancement.",
+            parameters: {
+                type: "object",
+                properties: {},
+                required: []
+            }
+        }
     }
 ];
 
