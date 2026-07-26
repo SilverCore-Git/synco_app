@@ -176,16 +176,9 @@
                     </div>
                 </div>
 
-                <div class="p-4 border-b border-(--border-color) w-full">
-                    <button
-                        @click="newSession"
-                        class="primary w-full flex items-center justify-center gap-2"
-                    >
-                        <i class="bi bi-plus-lg"></i>
-                        Nouveau chat
-                    </button>
+                <div class="p-4 border-b border-(--border-color) w-full" v-if="aiIsLocal">
 
-                    <div class="mt-4" v-if="aiIsLocal">
+                    <div v-if="aiIsLocal">
                         <p class="text-[10px] uppercase font-bold text-(--text)/50 mb-1">Modèle Local</p>
                         <select 
                             v-model="selectedModelId"
@@ -206,6 +199,17 @@
                     </div>
 
                     <div class="space-y-1">
+                        <button
+                            @click="newSession"
+                            class="tab w-full group flex items-center gap-2 mb-2"
+                            :class="activeSessionId === null ? 'active' : ''"
+                        >
+                            <i class="bi bi-plus-lg text-lg"></i>
+                            <div class="truncate flex-1 text-sm text-left">
+                                Nouveau chat
+                            </div>
+                        </button>
+
                         <button 
                             v-for="session in chatSessions" 
                             :key="session.id"
