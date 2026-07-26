@@ -1,7 +1,8 @@
 <script setup lang="ts">
 
 import Loader from './components/LogoLoader.vue';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+//import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import init, { refetchUser } from './assets/init';
 import { isLoaded, user } from './assets/var';
 import type { User } from '@/types/types';
@@ -9,7 +10,8 @@ import Notifications from './components/overlay/Notifications.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
 import useSettingsItem from './composables/useSettingsItem';
 import keycloak from './assets/keycloak';
-import { E2EEUnloked, lockSecurity, setupFirstTimeSecurity, unlockSecurity } from './assets/utils/crypto';
+//import { E2EEUnloked, lockSecurity, setupFirstTimeSecurity, unlockSecurity } from './assets/utils/crypto';
+import { E2EEUnloked, setupFirstTimeSecurity, unlockSecurity } from './assets/utils/crypto';
 import sfetch from './assets/utils/sfetch';
 import { useToast } from './composables/useToast';
 import TopBar from './components/layout/topBar.vue';
@@ -20,6 +22,7 @@ import Popup from './components/Popup.vue';
 import { isProfileOpen, profileUser, closeProfile } from './composables/useProfile';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp, type URLOpenListenerEvent } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
 
 const toast = useToast();
 const { Item: theme } = useSettingsItem('theme', 'dark');
@@ -44,20 +47,56 @@ watch(() => theme.value, () => {
 })
 
 const authenticated = ref<boolean>(false);
-const pinSetup = computed(() => 
-  user.value?.pinSalt?.trim() && 
-  user.value?.keyIv?.trim() && 
+const pinSetup = computed(() =>
+  user.value?.pinSalt?.trim() &&
+  user.value?.keyIv?.trim() &&
   user.value?.encryptedPrivateKey?.trim()
 );
 const isResettingPIN = ref<boolean>(false);
 
 const press = (num: string) => {
-  if (pin.value.length < 4) 
-  {
+  if (pin.value.length < 4) {
     pin.value += num;
     if (window.navigator.vibrate) window.navigator.vibrate(10);
   }
 };
+
+function isTokenExpired(token: string | null | undefined): boolean {
+  if (!token) return true;
+  try {
+    const parts = token.split('.');
+    const payloadPart = parts[1];
+    if (!payloadPart) return true;
+    const payload = JSON.parse(atob(payloadPart));
+    return payload.exp * 1000 < Date.now() + 10000;
+  } catch {
+    return true;
+  }
+}
+
+// --- Helpers PKCE (à ajouter avant onMounted, à côté de isTokenExpired) ---
+function base64UrlEncode(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let str = '';
+  for (const b of bytes) str += String.fromCharCode(b);
+  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function generateCodeVerifier(): string {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return base64UrlEncode(array.buffer);
+}
+
+async function generateCodeChallenge(verifier: string): Promise<string> {
+  const data = new TextEncoder().encode(verifier);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return base64UrlEncode(digest);
+}
+
+const KC_URL = import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080/auth';
+const KC_REALM = import.meta.env.VITE_KEYCLOAK_REALM || 'SilverTeams';
+const KC_CLIENT_ID = import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'silverteams_web_app';
 
 const submit = async () => {
 
@@ -68,12 +107,12 @@ const submit = async () => {
     if (isResettingPIN.value) {
       // Mode réinitialisation : créer de nouvelles clés
       const E2EEThings = await setupFirstTimeSecurity(pin.value);
-      
+
       const res = await sfetch('/api/users/me/resetE2EE', {
         method: 'POST',
         body: JSON.stringify(E2EEThings)
       });
-      
+
       if (res.ok) {
         await refetchUser();
         isResettingPIN.value = false;
@@ -89,40 +128,35 @@ const submit = async () => {
       return;
     }
 
-    if (pinSetup.value) 
-    {
+    if (pinSetup.value) {
 
       console.log('Connection...');
 
       if (!user.value?.pinSalt || !user.value?.encryptedPrivateKey || !user.value?.keyIv) return;
-      
+
       const success = await unlockSecurity(pin.value, user.value.pinSalt, user.value.encryptedPrivateKey, user.value.keyIv);
-      
-      if (!success)
-      {
+
+      if (!success) {
         toast.show('Code PIN incorrect', 'error');
         console.log('Code PIN incorrect');
         pin.value = '';
       }
 
-    } 
-    else 
-    {
+    }
+    else {
 
       const E2EEThings = await setupFirstTimeSecurity(pin.value);
 
       const res = await sfetch('/api/users/me/initE2EE', {
         method: 'POST',
-        body: JSON.stringify(E2EEThings)      
+        body: JSON.stringify(E2EEThings)
       });
 
-      if (res.ok)
-      {
+      if (res.ok) {
         await refetchUser();
         pinLoading.value = false;
       }
-      else
-      {
+      else {
         toast.show('Une erreur est survenue lors de l\'initialisation du code pin.', 'error');
       }
 
@@ -155,76 +189,125 @@ const handleInput = (e: KeyboardEvent) => {
   else if (e.key === 'Enter' && pin.value.length >= 4) submit();
   else if (e.key === 'Backspace') pin.value = pin.value.slice(0, -1);
 }
-
 onMounted(async () => {
-
-  // Écouteur Deep Link (strictement identique à ton code d'origine)
-  CapApp.addListener('appUrlOpen', async (data: URLOpenListenerEvent) => {
-    console.log('[DeepLink] Reçu :', data.url);
-
-    if (data.url.includes('code=')) {
-      try {
-        const urlObj = new URL(data.url);
-        window.location.search = urlObj.search;
-        window.location.hash = urlObj.hash;
-      } catch (err) {
-        console.error('[Keycloak] Erreur Deep Link:', err);
-      }
-    }
-  });
-
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/health`, {
-    credentials: 'include'
-  });
-
-  if (!res.ok) return alert('Api error');
-
   const redirectUri = Capacitor.isNativePlatform()
     ? 'fr.silvercore.synco://callback'
     : window.location.origin;
 
-  // 1. Lecture simple du localStorage
-  const savedToken = localStorage.getItem('kc_token');
-  const savedRefreshToken = localStorage.getItem('kc_refreshToken');
+  let deepLinkResolve: ((url: string) => void) | null = null;
+  const deepLinkArrived = new Promise<string>((resolve) => { deepLinkResolve = resolve; });
 
-  // 2. Un seul init Keycloak (identique au tien, avec injection des tokens si présent)
-  try {
-    authenticated.value = await keycloak.init({
-      onLoad: 'login-required',
-      checkLoginIframe: false,
-      redirectUri: redirectUri,
-      responseMode: 'query',
-      token: savedToken || undefined,
-      refreshToken: savedRefreshToken || undefined
-    });
-  } catch (err) {
-    // Si les anciens tokens sont invalides/expirés, on purge et on relance le login
+  CapApp.addListener('appUrlOpen', async (data: URLOpenListenerEvent) => {
+    console.log('[DeepLink] Reçu :', data.url);
+    if (data.url.includes('code=')) {
+      await Browser.close().catch(() => { });
+      deepLinkResolve?.(data.url);
+    }
+  });
+
+  const res = await fetch(`${import.meta.env.VITE_API_URL}/health`, { credentials: 'include' });
+  if (!res.ok) return alert('Api error');
+
+  let savedToken = localStorage.getItem('kc_token');
+  let savedRefreshToken = localStorage.getItem('kc_refreshToken');
+
+  if (isTokenExpired(savedToken)) {
     localStorage.removeItem('kc_token');
     localStorage.removeItem('kc_refreshToken');
-    await keycloak.login({ redirectUri });
+    savedToken = null;
+    savedRefreshToken = null;
+  }
+
+  // Sur natif, sans token valide : flux OAuth manuel (Browser système + PKCE + échange direct)
+  if (Capacitor.isNativePlatform() && !savedToken) {
+    const codeVerifier = generateCodeVerifier();
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+    const state = crypto.randomUUID();
+
+    const authUrl = `${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/auth`
+      + `?client_id=${encodeURIComponent(KC_CLIENT_ID)}`
+      + `&redirect_uri=${encodeURIComponent(redirectUri)}`
+      + `&response_type=code`
+      + `&scope=openid`
+      + `&state=${state}`
+      + `&code_challenge=${codeChallenge}`
+      + `&code_challenge_method=S256`;
+
+    console.log('[Keycloak] Ouverture:', authUrl);
+    await Browser.open({ url: authUrl });
+
+    const callbackUrl = await deepLinkArrived;
+    const code = new URL(callbackUrl).searchParams.get('code');
+
+    if (code) {
+      try {
+        const tokenRes = await fetch(`${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            grant_type: 'authorization_code',
+            client_id: KC_CLIENT_ID,
+            code,
+            redirect_uri: redirectUri,
+            code_verifier: codeVerifier
+          })
+        });
+
+        if (tokenRes.ok) {
+          const tokens = await tokenRes.json();
+          savedToken = tokens.access_token;
+          savedRefreshToken = tokens.refresh_token;
+        } else {
+          console.error('[Keycloak] Échange code échoué:', await tokenRes.text());
+        }
+      } catch (err) {
+        console.error('[Keycloak] Erreur échange code:', err instanceof Error ? err.message : String(err));
+      }
+    } else {
+      console.error('[Keycloak] Pas de code dans le callback:', callbackUrl);
+    }
+  }
+
+  const initOptions: any = {
+    checkLoginIframe: false,
+    redirectUri,
+    responseMode: 'query',
+  };
+
+  if (savedToken) {
+    // On a déjà un token (natif via notre échange manuel, ou web déjà connecté) :
+    // pas besoin de check-sso, on l'utilise directement
+    initOptions.token = savedToken;
+    initOptions.refreshToken = savedRefreshToken || undefined;
+  } else {
+    // Web sans token : comportement d'origine
+    initOptions.onLoad = 'check-sso';
+    initOptions.silentCheckSsoRedirectUri = window.location.origin + '/silent-check-sso.html';
+  }
+
+  try {
+    authenticated.value = await keycloak.init(initOptions);
+  } catch (err) {
+    console.error('[Keycloak] init error:', err instanceof Error ? err.message : String(err));
+    authenticated.value = false;
+  }
+
+  if (!authenticated.value) {
+    console.error('[Keycloak] Authentification échouée');
     return;
   }
 
-  // 3. Si connecté, on enregistre les tokens
-  if (authenticated.value) {
-    if (keycloak.token) localStorage.setItem('kc_token', keycloak.token);
-    if (keycloak.refreshToken) localStorage.setItem('kc_refreshToken', keycloak.refreshToken);
+  if (keycloak.token) localStorage.setItem('kc_token', keycloak.token);
+  if (keycloak.refreshToken) localStorage.setItem('kc_refreshToken', keycloak.refreshToken);
 
-    const userInfo: any = await keycloak.loadUserInfo();
-    localStorage.setItem('userId', userInfo.sub);
+  const userInfo: any = await keycloak.loadUserInfo();
+  localStorage.setItem('userId', userInfo.sub);
 
-    await init.run();
-    await waitFor(() => user.value !== null);
-    await initPeer();
-  }
+  await init.run();
+  await waitFor(() => user.value !== null);
+  await initPeer();
 
   window.addEventListener('keydown', handleInput);
-
-});
-
-onUnmounted(() => {
-  lockSecurity(); 
-  window.removeEventListener('keydown', handleInput);
 });
 
 </script>
@@ -233,9 +316,7 @@ onUnmounted(() => {
 
   <Notifications />
 
-  <div
-    class="w-screen h-screen relative flex flex-col"
-  >
+  <div class="w-screen h-screen relative flex flex-col">
 
     <div class="w-full">
       <TopBar />
@@ -245,23 +326,15 @@ onUnmounted(() => {
 
       <Notifications />
       <CallOverlay />
-      <UserProfile 
-        :isOpen="isProfileOpen" 
-        :profileUser="profileUser" 
-        @close="closeProfile"
-        @send-message="handleSendMessageFromProfile"
-      />
-      
+      <UserProfile :isOpen="isProfileOpen" :profileUser="profileUser" @close="closeProfile"
+        @send-message="handleSendMessageFromProfile" />
+
       <Transition name="page-lock" mode="out-in">
 
-        <div
-          v-if="E2EEUnloked && !pinLoading"
-          class="w-full h-full"
-          key="app"
-        >
+        <div v-if="E2EEUnloked && !pinLoading" class="w-full h-full" key="app">
 
           <div v-if="isLoaded" class="w-full h-full">
-              <RouterView />
+            <RouterView />
           </div>
 
           <div v-else class="w-full h-full">
@@ -272,99 +345,81 @@ onUnmounted(() => {
 
         <div class="w-full h-full" key="lock" v-else>
 
-          <div v-if="pinLoading" class="w-full h-full flex flex-col items-center justify-center bg-(--bg3) p-6 select-none" >
+          <div v-if="pinLoading"
+            class="w-full h-full flex flex-col items-center justify-center bg-(--bg3) p-6 select-none">
             <Loader />
           </div>
-        
+
           <div v-else class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none">
-            
+
             <div class="mb-8 text-center max-w-lg">
 
-                <div class="flex flex-col items-center gap-4 mb-3">
+              <div class="flex flex-col items-center gap-4 mb-3">
 
-                  <img 
-                    src="/banner.svg" 
-                    alt="Logo" 
-                    class=" h-16" 
-                  />
+                <img src="/banner.svg" alt="Logo" class=" h-16" />
 
-                </div>
+              </div>
 
-                <h2 class="text-xl font-bold text-(--text)">
-                  {{ isResettingPIN ? 'Définissez un nouveau code PIN' : pinSetup ? 'Déverrouillez votre session' : 'Configurez votre accès sécurisé' }}
-                </h2>
+              <h2 class="text-xl font-bold text-(--text)">
+                {{ isResettingPIN ? 'Définissez un nouveau code PIN' : pinSetup ? 'Déverrouillez votre session' :
+                  'Configurez votre accès sécurisé' }}
+              </h2>
 
-                <p v-if="!pinSetup || isResettingPIN" class="text-sm text-(--text)/50 mt-2 leading-relaxed">
-                  Ce code PIN est la clé de vos conversations. <br/>
-                  <span class="text-amber-500/80 font-medium">S'il est perdu, elles resteront illisibles.</span>
-                </p>
-                <p v-if="isResettingPIN" class="text-sm text-amber-500/80 mt-2 font-medium">
-                  Attention : vos anciens messages deviendront indéchiffrables.
-                </p>
+              <p v-if="!pinSetup || isResettingPIN" class="text-sm text-(--text)/50 mt-2 leading-relaxed">
+                Ce code PIN est la clé de vos conversations. <br />
+                <span class="text-amber-500/80 font-medium">S'il est perdu, elles resteront illisibles.</span>
+              </p>
+              <p v-if="isResettingPIN" class="text-sm text-amber-500/80 mt-2 font-medium">
+                Attention : vos anciens messages deviendront indéchiffrables.
+              </p>
 
             </div>
 
-            <div 
-              class="flex gap-4 mb-10 transition-transform duration-300"
-            >
+            <div class="flex gap-4 mb-10 transition-transform duration-300">
 
-                <div 
-                    v-for="i in 4" :key="i"
-                    class="w-14 h-18 border-2 rounded-2xl flex items-center justify-center text-2xl transition-all duration-150"
-                    :class="[
-                      pin.length >= i 
-                        ? 'border-(--primary) bg-(--primary)/10 scale-105' 
-                        : 'border-white/5 bg-white/5'
-                    ]"
-                >
-                    <div 
-                      class="w-3 h-3 rounded-full transition-all duration-300"
-                      :class="pin.length >= i ? 'bg-(--primary)' : 'bg-white/10'"
-                    />
-                </div>
+              <div v-for="i in 4" :key="i"
+                class="w-14 h-18 border-2 rounded-2xl flex items-center justify-center text-2xl transition-all duration-150"
+                :class="[
+                  pin.length >= i
+                    ? 'border-(--primary) bg-(--primary)/10 scale-105'
+                    : 'border-white/5 bg-white/5'
+                ]">
+                <div class="w-3 h-3 rounded-full transition-all duration-300"
+                  :class="pin.length >= i ? 'bg-(--primary)' : 'bg-white/10'" />
+              </div>
 
             </div>
 
             <div class="grid grid-cols-3 gap-4 max-w-xs w-full">
 
-                <button 
-                    v-for="num in [1,2,3,4,5,6,7,8,9]" :key="num"
-                    @click="press(num.toString())"
-                    class="h-16 default-primary border-none"
-                >
-                    {{ num }}
-                </button>
-                
-                <button @click="pin = ''" class="default">
-                    EFFACER
-                </button>
-                
-                <button @click="press('0')" class="h-16 default-primary border-none">
-                    0
-                </button>
-                
-                <button 
-                  @click="submit" 
-                  class="primary"
-                  :disabled="pin.length < 4"
-                >
-                    <span class="font-bold tracking-widest text-lg">OK</span>
-                </button>
+              <button v-for="num in [1, 2, 3, 4, 5, 6, 7, 8, 9]" :key="num" @click="press(num.toString())"
+                class="h-16 default-primary border-none">
+                {{ num }}
+              </button>
+
+              <button @click="pin = ''" class="default">
+                EFFACER
+              </button>
+
+              <button @click="press('0')" class="h-16 default-primary border-none">
+                0
+              </button>
+
+              <button @click="submit" class="primary" :disabled="pin.length < 4">
+                <span class="font-bold tracking-widest text-lg">OK</span>
+              </button>
 
             </div>
 
-            <button 
-              v-if="pinSetup && !isResettingPIN" 
-              @click="pinForgot"
-              class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text)/30 hover:text-(--primary) transition-colors"
-            >
-                Code PIN oublié ?
+            <button v-if="pinSetup && !isResettingPIN" @click="pinForgot"
+              class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text)/30 hover:text-(--primary) transition-colors">
+              Code PIN oublié ?
             </button>
 
             <Popup :isOpen="showResetConfirm" @close="showResetConfirm = false">
               <template #title>Réinitialiser le code PIN</template>
               <p class="text-(--text)/80 text-sm">
-                Cela réinitialisera votre clé de chiffrement. 
+                Cela réinitialisera votre clé de chiffrement.
                 <span class="text-amber-500 font-medium">Tous vos anciens messages deviendront illisibles.</span>
               </p>
               <p class="text-(--text)/60 text-xs mt-4">
@@ -375,7 +430,7 @@ onUnmounted(() => {
                 <button @click="resetPIN" class="danger">Réinitialiser</button>
               </template>
             </Popup>
-            
+
           </div>
 
         </div>
