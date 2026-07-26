@@ -302,7 +302,7 @@ export const loadSession = async (id: string) => {
 };
 
 export const deleteSession = async (id: string) => {
-    if (!openedOrg.value || !confirm("Voulez-vous vraiment supprimer cette session ?")) return;
+    if (!openedOrg.value) return;
     try {
         const res = await sfetch(`/api/orgs/${openedOrg.value.id}/ai/sessions/${id}`, {
             method: 'DELETE'

@@ -179,7 +179,7 @@
                 <div class="p-4 border-b border-(--border-color) w-full">
                     <button
                         @click="newSession"
-                        class="w-full bg-(--primary)/10 text-(--primary) hover:bg-(--primary)/20 border border-(--primary)/20 px-3 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2"
+                        class="primary w-full flex items-center justify-center gap-2"
                     >
                         <i class="bi bi-plus-lg"></i>
                         Nouvelle session
@@ -216,7 +216,7 @@
                             {{ session.title || 'Nouvelle session' }}
                         </div>
                         <button 
-                            @click.stop="deleteSession(session.id)" 
+                            @click.stop="handleDeleteClick(session)" 
                             class="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity p-1"
                             title="Supprimer"
                         >
@@ -224,6 +224,15 @@
                         </button>
                     </div>
                 </div>
+
+                <ConfirmDelete
+                    :show="showConfirmDelete"
+                    :itemName="sessionToDelete?.title || 'Nouvelle session'"
+                    itemType="la session"
+                    buttonText="Supprimer"
+                    @confirm="confirmDeleteAction"
+                    @cancel="showConfirmDelete = false; sessionToDelete = null"
+                />
             </div>
         </template>
 
@@ -339,7 +348,7 @@ import isDesktopApp from '@/assets/isDesktopApp';
 import SpaceSearchModal from '../popup/SpaceSearchModal.vue';
 import { chatSessions, activeSessionId, newSession, deleteSession, loadSession, aiIsLocal, selectedModelId } from '@/services/AIService';
 import { availableModels } from '@/services/LocalLLMService';
-
+import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -351,6 +360,21 @@ const isAI = computed(() => route.name === 'OrgAI');
 const showDropDown = ref<boolean>(false);
 const showSearchModal = ref<boolean>(false);
 
+const showConfirmDelete = ref(false);
+const sessionToDelete = ref<any>(null);
+
+const handleDeleteClick = (session: any) => {
+    sessionToDelete.value = session;
+    showConfirmDelete.value = true;
+};
+
+const confirmDeleteAction = async () => {
+    if (sessionToDelete.value) {
+        await deleteSession(sessionToDelete.value.id);
+        showConfirmDelete.value = false;
+        sessionToDelete.value = null;
+    }
+};
 
 const title = computed<string>(() => {
     if (isHome.value) return 'Accueil';
