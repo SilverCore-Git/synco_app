@@ -410,7 +410,6 @@ const chatSessions = ref<any[]>([]);
 const activeSessionId = ref<string | null>(null);
 
 const { openedOrg } = useSettingsItem();
-const showUsersBar = ref(false);
 
 const fetchSessions = async () => {
   if (!openedOrg.value) return;
