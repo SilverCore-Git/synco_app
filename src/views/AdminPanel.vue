@@ -10,10 +10,8 @@
           </router-link>
           <div>
             <h1 class="text-xl font-black uppercase tracking-wider flex items-center gap-3">
-              <i class="bi bi-shield-lock text-(--primary)"></i>
-              Super Admin
+              Panel admin
             </h1>
-            <p class="text-xs text-(--text)/50 font-medium">Gestion des quotas et facturation</p>
           </div>
         </div>
       </div>
