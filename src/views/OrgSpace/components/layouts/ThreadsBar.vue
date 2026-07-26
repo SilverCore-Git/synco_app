@@ -182,7 +182,7 @@
                         class="primary w-full flex items-center justify-center gap-2"
                     >
                         <i class="bi bi-plus-lg"></i>
-                        Nouvelle session
+                        Nouveau chat
                     </button>
 
                     <div class="mt-4" v-if="aiIsLocal">
@@ -198,36 +198,38 @@
                     </div>
                 </div>
 
-                <div class="flex-1 overflow-y-auto p-2 space-y-1 w-full">
-                    <p class="text-[10px] uppercase font-bold text-(--text)/50 px-2 mt-2 mb-1">Historique</p>
+                <div class="flex-1 overflow-y-auto p-2 w-full">
+                    <p class="text-[10px] uppercase font-bold text-(--text)/50 px-2 mt-2 mb-3">Historique</p>
                     
                     <div v-if="chatSessions.length === 0" class="text-xs text-center text-(--text)/40 mt-4 italic">
                         Aucune session
                     </div>
 
-                    <div 
-                        v-for="session in chatSessions" 
-                        :key="session.id"
-                        class="group flex items-center justify-between px-3 py-2 text-sm rounded-lg cursor-pointer transition-colors"
-                        :class="activeSessionId === session.id ? 'bg-(--primary)/20 text-(--primary)' : 'text-(--text)/70 hover:bg-white/5 hover:text-(--text)'"
-                        @click="loadSession(session.id)"
-                    >
-                        <div class="truncate pr-2 flex-1">
-                            {{ session.title || 'Nouvelle session' }}
-                        </div>
+                    <div class="space-y-1">
                         <button 
-                            @click.stop="handleDeleteClick(session)" 
-                            class="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity p-1"
-                            title="Supprimer"
+                            v-for="session in chatSessions" 
+                            :key="session.id"
+                            class="tab w-full group flex items-center justify-between"
+                            :class="activeSessionId === session.id ? 'active' : ''"
+                            @click="loadSession(session.id)"
                         >
-                            <i class="bi bi-trash"></i>
+                            <div class="truncate pr-2 flex-1 text-sm">
+                                {{ session.title || 'Nouveau chat' }}
+                            </div>
+                            <div 
+                                @click.stop="handleDeleteClick(session)" 
+                                class="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity p-1 rounded hover:bg-white/10"
+                                title="Supprimer"
+                            >
+                                <i class="bi bi-trash"></i>
+                            </div>
                         </button>
                     </div>
                 </div>
 
                 <ConfirmDelete
                     :show="showConfirmDelete"
-                    :itemName="sessionToDelete?.title || 'Nouvelle session'"
+                    :itemName="sessionToDelete?.title || 'Nouveau chat'"
                     itemType="la session"
                     buttonText="Supprimer"
                     @confirm="confirmDeleteAction"
