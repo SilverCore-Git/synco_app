@@ -201,13 +201,12 @@
                     <div class="space-y-1">
                         <button
                             @click="newSession"
-                            class="tab w-full group flex items-center gap-2 mb-2"
-                            :class="activeSessionId === null ? 'active' : ''"
+                            class="default w-full flex items-center justify-center gap-2 mb-4"
                         >
-                            <i class="bi bi-plus-lg text-lg"></i>
-                            <div class="truncate flex-1 text-sm text-left">
+                            <i class="bi bi-plus-lg"></i>
+                            <span>
                                 Nouveau chat
-                            </div>
+                            </span>
                         </button>
 
                         <button 
