@@ -5,13 +5,23 @@ import DropDown from '@/components/DropDown.vue';
 import useWSocket from '@/composables/useWSocket';
 import { openedOrg } from '@/assets/var';
 import keycloak from '@/assets/keycloak';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { getAverageColor } from '@/assets/utils/getAverageColor';
 
 const props = defineProps<{
     user: User | undefined;
 }>();
 
 const emit = defineEmits(['update:status']);
+
+const dominantColor = ref('#16ac77');
+
+watch(() => [props.user?.avatarUrl, props.user?.name], async () => {
+    if (props.user) {
+        const url = props.user.avatarUrl || `https://ui-avatars.com/api/?name=${props.user.name}&background=128a60&color=fff`;
+        dominantColor.value = await getAverageColor(url);
+    }
+}, { immediate: true });
 
 const statusColorClass = computed(() => {
     switch (props.user?.data?.status) {
@@ -94,7 +104,10 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
             <!-- Profil complet inspiré de UserProfile -->
             <div class="w-full relative rounded-t-lg overflow-hidden bg-(--bg) border-b border-(--border-color) mb-1 pb-2">
                 <!-- Banner -->
-                <div class="h-[80px] bg-gradient-to-tr from-(--primary-dark) to-(--primary) w-full relative z-0"></div>
+                <div 
+                    class="h-[80px] w-full relative z-0 transition-all duration-500"
+                    :style="{ background: `linear-gradient(to top right, rgba(0,0,0,0.3), transparent), ${dominantColor}` }"
+                ></div>
                 
                 <!-- Avatar -->
                 <div class="absolute top-[38px] left-4 p-1.5 bg-(--bg) rounded-full z-10 shadow-lg">
