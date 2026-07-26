@@ -27,7 +27,7 @@ const settingsViews: settingsView[] = [
         route: 'OrgSettingsStorage'
     },
     {
-        name: 'Intelligence Artificielle',
+        name: 'Synco AI',
         icon: 'bi-robot',
         route: 'OrgSettingsAI'
     }

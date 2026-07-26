@@ -8,12 +8,22 @@
 
                 <section>
                     
-                    <div class="mb-6">
-                        <h3 class="text-xl font-black text-(--text) mb-1">Configuration de l'IA</h3>
-                        <p class="text-sm text-(--text)/60">Paramétrez le fournisseur de l'intelligence artificielle pour votre organisation. Ce paramétrage sera utilisé par tous les membres.</p>
+                    <div class="mb-6 flex justify-between items-start">
+                        <div>
+                            <h3 class="text-xl font-black text-(--text) mb-1">Configuration de Synco AI</h3>
+                            <p class="text-sm text-(--text)/60">Paramétrez le fournisseur de Synco AI pour votre organisation. Ce paramétrage sera utilisé par tous les membres.</p>
+                        </div>
                     </div>
 
-                    <div class="space-y-8">
+                    <div v-if="!openedOrg?.features?.includes('ai')" class="mb-8 p-6 bg-white/5 border border-white/10 rounded-xl flex items-start gap-4">
+                        <i class="bi bi-shield-lock-fill text-(--text)/50 text-2xl mt-1"></i>
+                        <div>
+                            <h4 class="text-(--text)/80 font-bold text-lg">Module non inclus</h4>
+                            <p class="text-(--text)/50 text-sm mt-1">Le module Synco AI n'est pas inclus dans votre abonnement actuel. Vous ne pouvez pas modifier ces paramètres.</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-8" :class="{'opacity-50 pointer-events-none grayscale': !openedOrg?.features?.includes('ai')}">
 
                         <div class="space-y-4">
                             <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">Fournisseur IA</label>
@@ -101,6 +111,24 @@
                                 </div>
                             </div>
 
+                            <!-- Cloud Warning -->
+                            <div v-if="orgData.provider !== 'local' && orgData.provider !== 'custom'" class="space-y-4 bg-orange-500/10 border border-orange-500/20 p-4 rounded-xl mt-6">
+                                <div class="flex items-start gap-3">
+                                    <i class="bi bi-exclamation-triangle-fill text-orange-500 mt-0.5"></i>
+                                    <div>
+                                        <p class="text-sm text-orange-500/90 font-bold">Attention : Cloud Externe</p>
+                                        <p class="text-xs text-orange-500/70 mt-1">
+                                            L'utilisation d'un modèle cloud implique le transfert de vos données vers ce fournisseur. SilverCore se décharge de toute responsabilité concernant la confidentialité et la gestion des données envoyées sur ces serveurs externes.
+                                        </p>
+                                        <a href="#" @click.prevent="showLearnMorePopup = true" class="text-xs text-orange-400 hover:text-orange-300 underline mt-2 inline-block">En savoir plus</a>
+                                    </div>
+                                </div>
+                                <label class="flex items-center gap-3 cursor-pointer pt-3 border-t border-orange-500/10">
+                                    <input type="checkbox" v-model="acceptCloudWarning" class="rounded border-orange-500/30 text-orange-500 focus:ring-orange-500 bg-black/20" />
+                                    <span class="text-xs text-orange-500/80">J'accepte et je comprends que mes données seront traitées par un service tiers.</span>
+                                </label>
+                            </div>
+
                         </div>
 
                     </div>
@@ -116,17 +144,47 @@
                 class="p-4 bg-(--bg2)/80 backdrop-blur-xl border-t border-(--border-color) flex justify-end gap-3"
             >
                 <button @click="resetChanges" class="default">Annuler</button>
-                <button @click="saveSettings" class="primary" :class="saving ? 'loader' : ''">Enregistrer les modifications</button>
+                <button 
+                    @click="saveSettings" 
+                    class="primary" 
+                    :class="[
+                        saving ? 'loader' : '',
+                        orgData.provider !== 'local' && orgData.provider !== 'custom' && !acceptCloudWarning ? 'opacity-50 grayscale-100 pointer-events-none' : ''
+                    ]"
+                    :disabled="orgData.provider !== 'local' && orgData.provider !== 'custom' && !acceptCloudWarning"
+                >
+                    Enregistrer les modifications
+                </button>
             </footer>
         </Transition>
 
     </div>
+
+    <Popup :is-open="showLearnMorePopup" @close="showLearnMorePopup = false">
+        <template #title>Utilisation de services Cloud externes</template>
+        <div class="space-y-4 text-sm text-(--text)/80">
+            <p>En choisissant un fournisseur IA externe (tel que OpenAI, Google Gemini, Mistral AI, etc.), vous acceptez que les données de votre organisation (requêtes, documents analysés, historiques de conversation, etc.) soient transmises et traitées sur les serveurs de ce fournisseur.</p>
+            
+            <h4 class="font-bold text-(--text) mt-2">Ce que cela implique :</h4>
+            <ul class="list-disc pl-5 space-y-2">
+                <li><strong>Confidentialité des données :</strong> Les données transmises sont soumises à la politique de confidentialité du fournisseur choisi.</li>
+                <li><strong>Décharge de responsabilité :</strong> SilverCore agit uniquement comme un intermédiaire. Nous n'hébergeons pas ces données sur notre infrastructure E2EE et nous déclinons toute responsabilité quant à la gestion des données de la part du fournisseur cloud.</li>
+                <li><strong>Recommandation :</strong> Assurez-vous de ne pas envoyer d'informations sensibles (données médicales, mots de passe, secrets industriels) à travers un modèle d'IA tiers si vous n'avez pas un accord d'entreprise spécifique avec le fournisseur.</li>
+            </ul>
+
+            <p class="pt-2 font-medium">Si la confidentialité absolue est requise, privilégiez l'option <span class="text-(--primary)">WebGPU (Local)</span> ou un <span class="text-(--primary)">Serveur Client (Custom)</span> hébergé sur votre propre infrastructure privée.</p>
+        </div>
+        <template #footer>
+            <button @click="showLearnMorePopup = false" class="primary">J'ai compris</button>
+        </template>
+    </Popup>
 
 </template>
 
 <script lang="ts" setup>
 
 import { ref, computed, watch } from 'vue';
+import Popup from '@/components/Popup.vue';
 import { openedOrg, organizations } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
@@ -136,6 +194,8 @@ const toast = useToast();
 
 const saving = ref<boolean>(false);
 const showApiKey = ref<boolean>(false);
+const acceptCloudWarning = ref<boolean>(false);
+const showLearnMorePopup = ref<boolean>(false);
 
 const providers = [
     { id: 'local', name: 'WebGPU (Local Browser)', desc: 'Exécuté sur la carte graphique de l\'utilisateur. Gratuit, 100% privé, mais dépend des performances de chaque machine.' },
@@ -201,6 +261,9 @@ const saveSettings = async () => {
         }
         if (!orgData.value.modelId) {
             return toast.show('Veuillez indiquer l\'ID du modèle à utiliser.', 'error');
+        }
+        if (orgData.value.provider !== 'custom' && !acceptCloudWarning.value) {
+            return toast.show('Vous devez accepter les conditions d\'utilisation des services cloud externes.', 'error');
         }
     }
 

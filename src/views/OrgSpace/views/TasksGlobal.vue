@@ -90,6 +90,7 @@
                                 <div v-for="task in getTasks(spaceGroup.tasks, col.id)" :key="task.id" 
                                      draggable="true"
                                      @dragstart="onDragStart($event, task, spaceGroup.id)"
+                                     @dragend="onDragEnd"
                                      @click="openTaskDetails(task)"
                                      class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer active:cursor-grabbing hover:border-(--primary)/50 transition-all shadow-lg hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] group relative overflow-hidden"
                                 >
@@ -161,6 +162,30 @@
             @update="onTaskUpdated"
             @delete="onTaskDeleted"
         />
+
+        <Transition name="pop">
+            <div v-if="isDraggingTask" 
+                 class="fixed bottom-8 right-8 w-16 h-16 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-2xl z-[100] border-4 transition-all duration-500"
+                 :class="[
+                    isDeleting ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
+                    isHoveringTrash && !isDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_rgba(239,68,68,0.8)]' : 'border-transparent'
+                 ]"
+                 @dragover.prevent="isHoveringTrash = true"
+                 @dragleave.prevent="isHoveringTrash = false"
+                 @drop="onDropToTrash">
+                 
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 transition-transform" :class="isDeleting ? 'scale-50' : ''">
+                    <g class="transition-all duration-300" style="transform-origin: 21px 6px;" :class="isHoveringTrash && !isDeleting ? 'rotate-[40deg]' : ''">
+                        <path d="M3 6h18"></path>
+                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </g>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+
+            </div>
+        </Transition>
     </div>
 </template>
 
@@ -184,6 +209,10 @@ const rawTasks = ref<Task[]>([]);
 const loading = ref(true);
 const draggedOverCol = ref<string | null>(null);
 const selectedTask = ref<Task | null>(null);
+
+const isDraggingTask = ref(false);
+const isHoveringTrash = ref(false);
+const isDeleting = ref(false);
 
 const columns = [
     { id: 'TODO', title: 'À faire', color: 'text-gray-400', icon: 'bi-circle' },
@@ -290,10 +319,45 @@ const loadLists = async () => {
 };
 
 const onDragStart = (e: DragEvent, task: Task, spaceGroupId: string) => {
+    isDraggingTask.value = true;
+    isDeleting.value = false;
     if (e.dataTransfer) {
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('taskId', task.id);
         e.dataTransfer.setData('sourceGroupId', spaceGroupId);
+    }
+};
+
+const onDragEnd = () => {
+    if (!isDeleting.value) {
+        isDraggingTask.value = false;
+        isHoveringTrash.value = false;
+    }
+};
+
+const onDropToTrash = async (e: DragEvent) => {
+    const taskId = e.dataTransfer?.getData('taskId');
+    if (!taskId) return;
+
+    isDeleting.value = true;
+    isHoveringTrash.value = false;
+
+    setTimeout(() => {
+        isDraggingTask.value = false;
+        isDeleting.value = false;
+    }, 600);
+
+    try {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!res.ok) throw new Error("API Error");
+        
+        onTaskDeleted(taskId);
+        toast.show("Tâche supprimée", "success");
+    } catch (err) {
+        toast.show("Erreur lors de la suppression", "error");
     }
 };
 
@@ -366,6 +430,12 @@ onMounted(async () => {
         if (!rawTasks.value.some(t => t.id === task.id)) {
             rawTasks.value.unshift(task);
         }
+    });
+    socket.value?.on('todo-updated', ({ task }: { task: Task }) => {
+        onTaskUpdated(task);
+    });
+    socket.value?.on('todo-deleted', ({ taskId }: { taskId: string }) => {
+        onTaskDeleted(taskId);
     });
 });
 </script>

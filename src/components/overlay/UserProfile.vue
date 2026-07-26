@@ -23,7 +23,10 @@
           >
 
             <!-- Banner -->
-            <div class="h-[100px] bg-gradient-to-tr from-(--primary-dark) to-(--primary) w-full relative z-0">
+            <div 
+                class="h-[100px] w-full relative z-0 transition-all duration-500"
+                :style="{ background: `linear-gradient(to top right, rgba(0,0,0,0.3), transparent), ${dominantColor}` }"
+            >
                 <button
                     @click="emit('close')"
                     class="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/30 hover:bg-black/50 flex items-center justify-center text-white transition-colors"
@@ -125,6 +128,8 @@ import { computed } from 'vue';
 import type { User } from '@/types/types';
 import { user, openedOrg } from '@/assets/var';
 import { profilePosition } from '@/composables/useProfile';
+import { getAverageColor } from '@/assets/utils/getAverageColor';
+import { ref, watch } from 'vue';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -132,6 +137,15 @@ const props = defineProps<{
 }>();
 
 const u = computed(() => props.profileUser!);
+
+const dominantColor = ref('#16ac77');
+
+watch(() => [props.isOpen, u.value?.avatarUrl, u.value?.name], async () => {
+    if (props.isOpen && u.value) {
+        const url = u.value.avatarUrl || `https://ui-avatars.com/api/?name=${u.value.name}&background=128a60&color=fff`;
+        dominantColor.value = await getAverageColor(url);
+    }
+}, { immediate: true });
 
 const role = computed(() => {
     if (!openedOrg.value?.members || !u.value?.id) return 'member';

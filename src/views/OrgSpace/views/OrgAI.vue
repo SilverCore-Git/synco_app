@@ -1,51 +1,27 @@
 <template>
   <div class="h-full flex flex-col w-full relative">
     
-    <!-- Header / Model Selection -->
-    <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-(--border-color) bg-(--bg2) z-10 shrink-0">
-      <div class="flex items-center gap-3">
-        <MobileBackBtn />
-        <i class="bi bi-robot text-xl text-(--text)"></i>
-        <h3 class="font-semibold text-(--text)">Synco AI</h3>
-      </div>
-
-      <div class="flex items-center gap-3">
-        <div class="text-xs text-right mr-2 hidden md:block" v-if="aiIsLocal">
-          <p class="text-white/40 mb-0.5">Modèle actuel :</p>
-          <p class="font-mono text-white/70">{{ aiCurrentModelName }}</p>
+    <!-- Main Chat Area -->
+    <div class="flex-1 flex flex-col relative h-full">
+    
+      <!-- Header -->
+      <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-(--border-color) bg-(--bg2) z-10 shrink-0">
+        <div class="flex items-center gap-3">
+          <MobileBackBtn />
         </div>
 
-        <button
-          @click="newSession"
-          class="bg-white/5 hover:bg-(--primary)/20 border border-white/10 hover:border-(--primary)/30 text-white/60 hover:text-(--primary) px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5"
-          title="Nouvelle session"
-        >
-          <i class="bi bi-plus-lg"></i>
-          <span class="hidden md:inline">Nouvelle session</span>
-        </button>
-        
-        <select 
-          v-if="aiIsLocal"
-          v-model="selectedModelId"
-          @change="loadModel"
-          class="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-(--primary) transition-colors"
-        >
-          <option v-for="model in availableModels" :key="model.id" :value="model.id">
-            Tier {{ model.tier }} - {{ model.name }}
-          </option>
-        </select>
-        
-        <button 
-            @click="showUsersBar = !showUsersBar"
-            class="hover:text-(--text) transition-colors ml-2"
-            :class="showUsersBar ? 'text-(--text)' : 'text-(--text)/40'"
-        >
-            <i class="bi bi-people-fill text-lg" />
-        </button>
+        <div class="flex items-center gap-3">
+          <button 
+              @click="showUsersBar = !showUsersBar"
+              class="hover:text-(--text) transition-colors ml-2"
+              :class="showUsersBar ? 'text-(--text)' : 'text-(--text)/40'"
+          >
+              <i class="bi bi-people-fill text-lg" />
+          </button>
+        </div>
       </div>
-    </div>
 
-    <!-- Chat Area -->
+      <!-- Chat Container -->
     <div class="flex-1 overflow-y-auto p-6 space-y-6 flex flex-col w-full max-w-5xl mx-auto" ref="chatContainer">
       
       <!-- Welcome Message -->
@@ -318,11 +294,12 @@
     <div class="p-1 border-t border-(--border-color) shrink-0 relative">
       <form 
         @submit.prevent="() => sendMessage()" 
-        class="relative ml-0 lg:ml-60 w-full lg:w-[calc(100%-240px)] flex items-end gap-3 mx-auto lg:mx-0 border border-white/10 rounded-xl px-4 py-2 transition-all shadow-2xl"
+        class="relative w-full max-w-5xl mx-auto flex items-end gap-3 border border-white/10 rounded-xl px-4 py-2 transition-all shadow-2xl"
         :class="(!aiIsInitialized || isGenerating) ? 'bg-black/50 opacity-50 cursor-not-allowed' : 'bg-(--bg) focus-within:border-(--primary)/50'"
       >
         
         <ThreadTextarea 
+          ref="chatInputRef"
           v-model="inputMsg"
           placeholder="Demandez-moi n'importe quoi..."
           :disabled="!aiIsInitialized || isGenerating"
@@ -348,6 +325,7 @@
         @close="selectedTask = null"
     />
 
+    </div>
   </div>
 </template>
 
@@ -355,7 +333,7 @@
 import { ref, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
 import * as webllm from '@mlc-ai/web-llm';
 import { localLLM, availableModels } from '@/services/LocalLLMService';
-import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages } from '@/services/AIService';
+import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages, syncSession, fetchSessions, activeSessionId } from '@/services/AIService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
@@ -368,6 +346,8 @@ const route = useRoute();
 const router = useRouter();
 import sfetch from '@/assets/utils/sfetch';
 import globalVectorWorker from '@/services/GlobalVectorWorker';
+
+const { openedOrg } = useSettingsItem();
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { generateThreadKey, encryptThreadKeyForMember, E2EEUnloked, privateKey } from '@/assets/utils/crypto';
@@ -431,6 +411,14 @@ const selectedTask = ref<any>(null);
 const isGenerating = ref(false);
 const hasStartedInit = ref(false);
 const inputMsg = ref('');
+const chatInputRef = ref<any>(null);
+
+watch(activeSessionId, async (newVal) => {
+  await nextTick();
+  if (chatInputRef.value?.textarea) {
+    chatInputRef.value.textarea.focus();
+  }
+});
 const messages = aiSessionMessages as unknown as Ref<ChatMessage[]>;
 const chatContainer = ref<HTMLElement | null>(null);
 const hasNavigatorGpu = typeof navigator !== 'undefined' && !!(navigator as any).gpu;
@@ -521,10 +509,7 @@ const stopGeneration = () => {
   }
 };
 
-const newSession = () => {
-  stopGeneration();
-  messages.value = [];
-};
+// newSession logic is now handled in ThreadsBar.vue via AIService
 
 const createThreadHelper = async (orgId: string, spaceId: string | undefined, name: string, type: string) => {
     const isHome = !spaceId || spaceId === 'home';
@@ -801,12 +786,16 @@ const sendMessage = async (hiddenPrompt?: string) => {
     }
   } finally {
     isGenerating.value = false;
+    await syncSession(text);
   }
 };
+
+// syncSession is handled in AIService
 
 onMounted(async () => {
   const recommended = await localLLM.getRecommendedModel();
   recommendedModelId.value = recommended.id;
+  await fetchSessions();
 });
 
 watch(savedModelLoaded, async (loaded) => {
