@@ -1,329 +1,339 @@
 <template>
   <div class="h-full flex flex-col w-full relative">
-    
+
     <!-- Main Chat Area -->
     <div class="flex-1 flex flex-col relative h-full">
-    
+
       <!-- Header -->
-      <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-(--border-color) bg-(--bg2) z-10 shrink-0">
+      <div
+        class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-(--border-color) bg-(--bg2) z-10 shrink-0">
         <div class="flex items-center gap-3">
           <MobileBackBtn />
         </div>
 
         <div class="flex items-center gap-3">
-          <button 
-              @click="showUsersBar = !showUsersBar"
-              class="hover:text-(--text) transition-colors ml-2"
-              :class="showUsersBar ? 'text-(--text)' : 'text-(--text)/40'"
-          >
-              <i class="bi bi-people-fill text-lg" />
+          <button @click="showUsersBar = !showUsersBar" class="hover:text-(--text) transition-colors ml-2"
+            :class="showUsersBar ? 'text-(--text)' : 'text-(--text)/40'">
+            <i class="bi bi-people-fill text-lg" />
           </button>
         </div>
       </div>
 
       <!-- Chat Container -->
-    <div class="flex-1 overflow-y-auto p-6 space-y-6 flex flex-col w-full max-w-5xl mx-auto" ref="chatContainer">
-      
-      <!-- Welcome Message -->
-      <div v-if="messages.length === 0" class="flex-1 flex flex-col items-center justify-center text-center opacity-50">
-        <i class="bi bi-cpu text-6xl mb-4 text-(--primary) opacity-50"></i>
-        <h3 class="text-xl font-bold mb-2">Bonjour, je suis Synco AI.</h3>
-        <p class="max-w-md text-sm">Je tourne entièrement en local sur votre machine. Posez-moi vos questions, demandez-moi d'analyser vos ressources ou de rédiger des textes, le tout en préservant 100% de votre vie privée.</p>
-      </div>
+      <div class="flex-1 overflow-y-auto p-6 space-y-6 flex flex-col w-full max-w-5xl mx-auto" ref="chatContainer">
 
-      <!-- Messages -->
-      <div 
-        v-for="(msg, index) in messages" 
-        :key="index"
-        v-show="msg.role !== 'system' && !(msg.role === 'user' && msg.content && msg.content.startsWith('[SYSTEM]'))"
-        class="flex w-full"
-        :class="msg.role === 'user' ? 'justify-end' : 'justify-start'"
-      >
-        <div 
-          class="max-w-[75%] rounded-2xl p-4 text-sm leading-relaxed"
-          :class="msg.role === 'user' ? 'bg-(--primary)/20 text-white border border-(--primary)/30 rounded-tr-sm' : 'bg-white/5 border border-white/10 rounded-tl-sm font-mono'"
-        >
-          <div class="flex items-center gap-2 mb-2 opacity-50 text-[10px] uppercase font-bold tracking-wider">
-            <i :class="msg.role === 'user' ? 'bi-person' : 'bi-robot'"></i>
-            {{ msg.role === 'user' ? 'Vous' : 'Synco AI' }}
-          </div>
-          <div v-if="msg.content" v-html="formatMessage(msg.content)" @click="handleLinks" class="prose prose-invert max-w-none prose-sm"></div>
-          <div v-else-if="msg.role === 'assistant' && isGenerating && !msg.tool_call" class="flex gap-1 py-2">
-            <div class="w-1.5 h-1.5 bg-white/50 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
-            <div class="w-1.5 h-1.5 bg-white/50 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
-            <div class="w-1.5 h-1.5 bg-white/50 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
-          </div>
+        <!-- Welcome Message -->
+        <div v-if="messages.length === 0"
+          class="flex-1 flex flex-col items-center justify-center text-center opacity-50">
+          <i class="bi bi-cpu text-6xl mb-4 text-(--primary) opacity-50"></i>
+          <h3 class="text-xl font-bold mb-2">Bonjour, je suis Synco AI.</h3>
+          <p class="max-w-md text-sm">Je tourne entièrement en local sur votre machine. Posez-moi vos questions,
+            demandez-moi d'analyser vos ressources ou de rédiger des textes, le tout en préservant 100% de votre vie
+            privée.</p>
+        </div>
 
-          <!-- Tool Call Widget -->
-          <div v-if="msg.tool_call" class="mt-4 bg-black/40 border border-(--primary)/30 rounded-xl p-4">
-            <div class="flex items-center gap-2 mb-2 text-(--primary) font-bold text-xs uppercase">
-              <i class="bi bi-search" v-if="msg.tool_call.name === 'search_messages'"></i>
-              <i class="bi bi-book" v-else-if="msg.tool_call.name === 'read_documentation'"></i>
-              <i class="bi bi-check2-square" v-else-if="msg.tool_call.name === 'read_tasks'"></i>
-              <i class="bi bi-wrench-adjustable-circle" v-else></i> 
-              {{ msg.tool_call.name === 'search_messages' ? 'Recherche Globale' : msg.tool_call.name === 'read_documentation' ? 'Consultation de la documentation' : msg.tool_call.name === 'read_tasks' ? 'Lecture des tâches' : "Demande d'action" }}
+        <!-- Messages -->
+        <div v-for="(msg, index) in messages" :key="index"
+          v-show="msg.role !== 'system' && !(msg.role === 'user' && msg.content && msg.content.startsWith('[SYSTEM]'))"
+          class="flex w-full" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
+          <div class="max-w-[75%] rounded-2xl p-4 text-sm leading-relaxed"
+            :class="msg.role === 'user' ? 'bg-(--primary)/20 text-white border border-(--primary)/30 rounded-tr-sm' : 'bg-white/5 border border-white/10 rounded-tl-sm font-mono'">
+            <div class="flex items-center gap-2 mb-2 opacity-50 text-[10px] uppercase font-bold tracking-wider">
+              <i :class="msg.role === 'user' ? 'bi-person' : 'bi-robot'"></i>
+              {{ msg.role === 'user' ? 'Vous' : 'Synco AI' }}
             </div>
-            
-            <p class="text-sm" v-if="msg.tool_call.name === 'search_messages'">
-               Je fouille dans tous vos espaces pour trouver : 
-               <span class="text-white font-bold inline-block bg-white/10 px-2 py-0.5 rounded ml-1">
-                   "{{ getSearchQuery(msg.tool_call.arguments) }}"
-               </span>
-            </p>
-            <p class="text-sm" v-else-if="msg.tool_call.name === 'read_documentation'">
-               Je consulte la documentation officielle de Synco pour vous répondre avec précision.
-            </p>
-            <p class="text-sm" v-else-if="msg.tool_call.name === 'read_tasks'">
-               Je consulte votre liste de tâches et son état d'avancement.
-            </p>
-            <p class="text-sm" v-else>
-               Exécution de <code class="bg-black/50 px-2 py-1 rounded text-(--primary) font-bold">{{ msg.tool_call.name }}</code>
-            </p>
-            
-            <div class="mt-4" v-if="msg.tool_call.status === 'pending'">
-               <div v-if="msg.tool_call.name === 'request_image_upload'" class="w-full">
-                  <IconSelector 
-                      model-value="" 
-                      @on-base64="(base64) => { 
-                          const id = 'img_' + Date.now(); 
-                          temporaryImages[id] = base64; 
-                          if (msg.tool_call) handleToolCall(msg.tool_call, true, index, id); 
-                      }" 
-                  />
-               </div>
-               <div v-else class="flex gap-2">
-                   <button @click="handleToolCall(msg.tool_call, true, index)" class="bg-green-500/20 text-green-500 border border-green-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-500/30 transition-colors">Accepter</button>
-                   <button @click="handleToolCall(msg.tool_call, false, index)" class="bg-red-500/20 text-red-500 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/30 transition-colors">Refuser</button>
-               </div>
+            <div v-if="msg.content" v-html="formatMessage(msg.content)" @click="handleLinks"
+              class="prose prose-invert max-w-none prose-sm"></div>
+            <div v-else-if="msg.role === 'assistant' && isGenerating && !msg.tool_call" class="flex gap-1 py-2">
+              <div class="w-1.5 h-1.5 bg-white/50 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+              <div class="w-1.5 h-1.5 bg-white/50 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+              <div class="w-1.5 h-1.5 bg-white/50 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
             </div>
-            <div v-else-if="msg.tool_call.status === 'executing'" class="text-(--primary) text-xs font-bold mt-3 flex items-center gap-2">
-               <div class="w-3 h-3 border-2 border-(--primary) border-t-transparent rounded-full animate-spin"></div>
-               Exécution en cours...
-            </div>
-            <div v-else-if="msg.tool_call.status === 'accepted'" class="text-green-500 text-xs font-bold mt-3"><i class="bi bi-check-lg mr-1"></i> Action acceptée et exécutée.</div>
-            <div v-else-if="msg.tool_call.status === 'rejected'" class="text-red-500 text-xs font-bold mt-3"><i class="bi bi-x-lg mr-1"></i> Action refusée.</div>
 
-            <!-- Tool Results UI Rendering -->
-            <div 
-                v-if="msg.tool_call.status === 'accepted' && messages[index+1]?.tool_data?.name === 'search_messages' && messages[index+1]?.tool_data?.results?.length > 0" 
-                class="mt-4 flex flex-col gap-4 pt-4 border-t border-white/10"
-            >
+            <!-- Tool Call Widget -->
+            <div v-if="msg.tool_call" class="mt-4 bg-black/40 border border-(--primary)/30 rounded-xl p-4">
+              <div class="flex items-center gap-2 mb-2 text-(--primary) font-bold text-xs uppercase">
+                <i class="bi bi-search" v-if="msg.tool_call.name === 'search_messages'"></i>
+                <i class="bi bi-book" v-else-if="msg.tool_call.name === 'read_documentation'"></i>
+                <i class="bi bi-check2-square" v-else-if="msg.tool_call.name === 'read_tasks'"></i>
+                <i class="bi bi-wrench-adjustable-circle" v-else></i>
+                {{ msg.tool_call.name === 'search_messages' ? 'Recherche Globale' : msg.tool_call.name ===
+                  'read_documentation' ? 'Consultation de la documentation' : msg.tool_call.name === 'read_tasks' ?
+                'Lecture des tâches' : "Demande d'action" }}
+              </div>
+
+              <p class="text-sm" v-if="msg.tool_call.name === 'search_messages'">
+                Je fouille dans tous vos espaces pour trouver :
+                <span class="text-white font-bold inline-block bg-white/10 px-2 py-0.5 rounded ml-1">
+                  "{{ getSearchQuery(msg.tool_call.arguments) }}"
+                </span>
+              </p>
+              <p class="text-sm" v-else-if="msg.tool_call.name === 'read_documentation'">
+                Je consulte la documentation officielle de Synco pour vous répondre avec précision.
+              </p>
+              <p class="text-sm" v-else-if="msg.tool_call.name === 'read_tasks'">
+                Je consulte votre liste de tâches et son état d'avancement.
+              </p>
+              <p class="text-sm" v-else>
+                Exécution de <code
+                  class="bg-black/50 px-2 py-1 rounded text-(--primary) font-bold">{{ msg.tool_call.name }}</code>
+              </p>
+
+              <div class="mt-4" v-if="msg.tool_call.status === 'pending'">
+                <div v-if="msg.tool_call.name === 'request_image_upload'" class="w-full">
+                  <IconSelector model-value="" @on-base64="(base64) => {
+                    const id = 'img_' + Date.now();
+                    temporaryImages[id] = base64;
+                    if (msg.tool_call) handleToolCall(msg.tool_call, true, index, id);
+                  }" />
+                </div>
+                <div v-else class="flex gap-2">
+                  <button @click="handleToolCall(msg.tool_call, true, index)"
+                    class="bg-green-500/20 text-green-500 border border-green-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-500/30 transition-colors">Accepter</button>
+                  <button @click="handleToolCall(msg.tool_call, false, index)"
+                    class="bg-red-500/20 text-red-500 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/30 transition-colors">Refuser</button>
+                </div>
+              </div>
+              <div v-else-if="msg.tool_call.status === 'executing'"
+                class="text-(--primary) text-xs font-bold mt-3 flex items-center gap-2">
+                <div class="w-3 h-3 border-2 border-(--primary) border-t-transparent rounded-full animate-spin"></div>
+                Exécution en cours...
+              </div>
+              <div v-else-if="msg.tool_call.status === 'accepted'" class="text-green-500 text-xs font-bold mt-3"><i
+                  class="bi bi-check-lg mr-1"></i> Action acceptée et exécutée.</div>
+              <div v-else-if="msg.tool_call.status === 'rejected'" class="text-red-500 text-xs font-bold mt-3"><i
+                  class="bi bi-x-lg mr-1"></i> Action refusée.</div>
+
+              <!-- Tool Results UI Rendering -->
+              <div
+                v-if="msg.tool_call.status === 'accepted' && messages[index + 1]?.tool_data?.name === 'search_messages' && messages[index + 1]?.tool_data?.results?.length > 0"
+                class="mt-4 flex flex-col gap-4 pt-4 border-t border-white/10">
                 <div class="text-xs text-white/50 uppercase font-bold tracking-wider">Résultats trouvés :</div>
-                <div 
-                    v-for="res in messages[index+1]?.tool_data?.results" 
-                    :key="res.id"
-                    class="bg-black/30 border border-(--border-color) rounded-xl overflow-hidden"
-                >
-                    <div class="px-3 py-2 bg-white/5 border-b border-(--border-color) flex justify-between items-center text-[10px] text-white/50 uppercase font-bold tracking-wider">
-                        <div class="flex items-center gap-1.5 truncate pr-2">
-                            <i class="bi bi-folder2-open"></i> 
-                            <span class="truncate">{{ getSpaceAndThreadName(res.workspaceId, res.metadata?.threadId).spaceName }}</span> 
-                            <i class="bi bi-chevron-right text-[8px] opacity-50"></i> 
-                            <i class="bi bi-hash"></i> 
-                            <span class="truncate">{{ getSpaceAndThreadName(res.workspaceId, res.metadata?.threadId).threadName }}</span>
-                        </div>
-                        <button 
-                            @click="router.push(`/${openedOrg?.id}/${res.workspaceId}/${res.metadata?.threadId}?select=${res.id}`)" 
-                            class="text-(--primary) hover:text-white transition-colors flex items-center shrink-0"
-                        >
-                            <i class="bi bi-box-arrow-up-right mr-1"></i> Se téléporter
-                        </button>
+                <div v-for="res in messages[index + 1]?.tool_data?.results" :key="res.id"
+                  class="bg-black/30 border border-(--border-color) rounded-xl overflow-hidden">
+                  <div
+                    class="px-3 py-2 bg-white/5 border-b border-(--border-color) flex justify-between items-center text-[10px] text-white/50 uppercase font-bold tracking-wider">
+                    <div class="flex items-center gap-1.5 truncate pr-2">
+                      <i class="bi bi-folder2-open"></i>
+                      <span class="truncate">{{ getSpaceAndThreadName(res.workspaceId, res.metadata?.threadId).spaceName
+                        }}</span>
+                      <i class="bi bi-chevron-right text-[8px] opacity-50"></i>
+                      <i class="bi bi-hash"></i>
+                      <span class="truncate">{{ getSpaceAndThreadName(res.workspaceId,
+                        res.metadata?.threadId).threadName }}</span>
                     </div>
-                    <ThreadMessage 
-                        :msg="{
-                           id: res.id,
-                           content: res.textContent,
-                           createdAt: res.metadata?.createdAt ? new Date(res.metadata.createdAt) : new Date(),
-                           sender: { name: res.metadata?.senderName || 'Auteur inconnu', avatarUrl: res.metadata?.senderAvatar, id: 'unknown' },
-                           threadId: res.metadata?.threadId,
-                           reactions: {}
-                        } as any"
-                        :isReadOnly="true"
-                        @select="router.push(`/${openedOrg?.id}/${res.workspaceId}/${res.metadata?.threadId}?select=${res.id}`)" 
-                    />
-                </div>
-            </div>
-            
-            <!-- Created Task Snippet -->
-            <div 
-                v-if="msg.tool_call.status === 'accepted' && messages[index+1]?.tool_data?.name === 'create_task' && messages[index+1]?.tool_data?.results" 
-                class="mt-4 pt-4 border-t border-white/10"
-            >
-                <div class="w-full bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="selectedTask = messages[index+1]?.tool_data?.results">
-                    <div class="flex items-center gap-3">
-                        <i class="bi bi-circle text-gray-400 text-xl"></i>
-                        <div>
-                            <p class="text-sm font-bold text-(--text) leading-snug">{{ messages[index+1]?.tool_data?.results.title }}</p>
-                            <p class="text-xs text-white/40 mt-0.5" v-if="messages[index+1]?.tool_data?.results.description">{{ messages[index+1]?.tool_data?.results.description.substring(0, 50) }}{{ messages[index+1]?.tool_data?.results.description.length > 50 ? '...' : '' }}</p>
-                        </div>
-                    </div>
-                    <button class="text-xs bg-white/5 hover:bg-white/10 text-white font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
-                        Ouvrir
-                        <i class="bi bi-box-arrow-up-right"></i>
+                    <button
+                      @click="router.push(`/${openedOrg?.id}/${res.workspaceId}/${res.metadata?.threadId}?select=${res.id}`)"
+                      class="text-(--primary) hover:text-white transition-colors flex items-center shrink-0">
+                      <i class="bi bi-box-arrow-up-right mr-1"></i> Se téléporter
                     </button>
+                  </div>
+                  <ThreadMessage :msg="{
+                    id: res.id,
+                    content: res.textContent,
+                    createdAt: res.metadata?.createdAt ? new Date(res.metadata.createdAt) : new Date(),
+                    sender: { name: res.metadata?.senderName || 'Auteur inconnu', avatarUrl: res.metadata?.senderAvatar, id: 'unknown' },
+                    threadId: res.metadata?.threadId,
+                    reactions: {}
+                  } as any" :isReadOnly="true"
+                    @select="router.push(`/${openedOrg?.id}/${res.workspaceId}/${res.metadata?.threadId}?select=${res.id}`)" />
                 </div>
-            </div>
+              </div>
 
-            <!-- Created Space Snippet -->
-            <div 
-                v-if="msg.tool_call.status === 'accepted' && messages[index+1]?.tool_data?.name === 'create_space' && messages[index+1]?.tool_data?.results" 
-                class="mt-4 pt-4 border-t border-white/10"
-            >
-                <div class="w-full bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="router.push(`/${openedOrg?.id}/${messages[index+1]?.tool_data?.results.id}/`)">
-                    <div class="flex items-center gap-3">
-                        <img v-if="messages[index+1]?.tool_data?.results.logo?.startsWith('data:image')" :src="messages[index+1]?.tool_data?.results.logo" class="w-8 h-8 rounded-md object-cover" />
-                        <i v-else class="bi text-xl text-(--primary)" :class="messages[index+1]?.tool_data?.results.logo || 'bi-folder'"></i>
-                        <div>
-                            <p class="text-sm font-bold text-(--text) leading-snug">{{ messages[index+1]?.tool_data?.results.name }}</p>
-                            <p class="text-xs text-white/40 mt-0.5">Espace de travail</p>
-                        </div>
+              <!-- Created Task Snippet -->
+              <div
+                v-if="msg.tool_call.status === 'accepted' && messages[index + 1]?.tool_data?.name === 'create_task' && messages[index + 1]?.tool_data?.results"
+                class="mt-4 pt-4 border-t border-white/10">
+                <div
+                  class="w-full bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center"
+                  @click="selectedTask = messages[index + 1]?.tool_data?.results">
+                  <div class="flex items-center gap-3">
+                    <i class="bi bi-circle text-gray-400 text-xl"></i>
+                    <div>
+                      <p class="text-sm font-bold text-(--text) leading-snug">{{
+                        messages[index + 1]?.tool_data?.results.title }}</p>
+                      <p class="text-xs text-white/40 mt-0.5" v-if="messages[index + 1]?.tool_data?.results.description">
+                        {{ messages[index + 1]?.tool_data?.results.description.substring(0, 50) }}{{
+                          messages[index + 1]?.tool_data?.results.description.length > 50 ? '...' : '' }}</p>
                     </div>
-                    <button class="text-xs bg-white/5 hover:bg-white/10 text-white font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
-                        Ouvrir
-                        <i class="bi bi-box-arrow-up-right"></i>
-                    </button>
+                  </div>
+                  <button
+                    class="text-xs bg-white/5 hover:bg-white/10 text-white font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
+                    Ouvrir
+                    <i class="bi bi-box-arrow-up-right"></i>
+                  </button>
                 </div>
-            </div>
+              </div>
 
-            <!-- Created Thread Snippet -->
-            <div 
-                v-if="msg.tool_call.status === 'accepted' && messages[index+1]?.tool_data?.name === 'create_thread' && messages[index+1]?.tool_data?.results" 
-                class="mt-4 pt-4 border-t border-white/10 flex flex-col gap-2"
-            >
-                <div v-for="th in messages[index+1]?.tool_data?.results" :key="th.id" class="w-full bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center" @click="router.push(`/${openedOrg?.id}/${th.workspaceId || 'home'}/${th.id}`)">
-                    <div class="flex items-center gap-3">
-                        <i class="bi text-xl text-(--primary)" :class="th.type === 'vocal' ? 'bi-volume-up-fill' : 'bi-hash'"></i>
-                        <div>
-                            <p class="text-sm font-bold text-(--text) leading-snug">{{ th.name }}</p>
-                            <p class="text-xs text-white/40 mt-0.5">Salon {{ th.type === 'vocal' ? 'vocal' : 'textuel' }}</p>
-                        </div>
+              <!-- Created Space Snippet -->
+              <div
+                v-if="msg.tool_call.status === 'accepted' && messages[index + 1]?.tool_data?.name === 'create_space' && messages[index + 1]?.tool_data?.results"
+                class="mt-4 pt-4 border-t border-white/10">
+                <div
+                  class="w-full bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center"
+                  @click="router.push(`/${openedOrg?.id}/${messages[index + 1]?.tool_data?.results.id}/`)">
+                  <div class="flex items-center gap-3">
+                    <img v-if="messages[index + 1]?.tool_data?.results.logo?.startsWith('data:image')"
+                      :src="messages[index + 1]?.tool_data?.results.logo" class="w-8 h-8 rounded-md object-cover" />
+                    <i v-else class="bi text-xl text-(--primary)"
+                      :class="messages[index + 1]?.tool_data?.results.logo || 'bi-folder'"></i>
+                    <div>
+                      <p class="text-sm font-bold text-(--text) leading-snug">{{
+                        messages[index + 1]?.tool_data?.results.name }}</p>
+                      <p class="text-xs text-white/40 mt-0.5">Espace de travail</p>
                     </div>
-                    <button class="text-xs bg-white/5 hover:bg-white/10 text-white font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
-                        Rejoindre
-                        <i class="bi bi-box-arrow-up-right"></i>
-                    </button>
+                  </div>
+                  <button
+                    class="text-xs bg-white/5 hover:bg-white/10 text-white font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
+                    Ouvrir
+                    <i class="bi bi-box-arrow-up-right"></i>
+                  </button>
                 </div>
-            </div>
+              </div>
 
+              <!-- Created Thread Snippet -->
+              <div
+                v-if="msg.tool_call.status === 'accepted' && messages[index + 1]?.tool_data?.name === 'create_thread' && messages[index + 1]?.tool_data?.results"
+                class="mt-4 pt-4 border-t border-white/10 flex flex-col gap-2">
+                <div v-for="th in messages[index + 1]?.tool_data?.results" :key="th.id"
+                  class="w-full bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center"
+                  @click="router.push(`/${openedOrg?.id}/${th.workspaceId || 'home'}/${th.id}`)">
+                  <div class="flex items-center gap-3">
+                    <i class="bi text-xl text-(--primary)"
+                      :class="th.type === 'vocal' ? 'bi-volume-up-fill' : 'bi-hash'"></i>
+                    <div>
+                      <p class="text-sm font-bold text-(--text) leading-snug">{{ th.name }}</p>
+                      <p class="text-xs text-white/40 mt-0.5">Salon {{ th.type === 'vocal' ? 'vocal' : 'textuel' }}</p>
+                    </div>
+                  </div>
+                  <button
+                    class="text-xs bg-white/5 hover:bg-white/10 text-white font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
+                    Rejoindre
+                    <i class="bi bi-box-arrow-up-right"></i>
+                  </button>
+                </div>
+              </div>
+
+            </div>
           </div>
         </div>
-      </div>
-      
-      <!-- System/Tool internal messages (hidden or subtle) -->
-      <div v-if="false"></div>
-    </div>
 
-    <!-- Loading / Status Bar / Manual Start -->
-    <div v-if="aiIsLocal && !aiIsInitialized" class="px-6 py-4 border-t border-(--border-color) bg-black/20 flex flex-col gap-3 shrink-0">
-      
-      <!-- WebGPU Non supporté (Erreur bloquante) -->
-      <div v-if="!aiHasWebGPU" class="flex items-start gap-4 bg-red-950/40 border-l-4 border-red-500 p-5 rounded-r-xl rounded-l-sm mb-5 shadow-lg">
-        <div class="bg-red-500/20 p-2 rounded-full shrink-0 mt-1">
-          <i class="bi bi-x-circle-fill text-2xl text-red-500"></i>
-        </div>
-        <div class="flex-1">
-          <h4 class="text-red-400 font-black text-base uppercase tracking-wider mb-2">Matériel non compatible</h4>
-          <p class="text-sm text-white/90 leading-relaxed mb-4">
-            L'agent IA nécessite l'accélération matérielle <strong>WebGPU</strong> pour fonctionner. 
-            Aucune carte graphique compatible n'a été détectée dans votre navigateur. L'exécution en local est donc désactivée.
-          </p>
-          
-          <div class="bg-black/40 p-4 rounded-lg border border-(--border-color) text-sm text-white/80">
-            <p class="font-bold text-red-300 mb-2 flex items-center gap-2"><i class="bi bi-wrench-adjustable"></i> Pistes de résolution :</p>
-            <ul class="list-disc ml-5 space-y-2">
-              <li><strong>Linux :</strong> L'accélération WebGPU est souvent bloquée. Nous recommandons d'utiliser <strong>Chromium ou Chrome sous Windows ou macOS</strong> pour profiter de l'IA locale.</li>
-              <li><strong>Pilotes :</strong> Vérifiez que vos pilotes graphiques sont à jour.</li>
-              <li v-if="hasNavigatorGpu">WebGPU est activé dans votre navigateur, mais l'accès à la carte graphique a échoué (problème OS/Drivers).</li>
-              <li v-else>Assurez-vous d'utiliser une version récente de <strong>Google Chrome, Edge ou Brave</strong>.</li>
-            </ul>
+        <!-- System/Tool internal messages (hidden or subtle) -->
+        <div v-if="false"></div>
+      </div>
+
+      <!-- Loading / Status Bar / Manual Start -->
+      <div v-if="aiIsLocal && !aiIsInitialized"
+        class="px-6 py-4 border-t border-(--border-color) bg-black/20 flex flex-col gap-3 shrink-0">
+
+        <!-- WebGPU Non supporté (Erreur bloquante) -->
+        <div v-if="!aiHasWebGPU"
+          class="flex items-start gap-4 bg-red-950/40 border-l-4 border-red-500 p-5 rounded-r-xl rounded-l-sm mb-5 shadow-lg">
+          <div class="bg-red-500/20 p-2 rounded-full shrink-0 mt-1">
+            <i class="bi bi-x-circle-fill text-2xl text-red-500"></i>
+          </div>
+          <div class="flex-1">
+            <h4 class="text-red-400 font-black text-base uppercase tracking-wider mb-2">Matériel non compatible</h4>
+            <p class="text-sm text-white/90 leading-relaxed mb-4">
+              L'agent IA nécessite l'accélération matérielle <strong>WebGPU</strong> pour fonctionner.
+              Aucune carte graphique compatible n'a été détectée dans votre navigateur. L'exécution en local est donc
+              désactivée.
+            </p>
+
+            <div class="bg-black/40 p-4 rounded-lg border border-(--border-color) text-sm text-white/80">
+              <p class="font-bold text-red-300 mb-2 flex items-center gap-2"><i class="bi bi-wrench-adjustable"></i>
+                Pistes de résolution :</p>
+              <ul class="list-disc ml-5 space-y-2">
+                <li><strong>Linux :</strong> L'accélération WebGPU est souvent bloquée. Nous recommandons d'utiliser
+                  <strong>Chromium ou Chrome sous Windows ou macOS</strong> pour profiter de l'IA locale.</li>
+                <li><strong>Pilotes :</strong> Vérifiez que vos pilotes graphiques sont à jour.</li>
+                <li v-if="hasNavigatorGpu">WebGPU est activé dans votre navigateur, mais l'accès à la carte graphique a
+                  échoué (problème OS/Drivers).</li>
+                <li v-else>Assurez-vous d'utiliser une version récente de <strong>Google Chrome, Edge ou Brave</strong>.
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
-      </div>
-      <div v-if="initError" class="flex items-center gap-4 bg-red-500/10 border border-red-500/20 p-4 rounded-xl mb-2">
-        <i class="bi bi-x-circle text-2xl text-red-500"></i>
-        <div class="flex-1">
-          <h4 class="text-red-500 font-bold text-sm">Erreur d'initialisation</h4>
-          <p class="text-xs text-red-500/80 mt-1 mb-2">{{ initError }}</p>
-          
-          <div v-if="initError.includes('f16')" class="bg-black/20 p-3 rounded-lg border border-(--border-color) text-xs text-white/70">
-            <strong>Astuce Chrome/Edge :</strong> Il est impossible d'activer cette fonctionnalité automatiquement. Cependant, vous pouvez forcer son activation manuellement :
-            <ol class="list-decimal ml-4 mt-1 space-y-1">
-              <li>Copiez l'URL <code class="bg-black/50 px-1 py-0.5 rounded text-white select-all">chrome://flags/#enable-webgpu-developer-features</code> et collez-la dans la barre d'adresse de votre navigateur.</li>
-              <li>Passez l'option <strong>WebGPU Developer Features</strong> de <span class="text-white">Default</span> à <span class="text-green-400 font-bold">Enabled</span>.</li>
-              <li>Redémarrez le navigateur et réessayez.</li>
-            </ol>
+        <div v-if="initError"
+          class="flex items-center gap-4 bg-red-500/10 border border-red-500/20 p-4 rounded-xl mb-2">
+          <i class="bi bi-x-circle text-2xl text-red-500"></i>
+          <div class="flex-1">
+            <h4 class="text-red-500 font-bold text-sm">Erreur d'initialisation</h4>
+            <p class="text-xs text-red-500/80 mt-1 mb-2">{{ initError }}</p>
+
+            <div v-if="initError.includes('f16')"
+              class="bg-black/20 p-3 rounded-lg border border-(--border-color) text-xs text-white/70">
+              <strong>Astuce Chrome/Edge :</strong> Il est impossible d'activer cette fonctionnalité automatiquement.
+              Cependant, vous pouvez forcer son activation manuellement :
+              <ol class="list-decimal ml-4 mt-1 space-y-1">
+                <li>Copiez l'URL <code
+                    class="bg-black/50 px-1 py-0.5 rounded text-white select-all">chrome://flags/#enable-webgpu-developer-features</code>
+                  et collez-la dans la barre d'adresse de votre navigateur.</li>
+                <li>Passez l'option <strong>WebGPU Developer Features</strong> de <span
+                    class="text-white">Default</span> à <span class="text-green-400 font-bold">Enabled</span>.</li>
+                <li>Redémarrez le navigateur et réessayez.</li>
+              </ol>
+            </div>
           </div>
         </div>
-      </div>
 
         <!-- Installation classique -->
-      <div v-if="!hasStartedInit" class="flex flex-col md:flex-row items-center justify-between gap-4">
-        <div class="text-sm">
-          <p class="font-bold text-white/80">Téléchargement initial de Synco AI requis</p>
-          <p class="text-white/50 text-xs">Modèle recommandé pour votre matériel : <span class="font-mono text-(--primary)">{{ availableModels.find(m => m.id === recommendedModelId)?.name || 'Aucun' }}</span></p>
+        <div v-if="!hasStartedInit" class="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div class="text-sm">
+            <p class="font-bold text-white/80">Téléchargement initial de Synco AI requis</p>
+            <p class="text-white/50 text-xs">Modèle recommandé pour votre matériel : <span
+                class="font-mono text-(--primary)">{{availableModels.find(m => m.id === recommendedModelId)?.name ||
+                'Aucun' }}</span></p>
+          </div>
+          <div class="flex gap-2">
+            <button v-if="aiHasWebGPU" @click="startInit"
+              class="bg-(--primary) hover:brightness-110 text-white px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50">
+              <i class="bi bi-play-fill" v-if="isModelCached"></i>
+              <i class="bi bi-cloud-arrow-down-fill" v-else></i>
+              {{ isModelCached ? 'Initialiser (GPU)' : 'Télécharger & Initialiser (GPU)' }}
+            </button>
+          </div>
         </div>
-        <div class="flex gap-2">
-          <button 
-            v-if="aiHasWebGPU"
-            @click="startInit" 
-            class="bg-(--primary) hover:brightness-110 text-white px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
-          >
-            <i class="bi bi-play-fill" v-if="isModelCached"></i>
-            <i class="bi bi-cloud-arrow-down-fill" v-else></i>
-            {{ isModelCached ? 'Initialiser (GPU)' : 'Télécharger & Initialiser (GPU)' }}
+
+        <div v-else class="flex flex-col gap-2">
+          <div class="flex items-center justify-between text-xs text-white/50">
+            <span class="flex items-center gap-2">
+              <i class="bi"
+                :class="[aiDownloadProgress >= 100 ? 'bi-cpu animate-pulse' : 'bi-cloud-arrow-down animate-bounce', 'text-(--primary)']"></i>
+              {{ aiDownloadProgress >= 100 ? 'Initialisation en mémoire (cela peut prendre du temps)...' :
+              'Téléchargement et initialisation...' }}
+            </span>
+            <span class="font-mono">{{ aiDownloadProgress }}%</span>
+          </div>
+          <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div class="h-full transition-all duration-300 bg-(--primary)" :style="{ width: aiDownloadProgress + '%' }">
+            </div>
+          </div>
+          <p class="text-[10px] text-white/30 text-center mt-1 font-mono truncate">{{ aiDownloadText }}</p>
+        </div>
+
+      </div>
+
+      <div class="p-1 border-t border-(--border-color) shrink-0 relative">
+        <form @submit.prevent="() => sendMessage()"
+          class="relative w-full max-w-5xl mx-auto flex items-end gap-3 border border-white/10 rounded-xl px-4 py-2 transition-all shadow-2xl"
+          :class="(!aiIsInitialized || isGenerating) ? 'bg-black/50 opacity-50 cursor-not-allowed' : 'bg-(--bg) focus-within:border-(--primary)/50'">
+
+          <ThreadTextarea ref="chatInputRef" v-model="inputMsg" placeholder="Demandez-moi n'importe quoi..."
+            :disabled="!aiIsInitialized || isGenerating" @send="() => sendMessage()" />
+
+          <button type="button" @click="isGenerating ? stopGeneration() : sendMessage()"
+            class="shrink-0 mb-1 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50"
+            :class="isGenerating ? 'text-red-500 hover:text-red-400' : 'text-(--primary) hover:brightness-110'"
+            :disabled="!aiIsInitialized || (!inputMsg.trim() && !isGenerating)">
+            <i :class="isGenerating ? 'bi-stop-fill text-xl' : 'bi-send-fill text-xl'"></i>
           </button>
-        </div>
+
+        </form>
       </div>
 
-      <div v-else class="flex flex-col gap-2">
-        <div class="flex items-center justify-between text-xs text-white/50">
-          <span class="flex items-center gap-2">
-            <i class="bi" :class="[aiDownloadProgress >= 100 ? 'bi-cpu animate-pulse' : 'bi-cloud-arrow-down animate-bounce', 'text-(--primary)']"></i>
-            {{ aiDownloadProgress >= 100 ? 'Initialisation en mémoire (cela peut prendre du temps)...' : 'Téléchargement et initialisation...' }}
-          </span>
-          <span class="font-mono">{{ aiDownloadProgress }}%</span>
-        </div>
-        <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-          <div class="h-full transition-all duration-300 bg-(--primary)" :style="{ width: aiDownloadProgress + '%' }"></div>
-        </div>
-        <p class="text-[10px] text-white/30 text-center mt-1 font-mono truncate">{{ aiDownloadText }}</p>
-      </div>
-
-    </div>
-
-    <div class="p-1 border-t border-(--border-color) shrink-0 relative">
-      <form 
-        @submit.prevent="() => sendMessage()" 
-        class="relative w-full max-w-5xl mx-auto flex items-end gap-3 border border-white/10 rounded-xl px-4 py-2 transition-all shadow-2xl"
-        :class="(!aiIsInitialized || isGenerating) ? 'bg-black/50 opacity-50 cursor-not-allowed' : 'bg-(--bg) focus-within:border-(--primary)/50'"
-      >
-        
-        <ThreadTextarea 
-          ref="chatInputRef"
-          v-model="inputMsg"
-          placeholder="Demandez-moi n'importe quoi..."
-          :disabled="!aiIsInitialized || isGenerating"
-          @send="() => sendMessage()"
-        />
-        
-        <button 
-          type="button"
-          @click="isGenerating ? stopGeneration() : sendMessage()"
-          class="shrink-0 mb-1 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50"
-          :class="isGenerating ? 'text-red-500 hover:text-red-400' : 'text-(--primary) hover:brightness-110'"
-          :disabled="!aiIsInitialized || (!inputMsg.trim() && !isGenerating)"
-        >
-          <i :class="isGenerating ? 'bi-stop-fill text-xl' : 'bi-send-fill text-xl'"></i>
-        </button>
-
-      </form>
-    </div>
-
-    <TaskDetailsModal 
-        :task="selectedTask" 
-        :isOpen="!!selectedTask"
-        @close="selectedTask = null"
-    />
+      <TaskDetailsModal :task="selectedTask" :isOpen="!!selectedTask" @close="selectedTask = null" />
 
     </div>
   </div>
@@ -347,10 +357,9 @@ const router = useRouter();
 import sfetch from '@/assets/utils/sfetch';
 import globalVectorWorker from '@/services/GlobalVectorWorker';
 
-const { openedOrg } = useSettingsItem();
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 import { SearchSyncService } from '@/services/SearchSyncService';
-import { generateThreadKey, encryptThreadKeyForMember, E2EEUnloked, privateKey } from '@/assets/utils/crypto';
+import { generateThreadKey, encryptThreadKeyForMember, privateKey } from '@/assets/utils/crypto';
 import { openedOrg, user } from '@/assets/var';
 import { getSystemPrompt } from '@/services/AITools';
 
@@ -368,34 +377,34 @@ const formatMessage = (text: string) => {
 };
 
 const handleLinks = (e: MouseEvent) => {
-   const target = (e.target as HTMLElement).closest('a');
-   if (target) {
-      const href = target.getAttribute('href');
-      if (href && href.startsWith('/')) {
-         e.preventDefault();
-         router.push(href);
-      }
-   }
+  const target = (e.target as HTMLElement).closest('a');
+  if (target) {
+    const href = target.getAttribute('href');
+    if (href && href.startsWith('/')) {
+      e.preventDefault();
+      router.push(href);
+    }
+  }
 };
 
 const getSpaceAndThreadName = (workspaceId: string, threadId: string) => {
-    if (!openedOrg.value || !openedOrg.value.spaces) return { spaceName: 'Espace inconnu', threadName: 'Salon inconnu' };
-    const space = openedOrg.value.spaces.find((s: any) => s.id === workspaceId);
-    const thread = space?.threads?.find((t: any) => t.id === threadId);
-    return { 
-        spaceName: space?.name || 'Espace inconnu', 
-        threadName: thread?.name || 'Salon inconnu' 
-    };
+  if (!openedOrg.value || !openedOrg.value.spaces) return { spaceName: 'Espace inconnu', threadName: 'Salon inconnu' };
+  const space = openedOrg.value.spaces.find((s: any) => s.id === workspaceId);
+  const thread = space?.threads?.find((t: any) => t.id === threadId);
+  return {
+    spaceName: space?.name || 'Espace inconnu',
+    threadName: thread?.name || 'Salon inconnu'
+  };
 };
 
 const getSearchQuery = (argsStr: any) => {
-    try {
-        if (typeof argsStr === 'object') return argsStr.query || JSON.stringify(argsStr);
-        const args = JSON.parse(argsStr);
-        return args.query || argsStr;
-    } catch {
-        return argsStr;
-    }
+  try {
+    if (typeof argsStr === 'object') return argsStr.query || JSON.stringify(argsStr);
+    const args = JSON.parse(argsStr);
+    return args.query || argsStr;
+  } catch {
+    return argsStr;
+  }
 };
 
 interface ChatMessage {
@@ -413,7 +422,7 @@ const hasStartedInit = ref(false);
 const inputMsg = ref('');
 const chatInputRef = ref<any>(null);
 
-watch(activeSessionId, async (newVal) => {
+watch(activeSessionId, async () => {
   await nextTick();
   if (chatInputRef.value?.textarea) {
     chatInputRef.value.textarea.focus();
@@ -433,10 +442,11 @@ const scrollToBottom = async () => {
 
 const initError = ref('');
 
+// @ts-ignore
 const loadModel = async () => {
   if (!selectedModelId.value && aiIsLocal.value) return;
   savedModelId.value = selectedModelId.value; // Save selection to DB
-  
+
   if (!aiIsLocal.value) {
     // Les API distantes n'ont pas besoin de téléchargement WebGPU
     hasStartedInit.value = true;
@@ -512,56 +522,57 @@ const stopGeneration = () => {
 // newSession logic is now handled in ThreadsBar.vue via AIService
 
 const createThreadHelper = async (orgId: string, spaceId: string | undefined, name: string, type: string) => {
-    const isHome = !spaceId || spaceId === 'home';
-    const space = spaceId ? openedOrg.value?.spaces?.find(s => s.id === spaceId || s.name.toLowerCase() === spaceId.toLowerCase()) : null;
-    
-    if (!isHome && !space) {
-        throw new Error(`L'espace '${spaceId}' n'existe pas.`);
-    }
-    const actualSpaceId = space ? space.id : undefined;
+  const isHome = !spaceId || spaceId === 'home';
+  const space = spaceId ? openedOrg.value?.spaces?.find((s: any) => s.id === spaceId || s.name.toLowerCase() === spaceId.toLowerCase()) : null;
 
-    let members = actualSpaceId && space ? openedOrg.value?.members?.filter(m => space.membersId.includes(m.userId)).map(m => m!.user!) || [] 
-                    : openedOrg.value?.members?.map(m => m.user!) || [];
-    
-    const currentUser = user.value;
-    if (currentUser && !members.some(m => m.id === currentUser.id)) {
-        members = [...members, currentUser];
-    }
-    
-    if (!currentUser?.publicKey || !E2EEUnloked.value || !privateKey.value) {
-        throw new Error("La session E2EE n'est pas déverrouillée.");
-    }
-    
-    const newThreadKey = await generateThreadKey();
-    let encryptedKeysPayload = [];
-    for (const member of members) {
-        if (member.publicKey && typeof member.publicKey === 'string' && member.publicKey.trim().startsWith('{')) {
-            const encryptedKey = await encryptThreadKeyForMember(newThreadKey, member.publicKey);
-            encryptedKeysPayload.push({ userId: member.id, encryptedKey });
-        }
-    }
-    
-    if (encryptedKeysPayload.length === 0) throw new Error("Aucun membre avec clé E2EE valide.");
-    
-    let categoryId = isHome ? openedOrg.value?.home?.categories?.[0]?.id : space?.categories?.[0]?.id;
-    if (!categoryId) throw new Error("Aucune catégorie disponible.");
+  if (!isHome && !space) {
+    throw new Error(`L'espace '${spaceId}' n'existe pas.`);
+  }
+  const actualSpaceId = space ? space.id : undefined;
 
-    const payload = { name, type: type || 'text', keys: encryptedKeysPayload, index: 0, categoryId };
-    
-    const endpoint = isHome ? `/api/threads/org/${orgId}` : `/api/threads/space/${actualSpaceId}`;
-    const res = await sfetch(endpoint, { method: 'POST', body: JSON.stringify(payload) });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    
-    if (!isHome && actualSpaceId) data.workspaceId = actualSpaceId;
-    if (isHome) {
-        if (!openedOrg.value?.home?.threads) { if (openedOrg.value && openedOrg.value.home) openedOrg.value.home.threads = []; }
-        openedOrg.value?.home?.threads?.push(data);
-    } else if (space) {
-        if (!space.threads) space.threads = [];
-        space.threads.push(data);
+  let members = actualSpaceId && space
+    ? openedOrg.value?.members?.filter((m: any) => space.membersId.includes(m.userId)).map((m: any) => m!.user!) || []
+    : openedOrg.value?.members?.map((m: any) => m.user!) || [];
+
+  const currentUser = user.value;
+  if (currentUser && !members.some(m => m.id === currentUser.id)) {
+    members = [...members, currentUser];
+  }
+
+  if (currentUser && !members.some((m: any) => m.id === currentUser.id)) {
+    members = [...members, currentUser];
+  }
+
+  const newThreadKey = await generateThreadKey();
+  let encryptedKeysPayload = [];
+  for (const member of members) {
+    if (member.publicKey && typeof member.publicKey === 'string' && member.publicKey.trim().startsWith('{')) {
+      const encryptedKey = await encryptThreadKeyForMember(newThreadKey, member.publicKey);
+      encryptedKeysPayload.push({ userId: member.id, encryptedKey });
     }
-    return data;
+  }
+
+  if (encryptedKeysPayload.length === 0) throw new Error("Aucun membre avec clé E2EE valide.");
+
+  let categoryId = isHome ? openedOrg.value?.home?.categories?.[0]?.id : space?.categories?.[0]?.id;
+  if (!categoryId) throw new Error("Aucune catégorie disponible.");
+
+  const payload = { name, type: type || 'text', keys: encryptedKeysPayload, index: 0, categoryId };
+
+  const endpoint = isHome ? `/api/threads/org/${orgId}` : `/api/threads/space/${actualSpaceId}`;
+  const res = await sfetch(endpoint, { method: 'POST', body: JSON.stringify(payload) });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+
+  if (!isHome && actualSpaceId) data.workspaceId = actualSpaceId;
+  if (isHome) {
+    if (!openedOrg.value?.home?.threads) { if (openedOrg.value && openedOrg.value.home) openedOrg.value.home.threads = []; }
+    openedOrg.value?.home?.threads?.push(data);
+  } else if (space) {
+    if (!space.threads) space.threads = [];
+    space.threads.push(data);
+  }
+  return data;
 };
 
 const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, accept: boolean, _assistantMsgIndex: number, imageId?: string) => {
@@ -573,148 +584,148 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
   }
 
   toolCall.status = 'executing';
-  
+
   let result = "";
   let toolData: any = null;
   try {
     const args = typeof toolCall.arguments === 'string' ? JSON.parse(toolCall.arguments) : toolCall.arguments;
     const orgId = route.params.orgId as string;
-    
+
     if (toolCall.name === 'create_space') {
-       if (args.logo && args.logo.startsWith('img_') && temporaryImages.value[args.logo]) {
-           args.logo = temporaryImages.value[args.logo];
-       }
-       const res = await sfetch(`/api/spaces/org/${orgId}`, {
-         method: 'POST',
-         body: JSON.stringify({ name: args.name, logo: args.logo, membersId: [] })
-       });
-       const spaceData = await res.json();
-       if (spaceData.error) throw new Error(spaceData.error);
-       
-       if (openedOrg.value && openedOrg.value.spaces) {
-           openedOrg.value.spaces.push(spaceData);
-       }
-       toolData = spaceData;
-       result = `Espace '${args.name}' créé avec succès.`;
-       
-       if (args.threads && Array.isArray(args.threads) && args.threads.length > 0) {
-           let threadsCreated = [];
-           for (const t of args.threads) {
-               try {
-                   const tData = await createThreadHelper(orgId, spaceData.id, t.name, t.type);
-                   threadsCreated.push(tData);
-               } catch (e) {
-                   console.error("Erreur lors de la création d'un salon rattaché:", e);
-               }
-           }
-           toolData.threads = threadsCreated;
-           result += ` ${threadsCreated.length} salons y ont été créés.`;
-       }
-       
+      if (args.logo && args.logo.startsWith('img_') && temporaryImages.value[args.logo]) {
+        args.logo = temporaryImages.value[args.logo];
+      }
+      const res = await sfetch(`/api/spaces/org/${orgId}`, {
+        method: 'POST',
+        body: JSON.stringify({ name: args.name, logo: args.logo, membersId: [] })
+      });
+      const spaceData = await res.json();
+      if (spaceData.error) throw new Error(spaceData.error);
+
+      if (openedOrg.value && openedOrg.value.spaces) {
+        openedOrg.value.spaces.push(spaceData);
+      }
+      toolData = spaceData;
+      result = `Espace '${args.name}' créé avec succès.`;
+
+      if (args.threads && Array.isArray(args.threads) && args.threads.length > 0) {
+        let threadsCreated = [];
+        for (const t of args.threads) {
+          try {
+            const tData = await createThreadHelper(orgId, spaceData.id, t.name, t.type);
+            threadsCreated.push(tData);
+          } catch (e) {
+            console.error("Erreur lors de la création d'un salon rattaché:", e);
+          }
+        }
+        toolData.threads = threadsCreated;
+        result += ` ${threadsCreated.length} salons y ont été créés.`;
+      }
+
     } else if (toolCall.name === 'create_task') {
-       const payload = {
-           title: args.title,
-           description: args.description || null,
-           dueDate: null,
-           spaceId: null,
-           assigneeIds: user.value?.id ? [user.value.id] : [],
-           parentTaskId: null,
-           status: 'TODO'
-       };
-       const res = await sfetch(`/api/tasks/${orgId}/tasks`, {
-           method: 'POST',
-           body: JSON.stringify(payload)
-       });
-       const data = await res.json();
-       if (!res.ok || data.error) throw new Error(data.error || "Erreur serveur");
-       result = `Tâche '${args.title}' créée avec succès.`;
-       toolData = data;
-       
+      const payload = {
+        title: args.title,
+        description: args.description || null,
+        dueDate: null,
+        spaceId: null,
+        assigneeIds: user.value?.id ? [user.value.id] : [],
+        parentTaskId: null,
+        status: 'TODO'
+      };
+      const res = await sfetch(`/api/tasks/${orgId}/tasks`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || "Erreur serveur");
+      result = `Tâche '${args.title}' créée avec succès.`;
+      toolData = data;
+
     } else if (toolCall.name === 'search_messages') {
-        // Load all workspaces indices dynamically before searching
-        const org = openedOrg.value;
-        if (org && org.spaces && privateKey.value) {
-            for (const space of org.spaces) {
-                await SearchSyncService.restoreWorkspaceIndexes(space.id, toRaw(privateKey.value));
-            }
+      // Load all workspaces indices dynamically before searching
+      const org = openedOrg.value;
+      if (org && org.spaces && privateKey.value) {
+        for (const space of org.spaces) {
+          await SearchSyncService.restoreWorkspaceIndexes(space.id, toRaw(privateKey.value));
         }
-        
-        const query = args.query;
-        const workerId = Date.now().toString();
-        
-        const vectorPromise = new Promise<number[]>((resolve, reject) => {
-            const handler = (e: MessageEvent) => {
-                if (e.data.id === workerId && e.data.status === 'complete') {
-                    globalVectorWorker.removeEventListener('message', handler);
-                    resolve(e.data.vector);
-                } else if (e.data.id === workerId && e.data.status === 'error') {
-                    globalVectorWorker.removeEventListener('message', handler);
-                    reject(new Error(e.data.error));
-                }
-            };
-            globalVectorWorker.addEventListener('message', handler);
-        });
-        
-        globalVectorWorker.postMessage({ id: workerId, text: query, type: 'SEARCH' });
-        const vector = await vectorPromise;
-        const searchResults = await localSearchDB.searchByVector(vector, query, undefined, 5);
-        
-        if (searchResults.length === 0) {
-            result = `Aucun résultat trouvé dans la base sémantique pour "${query}".`;
-        } else {
-            result = `Résultats de recherche pour "${query}" :\n\n` + searchResults.map((r: any, i) => `[Résultat ${i+1}]\nType: ${r.type}\nContenu: ${r.textContent}`).join('\n\n');
-            toolData = searchResults;
-        }
+      }
+
+      const query = args.query;
+      const workerId = Date.now().toString();
+
+      const vectorPromise = new Promise<number[]>((resolve, reject) => {
+        const handler = (e: MessageEvent) => {
+          if (e.data.id === workerId && e.data.status === 'complete') {
+            globalVectorWorker.removeEventListener('message', handler);
+            resolve(e.data.vector);
+          } else if (e.data.id === workerId && e.data.status === 'error') {
+            globalVectorWorker.removeEventListener('message', handler);
+            reject(new Error(e.data.error));
+          }
+        };
+        globalVectorWorker.addEventListener('message', handler);
+      });
+
+      globalVectorWorker.postMessage({ id: workerId, text: query, type: 'SEARCH' });
+      const vector = await vectorPromise;
+      const searchResults = await localSearchDB.searchByVector(vector, query, undefined, 5);
+
+      if (searchResults.length === 0) {
+        result = `Aucun résultat trouvé dans la base sémantique pour "${query}".`;
+      } else {
+        result = `Résultats de recherche pour "${query}" :\n\n` + searchResults.map((r: any, i) => `[Résultat ${i + 1}]\nType: ${r.type}\nContenu: ${r.textContent}`).join('\n\n');
+        toolData = searchResults;
+      }
 
     } else if (toolCall.name === 'create_thread') {
-        const threads = args.threads || [];
-        if (threads.length === 0) throw new Error("Aucun salon spécifié.");
-        
-        let created = [];
-        for (const t of threads) {
-            try {
-                const tData = await createThreadHelper(orgId, t.spaceId, t.name, t.type);
-                created.push(tData);
-            } catch (e: any) {
-                console.error("Erreur création salon:", e);
-                throw new Error(`Erreur lors de la création du salon '${t.name}': ${e.message}`);
-            }
+      const threads = args.threads || [];
+      if (threads.length === 0) throw new Error("Aucun salon spécifié.");
+
+      let created = [];
+      for (const t of threads) {
+        try {
+          const tData = await createThreadHelper(orgId, t.spaceId, t.name, t.type);
+          created.push(tData);
+        } catch (e: any) {
+          console.error("Erreur création salon:", e);
+          throw new Error(`Erreur lors de la création du salon '${t.name}': ${e.message}`);
         }
-        toolData = created;
-        result = `${created.length} salon(s) créé(s) avec succès. Les clés E2EE ont été générées et distribuées.`;
+      }
+      toolData = created;
+      result = `${created.length} salon(s) créé(s) avec succès. Les clés E2EE ont été générées et distribuées.`;
 
     } else if (toolCall.name === 'read_documentation') {
-        const docFiles = import.meta.glob('../../../../../doc/*.md', { query: '?raw', import: 'default', eager: true });
-        
-        let fullDoc = "# Documentation de Synco\n\n";
-        for (const [path, content] of Object.entries(docFiles)) {
-            const fileName = path.split('/').pop()?.replace('.md', '') || path;
-            fullDoc += `## Chapitre : ${fileName}\n\n${content}\n\n---\n\n`;
-        }
-        
-        toolData = { length: fullDoc.length };
-        result = fullDoc;
+      const docFiles = import.meta.glob('../../../../../doc/*.md', { query: '?raw', import: 'default', eager: true });
+
+      let fullDoc = "# Documentation de Synco\n\n";
+      for (const [path, content] of Object.entries(docFiles)) {
+        const fileName = path.split('/').pop()?.replace('.md', '') || path;
+        fullDoc += `## Chapitre : ${fileName}\n\n${content}\n\n---\n\n`;
+      }
+
+      toolData = { length: fullDoc.length };
+      result = fullDoc;
 
     } else if (toolCall.name === 'request_image_upload') {
-        toolData = { id: imageId };
-        result = `L'utilisateur a fourni une image. Identifiant de l'image : '${imageId}'. Utilise EXACTEMENT cette valeur '${imageId}' pour le paramètre 'logo' de 'create_space'.`;
+      toolData = { id: imageId };
+      result = `L'utilisateur a fourni une image. Identifiant de l'image : '${imageId}'. Utilise EXACTEMENT cette valeur '${imageId}' pour le paramètre 'logo' de 'create_space'.`;
 
     } else if (toolCall.name === 'read_tasks') {
-        const res = await sfetch(`/api/tasks/${orgId}/lists/me`);
-        const data = await res.json();
-        if (!res.ok || data.error) throw new Error(data.error || "Erreur serveur");
-        result = "Voici les tâches de l'utilisateur :\n" + JSON.stringify(data, null, 2);
-        toolData = data;
+      const res = await sfetch(`/api/tasks/${orgId}/lists/me`);
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || "Erreur serveur");
+      result = "Voici les tâches de l'utilisateur :\n" + JSON.stringify(data, null, 2);
+      toolData = data;
 
     } else {
-       result = "Erreur: Outil inconnu.";
+      result = "Erreur: Outil inconnu.";
     }
   } catch (e: any) {
     result = "Erreur technique lors de l'exécution : " + e.message;
   }
 
   toolCall.status = 'accepted';
-  
+
   messages.value.push({
     role: 'user',
     content: `[SYSTEM] Résultat de l'action '${toolCall.name}' :\n${result}`,
@@ -725,9 +736,9 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
   });
 
   if (['create_task', 'create_space', 'create_thread'].includes(toolCall.name)) {
-      sendMessage("L'action a été effectuée avec succès. Réponds très brièvement en une seule phrase pour confirmer à l'utilisateur.");
+    sendMessage("L'action a été effectuée avec succès. Réponds très brièvement en une seule phrase pour confirmer à l'utilisateur.");
   } else if (['search_messages', 'read_documentation', 'read_tasks'].includes(toolCall.name)) {
-      sendMessage("Voici les informations demandées. Réponds à la question de l'utilisateur en te basant sur ces résultats.");
+    sendMessage("Voici les informations demandées. Réponds à la question de l'utilisateur en te basant sur ces résultats.");
   }
 };
 
@@ -744,10 +755,10 @@ const sendMessage = async (hiddenPrompt?: string) => {
     inputMsg.value = '';
     messages.value.push({ role: 'user', content: text });
   }
-  
+
   const assistantMsgIndex = messages.value.length;
   messages.value.push({ role: 'assistant', content: '' });
-  
+
   isGenerating.value = true;
   await scrollToBottom();
 

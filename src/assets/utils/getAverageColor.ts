@@ -7,7 +7,7 @@ export const getAverageColor = (url: string): Promise<string> => {
             const context = canvas.getContext('2d');
             if (!context) return resolve('#16ac77'); // fallback --primary
 
-            canvas.width = 50; 
+            canvas.width = 50;
             canvas.height = 50;
             context.drawImage(img, 0, 0, 50, 50);
 
@@ -15,11 +15,11 @@ export const getAverageColor = (url: string): Promise<string> => {
                 const data = context.getImageData(0, 0, 50, 50).data;
                 let r = 0, g = 0, b = 0, count = 0;
 
-                for (let i = 0; i < data.length; i += 4 * 2) { 
-                    if (data[i + 3] > 0) { 
-                        r += data[i];
-                        g += data[i + 1];
-                        b += data[i + 2];
+                for (let i = 0; i < data.length; i += 4 * 2) {
+                    if (data[i + 3]! > 0) {
+                        r += data[i]!;
+                        g += data[i + 1]!;
+                        b += data[i + 2]!;
                         count++;
                     }
                 }
