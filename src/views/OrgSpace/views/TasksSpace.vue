@@ -90,6 +90,7 @@
                              :id="'task-' + task.id"
                              draggable="true"
                              @dragstart="onDragStart($event, task)"
+                             @dragend="isDraggingTask = false; isHoveringTrash = false"
                              @click="openTaskDetails(task)"
                              class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer active:cursor-grabbing hover:border-(--primary)/50 transition-all shadow-lg hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] group relative overflow-hidden"
                         >
@@ -153,6 +154,17 @@
             @update="onTaskUpdated"
             @delete="onTaskDeleted"
         />
+
+        <Transition name="pop">
+            <div v-if="isDraggingTask" 
+                 class="fixed bottom-8 right-8 w-16 h-16 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-2xl z-[100] border-4 transition-all"
+                 :class="isHoveringTrash ? 'border-red-300 scale-110 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : 'border-transparent'"
+                 @dragover.prevent="isHoveringTrash = true"
+                 @dragleave.prevent="isHoveringTrash = false"
+                 @drop="onDropToTrash">
+                <i class="bi bi-trash-fill text-2xl" :class="isHoveringTrash ? 'animate-bounce' : ''"></i>
+            </div>
+        </Transition>
     </div>
 </template>
 
@@ -179,6 +191,9 @@ const tasks = ref<Task[]>([]);
 const loading = ref(true);
 const draggedOverCol = ref<string | null>(null);
 const filterUserId = ref<string | null>(null);
+
+const isDraggingTask = ref(false);
+const isHoveringTrash = ref(false);
 
 const selectedTask = ref<Task | null>(null);
 
@@ -308,9 +323,30 @@ const onTaskDeleted = (taskId: string) => {
 };
 
 const onDragStart = (e: DragEvent, task: Task) => {
+    isDraggingTask.value = true;
     if (e.dataTransfer) {
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('taskId', task.id);
+    }
+};
+
+const onDropToTrash = async (e: DragEvent) => {
+    isDraggingTask.value = false;
+    isHoveringTrash.value = false;
+    const taskId = e.dataTransfer?.getData('taskId');
+    if (!taskId) return;
+
+    try {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!res.ok) throw new Error("API Error");
+        
+        onTaskDeleted(taskId);
+        toast.show("Tâche supprimée", "success");
+    } catch (err) {
+        toast.show("Erreur lors de la suppression", "error");
     }
 };
 
