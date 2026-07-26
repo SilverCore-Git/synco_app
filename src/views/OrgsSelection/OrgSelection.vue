@@ -82,7 +82,7 @@ onMounted(async () => {
         <!-- Déconnexion & Admin -->
         <div class="absolute top-6 right-6 md:top-8 md:right-8 z-10 flex items-center gap-3">
             <router-link v-if="isSuperAdmin" to="/root" class="px-4 py-2 bg-white/5 hover:bg-(--primary)/20 text-(--text)/60 hover:text-(--primary) rounded-xl transition-all flex items-center gap-2 text-sm font-bold border border-white/5 shadow-sm">
-                <i class="bi bi-shield-lock-fill"></i> Super Admin
+                Panel admin
             </router-link>
 
             <button @click="keycloak.logout()" class="px-4 py-2 bg-white/5 hover:bg-red-500/10 text-(--text)/60 hover:text-red-500 rounded-xl transition-all flex items-center gap-2 text-sm font-bold border border-white/5 hover:border-red-500/20 shadow-sm">
