@@ -62,12 +62,15 @@ export class AIService {
         const orgId = openedOrg.value?.id;
         if (!orgId) throw new Error("Aucune organisation ouverte");
 
-        const url = `/api/orgs/${orgId}/ai/chat`;
+        const url = `/api/orgs/${orgId}/ai/proxy`;
 
         const response = await sfetch(url, {
             method: 'POST',
             body: JSON.stringify({
-                messages: messages
+                model: this.config.modelId || 'gpt-4o',
+                messages: messages,
+                stream: true,
+                temperature: 0.7
             }),
             signal: this.abortController.signal
         });
@@ -86,12 +89,28 @@ export class AIService {
         const orgId = openedOrg.value?.id;
         if (!orgId) throw new Error("Aucune organisation ouverte");
 
-        const url = `/api/orgs/${orgId}/ai/chat`;
+        const url = `/api/orgs/${orgId}/ai/proxy`;
+
+        const geminiMessages = messages
+          .filter((m: any) => m.role !== 'system')
+          .map((msg: any) => {
+              let role = msg.role === 'assistant' ? 'model' : 'user';
+              return { role, parts: [{ text: msg.content || '' }] };
+          }).filter((m: any) => m.parts && m.parts[0] && m.parts[0].text && m.parts[0].text.trim() !== '');
+
+        const systemMsgs = messages.filter((m: any) => m.role === 'system');
+        const systemInstruction = systemMsgs.length > 0 ? {
+            parts: [{ text: systemMsgs.map((m: any) => m.content).join('\n') }]
+        } : undefined;
+
+        const contents = geminiMessages.filter((m: any) => m.role !== 'system');
 
         const response = await sfetch(url, {
             method: 'POST',
             body: JSON.stringify({
-                messages: messages
+                contents,
+                systemInstruction,
+                generationConfig: { temperature: 0.7 }
             }),
             signal: this.abortController.signal
         });

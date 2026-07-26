@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import sfetch from './assets/utils/sfetch';
 
 
 import OrgSelection from './views/OrgsSelection/OrgSelection.vue';
@@ -26,9 +27,34 @@ const routes = [
   },
 
   {
-    path: '/admin',
+    path: '/root',
     name: 'AdminPanel',
     component: AdminPanel,
+    redirect: '/root/users',
+    beforeEnter: async (_to: any, _from: any, next: any) => {
+      try {
+        const res = await sfetch('/api/admin/isAdmin');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.isAdmin) return next();
+        }
+        return next('/');
+      } catch (e) {
+        return next('/');
+      }
+    },
+    children: [
+      {
+        path: 'users',
+        name: 'AdminUsers',
+        component: () => import('./views/admin/UsersQuota.vue'),
+      },
+      {
+        path: 'orgs',
+        name: 'AdminOrgs',
+        component: () => import('./views/admin/OrgsQuota.vue'),
+      }
+    ]
   },
 
   {
