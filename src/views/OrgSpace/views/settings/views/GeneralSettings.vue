@@ -16,15 +16,18 @@
                         <div class="h-[120px] bg-gradient-to-tr from-(--primary-dark) to-(--primary) w-full relative z-0"></div>
                         
                         <div class="px-6 relative flex justify-between items-end pb-6">
-                            <div class="absolute -top-12 left-6 p-1.5 bg-(--bg2) rounded-full z-10 shadow-lg">
-                                <div class="relative w-[100px] h-[100px] rounded-full overflow-hidden bg-(--bg) cursor-pointer" @click="showIconSelector = !showIconSelector">
+                            <div class="absolute -top-12 left-6 p-1.5 bg-(--bg2) rounded-xl z-10 shadow-lg">
+                                <div class="relative w-[100px] h-[100px] rounded-xl overflow-hidden bg-(--bg) cursor-pointer" @click="showIconSelector = !showIconSelector">
                                     <img 
                                         v-if="orgData.logo && orgData.logo.startsWith('data:')" 
                                         :src="orgData.logo" 
                                         class="w-full h-full object-cover" 
                                     />
                                     <div v-else class="w-full h-full bg-(--bg) flex items-center justify-center">
-                                        <span class="text-4xl font-black text-(--primary)">{{ orgData.name.substring(0, 2).toUpperCase() }}</span>
+                                        <span class="text-4xl font-black text-(--primary)">{{ orgData.name ? orgData.name.substring(0, 2).toUpperCase() : '...' }}</span>
+                                    </div>
+                                    <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                        <i class="bi bi-camera text-2xl text-white"></i>
                                     </div>
                                 </div>
                             </div>
@@ -32,6 +35,7 @@
                             <div class="w-[110px]"></div>
 
                             <button 
+                                type="button"
                                 @click="showIconSelector = !showIconSelector" 
                                 class="mt-4 primary flex items-center gap-2 text-sm"
                             >
@@ -43,7 +47,7 @@
                         <div class="fixed inset-0 cursor-auto z-50" @click="showIconSelector = false" v-if="showIconSelector" />
                         <Transition name="pop">
                             <div class="absolute z-50 left-6 top-16" v-if="showIconSelector">
-                                <IconSelector v-model:model-value="orgData.logo" @on-base64="(icon: string) => orgData.logo = icon" />
+                                <IconSelector type="square" v-model:model-value="orgData.logo" @on-base64="(icon: string) => orgData.logo = icon" />
                             </div>
                         </Transition>
                     </div>
