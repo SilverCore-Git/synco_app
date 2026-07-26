@@ -167,6 +167,66 @@
 
         </template>
 
+        <template v-else-if="isAI" class="h-full w-full">
+            <div class="h-full flex justify-start items-start flex-col relative">
+                <div class="min-h-14 pl-5 px-3 flex justify-between items-center flex-row w-full border-b border-(--border-color)">
+                    <div class="flex justify-center items-center flex-row gap-3">
+                        <i class="bi bi-robot"></i>
+                        <h3 class="font-semibold">{{ title }}</h3>
+                    </div>
+                </div>
+
+                <div class="p-4 border-b border-(--border-color) w-full">
+                    <button
+                        @click="newSession"
+                        class="w-full bg-(--primary)/10 text-(--primary) hover:bg-(--primary)/20 border border-(--primary)/20 px-3 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2"
+                    >
+                        <i class="bi bi-plus-lg"></i>
+                        Nouvelle session
+                    </button>
+
+                    <div class="mt-4" v-if="aiIsLocal">
+                        <p class="text-[10px] uppercase font-bold text-(--text)/50 mb-1">Modèle Local</p>
+                        <select 
+                            v-model="selectedModelId"
+                            class="w-full bg-black/20 border border-white/10 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-(--primary) transition-colors"
+                        >
+                            <option v-for="model in availableModels" :key="model.id" :value="model.id">
+                            Tier {{ model.tier }} - {{ model.name }}
+                            </option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-2 space-y-1 w-full">
+                    <p class="text-[10px] uppercase font-bold text-(--text)/50 px-2 mt-2 mb-1">Historique</p>
+                    
+                    <div v-if="chatSessions.length === 0" class="text-xs text-center text-(--text)/40 mt-4 italic">
+                        Aucune session
+                    </div>
+
+                    <div 
+                        v-for="session in chatSessions" 
+                        :key="session.id"
+                        class="group flex items-center justify-between px-3 py-2 text-sm rounded-lg cursor-pointer transition-colors"
+                        :class="activeSessionId === session.id ? 'bg-(--primary)/20 text-(--primary)' : 'text-(--text)/70 hover:bg-white/5 hover:text-(--text)'"
+                        @click="loadSession(session.id)"
+                    >
+                        <div class="truncate pr-2 flex-1">
+                            {{ session.title || 'Nouvelle session' }}
+                        </div>
+                        <button 
+                            @click.stop="deleteSession(session.id)" 
+                            class="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity p-1"
+                            title="Supprimer"
+                        >
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </template>
+
         <template v-else class="h-full w-full">
             
             <ThreadBarDropDown class="h-full w-full">
@@ -277,6 +337,8 @@ import isAdmin from '@/assets/isAdmin';
 import Category from '../CanalBar/Category.vue';
 import isDesktopApp from '@/assets/isDesktopApp';
 import SpaceSearchModal from '../popup/SpaceSearchModal.vue';
+import { chatSessions, activeSessionId, newSession, deleteSession, loadSession, aiIsLocal, selectedModelId } from '@/services/AIService';
+import { availableModels } from '@/services/LocalLLMService';
 
 
 const route = useRoute();
@@ -285,6 +347,7 @@ const router = useRouter();
 const isChat = computed(() => route.name == 'OrgChat' || route.name == 'OrgThreadChat' || route.name == 'OrgThreadChatPrivateMeet');
 const isHome = computed(()=> route.name == 'OrgHome' || route.name == 'OrgThreadHome');
 const isSettings = computed(()=> route.name?.toString().startsWith('OrgSettings'));
+const isAI = computed(() => route.name === 'OrgAI');
 const showDropDown = ref<boolean>(false);
 const showSearchModal = ref<boolean>(false);
 
@@ -293,6 +356,7 @@ const title = computed<string>(() => {
     if (isHome.value) return 'Accueil';
     else if (isChat.value) return 'Messages privés';
     else if (isSettings.value) return 'Paramètres';
+    else if (isAI.value) return 'Synco AI';
     else 
     {
         const space = openedOrg.value?.spaces?.find((space: WorkSpace) => space.id == route.params.spaceId && space.orgId == route.params.orgId);
@@ -305,6 +369,7 @@ const icon = computed(() => {
     if (isHome.value) return 'bi-house';
     else if (isChat.value) return 'bi-chat-dots';
     else if (isSettings.value) return 'bi-gear';
+    else if (isAI.value) return 'bi-robot';
     else
     {
         const space = openedOrg.value?.spaces?.find((space: WorkSpace) => space.id == route.params.spaceId && space.orgId == route.params.orgId);
@@ -319,7 +384,7 @@ const threads = computed<Thread[]>(() => {
         return openedOrg.value?.home?.threads || [];
     }
     else if (isChat.value) return []
-    else if (isSettings.value) return []
+    else if (isSettings.value || isAI.value) return []
     else
     {
         const space = openedOrg.value?.spaces?.find((space: WorkSpace) => space.id == route.params.spaceId && space.orgId == route.params.orgId);
@@ -351,7 +416,7 @@ const categories = computed(() => {
     {
         return openedOrg.value?.home?.categories || [];
     }
-    else if (isChat.value) return []
+    else if (isChat.value || isAI.value) return []
     else
     {
         const space = openedOrg.value?.spaces?.find((space: WorkSpace) => space.id == route.params.spaceId && space.orgId == route.params.orgId);

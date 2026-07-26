@@ -1,61 +1,6 @@
 <template>
-  <div class="h-full flex flex-row w-full relative bg-(--bg2)">
+  <div class="h-full flex flex-col w-full relative">
     
-    <!-- Left Sidebar for Sessions & Settings -->
-    <div class="w-64 border-r border-(--border-color) bg-(--bg) flex flex-col flex-shrink-0 z-20">
-      
-      <div class="p-4 border-b border-(--border-color)">
-        <button
-          @click="newSession"
-          class="w-full bg-(--primary)/10 text-(--primary) hover:bg-(--primary)/20 border border-(--primary)/20 px-3 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2"
-        >
-          <i class="bi bi-plus-lg"></i>
-          Nouvelle session
-        </button>
-
-        <div class="mt-4" v-if="aiIsLocal">
-          <p class="text-[10px] uppercase font-bold text-(--text)/50 mb-1">Modèle Local</p>
-          <select 
-            v-model="selectedModelId"
-            @change="loadModel"
-            class="w-full bg-black/20 border border-white/10 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-(--primary) transition-colors"
-          >
-            <option v-for="model in availableModels" :key="model.id" :value="model.id">
-              Tier {{ model.tier }} - {{ model.name }}
-            </option>
-          </select>
-        </div>
-      </div>
-
-      <div class="flex-1 overflow-y-auto p-2 space-y-1">
-        <p class="text-[10px] uppercase font-bold text-(--text)/50 px-2 mt-2 mb-1">Historique</p>
-        
-        <div v-if="chatSessions.length === 0" class="text-xs text-center text-(--text)/40 mt-4 italic">
-          Aucune session
-        </div>
-
-        <div 
-          v-for="session in chatSessions" 
-          :key="session.id"
-          class="group flex items-center justify-between px-3 py-2 text-sm rounded-lg cursor-pointer transition-colors"
-          :class="activeSessionId === session.id ? 'bg-(--primary)/20 text-(--primary)' : 'text-(--text)/70 hover:bg-white/5 hover:text-(--text)'"
-          @click="loadSession(session.id)"
-        >
-          <div class="truncate pr-2 flex-1">
-            {{ session.title || 'Nouvelle session' }}
-          </div>
-          <button 
-            @click.stop="deleteSession(session.id)" 
-            class="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity p-1"
-            title="Supprimer"
-          >
-            <i class="bi bi-trash"></i>
-          </button>
-        </div>
-      </div>
-
-    </div>
-
     <!-- Main Chat Area -->
     <div class="flex-1 flex flex-col relative h-full">
     
@@ -381,7 +326,6 @@
         @close="selectedTask = null"
     />
 
-    </div>
   </div>
 </template>
 
@@ -389,7 +333,7 @@
 import { ref, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
 import * as webllm from '@mlc-ai/web-llm';
 import { localLLM, availableModels } from '@/services/LocalLLMService';
-import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages } from '@/services/AIService';
+import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages, syncSession, fetchSessions } from '@/services/AIService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
@@ -403,59 +347,7 @@ const router = useRouter();
 import sfetch from '@/assets/utils/sfetch';
 import globalVectorWorker from '@/services/GlobalVectorWorker';
 
-// =======================
-// Sessions State & Logic
-// =======================
-const chatSessions = ref<any[]>([]);
-const activeSessionId = ref<string | null>(null);
-
 const { openedOrg } = useSettingsItem();
-
-const fetchSessions = async () => {
-  if (!openedOrg.value) return;
-  try {
-    const res = await sfetch(`/api/orgs/${openedOrg.value.id}/ai/sessions`);
-    if (res.ok) {
-      chatSessions.value = await res.json();
-    }
-  } catch (e) {
-    console.error("Erreur chargement des sessions", e);
-  }
-};
-
-const loadSession = async (id: string) => {
-  if (!openedOrg.value) return;
-  try {
-    const res = await sfetch(`/api/orgs/${openedOrg.value.id}/ai/sessions/${id}`);
-    if (res.ok) {
-      const session = await res.json();
-      activeSessionId.value = session.id;
-      aiSessionMessages.value = session.messages || [];
-      // await scrollToBottom(); // defined later
-    }
-  } catch (e) {
-    console.error("Erreur chargement de la session", e);
-  }
-};
-
-const deleteSession = async (id: string) => {
-  if (!openedOrg.value || !confirm("Voulez-vous vraiment supprimer cette session ?")) return;
-  try {
-    const res = await sfetch(`/api/orgs/${openedOrg.value.id}/ai/sessions/${id}`, {
-      method: 'DELETE'
-    });
-    if (res.ok) {
-      if (activeSessionId.value === id) {
-        // newSession(); // defined later
-        aiSessionMessages.value = [];
-        activeSessionId.value = null;
-      }
-      await fetchSessions();
-    }
-  } catch (e) {
-    console.error("Erreur suppression de la session", e);
-  }
-};
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { generateThreadKey, encryptThreadKeyForMember, E2EEUnloked, privateKey } from '@/assets/utils/crypto';
@@ -609,11 +501,7 @@ const stopGeneration = () => {
   }
 };
 
-const newSession = () => {
-  stopGeneration();
-  messages.value = [];
-  activeSessionId.value = null;
-};
+// newSession logic is now handled in ThreadsBar.vue via AIService
 
 const createThreadHelper = async (orgId: string, spaceId: string | undefined, name: string, type: string) => {
     const isHome = !spaceId || spaceId === 'home';
@@ -894,37 +782,7 @@ const sendMessage = async (hiddenPrompt?: string) => {
   }
 };
 
-const syncSession = async (lastPrompt: string) => {
-  if (!openedOrg.value) return;
-  try {
-    if (!activeSessionId.value) {
-      // Create session
-      const title = lastPrompt.substring(0, 30) + (lastPrompt.length > 30 ? '...' : '');
-      const res = await sfetch(`/api/orgs/${openedOrg.value.id}/ai/sessions`, {
-        method: 'POST',
-        body: JSON.stringify({
-          title,
-          messages: messages.value
-        })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        activeSessionId.value = data.id;
-        await fetchSessions();
-      }
-    } else {
-      // Update session
-      await sfetch(`/api/orgs/${openedOrg.value.id}/ai/sessions/${activeSessionId.value}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          messages: messages.value
-        })
-      });
-    }
-  } catch (e) {
-    console.error("Erreur synchro session", e);
-  }
-};
+// syncSession is handled in AIService
 
 onMounted(async () => {
   const recommended = await localLLM.getRecommendedModel();
