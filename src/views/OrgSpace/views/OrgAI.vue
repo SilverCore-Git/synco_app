@@ -578,8 +578,11 @@ const createThreadHelper = async (orgId: string, spaceId: string | undefined, na
 const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, accept: boolean, _assistantMsgIndex: number, imageId?: string) => {
   if (!accept) {
     toolCall.status = 'rejected';
-    messages.value.push({ role: 'system', content: `L'utilisateur a refusé l'exécution de l'outil ${toolCall.name}. Demande-lui pourquoi ou propose une alternative.` });
-    sendMessage("Action refusée par l'utilisateur.");
+    messages.value.push({
+      role: 'user',
+      content: `[SYSTEM] L'action '${toolCall.name}' a été REFUSÉE par l'utilisateur.`
+    });
+    sendMessage("J'ai refusé cette action. Ne la relance pas. Demande-moi plutôt pourquoi ou propose une alternative.");
     return;
   }
 
