@@ -54,7 +54,7 @@
                             v-tooltip="btn.tooltip" 
                             class="dropdown-item-annimate dropdown-item-style"
                             :class="btn.class"
-                            @click="btn.func(msg)"
+                            @click="btn.func(msg, $event)"
                         >
                             <i class="bi text-lg" :class="btn.icon" />
                         </button>
@@ -149,6 +149,7 @@
                                 @add-reaction="handleAddReaction"
                                 @reaction-picker-closed="showReactionPicker = false"
                                 :showReactionPicker="showReactionPicker"
+                                :pickerCoords="pickerCoords"
                                 :alignRight="msg.senderId === user?.id"
                                 :isReadOnly="isReadOnly"
                             />
@@ -241,6 +242,7 @@ import WebhookEmbed from './WebhookEmbed.vue';
 
 const toast = useToast();
 const showReactionPicker = ref<boolean>(false);
+const pickerCoords = ref<{ x: number, y: number } | null>(null);
 
 const props = defineProps<{
     msg: Message;
@@ -253,7 +255,7 @@ const props = defineProps<{
 interface DropdownBtn {
     icon: string,
     tooltip: string,
-    func: (msg: Message) => void,
+    func: (msg: Message, e?: Event) => void,
     class?: string;
     show: (msg: Message) => boolean;
 }
@@ -277,16 +279,19 @@ const dropdownBtns: DropdownBtn[] = [
         func: (msg: Message) => setMessageWillBeResponded(msg),
         show: () => true
     },
-    // {
-    //     icon: "bi-arrow-90deg-right",
-    //     tooltip: "transférer",
-    //     func: (msg: Message) => setMessageWillBeTransfer(msg),
-    //      show: () => true
-    // },
     {
         icon: "bi-emoji-grin-fill",
         tooltip: "réagir",
-        func: () => showReactionPicker.value = !showReactionPicker.value,
+        func: (msg: Message, e?: Event) => {
+            showReactionPicker.value = !showReactionPicker.value;
+            if (showReactionPicker.value && e) {
+                const target = e.currentTarget as HTMLElement;
+                const rect = target.getBoundingClientRect();
+                pickerCoords.value = { x: rect.right, y: rect.top };
+            } else {
+                pickerCoords.value = null;
+            }
+        },
         show: () => true
     },
     {

@@ -19,6 +19,7 @@ const props = defineProps<{
   showReactionPicker: boolean;
   alignRight?: boolean;
   isReadOnly?: boolean;
+  pickerCoords?: { x: number; y: number } | null;
 }>();
 
 const emit = defineEmits(['reaction-updated', 'add-reaction', 'reaction-picker-closed']);
@@ -136,7 +137,17 @@ const toggleReaction = async (emoji: string) => {
 
     <!-- Emoji picker dropdown -->
      <Transition name="fade" mode="out-in">
-      <div v-if="internalShowReactionPicker" class="absolute z-100 bottom-full mb-2" :class="alignRight ? 'right-0' : 'left-0'">
+      <div v-if="internalShowReactionPicker" 
+           class="fixed z-[100]"
+           :style="pickerCoords ? {
+             top: (pickerCoords.y - 320) + 'px',
+             left: Math.max(10, pickerCoords.x - 280) + 'px'
+           } : {
+             top: '50%',
+             left: '50%',
+             transform: 'translate(-50%, -50%)'
+           }"
+      >
         <EmojiPicker @select="toggleReaction" />
       </div>
     </Transition>
