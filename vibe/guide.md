@@ -4,6 +4,8 @@
 > **Projet** : synco - Alternative française souveraine à Slack/Teams  
 > **Contexte** : Développement du module de chat avec chiffrement E2EE
 
+(n'ésite pas a aller regarder le fichier DEVELOPERS_GUIDE.md pour avoir plus d'information)
+
 ---
 
 ## 🎯 **À propos du Projet Synco**

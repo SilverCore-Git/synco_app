@@ -1,122 +1,134 @@
 <template>
+    <div class="flex flex-col h-full w-full overflow-hidden bg-(--bg3) text-(--text)">
+        <main class="flex-1 overflow-y-auto p-6 lg:p-10">
+            <div class="max-w-5xl mx-auto space-y-12">
+                
+                <div class="mb-8 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-2xl font-black text-(--text) mb-2">Webhooks</h3>
+                        <p class="text-sm text-(--text)/60">Configurez des webhooks pour recevoir des notifications automatiques depuis des services externes.</p>
+                    </div>
+                    <button 
+                        @click="showCreateModal = true"
+                        class="primary gap-2 flex items-center shadow-sm shrink-0 whitespace-nowrap"
+                    >
+                        <i class="bi bi-plus-lg" />
+                        Nouveau Webhook
+                    </button>
+                </div>
 
-    <div class="space-y-6 p-6 lg:p-10 max-w-5xl mx-auto">
-        
-        <div class="mb-6">
-            <h3 class="text-xl font-black text-(--text) mb-1">Webhooks</h3>
-            <p class="text-sm text-(--text)/60">Configurez des webhooks pour recevoir des notifications automatiques depuis des services externes.</p>
-        </div>
+                <div class="space-y-6">
+                    <!-- Filtres et recherche -->
+                    <div class="flex flex-col sm:flex-row gap-4 items-center justify-between">
+                        <div class="relative w-full sm:w-80 group">
+                            <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-(--text)/40 group-focus-within:text-(--primary) transition-colors" />
+                            <input 
+                                v-model="searchQuery"
+                                type="text" 
+                                placeholder="Rechercher un webhook..."
+                                class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-11 pr-4 py-2.5 text-sm text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner placeholder:text-(--text)/30"
+                            />
+                        </div>
+                        
+                        <div class="flex gap-2 w-full sm:w-auto p-1 bg-(--bg2) border border-(--border-color) rounded-xl shadow-inner overflow-x-auto custom-scrollbar">
+                            <button 
+                                @click="filterStatus = 'all'"
+                                :class="['px-4 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap', 
+                                         filterStatus === 'all' ? 'bg-(--primary) text-white shadow-sm' : 'text-(--text)/60 hover:text-(--text) hover:bg-(--bg3)']"
+                            >
+                                Tous ({{ totalWebhooks }})
+                            </button>
+                            <button 
+                                @click="filterStatus = 'active'"
+                                :class="['px-4 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap', 
+                                         filterStatus === 'active' ? 'bg-(--primary) text-white shadow-sm' : 'text-(--text)/60 hover:text-(--text) hover:bg-(--bg3)']"
+                            >
+                                Actifs ({{ activeWebhooks.length }})
+                            </button>
+                            <button 
+                                @click="filterStatus = 'inactive'"
+                                :class="['px-4 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap', 
+                                         filterStatus === 'inactive' ? 'bg-(--primary) text-white shadow-sm' : 'text-(--text)/60 hover:text-(--text) hover:bg-(--bg3)']"
+                            >
+                                Inactifs ({{ inactiveWebhooks.length }})
+                            </button>
+                        </div>
+                    </div>
 
-        <div class="mb-8">
-            <button 
-                @click="showCreateModal = true"
-                class="primary gap-2 flex items-center"
-            >
-                <i class="bi bi-plus-lg" />
-                Nouveau Webhook
-            </button>
-        </div>
+                    <!-- Liste des webhooks -->
+                    <WebhookList
+                        :webhooks="filteredWebhooks"
+                        :loading="loading"
+                        :error="error"
+                        @edit="openEditModal"
+                        @delete="openDeleteModal"
+                        @test="openTestModal"
+                        @details="openDetailsModal"
+                        @toggle="toggleWebhook"
+                    />
+                </div>
 
-        <!-- Filtres et recherche -->
-        <div class="flex flex-wrap gap-4 items-center">
-            <div class="relative flex-1 min-w-48">
-                <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text)/30 text-[10px]" />
-                <input 
-                    v-model="searchQuery"
-                    type="text" 
-                    placeholder="Rechercher un webhook..."
-                    class="bg-(--white)/5 border border-(--white)/10 rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-none focus:border-(--primary)/40 w-full transition-all"
+                <!-- Modals -->
+                <WebhookCreate
+                    v-if="showCreateModal"
+                    :space-id="currentSpaceId"
+                    @close="showCreateModal = false"
+                    @created="onWebhookCreated"
                 />
+
+                <WebhookEdit
+                    v-if="editingWebhook && showEditModal"
+                    :webhook="editingWebhook"
+                    @close="showEditModal = false"
+                    @updated="onWebhookUpdated"
+                />
+
+                <WebhookDetails
+                    v-if="detailsWebhook && showDetailsModal"
+                    :webhook="detailsWebhook"
+                    @close="showDetailsModal = false"
+                    @edit="openEditModalFromDetails"
+                    @delete="openDeleteModalFromDetails"
+                    @test="openTestModalFromDetails"
+                />
+
+                <WebhookTest
+                    v-if="testingWebhook && showTestModal"
+                    :webhook="testingWebhook"
+                    @close="showTestModal = false"
+                />
+
+                <!-- Confirmation de suppression -->
+                <Popup :is-open="showDeleteConfirm" @close="showDeleteConfirm = false">
+                    <template #title>Supprimer le Webhook</template>
+                    
+                    <div class="space-y-4">
+                        <p class="text-(--text)/80">
+                            Vous êtes sur le point de supprimer le webhook <strong class="text-(--primary)">{{ deletingWebhook?.name }}</strong>.
+                        </p>
+                        <div class="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+                            <p class="text-red-500 text-sm font-bold flex items-center gap-2">
+                                <i class="bi bi-exclamation-triangle-fill"></i>
+                                Action irréversible
+                            </p>
+                            <p class="text-red-500/80 text-xs mt-1">
+                                Tous les messages et logs associés seront également supprimés.
+                            </p>
+                        </div>
+                    </div>
+
+                    <template #footer>
+                        <button @click="showDeleteConfirm = false" class="default px-6 py-2.5 rounded-xl text-sm font-medium">Annuler</button>
+                        <button @click="confirmDelete" class="danger px-6 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2">
+                            <i class="bi bi-trash-fill"></i>
+                            Supprimer
+                        </button>
+                    </template>
+                </Popup>
+
             </div>
-            
-            <div class="flex gap-2">
-                <button 
-                    @click="filterStatus = 'all'"
-                    :class="['px-3 py-2 rounded-lg text-sm transition-all', 
-                             filterStatus === 'all' ? 'bg-(--primary)/20 text-(--primary)' : 'bg-(--white)/5 text-(--text)/60 hover:bg-(--white)/10']"
-                >
-                    Tous ({{ totalWebhooks }})
-                </button>
-                <button 
-                    @click="filterStatus = 'active'"
-                    :class="['px-3 py-2 rounded-lg text-sm transition-all', 
-                             filterStatus === 'active' ? 'bg-(--primary)/20 text-(--primary)' : 'bg-(--white)/5 text-(--text)/60 hover:bg-(--white)/10']"
-                >
-                    Actifs ({{ activeWebhooks.length }})
-                </button>
-                <button 
-                    @click="filterStatus = 'inactive'"
-                    :class="['px-3 py-2 rounded-lg text-sm transition-all', 
-                             filterStatus === 'inactive' ? 'bg-(--primary)/20 text-(--primary)' : 'bg-(--white)/5 text-(--text)/60 hover:bg-(--white)/10']"
-                >
-                    Inactifs ({{ inactiveWebhooks.length }})
-                </button>
-            </div>
-        </div>
-
-        <!-- Liste des webhooks -->
-        <WebhookList
-            :webhooks="filteredWebhooks"
-            :loading="loading"
-            :error="error"
-            @edit="openEditModal"
-            @delete="openDeleteModal"
-            @test="openTestModal"
-            @details="openDetailsModal"
-            @toggle="toggleWebhook"
-        />
-
-        <!-- Modals -->
-        <WebhookCreate
-            v-if="showCreateModal"
-            :space-id="currentSpaceId"
-            @close="showCreateModal = false"
-            @created="onWebhookCreated"
-        />
-
-        <WebhookEdit
-            v-if="editingWebhook && showEditModal"
-            :webhook="editingWebhook"
-            @close="showEditModal = false"
-            @updated="onWebhookUpdated"
-        />
-
-        <WebhookDetails
-            v-if="detailsWebhook && showDetailsModal"
-            :webhook="detailsWebhook"
-            @close="showDetailsModal = false"
-            @edit="openEditModalFromDetails"
-            @delete="openDeleteModalFromDetails"
-            @test="openTestModalFromDetails"
-        />
-
-        <WebhookTest
-            v-if="testingWebhook && showTestModal"
-            :webhook="testingWebhook"
-            @close="showTestModal = false"
-        />
-
-        <!-- Confirmation de suppression -->
-        <Popup :is-open="showDeleteConfirm" @close="showDeleteConfirm = false">
-            <template #title>Supprimer le Webhook</template>
-            
-            <div class="space-y-4">
-                <p class="text-(--text)/80">
-                    Vous êtes sur le point de supprimer le webhook <strong>{{ deletingWebhook?.name }}</strong>.
-                </p>
-                <p class="text-(--text)/60 text-sm">
-                    Cette action est irréversible. Tous les messages et logs associés seront également supprimés.
-                </p>
-            </div>
-
-            <template #footer>
-                <button @click="showDeleteConfirm = false" class="default">Annuler</button>
-                <button @click="confirmDelete" class="danger">Supprimer</button>
-            </template>
-        </Popup>
-
+        </main>
     </div>
-
 </template>
 
 <script lang="ts" setup>

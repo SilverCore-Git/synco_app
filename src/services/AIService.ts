@@ -1,7 +1,8 @@
-import { openedOrg } from '@/assets/var';
+import { openedOrg, user } from '@/assets/var';
 import { localLLM } from './LocalLLMService';
 import { computed, ref } from 'vue';
 import sfetch from '@/assets/utils/sfetch';
+import { encryptForPeer, decryptFromPeer, privateKey } from '@/assets/utils/crypto';
 
 export interface AIProviderConfig {
     provider: 'local' | 'openai' | 'gemini' | 'mistral' | 'custom';
@@ -294,7 +295,28 @@ export const loadSession = async (id: string) => {
         if (res.ok) {
             const session = await res.json();
             activeSessionId.value = session.id;
-            aiSessionMessages.value = session.messages || [];
+            
+            let loadedMessages = session.messages || [];
+            if (loadedMessages.isE2EE && loadedMessages.ciphertext && loadedMessages.encryptedAesKey && loadedMessages.iv) {
+                if (privateKey.value) {
+                    try {
+                        const decryptedStr = await decryptFromPeer(
+                            loadedMessages.ciphertext, 
+                            loadedMessages.encryptedAesKey, 
+                            loadedMessages.iv, 
+                            privateKey.value
+                        );
+                        loadedMessages = JSON.parse(decryptedStr);
+                    } catch (e) {
+                        console.error("Erreur de déchiffrement de la session AI", e);
+                        loadedMessages = [{ role: 'system', content: '[⚠️ Impossible de déchiffrer cette conversation.]' }];
+                    }
+                } else {
+                    loadedMessages = [{ role: 'system', content: '[🔒 Conversation chiffrée. Clé privée manquante.]' }];
+                }
+            }
+            
+            aiSessionMessages.value = loadedMessages;
         }
     } catch (e) {
         console.error("Erreur chargement de la session", e);
@@ -328,6 +350,23 @@ export const newSession = () => {
 export const syncSession = async (lastPrompt: string) => {
     if (!openedOrg.value) return;
     try {
+        let payloadMessages: any = aiSessionMessages.value;
+
+        if (user.value?.publicKey && privateKey.value) {
+            try {
+                const encrypted = await encryptForPeer(
+                    JSON.stringify(aiSessionMessages.value), 
+                    user.value.publicKey
+                );
+                payloadMessages = {
+                    isE2EE: true,
+                    ...encrypted
+                };
+            } catch (e) {
+                console.error("Erreur de chiffrement E2EE de la session AI", e);
+            }
+        }
+
         if (!activeSessionId.value) {
             // Create session
             const title = lastPrompt.substring(0, 30) + (lastPrompt.length > 30 ? '...' : '');
@@ -335,7 +374,7 @@ export const syncSession = async (lastPrompt: string) => {
                 method: 'POST',
                 body: JSON.stringify({
                     title,
-                    messages: aiSessionMessages.value
+                    messages: payloadMessages
                 })
             });
             if (res.ok) {
@@ -348,7 +387,7 @@ export const syncSession = async (lastPrompt: string) => {
             await sfetch(`/api/orgs/${openedOrg.value.id}/ai/sessions/${activeSessionId.value}`, {
                 method: 'PATCH',
                 body: JSON.stringify({
-                    messages: aiSessionMessages.value
+                    messages: payloadMessages
                 })
             });
         }

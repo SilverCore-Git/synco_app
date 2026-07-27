@@ -108,6 +108,8 @@ export interface User {
   orgMaxUsers?: number;
   orgMaxStorage?: number | string | bigint;
 
+  notificationPreferences?: any;
+
   createdAt: string | Date;
   updatedAt: string | Date;
 }
