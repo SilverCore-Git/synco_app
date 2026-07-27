@@ -138,18 +138,18 @@ const toggleReaction = async (emoji: string) => {
     <!-- Emoji picker dropdown (Teleported to body to escape z-index constraints) -->
     <Teleport to="body">
       <Transition name="fade" mode="out-in">
-        <div v-if="internalShowReactionPicker" 
-             class="fixed z-[9999]"
-             :style="pickerCoords ? {
-               top: (pickerCoords.y - 320) + 'px',
-               left: Math.max(10, pickerCoords.x - 280) + 'px'
-             } : {
-               top: '50%',
-               left: '50%',
-               transform: 'translate(-50%, -50%)'
-             }"
-        >
-          <EmojiPicker @select="toggleReaction" />
+         <div v-if="internalShowReactionPicker" 
+              class="fixed z-[9999]"
+              :style="pickerCoords ? {
+                bottom: `calc(100vh - ${pickerCoords.y}px + 10px)`,
+                left: Math.max(10, pickerCoords.x - 280) + 'px'
+              } : {
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)'
+              }"
+         >
+           <EmojiPicker @select="toggleReaction" />
         </div>
       </Transition>
 
