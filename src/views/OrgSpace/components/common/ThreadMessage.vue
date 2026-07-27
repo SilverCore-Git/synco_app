@@ -282,7 +282,7 @@ const dropdownBtns: DropdownBtn[] = [
     {
         icon: "bi-emoji-grin-fill",
         tooltip: "réagir",
-        func: (msg: Message, e?: Event) => {
+        func: (_msg: Message, e?: Event) => {
             showReactionPicker.value = !showReactionPicker.value;
             if (showReactionPicker.value && e) {
                 const target = e.currentTarget as HTMLElement;
