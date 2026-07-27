@@ -809,8 +809,13 @@ const sendMessage = async (hiddenPrompt?: string) => {
 onMounted(async () => {
   const recommended = await localLLM.getRecommendedModel();
   recommendedModelId.value = recommended.id;
-  await fetchSessions();
 });
+
+watch(() => openedOrg.value, async (newVal) => {
+  if (newVal) {
+    await fetchSessions();
+  }
+}, { immediate: true });
 
 watch(savedModelLoaded, async (loaded) => {
   if (!loaded) return;
