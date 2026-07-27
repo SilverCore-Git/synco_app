@@ -16,10 +16,15 @@ export const getAverageColor = (url: string): Promise<string> => {
                 let r = 0, g = 0, b = 0, count = 0;
 
                 for (let i = 0; i < data.length; i += 4 * 2) {
-                    if (data[i + 3]! > 0) {
-                        r += data[i]!;
-                        g += data[i + 1]!;
-                        b += data[i + 2]!;
+                    const rVal = data[i] ?? 0;
+                    const gVal = data[i + 1] ?? 0;
+                    const bVal = data[i + 2] ?? 0;
+                    const aVal = data[i + 3] ?? 0;
+                    
+                    if (aVal > 0) {
+                        r += rVal;
+                        g += gVal;
+                        b += bVal;
                         count++;
                     }
                 }
