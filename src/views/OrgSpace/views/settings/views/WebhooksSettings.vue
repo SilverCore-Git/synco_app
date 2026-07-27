@@ -1,6 +1,6 @@
 <template>
     <div class="flex flex-col h-full w-full overflow-hidden bg-(--bg3) text-(--text)">
-        <main class="flex-1 overflow-y-auto p-6 lg:p-10">
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10">
             <div class="max-w-5xl mx-auto space-y-12">
                 
                 <div class="mb-8 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
