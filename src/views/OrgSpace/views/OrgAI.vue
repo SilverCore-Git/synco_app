@@ -282,8 +282,8 @@
         <div v-if="!hasStartedInit" class="flex flex-col md:flex-row items-center justify-between gap-4">
           <div class="text-sm">
             <p class="font-bold text-white/80">Téléchargement initial de Synco AI requis</p>
-            <p class="text-white/50 text-xs">Modèle recommandé pour votre matériel : <span
-                class="font-mono text-(--primary)">{{availableModels.find(m => m.id === recommendedModelId)?.name ||
+            <p class="text-white/50 text-xs">Modèle sélectionné : <span
+                class="font-mono text-(--primary)">{{availableModels.find(m => m.id === selectedModelId)?.name ||
                 'Aucun' }}</span></p>
           </div>
           <div class="flex gap-2">
@@ -495,7 +495,7 @@ const checkCacheStatus = async () => {
 };
 
 watch(selectedModelId, () => {
-  checkCacheStatus();
+  loadModel();
 });
 
 const startInit = async () => {
