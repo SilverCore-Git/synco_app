@@ -1,23 +1,25 @@
 <template>
 
-    <div class="flex flex-col w-full overflow-hidden h-full">
+    <div class="flex flex-col h-full w-full overflow-hidden bg-(--bg3) text-(--text)">
         
         <main class="flex-1 overflow-y-auto p-6 lg:p-10">
 
-            <div class="max-w-lg space-y-12">
+            <div class="max-w-5xl mx-auto space-y-12">
 
-                <section>
-                    <div class="mb-6">
-                        <h3 class="text-xl font-black text-(--text) mb-1">Paramètres généraux</h3>
-                        <p class="text-sm text-(--text)/60">Gérez les informations globales de votre organisation.</p>
-                    </div>
+                <div class="mb-8">
+                    <h3 class="text-2xl font-black text-(--text) mb-2">Paramètres généraux</h3>
+                    <p class="text-sm text-(--text)/60">Gérez les informations globales de votre organisation.</p>
+                </div>
 
-                    <div class="w-full relative rounded-xl overflow-hidden bg-(--bg2) border border-(--border-color) mb-8 shadow-xl">
-                        <div class="h-[120px] bg-gradient-to-tr from-(--primary-dark) to-(--primary) w-full relative z-0"></div>
+                <section class="space-y-6">
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-(--text)/50 mb-4">Informations</h4>
+                    
+                    <div class="w-full relative rounded-2xl bg-(--bg2) border border-(--border-color) shadow-sm hover:shadow-md transition-all">
+                        <div class="h-[140px] w-full relative z-0 transition-colors duration-500 rounded-t-2xl" :style="{ backgroundColor: bannerColor }"></div>
                         
-                        <div class="px-6 relative flex justify-between items-end pb-6">
-                            <div class="absolute -top-12 left-6 p-1.5 bg-(--bg2) rounded-xl z-10 shadow-lg">
-                                <div class="relative w-[100px] h-[100px] rounded-xl overflow-hidden bg-(--bg) cursor-pointer" @click="showIconSelector = !showIconSelector">
+                        <div class="px-8 relative flex justify-between items-end pb-8">
+                            <div class="absolute -top-14 left-8 p-1.5 bg-(--bg2) rounded-2xl z-10 shadow-lg">
+                                <div class="relative w-[110px] h-[110px] rounded-2xl overflow-hidden bg-(--bg) cursor-pointer group" @click="showIconSelector = !showIconSelector">
                                     <img 
                                         v-if="orgData.logo && orgData.logo.startsWith('data:')" 
                                         :src="orgData.logo" 
@@ -26,131 +28,169 @@
                                     <div v-else class="w-full h-full bg-(--bg) flex items-center justify-center">
                                         <span class="text-4xl font-black text-(--primary)">{{ orgData.name ? orgData.name.substring(0, 2).toUpperCase() : '...' }}</span>
                                     </div>
-                                    <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                    <div class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
                                         <i class="bi bi-camera text-2xl text-white"></i>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="w-[110px]"></div>
+                            <div class="w-[120px]"></div>
 
                             <button 
                                 type="button"
                                 @click="showIconSelector = !showIconSelector" 
-                                class="mt-4 primary flex items-center gap-2 text-sm"
+                                class="mt-4 bg-(--bg3) hover:bg-(--bg) border border-(--border-color) text-(--text) flex items-center gap-2 text-sm px-4 py-2 rounded-xl transition-colors font-medium shadow-sm"
                             >
-                                <i class="bi bi-camera-fill"></i>
+                                <i class="bi bi-camera-fill text-(--text)/60"></i>
                                 Modifier le logo
                             </button>
                         </div>
                         
                         <div class="fixed inset-0 cursor-auto z-50" @click="showIconSelector = false" v-if="showIconSelector" />
                         <Transition name="pop">
-                            <div class="absolute z-50 left-6 top-16" v-if="showIconSelector">
+                            <div class="absolute z-50 left-8 top-16" v-if="showIconSelector">
                                 <IconSelector type="square" v-model:model-value="orgData.logo" @on-base64="(icon: string) => orgData.logo = icon" />
                             </div>
                         </Transition>
                     </div>
 
-                    <div class="space-y-6">
-
-                        <div class="space-y-1.5">
-                            <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">Nom de l'organisation</label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-2">
+                            <label class="text-xs font-semibold text-(--text)/70">Nom de l'organisation</label>
+                            <div class="relative group">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40 group-focus-within:text-(--primary) transition-colors">
                                     <i class="bi bi-building"></i>
                                 </div>
                                 <input 
                                     v-model="orgData.name"
                                     type="text"
-                                    class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                    class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
                                     placeholder="Ex: SilverCore Team"
                                 />
                             </div>
                         </div>
 
-                        <div class="space-y-1.5">
-                            <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">ID Unique (Permanent)</label>
+                        <div class="space-y-2">
+                            <label class="text-xs font-semibold text-(--text)/70">ID Unique (Permanent)</label>
                             <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/30">
                                     <i class="bi bi-hash"></i>
                                 </div>
                                 <input 
                                     disabled
                                     type="text"
                                     :value="openedOrg?.id"
-                                    class="w-full bg-black/20 border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text)/30 italic shadow-inner"
+                                    class="w-full bg-black/10 border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-sm text-(--text)/40 font-mono shadow-inner cursor-not-allowed"
                                 />
                             </div>
                         </div>
-
                     </div>
                 </section>
 
-                <section>
-                    <div class="mb-6">
-                        <h3 class="text-xl font-black text-(--text) mb-1">Modules & Fonctionnalités</h3>
-                        <p class="text-sm text-(--text)/60">Activez ou désactivez des fonctionnalités spécifiques.</p>
-                    </div>
-
-                    <div class="space-y-4">
-                        <div class="flex items-center justify-between p-4 bg-(--bg2) border border-(--border-color) rounded-xl">
-                            <div class="flex items-center gap-4">
-                                <i class="bi bi-list-check text-xl text-(--primary)" :class="{'opacity-50 grayscale': !openedOrg?.features?.includes('todo')}"></i>
-                                <div>
-                                    <h4 class="font-bold text-sm text-(--text)">Module Tâches <span v-if="!openedOrg?.features?.includes('todo')" class="ml-2 text-[10px] font-normal text-(--text)/50 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full shadow-inner">Module non inclus dans l'abonnement</span></h4>
-                                    <p class="text-xs text-(--text)/40">Activer la gestion des tâches globales et par projet.</p>
-                                </div>
-                            </div>
-                            <label class="relative inline-flex items-center" :class="{'cursor-not-allowed opacity-50': !openedOrg?.features?.includes('todo'), 'cursor-pointer': openedOrg?.features?.includes('todo')}">
-                                <input type="checkbox" v-model="orgData.todoEnabled" :disabled="!openedOrg?.features?.includes('todo')" class="sr-only peer">
-                                <div class="w-11 h-6 bg-black/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
-                            </label>
-                        </div>
-
-                        <div class="flex items-center justify-between p-4 bg-(--bg2) border border-(--border-color) rounded-xl">
-                            <div class="flex items-center gap-4">
-                                <i class="bi bi-file-earmark text-xl text-(--primary)" :class="{'opacity-50 grayscale': !openedOrg?.features?.includes('files')}"></i>
-                                <div>
-                                    <h4 class="font-bold text-sm text-(--text)">Module Fichiers <span v-if="!openedOrg?.features?.includes('files')" class="ml-2 text-[10px] font-normal text-(--text)/50 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full shadow-inner">Module non inclus dans l'abonnement</span></h4>
-                                    <p class="text-xs text-(--text)/40">Activer le système de stockage de fichiers par projet.</p>
-                                </div>
-                            </div>
-                            <label class="relative inline-flex items-center" :class="{'cursor-not-allowed opacity-50': !openedOrg?.features?.includes('files'), 'cursor-pointer': openedOrg?.features?.includes('files')}">
-                                <input type="checkbox" v-model="orgData.filesEnabled" :disabled="!openedOrg?.features?.includes('files')" class="sr-only peer">
-                                <div class="w-11 h-6 bg-black/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
-                            </label>
-                        </div>
+                <section class="space-y-6">
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-(--text)/50 mb-4">Modules & Fonctionnalités</h4>
+                    
+                    <div class="grid grid-cols-1 gap-6">
                         
-                        <div class="flex items-center justify-between p-4 bg-(--bg2) border border-(--border-color) rounded-xl">
-                            <div class="flex items-center gap-4">
-                                <i class="bi bi-robot text-xl text-(--primary)" :class="{'opacity-50 grayscale': !openedOrg?.features?.includes('ai')}"></i>
-                                <div>
-                                    <h4 class="font-bold text-sm text-(--text)">Synco AI <span v-if="!openedOrg?.features?.includes('ai')" class="ml-2 text-[10px] font-normal text-(--text)/50 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full shadow-inner">Module non inclus dans l'abonnement</span></h4>
-                                    <p class="text-xs text-(--text)/40">Activer l'assistant IA localement (WebGPU).</p>
-                                </div>
+                        <!-- Module Tâches -->
+                        <div 
+                            @click="toggleModule('todo')"
+                            class="bg-(--bg2) border rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden transition-all duration-300"
+                            :class="[
+                                !openedOrg?.features?.includes('todo') ? 'border-(--border-color) opacity-60 grayscale cursor-not-allowed' : 
+                                orgData.todoEnabled ? 'border-(--primary) shadow-sm hover:shadow-md cursor-pointer' : 'border-(--border-color) hover:border-(--text)/20 cursor-pointer'
+                            ]"
+                        >
+                            <div v-if="!openedOrg?.features?.includes('todo')" class="absolute top-3 right-3">
+                                <i class="bi bi-lock-fill text-(--text)/40" title="Non inclus"></i>
                             </div>
-                            <label class="relative inline-flex items-center" :class="{'cursor-not-allowed opacity-50': !openedOrg?.features?.includes('ai'), 'cursor-pointer': openedOrg?.features?.includes('ai')}">
-                                <input type="checkbox" v-model="orgData.aiEnabled" :disabled="!openedOrg?.features?.includes('ai')" class="sr-only peer">
-                                <div class="w-11 h-6 bg-black/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
-                            </label>
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-colors"
+                                    :class="orgData.todoEnabled ? 'bg-(--primary)/10 text-(--primary)' : 'bg-(--bg) text-(--text)/50'">
+                                    <i class="bi bi-list-check"></i>
+                                </div>
+                                <div class="flex-1 pointer-events-none">
+                                    <h4 class="font-bold text-sm text-(--text)">Tâches</h4>
+                                </div>
+                                <label class="relative inline-flex items-center pointer-events-none" :class="{'cursor-not-allowed': !openedOrg?.features?.includes('todo'), 'cursor-pointer': openedOrg?.features?.includes('todo')}">
+                                    <input type="checkbox" v-model="orgData.todoEnabled" :disabled="!openedOrg?.features?.includes('todo')" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-black/20 border border-(--border-color) peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary) peer-checked:border-(--primary)"></div>
+                                </label>
+                            </div>
+                            <p class="text-xs text-(--text)/50 mt-2 pointer-events-none">Gestion des tâches globales et par espace de travail.</p>
+                        </div>
+
+                        <!-- Module Fichiers -->
+                        <div 
+                            @click="toggleModule('files')"
+                            class="bg-(--bg2) border rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden transition-all duration-300"
+                            :class="[
+                                !openedOrg?.features?.includes('files') ? 'border-(--border-color) opacity-60 grayscale cursor-not-allowed' : 
+                                orgData.filesEnabled ? 'border-(--primary) shadow-sm hover:shadow-md cursor-pointer' : 'border-(--border-color) hover:border-(--text)/20 cursor-pointer'
+                            ]"
+                        >
+                            <div v-if="!openedOrg?.features?.includes('files')" class="absolute top-3 right-3">
+                                <i class="bi bi-lock-fill text-(--text)/40" title="Non inclus"></i>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-colors"
+                                    :class="orgData.filesEnabled ? 'bg-(--primary)/10 text-(--primary)' : 'bg-(--bg) text-(--text)/50'">
+                                    <i class="bi bi-file-earmark"></i>
+                                </div>
+                                <div class="flex-1 pointer-events-none">
+                                    <h4 class="font-bold text-sm text-(--text)">Fichiers</h4>
+                                </div>
+                                <label class="relative inline-flex items-center pointer-events-none" :class="{'cursor-not-allowed': !openedOrg?.features?.includes('files'), 'cursor-pointer': openedOrg?.features?.includes('files')}">
+                                    <input type="checkbox" v-model="orgData.filesEnabled" :disabled="!openedOrg?.features?.includes('files')" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-black/20 border border-(--border-color) peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary) peer-checked:border-(--primary)"></div>
+                                </label>
+                            </div>
+                            <p class="text-xs text-(--text)/50 mt-2 pointer-events-none">Système de stockage de fichiers par espace de travail.</p>
+                        </div>
+
+                        <!-- Module AI -->
+                        <div 
+                            @click="toggleModule('ai')"
+                            class="bg-(--bg2) border rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden transition-all duration-300"
+                            :class="[
+                                !openedOrg?.features?.includes('ai') ? 'border-(--border-color) opacity-60 grayscale cursor-not-allowed' : 
+                                orgData.aiEnabled ? 'border-(--primary) shadow-sm hover:shadow-md cursor-pointer' : 'border-(--border-color) hover:border-(--text)/20 cursor-pointer'
+                            ]"
+                        >
+                            <div v-if="!openedOrg?.features?.includes('ai')" class="absolute top-3 right-3">
+                                <i class="bi bi-lock-fill text-(--text)/40" title="Non inclus"></i>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-colors"
+                                    :class="orgData.aiEnabled ? 'bg-(--primary)/10 text-(--primary)' : 'bg-(--bg) text-(--text)/50'">
+                                    <i class="bi bi-robot"></i>
+                                </div>
+                                <div class="flex-1 pointer-events-none">
+                                    <h4 class="font-bold text-sm text-(--text)">Synco AI</h4>
+                                </div>
+                                <label class="relative inline-flex items-center pointer-events-none" :class="{'cursor-not-allowed': !openedOrg?.features?.includes('ai'), 'cursor-pointer': openedOrg?.features?.includes('ai')}">
+                                    <input type="checkbox" v-model="orgData.aiEnabled" :disabled="!openedOrg?.features?.includes('ai')" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-black/20 border border-(--border-color) peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary) peer-checked:border-(--primary)"></div>
+                                </label>
+                            </div>
+                            <p class="text-xs text-(--text)/50 mt-2 pointer-events-none">Assistant IA local (WebGPU) ou Cloud externe.</p>
                         </div>
                     </div>
                 </section>
 
-                <section>
-                    <div class="mb-6">
-                        <h3 class="text-xl font-black text-red-500 mb-1">Zone de Danger</h3>
-                        <p class="text-sm text-(--text)/60">Ces actions sont irréversibles et entraînent la perte de données.</p>
-                    </div>
+                <section class="space-y-6">
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-red-500 mb-4">Zone de Danger</h4>
 
-                    <div class="p-6 rounded-2xl bg-red-500/5 border border-red-500/10 flex flex-col items-start gap-4">
-                        <p class="text-sm text-red-500/60">
-                            La suppression d'une organisation est irréversible. Toutes les données, messages et fichiers seront définitivement effacés.
-                        </p>
-                        <button class="danger flex items-center gap-2 text-sm" @click="showDeleteOrg = !showDeleteOrg">
+                    <div class="p-6 rounded-2xl bg-red-500/5 border border-red-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                        <div>
+                            <h4 class="font-bold text-red-500 text-sm mb-1">Supprimer l'organisation</h4>
+                            <p class="text-xs text-red-500/70">
+                                La suppression est irréversible. Toutes les données, messages et fichiers seront définitivement effacés.
+                            </p>
+                        </div>
+                        <button class="danger flex items-center justify-center gap-2 text-sm px-6 py-2.5 rounded-xl whitespace-nowrap" @click="showDeleteOrg = !showDeleteOrg">
                             <i class="bi bi-trash-fill"></i>
-                            Supprimer l'organisation
+                            Supprimer
                         </button>
                     </div>
                 </section>
@@ -161,17 +201,14 @@
         <Transition name="fade-bottom">
             <footer 
                 v-if="hasChanges" 
-                class="p-4 bg-(--bg2)/80 backdrop-blur-xl border-t border-(--border-color) flex justify-end gap-3"
+                class="p-4 bg-(--bg2)/80 backdrop-blur-xl border-t border-(--border-color) flex justify-end gap-3 z-20"
             >
-
-                <button @click="resetChanges" class="default">
+                <button @click="resetChanges" class="default px-6 py-2.5 rounded-xl text-sm font-medium">
                     Annuler
                 </button>
-                
-                <button @click="saveSettings" class="primary" :class="saving ? 'loader' : ''">
+                <button @click="saveSettings" class="primary px-6 py-2.5 rounded-xl text-sm font-medium" :class="saving ? 'loader' : ''">
                     Enregistrer les modifications
                 </button>
-
             </footer>
         </Transition>
 
@@ -199,6 +236,7 @@ import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { useRouter } from 'vue-router';
+import { getAverageColor } from '@/assets/utils/getAverageColor';
 
 
 const toast = useToast();
@@ -208,6 +246,7 @@ const router = useRouter();
 const showIconSelector = ref<boolean>(false);
 const saving = ref<boolean>(false);
 const showDeleteOrg = ref<boolean>(false);
+const bannerColor = ref<string>('var(--primary)');
     
 const orgData = ref({
     name: openedOrg.value?.name || '',
@@ -216,6 +255,21 @@ const orgData = ref({
     filesEnabled: openedOrg.value?.features?.includes('files') ? (openedOrg.value?.activeModules?.files !== false) : false,
     aiEnabled: openedOrg.value?.features?.includes('ai') ? (openedOrg.value?.activeModules?.ai === true) : false
 });
+
+watch(() => orgData.value.logo, async (newLogo) => {
+    if (newLogo && newLogo.startsWith('data:')) {
+        bannerColor.value = await getAverageColor(newLogo);
+    } else {
+        bannerColor.value = 'var(--primary)';
+    }
+}, { immediate: true });
+
+const toggleModule = (module: 'todo' | 'files' | 'ai') => {
+    if (!openedOrg.value?.features?.includes(module)) return;
+    if (module === 'todo') orgData.value.todoEnabled = !orgData.value.todoEnabled;
+    if (module === 'files') orgData.value.filesEnabled = !orgData.value.filesEnabled;
+    if (module === 'ai') orgData.value.aiEnabled = !orgData.value.aiEnabled;
+};
 
 const hasChanges = computed(() => {
     return (

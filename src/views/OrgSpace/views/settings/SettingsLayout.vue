@@ -17,6 +17,16 @@
                 
             </div>
 
+            <div class="ml-auto flex items-center gap-4 text-(--text)/40">
+                <button 
+                    @click="showUsersBar = !showUsersBar"
+                    class="hover:text-(--text) transition-colors"
+                    :class="showUsersBar ? 'text-(--text)' : ''"
+                >
+                    <i class="bi bi-people-fill" />
+                </button>
+            </div>
+
         </header>
 
         <main class="h-full w-full overflow-auto bg-(--bg3)">
@@ -34,9 +44,12 @@ import { useRoute, useRouter } from 'vue-router';
 import { settingsViews } from './settings';
 import isAdmin from '@/assets/isAdmin';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
+import useSettingsItem from '@/composables/useSettingsItem';
 
 const route = useRoute();
 const router = useRouter();
+
+const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
 
 const setting = computed(() => {
     return settingsViews.find(view => view.route == route.name);
@@ -53,6 +66,5 @@ onMounted(() => {
     }
 
 });
-
 
 </script>
