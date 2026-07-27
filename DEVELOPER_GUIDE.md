@@ -31,9 +31,11 @@ La qualité de l'expérience utilisateur (UX) n'est pas négociable. Une interfa
 - **Animations douces** : Appliquez des transitions sur les couleurs (`transition-colors`) et des animations fluides d'apparition (les modales ou listes déroulantes ne doivent pas "poper" agressivement).
 - **Accessibilité & Focus** : Assurez-vous que l'état `focus` des inputs est bien visible et que la navigation logique est conservée (ex: autofocus sur un input lors de l'ouverture d'une popup).
 
-## 📝 Conventions générales
-- Nommez vos variables et fonctions de manière explicite (en anglais dans le code source).
-- Découpez vos vues complexes en de plus petits sous-composants.
-- Gérez systématiquement les états d'erreurs (catch) des appels API pour informer l'utilisateur via un toast si quelque chose tourne mal.
+## 📝 Conventions générales et Architecture du Code
+- **Typage Strict (TypeScript)** : Tout le code doit être strictement typé. Fuyez l'utilisation de `any`. Déclarez des interfaces ou des types explicites pour vos objets, props et retours d'API.
+- **Séparation des responsabilités (Pas de code spaghetti)** : Évitez les composants Vue surchargés de logique métier (les fameux fichiers de 1000 lignes). Extrayez la logique réutilisable ou complexe dans des **Composables** (`src/composables/`) et les fonctions pures dans des **Utils** (`src/utils/`).
+- **Nommage** : Nommez vos variables et fonctions de manière explicite (en anglais dans le code source).
+- **Découpage des vues** : Découpez vos vues complexes en de plus petits sous-composants dédiés à l'affichage.
+- **Gestion des erreurs** : Gérez systématiquement les états d'erreurs (catch) des appels API pour informer l'utilisateur via un toast si quelque chose tourne mal.
 
 Bon dev et bienvenue à bord ! 🚀
