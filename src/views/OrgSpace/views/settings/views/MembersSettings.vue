@@ -5,53 +5,15 @@
             
             <div class="max-w-5xl mx-auto space-y-12">
                 
-                <div class="mb-6">
-                    <h3 class="text-xl font-black text-(--text) mb-1">Gestion de l'équipe</h3>
+                <div class="mb-8">
+                    <h3 class="text-2xl font-black text-(--text) mb-2">Gestion de l'équipe</h3>
                     <p class="text-sm text-(--text)/60">Gérez les membres, les rôles et les invitations de votre organisation.</p>
                 </div>
 
-                <section class="flex flex-col gap-6">
+                <section class="flex flex-col gap-8">
 
-                    <div class="space-y-4">
-                        <div class="space-y-1.5">
-                            <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">Lien d'invitation</label>
-                            <div class="relative flex gap-2">
-                                <div class="relative flex-1">
-                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
-                                        <i class="bi bi-link-45deg"></i>
-                                    </div>
-                                    <input 
-                                        readonly
-                                        type="text"
-                                        :value="inviteLink || 'Cliquez pour générer un lien'"
-                                        class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner font-mono"
-                                    />
-                                </div>
-                                <div class="relative w-24 hidden sm:block" v-if="inviteLink.length === 0">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-(--text)/40" title="Nombre d'utilisations (0 = infini)">
-                                        <i class="bi bi-people"></i>
-                                    </div>
-                                    <input 
-                                        type="number"
-                                        v-model.number="inviteMaxUses"
-                                        min="0"
-                                        class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-9 pr-3 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner"
-                                        title="Nombre d'utilisations (0 = infini)"
-                                    />
-                                </div>
-                                <button 
-                                    @click="inviteLink.length === 0 ? createInviteLink() : copyInvite()" 
-                                    class="bg-(--primary) hover:bg-(--primary-hover) text-white rounded-xl px-4 py-3 text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap"
-                                >
-                                    <i class="bi" :class="inviteLink.length === 0 ? 'bi-stars' : copied ? 'bi-check-lg' : 'bi-copy'" />
-                                    {{ inviteLink.length === 0 ? 'Générer' : copied ? 'Copié' : 'Copier' }}
-                                </button>
-                            </div>
-                            <p class="text-xs text-(--text)/40">Partagez ce lien unique pour permettre à d'autres de rejoindre l'organisation instantanément.</p>
-                        </div>
-                    </div>
-
-                    <div class="w-full sm:w-64">
+                    <!-- Carte capacité -->
+                    <div class="w-full">
                         <CapacityGauge 
                             :used="openedOrg?.members?.length || 0"
                             :max="openedOrg?.maxUsers || 100"
@@ -61,26 +23,69 @@
                         />
                     </div>
 
+                    <!-- Carte d'invitation -->
+                    <div class="bg-(--bg2) border border-(--border-color) rounded-2xl p-6 shadow-sm flex flex-col gap-4">
+                        <div>
+                            <h4 class="text-sm font-bold text-(--text)">Lien d'invitation</h4>
+                            <p class="text-xs text-(--text)/50 mt-1">Partagez ce lien unique pour permettre à d'autres de rejoindre l'organisation instantanément.</p>
+                        </div>
+
+                        <div class="relative flex flex-col sm:flex-row gap-3 mt-auto pt-2">
+                            <div class="relative flex-1">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
+                                    <i class="bi bi-link-45deg"></i>
+                                </div>
+                                <input 
+                                    readonly
+                                    type="text"
+                                    :value="inviteLink || 'Cliquez pour générer un lien'"
+                                    class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner font-mono"
+                                />
+                            </div>
+                            <div class="flex gap-2">
+                                <div class="relative w-20 hidden sm:block" v-if="inviteLink.length === 0">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-(--text)/40" title="Nombre d'utilisations (0 = infini)">
+                                        <i class="bi bi-people"></i>
+                                    </div>
+                                    <input 
+                                        type="number"
+                                        v-model.number="inviteMaxUses"
+                                        min="0"
+                                        class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-9 pr-3 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner"
+                                        title="Nombre d'utilisations (0 = infini)"
+                                    />
+                                </div>
+                                <button 
+                                    @click="inviteLink.length === 0 ? createInviteLink() : copyInvite()" 
+                                    class="bg-(--primary) hover:bg-(--primary-hover) text-white rounded-xl px-4 py-3 text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm"
+                                >
+                                    <i class="bi" :class="inviteLink.length === 0 ? 'bi-stars' : copied ? 'bi-check-lg' : 'bi-copy'" />
+                                    {{ inviteLink.length === 0 ? 'Générer' : copied ? 'Copié' : 'Copier' }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                 </section>
 
-                <section class="bg-(--bg2) rounded-3xl border border-(--text)/10 overflow-hidden flex flex-col">
+                <section class="bg-(--bg2) rounded-2xl border border-(--border-color) shadow-sm overflow-hidden flex flex-col">
                     
-                    <div class="p-6 border-b border-(--text)/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-(--bg3)/30">
+                    <div class="p-6 border-b border-(--border-color) flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-(--bg3)/20">
 
-                        <h3 class="text-lg font-bold text-(--text) flex items-center gap-2">
+                        <h3 class="text-lg font-bold text-(--text) flex items-center gap-3">
                             Membres 
-                            <span class="bg-(--primary)/10 text-(--primary) py-0.5 px-2 rounded-md text-xs">
+                            <span class="bg-(--primary)/10 text-(--primary) py-1 px-2.5 rounded-lg text-xs">
                                 {{ openedOrg?.members?.length || 0 }}
                             </span>
                         </h3>
 
-                        <div class="relative w-full sm:w-72">
-                            <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text)/40" />
+                        <div class="relative w-full sm:w-80 group">
+                            <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-(--text)/40 group-focus-within:text-(--primary) transition-colors" />
                             <input 
                                 v-model="searchQuery"
                                 type="text" 
                                 placeholder="Rechercher un nom ou un email..."
-                                class="w-full bg-(--bg3) border border-(--text)/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-(--text) focus:outline-none focus:border-(--primary)/40 transition-all placeholder:text-(--text)/30"
+                                class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-11 pr-4 py-2.5 text-sm text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner placeholder:text-(--text)/30"
                             />
                         </div>
 
@@ -91,7 +96,7 @@
                         <table class="w-full text-left border-collapse">
 
                             <thead>
-                                <tr class="text-[10px] uppercase tracking-widest text-(--text)/50 bg-(--bg3)/50 border-b border-(--text)/5">
+                                <tr class="text-[10px] uppercase tracking-widest text-(--text)/50 bg-(--bg3)/30 border-b border-(--border-color)">
                                     <th class="px-6 py-4 font-bold">Utilisateur</th>
                                     <th class="px-6 py-4 font-bold">Rôle</th>
                                     <th class="px-6 py-4 font-bold">Date d'arrivée</th>
@@ -99,18 +104,18 @@
                                 </tr>
                             </thead>
 
-                            <tbody class="divide-y divide-(--text)/5">
+                            <tbody class="divide-y divide-(--border-color)">
                                 <tr 
                                     v-for="member in filteredMembers" 
                                     :key="member.id" 
-                                    class="group hover:bg-(--bg3)/50 transition-colors"
+                                    class="group hover:bg-(--bg)/40 transition-colors"
                                 >
                                     <td class="px-6 py-4">
-                                        <div class="flex items-center gap-3">
+                                        <div class="flex items-center gap-4">
                                             <div class="relative">
                                                 <img 
                                                     :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=062d1f&color=16ac77`" 
-                                                    class="w-10 h-10 rounded-full object-cover bg-(--bg3) border border-(--text)/10" 
+                                                    class="w-10 h-10 rounded-full object-cover bg-(--bg) border border-(--border-color)" 
                                                 />
                                                 <div v-if="isSelf(member.user?.id!)" class="absolute -bottom-1 -right-1 bg-(--primary) w-3.5 h-3.5 rounded-full border-2 border-(--bg2)" title="Vous" />
                                             </div>
@@ -128,7 +133,7 @@
                                             :value="member?.role || 'unknow'"
                                             @change="updateRole(member.id, $event)"
                                             :disabled="isSelf(member.user?.id!) || !isAdmin"
-                                            class="bg-(--bg3) border border-(--text)/10 rounded-lg px-3 py-1.5 text-xs text-(--text) focus:outline-none focus:border-(--primary)/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                            class="bg-(--bg) border border-(--border-color) rounded-lg px-3 py-1.5 text-xs text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
                                         >
                                             <option value="OWNER">Propriétaire</option>
                                             <option value="ADMIN">Administrateur</option>
@@ -145,7 +150,7 @@
                                         <button 
                                             v-if="!isSelf(member.user?.id!) && isAdmin"
                                             @click="confirmKickMember(member.id, member.user?.name || 'ce membre')"
-                                            class="p-2 rounded-lg text-red-400 hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                                            class="p-2 rounded-xl text-(--text)/40 hover:bg-red-500/10 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                                             title="Exclure le membre"
                                         >
                                             <i class="bi bi-person-x text-lg" />
@@ -168,12 +173,12 @@
 
                 </section>
 
-                <section v-if="inviteLinks.length > 0" class="bg-(--bg2) rounded-3xl border border-(--text)/10 overflow-hidden flex flex-col">
+                <section v-if="inviteLinks.length > 0" class="bg-(--bg2) rounded-2xl border border-(--border-color) shadow-sm overflow-hidden flex flex-col">
 
-                    <div class="p-6 border-b border-(--text)/5 flex justify-between items-center bg-(--bg3)/30">
-                        <h3 class="text-lg font-bold text-(--text) flex items-center gap-2">
+                    <div class="p-6 border-b border-(--border-color) flex justify-between items-center bg-(--bg3)/20">
+                        <h3 class="text-lg font-bold text-(--text) flex items-center gap-3">
                             Liens actifs
-                            <span class="bg-(--text)/10 text-(--text) py-0.5 px-2 rounded-md text-xs">
+                            <span class="bg-(--text)/10 text-(--text) py-1 px-2.5 rounded-lg text-xs">
                                 {{ inviteLinks.length }}
                             </span>
                         </h3>
@@ -184,7 +189,7 @@
                         <table class="w-full text-left border-collapse">
 
                             <thead>
-                                <tr class="text-[10px] uppercase tracking-widest text-(--text)/50 bg-(--bg3)/50 border-b border-(--text)/5">
+                                <tr class="text-[10px] uppercase tracking-widest text-(--text)/50 bg-(--bg3)/30 border-b border-(--border-color)">
                                     <th class="px-6 py-4 font-bold">Code</th>
                                     <th class="px-6 py-4 font-bold">Utilisations</th>
                                     <th class="px-6 py-4 font-bold">Expiration</th>
@@ -192,14 +197,14 @@
                                 </tr>
                             </thead>
 
-                            <tbody class="divide-y divide-(--text)/5">
+                            <tbody class="divide-y divide-(--border-color)">
                                 <tr 
                                     v-for="link in inviteLinks" 
                                     :key="link.id" 
-                                    class="group hover:bg-(--bg3)/50 transition-colors"
+                                    class="group hover:bg-(--bg)/40 transition-colors"
                                 >
                                     <td class="px-6 py-4">
-                                        <span class="text-sm font-mono text-(--text) bg-(--bg3) px-2.5 py-1 rounded-md border border-(--text)/10">
+                                        <span class="text-sm font-mono text-(--text) bg-(--bg) px-3 py-1.5 rounded-lg border border-(--border-color)">
                                             {{ link.code.substring(0, 8) }}...
                                         </span>
                                     </td>
@@ -213,17 +218,17 @@
                                         {{ link.expiresAt ? new Date(link.expiresAt).toLocaleDateString('fr-FR') : 'Jamais' }}
                                     </td>
                                     <td class="px-6 py-4 text-right">
-                                        <div class="flex items-center justify-end gap-1">
+                                        <div class="flex items-center justify-end gap-2">
                                             <button 
                                                 @click="copyInviteLink(link.code)"
-                                                class="p-2 rounded-lg text-(--text)/60 hover:text-white hover:bg-(--text)/10 transition-colors"
+                                                class="p-2 rounded-xl text-(--text)/40 hover:text-white hover:bg-(--text)/10 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                                                 title="Copier le lien complet"
                                             >
                                                 <i class="bi bi-clipboard" />
                                             </button>
                                             <button 
                                                 @click="deleteInvite(link.code, 1)"
-                                                class="p-2 rounded-lg text-red-400/60 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                                                class="p-2 rounded-xl text-(--text)/40 hover:text-red-500 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                                                 title="Révoquer le lien"
                                             >
                                                 <i class="bi bi-trash" />

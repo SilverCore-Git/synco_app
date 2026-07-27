@@ -44,5 +44,24 @@ export default defineConfig({
         secure: false,
       }
     }
+  },
+  build: {
+    chunkSizeWarningLimit: 1500, // Augmente la limite pour éviter les faux positifs (utile pour les app IA)
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            // Séparation des grosses bibliothèques dans leurs propres chunks
+            if (id.includes('onnxruntime-web')) return 'vendor-ai';
+            if (id.includes('livekit')) return 'vendor-livekit';
+            if (id.includes('peerjs')) return 'vendor-rtc';
+            if (id.includes('vue') || id.includes('@vue')) return 'vendor-vue';
+            
+            // Tout le reste des bibliothèques externes dans un gros chunk "vendor"
+            return 'vendor';
+          }
+        }
+      }
+    }
   }
 })

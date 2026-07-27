@@ -5,13 +5,14 @@
             
             <div class="max-w-5xl mx-auto space-y-12">
                 
-                <div class="mb-6">
-                    <h3 class="text-xl font-black text-(--text) mb-1">Stockage & Utilisation</h3>
+                <div class="mb-8">
+                    <h3 class="text-2xl font-black text-(--text) mb-2">Stockage & Utilisation</h3>
                     <p class="text-sm text-(--text)/60">Consultez l'espace de stockage consommé par votre organisation et gérez les fichiers.</p>
                 </div>
 
                 <section class="flex flex-col gap-8">
 
+                    <!-- Jauge globale -->
                     <div class="w-full">
                         <CapacityGauge 
                             :used="Number((openedOrg as any)?.stats?.totalStorageUsed || 0)"
@@ -23,41 +24,50 @@
                         />
                     </div>
 
-                    <div class="space-y-4">
-                        <div class="space-y-1.5">
-                            <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">Détails par Espace de travail</label>
-                            <div v-if="openedOrg?.spaces?.length" class="space-y-2 max-h-64 overflow-y-auto pr-2 border border-(--border-color) bg-(--bg2) p-4 rounded-xl shadow-inner">
-                                <div v-for="space in openedOrg?.spaces" :key="space.id" class="flex justify-between items-center text-sm p-3 bg-(--bg3) border border-(--border-color) rounded-lg hover:bg-white/5 transition-colors">
-                                    <span class="flex items-center gap-2 font-medium"><i class="bi bi-folder text-(--primary)"></i> {{ space.name }}</span>
-                                    <span class="font-mono text-(--text)/60 text-xs">{{ formatBytes(Number((space as any).stats?.storageUsed || 0)) }}</span>
+                    <!-- Détails par espace de travail -->
+                    <div class="bg-(--bg2) border border-(--border-color) rounded-2xl p-6 shadow-sm flex flex-col gap-4 max-h-[300px]">
+                        <div>
+                            <h4 class="text-sm font-bold text-(--text)">Détails par Espace de travail</h4>
+                            <p class="text-xs text-(--text)/50 mt-1">Répartition de l'utilisation du stockage.</p>
+                        </div>
+                        <div class="overflow-y-auto pr-2 space-y-2 mt-2 custom-scrollbar">
+                            <div v-if="openedOrg?.spaces?.length" v-for="space in openedOrg?.spaces" :key="space.id" class="flex items-center justify-between p-3 bg-(--bg) border border-(--border-color) rounded-xl group hover:border-(--primary)/50 transition-colors">
+                                <div class="flex items-center gap-3 overflow-hidden">
+                                    <div class="w-8 h-8 rounded-lg bg-(--primary)/10 text-(--primary) flex items-center justify-center shrink-0">
+                                        <i class="bi bi-folder-fill"></i>
+                                    </div>
+                                    <span class="font-medium text-sm truncate group-hover:text-(--primary) transition-colors">{{ space.name }}</span>
                                 </div>
+                                <span class="font-mono text-xs font-bold bg-(--bg3) px-2 py-1 rounded-md border border-(--border-color) shrink-0 whitespace-nowrap">
+                                    {{ formatBytes(Number((space as any).stats?.storageUsed || 0)) }}
+                                </span>
                             </div>
-                            <div v-else class="text-sm text-(--text)/40 italic mt-2 p-4 bg-(--bg2) rounded-xl border border-(--border-color) shadow-inner">
-                                Aucun espace de travail.
+                            <div v-else class="text-sm text-(--text)/40 italic mt-2 p-6 text-center border border-dashed border-(--border-color) rounded-xl bg-(--bg)/50">
+                                Aucun espace de travail n'utilise de stockage.
                             </div>
                         </div>
                     </div>
 
                 </section>
 
-                <section class="bg-(--bg2) rounded-3xl border border-(--text)/10 overflow-hidden flex flex-col">
+                <section class="bg-(--bg2) rounded-2xl border border-(--border-color) shadow-sm overflow-hidden flex flex-col">
                     
-                    <div class="p-6 border-b border-(--text)/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-(--bg3)/30">
+                    <div class="p-6 border-b border-(--border-color) flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-(--bg3)/20">
 
-                        <h3 class="text-lg font-bold text-(--text) flex items-center gap-2">
+                        <h3 class="text-lg font-bold text-(--text) flex items-center gap-3">
                             Fichiers 
-                            <span class="bg-(--primary)/10 text-(--primary) py-0.5 px-2 rounded-md text-xs">
+                            <span class="bg-(--primary)/10 text-(--primary) py-1 px-2.5 rounded-lg text-xs">
                                 {{ filteredFiles.length }}
                             </span>
                         </h3>
 
-                        <div class="relative w-full sm:w-72">
-                            <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text)/40" />
+                        <div class="relative w-full sm:w-80 group">
+                            <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-(--text)/40 group-focus-within:text-(--primary) transition-colors" />
                             <input 
                                 v-model="searchQuery"
                                 type="text" 
                                 placeholder="Rechercher un fichier..."
-                                class="w-full bg-(--bg3) border border-(--text)/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-(--text) focus:outline-none focus:border-(--primary)/40 transition-all placeholder:text-(--text)/30"
+                                class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-11 pr-4 py-2.5 text-sm text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner placeholder:text-(--text)/30"
                             />
                         </div>
 
@@ -68,30 +78,33 @@
                         <table class="w-full text-left border-collapse">
 
                             <thead>
-                                <tr class="text-[10px] uppercase tracking-widest text-(--text)/50 bg-(--bg3)/50 border-b border-(--text)/5">
-                                    <th class="px-6 py-4 font-bold">Nom du fichier</th>
+                                <tr class="text-[10px] uppercase tracking-widest text-(--text)/50 bg-(--bg3)/30 border-b border-(--border-color)">
+                                    <th class="px-6 py-4 font-bold">Fichier</th>
                                     <th class="px-6 py-4 font-bold">Espace de travail</th>
                                     <th class="px-6 py-4 font-bold">Type</th>
                                     <th class="px-6 py-4 font-bold">Taille</th>
-                                    <th class="px-6 py-4 font-bold">Date d'ajout</th>
+                                    <th class="px-6 py-4 font-bold">Ajouté le</th>
                                     <th class="px-6 py-4 font-bold text-right">Actions</th>
                                 </tr>
                             </thead>
 
-                            <tbody class="divide-y divide-(--text)/5">
+                            <tbody class="divide-y divide-(--border-color)">
 
                                 <tr v-if="loadingFiles">
                                     <td colspan="6" class="px-6 py-12 text-center text-(--text)/40">
-                                        <div class="flex items-center justify-center gap-2">
-                                            <div class="w-4 h-4 rounded-full border-2 border-(--text)/20 border-t-(--primary) animate-spin"></div>
-                                            Chargement des fichiers...
+                                        <div class="flex items-center justify-center gap-3">
+                                            <div class="w-5 h-5 rounded-full border-2 border-(--text)/20 border-t-(--primary) animate-spin"></div>
+                                            <span class="text-sm font-medium">Chargement des fichiers...</span>
                                         </div>
                                     </td>
                                 </tr>
 
                                 <tr v-else-if="filteredFiles.length === 0">
-                                    <td colspan="6" class="px-6 py-12 text-center text-(--text)/40 italic text-sm">
-                                        Aucun fichier trouvé.
+                                    <td colspan="6" class="px-6 py-16 text-center text-(--text)/40">
+                                        <div class="flex flex-col items-center justify-center gap-3">
+                                            <i class="bi bi-inboxes text-4xl text-(--text)/20"></i>
+                                            <span class="text-sm font-medium">Aucun fichier trouvé.</span>
+                                        </div>
                                     </td>
                                 </tr>
 
@@ -99,47 +112,43 @@
                                     v-else
                                     v-for="file in filteredFiles" 
                                     :key="file.id"
-                                    class="hover:bg-(--bg3)/50 transition-colors group"
+                                    class="group hover:bg-(--bg)/40 transition-colors"
                                 >
                                     
                                     <td class="px-6 py-4">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-8 h-8 rounded-lg bg-(--bg) flex items-center justify-center text-(--text)/60 border border-(--text)/5">
+                                        <div class="flex items-center gap-3 max-w-xs">
+                                            <div class="w-10 h-10 rounded-xl bg-(--bg) flex items-center justify-center text-lg text-(--primary) border border-(--border-color) shadow-sm shrink-0">
                                                 <i class="bi" :class="getFileIcon(file.mimeType)"></i>
                                             </div>
-                                            <div class="flex flex-col">
-                                                <span class="font-medium text-sm text-(--text) truncate max-w-[200px]" :title="file.originalName">{{ file.originalName }}</span>
-                                                <span class="text-xs text-(--text)/40 font-mono">{{ file.id.substring(0,8) }}</span>
+                                            <div class="flex flex-col overflow-hidden">
+                                                <span class="font-bold text-sm text-(--text) truncate group-hover:text-(--primary) transition-colors" :title="file.originalName">{{ file.originalName }}</span>
+                                                <span class="text-[10px] text-(--text)/40 font-mono mt-0.5">{{ file.id.substring(0,8) }}</span>
                                             </div>
                                         </div>
                                     </td>
 
                                     <td class="px-6 py-4">
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-xs font-medium text-(--text)/70 px-2 py-1 bg-(--bg3) rounded-md border border-(--text)/5">
-                                                {{ getSpaceName(file.workspaceId) }}
-                                            </span>
-                                        </div>
+                                        <span class="text-xs font-medium text-(--text)/70 px-2.5 py-1 bg-(--bg) rounded-md border border-(--border-color)">
+                                            {{ getSpaceName(file.workspaceId) }}
+                                        </span>
                                     </td>
                                     
                                     <td class="px-6 py-4">
-                                        <span class="text-xs text-(--text)/60">{{ file.mimeType.split('/')[1] || file.mimeType }}</span>
+                                        <span class="text-[11px] font-mono font-bold text-(--text)/50 bg-(--bg3) px-2 py-1 rounded border border-(--text)/5 uppercase">{{ (file.mimeType.split('/')[1] || file.mimeType).substring(0, 10) }}</span>
                                     </td>
 
                                     <td class="px-6 py-4">
-                                        <span class="text-xs font-mono text-(--text)/80">{{ formatBytes(Number(file.size)) }}</span>
+                                        <span class="text-xs font-mono font-bold text-(--text)">{{ formatBytes(Number(file.size)) }}</span>
                                     </td>
 
                                     <td class="px-6 py-4">
-                                        <div class="flex flex-col">
-                                            <span class="text-sm text-(--text)/80">{{ formatDate(file.createdAt) }}</span>
-                                        </div>
+                                        <span class="text-xs text-(--text)/60">{{ formatDate(file.createdAt) }}</span>
                                     </td>
 
                                     <td class="px-6 py-4 text-right">
                                         <button 
                                             @click="askDelete(file)"
-                                            class="p-2 rounded-xl text-(--text)/40 hover:text-red-500 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                            class="p-2 rounded-xl text-(--text)/40 hover:text-white hover:bg-red-500 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 shadow-sm"
                                             title="Supprimer ce fichier"
                                         >
                                             <i class="bi bi-trash3" />

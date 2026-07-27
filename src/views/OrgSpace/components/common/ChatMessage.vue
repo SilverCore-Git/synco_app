@@ -54,7 +54,7 @@
                             v-tooltip="btn.tooltip" 
                             class="dropdown-item-annimate dropdown-item-style"
                             :class="btn.class"
-                            @click="btn.func(msg)"
+                            @click="btn.func(msg, $event)"
                         >
                             <i class="bi text-lg" :class="btn.icon" />
                         </button>
@@ -126,6 +126,7 @@
                                 @reaction-updated="(newReactions: any) => msg.reactions = newReactions"
                                 @add-reaction="(payload) => handleAddReaction(payload)"
                                 @reaction-picker-closed="showReactionPicker = false"
+                                :pickerCoords="pickerCoords"
                                 :alignRight="msg.senderId === user?.id"
                             />
 
@@ -216,6 +217,7 @@ import { openProfile } from '@/composables/useProfile';
 
 const toast = useToast();
 const showReactionPicker = ref<boolean>(false);
+const pickerCoords = ref<{ x: number, y: number } | null>(null);
 
 // Format DM reactions to match MessageReactions expected format
 const formatDMReactions = (reactions: DMMessageReaction[] | Record<string, { count: number; users: ReactionUser[] }> | any[] | undefined): Record<string, { count: number; users: ReactionUser[] }> | undefined => {
@@ -256,7 +258,7 @@ const props = defineProps<{
 interface DropdownBtn {
     icon: string,
     tooltip: string,
-    func: (msg: DMMessage) => void,
+    func: (msg: DMMessage, e?: Event) => void,
     class?: string;
     show: (msg: DMMessage) => boolean;
 }
@@ -280,16 +282,19 @@ const dropdownBtns: DropdownBtn[] = [
         func: (msg: DMMessage) => setMessageWillBeResponded(msg),
         show: () => true
     },
-    // {
-    //     icon: "bi-arrow-90deg-right",
-    //     tooltip: "transférer",
-    //     func: (msg: DMMessage) => setMessageWillBeTransfer(msg),
-    //      show: () => true
-    // },
     {
         icon: "bi-emoji-grin-fill",
         tooltip: "réagir",
-        func: () => showReactionPicker.value = !showReactionPicker.value,
+        func: (_msg: DMMessage, e?: Event) => {
+            showReactionPicker.value = !showReactionPicker.value;
+            if (showReactionPicker.value && e) {
+                const target = e.currentTarget as HTMLElement;
+                const rect = target.getBoundingClientRect();
+                pickerCoords.value = { x: rect.right, y: rect.top };
+            } else {
+                pickerCoords.value = null;
+            }
+        },
         show: () => true
     },
     {

@@ -283,8 +283,47 @@
                     </div>
 
                     <div class="space-y-4 max-w-lg">
+                        
                         <div 
-                            @click="messageSounds = !messageSounds"
+                            @click="updateNotificationPrefs('push', !notifPrefs.push)"
+                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all"
+                        >
+                            <div>
+                                <h4 class="font-bold text-(--text)">Notifications Push</h4>
+                                <p class="text-sm text-(--text)/60 mt-0.5">Recevoir des alertes sur cet appareil</p>
+                            </div>
+                            <div 
+                                class="w-12 h-6 rounded-full relative transition-colors duration-300"
+                                :class="notifPrefs.push ? 'bg-(--primary)' : 'bg-white/10'"
+                            >
+                                <div 
+                                    class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
+                                    :class="notifPrefs.push ? 'right-0.5' : 'left-0.5 opacity-50'"
+                                ></div>
+                            </div>
+                        </div>
+
+                        <div 
+                            @click="updateNotificationPrefs('email', !notifPrefs.email)"
+                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all"
+                        >
+                            <div>
+                                <h4 class="font-bold text-(--text)">Notifications par Email</h4>
+                                <p class="text-sm text-(--text)/60 mt-0.5">Recevoir un résumé des messages non lus</p>
+                            </div>
+                            <div 
+                                class="w-12 h-6 rounded-full relative transition-colors duration-300"
+                                :class="notifPrefs.email ? 'bg-(--primary)' : 'bg-white/10'"
+                            >
+                                <div 
+                                    class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
+                                    :class="notifPrefs.email ? 'right-0.5' : 'left-0.5 opacity-50'"
+                                ></div>
+                            </div>
+                        </div>
+
+                        <div 
+                            @click="updateNotificationPrefs('sound', !notifPrefs.sound)"
                             class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all"
                         >
                             <div>
@@ -293,17 +332,17 @@
                             </div>
                             <div 
                                 class="w-12 h-6 rounded-full relative transition-colors duration-300"
-                                :class="messageSounds ? 'bg-(--primary)' : 'bg-white/10'"
+                                :class="notifPrefs.sound ? 'bg-(--primary)' : 'bg-white/10'"
                             >
                                 <div 
                                     class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
-                                    :class="messageSounds ? 'right-0.5' : 'left-0.5 opacity-50'"
+                                    :class="notifPrefs.sound ? 'right-0.5' : 'left-0.5 opacity-50'"
                                 ></div>
                             </div>
                         </div>
 
                         <div 
-                            @click="mentionsOnly = !mentionsOnly"
+                            @click="updateNotificationPrefs('mentionsOnly', !notifPrefs.mentionsOnly)"
                             class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all"
                         >
                             <div>
@@ -312,11 +351,11 @@
                             </div>
                             <div 
                                 class="w-12 h-6 rounded-full relative transition-colors duration-300"
-                                :class="mentionsOnly ? 'bg-(--primary)' : 'bg-white/10'"
+                                :class="notifPrefs.mentionsOnly ? 'bg-(--primary)' : 'bg-white/10'"
                             >
                                 <div 
                                     class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
-                                    :class="mentionsOnly ? 'right-0.5' : 'left-0.5 opacity-50'"
+                                    :class="notifPrefs.mentionsOnly ? 'right-0.5' : 'left-0.5 opacity-50'"
                                 ></div>
                             </div>
                         </div>
@@ -351,8 +390,6 @@ const emit = defineEmits(['close']);
 const toast = useToast();
 
 const { Item: theme } = useSettingsItem('theme', 'dark');
-const { Item: messageSounds } = useSettingsItem('messageSounds', true);
-const { Item: mentionsOnly } = useSettingsItem('mentionsOnly', false);
 
 const activeTab = ref<string>('account');
 const avatarChange = ref<boolean>(false);
@@ -365,6 +402,13 @@ const formData = reactive({
     description: ''
 });
 
+const notifPrefs = reactive({
+    push: true,
+    email: true,
+    sound: true,
+    mentionsOnly: false
+});
+
 // Sync user data to form
 watch(user, (newVal) => {
     if (newVal) {
@@ -372,8 +416,47 @@ watch(user, (newVal) => {
         formData.email = newVal.email || '';
         formData.job = newVal.job || '';
         formData.description = newVal.description || '';
+        
+        if (newVal.notificationPreferences) {
+            let prefs = newVal.notificationPreferences;
+            if (typeof prefs === 'string') {
+                try {
+                    prefs = JSON.parse(prefs);
+                } catch(e) {}
+            }
+            if (typeof prefs === 'object' && prefs !== null) {
+                notifPrefs.push = prefs.push ?? true;
+                notifPrefs.email = prefs.email ?? true;
+                notifPrefs.sound = prefs.sound ?? true;
+                notifPrefs.mentionsOnly = prefs.mentionsOnly ?? false;
+            }
+        }
     }
 }, { immediate: true });
+
+const updateNotificationPrefs = async (key: keyof typeof notifPrefs, value: boolean) => {
+    notifPrefs[key] = value;
+    try {
+        const response = await sfetch('/api/users/me', {
+            method: 'PATCH',
+            body: JSON.stringify({
+                notificationPreferences: notifPrefs
+            })
+        });
+        
+        if (response.ok) {
+            const updatedUser = await response.json();
+            user.value = { ...user.value, ...updatedUser };
+        } else {
+            toast.show('Erreur lors de la sauvegarde', 'error');
+            notifPrefs[key] = !value;
+        }
+    } catch (e) {
+        console.error(e);
+        toast.show('Erreur de connexion', 'error');
+        notifPrefs[key] = !value;
+    }
+};
 
 const isModified = computed(() => {
     return formData.name !== user.value?.name || 
