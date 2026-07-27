@@ -343,7 +343,7 @@
 import { ref, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
 import * as webllm from '@mlc-ai/web-llm';
 import { localLLM, availableModels } from '@/services/LocalLLMService';
-import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages, syncSession, fetchSessions, activeSessionId } from '@/services/AIService';
+import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages, syncSession, fetchSessions, activeSessionId, selectedModelId } from '@/services/AIService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
@@ -414,7 +414,6 @@ interface ChatMessage {
   tool_data?: any;
 }
 
-const selectedModelId = ref<string>('');
 const recommendedModelId = ref<string>('');
 const selectedTask = ref<any>(null);
 const isGenerating = ref(false);
