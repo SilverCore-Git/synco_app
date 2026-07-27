@@ -505,7 +505,7 @@ onBeforeUnmount(async () => {
                 class="h-full " 
                 :class="[
                     isDesktopApp() ? 'rounded-tl-2xl' : '',
-                    isLittleScreen ? 'w-full' : 'w-60 max-w-60 min-w-60'
+                    isLittleScreen ? 'flex-1 min-w-0' : 'w-60 max-w-60 min-w-60'
                 ]" 
             />
 
@@ -520,6 +520,14 @@ onBeforeUnmount(async () => {
                 >
                     <RouterView />
                 </div>
+            </Transition>
+
+            <Transition name="fade">
+                <div 
+                    v-if="showUsersBar && isLittleScreen" 
+                    @click="showUsersBar = false"
+                    class="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
+                ></div>
             </Transition>
 
             <Transition name="slide-in-right-20">
