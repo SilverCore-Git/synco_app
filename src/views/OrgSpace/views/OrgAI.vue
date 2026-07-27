@@ -282,8 +282,8 @@
         <div v-if="!hasStartedInit" class="flex flex-col md:flex-row items-center justify-between gap-4">
           <div class="text-sm">
             <p class="font-bold text-white/80">Téléchargement initial de Synco AI requis</p>
-            <p class="text-white/50 text-xs">Modèle recommandé pour votre matériel : <span
-                class="font-mono text-(--primary)">{{availableModels.find(m => m.id === recommendedModelId)?.name ||
+            <p class="text-white/50 text-xs">Modèle sélectionné : <span
+                class="font-mono text-(--primary)">{{availableModels.find(m => m.id === selectedModelId)?.name ||
                 'Aucun' }}</span></p>
           </div>
           <div class="flex gap-2">
@@ -343,7 +343,7 @@
 import { ref, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
 import * as webllm from '@mlc-ai/web-llm';
 import { localLLM, availableModels } from '@/services/LocalLLMService';
-import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages, syncSession, fetchSessions, activeSessionId } from '@/services/AIService';
+import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages, syncSession, fetchSessions, activeSessionId, selectedModelId } from '@/services/AIService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
@@ -414,7 +414,6 @@ interface ChatMessage {
   tool_data?: any;
 }
 
-const selectedModelId = ref<string>('');
 const recommendedModelId = ref<string>('');
 const selectedTask = ref<any>(null);
 const isGenerating = ref(false);
@@ -496,7 +495,7 @@ const checkCacheStatus = async () => {
 };
 
 watch(selectedModelId, () => {
-  checkCacheStatus();
+  loadModel();
 });
 
 const startInit = async () => {

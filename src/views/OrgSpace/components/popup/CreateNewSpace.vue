@@ -129,7 +129,7 @@ const handleSubmit = async () => {
         <IconSelector v-model="form.logo" @on-base64="(logo: string) => form.logo = logo" />
       </div>
 
-      <div v-else-if="state === 3" class="grid grid-cols-2 gap-6 h-100 animate-in fade-in slide-in-from-right-4">
+      <div v-else-if="state === 3" class="grid grid-cols-1 sm:grid-cols-2 gap-6 h-100 animate-in fade-in slide-in-from-right-4">
       
         <div class="flex flex-col gap-3 overflow-hidden">
           <label class="text-[10px] font-black text-(--text)/40 uppercase tracking-widest">Disponibles</label>
@@ -137,22 +137,22 @@ const handleSubmit = async () => {
             <div v-for="m in availableMembers" :key="m.id" class="flex items-center justify-between p-2 bg-white/5 rounded-lg group">
               <div class="flex items-center gap-2">
                 <img :src="m.user?.avatarUrl" class="w-6 h-6 rounded-full border border-white/10" />
-                <span class="text-xs font-bold text-(--text)/80 truncate w-24">{{ m.user?.name }}</span>
+                <span class="text-xs font-bold text-(--text)/80 truncate w-24 sm:w-auto">{{ m.user?.name }}</span>
               </div>
-              <button @click="form.members.push(m)" class="text-(--primary) text-[10px] font-black opacity-0 group-hover:opacity-100 transition-all">AJOUTER</button>
+              <button @click="form.members.push(m)" class="text-(--primary) text-[10px] font-black opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all">AJOUTER</button>
             </div>
           </div>
         </div>
 
-        <div class="flex flex-col gap-3 overflow-hidden border-l border-(--border-color) pl-4">
+        <div class="flex flex-col gap-3 overflow-hidden border-t sm:border-t-0 sm:border-l border-(--border-color) pt-4 sm:pt-0 sm:pl-4">
           <label class="text-[10px] font-black text-(--text)/40 uppercase tracking-widest">Membres séléctionnés ({{ form.members.length }})</label>
           <div class="flex-1 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
             <div v-for="m in form.members" :key="m.id" class="flex items-center justify-between p-2 bg-(--primary)/10 border border-(--primary)/20 rounded-lg group">
               <div class="flex items-center gap-2">
                 <img :src="m.user?.avatarUrl" class="w-6 h-6 rounded-full" />
-                <span class="text-xs font-bold text-(--text) truncate w-24">{{ m.user?.name }}</span>
+                <span class="text-xs font-bold text-(--text) truncate w-24 sm:w-auto">{{ m.user?.name }}</span>
               </div>
-              <button v-if="m.user?.id !== currentUserId" @click="removeMember(m)" class="text-red-400 text-[10px] font-black opacity-0 group-hover:opacity-100 transition-all">RETIRER</button>
+              <button v-if="m.user?.id !== currentUserId" @click="removeMember(m)" class="text-red-400 text-[10px] font-black opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all">RETIRER</button>
             </div>
           </div>
         </div>

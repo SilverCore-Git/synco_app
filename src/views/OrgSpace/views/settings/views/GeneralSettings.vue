@@ -2,7 +2,7 @@
 
     <div class="flex flex-col h-full w-full overflow-hidden bg-(--bg3) text-(--text)">
         
-        <main class="flex-1 overflow-y-auto p-6 lg:p-10">
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10">
 
             <div class="max-w-5xl mx-auto space-y-12">
 
@@ -14,32 +14,29 @@
                 <section class="space-y-6">
                     <h4 class="text-xs font-bold uppercase tracking-widest text-(--text)/50 mb-4">Informations</h4>
                     
-                    <div class="w-full relative rounded-2xl bg-(--bg2) border border-(--border-color) shadow-sm hover:shadow-md transition-all">
-                        <div class="h-[140px] w-full relative z-0 transition-colors duration-500 rounded-t-2xl" :style="{ backgroundColor: bannerColor }"></div>
+                    <div class="w-full relative rounded-2xl bg-(--bg2) border border-(--border-color) shadow-sm hover:shadow-md transition-all p-6 sm:p-8">
                         
-                        <div class="px-8 relative flex justify-between items-end pb-8">
-                            <div class="absolute -top-14 left-8 p-1.5 bg-(--bg2) rounded-2xl z-10 shadow-lg">
-                                <div class="relative w-[110px] h-[110px] rounded-2xl overflow-hidden bg-(--bg) cursor-pointer group" @click="showIconSelector = !showIconSelector">
+                        <div class="relative flex flex-col sm:flex-row justify-between sm:items-center gap-6">
+                            <div class="p-1.5 bg-(--bg) border border-(--border-color) rounded-2xl shadow-sm shrink-0 w-fit">
+                                <div class="relative w-[80px] h-[80px] sm:w-[110px] sm:h-[110px] rounded-2xl overflow-hidden bg-(--bg3) cursor-pointer group" @click="showIconSelector = !showIconSelector">
                                     <img 
                                         v-if="orgData.logo && orgData.logo.startsWith('data:')" 
                                         :src="orgData.logo" 
                                         class="w-full h-full object-cover" 
                                     />
-                                    <div v-else class="w-full h-full bg-(--bg) flex items-center justify-center">
-                                        <span class="text-4xl font-black text-(--primary)">{{ orgData.name ? orgData.name.substring(0, 2).toUpperCase() : '...' }}</span>
+                                    <div v-else class="w-full h-full bg-(--bg3) flex items-center justify-center">
+                                        <span class="text-3xl sm:text-4xl font-black text-(--primary)">{{ orgData.name ? orgData.name.substring(0, 2).toUpperCase() : '...' }}</span>
                                     </div>
                                     <div class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
-                                        <i class="bi bi-camera text-2xl text-white"></i>
+                                        <i class="bi bi-camera text-xl sm:text-2xl text-white"></i>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="w-[120px]"></div>
-
                             <button 
                                 type="button"
                                 @click="showIconSelector = !showIconSelector" 
-                                class="mt-4 bg-(--bg3) hover:bg-(--bg) border border-(--border-color) text-(--text) flex items-center gap-2 text-sm px-4 py-2 rounded-xl transition-colors font-medium shadow-sm"
+                                class="bg-(--bg3) hover:bg-(--bg) border border-(--border-color) text-(--text) flex items-center justify-center gap-2 text-sm px-4 py-2 rounded-xl transition-colors font-medium shadow-sm w-full sm:w-auto"
                             >
                                 <i class="bi bi-camera-fill text-(--text)/60"></i>
                                 Modifier le logo
