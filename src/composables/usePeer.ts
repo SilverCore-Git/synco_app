@@ -3,7 +3,7 @@ import { Peer, type MediaConnection } from 'peerjs';
 import type { User } from '@/types/types';
 import { openedOrg } from '@/assets/var';
 import useNotifications from './useNotifications';
-import keycloak from '@/assets/keycloak';
+import { keycloak } from '@/assets/keycloak';
 
 const peer = ref<Peer | null>(null);
 const localStream = ref<MediaStream | null>(null);

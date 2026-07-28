@@ -1,15 +1,17 @@
 <script setup lang="ts">
 
 import Loader from './components/LogoLoader.vue';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+//import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import init, { refetchUser } from './assets/init';
 import { isLoaded, user } from './assets/var';
 import type { User } from '@/types/types';
 import Notifications from './components/overlay/Notifications.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
 import useSettingsItem from './composables/useSettingsItem';
-import keycloak, { initKC } from './assets/keycloak';
-import { E2EEUnloked, lockSecurity, setupFirstTimeSecurity, unlockSecurity } from './assets/utils/crypto';
+import { initKC } from './assets/keycloak';
+//import { E2EEUnloked, lockSecurity, setupFirstTimeSecurity, unlockSecurity } from './assets/utils/crypto';
+import { E2EEUnloked, setupFirstTimeSecurity, unlockSecurity } from './assets/utils/crypto';
 import sfetch from './assets/utils/sfetch';
 import { useToast } from './composables/useToast';
 import TopBar from './components/layout/topBar.vue';
@@ -18,6 +20,9 @@ import CallOverlay from './components/peer/CallOverlay.vue';
 import waitFor from './assets/utils/waitfor';
 import Popup from './components/Popup.vue';
 import { isProfileOpen, profileUser, closeProfile } from './composables/useProfile';
+//import { Capacitor } from '@capacitor/core';
+//import { App as CapApp, type URLOpenListenerEvent } from '@capacitor/app';
+//import { Browser } from '@capacitor/browser';
 
 const toast = useToast();
 const { Item: theme } = useSettingsItem('theme', 'dark');
@@ -42,16 +47,15 @@ watch(() => theme.value, () => {
 })
 
 const authenticated = ref<boolean>(false);
-const pinSetup = computed(() => 
-  user.value?.pinSalt?.trim() && 
-  user.value?.keyIv?.trim() && 
+const pinSetup = computed(() =>
+  user.value?.pinSalt?.trim() &&
+  user.value?.keyIv?.trim() &&
   user.value?.encryptedPrivateKey?.trim()
 );
 const isResettingPIN = ref<boolean>(false);
 
 const press = (num: string) => {
-  if (pin.value.length < 4) 
-  {
+  if (pin.value.length < 4) {
     pin.value += num;
     if (window.navigator.vibrate) window.navigator.vibrate(10);
     
@@ -70,12 +74,12 @@ const submit = async () => {
     if (isResettingPIN.value) {
       // Mode réinitialisation : créer de nouvelles clés
       const E2EEThings = await setupFirstTimeSecurity(pin.value);
-      
+
       const res = await sfetch('/api/users/me/resetE2EE', {
         method: 'POST',
         body: JSON.stringify(E2EEThings)
       });
-      
+
       if (res.ok) {
         await refetchUser();
         isResettingPIN.value = false;
@@ -91,40 +95,35 @@ const submit = async () => {
       return;
     }
 
-    if (pinSetup.value) 
-    {
+    if (pinSetup.value) {
 
       console.log('Connection...');
 
       if (!user.value?.pinSalt || !user.value?.encryptedPrivateKey || !user.value?.keyIv) return;
-      
+
       const success = await unlockSecurity(pin.value, user.value.pinSalt, user.value.encryptedPrivateKey, user.value.keyIv);
-      
-      if (!success)
-      {
+
+      if (!success) {
         toast.show('Code PIN incorrect', 'error');
         console.log('Code PIN incorrect');
         pin.value = '';
       }
 
-    } 
-    else 
-    {
+    }
+    else {
 
       const E2EEThings = await setupFirstTimeSecurity(pin.value);
 
       const res = await sfetch('/api/users/me/initE2EE', {
         method: 'POST',
-        body: JSON.stringify(E2EEThings)      
+        body: JSON.stringify(E2EEThings)
       });
 
-      if (res.ok)
-      {
+      if (res.ok) {
         await refetchUser();
         pinLoading.value = false;
       }
-      else
-      {
+      else {
         toast.show('Une erreur est survenue lors de l\'initialisation du code pin.', 'error');
       }
 
@@ -157,36 +156,19 @@ const handleInput = (e: KeyboardEvent) => {
   else if (e.key === 'Enter' && pin.value.length >= 4) submit();
   else if (e.key === 'Backspace') pin.value = pin.value.slice(0, -1);
 }
-
 onMounted(async () => {
-
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/health`, {
-    credentials: 'include'
-  });
-
+  const res = await fetch(`${import.meta.env.VITE_API_URL}/health`, { credentials: 'include' });
   if (!res.ok) return alert('Api error');
 
-  authenticated.value = await keycloak.init({
-      onLoad: "login-required",
-      checkLoginIframe: false
-  });
-
-  await initKC();
+  authenticated.value = await initKC();
 
   if (authenticated.value) {
-      await init.run();
-      // Initialize P2P peer connection after user is loaded
-      await waitFor(() => user.value !== null);
-      await initPeer();
+    await init.run();
+    await waitFor(() => user.value !== null);
+    await initPeer();
   }
 
   window.addEventListener('keydown', handleInput);
-
-})
-
-onUnmounted(() => {
-  lockSecurity(); 
-  window.removeEventListener('keydown', handleInput);
 });
 
 </script>
@@ -207,23 +189,15 @@ onUnmounted(() => {
 
       <Notifications />
       <CallOverlay />
-      <UserProfile 
-        :isOpen="isProfileOpen" 
-        :profileUser="profileUser" 
-        @close="closeProfile"
-        @send-message="handleSendMessageFromProfile"
-      />
-      
+      <UserProfile :isOpen="isProfileOpen" :profileUser="profileUser" @close="closeProfile"
+        @send-message="handleSendMessageFromProfile" />
+
       <Transition name="page-lock" mode="out-in">
 
-        <div
-          v-if="E2EEUnloked && !pinLoading"
-          class="w-full h-full"
-          key="app"
-        >
+        <div v-if="E2EEUnloked && !pinLoading" class="w-full h-full" key="app">
 
           <div v-if="isLoaded" class="w-full h-full">
-              <RouterView />
+            <RouterView />
           </div>
 
           <div v-else class="w-full h-full">
@@ -234,41 +208,37 @@ onUnmounted(() => {
 
         <div class="w-full h-full" key="lock" v-else>
 
-          <div v-if="pinLoading" class="w-full h-full flex flex-col items-center justify-center bg-(--bg3) p-6 select-none" >
+          <div v-if="pinLoading"
+            class="w-full h-full flex flex-col items-center justify-center bg-(--bg3) p-6 select-none">
             <Loader />
           </div>
-        
+
           <div v-else class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none">
-            
+
             <div class="mb-8 text-center max-w-lg">
 
-                <div class="flex flex-col items-center gap-4 mb-3">
+              <div class="flex flex-col items-center gap-4 mb-3">
 
-                  <img 
-                    src="/banner.svg" 
-                    alt="Logo" 
-                    class=" h-16" 
-                  />
+                <img src="/banner.svg" alt="Logo" class=" h-16" />
 
-                </div>
+              </div>
 
-                <h2 class="text-xl font-bold text-(--text)">
-                  {{ isResettingPIN ? 'Définissez un nouveau code PIN' : pinSetup ? 'Déverrouillez votre session' : 'Configurez votre accès sécurisé' }}
-                </h2>
+              <h2 class="text-xl font-bold text-(--text)">
+                {{ isResettingPIN ? 'Définissez un nouveau code PIN' : pinSetup ? 'Déverrouillez votre session' :
+                  'Configurez votre accès sécurisé' }}
+              </h2>
 
-                <p v-if="!pinSetup || isResettingPIN" class="text-sm text-(--text)/50 mt-2 leading-relaxed">
-                  Ce code PIN est la clé de vos conversations. <br/>
-                  <span class="text-amber-500/80 font-medium">S'il est perdu, elles resteront illisibles.</span>
-                </p>
-                <p v-if="isResettingPIN" class="text-sm text-amber-500/80 mt-2 font-medium">
-                  Attention : vos anciens messages deviendront indéchiffrables.
-                </p>
+              <p v-if="!pinSetup || isResettingPIN" class="text-sm text-(--text)/50 mt-2 leading-relaxed">
+                Ce code PIN est la clé de vos conversations. <br />
+                <span class="text-amber-500/80 font-medium">S'il est perdu, elles resteront illisibles.</span>
+              </p>
+              <p v-if="isResettingPIN" class="text-sm text-amber-500/80 mt-2 font-medium">
+                Attention : vos anciens messages deviendront indéchiffrables.
+              </p>
 
             </div>
 
-            <div 
-              class="flex gap-4 mb-10 transition-transform duration-300"
-            >
+            <div class="flex gap-4 mb-10 transition-transform duration-300">
 
                 <div 
                     v-for="i in 4" :key="i"
@@ -289,44 +259,34 @@ onUnmounted(() => {
 
             <div class="grid grid-cols-3 gap-4 max-w-xs w-full">
 
-                <button 
-                    v-for="num in [1,2,3,4,5,6,7,8,9]" :key="num"
-                    @click="press(num.toString())"
-                    class="h-16 default-primary border-none"
-                >
-                    {{ num }}
-                </button>
-                
-                <button @click="pin = ''" class="default">
-                    EFFACER
-                </button>
-                
-                <button @click="press('0')" class="h-16 default-primary border-none">
-                    0
-                </button>
-                
-                <button 
-                  @click="submit" 
-                  class="primary"
-                  :disabled="pin.length < 4"
-                >
-                    <span class="font-bold tracking-widest text-lg">OK</span>
-                </button>
+              <button v-for="num in [1, 2, 3, 4, 5, 6, 7, 8, 9]" :key="num" @click="press(num.toString())"
+                class="h-16 default-primary border-none">
+                {{ num }}
+              </button>
+
+              <button @click="pin = ''" class="default">
+                EFFACER
+              </button>
+
+              <button @click="press('0')" class="h-16 default-primary border-none">
+                0
+              </button>
+
+              <button @click="submit" class="primary" :disabled="pin.length < 4">
+                <span class="font-bold tracking-widest text-lg">OK</span>
+              </button>
 
             </div>
 
-            <button 
-              v-if="pinSetup && !isResettingPIN" 
-              @click="pinForgot"
-              class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text)/30 hover:text-(--primary) transition-colors"
-            >
-                Code PIN oublié ?
+            <button v-if="pinSetup && !isResettingPIN" @click="pinForgot"
+              class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text)/30 hover:text-(--primary) transition-colors">
+              Code PIN oublié ?
             </button>
 
             <Popup :isOpen="showResetConfirm" @close="showResetConfirm = false">
               <template #title>Réinitialiser le code PIN</template>
               <p class="text-(--text)/80 text-sm">
-                Cela réinitialisera votre clé de chiffrement. 
+                Cela réinitialisera votre clé de chiffrement.
                 <span class="text-amber-500 font-medium">Tous vos anciens messages deviendront illisibles.</span>
               </p>
               <p class="text-(--text)/60 text-xs mt-4">
@@ -337,7 +297,7 @@ onUnmounted(() => {
                 <button @click="resetPIN" class="danger">Réinitialiser</button>
               </template>
             </Popup>
-            
+
           </div>
 
         </div>

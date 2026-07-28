@@ -12,7 +12,7 @@ import useSecurePeer from '@/composables/useSecurePeer';
 import type { Category, DMMessage, Message, OrgMember } from '@/types/types';
 import { useRoute } from 'vue-router';
 import useSettingsItem from '@/composables/useSettingsItem';
-import keycloak from '@/assets/keycloak';
+import { keycloak } from '@/assets/keycloak';
 import useNotifications from '@/composables/useNotifications';
 import { isMeeting } from '@/composables/usePrivatMeet';
 
