@@ -58,21 +58,23 @@
 
                 <template #item="{ element: thread }">
 
-                    <ThreadBtn 
-                        v-if="thread.type === 'text'"
-                        :thread="thread"
-                        :active="route.params.threadId == thread.id"
-                        :hasUnread="thread.hasUnread"
-                        :key="'thread-text-' + thread.id"
-                        @click="navigateToThread(thread.id)"
-                    />
+                    <div class="cursor-grab active:cursor-grabbing w-full">
+                        <ThreadBtn 
+                            v-if="thread.type === 'text'"
+                            :thread="thread"
+                            :active="route.params.threadId == thread.id"
+                            :hasUnread="thread.hasUnread"
+                            :key="'thread-text-' + thread.id"
+                            @click="navigateToThread(thread.id)"
+                        />
 
-                    <VoiceThreadBtn 
-                        v-else-if="thread.type === 'vocal'"
-                        :thread="thread"
-                        :active="route.params.threadId == thread.id"
-                        :key="'thread-vocal-' + thread.id"
-                    />
+                        <VoiceThreadBtn 
+                            v-else-if="thread.type === 'vocal'"
+                            :thread="thread"
+                            :active="route.params.threadId == thread.id"
+                            :key="'thread-vocal-' + thread.id"
+                        />
+                    </div>
 
                 </template>
 
