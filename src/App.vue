@@ -192,7 +192,7 @@ onUnmounted(() => {
   <Notifications />
 
   <div
-    class="w-screen h-screen relative flex flex-col"
+    class="w-screen h-[100dvh] relative flex flex-col overflow-hidden"
   >
 
     <div class="w-full">
