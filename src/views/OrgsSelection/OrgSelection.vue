@@ -9,6 +9,8 @@ import Popup from '@/components/Popup.vue';
 import IconSelector from '@/components/common/IconSelector.vue';
 import { useToast } from '@/composables/useToast';
 import keycloak from '@/assets/keycloak';
+import DropDown from '@/components/DropDown.vue';
+import UserSettings from '@/components/windows/UserSettings.vue';
 
 const toast = useToast();
 
@@ -23,6 +25,25 @@ const newOrgForm = reactive({
 
 const searchQuery = ref('');
 const isSuperAdmin = ref(false);
+
+const showUserSettings = ref(false);
+const showDeleteAccount = ref(false);
+const deleteAccountLoading = ref(false);
+
+const handleDeleteAccount = async () => {
+    deleteAccountLoading.value = true;
+    try {
+        await sfetch('/api/users/me', { method: 'DELETE' });
+        // S'il n'y a pas de route DELETE, on peut aussi rediriger vers le management Keycloak
+        keycloak.accountManagement();
+    } catch(e) {
+        toast.show("Erreur lors de la suppression ou action déléguée au fournisseur d'identité.", "error");
+        keycloak.accountManagement();
+    } finally {
+        deleteAccountLoading.value = false;
+        showDeleteAccount.value = false;
+    }
+}
 
 const filteredOrganizations = computed(() => {
     if (!searchQuery.value.trim()) return organizations.value;
@@ -77,17 +98,54 @@ onMounted(async () => {
 
 <template>
 
-    <div class="min-h-screen bg-(--bg2) flex flex-col items-center p-6 md:p-12 font-sans overflow-x-hidden relative">
+    <div class="h-full bg-(--bg2) flex flex-col items-center p-6 md:p-12 font-sans overflow-x-hidden overflow-y-auto relative">
         
-        <!-- Déconnexion & Admin -->
         <div class="absolute top-6 right-6 md:top-8 md:right-8 z-10 flex items-center gap-3">
-            <router-link v-if="isSuperAdmin" to="/root" class="px-4 py-2 bg-white/5 hover:bg-(--primary)/20 text-(--text)/60 hover:text-(--primary) rounded-xl transition-all flex items-center gap-2 text-sm font-bold border border-white/5 shadow-sm">
-                Panel admin
-            </router-link>
 
-            <button @click="keycloak.logout()" class="px-4 py-2 bg-white/5 hover:bg-red-500/10 text-(--text)/60 hover:text-red-500 rounded-xl transition-all flex items-center gap-2 text-sm font-bold border border-white/5 hover:border-red-500/20 shadow-sm">
-                <i class="bi bi-box-arrow-right"></i> Déconnexion
-            </button>
+            <DropDown align="right" content-iner-t-w="w-64">
+                <template #trigger>
+                    <button class="w-10 h-10 rounded-full overflow-hidden border-2 border-white/10 hover:border-(--primary)/50 transition-all shadow-sm focus:outline-none">
+                        <img 
+                            :src="me?.avatarUrl || `https://ui-avatars.com/api/?name=${me?.name || 'User'}&background=128a60&color=fff`" 
+                            alt="Profile" 
+                            class="w-full h-full object-cover"
+                        />
+                    </button>
+                </template>
+                <template #content>
+                    <div class="p-3 border-b border-white/5 bg-(--bg2) rounded-t-xl">
+                        <p class="text-sm font-bold text-(--text) truncate">{{ me?.name || 'Utilisateur' }}</p>
+                        <p class="text-xs text-(--text)/50 truncate">{{ me?.email || '' }}</p>
+                    </div>
+                    <div class="p-1">
+                        <button @click="showUserSettings = true" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--text)/80 hover:text-(--text) hover:bg-white/5 rounded-lg transition-colors">
+                            <i class="bi bi-person-fill"></i> Mon Profil
+                        </button>
+                    </div>
+                    
+                    <template v-if="isSuperAdmin">
+                        <div class="h-px bg-white/5 my-1" />
+                        <div class="p-1">
+                            <router-link to="/root" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--primary) hover:bg-(--primary)/20 rounded-lg transition-colors font-bold">
+                                <i class="bi bi-shield-lock-fill"></i> Panel admin
+                            </router-link>
+                        </div>
+                    </template>
+
+                    <div class="h-px bg-white/5 my-1" />
+                    <div class="p-1">
+                        <button @click="showDeleteAccount = true" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors">
+                            <i class="bi bi-trash-fill"></i> Supprimer mon compte
+                        </button>
+                    </div>
+                    <div class="h-px bg-white/5 my-1" />
+                    <div class="p-1">
+                        <button @click="keycloak.logout()" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-500 font-bold hover:bg-red-500 hover:text-white rounded-lg transition-colors">
+                            <i class="bi bi-box-arrow-right"></i> Déconnexion
+                        </button>
+                    </div>
+                </template>
+            </DropDown>
         </div>
 
         <header class="text-center mt-10 mb-12 space-y-4 w-full max-w-4xl relative z-0">
@@ -199,6 +257,30 @@ onMounted(async () => {
 
         </template>
 
+    </Popup>
+
+    <UserSettings :is-open="showUserSettings" @close="showUserSettings = false" />
+
+    <Popup :isOpen="showDeleteAccount" @close="showDeleteAccount = false">
+        <template #title>
+            <div class="flex items-center gap-2 text-red-500">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                Supprimer le compte
+            </div>
+        </template>
+        <div class="space-y-4">
+            <p class="text-sm text-(--text)/80 leading-relaxed">
+                Êtes-vous sûr de vouloir supprimer définitivement votre compte ? 
+                Cette action est irréversible et supprimera toutes vos données personnelles.
+            </p>
+        </div>
+        <template #footer>
+            <button @click="showDeleteAccount = false" class="default" :disabled="deleteAccountLoading">Annuler</button>
+            <button @click="handleDeleteAccount" class="danger flex items-center gap-2" :disabled="deleteAccountLoading">
+                <i v-if="deleteAccountLoading" class="bi bi-arrow-repeat animate-spin"></i>
+                Confirmer la suppression
+            </button>
+        </template>
     </Popup>
 
 </template>
