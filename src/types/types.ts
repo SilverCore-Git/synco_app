@@ -31,6 +31,8 @@ export interface Thread {
   ownerId: string;
   membersId: string[];
   type: ThreadType;
+  isReadOnly: boolean;
+  writersId: string[];
   messages?: Message[];
   hasUnread: boolean;
 }

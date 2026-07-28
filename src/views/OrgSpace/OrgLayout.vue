@@ -306,10 +306,20 @@ const initSocketListener = async () => {
         
         if (orgId !== props.orgId) return;
 
-        const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
-        if (!space) return;
+        let targetCategory;
+        let threadsArray;
 
-        const targetCategory = space.categories.find(cat => cat.id === category.id);
+        if (spaceId) {
+            const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
+            if (!space) return;
+            targetCategory = space.categories.find(cat => cat.id === category.id);
+            threadsArray = space.threads;
+        } else {
+            const home = openedOrg.value?.home;
+            if (!home) return;
+            targetCategory = home.categories.find(cat => cat.id === category.id);
+            threadsArray = home.threads;
+        }
 
         if (targetCategory) 
         {
@@ -318,27 +328,27 @@ const initSocketListener = async () => {
             
             if (category.threads) 
             {
-
                 category.threads.forEach(updatedThread => {
 
-                    const tIndex = space.threads.findIndex(t => t.id === updatedThread.id);
+                    const tIndex = threadsArray.findIndex((t: any) => t.id === updatedThread.id);
                     if (tIndex !== -1) 
                     {
-                        space.threads[tIndex] = updatedThread;
+                        threadsArray[tIndex] = updatedThread;
                     }
 
-                    import('@/services/LocalSearchVectorDB').then(({ localSearchDB }) => {
-                        localSearchDB.insertDocument({
-                            id: updatedThread.id,
-                            workspaceId: spaceId,
-                            type: 'THREAD',
-                            textContent: updatedThread.name,
-                            vector: Array(384).fill(0)
+                    if (spaceId) {
+                        import('@/services/LocalSearchVectorDB').then(({ localSearchDB }) => {
+                            localSearchDB.insertDocument({
+                                id: updatedThread.id,
+                                workspaceId: spaceId,
+                                type: 'THREAD',
+                                textContent: updatedThread.name,
+                                vector: Array(384).fill(0)
+                            });
                         });
-                    });
+                    }
 
                 });
-
             }
         }
 
@@ -468,7 +478,12 @@ function handleTabletChange(e: any)
 
 onMounted(async () => {
 
-    openedOrg.value = await sfetch(`/api/orgs/${props.orgId}`).then(res => res.json()); 
+    const res = await sfetch(`/api/orgs/${props.orgId}`);
+    if (!res.ok) {
+        window.location.href = '/';
+        return;
+    }
+    openedOrg.value = await res.json(); 
     await Promise.all([
             initSocketListener(),
             initPeer()

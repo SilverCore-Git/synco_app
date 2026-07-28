@@ -209,6 +209,7 @@
         </transition>
 
         <div 
+            v-if="canSpeak"
             class="relative flex flex-col w-full"
             @dragover.prevent="isDragging = true"
             @dragleave.prevent="isDragging = false"
@@ -319,6 +320,13 @@
 
     </footer>
 
+    <div v-else-if="thread && !canSpeak" class="absolute bottom-0 inset-x-0 p-4 bg-transparent mt-auto pointer-events-none">
+        <div class="bg-(--bg)/80 backdrop-blur-3xl border border-white/10 rounded-xl px-4 py-3 flex items-center justify-center gap-3 shadow-2xl">
+            <i class="bi bi-megaphone-fill text-(--primary) text-lg" />
+            <span class="text-(--text)/70 text-sm font-medium">Seuls certains membres peuvent envoyer des messages dans ce salon.</span>
+        </div>
+    </div>
+
 </template>
 
 <script lang="ts" setup>
@@ -425,6 +433,28 @@ const handleWorkerMessage = async (e: MessageEvent) => {
 
 
 
+
+const canSpeak = computed(() => {
+    if (!thread.value) return false;
+    if (!thread.value.isReadOnly) return true;
+    
+    const userId = user.value?.id;
+    if (!userId) return false;
+
+    // 1. Thread owner
+    if (thread.value.ownerId === userId) return true;
+    
+    // 2. WritersId
+    if (thread.value.writersId && thread.value.writersId.includes(userId)) return true;
+    
+    // 3. Org/Space Admin or Owner
+    const currentMember = openedOrg.value?.members?.find(m => m.userId === userId);
+    if (currentMember && ['ADMIN', 'OWNER'].includes(currentMember.role || '')) return true;
+
+    if (openedOrg.value?.ownerId === userId) return true;
+
+    return false;
+});
 
 // file / pj
 const triggerFileSearch = () => fileInputRef.value?.click();

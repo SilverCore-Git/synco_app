@@ -50,29 +50,32 @@
             <draggable
                 v-model="localThreads" 
                 item-key="id"
-                @end="handleDragEnd"
+                group="threads"
+                @change="onChange"
                 ghost-class="opacity-50"
                 drag-class="cursor-grabbing"
-                class="space-y-0.5"
+                class="space-y-0.5 min-h-[10px]"
             >
 
                 <template #item="{ element: thread }">
 
-                    <ThreadBtn 
-                        v-if="thread.type === 'text'"
-                        :thread="thread"
-                        :active="route.params.threadId == thread.id"
-                        :hasUnread="thread.hasUnread"
-                        :key="'thread-text-' + thread.id"
-                        @click="navigateToThread(thread.id)"
-                    />
+                    <div class="cursor-grab active:cursor-grabbing w-full">
+                        <ThreadBtn 
+                            v-if="thread.type === 'text'"
+                            :thread="thread"
+                            :active="route.params.threadId == thread.id"
+                            :hasUnread="thread.hasUnread"
+                            :key="'thread-text-' + thread.id"
+                            @click="navigateToThread(thread.id)"
+                        />
 
-                    <VoiceThreadBtn 
-                        v-else-if="thread.type === 'vocal'"
-                        :thread="thread"
-                        :active="route.params.threadId == thread.id"
-                        :key="'thread-vocal-' + thread.id"
-                    />
+                        <VoiceThreadBtn 
+                            v-else-if="thread.type === 'vocal'"
+                            :thread="thread"
+                            :active="route.params.threadId == thread.id"
+                            :key="'thread-vocal-' + thread.id"
+                        />
+                    </div>
 
                 </template>
 
@@ -118,7 +121,7 @@ watch(() => props.threads, (newVal) => {
 }, { deep: true });
 
 
-const handleDragEnd = async () => {
+const onChange = async () => {
 
     const socket = await useWSocket();
 
@@ -129,6 +132,7 @@ const handleDragEnd = async () => {
             ...props.category,
             threads: localThreads.value.map((thread, index) => ({
                 ...thread,
+                categoryId: props.category.id,
                 index
             }))
         }
