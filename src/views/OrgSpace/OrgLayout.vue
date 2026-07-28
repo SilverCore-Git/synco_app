@@ -494,7 +494,7 @@ onBeforeUnmount(async () => {
         <div
             class="
                 h-full w-full flex flex-row 
-                relative bg-(--bg)
+                relative bg-(--bg) overflow-hidden
             "
             :style="{ viewTransitionName: `openOrg-${orgOnOpen?.id}` }"
         >
