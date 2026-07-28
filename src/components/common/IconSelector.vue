@@ -13,7 +13,7 @@
         <button @click.stop="triggerFileSelect()" type="button" class="primary">Sélectionner une photo</button>
 
         <div v-if="imageSrc" class="flex flex-col gap-3 mt-2">
-            <div class="max-h-[250px] w-full overflow-hidden rounded-xl relative bg-black/20">
+            <div class="h-[200px] sm:h-[250px] w-full overflow-hidden rounded-xl relative bg-black/20 flex items-center justify-center">
                 <cropper
                     ref="cropperRef"
                     class="w-full h-full"

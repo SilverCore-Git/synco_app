@@ -54,6 +54,10 @@ const press = (num: string) => {
   {
     pin.value += num;
     if (window.navigator.vibrate) window.navigator.vibrate(10);
+    
+    if (pin.value.length === 4) {
+      setTimeout(() => submit(), 50);
+    }
   }
 };
 

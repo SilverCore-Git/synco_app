@@ -186,6 +186,11 @@ const routes = [
     ]
   },
 
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/'
+  }
+
 ]
 
 

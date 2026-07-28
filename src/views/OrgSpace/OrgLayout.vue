@@ -468,7 +468,12 @@ function handleTabletChange(e: any)
 
 onMounted(async () => {
 
-    openedOrg.value = await sfetch(`/api/orgs/${props.orgId}`).then(res => res.json()); 
+    const res = await sfetch(`/api/orgs/${props.orgId}`);
+    if (!res.ok) {
+        window.location.href = '/';
+        return;
+    }
+    openedOrg.value = await res.json(); 
     await Promise.all([
             initSocketListener(),
             initPeer()
