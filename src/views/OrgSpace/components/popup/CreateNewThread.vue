@@ -56,6 +56,56 @@
 
         </div>
 
+        <div class="flex items-center justify-between mt-2">
+            <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+                Salon Privé
+            </label>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" v-model="form.isPrivate" class="sr-only peer">
+              <div class="w-11 h-6 bg-black/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary) border border-white/5"></div>
+            </label>
+        </div>
+
+        <div v-if="form.isPrivate" class="flex flex-col gap-2">
+            <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+                Membres ayant accès (Lecture & Écriture)
+            </label>
+            <div class="max-h-32 overflow-y-auto bg-(--bg2)/20 border border-white/10 rounded-xl p-2 flex flex-col gap-1 custom-scrollbar">
+                <label v-for="member in availableMembers" :key="member.user!.id" class="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
+                    <input type="checkbox" :value="member.user!.id" v-model="form.accessMembersId" class="w-4 h-4 rounded bg-black/20 border-white/10 text-(--primary) focus:ring-0 focus:ring-offset-0 cursor-pointer accent-(--primary)" />
+                    <img :src="member.user!.avatarUrl || `https://ui-avatars.com/api/?name=${member.user!.name}&background=128a60&color=fff`" class="w-6 h-6 rounded-full object-cover" />
+                    <span class="text-sm text-(--text)/90 font-medium">{{ member.user!.name }}</span>
+                </label>
+                <div v-if="availableMembers.length === 0" class="text-xs text-white/40 p-2 text-center">Aucun membre disponible</div>
+            </div>
+            <p class="text-[10px] text-white/40 leading-relaxed mt-1">Si vous ne sélectionnez personne, vous serez le seul à pouvoir voir et accéder à ce salon.</p>
+        </div>
+
+        <div class="flex items-center justify-between mt-2">
+            <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+                Salon en lecture seule
+            </label>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" v-model="form.isReadOnly" class="sr-only peer">
+              <div class="w-11 h-6 bg-black/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary) border border-white/5"></div>
+            </label>
+        </div>
+
+        <div v-if="form.isReadOnly" class="flex flex-col gap-2">
+            <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+                Membres autorisés à écrire
+            </label>
+            <div class="max-h-32 overflow-y-auto bg-(--bg2)/20 border border-white/10 rounded-xl p-2 flex flex-col gap-1 custom-scrollbar">
+                <label v-for="member in availableMembers" :key="member.user!.id" class="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
+                    <input type="checkbox" :value="member.user!.id" v-model="form.writersId" class="w-4 h-4 rounded bg-black/20 border-white/10 text-(--primary) focus:ring-0 focus:ring-offset-0 cursor-pointer accent-(--primary)" />
+                    <img :src="member.user!.avatarUrl || `https://ui-avatars.com/api/?name=${member.user!.name}&background=128a60&color=fff`" class="w-6 h-6 rounded-full object-cover" />
+                    <span class="text-sm text-(--text)/90 font-medium">{{ member.user!.name }}</span>
+                </label>
+                <div v-if="availableMembers.length === 0" class="text-xs text-white/40 p-2 text-center">Aucun membre disponible</div>
+            </div>
+            <p class="text-[10px] text-white/40 leading-relaxed mt-1">Les administrateurs de l'organisation et vous-même pouvez toujours envoyer des messages. Sélectionnez d'autres membres si nécessaire.</p>
+        </div>
+
         </form>
 
         <template #footer>
@@ -114,7 +164,23 @@ const props = defineProps<{
 
 const form = reactive({
   name: '',
-  type: 'text'
+  type: 'text',
+  isPrivate: false,
+  accessMembersId: [] as string[],
+  isReadOnly: false,
+  writersId: [] as string[]
+});
+
+const availableMembers = computed(() => {
+    let members: any[] = [];
+    if (isHome.value) {
+        members = openedOrg.value?.members || [];
+    } else {
+        const spaceId = route.params.spaceId as string;
+        const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
+        members = openedOrg.value?.members?.filter(m => space?.membersId.includes(m.userId)) || [];
+    }
+    return members.filter(m => m.user && m.user.id !== user.value?.id);
 });
 
 watch(isOpen, async (val) => {
@@ -127,6 +193,10 @@ watch(isOpen, async (val) => {
 const closeModal = () => {
   isOpen.value = false;
   form.name = '';
+  form.isPrivate = false;
+  form.accessMembersId = [];
+  form.isReadOnly = false;
+  form.writersId = [];
 };
 
 
@@ -152,6 +222,11 @@ const handleSubmit = async () => {
                 } else {
                     const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
                     members = openedOrg.value?.members?.filter(m => space?.membersId.includes(m.userId)).map(m => m!.user!) || [];
+                }
+
+                // Filtrer si le salon est privé
+                if (form.isPrivate) {
+                    members = members.filter(m => form.accessMembersId.includes(m.id) || m.id === user.value?.id);
                 }
                 
                 // S'assurer que le membre courant est inclus avec sa publicKey à jour
