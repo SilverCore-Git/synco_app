@@ -50,10 +50,11 @@
             <draggable
                 v-model="localThreads" 
                 item-key="id"
-                @end="handleDragEnd"
+                group="threads"
+                @change="onChange"
                 ghost-class="opacity-50"
                 drag-class="cursor-grabbing"
-                class="space-y-0.5"
+                class="space-y-0.5 min-h-[10px]"
             >
 
                 <template #item="{ element: thread }">
@@ -120,7 +121,7 @@ watch(() => props.threads, (newVal) => {
 }, { deep: true });
 
 
-const handleDragEnd = async () => {
+const onChange = async () => {
 
     const socket = await useWSocket();
 
@@ -131,6 +132,7 @@ const handleDragEnd = async () => {
             ...props.category,
             threads: localThreads.value.map((thread, index) => ({
                 ...thread,
+                categoryId: props.category.id,
                 index
             }))
         }
