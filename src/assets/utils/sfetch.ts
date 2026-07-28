@@ -1,4 +1,4 @@
-import keycloak from "../keycloak";
+import { keycloak } from "../keycloak";
 import { Capacitor } from "@capacitor/core";
 
 export default async function sfetch(url: string, arg?: any) {

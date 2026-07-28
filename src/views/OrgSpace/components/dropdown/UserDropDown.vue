@@ -4,7 +4,7 @@ import type { User } from '@/types/types';
 import DropDown from '@/components/DropDown.vue';
 import useWSocket from '@/composables/useWSocket';
 import { openedOrg } from '@/assets/var';
-import keycloak from '@/assets/keycloak';
+import { keycloak } from '@/assets/keycloak';
 import { computed, ref, watch } from 'vue';
 import { getAverageColor } from '@/assets/utils/getAverageColor';
 

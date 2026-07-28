@@ -180,7 +180,7 @@ import isDesktopApp from '@/assets/isDesktopApp';
 import { useRoute } from 'vue-router';
 import useSettingsItem from '@/composables/useSettingsItem';
 import useSecurePeer from '@/composables/useSecurePeer';
-import keycloak from '@/assets/keycloak';
+import { keycloak } from '@/assets/keycloak';
 import { openProfile } from '@/composables/useProfile';
 
 const route = useRoute();

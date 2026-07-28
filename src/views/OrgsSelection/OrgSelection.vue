@@ -8,7 +8,7 @@ import sfetch from '@/assets/utils/sfetch';
 import Popup from '@/components/Popup.vue';
 import IconSelector from '@/components/common/IconSelector.vue';
 import { useToast } from '@/composables/useToast';
-import keycloak from '@/assets/keycloak';
+import { keycloak } from '@/assets/keycloak';
 import DropDown from '@/components/DropDown.vue';
 import UserSettings from '@/components/windows/UserSettings.vue';
 

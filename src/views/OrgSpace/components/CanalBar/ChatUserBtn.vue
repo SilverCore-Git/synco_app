@@ -59,7 +59,7 @@
 import getColorByStatus from '@/assets/utils/getColorByStatus';
 import type { OrgMember } from '@/types/types';
 import useSecurePeer from '@/composables/useSecurePeer';
-import keycloak from '@/assets/keycloak';
+import { keycloak } from '@/assets/keycloak';
 
 defineProps<{
   user: OrgMember;
