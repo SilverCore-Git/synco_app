@@ -2,46 +2,78 @@
 
     <div class="flex flex-col w-full">
 
-        <button
-            @click="handleAction"
-            class="
-                w-full flex items-center justify-start 
-                text-left gap-2 px-2 py-1.5 rounded-lg
-                transition-all duration-200 group cursor-pointer
-                hover:bg-(--primary)/5 active:scale-95
-                hover:text-(--text) 
-            "
-            :class="[
-                isActiveInRoom
-                    ? 'border-l-3 border-(--primary) bg-(--primary)/10 text-(--text)' 
-                    : 'text-(--text)/60',
-            ]"
-        >
+        <DropDown align="right" click="right" class="w-full">
+            <template #trigger>
+                <button
+                    @click="handleAction"
+                    class="
+                        w-full flex items-center justify-start 
+                        text-left gap-2 px-2 py-1.5 rounded-lg
+                        transition-all duration-200 group cursor-pointer
+                        hover:bg-(--primary)/5 active:scale-95
+                        hover:text-(--text) 
+                    "
+                    :class="[
+                        isActiveInRoom
+                            ? 'border-l-3 border-(--primary) bg-(--primary)/10 text-(--text)' 
+                            : 'text-(--text)/60',
+                    ]"
+                >
 
-            <div class="flex items-center justify-center w-5 h-5">
-                <i
-                    v-if="isAnyoneSpeaking"
-                    class="bi bi-soundwave text-lg text-(--primary) animate-pulse"
-                />
-                <i
-                    v-else
-                    class="bi bi-volume-up-fill text-lg group-hover:opacity-100"
-                    :class="isActiveInRoom ? 'opacity-100' : 'opacity-40'"
-                />
-            </div>
+                    <div class="flex items-center justify-center w-5 h-5">
+                        <i
+                            v-if="isAnyoneSpeaking"
+                            class="bi bi-soundwave text-lg text-(--primary) animate-pulse"
+                        />
+                        <i
+                            v-else
+                            class="bi bi-volume-up-fill text-lg group-hover:opacity-100"
+                            :class="isActiveInRoom ? 'opacity-100' : 'opacity-40'"
+                        />
+                    </div>
 
-            <span class="text-sm font-medium truncate lowercase tracking-wide">
-                {{ thread.name }}
-            </span>
+                    <span class="text-sm font-medium truncate lowercase tracking-wide">
+                        {{ thread.name }}
+                    </span>
 
-            <div 
-                v-if="currentParticipants.length > 0" 
-                class="ml-auto text-[10px] bg-black/20 px-1.5 py-0.5 rounded-full opacity-60"
-            >
-                {{ currentParticipants.length }}
-            </div>
+                    <div 
+                        v-if="currentParticipants.length > 0" 
+                        class="ml-auto text-[10px] bg-black/20 px-1.5 py-0.5 rounded-full opacity-60"
+                    >
+                        {{ currentParticipants.length }}
+                    </div>
 
-        </button>
+                </button>
+            </template>
+            <template #content>
+                <button @click="showEditThread = !showEditThread" class="dropdown-item-annimate dropdown-item-style">
+                    <i class="bi bi-pencil-fill mr-2" />
+                    Modifier
+                </button>
+                <button @click="openInviteModal" class="dropdown-item-annimate dropdown-item-style">
+                    <i class="bi bi-link-45deg mr-2"></i> Gérer les liens d'invitation
+                </button>
+                <button @click="showConfirmDelete = !showConfirmDelete" class="dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!">
+                    <i class="bi bi-trash-fill mr-2" /> Supprimer
+                </button>
+            </template>
+        </DropDown>
+
+        <UpdateThread 
+            :is-open="showEditThread"
+            :thread="thread"
+            @close="showEditThread = false"
+        />
+
+        <InviteLinkModal ref="inviteModalRef" :thread="thread" />
+        
+        <ConfirmDelete
+            :show="showConfirmDelete"
+            item-type="salon"
+            :item-name="thread.name"
+            @cancel="showConfirmDelete = false"
+            @confirm="deleteThread"
+        />
 
         <div 
             v-if="currentParticipants.length > 0"
@@ -84,8 +116,12 @@ import type { Thread } from '@/types/types';
 import useLiveKit from '@/composables/useLiveKit';
 import sfetch from '@/assets/utils/sfetch';
 import { useRoute, useRouter } from 'vue-router';
-import useWSocket from '@/composables/useWSocket';
+import useWSocket, { waitForSocketConnection } from '@/composables/useWSocket';
 import { openedOrg } from '@/assets/var';
+import DropDown from '@/components/DropDown.vue';
+import UpdateThread from '../popup/UpdateThread.vue';
+import InviteLinkModal from '../popup/InviteLinkModal.vue';
+import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 
 
 const props = defineProps<{
@@ -95,7 +131,9 @@ const props = defineProps<{
 
 const route = useRoute();
 const router = useRouter();
-
+const inviteModalRef = ref<any>(null);
+const showConfirmDelete = ref<boolean>(false);
+const showEditThread = ref<boolean>(false);
 
 const { room, isConnected, connectToRoom, allParticipants, getWSData } = useLiveKit();
 
@@ -110,6 +148,23 @@ const currentParticipants = computed(() => {
 const isActiveInRoom = computed(() => {
     return isConnected.value && room.value?.name === props.thread.id;
 });
+
+const openInviteModal = () => {
+    if (inviteModalRef.value) {
+        inviteModalRef.value.openModal();
+    }
+};
+
+const deleteThread = async () => {
+    const socket = await useWSocket();
+    const connected = await waitForSocketConnection(socket, 15000);
+    if (!connected) {
+        console.error('[VoiceThreadBtn] Socket not connected, cannot delete thread');
+        return;
+    }
+    socket.value?.emit('thread:delete', ({ orgId: openedOrg.value?.id, threadId: props.thread.id }));
+    showConfirmDelete.value = false;
+};
 
 const isAnyoneSpeaking = computed(() => {
     return currentParticipants.value.some(p => p.isSpeaking);

@@ -112,6 +112,7 @@ function useLiveKit()
         newRoom.on(RoomEvent.ParticipantDisconnected, handleSync);
         newRoom.on(RoomEvent.TrackMuted, handleSync);
         newRoom.on(RoomEvent.TrackUnmuted, handleSync);
+        newRoom.on(RoomEvent.ParticipantMetadataChanged, handleSync);
         
         newRoom.on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
 
@@ -141,6 +142,20 @@ function useLiveKit()
             room.value = newRoom;
             isConnected.value = true;
             await newRoom.localParticipant.setMicrophoneEnabled(true);
+            
+            // Broadcast decrypted profile info to guests/others via LiveKit metadata
+            const { user, member } = await import('@/assets/var');
+            
+            const pName = member.value?.user?.name || user.value?.name || '';
+            const pAvatar = member.value?.user?.avatarUrl || user.value?.avatarUrl || '';
+            
+            if (pName || pAvatar) {
+                await newRoom.localParticipant.setMetadata(JSON.stringify({
+                    name: pName,
+                    avatarUrl: pAvatar
+                }));
+            }
+
             syncLocalState();
             handleSync();
         } 
