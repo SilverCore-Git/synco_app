@@ -4,6 +4,8 @@ import { kcToken } from "./var";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
 import { App as CapApp, type URLOpenListenerEvent } from "@capacitor/app";
+import { open } from '@tauri-apps/plugin-shell';
+import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
 
 const KC_URL = import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080/auth';
 const KC_REALM = import.meta.env.VITE_KEYCLOAK_REALM || 'SilverTeams';
@@ -14,6 +16,54 @@ const keycloak = new Keycloak({
   realm: KC_REALM,
   clientId: KC_CLIENT_ID,
 });
+
+function isTauriPlatform(): boolean {
+      return '__TAURI_INTERNALS__' in window;
+    }
+
+
+async function tauriLogin(): Promise<{ token?: string; refreshToken?: string }> {
+  const redirectUri = 'fr.silvercore.synco://callback';
+  const codeVerifier = generateCodeVerifier();
+  const codeChallenge = await generateCodeChallenge(codeVerifier);
+  const state = crypto.randomUUID();
+
+  const deepLinkArrived = new Promise<string>((resolve) => {
+    onOpenUrl((urls) => {
+      const url = urls[0];
+      if (url && url.includes('code=')) resolve(url);
+    });
+  });
+
+  const authUrl = `${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/auth`
+    + `?client_id=${encodeURIComponent(KC_CLIENT_ID)}`
+    + `&redirect_uri=${encodeURIComponent(redirectUri)}`
+    + `&response_type=code&scope=openid&state=${state}`
+    + `&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+
+  await open(authUrl); // ouvre le navigateur système par défaut
+
+  const callbackUrl = await deepLinkArrived;
+  const code = new URL(callbackUrl).searchParams.get('code');
+  if (!code) return {};
+
+  // échange du code contre les tokens — identique à nativeLogin()
+  const tokenRes = await fetch(`${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: KC_CLIENT_ID,
+      code,
+      redirect_uri: redirectUri,
+      code_verifier: codeVerifier,
+    }),
+  });
+
+  if (!tokenRes.ok) return {};
+  const tokens = await tokenRes.json();
+  return { token: tokens.access_token, refreshToken: tokens.refresh_token };
+}
 
 // --- Refresh automatique du token ---
 const setupTokenRefresh = () => {
@@ -74,7 +124,7 @@ async function nativeLogin(): Promise<{ token?: string; refreshToken?: string }>
 
   const listenerHandle = await CapApp.addListener('appUrlOpen', async (data: URLOpenListenerEvent) => {
     if (data.url.includes('code=')) {
-      await Browser.close().catch(() => {});
+      await Browser.close().catch(() => { });
       resolveDeepLink(data.url);
     }
   });
@@ -128,7 +178,36 @@ function isTokenExpired(token: string | null | undefined): boolean {
 }
 
 const initKC = async () => {
-  try {
+    try {
+    if (isTauriPlatform()) {
+      let token = localStorage.getItem('kc_token') || undefined;
+      let refreshToken = localStorage.getItem('kc_refreshToken') || undefined;
+
+      if (!token || isTokenExpired(token)) {
+        const fresh = await tauriLogin();
+        token = fresh.token;
+        refreshToken = fresh.refreshToken;
+      }
+
+      const authenticated = await keycloak.init({
+        checkLoginIframe: false,
+        redirectUri: 'fr.silvercore.synco://callback',
+        responseMode: 'query',
+        token,
+        refreshToken,
+      });
+
+      if (authenticated) {
+        if (keycloak.token) localStorage.setItem('kc_token', keycloak.token);
+        if (keycloak.refreshToken) localStorage.setItem('kc_refreshToken', keycloak.refreshToken);
+        const userInfo: any = await keycloak.loadUserInfo();
+        localStorage.setItem('userId', userInfo.sub);
+        kcToken.value = keycloak.token || '';
+        setupTokenRefresh();
+      }
+      return authenticated;
+    }
+
     if (Capacitor.isNativePlatform()) {
       const redirectUri = 'fr.silvercore.synco://callback';
       let token = localStorage.getItem('kc_token') || undefined;

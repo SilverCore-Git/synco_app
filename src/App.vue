@@ -153,18 +153,26 @@ const handleInput = (e: KeyboardEvent) => {
   else if (e.key === 'Backspace') pin.value = pin.value.slice(0, -1);
 }
 onMounted(async () => {
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/health`, { credentials: 'include' });
-  if (!res.ok) return alert('Api error');
+  console.log('[DEBUG] onMounted start');
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/health`, { credentials: 'include' });
+    console.log('[DEBUG] health check status:', res.status);
+    if (!res.ok) return alert('Api error');
 
-  authenticated.value = await initKC();
+    console.log('[DEBUG] calling initKC...');
+    authenticated.value = await initKC();
+    console.log('[DEBUG] initKC done, authenticated =', authenticated.value);
 
-  if (authenticated.value) {
-    await init.run();
-    await waitFor(() => user.value !== null);
-    await initPeer();
+    if (authenticated.value) {
+      await init.run();
+      await waitFor(() => user.value !== null);
+      await initPeer();
+    }
+
+    window.addEventListener('keydown', handleInput);
+  } catch (e) {
+    console.error('[DEBUG] onMounted crashed:', e);
   }
-
-  window.addEventListener('keydown', handleInput);
 });
 
 </script>
