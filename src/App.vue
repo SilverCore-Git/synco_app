@@ -8,7 +8,7 @@ import type { User } from '@/types/types';
 import Notifications from './components/overlay/Notifications.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
 import useSettingsItem from './composables/useSettingsItem';
-import keycloak, { initKC } from './assets/keycloak';
+import { initKC } from './assets/keycloak';
 import { E2EEUnloked, lockSecurity, setupFirstTimeSecurity, unlockSecurity } from './assets/utils/crypto';
 import sfetch from './assets/utils/sfetch';
 import { useToast } from './composables/useToast';
@@ -160,18 +160,7 @@ const handleInput = (e: KeyboardEvent) => {
 
 onMounted(async () => {
 
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/health`, {
-    credentials: 'include'
-  });
-
-  if (!res.ok) return alert('Api error');
-
-  authenticated.value = await keycloak.init({
-      onLoad: "login-required",
-      checkLoginIframe: false
-  });
-
-  await initKC();
+  authenticated.value = await initKC() || false;
 
   if (authenticated.value) {
       await init.run();
