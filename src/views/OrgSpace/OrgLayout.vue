@@ -227,6 +227,23 @@ const initSocketListener = async () => {
         if (member && member.user && member.user.data) member.user.data.status = status;
     });
 
+    socket.value?.on('user-data-updated', ({ userId, data }: { userId: string, data: any }) => {
+        const member = openedOrg.value?.members?.find(m => m.userId === userId);            
+        if (member && member.user) {
+            if (data.name !== undefined) member.user.name = data.name;
+            if (data.avatarUrl !== undefined) member.user.avatarUrl = data.avatarUrl;
+            if (data.job !== undefined) member.user.job = data.job;
+            if (data.description !== undefined) member.user.description = data.description;
+        }
+        
+        if (user.value && user.value.id === userId) {
+            if (data.name !== undefined) user.value.name = data.name;
+            if (data.avatarUrl !== undefined) user.value.avatarUrl = data.avatarUrl;
+            if (data.job !== undefined) user.value.job = data.job;
+            if (data.description !== undefined) user.value.description = data.description;
+        }
+    });
+
     socket.value?.on('key-requested', async ({ threadId, requesterId, publicKey }: { threadId: string, requesterId: string, publicKey: string }) => {
         if (!privateKey.value || !publicKey) return;
 
