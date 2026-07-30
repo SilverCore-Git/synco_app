@@ -87,7 +87,7 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             }
         }
         
-        console.warn('[WS] Connecting to:', socketUrl, 'with path:', socketPath);
+        if (isDev) console.warn('[WS] Connecting to:', socketUrl, 'with path:', socketPath);
         
         // Diagnostic: test if the proxy/backend is reachable
         if (isDev) {
