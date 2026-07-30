@@ -12,8 +12,8 @@
                     v-for="tab in tabs" 
                     :key="tab.id"
                     @click="activeTab = tab.id"
-                    class="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-left text-sm font-bold transition-all duration-200 whitespace-nowrap shrink-0"
-                    :class="activeTab === tab.id ? 'text-(--text) bg-white/10 shadow-sm' : 'text-(--text)/60 hover:text-(--text) hover:bg-white/5'"
+                    class="tab whitespace-nowrap shrink-0 sm:w-full"
+                    :class="activeTab === tab.id ? 'active' : 'text-(--text)/60'"
                 >
                     <i :class="tab.icon" class="text-lg" />
                     {{ tab.label }}
@@ -157,62 +157,6 @@
                         <p class="text-sm text-(--text)/60">Vos conversations sont entièrement privées et illisibles par quiconque (y compris nous).</p>
                     </div>
 
-                    <div class="max-w-2xl space-y-6">
-                        
-                        <!-- Carte Principale de Statut -->
-                        <div class="relative rounded-xl overflow-hidden border border-(--border-color) shadow-xl bg-(--bg2) p-1">
-                            <!-- Fond animé si déverrouillé -->
-                            <div v-if="E2EEUnloked" class="absolute inset-0 bg-green-500/5 z-0"></div>
-                            <div v-else class="absolute inset-0 bg-red-500/5 z-0"></div>
-                            
-                            <div class="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-5 bg-(--bg) rounded-lg p-6 border border-(--border-color)">
-                                
-                                <div class="relative group">
-                                    <div class="absolute inset-0 blur-xl rounded-full opacity-40 transition-opacity" :class="E2EEUnloked ? 'bg-green-500' : 'bg-red-500'"></div>
-                                    <div class="w-16 h-16 rounded-2xl flex items-center justify-center relative shadow-inner border border-white/10" :class="E2EEUnloked ? 'bg-gradient-to-br from-green-500/20 to-green-600/10 text-green-500' : 'bg-gradient-to-br from-red-500/20 to-red-600/10 text-red-500'">
-                                        <i class="bi text-3xl" :class="E2EEUnloked ? 'bi-shield-check' : 'bi-shield-lock'" />
-                                    </div>
-                                </div>
-                                
-                                <div class="text-center sm:text-left flex-1">
-                                    <h4 class="font-black text-(--text) text-lg mb-1 flex items-center justify-center sm:justify-start gap-2">
-                                        <span class="w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]" :class="E2EEUnloked ? 'bg-green-500 text-green-500' : 'bg-red-500 text-red-500'"></span>
-                                        {{ E2EEUnloked ? 'Vos données sont protégées' : 'Vos données sont verrouillées' }}
-                                    </h4>
-                                    <p class="text-sm text-(--text)/70 leading-relaxed">
-                                        {{ E2EEUnloked 
-                                            ? 'Tout est en ordre ! Vos messages, fichiers et appels sont parfaitement sécurisés. Vous êtes le seul à pouvoir les lire.' 
-                                            : 'Saisissez votre code PIN lors de votre connexion pour déverrouiller vos messages en toute sécurité.' 
-                                        }}
-                                    </p>
-                                </div>
-
-                            </div>
-                        </div>
-
-                        <!-- Clé publique -->
-                        <div class="bg-(--bg2) p-6 rounded-xl border border-(--border-color) shadow-sm" v-if="user?.publicKey">
-                            <div class="flex items-center gap-3 mb-4">
-                                <i class="bi bi-person-badge-fill text-(--primary) text-xl"></i>
-                                <div>
-                                    <h4 class="font-bold text-(--text)">Votre Identifiant de Sécurité</h4>
-                                    <p class="text-[11px] text-(--text)/50 uppercase tracking-widest mt-0.5">La signature qui garantit votre identité</p>
-                                </div>
-                            </div>
-                            
-                            <p class="text-xs text-(--text)/60 mb-3">
-                                Cette longue suite de caractères est votre signature unique. Elle permet au système de s'assurer que personne ne peut se faire passer pour vous. Vous n'avez pas besoin de la mémoriser !
-                            </p>
-
-                            <div class="relative group">
-                                <div class="bg-(--bg) p-4 rounded-lg border border-white/10 font-mono text-xs text-(--text)/60 break-all select-all leading-relaxed shadow-inner overflow-hidden max-h-32 hover:max-h-full transition-all duration-500">
-                                    {{ user.publicKey }}
-                                </div>
-                                <div class="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-(--bg) to-transparent pointer-events-none group-hover:opacity-0 transition-opacity duration-300"></div>
-                            </div>
-                        </div>
-
-                    </div>
                 </section>
 
                 <!-- APPEARANCE -->
