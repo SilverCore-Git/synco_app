@@ -4,7 +4,7 @@
         
         <div class="flex flex-col sm:flex-row w-full h-full text-(--text) overflow-hidden">
             
-            <aside class="w-full sm:w-64 bg-(--bg2) border-b sm:border-b-0 sm:border-r border-(--border-color) p-2 sm:p-4 flex flex-row sm:flex-col gap-2 shrink-0 overflow-x-auto hide-scrollbar">
+            <aside class="w-full sm:w-64 bg-(--bg2) border-b sm:border-b-0 sm:border-r border-(--border-color) p-2 sm:p-4 pr-14 sm:pr-4 flex flex-row sm:flex-col gap-2 shrink-0 overflow-x-auto hide-scrollbar">
 
                 <h2 class="hidden sm:block text-xl font-black text-(--text) mb-4 px-3 pt-2">Paramètres</h2>
                 

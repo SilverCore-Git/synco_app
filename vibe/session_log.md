@@ -577,7 +577,7 @@ git commit -m "fix(ux): improve keyboard navigation and routing in space/thread 
 ✅ **Mode Développeur (User Settings)** : État global stocké avec `sdb.get / sdb.set` (se souvient du choix via les attributs du profil Keycloak). La mise à jour API est bien effectuée automatiquement par la couche réactive de la fonction `useSettingsItem`.
 ✅ **Copie Facilitée des Identifiants** : Récupération instantanée d'IDs complexes pour faciliter le débogage (salons, messages, organisations).
 ✅ **Regroupement UI Liens Invitation** : Tous les outils liés aux liens d'invitation sont maintenant rassemblés dans une seule carte dans la gestion des membres, améliorant l'expérience utilisateur.
-✅ **Responsive Design des Paramètres** : La fenêtre des paramètres utilisateurs s'adapte parfaitement aux écrans mobiles (navigation sous forme d'onglets défilables horizontalement, avatar centré, etc.).
+✅ **Responsive Design des Paramètres** : La fenêtre des paramètres utilisateurs s'adapte parfaitement aux écrans mobiles (navigation sous forme d'onglets défilables horizontalement avec `pr-14` pour ne pas masquer de contenu sous la croix, avatar centré, marges de la `Window` réduites à `p-2` sur petits écrans et ajout d'un fond de flou/blur derrière la croix de fermeture pour une lisibilité parfaite).
 
 ### **Commits**
 ```bash
