@@ -1,4 +1,4 @@
-import keycloak, { onTokenRefresh } from "@/assets/keycloak";
+import { keycloak, onTokenRefresh } from "@/assets/keycloak";
 import { io, type Socket } from "socket.io-client";
 import { ref, type Ref } from "vue";
 

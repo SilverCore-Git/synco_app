@@ -1,4 +1,4 @@
-import keycloak from "./keycloak";
+import { keycloak } from "./keycloak";
 import { openedOrg } from "./var";
 
 export interface UploadContext {

@@ -163,7 +163,7 @@ import useLiveKit from '@/composables/useLiveKit';
 import { ConnectionQuality } from 'livekit-client';
 import { useRoute } from 'vue-router';
 import UserSettings from '@/components/windows/UserSettings.vue';
-import keycloak from '@/assets/keycloak';
+import { keycloak } from '@/assets/keycloak';
 
 defineProps<{
     isLittleScreen: boolean;

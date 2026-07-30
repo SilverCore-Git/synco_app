@@ -152,7 +152,7 @@
 
 import { ref, computed } from 'vue';
 import type { OrgMember } from '@/types/types';
-import keycloak from '@/assets/keycloak';
+import { keycloak } from '@/assets/keycloak';
 import Popup from '../Popup.vue';
 import { openedOrg } from '@/assets/var';
 import isAdmin from '@/assets/isAdmin';

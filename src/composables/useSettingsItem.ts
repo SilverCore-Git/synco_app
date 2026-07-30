@@ -1,6 +1,6 @@
 import { ref, watch, nextTick, type Ref } from "vue";
 import { sdb } from '@/assets/settingsDB';
-import keycloak from "@/assets/keycloak";
+import { keycloak } from "@/assets/keycloak";
 
 const settingsCache: Partial<Record<string, {
     Item: Ref<any>,

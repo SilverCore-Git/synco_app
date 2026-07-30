@@ -10,6 +10,11 @@
     "download-models": "node scripts/download_ai_models.js"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/ios": "^8.4.2",
     "@emailjs/browser": "^4.4.1",
     "@firebase/messaging": "^0.13.0",
     "@mlc-ai/web-llm": "^0.2.84",
@@ -39,6 +44,8 @@
     "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.4.2",
     "@types/dompurify": "^3.0.5",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.10.0",
@@ -49,5 +56,13 @@
     "typescript": "~5.9.3",
     "vite": "^7.2.2",
     "vue-tsc": "^3.1.3"
+  },
+  "allowScripts": {
+    "@firebase/util@1.15.1": true,
+    "vue-demi@0.14.10": true,
+    "esbuild@0.27.3": true,
+    "protobufjs@6.11.6": true,
+    "protobufjs@7.6.5": true,
+    "sharp@0.32.6": true
   }
 }
