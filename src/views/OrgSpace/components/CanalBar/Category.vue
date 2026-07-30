@@ -64,7 +64,7 @@
                             v-if="thread.type === 'text'"
                             :thread="thread"
                             :active="route.params.threadId == thread.id"
-                            :hasUnread="thread.hasUnread"
+                            :hasUnread="getUnreadCountByThreadId(thread.id).value > 0"
                             :key="'thread-text-' + thread.id"
                             @click="navigateToThread(thread.id)"
                         />
@@ -97,15 +97,16 @@ import { useRoute, useRouter } from 'vue-router';
 import CreateNewThread from '../popup/CreateNewThread.vue';
 import useWSocket from '@/composables/useWSocket';
 import VoiceThreadBtn from './VoiceThreadBtn.vue';
+import { useNotification } from '@/composables/useNotification';
 
 const props = defineProps<{
     category: Category;
     threads: Thread[];
 }>();
 
-
 const route = useRoute();
 const router = useRouter();
+const { getUnreadCountByThreadId } = useNotification();
 
 const isOpen = ref<boolean>(true);
 

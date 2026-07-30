@@ -5,9 +5,11 @@ import { useRoute, useRouter } from 'vue-router';
 import CreateNewSpace from '../popup/CreateNewSpace.vue';
 import { openedOrg, todoEnabled, aiEnabled } from '@/assets/var';
 import isAdmin from '@/assets/isAdmin';
+import { useNotification } from '@/composables/useNotification';
 
 const router = useRouter();
 const route = useRoute();
+const { getUnreadCountBySpaceId } = useNotification();
 
 </script>
 
@@ -89,6 +91,7 @@ const route = useRoute();
                     :icon="space.logo!"
                     :label="space.name"
                     :active="route.path.includes(space.id)"
+                    :hasUnread="getUnreadCountBySpaceId(space.id).value > 0"
                 />
             </RouterLink>
 

@@ -353,6 +353,7 @@ import { waitForSocketConnection } from '@/composables/useWSocket';
 
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
+import { useNotification } from '@/composables/useNotification';
 
 
 const props = defineProps<{ 
@@ -363,6 +364,7 @@ const props = defineProps<{
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
+const { markThreadAsRead } = useNotification();
 
 const thread = computed(() => props.thread);
 const selectedMessage = computed<string>(() => String(route.query.select));
@@ -859,6 +861,8 @@ const joinThread = async (id: string) => {
             else _thread = (openedOrg.value?.spaces?.find(space => space.id == route.params.spaceId))?.threads.find(__thread => __thread.id == thread.value?.id);
 
             if (_thread) _thread.hasUnread = false;
+            
+            markThreadAsRead(id);
 
             await nextTick();
             TextareaRef.value?.textarea?.focus();

@@ -367,13 +367,14 @@ import ChatMessage from '../components/common/ChatMessage.vue';
 import { uploadFiles } from '@/assets/uploadFile';
 import useResponse from '@/composables/useResponse';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
-
+import { useNotification } from '@/composables/useNotification';
 
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const { startCall } = useSecurePeer();
 const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
+const { markDMAsRead } = useNotification();
 
 const socket = ref<Socket | null>(null);
 
@@ -677,6 +678,7 @@ const joinDM = async (userId: string) => {
     messages.value = [];
     
     socket.value?.emit("join-dm", { recipientId: userId });
+    markDMAsRead(userId);
 
 };
 
