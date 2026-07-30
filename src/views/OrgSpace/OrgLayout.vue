@@ -34,7 +34,7 @@ const route = useRoute();
 const toast = useToast();
 
 const mediaQuery = window.matchMedia('(max-width: 1024px)');
-const showRouterView = computed(() => route.query.showView !== '0');
+const showRouterView = computed(() => !isLittleScreen.value || route.query.showView !== '0');
 
 const orgOnOpen = computed(() => {
     return organizations.value.find(org => org.id === route.params.orgId);
