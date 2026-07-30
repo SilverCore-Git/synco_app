@@ -562,17 +562,20 @@ git commit -m "fix(ux): improve keyboard navigation and routing in space/thread 
 ### **Objectif**
 1. Corriger un problème de réactivité empêchant l'organisation d'être retirée localement (de l'UI) après sa suppression.
 2. Créer un "Mode développeur" global activable dans les paramètres utilisateur. Lorsqu'il est actif, il permet de visualiser et copier des IDs (organisation, salon, message).
+3. Restructurer les paramètres des membres de l'organisation pour regrouper la création de lien d'invitation avec la liste des liens actifs au même endroit.
 
 ### **Fichiers Modifiés**
 - `synco_app/src/components/windows/UserSettings.vue` : Ajout d'une section "Avancé" dans le panel principal et du switch `devMode`.
 - `synco_app/src/views/OrgSpace/views/settings/views/GeneralSettings.vue` : Correction du `.filter` sur les organisations lors de la suppression ; l'ID de l'org n'est désormais visible que si `devMode` est activé.
 - `synco_app/src/views/OrgSpace/components/CanalBar/ThreadBtn.vue` : Ajout de l'option "Copier l'ID" (au clic droit) si `devMode` est actif.
 - `synco_app/src/views/OrgSpace/components/common/ChatMessage.vue` : Ajout de l'option "Copier l'id" dans le menu déroulant du message si `devMode` est actif.
+- `synco_app/src/views/OrgSpace/views/settings/views/MembersSettings.vue` : Déplacement de l'input de création de lien dans la même `section` que la liste des liens d'invitation actifs, supprimant la carte isolée au profit d'une interface plus cohérente.
 
 ### **Fonctionnalités Implémentées**
 ✅ **Correction Suppression Org** : L'organisation disparaît instantanément de l'interface lors de sa suppression (via `organizations.value = ...`).
-✅ **Mode Développeur (User Settings)** : État global stocké avec `sdb.get / sdb.set` (se souvient du choix via les attributs du profil Keycloak).
+✅ **Mode Développeur (User Settings)** : État global stocké avec `sdb.get / sdb.set` (se souvient du choix via les attributs du profil Keycloak). La mise à jour API est bien effectuée automatiquement par la couche réactive de la fonction `useSettingsItem`.
 ✅ **Copie Facilitée des Identifiants** : Récupération instantanée d'IDs complexes pour faciliter le débogage (salons, messages, organisations).
+✅ **Regroupement UI Liens Invitation** : Tous les outils liés aux liens d'invitation sont maintenant rassemblés dans une seule carte dans la gestion des membres, améliorant l'expérience utilisateur.
 
 ### **Commits**
 ```bash

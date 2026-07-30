@@ -23,49 +23,6 @@
                         />
                     </div>
 
-                    <!-- Carte d'invitation -->
-                    <div class="bg-(--bg2) border border-(--border-color) rounded-2xl p-6 shadow-sm flex flex-col gap-4">
-                        <div>
-                            <h4 class="text-sm font-bold text-(--text)">Lien d'invitation</h4>
-                            <p class="text-xs text-(--text)/50 mt-1">Partagez ce lien unique pour permettre à d'autres de rejoindre l'organisation instantanément.</p>
-                        </div>
-
-                        <div class="relative flex flex-col sm:flex-row gap-3 mt-auto pt-2">
-                            <div class="relative flex-1">
-                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
-                                    <i class="bi bi-link-45deg"></i>
-                                </div>
-                                <input 
-                                    readonly
-                                    type="text"
-                                    :value="inviteLink || 'Cliquez pour générer un lien'"
-                                    class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner font-mono"
-                                />
-                            </div>
-                            <div class="flex gap-2">
-                                <div class="relative w-20 hidden sm:block" v-if="inviteLink.length === 0">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-(--text)/40" title="Nombre d'utilisations (0 = infini)">
-                                        <i class="bi bi-people"></i>
-                                    </div>
-                                    <input 
-                                        type="number"
-                                        v-model.number="inviteMaxUses"
-                                        min="0"
-                                        class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-9 pr-3 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner"
-                                        title="Nombre d'utilisations (0 = infini)"
-                                    />
-                                </div>
-                                <button 
-                                    @click="inviteLink.length === 0 ? createInviteLink() : copyInvite()" 
-                                    class="bg-(--primary) hover:bg-(--primary-hover) text-white rounded-xl px-4 py-3 text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm"
-                                >
-                                    <i class="bi" :class="inviteLink.length === 0 ? 'bi-stars' : copied ? 'bi-check-lg' : 'bi-copy'" />
-                                    {{ inviteLink.length === 0 ? 'Générer' : copied ? 'Copié' : 'Copier' }}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
                 </section>
 
                 <section class="bg-(--bg2) rounded-2xl border border-(--border-color) shadow-sm overflow-hidden flex flex-col">
@@ -173,18 +130,65 @@
 
                 </section>
 
-                <section v-if="inviteLinks.length > 0" class="bg-(--bg2) rounded-2xl border border-(--border-color) shadow-sm overflow-hidden flex flex-col">
+                <section class="bg-(--bg2) rounded-2xl border border-(--border-color) shadow-sm overflow-hidden flex flex-col">
 
-                    <div class="p-6 border-b border-(--border-color) flex justify-between items-center bg-(--bg3)/20">
-                        <h3 class="text-lg font-bold text-(--text) flex items-center gap-3">
-                            Liens actifs
-                            <span class="bg-(--text)/10 text-(--text) py-1 px-2.5 rounded-lg text-xs">
-                                {{ inviteLinks.length }}
-                            </span>
-                        </h3>
+                    <div class="p-6 border-b border-(--border-color) flex flex-col gap-6 bg-(--bg3)/20">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-bold text-(--text) flex items-center gap-3">
+                                Liens d'invitation
+                                <span class="bg-(--text)/10 text-(--text) py-1 px-2.5 rounded-lg text-xs" v-if="inviteLinks.length > 0">
+                                    {{ inviteLinks.length }} actifs
+                                </span>
+                            </h3>
+                        </div>
+
+                        <!-- Zone de création de lien d'invitation -->
+                        <div class="relative flex flex-col sm:flex-row gap-3">
+                            <div class="relative flex-1">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
+                                    <i class="bi bi-link-45deg"></i>
+                                </div>
+                                <input 
+                                    readonly
+                                    type="text"
+                                    :value="inviteLink || 'Cliquez pour générer un nouveau lien...'"
+                                    class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner font-mono"
+                                />
+                            </div>
+                            <div class="flex gap-2">
+                                <div class="relative w-20 hidden sm:block" v-if="inviteLink.length === 0">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-(--text)/40" title="Nombre d'utilisations (0 = infini)">
+                                        <i class="bi bi-people"></i>
+                                    </div>
+                                    <input 
+                                        type="number"
+                                        v-model.number="inviteMaxUses"
+                                        min="0"
+                                        class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-9 pr-3 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner"
+                                        title="Nombre d'utilisations (0 = infini)"
+                                    />
+                                </div>
+                                <button 
+                                    @click="inviteLink.length === 0 ? createInviteLink() : copyInvite()" 
+                                    class="bg-(--primary) hover:bg-(--primary-hover) text-white rounded-xl px-4 py-3 text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm"
+                                >
+                                    <i class="bi" :class="inviteLink.length === 0 ? 'bi-stars' : copied ? 'bi-check-lg' : 'bi-copy'" />
+                                    {{ inviteLink.length === 0 ? 'Générer' : copied ? 'Copié' : 'Copier' }}
+                                </button>
+                                <button 
+                                    v-if="inviteLink.length > 0"
+                                    @click="inviteLink = ''"
+                                    class="bg-(--bg) border border-(--border-color) text-(--text)/60 hover:text-(--text) hover:bg-(--text)/5 rounded-xl px-3 py-3 text-sm font-medium transition-all flex items-center justify-center shadow-sm"
+                                    title="Nouveau lien"
+                                >
+                                    <i class="bi bi-plus-lg" />
+                                </button>
+                            </div>
+                        </div>
+
                     </div>
 
-                    <div class="overflow-x-auto">
+                    <div class="overflow-x-auto" v-if="inviteLinks.length > 0">
 
                         <table class="w-full text-left border-collapse">
 
@@ -240,6 +244,10 @@
 
                         </table>
 
+                    </div>
+                    
+                    <div v-else class="p-8 text-center text-(--text)/40 text-sm">
+                        Aucun lien d'invitation actif.
                     </div>
 
                 </section>
