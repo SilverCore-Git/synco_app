@@ -581,6 +581,7 @@ git commit -m "fix(ux): improve keyboard navigation and routing in space/thread 
 ✅ **Navigation Responsive (Espaces & Home)** : Lors de l'ouverture d'un espace ou de l'accueil sur mobile, la barre latérale des canaux (ThreadsBar) est désormais affichée par défaut au lieu de la vue principale (ajout du paramètre `showView=0` sur les liens et vérification stricte de `isLittleScreen` dans `OrgLayout`).
 ✅ **Nettoyage UI** : Suppression du bouton de notification non fonctionnel dans l'en-tête des salons (`ThreadLayout`).
 ✅ **UX Paramètres & Fenêtres** : L'édition du logo de l'organisation dans `GeneralSettings` ouvre directement l'explorateur de fichiers natif (suppression de `IconSelector`). Le bouton de fermeture (`Window.vue`) conserve son arrière-plan flouté (blur) en permanence sur tous les écrans pour une meilleure lisibilité.
+✅ **Création de Salon** : L'option de sélection "Texte / Vocal" utilise maintenant une animation de glissement plus fluide (type segmented control iOS) pour identifier la sélection active. L'option "Salon en lecture seule" est masquée si le type Vocal est sélectionné.
 
 ### **Commits**
 ```bash
