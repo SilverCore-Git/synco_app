@@ -67,7 +67,7 @@
                             </div>
                         </div>
 
-                        <div class="space-y-2">
+                        <div class="space-y-2" v-if="devMode">
                             <label class="text-xs font-semibold text-(--text)/70">ID Unique (Permanent)</label>
                             <div class="relative">
                                 <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/30">
@@ -234,6 +234,9 @@ import useWSocket from '@/composables/useWSocket';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { useRouter } from 'vue-router';
 import { getAverageColor } from '@/assets/utils/getAverageColor';
+import useSettingsItem from '@/composables/useSettingsItem';
+
+const { Item: devMode } = useSettingsItem('devMode', false);
 
 
 const toast = useToast();
@@ -372,7 +375,7 @@ const deleteOrg = async () => {
     {
         toast.show('Organisation supprimer avec succès.', 'success');
         router.push('/');
-        organizations.value.filter(org => org.id !== openedOrg.value?.id);
+        organizations.value = organizations.value.filter(org => org.id !== openedOrg.value?.id);
         openedOrg.value = null
     }
     else

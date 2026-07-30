@@ -270,6 +270,30 @@
 
                         </div>
 
+                        <div class="space-y-4">
+                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text)/50">Avancé</h4>
+
+                            <div 
+                                @click="devMode = !devMode"
+                                class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all max-w-md"
+                            >
+                                <div>
+                                    <h4 class="font-bold text-(--text)">Mode développeur</h4>
+                                    <p class="text-sm text-(--text)/60 mt-0.5">Affiche les identifiants techniques et options avancées</p>
+                                </div>
+                                <div 
+                                    class="w-12 h-6 rounded-full relative transition-colors duration-300 shrink-0"
+                                    :class="devMode ? 'bg-(--primary)' : 'bg-white/10'"
+                                >
+                                    <div 
+                                        class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
+                                        :class="devMode ? 'right-0.5' : 'left-0.5 opacity-50'"
+                                    ></div>
+                                </div>
+                            </div>
+
+                        </div>
+
                     </div>
 
                 </section>
@@ -394,6 +418,7 @@ const emit = defineEmits(['close']);
 const toast = useToast();
 
 const { Item: theme } = useSettingsItem('theme', 'dark');
+const { Item: devMode } = useSettingsItem('devMode', false);
 
 const activeTab = ref<string>('account');
 const avatarChange = ref<boolean>(false);

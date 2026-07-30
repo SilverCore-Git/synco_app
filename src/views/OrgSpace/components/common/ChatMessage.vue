@@ -214,10 +214,12 @@ import { encryptAesKeyWithRsa, encryptForPeer } from '@/assets/utils/crypto';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useToast } from '@/composables/useToast';
 import { openProfile } from '@/composables/useProfile';
+import useSettingsItem from '@/composables/useSettingsItem';
 
 const toast = useToast();
 const showReactionPicker = ref<boolean>(false);
 const pickerCoords = ref<{ x: number, y: number } | null>(null);
+const { Item: devMode } = useSettingsItem('devMode', false);
 
 // Format DM reactions to match MessageReactions expected format
 const formatDMReactions = (reactions: DMMessageReaction[] | Record<string, { count: number; users: ReactionUser[] }> | any[] | undefined): Record<string, { count: number; users: ReactionUser[] }> | undefined => {
@@ -269,6 +271,16 @@ const dropdownBtns: DropdownBtn[] = [
         tooltip: "copier",
         func: () => {},
         show: () => true
+    },
+    {
+        icon: "bi-hash",
+        tooltip: "copier l'id",
+        func: (msg: DMMessage) => {
+            navigator.clipboard.writeText(msg.id);
+            toast.show("ID copié", "success");
+        },
+        class: "text-(--primary)! hover:bg-(--primary)/10!",
+        show: () => devMode.value
     },
     {
         icon: "bi-pencil-fill",
