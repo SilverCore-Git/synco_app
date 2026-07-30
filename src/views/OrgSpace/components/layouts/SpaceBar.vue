@@ -32,7 +32,7 @@ const route = useRoute();
                 />
             </RouterLink>
 
-            <RouterLink v-if="isAdmin" :to="`/${openedOrg.id}/settings`">
+            <RouterLink v-if="isAdmin" :to="`/${openedOrg.id}/settings?showView=0`">
                 <SpaceBarBTN
                     icon="bi-gear"
                     label="Paramètres"
@@ -43,7 +43,7 @@ const route = useRoute();
 
             <hr class=" w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
 
-            <RouterLink :to="`/${openedOrg.id}/home`">
+            <RouterLink :to="`/${openedOrg.id}/home?showView=0`">
                 <SpaceBarBTN
                     icon="bi-house"
                     label="Général"
@@ -52,7 +52,7 @@ const route = useRoute();
                 />
             </RouterLink>
 
-            <RouterLink :to="`/${openedOrg.id}/chat`">
+            <RouterLink :to="`/${openedOrg.id}/chat?showView=0`">
                 <SpaceBarBTN
                     icon="bi-chat-dots"
                     label="Messages privées"
@@ -69,7 +69,7 @@ const route = useRoute();
                 />
             </RouterLink>
             
-            <RouterLink v-if="aiEnabled" :to="`/${openedOrg.id}/ai`">
+            <RouterLink v-if="aiEnabled" :to="`/${openedOrg.id}/ai?showView=0`">
                 <SpaceBarBTN
                     icon="bi-robot"
                     label="Synco AI"
@@ -82,7 +82,7 @@ const route = useRoute();
             <RouterLink
                 v-for="space in openedOrg?.spaces" 
                 :key="'space-' + space.id + '-link'" 
-                :to="`/${openedOrg.id}/${space.id}`"
+                :to="`/${openedOrg.id}/${space.id}?showView=0`"
             >
                 <SpaceBarBTN
                     :key="'space-' + space.id + '-btn'"

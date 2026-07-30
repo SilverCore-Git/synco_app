@@ -85,4 +85,14 @@ const cropAndUpload = async () => {
 
 };
 
+const triggerEnter = () => {
+    if (!imageSrc.value) {
+        triggerFileSelect();
+    } else if (!loading.value) {
+        cropAndUpload();
+    }
+};
+
+defineExpose({ triggerEnter });
+
 </script>

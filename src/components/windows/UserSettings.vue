@@ -2,18 +2,18 @@
 
     <Window :isOpen="isOpen" @close="emit('close')">
         
-        <div class="flex w-full h-full text-(--text) overflow-hidden">
+        <div class="flex flex-col sm:flex-row w-full h-full text-(--text) overflow-hidden">
             
-            <aside class="w-64 bg-(--bg2) border-r border-(--border-color) p-4 flex flex-col gap-2 shrink-0">
+            <aside class="w-full sm:w-64 bg-(--bg2) border-b sm:border-b-0 sm:border-r border-(--border-color) p-2 sm:p-4 pr-14 sm:pr-4 flex flex-row sm:flex-col gap-2 shrink-0 overflow-x-auto hide-scrollbar">
 
-                <h2 class="text-xl font-black text-(--text) mb-4 px-3 pt-2">Paramètres</h2>
+                <h2 class="hidden sm:block text-xl font-black text-(--text) mb-4 px-3 pt-2">Paramètres</h2>
                 
                 <button 
                     v-for="tab in tabs" 
                     :key="tab.id"
                     @click="activeTab = tab.id"
-                    class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm font-bold transition-all duration-200"
-                    :class="activeTab === tab.id ? 'text-(--text) bg-white/10 shadow-sm' : 'text-(--text)/60 hover:text-(--text) hover:bg-white/5'"
+                    class="tab whitespace-nowrap shrink-0 sm:w-full"
+                    :class="activeTab === tab.id ? 'active' : 'text-(--text)/60'"
                 >
                     <i :class="tab.icon" class="text-lg" />
                     {{ tab.label }}
@@ -21,7 +21,7 @@
 
             </aside>
 
-            <main class="flex-1 p-8 overflow-y-auto bg-(--bg)">
+            <main class="flex-1 p-4 sm:p-8 overflow-y-auto bg-(--bg)">
                 
                 <!-- ACCOUNT -->
                 <section 
@@ -32,13 +32,16 @@
                     <!-- Profil Banner inspiré de UserDropDown -->
                     <div class="w-full relative rounded-xl overflow-hidden bg-(--bg2) border border-(--border-color) mb-8 shadow-xl">
                         <!-- Banner -->
-                        <div class="h-[120px] bg-gradient-to-tr from-(--primary-dark) to-(--primary) w-full relative z-0"></div>
+                        <div 
+                            class="h-[120px] w-full relative z-0 transition-all duration-500"
+                            :style="{ background: `linear-gradient(to top right, rgba(0,0,0,0.3), transparent), ${dominantColor}` }"
+                        ></div>
                         
                         <!-- Avatar & Actions -->
-                        <div class="px-6 relative flex justify-between items-end pb-6">
+                        <div class="px-4 sm:px-6 relative flex flex-col sm:flex-row sm:justify-between items-start sm:items-end pb-4 sm:pb-6">
                             <!-- Overlapping Avatar -->
-                            <div class="absolute -top-12 left-6 p-1.5 bg-(--bg2) rounded-full z-10 shadow-lg">
-                                <div class="relative w-[100px] h-[100px] rounded-full overflow-hidden bg-(--bg)">
+                            <div class="absolute -top-10 sm:-top-12 left-4 sm:left-6 p-1.5 bg-(--bg2) rounded-full z-10 shadow-lg">
+                                <div class="relative w-[80px] h-[80px] sm:w-[100px] sm:h-[100px] rounded-full overflow-hidden bg-(--bg)">
                                     <img 
                                         :src="user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.name}&background=128a60&color=fff`" 
                                         :alt="user?.name" 
@@ -49,11 +52,11 @@
                             </div>
 
                             <!-- Spacer pour l'avatar -->
-                            <div class="w-[110px]"></div>
+                            <div class="w-full sm:w-[110px] h-[30px] sm:h-auto"></div>
 
                             <button 
                                 @click="avatarChange = true" 
-                                class="mt-4 primary flex items-center gap-2 text-sm"
+                                class="mt-2 sm:mt-4 primary flex items-center gap-2 text-sm self-end"
                             >
                                 <i class="bi bi-camera-fill"></i>
                                 Modifier l'avatar
@@ -147,68 +150,92 @@
                 <!-- SECURITY -->
                 <section 
                     v-if="activeTab === 'security'" 
-                    class="animate-fade-in"
+                    class="animate-fade-in space-y-8"
                 >
-                    <div class="mb-6">
+                    <div>
                         <h3 class="text-xl font-black text-(--text) mb-1">Sécurité & Confidentialité</h3>
-                        <p class="text-sm text-(--text)/60">Vos conversations sont entièrement privées et illisibles par quiconque (y compris nous).</p>
+                        <p class="text-sm text-(--text)/60">Gérez la sécurité de votre compte et le chiffrement de bout en bout.</p>
                     </div>
 
-                    <div class="max-w-2xl space-y-6">
-                        
-                        <!-- Carte Principale de Statut -->
-                        <div class="relative rounded-xl overflow-hidden border border-(--border-color) shadow-xl bg-(--bg2) p-1">
-                            <!-- Fond animé si déverrouillé -->
-                            <div v-if="E2EEUnloked" class="absolute inset-0 bg-green-500/5 z-0"></div>
-                            <div v-else class="absolute inset-0 bg-red-500/5 z-0"></div>
+                    <div class="space-y-6">
+                        <div class="space-y-4">
+                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text)/50">Chiffrement de bout en bout (E2EE)</h4>
                             
-                            <div class="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-5 bg-(--bg) rounded-lg p-6 border border-(--border-color)">
-                                
-                                <div class="relative group">
-                                    <div class="absolute inset-0 blur-xl rounded-full opacity-40 transition-opacity" :class="E2EEUnloked ? 'bg-green-500' : 'bg-red-500'"></div>
-                                    <div class="w-16 h-16 rounded-2xl flex items-center justify-center relative shadow-inner border border-white/10" :class="E2EEUnloked ? 'bg-gradient-to-br from-green-500/20 to-green-600/10 text-green-500' : 'bg-gradient-to-br from-red-500/20 to-red-600/10 text-red-500'">
-                                        <i class="bi text-3xl" :class="E2EEUnloked ? 'bi-shield-check' : 'bi-shield-lock'" />
-                                    </div>
+                            <div class="p-6 bg-(--bg2) border border-(--border-color) rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center gap-6">
+                                <div class="w-16 h-16 rounded-full shrink-0 flex items-center justify-center transition-colors"
+                                    :class="E2EEUnloked ? 'bg-(--primary)/10 text-(--primary)' : 'bg-red-500/10 text-red-500'">
+                                    <i class="bi text-3xl" :class="E2EEUnloked ? 'bi-shield-lock-fill' : 'bi-shield-exclamation'"></i>
                                 </div>
-                                
-                                <div class="text-center sm:text-left flex-1">
-                                    <h4 class="font-black text-(--text) text-lg mb-1 flex items-center justify-center sm:justify-start gap-2">
-                                        <span class="w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]" :class="E2EEUnloked ? 'bg-green-500 text-green-500' : 'bg-red-500 text-red-500'"></span>
-                                        {{ E2EEUnloked ? 'Vos données sont protégées' : 'Vos données sont verrouillées' }}
+                                <div class="flex-1">
+                                    <h4 class="font-bold text-(--text) flex items-center gap-2">
+                                        Statut du chiffrement
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] uppercase tracking-widest font-bold"
+                                            :class="E2EEUnloked ? 'bg-(--primary)/20 text-(--primary)' : 'bg-red-500/20 text-red-500'">
+                                            {{ E2EEUnloked ? 'Actif' : 'Verrouillé' }}
+                                        </span>
                                     </h4>
-                                    <p class="text-sm text-(--text)/70 leading-relaxed">
-                                        {{ E2EEUnloked 
-                                            ? 'Tout est en ordre ! Vos messages, fichiers et appels sont parfaitement sécurisés. Vous êtes le seul à pouvoir les lire.' 
-                                            : 'Saisissez votre code PIN lors de votre connexion pour déverrouiller vos messages en toute sécurité.' 
-                                        }}
+                                    <p class="text-sm text-(--text)/60 mt-1 leading-relaxed">
+                                        Vos conversations sont chiffrées de bout en bout. Même nous ne pouvons pas les lire.
                                     </p>
                                 </div>
-
-                            </div>
-                        </div>
-
-                        <!-- Clé publique -->
-                        <div class="bg-(--bg2) p-6 rounded-xl border border-(--border-color) shadow-sm" v-if="user?.publicKey">
-                            <div class="flex items-center gap-3 mb-4">
-                                <i class="bi bi-person-badge-fill text-(--primary) text-xl"></i>
                                 <div>
-                                    <h4 class="font-bold text-(--text)">Votre Identifiant de Sécurité</h4>
-                                    <p class="text-[11px] text-(--text)/50 uppercase tracking-widest mt-0.5">La signature qui garantit votre identité</p>
+                                    <button 
+                                        v-if="E2EEUnloked"
+                                        @click="lockSecurity(); emit('close')" 
+                                        class="second flex items-center gap-2 whitespace-nowrap text-sm"
+                                    >
+                                        <i class="bi bi-lock-fill"></i>
+                                        Verrouiller la session
+                                    </button>
                                 </div>
-                            </div>
-                            
-                            <p class="text-xs text-(--text)/60 mb-3">
-                                Cette longue suite de caractères est votre signature unique. Elle permet au système de s'assurer que personne ne peut se faire passer pour vous. Vous n'avez pas besoin de la mémoriser !
-                            </p>
-
-                            <div class="relative group">
-                                <div class="bg-(--bg) p-4 rounded-lg border border-white/10 font-mono text-xs text-(--text)/60 break-all select-all leading-relaxed shadow-inner overflow-hidden max-h-32 hover:max-h-full transition-all duration-500">
-                                    {{ user.publicKey }}
-                                </div>
-                                <div class="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-(--bg) to-transparent pointer-events-none group-hover:opacity-0 transition-opacity duration-300"></div>
                             </div>
                         </div>
 
+                        <div v-if="E2EEUnloked" class="space-y-4">
+                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text)/50">Preuve de chiffrement (E2EE)</h4>
+                            
+                            <div class="p-5 bg-(--bg2) border border-(--border-color) rounded-xl flex flex-col gap-3">
+                                <div class="flex items-center gap-3 text-(--text)/70">
+                                    <i class="bi bi-cpu-fill text-lg"></i>
+                                    <span class="text-sm font-bold">Clé publique (RSA-OAEP 4096 bits)</span>
+                                </div>
+                                <div class="bg-(--bg) border border-white/5 p-3 rounded-lg flex items-center justify-between group">
+                                    <code class="text-xs text-(--text)/50 font-mono truncate mr-4">
+                                        {{ publicKeyFingerprint }}
+                                    </code>
+                                    <button 
+                                        @click="copyToClipboard(publicKeyFingerprint)"
+                                        class="text-(--text)/40 hover:text-(--text) transition-colors"
+                                        title="Copier l'empreinte"
+                                    >
+                                        <i class="bi bi-copy"></i>
+                                    </button>
+                                </div>
+                                <p class="text-[10px] text-(--text)/40 leading-relaxed">
+                                    Ceci est l'empreinte unique de votre clé publique. Elle est utilisée par vos contacts pour chiffrer les messages qu'ils vous envoient. Seul votre appareil (grâce au code PIN) peut les déchiffrer avec la clé privée correspondante.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text)/50">Authentification</h4>
+                            
+                            <div class="p-5 bg-(--bg2) border border-(--border-color) rounded-xl hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-between group"
+                                @click="keycloak.accountManagement()"
+                            >
+                                <div class="flex items-center gap-4">
+                                    <div class="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-(--text)/60 group-hover:text-(--text) group-hover:bg-white/10 transition-colors">
+                                        <i class="bi bi-key-fill text-lg"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-(--text) text-sm">Mot de passe et authentification</h4>
+                                        <p class="text-xs text-(--text)/50 mt-0.5">Gérez votre mot de passe et l'A2F via Keycloak</p>
+                                    </div>
+                                </div>
+                                <i class="bi bi-box-arrow-up-right text-(--text)/30 group-hover:text-(--text) transition-colors"></i>
+                            </div>
+
+                        </div>
                     </div>
                 </section>
 
@@ -263,6 +290,30 @@
                                     <div v-if="theme == 'light'" class="absolute top-2 right-2 w-3 h-3 bg-(--primary) rounded-full shadow-[0_0_10px_var(--primary)]"></div>
                                 </button>
 
+                            </div>
+
+                        </div>
+
+                        <div class="space-y-4">
+                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text)/50">Avancé</h4>
+
+                            <div 
+                                @click="devMode = !devMode"
+                                class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all max-w-md"
+                            >
+                                <div>
+                                    <h4 class="font-bold text-(--text)">Mode développeur</h4>
+                                    <p class="text-sm text-(--text)/60 mt-0.5">Affiche les identifiants techniques et options avancées</p>
+                                </div>
+                                <div 
+                                    class="w-12 h-6 rounded-full relative transition-colors duration-300 shrink-0"
+                                    :class="devMode ? 'bg-(--primary)' : 'bg-white/10'"
+                                >
+                                    <div 
+                                        class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
+                                        :class="devMode ? 'right-0.5' : 'left-0.5 opacity-50'"
+                                    ></div>
+                                </div>
                             </div>
 
                         </div>
@@ -380,7 +431,9 @@ import ProfileUploader from '../common/ProfileUploader.vue';
 import { user } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
-import { E2EEUnloked } from '@/assets/utils/crypto';
+import { E2EEUnloked, lockSecurity } from '@/assets/utils/crypto';
+import { keycloak } from '@/assets/keycloak';
+import { getAverageColor } from '@/assets/utils/getAverageColor';
 
 defineProps<{
   isOpen: boolean;
@@ -390,10 +443,12 @@ const emit = defineEmits(['close']);
 const toast = useToast();
 
 const { Item: theme } = useSettingsItem('theme', 'dark');
+const { Item: devMode } = useSettingsItem('devMode', false);
 
 const activeTab = ref<string>('account');
 const avatarChange = ref<boolean>(false);
 const isUpdating = ref<boolean>(false);
+const dominantColor = ref('#16ac77');
 
 const formData = reactive({
     name: '',
@@ -434,6 +489,13 @@ watch(user, (newVal) => {
     }
 }, { immediate: true });
 
+watch(() => [user.value?.avatarUrl, user.value?.name], async () => {
+    if (user.value) {
+        const url = user.value.avatarUrl || `https://ui-avatars.com/api/?name=${user.value.name}&background=128a60&color=fff`;
+        dominantColor.value = await getAverageColor(url);
+    }
+}, { immediate: true });
+
 const updateNotificationPrefs = async (key: keyof typeof notifPrefs, value: boolean) => {
     notifPrefs[key] = value;
     try {
@@ -464,6 +526,26 @@ const isModified = computed(() => {
            formData.job !== (user.value?.job || '') ||
            formData.description !== (user.value?.description || '');
 });
+
+const publicKeyFingerprint = computed(() => {
+    if (!user.value?.publicKey) return 'Non disponible';
+    try {
+        const pk = JSON.parse(user.value.publicKey);
+        if (pk.n) {
+            return pk.n;
+        }
+    } catch(e) {}
+    return 'Génération en cours...';
+});
+
+const copyToClipboard = async (text: string) => {
+    try {
+        await navigator.clipboard.writeText(text);
+        toast.show('Empreinte copiée', 'success');
+    } catch (e) {
+        toast.show('Erreur de copie', 'error');
+    }
+};
 
 const updateProfile = async () => {
     if (!isModified.value) return;
@@ -519,6 +601,14 @@ const tabs = [
         opacity: 1; 
         transform: translateY(0); 
     }
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 
 </style>

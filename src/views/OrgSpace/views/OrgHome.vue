@@ -6,7 +6,8 @@
         <i class="bi bi-house text-6xl text-white/10 mb-4"></i>
         <h2 class="text-xl font-bold mb-2 text-center">Bienvenue !</h2>
         <p class="text-white/40 text-center max-w-sm">
-            Cet accueil ne contient aucun salon.
+            <!-- mettre phrase de bienvenue  -->
+            
         </p>
     </div>
 </template>
@@ -15,7 +16,7 @@
 
 import { onMounted, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, isLittleScreen } from '@/assets/var';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 
 const router = useRouter();
@@ -37,13 +38,19 @@ onMounted(() => {
         return;
     }
 
-    router.replace({
-        name: 'OrgThreadHome',
-        params: {
-            threadId: firstThread.id
-        },
-        query: route.query
-    })
+    if (isLittleScreen.value) {
+        if (route.query.showView !== '0') {
+            router.replace({ query: { ...route.query, showView: '0' } });
+        }
+    } else {
+        router.replace({
+            name: 'OrgThreadHome',
+            params: {
+                threadId: firstThread.id
+            },
+            query: route.query
+        });
+    }
 
 })
 

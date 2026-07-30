@@ -151,8 +151,8 @@ const initKC = async () => {
       if (authenticated) {
         if (keycloak.token) localStorage.setItem('kc_token', keycloak.token);
         if (keycloak.refreshToken) localStorage.setItem('kc_refreshToken', keycloak.refreshToken);
-        const userInfo: any = await keycloak.loadUserInfo();
-        localStorage.setItem('userId', userInfo.sub);
+        await keycloak.loadUserInfo();
+        // Removed localStorage.setItem('userId', ...) to prevent XSS leaks
         kcToken.value = keycloak.token || '';
         setupTokenRefresh();
       }
@@ -167,8 +167,8 @@ const initKC = async () => {
     });
 
     if (authenticated) {
-      const userInfo: any = await keycloak.loadUserInfo();
-      window.localStorage.setItem('userId', userInfo.sub);
+      await keycloak.loadUserInfo();
+      // Removed window.localStorage.setItem('userId', ...) to prevent XSS leaks
       kcToken.value = keycloak.token || '';
       setupTokenRefresh();
     }

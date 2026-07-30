@@ -522,3 +522,77 @@ git commit -m "feat(todo): implémentation du module de Todo List (Backend + Fro
 1. Tester la fluidité en production.
 2. Ajouter le système de Kanban en vue contextuelle.
 ---
+
+## 📅 **30 Juillet 2026 - Amélioration UX Création Espace et Salon**
+
+**Durée** : 15 min
+**Priorité** : ⭐⭐⭐ (Moyenne)
+**Complexité** : Basse
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Permettre la navigation complète au clavier (touche Entrée) lors de la création d'un espace de travail et corriger la redirection automatique vers le salon lors de sa création.
+
+### **Fichiers Modifiés**
+- `synco_app/src/components/common/IconSelector.vue` : Ajout de `triggerEnter` exposé pour la sélection et la validation d'image via Entrée.
+- `synco_app/src/views/OrgSpace/components/popup/CreateNewSpace.vue` : Ajout de l'écouteur clavier global (`keydown.enter`) pour naviguer entre les étapes de création de l'espace.
+- `synco_app/src/views/OrgSpace/components/popup/CreateNewThread.vue` : Remplacement de `SpaceView` par `SpaceThreadView` pour que le salon s'ouvre automatiquement après sa création.
+
+### **Fonctionnalités Implémentées**
+✅ **Navigation Clavier (Espace)** : Les étapes (Nom -> Photo -> Recadrage -> Continuer) sont entièrement navigables avec Entrée.
+✅ **Redirection Automatique (Salon)** : Redirection fonctionnelle vers le salon nouvellement créé (SpaceThreadView).
+
+### **Commits**
+```bash
+git commit -m "fix(ux): improve keyboard navigation and routing in space/thread creation"
+```
+**Date** : 30 Juillet 2026
+
+### **Prochaines Étapes**
+1. Valider l'expérience utilisateur complète sur l'application.
+---
+
+## 📅 **30 Juillet 2026 - Implémentation du Mode Développeur & Correction Suppression Org**
+
+**Durée** : 15 min  
+**Priorité** : ⭐⭐⭐⭐ (Haute)  
+**Complexité** : Moyenne  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+1. Corriger un problème de réactivité empêchant l'organisation d'être retirée localement (de l'UI) après sa suppression.
+2. Créer un "Mode développeur" global activable dans les paramètres utilisateur. Lorsqu'il est actif, il permet de visualiser et copier des IDs (organisation, salon, message).
+3. Restructurer les paramètres des membres de l'organisation pour regrouper la création de lien d'invitation avec la liste des liens actifs au même endroit.
+4. Rendre le composant des Paramètres Utilisateur 100% responsive (adaptation mobile).
+
+### **Fichiers Modifiés**
+- `synco_app/src/components/windows/UserSettings.vue` : Ajout d'une section "Avancé" dans le panel principal et du switch `devMode`.
+- `synco_app/src/views/OrgSpace/views/settings/views/GeneralSettings.vue` : Correction du `.filter` sur les organisations lors de la suppression ; l'ID de l'org n'est désormais visible que si `devMode` est activé.
+- `synco_app/src/views/OrgSpace/components/CanalBar/ThreadBtn.vue` : Ajout de l'option "Copier l'ID" (au clic droit) si `devMode` est actif.
+- `synco_app/src/views/OrgSpace/components/common/ChatMessage.vue` : Ajout de l'option "Copier l'id" dans le menu déroulant du message si `devMode` est actif.
+- `synco_app/src/views/OrgSpace/views/settings/views/MembersSettings.vue` : Déplacement de l'input de création de lien dans la même `section` que la liste des liens d'invitation actifs, supprimant la carte isolée au profit d'une interface plus cohérente.
+
+### **Fonctionnalités Implémentées**
+✅ **Correction Suppression Org** : L'organisation disparaît instantanément de l'interface lors de sa suppression (via `organizations.value = ...`).
+✅ **Mode Développeur (User Settings)** : État global stocké avec `sdb.get / sdb.set` (se souvient du choix via les attributs du profil Keycloak). La mise à jour API est bien effectuée automatiquement par la couche réactive de la fonction `useSettingsItem`.
+✅ **Copie Facilitée des Identifiants** : Récupération instantanée d'IDs complexes pour faciliter le débogage (salons, messages, organisations).
+✅ **Regroupement UI Liens Invitation** : Tous les outils liés aux liens d'invitation sont maintenant rassemblés dans une seule carte dans la gestion des membres, améliorant l'expérience utilisateur.
+✅ **Responsive Design des Paramètres** : La fenêtre des paramètres utilisateurs s'adapte parfaitement aux écrans mobiles (navigation sous forme d'onglets défilables horizontalement avec `pr-14` pour ne pas masquer de contenu sous la croix, avatar centré, marges de la `Window` réduites à `p-2` sur petits écrans et ajout d'un fond de flou/blur derrière la croix de fermeture pour une lisibilité parfaite).
+✅ **Navigation Responsive (Espaces & Home)** : Lors de l'ouverture d'un espace ou de l'accueil sur mobile, la barre latérale des canaux (ThreadsBar) est désormais affichée par défaut au lieu de la vue principale (ajout du paramètre `showView=0` sur les liens et vérification stricte de `isLittleScreen` dans `OrgLayout`).
+✅ **Nettoyage UI** : Suppression du bouton de notification non fonctionnel dans l'en-tête des salons (`ThreadLayout`).
+✅ **UX Paramètres & Fenêtres** : L'édition du logo de l'organisation dans `GeneralSettings` ouvre directement l'explorateur de fichiers natif (suppression de `IconSelector`). Le bouton de fermeture (`Window.vue`) conserve son arrière-plan flouté (blur) en permanence sur tous les écrans pour une meilleure lisibilité. Les boutons de navigation des paramètres utilisateurs utilisent désormais le style global `.tab` (identique à la liste des contacts).
+✅ **Création de Salon** : L'option de sélection "Texte / Vocal" utilise maintenant une animation de glissement plus fluide (type segmented control iOS) pour identifier la sélection active. L'option "Salon en lecture seule" est masquée si le type Vocal est sélectionné.
+✅ **Paramètres Sécurité & Confidentialité** : Implémentation de la section de sécurité dans les paramètres utilisateurs, incluant l'affichage du statut de chiffrement de bout en bout (E2EE), un bouton pour verrouiller manuellement la session sécurisée, et un accès direct à la gestion du compte Keycloak pour les mots de passe et l'A2F. Un bloc "Preuve de chiffrement" a également été ajouté pour afficher l'empreinte de la clé publique de l'utilisateur (RSA-OAEP 4096 bits) avec une option de copie.
+✅ **Sécurité du Code PIN** : La variable contenant le code PIN (`pin`) est désormais instantanément vidée de la mémoire (réinitialisée à une chaîne vide) dès sa validation (lors du déverrouillage ou de l'initialisation) et lors du verrouillage de la session (basculement de `E2EEUnloked` à false).
+
+### **Commits**
+```bash
+git commit -m "feat(settings): add developer mode and fix local org deletion"
+```
+**Date** : 30 Juillet 2026
+
+### **Prochaines Étapes**
+1. Ajouter potentiellement ce mode développeur à d'autres endroits de l'interface (fichiers, utilisateurs, espaces).
+---
+
+

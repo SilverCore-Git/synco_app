@@ -49,6 +49,11 @@
 
         <template #content>
 
+            <button v-if="devMode" @click="copyThreadId" class="dropdown-item-annimate dropdown-item-style text-(--primary)! hover:bg-(--primary)/10!">
+                <i class="bi bi-hash mr-2" />
+                Copier l'ID
+            </button>
+
             <button @click="showEditThread = !showEditThread" class="dropdown-item-annimate dropdown-item-style">
                 <i class="bi bi-pencil-fill mr-2" />
                 Mondifier
@@ -89,6 +94,8 @@ import { ref } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useWSocket, { waitForSocketConnection } from '@/composables/useWSocket';
 import { openedOrg } from '@/assets/var';
+import useSettingsItem from '@/composables/useSettingsItem';
+import { useToast } from '@/composables/useToast';
  
 const props = defineProps<{
   thread: Thread;
@@ -105,6 +112,13 @@ const emit = defineEmits(['click']);
 
 const showEditThread = ref<boolean>(false);
 const showConfirmDelete = ref<boolean>(false);
+const toast = useToast();
+const { Item: devMode } = useSettingsItem('devMode', false);
+
+const copyThreadId = () => {
+    navigator.clipboard.writeText(props.thread.id);
+    toast.show('ID du salon copié', 'success');
+};
 
 const deleteThread = async () => {
     const socket = await useWSocket();

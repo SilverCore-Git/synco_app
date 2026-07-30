@@ -62,7 +62,7 @@ onMounted(() => {
     if (route.name === 'OrgSettings') {
         const firstSetting = settingsViews[0];
         if (!firstSetting) return;
-        router.push({ name: firstSetting.route });
+        router.push({ name: firstSetting.route, query: route.query });
     }
 
 });

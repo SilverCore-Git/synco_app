@@ -18,7 +18,7 @@
                         
                         <div class="relative flex flex-col sm:flex-row justify-between sm:items-center gap-6">
                             <div class="p-1.5 bg-(--bg) border border-(--border-color) rounded-2xl shadow-sm shrink-0 w-fit">
-                                <div class="relative w-[80px] h-[80px] sm:w-[110px] sm:h-[110px] rounded-2xl overflow-hidden bg-(--bg3) cursor-pointer group" @click="showIconSelector = !showIconSelector">
+                                <div class="relative w-[80px] h-[80px] sm:w-[110px] sm:h-[110px] rounded-2xl overflow-hidden bg-(--bg3) cursor-pointer group" @click="triggerFileInput">
                                     <img 
                                         v-if="orgData.logo && orgData.logo.startsWith('data:')" 
                                         :src="orgData.logo" 
@@ -35,20 +35,13 @@
 
                             <button 
                                 type="button"
-                                @click="showIconSelector = !showIconSelector" 
+                                @click="triggerFileInput" 
                                 class="bg-(--bg3) hover:bg-(--bg) border border-(--border-color) text-(--text) flex items-center justify-center gap-2 text-sm px-4 py-2 rounded-xl transition-colors font-medium shadow-sm w-full sm:w-auto"
                             >
                                 <i class="bi bi-camera-fill text-(--text)/60"></i>
                                 Modifier le logo
                             </button>
                         </div>
-                        
-                        <div class="fixed inset-0 cursor-auto z-50" @click="showIconSelector = false" v-if="showIconSelector" />
-                        <Transition name="pop">
-                            <div class="absolute z-50 left-8 top-16" v-if="showIconSelector">
-                                <IconSelector type="square" v-model:model-value="orgData.logo" @on-base64="(icon: string) => orgData.logo = icon" />
-                            </div>
-                        </Transition>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -67,7 +60,7 @@
                             </div>
                         </div>
 
-                        <div class="space-y-2">
+                        <div class="space-y-2" v-if="devMode">
                             <label class="text-xs font-semibold text-(--text)/70">ID Unique (Permanent)</label>
                             <div class="relative">
                                 <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/30">
@@ -228,19 +221,36 @@
 import { ref, computed, watch } from 'vue';
 import { openedOrg, organizations } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
-import IconSelector from '@/components/common/IconSelector.vue';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { useRouter } from 'vue-router';
 import { getAverageColor } from '@/assets/utils/getAverageColor';
+import useSettingsItem from '@/composables/useSettingsItem';
+
+const { Item: devMode } = useSettingsItem('devMode', false);
 
 
 const toast = useToast();
 const router = useRouter();
 
 
-const showIconSelector = ref<boolean>(false);
+const triggerFileInput = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                orgData.value.logo = ev.target?.result as string;
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+    input.click();
+};
 const saving = ref<boolean>(false);
 const showDeleteOrg = ref<boolean>(false);
 const bannerColor = ref<string>('var(--primary)');
@@ -372,7 +382,7 @@ const deleteOrg = async () => {
     {
         toast.show('Organisation supprimer avec succès.', 'success');
         router.push('/');
-        organizations.value.filter(org => org.id !== openedOrg.value?.id);
+        organizations.value = organizations.value.filter(org => org.id !== openedOrg.value?.id);
         openedOrg.value = null
     }
     else

@@ -361,7 +361,7 @@ import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import waitFor from '@/assets/utils/waitfor';
 import useSecurePeer from '@/composables/useSecurePeer';
 
-import { E2EEUnloked, privateKey, encryptForPeer, decryptFromPeer, encryptAesKeyWithRsa } from '@/assets/utils/crypto';
+import { E2EEUnloked, privateKey, encryptForPeer, decryptFromPeer } from '@/assets/utils/crypto';
 import PrivateMeetView from './PrivateMeetView.vue';
 import ChatMessage from '../components/common/ChatMessage.vue';
 import { uploadFiles } from '@/assets/uploadFile';
@@ -723,19 +723,12 @@ const sendMessage = async () => {
 
         try {
             
-            const encryptedData = await encryptForPeer(newMessage.value, recipientPubKey);
+            const encryptedData = await encryptForPeer(newMessage.value, recipientPubKey, myPubKey || undefined);
 
             finalContent = encryptedData.ciphertext;
             finalEncryptedAesKey = encryptedData.encryptedAesKey;
             finalIv = encryptedData.iv;
-
-            if (myPubKey && encryptedData.rawKey) 
-            {
-                selfEncryptedAesKey = await encryptAesKeyWithRsa(
-                    encryptedData.rawKey,
-                    myPubKey
-                );
-            }
+            selfEncryptedAesKey = encryptedData.selfEncryptedAesKey || null;
 
         } catch (e) {
             console.error("Erreur de chiffrement:", e);
@@ -829,7 +822,7 @@ watch(() => route.params.userId, async () => {
 onMounted(async () => {
     if (!route.params.userId) {
         const firstUser = openedOrg.value?.members?.[0];
-        if (firstUser) router.replace({ params: { ...route.params, userId: firstUser.id  } });
+        if (firstUser) router.replace({ params: { ...route.params, userId: firstUser.id }, query: route.query });
     }
 
     const wsRef = await useWSocket();

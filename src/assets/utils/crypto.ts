@@ -58,7 +58,7 @@ export async function decryptUserPrivateKey (
 
 
 
-export async function encryptForPeer (text: string, peerPublicKeyJWK: string) 
+export async function encryptForPeer (text: string, peerPublicKeyJWK: string, myPublicKeyJWK?: string | object) 
 {
 
     const encoder = new TextEncoder();
@@ -91,11 +91,16 @@ export async function encryptForPeer (text: string, peerPublicKeyJWK: string)
         exportedAesKey
     );
 
+    let selfEncryptedAesKey = undefined;
+    if (myPublicKeyJWK) {
+        selfEncryptedAesKey = await encryptAesKeyWithRsa(exportedAesKey, myPublicKeyJWK);
+    }
+
     return {
         ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext))),
         encryptedAesKey: btoa(String.fromCharCode(...new Uint8Array(encryptedAesKey))),
         iv: btoa(String.fromCharCode(...iv)),
-        rawKey: exportedAesKey
+        selfEncryptedAesKey
     };
 
 };

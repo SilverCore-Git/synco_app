@@ -34,7 +34,7 @@ const route = useRoute();
 const toast = useToast();
 
 const mediaQuery = window.matchMedia('(max-width: 1024px)');
-const showRouterView = computed(() => route.query.showView !== '0');
+const showRouterView = computed(() => !isLittleScreen.value || route.query.showView !== '0');
 
 const orgOnOpen = computed(() => {
     return organizations.value.find(org => org.id === route.params.orgId);
@@ -225,6 +225,23 @@ const initSocketListener = async () => {
     socket.value?.on('user-status-changed', ({ status, userId }: { status: string, userId: string }) => {
         const member = openedOrg.value?.members?.find(m => m.userId === userId);            
         if (member && member.user && member.user.data) member.user.data.status = status;
+    });
+
+    socket.value?.on('user-data-updated', ({ userId, data }: { userId: string, data: any }) => {
+        const member = openedOrg.value?.members?.find(m => m.userId === userId);            
+        if (member && member.user) {
+            if (data.name !== undefined) member.user.name = data.name;
+            if (data.avatarUrl !== undefined) member.user.avatarUrl = data.avatarUrl;
+            if (data.job !== undefined) member.user.job = data.job;
+            if (data.description !== undefined) member.user.description = data.description;
+        }
+        
+        if (user.value && user.value.id === userId) {
+            if (data.name !== undefined) user.value.name = data.name;
+            if (data.avatarUrl !== undefined) user.value.avatarUrl = data.avatarUrl;
+            if (data.job !== undefined) user.value.job = data.job;
+            if (data.description !== undefined) user.value.description = data.description;
+        }
     });
 
     socket.value?.on('key-requested', async ({ threadId, requesterId, publicKey }: { threadId: string, requesterId: string, publicKey: string }) => {

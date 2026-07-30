@@ -45,6 +45,12 @@ watch(() => theme.value, () => {
   document.body.className = theme.value;
 })
 
+watch(() => E2EEUnloked.value, (isUnlocked) => {
+  if (!isUnlocked) {
+    pin.value = '';
+  }
+});
+
 const authenticated = ref<boolean>(false);
 const pinSetup = computed(() =>
   user.value?.pinSalt?.trim() &&
@@ -106,6 +112,8 @@ const submit = async () => {
         toast.show('Code PIN incorrect', 'error');
         console.log('Code PIN incorrect');
         pin.value = '';
+      } else {
+        pin.value = '';
       }
 
     }
@@ -121,6 +129,7 @@ const submit = async () => {
       if (res.ok) {
         await refetchUser();
         pinLoading.value = false;
+        pin.value = '';
       }
       else {
         toast.show('Une erreur est survenue lors de l\'initialisation du code pin.', 'error');
