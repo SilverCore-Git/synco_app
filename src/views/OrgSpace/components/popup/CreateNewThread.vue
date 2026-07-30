@@ -327,7 +327,7 @@ const handleSubmit = async () => {
                 });
 
                 await nextTick();
-                router.push({ name: 'SpaceView', params: { orgId: route.params.orgId, spaceId, threadId: res.id } });
+                router.push({ name: 'SpaceThreadView', params: { orgId: route.params.orgId, spaceId, threadId: res.id } });
             }
 
             toast.show('Salon créé avec succès.', 'success');
