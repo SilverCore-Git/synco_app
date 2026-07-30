@@ -32,7 +32,10 @@
                     <!-- Profil Banner inspiré de UserDropDown -->
                     <div class="w-full relative rounded-xl overflow-hidden bg-(--bg2) border border-(--border-color) mb-8 shadow-xl">
                         <!-- Banner -->
-                        <div class="h-[120px] bg-gradient-to-tr from-(--primary-dark) to-(--primary) w-full relative z-0"></div>
+                        <div 
+                            class="h-[120px] w-full relative z-0 transition-all duration-500"
+                            :style="{ background: `linear-gradient(to top right, rgba(0,0,0,0.3), transparent), ${dominantColor}` }"
+                        ></div>
                         
                         <!-- Avatar & Actions -->
                         <div class="px-6 relative flex justify-between items-end pb-6">
@@ -381,6 +384,7 @@ import { user } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import { E2EEUnloked } from '@/assets/utils/crypto';
+import { getAverageColor } from '@/assets/utils/getAverageColor';
 
 defineProps<{
   isOpen: boolean;
@@ -394,6 +398,7 @@ const { Item: theme } = useSettingsItem('theme', 'dark');
 const activeTab = ref<string>('account');
 const avatarChange = ref<boolean>(false);
 const isUpdating = ref<boolean>(false);
+const dominantColor = ref('#16ac77');
 
 const formData = reactive({
     name: '',
@@ -431,6 +436,13 @@ watch(user, (newVal) => {
                 notifPrefs.mentionsOnly = prefs.mentionsOnly ?? false;
             }
         }
+    }
+}, { immediate: true });
+
+watch(() => [user.value?.avatarUrl, user.value?.name], async () => {
+    if (user.value) {
+        const url = user.value.avatarUrl || `https://ui-avatars.com/api/?name=${user.value.name}&background=128a60&color=fff`;
+        dominantColor.value = await getAverageColor(url);
     }
 }, { immediate: true });
 
