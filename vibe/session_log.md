@@ -579,6 +579,7 @@ git commit -m "fix(ux): improve keyboard navigation and routing in space/thread 
 ✅ **Regroupement UI Liens Invitation** : Tous les outils liés aux liens d'invitation sont maintenant rassemblés dans une seule carte dans la gestion des membres, améliorant l'expérience utilisateur.
 ✅ **Responsive Design des Paramètres** : La fenêtre des paramètres utilisateurs s'adapte parfaitement aux écrans mobiles (navigation sous forme d'onglets défilables horizontalement avec `pr-14` pour ne pas masquer de contenu sous la croix, avatar centré, marges de la `Window` réduites à `p-2` sur petits écrans et ajout d'un fond de flou/blur derrière la croix de fermeture pour une lisibilité parfaite).
 ✅ **Navigation Responsive (Espaces & Home)** : Lors de l'ouverture d'un espace ou de l'accueil sur mobile, la barre latérale des canaux (ThreadsBar) est désormais affichée par défaut au lieu de la vue principale (ajout du paramètre `showView=0` sur les liens et vérification stricte de `isLittleScreen` dans `OrgLayout`).
+✅ **Nettoyage UI** : Suppression du bouton de notification non fonctionnel dans l'en-tête des salons (`ThreadLayout`).
 
 ### **Commits**
 ```bash

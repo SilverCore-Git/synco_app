@@ -20,9 +20,6 @@
             </div>
             
             <div class="ml-auto flex items-center gap-4 text-(--text)/40">
-                <button class="hover:text-(--text) transition-colors">
-                    <i class="bi bi-bell-fill" />
-                </button>
                 <button 
                     @click="showUsersBar = !showUsersBar"
                     class="hover:text-(--text) transition-colors"
