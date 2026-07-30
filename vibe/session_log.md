@@ -522,3 +522,33 @@ git commit -m "feat(todo): implémentation du module de Todo List (Backend + Fro
 1. Tester la fluidité en production.
 2. Ajouter le système de Kanban en vue contextuelle.
 ---
+
+## 📅 **30 Juillet 2026 - Amélioration UX Création Espace et Salon**
+
+**Durée** : 15 min
+**Priorité** : ⭐⭐⭐ (Moyenne)
+**Complexité** : Basse
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Permettre la navigation complète au clavier (touche Entrée) lors de la création d'un espace de travail et corriger la redirection automatique vers le salon lors de sa création.
+
+### **Fichiers Modifiés**
+- `synco_app/src/components/common/IconSelector.vue` : Ajout de `triggerEnter` exposé pour la sélection et la validation d'image via Entrée.
+- `synco_app/src/views/OrgSpace/components/popup/CreateNewSpace.vue` : Ajout de l'écouteur clavier global (`keydown.enter`) pour naviguer entre les étapes de création de l'espace.
+- `synco_app/src/views/OrgSpace/components/popup/CreateNewThread.vue` : Remplacement de `SpaceView` par `SpaceThreadView` pour que le salon s'ouvre automatiquement après sa création.
+
+### **Fonctionnalités Implémentées**
+✅ **Navigation Clavier (Espace)** : Les étapes (Nom -> Photo -> Recadrage -> Continuer) sont entièrement navigables avec Entrée.
+✅ **Redirection Automatique (Salon)** : Redirection fonctionnelle vers le salon nouvellement créé (SpaceThreadView).
+
+### **Commits**
+```bash
+git commit -m "fix(ux): improve keyboard navigation and routing in space/thread creation"
+```
+**Date** : 30 Juillet 2026
+
+### **Prochaines Étapes**
+1. Valider l'expérience utilisateur complète sur l'application.
+---
+
