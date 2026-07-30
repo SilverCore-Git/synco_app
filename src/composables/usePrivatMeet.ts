@@ -36,7 +36,16 @@ export default function usePrivateMeet()
             const jwk = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
             sessionPublicKeyJWK.value = JSON.stringify(jwk);
 
-            peer.value = userId ? new Peer(userId) : new Peer();
+            const peerOptions = {
+                host: import.meta.env.VITE_PEER_HOST || 'localhost',
+                port: Number(import.meta.env.VITE_PEER_PORT || 9001),
+                path: import.meta.env.VITE_PEER_PATH || '/webrtc',
+                secure: import.meta.env.VITE_PEER_SECURE === 'true' || false,
+                key: import.meta.env.VITE_PEER_PUBLISHABLE_KEY || 'peerjs',
+                debug: 1
+            };
+
+            peer.value = userId ? new Peer(userId, peerOptions) : new Peer(peerOptions);
 
             peer.value.on('open', (id) => {
                 myPeerId.value = id;

@@ -65,6 +65,13 @@ const routes = [
   },
 
   {
+    path: '/invite/vocal/:code',
+    name: 'GuestVoiceView',
+    component: () => import('./views/GuestVoiceView.vue'),
+    props: true,
+  },
+
+  {
     path: '/:orgId',
     redirect: (to: any) => ({ name: 'OrgHome', params: { orgId: to.params.orgId } })
   },

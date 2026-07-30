@@ -36,7 +36,7 @@
             />
         </div>
 
-        <div class="flex items-center justify-between mt-4">
+        <div v-if="form.type === 'text'" class="flex items-center justify-between mt-4">
             <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
                 Salon en lecture seule
             </label>
@@ -46,7 +46,7 @@
             </label>
         </div>
 
-        <div v-if="form.isReadOnly" class="flex flex-col gap-2">
+        <div v-if="form.type === 'text' && form.isReadOnly" class="flex flex-col gap-2">
             <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
                 Membres autorisés à écrire
             </label>

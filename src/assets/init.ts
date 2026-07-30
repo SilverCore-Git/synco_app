@@ -1,5 +1,5 @@
 import sfetch from "./utils/sfetch";
-import { isLoaded, organizations, user } from "./var";
+import { isLoaded, organizations, user, openedOrg } from "./var";
 
 class Init 
 {
@@ -11,7 +11,8 @@ class Init
         try {
             await Promise.all([
                 this.InitUser(),
-                this.initOrg()
+                this.initOrg(),
+                this.initOpenedOrg()
             ]);
         }
         catch (e) {
@@ -30,10 +31,25 @@ class Init
 
     private async initOrg()
     {
-
         const orgs = await sfetch('/api/users/me/organizations').then(res => res.json());
         organizations.value = Array.isArray(orgs) ? orgs : [];
+    }
 
+    private async initOpenedOrg()
+    {
+        const path = window.location.pathname;
+        const orgId = path.split('/')[1];
+        
+        if (orgId && !['invite', 'root'].includes(orgId)) {
+            try {
+                const res = await sfetch(`/api/orgs/${orgId}`);
+                if (res.ok) {
+                    openedOrg.value = await res.json();
+                }
+            } catch (e) {
+                console.error('Failed to prefetch org', e);
+            }
+        }
     }
 
 }

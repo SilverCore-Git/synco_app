@@ -443,19 +443,13 @@ const initSocketListener = async () => {
         org.spaces?.forEach(space => {
             if (space.threads) 
             {
-                const index = space.threads.findIndex(t => t.id === threadId);
-                if (index !== -1) {
-                    space.threads.splice(index, 1);
-                }
+                space.threads = space.threads.filter(t => t.id !== threadId);
             }
         });
 
         if (org.home?.threads) 
         {
-            const index = org.home.threads.findIndex(t => t.id === threadId);
-            if (index !== -1) {
-                org.home.threads.splice(index, 1);
-            }
+            org.home.threads = org.home.threads.filter(t => t.id !== threadId);
         }
         
     });
@@ -478,12 +472,14 @@ function handleTabletChange(e: any)
 
 onMounted(async () => {
 
-    const res = await sfetch(`/api/orgs/${props.orgId}`);
-    if (!res.ok) {
-        window.location.href = '/';
-        return;
+    if (!openedOrg.value || openedOrg.value.id !== props.orgId) {
+        const res = await sfetch(`/api/orgs/${props.orgId}`);
+        if (!res.ok) {
+            window.location.href = '/';
+            return;
+        }
+        openedOrg.value = await res.json(); 
     }
-    openedOrg.value = await res.json(); 
     await Promise.all([
             initSocketListener(),
             initPeer()

@@ -119,6 +119,8 @@ watchEffect(() => {
 });
 
 const handleClickOutside = (event: MouseEvent) => {
+    if (!isOpen.value && !props.show) return;
+
     const target = event.target as Node;
     
     // Check if click is inside the trigger
@@ -134,8 +136,14 @@ const handleClickOutside = (event: MouseEvent) => {
 };
 
 
-onMounted(() => window.addEventListener('click', handleClickOutside));
-onUnmounted(() => window.removeEventListener('click', handleClickOutside));
+onMounted(() => {
+    window.addEventListener('click', handleClickOutside, true);
+    window.addEventListener('contextmenu', handleClickOutside, true);
+});
+onUnmounted(() => {
+    window.removeEventListener('click', handleClickOutside, true);
+    window.removeEventListener('contextmenu', handleClickOutside, true);
+});
 
 
 defineExpose({ closeDropdown });
