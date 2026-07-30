@@ -2,17 +2,17 @@
 
     <Window :isOpen="isOpen" @close="emit('close')">
         
-        <div class="flex w-full h-full text-(--text) overflow-hidden">
+        <div class="flex flex-col sm:flex-row w-full h-full text-(--text) overflow-hidden">
             
-            <aside class="w-64 bg-(--bg2) border-r border-(--border-color) p-4 flex flex-col gap-2 shrink-0">
+            <aside class="w-full sm:w-64 bg-(--bg2) border-b sm:border-b-0 sm:border-r border-(--border-color) p-2 sm:p-4 flex flex-row sm:flex-col gap-2 shrink-0 overflow-x-auto hide-scrollbar">
 
-                <h2 class="text-xl font-black text-(--text) mb-4 px-3 pt-2">Paramètres</h2>
+                <h2 class="hidden sm:block text-xl font-black text-(--text) mb-4 px-3 pt-2">Paramètres</h2>
                 
                 <button 
                     v-for="tab in tabs" 
                     :key="tab.id"
                     @click="activeTab = tab.id"
-                    class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm font-bold transition-all duration-200"
+                    class="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-left text-sm font-bold transition-all duration-200 whitespace-nowrap shrink-0"
                     :class="activeTab === tab.id ? 'text-(--text) bg-white/10 shadow-sm' : 'text-(--text)/60 hover:text-(--text) hover:bg-white/5'"
                 >
                     <i :class="tab.icon" class="text-lg" />
@@ -21,7 +21,7 @@
 
             </aside>
 
-            <main class="flex-1 p-8 overflow-y-auto bg-(--bg)">
+            <main class="flex-1 p-4 sm:p-8 overflow-y-auto bg-(--bg)">
                 
                 <!-- ACCOUNT -->
                 <section 
@@ -38,10 +38,10 @@
                         ></div>
                         
                         <!-- Avatar & Actions -->
-                        <div class="px-6 relative flex justify-between items-end pb-6">
+                        <div class="px-4 sm:px-6 relative flex flex-col sm:flex-row sm:justify-between items-start sm:items-end pb-4 sm:pb-6">
                             <!-- Overlapping Avatar -->
-                            <div class="absolute -top-12 left-6 p-1.5 bg-(--bg2) rounded-full z-10 shadow-lg">
-                                <div class="relative w-[100px] h-[100px] rounded-full overflow-hidden bg-(--bg)">
+                            <div class="absolute -top-10 sm:-top-12 left-4 sm:left-6 p-1.5 bg-(--bg2) rounded-full z-10 shadow-lg">
+                                <div class="relative w-[80px] h-[80px] sm:w-[100px] sm:h-[100px] rounded-full overflow-hidden bg-(--bg)">
                                     <img 
                                         :src="user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.name}&background=128a60&color=fff`" 
                                         :alt="user?.name" 
@@ -52,11 +52,11 @@
                             </div>
 
                             <!-- Spacer pour l'avatar -->
-                            <div class="w-[110px]"></div>
+                            <div class="w-full sm:w-[110px] h-[30px] sm:h-auto"></div>
 
                             <button 
                                 @click="avatarChange = true" 
-                                class="mt-4 primary flex items-center gap-2 text-sm"
+                                class="mt-2 sm:mt-4 primary flex items-center gap-2 text-sm self-end"
                             >
                                 <i class="bi bi-camera-fill"></i>
                                 Modifier l'avatar
@@ -556,6 +556,14 @@ const tabs = [
         opacity: 1; 
         transform: translateY(0); 
     }
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 
 </style>

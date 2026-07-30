@@ -563,6 +563,7 @@ git commit -m "fix(ux): improve keyboard navigation and routing in space/thread 
 1. Corriger un problème de réactivité empêchant l'organisation d'être retirée localement (de l'UI) après sa suppression.
 2. Créer un "Mode développeur" global activable dans les paramètres utilisateur. Lorsqu'il est actif, il permet de visualiser et copier des IDs (organisation, salon, message).
 3. Restructurer les paramètres des membres de l'organisation pour regrouper la création de lien d'invitation avec la liste des liens actifs au même endroit.
+4. Rendre le composant des Paramètres Utilisateur 100% responsive (adaptation mobile).
 
 ### **Fichiers Modifiés**
 - `synco_app/src/components/windows/UserSettings.vue` : Ajout d'une section "Avancé" dans le panel principal et du switch `devMode`.
@@ -576,6 +577,7 @@ git commit -m "fix(ux): improve keyboard navigation and routing in space/thread 
 ✅ **Mode Développeur (User Settings)** : État global stocké avec `sdb.get / sdb.set` (se souvient du choix via les attributs du profil Keycloak). La mise à jour API est bien effectuée automatiquement par la couche réactive de la fonction `useSettingsItem`.
 ✅ **Copie Facilitée des Identifiants** : Récupération instantanée d'IDs complexes pour faciliter le débogage (salons, messages, organisations).
 ✅ **Regroupement UI Liens Invitation** : Tous les outils liés aux liens d'invitation sont maintenant rassemblés dans une seule carte dans la gestion des membres, améliorant l'expérience utilisateur.
+✅ **Responsive Design des Paramètres** : La fenêtre des paramètres utilisateurs s'adapte parfaitement aux écrans mobiles (navigation sous forme d'onglets défilables horizontalement, avatar centré, etc.).
 
 ### **Commits**
 ```bash
