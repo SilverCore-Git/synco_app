@@ -552,3 +552,36 @@ git commit -m "fix(ux): improve keyboard navigation and routing in space/thread 
 1. Valider l'expérience utilisateur complète sur l'application.
 ---
 
+## 📅 **30 Juillet 2026 - Implémentation du Mode Développeur & Correction Suppression Org**
+
+**Durée** : 15 min  
+**Priorité** : ⭐⭐⭐⭐ (Haute)  
+**Complexité** : Moyenne  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+1. Corriger un problème de réactivité empêchant l'organisation d'être retirée localement (de l'UI) après sa suppression.
+2. Créer un "Mode développeur" global activable dans les paramètres utilisateur. Lorsqu'il est actif, il permet de visualiser et copier des IDs (organisation, salon, message).
+
+### **Fichiers Modifiés**
+- `synco_app/src/components/windows/UserSettings.vue` : Ajout d'une section "Avancé" dans le panel principal et du switch `devMode`.
+- `synco_app/src/views/OrgSpace/views/settings/views/GeneralSettings.vue` : Correction du `.filter` sur les organisations lors de la suppression ; l'ID de l'org n'est désormais visible que si `devMode` est activé.
+- `synco_app/src/views/OrgSpace/components/CanalBar/ThreadBtn.vue` : Ajout de l'option "Copier l'ID" (au clic droit) si `devMode` est actif.
+- `synco_app/src/views/OrgSpace/components/common/ChatMessage.vue` : Ajout de l'option "Copier l'id" dans le menu déroulant du message si `devMode` est actif.
+
+### **Fonctionnalités Implémentées**
+✅ **Correction Suppression Org** : L'organisation disparaît instantanément de l'interface lors de sa suppression (via `organizations.value = ...`).
+✅ **Mode Développeur (User Settings)** : État global stocké avec `sdb.get / sdb.set` (se souvient du choix via les attributs du profil Keycloak).
+✅ **Copie Facilitée des Identifiants** : Récupération instantanée d'IDs complexes pour faciliter le débogage (salons, messages, organisations).
+
+### **Commits**
+```bash
+git commit -m "feat(settings): add developer mode and fix local org deletion"
+```
+**Date** : 30 Juillet 2026
+
+### **Prochaines Étapes**
+1. Ajouter potentiellement ce mode développeur à d'autres endroits de l'interface (fichiers, utilisateurs, espaces).
+---
+
+
