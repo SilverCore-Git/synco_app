@@ -582,6 +582,7 @@ git commit -m "fix(ux): improve keyboard navigation and routing in space/thread 
 ✅ **Nettoyage UI** : Suppression du bouton de notification non fonctionnel dans l'en-tête des salons (`ThreadLayout`).
 ✅ **UX Paramètres & Fenêtres** : L'édition du logo de l'organisation dans `GeneralSettings` ouvre directement l'explorateur de fichiers natif (suppression de `IconSelector`). Le bouton de fermeture (`Window.vue`) conserve son arrière-plan flouté (blur) en permanence sur tous les écrans pour une meilleure lisibilité. Les boutons de navigation des paramètres utilisateurs utilisent désormais le style global `.tab` (identique à la liste des contacts).
 ✅ **Création de Salon** : L'option de sélection "Texte / Vocal" utilise maintenant une animation de glissement plus fluide (type segmented control iOS) pour identifier la sélection active. L'option "Salon en lecture seule" est masquée si le type Vocal est sélectionné.
+✅ **Paramètres Sécurité & Confidentialité** : Implémentation de la section de sécurité dans les paramètres utilisateurs, incluant l'affichage du statut de chiffrement de bout en bout (E2EE), un bouton pour verrouiller manuellement la session sécurisée, et un accès direct à la gestion du compte Keycloak pour les mots de passe et l'A2F.
 
 ### **Commits**
 ```bash
