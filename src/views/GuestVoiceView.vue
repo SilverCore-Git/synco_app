@@ -131,7 +131,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import useLiveKit from '@/composables/useLiveKit';
-import keycloak from '@/assets/keycloak';
+import { keycloak } from '@/assets/keycloak';
 import VideoTrack from '@/views/OrgSpace/components/common/VideoTrack.vue';
 import { Track } from 'livekit-client';
 
