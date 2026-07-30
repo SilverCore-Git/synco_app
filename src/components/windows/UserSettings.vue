@@ -191,6 +191,32 @@
                             </div>
                         </div>
 
+                        <div v-if="E2EEUnloked" class="space-y-4">
+                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text)/50">Preuve de chiffrement (E2EE)</h4>
+                            
+                            <div class="p-5 bg-(--bg2) border border-(--border-color) rounded-xl flex flex-col gap-3">
+                                <div class="flex items-center gap-3 text-(--text)/70">
+                                    <i class="bi bi-cpu-fill text-lg"></i>
+                                    <span class="text-sm font-bold">Clé publique (RSA-OAEP 4096 bits)</span>
+                                </div>
+                                <div class="bg-(--bg) border border-white/5 p-3 rounded-lg flex items-center justify-between group">
+                                    <code class="text-xs text-(--text)/50 font-mono truncate mr-4">
+                                        {{ publicKeyFingerprint }}
+                                    </code>
+                                    <button 
+                                        @click="copyToClipboard(publicKeyFingerprint)"
+                                        class="text-(--text)/40 hover:text-(--text) transition-colors"
+                                        title="Copier l'empreinte"
+                                    >
+                                        <i class="bi bi-copy"></i>
+                                    </button>
+                                </div>
+                                <p class="text-[10px] text-(--text)/40 leading-relaxed">
+                                    Ceci est l'empreinte unique de votre clé publique. Elle est utilisée par vos contacts pour chiffrer les messages qu'ils vous envoient. Seul votre appareil (grâce au code PIN) peut les déchiffrer avec la clé privée correspondante.
+                                </p>
+                            </div>
+                        </div>
+
                         <div class="space-y-4">
                             <h4 class="text-xs font-black uppercase tracking-widest text-(--text)/50">Authentification</h4>
                             
@@ -500,6 +526,26 @@ const isModified = computed(() => {
            formData.job !== (user.value?.job || '') ||
            formData.description !== (user.value?.description || '');
 });
+
+const publicKeyFingerprint = computed(() => {
+    if (!user.value?.publicKey) return 'Non disponible';
+    try {
+        const pk = JSON.parse(user.value.publicKey);
+        if (pk.n) {
+            return pk.n;
+        }
+    } catch(e) {}
+    return 'Génération en cours...';
+});
+
+const copyToClipboard = async (text: string) => {
+    try {
+        await navigator.clipboard.writeText(text);
+        toast.show('Empreinte copiée', 'success');
+    } catch (e) {
+        toast.show('Erreur de copie', 'error');
+    }
+};
 
 const updateProfile = async () => {
     if (!isModified.value) return;
