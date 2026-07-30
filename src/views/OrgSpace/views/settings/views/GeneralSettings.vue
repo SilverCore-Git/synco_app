@@ -221,7 +221,6 @@
 import { ref, computed, watch } from 'vue';
 import { openedOrg, organizations } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
-import IconSelector from '@/components/common/IconSelector.vue';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';

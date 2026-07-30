@@ -361,7 +361,7 @@ import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import waitFor from '@/assets/utils/waitfor';
 import useSecurePeer from '@/composables/useSecurePeer';
 
-import { E2EEUnloked, privateKey, encryptForPeer, decryptFromPeer, encryptAesKeyWithRsa } from '@/assets/utils/crypto';
+import { E2EEUnloked, privateKey, encryptForPeer, decryptFromPeer } from '@/assets/utils/crypto';
 import PrivateMeetView from './PrivateMeetView.vue';
 import ChatMessage from '../components/common/ChatMessage.vue';
 import { uploadFiles } from '@/assets/uploadFile';

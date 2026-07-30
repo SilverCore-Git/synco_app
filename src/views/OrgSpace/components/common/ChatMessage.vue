@@ -210,7 +210,7 @@ import { downloadFile } from '@/assets/utils/downloadFile';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { user } from '@/assets/var';
-import { encryptAesKeyWithRsa, encryptForPeer } from '@/assets/utils/crypto';
+import { encryptForPeer } from '@/assets/utils/crypto';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useToast } from '@/composables/useToast';
 import { openProfile } from '@/composables/useProfile';
@@ -455,12 +455,7 @@ const editMessage = async (newContent: string) => {
 
     const myPubKey = user.value?.publicKey;
 
-    const { ciphertext, encryptedAesKey, iv, rawKey } = await encryptForPeer(newContent, props.msg.sender?.publicKey!);
-
-    const selfEncryptedAesKey = await encryptAesKeyWithRsa(
-        rawKey,
-        myPubKey
-    );
+    const { ciphertext, encryptedAesKey, iv, selfEncryptedAesKey } = await encryptForPeer(newContent, props.msg.sender?.publicKey!, myPubKey);
 
     const socket = await useWSocket();
         
