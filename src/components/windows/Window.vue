@@ -26,7 +26,7 @@
                                 @click="emit('close')"
                                 class="
                                     absolute right-2.5 top-2.5 p-2 rounded-lg hover:bg-white/10 
-                                    bg-(--bg)/60 backdrop-blur-md sm:bg-transparent sm:backdrop-blur-none
+                                    bg-(--bg)/60 backdrop-blur-md
                                     text-(--text)/60 hover:text-(--text) z-100
                                     active:scale-90 transition-all duration-200
                                 "
