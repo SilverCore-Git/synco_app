@@ -16,7 +16,7 @@
 
 import { onMounted, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, isLittleScreen } from '@/assets/var';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 
 const router = useRouter();
@@ -38,13 +38,19 @@ onMounted(() => {
         return;
     }
 
-    router.replace({
-        name: 'OrgThreadHome',
-        params: {
-            threadId: firstThread.id
-        },
-        query: route.query
-    })
+    if (isLittleScreen.value) {
+        if (route.query.showView !== '0') {
+            router.replace({ query: { ...route.query, showView: '0' } });
+        }
+    } else {
+        router.replace({
+            name: 'OrgThreadHome',
+            params: {
+                threadId: firstThread.id
+            },
+            query: route.query
+        });
+    }
 
 })
 
