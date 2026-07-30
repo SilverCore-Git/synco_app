@@ -6,7 +6,8 @@
         <i class="bi bi-house text-6xl text-white/10 mb-4"></i>
         <h2 class="text-xl font-bold mb-2 text-center">Bienvenue !</h2>
         <p class="text-white/40 text-center max-w-sm">
-            Cet accueil ne contient aucun salon.
+            <!-- mettre phrase de bienvenue  -->
+            
         </p>
     </div>
 </template>
