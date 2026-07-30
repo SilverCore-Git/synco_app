@@ -822,7 +822,7 @@ watch(() => route.params.userId, async () => {
 onMounted(async () => {
     if (!route.params.userId) {
         const firstUser = openedOrg.value?.members?.[0];
-        if (firstUser) router.replace({ params: { ...route.params, userId: firstUser.id  } });
+        if (firstUser) router.replace({ params: { ...route.params, userId: firstUser.id }, query: route.query });
     }
 
     const wsRef = await useWSocket();
