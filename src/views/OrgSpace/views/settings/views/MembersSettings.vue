@@ -225,14 +225,14 @@
                                         <div class="flex items-center justify-end gap-2">
                                             <button 
                                                 @click="copyInviteLink(link.code)"
-                                                class="p-2 rounded-xl text-(--text)/40 hover:text-white hover:bg-(--text)/10 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                                class="p-2 rounded-xl text-(--text)/40 hover:text-white hover:bg-(--text)/10 transition-colors"
                                                 title="Copier le lien complet"
                                             >
                                                 <i class="bi bi-clipboard" />
                                             </button>
                                             <button 
                                                 @click="deleteInvite(link.code, 1)"
-                                                class="p-2 rounded-xl text-(--text)/40 hover:text-red-500 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                                class="p-2 rounded-xl text-(--text)/40 hover:text-red-500 hover:bg-red-500/10 transition-colors"
                                                 title="Révoquer le lien"
                                             >
                                                 <i class="bi bi-trash" />
