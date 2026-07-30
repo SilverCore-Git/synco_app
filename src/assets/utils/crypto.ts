@@ -5,7 +5,7 @@ export const E2EEUnloked = computed(() => {
     return privateKey.value !== null && typeof privateKey.value === 'object';
 });
 
-const PIN_ITERATIONS = 600000;
+const PIN_ITERATIONS = 100000;
 
 export async function deriveMasterKey (pin: string, salt: string): Promise<CryptoKey> 
 {
