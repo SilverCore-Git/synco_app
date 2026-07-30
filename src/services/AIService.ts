@@ -356,11 +356,15 @@ export const syncSession = async (lastPrompt: string) => {
             try {
                 const encrypted = await encryptForPeer(
                     JSON.stringify(aiSessionMessages.value), 
+                    user.value.publicKey,
                     user.value.publicKey
                 );
+                
                 payloadMessages = {
                     isE2EE: true,
-                    ...encrypted
+                    ciphertext: encrypted.ciphertext,
+                    encryptedAesKey: encrypted.selfEncryptedAesKey || encrypted.encryptedAesKey,
+                    iv: encrypted.iv
                 };
             } catch (e) {
                 console.error("Erreur de chiffrement E2EE de la session AI", e);

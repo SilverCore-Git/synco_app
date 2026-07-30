@@ -723,19 +723,12 @@ const sendMessage = async () => {
 
         try {
             
-            const encryptedData = await encryptForPeer(newMessage.value, recipientPubKey);
+            const encryptedData = await encryptForPeer(newMessage.value, recipientPubKey, myPubKey || undefined);
 
             finalContent = encryptedData.ciphertext;
             finalEncryptedAesKey = encryptedData.encryptedAesKey;
             finalIv = encryptedData.iv;
-
-            if (myPubKey && encryptedData.rawKey) 
-            {
-                selfEncryptedAesKey = await encryptAesKeyWithRsa(
-                    encryptedData.rawKey,
-                    myPubKey
-                );
-            }
+            selfEncryptedAesKey = encryptedData.selfEncryptedAesKey || null;
 
         } catch (e) {
             console.error("Erreur de chiffrement:", e);
