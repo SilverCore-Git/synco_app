@@ -1,5 +1,5 @@
 import { sfetch } from './sfetch';
-import { privateKey, decryptSpaceKeyWithRsa, generateWorkspaceKey, encryptWorkspaceKeyForMember } from './crypto';
+import { privateKey, decryptSpaceKeyWithRsa, generateSpaceKey, encryptSpaceKeyForMember } from './crypto';
 
 // Cache for Workspace keys
 const workspaceKeyCache = new Map<string, CryptoKey>();
@@ -50,7 +50,7 @@ export async function getWorkspaceKey(workspaceId: string): Promise<{ key: Crypt
             
             const members = await membersResponse.json();
             
-            const newSpaceKey = await generateWorkspaceKey();
+            const newSpaceKey = await generateSpaceKey();
             const version = 1;
             
             const keysToDistribute = [];
@@ -66,7 +66,7 @@ export async function getWorkspaceKey(workspaceId: string): Promise<{ key: Crypt
                         ["encrypt"]
                     );
                     
-                    const encryptedKeyBase64 = await encryptWorkspaceKeyForMember(newSpaceKey, rsaPub);
+                    const encryptedKeyBase64 = await encryptSpaceKeyForMember(newSpaceKey, rsaPub);
                     keysToDistribute.push({
                         userId: member.id,
                         encryptedKey: encryptedKeyBase64
