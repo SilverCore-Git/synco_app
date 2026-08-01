@@ -191,6 +191,7 @@
                             @dragend="handleDragEnd"
                             @file-deleted="handleFileDeleted"
                             @show-file-info="handleShowFileInfo"
+                            @file-watermarked="handleFileWatermarked"
                         />
 
                     </div>
@@ -601,6 +602,14 @@ const handleDragEnd = () => {
     }
     draggedFileId.value = null;
     draggedSourceFolderId.value = null;
+};
+
+const handleFileDeleted = (id: string) => {
+    allFiles.value = allFiles.value.filter(f => f.id !== id);
+};
+
+const handleFileWatermarked = (newFile: StoredFile) => {
+    allFiles.value.push(newFile);
 };
 
 const onDropToTrash = async (e: DragEvent) => {

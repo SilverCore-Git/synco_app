@@ -58,6 +58,8 @@ const dropdownContentRef = ref<HTMLElement | null>(null);
 const isOpen = ref<boolean>(false);
 const pos = reactive({ x: 0, y: 0 });
 
+const emit = defineEmits(['toggled']);
+
 const toggleDropdown = (e?: MouseEvent) => {
     isOpen.value = !isOpen.value
     if (e && props.align === 'mouse') 
@@ -65,6 +67,7 @@ const toggleDropdown = (e?: MouseEvent) => {
         pos.x = e.clientX;
         pos.y = e.clientY;
     }
+    emit('toggled', isOpen.value);
 };
 
 const getDropdownPosition = () => {
@@ -109,7 +112,12 @@ const getDropdownPosition = () => {
     };
 };
 
-const closeDropdown = () => (isOpen.value = false);
+const closeDropdown = () => {
+    if (isOpen.value) {
+        isOpen.value = false;
+        emit('toggled', false);
+    }
+};
 
 // Recalculate position when dropdown opens or window resizes
 watchEffect(() => {

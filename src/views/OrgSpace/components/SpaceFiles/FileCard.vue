@@ -5,7 +5,8 @@
         @click="showViewer = true"
         :class="[
             draggedFileId === file.id ? 'opacity-40 grayscale-50' : '',
-            'max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border border-(--border-color) rounded-xl transition-all cursor-pointer shadow-sm hover:border-(--primary)/50 hover:bg-(--primary)/5'
+            'max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border border-(--border-color) rounded-xl transition-all cursor-pointer shadow-sm hover:border-(--primary)/50 hover:bg-(--primary)/5',
+            isDropdownOpen ? 'border-(--primary)/50 bg-(--primary)/5' : ''
         ]"
     >
         <div 
@@ -33,14 +34,17 @@
             </div>
         </div>
 
-        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity pr-1">
+        <div 
+            class="flex items-center gap-1 transition-opacity pr-1"
+            :class="isDropdownOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
+        >
             <button class="w-8 h-8 rounded-lg hover:bg-(--primary)/10 flex items-center justify-center transition-colors hover:text-(--primary)" @click.stop="downloadFile(file.id)">
                 <i class="bi bi-download text-lg" />
             </button>
 
-            <DropDown align="right">
+            <DropDown align="right" @click.stop @toggled="val => isDropdownOpen = val">
                 <template #trigger>
-                    <button class="w-8 h-8 rounded-lg hover:bg-(--primary)/10 flex items-center justify-center transition-colors hover:text-(--primary)" @click.stop.prevent>
+                    <button class="w-8 h-8 rounded-lg hover:bg-(--primary)/10 flex items-center justify-center transition-colors hover:text-(--primary)">
                         <i class="bi bi-three-dots-vertical text-lg" />
                     </button>
                 </template>
@@ -58,6 +62,14 @@
                     >
                         <i class="bi bi-info-circle" />
                         Voir les infos
+                    </button>
+                    <button 
+                        v-if="file.mimeType.startsWith('image/') || file.mimeType === 'application/pdf'"
+                        @click="showWatermarkFile = true"
+                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                    >
+                        <i class="bi bi-shield-lock" />
+                        Ajouter un filigrane
                     </button>
                     <button 
                         v-if="file.messageId || file.dmMessageId"
@@ -86,6 +98,14 @@
         @close="showEditFile = false"
     />
 
+    <WatermarkFile
+        v-if="showWatermarkFile"
+        :is-open="showWatermarkFile"
+        :file="file"
+        @close="showWatermarkFile = false"
+        @created="onFileWatermarked"
+    />
+
     <FileViewer
         :is-open="showViewer"
         :file="file"
@@ -103,6 +123,7 @@ import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { downloadFile } from '@/assets/utils/downloadFile';
 import DropDown from '@/components/DropDown.vue';
 import EditFile from '../popup/EditFile.vue';
+import WatermarkFile from '../popup/WatermarkFile.vue';
 import FileViewer from '../popup/FileViewer.vue';
 import type { StoredFile } from '@/types/types';
 import { useToast } from '@/composables/useToast';
@@ -114,14 +135,16 @@ const router = useRouter();
 const route = useRoute();
 
 const showEditFile = ref<boolean>(false);
+const showWatermarkFile = ref<boolean>(false);
 const showViewer = ref<boolean>(false);
+const isDropdownOpen = ref<boolean>(false);
 
 const props = defineProps<{
     file: StoredFile,
     draggedFileId: string | number | null
 }>();
 
-const emit = defineEmits(['file-deleted', 'show-file-info']);
+const emit = defineEmits(['file-deleted', 'show-file-info', 'file-watermarked']);
 
 const formatSize = (bytes: number) => {
     if (bytes === 0) return '0 B';
@@ -221,6 +244,11 @@ const deleteFile = async (file: StoredFile) => {
 
 const onFileUpdated = (updatedMetadata: any) => {
     Object.assign(props.file, updatedMetadata);
+};
+
+const onFileWatermarked = (newFileMetadata: StoredFile) => {
+    // Émettre un événement pour indiquer au composant parent (SpaceFiles) qu'un nouveau fichier a été créé
+    emit('file-watermarked', newFileMetadata);
 };
 
 </script>
