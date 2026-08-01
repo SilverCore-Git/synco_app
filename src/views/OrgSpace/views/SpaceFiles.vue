@@ -292,21 +292,16 @@
         @save="createFolder"
     />
 
-    <Popup :is-open="showDeletePopup" @close="showDeletePopup = false">
-        <div class="p-6 max-w-sm mx-auto">
-            <div class="w-12 h-12 rounded-full bg-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-4">
-                <i class="bi bi-trash text-2xl"></i>
-            </div>
-            <h3 class="text-xl font-bold text-center mb-2">Confirmer la suppression</h3>
-            <p class="text-(--text)/60 text-center text-sm mb-6">
-                Êtes-vous sûr de vouloir supprimer {{ deleteTarget?.type === 'selection' ? 'ces ' + selectedItems.size + ' éléments' : 'cet élément' }} ? Cette action est irréversible.
-            </p>
-            <div class="flex gap-3">
-                <button @click="showDeletePopup = false" class="flex-1 px-4 py-2 rounded-lg border border-(--border-color) hover:bg-(--bg2) transition-colors text-sm font-semibold">Annuler</button>
-                <button @click="executeDeletion" class="flex-1 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors text-sm font-semibold">Supprimer</button>
-            </div>
-        </div>
-    </Popup>
+    <ConfirmDelete
+        :show="showDeletePopup"
+        :itemName="deleteTarget?.type === 'selection' ? selectedItems.size + ' élément(s)' : 'cet élément'"
+        :itemType="deleteTarget?.type === 'selection' ? 'ces éléments' : 'cet élément'"
+        :checkbox="false"
+        :checktext="false"
+        :loading="isDeleting"
+        @confirm="executeDeletion"
+        @cancel="showDeletePopup = false"
+    />
 
     <!-- File Info Modal -->
     <transition
@@ -427,7 +422,7 @@ import useSettingsItem from '@/composables/useSettingsItem';
 import { openedOrg } from '@/assets/var';
 import CreateNewFolder from '../components/popup/CreateNewFolder.vue';
 import VerifyWatermark from '../components/popup/VerifyWatermark.vue';
-import Popup from '@/components/Popup.vue';
+import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { useToast } from '@/composables/useToast';
 import { downloadFile } from '@/assets/utils/downloadFile';
 
@@ -497,8 +492,12 @@ const requestDeleteFolder = (id: string) => {
 };
 
 const executeDeletion = async () => {
-    showDeletePopup.value = false;
-    if (!deleteTarget.value) return;
+    isDeleting.value = true;
+    if (!deleteTarget.value) {
+        showDeletePopup.value = false;
+        isDeleting.value = false;
+        return;
+    }
 
     let successCount = 0;
 
@@ -535,6 +534,8 @@ const executeDeletion = async () => {
         } catch (err) { console.error(err); toast.show(`Erreur`, 'error'); }
     }
     deleteTarget.value = null;
+    showDeletePopup.value = false;
+    isDeleting.value = false;
 };
 
 const allFiles = ref<StoredFile[]>([]);
