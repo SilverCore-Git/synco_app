@@ -112,6 +112,8 @@ import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import Window from '@/components/windows/Window.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
+import { getWorkspaceKey } from '@/assets/utils/workspaceCrypto';
+import { decryptFileLocal } from '@/assets/utils/crypto';
 
 const props = defineProps<{
   file: StoredFile;
@@ -129,8 +131,13 @@ const showDeleteConfirm = ref(false);
 const fileContent = ref('');
 const originalFileContent = ref('');
 
+const e2eeObjectUrl = ref<string | null>(null);
+
 const fileUrl = computed(() => {
-  return `${import.meta.env.VITE_API_URL}/cdn/download/${props.file.id}?token=Bearer ${kcToken.value}&inline=true`;
+  if (props.file.isE2EE && e2eeObjectUrl.value) {
+    return e2eeObjectUrl.value;
+  }
+  return `${import.meta.env.VITE_API_URL}/api/cdn/download/${props.file.id}?token=Bearer ${kcToken.value}&inline=true`;
 });
 
 const isImage = computed(() => props.file.mimeType.startsWith('image/'));
@@ -165,14 +172,48 @@ const fetchTextContent = async () => {
   try {
     const res = await sfetch(`/api/cdn/download/${props.file.id}`);
     if (res.ok) {
-      const text = await res.text();
-      fileContent.value = text;
-      originalFileContent.value = text;
+      if (props.file.isE2EE && props.file.workspaceId && props.file.encryptedFileKey && props.file.iv) {
+        const buffer = await res.arrayBuffer();
+        const { key: spaceKey } = await getWorkspaceKey(props.file.workspaceId);
+        const decryptedBuffer = await decryptFileLocal(buffer, props.file.encryptedFileKey, props.file.iv, spaceKey);
+        const text = new TextDecoder().decode(decryptedBuffer);
+        fileContent.value = text;
+        originalFileContent.value = text;
+      } else {
+        const text = await res.text();
+        fileContent.value = text;
+        originalFileContent.value = text;
+      }
     } else {
       toast.show('Erreur lors du chargement du fichier texte.', 'error');
     }
   } catch (err) {
     toast.show('Erreur de connexion.', 'error');
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const loadE2EEPreview = async () => {
+  if (!props.file.isE2EE || !props.file.workspaceId) return;
+  isLoading.value = true;
+  try {
+    const res = await sfetch(`/api/cdn/download/${props.file.id}`);
+    if (res.ok) {
+      const buffer = await res.arrayBuffer();
+      const { key: spaceKey } = await getWorkspaceKey(props.file.workspaceId);
+      const decryptedBuffer = await decryptFileLocal(
+        buffer, 
+        props.file.encryptedFileKey!, 
+        props.file.iv!, 
+        spaceKey
+      );
+      const blob = new Blob([decryptedBuffer], { type: props.file.mimeType });
+      e2eeObjectUrl.value = URL.createObjectURL(blob);
+    }
+  } catch (err) {
+    hasError.value = true;
+    toast.show('Erreur de déchiffrement de l\'aperçu.', 'error');
   } finally {
     isLoading.value = false;
   }
@@ -228,10 +269,18 @@ watch(() => props.isOpen, (isOpen) => {
   if (isOpen) {
     isLoading.value = true;
     hasError.value = false;
-    if (isTextFile.value) {
+    
+    if (props.file.isE2EE && !isTextFile.value && (isImage.value || isPdf.value)) {
+        loadE2EEPreview();
+    } else if (isTextFile.value) {
       fetchTextContent();
     } else if (!isImage.value && !isPdf.value) {
       isLoading.value = false; // no preview
+    }
+  } else {
+    if (e2eeObjectUrl.value) {
+        URL.revokeObjectURL(e2eeObjectUrl.value);
+        e2eeObjectUrl.value = null;
     }
   }
 });

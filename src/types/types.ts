@@ -10,6 +10,10 @@ export interface StoredFile {
   encoding?: string;
   hash?: string;
   isEncrypted: boolean;
+  isE2EE?: boolean;
+  encryptedFileKey?: string | null;
+  keyVersion?: number | null;
+  iv?: string | null;
   
   ownerId: string;
   orgId: string;
