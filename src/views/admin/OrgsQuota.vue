@@ -3,10 +3,10 @@
         <div class="bg-(--bg) p-6 rounded-2xl border border-white/5 shadow-lg flex flex-col gap-4">
             <div class="flex items-center justify-between">
                 <h3 class="font-black text-lg flex items-center gap-2"><i class="bi bi-hdd-network text-(--primary)"></i> Stockage Global Synco</h3>
-                <span class="font-bold text-sm bg-white/5 px-3 py-1 rounded-full">{{ formatBytes(totalUsedStorage) }} / 4 TB</span>
+                <span class="font-bold text-sm bg-white/5 px-3 py-1 rounded-full">{{ formatBytes(totalUsedStorage) }} / {{ serverStorage.total > 0 ? formatBytes(serverStorage.total) : 'N/A' }}</span>
             </div>
             <div class="w-full bg-white/5 rounded-full h-4 overflow-hidden relative">
-                <div class="bg-(--primary) h-full transition-all duration-500" :style="{ width: Math.min((Number(totalUsedStorage) / (4 * 1024 * 1024 * 1024 * 1024)) * 100, 100) + '%' }"></div>
+                <div class="bg-(--primary) h-full transition-all duration-500" :style="{ width: serverStorage.total > 0 ? Math.min((Number(totalUsedStorage) / serverStorage.total) * 100, 100) + '%' : '0%' }"></div>
             </div>
         </div>
 
@@ -144,6 +144,9 @@
                             class="w-full bg-(--bg2) border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all"
                         >
                         <p class="text-[10px] text-(--text)/40 mt-1">Stockage maximal en Gigaoctets alloué.</p>
+                        <p class="text-[10px] text-(--text)/40 mt-0.5">
+                            Espace serveur disponible : <span class="font-bold text-(--text)">{{ formatBytes(serverStorage.free) }}</span>.
+                        </p>
                     </div>
                     <div class="space-y-1.5 pt-4 border-t border-white/5">
                         <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50 flex items-center gap-2 mb-3">
@@ -226,6 +229,7 @@ interface AdminOrg {
 }
 
 const orgs = ref<AdminOrg[]>([]);
+const serverStorage = ref({ total: 0, free: 0 });
 
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -269,9 +273,21 @@ const fetchData = async () => {
     loading.value = true;
     error.value = null;
     try {
-        const res = await sfetch('/api/admin/organizations');
-        if (res.ok) orgs.value = await res.json();
-        else error.value = (await res.json()).error || 'Accès refusé.';
+        const [orgRes, storageRes] = await Promise.all([
+            sfetch('/api/admin/organizations'),
+            sfetch('/api/admin/system-storage')
+        ]);
+        
+        if (orgRes.ok) orgs.value = await orgRes.json();
+        else error.value = (await orgRes.json()).error || 'Accès refusé.';
+
+        if (storageRes.ok) {
+            const data = await storageRes.json();
+            serverStorage.value = {
+                total: Number(data.totalDiskSpace || 0),
+                free: Number(data.freeDiskSpace || 0)
+            };
+        }
     } catch (e) {
         error.value = "Impossible de se connecter au serveur.";
     } finally {
