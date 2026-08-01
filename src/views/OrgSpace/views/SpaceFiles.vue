@@ -176,6 +176,8 @@
                         :draggedIntoFolderId="draggedIntoFolderId"
                         :draggedSourceFolderId="draggedSourceFolderId"
                         :allFiles="allFiles"
+                        :isSelected="selectedItems.has(folder.id)"
+                        @toggle-select="toggleSelection(folder.id)"
                     />
 
                 </div>
@@ -197,6 +199,8 @@
                             draggable="true"
                             :file="file"
                             :draggedFileId="draggedFileId"
+                            :isSelected="selectedItems.has(file.id)"
+                            @toggle-select="toggleSelection(file.id)"
                             @dragstart="handleDragStart($event, file.id)"
                             @dragend="handleDragEnd"
                             @file-deleted="handleFileDeleted"
@@ -218,7 +222,7 @@
 
         </main>
 
-        <div class="absolute left-5 bottom-5">
+        <div class="absolute left-5 bottom-5 z-20">
             <button 
                 v-if="currentFolderId !== 'root'"
                 class=" bg-(--primary-hover) hover:scale-110 active:scale-90 transition-all duration-200 p-2 w-12 h-12 rounded-full" 
@@ -227,6 +231,47 @@
                 <i class="bi bi-arrow-left text-2xl " />
             </button>
         </div>
+
+        <!-- Bulk Action Bar -->
+        <transition
+            enter-active-class="transition duration-300 ease-out"
+            enter-from-class="transform translate-y-full opacity-0"
+            enter-to-class="transform translate-y-0 opacity-100"
+            leave-active-class="transition duration-200 ease-in"
+            leave-from-class="transform translate-y-0 opacity-100"
+            leave-to-class="transform translate-y-full opacity-0"
+        >
+            <div v-if="selectedItems.size > 0" class="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 bg-(--bg2) border border-(--border-color) rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-4">
+                <span class="text-sm font-bold text-(--text)">{{ selectedItems.size }} sélectionné(s)</span>
+                
+                <div class="h-6 w-px bg-(--border-color)"></div>
+                
+                <button 
+                    @click="downloadSelected" 
+                    class="p-2 rounded-lg hover:bg-(--primary)/10 text-(--text)/80 hover:text-(--primary) transition-colors flex items-center gap-2 text-sm font-semibold"
+                >
+                    <i class="bi bi-download"></i>
+                    <span>Télécharger</span>
+                </button>
+
+                <button 
+                    @click="deleteSelected" 
+                    class="p-2 rounded-lg hover:bg-red-500/10 text-(--text)/80 hover:text-red-500 transition-colors flex items-center gap-2 text-sm font-semibold"
+                >
+                    <i class="bi bi-trash"></i>
+                    <span>Supprimer</span>
+                </button>
+
+                <div class="h-6 w-px bg-(--border-color)"></div>
+
+                <button 
+                    @click="selectedItems.clear()" 
+                    class="p-2 rounded-lg hover:bg-white/5 text-(--text)/40 hover:text-(--text) transition-colors"
+                >
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        </transition>
 
     </div>
 
@@ -364,6 +409,7 @@ import { openedOrg } from '@/assets/var';
 import CreateNewFolder from '../components/popup/CreateNewFolder.vue';
 import VerifyWatermark from '../components/popup/VerifyWatermark.vue';
 import { useToast } from '@/composables/useToast';
+import { downloadFile } from '@/assets/utils/downloadFile';
 
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import { uploadFiles } from '@/assets/uploadFile';
@@ -381,6 +427,65 @@ const router = useRouter();
 const toast = useToast();
 
 const searchQuery = ref<string>('');
+
+const selectedItems = ref<Set<string>>(new Set());
+
+const toggleSelection = (id: string) => {
+    const newSet = new Set(selectedItems.value);
+    if (newSet.has(id)) {
+        newSet.delete(id);
+    } else {
+        newSet.add(id);
+    }
+    selectedItems.value = newSet;
+};
+
+const downloadSelected = async () => {
+    const filesToDownload = allFiles.value.filter(f => selectedItems.value.has(f.id));
+    if (filesToDownload.length === 0) {
+        toast.show("Aucun fichier sélectionné (les dossiers ne peuvent être téléchargés groupés pour le moment).", "info");
+        return;
+    }
+    
+    for (const file of filesToDownload) {
+        try {
+            await downloadFile(file.id);
+            await new Promise(r => setTimeout(r, 500));
+        } catch (err) {
+            console.error(`Error downloading ${file.originalName}`, err);
+        }
+    }
+    selectedItems.value.clear();
+};
+
+const deleteSelected = async () => {
+    if (!confirm(`Voulez-vous vraiment supprimer les ${selectedItems.value.size} élément(s) sélectionné(s) ?`)) return;
+    
+    const idsToDelete = Array.from(selectedItems.value);
+    let successCount = 0;
+    
+    for (const id of idsToDelete) {
+        try {
+            const isFolder = allFolders.value.some(f => f.id === id);
+            const endpoint = isFolder ? `/api/cdn/folder/${id}` : `/api/cdn/${id}`;
+            
+            const res = await sfetch(endpoint, { method: 'DELETE' });
+            if (res.ok) {
+                if (isFolder) {
+                    allFolders.value = allFolders.value.filter(f => f.id !== id);
+                } else {
+                    allFiles.value = allFiles.value.filter(f => f.id !== id);
+                }
+                successCount++;
+            }
+        } catch (err) {
+            console.error(`Error deleting item ${id}`, err);
+        }
+    }
+    
+    selectedItems.value.clear();
+    toast.show(`${successCount} élément(s) supprimé(s)`, 'success');
+};
 const allFiles = ref<StoredFile[]>([]);
 const allFolders = ref<Folder[]>([]);
 const loading = ref<boolean>(true);
@@ -478,6 +583,11 @@ const filteredFolders = computed(() => {
 
     return baseFolders.filter(f => f.name.toLowerCase().includes(query));
 
+});
+
+watch(currentFolderId, () => {
+    // Clear selection when navigating folders
+    selectedItems.value.clear();
 });
 
 const breadcrumbs = computed(() => {

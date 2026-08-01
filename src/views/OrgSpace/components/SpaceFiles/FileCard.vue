@@ -2,17 +2,34 @@
 
     <div 
         v-bind="$attrs"
-        @click="showViewer = true"
+        @click="$emit('toggle-select')"
         :class="[
             draggedFileId === file.id ? 'opacity-40 grayscale-50' : '',
-            'max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border border-(--border-color) rounded-xl transition-all cursor-pointer shadow-sm hover:border-(--primary)/50 hover:bg-(--primary)/5',
-            isDropdownOpen ? 'border-(--primary)/50 bg-(--primary)/5' : ''
+            'max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border rounded-xl transition-all cursor-pointer shadow-sm',
+            isSelected 
+                ? 'border-(--primary) bg-(--primary)/10'
+                : 'border-(--border-color) hover:border-(--primary)/50 hover:bg-(--primary)/5',
+            isDropdownOpen && !isSelected ? 'border-(--primary)/50 bg-(--primary)/5' : ''
         ]"
     >
+        <!-- Selection Checkbox -->
+        <button 
+            @click.stop="$emit('toggle-select')"
+            class="shrink-0 w-5 h-5 rounded border flex items-center justify-center transition-all duration-200"
+            :class="[
+                isSelected 
+                    ? 'bg-(--primary) border-(--primary) text-white' 
+                    : 'border-(--text)/30 opacity-0 group-hover:opacity-100 hover:border-(--primary) text-transparent'
+            ]"
+        >
+            <i v-if="isSelected" class="bi bi-check text-sm" />
+        </button>
+
         <div 
+            @click.stop="showViewer = true"
             class="
                 w-10 h-10 flex items-center justify-center 
-                rounded-lg bg-black/20 border border-(--border-color) shrink-0
+                rounded-lg bg-black/20 border border-(--border-color) shrink-0 hover:bg-black/30 transition-colors
             "
         >
             <i 
@@ -21,8 +38,8 @@
             />
         </div>
 
-        <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold text-(--text)/90 truncate">{{ file.originalName }}</p>
+        <div class="flex-1 min-w-0" @click.stop="showViewer = true">
+            <p class="text-sm font-semibold text-(--text)/90 truncate hover:text-(--primary) transition-colors">{{ file.originalName }}</p>
             <div class="flex items-center gap-2 text-[9px] font-bold text-(--text)/40 uppercase tracking-tighter mt-1">
                 <span>{{ formatSize(file.size) }}</span>
                 <span>•</span>
