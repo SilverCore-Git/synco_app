@@ -1,19 +1,9 @@
 <template>
-  <Teleport to="body">
-    <Transition name="fade">
-      <div 
-        v-if="isOpen" 
-        class="fixed inset-0 z-[2000] flex items-center justify-center p-4 md:p-8 bg-black/80 backdrop-blur-sm"
-        @click.self="closeViewer"
-      >
-        <Transition name="pop" appear>
-          <div 
-            v-if="isOpen"
-            class="w-full max-w-6xl h-full max-h-[90vh] bg-(--bg) border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
-          >
-            <!-- Header -->
-            <div class="px-6 py-4 border-b border-(--bg2)/5 flex items-center justify-between shrink-0">
-              <div class="flex items-center gap-3 min-w-0">
+  <Window :is-open="isOpen" :hideCloseBtn="true" @close="closeViewer">
+    <div class="w-full h-full max-h-[90vh] bg-(--bg) overflow-hidden flex flex-col">
+      <!-- Header -->
+      <div class="px-6 py-4 border-b border-(--bg2)/5 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-3 min-w-0">
                 <i :class="[getFileInfo(file).icon, getFileInfo(file).color]" class="text-xl" />
                 <h3 class="text-lg font-semibold text-(--text) truncate" :title="file.originalName">
                   {{ file.originalName }}
@@ -31,6 +21,22 @@
                   <i class="bi bi-floppy" />
                   Enregistrer
                 </button>
+                <button 
+                  @click="downloadFile(file.id)"
+                  class="p-2 rounded-lg hover:bg-white/5 text-(--text)/40 hover:text-(--text) active:scale-90 transition-all duration-200 ml-2"
+                  title="Télécharger"
+                >
+                  <i class="bi bi-download text-lg" />
+                </button>
+
+                <button 
+                  @click="deleteFile"
+                  class="p-2 rounded-lg hover:bg-red-500/10 text-(--text)/40 hover:text-red-500 active:scale-90 transition-all duration-200"
+                  title="Supprimer"
+                >
+                  <i class="bi bi-trash3 text-lg" />
+                </button>
+
                 <button 
                   @click="closeViewer"
                   class="p-2 rounded-lg hover:bg-white/5 text-(--text)/40 hover:text-(--text) active:scale-90 transition-all duration-200 ml-2"
@@ -84,11 +90,8 @@
               <span>{{ formatSize(file.size) }}</span>
             </div>
 
-          </div>
-        </Transition>
-      </div>
-    </Transition>
-  </Teleport>
+    </div>
+  </Window>
 </template>
 
 <script setup lang="ts">
@@ -99,13 +102,14 @@ import { downloadFile } from '@/assets/utils/downloadFile';
 import { kcToken } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
+import Window from '@/components/windows/Window.vue';
 
 const props = defineProps<{
   file: StoredFile;
   isOpen: boolean;
 }>();
 
-const emit = defineEmits(['close', 'updated']);
+const emit = defineEmits(['close', 'updated', 'deleted']);
 const toast = useToast();
 
 const isLoading = ref(true);
@@ -190,6 +194,23 @@ const saveContent = async () => {
     toast.show('Erreur de connexion.', 'error');
   } finally {
     isSaving.value = false;
+  }
+};
+
+const deleteFile = async () => {
+  if (!confirm('Êtes-vous sûr de vouloir supprimer ce fichier ?')) return;
+  try {
+    const res = await sfetch(`/api/cdn/${props.file.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      toast.show('Fichier supprimé', 'success');
+      emit('deleted', props.file.id);
+      emit('close');
+    } else {
+      const errorData = await res.json();
+      toast.show(errorData.error || 'Erreur lors de la suppression', 'error');
+    }
+  } catch (err) {
+    toast.show('Erreur de connexion.', 'error');
   }
 };
 

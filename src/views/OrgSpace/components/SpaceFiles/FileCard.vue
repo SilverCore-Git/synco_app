@@ -91,6 +91,7 @@
         :file="file"
         @close="showViewer = false"
         @updated="onFileUpdated"
+        @deleted="emit('file-deleted', file.id)"
     />
 
 </template>
