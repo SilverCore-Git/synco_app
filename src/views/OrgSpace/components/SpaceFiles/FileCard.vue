@@ -1,6 +1,7 @@
 <template>
 
     <div 
+        @click="showViewer = true"
         :class="[
             draggedFileId === file.id ? 'opacity-40 grayscale-50' : '',
             'max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border border-(--border-color) rounded-xl transition-all cursor-pointer shadow-sm hover:border-(--primary)/50 hover:bg-(--primary)/5'
@@ -84,6 +85,13 @@
         @close="showEditFile = false"
     />
 
+    <FileViewer
+        :is-open="showViewer"
+        :file="file"
+        @close="showViewer = false"
+        @updated="onFileUpdated"
+    />
+
 </template>
 
 <script lang="ts" setup>
@@ -93,6 +101,7 @@ import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { downloadFile } from '@/assets/utils/downloadFile';
 import DropDown from '@/components/DropDown.vue';
 import EditFile from '../popup/EditFile.vue';
+import FileViewer from '../popup/FileViewer.vue';
 import type { StoredFile } from '@/types/types';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
@@ -103,6 +112,7 @@ const router = useRouter();
 const route = useRoute();
 
 const showEditFile = ref<boolean>(false);
+const showViewer = ref<boolean>(false);
 
 const props = defineProps<{
     file: StoredFile,
@@ -207,5 +217,8 @@ const deleteFile = async (file: StoredFile) => {
     }
 };
 
+const onFileUpdated = (updatedMetadata: any) => {
+    Object.assign(props.file, updatedMetadata);
+};
 
 </script>
