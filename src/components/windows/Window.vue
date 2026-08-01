@@ -20,7 +20,7 @@
                         "
                     >
 
-                        <div>
+                        <div v-if="!hideCloseBtn">
 
                             <button 
                                 @click="emit('close')"
@@ -58,6 +58,7 @@ import { onMounted, onUnmounted } from 'vue';
 
 defineProps<{
   isOpen: boolean;
+  hideCloseBtn?: boolean;
 }>();
 
 const emit = defineEmits(['close']);
