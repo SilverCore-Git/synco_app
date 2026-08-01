@@ -96,7 +96,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import type { StoredFile } from '@/types/types';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { downloadFile } from '@/assets/utils/downloadFile';
-import { keycloak } from '@/assets/keycloak';
+import { kcToken } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 
@@ -116,7 +116,7 @@ const fileContent = ref('');
 const originalFileContent = ref('');
 
 const fileUrl = computed(() => {
-  return `${import.meta.env.VITE_API_URL}/cdn/download/${props.file.id}?token=Bearer ${keycloak.token}&inline=true`;
+  return `${import.meta.env.VITE_API_URL}/cdn/download/${props.file.id}?token=Bearer ${kcToken.value}&inline=true`;
 });
 
 const isImage = computed(() => props.file.mimeType.startsWith('image/'));
