@@ -154,6 +154,7 @@
                     :key="folder.id" 
                     draggable="true"
                     @dragstart="handleFolderDragStart($event, folder.id)"
+                    @dragend="handleDragEnd"
                     @dragover.prevent="draggedIntoFolderId = folder.id"
                     @dragleave="draggedIntoFolderId = null"
                     @drop="handleDrop($event, folder.id)"
@@ -177,7 +178,7 @@
                         Fichiers dans ce dossier
                     </h3>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-4">
+                    <div class="grid grid-cols-1 gap-3">
 
                         <FileCard
                             v-for="file in filteredFiles" 
@@ -187,7 +188,7 @@
                             :file="file"
                             :draggedFileId="draggedFileId"
                             @dragstart="handleDragStart($event, file.id)"
-                            @dragend="draggedFileId = null"
+                            @dragend="handleDragEnd"
                             @file-deleted="handleFileDeleted"
                             @show-file-info="handleShowFileInfo"
                         />
@@ -311,6 +312,30 @@
         </div>
     </transition>
 
+    <Transition name="pop">
+        <div v-if="isDragging" 
+             class="fixed bottom-8 right-8 w-16 h-16 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-2xl z-[100] border-4 transition-all duration-500"
+             :class="[
+                isDeleting ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
+                isHoveringTrash && !isDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_rgba(239,68,68,0.8)]' : 'border-transparent'
+             ]"
+             @dragover.prevent="isHoveringTrash = true"
+             @dragleave.prevent="isHoveringTrash = false"
+             @drop="onDropToTrash">
+             
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 transition-transform" :class="isDeleting ? 'scale-50' : ''">
+                <g class="transition-all duration-300" style="transform-origin: 21px 6px;" :class="isHoveringTrash && !isDeleting ? 'rotate-[40deg]' : ''">
+                    <path d="M3 6h18"></path>
+                    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </g>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+            </svg>
+
+        </div>
+    </Transition>
+
 </template>
 
 <script lang="ts" setup>
@@ -351,6 +376,10 @@ const fileInputRef = ref<HTMLInputElement | null>(null);
 const draggedFileId = ref<string | null>(null);
 const draggedSourceFolderId = ref<string | null>(null);
 const draggedIntoFolderId = ref<string | null>(null);
+
+const isDragging = ref<boolean>(false);
+const isHoveringTrash = ref<boolean>(false);
+const isDeleting = ref<boolean>(false);
 
 const vectorWorker = new VectorWorker();
 vectorWorker.onmessage = async (e) => {
@@ -542,6 +571,8 @@ const moveFile = async (fileId: string, folderId: string) => {
 const triggerFileSearch = () => fileInputRef.value?.click();
 
 const handleFolderDragStart = (event: DragEvent, folderId: string) => {
+    isDragging.value = true;
+    isDeleting.value = false;
     draggedSourceFolderId.value = folderId;
     if (event.dataTransfer) 
     {
@@ -552,12 +583,53 @@ const handleFolderDragStart = (event: DragEvent, folderId: string) => {
 };
 
 const handleDragStart = (event: DragEvent, fileId: string) => {
+    isDragging.value = true;
+    isDeleting.value = false;
     draggedFileId.value = fileId;
     if (event.dataTransfer) 
     {
         event.dataTransfer.effectAllowed = 'move';
         event.dataTransfer.setData('fileId', fileId);
         event.dataTransfer.setData('type', 'file');
+    }
+};
+
+const handleDragEnd = () => {
+    if (!isDeleting.value) {
+        isDragging.value = false;
+        isHoveringTrash.value = false;
+    }
+    draggedFileId.value = null;
+    draggedSourceFolderId.value = null;
+};
+
+const onDropToTrash = async (e: DragEvent) => {
+    e.preventDefault();
+    const type = e.dataTransfer?.getData('type');
+    const id = type === 'file' ? e.dataTransfer?.getData('fileId') : e.dataTransfer?.getData('folderId');
+    if (!id) return;
+
+    isDeleting.value = true;
+    isHoveringTrash.value = false;
+
+    setTimeout(() => {
+        isDragging.value = false;
+        isDeleting.value = false;
+    }, 600);
+
+    try {
+        if (type === 'file') {
+            const res = await sfetch(`/api/cdn/${id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error("API Error");
+            handleFileDeleted(id);
+        } else {
+            const res = await sfetch(`/api/spaces/${route.params.spaceId}/folders/${id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error("API Error");
+            allFolders.value = allFolders.value.filter(f => f.id !== id);
+            toast.show('Dossier supprimé', 'success');
+        }
+    } catch (err) {
+        toast.show("Erreur lors de la suppression", "error");
     }
 };
 

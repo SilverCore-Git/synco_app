@@ -1,94 +1,75 @@
 <template>
 
-                        <div 
-                            :class="draggedFileId === file.id ? 'opacity-40 scale-95' : ''"
-                            class="
-                                group relative flex flex-col bg-(--bg2)/40 
-                                border border-(--border-color) rounded-2xl p-3 
-                                hover:bg-(--bg3) hover:border-(--primary)/30 
-                                transition-all cursor-pointer shadow-sm 
-                                hover:shadow-xl hover:-translate-y-1
-                            "
-                        >
-                        
-                            <div 
-                                class="
-                                    relative aspect-square mb-3 rounded-xl bg-black/20 
-                                    flex items-center justify-center overflow-hidden 
-                                    border border-(--border-color) 
-                                "
-                            >
-                                
-                                <i 
-                                    :class="[getFileInfo(file).icon, getFileInfo(file).color]" 
-                                    class="text-4xl transition-transform group-hover:scale-110 duration-300" 
-                                />
+    <div 
+        :class="[
+            draggedFileId === file.id ? 'opacity-40 grayscale-50' : '',
+            'max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border border-(--border-color) rounded-xl transition-all cursor-pointer shadow-sm hover:border-(--primary)/50 hover:bg-(--primary)/5'
+        ]"
+    >
+        <div 
+            class="
+                w-10 h-10 flex items-center justify-center 
+                rounded-lg bg-black/20 border border-(--border-color) shrink-0
+            "
+        >
+            <i 
+                :class="[getFileInfo(file).icon, getFileInfo(file).color]" 
+                class="text-xl transition-transform group-hover:scale-110 duration-300" 
+            />
+        </div>
 
-                                <div class="absolute bottom-2 right-2 px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-md border border-white/10 text-[9px] font-black uppercase text-white/70">
-                                    {{ file.originalName.split('.').pop() }}
-                                </div>
+        <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-(--text)/90 truncate">{{ file.originalName }}</p>
+            <div class="flex items-center gap-2 text-[9px] font-bold text-(--text)/40 uppercase tracking-tighter mt-1">
+                <span>{{ formatSize(file.size) }}</span>
+                <span>•</span>
+                <span>{{ file.originalName.split('.').pop() }}</span>
+                <template v-if="file.createdAt">
+                    <span>•</span>
+                    <span>{{ formatDate(file.createdAt) }}</span>
+                </template>
+            </div>
+        </div>
 
-                                <div 
-                                    class="
-                                        absolute inset-0 bg-black/60 opacity-0 
-                                        group-hover:opacity-100 transition-opacity 
-                                        flex items-center justify-center gap-2
-                                        pointer-events-none
-                                    "
-                                >
-                                
-                                    <button class="glass pointer-events-auto" @click.stop="downloadFile(file.id)">
-                                        <i class="bi bi-download" />
-                                    </button>
+        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity pr-1">
+            <button class="w-8 h-8 rounded-lg hover:bg-(--primary)/10 flex items-center justify-center transition-colors hover:text-(--primary)" @click.stop="downloadFile(file.id)">
+                <i class="bi bi-download text-lg" />
+            </button>
 
-                                    <DropDown align="right" class="pointer-events-auto">
-                                        <template #trigger>
-                                            <button class="glass pointer-events-auto" @click.prevent>
-                                                <i class="bi bi-three-dots-vertical" />
-                                            </button>
-                                        </template>
-                                        <template #content>
-                                            <button 
-                                                @click="showFileInfo(file)"
-                                                class="dropdown-item-annimate dropdown-item-style gap-2"
-                                            >
-                                                <i class="bi bi-info-circle" />
-                                                Voir les infos
-                                            </button>
-                                            <button 
-                                                v-if="file.messageId || file.dmMessageId"
-                                                @click="viewMessagesWithFile(file)"
-                                                class="dropdown-item-annimate dropdown-item-style gap-2"
-                                            >
-                                                <i class="bi bi-chat-left" />
-                                                Voir le message
-                                            </button>
-                                            <button 
-                                                @click="deleteFile(file)"
-                                                class="dropdown-item-annimate dropdown-item-style gap-2 text-red-500! hover:bg-red-500/5!"
-                                            >
-                                                <i class="bi bi-trash" />
-                                                Supprimer
-                                            </button>
-                                        </template>
-                                    </DropDown>
+            <DropDown align="right">
+                <template #trigger>
+                    <button class="w-8 h-8 rounded-lg hover:bg-(--primary)/10 flex items-center justify-center transition-colors hover:text-(--primary)" @click.prevent>
+                        <i class="bi bi-three-dots-vertical text-lg" />
+                    </button>
+                </template>
+                <template #content>
+                    <button 
+                        @click="showFileInfo(file)"
+                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                    >
+                        <i class="bi bi-info-circle" />
+                        Voir les infos
+                    </button>
+                    <button 
+                        v-if="file.messageId || file.dmMessageId"
+                        @click="viewMessagesWithFile(file)"
+                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                    >
+                        <i class="bi bi-chat-left" />
+                        Voir le message
+                    </button>
+                    <button 
+                        @click="deleteFile(file)"
+                        class="dropdown-item-annimate dropdown-item-style gap-2 text-red-500! hover:bg-red-500/5!"
+                    >
+                        <i class="bi bi-trash" />
+                        Supprimer
+                    </button>
+                </template>
+            </DropDown>
+        </div>
 
-                                </div>
-
-                            </div>
-
-                            <div class="flex flex-col gap-0.5 min-w-0">
-                                <span class="text-xs font-semibold text-(--text)/90 truncate group-hover:text-(--primary) transition-colors" :title="file.originalName">
-                                    {{ file.originalName }}
-                                </span>
-                                
-                                <div class="flex items-center justify-between text-[9px] font-bold text-(--text)/30 uppercase tracking-tighter">
-                                    <span>{{ formatSize(file.size) }}</span>
-                                    <span v-if="file.createdAt">{{ formatDate(file.createdAt) }}</span>
-                                </div>
-                            </div>
-                            
-                        </div>
+    </div>
 
 </template>
 
