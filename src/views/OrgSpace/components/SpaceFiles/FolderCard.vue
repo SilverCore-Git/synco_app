@@ -78,7 +78,7 @@ import type { Folder, StoredFile } from '@/types/types';
 import { ref } from 'vue';
 import EditFolder from '../popup/EditFolder.vue';
 
-defineProps<{
+const props = defineProps<{
     folder: Folder,
     draggedIntoFolderId: any,
     draggedSourceFolderId: any,

@@ -53,7 +53,6 @@ import { ref, reactive, nextTick, watch } from 'vue';
 import Popup from '@/components/Popup.vue';
 import type { StoredFile } from '@/types/types';
 import { useToast } from '@/composables/useToast';
-import sfetch from '@/assets/utils/sfetch';
 import { openedOrg } from '@/assets/var';
 import { keycloak } from '@/assets/keycloak';
 import { watermarkImageLocal, watermarkPDFLocal } from '@/assets/utils/watermark';
