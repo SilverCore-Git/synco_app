@@ -206,6 +206,7 @@
                             @dragstart="handleDragStart($event, file.id)"
                             @dragend="handleDragEnd"
                             @file-deleted="handleFileDeleted"
+                            @request-delete="requestDeleteFile"
                             @show-file-info="handleShowFileInfo"
                             @file-watermarked="handleFileWatermarked"
                         />
@@ -244,7 +245,7 @@
             leave-to-class="transform translate-y-full opacity-0"
         >
             <div v-if="selectedItems.size > 0" class="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 bg-(--bg2) border border-(--border-color) rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-4">
-                <span class="text-sm font-bold text-(--text)">{{ selectedItems.size }} sélectionné(s)</span>
+                <span class="text-sm font-bold text-(--text) whitespace-nowrap">{{ selectedItems.size }} sélectionné(s)</span>
                 
                 <div class="h-6 w-px bg-(--border-color)"></div>
                 
@@ -257,7 +258,7 @@
                 </button>
 
                 <button 
-                    @click="deleteSelected" 
+                    @click="requestDeleteSelection" 
                     class="p-2 rounded-lg hover:bg-red-500/10 text-(--text)/80 hover:text-red-500 transition-colors flex items-center gap-2 text-sm font-semibold"
                 >
                     <i class="bi bi-trash"></i>
@@ -290,6 +291,22 @@
         @close="showFolderNamePrompt = false"
         @save="createFolder"
     />
+
+    <Popup :is-open="showDeletePopup" @close="showDeletePopup = false">
+        <div class="p-6 max-w-sm mx-auto">
+            <div class="w-12 h-12 rounded-full bg-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-4">
+                <i class="bi bi-trash text-2xl"></i>
+            </div>
+            <h3 class="text-xl font-bold text-center mb-2">Confirmer la suppression</h3>
+            <p class="text-(--text)/60 text-center text-sm mb-6">
+                Êtes-vous sûr de vouloir supprimer {{ deleteTarget?.type === 'selection' ? 'ces ' + selectedItems.size + ' éléments' : 'cet élément' }} ? Cette action est irréversible.
+            </p>
+            <div class="flex gap-3">
+                <button @click="showDeletePopup = false" class="flex-1 px-4 py-2 rounded-lg border border-(--border-color) hover:bg-(--bg2) transition-colors text-sm font-semibold">Annuler</button>
+                <button @click="executeDeletion" class="flex-1 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors text-sm font-semibold">Supprimer</button>
+            </div>
+        </div>
+    </Popup>
 
     <!-- File Info Modal -->
     <transition
@@ -410,6 +427,7 @@ import useSettingsItem from '@/composables/useSettingsItem';
 import { openedOrg } from '@/assets/var';
 import CreateNewFolder from '../components/popup/CreateNewFolder.vue';
 import VerifyWatermark from '../components/popup/VerifyWatermark.vue';
+import Popup from '@/components/Popup.vue';
 import { useToast } from '@/composables/useToast';
 import { downloadFile } from '@/assets/utils/downloadFile';
 
@@ -460,34 +478,65 @@ const downloadSelected = async () => {
     selectedItems.value.clear();
 };
 
-const deleteSelected = async () => {
-    if (!confirm(`Voulez-vous vraiment supprimer les ${selectedItems.value.size} élément(s) sélectionné(s) ?`)) return;
-    
-    const idsToDelete = Array.from(selectedItems.value);
+const showDeletePopup = ref<boolean>(false);
+const deleteTarget = ref<{id?: string, type: 'file' | 'folder' | 'selection'} | null>(null);
+
+const requestDeleteSelection = () => {
+    deleteTarget.value = { type: 'selection' };
+    showDeletePopup.value = true;
+};
+
+const requestDeleteFile = (file: StoredFile) => {
+    deleteTarget.value = { id: file.id, type: 'file' };
+    showDeletePopup.value = true;
+};
+
+const requestDeleteFolder = (id: string) => {
+    deleteTarget.value = { id, type: 'folder' };
+    showDeletePopup.value = true;
+};
+
+const executeDeletion = async () => {
+    showDeletePopup.value = false;
+    if (!deleteTarget.value) return;
+
     let successCount = 0;
-    
-    for (const id of idsToDelete) {
+
+    if (deleteTarget.value.type === 'selection') {
+        const idsToDelete = Array.from(selectedItems.value);
+        for (const id of idsToDelete) {
+            try {
+                const isFolder = allFolders.value.some(f => f.id === id);
+                const endpoint = isFolder ? `/api/spaces/${route.params.spaceId}/folders/${id}` : `/api/cdn/${id}`;
+                const res = await sfetch(endpoint, { method: 'DELETE' });
+                if (res.ok) {
+                    if (isFolder) allFolders.value = allFolders.value.filter(f => f.id !== id);
+                    else allFiles.value = allFiles.value.filter(f => f.id !== id);
+                    successCount++;
+                }
+            } catch (err) { console.error(`Error deleting ${id}`, err); }
+        }
+        selectedItems.value.clear();
+        toast.show(`${successCount} élément(s) supprimé(s)`, 'success');
+    } else {
+        const id = deleteTarget.value.id!;
+        const isFolder = deleteTarget.value.type === 'folder';
+        const endpoint = isFolder ? `/api/spaces/${route.params.spaceId}/folders/${id}` : `/api/cdn/${id}`;
+        
         try {
-            const isFolder = allFolders.value.some(f => f.id === id);
-            const endpoint = isFolder ? `/api/cdn/folder/${id}` : `/api/cdn/${id}`;
-            
             const res = await sfetch(endpoint, { method: 'DELETE' });
             if (res.ok) {
-                if (isFolder) {
-                    allFolders.value = allFolders.value.filter(f => f.id !== id);
-                } else {
-                    allFiles.value = allFiles.value.filter(f => f.id !== id);
-                }
-                successCount++;
+                if (isFolder) allFolders.value = allFolders.value.filter(f => f.id !== id);
+                else allFiles.value = allFiles.value.filter(f => f.id !== id);
+                toast.show(`${isFolder ? 'Dossier' : 'Fichier'} supprimé`, 'success');
+            } else {
+                toast.show(`Erreur lors de la suppression`, 'error');
             }
-        } catch (err) {
-            console.error(`Error deleting item ${id}`, err);
-        }
+        } catch (err) { console.error(err); toast.show(`Erreur`, 'error'); }
     }
-    
-    selectedItems.value.clear();
-    toast.show(`${successCount} élément(s) supprimé(s)`, 'success');
+    deleteTarget.value = null;
 };
+
 const allFiles = ref<StoredFile[]>([]);
 const allFolders = ref<Folder[]>([]);
 const loading = ref<boolean>(true);
@@ -755,14 +804,17 @@ const onDropToTrash = async (e: DragEvent) => {
 
     try {
         if (type === 'file') {
-            const res = await sfetch(`/api/cdn/${id}`, { method: 'DELETE' });
-            if (!res.ok) throw new Error("API Error");
-            handleFileDeleted(id);
+            if (selectedItems.value.has(id)) {
+                requestDeleteSelection();
+            } else {
+                requestDeleteFile(allFiles.value.find(f => f.id === id)!);
+            }
         } else {
-            const res = await sfetch(`/api/spaces/${route.params.spaceId}/folders/${id}`, { method: 'DELETE' });
-            if (!res.ok) throw new Error("API Error");
-            allFolders.value = allFolders.value.filter(f => f.id !== id);
-            toast.show('Dossier supprimé', 'success');
+            if (selectedItems.value.has(id)) {
+                requestDeleteSelection();
+            } else {
+                requestDeleteFolder(id);
+            }
         }
     } catch (err) {
         toast.show("Erreur lors de la suppression", "error");
@@ -781,13 +833,23 @@ const handleDrop = async (event: DragEvent, targetFolderId: string) => {
 
     if (!sourceId || sourceId === targetFolderId) return;
 
-    if (type === 'file') 
-    {
-        await moveFile(sourceId, targetFolderId);
-    } 
-    else
-    {
-        await moveFolder(sourceId, targetFolderId);
+    if (selectedItems.value.has(sourceId)) {
+        const filesToMove = Array.from(selectedItems.value).filter(id => allFiles.value.some(f => f.id === id));
+        for (const fId of filesToMove) {
+            await moveFile(fId, targetFolderId);
+        }
+        
+        const foldersToMove = Array.from(selectedItems.value).filter(id => allFolders.value.some(f => f.id === id));
+        for (const foldId of foldersToMove) {
+            if (foldId !== targetFolderId) await moveFolder(foldId, targetFolderId);
+        }
+        selectedItems.value.clear();
+    } else {
+        if (type === 'file') {
+            await moveFile(sourceId, targetFolderId);
+        } else {
+            await moveFolder(sourceId, targetFolderId);
+        }
     }
     
     draggedFileId.value = null;

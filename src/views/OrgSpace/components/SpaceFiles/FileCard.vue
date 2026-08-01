@@ -175,7 +175,7 @@ const props = defineProps<{
     isSelectionMode?: boolean
 }>();
 
-const emit = defineEmits(['file-deleted', 'show-file-info', 'file-watermarked', 'toggle-select']);
+const emit = defineEmits(['file-deleted', 'show-file-info', 'file-watermarked', 'toggle-select', 'request-delete']);
 
 let longPressTimer: any = null;
 
@@ -276,28 +276,8 @@ const viewMessagesWithFile = async (file: StoredFile) => {
 };
 
 // Delete file
-const deleteFile = async (file: StoredFile) => {
-    if (!file.workspaceId) {
-        toast.show('Impossible de supprimer ce fichier', 'error');
-        return;
-    }
-    
-    try {
-        const response = await sfetch(`/api/spaces/${file.workspaceId}/files/${file.id}`, {
-            method: 'DELETE'
-        });
-        
-        if (response.ok) {
-            toast.show('Fichier supprimé avec succès', 'success');
-            emit('file-deleted', file.id);
-        } else {
-            const errorData = await response.json();
-            toast.show(errorData.error || 'Erreur lors de la suppression', 'error');
-        }
-    } catch (error) {
-        console.error('Error deleting file:', error);
-        toast.show('Erreur lors de la suppression du fichier', 'error');
-    }
+const deleteFile = (file: StoredFile) => {
+    emit('request-delete', file);
 };
 
 const onFileUpdated = (updatedMetadata: any) => {
