@@ -58,6 +58,11 @@
                         <span>Nouveau dossier</span>
                     </button>
 
+                    <button @click="showVerifyWatermark = true" class="default gap-2 !border-(--primary)/50 !text-(--primary) hover:bg-(--primary)/10 hover:!border-(--primary)">
+                        <i class="bi bi-shield-check" />
+                        <span>Inspecter un fichier</span>
+                    </button>
+
                     <button @click="triggerFileSearch" class="primary gap-2">
                         <i class="bi bi-plus-circle" />
                         <span>Ajouter des fichiers</span>
@@ -337,6 +342,11 @@
         </div>
     </Transition>
 
+    <VerifyWatermark 
+        :is-open="showVerifyWatermark" 
+        @close="showVerifyWatermark = false" 
+    />
+
 </template>
 
 <script lang="ts" setup>
@@ -347,6 +357,7 @@ import sfetch from '@/assets/utils/sfetch';
 import useSettingsItem from '@/composables/useSettingsItem';
 import { openedOrg } from '@/assets/var';
 import CreateNewFolder from '../components/popup/CreateNewFolder.vue';
+import VerifyWatermark from '../components/popup/VerifyWatermark.vue';
 import { useToast } from '@/composables/useToast';
 
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
@@ -370,6 +381,7 @@ const allFolders = ref<Folder[]>([]);
 const loading = ref<boolean>(true);
 const currentFolderId = ref<string>('root');
 const showFolderNamePrompt = ref<boolean>(false);
+const showVerifyWatermark = ref<boolean>(false);
 
 const fileSendProgress = ref<number>(0);
 const isUploading = ref<boolean>(false);
