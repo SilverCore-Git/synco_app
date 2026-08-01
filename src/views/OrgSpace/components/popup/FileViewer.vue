@@ -30,7 +30,7 @@
                 </button>
 
                 <button 
-                  @click="deleteFile"
+                  @click="showDeleteConfirm = true"
                   class="p-2 rounded-lg hover:bg-red-500/10 text-(--text)/40 hover:text-red-500 active:scale-90 transition-all duration-200"
                   title="Supprimer"
                 >
@@ -92,6 +92,14 @@
 
     </div>
   </Window>
+
+  <ConfirmDelete
+      :show="showDeleteConfirm" 
+      @confirm="confirmDeleteFile" 
+      @cancel="showDeleteConfirm = false"
+      :itemName="file.originalName"
+      itemType="le fichier"
+  />
 </template>
 
 <script setup lang="ts">
@@ -103,6 +111,7 @@ import { kcToken } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import Window from '@/components/windows/Window.vue';
+import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 
 const props = defineProps<{
   file: StoredFile;
@@ -115,6 +124,7 @@ const toast = useToast();
 const isLoading = ref(true);
 const isSaving = ref(false);
 const hasError = ref(false);
+const showDeleteConfirm = ref(false);
 
 const fileContent = ref('');
 const originalFileContent = ref('');
@@ -197,8 +207,8 @@ const saveContent = async () => {
   }
 };
 
-const deleteFile = async () => {
-  if (!confirm('Êtes-vous sûr de vouloir supprimer ce fichier ?')) return;
+const confirmDeleteFile = async () => {
+  showDeleteConfirm.value = false;
   try {
     const res = await sfetch(`/api/cdn/${props.file.id}`, { method: 'DELETE' });
     if (res.ok) {

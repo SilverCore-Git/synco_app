@@ -40,7 +40,7 @@
 
             <DropDown align="right">
                 <template #trigger>
-                    <button class="w-8 h-8 rounded-lg hover:bg-(--primary)/10 flex items-center justify-center transition-colors hover:text-(--primary)" @click.prevent>
+                    <button class="w-8 h-8 rounded-lg hover:bg-(--primary)/10 flex items-center justify-center transition-colors hover:text-(--primary)" @click.stop.prevent>
                         <i class="bi bi-three-dots-vertical text-lg" />
                     </button>
                 </template>
