@@ -44,6 +44,13 @@
                 </template>
                 <template #content>
                     <button 
+                        @click="showEditFile = true"
+                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                    >
+                        <i class="bi bi-pencil" />
+                        Renommer
+                    </button>
+                    <button 
                         @click="showFileInfo(file)"
                         class="dropdown-item-annimate dropdown-item-style gap-2"
                     >
@@ -71,6 +78,12 @@
 
     </div>
 
+    <EditFile
+        :is-open="showEditFile"
+        :file="file"
+        @close="showEditFile = false"
+    />
+
 </template>
 
 <script lang="ts" setup>
@@ -79,13 +92,17 @@ import { useRouter, useRoute } from 'vue-router';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { downloadFile } from '@/assets/utils/downloadFile';
 import DropDown from '@/components/DropDown.vue';
+import EditFile from '../popup/EditFile.vue';
 import type { StoredFile } from '@/types/types';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
+import { ref } from 'vue';
 
 const toast = useToast();
 const router = useRouter();
 const route = useRoute();
+
+const showEditFile = ref<boolean>(false);
 
 const props = defineProps<{
     file: StoredFile,
