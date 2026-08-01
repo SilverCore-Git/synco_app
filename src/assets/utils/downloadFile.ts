@@ -1,5 +1,5 @@
 import { keycloak } from "../keycloak";
-import { sfetch } from "./sfetch";
+import sfetch from "./sfetch";
 import { getWorkspaceKey } from "./workspaceCrypto";
 import { decryptFileLocal } from "./crypto";
 

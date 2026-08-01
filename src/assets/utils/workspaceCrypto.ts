@@ -1,4 +1,4 @@
-import { sfetch } from './sfetch';
+import sfetch from './sfetch';
 import { privateKey, decryptSpaceKeyWithRsa, generateSpaceKey, encryptSpaceKeyForMember } from './crypto';
 
 // Cache for Workspace keys
