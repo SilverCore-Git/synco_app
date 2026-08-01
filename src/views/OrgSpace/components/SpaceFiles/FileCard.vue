@@ -2,7 +2,10 @@
 
     <div 
         v-bind="$attrs"
-        @click="$emit('toggle-select')"
+        @pointerdown="onPointerDown"
+        @pointerup="onPointerUp"
+        @pointerleave="onPointerUp"
+        @click="handleClick"
         :class="[
             draggedFileId === file.id ? 'opacity-40 grayscale-50' : '',
             'max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border rounded-xl transition-all cursor-pointer shadow-sm',
@@ -12,14 +15,15 @@
             isDropdownOpen && !isSelected ? 'border-(--primary)/50 bg-(--primary)/5' : ''
         ]"
     >
-        <!-- Selection Checkbox -->
+        <!-- Selection Checkbox (Only visible in selection mode) -->
         <button 
+            v-if="isSelectionMode"
             @click.stop="$emit('toggle-select')"
             class="shrink-0 w-5 h-5 rounded border flex items-center justify-center transition-all duration-200"
             :class="[
                 isSelected 
                     ? 'bg-(--primary) border-(--primary) text-white' 
-                    : 'border-(--text)/30 opacity-0 group-hover:opacity-100 hover:border-(--primary) text-transparent'
+                    : 'border-(--text)/30 hover:border-(--primary) text-transparent'
             ]"
         >
             <i v-if="isSelected" class="bi bi-check text-sm" />
@@ -66,6 +70,14 @@
                     </button>
                 </template>
                 <template #content>
+                    <button 
+                        v-if="!isSelectionMode"
+                        @click="$emit('toggle-select')"
+                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                    >
+                        <i class="bi bi-check2-square" />
+                        Sélectionner
+                    </button>
                     <button 
                         @click="showEditFile = true"
                         class="dropdown-item-annimate dropdown-item-style gap-2"
@@ -158,10 +170,39 @@ const isDropdownOpen = ref<boolean>(false);
 
 const props = defineProps<{
     file: StoredFile,
-    draggedFileId: string | number | null
+    draggedFileId: string | number | null,
+    isSelected?: boolean,
+    isSelectionMode?: boolean
 }>();
 
-const emit = defineEmits(['file-deleted', 'show-file-info', 'file-watermarked']);
+const emit = defineEmits(['file-deleted', 'show-file-info', 'file-watermarked', 'toggle-select']);
+
+let longPressTimer: any = null;
+
+const onPointerDown = (e: PointerEvent) => {
+    // Only left click or touch
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    longPressTimer = setTimeout(() => {
+        if (!props.isSelected) {
+            emit('toggle-select');
+            // Provide haptic feedback on mobile if supported
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+    }, 500);
+};
+
+const onPointerUp = () => {
+    if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+    }
+};
+
+const handleClick = () => {
+    if (props.isSelectionMode) {
+        emit('toggle-select');
+    }
+};
 
 const formatSize = (bytes: number) => {
     if (bytes === 0) return '0 B';

@@ -177,6 +177,7 @@
                         :draggedSourceFolderId="draggedSourceFolderId"
                         :allFiles="allFiles"
                         :isSelected="selectedItems.has(folder.id)"
+                        :isSelectionMode="selectedItems.size > 0"
                         @toggle-select="toggleSelection(folder.id)"
                     />
 
@@ -200,6 +201,7 @@
                             :file="file"
                             :draggedFileId="draggedFileId"
                             :isSelected="selectedItems.has(file.id)"
+                            :isSelectionMode="selectedItems.size > 0"
                             @toggle-select="toggleSelection(file.id)"
                             @dragstart="handleDragStart($event, file.id)"
                             @dragend="handleDragEnd"

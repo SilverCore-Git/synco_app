@@ -2,6 +2,10 @@
 
     <div 
         v-bind="$attrs"
+        @pointerdown="onPointerDown"
+        @pointerup="onPointerUp"
+        @pointerleave="onPointerUp"
+        @click="handleClick"
         class="max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border rounded-xl transition-all cursor-pointer shadow-sm"
         :class="[
             draggedIntoFolderId === folder.id 
@@ -15,12 +19,13 @@
     >
         <!-- Selection Checkbox -->
         <button 
+            v-if="isSelectionMode"
             @click.stop="$emit('toggle-select')"
             class="shrink-0 w-5 h-5 rounded border flex items-center justify-center transition-all duration-200"
             :class="[
                 isSelected 
                     ? 'bg-(--primary) border-(--primary) text-white' 
-                    : 'border-(--text)/30 opacity-0 group-hover:opacity-100 hover:border-(--primary) text-transparent'
+                    : 'border-(--text)/30 hover:border-(--primary) text-transparent'
             ]"
         >
             <i v-if="isSelected" class="bi bi-check text-sm" />
@@ -78,10 +83,35 @@ defineProps<{
     draggedIntoFolderId: any,
     draggedSourceFolderId: any,
     allFiles: StoredFile[],
-    isSelected?: boolean
+    isSelected?: boolean,
+    isSelectionMode?: boolean
 }>();
 
-defineEmits(['toggle-select']);
+const emit = defineEmits(['toggle-select', 'click']);
+
+let longPressTimer: any = null;
+
+const onPointerDown = (e: PointerEvent) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    longPressTimer = setTimeout(() => {
+        emit('toggle-select');
+        if (navigator.vibrate) navigator.vibrate(50);
+    }, 500);
+};
+
+const onPointerUp = () => {
+    if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+    }
+};
+
+const handleClick = (e: Event) => {
+    if (props.isSelectionMode) {
+        e.stopPropagation();
+        emit('toggle-select');
+    }
+};
 
 const colorTextMap: Record<string, string> = {
   'yellow': 'text-yellow-500',
