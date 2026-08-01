@@ -4,7 +4,7 @@
       <div 
         v-if="isOpen" 
         class="fixed inset-0 z-[2000] flex items-center justify-center p-4 md:p-8 bg-black/80 backdrop-blur-sm"
-        @click.self="emit('close')"
+        @click.self="closeViewer"
       >
         <Transition name="pop" appear>
           <div 
@@ -32,7 +32,7 @@
                   Enregistrer
                 </button>
                 <button 
-                  @click="emit('close')"
+                  @click="closeViewer"
                   class="p-2 rounded-lg hover:bg-white/5 text-(--text)/40 hover:text-(--text) active:scale-90 transition-all duration-200 ml-2"
                 >
                   <i class="bi bi-x-lg text-xl" />
@@ -205,10 +205,24 @@ watch(() => props.isOpen, (isOpen) => {
   }
 });
 
-const handleEsc = (e: KeyboardEvent) => {
-  if (e.key === 'Escape') emit('close');
+const closeViewer = () => {
+  if (isTextFile.value && fileContent.value !== originalFileContent.value) {
+    if (confirm("Vous avez des modifications non enregistrées. Êtes-vous sûr de vouloir fermer sans enregistrer ?")) {
+      emit('close');
+    }
+  } else {
+    emit('close');
+  }
 };
 
-onMounted(() => window.addEventListener('keydown', handleEsc));
-onUnmounted(() => window.removeEventListener('keydown', handleEsc));
+const handleKeydown = (e: KeyboardEvent) => {
+  if (e.key === 'Escape') closeViewer();
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    saveContent();
+  }
+};
+
+onMounted(() => window.addEventListener('keydown', handleKeydown));
+onUnmounted(() => window.removeEventListener('keydown', handleKeydown));
 </script>
