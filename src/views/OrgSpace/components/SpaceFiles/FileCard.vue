@@ -1,6 +1,7 @@
 <template>
 
     <div 
+        v-bind="$attrs"
         @click="showViewer = true"
         :class="[
             draggedFileId === file.id ? 'opacity-40 grayscale-50' : '',

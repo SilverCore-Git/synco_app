@@ -1,6 +1,7 @@
 <template>
 
     <div 
+        v-bind="$attrs"
         class="max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border border-(--border-color) rounded-xl transition-all cursor-pointer shadow-sm"
         :class="[
             draggedIntoFolderId === folder.id 
