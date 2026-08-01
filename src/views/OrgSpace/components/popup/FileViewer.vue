@@ -96,7 +96,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import type { StoredFile } from '@/types/types';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { downloadFile } from '@/assets/utils/downloadFile';
-import { keycloak } from '@/keycloak';
+import { keycloak } from '@/assets/keycloak';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 
