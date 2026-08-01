@@ -16,9 +16,17 @@
             
             <div class="ml-auto flex items-center gap-4 text-(--text)/40">
                 <button 
+                    @click="showVerifyWatermark = true"
+                    class="hover:text-(--primary) transition-colors"
+                    title="Inspecter un fichier"
+                >
+                    <i class="bi bi-shield-check" />
+                </button>
+                <button 
                     @click="showUsersBar = !showUsersBar"
                     class="hover:text-(--text) transition-colors"
                     :class="showUsersBar ? 'text-(--text)' : ''"
+                    title="Membres"
                 >
                     <i class="bi bi-people-fill" />
                 </button>
@@ -58,10 +66,7 @@
                         <span>Nouveau dossier</span>
                     </button>
 
-                    <button @click="showVerifyWatermark = true" class="default gap-2 !border-(--primary)/50 !text-(--primary) hover:bg-(--primary)/10 hover:!border-(--primary)">
-                        <i class="bi bi-shield-check" />
-                        <span>Inspecter un fichier</span>
-                    </button>
+
 
                     <button @click="triggerFileSearch" class="primary gap-2">
                         <i class="bi bi-plus-circle" />

@@ -78,7 +78,7 @@
 import { ref } from 'vue';
 import Popup from '@/components/Popup.vue';
 import { useToast } from '@/composables/useToast';
-import { keycloak } from '@/keycloak';
+import { verifyWatermarkLocal } from '@/assets/utils/watermark';
 
 const props = defineProps<{
     isOpen: boolean
@@ -125,21 +125,8 @@ const verifyFile = async (file: File) => {
     result.value = null;
 
     try {
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/cdn/watermark/verify`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${keycloak.token}`
-            },
-            body: formData
-        });
-
-        if (!res.ok) throw new Error("Erreur serveur.");
-
-        const data = await res.json();
-        result.value = data;
+        const resultData = await verifyWatermarkLocal(file);
+        result.value = resultData;
 
     } catch (err: any) {
         toast.show("Erreur lors de l'analyse.", "error");

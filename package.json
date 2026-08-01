@@ -33,6 +33,7 @@
     "livekit-client": "^2.18.1",
     "markdown-it": "^14.1.0",
     "marked": "^18.0.3",
+    "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.1.200",
     "peerjs": "^1.5.5",
     "socket.io-client": "^4.8.3",

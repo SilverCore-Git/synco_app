@@ -55,6 +55,9 @@ import type { StoredFile } from '@/types/types';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import { openedOrg } from '@/assets/var';
+import { keycloak } from '@/assets/keycloak';
+import { watermarkImageLocal, watermarkPDFLocal } from '@/assets/utils/watermark';
+import { uploadFiles } from '@/assets/uploadFile';
 
 const emit = defineEmits([ 'close', 'created' ]);
 
@@ -90,28 +93,41 @@ const handleSubmit = async () => {
     loading.value = true;
 
     try {
-        const res = await sfetch(`/api/cdn/watermark/${props.file.id}`, {
-            method: 'POST',
-            body: JSON.stringify({
-                text: form.text
-            })
+        // 1. Download original file
+        const url = `${import.meta.env.VITE_API_URL}/api/cdn/download/${props.file.id}?token=Bearer ${keycloak.token}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Impossible de télécharger le fichier original.');
+        
+        const blob = await response.blob();
+        const originalFile = new File([blob], props.file.originalName, { type: props.file.mimeType });
+
+        // 2. Apply local watermark
+        let watermarkedFile: File;
+        if (originalFile.type.startsWith('image/')) {
+            watermarkedFile = await watermarkImageLocal(originalFile, form.text);
+        } else if (originalFile.type === 'application/pdf') {
+            watermarkedFile = await watermarkPDFLocal(originalFile, form.text);
+        } else {
+            throw new Error('Type de fichier non supporté.');
+        }
+
+        // 3. Upload new file
+        const uploaded = await uploadFiles([watermarkedFile], {
+            workspaceId: String(props.file.workspaceId) || openedOrg.value!.id, // fallback si besoin
+            folderId: props.file.folderId || undefined
         });
 
-        if (!res.ok)
-        {
-            const errorData = await res.json();
-            toast.show(errorData.error || 'Une erreur est survenue.', 'error');
-        }
-        else
-        {
-            const newFile = await res.json();
+        if (uploaded && uploaded.length > 0) {
             toast.show('Copie filigranée créée avec succès', 'success');
-            emit('created', newFile);
+            emit('created', uploaded[0]);
             closeModal();
+        } else {
+            throw new Error('Erreur lors de l\'upload de la copie.');
         }
+
     }
     catch (err: any) {
-        toast.show('Une erreur est survenue lors de la connexion.', 'error');
+        toast.show(err.message || 'Une erreur est survenue lors de la création.', 'error');
         console.error('Watermark error:', err);
     } 
     finally {
