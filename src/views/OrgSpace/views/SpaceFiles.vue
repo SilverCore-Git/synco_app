@@ -604,9 +604,7 @@ const handleDragEnd = () => {
     draggedSourceFolderId.value = null;
 };
 
-const handleFileDeleted = (id: string) => {
-    allFiles.value = allFiles.value.filter(f => f.id !== id);
-};
+
 
 const handleFileWatermarked = (newFile: StoredFile) => {
     allFiles.value.push(newFile);
