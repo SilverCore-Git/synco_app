@@ -145,7 +145,7 @@
                         <!-- Zone de création de lien d'invitation -->
                         <div class="relative flex flex-col gap-3 w-full">
                             <div 
-                                class="flex  flex-col sm:flex-row min-w-0 gap-2 justify-between h-fit
+                                class="flex  flex-col sm:flex-row min-w-0 gap-4 justify-between h-fit
                                 ">
 
                                 <div class="relative w-full" v-if="inviteLink.length === 0">
@@ -172,7 +172,7 @@
 
                                 </div>
 
-                                <div class="flex gap-2 min-w-0">
+                                <div class="flex gap-4 min-w-0">
                                     <button
                                         v-if="inviteLink.length > 0"
                                         @click="copyInvite()"
