@@ -218,7 +218,9 @@
                         <div class="w-full">
 
                             <!-- Header -->
-                            <div class="grid grid-cols-[1fr_1fr] sm:grid-cols-[1fr_1fr_1fr_1fr] text-[10px] uppercase tracking-widest text-(--text)/50 bg-(--bg3)/30 border-b border-(--border-color)">
+                            <div class="sm:grid-cols-[1fr_1fr_1fr_1fr] text-[10px] uppercase tracking-widest text-(--text)/50 bg-(--bg3)/30 border-b border-(--border-color)
+                                        hidden sm:grid
+                            ">
                                 <div class="px-6 py-4 font-bold">Code</div>
                                 <div 
                                     class="px-6 py-4 font-bold
@@ -236,10 +238,13 @@
                                 <div
                                     v-for="link in inviteLinks"
                                     :key="link.id"
-                                    class="group grid grid-cols-[1fr_1fr] sm:grid-cols-[1fr_1fr_1fr_1fr] hover:bg-(--bg)/40 transition-colors"
+                                    class="group block sm:grid sm:grid-cols-[1fr_1fr_1fr_1fr] hover:bg-(--bg)/40 transition-colors"
                                 >
                                     <!-- Code -->
-                                    <div class="px-6 py-4 flex items-center">
+                                    <div 
+                                        class="px-6 py-4 flex items-center
+                                                hidden sm:block
+                                    ">
                                         <span class="text-sm font-mono text-(--text) bg-(--bg) px-3 py-1.5 rounded-lg border border-(--border-color)">
                                             {{ link.code.substring(0, 8) }}...
                                         </span>
@@ -264,8 +269,13 @@
                                         {{ link.expiresAt ? new Date(link.expiresAt).toLocaleDateString('fr-FR') : 'Jamais' }}
                                     </div>
 
+
+
                                     <!-- Actions -->
-                                    <div class="px-6 py-4 flex items-center justify-end gap-2">
+                                    <div 
+                                        class="px-6 py-4 flex items-center justify-center  gap-2 
+                                                hidden sm:block
+                                    ">
                                         <button
                                             @click="copyInviteLink(link.code)"
                                             class="p-2 rounded-xl text-(--primary) transition-colors"
@@ -282,21 +292,86 @@
                                         </button>
                                     </div>
 
-                                    <!-- Utilisations mobile -->
-                                    <div 
-                                        class="px-6 py-4 text-sm flex items-center
-                                                sm:hidden
-                                    ">
-                                        <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-(--text)'">
-                                            {{ link.uses }}
-                                        </span>
-                                        <span class="text-(--text)/40"> / {{ link.maxUses || '∞' }}</span>
+                                    <!-- mobile -->
+                                    <div
+                                        class="p-6 sm:hidden gap-1"
+                                    >
+                                        <div
+                                            class="flex justify-between"
+                                        >   
+                                            <!-- Code -->
+                                            <div 
+                                                class="flex items-center"
+                                            >
+                                                <h3
+                                                    class="pr-2"
+                                                >Code :</h3>
+                                                
+                                                <span class="text-sm font-mono text-(--text) bg-(--bg) rounded-lg border border-(--border-color) h-fit w-fit px-2 py-0.5">
+                                                    {{ link.code.substring(0, 8) }}...
+                                                </span>
+                                            </div>
+                                            
+                                            <!-- Supprimer -->
+                                            <button
+                                                @click="deleteInvite(link.code, 1)"
+                                                class="p-2 rounded-xl text-red-500 transition-colors"
+                                                title="Révoquer le lien"
+                                            >
+                                                <i class="bi bi-trash" />
+                                            </button>
+                                        </div>
+
+
+                                        <div
+                                            class="flex justify-between items-baseline py-4"
+                                        >   
+                                            <!-- Utilisation -->
+                                            <div 
+                                                class="flex items-center "
+                                            >
+                                                <h3
+                                                    class="pr-2"
+                                                >Utilisations : </h3>
+
+                                                <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-(--text)'" class="text-(--text)/40">
+                                                    {{ link.uses }}
+                                                </span>
+                                                <span class="text-(--text)/40 "> / {{ link.maxUses || '∞' }}</span>
+                                            </div>
+
+                                            <!-- Expiration -->
+                                            <div 
+                                                class="flex flex-col gap-1 "
+                                            >
+                                                <h3>Expiration :</h3>
+
+                                                <h3
+                                                    class="text-(--text)/40"
+                                                >
+                                                    {{ link.expiresAt ? new Date(link.expiresAt).toLocaleDateString('fr-FR') : 'Jamais' }}
+                                                </h3>
+                                            </div> 
+                                        </div>
+
+
+                                        <button
+                                            @click="copyInviteLink(link.code)"
+                                            class="bg-(--bg) rounded-lg border border-(--border-color) text-white rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm cursor-pointer
+                                                px-6 py-3 w-full "
+
+
+                                            title="Copier le lien complet"
+                                        >
+                                            <i class="bi bi-copy" />
+                                            <h3>Copier</h3>
+                                        </button>
+
+                                        <!-- bi-check-lg -->
+
                                     </div>
 
-                                    <!-- Expiration mobile -->
-                                    <div class="px-6 py-4 text-xs text-(--text)/50 sm:hidden col-span-4">
-                                        {{ link.expiresAt ? new Date(link.expiresAt).toLocaleDateString('fr-FR') : 'Jamais' }}
-                                    </div>
+
 
                                 </div>
                             </div>
