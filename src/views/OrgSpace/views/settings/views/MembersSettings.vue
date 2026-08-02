@@ -172,15 +172,15 @@
 
                                 </div>
 
-                                <div class="flex gap-4 min-w-0 sm:pr-6">
+                                <div class="flex gap-4 sm:gap-3 min-w-0 sm:pr-6">
                                     <button
                                         v-if="inviteLink.length > 0"
                                         @click="copyInvite()"
                                         class="bg-(--bg) border border-(--border-color) text-(--text)/60 hover:text-(--text) hover:bg-(--text)/5 rounded-xl text-sm font-medium transition-all flex items-center shadow-sm gap-2 cursor-pointer
-                                                w-full p-3 overflow-hidden"
+                                                w-full pl-4 py-3 overflow-hidden pr-7"
                                     >
                                         <i class="bi bi-link rotate-135"/>
-                                        <div class=" max-w-fit min-w-full text-ellipsis whitespace-nowrap overflow-hidden text-left">
+                                        <div class=" max-w-fit min-w-full text-ellipsis whitespace-nowrap overflow-hidden text-center">
                                             {{inviteLink}}
                                         </div>
                                     </button>
