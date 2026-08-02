@@ -243,7 +243,6 @@
                                     <!-- Code -->
                                     <div 
                                         class="px-6 py-4 flex items-center
-                                                hidden sm:block
                                     ">
                                         <span class="text-sm font-mono text-(--text) bg-(--bg) px-3 py-1.5 rounded-lg border border-(--border-color)">
                                             {{ link.code.substring(0, 8) }}...
@@ -253,7 +252,6 @@
                                     <!-- Utilisations -->
                                     <div 
                                         class="px-6 py-4 text-sm flex items-center
-                                                hidden sm:block
                                     ">
                                         <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-(--text)'">
                                             {{ link.uses }}
@@ -264,7 +262,6 @@
                                     <!-- Expiration -->
                                     <div 
                                         class="px-6 py-4 text-xs text-(--text)/50 flex items-center
-                                                hidden sm:block
                                     ">
                                         {{ link.expiresAt ? new Date(link.expiresAt).toLocaleDateString('fr-FR') : 'Jamais' }}
                                     </div>
@@ -273,8 +270,7 @@
 
                                     <!-- Actions -->
                                     <div 
-                                        class="px-6 py-4 flex items-center justify-center  gap-2 
-                                                hidden sm:block
+                                        class="px-6 py-4 flex items-center justify-end gap-2 
                                     ">
                                         <button
                                             @click="copyInviteLink(link.code)"
