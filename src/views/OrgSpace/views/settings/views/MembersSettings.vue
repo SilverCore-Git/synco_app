@@ -255,10 +255,10 @@
                                         class="px-6 py-4 text-sm flex items-center
                                         hidden sm:flex
                                     ">
-                                        <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-(--text)'" class="pr-1.5">
+                                        <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-(--text)'" class="pr-1.5 ">
                                             {{ link.uses }}
                                         </span>
-                                        <span class="text-(--text)/40"> / {{ link.maxUses || '∞' }}</span>
+                                        <span class="text-(--text)/40 whitespace-nowrap"> / {{ link.maxUses || '∞' }}</span>
                                     </div>
 
                                     <!-- Expiration -->
@@ -337,7 +337,7 @@
                                                 <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-(--text)'" class="text-(--text)/40 pr-1">
                                                     {{ link.uses }}
                                                 </span>
-                                                <span class="text-(--text)/40 "> / {{ link.maxUses || '∞' }}</span>
+                                                <span class="text-(--text)/40 whitespace-nowrap"> / {{ link.maxUses || '∞' }}</span>
                                             </div>
 
                                             <!-- Expiration -->
