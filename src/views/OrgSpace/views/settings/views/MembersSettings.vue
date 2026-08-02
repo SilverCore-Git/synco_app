@@ -144,15 +144,19 @@
 
                         <!-- Zone de création de lien d'invitation -->
                         <div class="relative flex flex-col gap-3 w-full">
-                            <div class="flex gap-2">
+                            <div 
+                                class="flex  flex-col sm:flex-row min-w-0 gap-2 justify-between h-fit
+                                ">
+
                                 <div class="relative w-full" v-if="inviteLink.length === 0">
                                     <div 
-                                        class=" bg-(--bg) border border-(--border-color) rounded-xl p-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all
-                                                flex gap-4 w-full items-center justify-between
+                                        class=" bg-(--bg) border border-(--border-color) rounded-xl text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all
+                                                flex w-full items-center justify-between
+                                                gap-4 p-3
                                         "
                                         title="(0 = infini)"
                                         >
-                                        <div class="flex gap-2">
+                                        <div class="flex gap-2 min-w-0">
                                             <i class="bi bi-people"></i>
                                             <h3 class="whitespace-nowrap">Nombre d'utilisations</h3>
                                         </div>
@@ -167,25 +171,30 @@
                                     </div>
 
                                 </div>
-                                <button
-                                    v-if="inviteLink.length > 0"
-                                    @click="copyInvite()"
-                                    class="bg-(--bg) border border-(--border-color) text-(--text)/60 hover:text-(--text) hover:bg-(--text)/5 rounded-xl text-sm font-medium transition-all flex items-center shadow-sm gap-2 cursor-pointer
-                                            w-full p-3 overflow-hidden"
-                                >
-                                    <i class="bi bi-link rotate-135"/>
-                                    <div class="w-full text-ellipsis whitespace-nowrap overflow-hidden text-left">
-                                        {{inviteLink}}
-                                    </div>
-                                </button>
 
-                                <button 
-                                    @click="inviteLink.length === 0 ? createInviteLink() : copyInvite()" 
-                                    class="bg-(--primary) text-white rounded-xl px-4 py-3 text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm cursor-pointer"
-                                >
-                                    <i class="bi" :class="inviteLink.length === 0 ? 'bi-stars' : copied ? 'bi-check-lg' : 'bi-copy'" />
-                                    {{ inviteLink.length === 0 ? 'Générer' : copied ? 'Copié' : 'Copier' }}
-                                </button>
+                                <div class="flex gap-2 min-w-0">
+                                    <button
+                                        v-if="inviteLink.length > 0"
+                                        @click="copyInvite()"
+                                        class="bg-(--bg) border border-(--border-color) text-(--text)/60 hover:text-(--text) hover:bg-(--text)/5 rounded-xl text-sm font-medium transition-all flex items-center shadow-sm gap-2 cursor-pointer
+                                                w-full p-3 overflow-hidden"
+                                    >
+                                        <i class="bi bi-link rotate-135"/>
+                                        <div class=" max-w-fit min-w-full text-ellipsis whitespace-nowrap overflow-hidden text-left">
+                                            {{inviteLink}}
+                                        </div>
+                                    </button>
+
+                                    <button 
+                                        @click="inviteLink.length === 0 ? createInviteLink() : copyInvite()" 
+                                        class="bg-(--primary) text-white rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm cursor-pointer
+                                                px-6 py-3 w-full
+                                        "
+                                    >
+                                        <i class="bi" :class="inviteLink.length === 0 ? 'bi-stars' : copied ? 'bi-check-lg' : 'bi-copy'" />
+                                        {{ inviteLink.length === 0 ? 'Générer' : copied ? 'Copié' : 'Copier' }}
+                                    </button>
+                                </div>
                                 
                                 <button 
                                     v-if="inviteLink.length > 0"
