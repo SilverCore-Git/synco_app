@@ -143,46 +143,63 @@
                         </div>
 
                         <!-- Zone de création de lien d'invitation -->
-                        <div class="relative flex flex-col sm:flex-row gap-3">
-                            <div class="relative flex-1">
-                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
-                                    <i class="bi bi-link-45deg"></i>
-                                </div>
-                                <input 
-                                    readonly
-                                    type="text"
-                                    :value="inviteLink || 'Cliquez pour générer un nouveau lien...'"
-                                    class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner font-mono"
-                                />
-                            </div>
+                        <div class="relative flex flex-col gap-3 w-full">
                             <div class="flex gap-2">
-                                <div class="relative w-20 hidden sm:block" v-if="inviteLink.length === 0">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-(--text)/40" title="Nombre d'utilisations (0 = infini)">
-                                        <i class="bi bi-people"></i>
+                                <div class="relative w-full" v-if="inviteLink.length === 0">
+                                    <div 
+                                        class=" bg-(--bg) border border-(--border-color) rounded-xl p-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all
+                                                flex gap-4 w-full items-center justify-between
+                                        "
+                                        title="(0 = infini)"
+                                        >
+                                        <div class="flex gap-2">
+                                            <i class="bi bi-people"></i>
+                                            <h3 class="whitespace-nowrap">Nombre d'utilisations</h3>
+                                        </div>
+                                        
+                                        <input
+                                            v-model.number="inviteMaxUses"
+                                            type="number"
+                                            min="0"
+                                            class=" appearance-none border-none outline-none p-0 m-0 w-[2.5em]"
+                                            title="(0 = infini)"
+                                        />
                                     </div>
-                                    <input 
-                                        type="number"
-                                        v-model.number="inviteMaxUses"
-                                        min="0"
-                                        class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-9 pr-3 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner"
-                                        title="Nombre d'utilisations (0 = infini)"
-                                    />
+
                                 </div>
+                                <button
+                                    v-if="inviteLink.length > 0"
+                                    @click="copyInvite()"
+                                    class="bg-(--bg) border border-(--border-color) text-(--text)/60 hover:text-(--text) hover:bg-(--text)/5 rounded-xl text-sm font-medium transition-all flex items-center shadow-sm gap-2 cursor-pointer
+                                            w-full p-3 overflow-hidden"
+                                >
+                                    <i class="bi bi-link rotate-135"/>
+                                    <div class="w-full text-ellipsis whitespace-nowrap overflow-hidden text-left">
+                                        {{inviteLink}}
+                                    </div>
+                                </button>
+
                                 <button 
                                     @click="inviteLink.length === 0 ? createInviteLink() : copyInvite()" 
-                                    class="bg-(--primary) hover:bg-(--primary-hover) text-white rounded-xl px-4 py-3 text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm"
+                                    class="bg-(--primary) text-white rounded-xl px-4 py-3 text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm cursor-pointer"
                                 >
                                     <i class="bi" :class="inviteLink.length === 0 ? 'bi-stars' : copied ? 'bi-check-lg' : 'bi-copy'" />
                                     {{ inviteLink.length === 0 ? 'Générer' : copied ? 'Copié' : 'Copier' }}
                                 </button>
+                                
                                 <button 
                                     v-if="inviteLink.length > 0"
                                     @click="inviteLink = ''"
-                                    class="bg-(--bg) border border-(--border-color) text-(--text)/60 hover:text-(--text) hover:bg-(--text)/5 rounded-xl px-3 py-3 text-sm font-medium transition-all flex items-center justify-center shadow-sm"
+                                    class="bg-(--bg) border border-(--border-color) text-(--text)/60 hover:text-(--text) hover:bg-(--text)/5 rounded-xl px-3 py-3 text-sm font-medium transition-all flex items-center justify-center shadow-sm gap-2 cursor-pointer
+                                            "
                                     title="Nouveau lien"
                                 >
                                     <i class="bi bi-plus-lg" />
+                                    <h3 class="whitespace-nowrap">Nouveau lien</h3>
+                                    
                                 </button>
+                               
+
                             </div>
                         </div>
 
@@ -225,10 +242,10 @@
                                         <div class="flex items-center justify-end gap-2">
                                             <button 
                                                 @click="copyInviteLink(link.code)"
-                                                class="p-2 rounded-xl text-(--text)/40 hover:text-white hover:bg-(--text)/10 transition-colors"
+                                                class="p-2 rounded-xl text-(--primary) transition-colors"
                                                 title="Copier le lien complet"
                                             >
-                                                <i class="bi bi-clipboard" />
+                                                <i class="bi bi-clipboard " />
                                             </button>
                                             <button 
                                                 @click="deleteInvite(link.code, 1)"
