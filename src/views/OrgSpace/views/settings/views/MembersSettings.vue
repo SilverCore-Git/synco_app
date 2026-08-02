@@ -172,7 +172,7 @@
 
                                 </div>
 
-                                <div class="flex gap-4 min-w-0">
+                                <div class="flex gap-4 min-w-0 sm:pr-6">
                                     <button
                                         v-if="inviteLink.length > 0"
                                         @click="copyInvite()"
@@ -188,7 +188,7 @@
                                     <button 
                                         @click="inviteLink.length === 0 ? createInviteLink() : copyInvite()" 
                                         class="bg-(--primary) text-white rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm cursor-pointer
-                                                px-6 py-3
+                                                px-6 py-3 w-full sm:w-fit
                                         "
                                     >
                                         <i class="bi" :class="inviteLink.length === 0 ? 'bi-stars' : copied ? 'bi-check-lg' : 'bi-copy'" />
