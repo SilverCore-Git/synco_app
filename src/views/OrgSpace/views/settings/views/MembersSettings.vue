@@ -367,8 +367,6 @@
                                             <h3>Copier</h3>
                                         </button>
 
-                                        <!-- bi-check-lg -->
-
                                     </div>
 
 
