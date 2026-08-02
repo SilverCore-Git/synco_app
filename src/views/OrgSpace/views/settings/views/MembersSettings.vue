@@ -188,7 +188,7 @@
                                     <button 
                                         @click="inviteLink.length === 0 ? createInviteLink() : copyInvite()" 
                                         class="bg-(--primary) text-white rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm cursor-pointer
-                                                px-6 py-3 w-full
+                                                px-6 py-3
                                         "
                                     >
                                         <i class="bi" :class="inviteLink.length === 0 ? 'bi-stars' : copied ? 'bi-check-lg' : 'bi-copy'" />
