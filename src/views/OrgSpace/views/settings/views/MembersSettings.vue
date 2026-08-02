@@ -214,63 +214,97 @@
 
                     </div>
 
-                    <div class="overflow-x-auto" v-if="inviteLinks.length > 0">
+                    <div v-if="inviteLinks.length > 0" class="overflow-x-auto">
+                        <div class="w-full">
 
-                        <table class="w-full text-left border-collapse">
+                            <!-- Header -->
+                            <div class="grid grid-cols-[1fr_1fr] sm:grid-cols-[1fr_1fr_1fr_1fr] text-[10px] uppercase tracking-widest text-(--text)/50 bg-(--bg3)/30 border-b border-(--border-color)">
+                                <div class="px-6 py-4 font-bold">Code</div>
+                                <div 
+                                    class="px-6 py-4 font-bold
+                                            hidden sm:block
+                                ">Utilisations</div>
+                                <div 
+                                    class="px-6 py-4 font-bold
+                                            hidden sm:block
+                                ">Expiration</div>
+                                <div class="px-6 py-4 font-bold text-right">Actions</div>
+                            </div>
 
-                            <thead>
-                                <tr class="text-[10px] uppercase tracking-widest text-(--text)/50 bg-(--bg3)/30 border-b border-(--border-color)">
-                                    <th class="px-6 py-4 font-bold">Code</th>
-                                    <th class="px-6 py-4 font-bold">Utilisations</th>
-                                    <th class="px-6 py-4 font-bold">Expiration</th>
-                                    <th class="px-6 py-4 font-bold text-right">Actions</th>
-                                </tr>
-                            </thead>
-
-                            <tbody class="divide-y divide-(--border-color)">
-                                <tr 
-                                    v-for="link in inviteLinks" 
-                                    :key="link.id" 
-                                    class="group hover:bg-(--bg)/40 transition-colors"
+                            <!-- Body -->
+                            <div class="divide-y divide-(--border-color)">
+                                <div
+                                    v-for="link in inviteLinks"
+                                    :key="link.id"
+                                    class="group grid grid-cols-[1fr_1fr] sm:grid-cols-[1fr_1fr_1fr_1fr] hover:bg-(--bg)/40 transition-colors"
                                 >
-                                    <td class="px-6 py-4">
+                                    <!-- Code -->
+                                    <div class="px-6 py-4 flex items-center">
                                         <span class="text-sm font-mono text-(--text) bg-(--bg) px-3 py-1.5 rounded-lg border border-(--border-color)">
                                             {{ link.code.substring(0, 8) }}...
                                         </span>
-                                    </td>
-                                    <td class="px-6 py-4 text-sm">
+                                    </div>
+
+                                    <!-- Utilisations -->
+                                    <div 
+                                        class="px-6 py-4 text-sm flex items-center
+                                                hidden sm:block
+                                    ">
                                         <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-(--text)'">
                                             {{ link.uses }}
                                         </span>
                                         <span class="text-(--text)/40"> / {{ link.maxUses || '∞' }}</span>
-                                    </td>
-                                    <td class="px-6 py-4 text-xs text-(--text)/50">
+                                    </div>
+
+                                    <!-- Expiration -->
+                                    <div 
+                                        class="px-6 py-4 text-xs text-(--text)/50 flex items-center
+                                                hidden sm:block
+                                    ">
                                         {{ link.expiresAt ? new Date(link.expiresAt).toLocaleDateString('fr-FR') : 'Jamais' }}
-                                    </td>
-                                    <td class="px-6 py-4 text-right">
-                                        <div class="flex items-center justify-end gap-2">
-                                            <button 
-                                                @click="copyInviteLink(link.code)"
-                                                class="p-2 rounded-xl text-(--primary) transition-colors"
-                                                title="Copier le lien complet"
-                                            >
-                                                <i class="bi bi-clipboard " />
-                                            </button>
-                                            <button 
-                                                @click="deleteInvite(link.code, 1)"
-                                                class="p-2 rounded-xl text-(--text)/40 hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                                                title="Révoquer le lien"
-                                            >
-                                                <i class="bi bi-trash" />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
+                                    </div>
 
-                        </table>
+                                    <!-- Actions -->
+                                    <div class="px-6 py-4 flex items-center justify-end gap-2">
+                                        <button
+                                            @click="copyInviteLink(link.code)"
+                                            class="p-2 rounded-xl text-(--primary) transition-colors"
+                                            title="Copier le lien complet"
+                                        >
+                                            <i class="bi bi-clipboard " />
+                                        </button>
+                                        <button
+                                            @click="deleteInvite(link.code, 1)"
+                                            class="p-2 rounded-xl text-(--text)/40 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                                            title="Révoquer le lien"
+                                        >
+                                            <i class="bi bi-trash" />
+                                        </button>
+                                    </div>
 
+                                    <!-- Utilisations mobile -->
+                                    <div 
+                                        class="px-6 py-4 text-sm flex items-center
+                                                sm:hidden
+                                    ">
+                                        <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-(--text)'">
+                                            {{ link.uses }}
+                                        </span>
+                                        <span class="text-(--text)/40"> / {{ link.maxUses || '∞' }}</span>
+                                    </div>
+
+                                    <!-- Expiration mobile -->
+                                    <div class="px-6 py-4 text-xs text-(--text)/50 sm:hidden col-span-4">
+                                        {{ link.expiresAt ? new Date(link.expiresAt).toLocaleDateString('fr-FR') : 'Jamais' }}
+                                    </div>
+
+                                </div>
+                            </div>
+
+                        </div>
                     </div>
+
+
                     
                     <div v-else class="p-8 text-center text-(--text)/40 text-sm">
                         Aucun lien d'invitation actif.
