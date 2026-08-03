@@ -16,7 +16,7 @@
                     :class="[
                         isActiveInRoom
                             ? 'border-l-3 border-(--primary) bg-(--primary)/10 text-(--text)' 
-                            : 'text-(--text)/60',
+                            : 'text-(--text2)',
                     ]"
                 >
 

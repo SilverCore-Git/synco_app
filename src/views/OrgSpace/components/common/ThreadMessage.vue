@@ -15,7 +15,7 @@
                     <div 
                         v-if="msg.replyToId && msg.replyMessage" 
                         @click="router.push({ query: { ...route.query, select: msg.replyMessage?.id } })"
-                        class="group/reply reply-context flex items-center gap-2 mb-1 text-xs text-(--text)/60 relative pl-13 cursor-pointer"
+                        class="group/reply reply-context flex items-center gap-2 mb-1 text-xs text-(--text2) relative pl-13 cursor-pointer"
                     >
                         
                         <div class="z-10 absolute left-4 top-2.5 w-7 h-13 border-l-2 border-t-2 border-white/20 group-hover/reply:border-white/40 rounded-tl-md"></div>
@@ -188,7 +188,7 @@
 
                                     <button 
                                         @click="downloadFile(file.id)"
-                                        class="ml-auto p-1.5 rounded-md hover:bg-(--primary)/20 text-(--text)/60 hover:text-(--primary) transition-colors"
+                                        class="ml-auto p-1.5 rounded-md hover:bg-(--primary)/20 text-(--text2) hover:text-(--primary) transition-colors"
                                         title="Télécharger"
                                     >
                                         <i class="bi bi-download" />

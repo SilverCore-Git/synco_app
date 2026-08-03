@@ -11,7 +11,7 @@
                     <i class="bi bi-info-circle text-(--primary) text-lg flex-shrink-0 mt-0.5" />
                     <div>
                         <h4 class="text-sm font-semibold text-(--text) mb-1">Test du Webhook</h4>
-                        <p class="text-xs text-(--text)/60">
+                        <p class="text-xs text-(--text2)">
                             Envoyez un message de test pour vérifier que votre webhook fonctionne correctement.
                             Le message sera envoyé dans le channel configuré.
                         </p>
@@ -100,7 +100,7 @@
                         
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-xs text-(--text)/60 mb-1">Titre</label>
+                                <label class="block text-xs text-(--text2) mb-1">Titre</label>
                                 <input
                                     v-model="embed.title"
                                     type="text"
@@ -110,7 +110,7 @@
                                 />
                             </div>
                             <div>
-                                <label class="block text-xs text-(--text)/60 mb-1">Couleur (hex)</label>
+                                <label class="block text-xs text-(--text2) mb-1">Couleur (hex)</label>
                                 <input
                                     v-model="embed.color"
                                     type="text"
@@ -122,7 +122,7 @@
                         </div>
                         
                         <div class="mt-3">
-                            <label class="block text-xs text-(--text)/60 mb-1">Description</label>
+                            <label class="block text-xs text-(--text2) mb-1">Description</label>
                             <textarea
                                 v-model="embed.description"
                                 placeholder="Description de l'embed"
@@ -133,7 +133,7 @@
                         </div>
                         
                         <div class="mt-3">
-                            <label class="block text-xs text-(--text)/60 mb-1">URL</label>
+                            <label class="block text-xs text-(--text2) mb-1">URL</label>
                             <input
                                 v-model="embed.url"
                                 type="url"

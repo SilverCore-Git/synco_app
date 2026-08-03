@@ -74,7 +74,7 @@
               <template v-else>
                 <div class="flex flex-col items-center gap-4 p-8 text-center">
                   <i class="bi bi-file-earmark-x text-6xl text-(--text)/20" />
-                  <p class="text-(--text)/60">L'aperçu n'est pas disponible pour ce type de fichier.</p>
+                  <p class="text-(--text2)">L'aperçu n'est pas disponible pour ce type de fichier.</p>
                   <button @click="downloadFile(file.id)" class="default mt-4 gap-2">
                     <i class="bi bi-download" />
                     Télécharger le fichier

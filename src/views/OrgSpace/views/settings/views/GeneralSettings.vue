@@ -8,7 +8,7 @@
 
                 <div class="mb-8">
                     <h3 class="text-2xl font-black text-(--text) mb-2">Paramètres généraux</h3>
-                    <p class="text-sm text-(--text)/60">Gérez les informations globales de votre organisation.</p>
+                    <p class="text-sm text-(--text2)">Gérez les informations globales de votre organisation.</p>
                 </div>
 
                 <section class="space-y-6">
@@ -38,7 +38,7 @@
                                 @click="triggerFileInput" 
                                 class="bg-(--bg3) hover:bg-(--bg) border border-(--border-color) text-(--text) flex items-center justify-center gap-2 text-sm px-4 py-2 rounded-xl transition-colors font-medium shadow-sm w-full sm:w-auto"
                             >
-                                <i class="bi bi-camera-fill text-(--text)/60"></i>
+                                <i class="bi bi-camera-fill text-(--text2)"></i>
                                 Modifier le logo
                             </button>
                         </div>

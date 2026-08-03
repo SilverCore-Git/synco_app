@@ -7,7 +7,7 @@
       <!-- Liste des liens existants -->
       <div v-if="loadingList" class="flex flex-col items-center justify-center py-6">
         <i class="bi bi-arrow-repeat animate-spin text-3xl text-(--primary) mb-2"></i>
-        <p class="text-sm text-(--text)/60">Chargement des liens...</p>
+        <p class="text-sm text-(--text2)">Chargement des liens...</p>
       </div>
 
       <div v-else class="space-y-3">

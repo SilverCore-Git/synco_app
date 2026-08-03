@@ -7,7 +7,7 @@
                 
                 <div class="mb-8">
                     <h3 class="text-2xl font-black text-(--text) mb-2">Gestion de l'équipe</h3>
-                    <p class="text-sm text-(--text)/60">Gérez les membres, les rôles et les invitations de votre organisation.</p>
+                    <p class="text-sm text-(--text2)">Gérez les membres, les rôles et les invitations de votre organisation.</p>
                 </div>
 
                 <section class="flex flex-col gap-8">
@@ -176,7 +176,7 @@
                                     <button
                                         v-if="inviteLink.length > 0"
                                         @click="copyInvite()"
-                                        class="bg-(--bg) border border-(--border-color) text-(--text)/60 hover:text-(--text) hover:bg-(--text)/5 rounded-xl text-sm font-medium transition-all flex items-center shadow-sm gap-2 cursor-pointer
+                                        class="bg-(--bg) border border-(--border-color) text-(--text2) hover:text-(--text) hover:bg-(--text)/5 rounded-xl text-sm font-medium transition-all flex items-center shadow-sm gap-2 cursor-pointer
                                                 w-full pl-4 py-3 overflow-hidden pr-7"
                                     >
                                         <i class="bi bi-link rotate-135"/>
@@ -199,7 +199,7 @@
                                 <button 
                                     v-if="inviteLink.length > 0"
                                     @click="inviteLink = ''"
-                                    class="bg-(--bg) border border-(--border-color) text-(--text)/60 hover:text-(--text) hover:bg-(--text)/5 rounded-xl px-3 py-3 text-sm font-medium transition-all flex items-center justify-center shadow-sm gap-2 cursor-pointer
+                                    class="bg-(--bg) border border-(--border-color) text-(--text2) hover:text-(--text) hover:bg-(--text)/5 rounded-xl px-3 py-3 text-sm font-medium transition-all flex items-center justify-center shadow-sm gap-2 cursor-pointer
                                             "
                                     title="Nouveau lien"
                                 >

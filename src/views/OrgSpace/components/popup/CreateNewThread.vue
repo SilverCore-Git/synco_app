@@ -12,7 +12,7 @@
 
         <div class="flex gap-2 flex-col">
 
-            <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+            <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                 Type de salon
             </label>
 
@@ -54,7 +54,7 @@
 
         <div class="flex gap-2 flex-col">
 
-            <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+            <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                 Nom du salon
             </label>
 
@@ -75,7 +75,7 @@
         </div>
 
         <div class="flex items-center justify-between mt-2">
-            <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+            <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                 Salon Privé
             </label>
             <label class="relative inline-flex items-center cursor-pointer">
@@ -85,7 +85,7 @@
         </div>
 
         <div v-if="form.isPrivate" class="flex flex-col gap-2">
-            <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+            <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                 Membres ayant accès (Lecture & Écriture)
             </label>
             <div class="max-h-32 overflow-y-auto bg-(--bg2)/20 border border-white/10 rounded-xl p-2 flex flex-col gap-1 custom-scrollbar">
@@ -101,7 +101,7 @@
 
         <div v-if="form.type !== 'vocal'">
             <div class="flex items-center justify-between mt-2">
-                <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+                <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                     Salon en lecture seule
                 </label>
                 <label class="relative inline-flex items-center cursor-pointer">
@@ -111,7 +111,7 @@
             </div>
 
             <div v-if="form.isReadOnly" class="flex flex-col gap-2 mt-2">
-                <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+                <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                     Membres autorisés à écrire
                 </label>
                 <div class="max-h-32 overflow-y-auto bg-(--bg2)/20 border border-white/10 rounded-xl p-2 flex flex-col gap-1 custom-scrollbar">

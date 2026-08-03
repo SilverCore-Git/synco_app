@@ -27,7 +27,7 @@
 
         <div v-if="openedOrg?.members" class="flex-1 overflow-y-auto p-2 space-y-1 ">
 
-            <p v-if="members.filter(member => member.user?.data.status !== 'offline').length > 0" class=" py-1 text-xs text-(--text)/60">
+            <p v-if="members.filter(member => member.user?.data.status !== 'offline').length > 0" class=" py-1 text-xs text-(--text2)">
                 En ligne — {{ members.filter(member => member.user?.data.status !== 'offline').length }}
             </p>
             
@@ -75,7 +75,7 @@
 
             </button>
 
-            <p v-if="members.filter(member => member.user?.data.status === 'offline').length > 0" class=" py-1 text-xs text-(--text)/60">
+            <p v-if="members.filter(member => member.user?.data.status === 'offline').length > 0" class=" py-1 text-xs text-(--text2)">
                 Hors ligne — {{ members.filter(member => member.user?.data.status === 'offline').length }}
             </p>
 

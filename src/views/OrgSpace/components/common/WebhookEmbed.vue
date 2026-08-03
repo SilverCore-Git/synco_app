@@ -22,7 +22,7 @@
 
             <div v-if="embed.fields && embed.fields.length > 0" class="flex flex-wrap gap-x-4 gap-y-2 mb-2">
                 <div v-for="(field, fIdx) in embed.fields" :key="'field-' + fIdx" :class="field.inline ? 'w-[calc(50%-1rem)]' : 'w-full'">
-                    <div class="text-[10px] font-bold text-(--text)/60 uppercase">{{ field.name }}</div>
+                    <div class="text-[10px] font-bold text-(--text2) uppercase">{{ field.name }}</div>
                     <div class="text-xs text-(--text)/80">{{ field.value }}</div>
                 </div>
             </div>

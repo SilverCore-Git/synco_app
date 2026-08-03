@@ -7,7 +7,7 @@
                 
                 <div class="mb-8">
                     <h3 class="text-2xl font-black text-(--text) mb-2">Stockage & Utilisation</h3>
-                    <p class="text-sm text-(--text)/60">Consultez l'espace de stockage consommé par votre organisation et gérez les fichiers.</p>
+                    <p class="text-sm text-(--text2)">Consultez l'espace de stockage consommé par votre organisation et gérez les fichiers.</p>
                 </div>
 
                 <section class="flex flex-col gap-8">
@@ -142,7 +142,7 @@
                                     </td>
 
                                     <td class="px-6 py-4">
-                                        <span class="text-xs text-(--text)/60">{{ formatDate(file.createdAt) }}</span>
+                                        <span class="text-xs text-(--text2)">{{ formatDate(file.createdAt) }}</span>
                                     </td>
 
                                     <td class="px-6 py-4 text-right">

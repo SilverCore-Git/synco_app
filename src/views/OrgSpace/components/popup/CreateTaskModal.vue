@@ -8,7 +8,7 @@
 
         <form @submit.prevent="handleSubmit" class="space-y-5 min-w-[300px] sm:min-w-[400px]">
             <div class="flex flex-col gap-2">
-                <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+                <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                     Titre de la tâche
                 </label>
                 <input 
@@ -28,7 +28,7 @@
             </div>
 
             <div class="flex flex-col gap-2">
-                <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+                <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                     Description (optionnel)
                 </label>
                 <textarea 
@@ -46,7 +46,7 @@
             </div>
 
             <div class="flex flex-col gap-2">
-                <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+                <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                     Date d'échéance (optionnel)
                 </label>
                 <input 
@@ -63,7 +63,7 @@
             </div>
 
             <div class="flex flex-col gap-2" v-if="!hideSpaceSelect">
-                <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+                <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                     Projet
                 </label>
                 <select 
@@ -83,7 +83,7 @@
             </div>
 
             <div class="flex flex-col gap-2">
-                <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+                <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                     Assignation (Multiples)
                 </label>
                 <div class="bg-(--bg2)/30 border border-white/10 rounded-xl p-3 max-h-40 overflow-y-auto space-y-2">

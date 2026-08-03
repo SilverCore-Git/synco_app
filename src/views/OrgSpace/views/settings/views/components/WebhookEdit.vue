@@ -113,7 +113,7 @@
                         <i class="bi bi-info-circle text-(--primary) text-lg flex-shrink-0 mt-0.5" />
                         <div>
                             <h4 class="text-sm font-semibold text-(--text) mb-1">Chiffrement de bout en bout</h4>
-                            <p class="text-xs text-(--text)/60">
+                            <p class="text-xs text-(--text2)">
                                 Les messages reçus via ce webhook seront chiffrés avec une paire de clés ECDH P-256.
                             </p>
                         </div>

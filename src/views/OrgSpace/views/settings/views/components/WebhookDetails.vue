@@ -12,7 +12,7 @@
                     URL du Webhook
                 </h3>
                 <div class="bg-(--white)/5 border border-(--white)/10 rounded-xl p-3 flex items-center justify-between">
-                    <code class="text-sm text-(--text)/60 overflow-x-auto">{{ webhook.url }}</code>
+                    <code class="text-sm text-(--text2) overflow-x-auto">{{ webhook.url }}</code>
                     <button 
                         @click="copyUrl"
                         class="flex items-center gap-2 text-(--text2) hover:text-(--primary) transition-all"
@@ -33,7 +33,7 @@
                     Secret HMAC
                 </h3>
                 <div class="bg-(--white)/5 border border-(--white)/10 rounded-xl p-3 flex items-center justify-between">
-                    <code class="text-sm text-(--text)/60 overflow-x-auto">{{ webhook.secret }}</code>
+                    <code class="text-sm text-(--text2) overflow-x-auto">{{ webhook.secret }}</code>
                     <button 
                         @click="copySecret"
                         class="flex items-center gap-2 text-(--text2) hover:text-(--primary) transition-all"
@@ -54,7 +54,7 @@
                     Clé Publique E2EE
                 </h3>
                 <textarea 
-                    class="w-full bg-(--white)/5 border border-(--white)/10 rounded-xl p-3 text-xs font-mono text-(--text)/60 resize-none"
+                    class="w-full bg-(--white)/5 border border-(--white)/10 rounded-xl p-3 text-xs font-mono text-(--text2) resize-none"
                     readonly
                     :value="webhook.publicKey"
                     rows="4"

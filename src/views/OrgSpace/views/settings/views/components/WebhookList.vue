@@ -5,7 +5,7 @@
         <!-- État de chargement -->
         <div v-if="loading" class="flex items-center justify-center py-8">
             <SpinLoader />
-            <span class="ml-3 text-(--text)/60">Chargement des webhooks...</span>
+            <span class="ml-3 text-(--text2)">Chargement des webhooks...</span>
         </div>
 
         <!-- État d'erreur -->
@@ -20,7 +20,7 @@
         >
             <i class="bi bi-link-45deg text-4xl text-(--text)/20" />
             <h3 class="text-lg font-semibold text-(--text) mt-4">Aucun webhook configuré</h3>
-            <p class="text-(--text)/60 mt-2">
+            <p class="text-(--text2) mt-2">
                 Créez votre premier webhook pour commencer à recevoir des notifications.
             </p>
         </div>
@@ -47,7 +47,7 @@
                                     class="absolute -top-1 -right-1 w-4 h-4 bg-(--bg) rounded-full border border-(--white)/20 flex items-center justify-center"
                                     title="Désactivé"
                                 >
-                                    <i class="bi bi-pause-fill text-[10px] text-(--text)/60" />
+                                    <i class="bi bi-pause-fill text-[10px] text-(--text2)" />
                                 </div>
                             </div>
                             
@@ -62,7 +62,7 @@
                                         <i class="bi bi-lock-fill" /> E2EE
                                     </span>
                                 </h3>
-                                <p v-if="webhook.description" class="text-sm text-(--text)/60 truncate">
+                                <p v-if="webhook.description" class="text-sm text-(--text2) truncate">
                                     {{ webhook.description }}
                                 </p>
                             </div>
@@ -109,25 +109,25 @@
                             class="w-2 h-2 rounded-full"
                             :class="webhook.isActive ? 'bg-green-500' : 'bg-red-500'"
                         />
-                        <span class="text-(--text)/60">
+                        <span class="text-(--text2)">
                             {{ webhook.isActive ? 'Actif' : 'Inactif' }}
                         </span>
                     </div>
                     
                     <!-- Utilisation -->
-                    <div class="flex items-center gap-1.5 text-sm text-(--text)/60">
+                    <div class="flex items-center gap-1.5 text-sm text-(--text2)">
                         <i class="bi bi-chart-line text-(--text2)" />
                         <span>{{ webhook.usageCount }} messages</span>
                     </div>
                     
                     <!-- Dernière utilisation -->
-                    <div class="flex items-center gap-1.5 text-sm text-(--text)/60">
+                    <div class="flex items-center gap-1.5 text-sm text-(--text2)">
                         <i class="bi bi-clock text-(--text2)" />
                         <span>{{ formatLastUsed(webhook.lastUsedAt) }}</span>
                     </div>
                     
                     <!-- Créé le -->
-                    <div class="flex items-center gap-1.5 text-sm text-(--text)/60">
+                    <div class="flex items-center gap-1.5 text-sm text-(--text2)">
                         <i class="bi bi-calendar text-(--text2)" />
                         <span>{{ formatDate(webhook.createdAt) }}</span>
                     </div>

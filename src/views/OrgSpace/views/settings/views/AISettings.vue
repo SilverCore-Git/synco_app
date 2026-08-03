@@ -8,7 +8,7 @@
 
                 <div class="mb-8">
                     <h3 class="text-2xl font-black text-(--text) mb-2">Configuration de Synco AI</h3>
-                    <p class="text-sm text-(--text)/60">Paramétrez le fournisseur de Synco AI pour votre organisation. Ce paramétrage sera utilisé par tous les membres.</p>
+                    <p class="text-sm text-(--text2)">Paramétrez le fournisseur de Synco AI pour votre organisation. Ce paramétrage sera utilisé par tous les membres.</p>
                 </div>
 
                 <div v-if="!openedOrg?.features?.includes('ai')" class="mb-8 p-6 bg-(--bg2) border border-(--border-color) rounded-2xl shadow-sm flex items-start gap-4">
@@ -107,7 +107,7 @@
                                         :key="model"
                                         @click="orgData.modelId = model"
                                         class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all border shadow-sm"
-                                        :class="orgData.modelId === model ? 'bg-(--primary) border-(--primary) text-white' : 'bg-(--bg3) border-(--border-color) text-(--text)/60 hover:bg-(--bg)'"
+                                        :class="orgData.modelId === model ? 'bg-(--primary) border-(--primary) text-white' : 'bg-(--bg3) border-(--border-color) text-(--text2) hover:bg-(--bg)'"
                                     >
                                         {{ model }}
                                     </button>

@@ -10,7 +10,7 @@
                     class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:border-(--primary)/50 focus:ring-1 focus:ring-(--primary)/50 transition-all"
                 >
             </div>
-            <div class="text-sm font-bold text-(--text)/60 px-4 py-2 bg-(--bg2) rounded-xl border border-white/5">
+            <div class="text-sm font-bold text-(--text2) px-4 py-2 bg-(--bg2) rounded-xl border border-white/5">
                 {{ filteredUsers.length }} utilisateur(s)
             </div>
         </div>
@@ -94,7 +94,7 @@
                 
                 <div class="p-6 border-b border-white/5 bg-(--bg2)">
                     <h3 class="text-xl font-black text-(--text)">Modifier les quotas</h3>
-                    <p class="text-sm text-(--text)/60 mt-1">Pour l'utilisateur <span class="font-bold text-(--text)">{{ selectedUser.name }}</span></p>
+                    <p class="text-sm text-(--text2) mt-1">Pour l'utilisateur <span class="font-bold text-(--text)">{{ selectedUser.name }}</span></p>
                 </div>
 
                 <div class="p-6 space-y-5">

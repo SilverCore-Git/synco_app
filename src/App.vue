@@ -297,7 +297,7 @@ onMounted(async () => {
                 Cela réinitialisera votre clé de chiffrement.
                 <span class="text-amber-500 font-medium">Tous vos anciens messages deviendront illisibles.</span>
               </p>
-              <p class="text-(--text)/60 text-xs mt-4">
+              <p class="text-(--text2) text-xs mt-4">
                 Cette action ne peut pas être annulée.
               </p>
               <template #footer>

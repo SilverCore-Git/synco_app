@@ -77,7 +77,7 @@ const handleDelete = async () => {
         <template #trigger>
 
             <button class="default ">
-                <i class="bi bi-three-dots text-(--text)/60" />
+                <i class="bi bi-three-dots text-(--text2)" />
             </button>
 
         </template>

@@ -144,7 +144,7 @@
                         <span class="text-[10px] font-black uppercase text-(--primary) tracking-widest">
                             {{ fileSendProgress == 100 ? 'Finalisation...' : 'Envoi en cours...' }}
                         </span>
-                        <span class="text-[10px] font-bold text-(--text)/60">{{ fileSendProgress }}%</span>
+                        <span class="text-[10px] font-bold text-(--text2)">{{ fileSendProgress }}%</span>
                     </div>
                     <div class="w-full h-1.5 bg-black/20 rounded-full overflow-hidden">
                         <div 

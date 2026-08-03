@@ -3,7 +3,7 @@
         <template #title>Inspecter un fichier externe</template>
 
         <div class="space-y-5">
-            <p class="text-sm text-(--text)/60">
+            <p class="text-sm text-(--text2)">
                 Glissez-déposez un fichier ici ou cliquez pour sélectionner un fichier afin de vérifier s'il contient un filigrane Synco invisible.
             </p>
 
@@ -31,7 +31,7 @@
                 </template>
                 <template v-else>
                     <i class="bi bi-shield-check text-3xl text-(--text2) mb-2" />
-                    <span class="text-sm font-semibold text-(--text)/60">Déposer un fichier à inspecter</span>
+                    <span class="text-sm font-semibold text-(--text2)">Déposer un fichier à inspecter</span>
                 </template>
             </div>
 

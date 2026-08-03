@@ -7,7 +7,7 @@
         <form @submit.prevent="handleSubmit" class="space-y-5">
 
             <div class="flex gap-2 flex-col">
-                <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+                <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                     Nom du fichier
                 </label>
                 <input 

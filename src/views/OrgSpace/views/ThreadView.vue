@@ -15,7 +15,7 @@
             <div class="mb-8 p-4">
 
                 <div class="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4">
-                    <i class="bi bi-hash text-4xl text-(--text)/60" />
+                    <i class="bi bi-hash text-4xl text-(--text2)" />
                 </div>
 
                 <h1 class="text-3xl font-black text-(--text) mb-2">#{{ thread.name }}</h1>
@@ -82,7 +82,7 @@
             "
         >
             <div class="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4 border border-(--primary)/10">
-                <i class="bi bi-hash text-4xl text-(--text)/60" />
+                <i class="bi bi-hash text-4xl text-(--text2)" />
             </div>
             <p class="text-(--text)/80 italic font-medium">Thread introuvable ou accès refusé.</p>
         </div>

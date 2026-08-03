@@ -13,7 +13,7 @@
                     :key="tab.id"
                     @click="activeTab = tab.id"
                     class="tab whitespace-nowrap shrink-0 sm:w-full"
-                    :class="activeTab === tab.id ? 'active' : 'text-(--text)/60'"
+                    :class="activeTab === tab.id ? 'active' : 'text-(--text2)'"
                 >
                     <i :class="tab.icon" class="text-lg" />
                     {{ tab.label }}
@@ -71,7 +71,7 @@
 
                     <div class="mb-6">
                         <h3 class="text-xl font-black text-(--text) mb-1">Informations personnelles</h3>
-                        <p class="text-sm text-(--text)/60">Mettez à jour votre profil et vos coordonnées.</p>
+                        <p class="text-sm text-(--text2)">Mettez à jour votre profil et vos coordonnées.</p>
                     </div>
 
                     <div class="space-y-6 max-w-lg">
@@ -154,7 +154,7 @@
                 >
                     <div>
                         <h3 class="text-xl font-black text-(--text) mb-1">Sécurité & Confidentialité</h3>
-                        <p class="text-sm text-(--text)/60">Gérez la sécurité de votre compte et le chiffrement de bout en bout.</p>
+                        <p class="text-sm text-(--text2)">Gérez la sécurité de votre compte et le chiffrement de bout en bout.</p>
                     </div>
 
                     <div class="space-y-6">
@@ -174,7 +174,7 @@
                                             {{ E2EEUnloked ? 'Actif' : 'Verrouillé' }}
                                         </span>
                                     </h4>
-                                    <p class="text-sm text-(--text)/60 mt-1 leading-relaxed">
+                                    <p class="text-sm text-(--text2) mt-1 leading-relaxed">
                                         Vos conversations sont chiffrées de bout en bout. Même nous ne pouvons pas les lire.
                                     </p>
                                 </div>
@@ -224,7 +224,7 @@
                                 @click="keycloak.accountManagement()"
                             >
                                 <div class="flex items-center gap-4">
-                                    <div class="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-(--text)/60 group-hover:text-(--text) group-hover:bg-white/10 transition-colors">
+                                    <div class="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-(--text2) group-hover:text-(--text) group-hover:bg-white/10 transition-colors">
                                         <i class="bi bi-key-fill text-lg"></i>
                                     </div>
                                     <div>
@@ -247,7 +247,7 @@
 
                     <div>
                         <h3 class="text-2xl font-black text-(--text) mb-1">Apparence</h3>
-                        <p class="text-sm text-(--text)/60">Personnalisez l'interface de SilverTeams à votre goût.</p>
+                        <p class="text-sm text-(--text2)">Personnalisez l'interface de SilverTeams à votre goût.</p>
                     </div>
 
                     <div class="space-y-8">
@@ -303,7 +303,7 @@
                             >
                                 <div>
                                     <h4 class="font-bold text-(--text)">Mode développeur</h4>
-                                    <p class="text-sm text-(--text)/60 mt-0.5">Affiche les identifiants techniques et options avancées</p>
+                                    <p class="text-sm text-(--text2) mt-0.5">Affiche les identifiants techniques et options avancées</p>
                                 </div>
                                 <div 
                                     class="w-12 h-6 rounded-full relative transition-colors duration-300 shrink-0"
@@ -330,7 +330,7 @@
 
                     <div>
                         <h3 class="text-2xl font-black text-(--text) mb-1">Notifications</h3>
-                        <p class="text-sm text-(--text)/60">Gérez comment et quand vous êtes alerté.</p>
+                        <p class="text-sm text-(--text2)">Gérez comment et quand vous êtes alerté.</p>
                     </div>
 
                     <div class="space-y-4 max-w-lg">
@@ -341,7 +341,7 @@
                         >
                             <div>
                                 <h4 class="font-bold text-(--text)">Notifications Push</h4>
-                                <p class="text-sm text-(--text)/60 mt-0.5">Recevoir des alertes sur cet appareil</p>
+                                <p class="text-sm text-(--text2) mt-0.5">Recevoir des alertes sur cet appareil</p>
                             </div>
                             <div 
                                 class="w-12 h-6 rounded-full relative transition-colors duration-300"
@@ -360,7 +360,7 @@
                         >
                             <div>
                                 <h4 class="font-bold text-(--text)">Notifications par Email</h4>
-                                <p class="text-sm text-(--text)/60 mt-0.5">Recevoir un résumé des messages non lus</p>
+                                <p class="text-sm text-(--text2) mt-0.5">Recevoir un résumé des messages non lus</p>
                             </div>
                             <div 
                                 class="w-12 h-6 rounded-full relative transition-colors duration-300"
@@ -379,7 +379,7 @@
                         >
                             <div>
                                 <h4 class="font-bold text-(--text)">Sons des messages</h4>
-                                <p class="text-sm text-(--text)/60 mt-0.5">Jouer un son lors de la réception d'un message</p>
+                                <p class="text-sm text-(--text2) mt-0.5">Jouer un son lors de la réception d'un message</p>
                             </div>
                             <div 
                                 class="w-12 h-6 rounded-full relative transition-colors duration-300"
@@ -398,7 +398,7 @@
                         >
                             <div>
                                 <h4 class="font-bold text-(--text)">Mentions @ uniquement</h4>
-                                <p class="text-sm text-(--text)/60 mt-0.5">M'alerter uniquement quand on me mentionne directement</p>
+                                <p class="text-sm text-(--text2) mt-0.5">M'alerter uniquement quand on me mentionne directement</p>
                             </div>
                             <div 
                                 class="w-12 h-6 rounded-full relative transition-colors duration-300"

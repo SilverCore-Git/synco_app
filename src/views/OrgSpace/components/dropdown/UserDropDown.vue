@@ -129,7 +129,7 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
                     <div class="bg-(--bg2) rounded-lg p-3 mt-2 border border-(--border-color) shadow-inner">
                         <h2 class="text-lg font-bold text-(--text) leading-tight">{{ user?.name }}</h2>
                         <p class="text-xs text-(--primary) font-bold uppercase tracking-wider mb-1" v-if="user?.job">{{ user?.job }}</p>
-                        <p class="text-xs text-(--text)/60 mb-2">{{ user?.email }}</p>
+                        <p class="text-xs text-(--text2) mb-2">{{ user?.email }}</p>
                         
                         <div v-if="user?.description">
                             <div class="w-full h-px bg-white/5 my-2"></div>

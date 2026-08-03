@@ -76,7 +76,7 @@
                                     <div class="flex flex-col">
                                         <span class="text-sm font-bold text-(--text) flex items-center gap-2">
                                             {{ member.user?.name || 'Utilisateur inconnu' }}
-                                            <span v-if="isSelf(member.userId)" class="text-[9px] bg-(--white)/10 px-1.5 py-0.5 rounded text-(--text)/60">VOUS</span>
+                                            <span v-if="isSelf(member.userId)" class="text-[9px] bg-(--white)/10 px-1.5 py-0.5 rounded text-(--text2)">VOUS</span>
                                         </span>
                                         <span class="text-[10px] text-(--text2)">{{ member.user?.email || 'Email non disponible' }}</span>
                                     </div>
@@ -117,7 +117,7 @@
 
         <template #title>Ajouter des membres</template>
                 
-        <p class="text-xs text-(--text)/60 mb-4 font-medium uppercase tracking-widest">Membres de l'organisation</p>
+        <p class="text-xs text-(--text2) mb-4 font-medium uppercase tracking-widest">Membres de l'organisation</p>
                 
         <div class="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
 

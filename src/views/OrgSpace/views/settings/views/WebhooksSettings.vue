@@ -6,7 +6,7 @@
                 <div class="mb-8 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div>
                         <h3 class="text-2xl font-black text-(--text) mb-2">Webhooks</h3>
-                        <p class="text-sm text-(--text)/60">Configurez des webhooks pour recevoir des notifications automatiques depuis des services externes.</p>
+                        <p class="text-sm text-(--text2)">Configurez des webhooks pour recevoir des notifications automatiques depuis des services externes.</p>
                     </div>
                     <button 
                         @click="showCreateModal = true"
@@ -34,21 +34,21 @@
                             <button 
                                 @click="filterStatus = 'all'"
                                 :class="['px-4 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap', 
-                                         filterStatus === 'all' ? 'bg-(--primary) text-white shadow-sm' : 'text-(--text)/60 hover:text-(--text) hover:bg-(--bg3)']"
+                                         filterStatus === 'all' ? 'bg-(--primary) text-white shadow-sm' : 'text-(--text2) hover:text-(--text) hover:bg-(--bg3)']"
                             >
                                 Tous ({{ totalWebhooks }})
                             </button>
                             <button 
                                 @click="filterStatus = 'active'"
                                 :class="['px-4 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap', 
-                                         filterStatus === 'active' ? 'bg-(--primary) text-white shadow-sm' : 'text-(--text)/60 hover:text-(--text) hover:bg-(--bg3)']"
+                                         filterStatus === 'active' ? 'bg-(--primary) text-white shadow-sm' : 'text-(--text2) hover:text-(--text) hover:bg-(--bg3)']"
                             >
                                 Actifs ({{ activeWebhooks.length }})
                             </button>
                             <button 
                                 @click="filterStatus = 'inactive'"
                                 :class="['px-4 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap', 
-                                         filterStatus === 'inactive' ? 'bg-(--primary) text-white shadow-sm' : 'text-(--text)/60 hover:text-(--text) hover:bg-(--bg3)']"
+                                         filterStatus === 'inactive' ? 'bg-(--primary) text-white shadow-sm' : 'text-(--text2) hover:text-(--text) hover:bg-(--bg3)']"
                             >
                                 Inactifs ({{ inactiveWebhooks.length }})
                             </button>
