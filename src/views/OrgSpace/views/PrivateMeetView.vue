@@ -72,7 +72,7 @@
 
                             </div>
 
-                            <p class="text-(--text)/85 text-sm leading-relaxed wrap-break-word whitespace-pre-wrap">
+                            <p class="text-(--text) text-sm leading-relaxed wrap-break-word whitespace-pre-wrap">
                                 {{ msg.text || 'Aucun message' }}
                             </p>
 
