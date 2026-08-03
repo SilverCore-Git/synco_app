@@ -152,16 +152,25 @@
                                             </button>
                                         </div>
 
-                                        <!-- Rôle et Date (Mobile) -->
-                                        <div class="flex flex-col gap-3 pt-3 border-t border-(--border-color)">
+
+                                        <div class="flex flex-col gap-3 pt-3">
+
+                                            <!-- Date d'arrivée -->
+                                            <div class="flex gap-1 items-center">
+                                                <h3 class="text-[11px] text-(--text) uppercase tracking-widest ">Date d'arrivée :</h3>
+                                                <span class="text-xs text-(--text2)">
+                                                    {{ new Date(member.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) }}
+                                                </span>
+                                            </div>
+
                                             <!-- Rôle -->
-                                            <div class="flex flex-col gap-1">
-                                                <h3 class="text-[11px] text-(--text2) uppercase tracking-widest">Rôle</h3>
+                                            <div class="flex flex-col gap-2 bg-(--bg) border border-(--border-color) rounded-2xl px-4 text-xs text-(--text) focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer">
                                                 <select
-                                                    :value="member?.role || 'unknow'"
+                                                    :value="member?.role || 'unknown'"
                                                     @change="updateRole(member.id, $event)"
                                                     :disabled="isSelf(member.user?.id!) || !isAdmin"
-                                                    class="bg-(--bg) border border-(--border-color) rounded-lg px-3 py-1.5 text-xs text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                                                    class="pr-4 py-4 !bg-(--bg) rounded-2xl"
+                                                    :class="{ 'opacity-40 cursor-not-allowed': member?.role === 'OWNER' && isSelf(member.user?.id!) }"
                                                 >
                                                     <option value="OWNER">Propriétaire</option>
                                                     <option value="ADMIN">Administrateur</option>
@@ -170,13 +179,7 @@
                                                 </select>
                                             </div>
 
-                                            <!-- Date d'arrivée -->
-                                            <div class="flex flex-col gap-1">
-                                                <h3 class="text-[11px] text-(--text2) uppercase tracking-widest">Date d'arrivée</h3>
-                                                <span class="text-xs text-(--text2)">
-                                                    {{ new Date(member.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) }}
-                                                </span>
-                                            </div>
+
                                         </div>
                                     </div>
                                 </div>
