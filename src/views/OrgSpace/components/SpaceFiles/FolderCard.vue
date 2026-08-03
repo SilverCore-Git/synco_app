@@ -54,7 +54,7 @@
         </div>
 
         <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold text-(--text)/90 truncate">{{ folder.name }}</p>
+            <p class="text-sm font-semibold text-(--text) truncate">{{ folder.name }}</p>
             <p class="text-[9px] text-(--text2) font-bold uppercase tracking-tighter">
                 {{ allFiles.filter(f => f.folderId === folder.id).length }} fichiers
             </p>

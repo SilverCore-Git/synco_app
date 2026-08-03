@@ -143,11 +143,11 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
                         <div class="mb-2">
                             <h3 class="text-[10px] font-bold text-(--text2) uppercase tracking-wide mb-1.5">Rôles</h3>
                             <div class="flex flex-wrap gap-1.5">
-                                <span class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-(--bg) border border-(--border-color) text-[10px] font-medium text-(--text)/90 shadow-sm">
+                                <span class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-(--bg) border border-(--border-color) text-[10px] font-medium text-(--text) shadow-sm">
                                     <div class="w-2 h-2 rounded-full shadow-sm" :class="roleColorClass"></div>
                                     {{ translatedRole }}
                                 </span>
-                                <span v-if="user?.id === keycloak.subject" class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-(--bg) border border-(--border-color) text-[10px] font-medium text-(--text)/90 shadow-sm">
+                                <span v-if="user?.id === keycloak.subject" class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-(--bg) border border-(--border-color) text-[10px] font-medium text-(--text) shadow-sm">
                                     Vous
                                 </span>
                             </div>
@@ -158,7 +158,7 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
                         <!-- Membre depuis -->
                         <div>
                             <h3 class="text-[10px] font-bold text-(--text2) uppercase tracking-wide mb-1.5">Membre depuis</h3>
-                            <p class="text-xs text-(--text)/90 flex items-center gap-1.5">
+                            <p class="text-xs text-(--text) flex items-center gap-1.5">
                                 <i class="bi bi-calendar3 text-(--text2) text-[10px]"></i>
                                 {{ formatDate(user?.createdAt) }}
                             </p>

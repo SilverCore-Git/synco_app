@@ -92,7 +92,7 @@
                 <label v-for="member in availableMembers" :key="member.user!.id" class="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
                     <input type="checkbox" :value="member.user!.id" v-model="form.accessMembersId" class="w-4 h-4 rounded bg-black/20 border-white/10 text-(--primary) focus:ring-0 focus:ring-offset-0 cursor-pointer accent-(--primary)" />
                     <img :src="member.user!.avatarUrl || `https://ui-avatars.com/api/?name=${member.user!.name}&background=128a60&color=fff`" class="w-6 h-6 rounded-full object-cover" />
-                    <span class="text-sm text-(--text)/90 font-medium">{{ member.user!.name }}</span>
+                    <span class="text-sm text-(--text) font-medium">{{ member.user!.name }}</span>
                 </label>
                 <div v-if="availableMembers.length === 0" class="text-xs text-white/40 p-2 text-center">Aucun membre disponible</div>
             </div>
@@ -118,7 +118,7 @@
                     <label v-for="member in availableMembers" :key="member.user!.id" class="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
                         <input type="checkbox" :value="member.user!.id" v-model="form.writersId" class="w-4 h-4 rounded bg-black/20 border-white/10 text-(--primary) focus:ring-0 focus:ring-offset-0 cursor-pointer accent-(--primary)" />
                         <img :src="member.user!.avatarUrl || `https://ui-avatars.com/api/?name=${member.user!.name}&background=128a60&color=fff`" class="w-6 h-6 rounded-full object-cover" />
-                        <span class="text-sm text-(--text)/90 font-medium">{{ member.user!.name }}</span>
+                        <span class="text-sm text-(--text) font-medium">{{ member.user!.name }}</span>
                     </label>
                     <div v-if="availableMembers.length === 0" class="text-xs text-white/40 p-2 text-center">Aucun membre disponible</div>
                 </div>

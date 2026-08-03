@@ -154,7 +154,7 @@
                                     </div>
 
                                     <div class="flex flex-col min-w-0 pr-2">
-                                        <span class="text-xs font-medium text-(--text)/90 truncate">
+                                        <span class="text-xs font-medium text-(--text) truncate">
                                             {{ file.originalName }}
                                         </span>
                                         <span class="text-[10px] text-(--text2) uppercase tracking-wider">

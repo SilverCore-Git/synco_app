@@ -328,7 +328,7 @@
                         <i class="bi bi-file-text text-(--text2) text-lg" />
                         <div>
                             <p class="text-[10px] font-black uppercase tracking-widest text-(--text2)">Nom</p>
-                            <p class="font-semibold text-(--text)/90">{{ selectedFileForInfo.originalName }}</p>
+                            <p class="font-semibold text-(--text)">{{ selectedFileForInfo.originalName }}</p>
                         </div>
                     </div>
                     
@@ -342,7 +342,7 @@
                         <i class="bi bi-file-earmark text-(--text2) text-lg" v-else />
                         <div>
                             <p class="text-[10px] font-black uppercase tracking-widest text-(--text2)">Type</p>
-                            <p class="font-semibold text-(--text)/90">{{ selectedFileForInfo.mimeType }}</p>
+                            <p class="font-semibold text-(--text)">{{ selectedFileForInfo.mimeType }}</p>
                         </div>
                     </div>
                     
@@ -350,7 +350,7 @@
                         <i class="bi bi-hdd text-(--text2) text-lg" />
                         <div>
                             <p class="text-[10px] font-black uppercase tracking-widest text-(--text2)">Taille</p>
-                            <p class="font-semibold text-(--text)/90">{{ formatFileSize(selectedFileForInfo.size) }}</p>
+                            <p class="font-semibold text-(--text)">{{ formatFileSize(selectedFileForInfo.size) }}</p>
                         </div>
                     </div>
                     
@@ -358,7 +358,7 @@
                         <i class="bi bi-calendar text-(--text2) text-lg" />
                         <div>
                             <p class="text-[10px] font-black uppercase tracking-widest text-(--text2)">Date de création</p>
-                            <p class="font-semibold text-(--text)/90">{{ formatDate(selectedFileForInfo.createdAt) }}</p>
+                            <p class="font-semibold text-(--text)">{{ formatDate(selectedFileForInfo.createdAt) }}</p>
                         </div>
                     </div>
                     
@@ -366,7 +366,7 @@
                         <i class="bi bi-shield-check text-(--text2) text-lg" />
                         <div>
                             <p class="text-[10px] font-black uppercase tracking-widest text-(--text2)">Chiffrement</p>
-                            <p class="font-semibold text-(--text)/90">{{ selectedFileForInfo.isEncrypted ? 'Oui' : 'Non' }}</p>
+                            <p class="font-semibold text-(--text)">{{ selectedFileForInfo.isEncrypted ? 'Oui' : 'Non' }}</p>
                         </div>
                     </div>
                     
@@ -374,7 +374,7 @@
                         <i class="bi bi-folder text-(--text2) text-lg" />
                         <div>
                             <p class="text-[10px] font-black uppercase tracking-widest text-(--text2)">Dossier</p>
-                            <p class="font-semibold text-(--text)/90">Dans un dossier</p>
+                            <p class="font-semibold text-(--text)">Dans un dossier</p>
                         </div>
                     </div>
                 </div>
