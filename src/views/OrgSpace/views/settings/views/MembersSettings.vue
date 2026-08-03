@@ -29,7 +29,7 @@
                 <!-- SECTION MEMBRE -->
                 <!-------------------->
                 <section class="bg-(--bg2) rounded-2xl border border-(--border-color) shadow-sm overflow-hidden flex flex-col">
-                    
+
                     <div class="p-6 border-b border-(--border-color) flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-(--bg3)/20">
 
                         <h3 class="text-lg font-bold text-(--text) flex items-center gap-3">
@@ -55,6 +55,7 @@
 
                         <table class="w-full text-left border-collapse">
 
+                            <!-- Noms cathégorie -->
                             <thead>
                                 <tr class="text-[10px] uppercase tracking-widest text-(--text) bg-(--bg3)/30 border-b border-(--border-color)">
                                     <th class="px-6 py-4 font-bold">Utilisateur</th>
@@ -64,6 +65,7 @@
                                 </tr>
                             </thead>
 
+                            <!-- Utilisateur -->
                             <tbody class="divide-y divide-(--border-color)">
                                 <tr 
                                     v-for="member in filteredMembers" 
@@ -88,6 +90,7 @@
                                         </div>
                                     </td>
 
+                                    <!-- Rôle -->
                                     <td class="px-6 py-4">
                                         <select 
                                             :value="member?.role || 'unknow'"
@@ -102,10 +105,12 @@
                                         </select>
                                     </td>
 
+                                    <!-- Date d'arrivée -->
                                     <td class="px-6 py-4 text-xs text-(--text2)">
                                         {{ new Date(member.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) }}
                                     </td>
 
+                                    <!-- Actions -->
                                     <td class="px-6 py-4 text-right">
                                         <button 
                                             v-if="!isSelf(member.user?.id!) && isAdmin"
