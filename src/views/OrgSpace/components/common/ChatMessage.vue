@@ -106,7 +106,7 @@
                                     {{ msg.sender?.name || 'Anonyme' }}
                                 </span>
 
-                                <span class="text-(--text)/27 text-[10px] whitespace-nowrap">
+                                <span class="text-(--text2) text-[10px] whitespace-nowrap">
                                     {{ formatTime(msg.createdAt as any) }}
                                 </span>
 
