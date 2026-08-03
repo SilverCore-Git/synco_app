@@ -287,7 +287,7 @@ onMounted(async () => {
             </div>
 
             <button v-if="pinSetup && !isResettingPIN" @click="pinForgot"
-              class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text)/30 hover:text-(--primary) transition-colors">
+              class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text2) hover:text-(--primary) transition-colors">
               Code PIN oublié ?
             </button>
 

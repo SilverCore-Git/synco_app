@@ -232,7 +232,7 @@
                                         <p class="text-xs text-(--text2) mt-0.5">Gérez votre mot de passe et l'A2F via Keycloak</p>
                                     </div>
                                 </div>
-                                <i class="bi bi-box-arrow-up-right text-(--text)/30 group-hover:text-(--text) transition-colors"></i>
+                                <i class="bi bi-box-arrow-up-right text-(--text2) group-hover:text-(--text) transition-colors"></i>
                             </div>
 
                         </div>

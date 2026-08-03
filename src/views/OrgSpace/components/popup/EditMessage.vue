@@ -27,7 +27,7 @@
                     @keydown.ctrl.enter="handleSave"
                 ></textarea>
                 
-                <div class="absolute bottom-3 right-3 text-[10px] text-(--text)/30">
+                <div class="absolute bottom-3 right-3 text-[10px] text-(--text2)">
                     ctrl + Enter pour valider
                 </div>
 

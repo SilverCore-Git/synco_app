@@ -62,7 +62,7 @@
                                     <input 
                                         v-model="orgData.apiKey"
                                         :type="showApiKey ? 'text' : 'password'"
-                                        class="w-full bg-(--bg) border border-(--border-color) pl-11 pr-12 py-3 text-sm focus:outline-none rounded-xl focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all font-mono placeholder:text-(--text)/30 shadow-inner text-(--text)"
+                                        class="w-full bg-(--bg) border border-(--border-color) pl-11 pr-12 py-3 text-sm focus:outline-none rounded-xl focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all font-mono placeholder:text-(--text2) shadow-inner text-(--text)"
                                         :placeholder="orgData.hasApiKey ? '•••••••••••••••• (Clé configurée, tapez pour remplacer)' : 'sk-...'"
                                     />
                                     <button @click="showApiKey = !showApiKey" class="absolute right-4 top-1/2 -translate-y-1/2 text-(--text2) hover:text-(--primary) transition-colors">

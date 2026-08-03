@@ -63,7 +63,7 @@
                         <div class="space-y-2" v-if="devMode">
                             <label class="text-xs font-semibold text-(--text)">ID Unique (Permanent)</label>
                             <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/30">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2)">
                                     <i class="bi bi-hash"></i>
                                 </div>
                                 <input 

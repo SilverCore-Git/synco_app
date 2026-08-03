@@ -8,13 +8,13 @@
 
                 <h3 class="text-lg font-bold text-(--text)">
                     Membres 
-                    <span class="text-(--text)/30 font-medium ml-2 text-sm">
+                    <span class="text-(--text2) font-medium ml-2 text-sm">
                         {{ filteredMembers.length }}
                     </span>
                 </h3>
                 
                 <div class="relative">
-                    <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text)/30 text-[10px]" />
+                    <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-[10px]" />
                     <input 
                         v-model="searchQuery"
                         type="text" 

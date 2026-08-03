@@ -17,7 +17,7 @@
                 v-model="query"
                 type="text" 
                 placeholder="Rechercher par sens ou mot-clé (Deep search)..."
-                class="w-full bg-transparent text-lg text-(--text) placeholder:text-(--text)/30 focus:outline-none"
+                class="w-full bg-transparent text-lg text-(--text) placeholder:text-(--text2) focus:outline-none"
                 @input="handleInput"
             />
             <button @click="emit('close')" class="ml-2 text-(--text2) hover:text-(--text) p-1">
@@ -61,7 +61,7 @@
             <div v-if="loading" class="flex flex-col items-center justify-center py-8 text-(--text2)">
                 <i class="bi bi-robot text-4xl mb-3 animate-pulse text-(--primary)" />
                 <p>Recherche en cours...</p>
-                <p v-if="downloadProgress > 0 && downloadProgress < 100" class="text-xs mt-2 text-(--text)/30">Premier démarrage du moteur : {{ downloadProgress }}%</p>
+                <p v-if="downloadProgress > 0 && downloadProgress < 100" class="text-xs mt-2 text-(--text2)">Premier démarrage du moteur : {{ downloadProgress }}%</p>
             </div>
             
             <div v-else-if="error" class="flex flex-col items-center justify-center py-8 text-red-400">
@@ -79,7 +79,7 @@
                 
                 <div v-for="group in ['THREAD', 'FILE', 'TODO', 'MESSAGE']" :key="group">
                     <div v-if="groupedResults[group] && groupedResults[group].length > 0">
-                        <h3 class="text-[10px] font-black tracking-widest uppercase text-(--text)/30 mb-2 px-2 flex items-center gap-2">
+                        <h3 class="text-[10px] font-black tracking-widest uppercase text-(--text2) mb-2 px-2 flex items-center gap-2">
                             <i class="bi" :class="{
                                 'bi-hash text-(--primary)': group === 'THREAD',
                                 'bi-file-earmark-text text-green-400': group === 'FILE',

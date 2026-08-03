@@ -72,7 +72,7 @@
                 <div class="space-y-2 max-h-[200px] overflow-y-auto pr-2">
                     <div v-for="subtask in task.subtasks" :key="subtask.id" class="bg-black/20 border border-(--border-color) rounded-xl p-3 flex items-center justify-between group">
                         <div class="flex items-center gap-3">
-                            <button @click="toggleSubtaskStatus(subtask)" class="text-xl transition-colors" :class="subtask.status === 'DONE' ? 'text-green-500' : 'text-(--text)/30 hover:text-(--primary)'">
+                            <button @click="toggleSubtaskStatus(subtask)" class="text-xl transition-colors" :class="subtask.status === 'DONE' ? 'text-green-500' : 'text-(--text2) hover:text-(--primary)'">
                                 <i class="bi" :class="subtask.status === 'DONE' ? 'bi-check-circle-fill' : 'bi-circle'"></i>
                             </button>
                             <span class="text-sm font-medium" :class="subtask.status === 'DONE' ? 'text-(--text2) line-through' : 'text-white'">{{ subtask.title }}</span>

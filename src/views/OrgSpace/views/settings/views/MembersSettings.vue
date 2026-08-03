@@ -42,7 +42,7 @@
                                 v-model="searchQuery"
                                 type="text" 
                                 placeholder="Rechercher un nom ou un email..."
-                                class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-11 pr-4 py-2.5 text-sm text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner placeholder:text-(--text)/30"
+                                class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-11 pr-4 py-2.5 text-sm text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner placeholder:text-(--text2)"
                             />
                         </div>
 
@@ -112,7 +112,7 @@
                                         >
                                             <i class="bi bi-person-x text-lg" />
                                         </button>
-                                        <span v-else class="text-[10px] text-(--text)/30 uppercase tracking-widest px-2">
+                                        <span v-else class="text-[10px] text-(--text2) uppercase tracking-widest px-2">
                                             -
                                         </span>
                                     </td>
