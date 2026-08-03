@@ -25,6 +25,9 @@
 
                 </section>
 
+                <!-------------------->
+                <!-- SECTION MEMBRE -->
+                <!-------------------->
                 <section class="bg-(--bg2) rounded-2xl border border-(--border-color) shadow-sm overflow-hidden flex flex-col">
                     
                     <div class="p-6 border-b border-(--border-color) flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-(--bg3)/20">
@@ -53,7 +56,7 @@
                         <table class="w-full text-left border-collapse">
 
                             <thead>
-                                <tr class="text-[10px] uppercase tracking-widest text-(--text2) bg-(--bg3)/30 border-b border-(--border-color)">
+                                <tr class="text-[10px] uppercase tracking-widest text-(--text) bg-(--bg3)/30 border-b border-(--border-color)">
                                     <th class="px-6 py-4 font-bold">Utilisateur</th>
                                     <th class="px-6 py-4 font-bold">Rôle</th>
                                     <th class="px-6 py-4 font-bold">Date d'arrivée</th>
@@ -130,6 +133,9 @@
 
                 </section>
 
+                <!----------------------->
+                <!-- SECTION INVITAION -->
+                <!----------------------->
                 <section class="bg-(--bg2) rounded-2xl border border-(--border-color) shadow-sm overflow-hidden flex flex-col">
 
                     <div class="p-6 border-b border-(--border-color) flex flex-col gap-6 bg-(--bg3)/20">
@@ -142,7 +148,7 @@
                             </h3>
                         </div>
 
-                        <!-- Zone de création de lien d'invitation -->
+                        <!--  Zone de création de lien d'invitation -->
                         <div class="relative flex flex-col gap-3 w-full">
                             <div 
                                 class="flex  flex-col sm:flex-row min-w-0 gap-4 justify-between h-fit
