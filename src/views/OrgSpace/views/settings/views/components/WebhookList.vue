@@ -18,7 +18,7 @@
             v-else-if="webhooks.length === 0"
             class="bg-(--white)/5 border border-(--white)/10 rounded-2xl p-8 text-center"
         >
-            <i class="bi bi-link-45deg text-4xl text-(--text)/20" />
+            <i class="bi bi-link-45deg text-4xl text-(--text2)" />
             <h3 class="text-lg font-semibold text-(--text) mt-4">Aucun webhook configuré</h3>
             <p class="text-(--text2) mt-2">
                 Créez votre premier webhook pour commencer à recevoir des notifications.

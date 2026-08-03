@@ -187,7 +187,7 @@
 
                 <div class="mt-4">
 
-                    <h3 v-if="filteredFiles.length > 0" class="text-[10px] font-black uppercase tracking-[0.2em] text-(--text)/20 mb-4 px-1">
+                    <h3 v-if="filteredFiles.length > 0" class="text-[10px] font-black uppercase tracking-[0.2em] text-(--text2) mb-4 px-1">
                         Fichiers dans ce dossier
                     </h3>
                     
@@ -213,7 +213,7 @@
 
                     </div>
 
-                    <div v-if="filteredFolders.length === 0 && filteredFiles.length === 0" class="py-20 flex flex-col items-center justify-center text-(--text)/20">
+                    <div v-if="filteredFolders.length === 0 && filteredFiles.length === 0" class="py-20 flex flex-col items-center justify-center text-(--text2)">
                         <i class="bi bi-folder2-open text-5xl mb-3" />
                         <p class="text-sm font-medium">Ce dossier est vide</p>
                     </div>

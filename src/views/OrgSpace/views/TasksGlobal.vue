@@ -147,7 +147,7 @@
                     </div>
                 </div>
 
-                <div v-if="spacesGroups.length === 0" class="py-20 flex flex-col items-center justify-center text-(--text)/20">
+                <div v-if="spacesGroups.length === 0" class="py-20 flex flex-col items-center justify-center text-(--text2)">
                     <i class="bi bi-emoji-smile text-6xl mb-4" />
                     <p class="text-base font-medium">Vous n'avez aucune tâche assignée.</p>
                 </div>

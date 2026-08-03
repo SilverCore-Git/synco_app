@@ -87,7 +87,7 @@
                                 'bi-chat-dots text-blue-400': group === 'MESSAGE'
                             }" />
                             {{ group === 'THREAD' ? 'Salons' : group === 'FILE' ? 'Fichiers' : group === 'TODO' ? 'Tâches' : 'Messages' }}
-                            <span class="text-(--text)/20 font-normal">({{ groupedResults[group].length }})</span>
+                            <span class="text-(--text2) font-normal">({{ groupedResults[group].length }})</span>
                         </h3>
                         
                         <div class="space-y-1">

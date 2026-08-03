@@ -105,7 +105,7 @@
             </div>
             
             <div v-if="filteredMembers.length === 0" class="p-12 text-center">
-                <i class="bi bi-people text-4xl text-(--text)/10 mb-3 block" />
+                <i class="bi bi-people text-4xl text-(--text2) mb-3 block" />
                 <p class="text-(--text2) text-sm">Aucun membre trouvé pour cette recherche.</p>
             </div>
 

@@ -60,7 +60,7 @@
             </p>
         </div>
 
-        <i class="bi bi-chevron-right text-(--text)/20 group-hover:text-(--primary) transition-colors" />
+        <i class="bi bi-chevron-right text-(--text2) group-hover:text-(--primary) transition-colors" />
 
     </div>
 

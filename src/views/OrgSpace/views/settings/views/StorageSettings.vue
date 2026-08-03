@@ -102,7 +102,7 @@
                                 <tr v-else-if="filteredFiles.length === 0">
                                     <td colspan="6" class="px-6 py-16 text-center text-(--text2)">
                                         <div class="flex flex-col items-center justify-center gap-3">
-                                            <i class="bi bi-inboxes text-4xl text-(--text)/20"></i>
+                                            <i class="bi bi-inboxes text-4xl text-(--text2)"></i>
                                             <span class="text-sm font-medium">Aucun fichier trouvé.</span>
                                         </div>
                                     </td>
