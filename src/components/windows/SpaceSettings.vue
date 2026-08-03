@@ -34,7 +34,7 @@
 
                     <div>
                         <h3 class="text-2xl font-black text-(--text) mb-1">Vue d'ensemble</h3>
-                        <p class="text-sm text-(--text)/60">Configurez l'identité visuelle de votre espace de travail.</p>
+                        <p class="text-sm text-(--text2)">Configurez l'identité visuelle de votre espace de travail.</p>
                     </div>
 
                     <div class="flex items-center gap-8 p-6 bg-(--bg2) rounded-2xl border border-(--border-color)">
@@ -51,7 +51,7 @@
                         
                         <div class="flex-1 space-y-4">
                             <div class="space-y-1.5">
-                                <label class="text-xs font-black uppercase text-(--text)/50">Nom du Space</label>
+                                <label class="text-xs font-black uppercase text-(--text2)">Nom du Space</label>
                                 <input 
                                     type="text" 
                                     v-model="formData.name" 
@@ -63,7 +63,7 @@
                     </div>
 
                     <div class="space-y-4">
-                        <h4 class="text-xs font-black uppercase tracking-widest text-(--text)/50">ID de l'espace</h4>
+                        <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">ID de l'espace</h4>
                         <div class="flex items-center gap-2 bg-(--bg2) p-3 rounded-lg border border-(--border-color)">
                             <code class="text-(--primary) text-sm flex-1">{{ space.id }}</code>
                             <button class="text-xs font-bold hover:text-(--text)">Copier</button>
@@ -76,7 +76,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <h3 class="text-2xl font-black text-(--text) mb-1">Gestion des membres</h3>
-                            <p class="text-sm text-(--text)/60">Invitez ou supprimez des membres de votre espace.</p>
+                            <p class="text-sm text-(--text2)">Invitez ou supprimez des membres de votre espace.</p>
                         </div>
                     </div>
 
@@ -92,7 +92,7 @@
                 <section v-if="activeTab === 'security'" class="animate-fade-in space-y-6">
                     <div>
                         <h3 class="text-2xl font-black text-(--text) mb-1">Sécurité & Permissions</h3>
-                        <p class="text-sm text-(--text)/60">Contrôlez qui peut voir et modifier ce salon.</p>
+                        <p class="text-sm text-(--text2)">Contrôlez qui peut voir et modifier ce salon.</p>
                     </div>
 
                     <div class="space-y-4">
@@ -104,7 +104,7 @@
                         <div class="flex items-center justify-between p-4 bg-(--bg2) rounded-xl border border-(--border-color)">
                             <div>
                                 <h4 class="font-bold text-(--text)">Espace Privé</h4>
-                                <p class="text-sm text-(--text)/60">Seuls les membres invités peuvent voir ce space</p>
+                                <p class="text-sm text-(--text2)">Seuls les membres invités peuvent voir ce space</p>
                             </div>
                             <div class="w-12 h-6 bg-(--primary) rounded-full relative cursor-pointer">
                                 <div class="w-5 h-5 bg-white rounded-full absolute right-0.5 top-0.5"></div>
@@ -116,7 +116,7 @@
                 <section v-if="activeTab === 'webhooks'" class="animate-fade-in space-y-6">
                     <div>
                         <h3 class="text-2xl font-black text-(--text) mb-1">Webhooks</h3>
-                        <p class="text-sm text-(--text)/60">Configurez des webhooks pour recevoir des notifications depuis des services externes.</p>
+                        <p class="text-sm text-(--text2)">Configurez des webhooks pour recevoir des notifications depuis des services externes.</p>
                     </div>
 
                     <!-- Bouton pour créer un nouveau webhook -->
@@ -198,10 +198,10 @@
         <template #title>Supprimer le Webhook</template>
         
         <div class="space-y-4">
-            <p class="text-(--text)/80">
+            <p class="text-(--text)">
                 Vous êtes sur le point de supprimer le webhook <strong>{{ deletingWebhook?.name }}</strong>.
             </p>
-            <p class="text-(--text)/60 text-sm">
+            <p class="text-(--text2) text-sm">
                 Cette action est irréversible. Tous les messages et logs associés seront également supprimés.
             </p>
         </div>

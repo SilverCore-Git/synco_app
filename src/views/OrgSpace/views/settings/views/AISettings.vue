@@ -8,7 +8,7 @@
 
                 <div class="mb-8">
                     <h3 class="text-2xl font-black text-(--text) mb-2">Configuration de Synco AI</h3>
-                    <p class="text-sm text-(--text)/60">Paramétrez le fournisseur de Synco AI pour votre organisation. Ce paramétrage sera utilisé par tous les membres.</p>
+                    <p class="text-sm text-(--text2)">Paramétrez le fournisseur de Synco AI pour votre organisation. Ce paramétrage sera utilisé par tous les membres.</p>
                 </div>
 
                 <div v-if="!openedOrg?.features?.includes('ai')" class="mb-8 p-6 bg-(--bg2) border border-(--border-color) rounded-2xl shadow-sm flex items-start gap-4">
@@ -17,14 +17,14 @@
                     </div>
                     <div>
                         <h4 class="text-(--text) font-bold text-sm">Module non inclus</h4>
-                        <p class="text-(--text)/50 text-xs mt-1">Le module Synco AI n'est pas inclus dans votre abonnement actuel. Vous ne pouvez pas modifier ces paramètres.</p>
+                        <p class="text-(--text2) text-xs mt-1">Le module Synco AI n'est pas inclus dans votre abonnement actuel. Vous ne pouvez pas modifier ces paramètres.</p>
                     </div>
                 </div>
 
                 <div class="space-y-12" :class="{'opacity-50 pointer-events-none grayscale': !openedOrg?.features?.includes('ai')}">
 
                     <section class="space-y-6">
-                        <h4 class="text-xs font-bold uppercase tracking-widest text-(--text)/50 mb-4">Fournisseur IA</h4>
+                        <h4 class="text-xs font-bold uppercase tracking-widest text-(--text2) mb-4">Fournisseur IA</h4>
                         
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <label v-for="prov in providers" :key="prov.id" 
@@ -40,7 +40,7 @@
                                         <i v-if="orgData.provider === prov.id" class="bi bi-check text-white text-xs"></i>
                                     </div>
                                 </div>
-                                <p class="text-xs text-(--text)/50 leading-relaxed">{{ prov.desc }}</p>
+                                <p class="text-xs text-(--text2) leading-relaxed">{{ prov.desc }}</p>
 
                             </label>
                         </div>
@@ -48,24 +48,24 @@
 
                     <!-- Options Spécifiques -->
                     <section v-if="orgData.provider !== 'local'" class="animate-fade-in space-y-6">
-                        <h4 class="text-xs font-bold uppercase tracking-widest text-(--text)/50 mb-4">Configuration Spécifique</h4>
+                        <h4 class="text-xs font-bold uppercase tracking-widest text-(--text2) mb-4">Configuration Spécifique</h4>
                         
                         <div class="p-8 bg-(--bg2) border border-(--border-color) rounded-2xl shadow-sm space-y-6">
                             
                             <!-- Clé API -->
                             <div class="space-y-2">
-                                <label class="text-xs font-semibold text-(--text)/70">Clé API ({{ orgData.provider }})</label>
+                                <label class="text-xs font-semibold text-(--text)">Clé API ({{ orgData.provider }})</label>
                                 <div class="relative group">
-                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40 group-focus-within:text-(--primary) transition-colors">
+                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2) group-focus-within:text-(--primary) transition-colors">
                                         <i class="bi bi-key-fill"></i>
                                     </div>
                                     <input 
                                         v-model="orgData.apiKey"
                                         :type="showApiKey ? 'text' : 'password'"
-                                        class="w-full bg-(--bg) border border-(--border-color) pl-11 pr-12 py-3 text-sm focus:outline-none rounded-xl focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all font-mono placeholder:text-(--text)/30 shadow-inner text-(--text)"
+                                        class="w-full bg-(--bg) border border-(--border-color) pl-11 pr-12 py-3 text-sm focus:outline-none rounded-xl focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all font-mono placeholder:text-(--text2) shadow-inner text-(--text)"
                                         :placeholder="orgData.hasApiKey ? '•••••••••••••••• (Clé configurée, tapez pour remplacer)' : 'sk-...'"
                                     />
-                                    <button @click="showApiKey = !showApiKey" class="absolute right-4 top-1/2 -translate-y-1/2 text-(--text)/40 hover:text-(--primary) transition-colors">
+                                    <button @click="showApiKey = !showApiKey" class="absolute right-4 top-1/2 -translate-y-1/2 text-(--text2) hover:text-(--primary) transition-colors">
                                         <i class="bi" :class="showApiKey ? 'bi-eye-slash' : 'bi-eye'"></i>
                                     </button>
                                 </div>
@@ -73,9 +73,9 @@
 
                             <!-- Endpoint URL (Custom only) -->
                             <div class="space-y-2" v-if="orgData.provider === 'custom'">
-                                <label class="text-xs font-semibold text-(--text)/70">URL de l'Endpoint</label>
+                                <label class="text-xs font-semibold text-(--text)">URL de l'Endpoint</label>
                                 <div class="relative group">
-                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40 group-focus-within:text-(--primary) transition-colors">
+                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2) group-focus-within:text-(--primary) transition-colors">
                                         <i class="bi bi-link-45deg"></i>
                                     </div>
                                     <input 
@@ -89,9 +89,9 @@
 
                             <!-- Model ID -->
                             <div class="space-y-2">
-                                <label class="text-xs font-semibold text-(--text)/70">Modèle à utiliser</label>
+                                <label class="text-xs font-semibold text-(--text)">Modèle à utiliser</label>
                                 <div class="relative group">
-                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40 group-focus-within:text-(--primary) transition-colors">
+                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2) group-focus-within:text-(--primary) transition-colors">
                                         <i class="bi bi-robot"></i>
                                     </div>
                                     <input 
@@ -107,7 +107,7 @@
                                         :key="model"
                                         @click="orgData.modelId = model"
                                         class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all border shadow-sm"
-                                        :class="orgData.modelId === model ? 'bg-(--primary) border-(--primary) text-white' : 'bg-(--bg3) border-(--border-color) text-(--text)/60 hover:bg-(--bg)'"
+                                        :class="orgData.modelId === model ? 'bg-(--primary) border-(--primary) text-white' : 'bg-(--bg3) border-(--border-color) text-(--text2) hover:bg-(--bg)'"
                                     >
                                         {{ model }}
                                     </button>
@@ -168,7 +168,7 @@
 
     <Popup :is-open="showLearnMorePopup" @close="showLearnMorePopup = false">
         <template #title>Utilisation de services Cloud externes</template>
-        <div class="space-y-4 text-sm text-(--text)/80 leading-relaxed">
+        <div class="space-y-4 text-sm text-(--text) leading-relaxed">
             <p>En choisissant un fournisseur IA externe (tel que OpenAI, Google Gemini, Mistral AI, etc.), vous acceptez que les données de votre organisation (requêtes, documents analysés, historiques de conversation, etc.) soient transmises et traitées sur les serveurs de ce fournisseur.</p>
             
             <h4 class="font-bold text-(--text) mt-4">Ce que cela implique :</h4>

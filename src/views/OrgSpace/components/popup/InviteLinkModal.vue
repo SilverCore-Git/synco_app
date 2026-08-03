@@ -7,13 +7,13 @@
       <!-- Liste des liens existants -->
       <div v-if="loadingList" class="flex flex-col items-center justify-center py-6">
         <i class="bi bi-arrow-repeat animate-spin text-3xl text-(--primary) mb-2"></i>
-        <p class="text-sm text-(--text)/60">Chargement des liens...</p>
+        <p class="text-sm text-(--text2)">Chargement des liens...</p>
       </div>
 
       <div v-else class="space-y-3">
         <h3 class="text-sm font-bold text-(--text)">Liens actifs pour ce salon</h3>
         
-        <div v-if="invites.length === 0" class="text-sm text-(--text)/50 bg-(--bg2) border border-(--border-color) p-4 rounded-xl text-center">
+        <div v-if="invites.length === 0" class="text-sm text-(--text2) bg-(--bg2) border border-(--border-color) p-4 rounded-xl text-center">
           Aucun lien d'invitation actif.
         </div>
 
@@ -21,7 +21,7 @@
           <div v-for="invite in invites" :key="invite.id" class="flex flex-col gap-2 bg-(--bg2)/50 border border-(--border-color) rounded-xl p-3 relative group">
             
             <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold text-(--text)/70 flex items-center gap-1.5">
+              <span class="text-xs font-semibold text-(--text) flex items-center gap-1.5">
                 <i class="bi bi-link-45deg"></i>
                 Lien généré
               </span>

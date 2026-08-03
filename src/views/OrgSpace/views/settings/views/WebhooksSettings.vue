@@ -6,7 +6,7 @@
                 <div class="mb-8 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div>
                         <h3 class="text-2xl font-black text-(--text) mb-2">Webhooks</h3>
-                        <p class="text-sm text-(--text)/60">Configurez des webhooks pour recevoir des notifications automatiques depuis des services externes.</p>
+                        <p class="text-sm text-(--text2)">Configurez des webhooks pour recevoir des notifications automatiques depuis des services externes.</p>
                     </div>
                     <button 
                         @click="showCreateModal = true"
@@ -21,12 +21,12 @@
                     <!-- Filtres et recherche -->
                     <div class="flex flex-col sm:flex-row gap-4 items-center justify-between">
                         <div class="relative w-full sm:w-80 group">
-                            <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-(--text)/40 group-focus-within:text-(--primary) transition-colors" />
+                            <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-(--text2) group-focus-within:text-(--primary) transition-colors" />
                             <input 
                                 v-model="searchQuery"
                                 type="text" 
                                 placeholder="Rechercher un webhook..."
-                                class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-11 pr-4 py-2.5 text-sm text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner placeholder:text-(--text)/30"
+                                class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-11 pr-4 py-2.5 text-sm text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner placeholder:text-(--text2)"
                             />
                         </div>
                         
@@ -34,21 +34,21 @@
                             <button 
                                 @click="filterStatus = 'all'"
                                 :class="['px-4 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap', 
-                                         filterStatus === 'all' ? 'bg-(--primary) text-white shadow-sm' : 'text-(--text)/60 hover:text-(--text) hover:bg-(--bg3)']"
+                                         filterStatus === 'all' ? 'bg-(--primary) text-white shadow-sm' : 'text-(--text2) hover:text-(--text) hover:bg-(--bg3)']"
                             >
                                 Tous ({{ totalWebhooks }})
                             </button>
                             <button 
                                 @click="filterStatus = 'active'"
                                 :class="['px-4 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap', 
-                                         filterStatus === 'active' ? 'bg-(--primary) text-white shadow-sm' : 'text-(--text)/60 hover:text-(--text) hover:bg-(--bg3)']"
+                                         filterStatus === 'active' ? 'bg-(--primary) text-white shadow-sm' : 'text-(--text2) hover:text-(--text) hover:bg-(--bg3)']"
                             >
                                 Actifs ({{ activeWebhooks.length }})
                             </button>
                             <button 
                                 @click="filterStatus = 'inactive'"
                                 :class="['px-4 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap', 
-                                         filterStatus === 'inactive' ? 'bg-(--primary) text-white shadow-sm' : 'text-(--text)/60 hover:text-(--text) hover:bg-(--bg3)']"
+                                         filterStatus === 'inactive' ? 'bg-(--primary) text-white shadow-sm' : 'text-(--text2) hover:text-(--text) hover:bg-(--bg3)']"
                             >
                                 Inactifs ({{ inactiveWebhooks.length }})
                             </button>
@@ -103,7 +103,7 @@
                     <template #title>Supprimer le Webhook</template>
                     
                     <div class="space-y-4">
-                        <p class="text-(--text)/80">
+                        <p class="text-(--text)">
                             Vous êtes sur le point de supprimer le webhook <strong class="text-(--primary)">{{ deletingWebhook?.name }}</strong>.
                         </p>
                         <div class="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">

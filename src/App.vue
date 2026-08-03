@@ -236,7 +236,7 @@ onMounted(async () => {
                   'Configurez votre accès sécurisé' }}
               </h2>
 
-              <p v-if="!pinSetup || isResettingPIN" class="text-sm text-(--text)/50 mt-2 leading-relaxed">
+              <p v-if="!pinSetup || isResettingPIN" class="text-sm text-(--text2) mt-2 leading-relaxed">
                 Ce code PIN est la clé de vos conversations. <br />
                 <span class="text-amber-500/80 font-medium">S'il est perdu, elles resteront illisibles.</span>
               </p>
@@ -287,17 +287,17 @@ onMounted(async () => {
             </div>
 
             <button v-if="pinSetup && !isResettingPIN" @click="pinForgot"
-              class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text)/30 hover:text-(--primary) transition-colors">
+              class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text2) hover:text-(--primary) transition-colors">
               Code PIN oublié ?
             </button>
 
             <Popup :isOpen="showResetConfirm" @close="showResetConfirm = false">
               <template #title>Réinitialiser le code PIN</template>
-              <p class="text-(--text)/80 text-sm">
+              <p class="text-(--text) text-sm">
                 Cela réinitialisera votre clé de chiffrement.
                 <span class="text-amber-500 font-medium">Tous vos anciens messages deviendront illisibles.</span>
               </p>
-              <p class="text-(--text)/60 text-xs mt-4">
+              <p class="text-(--text2) text-xs mt-4">
                 Cette action ne peut pas être annulée.
               </p>
               <template #footer>

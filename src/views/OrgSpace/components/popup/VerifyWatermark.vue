@@ -3,7 +3,7 @@
         <template #title>Inspecter un fichier externe</template>
 
         <div class="space-y-5">
-            <p class="text-sm text-(--text)/60">
+            <p class="text-sm text-(--text2)">
                 Glissez-déposez un fichier ici ou cliquez pour sélectionner un fichier afin de vérifier s'il contient un filigrane Synco invisible.
             </p>
 
@@ -30,8 +30,8 @@
                     <span class="text-sm font-semibold text-(--primary)">Analyse en cours...</span>
                 </template>
                 <template v-else>
-                    <i class="bi bi-shield-check text-3xl text-(--text)/40 mb-2" />
-                    <span class="text-sm font-semibold text-(--text)/60">Déposer un fichier à inspecter</span>
+                    <i class="bi bi-shield-check text-3xl text-(--text2) mb-2" />
+                    <span class="text-sm font-semibold text-(--text2)">Déposer un fichier à inspecter</span>
                 </template>
             </div>
 
@@ -49,7 +49,7 @@
                     <h4 class="font-bold mb-1" :class="result.found ? 'text-green-400' : 'text-red-400'">
                         {{ result.found ? 'Filigrane Détecté' : 'Aucun Filigrane' }}
                     </h4>
-                    <p class="text-sm text-(--text)/80">
+                    <p class="text-sm text-(--text)">
                         <template v-if="result.found">
                             Ce fichier contient une signature sécurisée : <br/>
                             <span class="font-mono bg-black/30 px-2 py-1 rounded text-green-300 inline-block mt-2 font-bold">{{ result.text }}</span>

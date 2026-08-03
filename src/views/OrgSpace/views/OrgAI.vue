@@ -13,7 +13,7 @@
 
         <div class="flex items-center gap-3">
           <button @click="showUsersBar = !showUsersBar" class="hover:text-(--text) transition-colors ml-2"
-            :class="showUsersBar ? 'text-(--text)' : 'text-(--text)/40'">
+            :class="showUsersBar ? 'text-(--text)' : 'text-(--text2)'">
             <i class="bi bi-people-fill text-lg" />
           </button>
         </div>

@@ -27,7 +27,7 @@
                 @click="emit('close')"
                 class="
                   p-2 rounded-lg hover:bg-white/5 
-                  text-(--text)/40 hover:text-(--text)
+                  text-(--text2) hover:text-(--text)
                   active:scale-90 transition-all duration-200
                 "
               >

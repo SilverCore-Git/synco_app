@@ -12,16 +12,16 @@
                     URL du Webhook
                 </h3>
                 <div class="bg-(--white)/5 border border-(--white)/10 rounded-xl p-3 flex items-center justify-between">
-                    <code class="text-sm text-(--text)/60 overflow-x-auto">{{ webhook.url }}</code>
+                    <code class="text-sm text-(--text2) overflow-x-auto">{{ webhook.url }}</code>
                     <button 
                         @click="copyUrl"
-                        class="flex items-center gap-2 text-(--text)/40 hover:text-(--primary) transition-all"
+                        class="flex items-center gap-2 text-(--text2) hover:text-(--primary) transition-all"
                         title="Copier dans le clipboard"
                     >
                         <i class="bi bi-clipboard" />
                     </button>
                 </div>
-                <p class="text-xs text-(--text)/50 mt-2">
+                <p class="text-xs text-(--text2) mt-2">
                     Envoyez vos requêtes POST vers cette URL pour envoyer des messages.
                 </p>
             </div>
@@ -33,10 +33,10 @@
                     Secret HMAC
                 </h3>
                 <div class="bg-(--white)/5 border border-(--white)/10 rounded-xl p-3 flex items-center justify-between">
-                    <code class="text-sm text-(--text)/60 overflow-x-auto">{{ webhook.secret }}</code>
+                    <code class="text-sm text-(--text2) overflow-x-auto">{{ webhook.secret }}</code>
                     <button 
                         @click="copySecret"
-                        class="flex items-center gap-2 text-(--text)/40 hover:text-(--primary) transition-all"
+                        class="flex items-center gap-2 text-(--text2) hover:text-(--primary) transition-all"
                         title="Copier dans le clipboard"
                     >
                         <i class="bi bi-clipboard" />
@@ -54,7 +54,7 @@
                     Clé Publique E2EE
                 </h3>
                 <textarea 
-                    class="w-full bg-(--white)/5 border border-(--white)/10 rounded-xl p-3 text-xs font-mono text-(--text)/60 resize-none"
+                    class="w-full bg-(--white)/5 border border-(--white)/10 rounded-xl p-3 text-xs font-mono text-(--text2) resize-none"
                     readonly
                     :value="webhook.publicKey"
                     rows="4"
@@ -62,13 +62,13 @@
                 <div class="flex justify-end mt-2">
                     <button 
                         @click="copyPublicKey"
-                        class="flex items-center gap-2 text-(--text)/40 hover:text-(--primary) transition-all"
+                        class="flex items-center gap-2 text-(--text2) hover:text-(--primary) transition-all"
                         title="Copier dans le clipboard"
                     >
                         <i class="bi bi-clipboard" /> Copier
                     </button>
                 </div>
-                <p class="text-xs text-(--text)/50 mt-2">
+                <p class="text-xs text-(--text2) mt-2">
                     Utilisez cette clé pour chiffrer vos messages avant envoi.
                 </p>
             </div>
@@ -82,23 +82,23 @@
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div class="bg-(--white)/5 border border-(--white)/10 rounded-xl p-4">
                         <div class="text-2xl font-bold text-(--text)">{{ webhook.usageCount }}</div>
-                        <div class="text-xs text-(--text)/50">Messages reçus</div>
+                        <div class="text-xs text-(--text2)">Messages reçus</div>
                     </div>
                     <div class="bg-(--white)/5 border border-(--white)/10 rounded-xl p-4">
                         <div class="text-2xl font-bold text-(--text)">{{ webhook.errorCount }}</div>
-                        <div class="text-xs text-(--text)/50">Erreurs</div>
+                        <div class="text-xs text-(--text2)">Erreurs</div>
                     </div>
                     <div class="bg-(--white)/5 border border-(--white)/10 rounded-xl p-4">
                         <div class="text-xl font-bold text-(--text)" :class="webhook.isActive ? 'text-green-500' : 'text-red-500'">
                             {{ webhook.isActive ? 'Actif' : 'Inactif' }}
                         </div>
-                        <div class="text-xs text-(--text)/50">Statut</div>
+                        <div class="text-xs text-(--text2)">Statut</div>
                     </div>
                     <div class="bg-(--white)/5 border border-(--white)/10 rounded-xl p-4">
                         <div class="text-lg font-bold text-(--text)">
                             {{ webhook.e2eeEnabled ? 'Oui' : 'Non' }}
                         </div>
-                        <div class="text-xs text-(--text)/50">E2EE</div>
+                        <div class="text-xs text-(--text2)">E2EE</div>
                     </div>
                 </div>
             </div>
@@ -136,7 +136,7 @@
                         <span 
                             v-for="permission in webhook.permissions" 
                             :key="permission"
-                            class="text-xs bg-(--white)/10 text-(--text)/80 px-3 py-1 rounded-full"
+                            class="text-xs bg-(--white)/10 text-(--text) px-3 py-1 rounded-full"
                         >
                             {{ formatPermission(permission) }}
                         </span>

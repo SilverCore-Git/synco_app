@@ -12,7 +12,7 @@
 
         <div class="flex gap-2 flex-col">
 
-            <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+            <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                 Type de salon
             </label>
 
@@ -54,7 +54,7 @@
 
         <div class="flex gap-2 flex-col">
 
-            <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+            <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                 Nom du salon
             </label>
 
@@ -65,7 +65,7 @@
                 ref="nameInput"
                 class="
                     w-full bg-(--bg2)/30 border border-white/10 rounded-xl 
-                    px-4 py-3 text-(--text) placeholder:text-(--text)/20 
+                    px-4 py-3 text-(--text) placeholder:text-(--text2) 
                     focus:outline-none focus:border-(--primary)/50 focus:ring-1
                     focus:ring-(--primary)/20 transition-all
                 "
@@ -75,7 +75,7 @@
         </div>
 
         <div class="flex items-center justify-between mt-2">
-            <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+            <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                 Salon Privé
             </label>
             <label class="relative inline-flex items-center cursor-pointer">
@@ -85,14 +85,14 @@
         </div>
 
         <div v-if="form.isPrivate" class="flex flex-col gap-2">
-            <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+            <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                 Membres ayant accès (Lecture & Écriture)
             </label>
             <div class="max-h-32 overflow-y-auto bg-(--bg2)/20 border border-white/10 rounded-xl p-2 flex flex-col gap-1 custom-scrollbar">
                 <label v-for="member in availableMembers" :key="member.user!.id" class="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
                     <input type="checkbox" :value="member.user!.id" v-model="form.accessMembersId" class="w-4 h-4 rounded bg-black/20 border-white/10 text-(--primary) focus:ring-0 focus:ring-offset-0 cursor-pointer accent-(--primary)" />
                     <img :src="member.user!.avatarUrl || `https://ui-avatars.com/api/?name=${member.user!.name}&background=128a60&color=fff`" class="w-6 h-6 rounded-full object-cover" />
-                    <span class="text-sm text-(--text)/90 font-medium">{{ member.user!.name }}</span>
+                    <span class="text-sm text-(--text) font-medium">{{ member.user!.name }}</span>
                 </label>
                 <div v-if="availableMembers.length === 0" class="text-xs text-white/40 p-2 text-center">Aucun membre disponible</div>
             </div>
@@ -101,7 +101,7 @@
 
         <div v-if="form.type !== 'vocal'">
             <div class="flex items-center justify-between mt-2">
-                <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+                <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                     Salon en lecture seule
                 </label>
                 <label class="relative inline-flex items-center cursor-pointer">
@@ -111,14 +111,14 @@
             </div>
 
             <div v-if="form.isReadOnly" class="flex flex-col gap-2 mt-2">
-                <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+                <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                     Membres autorisés à écrire
                 </label>
                 <div class="max-h-32 overflow-y-auto bg-(--bg2)/20 border border-white/10 rounded-xl p-2 flex flex-col gap-1 custom-scrollbar">
                     <label v-for="member in availableMembers" :key="member.user!.id" class="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
                         <input type="checkbox" :value="member.user!.id" v-model="form.writersId" class="w-4 h-4 rounded bg-black/20 border-white/10 text-(--primary) focus:ring-0 focus:ring-offset-0 cursor-pointer accent-(--primary)" />
                         <img :src="member.user!.avatarUrl || `https://ui-avatars.com/api/?name=${member.user!.name}&background=128a60&color=fff`" class="w-6 h-6 rounded-full object-cover" />
-                        <span class="text-sm text-(--text)/90 font-medium">{{ member.user!.name }}</span>
+                        <span class="text-sm text-(--text) font-medium">{{ member.user!.name }}</span>
                     </label>
                     <div v-if="availableMembers.length === 0" class="text-xs text-white/40 p-2 text-center">Aucun membre disponible</div>
                 </div>

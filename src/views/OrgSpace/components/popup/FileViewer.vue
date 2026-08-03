@@ -23,7 +23,7 @@
                 </button>
                 <button 
                   @click="downloadFile(file.id)"
-                  class="p-2 rounded-lg hover:bg-white/5 text-(--text)/40 hover:text-(--text) active:scale-90 transition-all duration-200 ml-2"
+                  class="p-2 rounded-lg hover:bg-white/5 text-(--text2) hover:text-(--text) active:scale-90 transition-all duration-200 ml-2"
                   title="Télécharger"
                 >
                   <i class="bi bi-download text-lg" />
@@ -31,7 +31,7 @@
 
                 <button 
                   @click="showDeleteConfirm = true"
-                  class="p-2 rounded-lg hover:bg-red-500/10 text-(--text)/40 hover:text-red-500 active:scale-90 transition-all duration-200"
+                  class="p-2 rounded-lg hover:bg-red-500/10 text-(--text2) hover:text-red-500 active:scale-90 transition-all duration-200"
                   title="Supprimer"
                 >
                   <i class="bi bi-trash3 text-lg" />
@@ -39,7 +39,7 @@
 
                 <button 
                   @click="closeViewer"
-                  class="p-2 rounded-lg hover:bg-white/5 text-(--text)/40 hover:text-(--text) active:scale-90 transition-all duration-200 ml-2"
+                  class="p-2 rounded-lg hover:bg-white/5 text-(--text2) hover:text-(--text) active:scale-90 transition-all duration-200 ml-2"
                 >
                   <i class="bi bi-x-lg text-xl" />
                 </button>
@@ -73,8 +73,8 @@
 
               <template v-else>
                 <div class="flex flex-col items-center gap-4 p-8 text-center">
-                  <i class="bi bi-file-earmark-x text-6xl text-(--text)/20" />
-                  <p class="text-(--text)/60">L'aperçu n'est pas disponible pour ce type de fichier.</p>
+                  <i class="bi bi-file-earmark-x text-6xl text-(--text2)" />
+                  <p class="text-(--text2)">L'aperçu n'est pas disponible pour ce type de fichier.</p>
                   <button @click="downloadFile(file.id)" class="default mt-4 gap-2">
                     <i class="bi bi-download" />
                     Télécharger le fichier
@@ -85,7 +85,7 @@
             </div>
 
             <!-- Footer info -->
-            <div class="px-6 py-3 bg-(--bg2)/40 border-t border-(--border-color) flex justify-between items-center shrink-0 text-xs text-(--text)/40 font-semibold uppercase tracking-wider">
+            <div class="px-6 py-3 bg-(--bg2)/40 border-t border-(--border-color) flex justify-between items-center shrink-0 text-xs text-(--text2) font-semibold uppercase tracking-wider">
               <span>{{ file.mimeType }}</span>
               <span>{{ formatSize(file.size) }}</span>
             </div>

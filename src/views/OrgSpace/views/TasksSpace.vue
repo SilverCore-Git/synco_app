@@ -17,7 +17,7 @@
                         <i class="bi bi-plus-lg"></i> Créer une tâche
                     </button>
                 </CreateTaskModal>
-                <div class="ml-auto flex items-center gap-4 text-(--text)/40">
+                <div class="ml-auto flex items-center gap-4 text-(--text2)">
                     <button 
                         @click="showUsersBar = !showUsersBar"
                         class="hover:text-(--text) transition-colors"
@@ -80,7 +80,7 @@
                             <i :class="col.icon"></i>
                             {{ col.title }}
                         </h4>
-                        <span class="bg-white/5 text-(--text)/50 text-xs px-2.5 py-1 rounded-full font-bold">
+                        <span class="bg-white/5 text-(--text2) text-xs px-2.5 py-1 rounded-full font-bold">
                             {{ filteredTasks(col.id).length }}
                         </span>
                     </div>
@@ -121,7 +121,7 @@
                             <!-- Progress Bar (Gauge) -->
                             <div class="mt-4 pt-3 border-t border-(--border-color)" v-if="task.dueDate && task.status !== 'DONE'">
                                 <div class="flex justify-between items-end mb-1.5">
-                                    <span class="text-[9px] font-black uppercase tracking-widest text-(--text)/30">
+                                    <span class="text-[9px] font-black uppercase tracking-widest text-(--text2)">
                                         Échéance
                                     </span>
                                     <span class="text-[10px] font-black" :class="getProgress(task).color.replace('bg-', 'text-')">

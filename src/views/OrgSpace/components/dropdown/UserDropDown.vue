@@ -129,25 +129,25 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
                     <div class="bg-(--bg2) rounded-lg p-3 mt-2 border border-(--border-color) shadow-inner">
                         <h2 class="text-lg font-bold text-(--text) leading-tight">{{ user?.name }}</h2>
                         <p class="text-xs text-(--primary) font-bold uppercase tracking-wider mb-1" v-if="user?.job">{{ user?.job }}</p>
-                        <p class="text-xs text-(--text)/60 mb-2">{{ user?.email }}</p>
+                        <p class="text-xs text-(--text2) mb-2">{{ user?.email }}</p>
                         
                         <div v-if="user?.description">
                             <div class="w-full h-px bg-white/5 my-2"></div>
-                            <h3 class="text-[10px] font-bold text-(--text)/50 uppercase tracking-wide mb-1.5">À propos</h3>
-                            <p class="text-xs text-(--text)/80 leading-relaxed line-clamp-3">{{ user?.description }}</p>
+                            <h3 class="text-[10px] font-bold text-(--text2) uppercase tracking-wide mb-1.5">À propos</h3>
+                            <p class="text-xs text-(--text) leading-relaxed line-clamp-3">{{ user?.description }}</p>
                         </div>
                         
                         <div class="w-full h-px bg-white/5 my-2"></div>
 
                         <!-- Rôles -->
                         <div class="mb-2">
-                            <h3 class="text-[10px] font-bold text-(--text)/50 uppercase tracking-wide mb-1.5">Rôles</h3>
+                            <h3 class="text-[10px] font-bold text-(--text2) uppercase tracking-wide mb-1.5">Rôles</h3>
                             <div class="flex flex-wrap gap-1.5">
-                                <span class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-(--bg) border border-(--border-color) text-[10px] font-medium text-(--text)/90 shadow-sm">
+                                <span class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-(--bg) border border-(--border-color) text-[10px] font-medium text-(--text) shadow-sm">
                                     <div class="w-2 h-2 rounded-full shadow-sm" :class="roleColorClass"></div>
                                     {{ translatedRole }}
                                 </span>
-                                <span v-if="user?.id === keycloak.subject" class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-(--bg) border border-(--border-color) text-[10px] font-medium text-(--text)/90 shadow-sm">
+                                <span v-if="user?.id === keycloak.subject" class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-(--bg) border border-(--border-color) text-[10px] font-medium text-(--text) shadow-sm">
                                     Vous
                                 </span>
                             </div>
@@ -157,9 +157,9 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
 
                         <!-- Membre depuis -->
                         <div>
-                            <h3 class="text-[10px] font-bold text-(--text)/50 uppercase tracking-wide mb-1.5">Membre depuis</h3>
-                            <p class="text-xs text-(--text)/90 flex items-center gap-1.5">
-                                <i class="bi bi-calendar3 text-(--text)/50 text-[10px]"></i>
+                            <h3 class="text-[10px] font-bold text-(--text2) uppercase tracking-wide mb-1.5">Membre depuis</h3>
+                            <p class="text-xs text-(--text) flex items-center gap-1.5">
+                                <i class="bi bi-calendar3 text-(--text2) text-[10px]"></i>
                                 {{ formatDate(user?.createdAt) }}
                             </p>
                         </div>

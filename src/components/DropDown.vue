@@ -180,7 +180,7 @@ defineExpose({ closeDropdown });
 
 .sdropdown .dropdown-item-style {
     @apply w-full flex items-center justify-start px-3 py-2 text-sm rounded-md transition-all duration-300
-            hover:bg-(--primary)/20 text-(--text)/80 hover:text-(--text) active:scale-90;
+            hover:bg-(--primary)/20 text-(--text) hover:text-(--text) active:scale-90;
 }
 
 </style>

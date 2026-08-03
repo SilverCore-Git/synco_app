@@ -60,27 +60,27 @@
                     <!-- Name -->
                     <h2 class="text-xl font-bold text-(--text) leading-tight">{{ u.name }}</h2>
                     <p class="text-xs text-(--primary) font-bold uppercase tracking-wider mb-1" v-if="u.job">{{ u.job }}</p>
-                    <p class="text-sm text-(--text)/60 mb-3">{{ u.email }}</p>
+                    <p class="text-sm text-(--text2) mb-3">{{ u.email }}</p>
                     
                     <div v-if="u.description">
                         <div class="w-full h-px bg-white/5 my-3"></div>
-                        <h3 class="text-[11px] font-bold text-(--text)/50 uppercase tracking-wide mb-2">À propos</h3>
-                        <p class="text-sm text-(--text)/80 leading-relaxed">{{ u.description }}</p>
+                        <h3 class="text-[11px] font-bold text-(--text2) uppercase tracking-wide mb-2">À propos</h3>
+                        <p class="text-sm text-(--text) leading-relaxed">{{ u.description }}</p>
                     </div>
 
                     <div class="w-full h-px bg-white/5 my-3"></div>
 
                     <!-- Role Section -->
                     <div class="mb-4">
-                        <h3 class="text-[11px] font-bold text-(--text)/50 uppercase tracking-wide mb-2">Rôles</h3>
+                        <h3 class="text-[11px] font-bold text-(--text2) uppercase tracking-wide mb-2">Rôles</h3>
                         <div class="flex flex-wrap gap-1.5">
                             <span 
-                                class="flex items-center gap-1.5 px-2 py-1 rounded bg-(--bg) border border-(--border-color) text-xs font-medium text-(--text)/90 shadow-sm"
+                                class="flex items-center gap-1.5 px-2 py-1 rounded bg-(--bg) border border-(--border-color) text-xs font-medium text-(--text) shadow-sm"
                             >
                                 <div class="w-2.5 h-2.5 rounded-full shadow-sm" :class="roleColorClass"></div>
                                 {{ translatedRole }}
                             </span>
-                            <span v-if="u.id === user?.id" class="flex items-center gap-1.5 px-2 py-1 rounded bg-(--bg) border border-(--border-color) text-xs font-medium text-(--text)/90 shadow-sm">
+                            <span v-if="u.id === user?.id" class="flex items-center gap-1.5 px-2 py-1 rounded bg-(--bg) border border-(--border-color) text-xs font-medium text-(--text) shadow-sm">
                                 Vous
                             </span>
                         </div>
@@ -90,9 +90,9 @@
 
                     <!-- Membre depuis -->
                     <div>
-                        <h3 class="text-[11px] font-bold text-(--text)/50 uppercase tracking-wide mb-2">Membre depuis</h3>
-                        <p class="text-sm text-(--text)/90 flex items-center gap-2">
-                            <i class="bi bi-calendar3 text-(--text)/50"></i>
+                        <h3 class="text-[11px] font-bold text-(--text2) uppercase tracking-wide mb-2">Membre depuis</h3>
+                        <p class="text-sm text-(--text) flex items-center gap-2">
+                            <i class="bi bi-calendar3 text-(--text2)"></i>
                             {{ formatDate(u.createdAt) }}
                         </p>
                     </div>

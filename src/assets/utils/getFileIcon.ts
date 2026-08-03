@@ -70,6 +70,6 @@ export const getFileInfo = (file: StoredFile) => {
         return { icon: 'bi-database', color: 'text-emerald-600' };
 
     // PAR DÉFAUT
-    return { icon: 'bi-file-earmark', color: 'text-(--text)/40' };
+    return { icon: 'bi-file-earmark', color: 'text-(--text2)' };
 
 };

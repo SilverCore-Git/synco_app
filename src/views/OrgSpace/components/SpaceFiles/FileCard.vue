@@ -43,8 +43,8 @@
         </div>
 
         <div class="flex-1 min-w-0" @click.stop="showViewer = true">
-            <p class="text-sm font-semibold text-(--text)/90 truncate hover:text-(--primary) transition-colors">{{ file.originalName }}</p>
-            <div class="flex items-center gap-2 text-[9px] font-bold text-(--text)/40 uppercase tracking-tighter mt-1">
+            <p class="text-sm font-semibold text-(--text) truncate hover:text-(--primary) transition-colors">{{ file.originalName }}</p>
+            <div class="flex items-center gap-2 text-[9px] font-bold text-(--text2) uppercase tracking-tighter mt-1">
                 <span>{{ formatSize(file.size) }}</span>
                 <span>•</span>
                 <span>{{ file.originalName.split('.').pop() }}</span>

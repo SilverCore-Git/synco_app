@@ -8,13 +8,13 @@
 
             <div class="flex items-center gap-2">
                 <MobileBackBtn />
-                <i class="bi bi-folder-fill text-2xl text-(--text)/40" />
+                <i class="bi bi-folder-fill text-2xl text-(--text2)" />
                 <h2 class="font-bold text-(--text) tracking-wide lowercase">
                     Fichiers
                 </h2>
             </div>
             
-            <div class="ml-auto flex items-center gap-4 text-(--text)/40">
+            <div class="ml-auto flex items-center gap-4 text-(--text2)">
                 <button 
                     @click="showVerifyWatermark = true"
                     class="hover:text-(--primary) transition-colors"
@@ -40,19 +40,19 @@
 
                 <div class="relative group w-full">
                     
-                    <i class="bi bi-search absolute left-3.5 top-1/2 -translate-y-1/2 text-(--text)/30 group-focus-within:text-(--primary) group-focus-within:scale-110 transition-all duration-300" />
+                    <i class="bi bi-search absolute left-3.5 top-1/2 -translate-y-1/2 text-(--text2) group-focus-within:text-(--primary) group-focus-within:scale-110 transition-all duration-300" />
 
                     <input 
                         v-model="searchQuery"
                         type="text" 
                         placeholder="Rechercher..."
-                        class="w-full bg-white/[0.03] border border-white/10 rounded-xl py-2.5 pl-11 pr-12 text-sm text-(--text) placeholder:text-(--text)/30 focus:outline-none focus:border-(--primary)/60 focus:bg-black/40 focus:ring-4 focus:ring-(--primary)/10 transition-all duration-300 shadow-inner"
+                        class="w-full bg-white/[0.03] border border-white/10 rounded-xl py-2.5 pl-11 pr-12 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/60 focus:bg-black/40 focus:ring-4 focus:ring-(--primary)/10 transition-all duration-300 shadow-inner"
                     >
 
                     <button 
                         v-if="searchQuery"
                         @click="searchQuery = ''"
-                        class="absolute right-3 top-1/2 -translate-y-1/2 text-(--text)/40 hover:text-red-400 active:scale-90 transition-all"
+                        class="absolute right-3 top-1/2 -translate-y-1/2 text-(--text2) hover:text-red-400 active:scale-90 transition-all"
                     >
                         <i class="bi bi-x-circle-fill text-base" />
                     </button>
@@ -110,7 +110,7 @@
                         @dragover.prevent="draggedIntoFolderId = 'root'"
                         @dragleave="draggedIntoFolderId = null"
                         class="hover:text-(--primary) transition-colors shrink-0 text-[10px] font-black uppercase tracking-widest"
-                        :class="currentFolderId === 'root' || draggedIntoFolderId === 'root' ? 'text-(--primary)' : 'text-(--text)/40'"
+                        :class="currentFolderId === 'root' || draggedIntoFolderId === 'root' ? 'text-(--primary)' : 'text-(--text2)'"
                     >
                         Racine
                     </button>
@@ -119,7 +119,7 @@
                         v-for="crumb in breadcrumbs" 
                         :key="crumb.id"
                     >
-                        <i class="bi bi-chevron-right text-[10px] text-(--text)/40" />
+                        <i class="bi bi-chevron-right text-[10px] text-(--text2)" />
                         <button 
                             @click="currentFolderId = crumb.id"
                             @drop="handleDrop($event, crumb.id)"
@@ -131,7 +131,7 @@
                                 max-w-30 truncate text-[10px] font-black 
                                 uppercase tracking-widest
                             "
-                            :class="currentFolderId === crumb.id || draggedIntoFolderId === crumb.id ? 'text-(--primary)' : 'text-(--text)/40'"
+                            :class="currentFolderId === crumb.id || draggedIntoFolderId === crumb.id ? 'text-(--primary)' : 'text-(--text2)'"
                         >
                             {{ crumb.name }}
                         </button>
@@ -144,7 +144,7 @@
                         <span class="text-[10px] font-black uppercase text-(--primary) tracking-widest">
                             {{ fileSendProgress == 100 ? 'Finalisation...' : 'Envoi en cours...' }}
                         </span>
-                        <span class="text-[10px] font-bold text-(--text)/60">{{ fileSendProgress }}%</span>
+                        <span class="text-[10px] font-bold text-(--text2)">{{ fileSendProgress }}%</span>
                     </div>
                     <div class="w-full h-1.5 bg-black/20 rounded-full overflow-hidden">
                         <div 
@@ -187,7 +187,7 @@
 
                 <div class="mt-4">
 
-                    <h3 v-if="filteredFiles.length > 0" class="text-[10px] font-black uppercase tracking-[0.2em] text-(--text)/20 mb-4 px-1">
+                    <h3 v-if="filteredFiles.length > 0" class="text-[10px] font-black uppercase tracking-[0.2em] text-(--text2) mb-4 px-1">
                         Fichiers dans ce dossier
                     </h3>
                     
@@ -213,7 +213,7 @@
 
                     </div>
 
-                    <div v-if="filteredFolders.length === 0 && filteredFiles.length === 0" class="py-20 flex flex-col items-center justify-center text-(--text)/20">
+                    <div v-if="filteredFolders.length === 0 && filteredFiles.length === 0" class="py-20 flex flex-col items-center justify-center text-(--text2)">
                         <i class="bi bi-folder2-open text-5xl mb-3" />
                         <p class="text-sm font-medium">Ce dossier est vide</p>
                     </div>
@@ -251,7 +251,7 @@
                 
                 <button 
                     @click="downloadSelected" 
-                    class="p-2 rounded-lg hover:bg-(--primary)/10 text-(--text)/80 hover:text-(--primary) transition-colors flex items-center gap-2 text-sm font-semibold"
+                    class="p-2 rounded-lg hover:bg-(--primary)/10 text-(--text) hover:text-(--primary) transition-colors flex items-center gap-2 text-sm font-semibold"
                 >
                     <i class="bi bi-download"></i>
                     <span>Télécharger</span>
@@ -259,7 +259,7 @@
 
                 <button 
                     @click="requestDeleteSelection" 
-                    class="p-2 rounded-lg hover:bg-red-500/10 text-(--text)/80 hover:text-red-500 transition-colors flex items-center gap-2 text-sm font-semibold"
+                    class="p-2 rounded-lg hover:bg-red-500/10 text-(--text) hover:text-red-500 transition-colors flex items-center gap-2 text-sm font-semibold"
                 >
                     <i class="bi bi-trash"></i>
                     <span>Supprimer</span>
@@ -269,7 +269,7 @@
 
                 <button 
                     @click="selectedItems.clear()" 
-                    class="p-2 rounded-lg hover:bg-white/5 text-(--text)/40 hover:text-(--text) transition-colors"
+                    class="p-2 rounded-lg hover:bg-white/5 text-(--text2) hover:text-(--text) transition-colors"
                 >
                     <i class="bi bi-x-lg"></i>
                 </button>
@@ -314,7 +314,7 @@
     >
         <div v-if="showFileInfoModal && selectedFileForInfo" class="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
             <div class="bg-(--bg) rounded-2xl border border-white/10 shadow-2xl max-w-md w-full p-6 relative" @click.stop>
-                <button @click="showFileInfoModal = false" class="absolute top-4 right-4 text-(--text)/40 hover:text-(--text) transition-colors">
+                <button @click="showFileInfoModal = false" class="absolute top-4 right-4 text-(--text2) hover:text-(--text) transition-colors">
                     <i class="bi bi-x-lg text-xl" />
                 </button>
                 
@@ -325,56 +325,56 @@
                 
                 <div class="space-y-4">
                     <div class="flex items-center gap-3">
-                        <i class="bi bi-file-text text-(--text)/40 text-lg" />
+                        <i class="bi bi-file-text text-(--text2) text-lg" />
                         <div>
-                            <p class="text-[10px] font-black uppercase tracking-widest text-(--text)/40">Nom</p>
-                            <p class="font-semibold text-(--text)/90">{{ selectedFileForInfo.originalName }}</p>
+                            <p class="text-[10px] font-black uppercase tracking-widest text-(--text2)">Nom</p>
+                            <p class="font-semibold text-(--text)">{{ selectedFileForInfo.originalName }}</p>
                         </div>
                     </div>
                     
                     <div class="flex items-center gap-3">
-                        <i class="bi bi-filetype-pdf text-(--text)/40 text-lg" v-if="selectedFileForInfo.mimeType.includes('pdf')" />
-                        <i class="bi bi-filetype-doc text-(--text)/40 text-lg" v-else-if="selectedFileForInfo.mimeType.includes('word')" />
-                        <i class="bi bi-filetype-xls text-(--text)/40 text-lg" v-else-if="selectedFileForInfo.mimeType.includes('excel') || selectedFileForInfo.mimeType.includes('spreadsheet')" />
-                        <i class="bi bi-filetype-ppt text-(--text)/40 text-lg" v-else-if="selectedFileForInfo.mimeType.includes('powerpoint')" />
-                        <i class="bi bi-filetype-img text-(--text)/40 text-lg" v-else-if="selectedFileForInfo.mimeType.includes('image')" />
-                        <i class="bi bi-filetype-code text-(--text)/40 text-lg" v-else-if="selectedFileForInfo.mimeType.includes('text') || selectedFileForInfo.mimeType.includes('code')" />
-                        <i class="bi bi-file-earmark text-(--text)/40 text-lg" v-else />
+                        <i class="bi bi-filetype-pdf text-(--text2) text-lg" v-if="selectedFileForInfo.mimeType.includes('pdf')" />
+                        <i class="bi bi-filetype-doc text-(--text2) text-lg" v-else-if="selectedFileForInfo.mimeType.includes('word')" />
+                        <i class="bi bi-filetype-xls text-(--text2) text-lg" v-else-if="selectedFileForInfo.mimeType.includes('excel') || selectedFileForInfo.mimeType.includes('spreadsheet')" />
+                        <i class="bi bi-filetype-ppt text-(--text2) text-lg" v-else-if="selectedFileForInfo.mimeType.includes('powerpoint')" />
+                        <i class="bi bi-filetype-img text-(--text2) text-lg" v-else-if="selectedFileForInfo.mimeType.includes('image')" />
+                        <i class="bi bi-filetype-code text-(--text2) text-lg" v-else-if="selectedFileForInfo.mimeType.includes('text') || selectedFileForInfo.mimeType.includes('code')" />
+                        <i class="bi bi-file-earmark text-(--text2) text-lg" v-else />
                         <div>
-                            <p class="text-[10px] font-black uppercase tracking-widest text-(--text)/40">Type</p>
-                            <p class="font-semibold text-(--text)/90">{{ selectedFileForInfo.mimeType }}</p>
+                            <p class="text-[10px] font-black uppercase tracking-widest text-(--text2)">Type</p>
+                            <p class="font-semibold text-(--text)">{{ selectedFileForInfo.mimeType }}</p>
                         </div>
                     </div>
                     
                     <div class="flex items-center gap-3">
-                        <i class="bi bi-hdd text-(--text)/40 text-lg" />
+                        <i class="bi bi-hdd text-(--text2) text-lg" />
                         <div>
-                            <p class="text-[10px] font-black uppercase tracking-widest text-(--text)/40">Taille</p>
-                            <p class="font-semibold text-(--text)/90">{{ formatFileSize(selectedFileForInfo.size) }}</p>
+                            <p class="text-[10px] font-black uppercase tracking-widest text-(--text2)">Taille</p>
+                            <p class="font-semibold text-(--text)">{{ formatFileSize(selectedFileForInfo.size) }}</p>
                         </div>
                     </div>
                     
                     <div class="flex items-center gap-3">
-                        <i class="bi bi-calendar text-(--text)/40 text-lg" />
+                        <i class="bi bi-calendar text-(--text2) text-lg" />
                         <div>
-                            <p class="text-[10px] font-black uppercase tracking-widest text-(--text)/40">Date de création</p>
-                            <p class="font-semibold text-(--text)/90">{{ formatDate(selectedFileForInfo.createdAt) }}</p>
+                            <p class="text-[10px] font-black uppercase tracking-widest text-(--text2)">Date de création</p>
+                            <p class="font-semibold text-(--text)">{{ formatDate(selectedFileForInfo.createdAt) }}</p>
                         </div>
                     </div>
                     
                     <div class="flex items-center gap-3">
-                        <i class="bi bi-shield-check text-(--text)/40 text-lg" />
+                        <i class="bi bi-shield-check text-(--text2) text-lg" />
                         <div>
-                            <p class="text-[10px] font-black uppercase tracking-widest text-(--text)/40">Chiffrement</p>
-                            <p class="font-semibold text-(--text)/90">{{ selectedFileForInfo.isEncrypted ? 'Oui' : 'Non' }}</p>
+                            <p class="text-[10px] font-black uppercase tracking-widest text-(--text2)">Chiffrement</p>
+                            <p class="font-semibold text-(--text)">{{ selectedFileForInfo.isEncrypted ? 'Oui' : 'Non' }}</p>
                         </div>
                     </div>
                     
                     <div v-if="selectedFileForInfo.folderId" class="flex items-center gap-3">
-                        <i class="bi bi-folder text-(--text)/40 text-lg" />
+                        <i class="bi bi-folder text-(--text2) text-lg" />
                         <div>
-                            <p class="text-[10px] font-black uppercase tracking-widest text-(--text)/40">Dossier</p>
-                            <p class="font-semibold text-(--text)/90">Dans un dossier</p>
+                            <p class="text-[10px] font-black uppercase tracking-widest text-(--text2)">Dossier</p>
+                            <p class="font-semibold text-(--text)">Dans un dossier</p>
                         </div>
                     </div>
                 </div>
