@@ -293,7 +293,7 @@ onMounted(async () => {
 
             <Popup :isOpen="showResetConfirm" @close="showResetConfirm = false">
               <template #title>Réinitialiser le code PIN</template>
-              <p class="text-(--text)/80 text-sm">
+              <p class="text-(--text) text-sm">
                 Cela réinitialisera votre clé de chiffrement.
                 <span class="text-amber-500 font-medium">Tous vos anciens messages deviendront illisibles.</span>
               </p>

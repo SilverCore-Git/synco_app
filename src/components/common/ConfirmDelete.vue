@@ -33,7 +33,7 @@
                             type="checkbox" 
                             class="mt-1 accent-red-500 h-4 w-4"
                         />
-                        <span class="text-xs text-(--text)/80 leading-snug select-none">
+                        <span class="text-xs text-(--text) leading-snug select-none">
                             Je comprends que cette action supprimera définitivement toutes les données liées à ce contenu.
                         </span>
                     </label>

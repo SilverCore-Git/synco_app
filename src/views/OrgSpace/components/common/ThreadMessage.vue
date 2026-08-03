@@ -133,7 +133,7 @@
 
                             </div>
 
-                            <div ref="messageContentRef" class="text-(--text)/80 text-sm leading-relaxed wrap-break-word">
+                            <div ref="messageContentRef" class="text-(--text) text-sm leading-relaxed wrap-break-word">
                                 <MarkdownRender :content="msg.content" />
                                 <WebhookEmbed v-if="msg.isWebhook && msg.embeds && msg.embeds.length > 0" :embeds="msg.embeds" />
                                 <span v-if="msg.edited" class="text-[10px] text-(--text)/30"> (modifié)</span>

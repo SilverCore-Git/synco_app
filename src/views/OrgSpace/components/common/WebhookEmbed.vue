@@ -8,7 +8,7 @@
         >
             <div v-if="embed.author" class="flex items-center gap-2 mb-2">
                 <img v-if="embed.author.icon_url" :src="embed.author.icon_url" class="w-5 h-5 rounded-full" />
-                <span class="text-xs font-semibold text-(--text)/80">{{ embed.author.name }}</span>
+                <span class="text-xs font-semibold text-(--text)">{{ embed.author.name }}</span>
             </div>
 
             <div v-if="embed.title" class="font-bold text-sm text-(--text) mb-1">
@@ -23,7 +23,7 @@
             <div v-if="embed.fields && embed.fields.length > 0" class="flex flex-wrap gap-x-4 gap-y-2 mb-2">
                 <div v-for="(field, fIdx) in embed.fields" :key="'field-' + fIdx" :class="field.inline ? 'w-[calc(50%-1rem)]' : 'w-full'">
                     <div class="text-[10px] font-bold text-(--text2) uppercase">{{ field.name }}</div>
-                    <div class="text-xs text-(--text)/80">{{ field.value }}</div>
+                    <div class="text-xs text-(--text)">{{ field.value }}</div>
                 </div>
             </div>
 

@@ -49,7 +49,7 @@
                     <h4 class="font-bold mb-1" :class="result.found ? 'text-green-400' : 'text-red-400'">
                         {{ result.found ? 'Filigrane Détecté' : 'Aucun Filigrane' }}
                     </h4>
-                    <p class="text-sm text-(--text)/80">
+                    <p class="text-sm text-(--text)">
                         <template v-if="result.found">
                             Ce fichier contient une signature sécurisée : <br/>
                             <span class="font-mono bg-black/30 px-2 py-1 rounded text-green-300 inline-block mt-2 font-bold">{{ result.text }}</span>

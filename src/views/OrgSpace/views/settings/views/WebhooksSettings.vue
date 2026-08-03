@@ -103,7 +103,7 @@
                     <template #title>Supprimer le Webhook</template>
                     
                     <div class="space-y-4">
-                        <p class="text-(--text)/80">
+                        <p class="text-(--text)">
                             Vous êtes sur le point de supprimer le webhook <strong class="text-(--primary)">{{ deletingWebhook?.name }}</strong>.
                         </p>
                         <div class="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">

@@ -134,7 +134,7 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
                         <div v-if="user?.description">
                             <div class="w-full h-px bg-white/5 my-2"></div>
                             <h3 class="text-[10px] font-bold text-(--text2) uppercase tracking-wide mb-1.5">À propos</h3>
-                            <p class="text-xs text-(--text)/80 leading-relaxed line-clamp-3">{{ user?.description }}</p>
+                            <p class="text-xs text-(--text) leading-relaxed line-clamp-3">{{ user?.description }}</p>
                         </div>
                         
                         <div class="w-full h-px bg-white/5 my-2"></div>

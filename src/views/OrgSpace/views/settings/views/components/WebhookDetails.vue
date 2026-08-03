@@ -136,7 +136,7 @@
                         <span 
                             v-for="permission in webhook.permissions" 
                             :key="permission"
-                            class="text-xs bg-(--white)/10 text-(--text)/80 px-3 py-1 rounded-full"
+                            class="text-xs bg-(--white)/10 text-(--text) px-3 py-1 rounded-full"
                         >
                             {{ formatPermission(permission) }}
                         </span>

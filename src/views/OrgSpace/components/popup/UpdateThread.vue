@@ -66,7 +66,7 @@
                 <i class="bi bi-lock-fill text-(--primary)"></i>
                 Accès Privé
             </label>
-            <div class="bg-(--bg2)/20 border border-white/10 rounded-xl p-3 text-sm text-(--text)/80 leading-relaxed">
+            <div class="bg-(--bg2)/20 border border-white/10 rounded-xl p-3 text-sm text-(--text) leading-relaxed">
                 Ce salon est privé. Actuellement, <span class="font-bold text-white">{{ props.thread.membersId.length }} membre(s)</span> y ont accès. 
                 <br/><span class="text-xs text-white/40 mt-1 block">La modification des accès aux salons privés se fera dans une prochaine mise à jour.</span>
             </div>

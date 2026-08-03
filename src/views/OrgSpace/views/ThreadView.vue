@@ -84,7 +84,7 @@
             <div class="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4 border border-(--primary)/10">
                 <i class="bi bi-hash text-4xl text-(--text2)" />
             </div>
-            <p class="text-(--text)/80 italic font-medium">Thread introuvable ou accès refusé.</p>
+            <p class="text-(--text) italic font-medium">Thread introuvable ou accès refusé.</p>
         </div>
 
     </main>

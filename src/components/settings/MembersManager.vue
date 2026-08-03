@@ -132,7 +132,7 @@
                         :src="orgMember.user?.avatarUrl || 'https://cdn.silvercore.fr/static/files/silverteams/avatar/default.png'" 
                         class="w-8 h-8 rounded-full" 
                     />
-                    <span class="text-sm font-bold text-(--text)/80">{{ orgMember.user?.name }}</span>
+                    <span class="text-sm font-bold text-(--text)">{{ orgMember.user?.name }}</span>
                 </div>
 
                 <button @click="invite(orgMember)" class="text-(--primary) text-xs font-black opacity-0 group-hover:opacity-100 transition-opacity">

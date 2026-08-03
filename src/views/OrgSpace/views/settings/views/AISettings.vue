@@ -168,7 +168,7 @@
 
     <Popup :is-open="showLearnMorePopup" @close="showLearnMorePopup = false">
         <template #title>Utilisation de services Cloud externes</template>
-        <div class="space-y-4 text-sm text-(--text)/80 leading-relaxed">
+        <div class="space-y-4 text-sm text-(--text) leading-relaxed">
             <p>En choisissant un fournisseur IA externe (tel que OpenAI, Google Gemini, Mistral AI, etc.), vous acceptez que les données de votre organisation (requêtes, documents analysés, historiques de conversation, etc.) soient transmises et traitées sur les serveurs de ce fournisseur.</p>
             
             <h4 class="font-bold text-(--text) mt-4">Ce que cela implique :</h4>

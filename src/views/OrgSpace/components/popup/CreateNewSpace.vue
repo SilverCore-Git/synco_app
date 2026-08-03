@@ -164,7 +164,7 @@ const handleSubmit = async () => {
             <div v-for="m in availableMembers" :key="m.id" class="flex items-center justify-between p-2 bg-white/5 rounded-lg group">
               <div class="flex items-center gap-2">
                 <img :src="m.user?.avatarUrl" class="w-6 h-6 rounded-full border border-white/10" />
-                <span class="text-xs font-bold text-(--text)/80 truncate w-24 sm:w-auto">{{ m.user?.name }}</span>
+                <span class="text-xs font-bold text-(--text) truncate w-24 sm:w-auto">{{ m.user?.name }}</span>
               </div>
               <button @click="form.members.push(m)" class="text-(--primary) text-[10px] font-black opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all">AJOUTER</button>
             </div>

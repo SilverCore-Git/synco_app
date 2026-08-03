@@ -251,7 +251,7 @@
                 
                 <button 
                     @click="downloadSelected" 
-                    class="p-2 rounded-lg hover:bg-(--primary)/10 text-(--text)/80 hover:text-(--primary) transition-colors flex items-center gap-2 text-sm font-semibold"
+                    class="p-2 rounded-lg hover:bg-(--primary)/10 text-(--text) hover:text-(--primary) transition-colors flex items-center gap-2 text-sm font-semibold"
                 >
                     <i class="bi bi-download"></i>
                     <span>Télécharger</span>
@@ -259,7 +259,7 @@
 
                 <button 
                     @click="requestDeleteSelection" 
-                    class="p-2 rounded-lg hover:bg-red-500/10 text-(--text)/80 hover:text-red-500 transition-colors flex items-center gap-2 text-sm font-semibold"
+                    class="p-2 rounded-lg hover:bg-red-500/10 text-(--text) hover:text-red-500 transition-colors flex items-center gap-2 text-sm font-semibold"
                 >
                     <i class="bi bi-trash"></i>
                     <span>Supprimer</span>

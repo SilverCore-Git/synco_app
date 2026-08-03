@@ -118,7 +118,7 @@ onMounted(async () => {
                         <p class="text-xs text-(--text2) truncate">{{ me?.email || '' }}</p>
                     </div>
                     <div class="p-1">
-                        <button @click="showUserSettings = true" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--text)/80 hover:text-(--text) hover:bg-white/5 rounded-lg transition-colors">
+                        <button @click="showUserSettings = true" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--text) hover:text-(--text) hover:bg-white/5 rounded-lg transition-colors">
                             <i class="bi bi-person-fill"></i> Mon Profil
                         </button>
                     </div>
@@ -269,7 +269,7 @@ onMounted(async () => {
             </div>
         </template>
         <div class="space-y-4">
-            <p class="text-sm text-(--text)/80 leading-relaxed">
+            <p class="text-sm text-(--text) leading-relaxed">
                 Êtes-vous sûr de vouloir supprimer définitivement votre compte ? 
                 Cette action est irréversible et supprimera toutes vos données personnelles.
             </p>

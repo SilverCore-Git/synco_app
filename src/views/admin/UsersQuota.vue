@@ -59,11 +59,11 @@
                             </td>
 
                             <td class="p-4 text-center">
-                                <span class="text-sm font-medium text-(--text)/80">{{ user.orgMaxUsers.toLocaleString() }}</span>
+                                <span class="text-sm font-medium text-(--text)">{{ user.orgMaxUsers.toLocaleString() }}</span>
                             </td>
 
                             <td class="p-4 text-center">
-                                <span class="text-sm font-medium text-(--text)/80">{{ formatBytes(user.orgMaxStorage) }}</span>
+                                <span class="text-sm font-medium text-(--text)">{{ formatBytes(user.orgMaxStorage) }}</span>
                             </td>
 
                             <td class="p-4 text-right">
