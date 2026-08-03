@@ -84,7 +84,7 @@
                 v-for="p in currentParticipants" 
                 :key="p.identity"
                 class="flex items-center gap-2 py-1 px-1 rounded transition-colors"
-                :class="p.isSpeaking ? 'text-(--primary)' : 'text-(--text)/70'"
+                :class="p.isSpeaking ? 'text-(--primary)' : 'text-(--text)'"
             >
 
                 <div class="relative">

@@ -128,7 +128,7 @@
                                     </td>
 
                                     <td class="px-6 py-4">
-                                        <span class="text-xs font-medium text-(--text)/70 px-2.5 py-1 bg-(--bg) rounded-md border border-(--border-color)">
+                                        <span class="text-xs font-medium text-(--text) px-2.5 py-1 bg-(--bg) rounded-md border border-(--border-color)">
                                             {{ getSpaceName(file.workspaceId) }}
                                         </span>
                                     </td>

@@ -195,7 +195,7 @@
                             <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Preuve de chiffrement (E2EE)</h4>
                             
                             <div class="p-5 bg-(--bg2) border border-(--border-color) rounded-xl flex flex-col gap-3">
-                                <div class="flex items-center gap-3 text-(--text)/70">
+                                <div class="flex items-center gap-3 text-(--text)">
                                     <i class="bi bi-cpu-fill text-lg"></i>
                                     <span class="text-sm font-bold">Clé publique (RSA-OAEP 4096 bits)</span>
                                 </div>

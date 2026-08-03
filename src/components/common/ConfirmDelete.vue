@@ -19,7 +19,7 @@
                         <h3 class="text-xl font-bold text-(--text)">Supprimer {{ itemType }} ?</h3>
                     </div>
 
-                    <p class="text-(--text)/70 text-sm leading-relaxed mb-6">
+                    <p class="text-(--text) text-sm leading-relaxed mb-6">
                         Êtes-vous sûr de vouloir supprimer <strong>{{ itemName }}</strong> ? 
                         Cette action est irréversible et toutes les données associées seront perdues.
                     </p>
@@ -43,7 +43,7 @@
                         class="mb-6" 
                         :class="{ 'opacity-40 pointer-events-none': !acknowledge }"
                     >
-                        <label class="text-[11px] text-(--text)/70 mb-2 block lowercase italic">
+                        <label class="text-[11px] text-(--text) mb-2 block lowercase italic">
                             Tapez <span class="text-red-400 font-mono select-all">"{{ itemName }}"</span> pour débloquer :
                         </label>
                         <input 

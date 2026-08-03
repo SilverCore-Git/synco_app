@@ -46,7 +46,7 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="space-y-2">
-                            <label class="text-xs font-semibold text-(--text)/70">Nom de l'organisation</label>
+                            <label class="text-xs font-semibold text-(--text)">Nom de l'organisation</label>
                             <div class="relative group">
                                 <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2) group-focus-within:text-(--primary) transition-colors">
                                     <i class="bi bi-building"></i>
@@ -61,7 +61,7 @@
                         </div>
 
                         <div class="space-y-2" v-if="devMode">
-                            <label class="text-xs font-semibold text-(--text)/70">ID Unique (Permanent)</label>
+                            <label class="text-xs font-semibold text-(--text)">ID Unique (Permanent)</label>
                             <div class="relative">
                                 <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/30">
                                     <i class="bi bi-hash"></i>

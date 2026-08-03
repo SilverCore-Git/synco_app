@@ -172,7 +172,7 @@
 
                     <button 
                         @click="cancelReply"
-                        class="shrink-0 text-(--text2) hover:text-(--text)/70 transition-colors"
+                        class="shrink-0 text-(--text2) hover:text-(--text) transition-colors"
                         title="Annuler la réponse"
                     >
                         <i class="bi bi-x-lg text-lg" />

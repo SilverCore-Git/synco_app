@@ -54,7 +54,7 @@
                             
                             <!-- Clé API -->
                             <div class="space-y-2">
-                                <label class="text-xs font-semibold text-(--text)/70">Clé API ({{ orgData.provider }})</label>
+                                <label class="text-xs font-semibold text-(--text)">Clé API ({{ orgData.provider }})</label>
                                 <div class="relative group">
                                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2) group-focus-within:text-(--primary) transition-colors">
                                         <i class="bi bi-key-fill"></i>
@@ -73,7 +73,7 @@
 
                             <!-- Endpoint URL (Custom only) -->
                             <div class="space-y-2" v-if="orgData.provider === 'custom'">
-                                <label class="text-xs font-semibold text-(--text)/70">URL de l'Endpoint</label>
+                                <label class="text-xs font-semibold text-(--text)">URL de l'Endpoint</label>
                                 <div class="relative group">
                                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2) group-focus-within:text-(--primary) transition-colors">
                                         <i class="bi bi-link-45deg"></i>
@@ -89,7 +89,7 @@
 
                             <!-- Model ID -->
                             <div class="space-y-2">
-                                <label class="text-xs font-semibold text-(--text)/70">Modèle à utiliser</label>
+                                <label class="text-xs font-semibold text-(--text)">Modèle à utiliser</label>
                                 <div class="relative group">
                                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2) group-focus-within:text-(--primary) transition-colors">
                                         <i class="bi bi-robot"></i>

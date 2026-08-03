@@ -16,7 +16,7 @@
                 <span v-else>{{ embed.title }}</span>
             </div>
 
-            <div v-if="embed.description" class="text-xs text-(--text)/70 mb-2 whitespace-pre-wrap">
+            <div v-if="embed.description" class="text-xs text-(--text) mb-2 whitespace-pre-wrap">
                 {{ embed.description }}
             </div>
 

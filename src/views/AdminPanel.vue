@@ -16,10 +16,10 @@
         </div>
       </div>
       <div class="max-w-7xl mx-auto flex items-center gap-2 mt-6">
-        <router-link to="/root/users" exact-active-class="!bg-(--primary) !text-white" class="px-4 py-2 rounded-lg font-bold text-sm transition-colors flex items-center gap-2 bg-white/5 text-(--text)/70 hover:bg-white/10">
+        <router-link to="/root/users" exact-active-class="!bg-(--primary) !text-white" class="px-4 py-2 rounded-lg font-bold text-sm transition-colors flex items-center gap-2 bg-white/5 text-(--text) hover:bg-white/10">
             <i class="bi bi-people-fill"></i> Utilisateurs
         </router-link>
-        <router-link to="/root/orgs" exact-active-class="!bg-(--primary) !text-white" class="px-4 py-2 rounded-lg font-bold text-sm transition-colors flex items-center gap-2 bg-white/5 text-(--text)/70 hover:bg-white/10">
+        <router-link to="/root/orgs" exact-active-class="!bg-(--primary) !text-white" class="px-4 py-2 rounded-lg font-bold text-sm transition-colors flex items-center gap-2 bg-white/5 text-(--text) hover:bg-white/10">
             <i class="bi bi-building-fill"></i> Organisations
         </router-link>
       </div>
