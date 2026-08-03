@@ -115,7 +115,9 @@
                                         <button 
                                             v-if="!isSelf(member.user?.id!) && isAdmin"
                                             @click="confirmKickMember(member.id, member.user?.name || 'ce membre')"
-                                            class="p-2 rounded-xl text-(--text2) hover:bg-red-500/10 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                            class="p-2 rounded-xl text-(--text2) hover:bg-red-500/10 hover:text-red-500 transition-colors group-hover:opacity-100
+                                                    
+                                            "
                                             title="Exclure le membre"
                                         >
                                             <i class="bi bi-person-x text-lg" />
