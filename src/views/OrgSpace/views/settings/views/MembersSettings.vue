@@ -364,7 +364,7 @@
                                             title="Copier le lien complet"
                                         >
                                             <i class="bi bi-copy" />
-                                            <h3>Copier</h3>
+                                            <h3>Copier URL</h3>
                                         </button>
 
                                     </div>
