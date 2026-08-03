@@ -143,108 +143,241 @@
                         </div>
 
                         <!-- Zone de création de lien d'invitation -->
-                        <div class="relative flex flex-col sm:flex-row gap-3">
-                            <div class="relative flex-1">
-                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
-                                    <i class="bi bi-link-45deg"></i>
-                                </div>
-                                <input 
-                                    readonly
-                                    type="text"
-                                    :value="inviteLink || 'Cliquez pour générer un nouveau lien...'"
-                                    class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner font-mono"
-                                />
-                            </div>
-                            <div class="flex gap-2">
-                                <div class="relative w-20 hidden sm:block" v-if="inviteLink.length === 0">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-(--text)/40" title="Nombre d'utilisations (0 = infini)">
-                                        <i class="bi bi-people"></i>
+                        <div class="relative flex flex-col gap-3 w-full">
+                            <div 
+                                class="flex  flex-col sm:flex-row min-w-0 gap-4 justify-between h-fit
+                                ">
+
+                                <div class="relative w-full" v-if="inviteLink.length === 0">
+                                    <div 
+                                        class=" bg-(--bg) border border-(--border-color) rounded-xl text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all
+                                                flex w-full items-center justify-between
+                                                gap-4 p-3
+                                        "
+                                        title="(0 = infini)"
+                                        >
+                                        <div class="flex gap-2 min-w-0">
+                                            <i class="bi bi-people"></i>
+                                            <h3 class="whitespace-nowrap">Nombre d'utilisations</h3>
+                                        </div>
+                                        
+                                        <input
+                                            v-model.number="inviteMaxUses"
+                                            type="number"
+                                            min="0"
+                                            class=" appearance-none border-none outline-none p-0 m-0 w-[2.5em]"
+                                            title="(0 = infini)"
+                                        />
                                     </div>
-                                    <input 
-                                        type="number"
-                                        v-model.number="inviteMaxUses"
-                                        min="0"
-                                        class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-9 pr-3 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner"
-                                        title="Nombre d'utilisations (0 = infini)"
-                                    />
+
                                 </div>
-                                <button 
-                                    @click="inviteLink.length === 0 ? createInviteLink() : copyInvite()" 
-                                    class="bg-(--primary) hover:bg-(--primary-hover) text-white rounded-xl px-4 py-3 text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm"
-                                >
-                                    <i class="bi" :class="inviteLink.length === 0 ? 'bi-stars' : copied ? 'bi-check-lg' : 'bi-copy'" />
-                                    {{ inviteLink.length === 0 ? 'Générer' : copied ? 'Copié' : 'Copier' }}
-                                </button>
+
+                                <div class="flex gap-4 sm:gap-3 min-w-0 sm:pr-6">
+                                    <button
+                                        v-if="inviteLink.length > 0"
+                                        @click="copyInvite()"
+                                        class="bg-(--bg) border border-(--border-color) text-(--text)/60 hover:text-(--text) hover:bg-(--text)/5 rounded-xl text-sm font-medium transition-all flex items-center shadow-sm gap-2 cursor-pointer
+                                                w-full pl-4 py-3 overflow-hidden pr-7"
+                                    >
+                                        <i class="bi bi-link rotate-135"/>
+                                        <div class=" max-w-fit min-w-full text-ellipsis whitespace-nowrap overflow-hidden text-center">
+                                            {{inviteLink}}
+                                        </div>
+                                    </button>
+
+                                    <button 
+                                        @click="inviteLink.length === 0 ? createInviteLink() : copyInvite()" 
+                                        class="bg-(--primary) text-white rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm cursor-pointer
+                                                px-6 py-3 w-full sm:w-fit
+                                        "
+                                    >
+                                        <i class="bi" :class="inviteLink.length === 0 ? 'bi-stars' : copied ? 'bi-check-lg' : 'bi-copy'" />
+                                        {{ inviteLink.length === 0 ? 'Générer' : copied ? 'Copié' : 'Copier' }}
+                                    </button>
+                                </div>
+                                
                                 <button 
                                     v-if="inviteLink.length > 0"
                                     @click="inviteLink = ''"
-                                    class="bg-(--bg) border border-(--border-color) text-(--text)/60 hover:text-(--text) hover:bg-(--text)/5 rounded-xl px-3 py-3 text-sm font-medium transition-all flex items-center justify-center shadow-sm"
+                                    class="bg-(--bg) border border-(--border-color) text-(--text)/60 hover:text-(--text) hover:bg-(--text)/5 rounded-xl px-3 py-3 text-sm font-medium transition-all flex items-center justify-center shadow-sm gap-2 cursor-pointer
+                                            "
                                     title="Nouveau lien"
                                 >
                                     <i class="bi bi-plus-lg" />
+                                    <h3 class="whitespace-nowrap">Nouveau lien</h3>
+                                    
                                 </button>
+                               
+
                             </div>
                         </div>
 
                     </div>
 
-                    <div class="overflow-x-auto" v-if="inviteLinks.length > 0">
+                    <div v-if="inviteLinks.length > 0" class="overflow-x-auto">
+                        <div class="w-full">
 
-                        <table class="w-full text-left border-collapse">
+                            <!-- Header -->
+                            <div class="sm:grid-cols-[1fr_1fr_1fr_1fr] text-[10px] uppercase tracking-widest text-(--text)/50 bg-(--bg3)/30 border-b border-(--border-color)
+                                        hidden sm:grid
+                            ">
+                                <div class="px-6 py-4 font-bold">Code</div>
+                                <div 
+                                    class="px-6 py-4 font-bold
+                                            hidden sm:block
+                                ">Utilisations</div>
+                                <div 
+                                    class="px-6 py-4 font-bold
+                                            hidden sm:block
+                                ">Expiration</div>
+                                <div class="px-6 py-4 font-bold text-right">Actions</div>
+                            </div>
 
-                            <thead>
-                                <tr class="text-[10px] uppercase tracking-widest text-(--text)/50 bg-(--bg3)/30 border-b border-(--border-color)">
-                                    <th class="px-6 py-4 font-bold">Code</th>
-                                    <th class="px-6 py-4 font-bold">Utilisations</th>
-                                    <th class="px-6 py-4 font-bold">Expiration</th>
-                                    <th class="px-6 py-4 font-bold text-right">Actions</th>
-                                </tr>
-                            </thead>
-
-                            <tbody class="divide-y divide-(--border-color)">
-                                <tr 
-                                    v-for="link in inviteLinks" 
-                                    :key="link.id" 
-                                    class="group hover:bg-(--bg)/40 transition-colors"
+                            <!-- Body -->
+                            <div class="divide-y divide-(--border-color)">
+                                <div
+                                    v-for="link in inviteLinks"
+                                    :key="link.id"
+                                    class="group block sm:grid sm:grid-cols-[1fr_1fr_1fr_1fr] hover:bg-(--bg)/40 transition-colors"
                                 >
-                                    <td class="px-6 py-4">
+                                    <!-- Code -->
+                                    <div 
+                                        class="px-6 py-4 flex items-center
+                                                hidden sm:flex
+                                    ">
                                         <span class="text-sm font-mono text-(--text) bg-(--bg) px-3 py-1.5 rounded-lg border border-(--border-color)">
                                             {{ link.code.substring(0, 8) }}...
                                         </span>
-                                    </td>
-                                    <td class="px-6 py-4 text-sm">
-                                        <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-(--text)'">
+                                    </div>
+
+                                    <!-- Utilisations -->
+                                    <div 
+                                        class="px-6 py-4 text-sm flex items-center
+                                        hidden sm:flex
+                                    ">
+                                        <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-(--text)'" class="pr-1.5 ">
                                             {{ link.uses }}
                                         </span>
-                                        <span class="text-(--text)/40"> / {{ link.maxUses || '∞' }}</span>
-                                    </td>
-                                    <td class="px-6 py-4 text-xs text-(--text)/50">
+                                        <span class="text-(--text)/40 whitespace-nowrap"> / {{ link.maxUses || '∞' }}</span>
+                                    </div>
+
+                                    <!-- Expiration -->
+                                    <div 
+                                        class="px-6 py-4 text-xs text-(--text)/50 flex items-center
+                                        hidden sm:flex
+                                    ">
                                         {{ link.expiresAt ? new Date(link.expiresAt).toLocaleDateString('fr-FR') : 'Jamais' }}
-                                    </td>
-                                    <td class="px-6 py-4 text-right">
-                                        <div class="flex items-center justify-end gap-2">
-                                            <button 
-                                                @click="copyInviteLink(link.code)"
-                                                class="p-2 rounded-xl text-(--text)/40 hover:text-white hover:bg-(--text)/10 transition-colors"
-                                                title="Copier le lien complet"
+                                    </div>
+
+
+
+                                    <!-- Actions -->
+                                    <div 
+                                        class="px-6 py-4 flex items-center justify-end gap-2 
+                                        hidden sm:flex
+                                    ">
+                                        <button
+                                            @click="copyInviteLink(link.code)"
+                                            class="p-2 rounded-xl text-(--primary) transition-colors"
+                                            title="Copier le lien complet"
+                                        >
+                                            <i class="bi bi-clipboard " />
+                                        </button>
+                                        <button
+                                            @click="deleteInvite(link.code, 1)"
+                                            class="p-2 rounded-xl text-(--text)/40 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                                            title="Révoquer le lien"
+                                        >
+                                            <i class="bi bi-trash" />
+                                        </button>
+                                    </div>
+
+                                    <!-- mobile -->
+                                    <div
+                                        class="p-6 sm:hidden gap-1"
+                                    >
+                                        <div
+                                            class="flex justify-between"
+                                        >   
+                                            <!-- Code -->
+                                            <div 
+                                                class="flex items-center"
                                             >
-                                                <i class="bi bi-clipboard" />
-                                            </button>
-                                            <button 
+                                                <h3
+                                                    class="pr-2"
+                                                >Code :</h3>
+                                                
+                                                <span class="text-sm font-mono text-(--text) bg-(--bg) rounded-lg border border-(--border-color) h-fit w-fit px-2 py-0.5">
+                                                    {{ link.code.substring(0, 8) }}...
+                                                </span>
+                                            </div>
+                                            
+                                            <!-- Supprimer -->
+                                            <button
                                                 @click="deleteInvite(link.code, 1)"
-                                                class="p-2 rounded-xl text-(--text)/40 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                                                class="p-2 rounded-xl text-red-500 transition-colors"
                                                 title="Révoquer le lien"
                                             >
                                                 <i class="bi bi-trash" />
                                             </button>
                                         </div>
-                                    </td>
-                                </tr>
-                            </tbody>
 
-                        </table>
 
+                                        <div
+                                            class="flex justify-between items-baseline py-4"
+                                        >   
+                                            <!-- Utilisation -->
+                                            <div 
+                                                class="flex items-center "
+                                            >
+                                                <h3
+                                                    class="pr-2"
+                                                >Utilisations : </h3>
+
+                                                <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-(--text)'" class="text-(--text)/40 pr-1">
+                                                    {{ link.uses }}
+                                                </span>
+                                                <span class="text-(--text)/40 whitespace-nowrap"> / {{ link.maxUses || '∞' }}</span>
+                                            </div>
+
+                                            <!-- Expiration -->
+                                            <div 
+                                                class="flex flex-col gap-1 "
+                                            >
+                                                <h3>Expiration :</h3>
+
+                                                <h3
+                                                    class="text-(--text)/40"
+                                                >
+                                                    {{ link.expiresAt ? new Date(link.expiresAt).toLocaleDateString('fr-FR') : 'Jamais' }}
+                                                </h3>
+                                            </div> 
+                                        </div>
+
+
+                                        <button
+                                            @click="copyInviteLink(link.code)"
+                                            class="bg-(--bg) rounded-lg border border-(--border-color) text-white rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm cursor-pointer
+                                                px-6 py-3 w-full "
+
+
+                                            title="Copier le lien complet"
+                                        >
+                                            <i class="bi bi-copy" />
+                                            <h3>Copier URL</h3>
+                                        </button>
+
+                                    </div>
+
+
+
+                                </div>
+                            </div>
+
+                        </div>
                     </div>
+
+
                     
                     <div v-else class="p-8 text-center text-(--text)/40 text-sm">
                         Aucun lien d'invitation actif.
