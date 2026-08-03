@@ -30,69 +30,67 @@
                 <!-------------------->
                 <section class="bg-(--bg2) rounded-2xl border border-(--border-color) shadow-sm overflow-hidden flex flex-col">
 
-                    <div class="p-6 border-b border-(--border-color) flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-(--bg3)/20">
+                    <!-- En-tête avec titre et recherche -->
+                    <div class="p-6 border-b border-(--border-color) flex flex-col gap-6 bg-(--bg3)/20">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <h3 class="text-lg font-bold text-(--text) flex items-center gap-3">
+                                Membres
+                                <span class="bg-(--primary)/10 text-(--primary) py-1 px-2.5 rounded-lg text-xs">
+                                    {{ openedOrg?.members?.length || 0 }}
+                                </span>
+                            </h3>
 
-                        <h3 class="text-lg font-bold text-(--text) flex items-center gap-3">
-                            Membres 
-                            <span class="bg-(--primary)/10 text-(--primary) py-1 px-2.5 rounded-lg text-xs">
-                                {{ openedOrg?.members?.length || 0 }}
-                            </span>
-                        </h3>
-
-                        <div class="relative w-full sm:w-80 group">
-                            <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-(--text2) group-focus-within:text-(--primary) transition-colors" />
-                            <input 
-                                v-model="searchQuery"
-                                type="text" 
-                                placeholder="Rechercher un nom ou un email..."
-                                class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-11 pr-4 py-2.5 text-sm text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner placeholder:text-(--text2)"
-                            />
+                            <!-- Barre de recherche -->
+                            <div class="relative w-full sm:w-80 group">
+                                <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-(--text2) group-focus-within:text-(--primary) transition-colors" />
+                                <input
+                                    v-model="searchQuery"
+                                    type="text"
+                                    placeholder="Rechercher un nom ou un email..."
+                                    class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-11 pr-4 py-2.5 text-sm text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner placeholder:text-(--text2)"
+                                />
+                            </div>
                         </div>
-
                     </div>
 
+                    <!-- Contenu principal -->
                     <div class="overflow-x-auto">
+                        <div class="w-full">
+                            <!-- En-tête (desktop uniquement) -->
+                            <div class="sm:grid-cols-[2fr_1fr_1fr_1fr] text-[10px] uppercase tracking-widest text-(--text) bg-(--bg3)/30 border-b border-(--border-color) hidden sm:grid">
+                                <div class="px-6 py-4 font-bold">Utilisateur</div>
+                                <div class="px-6 py-4 font-bold">Rôle</div>
+                                <div class="px-6 py-4 font-bold">Date d'arrivée</div>
+                                <div class="px-6 py-4 font-bold text-right">Actions</div>
+                            </div>
 
-                        <table class="w-full text-left border-collapse">
-
-                            <!-- Noms cathégorie -->
-                            <thead>
-                                <tr class="text-[10px] uppercase tracking-widest text-(--text) bg-(--bg3)/30 border-b border-(--border-color)">
-                                    <th class="px-6 py-4 font-bold">Utilisateur</th>
-                                    <th class="px-6 py-4 font-bold">Rôle</th>
-                                    <th class="px-6 py-4 font-bold">Date d'arrivée</th>
-                                    <th class="px-6 py-4 font-bold text-right">Actions</th>
-                                </tr>
-                            </thead>
-
-                            <!-- Utilisateur -->
-                            <tbody class="divide-y divide-(--border-color)">
-                                <tr 
-                                    v-for="member in filteredMembers" 
-                                    :key="member.id" 
-                                    class="group hover:bg-(--bg)/40 transition-colors"
+                            <!-- Liste des membres -->
+                            <div class="divide-y divide-(--border-color)">
+                                <div
+                                    v-for="member in filteredMembers"
+                                    :key="member.id"
+                                    class="group block sm:grid sm:grid-cols-[2fr_1fr_1fr_1fr] hover:bg-(--bg)/40 transition-colors"
                                 >
-                                    <td class="px-6 py-4">
-                                        <div class="flex items-center gap-4">
-                                            <div class="relative">
-                                                <img 
-                                                    :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=062d1f&color=16ac77`" 
-                                                    class="w-10 h-10 rounded-full object-cover bg-(--bg) border border-(--border-color)" 
-                                                />
-                                                <div v-if="isSelf(member.user?.id!)" class="absolute -bottom-1 -right-1 bg-(--primary) w-3.5 h-3.5 rounded-full border-2 border-(--bg2)" title="Vous" />
-                                            </div>
-                                            <div class="flex flex-col">
-                                                <span class="text-sm font-bold text-(--text) group-hover:text-(--primary) transition-colors">
-                                                    {{ member.user?.name || 'Utilisateur inconnu' }}
-                                                </span>
-                                                <span class="text-[11px] text-(--text2)">{{ member.user?.email }}</span>
-                                            </div>
+                                    <!-- Utilisateur (Desktop) -->
+                                    <div class="px-6 py-4 flex items-center gap-4 hidden sm:flex">
+                                        <div class="relative">
+                                            <img
+                                                :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=062d1f&color=16ac77`"
+                                                class="w-10 h-10 rounded-full object-cover bg-(--bg) border border-(--border-color)"
+                                            />
+                                            <div v-if="isSelf(member.user?.id!)" class="absolute -bottom-1 -right-1 bg-(--primary) w-3.5 h-3.5 rounded-full border-2 border-(--bg2)" title="Vous" />
                                         </div>
-                                    </td>
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-bold text-(--text) group-hover:text-(--primary) transition-colors">
+                                                {{ member.user?.name || 'Utilisateur inconnu' }}
+                                            </span>
+                                            <span class="text-[11px] text-(--text2)">{{ member.user?.email }}</span>
+                                        </div>
+                                    </div>
 
-                                    <!-- Rôle -->
-                                    <td class="px-6 py-4">
-                                        <select 
+                                    <!-- Rôle (Desktop) -->
+                                    <div class="px-6 py-4 flex items-center hidden sm:flex">
+                                        <select
                                             :value="member?.role || 'unknow'"
                                             @change="updateRole(member.id, $event)"
                                             :disabled="isSelf(member.user?.id!) || !isAdmin"
@@ -103,41 +101,93 @@
                                             <option value="MEMBER">Membre</option>
                                             <option value="GUEST">Invité</option>
                                         </select>
-                                    </td>
+                                    </div>
 
-                                    <!-- Date d'arrivée -->
-                                    <td class="px-6 py-4 text-xs text-(--text2)">
+                                    <!-- Date d'arrivée (Desktop) -->
+                                    <div class="px-6 py-4 text-xs text-(--text2) flex items-center hidden sm:flex">
                                         {{ new Date(member.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) }}
-                                    </td>
+                                    </div>
 
-                                    <!-- Actions -->
-                                    <td class="px-6 py-4 text-right">
-                                        <button 
+                                    <!-- Actions (Desktop) -->
+                                    <div class="px-6 py-4 flex items-center justify-end gap-2 hidden sm:flex">
+                                        <button
                                             v-if="!isSelf(member.user?.id!) && isAdmin"
                                             @click="confirmKickMember(member.id, member.user?.name || 'ce membre')"
-                                            class="p-2 rounded-xl text-(--text2) hover:bg-red-500/10 hover:text-red-500 transition-colors group-hover:opacity-100
-                                                    
-                                            "
+                                            class="p-2 rounded-xl text-(--text2) hover:bg-red-500/10 hover:text-red-500 transition-colors"
                                             title="Exclure le membre"
                                         >
                                             <i class="bi bi-person-x text-lg" />
                                         </button>
-                                        <span v-else class="text-[10px] text-(--text2) uppercase tracking-widest px-2">
-                                            -
-                                        </span>
-                                    </td>
-                                </tr>
-                                <tr v-if="filteredMembers.length === 0">
-                                    <td colspan="4" class="px-6 py-12 text-center text-(--text2) text-sm">
-                                        Aucun membre ne correspond à votre recherche.
-                                    </td>
-                                </tr>
-                            </tbody>
+                                        <span v-else class="text-[10px] text-(--text2) uppercase tracking-widest px-2">-</span>
+                                    </div>
 
-                        </table>
+                                    <!-- Version Mobile -->
+                                    <div class="p-6 sm:hidden gap-4">
+                                        <div class="flex justify-between items-start">
+                                            <!-- Utilisateur (Mobile) -->
+                                            <div class="flex items-center gap-3">
+                                                <div class="relative">
+                                                    <img
+                                                        :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=062d1f&color=16ac77`"
+                                                        class="w-10 h-10 rounded-full object-cover bg-(--bg) border border-(--border-color)"
+                                                    />
+                                                    <div v-if="isSelf(member.user?.id!)" class="absolute -bottom-1 -right-1 bg-(--primary) w-3.5 h-3.5 rounded-full border-2 border-(--bg2)" title="Vous" />
+                                                </div>
+                                                <div class="flex flex-col">
+                                                    <span class="text-sm font-bold text-(--text)">
+                                                        {{ member.user?.name || 'Utilisateur inconnu' }}
+                                                    </span>
+                                                    <span class="text-[11px] text-(--text2)">{{ member.user?.email }}</span>
+                                                </div>
+                                            </div>
 
+                                            <!-- Actions (Mobile) -->
+                                            <button
+                                                v-if="!isSelf(member.user?.id!) && isAdmin"
+                                                @click="confirmKickMember(member.id, member.user?.name || 'ce membre')"
+                                                class="p-2 rounded-xl text-red-500 transition-colors"
+                                                title="Exclure le membre"
+                                            >
+                                                <i class="bi bi-person-x text-lg" />
+                                            </button>
+                                        </div>
+
+                                        <!-- Rôle et Date (Mobile) -->
+                                        <div class="flex flex-col gap-3 pt-3 border-t border-(--border-color)">
+                                            <!-- Rôle -->
+                                            <div class="flex flex-col gap-1">
+                                                <h3 class="text-[11px] text-(--text2) uppercase tracking-widest">Rôle</h3>
+                                                <select
+                                                    :value="member?.role || 'unknow'"
+                                                    @change="updateRole(member.id, $event)"
+                                                    :disabled="isSelf(member.user?.id!) || !isAdmin"
+                                                    class="bg-(--bg) border border-(--border-color) rounded-lg px-3 py-1.5 text-xs text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                                                >
+                                                    <option value="OWNER">Propriétaire</option>
+                                                    <option value="ADMIN">Administrateur</option>
+                                                    <option value="MEMBER">Membre</option>
+                                                    <option value="GUEST">Invité</option>
+                                                </select>
+                                            </div>
+
+                                            <!-- Date d'arrivée -->
+                                            <div class="flex flex-col gap-1">
+                                                <h3 class="text-[11px] text-(--text2) uppercase tracking-widest">Date d'arrivée</h3>
+                                                <span class="text-xs text-(--text2)">
+                                                    {{ new Date(member.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Message si aucun membre -->
+                            <div v-if="filteredMembers.length === 0" class="p-8 text-center text-(--text2) text-sm">
+                                Aucun membre ne correspond à votre recherche.
+                            </div>
+                        </div>
                     </div>
-
                 </section>
 
                 <!----------------------->
