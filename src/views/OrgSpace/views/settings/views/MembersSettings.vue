@@ -37,7 +37,7 @@
                         </h3>
 
                         <div class="relative w-full sm:w-80 group">
-                            <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-(--text)/40 group-focus-within:text-(--primary) transition-colors" />
+                            <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-(--text2) group-focus-within:text-(--primary) transition-colors" />
                             <input 
                                 v-model="searchQuery"
                                 type="text" 
@@ -53,7 +53,7 @@
                         <table class="w-full text-left border-collapse">
 
                             <thead>
-                                <tr class="text-[10px] uppercase tracking-widest text-(--text)/50 bg-(--bg3)/30 border-b border-(--border-color)">
+                                <tr class="text-[10px] uppercase tracking-widest text-(--text2) bg-(--bg3)/30 border-b border-(--border-color)">
                                     <th class="px-6 py-4 font-bold">Utilisateur</th>
                                     <th class="px-6 py-4 font-bold">Rôle</th>
                                     <th class="px-6 py-4 font-bold">Date d'arrivée</th>
@@ -80,7 +80,7 @@
                                                 <span class="text-sm font-bold text-(--text) group-hover:text-(--primary) transition-colors">
                                                     {{ member.user?.name || 'Utilisateur inconnu' }}
                                                 </span>
-                                                <span class="text-[11px] text-(--text)/50">{{ member.user?.email }}</span>
+                                                <span class="text-[11px] text-(--text2)">{{ member.user?.email }}</span>
                                             </div>
                                         </div>
                                     </td>
@@ -99,7 +99,7 @@
                                         </select>
                                     </td>
 
-                                    <td class="px-6 py-4 text-xs text-(--text)/50">
+                                    <td class="px-6 py-4 text-xs text-(--text2)">
                                         {{ new Date(member.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) }}
                                     </td>
 
@@ -107,7 +107,7 @@
                                         <button 
                                             v-if="!isSelf(member.user?.id!) && isAdmin"
                                             @click="confirmKickMember(member.id, member.user?.name || 'ce membre')"
-                                            class="p-2 rounded-xl text-(--text)/40 hover:bg-red-500/10 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                            class="p-2 rounded-xl text-(--text2) hover:bg-red-500/10 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                                             title="Exclure le membre"
                                         >
                                             <i class="bi bi-person-x text-lg" />
@@ -118,7 +118,7 @@
                                     </td>
                                 </tr>
                                 <tr v-if="filteredMembers.length === 0">
-                                    <td colspan="4" class="px-6 py-12 text-center text-(--text)/40 text-sm">
+                                    <td colspan="4" class="px-6 py-12 text-center text-(--text2) text-sm">
                                         Aucun membre ne correspond à votre recherche.
                                     </td>
                                 </tr>
@@ -218,7 +218,7 @@
                         <div class="w-full">
 
                             <!-- Header -->
-                            <div class="sm:grid-cols-[1fr_1fr_1fr_1fr] text-[10px] uppercase tracking-widest text-(--text)/50 bg-(--bg3)/30 border-b border-(--border-color)
+                            <div class="sm:grid-cols-[1fr_1fr_1fr_1fr] text-[10px] uppercase tracking-widest text-(--text) bg-(--bg3)/30 border-b border-(--border-color)
                                         hidden sm:grid
                             ">
                                 <div class="px-6 py-4 font-bold">Code</div>
@@ -258,12 +258,12 @@
                                         <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-(--text)'" class="pr-1.5 ">
                                             {{ link.uses }}
                                         </span>
-                                        <span class="text-(--text)/40 whitespace-nowrap"> / {{ link.maxUses || '∞' }}</span>
+                                        <span class="text-(--text2) whitespace-nowrap"> / {{ link.maxUses || '∞' }}</span>
                                     </div>
 
                                     <!-- Expiration -->
                                     <div 
-                                        class="px-6 py-4 text-xs text-(--text)/50 flex items-center
+                                        class="px-6 py-4 text-xs text-(--text2) flex items-center
                                         hidden sm:flex
                                     ">
                                         {{ link.expiresAt ? new Date(link.expiresAt).toLocaleDateString('fr-FR') : 'Jamais' }}
@@ -285,7 +285,7 @@
                                         </button>
                                         <button
                                             @click="deleteInvite(link.code, 1)"
-                                            class="p-2 rounded-xl text-(--text)/40 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                                            class="p-2 rounded-xl text-(--text2) hover:text-red-500 hover:bg-red-500/10 transition-colors"
                                             title="Révoquer le lien"
                                         >
                                             <i class="bi bi-trash" />
@@ -334,10 +334,10 @@
                                                     class="pr-2"
                                                 >Utilisations : </h3>
 
-                                                <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-(--text)'" class="text-(--text)/40 pr-1">
+                                                <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-(--text)'" class="text-(--text2) pr-1">
                                                     {{ link.uses }}
                                                 </span>
-                                                <span class="text-(--text)/40 whitespace-nowrap"> / {{ link.maxUses || '∞' }}</span>
+                                                <span class="text-(--text2) whitespace-nowrap"> / {{ link.maxUses || '∞' }}</span>
                                             </div>
 
                                             <!-- Expiration -->
@@ -347,7 +347,7 @@
                                                 <h3>Expiration :</h3>
 
                                                 <h3
-                                                    class="text-(--text)/40"
+                                                    class="text-(--text2)"
                                                 >
                                                     {{ link.expiresAt ? new Date(link.expiresAt).toLocaleDateString('fr-FR') : 'Jamais' }}
                                                 </h3>
@@ -379,7 +379,7 @@
 
 
                     
-                    <div v-else class="p-8 text-center text-(--text)/40 text-sm">
+                    <div v-else class="p-8 text-center text-(--text2) text-sm">
                         Aucun lien d'invitation actif.
                     </div>
 

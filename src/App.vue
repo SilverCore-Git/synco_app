@@ -236,7 +236,7 @@ onMounted(async () => {
                   'Configurez votre accès sécurisé' }}
               </h2>
 
-              <p v-if="!pinSetup || isResettingPIN" class="text-sm text-(--text)/50 mt-2 leading-relaxed">
+              <p v-if="!pinSetup || isResettingPIN" class="text-sm text-(--text2) mt-2 leading-relaxed">
                 Ce code PIN est la clé de vos conversations. <br />
                 <span class="text-amber-500/80 font-medium">S'il est perdu, elles resteront illisibles.</span>
               </p>

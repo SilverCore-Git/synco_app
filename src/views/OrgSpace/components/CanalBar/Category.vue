@@ -7,7 +7,7 @@
             class="
                 w-full flex items-center justify-between
                 cursor-pointer group
-                text-(--text)/40 hover:text-(--text)/80 
+                text-(--text2) hover:text-(--text)/80 
                 transition-colors duration-200
             "
         >

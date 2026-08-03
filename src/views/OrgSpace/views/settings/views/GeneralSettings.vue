@@ -12,7 +12,7 @@
                 </div>
 
                 <section class="space-y-6">
-                    <h4 class="text-xs font-bold uppercase tracking-widest text-(--text)/50 mb-4">Informations</h4>
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-(--text2) mb-4">Informations</h4>
                     
                     <div class="w-full relative rounded-2xl bg-(--bg2) border border-(--border-color) shadow-sm hover:shadow-md transition-all p-6 sm:p-8">
                         
@@ -48,7 +48,7 @@
                         <div class="space-y-2">
                             <label class="text-xs font-semibold text-(--text)/70">Nom de l'organisation</label>
                             <div class="relative group">
-                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40 group-focus-within:text-(--primary) transition-colors">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2) group-focus-within:text-(--primary) transition-colors">
                                     <i class="bi bi-building"></i>
                                 </div>
                                 <input 
@@ -70,7 +70,7 @@
                                     disabled
                                     type="text"
                                     :value="openedOrg?.id"
-                                    class="w-full bg-black/10 border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-sm text-(--text)/40 font-mono shadow-inner cursor-not-allowed"
+                                    class="w-full bg-black/10 border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-sm text-(--text2) font-mono shadow-inner cursor-not-allowed"
                                 />
                             </div>
                         </div>
@@ -78,7 +78,7 @@
                 </section>
 
                 <section class="space-y-6">
-                    <h4 class="text-xs font-bold uppercase tracking-widest text-(--text)/50 mb-4">Modules & Fonctionnalités</h4>
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-(--text2) mb-4">Modules & Fonctionnalités</h4>
                     
                     <div class="grid grid-cols-1 gap-6">
                         
@@ -92,11 +92,11 @@
                             ]"
                         >
                             <div v-if="!openedOrg?.features?.includes('todo')" class="absolute top-3 right-3">
-                                <i class="bi bi-lock-fill text-(--text)/40" title="Non inclus"></i>
+                                <i class="bi bi-lock-fill text-(--text2)" title="Non inclus"></i>
                             </div>
                             <div class="flex items-center gap-4">
                                 <div class="w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-colors"
-                                    :class="orgData.todoEnabled ? 'bg-(--primary)/10 text-(--primary)' : 'bg-(--bg) text-(--text)/50'">
+                                    :class="orgData.todoEnabled ? 'bg-(--primary)/10 text-(--primary)' : 'bg-(--bg) text-(--text2)'">
                                     <i class="bi bi-list-check"></i>
                                 </div>
                                 <div class="flex-1 pointer-events-none">
@@ -107,7 +107,7 @@
                                     <div class="w-11 h-6 bg-black/20 border border-(--border-color) peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary) peer-checked:border-(--primary)"></div>
                                 </label>
                             </div>
-                            <p class="text-xs text-(--text)/50 mt-2 pointer-events-none">Gestion des tâches globales et par espace de travail.</p>
+                            <p class="text-xs text-(--text2) mt-2 pointer-events-none">Gestion des tâches globales et par espace de travail.</p>
                         </div>
 
                         <!-- Module Fichiers -->
@@ -120,11 +120,11 @@
                             ]"
                         >
                             <div v-if="!openedOrg?.features?.includes('files')" class="absolute top-3 right-3">
-                                <i class="bi bi-lock-fill text-(--text)/40" title="Non inclus"></i>
+                                <i class="bi bi-lock-fill text-(--text2)" title="Non inclus"></i>
                             </div>
                             <div class="flex items-center gap-4">
                                 <div class="w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-colors"
-                                    :class="orgData.filesEnabled ? 'bg-(--primary)/10 text-(--primary)' : 'bg-(--bg) text-(--text)/50'">
+                                    :class="orgData.filesEnabled ? 'bg-(--primary)/10 text-(--primary)' : 'bg-(--bg) text-(--text2)'">
                                     <i class="bi bi-file-earmark"></i>
                                 </div>
                                 <div class="flex-1 pointer-events-none">
@@ -135,7 +135,7 @@
                                     <div class="w-11 h-6 bg-black/20 border border-(--border-color) peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary) peer-checked:border-(--primary)"></div>
                                 </label>
                             </div>
-                            <p class="text-xs text-(--text)/50 mt-2 pointer-events-none">Système de stockage de fichiers par espace de travail.</p>
+                            <p class="text-xs text-(--text2) mt-2 pointer-events-none">Système de stockage de fichiers par espace de travail.</p>
                         </div>
 
                         <!-- Module AI -->
@@ -148,11 +148,11 @@
                             ]"
                         >
                             <div v-if="!openedOrg?.features?.includes('ai')" class="absolute top-3 right-3">
-                                <i class="bi bi-lock-fill text-(--text)/40" title="Non inclus"></i>
+                                <i class="bi bi-lock-fill text-(--text2)" title="Non inclus"></i>
                             </div>
                             <div class="flex items-center gap-4">
                                 <div class="w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-colors"
-                                    :class="orgData.aiEnabled ? 'bg-(--primary)/10 text-(--primary)' : 'bg-(--bg) text-(--text)/50'">
+                                    :class="orgData.aiEnabled ? 'bg-(--primary)/10 text-(--primary)' : 'bg-(--bg) text-(--text2)'">
                                     <i class="bi bi-robot"></i>
                                 </div>
                                 <div class="flex-1 pointer-events-none">
@@ -163,7 +163,7 @@
                                     <div class="w-11 h-6 bg-black/20 border border-(--border-color) peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary) peer-checked:border-(--primary)"></div>
                                 </label>
                             </div>
-                            <p class="text-xs text-(--text)/50 mt-2 pointer-events-none">Assistant IA local (WebGPU) ou Cloud externe.</p>
+                            <p class="text-xs text-(--text2) mt-2 pointer-events-none">Assistant IA local (WebGPU) ou Cloud externe.</p>
                         </div>
                     </div>
                 </section>

@@ -28,7 +28,7 @@
                     <div class="bg-(--bg2) border border-(--border-color) rounded-2xl p-6 shadow-sm flex flex-col gap-4 max-h-[300px]">
                         <div>
                             <h4 class="text-sm font-bold text-(--text)">Détails par Espace de travail</h4>
-                            <p class="text-xs text-(--text)/50 mt-1">Répartition de l'utilisation du stockage.</p>
+                            <p class="text-xs text-(--text2) mt-1">Répartition de l'utilisation du stockage.</p>
                         </div>
                         <div class="overflow-y-auto pr-2 space-y-2 mt-2 custom-scrollbar">
                             <div v-if="openedOrg?.spaces?.length" v-for="space in openedOrg?.spaces" :key="space.id" class="flex items-center justify-between p-3 bg-(--bg) border border-(--border-color) rounded-xl group hover:border-(--primary)/50 transition-colors">
@@ -42,7 +42,7 @@
                                     {{ formatBytes(Number((space as any).stats?.storageUsed || 0)) }}
                                 </span>
                             </div>
-                            <div v-else class="text-sm text-(--text)/40 italic mt-2 p-6 text-center border border-dashed border-(--border-color) rounded-xl bg-(--bg)/50">
+                            <div v-else class="text-sm text-(--text2) italic mt-2 p-6 text-center border border-dashed border-(--border-color) rounded-xl bg-(--bg)/50">
                                 Aucun espace de travail n'utilise de stockage.
                             </div>
                         </div>
@@ -62,7 +62,7 @@
                         </h3>
 
                         <div class="relative w-full sm:w-80 group">
-                            <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-(--text)/40 group-focus-within:text-(--primary) transition-colors" />
+                            <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-(--text2) group-focus-within:text-(--primary) transition-colors" />
                             <input 
                                 v-model="searchQuery"
                                 type="text" 
@@ -78,7 +78,7 @@
                         <table class="w-full text-left border-collapse">
 
                             <thead>
-                                <tr class="text-[10px] uppercase tracking-widest text-(--text)/50 bg-(--bg3)/30 border-b border-(--border-color)">
+                                <tr class="text-[10px] uppercase tracking-widest text-(--text2) bg-(--bg3)/30 border-b border-(--border-color)">
                                     <th class="px-6 py-4 font-bold">Fichier</th>
                                     <th class="px-6 py-4 font-bold">Espace de travail</th>
                                     <th class="px-6 py-4 font-bold">Type</th>
@@ -91,7 +91,7 @@
                             <tbody class="divide-y divide-(--border-color)">
 
                                 <tr v-if="loadingFiles">
-                                    <td colspan="6" class="px-6 py-12 text-center text-(--text)/40">
+                                    <td colspan="6" class="px-6 py-12 text-center text-(--text2)">
                                         <div class="flex items-center justify-center gap-3">
                                             <div class="w-5 h-5 rounded-full border-2 border-(--text)/20 border-t-(--primary) animate-spin"></div>
                                             <span class="text-sm font-medium">Chargement des fichiers...</span>
@@ -100,7 +100,7 @@
                                 </tr>
 
                                 <tr v-else-if="filteredFiles.length === 0">
-                                    <td colspan="6" class="px-6 py-16 text-center text-(--text)/40">
+                                    <td colspan="6" class="px-6 py-16 text-center text-(--text2)">
                                         <div class="flex flex-col items-center justify-center gap-3">
                                             <i class="bi bi-inboxes text-4xl text-(--text)/20"></i>
                                             <span class="text-sm font-medium">Aucun fichier trouvé.</span>
@@ -122,7 +122,7 @@
                                             </div>
                                             <div class="flex flex-col overflow-hidden">
                                                 <span class="font-bold text-sm text-(--text) truncate group-hover:text-(--primary) transition-colors" :title="file.originalName">{{ file.originalName }}</span>
-                                                <span class="text-[10px] text-(--text)/40 font-mono mt-0.5">{{ file.id.substring(0,8) }}</span>
+                                                <span class="text-[10px] text-(--text2) font-mono mt-0.5">{{ file.id.substring(0,8) }}</span>
                                             </div>
                                         </div>
                                     </td>
@@ -134,7 +134,7 @@
                                     </td>
                                     
                                     <td class="px-6 py-4">
-                                        <span class="text-[11px] font-mono font-bold text-(--text)/50 bg-(--bg3) px-2 py-1 rounded border border-(--text)/5 uppercase">{{ (file.mimeType.split('/')[1] || file.mimeType).substring(0, 10) }}</span>
+                                        <span class="text-[11px] font-mono font-bold text-(--text2) bg-(--bg3) px-2 py-1 rounded border border-(--text)/5 uppercase">{{ (file.mimeType.split('/')[1] || file.mimeType).substring(0, 10) }}</span>
                                     </td>
 
                                     <td class="px-6 py-4">
@@ -148,7 +148,7 @@
                                     <td class="px-6 py-4 text-right">
                                         <button 
                                             @click="askDelete(file)"
-                                            class="p-2 rounded-xl text-(--text)/40 hover:text-white hover:bg-red-500 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 shadow-sm"
+                                            class="p-2 rounded-xl text-(--text2) hover:text-white hover:bg-red-500 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 shadow-sm"
                                             title="Supprimer ce fichier"
                                         >
                                             <i class="bi bi-trash3" />

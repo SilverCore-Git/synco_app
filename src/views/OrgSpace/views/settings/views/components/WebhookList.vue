@@ -73,7 +73,7 @@
                     <div class="flex items-center gap-2 flex-shrink-0">
                         <button 
                             @click="$emit('test', webhook)"
-                            class="text-(--text)/40 hover:text-(--primary) transition-all p-2 rounded-lg hover:bg-(--white)/10"
+                            class="text-(--text2) hover:text-(--primary) transition-all p-2 rounded-lg hover:bg-(--white)/10"
                             title="Envoyer un message de test"
                         >
                             <i class="bi bi-send-fill" />
@@ -81,7 +81,7 @@
                         
                         <button 
                             @click="toggleActive(webhook)"
-                            class="text-(--text)/40 hover:text-(--primary) transition-all p-2 rounded-lg hover:bg-(--white)/10"
+                            class="text-(--text2) hover:text-(--primary) transition-all p-2 rounded-lg hover:bg-(--white)/10"
                             :title="webhook.isActive ? 'Désactiver' : 'Activer'"
                         >
                             <i 
@@ -92,7 +92,7 @@
                         
                         <button 
                             @click="$emit('details', webhook)"
-                            class="text-(--text)/40 hover:text-(--primary) transition-all p-2 rounded-lg hover:bg-(--white)/10"
+                            class="text-(--text2) hover:text-(--primary) transition-all p-2 rounded-lg hover:bg-(--white)/10"
                             title="Voir les détails"
                         >
                             <i class="bi bi-three-dots" />
@@ -116,26 +116,26 @@
                     
                     <!-- Utilisation -->
                     <div class="flex items-center gap-1.5 text-sm text-(--text)/60">
-                        <i class="bi bi-chart-line text-(--text)/40" />
+                        <i class="bi bi-chart-line text-(--text2)" />
                         <span>{{ webhook.usageCount }} messages</span>
                     </div>
                     
                     <!-- Dernière utilisation -->
                     <div class="flex items-center gap-1.5 text-sm text-(--text)/60">
-                        <i class="bi bi-clock text-(--text)/40" />
+                        <i class="bi bi-clock text-(--text2)" />
                         <span>{{ formatLastUsed(webhook.lastUsedAt) }}</span>
                     </div>
                     
                     <!-- Créé le -->
                     <div class="flex items-center gap-1.5 text-sm text-(--text)/60">
-                        <i class="bi bi-calendar text-(--text)/40" />
+                        <i class="bi bi-calendar text-(--text2)" />
                         <span>{{ formatDate(webhook.createdAt) }}</span>
                     </div>
                 </div>
 
                 <!-- URL du webhook (mini) -->
                 <div class="mt-3 pl-13">
-                    <code class="text-xs text-(--text)/40 bg-(--white)/5 px-2 py-1 rounded">
+                    <code class="text-xs text-(--text2) bg-(--white)/5 px-2 py-1 rounded">
                         {{ getShortUrl(webhook.url) }}
                     </code>
                 </div>

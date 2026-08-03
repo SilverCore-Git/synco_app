@@ -181,7 +181,7 @@
                                         <span class="text-xs font-medium text-(--text)/90 truncate">
                                             {{ file.originalName }}
                                         </span>
-                                        <span class="text-[10px] text-(--text)/40 uppercase tracking-wider">
+                                        <span class="text-[10px] text-(--text2) uppercase tracking-wider">
                                             {{ (file.size / 1024 / 1024).toFixed(2) }} MB
                                         </span>
                                     </div>

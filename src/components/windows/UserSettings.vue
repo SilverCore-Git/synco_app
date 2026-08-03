@@ -77,9 +77,9 @@
                     <div class="space-y-6 max-w-lg">
                        
                         <div class="space-y-1.5">
-                            <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">Nom d'utilisateur</label>
+                            <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Nom d'utilisateur</label>
                             <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2)">
                                     <i class="bi bi-person-fill"></i>
                                 </div>
                                 <input 
@@ -91,9 +91,9 @@
                         </div>
 
                         <div class="space-y-1.5">
-                            <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">Adresse Email</label>
+                            <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Adresse Email</label>
                             <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2)">
                                     <i class="bi bi-envelope-fill"></i>
                                 </div>
                                 <input 
@@ -105,9 +105,9 @@
                         </div>
                         
                         <div class="space-y-1.5">
-                            <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">Poste</label>
+                            <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Poste</label>
                             <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2)">
                                     <i class="bi bi-briefcase-fill"></i>
                                 </div>
                                 <input 
@@ -120,7 +120,7 @@
                         </div>
 
                         <div class="space-y-1.5">
-                            <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50">Description</label>
+                            <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Description</label>
                             <div class="relative">
                                 <textarea 
                                     v-model="formData.description" 
@@ -159,7 +159,7 @@
 
                     <div class="space-y-6">
                         <div class="space-y-4">
-                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text)/50">Chiffrement de bout en bout (E2EE)</h4>
+                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Chiffrement de bout en bout (E2EE)</h4>
                             
                             <div class="p-6 bg-(--bg2) border border-(--border-color) rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center gap-6">
                                 <div class="w-16 h-16 rounded-full shrink-0 flex items-center justify-center transition-colors"
@@ -192,7 +192,7 @@
                         </div>
 
                         <div v-if="E2EEUnloked" class="space-y-4">
-                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text)/50">Preuve de chiffrement (E2EE)</h4>
+                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Preuve de chiffrement (E2EE)</h4>
                             
                             <div class="p-5 bg-(--bg2) border border-(--border-color) rounded-xl flex flex-col gap-3">
                                 <div class="flex items-center gap-3 text-(--text)/70">
@@ -200,25 +200,25 @@
                                     <span class="text-sm font-bold">Clé publique (RSA-OAEP 4096 bits)</span>
                                 </div>
                                 <div class="bg-(--bg) border border-white/5 p-3 rounded-lg flex items-center justify-between group">
-                                    <code class="text-xs text-(--text)/50 font-mono truncate mr-4">
+                                    <code class="text-xs text-(--text2) font-mono truncate mr-4">
                                         {{ publicKeyFingerprint }}
                                     </code>
                                     <button 
                                         @click="copyToClipboard(publicKeyFingerprint)"
-                                        class="text-(--text)/40 hover:text-(--text) transition-colors"
+                                        class="text-(--text2) hover:text-(--text) transition-colors"
                                         title="Copier l'empreinte"
                                     >
                                         <i class="bi bi-copy"></i>
                                     </button>
                                 </div>
-                                <p class="text-[10px] text-(--text)/40 leading-relaxed">
+                                <p class="text-[10px] text-(--text2) leading-relaxed">
                                     Ceci est l'empreinte unique de votre clé publique. Elle est utilisée par vos contacts pour chiffrer les messages qu'ils vous envoient. Seul votre appareil (grâce au code PIN) peut les déchiffrer avec la clé privée correspondante.
                                 </p>
                             </div>
                         </div>
 
                         <div class="space-y-4">
-                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text)/50">Authentification</h4>
+                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Authentification</h4>
                             
                             <div class="p-5 bg-(--bg2) border border-(--border-color) rounded-xl hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-between group"
                                 @click="keycloak.accountManagement()"
@@ -229,7 +229,7 @@
                                     </div>
                                     <div>
                                         <h4 class="font-bold text-(--text) text-sm">Mot de passe et authentification</h4>
-                                        <p class="text-xs text-(--text)/50 mt-0.5">Gérez votre mot de passe et l'A2F via Keycloak</p>
+                                        <p class="text-xs text-(--text2) mt-0.5">Gérez votre mot de passe et l'A2F via Keycloak</p>
                                     </div>
                                 </div>
                                 <i class="bi bi-box-arrow-up-right text-(--text)/30 group-hover:text-(--text) transition-colors"></i>
@@ -254,7 +254,7 @@
 
                         <div class="space-y-4">
 
-                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text)/50">Thème global</h4>
+                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Thème global</h4>
 
                             <div class="grid grid-cols-2 gap-4 max-w-md">
 
@@ -295,7 +295,7 @@
                         </div>
 
                         <div class="space-y-4">
-                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text)/50">Avancé</h4>
+                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Avancé</h4>
 
                             <div 
                                 @click="devMode = !devMode"

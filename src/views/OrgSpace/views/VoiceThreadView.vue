@@ -237,7 +237,7 @@
         <h2 class="text-2xl font-bold text-(--text) mb-3 tracking-wide">
             {{ thread?.name || 'Salon vocal' }}
         </h2>
-        <p class="text-sm text-(--text)/50 max-w-md text-center mb-10 leading-relaxed">
+        <p class="text-sm text-(--text2) max-w-md text-center mb-10 leading-relaxed">
             Rejoignez ce salon pour discuter de vive voix, activer votre caméra ou partager votre écran avec les autres membres.
         </p>
 

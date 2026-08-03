@@ -31,7 +31,7 @@
                     rows="3"
                     :maxlength="4096"
                 />
-                <p class="text-xs text-(--text)/50 mt-1 flex justify-between">
+                <p class="text-xs text-(--text2) mt-1 flex justify-between">
                     <span>Contenu du message (optionnel si embeds présents)</span>
                     <span>{{ payload.content?.length || 0 }}/4096</span>
                 </p>
@@ -77,7 +77,7 @@
                     </button>
                 </label>
                 
-                <div v-if="payload.embeds?.length === 0" class="text-xs text-(--text)/50">
+                <div v-if="payload.embeds?.length === 0" class="text-xs text-(--text2)">
                     Aucun embed configuré
                 </div>
                 
@@ -92,7 +92,7 @@
                             <button 
                                 type="button"
                                 @click="removeEmbed(index)"
-                                class="text-(--text)/40 hover:text-red-500"
+                                class="text-(--text2) hover:text-red-500"
                             >
                                 <i class="bi bi-trash" />
                             </button>

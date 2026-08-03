@@ -13,7 +13,7 @@
       <div v-else class="space-y-3">
         <h3 class="text-sm font-bold text-(--text)">Liens actifs pour ce salon</h3>
         
-        <div v-if="invites.length === 0" class="text-sm text-(--text)/50 bg-(--bg2) border border-(--border-color) p-4 rounded-xl text-center">
+        <div v-if="invites.length === 0" class="text-sm text-(--text2) bg-(--bg2) border border-(--border-color) p-4 rounded-xl text-center">
           Aucun lien d'invitation actif.
         </div>
 

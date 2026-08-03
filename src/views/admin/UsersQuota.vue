@@ -2,7 +2,7 @@
     <div class="space-y-6">
         <div class="flex flex-col md:flex-row gap-4 items-center justify-between bg-(--bg) p-4 rounded-2xl border border-white/5 shadow-lg">
             <div class="relative w-full md:w-96">
-                <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-(--text)/40"></i>
+                <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-(--text2)"></i>
                 <input 
                     v-model="searchQuery" 
                     type="text" 
@@ -20,11 +20,11 @@
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="border-b border-white/5 bg-(--bg2)/50">
-                            <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text)/50">Utilisateur</th>
-                            <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text)/50 text-center">Orgs Créées / Max</th>
-                            <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text)/50 text-center">Max Users (par Org)</th>
-                            <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text)/50 text-center">Max Storage (par Org)</th>
-                            <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text)/50 text-right">Actions</th>
+                            <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2)">Utilisateur</th>
+                            <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2) text-center">Orgs Créées / Max</th>
+                            <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2) text-center">Max Users (par Org)</th>
+                            <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2) text-center">Max Storage (par Org)</th>
+                            <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2) text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-white/5">
@@ -46,7 +46,7 @@
                                     </div>
                                     <div>
                                         <p class="font-bold text-sm text-(--text)">{{ user.name || 'Sans nom' }}</p>
-                                        <p class="text-xs text-(--text)/50 font-mono mt-0.5">{{ user.email }}</p>
+                                        <p class="text-xs text-(--text2) font-mono mt-0.5">{{ user.email }}</p>
                                     </div>
                                 </div>
                             </td>
@@ -69,7 +69,7 @@
                             <td class="p-4 text-right">
                                 <button 
                                     @click="openEditModal(user)"
-                                    class="p-2 text-(--text)/40 hover:text-(--primary) hover:bg-(--primary)/10 rounded-lg transition-colors"
+                                    class="p-2 text-(--text2) hover:text-(--primary) hover:bg-(--primary)/10 rounded-lg transition-colors"
                                     title="Modifier les quotas"
                                 >
                                     <i class="bi bi-pencil-square text-lg"></i>
@@ -77,7 +77,7 @@
                             </td>
                         </tr>
                         <tr v-if="!loading && !error && filteredUsers.length === 0">
-                            <td colspan="5" class="p-8 text-center text-(--text)/40 text-sm">
+                            <td colspan="5" class="p-8 text-center text-(--text2) text-sm">
                                 Aucun utilisateur trouvé.
                             </td>
                         </tr>
@@ -100,7 +100,7 @@
                 <div class="p-6 space-y-5">
                     
                     <div class="space-y-1.5">
-                        <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50 flex items-center gap-2">
+                        <label class="text-xs font-bold uppercase tracking-widest text-(--text2) flex items-center gap-2">
                             <i class="bi bi-building"></i> Max Organisations
                         </label>
                         <input 
@@ -110,11 +110,11 @@
                             max="2147483647"
                             class="w-full bg-(--bg2) border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all"
                         >
-                        <p class="text-[10px] text-(--text)/40 mt-1">Nombre d'organisations que l'utilisateur a le droit de créer.</p>
+                        <p class="text-[10px] text-(--text2) mt-1">Nombre d'organisations que l'utilisateur a le droit de créer.</p>
                     </div>
 
                     <div class="space-y-1.5">
-                        <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50 flex items-center gap-2">
+                        <label class="text-xs font-bold uppercase tracking-widest text-(--text2) flex items-center gap-2">
                             <i class="bi bi-people"></i> Max Users (Par Org)
                         </label>
                         <input 
@@ -124,11 +124,11 @@
                             max="2147483647"
                             class="w-full bg-(--bg2) border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all"
                         >
-                        <p class="text-[10px] text-(--text)/40 mt-1">Limite du nombre de membres appliquées à ses prochaines créations.</p>
+                        <p class="text-[10px] text-(--text2) mt-1">Limite du nombre de membres appliquées à ses prochaines créations.</p>
                     </div>
 
                     <div class="space-y-1.5">
-                        <label class="text-xs font-bold uppercase tracking-widest text-(--text)/50 flex items-center gap-2">
+                        <label class="text-xs font-bold uppercase tracking-widest text-(--text2) flex items-center gap-2">
                             <i class="bi bi-hdd"></i> Max Storage (Go)
                         </label>
                         <input 
@@ -139,7 +139,7 @@
                             step="0.1"
                             class="w-full bg-(--bg2) border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all"
                         >
-                        <p class="text-[10px] text-(--text)/40 mt-1">Stockage maximal en Gigaoctets pour ses futures organisations.</p>
+                        <p class="text-[10px] text-(--text2) mt-1">Stockage maximal en Gigaoctets pour ses futures organisations.</p>
                     </div>
 
                 </div>

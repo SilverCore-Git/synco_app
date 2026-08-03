@@ -19,7 +19,7 @@
 
             </div>
             
-            <div class="ml-auto flex items-center gap-4 text-(--text)/40">
+            <div class="ml-auto flex items-center gap-4 text-(--text2)">
 
                 <button class="hover:text-(--text) transition-colors">
                     <i 
@@ -36,7 +36,7 @@
 
             <div class="flex-1 flex items-center justify-center gap-8 flex-col">
                 <SpinLoader />
-                <span class="text-(--text)/50 italic">{{ loadingStatus }}</span>
+                <span class="text-(--text2) italic">{{ loadingStatus }}</span>
             </div>
 
         </template>
@@ -88,7 +88,7 @@
                 <div class="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center text-4xl opacity-20">
                     <i class="bi bi-person-x" />
                 </div>
-                <p class="text-(--text)/40 italic font-medium">Sélectionnez une discussion.</p>
+                <p class="text-(--text2) italic font-medium">Sélectionnez une discussion.</p>
             </div>
 
         </main>
@@ -109,7 +109,7 @@
                     @click="sendEncryptedMessage(newMessage); newMessage = ''"
                     :disabled="!newMessage.trim()"
                     class="ml-3 transition-all hover:scale-110 disabled:opacity-20 disabled:scale-100"
-                    :class="newMessage.trim() ? 'text-(--primary)' : 'text-(--text)/40'"
+                    :class="newMessage.trim() ? 'text-(--primary)' : 'text-(--text2)'"
                 >
                     <i class="bi bi-send-fill text-lg" />
                 </button>

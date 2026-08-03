@@ -18,7 +18,7 @@
                     required
                     :maxlength="100"
                 />
-                <p class="text-xs text-(--text)/50 mt-1">
+                <p class="text-xs text-(--text2) mt-1">
                     Donnez un nom descriptif à votre webhook (max 100 caractères)
                 </p>
             </div>
@@ -35,7 +35,7 @@
                     rows="3"
                     :maxlength="500"
                 />
-                <p class="text-xs text-(--text)/50 mt-1">
+                <p class="text-xs text-(--text2) mt-1">
                     Description optionnelle pour identifier l'usage du webhook
                 </p>
             </div>
@@ -62,7 +62,7 @@
                         #{{ channel.name }}
                     </option>
                 </select>
-                <p class="text-xs text-(--text)/50 mt-1">
+                <p class="text-xs text-(--text2) mt-1">
                     Les messages de ce webhook seront envoyés dans ce channel
                 </p>
             </div>
@@ -90,7 +90,7 @@
                         </label>
                     </div>
                 </div>
-                <p class="text-xs text-(--text)/50 mt-1">
+                <p class="text-xs text-(--text2) mt-1">
                     Sélectionnez les permissions que ce webhook pourra utiliser
                 </p>
             </div>
@@ -133,7 +133,7 @@
                         Webhook actif
                     </span>
                 </label>
-                <p class="text-xs text-(--text)/50 mt-1">
+                <p class="text-xs text-(--text2) mt-1">
                     {{ isActive ? 'Le webhook est actuellement actif et peut recevoir des messages.' : 'Le webhook est désactivé et ne peut pas recevoir de messages.' }}
                 </p>
             </div>

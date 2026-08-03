@@ -20,7 +20,7 @@
 
                 <h1 class="text-3xl font-black text-(--text) mb-2">#{{ thread.name }}</h1>
 
-                <p class="text-(--text)/50 flex items-center gap-2">
+                <p class="text-(--text2) flex items-center gap-2">
                     C'est le début de l'histoire de ce thread.
                 </p>
 
@@ -109,7 +109,7 @@
 
                 <button 
                     @click="cancelReply"
-                    class="shrink-0 text-(--text)/40 hover:text-(--text)/70 transition-colors"
+                    class="shrink-0 text-(--text2) hover:text-(--text)/70 transition-colors"
                     title="Annuler la réponse"
                 >
                     <i class="bi bi-x-lg text-lg" />
@@ -187,7 +187,7 @@
                         </template>
 
                         <template v-else>
-                            <i class="bi bi-file-earmark text-(--text)/40 text-xl" />
+                            <i class="bi bi-file-earmark text-(--text2) text-xl" />
                         </template>
 
                     </div>
@@ -242,7 +242,7 @@
 
                 <button 
                     @click="triggerFileSearch"
-                    class="mr-3 text-(--text)/40 hover:text-(--primary) transition-colors"
+                    class="mr-3 text-(--text2) hover:text-(--primary) transition-colors"
                 >
                     <i class="bi bi-plus-circle-fill text-xl" />
                 </button>
@@ -262,7 +262,7 @@
                 >
                     <button
                         @click="showEmojiPicker = !showEmojiPicker"
-                        class="text-(--text)/40 hover:text-(--primary) transition-colors"
+                        class="text-(--text2) hover:text-(--primary) transition-colors"
                         title="Ajouter un emoji"
                     >
                         <i class="bi bi-emoji-smile-fill text-xl" />
@@ -271,7 +271,7 @@
                     <button 
                         @click="sendMessage"
                         :disabled="(!newMessage.trim() && selectedFiles.length === 0) || !currentThreadKey"
-                        :class="(newMessage.trim() || selectedFiles.length > 0) && currentThreadKey ? 'text-(--primary)' : 'text-(--text)/40 opacity-50'"
+                        :class="(newMessage.trim() || selectedFiles.length > 0) && currentThreadKey ? 'text-(--primary)' : 'text-(--text2) opacity-50'"
                         class="transition-colors"
                     >
                         <i class="bi bi-send-fill" />

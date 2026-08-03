@@ -48,7 +48,7 @@
         <button
             v-if="user?.user?.id !== keycloak.subject"
             @click.stop="startCall(user.user!)"
-            class="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-(--primary)/10 text-(--text)/40 hover:text-(--primary) transition-all"
+            class="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-(--primary)/10 text-(--text2) hover:text-(--primary) transition-all"
             title="Appel vocal"
         >
             <i class="bi bi-telephone-fill text-sm" />

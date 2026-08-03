@@ -20,7 +20,7 @@
                 class="w-full bg-transparent text-lg text-(--text) placeholder:text-(--text)/30 focus:outline-none"
                 @input="handleInput"
             />
-            <button @click="emit('close')" class="ml-2 text-(--text)/40 hover:text-(--text) p-1">
+            <button @click="emit('close')" class="ml-2 text-(--text2) hover:text-(--text) p-1">
                 <i class="bi bi-x-lg text-xl" />
             </button>
         </div>
@@ -58,7 +58,7 @@
         </div>
 
         <div class="max-h-[60vh] overflow-y-auto p-2" v-if="query.length > 0">
-            <div v-if="loading" class="flex flex-col items-center justify-center py-8 text-(--text)/40">
+            <div v-if="loading" class="flex flex-col items-center justify-center py-8 text-(--text2)">
                 <i class="bi bi-robot text-4xl mb-3 animate-pulse text-(--primary)" />
                 <p>Recherche en cours...</p>
                 <p v-if="downloadProgress > 0 && downloadProgress < 100" class="text-xs mt-2 text-(--text)/30">Premier démarrage du moteur : {{ downloadProgress }}%</p>
@@ -70,7 +70,7 @@
                 <p class="text-xs mt-2 text-red-400/70 text-center max-w-xs">{{ error }}</p>
             </div>
 
-            <div v-else-if="results.length === 0" class="flex flex-col items-center justify-center py-8 text-(--text)/40">
+            <div v-else-if="results.length === 0" class="flex flex-col items-center justify-center py-8 text-(--text2)">
                 <i class="bi bi-emoji-frown text-4xl mb-3" />
                 <p>Aucun résultat trouvé pour "{{ query }}"</p>
             </div>
@@ -107,7 +107,7 @@
                                         </span>
                                     </div>
                                     <!-- Si c'est un message long, on montre la suite avec opacity reduite -->
-                                    <p v-if="group === 'MESSAGE'" class="text-xs text-(--text)/50 line-clamp-2 mt-1 font-mono">
+                                    <p v-if="group === 'MESSAGE'" class="text-xs text-(--text2) line-clamp-2 mt-1 font-mono">
                                         {{ res.textContent }}
                                     </p>
                                 </div>

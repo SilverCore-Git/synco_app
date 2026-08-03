@@ -35,7 +35,7 @@
 
             <div v-if="embed.footer" class="flex items-center gap-2 mt-2 pt-2 border-t border-white/10">
                 <img v-if="embed.footer.icon_url" :src="embed.footer.icon_url" class="w-4 h-4 rounded-full" />
-                <span class="text-[10px] text-(--text)/50">{{ embed.footer.text }}</span>
+                <span class="text-[10px] text-(--text2)">{{ embed.footer.text }}</span>
             </div>
         </div>
     </div>

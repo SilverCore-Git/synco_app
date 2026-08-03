@@ -10,7 +10,7 @@
 
         <div class="px-4 min-h-14 flex justify-between items-center border-b border-(--border-color) bg-(--bg2)">
 
-            <h3 class="text-xs font-semibold text-(--text)/50 uppercase tracking-wider">
+            <h3 class="text-xs font-semibold text-(--text2) uppercase tracking-wider">
                 Membres ({{ members?.length || 0 }})
             </h3>
 
@@ -59,7 +59,7 @@
                     <span class="text-sm font-medium text-(--text) truncate">
                         {{ member.user?.name }}
                     </span>
-                    <span class="text-xs text-(--text)/40">
+                    <span class="text-xs text-(--text2)">
                         {{ member.role }}
                     </span>
                 </div>
@@ -67,7 +67,7 @@
                 <button
                     v-if="member.user?.id !== keycloak.subject"
                     @click.prevent="startCall(member.user!)"
-                    class="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-(--primary)/10 text-(--text)/40 hover:text-(--primary) transition-all"
+                    class="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-(--primary)/10 text-(--text2) hover:text-(--primary) transition-all"
                     title="Appel vocal"
                 >
                     <i class="bi bi-telephone-fill text-sm" />
@@ -107,7 +107,7 @@
                     <span class="text-sm font-medium text-(--text) truncate">
                         {{ member.user?.name }}
                     </span>
-                    <span class="text-xs text-(--text)/40">
+                    <span class="text-xs text-(--text2)">
                         {{ member.role }}
                     </span>
                 </div>

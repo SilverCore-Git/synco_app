@@ -51,7 +51,7 @@
                         
                         <div class="flex-1 space-y-4">
                             <div class="space-y-1.5">
-                                <label class="text-xs font-black uppercase text-(--text)/50">Nom du Space</label>
+                                <label class="text-xs font-black uppercase text-(--text2)">Nom du Space</label>
                                 <input 
                                     type="text" 
                                     v-model="formData.name" 
@@ -63,7 +63,7 @@
                     </div>
 
                     <div class="space-y-4">
-                        <h4 class="text-xs font-black uppercase tracking-widest text-(--text)/50">ID de l'espace</h4>
+                        <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">ID de l'espace</h4>
                         <div class="flex items-center gap-2 bg-(--bg2) p-3 rounded-lg border border-(--border-color)">
                             <code class="text-(--primary) text-sm flex-1">{{ space.id }}</code>
                             <button class="text-xs font-bold hover:text-(--text)">Copier</button>

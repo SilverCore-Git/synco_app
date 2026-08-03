@@ -81,7 +81,7 @@
                                     <i :class="col.icon"></i>
                                     {{ col.title }}
                                 </h4>
-                                <span class="bg-white/5 text-(--text)/50 text-xs px-2 py-0.5 rounded-full font-bold">
+                                <span class="bg-white/5 text-(--text2) text-xs px-2 py-0.5 rounded-full font-bold">
                                     {{ getTasks(spaceGroup.tasks, col.id).length }}
                                 </span>
                             </div>

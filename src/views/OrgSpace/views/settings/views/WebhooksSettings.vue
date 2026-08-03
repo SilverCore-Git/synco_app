@@ -21,7 +21,7 @@
                     <!-- Filtres et recherche -->
                     <div class="flex flex-col sm:flex-row gap-4 items-center justify-between">
                         <div class="relative w-full sm:w-80 group">
-                            <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-(--text)/40 group-focus-within:text-(--primary) transition-colors" />
+                            <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-(--text2) group-focus-within:text-(--primary) transition-colors" />
                             <input 
                                 v-model="searchQuery"
                                 type="text" 

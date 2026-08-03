@@ -115,7 +115,7 @@ onMounted(async () => {
                 <template #content>
                     <div class="p-3 border-b border-white/5 bg-(--bg2) rounded-t-xl">
                         <p class="text-sm font-bold text-(--text) truncate">{{ me?.name || 'Utilisateur' }}</p>
-                        <p class="text-xs text-(--text)/50 truncate">{{ me?.email || '' }}</p>
+                        <p class="text-xs text-(--text2) truncate">{{ me?.email || '' }}</p>
                     </div>
                     <div class="p-1">
                         <button @click="showUserSettings = true" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--text)/80 hover:text-(--text) hover:bg-white/5 rounded-lg transition-colors">
@@ -155,7 +155,7 @@ onMounted(async () => {
             
             <!-- Barre de recherche -->
             <div class="relative w-full max-w-md mx-auto mt-8">
-                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2)">
                     <i class="bi bi-search"></i>
                 </div>
                 <input 
@@ -194,7 +194,7 @@ onMounted(async () => {
                     <i class="bi bi-search text-3xl text-white/30"></i>
                 </div>
                 <h3 class="text-xl font-bold text-(--text)">Aucune organisation trouvée</h3>
-                <p class="text-(--text)/50 text-sm">Vérifiez l'orthographe ou essayez un autre nom.</p>
+                <p class="text-(--text2) text-sm">Vérifiez l'orthographe ou essayez un autre nom.</p>
             </div>
         </div>
 

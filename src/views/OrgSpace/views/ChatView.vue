@@ -27,7 +27,7 @@
 
                     <div class="flex items-center gap-1.5">
                         <span class="w-1.5 h-1.5 rounded-full" :class="getColorByStatus(recipient.data!.status!)" />
-                        <span class="text-[10px] text-(--text)/40 uppercase tracking-tighter font-bold">
+                        <span class="text-[10px] text-(--text2) uppercase tracking-tighter font-bold">
                             {{ getTextByStatus(recipient.data!.status!) }}
                         </span>
                     </div>
@@ -36,7 +36,7 @@
 
             </div>
             
-            <div class="ml-auto flex items-center gap-4 text-(--text)/40">
+            <div class="ml-auto flex items-center gap-4 text-(--text2)">
 
                 <button @click="startCall(recipient)" class="hover:text-(--text) transition-colors" title="Appeler">
                     <i class="bi bi-telephone-fill text-xl" />
@@ -85,7 +85,7 @@
                     </div>
 
                     <h1 class="text-3xl font-black text-(--text) mb-2">{{ recipient.name }}</h1>
-                    <p class="text-(--text)/50 text-sm">
+                    <p class="text-(--text2) text-sm">
                         C'est le début de votre historique de messages directs avec <b>@{{ recipient.name }}</b>.
                     </p>
 
@@ -130,7 +130,7 @@
                 <div class="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center text-4xl opacity-20">
                     <i class="bi bi-person-x" />
                 </div>
-                <p class="text-(--text)/40 italic font-medium">Sélectionnez une discussion.</p>
+                <p class="text-(--text2) italic font-medium">Sélectionnez une discussion.</p>
             </div>
 
         </main>
@@ -148,7 +148,7 @@
                     <div class="typing-shadow" />
                 </div>
 
-                <p class="text-[11px] text-(--text)/50 italic">
+                <p class="text-[11px] text-(--text2) italic">
                     {{ recipient.name }} est en train d'écrire
                 </p>
 
@@ -172,7 +172,7 @@
 
                     <button 
                         @click="cancelReply"
-                        class="shrink-0 text-(--text)/40 hover:text-(--text)/70 transition-colors"
+                        class="shrink-0 text-(--text2) hover:text-(--text)/70 transition-colors"
                         title="Annuler la réponse"
                     >
                         <i class="bi bi-x-lg text-lg" />
@@ -258,7 +258,7 @@
 
                     <button 
                         @click="triggerFileSearch"
-                        class="mr-3 text-(--text)/40 hover:text-(--primary) transition-colors"
+                        class="mr-3 text-(--text2) hover:text-(--primary) transition-colors"
                     >
                         <i class="bi bi-plus-circle-fill text-xl" />
                     </button>
@@ -277,7 +277,7 @@
                     >
                         <button 
                             @click="showEmojiPicker = !showEmojiPicker"
-                            class="text-(--text)/40 hover:text-(--primary) transition-colors"
+                            class="text-(--text2) hover:text-(--primary) transition-colors"
                             title="Ajouter un emoji"
                         >
                             <i class="bi bi-emoji-smile-fill text-xl" />
@@ -286,7 +286,7 @@
                         <button 
                             @click="sendMessage"
                             :disabled="(!newMessage.trim() && selectedFiles.length === 0) "
-                            :class="(newMessage.trim() || selectedFiles.length > 0) ? 'text-(--primary)' : 'text-(--text)/40 opacity-50'"
+                            :class="(newMessage.trim() || selectedFiles.length > 0) ? 'text-(--primary)' : 'text-(--text2) opacity-50'"
                             class="transition-colors"
                         >
                             <i class="bi bi-send-fill" />

@@ -30,7 +30,7 @@
                     <span class="text-sm font-semibold text-(--primary)">Analyse en cours...</span>
                 </template>
                 <template v-else>
-                    <i class="bi bi-shield-check text-3xl text-(--text)/40 mb-2" />
+                    <i class="bi bi-shield-check text-3xl text-(--text2) mb-2" />
                     <span class="text-sm font-semibold text-(--text)/60">Déposer un fichier à inspecter</span>
                 </template>
             </div>

@@ -39,7 +39,7 @@
                 <table class="w-full text-left border-collapse">
 
                     <thead>
-                        <tr class="text-[10px] uppercase tracking-widest text-(--text)/40 border-b border-(--white)/5 bg-(--white)/2">
+                        <tr class="text-[10px] uppercase tracking-widest text-(--text2) border-b border-(--white)/5 bg-(--white)/2">
                             <th class="px-6 py-4 font-black">Utilisateur</th>
                             <th class="px-6 py-4 font-black text-right">Actions</th>
                         </tr>
@@ -78,7 +78,7 @@
                                             {{ member.user?.name || 'Utilisateur inconnu' }}
                                             <span v-if="isSelf(member.userId)" class="text-[9px] bg-(--white)/10 px-1.5 py-0.5 rounded text-(--text)/60">VOUS</span>
                                         </span>
-                                        <span class="text-[10px] text-(--text)/40">{{ member.user?.email || 'Email non disponible' }}</span>
+                                        <span class="text-[10px] text-(--text2)">{{ member.user?.email || 'Email non disponible' }}</span>
                                     </div>
 
                                 </div>
@@ -106,7 +106,7 @@
             
             <div v-if="filteredMembers.length === 0" class="p-12 text-center">
                 <i class="bi bi-people text-4xl text-(--text)/10 mb-3 block" />
-                <p class="text-(--text)/40 text-sm">Aucun membre trouvé pour cette recherche.</p>
+                <p class="text-(--text2) text-sm">Aucun membre trouvé pour cette recherche.</p>
             </div>
 
         </div>

@@ -15,7 +15,7 @@
                     <h3 v-if="!isEditing" class="text-xl font-bold text-(--text) mb-2 break-words">{{ task.title }}</h3>
                     <input v-else v-model="editForm.title" type="text" class="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-white mb-2 font-bold" />
                     
-                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-semibold text-(--text)/50 uppercase">
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-semibold text-(--text2) uppercase">
                         <span class="flex items-center gap-1 whitespace-nowrap">
                             <i class="bi bi-folder text-(--primary)/80"></i>
                             {{ task.space?.name || 'Général' }}
@@ -27,14 +27,14 @@
                     </div>
                 </div>
                 
-                <button @click="isEditing = !isEditing" class="text-(--text)/50 hover:text-white transition-colors bg-white/5 px-3 py-1.5 rounded-lg">
+                <button @click="isEditing = !isEditing" class="text-(--text2) hover:text-white transition-colors bg-white/5 px-3 py-1.5 rounded-lg">
                     <i class="bi" :class="isEditing ? 'bi-x-lg' : 'bi-pencil-fill'"></i>
                 </button>
             </div>
 
             <!-- Description -->
             <div class="bg-white/5 rounded-xl p-4 border border-white/10">
-                <h4 class="text-xs font-bold text-(--text)/50 uppercase mb-2">Description</h4>
+                <h4 class="text-xs font-bold text-(--text2) uppercase mb-2">Description</h4>
                 <p v-if="!isEditing" class="text-sm text-white/80 whitespace-pre-wrap">{{ task.description || 'Aucune description fournie.' }}</p>
                 <textarea v-else v-model="editForm.description" rows="3" class="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-white/80 resize-none"></textarea>
             </div>
@@ -75,14 +75,14 @@
                             <button @click="toggleSubtaskStatus(subtask)" class="text-xl transition-colors" :class="subtask.status === 'DONE' ? 'text-green-500' : 'text-(--text)/30 hover:text-(--primary)'">
                                 <i class="bi" :class="subtask.status === 'DONE' ? 'bi-check-circle-fill' : 'bi-circle'"></i>
                             </button>
-                            <span class="text-sm font-medium" :class="subtask.status === 'DONE' ? 'text-(--text)/40 line-through' : 'text-white'">{{ subtask.title }}</span>
+                            <span class="text-sm font-medium" :class="subtask.status === 'DONE' ? 'text-(--text2) line-through' : 'text-white'">{{ subtask.title }}</span>
                         </div>
                         <button @click="deleteSubtask(subtask.id)" class="text-red-500/50 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
                             <i class="bi bi-trash-fill"></i>
                         </button>
                     </div>
                     
-                    <div v-if="!task.subtasks || task.subtasks.length === 0" class="text-xs text-(--text)/40 italic text-center py-4">
+                    <div v-if="!task.subtasks || task.subtasks.length === 0" class="text-xs text-(--text2) italic text-center py-4">
                         Aucune sous-tâche pour le moment.
                     </div>
                 </div>
