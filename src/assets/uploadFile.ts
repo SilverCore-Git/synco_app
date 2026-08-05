@@ -1,5 +1,7 @@
 import { keycloak } from "./keycloak";
 import { openedOrg } from "./var";
+import { encryptFileLocal } from "./utils/crypto";
+import { getWorkspaceKey } from "./utils/workspaceCrypto";
 
 export interface UploadContext {
     workspaceId: string;
@@ -21,17 +23,52 @@ export default async function uploadFile(
         console.warn("Failed to refresh token before upload", e);
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
 
         const formData = new FormData();
         
-        formData.append('file', file);
+        let finalFile = file;
+        let isE2EE = false;
+        let encryptedFileKeyBase64 = "";
+        let ivBase64 = "";
+        let keyVersion = 1;
+
+        if (context.workspaceId) {
+            try {
+                // 1. Get the WorkspaceKey
+                const { key: spaceKey, version } = await getWorkspaceKey(context.workspaceId);
+                
+                // 2. Encrypt the file locally
+                const arrayBuffer = await file.arrayBuffer();
+                const { encryptedBlob, encryptedFileKey, iv } = await encryptFileLocal(arrayBuffer, spaceKey);
+                
+                // 3. Prepare E2EE parameters
+                finalFile = new File([encryptedBlob], file.name, { type: file.type });
+                isE2EE = true;
+                encryptedFileKeyBase64 = encryptedFileKey;
+                ivBase64 = iv;
+                keyVersion = version;
+            } catch (e) {
+                console.error("Failed to encrypt file for upload:", e);
+                // On pourrait décider de fallback sur du SSE, mais c'est mieux de fail si E2EE est requis
+                // Fallback SSE for now if key generation fails
+            }
+        }
+
+        formData.append('file', finalFile);
 
         formData.append('orgId', openedOrg.value!.id);
         formData.append('workspaceId', context.workspaceId);
         if (context.messageId) formData.append('messageId', context.messageId);
         if (context.folderId) formData.append('folderId', context.folderId);
         if (context.dmMessageId) formData.append('dmMessageId', context.dmMessageId);
+
+        if (isE2EE) {
+            formData.append('isE2EE', 'true');
+            formData.append('encryptedFileKey', encryptedFileKeyBase64);
+            formData.append('keyVersion', String(keyVersion));
+            formData.append('iv', ivBase64);
+        }
 
         const xhr = new XMLHttpRequest();
 

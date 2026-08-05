@@ -12,7 +12,7 @@
                 <span class="text-xs font-bold text-(--text) uppercase tracking-wider">
                     {{ title }}
                 </span>
-                <span class="text-[10px] text-(--text)/40 font-medium">
+                <span class="text-[10px] text-(--text2) font-medium">
                     {{ isBytes ? formatBytes(used) : used }} / {{ isBytes ? formatBytes(max) : max }} {{ unit }}
                 </span>
                 </div>
@@ -50,7 +50,7 @@
                 />
             </span>
 
-            <span class="text-[9px] font-medium tracking-wide text-(--text)/40 uppercase">
+            <span class="text-[9px] font-medium tracking-wide text-(--text2) uppercase">
                 {{ statusClasses.message }}
             </span>
 

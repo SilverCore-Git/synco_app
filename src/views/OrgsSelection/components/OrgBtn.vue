@@ -11,7 +11,7 @@
             <div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white/50 group-hover:bg-(--primary) group-hover:text-white transition-all shadow-md">
                 <i class="bi bi-plus-lg text-2xl"></i>
             </div>
-            <span class="font-bold text-sm text-(--text)/60 group-hover:text-(--primary) transition-colors">{{ org.name }}</span>
+            <span class="font-bold text-sm text-(--text2) group-hover:text-(--primary) transition-colors">{{ org.name }}</span>
         </div>
 
         <!-- Normal Card -->

@@ -8,13 +8,13 @@
 
                 <h3 class="text-lg font-bold text-(--text)">
                     Membres 
-                    <span class="text-(--text)/30 font-medium ml-2 text-sm">
+                    <span class="text-(--text2) font-medium ml-2 text-sm">
                         {{ filteredMembers.length }}
                     </span>
                 </h3>
                 
                 <div class="relative">
-                    <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text)/30 text-[10px]" />
+                    <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-[10px]" />
                     <input 
                         v-model="searchQuery"
                         type="text" 
@@ -39,7 +39,7 @@
                 <table class="w-full text-left border-collapse">
 
                     <thead>
-                        <tr class="text-[10px] uppercase tracking-widest text-(--text)/40 border-b border-(--white)/5 bg-(--white)/2">
+                        <tr class="text-[10px] uppercase tracking-widest text-(--text2) border-b border-(--white)/5 bg-(--white)/2">
                             <th class="px-6 py-4 font-black">Utilisateur</th>
                             <th class="px-6 py-4 font-black text-right">Actions</th>
                         </tr>
@@ -76,9 +76,9 @@
                                     <div class="flex flex-col">
                                         <span class="text-sm font-bold text-(--text) flex items-center gap-2">
                                             {{ member.user?.name || 'Utilisateur inconnu' }}
-                                            <span v-if="isSelf(member.userId)" class="text-[9px] bg-(--white)/10 px-1.5 py-0.5 rounded text-(--text)/60">VOUS</span>
+                                            <span v-if="isSelf(member.userId)" class="text-[9px] bg-(--white)/10 px-1.5 py-0.5 rounded text-(--text2)">VOUS</span>
                                         </span>
-                                        <span class="text-[10px] text-(--text)/40">{{ member.user?.email || 'Email non disponible' }}</span>
+                                        <span class="text-[10px] text-(--text2)">{{ member.user?.email || 'Email non disponible' }}</span>
                                     </div>
 
                                 </div>
@@ -105,8 +105,8 @@
             </div>
             
             <div v-if="filteredMembers.length === 0" class="p-12 text-center">
-                <i class="bi bi-people text-4xl text-(--text)/10 mb-3 block" />
-                <p class="text-(--text)/40 text-sm">Aucun membre trouvé pour cette recherche.</p>
+                <i class="bi bi-people text-4xl text-(--text2) mb-3 block" />
+                <p class="text-(--text2) text-sm">Aucun membre trouvé pour cette recherche.</p>
             </div>
 
         </div>
@@ -117,7 +117,7 @@
 
         <template #title>Ajouter des membres</template>
                 
-        <p class="text-xs text-(--text)/60 mb-4 font-medium uppercase tracking-widest">Membres de l'organisation</p>
+        <p class="text-xs text-(--text2) mb-4 font-medium uppercase tracking-widest">Membres de l'organisation</p>
                 
         <div class="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
 
@@ -132,7 +132,7 @@
                         :src="orgMember.user?.avatarUrl || 'https://cdn.silvercore.fr/static/files/silverteams/avatar/default.png'" 
                         class="w-8 h-8 rounded-full" 
                     />
-                    <span class="text-sm font-bold text-(--text)/80">{{ orgMember.user?.name }}</span>
+                    <span class="text-sm font-bold text-(--text)">{{ orgMember.user?.name }}</span>
                 </div>
 
                 <button @click="invite(orgMember)" class="text-(--primary) text-xs font-black opacity-0 group-hover:opacity-100 transition-opacity">

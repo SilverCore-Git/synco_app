@@ -21,13 +21,13 @@
                         w-full bg-(--bg2) text-(--text) text-sm rounded-xl p-4
                         border border-(--border-color) focus:border-(--primary)/50
                         outline-none resize-none transition-all duration-200
-                        placeholder:text-(--text)/20
+                        placeholder:text-(--text2)
                     "
                     placeholder="Votre message..."
                     @keydown.ctrl.enter="handleSave"
                 ></textarea>
                 
-                <div class="absolute bottom-3 right-3 text-[10px] text-(--text)/30">
+                <div class="absolute bottom-3 right-3 text-[10px] text-(--text2)">
                     ctrl + Enter pour valider
                 </div>
 

@@ -11,6 +11,7 @@ import { keycloak } from '@/assets/keycloak';
 
 const PEER_CONFIG = {
     sdpSemantics: 'unified-plan' as const,
+    encodedInsertableStreams: true,
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' }
@@ -188,9 +189,10 @@ export default function useSecurePeer() {
 
         peer.value = new Peer(myId, {
             host: import.meta.env.VITE_PEER_HOST || 'localhost',
-            port: import.meta.env.VITE_PEER_PORT || 9001,
+            port: Number(import.meta.env.VITE_PEER_PORT || 9001),
             path: import.meta.env.VITE_PEER_PATH || '/webrtc',
             secure: import.meta.env.VITE_PEER_SECURE === 'true' || false,
+            key: import.meta.env.VITE_PEER_PUBLISHABLE_KEY || 'peerjs',
             config: PEER_CONFIG,
             debug: 1
         });
@@ -433,7 +435,7 @@ export default function useSecurePeer() {
     /**
      * Handle call events with E2EE setup
      */
-    const handleCallEvents = (call: MediaConnection) => {
+    const handleCallEvents = (call: MediaConnection, isCaller: boolean) => {
         const peerId = call.peer;
         
         // Create secure session
@@ -469,8 +471,99 @@ export default function useSecurePeer() {
         });
 
         // Set up data channel for E2EE signaling
-        const dataChannel = call.peerConnection.createDataChannel('secure-control');
-        setupSecureDataChannel(dataChannel, peerId);
+        if (isCaller) {
+            const dataChannel = call.peerConnection.createDataChannel('secure-control');
+            setupSecureDataChannel(dataChannel, peerId);
+        } else {
+            call.peerConnection.ondatachannel = (event) => {
+                if (event.channel.label === 'secure-control') {
+                    setupSecureDataChannel(event.channel, peerId);
+                }
+            };
+        }
+        
+        setupMediaEncryption(peerId);
+    };
+
+    /**
+     * Setup E2EE Media Frame Encryption using Insertable Streams
+     */
+    const setupMediaEncryption = (peerId: string) => {
+        const session = activeCalls.value.get(peerId);
+        if (!session) return;
+        
+        const pc = session.call.peerConnection;
+        if (!('createEncodedStreams' in RTCRtpSender.prototype)) {
+            console.warn('[SECURE-PEER] Insertable Streams API non supportée. Le flux média ne sera pas doublement chiffré.');
+            return;
+        }
+
+        try {
+            // Senders (Encrypt)
+            pc.getSenders().forEach(sender => {
+                if (!sender.track || (sender as any)._e2eeSetup) return;
+                (sender as any)._e2eeSetup = true;
+
+                const streams = (sender as any).createEncodedStreams();
+                const transform = new TransformStream({
+                    async transform(chunk, controller) {
+                        if (!session.e2eeKey) return; // Drop frame if key is not ready
+                        
+                        const data = new Uint8Array(chunk.data);
+                        const iv = crypto.getRandomValues(new Uint8Array(12));
+                        
+                        try {
+                            const ciphertext = await crypto.subtle.encrypt(
+                                { name: 'AES-GCM', iv },
+                                session.e2eeKey,
+                                data
+                            );
+                            const payload = new Uint8Array(iv.length + ciphertext.byteLength);
+                            payload.set(iv, 0);
+                            payload.set(new Uint8Array(ciphertext), iv.length);
+                            chunk.data = payload.buffer;
+                            controller.enqueue(chunk);
+                        } catch (e) {
+                            // Ignorer
+                        }
+                    }
+                });
+                streams.readable.pipeThrough(transform).pipeTo(streams.writable);
+            });
+
+            // Receivers (Decrypt)
+            pc.getReceivers().forEach(receiver => {
+                if (!receiver.track || (receiver as any)._e2eeSetup) return;
+                (receiver as any)._e2eeSetup = true;
+
+                const streams = (receiver as any).createEncodedStreams();
+                const transform = new TransformStream({
+                    async transform(chunk, controller) {
+                        if (!session.e2eeKey) return;
+                        
+                        const payload = new Uint8Array(chunk.data);
+                        if (payload.byteLength > 12) {
+                            const iv = payload.slice(0, 12);
+                            const ciphertext = payload.slice(12);
+                            try {
+                                const plaintext = await crypto.subtle.decrypt(
+                                    { name: 'AES-GCM', iv },
+                                    session.e2eeKey,
+                                    ciphertext
+                                );
+                                chunk.data = plaintext;
+                                controller.enqueue(chunk);
+                            } catch (e) {
+                                // Decryption failed
+                            }
+                        }
+                    }
+                });
+                streams.readable.pipeThrough(transform).pipeTo(streams.writable);
+            });
+        } catch(e) {
+            console.error('[SECURE-PEER] Erreur setup E2EE:', e);
+        }
     };
 
     /**
@@ -572,7 +665,7 @@ export default function useSecurePeer() {
             
             monitorAudio(localStream.value, (val) => isSpeaking.value = val);
             enteringCall.value.answer(localStream.value);
-            handleCallEvents(enteringCall.value);
+            handleCallEvents(enteringCall.value, false);
 
             const peerId = enteringCall.value.peer;
             callNotif.value = callNotif.value.filter(m => m.user?.id !== peerId);
@@ -647,7 +740,7 @@ export default function useSecurePeer() {
                 throw new Error(`L'appel n'a pas pu être établi avec l'ID : ${recipient.id}`);
             }
 
-            handleCallEvents(call);
+            handleCallEvents(call, true);
 
         } catch (err) {
             console.error("[SECURE-PEER] Erreur startCall:", err);

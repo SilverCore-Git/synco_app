@@ -15,7 +15,7 @@
                     <div 
                         v-if="msg.replyToId && msg.replyMessage" 
                         @click="router.push({ query: { ...route.query, select: msg.replyMessage?.id } })"
-                        class="group/reply reply-context flex items-center gap-2 mb-1 text-xs text-(--text)/60 relative pl-13 cursor-pointer"
+                        class="group/reply reply-context flex items-center gap-2 mb-1 text-xs text-(--text2) relative pl-13 cursor-pointer"
                     >
                         
                         <div class="z-10 absolute left-4 top-2.5 w-7 h-13 border-l-2 border-t-2 border-white/20 group-hover/reply:border-white/40 rounded-tl-md"></div>
@@ -127,16 +127,16 @@
                                     {{ msg.sender?.name || 'Anonyme' }}
                                 </span>
 
-                                <span class="text-(--text)/27 text-[10px] whitespace-nowrap">
+                                <span class="text-(--text2) text-[10px] whitespace-nowrap">
                                     {{ formatTime(msg.createdAt as any) }}
                                 </span>
 
                             </div>
 
-                            <div ref="messageContentRef" class="text-(--text)/80 text-sm leading-relaxed wrap-break-word">
+                            <div ref="messageContentRef" class="text-(--text) text-sm leading-relaxed wrap-break-word">
                                 <MarkdownRender :content="msg.content" />
                                 <WebhookEmbed v-if="msg.isWebhook && msg.embeds && msg.embeds.length > 0" :embeds="msg.embeds" />
-                                <span v-if="msg.edited" class="text-[10px] text-(--text)/30"> (modifié)</span>
+                                <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
                             </div>
                             
                             <!-- Message reactions -->
@@ -178,17 +178,17 @@
                                     </div>
 
                                     <div class="flex flex-col min-w-0 pr-2">
-                                        <span class="text-xs font-medium text-(--text)/90 truncate">
+                                        <span class="text-xs font-medium text-(--text) truncate">
                                             {{ file.originalName }}
                                         </span>
-                                        <span class="text-[10px] text-(--text)/40 uppercase tracking-wider">
+                                        <span class="text-[10px] text-(--text2) uppercase tracking-wider">
                                             {{ (file.size / 1024 / 1024).toFixed(2) }} MB
                                         </span>
                                     </div>
 
                                     <button 
                                         @click="downloadFile(file.id)"
-                                        class="ml-auto p-1.5 rounded-md hover:bg-(--primary)/20 text-(--text)/60 hover:text-(--primary) transition-colors"
+                                        class="ml-auto p-1.5 rounded-md hover:bg-(--primary)/20 text-(--text2) hover:text-(--primary) transition-colors"
                                         title="Télécharger"
                                     >
                                         <i class="bi bi-download" />

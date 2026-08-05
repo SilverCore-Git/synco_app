@@ -1,6 +1,6 @@
 <template>
     <button v-if="isLittleScreen" @click="router.push({ query: { ...route.query, showView: '0' } })" class="mr-3">
-        <i class="bi bi-arrow-left text-2xl text-(--text)/80" />
+        <i class="bi bi-arrow-left text-2xl text-(--text)" />
     </button>
 </template>
 

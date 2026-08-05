@@ -24,7 +24,7 @@
 
                 <div class="text-red-500 text-5xl">⚠️</div>
                 <h1 class="text-2xl font-bold">Invitation invalide</h1>
-                <p class="text-sm text-(--text)/60">{{ error }}</p>
+                <p class="text-sm text-(--text2)">{{ error }}</p>
 
                 <router-link to="/"><button class="default-primary mt-2">
                     Retour à l'accueil
@@ -62,7 +62,7 @@
                 <h1 class="text-2xl font-bold">Vous êtes invité à rejoindre</h1>
                 <p class="text-xl font-semibold text-(--primary)">{{ inviteData.organizationName }}</p>
                 
-                <p class="text-sm text-(--text)/60 mt-2">
+                <p class="text-sm text-(--text2) mt-2">
                     Cliquez ci-dessous pour accepter l'invitation et rejoindre l'équipe.
                 </p>
 

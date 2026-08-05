@@ -10,7 +10,6 @@ import Notifications from './components/overlay/Notifications.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
 import useSettingsItem from './composables/useSettingsItem';
 import { initKC } from './assets/keycloak';
-//import { E2EEUnloked, lockSecurity, setupFirstTimeSecurity, unlockSecurity } from './assets/utils/crypto';
 import { E2EEUnloked, setupFirstTimeSecurity, unlockSecurity } from './assets/utils/crypto';
 import sfetch from './assets/utils/sfetch';
 import { useToast } from './composables/useToast';
@@ -47,6 +46,12 @@ watch(() => theme.value, () => {
   document.body.className = theme.value;
 })
 
+watch(() => E2EEUnloked.value, (isUnlocked) => {
+  if (!isUnlocked) {
+    pin.value = '';
+  }
+});
+
 const authenticated = ref<boolean>(false);
 const pinSetup = computed(() =>
   user.value?.pinSalt?.trim() &&
@@ -59,6 +64,10 @@ const press = (num: string) => {
   if (pin.value.length < 4) {
     pin.value += num;
     if (window.navigator.vibrate) window.navigator.vibrate(10);
+    
+    if (pin.value.length === 4) {
+      setTimeout(() => submit(), 50);
+    }
   }
 };
 
@@ -104,6 +113,8 @@ const submit = async () => {
         toast.show('Code PIN incorrect', 'error');
         console.log('Code PIN incorrect');
         pin.value = '';
+      } else {
+        pin.value = '';
       }
 
     }
@@ -119,6 +130,7 @@ const submit = async () => {
       if (res.ok) {
         await refetchUser();
         pinLoading.value = false;
+        pin.value = '';
       }
       else {
         toast.show('Une erreur est survenue lors de l\'initialisation du code pin.', 'error');
@@ -233,7 +245,7 @@ onMounted(async () => {
                   'Configurez votre accès sécurisé' }}
               </h2>
 
-              <p v-if="!pinSetup || isResettingPIN" class="text-sm text-(--text)/50 mt-2 leading-relaxed">
+              <p v-if="!pinSetup || isResettingPIN" class="text-sm text-(--text2) mt-2 leading-relaxed">
                 Ce code PIN est la clé de vos conversations. <br />
                 <span class="text-amber-500/80 font-medium">S'il est perdu, elles resteront illisibles.</span>
               </p>
@@ -284,17 +296,17 @@ onMounted(async () => {
             </div>
 
             <button v-if="pinSetup && !isResettingPIN" @click="pinForgot"
-              class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text)/30 hover:text-(--primary) transition-colors">
+              class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text2) hover:text-(--primary) transition-colors">
               Code PIN oublié ?
             </button>
 
             <Popup :isOpen="showResetConfirm" @close="showResetConfirm = false">
               <template #title>Réinitialiser le code PIN</template>
-              <p class="text-(--text)/80 text-sm">
+              <p class="text-(--text) text-sm">
                 Cela réinitialisera votre clé de chiffrement.
                 <span class="text-amber-500 font-medium">Tous vos anciens messages deviendront illisibles.</span>
               </p>
-              <p class="text-(--text)/60 text-xs mt-4">
+              <p class="text-(--text2) text-xs mt-4">
                 Cette action ne peut pas être annulée.
               </p>
               <template #footer>

@@ -10,8 +10,8 @@
 
                 <MobileBackBtn />
 
-                <i v-if="thread.type === 'text'" class="bi bi-hash text-2xl text-(--text)/40" />
-                <i v-else class="bi bi-volume-up-fill text-xl text-(--text)/40" />
+                <i v-if="thread.type === 'text'" class="bi bi-hash text-2xl text-(--text2)" />
+                <i v-else class="bi bi-volume-up-fill text-xl text-(--text2)" />
 
                 <h2 class="font-bold text-(--text) tracking-wide lowercase">
                     {{ thread.name }}
@@ -19,10 +19,7 @@
 
             </div>
             
-            <div class="ml-auto flex items-center gap-4 text-(--text)/40">
-                <button class="hover:text-(--text) transition-colors">
-                    <i class="bi bi-bell-fill" />
-                </button>
+            <div class="ml-auto flex items-center gap-4 text-(--text2)">
                 <button 
                     @click="showUsersBar = !showUsersBar"
                     class="hover:text-(--text) transition-colors"

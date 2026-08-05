@@ -7,7 +7,7 @@
                 
                 <div class="mb-8">
                     <h3 class="text-2xl font-black text-(--text) mb-2">Gestion de l'équipe</h3>
-                    <p class="text-sm text-(--text)/60">Gérez les membres, les rôles et les invitations de votre organisation.</p>
+                    <p class="text-sm text-(--text2)">Gérez les membres, les rôles et les invitations de votre organisation.</p>
                 </div>
 
                 <section class="flex flex-col gap-8">
@@ -23,113 +23,74 @@
                         />
                     </div>
 
-                    <!-- Carte d'invitation -->
-                    <div class="bg-(--bg2) border border-(--border-color) rounded-2xl p-6 shadow-sm flex flex-col gap-4">
-                        <div>
-                            <h4 class="text-sm font-bold text-(--text)">Lien d'invitation</h4>
-                            <p class="text-xs text-(--text)/50 mt-1">Partagez ce lien unique pour permettre à d'autres de rejoindre l'organisation instantanément.</p>
-                        </div>
-
-                        <div class="relative flex flex-col sm:flex-row gap-3 mt-auto pt-2">
-                            <div class="relative flex-1">
-                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
-                                    <i class="bi bi-link-45deg"></i>
-                                </div>
-                                <input 
-                                    readonly
-                                    type="text"
-                                    :value="inviteLink || 'Cliquez pour générer un lien'"
-                                    class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner font-mono"
-                                />
-                            </div>
-                            <div class="flex gap-2">
-                                <div class="relative w-20 hidden sm:block" v-if="inviteLink.length === 0">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-(--text)/40" title="Nombre d'utilisations (0 = infini)">
-                                        <i class="bi bi-people"></i>
-                                    </div>
-                                    <input 
-                                        type="number"
-                                        v-model.number="inviteMaxUses"
-                                        min="0"
-                                        class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-9 pr-3 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all shadow-inner"
-                                        title="Nombre d'utilisations (0 = infini)"
-                                    />
-                                </div>
-                                <button 
-                                    @click="inviteLink.length === 0 ? createInviteLink() : copyInvite()" 
-                                    class="bg-(--primary) hover:bg-(--primary-hover) text-white rounded-xl px-4 py-3 text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm"
-                                >
-                                    <i class="bi" :class="inviteLink.length === 0 ? 'bi-stars' : copied ? 'bi-check-lg' : 'bi-copy'" />
-                                    {{ inviteLink.length === 0 ? 'Générer' : copied ? 'Copié' : 'Copier' }}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
                 </section>
 
+                <!-------------------->
+                <!-- SECTION MEMBRE -->
+                <!-------------------->
                 <section class="bg-(--bg2) rounded-2xl border border-(--border-color) shadow-sm overflow-hidden flex flex-col">
-                    
-                    <div class="p-6 border-b border-(--border-color) flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-(--bg3)/20">
 
-                        <h3 class="text-lg font-bold text-(--text) flex items-center gap-3">
-                            Membres 
-                            <span class="bg-(--primary)/10 text-(--primary) py-1 px-2.5 rounded-lg text-xs">
-                                {{ openedOrg?.members?.length || 0 }}
-                            </span>
-                        </h3>
+                    <!-- En-tête avec titre et recherche -->
+                    <div class="p-6 border-b border-(--border-color) flex flex-col gap-6 bg-(--bg3)/20">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <h3 class="text-lg font-bold text-(--text) flex items-center gap-3">
+                                Membres
+                                <span class="bg-(--primary)/10 text-(--primary) py-1 px-2.5 rounded-lg text-xs">
+                                    {{ openedOrg?.members?.length || 0 }}
+                                </span>
+                            </h3>
 
-                        <div class="relative w-full sm:w-80 group">
-                            <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-(--text)/40 group-focus-within:text-(--primary) transition-colors" />
-                            <input 
-                                v-model="searchQuery"
-                                type="text" 
-                                placeholder="Rechercher un nom ou un email..."
-                                class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-11 pr-4 py-2.5 text-sm text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner placeholder:text-(--text)/30"
-                            />
+                            <!-- Barre de recherche -->
+                            <div class="relative w-full sm:w-80 group">
+                                <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-(--text2) group-focus-within:text-(--primary) transition-colors" />
+                                <input
+                                    v-model="searchQuery"
+                                    type="text"
+                                    placeholder="Rechercher un nom ou un email..."
+                                    class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-11 pr-4 py-2.5 text-sm text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner placeholder:text-(--text2)"
+                                />
+                            </div>
                         </div>
-
                     </div>
 
+                    <!-- Contenu principal -->
                     <div class="overflow-x-auto">
+                        <div class="w-full">
+                            <!-- En-tête (desktop uniquement) -->
+                            <div class="sm:grid-cols-[2fr_1fr_1fr_1fr] text-[10px] uppercase tracking-widest text-(--text) bg-(--bg3)/30 border-b border-(--border-color) hidden sm:grid">
+                                <div class="px-6 py-4 font-bold">Utilisateur</div>
+                                <div class="px-6 py-4 font-bold">Rôle</div>
+                                <div class="px-6 py-4 font-bold">Date d'arrivée</div>
+                                <div class="px-6 py-4 font-bold text-right">Actions</div>
+                            </div>
 
-                        <table class="w-full text-left border-collapse">
-
-                            <thead>
-                                <tr class="text-[10px] uppercase tracking-widest text-(--text)/50 bg-(--bg3)/30 border-b border-(--border-color)">
-                                    <th class="px-6 py-4 font-bold">Utilisateur</th>
-                                    <th class="px-6 py-4 font-bold">Rôle</th>
-                                    <th class="px-6 py-4 font-bold">Date d'arrivée</th>
-                                    <th class="px-6 py-4 font-bold text-right">Actions</th>
-                                </tr>
-                            </thead>
-
-                            <tbody class="divide-y divide-(--border-color)">
-                                <tr 
-                                    v-for="member in filteredMembers" 
-                                    :key="member.id" 
-                                    class="group hover:bg-(--bg)/40 transition-colors"
+                            <!-- Liste des membres -->
+                            <div class="divide-y divide-(--border-color)">
+                                <div
+                                    v-for="member in filteredMembers"
+                                    :key="member.id"
+                                    class="group block sm:grid sm:grid-cols-[2fr_1fr_1fr_1fr] hover:bg-(--bg)/40 transition-colors"
                                 >
-                                    <td class="px-6 py-4">
-                                        <div class="flex items-center gap-4">
-                                            <div class="relative">
-                                                <img 
-                                                    :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=062d1f&color=16ac77`" 
-                                                    class="w-10 h-10 rounded-full object-cover bg-(--bg) border border-(--border-color)" 
-                                                />
-                                                <div v-if="isSelf(member.user?.id!)" class="absolute -bottom-1 -right-1 bg-(--primary) w-3.5 h-3.5 rounded-full border-2 border-(--bg2)" title="Vous" />
-                                            </div>
-                                            <div class="flex flex-col">
-                                                <span class="text-sm font-bold text-(--text) group-hover:text-(--primary) transition-colors">
-                                                    {{ member.user?.name || 'Utilisateur inconnu' }}
-                                                </span>
-                                                <span class="text-[11px] text-(--text)/50">{{ member.user?.email }}</span>
-                                            </div>
+                                    <!-- Utilisateur (Desktop) -->
+                                    <div class="px-6 py-4 flex items-center gap-4 hidden sm:flex">
+                                        <div class="relative">
+                                            <img
+                                                :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=062d1f&color=16ac77`"
+                                                class="w-10 h-10 rounded-full object-cover bg-(--bg) border border-(--border-color)"
+                                            />
+                                            <div v-if="isSelf(member.user?.id!)" class="absolute -bottom-1 -right-1 bg-(--primary) w-3.5 h-3.5 rounded-full border-2 border-(--bg2)" title="Vous" />
                                         </div>
-                                    </td>
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-bold text-(--text) group-hover:text-(--primary) transition-colors">
+                                                {{ member.user?.name || 'Utilisateur inconnu' }}
+                                            </span>
+                                            <span class="text-[11px] text-(--text2)">{{ member.user?.email }}</span>
+                                        </div>
+                                    </div>
 
-                                    <td class="px-6 py-4">
-                                        <select 
+                                    <!-- Rôle (Desktop) -->
+                                    <div class="px-6 py-4 flex items-center hidden sm:flex">
+                                        <select
                                             :value="member?.role || 'unknow'"
                                             @change="updateRole(member.id, $event)"
                                             :disabled="isSelf(member.user?.id!) || !isAdmin"
@@ -140,106 +101,352 @@
                                             <option value="MEMBER">Membre</option>
                                             <option value="GUEST">Invité</option>
                                         </select>
-                                    </td>
+                                    </div>
 
-                                    <td class="px-6 py-4 text-xs text-(--text)/50">
+                                    <!-- Date d'arrivée (Desktop) -->
+                                    <div class="px-6 py-4 text-xs text-(--text2) flex items-center hidden sm:flex">
                                         {{ new Date(member.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) }}
-                                    </td>
+                                    </div>
 
-                                    <td class="px-6 py-4 text-right">
-                                        <button 
+                                    <!-- Actions (Desktop) -->
+                                    <div class="px-6 py-4 flex items-center justify-end gap-2 hidden sm:flex">
+                                        <button
                                             v-if="!isSelf(member.user?.id!) && isAdmin"
                                             @click="confirmKickMember(member.id, member.user?.name || 'ce membre')"
-                                            class="p-2 rounded-xl text-(--text)/40 hover:bg-red-500/10 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                            class="p-2 rounded-xl text-(--text2) hover:bg-red-500/10 hover:text-red-500 transition-colors"
                                             title="Exclure le membre"
                                         >
                                             <i class="bi bi-person-x text-lg" />
                                         </button>
-                                        <span v-else class="text-[10px] text-(--text)/30 uppercase tracking-widest px-2">
-                                            -
-                                        </span>
-                                    </td>
-                                </tr>
-                                <tr v-if="filteredMembers.length === 0">
-                                    <td colspan="4" class="px-6 py-12 text-center text-(--text)/40 text-sm">
-                                        Aucun membre ne correspond à votre recherche.
-                                    </td>
-                                </tr>
-                            </tbody>
+                                        <span v-else class="text-[10px] text-(--text2) uppercase tracking-widest px-2">-</span>
+                                    </div>
 
-                        </table>
+                                    <!-- Version Mobile -->
+                                    <div class="p-6 sm:hidden gap-4">
+                                        <div class="flex justify-between items-start">
+                                            <!-- Utilisateur (Mobile) -->
+                                            <div class="flex items-center gap-3">
+                                                <div class="relative">
+                                                    <img
+                                                        :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=062d1f&color=16ac77`"
+                                                        class="w-10 h-10 rounded-full object-cover bg-(--bg) border border-(--border-color)"
+                                                    />
+                                                    <div v-if="isSelf(member.user?.id!)" class="absolute -bottom-1 -right-1 bg-(--primary) w-3.5 h-3.5 rounded-full border-2 border-(--bg2)" title="Vous" />
+                                                </div>
+                                                <div class="flex flex-col">
+                                                    <span class="text-sm font-bold text-(--text)">
+                                                        {{ member.user?.name || 'Utilisateur inconnu' }}
+                                                    </span>
+                                                    <span class="text-[11px] text-(--text2)">{{ member.user?.email }}</span>
+                                                </div>
+                                            </div>
 
+                                            <!-- Actions (Mobile) -->
+                                            <button
+                                                v-if="!isSelf(member.user?.id!) && isAdmin"
+                                                @click="confirmKickMember(member.id, member.user?.name || 'ce membre')"
+                                                class="p-2 rounded-xl text-red-500 transition-colors"
+                                                title="Exclure le membre"
+                                            >
+                                                <i class="bi bi-person-x text-lg" />
+                                            </button>
+                                        </div>
+
+
+                                        <div class="flex flex-col gap-3 pt-3">
+
+                                            <!-- Date d'arrivée -->
+                                            <div class="flex gap-1 items-center">
+                                                <h3 class="text-[11px] text-(--text) uppercase tracking-widest ">Date d'arrivée :</h3>
+                                                <span class="text-xs text-(--text2)">
+                                                    {{ new Date(member.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) }}
+                                                </span>
+                                            </div>
+
+                                            <!-- Rôle -->
+                                            <div class="flex flex-col gap-2 bg-(--bg) border border-(--border-color) rounded-2xl px-4 text-xs text-(--text) focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer">
+                                                <select
+                                                    :value="member?.role || 'unknown'"
+                                                    @change="updateRole(member.id, $event)"
+                                                    :disabled="isSelf(member.user?.id!) || !isAdmin"
+                                                    class="pr-4 py-4 !bg-(--bg) rounded-2xl"
+                                                    :class="{ 'opacity-40 cursor-not-allowed': member?.role === 'OWNER' && isSelf(member.user?.id!) }"
+                                                >
+                                                    <option value="OWNER">Propriétaire</option>
+                                                    <option value="ADMIN">Administrateur</option>
+                                                    <option value="MEMBER">Membre</option>
+                                                    <option value="GUEST">Invité</option>
+                                                </select>
+                                            </div>
+
+
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Message si aucun membre -->
+                            <div v-if="filteredMembers.length === 0" class="p-8 text-center text-(--text2) text-sm">
+                                Aucun membre ne correspond à votre recherche.
+                            </div>
+                        </div>
                     </div>
-
                 </section>
 
-                <section v-if="inviteLinks.length > 0" class="bg-(--bg2) rounded-2xl border border-(--border-color) shadow-sm overflow-hidden flex flex-col">
+                <!----------------------->
+                <!-- SECTION INVITAION -->
+                <!----------------------->
+                <section class="bg-(--bg2) rounded-2xl border border-(--border-color) shadow-sm overflow-hidden flex flex-col">
 
-                    <div class="p-6 border-b border-(--border-color) flex justify-between items-center bg-(--bg3)/20">
-                        <h3 class="text-lg font-bold text-(--text) flex items-center gap-3">
-                            Liens actifs
-                            <span class="bg-(--text)/10 text-(--text) py-1 px-2.5 rounded-lg text-xs">
-                                {{ inviteLinks.length }}
-                            </span>
-                        </h3>
+                    <div class="p-6 border-b border-(--border-color) flex flex-col gap-6 bg-(--bg3)/20">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-bold text-(--text) flex items-center gap-3">
+                                Liens d'invitation
+                                <span class="bg-(--text)/10 text-(--text) py-1 px-2.5 rounded-lg text-xs" v-if="inviteLinks.length > 0">
+                                    {{ inviteLinks.length }} actifs
+                                </span>
+                            </h3>
+                        </div>
+
+                        <!--  Zone de création de lien d'invitation -->
+                        <div class="relative flex flex-col gap-3 w-full">
+                            <div 
+                                class="flex  flex-col sm:flex-row min-w-0 gap-4 justify-between h-fit
+                                ">
+
+                                <div class="relative w-full" v-if="inviteLink.length === 0">
+                                    <div 
+                                        class=" bg-(--bg) border border-(--border-color) rounded-xl text-sm text-(--text) focus:outline-none focus:border-(--primary) transition-all
+                                                flex w-full items-center justify-between
+                                                gap-4 p-3
+                                        "
+                                        title="(0 = infini)"
+                                        >
+                                        <div class="flex gap-2 min-w-0">
+                                            <i class="bi bi-people"></i>
+                                            <h3 class="whitespace-nowrap">Nombre d'utilisations</h3>
+                                        </div>
+                                        
+                                        <input
+                                            v-model.number="inviteMaxUses"
+                                            type="number"
+                                            min="0"
+                                            class=" appearance-none border-none outline-none p-0 m-0 w-[2.5em]"
+                                            title="(0 = infini)"
+                                        />
+                                    </div>
+
+                                </div>
+
+                                <div class="flex gap-4 sm:gap-3 min-w-0 sm:pr-6">
+                                    <button
+                                        v-if="inviteLink.length > 0"
+                                        @click="copyInvite()"
+                                        class="bg-(--bg) border border-(--border-color) text-(--text2) hover:text-(--text) hover:bg-(--text)/5 rounded-xl text-sm font-medium transition-all flex items-center shadow-sm gap-2 cursor-pointer
+                                                w-full pl-4 py-3 overflow-hidden pr-7"
+                                    >
+                                        <i class="bi bi-link rotate-135"/>
+                                        <div class=" max-w-fit min-w-full text-ellipsis whitespace-nowrap overflow-hidden text-center">
+                                            {{inviteLink}}
+                                        </div>
+                                    </button>
+
+                                    <button 
+                                        @click="inviteLink.length === 0 ? createInviteLink() : copyInvite()" 
+                                        class="bg-(--primary) text-white rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm cursor-pointer
+                                                px-6 py-3 w-full sm:w-fit
+                                        "
+                                    >
+                                        <i class="bi" :class="inviteLink.length === 0 ? 'bi-stars' : copied ? 'bi-check-lg' : 'bi-copy'" />
+                                        {{ inviteLink.length === 0 ? 'Générer' : copied ? 'Copié' : 'Copier' }}
+                                    </button>
+                                </div>
+                                
+                                <button 
+                                    v-if="inviteLink.length > 0"
+                                    @click="inviteLink = ''"
+                                    class="bg-(--bg) border border-(--border-color) text-(--text2) hover:text-(--text) hover:bg-(--text)/5 rounded-xl px-3 py-3 text-sm font-medium transition-all flex items-center justify-center shadow-sm gap-2 cursor-pointer
+                                            "
+                                    title="Nouveau lien"
+                                >
+                                    <i class="bi bi-plus-lg" />
+                                    <h3 class="whitespace-nowrap">Nouveau lien</h3>
+                                    
+                                </button>
+                               
+
+                            </div>
+                        </div>
+
                     </div>
 
-                    <div class="overflow-x-auto">
+                    <div v-if="inviteLinks.length > 0" class="overflow-x-auto">
+                        <div class="w-full">
 
-                        <table class="w-full text-left border-collapse">
+                            <!-- Header -->
+                            <div class="sm:grid-cols-[1fr_1fr_1fr_1fr] text-[10px] uppercase tracking-widest text-(--text) bg-(--bg3)/30 border-b border-(--border-color)
+                                        hidden sm:grid
+                            ">
+                                <div class="px-6 py-4 font-bold">Code</div>
+                                <div 
+                                    class="px-6 py-4 font-bold
+                                            hidden sm:block
+                                ">Utilisations</div>
+                                <div 
+                                    class="px-6 py-4 font-bold
+                                            hidden sm:block
+                                ">Expiration</div>
+                                <div class="px-6 py-4 font-bold text-right">Actions</div>
+                            </div>
 
-                            <thead>
-                                <tr class="text-[10px] uppercase tracking-widest text-(--text)/50 bg-(--bg3)/30 border-b border-(--border-color)">
-                                    <th class="px-6 py-4 font-bold">Code</th>
-                                    <th class="px-6 py-4 font-bold">Utilisations</th>
-                                    <th class="px-6 py-4 font-bold">Expiration</th>
-                                    <th class="px-6 py-4 font-bold text-right">Actions</th>
-                                </tr>
-                            </thead>
-
-                            <tbody class="divide-y divide-(--border-color)">
-                                <tr 
-                                    v-for="link in inviteLinks" 
-                                    :key="link.id" 
-                                    class="group hover:bg-(--bg)/40 transition-colors"
+                            <!-- Body -->
+                            <div class="divide-y divide-(--border-color)">
+                                <div
+                                    v-for="link in inviteLinks"
+                                    :key="link.id"
+                                    class="group block sm:grid sm:grid-cols-[1fr_1fr_1fr_1fr] hover:bg-(--bg)/40 transition-colors"
                                 >
-                                    <td class="px-6 py-4">
+                                    <!-- Code -->
+                                    <div 
+                                        class="px-6 py-4 flex items-center
+                                                hidden sm:flex
+                                    ">
                                         <span class="text-sm font-mono text-(--text) bg-(--bg) px-3 py-1.5 rounded-lg border border-(--border-color)">
                                             {{ link.code.substring(0, 8) }}...
                                         </span>
-                                    </td>
-                                    <td class="px-6 py-4 text-sm">
-                                        <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-(--text)'">
+                                    </div>
+
+                                    <!-- Utilisations -->
+                                    <div 
+                                        class="px-6 py-4 text-sm flex items-center
+                                        hidden sm:flex
+                                    ">
+                                        <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-(--text)'" class="pr-1.5 ">
                                             {{ link.uses }}
                                         </span>
-                                        <span class="text-(--text)/40"> / {{ link.maxUses || '∞' }}</span>
-                                    </td>
-                                    <td class="px-6 py-4 text-xs text-(--text)/50">
+                                        <span class="text-(--text2) whitespace-nowrap"> / {{ link.maxUses || '∞' }}</span>
+                                    </div>
+
+                                    <!-- Expiration -->
+                                    <div 
+                                        class="px-6 py-4 text-xs text-(--text2) flex items-center
+                                        hidden sm:flex
+                                    ">
                                         {{ link.expiresAt ? new Date(link.expiresAt).toLocaleDateString('fr-FR') : 'Jamais' }}
-                                    </td>
-                                    <td class="px-6 py-4 text-right">
-                                        <div class="flex items-center justify-end gap-2">
-                                            <button 
-                                                @click="copyInviteLink(link.code)"
-                                                class="p-2 rounded-xl text-(--text)/40 hover:text-white hover:bg-(--text)/10 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                                                title="Copier le lien complet"
+                                    </div>
+
+
+
+                                    <!-- Actions -->
+                                    <div 
+                                        class="px-6 py-4 flex items-center justify-end gap-2 
+                                        hidden sm:flex
+                                    ">
+                                        <button
+                                            @click="copyInviteLink(link.code)"
+                                            class="p-2 rounded-xl text-(--primary) transition-colors"
+                                            title="Copier le lien complet"
+                                        >
+                                            <i class="bi bi-clipboard " />
+                                        </button>
+                                        <button
+                                            @click="deleteInvite(link.code, 1)"
+                                            class="p-2 rounded-xl text-(--text2) hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                                            title="Révoquer le lien"
+                                        >
+                                            <i class="bi bi-trash" />
+                                        </button>
+                                    </div>
+
+                                    <!-- mobile -->
+                                    <div
+                                        class="p-6 sm:hidden gap-1"
+                                    >
+                                        <div
+                                            class="flex justify-between"
+                                        >   
+                                            <!-- Code -->
+                                            <div 
+                                                class="flex items-center"
                                             >
-                                                <i class="bi bi-clipboard" />
-                                            </button>
-                                            <button 
+                                                <h3
+                                                    class="pr-2"
+                                                >Code :</h3>
+                                                
+                                                <span class="text-sm font-mono text-(--text) bg-(--bg) rounded-lg border border-(--border-color) h-fit w-fit px-2 py-0.5">
+                                                    {{ link.code.substring(0, 8) }}...
+                                                </span>
+                                            </div>
+                                            
+                                            <!-- Supprimer -->
+                                            <button
                                                 @click="deleteInvite(link.code, 1)"
-                                                class="p-2 rounded-xl text-(--text)/40 hover:text-red-500 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                                class="p-2 rounded-xl text-red-500 transition-colors"
                                                 title="Révoquer le lien"
                                             >
                                                 <i class="bi bi-trash" />
                                             </button>
                                         </div>
-                                    </td>
-                                </tr>
-                            </tbody>
 
-                        </table>
 
+                                        <div
+                                            class="flex justify-between items-baseline py-4"
+                                        >   
+                                            <!-- Utilisation -->
+                                            <div 
+                                                class="flex items-center "
+                                            >
+                                                <h3
+                                                    class="pr-2"
+                                                >Utilisations : </h3>
+
+                                                <span :class="link.maxUses && link.uses >= link.maxUses ? 'text-red-400 font-bold' : 'text-(--text)'" class="text-(--text2) pr-1">
+                                                    {{ link.uses }}
+                                                </span>
+                                                <span class="text-(--text2) whitespace-nowrap"> / {{ link.maxUses || '∞' }}</span>
+                                            </div>
+
+                                            <!-- Expiration -->
+                                            <div 
+                                                class="flex flex-col gap-1 "
+                                            >
+                                                <h3>Expiration :</h3>
+
+                                                <h3
+                                                    class="text-(--text2)"
+                                                >
+                                                    {{ link.expiresAt ? new Date(link.expiresAt).toLocaleDateString('fr-FR') : 'Jamais' }}
+                                                </h3>
+                                            </div> 
+                                        </div>
+
+
+                                        <button
+                                            @click="copyInviteLink(link.code)"
+                                            class="bg-(--bg) rounded-lg border border-(--border-color) text-white rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm cursor-pointer
+                                                px-6 py-3 w-full "
+
+
+                                            title="Copier le lien complet"
+                                        >
+                                            <i class="bi bi-copy" />
+                                            <h3>Copier URL</h3>
+                                        </button>
+
+                                    </div>
+
+
+
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+
+                    
+                    <div v-else class="p-8 text-center text-(--text2) text-sm">
+                        Aucun lien d'invitation actif.
                     </div>
 
                 </section>

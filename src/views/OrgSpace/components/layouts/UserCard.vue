@@ -26,7 +26,7 @@
                             </span>
                             Vocal connecté
                         </span>
-                        <span class="text-[9px] text-(--text)/40 truncate font-medium mt-0.5">
+                        <span class="text-[9px] text-(--text2) truncate font-medium mt-0.5">
                             {{ ping }}ms • {{ room?.name }}
                         </span>
                     </div>
@@ -34,7 +34,7 @@
                     <button 
                         @click.stop="toggleMicrophone(!isMicEnabled)" 
                         class="p-1.5 rounded-md transition-all active:scale-90"
-                        :class="isMicEnabled ? 'text-(--text)/40 hover:bg-(--primary)/10 hover:text-(--primary)' : 'text-red-500 bg-red-500/10'"
+                        :class="isMicEnabled ? 'text-(--text2) hover:bg-(--primary)/10 hover:text-(--primary)' : 'text-red-500 bg-red-500/10'"
                     >
                         <i class="bi" :class="isMicEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'" />
                     </button>
@@ -54,7 +54,7 @@
                     <button 
                         @click="toggleCamera(!isCameraEnabled)"
                         class="flex items-center justify-center gap-2 py-1.5 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wider"
-                        :class="isCameraEnabled ? 'bg-(--primary)/20 text-(--primary)' : 'bg-(--white)/5 text-(--text)/40 hover:bg-(--white)/10'"
+                        :class="isCameraEnabled ? 'bg-(--primary)/20 text-(--primary)' : 'bg-(--white)/5 text-(--text2) hover:bg-(--white)/10'"
                     >
                         <i class="bi" :class="isCameraEnabled ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'" />
                         Vidéo
@@ -63,7 +63,7 @@
                     <button 
                         @click="toggleScreenShare(!isScreenShareEnabled)"
                         class="flex items-center justify-center gap-2 py-1.5 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wider"
-                        :class="isScreenShareEnabled ? 'bg-(--primary)/20 text-(--primary)' : 'bg-(--white)/5 text-(--text)/40 hover:bg-(--white)/10'"
+                        :class="isScreenShareEnabled ? 'bg-(--primary)/20 text-(--primary)' : 'bg-(--white)/5 text-(--text2) hover:bg-(--white)/10'"
                     >
                         <i class="bi bi-display" />
                         Écran
@@ -121,7 +121,7 @@
                             </span>
                             <span 
                                 class="text-[10px] truncate font-medium uppercase tracking-wider"
-                                :class="openedOrg == null ? 'text-transparent' : 'text-(--text)/40'"
+                                :class="openedOrg == null ? 'text-transparent' : 'text-(--text2)'"
                             >
                                 {{ user?.role }}
                             </span>

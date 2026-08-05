@@ -12,15 +12,15 @@
             <slot name="trigger" />
         </div>
 
-        <transition
-            enter-active-class="transition duration-100 ease-out"
-            enter-from-class="transform scale-95 opacity-0"
-            enter-to-class="transform scale-100 opacity-100"
-            leave-active-class="transition duration-75 ease-in"
-            leave-from-class="transform scale-100 opacity-100"
-            leave-to-class="transform scale-95 opacity-0"
-        >
-            <Teleport to="body" :disabled="!isOpen && !show">
+        <Teleport to="body">
+            <transition
+                enter-active-class="transition duration-100 ease-out"
+                enter-from-class="transform scale-95 opacity-0"
+                enter-to-class="transform scale-100 opacity-100"
+                leave-active-class="transition duration-75 ease-in"
+                leave-from-class="transform scale-100 opacity-100"
+                leave-to-class="transform scale-95 opacity-0"
+            >
                 <div
                     v-if="isOpen || show"
                     ref="dropdownContentRef"
@@ -35,8 +35,8 @@
                         <slot name="content" />
                     </div>
                 </div>
-            </Teleport>
-        </transition>
+            </transition>
+        </Teleport>
 
     </div>
 
@@ -58,6 +58,8 @@ const dropdownContentRef = ref<HTMLElement | null>(null);
 const isOpen = ref<boolean>(false);
 const pos = reactive({ x: 0, y: 0 });
 
+const emit = defineEmits(['toggled']);
+
 const toggleDropdown = (e?: MouseEvent) => {
     isOpen.value = !isOpen.value
     if (e && props.align === 'mouse') 
@@ -65,6 +67,7 @@ const toggleDropdown = (e?: MouseEvent) => {
         pos.x = e.clientX;
         pos.y = e.clientY;
     }
+    emit('toggled', isOpen.value);
 };
 
 const getDropdownPosition = () => {
@@ -109,7 +112,12 @@ const getDropdownPosition = () => {
     };
 };
 
-const closeDropdown = () => (isOpen.value = false);
+const closeDropdown = () => {
+    if (isOpen.value) {
+        isOpen.value = false;
+        emit('toggled', false);
+    }
+};
 
 // Recalculate position when dropdown opens or window resizes
 watchEffect(() => {
@@ -119,6 +127,8 @@ watchEffect(() => {
 });
 
 const handleClickOutside = (event: MouseEvent) => {
+    if (!isOpen.value && !props.show) return;
+
     const target = event.target as Node;
     
     // Check if click is inside the trigger
@@ -134,8 +144,14 @@ const handleClickOutside = (event: MouseEvent) => {
 };
 
 
-onMounted(() => window.addEventListener('click', handleClickOutside));
-onUnmounted(() => window.removeEventListener('click', handleClickOutside));
+onMounted(() => {
+    window.addEventListener('click', handleClickOutside, true);
+    window.addEventListener('contextmenu', handleClickOutside, true);
+});
+onUnmounted(() => {
+    window.removeEventListener('click', handleClickOutside, true);
+    window.removeEventListener('contextmenu', handleClickOutside, true);
+});
 
 
 defineExpose({ closeDropdown });
@@ -164,7 +180,7 @@ defineExpose({ closeDropdown });
 
 .sdropdown .dropdown-item-style {
     @apply w-full flex items-center justify-start px-3 py-2 text-sm rounded-md transition-all duration-300
-            hover:bg-(--primary)/20 text-(--text)/80 hover:text-(--text) active:scale-90;
+            hover:bg-(--primary)/20 text-(--text) hover:text-(--text) active:scale-90;
 }
 
 </style>

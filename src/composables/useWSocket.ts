@@ -87,7 +87,7 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             }
         }
         
-        console.warn('[WS] Connecting to:', socketUrl, 'with path:', socketPath);
+        if (isDev) console.warn('[WS] Connecting to:', socketUrl, 'with path:', socketPath);
         
         // Diagnostic: test if the proxy/backend is reachable
         if (isDev) {
@@ -131,9 +131,9 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             // Si l'erreur est liée à l'authentification (ex: token expiré), on force un rafraîchissement
             if (keycloak.authenticated) {
                 try {
-                    await keycloak.updateToken(30);
+                    await keycloak.updateToken(-1);
                 } catch (e) {
-                    console.error("[WS] Failed to refresh token after connection error", e);
+                    console.error("[WS] Failed to force refresh token after connection error", e);
                 }
             }
         });

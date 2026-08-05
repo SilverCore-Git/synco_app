@@ -6,7 +6,7 @@
 
       <div 
         v-if="isOpen" 
-        class="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        class="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
         @click.self="emit('close')"
       >
 
@@ -27,7 +27,7 @@
                 @click="emit('close')"
                 class="
                   p-2 rounded-lg hover:bg-white/5 
-                  text-(--text)/40 hover:text-(--text)
+                  text-(--text2) hover:text-(--text)
                   active:scale-90 transition-all duration-200
                 "
               >

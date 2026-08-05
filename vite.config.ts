@@ -38,7 +38,7 @@ export default defineConfig({
     host: true,
     proxy: {
       '/socket': {
-        target: useHttps ? 'https://localhost:3467' : 'http://localhost:3467',
+        target: useHttps ? 'https://127.0.0.1:3467' : 'http://127.0.0.1:3467',
         ws: true,
         changeOrigin: true,
         secure: false,

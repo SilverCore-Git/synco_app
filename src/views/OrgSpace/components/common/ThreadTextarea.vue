@@ -19,7 +19,7 @@
             class="
                 bg-transparent border-none outline-none 
                 resize-none w-full text-sm text-(--text) 
-                placeholder:text-(--text)/20
+                placeholder:text-(--text2)
                 py-2 pr-8 overflow-hidden
                 disabled:cursor-not-allowed disabled:text-white/40
             "

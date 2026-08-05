@@ -6,7 +6,7 @@
 
             <div 
                 v-if="isOpen" 
-                class="fixed inset-0 z-100 flex items-center justify-center p-10 bg-black/60 backdrop-blur-sm"
+                class="fixed inset-0 z-100 flex items-center justify-center p-2 sm:p-4 md:p-10 bg-black/60 backdrop-blur-sm"
                 @click.self="emit('close')"
             >
 
@@ -20,13 +20,14 @@
                         "
                     >
 
-                        <div>
+                        <div v-if="!hideCloseBtn">
 
                             <button 
                                 @click="emit('close')"
                                 class="
-                                    absolute right-2.5 top-2.5 p-2 rounded-lg hover:bg-white/5 
-                                    text-(--text)/40 hover:text-(--text) z-100
+                                    absolute right-2.5 top-2.5 p-2 rounded-lg hover:bg-white/10 
+                                    bg-(--bg)/60 backdrop-blur-md
+                                    text-(--text2) hover:text-(--text) z-100
                                     active:scale-90 transition-all duration-200
                                 "
                             >
@@ -57,6 +58,7 @@ import { onMounted, onUnmounted } from 'vue';
 
 defineProps<{
   isOpen: boolean;
+  hideCloseBtn?: boolean;
 }>();
 
 const emit = defineEmits(['close']);

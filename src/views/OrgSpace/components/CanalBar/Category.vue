@@ -7,7 +7,7 @@
             class="
                 w-full flex items-center justify-between
                 cursor-pointer group
-                text-(--text)/40 hover:text-(--text)/80 
+                text-(--text2) hover:text-(--text) 
                 transition-colors duration-200
             "
         >
@@ -50,29 +50,32 @@
             <draggable
                 v-model="localThreads" 
                 item-key="id"
-                @end="handleDragEnd"
+                group="threads"
+                @change="onChange"
                 ghost-class="opacity-50"
                 drag-class="cursor-grabbing"
-                class="space-y-0.5"
+                class="space-y-0.5 min-h-[10px]"
             >
 
                 <template #item="{ element: thread }">
 
-                    <ThreadBtn 
-                        v-if="thread.type === 'text'"
-                        :thread="thread"
-                        :active="route.params.threadId == thread.id"
-                        :hasUnread="thread.hasUnread"
-                        :key="'thread-text-' + thread.id"
-                        @click="navigateToThread(thread.id)"
-                    />
+                    <div class="cursor-grab active:cursor-grabbing w-full">
+                        <ThreadBtn 
+                            v-if="thread.type === 'text'"
+                            :thread="thread"
+                            :active="route.params.threadId == thread.id"
+                            :hasUnread="getUnreadCountByThreadId(thread.id).value > 0"
+                            :key="'thread-text-' + thread.id"
+                            @click="navigateToThread(thread.id)"
+                        />
 
-                    <VoiceThreadBtn 
-                        v-else-if="thread.type === 'vocal'"
-                        :thread="thread"
-                        :active="route.params.threadId == thread.id"
-                        :key="'thread-vocal-' + thread.id"
-                    />
+                        <VoiceThreadBtn 
+                            v-else-if="thread.type === 'vocal'"
+                            :thread="thread"
+                            :active="route.params.threadId == thread.id"
+                            :key="'thread-vocal-' + thread.id"
+                        />
+                    </div>
 
                 </template>
 
@@ -94,15 +97,16 @@ import { useRoute, useRouter } from 'vue-router';
 import CreateNewThread from '../popup/CreateNewThread.vue';
 import useWSocket from '@/composables/useWSocket';
 import VoiceThreadBtn from './VoiceThreadBtn.vue';
+import { useNotification } from '@/composables/useNotification';
 
 const props = defineProps<{
     category: Category;
     threads: Thread[];
 }>();
 
-
 const route = useRoute();
 const router = useRouter();
+const { getUnreadCountByThreadId } = useNotification();
 
 const isOpen = ref<boolean>(true);
 
@@ -118,7 +122,7 @@ watch(() => props.threads, (newVal) => {
 }, { deep: true });
 
 
-const handleDragEnd = async () => {
+const onChange = async () => {
 
     const socket = await useWSocket();
 
@@ -129,6 +133,7 @@ const handleDragEnd = async () => {
             ...props.category,
             threads: localThreads.value.map((thread, index) => ({
                 ...thread,
+                categoryId: props.category.id,
                 index
             }))
         }

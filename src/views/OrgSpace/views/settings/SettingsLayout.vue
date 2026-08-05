@@ -10,14 +10,14 @@
 
                 <MobileBackBtn />
 
-                <i class="bi text-2xl text-(--text)/40" :class="setting?.icon" />
+                <i class="bi text-2xl text-(--text2)" :class="setting?.icon" />
                 <h2 class="font-bold text-(--text) tracking-wide lowercase">
                     {{ setting?.name }}
                 </h2>
                 
             </div>
 
-            <div class="ml-auto flex items-center gap-4 text-(--text)/40">
+            <div class="ml-auto flex items-center gap-4 text-(--text2)">
                 <button 
                     @click="showUsersBar = !showUsersBar"
                     class="hover:text-(--text) transition-colors"
@@ -62,7 +62,7 @@ onMounted(() => {
     if (route.name === 'OrgSettings') {
         const firstSetting = settingsViews[0];
         if (!firstSetting) return;
-        router.push({ name: firstSetting.route });
+        router.push({ name: firstSetting.route, query: route.query });
     }
 
 });

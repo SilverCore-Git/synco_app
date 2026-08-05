@@ -32,8 +32,12 @@
 
         </div>
 
-        <div class="flex flex-col flex-1 min-w-0">
-            <span class="text-sm font-bold truncate tracking-tight">
+        <div class="flex flex-col flex-1 min-w-0 relative">
+            <div
+                v-if="user?.user && getUnreadCountByDMUserId(user.user.id).value > 0"
+                class="absolute -left-2 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-(--primary) rounded-full shadow-[0_0_8px_var(--primary)] animate-pulse"
+            />
+            <span class="text-sm font-bold truncate tracking-tight" :class="user?.user && getUnreadCountByDMUserId(user.user.id).value > 0 ? 'text-(--primary)' : ''">
                 {{ user?.user?.name }}
             </span>
             <span class="text-[10px] opacity-40 uppercase tracking-widest font-medium leading-none">
@@ -44,7 +48,7 @@
         <button
             v-if="user?.user?.id !== keycloak.subject"
             @click.stop="startCall(user.user!)"
-            class="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-(--primary)/10 text-(--text)/40 hover:text-(--primary) transition-all"
+            class="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-(--primary)/10 text-(--text2) hover:text-(--primary) transition-all"
             title="Appel vocal"
         >
             <i class="bi bi-telephone-fill text-sm" />
@@ -60,13 +64,15 @@ import getColorByStatus from '@/assets/utils/getColorByStatus';
 import type { OrgMember } from '@/types/types';
 import useSecurePeer from '@/composables/useSecurePeer';
 import { keycloak } from '@/assets/keycloak';
+import { useNotification } from '@/composables/useNotification';
 
-defineProps<{
+const props = defineProps<{
   user: OrgMember;
   active?: boolean;
 }>();
 
 const emit = defineEmits(['click']);
 const { startCall } = useSecurePeer();
+const { getUnreadCountByDMUserId } = useNotification();
 
 </script>

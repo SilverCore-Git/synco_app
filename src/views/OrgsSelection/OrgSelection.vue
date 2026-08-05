@@ -115,10 +115,10 @@ onMounted(async () => {
                 <template #content>
                     <div class="p-3 border-b border-white/5 bg-(--bg2) rounded-t-xl">
                         <p class="text-sm font-bold text-(--text) truncate">{{ me?.name || 'Utilisateur' }}</p>
-                        <p class="text-xs text-(--text)/50 truncate">{{ me?.email || '' }}</p>
+                        <p class="text-xs text-(--text2) truncate">{{ me?.email || '' }}</p>
                     </div>
                     <div class="p-1">
-                        <button @click="showUserSettings = true" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--text)/80 hover:text-(--text) hover:bg-white/5 rounded-lg transition-colors">
+                        <button @click="showUserSettings = true" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--text) hover:text-(--text) hover:bg-white/5 rounded-lg transition-colors">
                             <i class="bi bi-person-fill"></i> Mon Profil
                         </button>
                     </div>
@@ -155,7 +155,7 @@ onMounted(async () => {
             
             <!-- Barre de recherche -->
             <div class="relative w-full max-w-md mx-auto mt-8">
-                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text)/40">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2)">
                     <i class="bi bi-search"></i>
                 </div>
                 <input 
@@ -194,7 +194,7 @@ onMounted(async () => {
                     <i class="bi bi-search text-3xl text-white/30"></i>
                 </div>
                 <h3 class="text-xl font-bold text-(--text)">Aucune organisation trouvée</h3>
-                <p class="text-(--text)/50 text-sm">Vérifiez l'orthographe ou essayez un autre nom.</p>
+                <p class="text-(--text2) text-sm">Vérifiez l'orthographe ou essayez un autre nom.</p>
             </div>
         </div>
 
@@ -208,7 +208,7 @@ onMounted(async () => {
 
             <div class="flex gap-2 flex-col">
 
-                <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+                <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                     Nom de l'espace
                 </label>
 
@@ -219,7 +219,7 @@ onMounted(async () => {
                     ref="nameInput"
                     class="
                         w-full bg-(--bg2)/30 border border-white/10 rounded-xl 
-                        px-4 py-3 text-(--text) placeholder:text-(--text)/20 
+                        px-4 py-3 text-(--text) placeholder:text-(--text2) 
                         focus:outline-none focus:border-(--primary)/50 focus:ring-1
                         focus:ring-(--primary)/20 transition-all
                     "
@@ -229,7 +229,7 @@ onMounted(async () => {
 
             <div class="flex gap-2 flex-col">
 
-                <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+                <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                     Icon de l'espace
                 </label>
 
@@ -269,7 +269,7 @@ onMounted(async () => {
             </div>
         </template>
         <div class="space-y-4">
-            <p class="text-sm text-(--text)/80 leading-relaxed">
+            <p class="text-sm text-(--text) leading-relaxed">
                 Êtes-vous sûr de vouloir supprimer définitivement votre compte ? 
                 Cette action est irréversible et supprimera toutes vos données personnelles.
             </p>

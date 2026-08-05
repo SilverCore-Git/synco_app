@@ -43,7 +43,7 @@
                                 <h4 class="text-(--text) text-sm font-bold truncate">
                                     {{ (notif.msg as any)?.sender?.name }}
                                 </h4>
-                                <p class="text-(--text)/70 text-sm line-clamp-2 leading-snug">
+                                <p class="text-(--text) text-sm line-clamp-2 leading-snug">
                                     {{ notif.msg.content }}
                                 </p>
                             </div>
@@ -70,7 +70,7 @@
                                 <h4 class="text-(--text) text-sm font-bold truncate">
                                     {{ notif.dmmsg?.sender?.name }}
                                 </h4>
-                                <p class="text-(--text)/70 text-sm line-clamp-2 leading-snug">
+                                <p class="text-(--text) text-sm line-clamp-2 leading-snug">
                                     {{ notif.dmmsg?.content }}
                                 </p>
                             </div>

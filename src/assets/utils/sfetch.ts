@@ -18,14 +18,14 @@ async function getFetch(): Promise<typeof fetch> {
   return window.fetch.bind(window);
 }
 
-export default async function sfetch(url: string, arg?: any) {
-    
+export default async function sfetch(url: string, arg?: any, retryCount = 0): Promise<Response> {
+
     const fetchFn = await getFetch();
     const headers: Record<string, string> = { ...arg?.headers };
 
     if (keycloak.authenticated) {
         try {
-            await keycloak.updateToken(30);
+            await keycloak.updateToken(60);
         } catch (error) {
             console.error('[sfetch] Failed to refresh token:', error);
             const redirectUri = Capacitor.isNativePlatform() 
@@ -55,11 +55,22 @@ export default async function sfetch(url: string, arg?: any) {
         }
     }
 
-    return await fetchFn(`${import.meta.env.VITE_API_URL}${url}`, {
+    const response = await fetchFn(`${import.meta.env.VITE_API_URL}${url}`, {
         ...arg,
         method: arg?.method || 'GET',
         headers,
         credentials: 'include'
     });
-    
+
+    if ((response.status === 401 || response.status === 403) && retryCount < 1 && keycloak.authenticated) {
+        console.log('[sfetch] Token rejected by server. Forcing token refresh...');
+        try {
+            await keycloak.updateToken(-1);
+            return await sfetch(url, arg, retryCount + 1);
+        } catch (error) {
+            console.error('[sfetch] Failed to force refresh token', error);
+        }
+    }
+
+    return response;
 }

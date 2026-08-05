@@ -179,7 +179,7 @@
                 <div class="p-4 border-b border-(--border-color) w-full" v-if="aiIsLocal">
 
                     <div v-if="aiIsLocal">
-                        <p class="text-[10px] uppercase font-bold text-(--text)/50 mb-1">Modèle Local</p>
+                        <p class="text-[10px] uppercase font-bold text-(--text2) mb-1">Modèle Local</p>
                         <select 
                             v-model="selectedModelId"
                             class="w-full bg-black/20 border border-white/10 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-(--primary) transition-colors"
@@ -192,9 +192,9 @@
                 </div>
 
                 <div class="flex-1 overflow-y-auto p-2 w-full">
-                    <p class="text-[10px] uppercase font-bold text-(--text)/50 px-2 mt-2 mb-3">Historique</p>
+                    <p class="text-[10px] uppercase font-bold text-(--text2) px-2 mt-2 mb-3">Historique</p>
                     
-                    <div v-if="chatSessions.length === 0" class="text-xs text-center text-(--text)/40 mt-4 italic">
+                    <div v-if="chatSessions.length === 0" class="text-xs text-center text-(--text2) mt-4 italic">
                         Aucune session
                     </div>
 

@@ -34,7 +34,7 @@ const route = useRoute();
 const toast = useToast();
 
 const mediaQuery = window.matchMedia('(max-width: 1024px)');
-const showRouterView = computed(() => route.query.showView !== '0');
+const showRouterView = computed(() => !isLittleScreen.value || route.query.showView !== '0');
 
 const orgOnOpen = computed(() => {
     return organizations.value.find(org => org.id === route.params.orgId);
@@ -227,6 +227,23 @@ const initSocketListener = async () => {
         if (member && member.user && member.user.data) member.user.data.status = status;
     });
 
+    socket.value?.on('user-data-updated', ({ userId, data }: { userId: string, data: any }) => {
+        const member = openedOrg.value?.members?.find(m => m.userId === userId);            
+        if (member && member.user) {
+            if (data.name !== undefined) member.user.name = data.name;
+            if (data.avatarUrl !== undefined) member.user.avatarUrl = data.avatarUrl;
+            if (data.job !== undefined) member.user.job = data.job;
+            if (data.description !== undefined) member.user.description = data.description;
+        }
+        
+        if (user.value && user.value.id === userId) {
+            if (data.name !== undefined) user.value.name = data.name;
+            if (data.avatarUrl !== undefined) user.value.avatarUrl = data.avatarUrl;
+            if (data.job !== undefined) user.value.job = data.job;
+            if (data.description !== undefined) user.value.description = data.description;
+        }
+    });
+
     socket.value?.on('key-requested', async ({ threadId, requesterId, publicKey }: { threadId: string, requesterId: string, publicKey: string }) => {
         if (!privateKey.value || !publicKey) return;
 
@@ -306,10 +323,20 @@ const initSocketListener = async () => {
         
         if (orgId !== props.orgId) return;
 
-        const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
-        if (!space) return;
+        let targetCategory;
+        let threadsArray;
 
-        const targetCategory = space.categories.find(cat => cat.id === category.id);
+        if (spaceId) {
+            const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
+            if (!space) return;
+            targetCategory = space.categories.find(cat => cat.id === category.id);
+            threadsArray = space.threads;
+        } else {
+            const home = openedOrg.value?.home;
+            if (!home) return;
+            targetCategory = home.categories.find(cat => cat.id === category.id);
+            threadsArray = home.threads;
+        }
 
         if (targetCategory) 
         {
@@ -318,27 +345,27 @@ const initSocketListener = async () => {
             
             if (category.threads) 
             {
-
                 category.threads.forEach(updatedThread => {
 
-                    const tIndex = space.threads.findIndex(t => t.id === updatedThread.id);
+                    const tIndex = threadsArray.findIndex((t: any) => t.id === updatedThread.id);
                     if (tIndex !== -1) 
                     {
-                        space.threads[tIndex] = updatedThread;
+                        threadsArray[tIndex] = updatedThread;
                     }
 
-                    import('@/services/LocalSearchVectorDB').then(({ localSearchDB }) => {
-                        localSearchDB.insertDocument({
-                            id: updatedThread.id,
-                            workspaceId: spaceId,
-                            type: 'THREAD',
-                            textContent: updatedThread.name,
-                            vector: Array(384).fill(0)
+                    if (spaceId) {
+                        import('@/services/LocalSearchVectorDB').then(({ localSearchDB }) => {
+                            localSearchDB.insertDocument({
+                                id: updatedThread.id,
+                                workspaceId: spaceId,
+                                type: 'THREAD',
+                                textContent: updatedThread.name,
+                                vector: Array(384).fill(0)
+                            });
                         });
-                    });
+                    }
 
                 });
-
             }
         }
 
@@ -433,19 +460,13 @@ const initSocketListener = async () => {
         org.spaces?.forEach(space => {
             if (space.threads) 
             {
-                const index = space.threads.findIndex(t => t.id === threadId);
-                if (index !== -1) {
-                    space.threads.splice(index, 1);
-                }
+                space.threads = space.threads.filter(t => t.id !== threadId);
             }
         });
 
         if (org.home?.threads) 
         {
-            const index = org.home.threads.findIndex(t => t.id === threadId);
-            if (index !== -1) {
-                org.home.threads.splice(index, 1);
-            }
+            org.home.threads = org.home.threads.filter(t => t.id !== threadId);
         }
         
     });
@@ -468,7 +489,14 @@ function handleTabletChange(e: any)
 
 onMounted(async () => {
 
-    openedOrg.value = await sfetch(`/api/orgs/${props.orgId}`).then(res => res.json()); 
+    if (!openedOrg.value || openedOrg.value.id !== props.orgId) {
+        const res = await sfetch(`/api/orgs/${props.orgId}`);
+        if (!res.ok) {
+            window.location.href = '/';
+            return;
+        }
+        openedOrg.value = await res.json(); 
+    }
     await Promise.all([
             initSocketListener(),
             initPeer()

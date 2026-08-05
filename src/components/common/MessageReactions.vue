@@ -131,7 +131,7 @@ const toggleReaction = async (emoji: string) => {
         ]"
       >
         <span class="text-lg">{{ reaction.emoji }}</span>
-        <span class="text-xs text-(--text)/60">{{ reaction.count }}</span>
+        <span class="text-xs text-(--text2)">{{ reaction.count }}</span>
       </button>
     </div>
 

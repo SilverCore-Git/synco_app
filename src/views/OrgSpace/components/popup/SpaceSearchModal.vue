@@ -17,10 +17,10 @@
                 v-model="query"
                 type="text" 
                 placeholder="Rechercher par sens ou mot-clé (Deep search)..."
-                class="w-full bg-transparent text-lg text-(--text) placeholder:text-(--text)/30 focus:outline-none"
+                class="w-full bg-transparent text-lg text-(--text) placeholder:text-(--text2) focus:outline-none"
                 @input="handleInput"
             />
-            <button @click="emit('close')" class="ml-2 text-(--text)/40 hover:text-(--text) p-1">
+            <button @click="emit('close')" class="ml-2 text-(--text2) hover:text-(--text) p-1">
                 <i class="bi bi-x-lg text-xl" />
             </button>
         </div>
@@ -58,10 +58,10 @@
         </div>
 
         <div class="max-h-[60vh] overflow-y-auto p-2" v-if="query.length > 0">
-            <div v-if="loading" class="flex flex-col items-center justify-center py-8 text-(--text)/40">
+            <div v-if="loading" class="flex flex-col items-center justify-center py-8 text-(--text2)">
                 <i class="bi bi-robot text-4xl mb-3 animate-pulse text-(--primary)" />
                 <p>Recherche en cours...</p>
-                <p v-if="downloadProgress > 0 && downloadProgress < 100" class="text-xs mt-2 text-(--text)/30">Premier démarrage du moteur : {{ downloadProgress }}%</p>
+                <p v-if="downloadProgress > 0 && downloadProgress < 100" class="text-xs mt-2 text-(--text2)">Premier démarrage du moteur : {{ downloadProgress }}%</p>
             </div>
             
             <div v-else-if="error" class="flex flex-col items-center justify-center py-8 text-red-400">
@@ -70,7 +70,7 @@
                 <p class="text-xs mt-2 text-red-400/70 text-center max-w-xs">{{ error }}</p>
             </div>
 
-            <div v-else-if="results.length === 0" class="flex flex-col items-center justify-center py-8 text-(--text)/40">
+            <div v-else-if="results.length === 0" class="flex flex-col items-center justify-center py-8 text-(--text2)">
                 <i class="bi bi-emoji-frown text-4xl mb-3" />
                 <p>Aucun résultat trouvé pour "{{ query }}"</p>
             </div>
@@ -79,7 +79,7 @@
                 
                 <div v-for="group in ['THREAD', 'FILE', 'TODO', 'MESSAGE']" :key="group">
                     <div v-if="groupedResults[group] && groupedResults[group].length > 0">
-                        <h3 class="text-[10px] font-black tracking-widest uppercase text-(--text)/30 mb-2 px-2 flex items-center gap-2">
+                        <h3 class="text-[10px] font-black tracking-widest uppercase text-(--text2) mb-2 px-2 flex items-center gap-2">
                             <i class="bi" :class="{
                                 'bi-hash text-(--primary)': group === 'THREAD',
                                 'bi-file-earmark-text text-green-400': group === 'FILE',
@@ -87,7 +87,7 @@
                                 'bi-chat-dots text-blue-400': group === 'MESSAGE'
                             }" />
                             {{ group === 'THREAD' ? 'Salons' : group === 'FILE' ? 'Fichiers' : group === 'TODO' ? 'Tâches' : 'Messages' }}
-                            <span class="text-(--text)/20 font-normal">({{ groupedResults[group].length }})</span>
+                            <span class="text-(--text2) font-normal">({{ groupedResults[group].length }})</span>
                         </h3>
                         
                         <div class="space-y-1">
@@ -107,7 +107,7 @@
                                         </span>
                                     </div>
                                     <!-- Si c'est un message long, on montre la suite avec opacity reduite -->
-                                    <p v-if="group === 'MESSAGE'" class="text-xs text-(--text)/50 line-clamp-2 mt-1 font-mono">
+                                    <p v-if="group === 'MESSAGE'" class="text-xs text-(--text2) line-clamp-2 mt-1 font-mono">
                                         {{ res.textContent }}
                                     </p>
                                 </div>

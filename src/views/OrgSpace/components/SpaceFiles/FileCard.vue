@@ -1,94 +1,147 @@
 <template>
 
-                        <div 
-                            :class="draggedFileId === file.id ? 'opacity-40 scale-95' : ''"
-                            class="
-                                group relative flex flex-col bg-(--bg2)/40 
-                                border border-(--border-color) rounded-2xl p-3 
-                                hover:bg-(--bg3) hover:border-(--primary)/30 
-                                transition-all cursor-pointer shadow-sm 
-                                hover:shadow-xl hover:-translate-y-1
-                            "
-                        >
-                        
-                            <div 
-                                class="
-                                    relative aspect-square mb-3 rounded-xl bg-black/20 
-                                    flex items-center justify-center overflow-hidden 
-                                    border border-(--border-color) 
-                                "
-                            >
-                                
-                                <i 
-                                    :class="[getFileInfo(file).icon, getFileInfo(file).color]" 
-                                    class="text-4xl transition-transform group-hover:scale-110 duration-300" 
-                                />
+    <div 
+        v-bind="$attrs"
+        @pointerdown="onPointerDown"
+        @pointerup="onPointerUp"
+        @pointerleave="onPointerUp"
+        @click="handleClick"
+        :class="[
+            draggedFileId === file.id ? 'opacity-40 grayscale-50' : '',
+            'max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border rounded-xl transition-all cursor-pointer shadow-sm',
+            isSelected 
+                ? 'border-(--primary) bg-(--primary)/10'
+                : 'border-(--border-color) hover:border-(--primary)/50 hover:bg-(--primary)/5',
+            isDropdownOpen && !isSelected ? 'border-(--primary)/50 bg-(--primary)/5' : ''
+        ]"
+    >
+        <!-- Selection Checkbox (Only visible in selection mode) -->
+        <button 
+            v-if="isSelectionMode"
+            @click.stop="$emit('toggle-select')"
+            class="shrink-0 w-5 h-5 rounded border flex items-center justify-center transition-all duration-200"
+            :class="[
+                isSelected 
+                    ? 'bg-(--primary) border-(--primary) text-white' 
+                    : 'border-(--text)/30 hover:border-(--primary) text-transparent'
+            ]"
+        >
+            <i v-if="isSelected" class="bi bi-check text-sm" />
+        </button>
 
-                                <div class="absolute bottom-2 right-2 px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-md border border-white/10 text-[9px] font-black uppercase text-white/70">
-                                    {{ file.originalName.split('.').pop() }}
-                                </div>
+        <div 
+            @click.stop="showViewer = true"
+            class="
+                w-10 h-10 flex items-center justify-center 
+                rounded-lg bg-black/20 border border-(--border-color) shrink-0 hover:bg-black/30 transition-colors
+            "
+        >
+            <i 
+                :class="[getFileInfo(file).icon, getFileInfo(file).color]" 
+                class="text-xl transition-transform group-hover:scale-110 duration-300" 
+            />
+        </div>
 
-                                <div 
-                                    class="
-                                        absolute inset-0 bg-black/60 opacity-0 
-                                        group-hover:opacity-100 transition-opacity 
-                                        flex items-center justify-center gap-2
-                                        pointer-events-none
-                                    "
-                                >
-                                
-                                    <button class="glass pointer-events-auto" @click.stop="downloadFile(file.id)">
-                                        <i class="bi bi-download" />
-                                    </button>
+        <div class="flex-1 min-w-0" @click.stop="showViewer = true">
+            <p class="text-sm font-semibold text-(--text) truncate hover:text-(--primary) transition-colors">{{ file.originalName }}</p>
+            <div class="flex items-center gap-2 text-[9px] font-bold text-(--text2) uppercase tracking-tighter mt-1">
+                <span>{{ formatSize(file.size) }}</span>
+                <span>•</span>
+                <span>{{ file.originalName.split('.').pop() }}</span>
+                <template v-if="file.createdAt">
+                    <span>•</span>
+                    <span>{{ formatDate(file.createdAt) }}</span>
+                </template>
+            </div>
+        </div>
 
-                                    <DropDown align="right" class="pointer-events-auto">
-                                        <template #trigger>
-                                            <button class="glass pointer-events-auto" @click.prevent>
-                                                <i class="bi bi-three-dots-vertical" />
-                                            </button>
-                                        </template>
-                                        <template #content>
-                                            <button 
-                                                @click="showFileInfo(file)"
-                                                class="dropdown-item-annimate dropdown-item-style gap-2"
-                                            >
-                                                <i class="bi bi-info-circle" />
-                                                Voir les infos
-                                            </button>
-                                            <button 
-                                                v-if="file.messageId || file.dmMessageId"
-                                                @click="viewMessagesWithFile(file)"
-                                                class="dropdown-item-annimate dropdown-item-style gap-2"
-                                            >
-                                                <i class="bi bi-chat-left" />
-                                                Voir le message
-                                            </button>
-                                            <button 
-                                                @click="deleteFile(file)"
-                                                class="dropdown-item-annimate dropdown-item-style gap-2 text-red-500! hover:bg-red-500/5!"
-                                            >
-                                                <i class="bi bi-trash" />
-                                                Supprimer
-                                            </button>
-                                        </template>
-                                    </DropDown>
+        <div 
+            class="flex items-center gap-1 transition-opacity pr-1"
+            :class="isDropdownOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
+        >
+            <button class="w-8 h-8 rounded-lg hover:bg-(--primary)/10 flex items-center justify-center transition-colors hover:text-(--primary)" @click.stop="downloadFile(file.id)">
+                <i class="bi bi-download text-lg" />
+            </button>
 
-                                </div>
+            <DropDown align="right" @click.stop @toggled="val => isDropdownOpen = val">
+                <template #trigger>
+                    <button class="w-8 h-8 rounded-lg hover:bg-(--primary)/10 flex items-center justify-center transition-colors hover:text-(--primary)">
+                        <i class="bi bi-three-dots-vertical text-lg" />
+                    </button>
+                </template>
+                <template #content>
+                    <button 
+                        v-if="!isSelectionMode"
+                        @click="$emit('toggle-select')"
+                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                    >
+                        <i class="bi bi-check2-square" />
+                        Sélectionner
+                    </button>
+                    <button 
+                        @click="showEditFile = true"
+                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                    >
+                        <i class="bi bi-pencil" />
+                        Renommer
+                    </button>
+                    <button 
+                        @click="showFileInfo(file)"
+                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                    >
+                        <i class="bi bi-info-circle" />
+                        Voir les infos
+                    </button>
+                    <button 
+                        v-if="file.mimeType.startsWith('image/') || file.mimeType === 'application/pdf'"
+                        @click="showWatermarkFile = true"
+                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                    >
+                        <i class="bi bi-shield-lock" />
+                        Ajouter un filigrane
+                    </button>
+                    <button 
+                        v-if="file.messageId || file.dmMessageId"
+                        @click="viewMessagesWithFile(file)"
+                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                    >
+                        <i class="bi bi-chat-left" />
+                        Voir le message
+                    </button>
+                    <button 
+                        @click="deleteFile(file)"
+                        class="dropdown-item-annimate dropdown-item-style gap-2 text-red-500! hover:bg-red-500/5!"
+                    >
+                        <i class="bi bi-trash" />
+                        Supprimer
+                    </button>
+                </template>
+            </DropDown>
+        </div>
 
-                            </div>
+    </div>
 
-                            <div class="flex flex-col gap-0.5 min-w-0">
-                                <span class="text-xs font-semibold text-(--text)/90 truncate group-hover:text-(--primary) transition-colors" :title="file.originalName">
-                                    {{ file.originalName }}
-                                </span>
-                                
-                                <div class="flex items-center justify-between text-[9px] font-bold text-(--text)/30 uppercase tracking-tighter">
-                                    <span>{{ formatSize(file.size) }}</span>
-                                    <span v-if="file.createdAt">{{ formatDate(file.createdAt) }}</span>
-                                </div>
-                            </div>
-                            
-                        </div>
+    <EditFile
+        :is-open="showEditFile"
+        :file="file"
+        @close="showEditFile = false"
+    />
+
+    <WatermarkFile
+        v-if="showWatermarkFile"
+        :is-open="showWatermarkFile"
+        :file="file"
+        @close="showWatermarkFile = false"
+        @created="onFileWatermarked"
+    />
+
+    <FileViewer
+        :is-open="showViewer"
+        :file="file"
+        @close="showViewer = false"
+        @updated="onFileUpdated"
+        @deleted="emit('file-deleted', file.id)"
+    />
 
 </template>
 
@@ -98,20 +151,58 @@ import { useRouter, useRoute } from 'vue-router';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { downloadFile } from '@/assets/utils/downloadFile';
 import DropDown from '@/components/DropDown.vue';
+import EditFile from '../popup/EditFile.vue';
+import WatermarkFile from '../popup/WatermarkFile.vue';
+import FileViewer from '../popup/FileViewer.vue';
 import type { StoredFile } from '@/types/types';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
+import { ref } from 'vue';
 
 const toast = useToast();
 const router = useRouter();
 const route = useRoute();
 
+const showEditFile = ref<boolean>(false);
+const showWatermarkFile = ref<boolean>(false);
+const showViewer = ref<boolean>(false);
+const isDropdownOpen = ref<boolean>(false);
+
 const props = defineProps<{
     file: StoredFile,
-    draggedFileId: string | number | null
+    draggedFileId: string | number | null,
+    isSelected?: boolean,
+    isSelectionMode?: boolean
 }>();
 
-const emit = defineEmits(['file-deleted', 'show-file-info']);
+const emit = defineEmits(['file-deleted', 'show-file-info', 'file-watermarked', 'toggle-select', 'request-delete']);
+
+let longPressTimer: any = null;
+
+const onPointerDown = (e: PointerEvent) => {
+    // Only left click or touch
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    longPressTimer = setTimeout(() => {
+        if (!props.isSelected) {
+            emit('toggle-select');
+            // Provide haptic feedback on mobile if supported
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+    }, 500);
+};
+
+const onPointerUp = () => {
+    if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+    }
+};
+
+const handleClick = () => {
+    if (props.isSelectionMode) {
+        emit('toggle-select');
+    }
+};
 
 const formatSize = (bytes: number) => {
     if (bytes === 0) return '0 B';
@@ -185,29 +276,17 @@ const viewMessagesWithFile = async (file: StoredFile) => {
 };
 
 // Delete file
-const deleteFile = async (file: StoredFile) => {
-    if (!file.workspaceId) {
-        toast.show('Impossible de supprimer ce fichier', 'error');
-        return;
-    }
-    
-    try {
-        const response = await sfetch(`/api/spaces/${file.workspaceId}/files/${file.id}`, {
-            method: 'DELETE'
-        });
-        
-        if (response.ok) {
-            toast.show('Fichier supprimé avec succès', 'success');
-            emit('file-deleted', file.id);
-        } else {
-            const errorData = await response.json();
-            toast.show(errorData.error || 'Erreur lors de la suppression', 'error');
-        }
-    } catch (error) {
-        console.error('Error deleting file:', error);
-        toast.show('Erreur lors de la suppression du fichier', 'error');
-    }
+const deleteFile = (file: StoredFile) => {
+    emit('request-delete', file);
 };
 
+const onFileUpdated = (updatedMetadata: any) => {
+    Object.assign(props.file, updatedMetadata);
+};
+
+const onFileWatermarked = (newFileMetadata: StoredFile) => {
+    // Émettre un événement pour indiquer au composant parent (SpaceFiles) qu'un nouveau fichier a été créé
+    emit('file-watermarked', newFileMetadata);
+};
 
 </script>

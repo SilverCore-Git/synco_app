@@ -724,7 +724,7 @@ synco_app/src/
           <input type="checkbox" v-model="e2eeEnabled" />
           Chiffrement E2EE
         </label>
-        <p class="text-sm text-(--text)/60">
+        <p class="text-sm text-(--text2)">
           Activez le chiffrement de bout en bout pour sécuriser les messages
         </p>
       </div>
@@ -782,11 +782,11 @@ synco_app/src/
         <h3 class="text-lg font-semibold mb-2">Statistiques</h3>
         <div class="grid grid-cols-2 gap-4">
           <div class="bg-(--bg2) p-4 rounded-lg">
-            <div class="text-sm text-(--text)/60">Messages reçus</div>
+            <div class="text-sm text-(--text2)">Messages reçus</div>
             <div class="text-2xl font-bold">{{ webhook.usageCount }}</div>
           </div>
           <div class="bg-(--bg2) p-4 rounded-lg">
-            <div class="text-sm text-(--text)/60">Dernière utilisation</div>
+            <div class="text-sm text-(--text2)">Dernière utilisation</div>
             <div class="text-xl font-bold">{{ formatDate(webhook.lastUsedAt) }}</div>
           </div>
         </div>

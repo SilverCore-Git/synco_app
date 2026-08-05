@@ -7,7 +7,7 @@
         <form @submit.prevent="handleSubmit" class="space-y-5">
 
             <div class="flex gap-2 flex-col">
-                <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+                <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                     Nom du dossier
                 </label>
                 <input 
@@ -17,7 +17,7 @@
                     ref="nameInput"
                     class="
                         w-full bg-(--bg2)/30 border border-white/10 rounded-xl 
-                        px-4 py-3 text-(--text) placeholder:text-(--text)/20 
+                        px-4 py-3 text-(--text) placeholder:text-(--text2) 
                         focus:outline-none focus:border-(--primary)/50 focus:ring-1
                         focus:ring-(--primary)/20 transition-all
                     "
@@ -26,7 +26,7 @@
             </div>
 
             <div class="flex gap-2 flex-col">
-                <label class="text-xs font-bold text-(--text)/60 uppercase tracking-wider">
+                <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                     Couleur du dossier
                 </label>
                 

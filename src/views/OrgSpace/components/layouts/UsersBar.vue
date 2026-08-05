@@ -10,7 +10,7 @@
 
         <div class="px-4 min-h-14 flex justify-between items-center border-b border-(--border-color) bg-(--bg2)">
 
-            <h3 class="text-xs font-semibold text-(--text)/50 uppercase tracking-wider">
+            <h3 class="text-xs font-semibold text-(--text2) uppercase tracking-wider">
                 Membres ({{ members?.length || 0 }})
             </h3>
 
@@ -27,7 +27,7 @@
 
         <div v-if="openedOrg?.members" class="flex-1 overflow-y-auto p-2 space-y-1 ">
 
-            <p v-if="members.filter(member => member.user?.data.status !== 'offline').length > 0" class=" py-1 text-xs text-(--text)/60">
+            <p v-if="members.filter(member => member.user?.data.status !== 'offline').length > 0" class=" py-1 text-xs text-(--text2)">
                 En ligne — {{ members.filter(member => member.user?.data.status !== 'offline').length }}
             </p>
             
@@ -59,7 +59,7 @@
                     <span class="text-sm font-medium text-(--text) truncate">
                         {{ member.user?.name }}
                     </span>
-                    <span class="text-xs text-(--text)/40">
+                    <span class="text-xs text-(--text2)">
                         {{ member.role }}
                     </span>
                 </div>
@@ -67,7 +67,7 @@
                 <button
                     v-if="member.user?.id !== keycloak.subject"
                     @click.prevent="startCall(member.user!)"
-                    class="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-(--primary)/10 text-(--text)/40 hover:text-(--primary) transition-all"
+                    class="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-(--primary)/10 text-(--text2) hover:text-(--primary) transition-all"
                     title="Appel vocal"
                 >
                     <i class="bi bi-telephone-fill text-sm" />
@@ -75,7 +75,7 @@
 
             </button>
 
-            <p v-if="members.filter(member => member.user?.data.status === 'offline').length > 0" class=" py-1 text-xs text-(--text)/60">
+            <p v-if="members.filter(member => member.user?.data.status === 'offline').length > 0" class=" py-1 text-xs text-(--text2)">
                 Hors ligne — {{ members.filter(member => member.user?.data.status === 'offline').length }}
             </p>
 
@@ -107,7 +107,7 @@
                     <span class="text-sm font-medium text-(--text) truncate">
                         {{ member.user?.name }}
                     </span>
-                    <span class="text-xs text-(--text)/40">
+                    <span class="text-xs text-(--text2)">
                         {{ member.role }}
                     </span>
                 </div>

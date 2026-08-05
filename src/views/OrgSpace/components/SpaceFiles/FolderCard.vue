@@ -1,14 +1,35 @@
 <template>
 
     <div 
-        class="max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border border-(--border-color) rounded-xl transition-all cursor-pointer shadow-sm"
+        v-bind="$attrs"
+        @pointerdown="onPointerDown"
+        @pointerup="onPointerUp"
+        @pointerleave="onPointerUp"
+        @click="handleClick"
+        class="max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border rounded-xl transition-all cursor-pointer shadow-sm"
         :class="[
             draggedIntoFolderId === folder.id 
                 ? 'ring-2 ring-(--primary) bg-(--primary)/10 border-(--primary)/50'
-                : 'hover:border-(--primary)/50 hover:bg-(--primary)/5',
+                : '',
+            isSelected 
+                ? 'border-(--primary) bg-(--primary)/10'
+                : 'border-(--border-color) hover:border-(--primary)/50 hover:bg-(--primary)/5',
             draggedSourceFolderId === folder.id ? 'opacity-40 grayscale-50' : ''
         ]"
     >
+        <!-- Selection Checkbox -->
+        <button 
+            v-if="isSelectionMode"
+            @click.stop="$emit('toggle-select')"
+            class="shrink-0 w-5 h-5 rounded border flex items-center justify-center transition-all duration-200"
+            :class="[
+                isSelected 
+                    ? 'bg-(--primary) border-(--primary) text-white' 
+                    : 'border-(--text)/30 hover:border-(--primary) text-transparent'
+            ]"
+        >
+            <i v-if="isSelected" class="bi bi-check text-sm" />
+        </button>
 
             <div 
                 @click.stop="showEditFolder = true"
@@ -33,13 +54,13 @@
         </div>
 
         <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold text-(--text)/90 truncate">{{ folder.name }}</p>
-            <p class="text-[9px] text-(--text)/40 font-bold uppercase tracking-tighter">
+            <p class="text-sm font-semibold text-(--text) truncate">{{ folder.name }}</p>
+            <p class="text-[9px] text-(--text2) font-bold uppercase tracking-tighter">
                 {{ allFiles.filter(f => f.folderId === folder.id).length }} fichiers
             </p>
         </div>
 
-        <i class="bi bi-chevron-right text-(--text)/20 group-hover:text-(--primary) transition-colors" />
+        <i class="bi bi-chevron-right text-(--text2) group-hover:text-(--primary) transition-colors" />
 
     </div>
 
@@ -57,13 +78,40 @@ import type { Folder, StoredFile } from '@/types/types';
 import { ref } from 'vue';
 import EditFolder from '../popup/EditFolder.vue';
 
-defineProps<{
+const props = defineProps<{
     folder: Folder,
     draggedIntoFolderId: any,
     draggedSourceFolderId: any,
-    allFiles: StoredFile[]
+    allFiles: StoredFile[],
+    isSelected?: boolean,
+    isSelectionMode?: boolean
 }>();
 
+const emit = defineEmits(['toggle-select', 'click']);
+
+let longPressTimer: any = null;
+
+const onPointerDown = (e: PointerEvent) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    longPressTimer = setTimeout(() => {
+        emit('toggle-select');
+        if (navigator.vibrate) navigator.vibrate(50);
+    }, 500);
+};
+
+const onPointerUp = () => {
+    if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+    }
+};
+
+const handleClick = (e: Event) => {
+    if (props.isSelectionMode) {
+        e.stopPropagation();
+        emit('toggle-select');
+    }
+};
 
 const colorTextMap: Record<string, string> = {
   'yellow': 'text-yellow-500',

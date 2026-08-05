@@ -57,6 +57,8 @@
 
         </button>
 
+        <div v-if="hasUnread" class="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-(--bg) z-20"></div>
+
         <div
             class="
                 absolute left-14 top-1/2 -translate-y-1/2
@@ -101,6 +103,7 @@ const props = defineProps<{
     active?: boolean;
     iconFillOnActive?: boolean;
     redhover?: boolean;
+    hasUnread?: boolean;
 }>();
 
 defineEmits<{

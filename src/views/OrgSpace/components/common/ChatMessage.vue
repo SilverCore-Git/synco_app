@@ -15,7 +15,7 @@
                     <div 
                         v-if="msg.replyToId && msg.replyMessage" 
                         @click="router.push({ query: { ...route.query, select: msg.replyMessage?.id } })"
-                        class="group/reply reply-context flex items-center gap-2 mb-1 text-xs text-(--text)/60 relative pl-13 cursor-pointer"
+                        class="group/reply reply-context flex items-center gap-2 mb-1 text-xs text-(--text2) relative pl-13 cursor-pointer"
                     >
                         
                         <div class="z-10 absolute left-4 top-2.5 w-7 h-13 border-l-2 border-t-2 border-white/20 group-hover/reply:border-white/40 rounded-tl-md" />
@@ -106,15 +106,15 @@
                                     {{ msg.sender?.name || 'Anonyme' }}
                                 </span>
 
-                                <span class="text-(--text)/27 text-[10px] whitespace-nowrap">
+                                <span class="text-(--text2) text-[10px] whitespace-nowrap">
                                     {{ formatTime(msg.createdAt as any) }}
                                 </span>
 
                             </div>
 
-                            <div ref="messageContentRef" class="text-(--text)/80 text-sm leading-relaxed wrap-break-word">
+                            <div ref="messageContentRef" class="text-(--text) text-sm leading-relaxed wrap-break-word">
                                 <MarkdownRender :content="msg.content" />
-                                <span v-if="msg.edited" class="text-[10px] text-(--text)/30"> (modifié)</span>
+                                <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
                             </div>
                             
                             <!-- Message reactions -->
@@ -154,17 +154,17 @@
                                     </div>
 
                                     <div class="flex flex-col min-w-0 pr-2">
-                                        <span class="text-xs font-medium text-(--text)/90 truncate">
+                                        <span class="text-xs font-medium text-(--text) truncate">
                                             {{ file.originalName }}
                                         </span>
-                                        <span class="text-[10px] text-(--text)/40 uppercase tracking-wider">
+                                        <span class="text-[10px] text-(--text2) uppercase tracking-wider">
                                             {{ (file.size / 1024 / 1024).toFixed(2) }} MB
                                         </span>
                                     </div>
 
                                     <button 
                                         @click="downloadFile(file.id)"
-                                        class="ml-auto p-1.5 rounded-md hover:bg-(--primary)/20 text-(--text)/60 hover:text-(--primary) transition-colors"
+                                        class="ml-auto p-1.5 rounded-md hover:bg-(--primary)/20 text-(--text2) hover:text-(--primary) transition-colors"
                                         title="Télécharger"
                                     >
                                         <i class="bi bi-download" />
@@ -210,14 +210,16 @@ import { downloadFile } from '@/assets/utils/downloadFile';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { user } from '@/assets/var';
-import { encryptAesKeyWithRsa, encryptForPeer } from '@/assets/utils/crypto';
+import { encryptForPeer } from '@/assets/utils/crypto';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useToast } from '@/composables/useToast';
 import { openProfile } from '@/composables/useProfile';
+import useSettingsItem from '@/composables/useSettingsItem';
 
 const toast = useToast();
 const showReactionPicker = ref<boolean>(false);
 const pickerCoords = ref<{ x: number, y: number } | null>(null);
+const { Item: devMode } = useSettingsItem('devMode', false);
 
 // Format DM reactions to match MessageReactions expected format
 const formatDMReactions = (reactions: DMMessageReaction[] | Record<string, { count: number; users: ReactionUser[] }> | any[] | undefined): Record<string, { count: number; users: ReactionUser[] }> | undefined => {
@@ -269,6 +271,16 @@ const dropdownBtns: DropdownBtn[] = [
         tooltip: "copier",
         func: () => {},
         show: () => true
+    },
+    {
+        icon: "bi-hash",
+        tooltip: "copier l'id",
+        func: (msg: DMMessage) => {
+            navigator.clipboard.writeText(msg.id);
+            toast.show("ID copié", "success");
+        },
+        class: "text-(--primary)! hover:bg-(--primary)/10!",
+        show: () => devMode.value
     },
     {
         icon: "bi-pencil-fill",
@@ -443,12 +455,7 @@ const editMessage = async (newContent: string) => {
 
     const myPubKey = user.value?.publicKey;
 
-    const { ciphertext, encryptedAesKey, iv, rawKey } = await encryptForPeer(newContent, props.msg.sender?.publicKey!);
-
-    const selfEncryptedAesKey = await encryptAesKeyWithRsa(
-        rawKey,
-        myPubKey
-    );
+    const { ciphertext, encryptedAesKey, iv, selfEncryptedAesKey } = await encryptForPeer(newContent, props.msg.sender?.publicKey!, myPubKey);
 
     const socket = await useWSocket();
         
