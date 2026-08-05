@@ -1,8 +1,26 @@
 import { keycloak } from "../keycloak";
 import { Capacitor } from "@capacitor/core";
 
+function isTauriPlatform(): boolean {
+  return '__TAURI_INTERNALS__' in window;
+}
+
+let tauriFetchFn: typeof fetch | null = null;
+
+async function getFetch(): Promise<typeof fetch> {
+  if (isTauriPlatform()) {
+    if (!tauriFetchFn) {
+      const { fetch: tFetch } = await import('@tauri-apps/plugin-http');
+      tauriFetchFn = tFetch as unknown as typeof fetch;
+    }
+    return tauriFetchFn;
+  }
+  return window.fetch.bind(window);
+}
+
 export default async function sfetch(url: string, arg?: any) {
     
+    const fetchFn = await getFetch();
     const headers: Record<string, string> = { ...arg?.headers };
 
     if (keycloak.authenticated) {
@@ -37,7 +55,7 @@ export default async function sfetch(url: string, arg?: any) {
         }
     }
 
-    return await fetch(`${import.meta.env.VITE_API_URL}${url}`, {
+    return await fetchFn(`${import.meta.env.VITE_API_URL}${url}`, {
         ...arg,
         method: arg?.method || 'GET',
         headers,

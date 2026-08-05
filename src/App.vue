@@ -23,6 +23,7 @@ import { isProfileOpen, profileUser, closeProfile } from './composables/useProfi
 //import { Capacitor } from '@capacitor/core';
 //import { App as CapApp, type URLOpenListenerEvent } from '@capacitor/app';
 //import { Browser } from '@capacitor/browser';
+import httpFetch from '@/assets/utils/httpFetch';
 
 const toast = useToast();
 const { Item: theme } = useSettingsItem('theme', 'dark');
@@ -155,7 +156,7 @@ const handleInput = (e: KeyboardEvent) => {
 onMounted(async () => {
   console.log('[DEBUG] onMounted start');
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/health`, { credentials: 'include' });
+    const res = await httpFetch(`${import.meta.env.VITE_API_URL}/health`);
     console.log('[DEBUG] health check status:', res.status);
     if (!res.ok) return alert('Api error');
 

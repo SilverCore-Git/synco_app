@@ -6,6 +6,7 @@ import { Browser } from "@capacitor/browser";
 import { App as CapApp, type URLOpenListenerEvent } from "@capacitor/app";
 import { open } from '@tauri-apps/plugin-shell';
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
+import { listen } from '@tauri-apps/api/event';
 
 const KC_URL = import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080/auth';
 const KC_REALM = import.meta.env.VITE_KEYCLOAK_REALM || 'SilverTeams';
@@ -18,8 +19,17 @@ const keycloak = new Keycloak({
 });
 
 function isTauriPlatform(): boolean {
-      return '__TAURI_INTERNALS__' in window;
-    }
+  return '__TAURI_INTERNALS__' in window;
+}
+
+// Helper function to get the appropriate fetch (Tauri or browser)
+async function getTauriFetch(): Promise<typeof fetch> {
+  if (isTauriPlatform()) {
+    const { fetch: tFetch } = await import('@tauri-apps/plugin-http');
+    return tFetch as unknown as typeof fetch;
+  }
+  return window.fetch.bind(window);
+}
 
 
 async function tauriLogin(): Promise<{ token?: string; refreshToken?: string }> {
@@ -28,11 +38,24 @@ async function tauriLogin(): Promise<{ token?: string; refreshToken?: string }> 
   const codeChallenge = await generateCodeChallenge(codeVerifier);
   const state = crypto.randomUUID();
 
+  let resolveDeepLink!: (url: string) => void;
   const deepLinkArrived = new Promise<string>((resolve) => {
-    onOpenUrl((urls) => {
-      const url = urls[0];
-      if (url && url.includes('code=')) resolve(url);
-    });
+    resolveDeepLink = resolve;
+  });
+
+  // Écoute 1 : deep link classique (fonctionne notamment sur macOS,
+  // et sur Windows/Linux si l'OS route l'URL vers l'instance déjà ouverte)
+  const unlistenOpenUrl = onOpenUrl((urls) => {
+    const url = urls[0];
+    if (url && url.includes('code=')) resolveDeepLink(url);
+  });
+
+  // Écoute 2 : relai via single-instance (Windows/Linux, quand l'OS relance
+  // un nouveau process avec l'URL en argument au lieu de notifier l'instance active)
+  const unlistenSingleInstance = await listen<string[]>('single-instance', (event) => {
+    const args = event.payload;
+    const urlArg = args.find((a) => a.startsWith(redirectUri));
+    if (urlArg) resolveDeepLink(urlArg);
   });
 
   const authUrl = `${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/auth`
@@ -44,11 +67,18 @@ async function tauriLogin(): Promise<{ token?: string; refreshToken?: string }> 
   await open(authUrl); // ouvre le navigateur système par défaut
 
   const callbackUrl = await deepLinkArrived;
+
+  // Nettoyage des deux listeners une fois le deep link reçu
+  unlistenSingleInstance();
+  // onOpenUrl ne retourne pas de fonction de désinscription dans cette API,
+  // donc rien à nettoyer côté unlistenOpenUrl (le callback restera enregistré
+  // mais ne fera plus rien d'utile puisque la promesse est déjà résolue)
+
   const code = new URL(callbackUrl).searchParams.get('code');
   if (!code) return {};
 
-  // échange du code contre les tokens — identique à nativeLogin()
-  const tokenRes = await fetch(`${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/token`, {
+  const fetchFn = await getTauriFetch();
+  const tokenRes = await fetchFn(`${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -144,7 +174,8 @@ async function nativeLogin(): Promise<{ token?: string; refreshToken?: string }>
   const code = new URL(callbackUrl).searchParams.get('code');
   if (!code) return {};
 
-  const tokenRes = await fetch(`${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/token`, {
+  const fetchFn = await getTauriFetch();
+  const tokenRes = await fetchFn(`${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -178,7 +209,7 @@ function isTokenExpired(token: string | null | undefined): boolean {
 }
 
 const initKC = async () => {
-    try {
+  try {
     if (isTauriPlatform()) {
       let token = localStorage.getItem('kc_token') || undefined;
       let refreshToken = localStorage.getItem('kc_refreshToken') || undefined;
