@@ -1,4 +1,5 @@
 use tauri::{Emitter, Manager};
+use std::collections::HashMap;
 
 #[derive(serde::Serialize)]
 struct HttpResponsePayload {
@@ -10,9 +11,8 @@ struct HttpResponsePayload {
 async fn http_request(
     url: String,
     method: String,
+    headers: Option<HashMap<String, String>>,
     body: Option<String>,
-    content_type: Option<String>,
-    auth_token: Option<String>,
 ) -> Result<HttpResponsePayload, String> {
     let client = reqwest::Client::new();
 
@@ -21,11 +21,10 @@ async fn http_request(
         &url,
     );
 
-    if let Some(ct) = content_type {
-        req = req.header("Content-Type", ct);
-    }
-    if let Some(token) = auth_token {
-        req = req.header("Authorization", format!("Bearer {}", token));
+    if let Some(hdrs) = headers {
+        for (k, v) in hdrs {
+            req = req.header(k, v);
+        }
     }
     if let Some(b) = body {
         req = req.body(b);

@@ -1,25 +1,24 @@
+import { installTauriXHRPatch } from '@/assets/utils/tauriXHR';
+
 function isTauriPlatform(): boolean {
   return '__TAURI_INTERNALS__' in window;
 }
 
 if (isTauriPlatform()) {
+  // patch fetch (pour keycloak-js)
   const originalFetch = window.fetch;
-  window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  window.fetch = async (input, init) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-
-    // Ne route via Tauri que les domaines externes qu'on connaît (Keycloak, API, etc.)
-    const shouldIntercept =
-      url.includes('auth.silvercore.fr') ||
-      url.includes('api-synco.silvercore.fr') ||
-      url.includes('livekit.silvercore.fr');
-
+    const shouldIntercept = url.includes('auth.silvercore.fr') || url.includes('api-synco.silvercore.fr') || url.includes('livekit.silvercore.fr');
     if (shouldIntercept) {
       const { fetch: tauriFetch } = await import('@tauri-apps/plugin-http');
       return tauriFetch(input as any, init as any);
     }
-
     return originalFetch(input, init);
   };
+
+  // patch XHR (pour socket.io)
+  installTauriXHRPatch(['api-synco.silvercore.fr', 'auth.silvercore.fr']);
 }
 
 if (typeof (Promise as any).withResolvers !== 'function') {
