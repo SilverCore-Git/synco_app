@@ -313,12 +313,12 @@ const permissionGroups = [
     keys: ['VIEW', 'READ']
   },
   {
-    name: 'Édition',
-    keys: ['WRITE', 'UPLOAD', 'DELETE']
+    name: 'Création & Édition',
+    keys: ['WRITE', 'UPLOAD', 'CREATE_SPACE', 'CREATE_FOLDER', 'DELETE']
   },
   {
     name: 'Gestion & Administration',
-    keys: ['SHARE', 'MANAGE', 'ADMIN']
+    keys: ['SHARE', 'INVITE_USERS', 'MANAGE', 'ADMIN']
   }
 ];
 
