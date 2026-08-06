@@ -22,6 +22,7 @@
                     :stencil-props="{
                         aspectRatio: 1
                     }"
+                    image-restriction="stencil"
                 />
             </div>
             
