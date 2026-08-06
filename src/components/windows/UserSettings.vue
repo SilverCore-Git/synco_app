@@ -425,7 +425,7 @@
                     </div>
 
                     <div class="space-y-6 max-w-lg">
-                        <div class="p-6 bg-(--bg2) border border-(--border-color) rounded-xl shadow-sm space-y-4">
+                        <div v-if="isNotionModuleEnabled" class="p-6 bg-(--bg2) border border-(--border-color) rounded-xl shadow-sm space-y-4">
                             <div class="flex items-center gap-4 mb-2">
                                 <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center shrink-0">
                                     <img src="https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png" alt="Notion" class="w-8 h-8 object-contain" />
@@ -487,15 +487,16 @@ import { ref, reactive, watch, computed } from 'vue';
 import Window from './Window.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
 import ProfileUploader from '../common/ProfileUploader.vue';
-import { user } from '@/assets/var';
+import { user, isNotionModuleEnabled } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import { E2EEUnloked, lockSecurity } from '@/assets/utils/crypto';
 import { keycloak } from '@/assets/keycloak';
 import { getAverageColor } from '@/assets/utils/getAverageColor';
 
-defineProps<{
+const props = defineProps<{
   isOpen: boolean;
+  initialTab?: string;
 }>();
 
 const emit = defineEmits(['close']);
@@ -504,7 +505,13 @@ const toast = useToast();
 const { Item: theme } = useSettingsItem('theme', 'dark');
 const { Item: devMode } = useSettingsItem('devMode', false);
 
-const activeTab = ref<string>('account');
+const activeTab = ref<string>(props.initialTab || 'account');
+
+watch(() => props.isOpen, (newVal) => {
+    if (newVal && props.initialTab) {
+        activeTab.value = props.initialTab;
+    }
+});
 const avatarChange = ref<boolean>(false);
 const isUpdating = ref<boolean>(false);
 const dominantColor = ref('#16ac77');

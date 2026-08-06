@@ -200,6 +200,12 @@
             @save="editMessage"
         />
 
+        <CreateNotionTaskModal
+            :show="showNotionTaskModal"
+            :initial-content="msg.content"
+            @close="showNotionTaskModal = false"
+        />
+
 </template>
 
 <script setup lang="ts">
@@ -221,6 +227,7 @@ import { useToast } from '@/composables/useToast';
 import { openProfile } from '@/composables/useProfile';
 import useSettingsItem from '@/composables/useSettingsItem';
 import NotionLinkPreview from '@/components/common/NotionLinkPreview.vue';
+import CreateNotionTaskModal from '@/components/common/CreateNotionTaskModal.vue';
 
 const toast = useToast();
 const showReactionPicker = ref<boolean>(false);
@@ -321,6 +328,12 @@ const dropdownBtns: DropdownBtn[] = [
         func: () => openDeleteConfirm(),
         class: "text-red-400! hover:bg-red-500/10!",
         show: (msg: DMMessage) => msg.senderId == user.value?.id
+    },
+    {
+        icon: "bi-layout-text-window",
+        tooltip: "créer tâche Notion",
+        func: () => { showNotionTaskModal.value = true; showPlusDropdown.value = false; },
+        show: () => true
     }
 ];
 
@@ -331,6 +344,7 @@ const { setMessageWillBeResponded } = useResponse();
 const showPlusDropdown = ref<boolean>(false);
 const showDeleteConfirm = ref<boolean>(false);
 const showEditMessage = ref<boolean>(false);
+const showNotionTaskModal = ref<boolean>(false);
 const messageContentRef = ref<HTMLElement | null>(null);
 
 const isTagMe = computed(() => {

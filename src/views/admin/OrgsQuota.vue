@@ -185,6 +185,16 @@
                                 <div class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
                             </label>
                         </div>
+                        <div class="flex items-center justify-between p-3 bg-white/5 rounded-xl mt-2">
+                            <div>
+                                <p class="text-sm font-bold text-(--text)">Intégration Notion</p>
+                                <p class="text-[10px] text-(--text2)">Lien avec bases de données Notion.</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" v-model="orgEditForm.features.notion" class="sr-only peer">
+                                <div class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
+                            </label>
+                        </div>
                     </div>
                 </div>
 
@@ -243,7 +253,8 @@ const orgEditForm = ref({
     features: {
         todo: true,
         files: true,
-        ai: true
+        ai: true,
+        notion: true
     }
 });
 
@@ -304,6 +315,7 @@ const openOrgEditModal = (org: AdminOrg) => {
             todo: org.features?.includes('todo') ?? true,
             files: org.features?.includes('files') ?? true,
             ai: org.features?.includes('ai') ?? true,
+            notion: org.features?.includes('notion') ?? false,
         }
     };
 };
@@ -324,6 +336,7 @@ const saveOrgQuotas = async () => {
         if (orgEditForm.value.features.todo) featuresArray.push('todo');
         if (orgEditForm.value.features.files) featuresArray.push('files');
         if (orgEditForm.value.features.ai) featuresArray.push('ai');
+        if (orgEditForm.value.features.notion) featuresArray.push('notion');
 
         const res = await sfetch(`/api/admin/organizations/${selectedOrg.value.id}`, {
             method: 'PATCH',

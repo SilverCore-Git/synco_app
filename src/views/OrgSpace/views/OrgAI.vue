@@ -56,10 +56,11 @@
                 <i class="bi bi-search" v-if="msg.tool_call.name === 'search_messages'"></i>
                 <i class="bi bi-book" v-else-if="msg.tool_call.name === 'read_documentation'"></i>
                 <i class="bi bi-check2-square" v-else-if="msg.tool_call.name === 'read_tasks'"></i>
+                <img v-else-if="msg.tool_call.name === 'create_notion_page' || msg.tool_call.name === 'read_notion_page'" src="https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png" class="w-3 h-3 object-contain invert opacity-80" />
                 <i class="bi bi-wrench-adjustable-circle" v-else></i>
                 {{ msg.tool_call.name === 'search_messages' ? 'Recherche Globale' : msg.tool_call.name ===
                   'read_documentation' ? 'Consultation de la documentation' : msg.tool_call.name === 'read_tasks' ?
-                'Lecture des tâches' : "Demande d'action" }}
+                'Lecture des tâches' : msg.tool_call.name === 'create_notion_page' ? 'Création Notion' : msg.tool_call.name === 'read_notion_page' ? 'Lecture Notion' : "Demande d'action" }}
               </div>
 
               <p class="text-sm" v-if="msg.tool_call.name === 'search_messages'">
@@ -73,6 +74,12 @@
               </p>
               <p class="text-sm" v-else-if="msg.tool_call.name === 'read_tasks'">
                 Je consulte votre liste de tâches et son état d'avancement.
+              </p>
+              <p class="text-sm" v-else-if="msg.tool_call.name === 'create_notion_page'">
+                Je vais créer une nouvelle page dans Notion.
+              </p>
+              <p class="text-sm" v-else-if="msg.tool_call.name === 'read_notion_page'">
+                Je vais lire le contenu d'une page Notion.
               </p>
               <p class="text-sm" v-else>
                 Exécution de <code
@@ -160,6 +167,28 @@
                   <button
                     class="text-xs bg-white/5 hover:bg-white/10 text-white font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
                     Ouvrir
+                    <i class="bi bi-box-arrow-up-right"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Created Notion Page Snippet -->
+              <div
+                v-if="msg.tool_call.status === 'accepted' && messages[index + 1]?.tool_data?.name === 'create_notion_page' && messages[index + 1]?.tool_data?.results"
+                class="mt-4 pt-4 border-t border-white/10">
+                <div
+                  class="w-full bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-zinc-500/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center"
+                  @click="window.open(messages[index + 1]?.tool_data?.results?.url, '_blank')">
+                  <div class="flex items-center gap-3">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png" class="w-6 h-6 object-contain invert opacity-80" />
+                    <div>
+                      <p class="text-sm font-bold text-(--text) leading-snug">Page Créée</p>
+                      <p class="text-xs text-white/40 mt-0.5">Ouvrir dans Notion</p>
+                    </div>
+                  </div>
+                  <button
+                    class="text-xs bg-white/5 hover:bg-white/10 text-white font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
+                    Voir
                     <i class="bi bi-box-arrow-up-right"></i>
                   </button>
                 </div>
@@ -427,6 +456,26 @@ watch(activeSessionId, async () => {
     chatInputRef.value.textarea.focus();
   }
 });
+
+onMounted(() => {
+  scrollToBottom();
+  setTimeout(() => {
+    if (chatInputRef.value?.textarea && !isGenerating.value) {
+      chatInputRef.value.textarea.focus();
+    }
+  }, 100);
+
+  const initPrompt = localStorage.getItem('ai_initial_prompt');
+  if (initPrompt) {
+    localStorage.removeItem('ai_initial_prompt');
+    newSession();
+    setTimeout(() => {
+      inputMsg.value = initPrompt;
+      sendMessage();
+    }, 500);
+  }
+});
+
 const messages = aiSessionMessages as unknown as Ref<ChatMessage[]>;
 const chatContainer = ref<HTMLElement | null>(null);
 const hasNavigatorGpu = typeof navigator !== 'undefined' && !!(navigator as any).gpu;
@@ -719,6 +768,39 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
       result = "Voici les tâches de l'utilisateur :\n" + JSON.stringify(data, null, 2);
       toolData = data;
 
+    } else if (toolCall.name === 'create_notion_page') {
+      const dbRes = await sfetch('/api/integrations/notion/databases');
+      const dbData = await dbRes.json();
+      if (!dbData.databases || dbData.databases.length === 0) {
+        throw new Error("Aucune base de données Notion trouvée. L'utilisateur doit la configurer ou en créer une.");
+      }
+      
+      // Select the first available database
+      const databaseId = dbData.databases[0].id;
+      
+      const res = await sfetch('/api/integrations/notion/pages', {
+        method: 'POST',
+        body: JSON.stringify({
+          databaseId,
+          title: args.title,
+          content: args.content
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || "Erreur serveur lors de la création");
+      
+      result = `Page Notion '${args.title}' créée avec succès (ID: ${data.pageId}). Lien: ${data.url}`;
+      toolData = data;
+
+    } else if (toolCall.name === 'read_notion_page') {
+      const pageId = args.pageId;
+      const res = await sfetch(`/api/integrations/notion/pages/${pageId}/content`);
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || "Erreur serveur lors de la lecture");
+      
+      result = `Contenu de la page Notion lue :\n${data.markdown}`;
+      toolData = { length: data.markdown.length };
+
     } else {
       result = "Erreur: Outil inconnu.";
     }
@@ -737,9 +819,9 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
     }
   });
 
-  if (['create_task', 'create_space', 'create_thread'].includes(toolCall.name)) {
+  if (['create_task', 'create_space', 'create_thread', 'create_notion_page'].includes(toolCall.name)) {
     sendMessage("L'action a été effectuée avec succès. Réponds très brièvement en une seule phrase pour confirmer à l'utilisateur.");
-  } else if (['search_messages', 'read_documentation', 'read_tasks'].includes(toolCall.name)) {
+  } else if (['search_messages', 'read_documentation', 'read_tasks', 'read_notion_page'].includes(toolCall.name)) {
     sendMessage("Voici les informations demandées. Réponds à la question de l'utilisateur en te basant sur ces résultats.");
   }
 };

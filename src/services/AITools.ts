@@ -1,3 +1,5 @@
+import { isNotionModuleEnabled } from '@/assets/var';
+
 export const availableTools = [
     {
         type: "function",
@@ -136,11 +138,58 @@ export const availableTools = [
                 required: ["prompt"]
             }
         }
+    },
+    {
+        type: "function",
+        function: {
+            name: "create_notion_page",
+            description: "Créer une nouvelle page ou ticket dans Notion. (Requiert que l'utilisateur ait configuré son intégration).",
+            parameters: {
+                type: "object",
+                properties: {
+                    title: {
+                        type: "string",
+                        description: "Le titre de la page Notion à créer."
+                    },
+                    content: {
+                        type: "string",
+                        description: "Le contenu textuel de la page (peut inclure des listes, du texte, etc.)."
+                    }
+                },
+                required: ["title", "content"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "read_notion_page",
+            description: "Lire le contenu d'une page Notion existante pour la résumer ou en extraire des informations.",
+            parameters: {
+                type: "object",
+                properties: {
+                    pageId: {
+                        type: "string",
+                        description: "L'identifiant (ID) de la page Notion."
+                    }
+                },
+                required: ["pageId"]
+            }
+        }
     }
 ];
 
+export const getActiveTools = () => {
+    return availableTools.filter(t => {
+        if (!isNotionModuleEnabled.value && (t.function.name === 'create_notion_page' || t.function.name === 'read_notion_page')) {
+            return false;
+        }
+        return true;
+    });
+};
+
 export const getToolsSystemPrompt = () => {
-    return availableTools.map(t => {
+    return getActiveTools().map(t => {
         const params = Object.keys(t.function.parameters.properties).map(k => `${k}: ${(t.function.parameters.properties as any)[k].type}`).join(', ');
         return `- ${t.function.name}(${params}): ${t.function.description}`;
     }).join('\n');

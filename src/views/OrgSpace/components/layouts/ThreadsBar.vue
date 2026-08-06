@@ -305,6 +305,14 @@
                                 @click="router.push({ name: 'TasksSpace', query: { showView: '1' } })"
                             />
 
+                            <SettingsViewBtn 
+                                v-if="!isHome && isNotionModuleEnabled"
+                                name="Notion"
+                                icon="bi-layout-text-window"
+                                :active="route.name == 'SpaceNotion'"
+                                @click="router.push({ name: 'SpaceNotion', query: { showView: '1' } })"
+                            />
+
                             <hr v-if="!isHome" class=" w-full h-0.5 bg-(--text)/50 border-none rounded-full my-1" />
                             
                             <div  
@@ -341,7 +349,7 @@
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { Thread, WorkSpace } from '@/types/types';
-import { openedOrg, todoEnabled, filesEnabled } from '@/assets/var';
+import { openedOrg, todoEnabled, filesEnabled, isNotionModuleEnabled } from '@/assets/var';
 import ThreadDropDown from '../dropdown/ThreadDropDown.vue';
 import ThreadBarDropDown from '../dropdown/ThreadBarDropDown.vue';
 import ChatUserBtn from '../CanalBar/ChatUserBtn.vue';

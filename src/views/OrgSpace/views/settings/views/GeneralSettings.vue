@@ -165,6 +165,33 @@
                             </div>
                             <p class="text-xs text-(--text2) mt-2 pointer-events-none">Assistant IA local (WebGPU) ou Cloud externe.</p>
                         </div>
+
+                        <!-- Module Notion -->
+                        <div 
+                            @click="toggleModule('notion')"
+                            class="bg-(--bg2) border rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden transition-all duration-300"
+                            :class="[
+                                !openedOrg?.features?.includes('notion') ? 'border-(--border-color) opacity-60 grayscale cursor-not-allowed' : 
+                                orgData.notionEnabled ? 'border-(--primary) shadow-sm hover:shadow-md cursor-pointer' : 'border-(--border-color) hover:border-(--text)/20 cursor-pointer'
+                            ]"
+                        >
+                            <div v-if="!openedOrg?.features?.includes('notion')" class="absolute top-3 right-3">
+                                <i class="bi bi-lock-fill text-(--text2)" title="Non inclus"></i>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-colors bg-white/10 shrink-0">
+                                    <img src="https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png" alt="Notion" class="w-6 h-6 object-contain" :class="orgData.notionEnabled ? '' : 'grayscale opacity-50'" />
+                                </div>
+                                <div class="flex-1 pointer-events-none">
+                                    <h4 class="font-bold text-sm text-(--text)">Intégration Notion</h4>
+                                </div>
+                                <label class="relative inline-flex items-center pointer-events-none" :class="{'cursor-not-allowed': !openedOrg?.features?.includes('notion'), 'cursor-pointer': openedOrg?.features?.includes('notion')}">
+                                    <input type="checkbox" v-model="orgData.notionEnabled" :disabled="!openedOrg?.features?.includes('notion')" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-black/20 border border-(--border-color) peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary) peer-checked:border-(--primary)"></div>
+                                </label>
+                            </div>
+                            <p class="text-xs text-(--text2) mt-2 pointer-events-none">Lien avec les bases de données et pages Notion.</p>
+                        </div>
                     </div>
                 </section>
 
@@ -260,7 +287,8 @@ const orgData = ref({
     logo: openedOrg.value?.logo || '',
     todoEnabled: openedOrg.value?.features?.includes('todo') ? (openedOrg.value?.activeModules?.todo || false) : false,
     filesEnabled: openedOrg.value?.features?.includes('files') ? (openedOrg.value?.activeModules?.files !== false) : false,
-    aiEnabled: openedOrg.value?.features?.includes('ai') ? (openedOrg.value?.activeModules?.ai === true) : false
+    aiEnabled: openedOrg.value?.features?.includes('ai') ? (openedOrg.value?.activeModules?.ai === true) : false,
+    notionEnabled: openedOrg.value?.features?.includes('notion') ? (openedOrg.value?.activeModules?.notion !== false) : false
 });
 
 watch(() => orgData.value.logo, async (newLogo) => {
@@ -271,11 +299,12 @@ watch(() => orgData.value.logo, async (newLogo) => {
     }
 }, { immediate: true });
 
-const toggleModule = (module: 'todo' | 'files' | 'ai') => {
+const toggleModule = (module: 'todo' | 'files' | 'ai' | 'notion') => {
     if (!openedOrg.value?.features?.includes(module)) return;
     if (module === 'todo') orgData.value.todoEnabled = !orgData.value.todoEnabled;
     if (module === 'files') orgData.value.filesEnabled = !orgData.value.filesEnabled;
     if (module === 'ai') orgData.value.aiEnabled = !orgData.value.aiEnabled;
+    if (module === 'notion') orgData.value.notionEnabled = !orgData.value.notionEnabled;
 };
 
 const hasChanges = computed(() => {
@@ -285,6 +314,7 @@ const hasChanges = computed(() => {
         || orgData.value.todoEnabled !== (openedOrg.value?.activeModules?.todo || false)
         || orgData.value.filesEnabled !== (openedOrg.value?.activeModules?.files !== false)
         || orgData.value.aiEnabled !== (openedOrg.value?.activeModules?.ai === true)
+        || orgData.value.notionEnabled !== (openedOrg.value?.activeModules?.notion !== false)
     )
 });
 
@@ -294,6 +324,7 @@ const resetChanges = () => {
     orgData.value.todoEnabled = openedOrg.value?.features?.includes('todo') ? (openedOrg.value?.activeModules?.todo || false) : false;
     orgData.value.filesEnabled = openedOrg.value?.features?.includes('files') ? (openedOrg.value?.activeModules?.files !== false) : false;
     orgData.value.aiEnabled = openedOrg.value?.features?.includes('ai') ? (openedOrg.value?.activeModules?.ai === true) : false;
+    orgData.value.notionEnabled = openedOrg.value?.features?.includes('notion') ? (openedOrg.value?.activeModules?.notion !== false) : false;
 };
 
 const saveSettings = async () => {
@@ -315,7 +346,8 @@ const saveSettings = async () => {
                     ...(openedOrg.value?.activeModules || {}),
                     todo: orgData.value.todoEnabled,
                     files: orgData.value.filesEnabled,
-                    ai: orgData.value.aiEnabled
+                    ai: orgData.value.aiEnabled,
+                    notion: orgData.value.notionEnabled
                 }
             })
         }).then(res => res.json())
@@ -335,7 +367,8 @@ const saveSettings = async () => {
                 ...(openedOrg.value.activeModules || {}),
                 todo: orgData.value.todoEnabled,
                 files: orgData.value.filesEnabled,
-                ai: orgData.value.aiEnabled
+                ai: orgData.value.aiEnabled,
+                notion: orgData.value.notionEnabled
             };
 
             const curentOrg = organizations.value.find(org => org.id === openedOrg.value?.id);
@@ -402,6 +435,7 @@ watch(() => openedOrg.value, (newOrg) => {
         orgData.value.todoEnabled = newOrg.features?.includes('todo') ? (newOrg.activeModules?.todo || false) : false;
         orgData.value.filesEnabled = newOrg.features?.includes('files') ? (newOrg.activeModules?.files !== false) : false;
         orgData.value.aiEnabled = newOrg.features?.includes('ai') ? (newOrg.activeModules?.ai === true) : false;
+        orgData.value.notionEnabled = newOrg.features?.includes('notion') ? (newOrg.activeModules?.notion !== false) : false;
     }
 }, { deep: true });
 

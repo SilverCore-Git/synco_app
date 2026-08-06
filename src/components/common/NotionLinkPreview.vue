@@ -18,6 +18,17 @@
       </div>
     </a>
     
+    <!-- Action Résumer avec IA -->
+    <div v-if="!loading && previewData && previewData.pageId" class="px-3 pb-3">
+      <button 
+        @click="summarizeWithAI(previewData.pageId, previewData.title)"
+        class="w-full bg-(--primary)/10 hover:bg-(--primary)/20 text-(--primary) border border-(--primary)/20 rounded-lg py-1.5 text-xs font-bold transition-colors flex items-center justify-center gap-2"
+      >
+        <i class="bi bi-robot"></i>
+        Résumer avec IA
+      </button>
+    </div>
+
     <div v-else-if="loading" class="p-3 flex items-center gap-3">
       <div class="w-10 h-10 bg-white/5 rounded-lg flex items-center justify-center animate-pulse shrink-0"></div>
       <div class="flex-1 space-y-2">
@@ -40,7 +51,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
+import { openedOrg } from '@/assets/var';
+
+const router = useRouter();
 
 const props = defineProps<{
   url: string;
@@ -73,6 +88,13 @@ const loadPreview = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+const summarizeWithAI = (pageId: string, title: string) => {
+  // Enregistrer le message initial dans le localStorage pour qu'il soit lu par OrgAI.vue ou juste rediriger avec query
+  const prompt = `Résume la page Notion avec l'identifiant '${pageId}'.`;
+  localStorage.setItem('ai_initial_prompt', prompt);
+  router.push(`/${openedOrg.value?.id}/ai`);
 };
 
 onMounted(() => {

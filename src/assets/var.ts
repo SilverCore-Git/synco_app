@@ -27,5 +27,10 @@ const aiEnabled = computed(() => {
     return openedOrg.value.activeModules?.ai === true;
 });
 
+const isNotionModuleEnabled = computed(() => {
+    if (!openedOrg.value?.features?.includes('notion')) return false;
+    return openedOrg.value.activeModules?.notion !== false; // defaults to true if included in features
+});
 
-export { organizations, openedOrg, isLoaded, user, member, isLittleScreen, kcToken, todoEnabled, filesEnabled, aiEnabled };
+
+export { organizations, openedOrg, isLoaded, user, member, isLittleScreen, kcToken, todoEnabled, filesEnabled, aiEnabled, isNotionModuleEnabled };

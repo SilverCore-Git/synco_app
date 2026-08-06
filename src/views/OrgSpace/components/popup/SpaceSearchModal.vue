@@ -55,6 +55,13 @@
             >
                 <i class="bi bi-hash"></i> Salons
             </button>
+            <button 
+                @click="toggleFilter('NOTION')"
+                class="px-3 py-1 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5"
+                :class="activeFilters['NOTION'] ? 'bg-zinc-100 text-black border border-zinc-300' : 'bg-white/5 text-white/40 hover:bg-white/10 border border-transparent'"
+            >
+                <img src="https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png" alt="Notion" class="w-3 h-3 object-contain inline-block mr-0.5 filter" :class="activeFilters['NOTION'] ? 'invert' : 'opacity-50'" /> Notion
+            </button>
         </div>
 
         <div class="max-h-[60vh] overflow-y-auto p-2" v-if="query.length > 0">
@@ -77,7 +84,7 @@
 
             <div v-else class="space-y-6 pb-4">
                 
-                <div v-for="group in ['THREAD', 'FILE', 'TODO', 'MESSAGE']" :key="group">
+                <div v-for="group in ['THREAD', 'FILE', 'TODO', 'MESSAGE', 'NOTION']" :key="group">
                     <div v-if="groupedResults[group] && groupedResults[group].length > 0">
                         <h3 class="text-[10px] font-black tracking-widest uppercase text-(--text2) mb-2 px-2 flex items-center gap-2">
                             <i class="bi" :class="{
@@ -85,8 +92,9 @@
                                 'bi-file-earmark-text text-green-400': group === 'FILE',
                                 'bi-check2-square text-orange-400': group === 'TODO',
                                 'bi-chat-dots text-blue-400': group === 'MESSAGE'
-                            }" />
-                            {{ group === 'THREAD' ? 'Salons' : group === 'FILE' ? 'Fichiers' : group === 'TODO' ? 'Tâches' : 'Messages' }}
+                            }" v-if="group !== 'NOTION'" />
+                            <img v-else src="https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png" alt="Notion" class="w-3 h-3 object-contain invert opacity-60" />
+                            {{ group === 'THREAD' ? 'Salons' : group === 'FILE' ? 'Fichiers' : group === 'TODO' ? 'Tâches' : group === 'MESSAGE' ? 'Messages' : 'Notion' }}
                             <span class="text-(--text2) font-normal">({{ groupedResults[group].length }})</span>
                         </h3>
                         
@@ -99,16 +107,20 @@
                             >
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center justify-between mb-1">
-                                        <p class="text-sm font-medium text-white line-clamp-1 group-hover/btn:text-(--primary) transition-colors">
+                                        <p class="text-sm font-medium text-white line-clamp-1 group-hover/btn:text-(--primary) transition-colors flex items-center gap-2">
+                                            <span v-if="group === 'NOTION' && res.metadata?.iconType === 'emoji'" class="text-lg leading-none">{{ res.metadata.icon }}</span>
+                                            <img v-else-if="group === 'NOTION' && res.metadata?.icon" :src="res.metadata.icon" alt="icon" class="w-4 h-4 object-contain" />
                                             {{ group === 'FILE' ? (res.metadata?.originalName || res.textContent) : res.textContent }}
                                         </p>
-                                        <span class="text-[10px] text-(--primary)/60 font-bold bg-(--primary)/10 px-2 py-0.5 rounded shrink-0 ml-3">
+                                        <span v-if="group !== 'NOTION'" class="text-[10px] text-(--primary)/60 font-bold bg-(--primary)/10 px-2 py-0.5 rounded shrink-0 ml-3">
                                             {{ (res.score * 100).toFixed(0) }}%
                                         </span>
                                     </div>
-                                    <!-- Si c'est un message long, on montre la suite avec opacity reduite -->
                                     <p v-if="group === 'MESSAGE'" class="text-xs text-(--text2) line-clamp-2 mt-1 font-mono">
                                         {{ res.textContent }}
+                                    </p>
+                                    <p v-else-if="group === 'NOTION'" class="text-xs text-(--text2) line-clamp-1 mt-0.5">
+                                        {{ res.metadata?.object === 'database' ? 'Base de données' : 'Page' }} Notion
                                     </p>
                                 </div>
                             </button>
@@ -129,6 +141,7 @@ import { ref, computed, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 import globalVectorWorker from '@/services/GlobalVectorWorker';
+import sfetch from '@/assets/utils/sfetch';
 
 const props = defineProps<{ show: boolean }>();
 const emit = defineEmits(['close']);
@@ -147,7 +160,8 @@ const activeFilters = ref<Record<string, boolean>>({
     THREAD: true,
     FILE: true,
     TODO: true,
-    MESSAGE: true
+    MESSAGE: true,
+    NOTION: true
 });
 
 const toggleFilter = (type: string) => {
@@ -162,7 +176,8 @@ const groupedResults = computed(() => {
         'THREAD': [],
         'FILE': [],
         'TODO': [],
-        'MESSAGE': []
+        'MESSAGE': [],
+        'NOTION': []
     };
     for (const res of results.value) {
         if (!activeFilters.value[res.type]) continue;
@@ -206,8 +221,42 @@ const handleWorkerMessage = async (e: MessageEvent) => {
         }
 
         try {
+            // 1. Fetch Local AI results
             const searchResults = await localSearchDB.searchByVector(vector, text, workspaceId, 50);
-            results.value = searchResults; // Removing 0.4 threshold because hybrid search scores are different
+            
+            // 2. Fetch Notion results if active
+            if (activeFilters.value['NOTION']) {
+                try {
+                    const encodedQ = encodeURIComponent(text);
+                    const response = await sfetch(`/api/integrations/notion/search?q=${encodedQ}`);
+                    if (response.ok) {
+                        const notionData = await response.json();
+                        const notionResults = notionData.results.map((n: any) => ({
+                            id: n.id,
+                            type: 'NOTION',
+                            score: 1.0, // Sort on top or blend in
+                            textContent: n.title,
+                            metadata: {
+                                url: n.url,
+                                icon: n.icon,
+                                iconType: n.iconType,
+                                object: n.object,
+                                lastEdited: n.lastEdited
+                            }
+                        }));
+                        // Merge and sort loosely by score (Notion results have artificial 1.0)
+                        results.value = [...notionResults, ...searchResults].sort((a, b) => (b.score || 0) - (a.score || 0));
+                    } else {
+                        results.value = searchResults;
+                    }
+                } catch(e) {
+                    console.error("[Notion] Search failed:", e);
+                    results.value = searchResults;
+                }
+            } else {
+                results.value = searchResults;
+            }
+
         } catch (err) {
             console.error("[SpaceSearchModal] Search failed with error:", err);
         } finally {
@@ -240,6 +289,12 @@ const handleInput = () => {
 };
 
 const goToResult = (res: any) => {
+    if (res.type === 'NOTION' && res.metadata?.url) {
+        window.open(res.metadata.url, '_blank', 'noopener,noreferrer');
+        emit('close');
+        return;
+    }
+
     emit('close');
     
     if (res.type === 'MESSAGE' || res.type === 'FILE') {

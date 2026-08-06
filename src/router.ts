@@ -172,6 +172,12 @@ const routes = [
         props: true,
       },
       {
+        path: ':spaceId/notion',
+        name: 'SpaceNotion',
+        component: () => import('./views/OrgSpace/components/SpaceNotionDb.vue'),
+        props: true,
+      },
+      {
         path: 'ai',
         name: 'OrgAI',
         component: () => import('./views/OrgSpace/views/OrgAI.vue'),
