@@ -23,6 +23,13 @@
                     <i class="bi bi-shield-check" />
                 </button>
                 <button 
+                    @click="showPermissions = true"
+                    class="hover:text-(--primary) transition-colors"
+                    title="Permissions"
+                >
+                    <i class="bi bi-shield-lock" />
+                </button>
+                <button 
                     @click="showUsersBar = !showUsersBar"
                     class="hover:text-(--text) transition-colors"
                     :class="showUsersBar ? 'text-(--text)' : ''"
@@ -411,6 +418,13 @@
         @close="showVerifyWatermark = false" 
     />
 
+    <SpacePermissionsModal
+        :show="showPermissions"
+        :space-id="String(route.params.spaceId)"
+        :space-name="'Fichiers'"
+        @close="showPermissions = false"
+    />
+
 </template>
 
 <script lang="ts" setup>
@@ -434,6 +448,7 @@ import type { StoredFile, Folder } from '@/types/types';
 import { extractTextFromPDF } from '@/assets/utils/pdfExtractor';
 import VectorWorker from '@/workers/semantic.worker?worker';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
+import SpacePermissionsModal from '@/components/permissions/SpacePermissionsModal.vue';
 
 
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
@@ -544,6 +559,7 @@ const loading = ref<boolean>(true);
 const currentFolderId = ref<string>('root');
 const showFolderNamePrompt = ref<boolean>(false);
 const showVerifyWatermark = ref<boolean>(false);
+const showPermissions = ref<boolean>(false);
 
 const fileSendProgress = ref<number>(0);
 const isUploading = ref<boolean>(false);
