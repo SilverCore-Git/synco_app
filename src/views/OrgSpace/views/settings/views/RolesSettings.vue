@@ -206,81 +206,84 @@
     </div>
 
     <!-- Modal Création -->
-    <div v-if="showCreateModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.self="showCreateModal = false">
-      <div class="bg-(--bg) border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-        <h3 class="text-lg font-bold mb-4 text-(--text)">Créer un rôle</h3>
+    <Popup 
+      :is-open="showCreateModal" 
+      @close="showCreateModal = false"
+    >
+      <template #title>Créer un rôle</template>
+      
+      <div class="flex flex-col gap-5">
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-(--text2) mb-2">Nom du rôle</label>
+          <input 
+            ref="nameInput"
+            v-model="newRole.name" 
+            type="text" 
+            class="w-full bg-(--bg2) border border-(--border-color) rounded-lg px-4 py-2.5 text-sm text-(--text) font-semibold outline-none focus:border-(--primary)"
+            placeholder="Ex: Designer, Externe..."
+          />
+        </div>
         
-        <div class="flex flex-col gap-5">
-          <div>
-            <label class="block text-xs font-bold uppercase tracking-wider text-(--text2) mb-2">Nom du rôle</label>
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-(--text2) mb-2">Couleur</label>
+          <div class="flex items-center gap-3">
+            <!-- Selecteur natif stylisé via un wrapper -->
+            <div class="relative w-10 h-10 rounded-full overflow-hidden shrink-0 cursor-pointer shadow-inner border border-white/10">
+              <input 
+                type="color" 
+                v-model="newRole.color" 
+                class="absolute -top-2 -left-2 w-16 h-16 cursor-pointer"
+              />
+            </div>
             <input 
-              v-model="newRole.name" 
+              v-model="newRole.color" 
               type="text" 
-              class="w-full bg-(--bg2) border border-(--border-color) rounded-lg px-4 py-2.5 text-sm text-(--text) font-semibold outline-none focus:border-(--primary)"
-              placeholder="Ex: Designer, Externe..."
+              class="flex-1 bg-(--bg2) border border-(--border-color) rounded-lg px-4 py-2.5 text-sm text-(--text) uppercase font-mono outline-none focus:border-(--primary)"
+              placeholder="#3b82f6"
             />
           </div>
           
-          <div>
-            <label class="block text-xs font-bold uppercase tracking-wider text-(--text2) mb-2">Couleur</label>
-            <div class="flex items-center gap-3">
-              <!-- Selecteur natif stylisé via un wrapper -->
-              <div class="relative w-10 h-10 rounded-full overflow-hidden shrink-0 cursor-pointer shadow-inner border border-white/10">
-                <input 
-                  type="color" 
-                  v-model="newRole.color" 
-                  class="absolute -top-2 -left-2 w-16 h-16 cursor-pointer"
-                />
-              </div>
-              <input 
-                v-model="newRole.color" 
-                type="text" 
-                class="flex-1 bg-(--bg2) border border-(--border-color) rounded-lg px-4 py-2.5 text-sm text-(--text) uppercase font-mono outline-none focus:border-(--primary)"
-                placeholder="#3b82f6"
-              />
-            </div>
-            
-            <!-- Palettes prédéfinies -->
-            <div class="flex items-center gap-2 mt-3">
-              <button 
-                v-for="color in presetColors" 
-                :key="color"
-                @click="newRole.color = color"
-                class="w-6 h-6 rounded-full border border-black/20 hover:scale-110 transition-transform shadow-inner"
-                :style="{ backgroundColor: color }"
-                :class="newRole.color?.toLowerCase() === color ? 'ring-2 ring-white ring-offset-2 ring-offset-(--bg)' : ''"
-              />
-            </div>
+          <!-- Palettes prédéfinies -->
+          <div class="flex items-center gap-2 mt-3">
+            <button 
+              v-for="color in presetColors" 
+              :key="color"
+              @click="newRole.color = color"
+              class="w-6 h-6 rounded-full border border-black/20 hover:scale-110 transition-transform shadow-inner"
+              :style="{ backgroundColor: color }"
+              :class="newRole.color?.toLowerCase() === color ? 'ring-2 ring-white ring-offset-2 ring-offset-(--bg)' : ''"
+            />
           </div>
         </div>
-
-        <div class="flex items-center justify-end gap-3 mt-8">
-          <button @click="showCreateModal = false" class="px-4 py-2 text-sm font-semibold text-(--text2) hover:text-(--text)">
-            Annuler
-          </button>
-          <button 
-            @click="createRole"
-            :disabled="!newRole.name || isSaving"
-            class="px-5 py-2 bg-(--primary) hover:bg-(--primary-hover) text-white text-sm font-bold rounded-xl disabled:opacity-50 transition-colors flex items-center gap-2"
-          >
-            <div v-if="isSaving" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            Créer
-          </button>
-        </div>
       </div>
-    </div>
+
+      <template #footer>
+        <button @click="showCreateModal = false" class="px-4 py-2 text-sm font-semibold text-(--text2) hover:text-(--text)">
+          Annuler
+        </button>
+        <button 
+          @click="createRole"
+          :disabled="!newRole.name || isSaving"
+          class="px-5 py-2 bg-(--primary) hover:bg-(--primary-hover) text-white text-sm font-bold rounded-xl disabled:opacity-50 transition-colors flex items-center gap-2"
+        >
+          <div v-if="isSaving" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          Créer
+        </button>
+      </template>
+    </Popup>
 
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { usePermissions } from '@/composables/usePermissions';
 import { openedOrg } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import { PERMISSION_REGISTRY, type Permission, type PermissionValue, type RoleData } from '@/config/permissions.config';
 import useWSocket from '@/composables/useWSocket';
+import Popup from '@/components/Popup.vue';
 
 const toast = useToast();
 const orgId = computed(() => openedOrg.value?.id);
@@ -292,6 +295,15 @@ const roles = ref<RoleData[]>([]);
 const selectedRoleId = ref<string | null>(null);
 
 const showCreateModal = ref(false);
+const nameInput = ref<HTMLInputElement | null>(null);
+
+watch(showCreateModal, (val) => {
+  if (val) {
+    nextTick(() => {
+      nameInput.value?.focus();
+    });
+  }
+});
 const presetColors = ['#94a3b8', '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef', '#f43f5e'];
 const newRole = ref({ name: '', color: presetColors[0] });
 const searchQuery = ref('');
@@ -487,22 +499,30 @@ async function saveDefaults() {
 async function createRole() {
   if (!orgId.value || !newRole.value.name) return;
   isSaving.value = true;
+  const roleName = newRole.value.name; // Sauvegarder le nom car on va réinitialiser
+  
   try {
     const res = await sfetch(`/api/orgs/${orgId.value}/roles`, {
       method: 'POST',
       body: JSON.stringify({
-        name: newRole.value.name,
+        name: roleName,
         color: newRole.value.color || undefined,
       }),
     });
+    
     if (!res.ok) throw new Error();
+    
+    const createdRoleData = await res.json(); // Le backend retourne le rôle créé
+    
     toast.show('Rôle créé', 'success');
     showCreateModal.value = false;
     newRole.value = { name: '', color: presetColors[0] };
     
+    // Assigner l'ID directement pour que l'UI soit instantanée
+    selectedRoleId.value = createdRoleData.id;
+    
+    // Recharger la liste
     await loadData(true);
-    const createdRole = roles.value.find(r => r.name === newRole.value.name);
-    if(createdRole) selectedRoleId.value = createdRole.id;
 
   } catch (err) {
     toast.show('Erreur de création', 'error');
