@@ -414,6 +414,65 @@
 
                 </section>
 
+                <!-- INTEGRATIONS -->
+                <section 
+                    v-if="activeTab === 'integrations'" 
+                    class="animate-fade-in space-y-8"
+                >
+                    <div>
+                        <h3 class="text-2xl font-black text-(--text) mb-1">Intégrations</h3>
+                        <p class="text-sm text-(--text2)">Connectez des services tiers à votre compte.</p>
+                    </div>
+
+                    <div class="space-y-6 max-w-lg">
+                        <div class="p-6 bg-(--bg2) border border-(--border-color) rounded-xl shadow-sm space-y-4">
+                            <div class="flex items-center gap-4 mb-2">
+                                <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center shrink-0">
+                                    <img src="https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png" alt="Notion" class="w-8 h-8 object-contain" />
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-(--text)">Notion</h4>
+                                    <p class="text-sm text-(--text2)">Aperçus de liens et fonctionnalités IA</p>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-1.5">
+                                <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Jeton d'intégration interne (Token)</label>
+                                <div class="relative">
+                                    <input 
+                                        type="password" 
+                                        v-model="notionToken" 
+                                        placeholder="secret_xxxxxxxxxxxx"
+                                        class="w-full bg-(--bg) border border-(--border-color) rounded-xl px-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                    />
+                                </div>
+                                <p class="text-[10px] text-(--text2) mt-1">
+                                    Ce jeton est chiffré de bout en bout dans notre base de données.
+                                </p>
+                            </div>
+                            
+                            <div class="pt-2 flex gap-3">
+                                <button  
+                                    @click="saveNotionToken"
+                                    class="primary flex items-center justify-center gap-2 text-sm flex-1" 
+                                    :disabled="!notionToken || isSavingNotion"
+                                >
+                                    <i v-if="isSavingNotion" class="bi bi-arrow-repeat animate-spin"></i>
+                                    <i v-else class="bi bi-link-45deg"></i>
+                                    <span>{{ isSavingNotion ? 'Connexion...' : 'Connecter Notion' }}</span>
+                                </button>
+                                <button  
+                                    @click="deleteNotionToken"
+                                    class="danger flex items-center justify-center gap-2 text-sm px-4" 
+                                    title="Déconnecter"
+                                >
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
             </main>
 
         </div>
@@ -463,6 +522,38 @@ const notifPrefs = reactive({
     sound: true,
     mentionsOnly: false
 });
+
+const notionToken = ref('');
+const isSavingNotion = ref(false);
+
+const saveNotionToken = async () => {
+    isSavingNotion.value = true;
+    try {
+        const response = await sfetch('/api/integrations/notion/token', {
+            method: 'POST',
+            body: JSON.stringify({ token: notionToken.value })
+        });
+        if (response.ok) {
+            toast.show('Notion connecté avec succès', 'success');
+            notionToken.value = '';
+        } else {
+            toast.show('Erreur de connexion à Notion', 'error');
+        }
+    } catch (e) {
+        toast.show('Erreur réseau', 'error');
+    } finally {
+        isSavingNotion.value = false;
+    }
+};
+
+const deleteNotionToken = async () => {
+    try {
+        const response = await sfetch('/api/integrations/notion/token', { method: 'DELETE' });
+        if (response.ok) {
+            toast.show('Notion déconnecté', 'success');
+        }
+    } catch (e) {}
+};
 
 // Sync user data to form
 watch(user, (newVal) => {
@@ -581,7 +672,8 @@ const tabs = [
     { id: 'account', label: 'Mon Compte', icon: 'bi bi-person-fill' },
     { id: 'security', label: 'Sécurité', icon: 'bi bi-shield-lock-fill' },
     { id: 'appearance', label: 'Apparence', icon: 'bi bi-palette-fill' },
-    { id: 'notifications', label: 'Notifications', icon: 'bi bi-bell-fill' }
+    { id: 'notifications', label: 'Notifications', icon: 'bi bi-bell-fill' },
+    { id: 'integrations', label: 'Intégrations', icon: 'bi bi-plugin' }
 ];
 
 </script>

@@ -1,10 +1,8 @@
 # 📋 Synco - Guide de Session de Développement du Chat
 
-> **Dernière mise à jour** : 16 Juin 2026  
+> **Dernière mise à jour** : 06 Août 2026  
 > **Projet** : synco - Alternative française souveraine à Slack/Teams  
 > **Contexte** : Développement du module de chat avec chiffrement E2EE
-
-(n'ésite pas a aller regarder le fichier DEVELOPERS_GUIDE.md pour avoir plus d'information)
 
 ---
 
@@ -337,14 +335,17 @@ const message = await prisma.message.create({
 
 ### **🎯 4. Bonnes Pratiques Spécifiques Synco**
 
-**Frontend (Vue 3)** :
-- Utiliser `<script setup>` syntax
-- Composition API > Options API
-- `ref` pour les primitives réactives
-- `computed` pour les valeurs dérivées
-- Pas de `v-html` (risque XSS)
-- Toujours utiliser `key` dans les `v-for`
-- Sanitizer les inputs utilisateur
+**Frontend (Vue 3 & UI/UX)** :
+- **Architecture** : Utiliser `<script setup>` syntax et Composition API. Découper les vues complexes en sous-composants. Extraire la logique complexe dans `src/composables/` et les utilitaires dans `src/utils/`.
+- **Réutilisabilité** : Avant de créer un élément UI, chercher dans `src/components/` (ou `common`). Préférer l'ajout de `prop` (ex: `variant="danger"`) à la duplication de code.
+- **Réactivité** : `ref` pour primitives, `computed` pour valeurs dérivées.
+- **Thème Clair/Sombre** : Utiliser **exclusivement** les variables CSS globales (ex: `bg-(--bg)`, `text-(--text)`). **Éviter au maximum** la classe `dark:` de Tailwind.
+- **Cohérence UI & UX** : 
+  - Garder les mêmes standards visuels (ex: `rounded-xl`) et ombres.
+  - Fournir un feedback visuel immédiat (hover, active, loaders, toasts).
+  - Appliquer des transitions douces (`transition-colors`) et éviter les apparitions brusques.
+  - Assurer l'accessibilité (états `focus` visibles, autofocus logiques).
+- **Sécurité & Qualité** : Pas de `v-html` (XSS), toujours `key` dans `v-for`, sanitizer les inputs. Gérer systématiquement les erreurs d'API avec des toasts.
 
 **Backend (Express)** :
 - Middleware de validation avant les controllers

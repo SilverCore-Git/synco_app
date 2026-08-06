@@ -116,6 +116,11 @@
                                 <MarkdownRender :content="msg.content" />
                                 <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
                             </div>
+
+                            <!-- Notion Link Previews -->
+                            <div v-if="notionUrls.length > 0" class="mt-2 space-y-2 w-full">
+                                <NotionLinkPreview v-for="url in notionUrls" :key="url" :url="url" />
+                            </div>
                             
                             <!-- Message reactions -->
                             <MessageReactions
@@ -215,6 +220,7 @@ import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useToast } from '@/composables/useToast';
 import { openProfile } from '@/composables/useProfile';
 import useSettingsItem from '@/composables/useSettingsItem';
+import NotionLinkPreview from '@/components/common/NotionLinkPreview.vue';
 
 const toast = useToast();
 const showReactionPicker = ref<boolean>(false);
@@ -334,6 +340,14 @@ const isTagMe = computed(() => {
     const regex = new RegExp(`@${user.value.name}\\b`, 'i');
     return regex.test(props.msg.content);
 
+});
+
+const notionUrls = computed(() => {
+    if (!props.msg.content) return [];
+    // Regex simple pour détecter les liens notion.so
+    const regex = /(https?:\/\/[a-z0-9-]*\.?notion\.so\/[^\s)\]]+)/gi;
+    const matches = props.msg.content.match(regex);
+    return matches ? Array.from(new Set(matches)) : [];
 });
 
 const handleAddReaction = async (payload: { messageId: string; emoji: string; isDM: boolean }) => {
