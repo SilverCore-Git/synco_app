@@ -118,7 +118,8 @@
                   <div 
                     v-for="permKey in group.keys" 
                     :key="permKey" 
-                    class="flex items-center justify-between p-3 -mx-3 rounded-xl hover:bg-(--bg2)/50 transition-colors group/item"
+                    @click="togglePermission(selectedRole.id, permKey as Permission)"
+                    class="flex items-center justify-between p-3 -mx-3 rounded-xl hover:bg-(--bg2)/50 transition-colors group/item cursor-pointer"
                   >
                     <div class="flex items-start gap-4">
                       <div class="w-8 h-8 rounded-lg bg-(--bg2) flex items-center justify-center border border-(--border-color) text-(--text2) mt-0.5">
@@ -134,9 +135,8 @@
                     
                     <!-- Switch Toggle -->
                     <button 
-                      @click="togglePermission(selectedRole.id, permKey as Permission)"
                       :disabled="isRoleLocked(selectedRole)"
-                      class="relative w-11 h-6 rounded-full transition-colors focus:outline-none shrink-0 border border-black/10"
+                      class="relative w-11 h-6 rounded-full transition-colors focus:outline-none shrink-0 border border-black/10 pointer-events-none"
                       :class="[
                         getPermissionValue(selectedRole.id, permKey as Permission) === 'ALLOW' ? 'bg-(--primary)' : 'bg-(--bg2)',
                         isRoleLocked(selectedRole) ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
@@ -284,7 +284,7 @@ import useWSocket from '@/composables/useWSocket';
 
 const toast = useToast();
 const orgId = computed(() => openedOrg.value?.id);
-const { fetchRoles } = usePermissions(orgId);
+const { fetchRoles, invalidateRolesCache, invalidateCache } = usePermissions(orgId);
 
 const loading = ref(true);
 const isSaving = ref(false);
@@ -335,8 +335,8 @@ onUnmounted(() => {
 });
 
 const handleRolesUpdated = () => {
-  const { invalidateCache } = usePermissions(orgId);
   invalidateCache();
+  invalidateRolesCache();
   // Ne pas écraser les modifications locales en cours si possible,
   // mais pour faire simple et sûr : on recharge tout discrètement.
   if (!hasChanges.value) {
@@ -349,6 +349,7 @@ async function loadData(silent = false) {
   if (!silent) loading.value = true;
   
   try {
+    invalidateRolesCache();
     const data = await fetchRoles();
     roles.value = data;
     
