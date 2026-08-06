@@ -186,6 +186,7 @@
                         :isSelected="selectedItems.has(folder.id)"
                         :isSelectionMode="selectedItems.size > 0"
                         @toggle-select="toggleSelection(folder.id)"
+                        @show-permissions="openFolderPermissions(folder)"
                     />
 
                 </div>
@@ -216,6 +217,7 @@
                             @request-delete="requestDeleteFile"
                             @show-file-info="handleShowFileInfo"
                             @file-watermarked="handleFileWatermarked"
+                            @show-permissions="openFilePermissions(file)"
                         />
 
                     </div>
@@ -425,6 +427,23 @@
         @close="showPermissions = false"
     />
 
+    <FolderPermissionsModal
+        v-if="selectedFolderForPerms"
+        :show="showFolderPermissions"
+        :space-id="String(route.params.spaceId)"
+        :folder-id="selectedFolderForPerms.id"
+        :folder-name="selectedFolderForPerms.name"
+        @close="showFolderPermissions = false"
+    />
+
+    <FileShareModal
+        v-if="selectedFileForPerms"
+        :show="showFilePermissions"
+        :file-id="selectedFileForPerms.id"
+        :file-name="selectedFileForPerms.originalName"
+        @close="showFilePermissions = false"
+    />
+
 </template>
 
 <script lang="ts" setup>
@@ -449,6 +468,8 @@ import { extractTextFromPDF } from '@/assets/utils/pdfExtractor';
 import VectorWorker from '@/workers/semantic.worker?worker';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 import SpacePermissionsModal from '@/components/permissions/SpacePermissionsModal.vue';
+import FolderPermissionsModal from '@/components/permissions/FolderPermissionsModal.vue';
+import FileShareModal from '@/components/permissions/FileShareModal.vue';
 
 
 const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
@@ -560,6 +581,11 @@ const currentFolderId = ref<string>('root');
 const showFolderNamePrompt = ref<boolean>(false);
 const showVerifyWatermark = ref<boolean>(false);
 const showPermissions = ref<boolean>(false);
+const showFolderPermissions = ref<boolean>(false);
+const showFilePermissions = ref<boolean>(false);
+
+const selectedFolderForPerms = ref<Folder | null>(null);
+const selectedFileForPerms = ref<StoredFile | null>(null);
 
 const fileSendProgress = ref<number>(0);
 const isUploading = ref<boolean>(false);
@@ -657,6 +683,16 @@ watch(currentFolderId, () => {
     // Clear selection when navigating folders
     selectedItems.value.clear();
 });
+
+const openFolderPermissions = (folder: Folder) => {
+    selectedFolderForPerms.value = folder;
+    showFolderPermissions.value = true;
+};
+
+const openFilePermissions = (file: StoredFile) => {
+    selectedFileForPerms.value = file;
+    showFilePermissions.value = true;
+};
 
 const breadcrumbs = computed(() => {
 

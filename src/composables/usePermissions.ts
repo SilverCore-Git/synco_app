@@ -1,7 +1,6 @@
 import { ref, computed, type Ref } from 'vue';
 import sfetch from '@/assets/utils/sfetch';
 import type { Permission, RoleData, PermissionOverride } from '@/config/permissions.config';
-import { PERMISSION_KEYS } from '@/config/permissions.config';
 
 // ─── Cache global des permissions résolues ──────────────────────────────────
 // Clé : `${orgId}:${spaceId?}:${folderId?}:${fileId?}`
