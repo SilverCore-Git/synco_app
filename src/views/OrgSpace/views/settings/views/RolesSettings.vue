@@ -1,217 +1,204 @@
 <template>
-  <div class="flex flex-col h-full w-full overflow-hidden bg-(--bg3) text-(--text)">
-    <main class="flex-1 p-4 sm:p-6 lg:p-10 flex flex-col">
-      <div class="max-w-6xl w-full mx-auto flex flex-col gap-6 flex-1 min-h-0">
-
-        <div class="mb-2 shrink-0">
-          <h3 class="text-2xl font-black text-(--text) mb-2">Rôles & Permissions</h3>
-          <p class="text-sm text-(--text2)">
-            Gérez les rôles de votre organisation et leurs permissions par défaut.
-          </p>
+  <div class="flex flex-col md:flex-row h-full w-full bg-(--bg) overflow-hidden">
+    
+    <!-- Colonne Gauche : Liste des Rôles (Sidebar) -->
+    <div class="w-full md:w-1/4 max-w-[320px] min-w-[280px] bg-(--bg2)/50 border-r border-(--border-color) flex flex-col h-full shrink-0">
+      
+      <!-- En-tête Sidebar avec Bouton Créer -->
+      <div class="p-6 border-b border-(--border-color) flex items-center justify-between shrink-0">
+        <div>
+          <h1 class="text-xl font-bold text-(--text)">Rôles</h1>
+          <p class="text-xs text-(--text2) mt-1">Gérez l'accès au workspace</p>
         </div>
-
-        <!-- Master-Detail Container (Card) -->
-        <div class="flex-1 flex flex-col md:flex-row bg-(--bg2) border border-(--border-color) rounded-2xl shadow-sm overflow-hidden min-h-0">
-          
-          <!-- Colonne Gauche : Liste des Rôles (Sidebar) -->
-          <div class="w-full md:w-1/3 max-w-[320px] bg-(--bg3)/30 border-r border-(--border-color) flex flex-col h-full">
-            
-            <!-- En-tête Sidebar avec Bouton Créer -->
-            <div class="p-6 border-b border-(--border-color) flex items-center justify-between shrink-0">
-              <h2 class="text-xs font-bold uppercase tracking-widest text-(--text2)">Vos rôles</h2>
-              <button 
-                @click="showCreateModal = true"
-                class="w-8 h-8 flex items-center justify-center bg-(--primary) hover:bg-(--primary-hover) text-white rounded-lg transition-colors shadow-sm"
-                title="Créer un nouveau rôle"
-              >
-                <i class="bi bi-plus-lg text-lg" />
-              </button>
-            </div>
-
-            <!-- Liste scrollable -->
-            <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 relative">
-              <!-- Loading global -->
-              <div v-if="loading && roles.length === 0" class="absolute inset-0 flex items-center justify-center">
-                <div class="w-6 h-6 border-2 border-(--primary)/30 border-t-(--primary) rounded-full animate-spin" />
-              </div>
-
-              <div 
-                v-for="role in roles" 
-                :key="role.id"
-                @click="selectRole(role)"
-                class="px-4 py-3 rounded-xl transition-all cursor-pointer flex items-center justify-between group border border-transparent"
-                :class="selectedRoleId === role.id ? 'bg-(--primary)/10 border-(--primary)/20 shadow-sm' : 'hover:bg-(--bg)'"
-              >
-                <div class="flex items-center gap-3">
-                  <!-- Pastille de couleur ronde -->
-                  <div 
-                    class="w-3 h-3 rounded-full shrink-0 shadow-inner"
-                    :style="{ backgroundColor: role.color || '#6b7280' }"
-                  />
-                  <div class="flex flex-col">
-                    <span class="font-bold text-sm flex items-center gap-2" :class="selectedRoleId === role.id ? 'text-(--primary)' : 'text-(--text)'">
-                      {{ role.name }}
-                      <span v-if="role.isSystem" class="text-[9px] font-black bg-(--bg2) px-1.5 py-0.5 rounded text-(--text2) uppercase tracking-wider border border-(--border-color)">
-                        Sys
-                      </span>
-                    </span>
-                    <span class="text-xs text-(--text2) mt-0.5">{{ role.memberCount }} membre{{ role.memberCount !== 1 ? 's' : '' }}</span>
-                  </div>
-                </div>
-                <i class="bi bi-chevron-right text-xs transition-transform opacity-0 group-hover:opacity-100" :class="selectedRoleId === role.id ? 'opacity-100 translate-x-1 text-(--primary)' : 'text-(--text2)'" />
-              </div>
-            </div>
-          </div>
-
-          <!-- Colonne Droite : Configuration (Main Content) -->
-          <div class="flex-1 flex flex-col h-full bg-(--bg2) relative">
-            
-            <template v-if="selectedRole">
-              <!-- Header Rôle -->
-              <div class="px-8 py-6 border-b border-(--border-color) shrink-0 flex items-end justify-between bg-(--bg2) z-10 sticky top-0">
-                <div>
-                  <div class="flex items-center gap-3 mb-1">
-                    <div class="w-4 h-4 rounded-full shadow-inner" :style="{ backgroundColor: selectedRole.color || '#6b7280' }" />
-                    <h2 class="text-2xl font-black text-(--text)">{{ selectedRole.name }}</h2>
-                  </div>
-                  <p class="text-sm text-(--text2)">
-                    Définissez les permissions par défaut pour ce rôle.
-                  </p>
-                </div>
-                
-                <div class="flex items-center gap-3">
-                  <!-- Barre de recherche -->
-                  <div class="relative">
-                    <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-xs" />
-                    <input 
-                      type="search" 
-                      v-model="searchQuery"
-                      placeholder="Chercher une permission..."
-                      class="pl-8 pr-4 py-2 bg-(--bg3) border border-(--border-color) rounded-lg text-sm text-(--text) outline-none focus:border-(--primary) w-56 transition-all placeholder-(--text2)/50"
-                    />
-                  </div>
-                  <!-- Bouton Supprimer -->
-                  <button 
-                    v-if="!selectedRole.isSystem"
-                    @click="deleteRole(selectedRole)"
-                    class="w-10 h-10 flex items-center justify-center text-red-400 bg-red-400/10 hover:bg-red-400/20 rounded-lg transition-colors"
-                    title="Supprimer le rôle"
-                  >
-                    <i class="bi bi-trash" />
-                  </button>
-                </div>
-              </div>
-
-              <!-- Scrollable Content -->
-              <div class="flex-1 overflow-y-auto p-8 relative bg-(--bg)">
-                
-                <!-- Loading state discret (overlay) lors de la re-sync -->
-                <div v-if="loading" class="absolute top-4 right-4 z-20">
-                  <div class="w-4 h-4 border-2 border-(--primary)/30 border-t-(--primary) rounded-full animate-spin" />
-                </div>
-
-                <div class="max-w-3xl flex flex-col gap-10">
-                  <template v-for="group in filteredPermissionGroups" :key="group.name">
-                    <div v-if="group.keys.length > 0" class="flex flex-col gap-4">
-                      
-                      <h3 class="text-xs font-black uppercase tracking-widest text-(--primary) border-b border-(--border-color) pb-2">
-                        {{ group.name }}
-                      </h3>
-                      
-                      <div class="flex flex-col gap-1">
-                        <div 
-                          v-for="permKey in group.keys" 
-                          :key="permKey" 
-                          @click="togglePermission(selectedRole.id, permKey as Permission)"
-                          class="flex items-center justify-between p-3 -mx-3 rounded-xl hover:bg-(--bg2) transition-colors group/item cursor-pointer"
-                        >
-                          <div class="flex items-start gap-4">
-                            <div class="w-8 h-8 rounded-lg bg-(--bg3) flex items-center justify-center border border-(--border-color) text-(--text2) mt-0.5">
-                              <i :class="PERMISSION_REGISTRY[permKey as Permission].icon" />
-                            </div>
-                            <div class="flex flex-col">
-                              <span class="font-bold text-sm text-(--text)">{{ PERMISSION_REGISTRY[permKey as Permission].label }}</span>
-                              <span class="text-xs text-(--text2) mt-0.5 max-w-md leading-relaxed">
-                                {{ PERMISSION_REGISTRY[permKey as Permission].description }}
-                              </span>
-                            </div>
-                          </div>
-                          
-                          <!-- Switch Toggle -->
-                          <button 
-                            :disabled="isRoleLocked(selectedRole)"
-                            class="relative w-11 h-6 rounded-full transition-colors focus:outline-none shrink-0 border border-black/10 pointer-events-none"
-                            :class="[
-                              getPermissionValue(selectedRole.id, permKey as Permission) === 'ALLOW' ? 'bg-(--primary)' : 'bg-(--bg3)',
-                              isRoleLocked(selectedRole) ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
-                            ]"
-                          >
-                            <span 
-                              class="absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform shadow-sm"
-                              :class="getPermissionValue(selectedRole.id, permKey as Permission) === 'ALLOW' ? 'translate-x-5' : 'translate-x-0'"
-                            />
-                          </button>
-                        </div>
-                      </div>
-
-                    </div>
-                  </template>
-                  
-                  <div v-if="filteredPermissionGroups.every(g => g.keys.length === 0)" class="py-12 text-center">
-                    <p class="text-(--text2) text-sm">Aucune permission ne correspond à "{{ searchQuery }}"</p>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Barre de Sauvegarde (Sticky Footer) -->
-              <div 
-                class="border-t border-(--border-color) bg-(--bg2) p-4 shrink-0 flex items-center justify-between transition-transform duration-300 z-10"
-                :class="hasChanges ? 'translate-y-0' : 'translate-y-full absolute bottom-0 left-0 right-0 opacity-0 pointer-events-none'"
-              >
-                <span class="text-sm font-semibold text-yellow-500 flex items-center gap-2 ml-4">
-                  <i class="bi bi-exclamation-triangle-fill" />
-                  Modifications non enregistrées
-                </span>
-                <div class="flex items-center gap-3">
-                  <button 
-                    @click="resetChanges"
-                    :disabled="isSaving"
-                    class="px-4 py-2 text-sm font-semibold text-(--text2) hover:text-(--text) transition-colors"
-                  >
-                    Annuler
-                  </button>
-                  <button 
-                    @click="saveDefaults"
-                    :disabled="isSaving"
-                    class="px-5 py-2 rounded-xl text-sm font-bold bg-(--primary) hover:bg-(--primary-hover) text-white transition-all flex items-center gap-2"
-                  >
-                    <div v-if="isSaving" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>Enregistrer les modifications</span>
-                  </button>
-                </div>
-              </div>
-
-            </template>
-
-            <!-- État vide -->
-            <div v-else class="flex-1 flex flex-col items-center justify-center p-10 text-center relative z-0">
-              <div class="absolute inset-0 flex items-center justify-center opacity-[0.02] pointer-events-none">
-                <i class="bi bi-shield-lock" style="font-size: 20rem;" />
-              </div>
-              <div class="w-16 h-16 bg-(--bg3) border border-(--border-color) rounded-2xl flex items-center justify-center text-3xl mb-4 relative z-10">
-                <i class="bi bi-shield-check text-(--primary)" />
-              </div>
-              <h3 class="text-xl font-bold text-(--text) relative z-10">Gestion des rôles</h3>
-              <p class="text-sm text-(--text2) mt-2 max-w-sm relative z-10">
-                Sélectionnez un rôle dans la liste de gauche pour configurer ses accès par défaut à l'ensemble du workspace.
-              </p>
-            </div>
-
-          </div>
-        </div>
-
+        <button 
+          @click="showCreateModal = true"
+          class="w-8 h-8 flex items-center justify-center bg-(--primary) hover:bg-(--primary-hover) text-white rounded-lg transition-colors shadow-sm"
+          title="Créer un nouveau rôle"
+        >
+          <i class="bi bi-plus-lg text-lg" />
+        </button>
       </div>
-    </main>
+
+      <!-- Liste scrollable -->
+      <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 relative">
+        <!-- Loading global -->
+        <div v-if="loading && roles.length === 0" class="absolute inset-0 flex items-center justify-center">
+          <div class="w-6 h-6 border-2 border-(--primary)/30 border-t-(--primary) rounded-full animate-spin" />
+        </div>
+
+        <div 
+          v-for="role in roles" 
+          :key="role.id"
+          @click="selectRole(role)"
+          class="px-4 py-3 rounded-xl transition-all cursor-pointer flex items-center justify-between group border border-transparent"
+          :class="selectedRoleId === role.id ? 'bg-(--primary)/10 border-(--primary)/20 shadow-sm' : 'hover:bg-(--bg2)'"
+        >
+          <div class="flex items-center gap-3">
+            <!-- Pastille de couleur ronde -->
+            <div 
+              class="w-3 h-3 rounded-full shrink-0 shadow-inner"
+              :style="{ backgroundColor: role.color || '#6b7280' }"
+            />
+            <div class="flex flex-col">
+              <span class="font-bold text-sm flex items-center gap-2" :class="selectedRoleId === role.id ? 'text-(--primary)' : 'text-(--text)'">
+                {{ role.name }}
+                <span v-if="role.isSystem" class="text-[9px] font-black bg-white/5 px-1.5 py-0.5 rounded text-(--text2) uppercase tracking-wider border border-(--border-color)">
+                  Sys
+                </span>
+              </span>
+              <span class="text-xs text-(--text2) mt-0.5">{{ role.memberCount }} membre{{ role.memberCount !== 1 ? 's' : '' }}</span>
+            </div>
+          </div>
+          <i class="bi bi-chevron-right text-xs transition-transform opacity-0 group-hover:opacity-100" :class="selectedRoleId === role.id ? 'opacity-100 translate-x-1 text-(--primary)' : 'text-(--text2)'" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Colonne Droite : Configuration (Main Content) -->
+    <div class="flex-1 flex flex-col h-full bg-(--bg) relative overflow-hidden">
+      
+      <template v-if="selectedRole">
+        <!-- Header Rôle -->
+        <div class="px-8 py-6 border-b border-(--border-color) shrink-0 flex items-end justify-between bg-(--bg)/95 backdrop-blur-sm z-10">
+          <div>
+            <div class="flex items-center gap-3 mb-1">
+              <div class="w-4 h-4 rounded-full shadow-inner" :style="{ backgroundColor: selectedRole.color || '#6b7280' }" />
+              <h2 class="text-2xl font-black text-(--text)">{{ selectedRole.name }}</h2>
+            </div>
+            <p class="text-sm text-(--text2)">
+              Définissez les permissions par défaut pour ce rôle.
+            </p>
+          </div>
+          
+          <div class="flex items-center gap-3">
+            <!-- Barre de recherche -->
+            <div class="relative">
+              <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-xs" />
+              <input 
+                type="search" 
+                v-model="searchQuery"
+                placeholder="Chercher..."
+                class="pl-8 pr-4 py-2 bg-(--bg2) border border-(--border-color) rounded-lg text-sm text-(--text) outline-none focus:border-(--primary) w-48 transition-all placeholder-(--text2)/50"
+              />
+            </div>
+            <!-- Bouton Supprimer -->
+            <button 
+              v-if="!selectedRole.isSystem"
+              @click="deleteRole(selectedRole)"
+              class="w-10 h-10 flex items-center justify-center text-red-400 bg-red-400/10 hover:bg-red-400/20 rounded-lg transition-colors"
+              title="Supprimer le rôle"
+            >
+              <i class="bi bi-trash" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto p-8 relative bg-(--bg)">
+          
+          <!-- Loading state discret (overlay) lors de la re-sync -->
+          <div v-if="loading" class="absolute top-4 right-4 z-20">
+            <div class="w-4 h-4 border-2 border-(--primary)/30 border-t-(--primary) rounded-full animate-spin" />
+          </div>
+
+          <div class="max-w-3xl flex flex-col gap-10 pb-32">
+            <template v-for="group in filteredPermissionGroups" :key="group.name">
+              <div v-if="group.keys.length > 0" class="flex flex-col gap-4">
+                
+                <h3 class="text-xs font-black uppercase tracking-widest text-(--primary) border-b border-(--border-color) pb-2">
+                  {{ group.name }}
+                </h3>
+                
+                <div class="flex flex-col gap-1">
+                  <div 
+                    v-for="permKey in group.keys" 
+                    :key="permKey" 
+                    @click="togglePermission(selectedRole.id, permKey as Permission)"
+                    class="flex items-center justify-between p-3 -mx-3 rounded-xl hover:bg-(--bg2)/50 transition-colors group/item cursor-pointer"
+                  >
+                    <div class="flex items-start gap-4">
+                      <div class="w-8 h-8 rounded-lg bg-(--bg2) flex items-center justify-center border border-(--border-color) text-(--text2) mt-0.5">
+                        <i :class="PERMISSION_REGISTRY[permKey as Permission].icon" />
+                      </div>
+                      <div class="flex flex-col">
+                        <span class="font-bold text-sm text-(--text)">{{ PERMISSION_REGISTRY[permKey as Permission].label }}</span>
+                        <span class="text-xs text-(--text2) mt-0.5 max-w-md leading-relaxed">
+                          {{ PERMISSION_REGISTRY[permKey as Permission].description }}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <!-- Switch Toggle -->
+                    <button 
+                      :disabled="isRoleLocked(selectedRole)"
+                      class="relative w-11 h-6 rounded-full transition-colors focus:outline-none shrink-0 border border-black/10 pointer-events-none"
+                      :class="[
+                        getPermissionValue(selectedRole.id, permKey as Permission) === 'ALLOW' ? 'bg-(--primary)' : 'bg-(--bg2)',
+                        isRoleLocked(selectedRole) ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+                      ]"
+                    >
+                      <span 
+                        class="absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform shadow-sm"
+                        :class="getPermissionValue(selectedRole.id, permKey as Permission) === 'ALLOW' ? 'translate-x-5' : 'translate-x-0'"
+                      />
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </template>
+            
+            <div v-if="filteredPermissionGroups.every(g => g.keys.length === 0)" class="py-12 text-center">
+              <p class="text-(--text2) text-sm">Aucune permission ne correspond à "{{ searchQuery }}"</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Barre de Sauvegarde (Sticky Footer) -->
+        <div 
+          class="absolute bottom-0 left-0 right-0 border-t border-(--border-color) bg-(--bg)/90 backdrop-blur-md p-4 flex items-center justify-between transition-transform duration-300 z-10"
+          :class="hasChanges ? 'translate-y-0' : 'translate-y-full opacity-0 pointer-events-none'"
+        >
+          <span class="text-sm font-semibold text-yellow-500 flex items-center gap-2 ml-4">
+            <i class="bi bi-exclamation-triangle-fill" />
+            Modifications non enregistrées
+          </span>
+          <div class="flex items-center gap-3">
+            <button 
+              @click="resetChanges"
+              :disabled="isSaving"
+              class="px-4 py-2 text-sm font-semibold text-(--text2) hover:text-(--text) transition-colors"
+            >
+              Annuler
+            </button>
+            <button 
+              @click="saveDefaults"
+              :disabled="isSaving"
+              class="px-5 py-2 rounded-xl text-sm font-bold bg-(--primary) hover:bg-(--primary-hover) text-white transition-all flex items-center gap-2"
+            >
+              <div v-if="isSaving" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <span>Enregistrer les modifications</span>
+            </button>
+          </div>
+        </div>
+
+      </template>
+
+      <!-- État vide -->
+      <div v-else class="flex-1 flex flex-col items-center justify-center p-10 text-center relative z-0">
+        <div class="absolute inset-0 flex items-center justify-center opacity-[0.02] pointer-events-none">
+          <i class="bi bi-shield-lock" style="font-size: 20rem;" />
+        </div>
+        <div class="w-16 h-16 bg-(--bg2) border border-(--border-color) rounded-2xl flex items-center justify-center text-3xl mb-4 relative z-10">
+          <i class="bi bi-shield-check text-(--primary)" />
+        </div>
+        <h3 class="text-xl font-bold text-(--text) relative z-10">Gestion des rôles</h3>
+        <p class="text-sm text-(--text2) mt-2 max-w-sm relative z-10">
+          Sélectionnez un rôle dans la liste de gauche pour configurer ses accès par défaut à l'ensemble du workspace.
+        </p>
+      </div>
+
+    </div>
 
     <!-- Modal Création -->
     <Popup 
