@@ -64,7 +64,12 @@ const router = useRouter();
 
 const handleClick = () => {
     if (props.isCreate) return;
-    router.push(`/${props.org.id}`)
+    
+    if (window.innerWidth <= 768) {
+        router.push(`/${props.org.id}?showView=0`);
+    } else {
+        router.push(`/${props.org.id}`);
+    }
 };
 
 </script>

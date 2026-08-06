@@ -63,7 +63,7 @@ const { getUnreadCountBySpaceId } = useNotification();
                 />
             </RouterLink>
 
-            <RouterLink v-if="todoEnabled" :to="`/${openedOrg.id}/tasks`">
+            <RouterLink v-if="todoEnabled" :to="`/${openedOrg.id}/tasks?showView=0`">
                 <SpaceBarBTN
                     icon="bi-list-check"
                     label="Mes Tâches"
