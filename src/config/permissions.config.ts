@@ -12,16 +12,22 @@
 
 export const PERMISSION_REGISTRY = {
 
+  // Visibilité / Lecture
   VIEW:   { label: 'Voir',          icon: 'bi-eye',           description: 'Savoir que la ressource existe (espace, dossier, fichier)' },
   READ:   { label: 'Lire',          icon: 'bi-book-open',     description: 'Ouvrir, prévisualiser, télécharger un fichier' },
+  
+  // Création / Édition
   WRITE:  { label: 'Écrire',        icon: 'bi-pencil',        description: 'Poster des messages dans les threads' },
   UPLOAD: { label: 'Déposer',       icon: 'bi-upload',        description: 'Uploader des fichiers dans un espace ou dossier' },
+  CREATE_SPACE: { label: 'Créer un espace', icon: 'bi-grid-plus', description: 'Créer de nouveaux espaces de travail' },
+  CREATE_FOLDER: { label: 'Créer un salon', icon: 'bi-folder-plus', description: 'Créer de nouveaux dossiers ou salons' },
   DELETE: { label: 'Supprimer',     icon: 'bi-trash',         description: 'Supprimer des fichiers, dossiers ou messages' },
+  
+  // Gestion & Administration
   SHARE:  { label: 'Partager',      icon: 'bi-share',         description: 'Partager une ressource en interne' },
+  INVITE_USERS: { label: 'Inviter', icon: 'bi-person-plus',   description: 'Inviter de nouveaux membres dans l\'organisation' },
   MANAGE: { label: 'Gérer',         icon: 'bi-gear',          description: 'Renommer, déplacer, modifier les paramètres' },
   ADMIN:  { label: 'Administrer',   icon: 'bi-shield-lock',   description: 'Gérer les membres et les rôles de la ressource' },
-
-  // ✅ Pour ajouter une permission : ajouter UNE ligne ici + dans le backend.
 
 } as const;
 
