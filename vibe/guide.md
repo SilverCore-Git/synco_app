@@ -4,8 +4,6 @@
 > **Projet** : synco - Alternative française souveraine à Slack/Teams  
 > **Contexte** : Développement du module de chat avec chiffrement E2EE
 
-(n'ésite pas a aller regarder le fichier DEVELOPERS_GUIDE.md pour avoir plus d'information)
-
 ---
 
 ## 🎯 **À propos du Projet Synco**
@@ -337,14 +335,12 @@ const message = await prisma.message.create({
 
 ### **🎯 4. Bonnes Pratiques Spécifiques Synco**
 
-**Frontend (Vue 3)** :
-- Utiliser `<script setup>` syntax
-- Composition API > Options API
-- `ref` pour les primitives réactives
-- `computed` pour les valeurs dérivées
-- Pas de `v-html` (risque XSS)
-- Toujours utiliser `key` dans les `v-for`
-- Sanitizer les inputs utilisateur
+**Frontend (Vue 3 & UI/UX)** :
+- **Vue 3 & Architecture** : Utiliser la syntaxe `<script setup>` et la Composition API. Éviter les composants surchargés de logique (découper en sous-composants, extraire la logique dans `src/composables/` et `src/utils/`).
+- **Composants** : Fouiller dans `src/components/` et réutiliser l'existant. Ajouter des props (ex: `variant="danger"`) plutôt que de dupliquer du code.
+- **Thème & TailwindCSS** : Utiliser les variables CSS globales (ex: `bg-(--bg)`, `text-(--primary)`). **Éviter la classe `dark:`** de Tailwind ; la bascule doit se faire via les variables CSS à la racine.
+- **UI & UX Premium** : Assurer la cohérence des espacements et arrondis (`rounded-xl`). Fournir un feedback instantané (hover, active, loaders, toasts). Appliquer des animations douces (`transition-colors`). Garantir l'accessibilité (focus visible, navigation logique).
+- **Réactivité & Sécurité** : `ref` pour les primitives, `computed` pour les valeurs dérivées. Toujours utiliser `key` dans les `v-for`. Pas de `v-html` (risque XSS). Sanitizer les inputs. Gérer systématiquement les erreurs d'API avec retour utilisateur via toast.
 
 **Backend (Express)** :
 - Middleware de validation avant les controllers
