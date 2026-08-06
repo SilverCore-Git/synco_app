@@ -1,9 +1,9 @@
 <template>
   <div class="flex flex-col h-full w-full overflow-hidden bg-(--bg3) text-(--text)">
-    <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10 pb-32">
-      <div class="max-w-6xl mx-auto flex flex-col gap-6">
+    <main class="flex-1 p-4 sm:p-6 lg:p-10 flex flex-col">
+      <div class="max-w-6xl w-full mx-auto flex flex-col gap-6 flex-1 min-h-0">
 
-        <div class="mb-4">
+        <div class="mb-2 shrink-0">
           <h3 class="text-2xl font-black text-(--text) mb-2">Rôles & Permissions</h3>
           <p class="text-sm text-(--text2)">
             Gérez les rôles de votre organisation et leurs permissions par défaut.
@@ -11,7 +11,7 @@
         </div>
 
         <!-- Master-Detail Container (Card) -->
-        <div class="flex flex-col md:flex-row bg-(--bg2) border border-(--border-color) rounded-2xl shadow-sm overflow-hidden min-h-[70vh]">
+        <div class="flex-1 flex flex-col md:flex-row bg-(--bg2) border border-(--border-color) rounded-2xl shadow-sm overflow-hidden min-h-0">
           
           <!-- Colonne Gauche : Liste des Rôles (Sidebar) -->
           <div class="w-full md:w-1/3 max-w-[320px] bg-(--bg3)/30 border-r border-(--border-color) flex flex-col h-full">
