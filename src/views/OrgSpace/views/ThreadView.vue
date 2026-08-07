@@ -410,6 +410,7 @@ const showUnreadDelimiterAfterId = ref<string | null>(null);
 const saveLastRead = () => {
     if (!thread.value || sortedMessages.value.length === 0) return;
     const lastMsg = sortedMessages.value[sortedMessages.value.length - 1];
+    if (!lastMsg) return;
     localStorage.setItem(`lastRead_${thread.value.id}`, lastMsg.id);
 };
 
