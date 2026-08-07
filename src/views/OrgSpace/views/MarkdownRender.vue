@@ -23,15 +23,24 @@ const renderedHtml = computed(() => {
     
     const rawHtml = marked.parse(props.content) as string;
     
-    return DOMPurify.sanitize(rawHtml, {
+    DOMPurify.addHook('afterSanitizeAttributes', function(node) {
+        if ('target' in node) {
+            node.setAttribute('target', '_blank');
+            node.setAttribute('rel', 'noopener noreferrer');
+        }
+    });
+
+    const sanitized = DOMPurify.sanitize(rawHtml, {
         ALLOWED_TAGS: [
             'p', 'br', 'strong', 'em', 'del', 'code', 'pre', 
             'ul', 'ol', 'li', 'blockquote', 'a', 'h1', 'h2', 'h3'
         ],
-        ALLOWED_ATTR: ['href', 'target', 'class'],
+        ALLOWED_ATTR: ['href', 'target', 'class', 'rel'],
         ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i
     });
 
+    DOMPurify.removeHook('afterSanitizeAttributes');
+    return sanitized;
 });
 
 </script>

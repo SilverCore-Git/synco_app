@@ -256,7 +256,10 @@ const playNotificationSound = () => {
 
 watch(() => notifications.value.length, (newLength, oldLength) => {
     if (newLength > oldLength) {
-        playNotificationSound();
+        const latestNotif = notifications.value[notifications.value.length - 1];
+        if (latestNotif && latestNotif.type !== 'toast') {
+            playNotificationSound();
+        }
     }
 });
 
