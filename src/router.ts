@@ -114,6 +114,12 @@ const routes = [
             component: WebhooksSettings,
           },
           {
+            path: 'roles',
+            name: 'OrgSettingsRoles',
+            props: true,
+            component: () => import('./views/OrgSpace/views/settings/views/RolesSettings.vue'),
+          },
+          {
             path: 'ai',
             name: 'OrgSettingsAI',
             props: true,

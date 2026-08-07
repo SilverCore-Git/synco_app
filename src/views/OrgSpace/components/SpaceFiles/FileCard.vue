@@ -43,7 +43,10 @@
         </div>
 
         <div class="flex-1 min-w-0" @click.stop="showViewer = true">
-            <p class="text-sm font-semibold text-(--text) truncate hover:text-(--primary) transition-colors">{{ file.originalName }}</p>
+            <div class="flex items-center gap-1.5">
+                <p class="text-sm font-semibold text-(--text) truncate hover:text-(--primary) transition-colors">{{ file.originalName }}</p>
+                <i v-if="file._count?.filePermissions" class="bi bi-shield-lock-fill text-xs text-(--primary)" title="Permissions spécifiques" />
+            </div>
             <div class="flex items-center gap-2 text-[9px] font-bold text-(--text2) uppercase tracking-tighter mt-1">
                 <span>{{ formatSize(file.size) }}</span>
                 <span>•</span>
@@ -91,6 +94,13 @@
                     >
                         <i class="bi bi-info-circle" />
                         Voir les infos
+                    </button>
+                    <button 
+                        @click="showPermissionsModal(file)"
+                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                    >
+                        <i class="bi bi-shield-lock" />
+                        Permissions
                     </button>
                     <button 
                         v-if="file.mimeType.startsWith('image/') || file.mimeType === 'application/pdf'"
@@ -175,7 +185,7 @@ const props = defineProps<{
     isSelectionMode?: boolean
 }>();
 
-const emit = defineEmits(['file-deleted', 'show-file-info', 'file-watermarked', 'toggle-select', 'request-delete']);
+const emit = defineEmits(['file-deleted', 'show-file-info', 'file-watermarked', 'toggle-select', 'request-delete', 'show-permissions']);
 
 let longPressTimer: any = null;
 
@@ -224,6 +234,10 @@ const formatDate = (date: string | Date) => {
 // Show file info - emit event for parent to handle
 const showFileInfo = (file: StoredFile) => {
     emit('show-file-info', file);
+};
+
+const showPermissionsModal = (file: StoredFile) => {
+    emit('show-permissions', file);
 };
 
 // View message that contains this file

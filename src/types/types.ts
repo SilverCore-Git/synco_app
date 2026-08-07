@@ -24,6 +24,10 @@ export interface StoredFile {
 
   createdAt: string | Date;
   updatedAt: string | Date;
+
+  _count?: {
+    filePermissions: number;
+  };
 }
 
 
@@ -220,6 +224,10 @@ export interface Folder {
   parent?: Folder | null;
   subFolders?: Folder[];
   files?: StoredFile[];
+
+  _count?: {
+    folderPermissions: number;
+  };
 }
 
 export interface TodoList {
