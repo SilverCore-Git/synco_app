@@ -40,11 +40,15 @@
                             </div>
 
                             <div class="flex-1 overflow-hidden" v-if="notif.msg">
-                                <h4 class="text-(--text) text-sm font-bold truncate">
+                                <h4 class="text-(--text) text-sm font-bold truncate flex items-center gap-1">
                                     {{ (notif.msg as any)?.sender?.name }}
+                                    <span v-if="(notif.msg as any).webhookId" class="bg-(--primary)/20 text-(--primary) text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">APP</span>
                                 </h4>
                                 <p class="text-(--text) text-sm line-clamp-2 leading-snug">
-                                    {{ notif.msg.content }}
+                                    <span v-if="(notif.msg as any).embeds?.length > 0" class="font-semibold text-(--primary) block truncate">
+                                        {{ (notif.msg as any).embeds[0].title }}
+                                    </span>
+                                    <span v-else>{{ notif.msg.content }}</span>
                                 </p>
                             </div>
 
@@ -244,6 +248,32 @@ const getStyles = (type: NotificationType, toastType?: string) => {
 
 };
 
+
+const playNotificationSound = () => {
+    try {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(500, audioContext.currentTime); // 500 Hz
+        oscillator.frequency.exponentialRampToValueAtTime(700, audioContext.currentTime + 0.1); // Slide up to 700 Hz
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.05); // Fade in
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3); // Fade out
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.3);
+    } catch (e) {
+        console.error("Audio playback failed", e);
+    }
+};
+
+watch(() => notifications.value.length, (newLength, oldLength) => {
+    if (newLength > oldLength) {
+        playNotificationSound();
+    }
+});
 
 onMounted(async () => {
     await initListener();
