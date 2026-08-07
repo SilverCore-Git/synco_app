@@ -91,7 +91,7 @@ const { getUnreadCountBySpaceId } = useNotification();
                     :icon="space.logo!"
                     :label="space.name"
                     :active="route.path.includes(space.id)"
-                    :hasUnread="getUnreadCountBySpaceId(space.id).value > 0"
+                    :hasUnread="getUnreadCountBySpaceId(space.id).value > 0 || space.threads?.some((t: any) => t.hasUnread)"
                 />
             </RouterLink>
 

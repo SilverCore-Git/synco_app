@@ -64,7 +64,7 @@
                             v-if="thread.type === 'text'"
                             :thread="thread"
                             :active="route.params.threadId == thread.id"
-                            :hasUnread="getUnreadCountByThreadId(thread.id).value > 0"
+                            :hasUnread="getUnreadCountByThreadId(thread.id).value > 0 || thread.hasUnread"
                             :key="'thread-text-' + thread.id"
                             @click="navigateToThread(thread.id)"
                         />
