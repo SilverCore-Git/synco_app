@@ -12,14 +12,18 @@
             "
         >
 
-            <div>
+            <div class="flex items-center gap-1 w-full">
+
+                <div class="category-drag-handle cursor-grab active:cursor-grabbing hover:bg-white/10 rounded px-1 -ml-1 transition-colors opacity-0 group-hover:opacity-100">
+                    <i class="bi bi-grip-vertical text-xs text-(--text2)"></i>
+                </div>
 
                 <i 
                     class="bi bi-chevron-right inline-block text-[10px] transition-transform duration-200"
                     :class="isOpen ? 'rotate-90' : 'rotate-0'"
                 />
 
-                <span class="ml-2 text-[11px] font-bold uppercase tracking-wider truncate">
+                <span class="ml-1.5 text-[11px] font-bold uppercase tracking-wider truncate flex-1 text-left">
                     {{ category.name }}
                 </span>
 

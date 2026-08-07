@@ -307,17 +307,25 @@
 
                             <hr v-if="!isHome" class=" w-full h-0.5 bg-(--text)/50 border-none rounded-full my-1" />
                             
-                            <div  
-                                v-for="category in categories" 
-                                :key="'category-' + category.id"
-                                @contextmenu.stop
-                                class="w-full"
+                            <draggable
+                                v-model="localCategories" 
+                                item-key="id"
+                                group="categories"
+                                @change="onCategoriesChange"
+                                ghost-class="opacity-50"
+                                drag-class="cursor-grabbing"
+                                class="w-full space-y-1 min-h-[10px]"
+                                handle=".category-drag-handle"
                             >
-                                <Category 
-                                    :category="category"
-                                    :threads="threadsByCategory[category.id] || []"
-                                />
-                            </div>
+                                <template #item="{ element: category }">
+                                    <div @contextmenu.stop class="w-full">
+                                        <Category 
+                                            :category="category"
+                                            :threads="threadsByCategory[category.id] || []"
+                                        />
+                                    </div>
+                                </template>
+                            </draggable>
 
                         </ul>
 
@@ -338,10 +346,12 @@
 
 <script lang="ts" setup>
 
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import type { Thread, WorkSpace } from '@/types/types';
+import type { Thread, WorkSpace, Category as CategoryType } from '@/types/types';
 import { openedOrg, todoEnabled, filesEnabled } from '@/assets/var';
+import draggable from 'vuedraggable';
+import useWSocket from '@/composables/useWSocket';
 import ThreadDropDown from '../dropdown/ThreadDropDown.vue';
 import ThreadBarDropDown from '../dropdown/ThreadBarDropDown.vue';
 import ChatUserBtn from '../CanalBar/ChatUserBtn.vue';
@@ -453,5 +463,26 @@ const categories = computed(() => {
         return space.categories;
     }
 });
+
+const localCategories = ref<CategoryType[]>([...categories.value].sort((a, b) => a.index - b.index));
+
+watch(categories, (newVal) => {
+    localCategories.value = [...newVal].sort((a, b) => a.index - b.index);
+}, { deep: true, immediate: true });
+
+const onCategoriesChange = async () => {
+    const socket = await useWSocket();
+    
+    const updatedCategories = localCategories.value.map((cat, index) => ({
+        ...cat,
+        index
+    }));
+
+    socket.value?.emit('update-categories', {
+        orgId: route.params.orgId,
+        spaceId: route.params.spaceId || null,
+        categories: updatedCategories
+    });
+};
 
 </script>

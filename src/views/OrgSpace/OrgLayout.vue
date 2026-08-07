@@ -371,6 +371,33 @@ const initSocketListener = async () => {
 
     });
 
+    socket.value?.on('categories-updated', ({ orgId, spaceId, categories }: { orgId: string, spaceId: string, categories: Category[] }) => {
+        if (orgId !== props.orgId) return;
+
+        let categoriesArray;
+
+        if (spaceId) {
+            const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
+            if (!space) return;
+            categoriesArray = space.categories;
+        } else {
+            const home = openedOrg.value?.home;
+            if (!home) return;
+            categoriesArray = home.categories;
+        }
+
+        if (categoriesArray && Array.isArray(categoriesArray)) {
+            categories.forEach(updatedCategory => {
+                const cIndex = categoriesArray!.findIndex(c => c.id === updatedCategory.id);
+                if (cIndex !== -1) {
+                    const catToUpdate = categoriesArray![cIndex];
+                    if (catToUpdate) catToUpdate.index = updatedCategory.index;
+                }
+            });
+            categoriesArray.sort((a, b) => a.index - b.index);
+        }
+    });
+
     socket.value?.on('notif:new-message', ({ message, spaceId }: { message: Message, spaceId: string }) => {
         
         if (route.params.threadId == message.threadId) return;
