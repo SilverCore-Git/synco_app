@@ -42,7 +42,7 @@ const currentWorkspace = computed(() => {
 
             <CreateNewThread
                 :index="(currentWorkspace?.threads?.length || 0) + 1"
-                :categoryId="currentWorkspace?.categories?.[0]?.id"
+                :categoryId="currentWorkspace?.categories?.[0]?.id || ''"
                 :key="'createNewThread-' + currentWorkspace?.id"
             >
                 <button @click="" class="dropdown-item-annimate dropdown-item-style">
