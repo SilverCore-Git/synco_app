@@ -12,11 +12,7 @@
             "
         >
 
-            <div class="flex items-center gap-1 w-full">
-
-                <div class="category-drag-handle cursor-grab active:cursor-grabbing hover:bg-white/10 rounded px-1 -ml-1 transition-colors opacity-0 group-hover:opacity-100">
-                    <i class="bi bi-grip-vertical text-xs text-(--text2)"></i>
-                </div>
+            <div class="category-drag-handle flex items-center gap-1 w-full cursor-grab active:cursor-grabbing">
 
                 <i 
                     class="bi bi-chevron-right inline-block text-[10px] transition-transform duration-200"

@@ -133,7 +133,7 @@ const onSpaceOrderChange = async () => {
                 <template #item="{ element: space }">
                     <RouterLink
                         :to="`/${openedOrg.id}/${space.id}?showView=0`"
-                        class="w-full cursor-grab active:cursor-grabbing"
+                        class="w-full flex justify-center cursor-grab active:cursor-grabbing"
                     >
                         <SpaceBarBTN
                             :key="'space-' + space.id + '-btn'"
