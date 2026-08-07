@@ -68,19 +68,19 @@
             <p class="text-sm text-(--text2)">
               Définissez les permissions par défaut pour ce rôle.
             </p>
-          </div>
-          
-          <div class="flex items-center gap-3">
             <!-- Barre de recherche -->
-            <div class="relative">
+            <div class="relative mt-4">
               <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-xs" />
               <input 
                 type="search" 
                 v-model="searchQuery"
-                placeholder="Chercher..."
-                class="pl-8 pr-4 py-2 bg-(--bg2) border border-(--border-color) rounded-lg text-sm text-(--text) outline-none focus:border-(--primary) w-48 transition-all placeholder-(--text2)/50"
+                placeholder="Rechercher une permission..."
+                class="pl-8 pr-4 py-2 bg-(--bg2) border border-(--border-color) rounded-lg text-sm text-(--text) outline-none focus:border-(--primary) w-64 transition-all placeholder-(--text2)/50"
               />
             </div>
+          </div>
+          
+          <div class="flex items-center gap-3">
             <!-- Bouton Supprimer -->
             <button 
               v-if="!selectedRole.isSystem"
@@ -309,16 +309,20 @@ const originalPerms = ref<Record<string, Record<string, PermissionValue>>>({});
 
 const permissionGroups = [
   {
-    name: 'Visibilité & Lecture',
-    keys: ['VIEW', 'READ']
+    name: 'Organisation (Paramètres)',
+    keys: ['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI']
   },
   {
-    name: 'Création & Édition',
-    keys: ['WRITE', 'UPLOAD', 'CREATE_SPACE', 'CREATE_FOLDER', 'DELETE']
+    name: 'Espaces de travail',
+    keys: ['SPACE_CREATE', 'SPACE_MANAGE', 'SPACE_DELETE']
   },
   {
-    name: 'Gestion & Administration',
-    keys: ['SHARE', 'INVITE_USERS', 'MANAGE', 'ADMIN']
+    name: 'Salons & Dossiers',
+    keys: ['FOLDER_CREATE', 'FOLDER_MANAGE', 'FOLDER_DELETE']
+  },
+  {
+    name: 'Contenu & Fichiers',
+    keys: ['VIEW', 'READ', 'WRITE', 'UPLOAD', 'CONTENT_DELETE', 'SHARE']
   }
 ];
 
