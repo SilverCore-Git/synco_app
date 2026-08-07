@@ -195,8 +195,9 @@ import getSpaceIdByThreadId from '@/assets/utils/getSpaceWithThreadId';
 import { openedOrg } from '@/assets/var';
 import useNotifications, { type NotificationType } from '@/composables/useNotifications';
 import useSecurePeer from '@/composables/useSecurePeer';
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { SoundService } from '@/services/SoundService';
 
 
 const { notifications, initListener, remove } = useNotifications();
@@ -250,23 +251,7 @@ const getStyles = (type: NotificationType, toastType?: string) => {
 
 
 const playNotificationSound = () => {
-    try {
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(500, audioContext.currentTime); // 500 Hz
-        oscillator.frequency.exponentialRampToValueAtTime(700, audioContext.currentTime + 0.1); // Slide up to 700 Hz
-        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-        gainNode.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.05); // Fade in
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3); // Fade out
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.3);
-    } catch (e) {
-        console.error("Audio playback failed", e);
-    }
+    SoundService.play('notification');
 };
 
 watch(() => notifications.value.length, (newLength, oldLength) => {
