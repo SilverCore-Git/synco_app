@@ -1,6 +1,6 @@
 <template>
 
-  <div @click="isOpen = true">
+  <div @click.stop="isOpen = true; $emit('opened')">
     <slot />
   </div>
 

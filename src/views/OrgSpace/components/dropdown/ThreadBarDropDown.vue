@@ -32,8 +32,8 @@ const currentWorkspace = computed(() => {
         <template #content>
 
             <CreateNewCategory
-                :index="currentWorkspace!.categories.length + 1"
-                :key="'createNewSpace-' + currentWorkspace?.id"
+                :index="(currentWorkspace?.categories?.length || 0) + 1"
+                :key="'createNewCategory-' + currentWorkspace?.id"
             >
                 <button @click="" class="dropdown-item-annimate dropdown-item-style">
                     <i class="bi bi-folder-plus mr-2" /> Créer une catégorie
@@ -41,9 +41,9 @@ const currentWorkspace = computed(() => {
             </CreateNewCategory>
 
             <CreateNewThread
-                :index="currentWorkspace!.threads.length + 1"
-                :categoryId="currentWorkspace!.categories[0]!.id"
-                :key="'createNewSpace-' + currentWorkspace?.id"
+                :index="(currentWorkspace?.threads?.length || 0) + 1"
+                :categoryId="currentWorkspace?.categories?.[0]?.id"
+                :key="'createNewThread-' + currentWorkspace?.id"
             >
                 <button @click="" class="dropdown-item-annimate dropdown-item-style">
                     <i class="bi bi-plus-circle mr-2" /> Créer un salon
