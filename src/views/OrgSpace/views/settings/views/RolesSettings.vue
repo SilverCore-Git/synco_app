@@ -267,11 +267,22 @@
       </template>
     </Popup>
 
+    <ConfirmDelete 
+      v-if="roleToDelete"
+      :show="showDeleteConfirm"
+      item-type="le rôle"
+      :item-name="roleToDelete.name"
+      :loading="isDeletingRole"
+      @cancel="showDeleteConfirm = false; roleToDelete = null"
+      @confirm="executeDeleteRole"
+    />
+
   </div>
 </template>
 
 <script lang="ts" setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { onBeforeRouteLeave } from 'vue-router';
 import { usePermissions } from '@/composables/usePermissions';
 import { openedOrg } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
@@ -279,6 +290,7 @@ import sfetch from '@/assets/utils/sfetch';
 import { PERMISSION_REGISTRY, type Permission, type PermissionValue, type RoleData } from '@/config/permissions.config';
 import useWSocket from '@/composables/useWSocket';
 import Popup from '@/components/Popup.vue';
+import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 
 const toast = useToast();
 const orgId = computed(() => openedOrg.value?.id);
@@ -288,6 +300,10 @@ const loading = ref(true);
 const isSaving = ref(false);
 const roles = ref<RoleData[]>([]);
 const selectedRoleId = ref<string | null>(null);
+
+const showDeleteConfirm = ref(false);
+const isDeletingRole = ref(false);
+const roleToDelete = ref<RoleData | null>(null);
 
 const showCreateModal = ref(false);
 const nameInput = ref<HTMLInputElement | null>(null);
@@ -400,14 +416,12 @@ async function loadData(silent = false) {
   }
 }
 
-const selectedRole = computed(() => roles.value.find(r => r.id === selectedRoleId.value));
+const selectedRole = computed(() => roles.value.find((r: RoleData) => r.id === selectedRoleId.value));
 
 function selectRole(role: RoleData) {
   if (hasChanges.value) {
-    if (!confirm("Vous avez des modifications non enregistrées. Voulez-vous vraiment changer de rôle ?")) {
-      return;
-    }
-    resetChanges();
+    toast.show('Veuillez enregistrer ou annuler vos modifications avant de changer de rôle.', 'error');
+    return;
   }
   selectedRoleId.value = role.id;
   searchQuery.value = ''; // Reset search on role change
@@ -468,7 +482,7 @@ async function saveDefaults() {
       let changed = false;
       for (const [k, v] of Object.entries(current)) {
         if (v !== original[k]) {
-          diff[k] = v;
+          diff[k] = v as PermissionValue;
           changed = true;
         }
       }
@@ -530,26 +544,45 @@ async function createRole() {
   }
 }
 
-async function deleteRole(role: RoleData) {
+function deleteRole(role: RoleData) {
   if (!orgId.value) return;
-  if (!confirm(`Êtes-vous sûr de vouloir supprimer le rôle "${role.name}" ?`)) return;
+  roleToDelete.value = role;
+  showDeleteConfirm.value = true;
+}
+
+async function executeDeleteRole() {
+  if (!roleToDelete.value || !orgId.value) return;
+  isDeletingRole.value = true;
   try {
-    const res = await sfetch(`/api/orgs/${orgId.value}/roles/${role.id}`, {
+    const res = await sfetch(`/api/orgs/${orgId.value}/roles/${roleToDelete.value.id}`, {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error();
     toast.show('Rôle supprimé', 'success');
     
-    if (selectedRoleId.value === role.id) {
+    if (selectedRoleId.value === roleToDelete.value.id) {
       selectedRoleId.value = null;
     }
     
     // Le websocket s'occupera de recharger la liste,
     // mais on force localement pour l'UI instantanée
     await loadData(true);
+    showDeleteConfirm.value = false;
+    roleToDelete.value = null;
   } catch (err) {
     toast.show('Erreur de suppression', 'error');
+  } finally {
+    isDeletingRole.value = false;
   }
 }
+
+onBeforeRouteLeave((_to, _from, next) => {
+  if (hasChanges.value) {
+    toast.show('Veuillez enregistrer ou annuler vos modifications avant de quitter.', 'error');
+    next(false);
+  } else {
+    next();
+  }
+});
 
 </script>
