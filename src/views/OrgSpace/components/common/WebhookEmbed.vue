@@ -3,8 +3,8 @@
         <div 
             v-for="(embed, index) in embeds" 
             :key="'embed-' + index"
-            class="flex flex-col border-l-4 rounded bg-white/5 p-3 overflow-hidden"
-            :style="{ borderLeftColor: embed.color ? `#${embed.color.toString(16).padStart(6, '0')}` : '#7c3aed' }"
+            class="flex flex-col border-l-[4px] rounded-md bg-black/20 p-3.5 overflow-hidden"
+            :style="{ borderLeftColor: embed.color ? (typeof embed.color === 'string' && embed.color.startsWith('#') ? embed.color : `#${embed.color.toString(16).padStart(6, '0')}`) : '#7c3aed' }"
         >
             <div v-if="embed.author" class="flex items-center gap-2 mb-2">
                 <img v-if="embed.author.icon_url" :src="embed.author.icon_url" class="w-5 h-5 rounded-full" />
@@ -16,14 +16,14 @@
                 <span v-else>{{ embed.title }}</span>
             </div>
 
-            <div v-if="embed.description" class="text-xs text-(--text) mb-2 whitespace-pre-wrap">
-                {{ embed.description }}
+            <div v-if="embed.description" class="mb-2">
+                <MarkdownRender :content="embed.description" />
             </div>
 
-            <div v-if="embed.fields && embed.fields.length > 0" class="flex flex-wrap gap-x-4 gap-y-2 mb-2">
+            <div v-if="embed.fields && embed.fields.length > 0" class="flex flex-wrap gap-x-4 gap-y-3 mb-2">
                 <div v-for="(field, fIdx) in embed.fields" :key="'field-' + fIdx" :class="field.inline ? 'w-[calc(50%-1rem)]' : 'w-full'">
-                    <div class="text-[10px] font-bold text-(--text2) uppercase">{{ field.name }}</div>
-                    <div class="text-xs text-(--text)">{{ field.value }}</div>
+                    <div class="text-[11px] font-bold text-(--text2) mb-0.5">{{ field.name }}</div>
+                    <MarkdownRender :content="field.value" />
                 </div>
             </div>
 
@@ -42,6 +42,8 @@
 </template>
 
 <script setup lang="ts">
+import MarkdownRender from '@/views/OrgSpace/views/MarkdownRender.vue';
+
 defineProps<{
     embeds: any[];
 }>();

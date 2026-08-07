@@ -1,6 +1,6 @@
 <template>
 
-  <div @click="isOpen = true">
+  <div @click.stop="isOpen = true; $emit('opened')">
     <slot />
   </div>
 
@@ -109,7 +109,7 @@ const handleSubmit = async () => {
 
     const spaceId = route.params.spaceId as string;
     
-    const res = await sfetch(`/api/categories/${isHome.value ? 'org' : 'spaces'}/${isHome.value ? route.params.orgId : spaceId}`, {
+    const res = await sfetch(`/api/categories/${isHome.value ? 'org' : 'space'}/${isHome.value ? route.params.orgId : spaceId}`, {
       method: 'POST',
       body: JSON.stringify({
         ...form,

@@ -33,6 +33,7 @@ const { initPeer } = useSecurePeer();
 
 import router from '@/router';
 import { openedOrg } from '@/assets/var';
+import { SoundService } from '@/services/SoundService';
 
 // Handler pour envoyer un message depuis le profil
 const handleSendMessageFromProfile = (targetUser: User) => {
@@ -177,6 +178,14 @@ onMounted(async () => {
   }
 
   window.addEventListener('keydown', handleInput);
+
+  const initSound = () => {
+    SoundService.init();
+    window.removeEventListener('click', initSound);
+    window.removeEventListener('keydown', initSound);
+  };
+  window.addEventListener('click', initSound);
+  window.addEventListener('keydown', initSound);
 });
 
 </script>

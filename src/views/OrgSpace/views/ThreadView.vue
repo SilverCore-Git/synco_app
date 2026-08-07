@@ -58,6 +58,11 @@
                             :key="msg.id"
                             :id="'msg-' + msg.id"
                     >
+                        <div v-if="showUnreadDelimiterAfterId === msg.id" class="flex items-center gap-4 my-6">
+                            <div class="h-px flex-1 bg-red-500/50"></div>
+                            <span class="text-xs font-bold text-red-500 uppercase tracking-widest">Nouveaux messages</span>
+                            <div class="h-px flex-1 bg-red-500/50"></div>
+                        </div>
                         <ThreadMessage
                             :msg="msg"
                             :selectedMessage="selectedMessage"
@@ -400,6 +405,14 @@ const sortedMessages = ref<Message[]>([]);
 const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
 const lastMessageId = ref<string>('');
 const showEmojiPicker = ref<boolean>(false);
+const showUnreadDelimiterAfterId = ref<string | null>(null);
+
+const saveLastRead = () => {
+    if (!thread.value || sortedMessages.value.length === 0) return;
+    const lastMsg = sortedMessages.value[sortedMessages.value.length - 1];
+    if (!lastMsg) return;
+    localStorage.setItem(`lastRead_${thread.value.id}`, lastMsg.id);
+};
 
 import globalVectorWorker from '@/services/GlobalVectorWorker';
 
@@ -649,6 +662,9 @@ const procesMessages = async (msgs: Message[]) => {
 const handleScroll = (e: Event) => {
     const el = e.target as HTMLElement;
     if (el.scrollTop < 200 && !isFetchingMore.value && hasMore.value) loadMore();
+    
+    const isAtBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 10;
+    if (isAtBottom) saveLastRead();
 };
 
 const loadMore = () => {
@@ -684,6 +700,7 @@ const initListener = () => {
         else 
         {
             scrollToBottom(true);
+            setTimeout(() => { saveLastRead(); }, 500); // Save after scroll completes
         }
     });
 
@@ -729,7 +746,10 @@ const initListener = () => {
         if (container) 
         {
             const isNearBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 200;
-            if (isNearBottom) scrollToBottom();
+            if (isNearBottom) {
+                scrollToBottom();
+                setTimeout(() => { saveLastRead(); }, 100);
+            }
         }
 
         // Generate vector for the newly received message if we have the content
@@ -792,10 +812,16 @@ const joinThread = async (id: string) => {
         return;
     }
     
-    // Socket should already be connected (checked in onMounted)
     loading.value = true;
     currentThreadKey.value = null;
     sortedMessages.value = [];
+    
+    const savedLastRead = localStorage.getItem(`lastRead_${id}`);
+    if (thread.value?.hasUnread && savedLastRead) {
+        showUnreadDelimiterAfterId.value = savedLastRead;
+    } else {
+        showUnreadDelimiterAfterId.value = null;
+    }
 
     if (!privateKey.value) 
     {

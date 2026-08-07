@@ -12,14 +12,14 @@
             "
         >
 
-            <div>
+            <div class="category-drag-handle flex items-center gap-1 w-full cursor-grab active:cursor-grabbing">
 
                 <i 
                     class="bi bi-chevron-right inline-block text-[10px] transition-transform duration-200"
                     :class="isOpen ? 'rotate-90' : 'rotate-0'"
                 />
 
-                <span class="ml-2 text-[11px] font-bold uppercase tracking-wider truncate">
+                <span class="ml-1.5 text-[11px] font-bold uppercase tracking-wider truncate flex-1 text-left">
                     {{ category.name }}
                 </span>
 
@@ -64,7 +64,7 @@
                             v-if="thread.type === 'text'"
                             :thread="thread"
                             :active="route.params.threadId == thread.id"
-                            :hasUnread="getUnreadCountByThreadId(thread.id).value > 0"
+                            :hasUnread="getUnreadCountByThreadId(thread.id).value > 0 || thread.hasUnread"
                             :key="'thread-text-' + thread.id"
                             @click="navigateToThread(thread.id)"
                         />
