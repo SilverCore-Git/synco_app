@@ -5,6 +5,7 @@ use std::collections::HashMap;
 struct HttpResponsePayload {
     status: u16,
     body: String,
+    headers: HashMap<String, String>,
 }
 
 #[tauri::command]
@@ -32,9 +33,22 @@ async fn http_request(
 
     let res = req.send().await.map_err(|e| e.to_string())?;
     let status = res.status().as_u16();
+
+    // Capture les headers de réponse
+    let mut response_headers = HashMap::new();
+    for (k, v) in res.headers() {
+        if let Ok(val) = v.to_str() {
+            response_headers.insert(k.as_str().to_string(), val.to_string());
+        }
+    }
+
     let text = res.text().await.map_err(|e| e.to_string())?;
 
-    Ok(HttpResponsePayload { status, body: text })
+    Ok(HttpResponsePayload { 
+        status, 
+        body: text,
+        headers: response_headers,
+    })
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
