@@ -84,7 +84,7 @@
 
             </div>
 
-            <section class="flex flex-col gap-4 relative min-h-[50vh]">
+            <section class="flex flex-col gap-4 relative min-h-[50vh]" @contextmenu.prevent="handleEmptyContextMenu">
                 
                 <div v-if="loading" class="w-full flex flex-col gap-8 animate-pulse">
                     
@@ -287,6 +287,26 @@
 
     </div>
 
+    <!-- Dropdown for empty space right click -->
+    <DropDown ref="emptySpaceDropdown" align="mouse">
+        <template #content>
+            <button 
+                @click="showFolderNamePrompt = true"
+                class="dropdown-item-annimate dropdown-item-style gap-2"
+            >
+                <i class="bi bi-folder-plus" />
+                Nouveau dossier
+            </button>
+            <button 
+                @click="triggerFileSearch"
+                class="dropdown-item-annimate dropdown-item-style gap-2"
+            >
+                <i class="bi bi-file-earmark-plus" />
+                Ajouter des fichiers
+            </button>
+        </template>
+    </DropDown>
+
     <input 
         type="file" 
         multiple 
@@ -458,6 +478,7 @@ import VerifyWatermark from '../components/popup/VerifyWatermark.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { useToast } from '@/composables/useToast';
 import { downloadFile } from '@/assets/utils/downloadFile';
+import DropDown from '@/components/DropDown.vue';
 
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import { uploadFiles } from '@/assets/uploadFile';
@@ -577,6 +598,12 @@ const executeDeletion = async () => {
 const allFiles = ref<StoredFile[]>([]);
 const allFolders = ref<Folder[]>([]);
 const loading = ref<boolean>(true);
+const emptySpaceDropdown = ref<any>(null);
+
+const handleEmptyContextMenu = (e: MouseEvent) => {
+    emptySpaceDropdown.value?.toggleDropdown(e);
+};
+
 const currentFolderId = ref<string>('root');
 const showFolderNamePrompt = ref<boolean>(false);
 const showVerifyWatermark = ref<boolean>(false);

@@ -6,6 +6,7 @@
         @pointerup="onPointerUp"
         @pointerleave="onPointerUp"
         @click="handleClick"
+        @contextmenu.prevent.stop="handleContextMenu"
         class="max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border rounded-xl transition-all cursor-pointer shadow-sm"
         :class="[
             draggedIntoFolderId === folder.id 
@@ -67,7 +68,7 @@
             class="flex items-center gap-1 transition-opacity pr-1"
             :class="isDropdownOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
         >
-            <DropDown align="right" @click.stop @toggled="val => isDropdownOpen = val">
+            <DropDown ref="dropdownRef" align="mouse" @click.stop @toggled="val => isDropdownOpen = val">
                 <template #trigger>
                     <button class="w-8 h-8 rounded-lg hover:bg-(--primary)/10 flex items-center justify-center transition-colors hover:text-(--primary)">
                         <i class="bi bi-three-dots-vertical text-lg" />
@@ -95,6 +96,13 @@
                     >
                         <i class="bi bi-shield-lock" />
                         Permissions
+                    </button>
+                    <button 
+                        @click="$emit('request-delete', folder.id)"
+                        class="dropdown-item-annimate dropdown-item-style gap-2 text-red-500! hover:bg-red-500/5!"
+                    >
+                        <i class="bi bi-trash" />
+                        Supprimer
                     </button>
                 </template>
             </DropDown>
@@ -126,7 +134,7 @@ const props = defineProps<{
     isSelectionMode?: boolean
 }>();
 
-const emit = defineEmits(['toggle-select', 'click', 'show-permissions']);
+const emit = defineEmits(['toggle-select', 'click', 'show-permissions', 'request-delete']);
 
 let longPressTimer: any = null;
 
@@ -172,5 +180,10 @@ const colorBgMap: Record<string, string> = {
 
 const showEditFolder = ref<boolean>(false);
 const isDropdownOpen = ref<boolean>(false);
+const dropdownRef = ref<any>(null);
+
+const handleContextMenu = (e: MouseEvent) => {
+    dropdownRef.value?.toggleDropdown(e);
+};
 
 </script>

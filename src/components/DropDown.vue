@@ -154,7 +154,7 @@ onUnmounted(() => {
 });
 
 
-defineExpose({ closeDropdown });
+defineExpose({ closeDropdown, toggleDropdown });
 
 </script>
 
