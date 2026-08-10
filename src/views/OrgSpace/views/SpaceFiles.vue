@@ -291,14 +291,14 @@
     <DropDown ref="emptySpaceDropdown" align="mouse">
         <template #content>
             <button 
-                @click="showFolderNamePrompt = true"
+                @click.stop.prevent="openCreateFolderPrompt"
                 class="dropdown-item-annimate dropdown-item-style gap-2"
             >
                 <i class="bi bi-folder-plus" />
                 Nouveau dossier
             </button>
             <button 
-                @click="triggerFileSearch"
+                @click.stop.prevent="openFileSearchPrompt"
                 class="dropdown-item-annimate dropdown-item-style gap-2"
             >
                 <i class="bi bi-file-earmark-plus" />
@@ -606,6 +606,21 @@ const handleEmptyContextMenu = (e: MouseEvent) => {
 
 const currentFolderId = ref<string>('root');
 const showFolderNamePrompt = ref<boolean>(false);
+
+const openCreateFolderPrompt = () => {
+    emptySpaceDropdown.value?.closeDropdown();
+    setTimeout(() => {
+        showFolderNamePrompt.value = true;
+    }, 10);
+};
+
+const openFileSearchPrompt = () => {
+    emptySpaceDropdown.value?.closeDropdown();
+    setTimeout(() => {
+        triggerFileSearch();
+    }, 10);
+};
+
 const showVerifyWatermark = ref<boolean>(false);
 const showPermissions = ref<boolean>(false);
 const showFolderPermissions = ref<boolean>(false);
