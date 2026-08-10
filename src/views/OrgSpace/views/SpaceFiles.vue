@@ -471,7 +471,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
-import useSettingsItem from '@/composables/useSettingsItem';
+import { useUsersBar } from '@/composables/useUsersBar';
 import { openedOrg } from '@/assets/var';
 import CreateNewFolder from '../components/popup/CreateNewFolder.vue';
 import VerifyWatermark from '../components/popup/VerifyWatermark.vue';
@@ -493,7 +493,7 @@ import FolderPermissionsModal from '@/components/permissions/FolderPermissionsMo
 import FileShareModal from '@/components/permissions/FileShareModal.vue';
 
 
-const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
+const { showUsersBar } = useUsersBar();
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();

@@ -11,7 +11,7 @@ import useWSocket from '@/composables/useWSocket';
 import useSecurePeer from '@/composables/useSecurePeer';
 import type { Category, DMMessage, Message, OrgMember } from '@/types/types';
 import { useRoute } from 'vue-router';
-import useSettingsItem from '@/composables/useSettingsItem';
+import { useUsersBar } from '@/composables/useUsersBar';
 import { keycloak } from '@/assets/keycloak';
 import useNotifications from '@/composables/useNotifications';
 import { isMeeting } from '@/composables/usePrivatMeet';
@@ -27,7 +27,7 @@ const props = defineProps<{
 }>();
 
 
-const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
+const { showUsersBar } = useUsersBar();
 const { initPeer } = useSecurePeer();
 const { notify } = useNotifications();
 const route = useRoute();

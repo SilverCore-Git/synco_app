@@ -349,6 +349,7 @@ import ThreadMessage from '../components/common/ThreadMessage.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import IconSelector from '@/components/common/IconSelector.vue';
+import { useUsersBar } from '@/composables/useUsersBar';
 import useSettingsItem from '@/composables/useSettingsItem';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -363,7 +364,7 @@ import { generateThreadKey, encryptThreadKeyForMember, privateKey } from '@/asse
 import { openedOrg, user } from '@/assets/var';
 import { getSystemPrompt } from '@/services/AITools';
 
-const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
+const { showUsersBar } = useUsersBar();
 const { Item: savedModelId, isLoaded: savedModelLoaded } = useSettingsItem('ai_selected_model', '');
 
 import { marked } from 'marked';
