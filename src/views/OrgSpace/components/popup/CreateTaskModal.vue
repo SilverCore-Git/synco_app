@@ -49,17 +49,30 @@
                 <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                     Date d'échéance (optionnel)
                 </label>
-                <input 
-                    v-model="form.dueDate"
-                    type="datetime-local" 
-                    class="
-                        w-full bg-(--bg2)/30 border border-white/10 rounded-xl 
-                        px-4 py-3 text-(--text) placeholder:text-(--text2) 
-                        focus:outline-none focus:border-(--primary)/50 focus:ring-1
-                        focus:ring-(--primary)/20 transition-all
-                    "
-                    :disabled="loading"
-                />
+                <div class="flex gap-2">
+                    <input 
+                        v-model="form.dueDate"
+                        type="date" 
+                        class="
+                            w-full bg-(--bg2)/30 border border-white/10 rounded-xl 
+                            px-4 py-3 text-(--text) placeholder:text-(--text2) 
+                            focus:outline-none focus:border-(--primary)/50 focus:ring-1
+                            focus:ring-(--primary)/20 transition-all
+                        "
+                        :disabled="loading"
+                    />
+                    <input 
+                        v-model="form.dueTime"
+                        type="time" 
+                        class="
+                            w-32 bg-(--bg2)/30 border border-white/10 rounded-xl 
+                            px-4 py-3 text-(--text) placeholder:text-(--text2) 
+                            focus:outline-none focus:border-(--primary)/50 focus:ring-1
+                            focus:ring-(--primary)/20 transition-all
+                        "
+                        :disabled="loading"
+                    />
+                </div>
             </div>
 
             <div class="flex flex-col gap-2" v-if="!hideSpaceSelect">
@@ -86,8 +99,17 @@
                 <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                     Assignation (Multiples)
                 </label>
+                <div class="relative mb-1">
+                    <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-sm"></i>
+                    <input 
+                        v-model="searchAssignee" 
+                        placeholder="Rechercher une personne..."
+                        class="w-full bg-(--bg2)/30 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50 focus:ring-1 focus:ring-(--primary)/20 transition-all"
+                        :disabled="loading"
+                    />
+                </div>
                 <div class="bg-(--bg2)/30 border border-white/10 rounded-xl p-3 max-h-40 overflow-y-auto space-y-2">
-                    <label v-for="member in availableMembers" :key="member.id" class="flex items-center gap-3 cursor-pointer group">
+                    <label v-for="member in filteredMembers" :key="member.id" class="flex items-center gap-3 cursor-pointer group">
                         <input 
                             type="checkbox" 
                             :value="member.userId" 
@@ -105,6 +127,9 @@
                             </span>
                         </div>
                     </label>
+                    <div v-if="filteredMembers.length === 0" class="text-xs text-center text-(--text2) py-2">
+                        Aucun résultat
+                    </div>
                 </div>
             </div>
         </form>
@@ -156,9 +181,12 @@ const form = reactive({
     title: '',
     description: '',
     dueDate: '',
+    dueTime: '',
     spaceId: props.defaultSpaceId || null as string | null,
     assigneeIds: user.value?.id ? [user.value.id] : [] as string[]
 });
+
+const searchAssignee = ref('');
 
 const availableMembers = computed<OrgMember[]>(() => {
     if (!openedOrg.value?.members) return [];
@@ -170,13 +198,24 @@ const availableMembers = computed<OrgMember[]>(() => {
     return openedOrg.value.members.filter(m => space.membersId.includes(m.userId));
 });
 
+const filteredMembers = computed<OrgMember[]>(() => {
+    if (!searchAssignee.value.trim()) return availableMembers.value;
+    const s = searchAssignee.value.toLowerCase();
+    return availableMembers.value.filter(m => {
+        const name = m.user?.name || m.userId;
+        return name.toLowerCase().includes(s);
+    });
+});
+
 const openModal = () => {
     isOpen.value = true;
     form.title = '';
     form.description = '';
     form.dueDate = '';
+    form.dueTime = '';
     form.spaceId = props.defaultSpaceId || null;
     form.assigneeIds = user.value?.id ? [user.value.id] : [];
+    searchAssignee.value = '';
     nextTick(() => {
         titleInput.value?.focus();
     });
@@ -196,10 +235,16 @@ const handleSubmit = async () => {
             endpoint = `/api/tasks/${route.params.orgId}/lists/${props.todoListId}/tasks`;
         }
 
+        let finalDueDate = null;
+        if (form.dueDate) {
+            const dateStr = form.dueDate + (form.dueTime ? `T${form.dueTime}` : 'T00:00');
+            finalDueDate = new Date(dateStr).toISOString();
+        }
+
         const payload = {
             title: form.title,
             description: form.description || null,
-            dueDate: form.dueDate ? new Date(form.dueDate).toISOString() : null,
+            dueDate: finalDueDate,
             spaceId: form.spaceId,
             assigneeIds: form.assigneeIds,
             parentTaskId: props.parentTaskId || null,
