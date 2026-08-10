@@ -182,7 +182,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import { openedOrg, user } from '@/assets/var';
@@ -432,5 +432,12 @@ onMounted(async () => {
     socket.value?.on('todo-deleted', ({ taskId }: { taskId: string }) => {
         onTaskDeleted(taskId);
     });
+});
+
+onUnmounted(async () => {
+    const socket = await useWSocket();
+    socket.value?.off('todo-added');
+    socket.value?.off('todo-updated');
+    socket.value?.off('todo-deleted');
 });
 </script>

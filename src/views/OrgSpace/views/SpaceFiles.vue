@@ -468,7 +468,7 @@
 
 <script lang="ts" setup>
 
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import { useUsersBar } from '@/composables/useUsersBar';
@@ -477,6 +477,7 @@ import CreateNewFolder from '../components/popup/CreateNewFolder.vue';
 import VerifyWatermark from '../components/popup/VerifyWatermark.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { useToast } from '@/composables/useToast';
+import useWSocket from '@/composables/useWSocket';
 import { downloadFile } from '@/assets/utils/downloadFile';
 import DropDown from '@/components/DropDown.vue';
 
@@ -1056,7 +1057,65 @@ onMounted(async() => {
     } finally {
         loading.value = false;
     }
+    
+    const socket = await useWSocket();
+    socket.value?.on('file-added', ({ file }: { file: StoredFile }) => {
+        if (file.workspaceId === route.params.spaceId && !allFiles.value.some(f => f.id === file.id)) {
+            allFiles.value.push(file);
+        }
+    });
+    socket.value?.on('file-updated', ({ file }: { file: StoredFile }) => {
+        if (file.workspaceId === route.params.spaceId) {
+            const index = allFiles.value.findIndex(f => f.id === file.id);
+            if (index !== -1) allFiles.value[index] = file;
+        }
+    });
+    socket.value?.on('file-moved', ({ file }: { file: StoredFile }) => {
+        if (file.workspaceId === route.params.spaceId) {
+            const index = allFiles.value.findIndex(f => f.id === file.id);
+            if (index !== -1) allFiles.value[index] = file;
+        }
+    });
+    socket.value?.on('file-deleted', ({ fileId, workspaceId }: { fileId: string, workspaceId: string }) => {
+        if (workspaceId === route.params.spaceId) {
+            allFiles.value = allFiles.value.filter(f => f.id !== fileId);
+        }
+    });
+    socket.value?.on('folder-added', ({ folder }: { folder: Folder }) => {
+        if (folder.workspaceId === route.params.spaceId && !allFolders.value.some(f => f.id === folder.id)) {
+            allFolders.value.push(folder);
+        }
+    });
+    socket.value?.on('folder-updated', ({ folder }: { folder: Folder }) => {
+        if (folder.workspaceId === route.params.spaceId) {
+            const index = allFolders.value.findIndex(f => f.id === folder.id);
+            if (index !== -1) allFolders.value[index] = folder;
+        }
+    });
+    socket.value?.on('folder-moved', ({ folder }: { folder: Folder }) => {
+        if (folder.workspaceId === route.params.spaceId) {
+            const index = allFolders.value.findIndex(f => f.id === folder.id);
+            if (index !== -1) allFolders.value[index] = folder;
+        }
+    });
+    socket.value?.on('folder-deleted', ({ folderId, workspaceId }: { folderId: string, workspaceId: string }) => {
+        if (workspaceId === route.params.spaceId) {
+            allFolders.value = allFolders.value.filter(f => f.id !== folderId);
+        }
+    });
 
+});
+
+onUnmounted(async () => {
+    const socket = await useWSocket();
+    socket.value?.off('file-added');
+    socket.value?.off('file-updated');
+    socket.value?.off('file-moved');
+    socket.value?.off('file-deleted');
+    socket.value?.off('folder-added');
+    socket.value?.off('folder-updated');
+    socket.value?.off('folder-moved');
+    socket.value?.off('folder-deleted');
 });
 
 const handleRouteQuery = () => {
