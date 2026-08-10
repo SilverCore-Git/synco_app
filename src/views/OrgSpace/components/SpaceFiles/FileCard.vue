@@ -6,6 +6,7 @@
         @pointerup="onPointerUp"
         @pointerleave="onPointerUp"
         @click="handleClick"
+        @contextmenu.prevent.stop="handleContextMenu"
         :class="[
             draggedFileId === file.id ? 'opacity-40 grayscale-50' : '',
             'max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border rounded-xl transition-all cursor-pointer shadow-sm',
@@ -66,7 +67,7 @@
                 <i class="bi bi-download text-lg" />
             </button>
 
-            <DropDown align="right" @click.stop @toggled="val => isDropdownOpen = val">
+            <DropDown ref="dropdownRef" align="mouse" @click.stop @toggled="val => isDropdownOpen = val">
                 <template #trigger>
                     <button class="w-8 h-8 rounded-lg hover:bg-(--primary)/10 flex items-center justify-center transition-colors hover:text-(--primary)">
                         <i class="bi bi-three-dots-vertical text-lg" />
@@ -177,6 +178,11 @@ const showEditFile = ref<boolean>(false);
 const showWatermarkFile = ref<boolean>(false);
 const showViewer = ref<boolean>(false);
 const isDropdownOpen = ref<boolean>(false);
+const dropdownRef = ref<any>(null);
+
+const handleContextMenu = (e: MouseEvent) => {
+    dropdownRef.value?.toggleDropdown(e);
+};
 
 const props = defineProps<{
     file: StoredFile,

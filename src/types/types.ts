@@ -40,6 +40,7 @@ export interface Thread {
   membersId: string[];
   type: ThreadType;
   isReadOnly: boolean;
+  isPrivate: boolean;
   writersId: string[];
   messages?: Message[];
   hasUnread: boolean;

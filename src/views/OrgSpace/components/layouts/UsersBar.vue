@@ -178,13 +178,13 @@ import { openedOrg } from '@/assets/var';
 import getColorByStatus from '@/assets/utils/getColorByStatus';
 import isDesktopApp from '@/assets/isDesktopApp';
 import { useRoute } from 'vue-router';
-import useSettingsItem from '@/composables/useSettingsItem';
 import useSecurePeer from '@/composables/useSecurePeer';
 import { keycloak } from '@/assets/keycloak';
 import { openProfile } from '@/composables/useProfile';
+import { useUsersBar } from '@/composables/useUsersBar';
 
 const route = useRoute();
-const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
+const { showUsersBar } = useUsersBar();
 const { startCall } = useSecurePeer();
 
 defineProps<{

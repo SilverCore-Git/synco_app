@@ -189,7 +189,7 @@ import { openedOrg, user } from '@/assets/var';
 import type { Task, OrgMember } from '@/types/types';
 
 import { useToast } from '@/composables/useToast';
-import useSettingsItem from '@/composables/useSettingsItem';
+import { useUsersBar } from '@/composables/useUsersBar';
 import useWSocket from '@/composables/useWSocket';
 import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
@@ -199,7 +199,7 @@ import confetti from 'canvas-confetti';
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
-const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
+const { showUsersBar } = useUsersBar();
 
 const tasks = ref<Task[]>([]);
 const loading = ref(true);

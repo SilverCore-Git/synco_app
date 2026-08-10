@@ -44,12 +44,12 @@ import { useRoute, useRouter } from 'vue-router';
 import { settingsViews } from './settings';
 import isAdmin from '@/assets/isAdmin';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
-import useSettingsItem from '@/composables/useSettingsItem';
+import { useUsersBar } from '@/composables/useUsersBar';
 
 const route = useRoute();
 const router = useRouter();
 
-const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
+const { showUsersBar } = useUsersBar();
 
 const setting = computed(() => {
     return settingsViews.find(view => view.route == route.name);

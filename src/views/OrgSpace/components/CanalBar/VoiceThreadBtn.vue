@@ -53,7 +53,7 @@
                 <button @click="openInviteModal" class="dropdown-item-annimate dropdown-item-style">
                     <i class="bi bi-link-45deg mr-2"></i> Gérer les liens d'invitation
                 </button>
-                <button @click="showConfirmDelete = !showConfirmDelete" class="dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!">
+                <button v-if="can('FOLDER_DELETE', route.params.spaceId as string, thread.id)" @click="showConfirmDelete = !showConfirmDelete" class="dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!">
                     <i class="bi bi-trash-fill mr-2" /> Supprimer
                 </button>
             </template>
@@ -122,7 +122,7 @@ import DropDown from '@/components/DropDown.vue';
 import UpdateThread from '../popup/UpdateThread.vue';
 import InviteLinkModal from '../popup/InviteLinkModal.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
-
+import { usePermissions } from '@/composables/usePermissions';
 
 const props = defineProps<{
   thread: Thread;
@@ -134,6 +134,9 @@ const router = useRouter();
 const inviteModalRef = ref<any>(null);
 const showConfirmDelete = ref<boolean>(false);
 const showEditThread = ref<boolean>(false);
+
+const orgId = computed(() => openedOrg.value?.id);
+const { can } = usePermissions(orgId);
 
 const { room, isConnected, connectToRoom, allParticipants, getWSData } = useLiveKit();
 

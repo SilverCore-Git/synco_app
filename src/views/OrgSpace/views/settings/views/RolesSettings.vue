@@ -68,19 +68,19 @@
             <p class="text-sm text-(--text2)">
               Définissez les permissions par défaut pour ce rôle.
             </p>
-          </div>
-          
-          <div class="flex items-center gap-3">
             <!-- Barre de recherche -->
-            <div class="relative">
+            <div class="relative mt-4">
               <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-xs" />
               <input 
                 type="search" 
                 v-model="searchQuery"
-                placeholder="Chercher..."
-                class="pl-8 pr-4 py-2 bg-(--bg2) border border-(--border-color) rounded-lg text-sm text-(--text) outline-none focus:border-(--primary) w-48 transition-all placeholder-(--text2)/50"
+                placeholder="Rechercher une permission..."
+                class="pl-8 pr-4 py-2 bg-(--bg2) border border-(--border-color) rounded-lg text-sm text-(--text) outline-none focus:border-(--primary) w-64 transition-all placeholder-(--text2)/50"
               />
             </div>
+          </div>
+          
+          <div class="flex items-center gap-3">
             <!-- Bouton Supprimer -->
             <button 
               v-if="!selectedRole.isSystem"
@@ -267,11 +267,22 @@
       </template>
     </Popup>
 
+    <ConfirmDelete 
+      v-if="roleToDelete"
+      :show="showDeleteConfirm"
+      item-type="le rôle"
+      :item-name="roleToDelete.name"
+      :loading="isDeletingRole"
+      @cancel="showDeleteConfirm = false; roleToDelete = null"
+      @confirm="executeDeleteRole"
+    />
+
   </div>
 </template>
 
 <script lang="ts" setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { onBeforeRouteLeave } from 'vue-router';
 import { usePermissions } from '@/composables/usePermissions';
 import { openedOrg } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
@@ -279,6 +290,7 @@ import sfetch from '@/assets/utils/sfetch';
 import { PERMISSION_REGISTRY, type Permission, type PermissionValue, type RoleData } from '@/config/permissions.config';
 import useWSocket from '@/composables/useWSocket';
 import Popup from '@/components/Popup.vue';
+import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 
 const toast = useToast();
 const orgId = computed(() => openedOrg.value?.id);
@@ -288,6 +300,10 @@ const loading = ref(true);
 const isSaving = ref(false);
 const roles = ref<RoleData[]>([]);
 const selectedRoleId = ref<string | null>(null);
+
+const showDeleteConfirm = ref(false);
+const isDeletingRole = ref(false);
+const roleToDelete = ref<RoleData | null>(null);
 
 const showCreateModal = ref(false);
 const nameInput = ref<HTMLInputElement | null>(null);
@@ -309,16 +325,20 @@ const originalPerms = ref<Record<string, Record<string, PermissionValue>>>({});
 
 const permissionGroups = [
   {
-    name: 'Visibilité & Lecture',
-    keys: ['VIEW', 'READ']
+    name: 'Organisation (Paramètres)',
+    keys: ['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI']
   },
   {
-    name: 'Création & Édition',
-    keys: ['WRITE', 'UPLOAD', 'CREATE_SPACE', 'CREATE_FOLDER', 'DELETE']
+    name: 'Espaces de travail',
+    keys: ['SPACE_CREATE', 'SPACE_MANAGE', 'SPACE_DELETE']
   },
   {
-    name: 'Gestion & Administration',
-    keys: ['SHARE', 'INVITE_USERS', 'MANAGE', 'ADMIN']
+    name: 'Salons & Dossiers',
+    keys: ['FOLDER_CREATE', 'FOLDER_MANAGE', 'FOLDER_DELETE']
+  },
+  {
+    name: 'Contenu & Fichiers',
+    keys: ['VIEW', 'READ', 'WRITE', 'UPLOAD', 'CONTENT_DELETE', 'SHARE']
   }
 ];
 
@@ -396,14 +416,12 @@ async function loadData(silent = false) {
   }
 }
 
-const selectedRole = computed(() => roles.value.find(r => r.id === selectedRoleId.value));
+const selectedRole = computed(() => roles.value.find((r: RoleData) => r.id === selectedRoleId.value));
 
 function selectRole(role: RoleData) {
   if (hasChanges.value) {
-    if (!confirm("Vous avez des modifications non enregistrées. Voulez-vous vraiment changer de rôle ?")) {
-      return;
-    }
-    resetChanges();
+    toast.show('Veuillez enregistrer ou annuler vos modifications avant de changer de rôle.', 'error');
+    return;
   }
   selectedRoleId.value = role.id;
   searchQuery.value = ''; // Reset search on role change
@@ -464,7 +482,7 @@ async function saveDefaults() {
       let changed = false;
       for (const [k, v] of Object.entries(current)) {
         if (v !== original[k]) {
-          diff[k] = v;
+          diff[k] = v as PermissionValue;
           changed = true;
         }
       }
@@ -526,26 +544,45 @@ async function createRole() {
   }
 }
 
-async function deleteRole(role: RoleData) {
+function deleteRole(role: RoleData) {
   if (!orgId.value) return;
-  if (!confirm(`Êtes-vous sûr de vouloir supprimer le rôle "${role.name}" ?`)) return;
+  roleToDelete.value = role;
+  showDeleteConfirm.value = true;
+}
+
+async function executeDeleteRole() {
+  if (!roleToDelete.value || !orgId.value) return;
+  isDeletingRole.value = true;
   try {
-    const res = await sfetch(`/api/orgs/${orgId.value}/roles/${role.id}`, {
+    const res = await sfetch(`/api/orgs/${orgId.value}/roles/${roleToDelete.value.id}`, {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error();
     toast.show('Rôle supprimé', 'success');
     
-    if (selectedRoleId.value === role.id) {
+    if (selectedRoleId.value === roleToDelete.value.id) {
       selectedRoleId.value = null;
     }
     
     // Le websocket s'occupera de recharger la liste,
     // mais on force localement pour l'UI instantanée
     await loadData(true);
+    showDeleteConfirm.value = false;
+    roleToDelete.value = null;
   } catch (err) {
     toast.show('Erreur de suppression', 'error');
+  } finally {
+    isDeletingRole.value = false;
   }
 }
+
+onBeforeRouteLeave((_to, _from, next) => {
+  if (hasChanges.value) {
+    toast.show('Veuillez enregistrer ou annuler vos modifications avant de quitter.', 'error');
+    next(false);
+  } else {
+    next();
+  }
+});
 
 </script>
