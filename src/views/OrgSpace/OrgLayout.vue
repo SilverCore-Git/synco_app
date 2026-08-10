@@ -456,6 +456,35 @@ const initSocketListener = async () => {
         const orgMember = openedOrg.value?.members?.find(m => m.userId === callerId);
         if (!isMeeting.value) notify('notif:privateMeet', orgMember, -1);
     });
+    socket.value?.on('thread:created', ({ orgId, thread }: { orgId: string, thread: any }) => {
+        
+        if (orgId !== props.orgId) return;
+
+        const org = openedOrg.value;
+        if (!org) return;
+
+        // If thread has workspaceId, add it to the corresponding workspace
+        if (thread.workspaceId) {
+            const space = org.spaces?.find(s => s.id === thread.workspaceId);
+            if (space) {
+                if (!space.threads) space.threads = [];
+                // Check if it already exists
+                if (!space.threads.find(t => t.id === thread.id)) {
+                    space.threads.push(thread);
+                }
+            }
+        } 
+        // Otherwise, it belongs to the organization home
+        else if (org.home) {
+            if (!org.home.threads) org.home.threads = [];
+            // Check if it already exists
+            if (!org.home.threads.find(t => t.id === thread.id)) {
+                org.home.threads.push(thread);
+            }
+        }
+
+    });
+
 
 
     socket.value?.on('thread:updated', ({ orgId, threadId, name }: { orgId: string, threadId: string, name: string }) => {

@@ -333,7 +333,9 @@ const handleSubmit = async () => {
             if (isHome.value) 
             {
                 const thread: Thread = res;
-                openedOrg.value?.home?.threads?.push(thread);
+                if (!openedOrg.value?.home?.threads?.find(t => t.id === thread.id)) {
+                    openedOrg.value?.home?.threads?.push(thread);
+                }
                 await nextTick();
                 router.push({ name: 'OrgThreadHome', params: { orgId: route.params.orgId, threadId: res.id } });
             } 
@@ -341,7 +343,9 @@ const handleSubmit = async () => {
             {
                 const thread: Thread = res;
                 const space = openedOrg.value?.spaces?.find(s => s.id === route.params.spaceId);
-                space?.threads?.push(thread);
+                if (space && space.threads && !space.threads.find(t => t.id === thread.id)) {
+                    space.threads.push(thread);
+                }
 
                 import('@/services/LocalSearchVectorDB').then(({ localSearchDB }) => {
                     localSearchDB.insertDocument({
