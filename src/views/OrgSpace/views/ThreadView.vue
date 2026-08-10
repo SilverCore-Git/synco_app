@@ -328,7 +328,7 @@
     <div v-else-if="thread && !canSpeak" class="absolute bottom-0 inset-x-0 p-4 bg-transparent mt-auto pointer-events-none">
         <div class="bg-(--bg)/80 backdrop-blur-3xl border border-white/10 rounded-xl px-4 py-3 flex items-center justify-center gap-3 shadow-2xl">
             <i class="bi bi-megaphone-fill text-(--primary) text-lg" />
-            <span class="text-(--text) text-sm font-medium">Seuls certains membres peuvent envoyer des messages dans ce salon.</span>
+            <span class="text-(--text) text-sm font-medium">Vous ne pouvez pas parler dans ce salon.</span>
         </div>
     </div>
 
