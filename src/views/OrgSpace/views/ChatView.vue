@@ -600,8 +600,14 @@ const initListener = () => {
 
     if (!socket.value) return;
     
-    const events = ["dm:history", "dm:new-message", "dm:user-typing"];
+    const events = ["dm:history", "dm:new-message", "dm:user-typing", "dm:delete-message", "dm:edit-message", "dm-more-messages", "connect"];
     events.forEach(ev => socket.value?.off(ev));
+
+    socket.value.on("connect", () => {
+        if (recipient.value?.id) {
+            joinDM(recipient.value.id);
+        }
+    });
 
     socket.value.on('dm:history', async (data: { messages: any[]; hasMore: boolean } | any[]) => {
         // Handle both old format (array) and new format (object with messages and hasMore)
@@ -844,12 +850,8 @@ onUnmounted(() => {
     document.removeEventListener('click', closeEmojiPickerOnOutsideClick);
     const sock = socket.value;
     if (sock) {
-        sock.off('dm:history');
-        sock.off('dm:new-message');
-        sock.off('dm:user-typing');
-        sock.off('dm:delete-message');
-        sock.off('dm:edit-message');
-        sock.off('dm-more-messages');
+        const events = ["dm:history", "dm:new-message", "dm:user-typing", "dm:delete-message", "dm:edit-message", "dm-more-messages", "connect"];
+        events.forEach(ev => sock.off(ev));
     }
 });
 </script>

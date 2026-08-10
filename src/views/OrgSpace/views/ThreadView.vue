@@ -677,7 +677,14 @@ const initListener = () => {
 
     if (!socket.value) return;
 
-    socket.value.off("thread-history").off("more-messages").off("new-message").off("keys-distributed");
+    socket.value.off("thread-history").off("more-messages").off("new-message").off("keys-distributed")
+        .off("delete-message").off("edit-message").off("connect");
+
+    socket.value.on("connect", () => {
+        if (thread.value?.id) {
+            joinThread(thread.value.id);
+        }
+    });
 
     socket.value.on("keys-distributed", async ({ threadId }: { threadId: string }) => {
         if (threadId === thread.value?.id) {
@@ -1053,7 +1060,8 @@ onUnmounted(() => {
     if (socket.value) 
     {
         socket.value.emit("leave-thread", thread.value?.id);
-        socket.value.off("thread-history").off("more-messages").off("new-message");
+        socket.value.off("thread-history").off("more-messages").off("new-message")
+            .off("keys-distributed").off("delete-message").off("edit-message").off("connect");
     }
     window.removeEventListener('paste', handlePaste);
     document.removeEventListener('click', closeEmojiPickerOnOutsideClick);
