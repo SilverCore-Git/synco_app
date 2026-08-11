@@ -26,8 +26,12 @@
                             <i class="bi bi-folder text-(--primary)/80"></i>
                             {{ task.space?.name || 'Général' }}
                         </span>
+                        <span v-if="!isEditing && task.creator" class="flex items-center gap-1 whitespace-nowrap" :title="'Créée par ' + task.creator.name">
+                            <i class="bi bi-person text-(--primary)/80"></i>
+                            Créée par {{ task.creator.name.split(' ')[0] }}
+                        </span>
                         <span v-if="!isEditing" class="flex items-center gap-2 break-words">
-                            <i class="bi bi-person-circle text-(--primary)/80"></i>
+                            <i class="bi bi-people-fill text-(--primary)/80"></i>
                             <span v-if="!task.assignees?.length">Personne</span>
                             <div v-else class="flex items-center -space-x-1.5">
                                 <template v-for="assignee in task.assignees.slice(0,5)" :key="assignee.id">
