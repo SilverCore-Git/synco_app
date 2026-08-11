@@ -698,7 +698,7 @@ const initListener = () => {
         sortedMessages.value = await procesMessages(history);
 
         loading.value = false;
-        hasMore.value = history.length >= 40;
+        hasMore.value = history.length >= 20;
         
         if (selectedMessage.value && selectedMessage.value !== 'undefined') 
         {
@@ -727,6 +727,8 @@ const initListener = () => {
     });
 
     socket.value.on("new-message", async (msg: Message) => {
+        if (msg.threadId !== thread.value?.id) return;
+
         let clearContent = msg.content;
         if (msg.isWebhook) {
             clearContent = msg.content; // Skip decryption for webhooks
@@ -784,11 +786,13 @@ const initListener = () => {
     });
 
     socket.value.on('delete-message', (msgId: string) => {
+        if (!rawMessages.value.has(msgId)) return;
         rawMessages.value.delete(msgId);
         sortedMessages.value = sortedMessages.value.filter(m => m.id !== msgId);
     });
 
     socket.value.on('edit-message', async (editedMsg: Message) => {
+        if (editedMsg.threadId !== thread.value?.id) return;
         let decryptedContent = editedMsg.content;
         if (editedMsg.content && editedMsg.content.trim() !== "" && currentThreadKey.value) 
         {
