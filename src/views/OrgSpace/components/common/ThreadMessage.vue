@@ -2,8 +2,9 @@
 
                 <div
                     :key="msg.id" 
-                    class="group relative px-4 py-2 flex flex-col justify-start items-start rounded-lg transition-colors w-full"
+                    class="group relative px-4 flex flex-col justify-start items-start rounded-lg transition-colors w-full"
                     :class="[
+                        isStacked ? 'py-0.5 mt-0' : 'py-2 mt-2',
                         selectedMessage == msg.id ? ' border border-(--primary) border-dashed animate-pulse' : '',
                         user?.id == msg.replyMessage?.senderId || isTagMe
                             ? 'border-l-2 border-(--primary-dark) bg-(--primary-dark)/30 hover:bg-(--primary-dark)/50' 
@@ -89,14 +90,14 @@
                     <div class="z-20 flex justify-start items-start gap-3">
 
                         <img 
-                            v-if="msg.isWebhook"
+                            v-if="msg.isWebhook && !isStacked"
                             :src="msg.webhookAvatar || `https://ui-avatars.com/api/?name=${msg.webhookName || 'Webhook'}&background=7c3aed&color=fff`"
                             :alt="msg.webhookName || 'Webhook'"
                             @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${msg.webhookName || 'Webhook'}&background=7c3aed&color=fff`"
                             class="rounded-full w-9 h-9 object-cover shrink-0 cursor-default"
                         />
                         <img 
-                            v-else-if="msg.sender"
+                            v-else-if="msg.sender && !isStacked"
                             :src="msg.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=128a60&color=fff`"
                             :alt="msg.sender?.name"
                             @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=128a60&color=fff`"
@@ -104,10 +105,16 @@
                             class="rounded-full w-9 h-9 object-cover shrink-0"
                             :class="!isReadOnly ? 'cursor-pointer hover:ring-2 hover:ring-(--primary)/50 transition-all' : ''"
                         />
+                        <div 
+                            v-else-if="isStacked"
+                            class="w-9 h-9 shrink-0 flex items-start justify-center opacity-0 group-hover:opacity-100 transition-opacity select-none"
+                        >
+                            <span class="text-[10px] text-(--text2) font-medium text-center mt-1.5">{{ formatTimeOnly(msg.createdAt as any) }}</span>
+                        </div>
 
                         <div class="min-w-0 flex-1">
 
-                            <div class="flex items-baseline gap-2">
+                            <div v-if="!isStacked" class="flex items-baseline gap-2 mb-0.5">
 
                                 <span 
                                     v-if="msg.isWebhook"
@@ -250,6 +257,7 @@ const props = defineProps<{
     messages?: Message[];
     currentThreadKey?: CryptoKey | null;
     isReadOnly?: boolean;
+    isStacked?: boolean;
 }>();
 
 interface DropdownBtn {
@@ -417,6 +425,13 @@ const formatTime = (d: string) => {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const formatTimeOnly = (d: string) => {
+  return new Date(d).toLocaleTimeString('fr-FR', {
     hour: '2-digit',
     minute: '2-digit',
   });

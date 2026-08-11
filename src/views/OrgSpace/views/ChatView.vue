@@ -112,12 +112,13 @@
                         </div>
 
                         <ChatMessage 
-                            v-for="msg in messages" 
+                            v-for="(msg, index) in messages" 
                             :key="msg.id" 
 
                             :selected-message="selectedMessage"
                             :msg="msg"
                             :messages="messages"
+                            :is-stacked="index > 0 && messages[index-1].senderId === msg.senderId && !msg.replyToId && (new Date(msg.createdAt).getTime() - new Date(messages[index-1].createdAt).getTime() < 60000)"
                         />
 
                     </template>

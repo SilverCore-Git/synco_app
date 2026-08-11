@@ -68,6 +68,7 @@
                             :selectedMessage="selectedMessage"
                             :messages="sortedMessages"
                             :currentThreadKey="currentThreadKey"
+                            :is-stacked="index > 0 && sortedMessages[index-1].senderId === msg.senderId && sortedMessages[index-1].isWebhook === msg.isWebhook && !msg.replyToId && (new Date(msg.createdAt).getTime() - new Date(sortedMessages[index-1].createdAt).getTime() < 60000)"
                         />
                     </div>
 
