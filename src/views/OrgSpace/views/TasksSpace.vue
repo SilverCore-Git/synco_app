@@ -112,23 +112,18 @@
                             </div>
                             
                             <div class="flex items-center justify-between mt-4">
-                                <div class="flex items-center gap-3">
-                                    <div class="flex items-center -space-x-1.5" v-if="task.assignees?.length">
-                                        <template v-for="assignee in task.assignees.slice(0,3)" :key="assignee.id">
-                                            <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="assignee.name" class="w-6 h-6 rounded-full object-cover border-2 border-(--bg2) z-10 hover:z-20">
-                                            <div v-else :title="assignee.name" class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10 hover:z-20">
-                                                {{ assignee.name.substring(0, 2).toUpperCase() }}
-                                            </div>
-                                        </template>
-                                        <div v-if="task.assignees.length > 3" class="w-6 h-6 rounded-full bg-white/10 text-white flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10">
-                                            +{{ task.assignees.length - 3 }}
+                                <div class="flex items-center -space-x-1.5" v-if="task.assignees?.length">
+                                    <template v-for="assignee in task.assignees.slice(0,3)" :key="assignee.id">
+                                        <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="assignee.name" class="w-6 h-6 rounded-full object-cover border-2 border-(--bg2) z-10 hover:z-20">
+                                        <div v-else :title="assignee.name" class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10 hover:z-20">
+                                            {{ assignee.name.substring(0, 2).toUpperCase() }}
                                         </div>
-                                    </div>
-                                    <div v-if="task.creator" class="flex items-center gap-1 text-[9px] font-bold text-(--text2) opacity-70 uppercase tracking-wider" :title="'Créée par ' + task.creator.name">
-                                        <i class="bi bi-person-fill"></i>
-                                        <span class="whitespace-nowrap">{{ task.creator.name.split(' ')[0] }}</span>
+                                    </template>
+                                    <div v-if="task.assignees.length > 3" class="w-6 h-6 rounded-full bg-white/10 text-white flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10">
+                                        +{{ task.assignees.length - 3 }}
                                     </div>
                                 </div>
+                                <div v-else></div>
                                 
                                 <div v-if="task.subtasks && task.subtasks.length > 0" class="flex items-center gap-1.5 text-xs bg-white/5 px-2.5 py-1 rounded-lg font-bold text-white/50">
                                     <i class="bi bi-check2-square text-(--primary)"></i>

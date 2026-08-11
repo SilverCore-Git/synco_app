@@ -26,7 +26,7 @@
                             <i class="bi bi-folder text-(--primary)/80"></i>
                             {{ task.space?.name || 'Général' }}
                         </span>
-                        <span v-if="!isEditing && task.creator" class="flex items-center gap-1 whitespace-nowrap" :title="'Créée par ' + task.creator.name">
+                        <span v-if="!isEditing && task?.creator" @click.stop="(e) => task?.creator && openProfile(task.creator, e)" class="flex items-center gap-1 whitespace-nowrap cursor-pointer hover:text-white transition-colors" :title="'Profil de ' + task.creator.name">
                             <i class="bi bi-person text-(--primary)/80"></i>
                             Créée par {{ task.creator.name.split(' ')[0] }}
                         </span>
@@ -189,6 +189,7 @@ import { useRoute } from 'vue-router';
 import { useToast } from '@/composables/useToast';
 import confetti from 'canvas-confetti';
 import { openedOrg } from '@/assets/var';
+import { openProfile } from '@/composables/useProfile';
 
 const props = defineProps<{
     task: Task | null;
