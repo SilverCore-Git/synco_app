@@ -9,7 +9,7 @@
             
             <div class="ml-auto flex items-center gap-2">
                 <CreateTaskModal @created="onTaskCreated">
-                    <button class="bg-(--primary) text-white font-bold py-1.5 px-4 rounded-lg hover:brightness-110 active:scale-95 transition-all text-sm flex items-center gap-2">
+                    <button class="primary !text-sm flex items-center gap-2">
                         <i class="bi bi-plus-lg"></i>
                         Nouvelle Tâche
                     </button>

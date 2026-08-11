@@ -10,7 +10,7 @@
             </div>
             
             <div class="flex items-center gap-4">
-                <button v-if="isConnected" @click="leaveRoomLocal" class="bg-red-500 hover:bg-red-600 px-4 py-1.5 rounded-full text-sm font-medium transition-colors">
+                <button v-if="isConnected" @click="leaveRoomLocal" class="danger">
                     Quitter
                 </button>
             </div>

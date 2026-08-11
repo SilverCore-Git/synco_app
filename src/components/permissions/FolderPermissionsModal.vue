@@ -67,7 +67,7 @@
             <button 
               @click="save"
               :disabled="!hasChanges || isSaving"
-              class="px-5 py-2 rounded-xl text-sm font-bold bg-(--primary) hover:bg-(--primary-hover) text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
+              class="primary flex items-center gap-2"
             >
               <div v-if="isSaving" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               <span>{{ isSaving ? 'Sauvegarde...' : 'Sauvegarder' }}</span>

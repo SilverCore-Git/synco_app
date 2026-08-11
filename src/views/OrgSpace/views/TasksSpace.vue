@@ -13,7 +13,7 @@
                     :hideSpaceSelect="true"
                     @created="onTaskCreated"
                 >
-                    <button class="bg-(--primary) text-white font-bold py-1.5 px-4 rounded-lg hover:brightness-110 active:scale-95 transition-all text-sm flex items-center gap-2 shadow-sm">
+                    <button class="primary !text-sm flex items-center gap-2 shadow-sm">
                         <i class="bi bi-plus-lg"></i> Créer une tâche
                     </button>
                 </CreateTaskModal>
@@ -35,10 +35,10 @@
             <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 pb-2">
                 
                 <div class="flex items-center gap-2 overflow-x-auto w-full sm:w-auto scrollbar-hide shrink-0 pb-1">
-                    <button @click="filterUserId = null" class="px-4 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="!filterUserId ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10'">
+                    <button @click="filterUserId = null" class="px-4 py-2 font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="!filterUserId ? 'primary shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 rounded-xl text-white/50 hover:bg-white/10'">
                         Toutes les tâches
                     </button>
-                    <button @click="filterUserId = user?.id || null" class="px-4 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="filterUserId === user?.id ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10'">
+                    <button @click="filterUserId = user?.id || null" class="px-4 py-2 font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="filterUserId === user?.id ? 'primary shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 rounded-xl text-white/50 hover:bg-white/10'">
                         Mes tâches
                     </button>
                 </div>
@@ -46,7 +46,7 @@
                 <div class="hidden sm:block w-px h-6 bg-white/10 mx-2 shrink-0"></div>
                 
                 <div class="flex items-center gap-2 overflow-x-auto w-full scrollbar-hide pb-1">
-                    <button v-for="member in spaceMembers" :key="member.id" @click="filterUserId = member.userId" class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="filterUserId === member.userId ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10'">
+                    <button v-for="member in spaceMembers" :key="member.id" @click="filterUserId = member.userId" class="flex items-center gap-2 px-3 py-1.5 font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="filterUserId === member.userId ? 'primary shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 rounded-xl text-white/50 hover:bg-white/10'">
                         <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-5 h-5 rounded-full object-cover">
                         <div v-else class="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px]">
                             {{ member.user?.name?.substring(0,2).toUpperCase() }}

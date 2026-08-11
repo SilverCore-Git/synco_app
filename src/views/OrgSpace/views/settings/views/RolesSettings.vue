@@ -12,7 +12,7 @@
         </div>
         <button 
           @click="showCreateModal = true"
-          class="w-8 h-8 flex items-center justify-center bg-(--primary) hover:bg-(--primary-hover) text-white rounded-lg transition-colors shadow-sm"
+          class="primary !p-0 !w-8 !h-8 flex items-center justify-center shadow-sm"
           title="Créer un nouveau rôle"
         >
           <i class="bi bi-plus-lg text-lg" />
@@ -174,7 +174,7 @@
             <button 
               @click="saveDefaults"
               :disabled="isSaving"
-              class="px-5 py-2 rounded-xl text-sm font-bold bg-(--primary) hover:bg-(--primary-hover) text-white transition-all flex items-center gap-2"
+              class="primary flex items-center gap-2"
             >
               <div v-if="isSaving" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               <span>Enregistrer les modifications</span>
@@ -259,7 +259,7 @@
         <button 
           @click="createRole"
           :disabled="!newRole.name || isSaving"
-          class="px-5 py-2 bg-(--primary) hover:bg-(--primary-hover) text-white text-sm font-bold rounded-xl disabled:opacity-50 transition-colors flex items-center gap-2"
+          class="primary flex items-center gap-2"
         >
           <div v-if="isSaving" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           Créer

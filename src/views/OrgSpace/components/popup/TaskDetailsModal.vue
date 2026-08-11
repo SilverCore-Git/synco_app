@@ -69,7 +69,7 @@
                         :parentTaskId="task.id"
                         @created="onSubtaskCreated"
                     >
-                        <button class="text-xs bg-(--primary)/20 text-(--primary) hover:bg-(--primary) hover:text-white px-3 py-1.5 rounded-lg transition-all font-bold">
+                        <button class="primary !text-xs !px-3 !py-1.5">
                             + Ajouter
                         </button>
                     </CreateTaskModal>

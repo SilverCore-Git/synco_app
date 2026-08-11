@@ -106,8 +106,8 @@
                                         v-for="model in recommendedModels" 
                                         :key="model"
                                         @click="orgData.modelId = model"
-                                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all border shadow-sm"
-                                        :class="orgData.modelId === model ? 'bg-(--primary) border-(--primary) text-white' : 'bg-(--bg3) border-(--border-color) text-(--text2) hover:bg-(--bg)'"
+                                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm"
+                                        :class="orgData.modelId === model ? 'primary' : 'border border-(--border-color) bg-(--bg3) text-(--text2) hover:bg-(--bg)'"
                                     >
                                         {{ model }}
                                     </button>
