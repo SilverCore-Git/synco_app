@@ -403,17 +403,21 @@ const initSocketListener = async () => {
         }
     });
 
-    socket.value?.on('notif:new-message', ({ message, spaceId }: { message: Message, spaceId: string }) => {
+    socket.value?.on('notif:new-message', ({ message, spaceId }: { message: Message, spaceId: string | null }) => {
         
         if (route.params.threadId == message.threadId) return;
 
-        const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
-        if (!space) return;
+        let thread;
+        if (spaceId) {
+            const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
+            if (space) thread = space.threads?.find(t => t.id === message.threadId);
+        } else {
+            thread = openedOrg.value?.home?.threads?.find(t => t.id === message.threadId);
+        }
 
-        const thread = space.threads.find(t => t.id === message.threadId);
-        if (!thread) return;
-
-        thread.hasUnread = true;
+        if (thread) {
+            thread.hasUnread = true;
+        }
 
     });
 
