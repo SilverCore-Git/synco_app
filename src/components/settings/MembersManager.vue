@@ -155,7 +155,12 @@ import type { OrgMember } from '@/types/types';
 import { keycloak } from '@/assets/keycloak';
 import Popup from '../Popup.vue';
 import { openedOrg } from '@/assets/var';
-import isAdmin from '@/assets/isAdmin';
+import { usePermissions } from '@/composables/usePermissions';
+import { useRoute } from 'vue-router';
+
+const route = useRoute();
+const orgId = computed(() => openedOrg.value?.id);
+const { can } = usePermissions(orgId);
 
 const props = defineProps<{
     members: OrgMember[];        // members already in this scope
@@ -184,7 +189,7 @@ const isSelf = (userId: string) => userId === keycloak.userInfo?.sub;
 
 const canManage = (member: OrgMember) => {
     if (isSelf(member.userId)) return false;
-    return isAdmin.value || keycloak.userInfo?.sub === props.ownerId;
+    return can('SPACE_MANAGE', route.params.spaceId as string) || keycloak.userInfo?.sub === props.ownerId;
 };
 
 const invite = (member: OrgMember) => {

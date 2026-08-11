@@ -94,6 +94,7 @@ const onSpaceOrderChange = async () => {
                     label="Général"
                     iconFillOnActive
                     :active="route.name === 'OrgHome' || route.name === 'OrgThreadHome'"
+                    :hasUnread="openedOrg?.home?.threads?.some((t: any) => t.hasUnread)"
                 />
             </RouterLink>
 
@@ -103,11 +104,8 @@ const onSpaceOrderChange = async () => {
                     label="Messages privées"
                     :active="route.name === 'OrgChat' || route.name === 'OrgThreadChat'"
                     iconFillOnActive
+                    :hasUnread="getUnreadCountForDMs > 0"
                 />
-                <div 
-                    v-if="getUnreadCountForDMs > 0" 
-                    class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-pulse"
-                ></div>
             </RouterLink>
 
             <RouterLink v-if="todoEnabled" :to="`/${openedOrg.id}/tasks?showView=1`">
