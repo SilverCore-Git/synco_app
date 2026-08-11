@@ -1,10 +1,16 @@
 <template>
     <Popup :is-open="isOpen" @close="closeModal">
         <template #title>
-            <div class="flex items-center gap-2">
-                <i class="bi bi-check2-square text-(--primary)"></i>
-                <span v-if="!isEditing">Détails de la Tâche</span>
-                <span v-else>Modifier la Tâche</span>
+            <div class="flex flex-col gap-1">
+                <div v-if="task?.parentTask" class="flex items-center gap-1 text-[10px] font-bold text-(--text2) uppercase hover:text-(--primary) cursor-pointer transition-colors" @click="emit('open-task', task.parentTask)">
+                    <i class="bi bi-arrow-left-short text-sm"></i>
+                    {{ task.parentTask.title }}
+                </div>
+                <div class="flex items-center gap-2">
+                    <i class="bi bi-check2-square text-(--primary)"></i>
+                    <span v-if="!isEditing">Détails de la Tâche</span>
+                    <span v-else>Modifier la Tâche</span>
+                </div>
             </div>
         </template>
 
@@ -20,9 +26,20 @@
                             <i class="bi bi-folder text-(--primary)/80"></i>
                             {{ task.space?.name || 'Général' }}
                         </span>
-                        <span class="flex items-center gap-1 break-words">
+                        <span v-if="!isEditing" class="flex items-center gap-2 break-words">
                             <i class="bi bi-person-circle text-(--primary)/80"></i>
-                            Assignée à {{ task.assignees?.length ? task.assignees.map((a: any) => a.name).join(', ') : 'Personne' }}
+                            <span v-if="!task.assignees?.length">Personne</span>
+                            <div v-else class="flex items-center -space-x-1.5">
+                                <template v-for="assignee in task.assignees.slice(0,5)" :key="assignee.id">
+                                    <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="assignee.name" class="w-5 h-5 rounded-full object-cover border border-(--bg2) z-10 hover:z-20">
+                                    <div v-else :title="assignee.name" class="w-5 h-5 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[8px] font-black border border-(--bg2) z-10 hover:z-20">
+                                        {{ assignee.name.substring(0, 2).toUpperCase() }}
+                                    </div>
+                                </template>
+                                <div v-if="task.assignees.length > 5" class="w-5 h-5 rounded-full bg-white/10 text-white flex items-center justify-center text-[8px] font-black border border-(--bg2) z-10">
+                                    +{{ task.assignees.length - 5 }}
+                                </div>
+                            </div>
                         </span>
                     </div>
                 </div>
@@ -37,6 +54,42 @@
                 <h4 class="text-xs font-bold text-(--text2) uppercase mb-2">Description</h4>
                 <p v-if="!isEditing" class="text-sm text-white/80 whitespace-pre-wrap">{{ task.description || 'Aucune description fournie.' }}</p>
                 <textarea v-else v-model="editForm.description" rows="3" class="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-white/80 resize-none"></textarea>
+            </div>
+
+            <div v-if="isEditing" class="bg-white/5 rounded-xl p-4 border border-white/10 mt-4">
+                <h4 class="text-xs font-bold text-(--text2) uppercase mb-2">Assignation</h4>
+                <div class="relative mb-2">
+                    <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-sm"></i>
+                    <input 
+                        v-model="searchAssignee" 
+                        placeholder="Rechercher une personne..."
+                        class="w-full bg-black/40 border border-white/20 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
+                        :disabled="loading"
+                    />
+                </div>
+                <div class="bg-black/40 border border-white/20 rounded-xl p-3 max-h-40 overflow-y-auto space-y-2">
+                    <label v-for="member in filteredMembers" :key="member.id" class="flex items-center gap-3 cursor-pointer group">
+                        <input 
+                            type="checkbox" 
+                            :value="member.userId" 
+                            v-model="editForm.assigneeIds"
+                            class="w-4 h-4 rounded bg-black/20 border-white/20 text-(--primary) focus:ring-(--primary) focus:ring-offset-0"
+                            :disabled="loading"
+                        />
+                        <div class="flex items-center gap-2">
+                            <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-6 h-6 rounded-full object-cover">
+                            <div v-else class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[10px] font-bold">
+                                {{ (member.user?.name || member.userId).substring(0, 2).toUpperCase() }}
+                            </div>
+                            <span class="text-sm font-medium text-(--text) group-hover:text-white transition-colors">
+                                {{ member.user?.name || member.userId }}
+                            </span>
+                        </div>
+                    </label>
+                    <div v-if="filteredMembers.length === 0" class="text-xs text-center text-(--text2) py-2">
+                        Aucun résultat
+                    </div>
+                </div>
             </div>
 
             <div v-if="isEditing" class="flex justify-end">
@@ -63,23 +116,43 @@
                         :parentTaskId="task.id"
                         @created="onSubtaskCreated"
                     >
-                        <button class="text-xs bg-(--primary)/20 text-(--primary) hover:bg-(--primary) hover:text-white px-3 py-1.5 rounded-lg transition-all font-bold">
+                        <button class="primary !text-xs !px-3 !py-1.5">
                             + Ajouter
                         </button>
                     </CreateTaskModal>
                 </div>
                 
                 <div class="space-y-2 max-h-[200px] overflow-y-auto pr-2">
-                    <div v-for="subtask in task.subtasks" :key="subtask.id" class="bg-black/20 border border-(--border-color) rounded-xl p-3 flex items-center justify-between group">
-                        <div class="flex items-center gap-3">
-                            <button @click="toggleSubtaskStatus(subtask)" class="text-xl transition-colors" :class="subtask.status === 'DONE' ? 'text-green-500' : 'text-(--text2) hover:text-(--primary)'">
-                                <i class="bi" :class="subtask.status === 'DONE' ? 'bi-check-circle-fill' : 'bi-circle'"></i>
+                    <div v-for="subtask in task.subtasks" :key="subtask.id" 
+                         @click="emit('open-task', subtask)"
+                         class="bg-black/20 border border-(--border-color) rounded-xl p-3 flex flex-col gap-2 group cursor-pointer hover:border-(--primary)/50 transition-colors">
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-center gap-3">
+                                <button @click.stop="toggleSubtaskStatus(subtask)" class="text-xl transition-colors mt-0.5" :class="subtask.status === 'DONE' ? 'text-green-500' : 'text-(--text2) hover:text-(--primary)'">
+                                    <i class="bi" :class="subtask.status === 'DONE' ? 'bi-check-circle-fill' : 'bi-circle'"></i>
+                                </button>
+                                <span class="text-sm font-bold" :class="subtask.status === 'DONE' ? 'text-(--text2) line-through' : 'text-white'">{{ subtask.title }}</span>
+                            </div>
+                            <button @click.stop="deleteSubtask(subtask.id)" class="text-red-500/50 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <i class="bi bi-trash-fill"></i>
                             </button>
-                            <span class="text-sm font-medium" :class="subtask.status === 'DONE' ? 'text-(--text2) line-through' : 'text-white'">{{ subtask.title }}</span>
                         </div>
-                        <button @click="deleteSubtask(subtask.id)" class="text-red-500/50 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <i class="bi bi-trash-fill"></i>
-                        </button>
+
+                        <div class="flex items-center justify-between pl-8" v-if="subtask.assignees?.length || subtask.dueDate">
+                            <div class="flex items-center -space-x-1.5" v-if="subtask.assignees?.length">
+                                <template v-for="assignee in subtask.assignees.slice(0,3)" :key="assignee.id">
+                                    <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="assignee.name" class="w-5 h-5 rounded-full object-cover border-2 border-black/20 z-10 hover:z-20">
+                                    <div v-else :title="assignee.name" class="w-5 h-5 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[8px] font-black border-2 border-black/20 z-10 hover:z-20">
+                                        {{ assignee.name.substring(0, 2).toUpperCase() }}
+                                    </div>
+                                </template>
+                            </div>
+                            <div v-else></div>
+
+                            <div v-if="subtask.dueDate" class="text-[9px] font-bold uppercase tracking-widest text-(--primary)">
+                                Échéance: {{ new Date(subtask.dueDate).toLocaleDateString() }}
+                            </div>
+                        </div>
                     </div>
                     
                     <div v-if="!task.subtasks || task.subtasks.length === 0" class="text-xs text-(--text2) italic text-center py-4">
@@ -103,21 +176,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, reactive } from 'vue';
+import { ref, watch, reactive, computed } from 'vue';
 import Popup from '@/components/Popup.vue';
 import CreateTaskModal from './CreateTaskModal.vue';
-import type { Task } from '@/types/types';
+import type { Task, OrgMember } from '@/types/types';
 import sfetch from '@/assets/utils/sfetch';
 import { useRoute } from 'vue-router';
 import { useToast } from '@/composables/useToast';
 import confetti from 'canvas-confetti';
+import { openedOrg } from '@/assets/var';
 
 const props = defineProps<{
     task: Task | null;
     isOpen: boolean;
 }>();
 
-const emit = defineEmits(['close', 'update', 'delete']);
+const emit = defineEmits(['close', 'update', 'delete', 'open-task']);
 const route = useRoute();
 const toast = useToast();
 
@@ -126,13 +200,35 @@ const loading = ref(false);
 
 const editForm = reactive({
     title: '',
-    description: ''
+    description: '',
+    assigneeIds: [] as string[]
+});
+
+const searchAssignee = ref('');
+
+const availableMembers = computed<OrgMember[]>(() => {
+    if (!openedOrg.value?.members) return [];
+    if (!props.task?.spaceId) return openedOrg.value.members;
+    const space = openedOrg.value.spaces?.find(s => s.id === props.task!.spaceId);
+    if (!space) return openedOrg.value.members;
+    return openedOrg.value.members.filter(m => space.membersId.includes(m.userId));
+});
+
+const filteredMembers = computed<OrgMember[]>(() => {
+    if (!searchAssignee.value.trim()) return availableMembers.value;
+    const s = searchAssignee.value.toLowerCase();
+    return availableMembers.value.filter(m => {
+        const name = m.user?.name || m.userId;
+        return name.toLowerCase().includes(s);
+    });
 });
 
 watch(() => props.isOpen, (newVal) => {
     if (newVal && props.task) {
         editForm.title = props.task.title;
         editForm.description = props.task.description || '';
+        editForm.assigneeIds = props.task.assignees ? props.task.assignees.map(a => a.id) : [];
+        searchAssignee.value = '';
         isEditing.value = false;
     }
 });
@@ -150,7 +246,8 @@ const saveTask = async () => {
             method: 'PUT',
             body: JSON.stringify({
                 title: editForm.title,
-                description: editForm.description
+                description: editForm.description,
+                assigneeIds: editForm.assigneeIds
             })
         });
         if (res.ok) {

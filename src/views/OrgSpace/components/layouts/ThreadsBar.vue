@@ -140,15 +140,27 @@
                         
                 </div>
 
+                <div class="px-3 pb-3 pt-3 w-full border-b border-(--border-color)">
+                    <div class="relative w-full">
+                        <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-xs"></i>
+                        <input 
+                            v-model="searchDMQuery"
+                            type="text" 
+                            placeholder="Rechercher..." 
+                            class="w-full bg-black/20 border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-xs text-(--text) outline-none focus:border-(--primary) transition-colors placeholder-(--text2)"
+                        />
+                    </div>
+                </div>
+
                 <ul
                     class="
                         flex justify-start items-start flex-col mb-11
-                        gap-3 h-full w-full px-3 py-5 overflow-scroll
+                        gap-3 h-full w-full px-3 py-5 overflow-y-auto
                     "
                 >
 
                     <RouterLink
-                        v-for="member in openedOrg?.members"
+                        v-for="member in sortedChatMembers"
                         :key="member.id + '-link'"
                         :to="{ name: 'OrgThreadChat', params: { userId: member.id }, query: { showView: '1' } }"
                         class="w-full"
@@ -307,17 +319,25 @@
 
                             <hr v-if="!isHome" class=" w-full h-0.5 bg-(--text)/50 border-none rounded-full my-1" />
                             
-                            <div  
-                                v-for="category in categories" 
-                                :key="'category-' + category.id"
-                                @contextmenu.stop
-                                class="w-full"
+                            <draggable
+                                v-model="localCategories" 
+                                item-key="id"
+                                group="categories"
+                                @change="onCategoriesChange"
+                                ghost-class="opacity-50"
+                                drag-class="cursor-grabbing"
+                                class="w-full space-y-1 min-h-[10px]"
+                                handle=".category-drag-handle"
                             >
-                                <Category 
-                                    :category="category"
-                                    :threads="threadsByCategory[category.id] || []"
-                                />
-                            </div>
+                                <template #item="{ element: category }">
+                                    <div @contextmenu.stop class="w-full">
+                                        <Category 
+                                            :category="category"
+                                            :threads="threadsByCategory[category.id] || []"
+                                        />
+                                    </div>
+                                </template>
+                            </draggable>
 
                         </ul>
 
@@ -338,10 +358,12 @@
 
 <script lang="ts" setup>
 
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import type { Thread, WorkSpace } from '@/types/types';
+import type { Thread, WorkSpace, Category as CategoryType } from '@/types/types';
 import { openedOrg, todoEnabled, filesEnabled } from '@/assets/var';
+import draggable from 'vuedraggable';
+import useWSocket from '@/composables/useWSocket';
 import ThreadDropDown from '../dropdown/ThreadDropDown.vue';
 import ThreadBarDropDown from '../dropdown/ThreadBarDropDown.vue';
 import ChatUserBtn from '../CanalBar/ChatUserBtn.vue';
@@ -354,6 +376,7 @@ import SpaceSearchModal from '../popup/SpaceSearchModal.vue';
 import { chatSessions, activeSessionId, newSession, deleteSession, loadSession, aiIsLocal, selectedModelId } from '@/services/AIService';
 import { availableModels } from '@/services/LocalLLMService';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
+import sfetch from '@/assets/utils/sfetch';
 
 const route = useRoute();
 const router = useRouter();
@@ -364,6 +387,44 @@ const isSettings = computed(()=> route.name?.toString().startsWith('OrgSettings'
 const isAI = computed(() => route.name === 'OrgAI');
 const showDropDown = ref<boolean>(false);
 const showSearchModal = ref<boolean>(false);
+
+const searchDMQuery = ref('');
+const recentDMUsers = ref<{userId: string, lastInteraction: string}[]>([]);
+
+watch(isChat, async (newVal) => {
+    if (newVal) {
+        try {
+            const res = await sfetch('/api/users/me/dms/recent');
+            if (res.ok) {
+                recentDMUsers.value = await res.json();
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+}, { immediate: true });
+
+const sortedChatMembers = computed(() => {
+    let members = openedOrg.value?.members || [];
+    
+    if (searchDMQuery.value) {
+        const q = searchDMQuery.value.toLowerCase();
+        members = members.filter(m => 
+            m.user?.name?.toLowerCase().includes(q) || 
+            m.user?.pseudo?.toLowerCase().includes(q)
+        );
+    }
+
+    return [...members].sort((a, b) => {
+        const aRecent = recentDMUsers.value.find(r => r.userId === a.userId);
+        const bRecent = recentDMUsers.value.find(r => r.userId === b.userId);
+        
+        if (aRecent && bRecent) return new Date(bRecent.lastInteraction).getTime() - new Date(aRecent.lastInteraction).getTime();
+        if (aRecent) return -1;
+        if (bRecent) return 1;
+        return 0;
+    });
+});
 
 const showConfirmDelete = ref(false);
 const sessionToDelete = ref<any>(null);
@@ -453,5 +514,26 @@ const categories = computed(() => {
         return space.categories;
     }
 });
+
+const localCategories = ref<CategoryType[]>([...categories.value].sort((a, b) => a.index - b.index));
+
+watch(categories, (newVal) => {
+    localCategories.value = [...newVal].sort((a, b) => a.index - b.index);
+}, { deep: true, immediate: true });
+
+const onCategoriesChange = async () => {
+    const socket = await useWSocket();
+    
+    const updatedCategories = localCategories.value.map((cat, index) => ({
+        ...cat,
+        index
+    }));
+
+    socket.value?.emit('update-categories', {
+        orgId: route.params.orgId,
+        spaceId: route.params.spaceId || null,
+        categories: updatedCategories
+    });
+};
 
 </script>

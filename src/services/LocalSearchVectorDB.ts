@@ -42,7 +42,7 @@ class LocalSearchVectorDB {
                 vector: doc.vector,
                 metadata: doc.metadata ? JSON.stringify(doc.metadata) : undefined
             });
-            console.log("[LocalSearchVectorDB] Inserted doc:", doc.id, "workspace:", doc.workspaceId);
+            // console.log("[LocalSearchVectorDB] Inserted doc:", doc.id, "workspace:", doc.workspaceId);
         } catch (e: any) {
             if (e.message && e.message.includes('already exists')) {
                 // Ignore silentement les doublons (ex: quand le watcher OrgLayout se redéclenche)
@@ -75,9 +75,9 @@ class LocalSearchVectorDB {
             searchParams.where = { workspaceId: { eq: workspaceId } };
         }
 
-        console.log("[LocalSearchVectorDB] searching with params:", searchParams);
+        // console.log("[LocalSearchVectorDB] searching with params:", searchParams);
         const searchResult = await search(this.db!, searchParams);
-        console.log("[LocalSearchVectorDB] raw hits:", searchResult.hits.length);
+        // console.log("[LocalSearchVectorDB] raw hits:", searchResult.hits.length);
 
         // Parser le metadata de chaque hit
         const results = searchResult.hits.map(hit => {

@@ -58,12 +58,12 @@ import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import type { Thread, WorkSpace } from '@/types/types';
 import { openedOrg } from '@/assets/var';
 import SpinLoader from '@/components/SpinLoader.vue';
-import useSettingsItem from '@/composables/useSettingsItem';
+import { useUsersBar } from '@/composables/useUsersBar';
 
 const route = useRoute();
 
 const isVoice = computed<boolean>(() => route.query.type == 'vocal');
-const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
+const { showUsersBar } = useUsersBar();
 
 const thread = computed(() => {
 

@@ -79,7 +79,7 @@
           <button 
             @click="generateLink"
             :disabled="creating"
-            class="bg-(--primary) text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-(--primary)/90 transition-colors shadow-lg flex items-center gap-2 disabled:opacity-50"
+            class="primary flex items-center gap-2 shadow-lg"
           >
             <i v-if="creating" class="bi bi-arrow-repeat animate-spin"></i>
             <i v-else class="bi bi-plus-lg"></i>

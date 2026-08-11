@@ -6,6 +6,7 @@
         @pointerup="onPointerUp"
         @pointerleave="onPointerUp"
         @click="handleClick"
+        @contextmenu.prevent.stop="handleContextMenu"
         :class="[
             draggedFileId === file.id ? 'opacity-40 grayscale-50' : '',
             'max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border rounded-xl transition-all cursor-pointer shadow-sm',
@@ -43,7 +44,10 @@
         </div>
 
         <div class="flex-1 min-w-0" @click.stop="showViewer = true">
-            <p class="text-sm font-semibold text-(--text) truncate hover:text-(--primary) transition-colors">{{ file.originalName }}</p>
+            <div class="flex items-center gap-1.5">
+                <p class="text-sm font-semibold text-(--text) truncate hover:text-(--primary) transition-colors">{{ file.originalName }}</p>
+                <i v-if="file._count?.filePermissions" class="bi bi-shield-lock-fill text-xs text-(--primary)" title="Permissions spécifiques" />
+            </div>
             <div class="flex items-center gap-2 text-[9px] font-bold text-(--text2) uppercase tracking-tighter mt-1">
                 <span>{{ formatSize(file.size) }}</span>
                 <span>•</span>
@@ -63,7 +67,7 @@
                 <i class="bi bi-download text-lg" />
             </button>
 
-            <DropDown align="right" @click.stop @toggled="val => isDropdownOpen = val">
+            <DropDown ref="dropdownRef" align="mouse" @click.stop @toggled="val => isDropdownOpen = val">
                 <template #trigger>
                     <button class="w-8 h-8 rounded-lg hover:bg-(--primary)/10 flex items-center justify-center transition-colors hover:text-(--primary)">
                         <i class="bi bi-three-dots-vertical text-lg" />
@@ -91,6 +95,13 @@
                     >
                         <i class="bi bi-info-circle" />
                         Voir les infos
+                    </button>
+                    <button 
+                        @click="showPermissionsModal(file)"
+                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                    >
+                        <i class="bi bi-shield-lock" />
+                        Permissions
                     </button>
                     <button 
                         v-if="file.mimeType.startsWith('image/') || file.mimeType === 'application/pdf'"
@@ -167,6 +178,11 @@ const showEditFile = ref<boolean>(false);
 const showWatermarkFile = ref<boolean>(false);
 const showViewer = ref<boolean>(false);
 const isDropdownOpen = ref<boolean>(false);
+const dropdownRef = ref<any>(null);
+
+const handleContextMenu = (e: MouseEvent) => {
+    dropdownRef.value?.toggleDropdown(e);
+};
 
 const props = defineProps<{
     file: StoredFile,
@@ -175,7 +191,7 @@ const props = defineProps<{
     isSelectionMode?: boolean
 }>();
 
-const emit = defineEmits(['file-deleted', 'show-file-info', 'file-watermarked', 'toggle-select', 'request-delete']);
+const emit = defineEmits(['file-deleted', 'show-file-info', 'file-watermarked', 'toggle-select', 'request-delete', 'show-permissions']);
 
 let longPressTimer: any = null;
 
@@ -224,6 +240,10 @@ const formatDate = (date: string | Date) => {
 // Show file info - emit event for parent to handle
 const showFileInfo = (file: StoredFile) => {
     emit('show-file-info', file);
+};
+
+const showPermissionsModal = (file: StoredFile) => {
+    emit('show-permissions', file);
 };
 
 // View message that contains this file

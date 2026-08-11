@@ -24,6 +24,10 @@ export interface StoredFile {
 
   createdAt: string | Date;
   updatedAt: string | Date;
+
+  _count?: {
+    filePermissions: number;
+  };
 }
 
 
@@ -36,6 +40,7 @@ export interface Thread {
   membersId: string[];
   type: ThreadType;
   isReadOnly: boolean;
+  isPrivate: boolean;
   writersId: string[];
   messages?: Message[];
   hasUnread: boolean;
@@ -95,6 +100,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  pseudo?: string;
   avatarUrl?: string;
   job?: string;
   description?: string;
@@ -220,6 +226,10 @@ export interface Folder {
   parent?: Folder | null;
   subFolders?: Folder[];
   files?: StoredFile[];
+
+  _count?: {
+    folderPermissions: number;
+  };
 }
 
 export interface TodoList {

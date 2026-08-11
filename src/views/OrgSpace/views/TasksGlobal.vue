@@ -9,7 +9,7 @@
             
             <div class="ml-auto flex items-center gap-2">
                 <CreateTaskModal @created="onTaskCreated">
-                    <button class="bg-(--primary) text-white font-bold py-1.5 px-4 rounded-lg hover:brightness-110 active:scale-95 transition-all text-sm flex items-center gap-2">
+                    <button class="primary !text-sm flex items-center gap-2">
                         <i class="bi bi-plus-lg"></i>
                         Nouvelle Tâche
                     </button>
@@ -95,7 +95,12 @@
                                      class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer active:cursor-grabbing hover:border-(--primary)/50 transition-all shadow-lg hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] group relative overflow-hidden"
                                 >
                                     <div class="flex justify-between items-start gap-2">
-                                        <p class="text-sm font-bold text-(--text) leading-snug">{{ task.title }}</p>
+                                        <div class="flex flex-col gap-1">
+                                            <p class="text-sm font-bold text-(--text) leading-snug">{{ task.title }}</p>
+                                            <span v-if="task.parentTask" class="text-[9px] font-bold text-(--primary) uppercase flex items-center gap-1 opacity-80">
+                                                <i class="bi bi-arrow-return-right"></i> {{ task.parentTask.title }}
+                                            </span>
+                                        </div>
                                     </div>
                                     
                                     <div class="flex items-center justify-between mt-4">
@@ -161,6 +166,7 @@
             @close="selectedTask = null"
             @update="onTaskUpdated"
             @delete="onTaskDeleted"
+            @open-task="handleOpenTask"
         />
 
         <Transition name="pop">
@@ -190,7 +196,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import type { Task, TodoList } from '@/types/types';
@@ -201,9 +207,11 @@ import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import { user } from '@/assets/var';
 import confetti from 'canvas-confetti';
 import useWSocket from '@/composables/useWSocket';
+import { useNotification } from '@/composables/useNotification';
 
 const route = useRoute();
 const toast = useToast();
+const { markTasksAsRead } = useNotification();
 
 const rawTasks = ref<Task[]>([]);
 const loading = ref(true);
@@ -231,8 +239,6 @@ const spacesGroups = computed(() => {
     };
 
     rawTasks.value.forEach(task => {
-        // Exclude subtasks from main board
-        if (task.parentTaskId) return;
 
         // Only show tasks assigned to me
         if (!task.assignees?.some(a => a.id === user.value?.id)) return;
@@ -310,6 +316,9 @@ const loadLists = async () => {
             });
             
             rawTasks.value = allTasks;
+            
+            // Clear unread notifications
+            markTasksAsRead();
         }
     } catch (e) {
         toast.show("Erreur chargement des tâches", "error");
@@ -406,6 +415,20 @@ const openTaskDetails = (task: Task) => {
     selectedTask.value = task;
 };
 
+const handleOpenTask = async (taskPartial: any) => {
+    try {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskPartial.id}`);
+        if (res.ok) {
+            const fullTask = await res.json();
+            selectedTask.value = fullTask;
+        } else {
+            selectedTask.value = taskPartial; // Fallback
+        }
+    } catch (e) {
+        selectedTask.value = taskPartial; // Fallback
+    }
+};
+
 const onTaskCreated = (task: Task) => {
     rawTasks.value.push(task);
 };
@@ -437,5 +460,12 @@ onMounted(async () => {
     socket.value?.on('todo-deleted', ({ taskId }: { taskId: string }) => {
         onTaskDeleted(taskId);
     });
+});
+
+onUnmounted(async () => {
+    const socket = await useWSocket();
+    socket.value?.off('todo-added');
+    socket.value?.off('todo-updated');
+    socket.value?.off('todo-deleted');
 });
 </script>

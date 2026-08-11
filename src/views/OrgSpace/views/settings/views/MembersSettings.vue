@@ -91,15 +91,15 @@
                                     <!-- Rôle (Desktop) -->
                                     <div class="px-6 py-4 flex items-center hidden sm:flex">
                                         <select
-                                            :value="member?.role || 'unknow'"
+                                            :value="getMemberRoleId(member)"
                                             @change="updateRole(member.id, $event)"
                                             :disabled="isSelf(member.user?.id!) || !isAdmin"
                                             class="bg-(--bg) border border-(--border-color) rounded-lg px-3 py-1.5 text-xs text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
                                         >
-                                            <option value="OWNER">Propriétaire</option>
-                                            <option value="ADMIN">Administrateur</option>
-                                            <option value="MEMBER">Membre</option>
-                                            <option value="GUEST">Invité</option>
+                                            <option v-for="role in rolesList" :key="role.id" :value="role.id">
+                                                {{ role.name }}
+                                                <span v-if="role.isSystem"> (Système)</span>
+                                            </option>
                                         </select>
                                     </div>
 
@@ -166,16 +166,15 @@
                                             <!-- Rôle -->
                                             <div class="flex flex-col gap-2 bg-(--bg) border border-(--border-color) rounded-2xl px-4 text-xs text-(--text) focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer">
                                                 <select
-                                                    :value="member?.role || 'unknown'"
+                                                    :value="getMemberRoleId(member)"
                                                     @change="updateRole(member.id, $event)"
                                                     :disabled="isSelf(member.user?.id!) || !isAdmin"
                                                     class="pr-4 py-4 !bg-(--bg) rounded-2xl"
                                                     :class="{ 'opacity-40 cursor-not-allowed': member?.role === 'OWNER' && isSelf(member.user?.id!) }"
                                                 >
-                                                    <option value="OWNER">Propriétaire</option>
-                                                    <option value="ADMIN">Administrateur</option>
-                                                    <option value="MEMBER">Membre</option>
-                                                    <option value="GUEST">Invité</option>
+                                                    <option v-for="role in rolesList" :key="role.id" :value="role.id">
+                                                        {{ role.name }}
+                                                    </option>
                                                 </select>
                                             </div>
 
@@ -253,9 +252,7 @@
 
                                     <button 
                                         @click="inviteLink.length === 0 ? createInviteLink() : copyInvite()" 
-                                        class="bg-(--primary) text-white rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm cursor-pointer
-                                                px-6 py-3 w-full sm:w-fit
-                                        "
+                                        class="primary flex items-center justify-center gap-2 whitespace-nowrap shadow-sm !w-full sm:!w-auto"
                                     >
                                         <i class="bi" :class="inviteLink.length === 0 ? 'bi-stars' : copied ? 'bi-check-lg' : 'bi-copy'" />
                                         {{ inviteLink.length === 0 ? 'Générer' : copied ? 'Copié' : 'Copier' }}
@@ -482,6 +479,7 @@ import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import CapacityGauge from '@/components/common/CapacityGauge.vue';
+import { usePermissions } from '@/composables/usePermissions';
 
 const toast = useToast();
 
@@ -490,6 +488,17 @@ const copied = ref<boolean>(false);
 const inviteLinks = ref<any[]>([]);
 const inviteLink = ref<string>('');
 const inviteMaxUses = ref<number>(1);
+
+const { fetchRoles } = usePermissions(computed(() => openedOrg.value?.id));
+const rolesList = ref<any[]>([]);
+
+const getMemberRoleId = (member: any) => {
+    if (member.memberRoles && member.memberRoles.length > 0) {
+        return member.memberRoles[0].roleId;
+    }
+    const systemRole = rolesList.value.find(r => r.isSystem && r.name === member.role);
+    return systemRole ? systemRole.id : '';
+};
 
 // Modals state
 const showConfirmDelete = ref<string | null>(null);
@@ -549,10 +558,24 @@ const deleteInvite = async (code: string, state: 1 | 2) => {
 
 };
 
-const updateRole = (_memberId: string, _event: Event) => {
-    //const newRole = (event.target as HTMLSelectElement).value;
-    // do api call
-    toast.show('Rôle mis à jour (simulation)', 'success');
+const updateRole = async (memberId: string, event: Event) => {
+    const roleId = (event.target as HTMLSelectElement).value;
+    try {
+        const res = await sfetch(`/api/orgs/users/${openedOrg.value!.id}/role/${memberId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ roleId })
+        });
+        
+        if (res.ok) {
+            toast.show('Rôle mis à jour avec succès', 'success');
+        } else {
+            const data = await res.json();
+            toast.show(data.error || 'Erreur lors de la mise à jour', 'error');
+            // Revert state logic could be added here if needed
+        }
+    } catch (err) {
+        toast.show('Erreur de connexion', 'error');
+    }
 };
 
 const confirmKickMember = (memberId: string, memberName: string) => {
@@ -614,6 +637,12 @@ onMounted(async () => {
         }
     } catch (err) {
         console.error("Erreur chargement liens", err);
+    }
+    
+    try {
+        rolesList.value = await fetchRoles();
+    } catch (err) {
+        console.error("Erreur chargement roles", err);
     }
 });
 

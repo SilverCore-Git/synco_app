@@ -288,7 +288,7 @@
           </div>
           <div class="flex gap-2">
             <button v-if="aiHasWebGPU" @click="startInit"
-              class="bg-(--primary) hover:brightness-110 text-white px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50">
+              class="primary flex items-center gap-2">
               <i class="bi bi-play-fill" v-if="isModelCached"></i>
               <i class="bi bi-cloud-arrow-down-fill" v-else></i>
               {{ isModelCached ? 'Initialiser (GPU)' : 'Télécharger & Initialiser (GPU)' }}
@@ -349,6 +349,7 @@ import ThreadMessage from '../components/common/ThreadMessage.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import IconSelector from '@/components/common/IconSelector.vue';
+import { useUsersBar } from '@/composables/useUsersBar';
 import useSettingsItem from '@/composables/useSettingsItem';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -363,7 +364,7 @@ import { generateThreadKey, encryptThreadKeyForMember, privateKey } from '@/asse
 import { openedOrg, user } from '@/assets/var';
 import { getSystemPrompt } from '@/services/AITools';
 
-const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
+const { showUsersBar } = useUsersBar();
 const { Item: savedModelId, isLoaded: savedModelLoaded } = useSettingsItem('ai_selected_model', '');
 
 import { marked } from 'marked';

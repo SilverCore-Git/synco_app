@@ -103,7 +103,7 @@
                 <div v-if="u.id !== user?.id" class="mb-4">
                     <button
                         @click="sendMessage"
-                        class="w-full py-2.5 rounded-md text-sm font-semibold bg-(--primary) hover:bg-(--primary-dark) text-white transition-colors flex items-center justify-center gap-2 shadow-lg shadow-(--primary)/20"
+                        class="primary w-full flex items-center justify-center gap-2 shadow-lg shadow-(--primary)/20"
                     >
                         <i class="bi bi-chat-left-text-fill"></i>
                         Envoyer un message

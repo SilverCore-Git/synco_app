@@ -11,7 +11,7 @@ import useWSocket from '@/composables/useWSocket';
 import useSecurePeer from '@/composables/useSecurePeer';
 import type { Category, DMMessage, Message, OrgMember } from '@/types/types';
 import { useRoute } from 'vue-router';
-import useSettingsItem from '@/composables/useSettingsItem';
+import { useUsersBar } from '@/composables/useUsersBar';
 import { keycloak } from '@/assets/keycloak';
 import useNotifications from '@/composables/useNotifications';
 import { isMeeting } from '@/composables/usePrivatMeet';
@@ -27,7 +27,7 @@ const props = defineProps<{
 }>();
 
 
-const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
+const { showUsersBar } = useUsersBar();
 const { initPeer } = useSecurePeer();
 const { notify } = useNotifications();
 const route = useRoute();
@@ -50,9 +50,14 @@ watch(() => route.params.spaceId, async (newSpaceId, oldSpaceId) => {
     }
 }, { immediate: true });
 
+let lastIndexedSpaceId = '';
+
 watch(() => [openedOrg.value, route.params.spaceId] as const, ([newOrg, spaceIdParam]) => {
     if (newOrg && spaceIdParam) {
         const spaceId = spaceIdParam as string;
+        if (lastIndexedSpaceId === spaceId) return;
+        lastIndexedSpaceId = spaceId;
+        
         // Add thread names to the search index for exact BM25 matching (fast, no vector generation needed)
         import('@/services/LocalSearchVectorDB').then(({ localSearchDB }) => {
             const currentSpace = newOrg.spaces?.find((s: any) => s.id === spaceId);
@@ -371,6 +376,33 @@ const initSocketListener = async () => {
 
     });
 
+    socket.value?.on('categories-updated', ({ orgId, spaceId, categories }: { orgId: string, spaceId: string, categories: Category[] }) => {
+        if (orgId !== props.orgId) return;
+
+        let categoriesArray;
+
+        if (spaceId) {
+            const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
+            if (!space) return;
+            categoriesArray = space.categories;
+        } else {
+            const home = openedOrg.value?.home;
+            if (!home) return;
+            categoriesArray = home.categories;
+        }
+
+        if (categoriesArray && Array.isArray(categoriesArray)) {
+            categories.forEach(updatedCategory => {
+                const cIndex = categoriesArray!.findIndex(c => c.id === updatedCategory.id);
+                if (cIndex !== -1) {
+                    const catToUpdate = categoriesArray![cIndex];
+                    if (catToUpdate) catToUpdate.index = updatedCategory.index;
+                }
+            });
+            categoriesArray.sort((a, b) => a.index - b.index);
+        }
+    });
+
     socket.value?.on('notif:new-message', ({ message, spaceId }: { message: Message, spaceId: string }) => {
         
         if (route.params.threadId == message.threadId) return;
@@ -429,6 +461,35 @@ const initSocketListener = async () => {
         const orgMember = openedOrg.value?.members?.find(m => m.userId === callerId);
         if (!isMeeting.value) notify('notif:privateMeet', orgMember, -1);
     });
+    socket.value?.on('thread:created', ({ orgId, thread }: { orgId: string, thread: any }) => {
+        
+        if (orgId !== props.orgId) return;
+
+        const org = openedOrg.value;
+        if (!org) return;
+
+        // If thread has workspaceId, add it to the corresponding workspace
+        if (thread.workspaceId) {
+            const space = org.spaces?.find(s => s.id === thread.workspaceId);
+            if (space) {
+                if (!space.threads) space.threads = [];
+                // Check if it already exists
+                if (!space.threads.find(t => t.id === thread.id)) {
+                    space.threads.push(thread);
+                }
+            }
+        } 
+        // Otherwise, it belongs to the organization home
+        else if (org.home) {
+            if (!org.home.threads) org.home.threads = [];
+            // Check if it already exists
+            if (!org.home.threads.find(t => t.id === thread.id)) {
+                org.home.threads.push(thread);
+            }
+        }
+
+    });
+
 
 
     socket.value?.on('thread:updated', ({ orgId, threadId, name }: { orgId: string, threadId: string, name: string }) => {

@@ -23,6 +23,13 @@
                     <i class="bi bi-shield-check" />
                 </button>
                 <button 
+                    @click="showPermissions = true"
+                    class="hover:text-(--primary) transition-colors"
+                    title="Permissions"
+                >
+                    <i class="bi bi-shield-lock" />
+                </button>
+                <button 
                     @click="showUsersBar = !showUsersBar"
                     class="hover:text-(--text) transition-colors"
                     :class="showUsersBar ? 'text-(--text)' : ''"
@@ -77,7 +84,7 @@
 
             </div>
 
-            <section class="flex flex-col gap-4 relative min-h-[50vh]">
+            <section class="flex flex-col gap-4 relative min-h-[50vh]" @contextmenu.prevent="handleEmptyContextMenu">
                 
                 <div v-if="loading" class="w-full flex flex-col gap-8 animate-pulse">
                     
@@ -179,6 +186,7 @@
                         :isSelected="selectedItems.has(folder.id)"
                         :isSelectionMode="selectedItems.size > 0"
                         @toggle-select="toggleSelection(folder.id)"
+                        @show-permissions="openFolderPermissions(folder)"
                     />
 
                 </div>
@@ -209,6 +217,7 @@
                             @request-delete="requestDeleteFile"
                             @show-file-info="handleShowFileInfo"
                             @file-watermarked="handleFileWatermarked"
+                            @show-permissions="openFilePermissions(file)"
                         />
 
                     </div>
@@ -277,6 +286,26 @@
         </transition>
 
     </div>
+
+    <!-- Dropdown for empty space right click -->
+    <DropDown ref="emptySpaceDropdown" align="mouse">
+        <template #content>
+            <button 
+                @click.stop.prevent="openCreateFolderPrompt"
+                class="dropdown-item-annimate dropdown-item-style gap-2"
+            >
+                <i class="bi bi-folder-plus" />
+                Nouveau dossier
+            </button>
+            <button 
+                @click.stop.prevent="openFileSearchPrompt"
+                class="dropdown-item-annimate dropdown-item-style gap-2"
+            >
+                <i class="bi bi-file-earmark-plus" />
+                Ajouter des fichiers
+            </button>
+        </template>
+    </DropDown>
 
     <input 
         type="file" 
@@ -411,20 +440,46 @@
         @close="showVerifyWatermark = false" 
     />
 
+    <SpacePermissionsModal
+        :show="showPermissions"
+        :space-id="String(route.params.spaceId)"
+        :space-name="'Fichiers'"
+        @close="showPermissions = false"
+    />
+
+    <FolderPermissionsModal
+        v-if="selectedFolderForPerms"
+        :show="showFolderPermissions"
+        :space-id="String(route.params.spaceId)"
+        :folder-id="selectedFolderForPerms.id"
+        :folder-name="selectedFolderForPerms.name"
+        @close="showFolderPermissions = false"
+    />
+
+    <FileShareModal
+        v-if="selectedFileForPerms"
+        :show="showFilePermissions"
+        :file-id="selectedFileForPerms.id"
+        :file-name="selectedFileForPerms.originalName"
+        @close="showFilePermissions = false"
+    />
+
 </template>
 
 <script lang="ts" setup>
 
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
-import useSettingsItem from '@/composables/useSettingsItem';
+import { useUsersBar } from '@/composables/useUsersBar';
 import { openedOrg } from '@/assets/var';
 import CreateNewFolder from '../components/popup/CreateNewFolder.vue';
 import VerifyWatermark from '../components/popup/VerifyWatermark.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { useToast } from '@/composables/useToast';
+import useWSocket from '@/composables/useWSocket';
 import { downloadFile } from '@/assets/utils/downloadFile';
+import DropDown from '@/components/DropDown.vue';
 
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import { uploadFiles } from '@/assets/uploadFile';
@@ -434,9 +489,12 @@ import type { StoredFile, Folder } from '@/types/types';
 import { extractTextFromPDF } from '@/assets/utils/pdfExtractor';
 import VectorWorker from '@/workers/semantic.worker?worker';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
+import SpacePermissionsModal from '@/components/permissions/SpacePermissionsModal.vue';
+import FolderPermissionsModal from '@/components/permissions/FolderPermissionsModal.vue';
+import FileShareModal from '@/components/permissions/FileShareModal.vue';
 
 
-const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
+const { showUsersBar } = useUsersBar();
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
@@ -541,9 +599,36 @@ const executeDeletion = async () => {
 const allFiles = ref<StoredFile[]>([]);
 const allFolders = ref<Folder[]>([]);
 const loading = ref<boolean>(true);
+const emptySpaceDropdown = ref<any>(null);
+
+const handleEmptyContextMenu = (e: MouseEvent) => {
+    emptySpaceDropdown.value?.toggleDropdown(e);
+};
+
 const currentFolderId = ref<string>('root');
 const showFolderNamePrompt = ref<boolean>(false);
+
+const openCreateFolderPrompt = () => {
+    emptySpaceDropdown.value?.closeDropdown();
+    setTimeout(() => {
+        showFolderNamePrompt.value = true;
+    }, 10);
+};
+
+const openFileSearchPrompt = () => {
+    emptySpaceDropdown.value?.closeDropdown();
+    setTimeout(() => {
+        triggerFileSearch();
+    }, 10);
+};
+
 const showVerifyWatermark = ref<boolean>(false);
+const showPermissions = ref<boolean>(false);
+const showFolderPermissions = ref<boolean>(false);
+const showFilePermissions = ref<boolean>(false);
+
+const selectedFolderForPerms = ref<Folder | null>(null);
+const selectedFileForPerms = ref<StoredFile | null>(null);
 
 const fileSendProgress = ref<number>(0);
 const isUploading = ref<boolean>(false);
@@ -641,6 +726,16 @@ watch(currentFolderId, () => {
     // Clear selection when navigating folders
     selectedItems.value.clear();
 });
+
+const openFolderPermissions = (folder: Folder) => {
+    selectedFolderForPerms.value = folder;
+    showFolderPermissions.value = true;
+};
+
+const openFilePermissions = (file: StoredFile) => {
+    selectedFileForPerms.value = file;
+    showFilePermissions.value = true;
+};
 
 const breadcrumbs = computed(() => {
 
@@ -962,7 +1057,65 @@ onMounted(async() => {
     } finally {
         loading.value = false;
     }
+    
+    const socket = await useWSocket();
+    socket.value?.on('file-added', ({ file }: { file: StoredFile }) => {
+        if (file.workspaceId === route.params.spaceId && !allFiles.value.some(f => f.id === file.id)) {
+            allFiles.value.push(file);
+        }
+    });
+    socket.value?.on('file-updated', ({ file }: { file: StoredFile }) => {
+        if (file.workspaceId === route.params.spaceId) {
+            const index = allFiles.value.findIndex(f => f.id === file.id);
+            if (index !== -1) allFiles.value[index] = file;
+        }
+    });
+    socket.value?.on('file-moved', ({ file }: { file: StoredFile }) => {
+        if (file.workspaceId === route.params.spaceId) {
+            const index = allFiles.value.findIndex(f => f.id === file.id);
+            if (index !== -1) allFiles.value[index] = file;
+        }
+    });
+    socket.value?.on('file-deleted', ({ fileId, workspaceId }: { fileId: string, workspaceId: string }) => {
+        if (workspaceId === route.params.spaceId) {
+            allFiles.value = allFiles.value.filter(f => f.id !== fileId);
+        }
+    });
+    socket.value?.on('folder-added', ({ folder }: { folder: Folder }) => {
+        if (folder.workspaceId === route.params.spaceId && !allFolders.value.some(f => f.id === folder.id)) {
+            allFolders.value.push(folder);
+        }
+    });
+    socket.value?.on('folder-updated', ({ folder }: { folder: Folder }) => {
+        if (folder.workspaceId === route.params.spaceId) {
+            const index = allFolders.value.findIndex(f => f.id === folder.id);
+            if (index !== -1) allFolders.value[index] = folder;
+        }
+    });
+    socket.value?.on('folder-moved', ({ folder }: { folder: Folder }) => {
+        if (folder.workspaceId === route.params.spaceId) {
+            const index = allFolders.value.findIndex(f => f.id === folder.id);
+            if (index !== -1) allFolders.value[index] = folder;
+        }
+    });
+    socket.value?.on('folder-deleted', ({ folderId, workspaceId }: { folderId: string, workspaceId: string }) => {
+        if (workspaceId === route.params.spaceId) {
+            allFolders.value = allFolders.value.filter(f => f.id !== folderId);
+        }
+    });
 
+});
+
+onUnmounted(async () => {
+    const socket = await useWSocket();
+    socket.value?.off('file-added');
+    socket.value?.off('file-updated');
+    socket.value?.off('file-moved');
+    socket.value?.off('file-deleted');
+    socket.value?.off('folder-added');
+    socket.value?.off('folder-updated');
+    socket.value?.off('folder-moved');
+    socket.value?.off('folder-deleted');
 });
 
 const handleRouteQuery = () => {

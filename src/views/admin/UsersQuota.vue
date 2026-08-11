@@ -154,7 +154,7 @@
                     <button 
                         @click="saveQuotas" 
                         :disabled="isSaving"
-                        class="px-5 py-2.5 rounded-xl font-bold text-sm bg-(--primary) text-white hover:brightness-110 flex items-center gap-2 transition-all disabled:opacity-50"
+                        class="primary flex items-center gap-2"
                     >
                         <i v-if="isSaving" class="bi bi-arrow-repeat animate-spin"></i>
                         <i v-else class="bi bi-check-lg"></i>

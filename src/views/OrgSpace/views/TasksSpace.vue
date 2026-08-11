@@ -13,7 +13,7 @@
                     :hideSpaceSelect="true"
                     @created="onTaskCreated"
                 >
-                    <button class="bg-(--primary) text-white font-bold py-1.5 px-4 rounded-lg hover:brightness-110 active:scale-95 transition-all text-sm flex items-center gap-2 shadow-sm">
+                    <button class="primary !text-sm flex items-center gap-2 shadow-sm">
                         <i class="bi bi-plus-lg"></i> Créer une tâche
                     </button>
                 </CreateTaskModal>
@@ -32,21 +32,29 @@
         <main class="flex-1 overflow-y-auto p-6 w-full h-full space-y-6">
             
             <!-- Filter Bar -->
-            <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                <button @click="filterUserId = null" class="px-4 py-2 rounded-xl font-bold text-xs transition-all" :class="!filterUserId ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10'">
-                    Toutes les tâches
-                </button>
-                <button @click="filterUserId = user?.id || null" class="px-4 py-2 rounded-xl font-bold text-xs transition-all" :class="filterUserId === user?.id ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10'">
-                    Mes tâches
-                </button>
-                <div class="w-px h-6 bg-white/10 mx-2"></div>
-                <button v-for="member in spaceMembers" :key="member.id" @click="filterUserId = member.userId" class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all" :class="filterUserId === member.userId ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10'">
-                    <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-5 h-5 rounded-full object-cover">
-                    <div v-else class="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px]">
-                        {{ member.user?.name?.substring(0,2).toUpperCase() }}
-                    </div>
-                    {{ member.user?.name }}
-                </button>
+            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 pb-2 w-full min-w-0">
+                
+                <div class="flex items-center gap-2 overflow-x-auto w-full sm:w-auto scrollbar-hide shrink-0 pb-1">
+                    <button @click="filterUserId = null" class="px-4 py-2 font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="!filterUserId ? 'primary shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 rounded-xl text-white/50 hover:bg-white/10'">
+                        Toutes les tâches
+                    </button>
+                    <button @click="filterUserId = user?.id || null" class="px-4 py-2 font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="filterUserId === user?.id ? 'primary shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 rounded-xl text-white/50 hover:bg-white/10'">
+                        Mes tâches
+                    </button>
+                </div>
+                
+                <div class="hidden sm:block w-px h-6 bg-white/10 mx-2 shrink-0"></div>
+                
+                <div class="flex items-center gap-2 overflow-x-auto w-full min-w-0 scrollbar-hide pb-1">
+                    <button v-for="member in spaceMembers" :key="member.id" @click="filterUserId = member.userId" class="flex items-center gap-2 px-3 py-1.5 font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="filterUserId === member.userId ? 'primary shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 rounded-xl text-white/50 hover:bg-white/10'">
+                        <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-5 h-5 rounded-full object-cover">
+                        <div v-else class="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px]">
+                            {{ member.user?.name?.substring(0,2).toUpperCase() }}
+                        </div>
+                        {{ member.user?.name }}
+                    </button>
+                </div>
+                
             </div>
 
             <div v-if="loading" class="w-full flex flex-col gap-6 animate-pulse pb-10 h-full">
@@ -95,7 +103,12 @@
                              class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer active:cursor-grabbing hover:border-(--primary)/50 transition-all shadow-lg hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] group relative overflow-hidden"
                         >
                             <div class="flex justify-between items-start gap-2">
-                                <p class="text-sm font-bold text-(--text) leading-snug">{{ task.title }}</p>
+                                <div class="flex flex-col gap-1">
+                                    <p class="text-sm font-bold text-(--text) leading-snug">{{ task.title }}</p>
+                                    <span v-if="task.parentTask" class="text-[9px] font-bold text-(--primary) uppercase flex items-center gap-1 opacity-80">
+                                        <i class="bi bi-arrow-return-right"></i> {{ task.parentTask.title }}
+                                    </span>
+                                </div>
                             </div>
                             
                             <div class="flex items-center justify-between mt-4">
@@ -153,6 +166,7 @@
             @close="selectedTask = null"
             @update="onTaskUpdated"
             @delete="onTaskDeleted"
+            @open-task="handleOpenTask"
         />
 
         <Transition name="pop">
@@ -182,24 +196,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import { openedOrg, user } from '@/assets/var';
 import type { Task, OrgMember } from '@/types/types';
 
 import { useToast } from '@/composables/useToast';
-import useSettingsItem from '@/composables/useSettingsItem';
+import { useUsersBar } from '@/composables/useUsersBar';
 import useWSocket from '@/composables/useWSocket';
 import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import confetti from 'canvas-confetti';
+import { useNotification } from '@/composables/useNotification';
 
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
-const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
+const { showUsersBar } = useUsersBar();
+const { markTasksAsRead } = useNotification();
 
 const tasks = ref<Task[]>([]);
 const loading = ref(true);
@@ -226,7 +242,7 @@ const spaceMembers = computed<OrgMember[]>(() => {
 
 const filteredTasks = (status: string) => {
     return tasks.value.filter(t => {
-        if (t.status !== status || t.parentTaskId) return false;
+        if (t.status !== status) return false;
         if (filterUserId.value) {
             return t.assignees?.some(a => a.id === filterUserId.value);
         }
@@ -268,6 +284,9 @@ const loadTasks = async () => {
             const data = await res.json();
             // In the new model, we just use unlistedTasks for the space Kanban
             tasks.value = data.unlistedTasks;
+            
+            // Clear unread notifications
+            markTasksAsRead();
 
             // Handle deep linking from search
             if (route.query.select) {
@@ -322,6 +341,20 @@ const loadTasks = async () => {
 
 const openTaskDetails = (task: Task) => {
     selectedTask.value = task;
+};
+
+const handleOpenTask = async (taskPartial: any) => {
+    try {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskPartial.id}`);
+        if (res.ok) {
+            const fullTask = await res.json();
+            selectedTask.value = fullTask;
+        } else {
+            selectedTask.value = taskPartial; // Fallback
+        }
+    } catch (e) {
+        selectedTask.value = taskPartial; // Fallback
+    }
 };
 
 const onTaskCreated = (task: Task) => {
@@ -432,5 +465,12 @@ onMounted(async () => {
     socket.value?.on('todo-deleted', ({ taskId }: { taskId: string }) => {
         onTaskDeleted(taskId);
     });
+});
+
+onUnmounted(async () => {
+    const socket = await useWSocket();
+    socket.value?.off('todo-added');
+    socket.value?.off('todo-updated');
+    socket.value?.off('todo-deleted');
 });
 </script>

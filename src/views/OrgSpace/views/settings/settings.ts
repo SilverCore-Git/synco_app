@@ -17,6 +17,11 @@ const settingsViews: settingsView[] = [
         route: 'OrgSettingsMembers'
     },
     {
+        name: 'Rôles & Permissions',
+        icon: 'bi-shield-lock',
+        route: 'OrgSettingsRoles'
+    },
+    {
         name: 'Webhooks',
         icon: 'bi-link-45deg',
         route: 'OrgSettingsWebhooks'

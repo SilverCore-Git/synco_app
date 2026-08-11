@@ -6,6 +6,7 @@
         @pointerup="onPointerUp"
         @pointerleave="onPointerUp"
         @click="handleClick"
+        @contextmenu.prevent.stop="handleContextMenu"
         class="max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border rounded-xl transition-all cursor-pointer shadow-sm"
         :class="[
             draggedIntoFolderId === folder.id 
@@ -54,13 +55,58 @@
         </div>
 
         <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold text-(--text) truncate">{{ folder.name }}</p>
+            <div class="flex items-center gap-1.5">
+                <p class="text-sm font-semibold text-(--text) truncate">{{ folder.name }}</p>
+                <i v-if="folder._count?.folderPermissions" class="bi bi-shield-lock-fill text-xs text-(--primary)" title="Permissions spécifiques" />
+            </div>
             <p class="text-[9px] text-(--text2) font-bold uppercase tracking-tighter">
                 {{ allFiles.filter(f => f.folderId === folder.id).length }} fichiers
             </p>
         </div>
 
-        <i class="bi bi-chevron-right text-(--text2) group-hover:text-(--primary) transition-colors" />
+        <div 
+            class="flex items-center gap-1 transition-opacity pr-1"
+            :class="isDropdownOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
+        >
+            <DropDown ref="dropdownRef" align="mouse" @click.stop @toggled="val => isDropdownOpen = val">
+                <template #trigger>
+                    <button class="w-8 h-8 rounded-lg hover:bg-(--primary)/10 flex items-center justify-center transition-colors hover:text-(--primary)">
+                        <i class="bi bi-three-dots-vertical text-lg" />
+                    </button>
+                </template>
+                <template #content>
+                    <button 
+                        v-if="!isSelectionMode"
+                        @click="$emit('toggle-select')"
+                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                    >
+                        <i class="bi bi-check2-square" />
+                        Sélectionner
+                    </button>
+                    <button 
+                        @click="showEditFolder = true"
+                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                    >
+                        <i class="bi bi-pencil" />
+                        Renommer
+                    </button>
+                    <button 
+                        @click="$emit('show-permissions', folder)"
+                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                    >
+                        <i class="bi bi-shield-lock" />
+                        Permissions
+                    </button>
+                    <button 
+                        @click="$emit('request-delete', folder.id)"
+                        class="dropdown-item-annimate dropdown-item-style gap-2 text-red-500! hover:bg-red-500/5!"
+                    >
+                        <i class="bi bi-trash" />
+                        Supprimer
+                    </button>
+                </template>
+            </DropDown>
+        </div>
 
     </div>
 
@@ -77,6 +123,7 @@
 import type { Folder, StoredFile } from '@/types/types';
 import { ref } from 'vue';
 import EditFolder from '../popup/EditFolder.vue';
+import DropDown from '@/components/DropDown.vue';
 
 const props = defineProps<{
     folder: Folder,
@@ -87,7 +134,7 @@ const props = defineProps<{
     isSelectionMode?: boolean
 }>();
 
-const emit = defineEmits(['toggle-select', 'click']);
+const emit = defineEmits(['toggle-select', 'click', 'show-permissions', 'request-delete']);
 
 let longPressTimer: any = null;
 
@@ -132,5 +179,11 @@ const colorBgMap: Record<string, string> = {
 };
 
 const showEditFolder = ref<boolean>(false);
+const isDropdownOpen = ref<boolean>(false);
+const dropdownRef = ref<any>(null);
+
+const handleContextMenu = (e: MouseEvent) => {
+    dropdownRef.value?.toggleDropdown(e);
+};
 
 </script>

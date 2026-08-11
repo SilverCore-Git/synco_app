@@ -178,13 +178,13 @@ import { openedOrg } from '@/assets/var';
 import getColorByStatus from '@/assets/utils/getColorByStatus';
 import isDesktopApp from '@/assets/isDesktopApp';
 import { useRoute } from 'vue-router';
-import useSettingsItem from '@/composables/useSettingsItem';
 import useSecurePeer from '@/composables/useSecurePeer';
 import { keycloak } from '@/assets/keycloak';
 import { openProfile } from '@/composables/useProfile';
+import { useUsersBar } from '@/composables/useUsersBar';
 
 const route = useRoute();
-const { Item: showUsersBar } = useSettingsItem('showUsersBar', true);
+const { showUsersBar } = useUsersBar();
 const { startCall } = useSecurePeer();
 
 defineProps<{
@@ -195,12 +195,45 @@ const members = computed(() => {
 
     if (!openedOrg.value?.members) return [];
 
+    let filteredMembers = openedOrg.value.members;
+
     if (route.params.spaceId) {
         const spaceMemberIds = openedOrg.value.spaces?.find(s => s.id === route.params.spaceId)?.membersId || [];
-        return openedOrg.value.members.filter(m => spaceMemberIds.includes(m.userId));
+        filteredMembers = filteredMembers.filter(m => spaceMemberIds.includes(m.userId));
     }
 
-    return openedOrg.value.members;
+    if (route.params.threadId) {
+        const threadId = route.params.threadId as string;
+        let activeThread: any = undefined;
+        
+        // Check home threads
+        activeThread = openedOrg.value.home?.threads?.find((t: any) => t.id === threadId);
+        if (!activeThread) {
+            for (const cat of openedOrg.value.home?.categories || []) {
+                activeThread = cat.threads?.find((t: any) => t.id === threadId);
+                if (activeThread) break;
+            }
+        }
+        
+        // Check space threads
+        if (!activeThread) {
+            for (const space of openedOrg.value.spaces || []) {
+                activeThread = space.threads?.find((t: any) => t.id === threadId);
+                if (activeThread) break;
+                for (const cat of space.categories || []) {
+                    activeThread = cat.threads?.find((t: any) => t.id === threadId);
+                    if (activeThread) break;
+                }
+                if (activeThread) break;
+            }
+        }
+
+        if (activeThread && activeThread.isPrivate && activeThread.membersId) {
+            filteredMembers = filteredMembers.filter(m => activeThread.membersId.includes(m.userId));
+        }
+    }
+
+    return filteredMembers;
 
 });
 

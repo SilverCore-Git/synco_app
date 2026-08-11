@@ -153,7 +153,7 @@ const handleSubmit = async () => {
 
       <div v-else-if="state === 2" class="space-y-4 animate-in fade-in slide-in-from-right-4">
         <label class="text-[10px] font-black text-(--text2) uppercase tracking-widest">Identité visuelle</label>
-        <IconSelector ref="iconSelectorRef" v-model="form.logo" @on-base64="(logo: string) => form.logo = logo" />
+        <IconSelector type="square" ref="iconSelectorRef" v-model="form.logo" @on-base64="(logo: string) => form.logo = logo" />
       </div>
 
       <div v-else-if="state === 3" class="grid grid-cols-1 sm:grid-cols-2 gap-6 h-100 animate-in fade-in slide-in-from-right-4">

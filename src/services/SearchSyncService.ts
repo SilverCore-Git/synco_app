@@ -147,7 +147,7 @@ export class SearchSyncService {
                     // Ignorer les erreurs de déchiffrement silencieusement (ex: vieux vecteurs ou clés désynchronisées)
                 }
             }
-            console.log(`[SearchSyncService] Restauration du workspace terminée. ${indexes.length} vecteurs traités.`);
+            // console.log(`[SearchSyncService] Restauration du workspace terminée. ${indexes.length} vecteurs traités.`);
         } catch (error) {
             console.error("[SearchSyncService] Error restoring workspace indexes:", error);
         }

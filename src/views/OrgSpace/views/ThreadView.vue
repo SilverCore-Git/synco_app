@@ -58,6 +58,11 @@
                             :key="msg.id"
                             :id="'msg-' + msg.id"
                     >
+                        <div v-if="showUnreadDelimiterAfterId === msg.id" class="flex items-center gap-4 my-6">
+                            <div class="h-px flex-1 bg-red-500/50"></div>
+                            <span class="text-xs font-bold text-red-500 uppercase tracking-widest">Nouveaux messages</span>
+                            <div class="h-px flex-1 bg-red-500/50"></div>
+                        </div>
                         <ThreadMessage
                             :msg="msg"
                             :selectedMessage="selectedMessage"
@@ -323,7 +328,7 @@
     <div v-else-if="thread && !canSpeak" class="absolute bottom-0 inset-x-0 p-4 bg-transparent mt-auto pointer-events-none">
         <div class="bg-(--bg)/80 backdrop-blur-3xl border border-white/10 rounded-xl px-4 py-3 flex items-center justify-center gap-3 shadow-2xl">
             <i class="bi bi-megaphone-fill text-(--primary) text-lg" />
-            <span class="text-(--text) text-sm font-medium">Seuls certains membres peuvent envoyer des messages dans ce salon.</span>
+            <span class="text-(--text) text-sm font-medium">Vous ne pouvez pas parler dans ce salon.</span>
         </div>
     </div>
 
@@ -400,6 +405,14 @@ const sortedMessages = ref<Message[]>([]);
 const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
 const lastMessageId = ref<string>('');
 const showEmojiPicker = ref<boolean>(false);
+const showUnreadDelimiterAfterId = ref<string | null>(null);
+
+const saveLastRead = () => {
+    if (!thread.value || sortedMessages.value.length === 0) return;
+    const lastMsg = sortedMessages.value[sortedMessages.value.length - 1];
+    if (!lastMsg) return;
+    localStorage.setItem(`lastRead_${thread.value.id}`, lastMsg.id);
+};
 
 import globalVectorWorker from '@/services/GlobalVectorWorker';
 
@@ -649,6 +662,9 @@ const procesMessages = async (msgs: Message[]) => {
 const handleScroll = (e: Event) => {
     const el = e.target as HTMLElement;
     if (el.scrollTop < 200 && !isFetchingMore.value && hasMore.value) loadMore();
+    
+    const isAtBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 10;
+    if (isAtBottom) saveLastRead();
 };
 
 const loadMore = () => {
@@ -661,7 +677,14 @@ const initListener = () => {
 
     if (!socket.value) return;
 
-    socket.value.off("thread-history").off("more-messages").off("new-message").off("keys-distributed");
+    socket.value.off("thread-history").off("more-messages").off("new-message").off("keys-distributed")
+        .off("delete-message").off("edit-message").off("connect");
+
+    socket.value.on("connect", () => {
+        if (thread.value?.id) {
+            joinThread(thread.value.id);
+        }
+    });
 
     socket.value.on("keys-distributed", async ({ threadId }: { threadId: string }) => {
         if (threadId === thread.value?.id) {
@@ -669,13 +692,20 @@ const initListener = () => {
         }
     });
 
-    socket.value.on("thread-history", async (history: Message[]) => {
+    socket.value.on("thread-history", async (data: { threadId?: string; messages: Message[] } | Message[]) => {
+        const history = Array.isArray(data) ? data : data.messages;
+        const receivedThreadId = Array.isArray(data) ? undefined : data.threadId;
+
+        if (receivedThreadId && thread.value?.id && receivedThreadId !== thread.value.id) {
+            return; // Ignore history from another thread
+        }
+
         rawMessages.value.clear();
         history.forEach(m => rawMessages.value.set(m.id, m));
         sortedMessages.value = await procesMessages(history);
 
         loading.value = false;
-        hasMore.value = history.length >= 40;
+        hasMore.value = history.length >= 20;
         
         if (selectedMessage.value && selectedMessage.value !== 'undefined') 
         {
@@ -684,6 +714,7 @@ const initListener = () => {
         else 
         {
             scrollToBottom(true);
+            setTimeout(() => { saveLastRead(); }, 500); // Save after scroll completes
         }
     });
 
@@ -703,6 +734,8 @@ const initListener = () => {
     });
 
     socket.value.on("new-message", async (msg: Message) => {
+        if (msg.threadId !== thread.value?.id) return;
+
         let clearContent = msg.content;
         if (msg.isWebhook) {
             clearContent = msg.content; // Skip decryption for webhooks
@@ -729,7 +762,10 @@ const initListener = () => {
         if (container) 
         {
             const isNearBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 200;
-            if (isNearBottom) scrollToBottom();
+            if (isNearBottom) {
+                scrollToBottom();
+                setTimeout(() => { saveLastRead(); }, 100);
+            }
         }
 
         // Generate vector for the newly received message if we have the content
@@ -757,11 +793,13 @@ const initListener = () => {
     });
 
     socket.value.on('delete-message', (msgId: string) => {
+        if (!rawMessages.value.has(msgId)) return;
         rawMessages.value.delete(msgId);
         sortedMessages.value = sortedMessages.value.filter(m => m.id !== msgId);
     });
 
     socket.value.on('edit-message', async (editedMsg: Message) => {
+        if (editedMsg.threadId !== thread.value?.id) return;
         let decryptedContent = editedMsg.content;
         if (editedMsg.content && editedMsg.content.trim() !== "" && currentThreadKey.value) 
         {
@@ -784,24 +822,37 @@ const initListener = () => {
 
 };
 
+let isJoiningThread = false;
+
 const joinThread = async (id: string) => {
+
+    if (isJoiningThread) return;
+    isJoiningThread = true;
 
     if (!socket.value) {
         debugMsg.value = 'Erreur : Pas de connexion Socket active.';
         loading.value = false;
+        isJoiningThread = false;
         return;
     }
     
-    // Socket should already be connected (checked in onMounted)
     loading.value = true;
     currentThreadKey.value = null;
     sortedMessages.value = [];
+    
+    const savedLastRead = localStorage.getItem(`lastRead_${id}`);
+    if (thread.value?.hasUnread && savedLastRead) {
+        showUnreadDelimiterAfterId.value = savedLastRead;
+    } else {
+        showUnreadDelimiterAfterId.value = null;
+    }
 
     if (!privateKey.value) 
     {
         debugMsg.value = 'Erreur : Clé privée introuvable (verrouillé).';
         loading.value = false;
         toast.show('[E2EE] Votre clé privée est introuvable. Veuillez déverrouiller votre espace sécurisé (PIN).', 'error');
+        isJoiningThread = false;
         return;
     }
 
@@ -826,6 +877,7 @@ const joinThread = async (id: string) => {
                     });
                     debugMsg.value = 'Récupération de la clé E2EE en cours... (en attente des autres membres)';
                     loading.value = true;
+                    isJoiningThread = false;
                     return;
                 } else {
                     debugMsg.value = 'Erreur : Clé publique introuvable. ' + response.error;
@@ -836,6 +888,7 @@ const joinThread = async (id: string) => {
                         query: { noRedirect: 'true' } 
                     });
                     toast.show(response.error, 'warning', 10000);
+                    isJoiningThread = false;
                     return;
                 }
             }
@@ -844,6 +897,7 @@ const joinThread = async (id: string) => {
             loading.value = false;
             console.error('[E2EE] erreur serveur : ', response)
             toast.show(response.error || '[E2EE] Accès refusé ou impossible de récupérer la clé du salon.', 'error');
+            isJoiningThread = false;
             return;
         }
 
@@ -873,6 +927,8 @@ const joinThread = async (id: string) => {
             toast.show('[E2EE] Échec du déchiffrement de la clé de session du salon.', 'error');
             loading.value = false;
         }
+
+        isJoiningThread = false;
 
     });
 
@@ -1027,7 +1083,8 @@ onUnmounted(() => {
     if (socket.value) 
     {
         socket.value.emit("leave-thread", thread.value?.id);
-        socket.value.off("thread-history").off("more-messages").off("new-message");
+        socket.value.off("thread-history").off("more-messages").off("new-message")
+            .off("keys-distributed").off("delete-message").off("edit-message").off("connect");
     }
     window.removeEventListener('paste', handlePaste);
     document.removeEventListener('click', closeEmojiPickerOnOutsideClick);

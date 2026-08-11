@@ -50,6 +50,23 @@ const totalWebhooks = computed(() => webhooks.value.length);
 const e2eeEnabledWebhooks = computed(() => webhooks.value.filter(wh => wh.e2eeEnabled));
 
 // ============================================
+// Fonctions utilitaires internes
+// ============================================
+
+/**
+ * Patche l'URL du webhook pour s'assurer qu'elle utilise VITE_API_URL
+ * au lieu de l'URL générée par le backend qui peut être incorrecte.
+ */
+function patchWebhookUrl(webhook: Webhook): Webhook {
+  if (webhook && webhook.id && webhook.token) {
+    // Nettoyer les éventuels slash de fin sur VITE_API_URL
+    const baseUrl = import.meta.env.VITE_API_URL.replace(/\/+$/, '');
+    webhook.url = `${baseUrl}/api/webhooks/${webhook.id}/${webhook.token}`;
+  }
+  return webhook;
+}
+
+// ============================================
 // Fonctions API
 // ============================================
 
@@ -87,7 +104,7 @@ async function createWebhook(
     
     // Ajouter le webhook à la liste locale
     if (data.success && data.webhook) {
-      webhooks.value.push(data.webhook);
+      webhooks.value.push(patchWebhookUrl(data.webhook));
     }
     
     return data;
@@ -122,7 +139,7 @@ async function listWebhooks(spaceId: string): Promise<ListWebhooksResponse | nul
     const data: ListWebhooksResponse = await response.json();
     
     if (data.success) {
-      webhooks.value = data.webhooks;
+      webhooks.value = data.webhooks.map(patchWebhookUrl);
     }
     
     return data;
@@ -157,7 +174,7 @@ async function getWebhook(webhookId: string): Promise<GetWebhookResponse | null>
     const data: GetWebhookResponse = await response.json();
     
     if (data.success && data.webhook) {
-      currentWebhook.value = data.webhook;
+      currentWebhook.value = patchWebhookUrl(data.webhook);
     }
     
     return data;
@@ -196,6 +213,7 @@ async function updateWebhook(
     const data: GetWebhookResponse = await response.json();
     
     if (data.success && data.webhook) {
+      patchWebhookUrl(data.webhook);
       // Mettre à jour dans la liste locale
       const index = webhooks.value.findIndex(wh => wh.id === webhookId);
       if (index !== -1) {
@@ -284,6 +302,7 @@ async function regenerateWebhookToken(webhookId: string): Promise<RegenerateToke
     const data: RegenerateTokenResponse = await response.json();
     
     if (data.success && data.webhook) {
+      patchWebhookUrl(data.webhook);
       // Mettre à jour dans la liste locale
       const index = webhooks.value.findIndex(wh => wh.id === webhookId);
       if (index !== -1) {
@@ -328,6 +347,7 @@ async function toggleWebhookActive(webhookId: string, isActive: boolean): Promis
     const data: GetWebhookResponse = await response.json();
     
     if (data.success && data.webhook) {
+      patchWebhookUrl(data.webhook);
       // Mettre à jour dans la liste locale
       const index = webhooks.value.findIndex(wh => wh.id === webhookId);
       if (index !== -1) {

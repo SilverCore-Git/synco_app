@@ -323,6 +323,35 @@ export function useNotification() {
   };
 
   /**
+   * Marquer toutes les notifications de tâches comme lues
+   */
+  const markTasksAsRead = async (): Promise<void> => {
+    try {
+      let markedCount = 0;
+      const promises: Promise<void>[] = [];
+      
+      // Optimistic update
+      notifications.value.forEach(n => {
+        if (!n.isRead && n.type === 'CUSTOM' && n.data?.type === 'TASK_UPDATE') {
+          n.isRead = true;
+          markedCount++;
+          // We can use the existing read API per notification
+          promises.push(
+            sfetch(`/api/notifications/${n.id}/read`, { method: 'PATCH' }).then(() => {})
+          );
+        }
+      });
+
+      if (markedCount > 0) {
+        await Promise.allSettled(promises);
+      }
+    } catch (error) {
+      console.error('[Notifications] Failed to mark tasks as read:', error);
+      await loadNotifications();
+    }
+  };
+
+  /**
    * Marquer toutes les notifications comme lues
    */
   const markAllAsRead = async (): Promise<void> => {
@@ -585,6 +614,20 @@ export function useNotification() {
     });
   };
 
+  /**
+   * Obtenir le nombre de notifications non lues pour les tâches
+   */
+  const getUnreadCountForTasks = computed(() => {
+    return notifications.value.filter(n => !n.isRead && n.type === 'CUSTOM' && n.data?.type === 'TASK_UPDATE').length;
+  });
+
+  /**
+   * Obtenir le nombre de notifications non lues pour tous les messages privés
+   */
+  const getUnreadCountForDMs = computed(() => {
+    return notifications.value.filter(n => !n.isRead && n.type === 'MESSAGE' && n.data?.dmUserId).length;
+  });
+
   // ==================== RETURN ====================
 
   return {
@@ -601,6 +644,8 @@ export function useNotification() {
     getUnreadCountBySpaceId,
     getUnreadCountByThreadId,
     getUnreadCountByDMUserId,
+    getUnreadCountForTasks,
+    getUnreadCountForDMs,
 
     // Méthodes
     init,
@@ -611,6 +656,7 @@ export function useNotification() {
     markAsRead,
     markThreadAsRead,
     markDMAsRead,
+    markTasksAsRead,
     markAllAsRead,
     removeNotification,
     setupWebSocketListeners,

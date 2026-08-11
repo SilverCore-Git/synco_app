@@ -40,11 +40,15 @@
                             </div>
 
                             <div class="flex-1 overflow-hidden" v-if="notif.msg">
-                                <h4 class="text-(--text) text-sm font-bold truncate">
+                                <h4 class="text-(--text) text-sm font-bold truncate flex items-center gap-1">
                                     {{ (notif.msg as any)?.sender?.name }}
+                                    <span v-if="(notif.msg as any).webhookId" class="bg-(--primary)/20 text-(--primary) text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">APP</span>
                                 </h4>
                                 <p class="text-(--text) text-sm line-clamp-2 leading-snug">
-                                    {{ notif.msg.content }}
+                                    <span v-if="(notif.msg as any).embeds?.length > 0" class="font-semibold text-(--primary) block truncate">
+                                        {{ (notif.msg as any).embeds[0].title }}
+                                    </span>
+                                    <span v-else>{{ notif.msg.content }}</span>
                                 </p>
                             </div>
 
@@ -191,8 +195,9 @@ import getSpaceIdByThreadId from '@/assets/utils/getSpaceWithThreadId';
 import { openedOrg } from '@/assets/var';
 import useNotifications, { type NotificationType } from '@/composables/useNotifications';
 import useSecurePeer from '@/composables/useSecurePeer';
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { SoundService } from '@/services/SoundService';
 
 
 const { notifications, initListener, remove } = useNotifications();
@@ -244,6 +249,19 @@ const getStyles = (type: NotificationType, toastType?: string) => {
 
 };
 
+
+const playNotificationSound = () => {
+    SoundService.play('notification');
+};
+
+watch(() => notifications.value.length, (newLength, oldLength) => {
+    if (newLength > oldLength) {
+        const latestNotif = notifications.value[notifications.value.length - 1];
+        if (latestNotif && latestNotif.type !== 'toast') {
+            playNotificationSound();
+        }
+    }
+});
 
 onMounted(async () => {
     await initListener();
