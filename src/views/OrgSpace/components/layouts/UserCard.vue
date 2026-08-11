@@ -123,7 +123,7 @@
                                 class="text-[10px] truncate font-medium uppercase tracking-wider"
                                 :class="openedOrg == null ? 'text-transparent' : 'text-(--text2)'"
                             >
-                                {{ user?.role }}
+                                {{ getMemberRoleNames(user) }}
                             </span>
                         </div>
 
@@ -194,6 +194,11 @@ const user = computed<OrgMember | undefined>(() => {
     );
 
 });
+
+const getMemberRoleNames = (member: any) => {
+    if (!member?.memberRoles || member.memberRoles.length === 0) return 'Membre';
+    return member.memberRoles.map((mr: any) => mr.role?.name).filter(Boolean).join(', ');
+};
 
 const ping = ref<number>(-1);
 const showUserSettings = ref<boolean>(false);
