@@ -497,7 +497,7 @@ const initSocketListener = async () => {
 
 
 
-    socket.value?.on('thread:updated', ({ orgId, threadId, name }: { orgId: string, threadId: string, name: string }) => {
+    socket.value?.on('thread:updated', ({ orgId, thread }: { orgId: string, thread: any }) => {
         
         if (orgId !== props.orgId) return;
 
@@ -505,13 +505,13 @@ const initSocketListener = async () => {
         if (!org) return;
 
         org.spaces?.forEach(space => {
-            const t = space.threads?.find(t => t.id === threadId);
-            if (t) t.name = name;
+            const t = space.threads?.find(t => t.id === thread.id);
+            if (t) Object.assign(t, thread);
         });
 
         if (org.home) {
-            const t = org.home.threads?.find(t => t.id === threadId);
-            if (t) t.name = name;
+            const t = org.home.threads?.find(t => t.id === thread.id);
+            if (t) Object.assign(t, thread);
         }
 
     });
