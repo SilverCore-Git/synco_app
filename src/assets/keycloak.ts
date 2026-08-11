@@ -1,4 +1,3 @@
-// keycloak.ts
 import Keycloak from "keycloak-js";
 import { kcToken } from "./var";
 import { Capacitor } from "@capacitor/core";
@@ -12,7 +11,7 @@ const KC_URL = import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080/auth'
 const KC_REALM = import.meta.env.VITE_KEYCLOAK_REALM || 'SilverTeams';
 const KC_CLIENT_ID = import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'silverteams_web_app';
 
-const keycloak = new Keycloak({
+export const keycloak = new Keycloak({
   url: KC_URL,
   realm: KC_REALM,
   clientId: KC_CLIENT_ID,
@@ -22,87 +21,13 @@ function isTauriPlatform(): boolean {
   return '__TAURI_INTERNALS__' in window;
 }
 
-// Helper function to get the appropriate fetch (Tauri or browser)
-async function getTauriFetch(): Promise<typeof fetch> {
-  if (isTauriPlatform()) {
-    const { fetch: tFetch } = await import('@tauri-apps/plugin-http');
-    return tFetch as unknown as typeof fetch;
-  }
-  return window.fetch.bind(window);
-}
-
-
-async function tauriLogin(): Promise<{ token?: string; refreshToken?: string }> {
-  const redirectUri = 'fr.silvercore.synco://callback';
-  const codeVerifier = generateCodeVerifier();
-  const codeChallenge = await generateCodeChallenge(codeVerifier);
-  const state = crypto.randomUUID();
-
-  let resolveDeepLink!: (url: string) => void;
-  const deepLinkArrived = new Promise<string>((resolve) => {
-    resolveDeepLink = resolve;
-  });
-
-  // Écoute 1 : deep link classique (fonctionne notamment sur macOS,
-  // et sur Windows/Linux si l'OS route l'URL vers l'instance déjà ouverte)
-  const unlistenOpenUrl = onOpenUrl((urls) => {
-    const url = urls[0];
-    if (url && url.includes('code=')) resolveDeepLink(url);
-  });
-
-  // Écoute 2 : relai via single-instance (Windows/Linux, quand l'OS relance
-  // un nouveau process avec l'URL en argument au lieu de notifier l'instance active)
-  const unlistenSingleInstance = await listen<string[]>('single-instance', (event) => {
-    const args = event.payload;
-    const urlArg = args.find((a) => a.startsWith(redirectUri));
-    if (urlArg) resolveDeepLink(urlArg);
-  });
-
-  const authUrl = `${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/auth`
-    + `?client_id=${encodeURIComponent(KC_CLIENT_ID)}`
-    + `&redirect_uri=${encodeURIComponent(redirectUri)}`
-    + `&response_type=code&scope=openid&state=${state}`
-    + `&code_challenge=${codeChallenge}&code_challenge_method=S256`;
-
-  await open(authUrl); // ouvre le navigateur système par défaut
-
-  const callbackUrl = await deepLinkArrived;
-
-  // Nettoyage des deux listeners une fois le deep link reçu
-  unlistenSingleInstance();
-  // onOpenUrl ne retourne pas de fonction de désinscription dans cette API,
-  // donc rien à nettoyer côté unlistenOpenUrl (le callback restera enregistré
-  // mais ne fera plus rien d'utile puisque la promesse est déjà résolue)
-
-  const code = new URL(callbackUrl).searchParams.get('code');
-  if (!code) return {};
-
-  const fetchFn = await getTauriFetch();
-  const tokenRes = await fetchFn(`${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'authorization_code',
-      client_id: KC_CLIENT_ID,
-      code,
-      redirect_uri: redirectUri,
-      code_verifier: codeVerifier,
-    }),
-  });
-
-  if (!tokenRes.ok) return {};
-  const tokens = await tokenRes.json();
-  return { token: tokens.access_token, refreshToken: tokens.refresh_token };
-}
-
-// --- Refresh automatique du token ---
 const setupTokenRefresh = () => {
   keycloak.onTokenExpired = () => {
     keycloak.updateToken(30)
       .then((refreshed) => {
         if (refreshed) {
           kcToken.value = keycloak.token || '';
-          if (Capacitor.isNativePlatform()) {
+          if (Capacitor.isNativePlatform() || isTauriPlatform()) {
             if (keycloak.token) localStorage.setItem('kc_token', keycloak.token);
             if (keycloak.refreshToken) localStorage.setItem('kc_refreshToken', keycloak.refreshToken);
           }
@@ -154,7 +79,7 @@ async function nativeLogin(): Promise<{ token?: string; refreshToken?: string }>
 
   const listenerHandle = await CapApp.addListener('appUrlOpen', async (data: URLOpenListenerEvent) => {
     if (data.url.includes('code=')) {
-      await Browser.close().catch(() => { });
+      await Browser.close().catch(() => {});
       resolveDeepLink(data.url);
     }
   });
@@ -167,15 +92,12 @@ async function nativeLogin(): Promise<{ token?: string; refreshToken?: string }>
 
   await Browser.open({ url: authUrl });
   const callbackUrl = await deepLinkArrived;
-
-  // Nettoyage du listener une fois le deep link reçu
   await listenerHandle.remove();
 
   const code = new URL(callbackUrl).searchParams.get('code');
   if (!code) return {};
 
-  const fetchFn = await getTauriFetch();
-  const tokenRes = await fetchFn(`${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/token`, {
+  const tokenRes = await fetch(`${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -189,6 +111,62 @@ async function nativeLogin(): Promise<{ token?: string; refreshToken?: string }>
 
   if (!tokenRes.ok) {
     console.error('[Keycloak] Échange code échoué:', await tokenRes.text());
+    return {};
+  }
+  const tokens = await tokenRes.json();
+  return { token: tokens.access_token, refreshToken: tokens.refresh_token };
+}
+
+async function tauriLogin(): Promise<{ token?: string; refreshToken?: string }> {
+  const redirectUri = 'fr.silvercore.synco://callback';
+  const codeVerifier = generateCodeVerifier();
+  const codeChallenge = await generateCodeChallenge(codeVerifier);
+  const state = crypto.randomUUID();
+
+  let resolveDeepLink!: (url: string) => void;
+  const deepLinkArrived = new Promise<string>((resolve) => {
+    resolveDeepLink = resolve;
+  });
+
+  onOpenUrl((urls) => {
+    const url = urls[0];
+    if (url && url.includes('code=')) resolveDeepLink(url);
+  });
+
+  const unlistenSingleInstance = await listen<string[]>('single-instance', (event) => {
+    const args = event.payload;
+    const urlArg = args.find((a) => a.startsWith(redirectUri));
+    if (urlArg) resolveDeepLink(urlArg);
+  });
+
+  const authUrl = `${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/auth`
+    + `?client_id=${encodeURIComponent(KC_CLIENT_ID)}`
+    + `&redirect_uri=${encodeURIComponent(redirectUri)}`
+    + `&response_type=code&scope=openid&state=${state}`
+    + `&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+
+  await open(authUrl);
+  const callbackUrl = await deepLinkArrived;
+  unlistenSingleInstance();
+
+  const code = new URL(callbackUrl).searchParams.get('code');
+  if (!code) return {};
+
+  // fetch natif — fonctionne car tauri-plugin-localhost résout le CORS
+  const tokenRes = await fetch(`${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: KC_CLIENT_ID,
+      code,
+      redirect_uri: redirectUri,
+      code_verifier: codeVerifier,
+    }),
+  });
+
+  if (!tokenRes.ok) {
+    console.error('[Keycloak] Échange code Tauri échoué:', await tokenRes.text());
     return {};
   }
   const tokens = await tokenRes.json();
@@ -211,6 +189,7 @@ function isTokenExpired(token: string | null | undefined): boolean {
 const initKC = async () => {
   try {
     if (isTauriPlatform()) {
+      const redirectUri = 'fr.silvercore.synco://callback';
       let token = localStorage.getItem('kc_token') || undefined;
       let refreshToken = localStorage.getItem('kc_refreshToken') || undefined;
 
@@ -222,7 +201,7 @@ const initKC = async () => {
 
       const authenticated = await keycloak.init({
         checkLoginIframe: false,
-        redirectUri: 'fr.silvercore.synco://callback',
+        redirectUri,
         responseMode: 'query',
         token,
         refreshToken,
@@ -261,8 +240,8 @@ const initKC = async () => {
       if (authenticated) {
         if (keycloak.token) localStorage.setItem('kc_token', keycloak.token);
         if (keycloak.refreshToken) localStorage.setItem('kc_refreshToken', keycloak.refreshToken);
-        await keycloak.loadUserInfo();
-        // Removed localStorage.setItem('userId', ...) to prevent XSS leaks
+        const userInfo: any = await keycloak.loadUserInfo();
+        localStorage.setItem('userId', userInfo.sub);
         kcToken.value = keycloak.token || '';
         setupTokenRefresh();
       }
@@ -271,24 +250,23 @@ const initKC = async () => {
 
     // --- web ---
     const authenticated = await keycloak.init({
-      onLoad: 'login-required',
+      onLoad: 'check-sso',
+      silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
       pkceMethod: 'S256',
       checkLoginIframe: false,
     });
 
     if (authenticated) {
-      await keycloak.loadUserInfo();
-      // Removed window.localStorage.setItem('userId', ...) to prevent XSS leaks
+      const userInfo: any = await keycloak.loadUserInfo();
+      window.localStorage.setItem('userId', userInfo.sub);
       kcToken.value = keycloak.token || '';
       setupTokenRefresh();
     }
-
     return authenticated;
-
   } catch (error) {
     console.error("[Keycloak] Erreur d'initialisation Keycloak", error);
     return false;
   }
 };
 
-export { keycloak, initKC, setupTokenRefresh, onTokenRefresh };
+export { initKC, setupTokenRefresh, onTokenRefresh };

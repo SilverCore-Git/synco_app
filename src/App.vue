@@ -22,7 +22,6 @@ import { isProfileOpen, profileUser, closeProfile } from './composables/useProfi
 //import { Capacitor } from '@capacitor/core';
 //import { App as CapApp, type URLOpenListenerEvent } from '@capacitor/app';
 //import { Browser } from '@capacitor/browser';
-import httpFetch from '@/assets/utils/httpFetch';
 
 const toast = useToast();
 const { Item: theme } = useSettingsItem('theme', 'dark');
@@ -64,7 +63,7 @@ const press = (num: string) => {
   if (pin.value.length < 4) {
     pin.value += num;
     if (window.navigator.vibrate) window.navigator.vibrate(10);
-    
+
     if (pin.value.length === 4) {
       setTimeout(() => submit(), 50);
     }
@@ -168,7 +167,7 @@ const handleInput = (e: KeyboardEvent) => {
 onMounted(async () => {
   console.log('[DEBUG] onMounted start');
   try {
-    const res = await httpFetch(`${import.meta.env.VITE_API_URL}/health`);
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/health`);
     console.log('[DEBUG] health check status:', res.status);
     if (!res.ok) return alert('Api error');
 
@@ -194,9 +193,7 @@ onMounted(async () => {
 
   <Notifications />
 
-  <div
-    class="w-screen h-[100dvh] relative flex flex-col overflow-hidden"
-  >
+  <div class="w-screen h-[100dvh] relative flex flex-col overflow-hidden">
 
     <div class="w-full">
       <TopBar />
@@ -257,20 +254,16 @@ onMounted(async () => {
 
             <div class="flex gap-4 mb-10 transition-transform duration-300">
 
-                <div 
-                    v-for="i in 4" :key="i"
-                    class="w-14 h-18 border-2 rounded-2xl flex items-center justify-center text-2xl transition-all duration-150"
-                    :class="[
-                      pin.length >= i 
-                        ? 'border-(--primary) bg-(--primary)/10 scale-105' 
-                        : 'border-(--border-color) bg-white/5'
-                    ]"
-                >
-                    <div 
-                      class="w-3 h-3 rounded-full transition-all duration-300"
-                      :class="pin.length >= i ? 'bg-(--primary)' : 'bg-white/10'"
-                    />
-                </div>
+              <div v-for="i in 4" :key="i"
+                class="w-14 h-18 border-2 rounded-2xl flex items-center justify-center text-2xl transition-all duration-150"
+                :class="[
+                  pin.length >= i
+                    ? 'border-(--primary) bg-(--primary)/10 scale-105'
+                    : 'border-(--border-color) bg-white/5'
+                ]">
+                <div class="w-3 h-3 rounded-full transition-all duration-300"
+                  :class="pin.length >= i ? 'bg-(--primary)' : 'bg-white/10'" />
+              </div>
 
             </div>
 
