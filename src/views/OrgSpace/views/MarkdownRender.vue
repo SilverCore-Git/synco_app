@@ -17,29 +17,44 @@ marked.setOptions({
   gfm: true,
 });
 
+// Register DOMPurify hook once at module level (not per computed evaluation)
+DOMPurify.addHook('afterSanitizeAttributes', function(node) {
+    if ('target' in node) {
+        node.setAttribute('target', '_blank');
+        node.setAttribute('rel', 'noopener noreferrer');
+    }
+});
+
+const SANITIZE_OPTIONS = {
+    ALLOWED_TAGS: [
+        'p', 'br', 'strong', 'em', 'del', 'code', 'pre', 
+        'ul', 'ol', 'li', 'blockquote', 'a', 'h1', 'h2', 'h3'
+    ],
+    ALLOWED_ATTR: ['href', 'target', 'class', 'rel'],
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i
+};
+
+// Simple cache to avoid re-parsing identical markdown content
+const htmlCache = new Map<string, string>();
+const MAX_CACHE_SIZE = 200;
+
 const renderedHtml = computed(() => {
 
     if (!props.content) return '';
     
+    const cached = htmlCache.get(props.content);
+    if (cached) return cached;
+
     const rawHtml = marked.parse(props.content) as string;
-    
-    DOMPurify.addHook('afterSanitizeAttributes', function(node) {
-        if ('target' in node) {
-            node.setAttribute('target', '_blank');
-            node.setAttribute('rel', 'noopener noreferrer');
-        }
-    });
+    const sanitized = DOMPurify.sanitize(rawHtml, SANITIZE_OPTIONS);
 
-    const sanitized = DOMPurify.sanitize(rawHtml, {
-        ALLOWED_TAGS: [
-            'p', 'br', 'strong', 'em', 'del', 'code', 'pre', 
-            'ul', 'ol', 'li', 'blockquote', 'a', 'h1', 'h2', 'h3'
-        ],
-        ALLOWED_ATTR: ['href', 'target', 'class', 'rel'],
-        ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i
-    });
+    // Evict oldest entries if cache grows too large
+    if (htmlCache.size >= MAX_CACHE_SIZE) {
+        const firstKey = htmlCache.keys().next().value;
+        if (firstKey) htmlCache.delete(firstKey);
+    }
+    htmlCache.set(props.content, sanitized);
 
-    DOMPurify.removeHook('afterSanitizeAttributes');
     return sanitized;
 });
 

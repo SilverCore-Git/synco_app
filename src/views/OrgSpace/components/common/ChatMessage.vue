@@ -207,7 +207,7 @@
 
 <script setup lang="ts">
 
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
 import useWSocket from '@/composables/useWSocket';
@@ -366,28 +366,7 @@ const handleAddReaction = async (payload: { messageId: string; emoji: string; is
     });
 };
 
-// Handle reaction updates from socket
-const handleReactionUpdate = (data: { dmMessageId: string; reactions: Record<string, { count: number; users: any[] }> }) => {
-    if (data.dmMessageId === props.msg.id) {
-        props.msg.reactions = data.reactions;
-    }
-};
-
-onMounted(async () => {
-    const socket = await useWSocket();
-    if (socket.value) {
-        socket.value.on('dm-reaction-updated', handleReactionUpdate);
-    }
-});
-
-
-onUnmounted(async () => {
-    const socket = await useWSocket();
-
-    if (socket.value) {
-        socket.value.off('dm-reaction-updated', handleReactionUpdate);
-    }
-});
+// Reaction updates are handled centrally in ChatView.vue — no per-instance socket listener needed
 
 const applyMentions = () => {
 

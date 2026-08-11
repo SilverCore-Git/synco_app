@@ -359,7 +359,6 @@ import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import DropDown from '@/components/DropDown.vue';
 import EmojiPicker from '@/components/common/EmojiPicker.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
-import waitFor from '@/assets/utils/waitfor';
 import useSecurePeer from '@/composables/useSecurePeer';
 
 import { E2EEUnloked, privateKey, encryptForPeer, decryptFromPeer } from '@/assets/utils/crypto';
@@ -574,26 +573,36 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<
 
 const procesMessages = async (msgs: DMMessage[]) => {
 
-    const decryptedMessages = await Promise.all(msgs.map(async m => {
-        
-        let decryptedMain = await decryptSingleMessage(m);
-        if (!decryptedMain) return m;
+    const BATCH_SIZE = 10;
+    const results: (DMMessage | null)[] = [];
 
-        if (decryptedMain.replyMessage) 
-        {
-            const decryptedReply = await decryptSingleMessage(decryptedMain.replyMessage);
-            if (decryptedReply) {
-                decryptedMain.replyMessage = decryptedReply;
+    for (let i = 0; i < msgs.length; i += BATCH_SIZE) {
+        const batch = msgs.slice(i, i + BATCH_SIZE);
+
+        const decryptedBatch = await Promise.all(batch.map(async m => {
+            let decryptedMain = await decryptSingleMessage(m);
+            if (!decryptedMain) return m;
+
+            if (decryptedMain.replyMessage) {
+                const decryptedReply = await decryptSingleMessage(decryptedMain.replyMessage);
+                if (decryptedReply) {
+                    decryptedMain.replyMessage = decryptedReply;
+                }
             }
+
+            return decryptedMain;
+        }));
+
+        results.push(...decryptedBatch);
+
+        // Yield to main thread after each batch so the UI can paint
+        if (i + BATCH_SIZE < msgs.length) {
+            await new Promise(r => setTimeout(r, 0));
         }
+    }
 
-        return decryptedMain;
-
-    }));
-
-    return decryptedMessages.sort((a, b) => {
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    });
+    // Backend sends messages pre-sorted — no need to re-sort
+    return results as DMMessage[];
 
 };
 
@@ -601,7 +610,7 @@ const initListener = () => {
 
     if (!socket.value) return;
     
-    const events = ["dm:history", "dm:new-message", "dm:user-typing", "dm:delete-message", "dm:edit-message", "dm-more-messages", "connect"];
+    const events = ["dm:history", "dm:new-message", "dm:user-typing", "dm:delete-message", "dm:edit-message", "dm-more-messages", "dm-reaction-updated", "connect"];
     events.forEach(ev => socket.value?.off(ev));
 
     socket.value.on("connect", () => {
@@ -691,6 +700,12 @@ const initListener = () => {
 
     socket.value.on("dm:user-typing", (data: { isTyping: boolean }) => {
         isSomeoneTyping.value = data.isTyping;
+    });
+
+    // Centralized reaction listener — avoids per-ChatMessage socket registration
+    socket.value.on('dm-reaction-updated', (data: { dmMessageId: string; reactions: Record<string, { count: number; users: any[] }> }) => {
+        const msg = messages.value.find(m => m.id === data.dmMessageId);
+        if (msg) msg.reactions = data.reactions;
     });
 
 };
@@ -873,8 +888,21 @@ onMounted(async () => {
     const wsRef = await useWSocket();
     socket.value = wsRef.value; 
 
-    await waitFor(() => openedOrg.value !== null);
-    await waitFor(() => socket.value !== null);
+    // Reactive wait — resolves instantly if already set, otherwise watches for change
+    if (!openedOrg.value) {
+        await new Promise<void>(resolve => {
+            const stop = watch(() => openedOrg.value, (val) => {
+                if (val) { stop(); resolve(); }
+            }, { immediate: true });
+        });
+    }
+    if (!socket.value) {
+        await new Promise<void>(resolve => {
+            const stop = watch(() => socket.value, (val) => {
+                if (val) { stop(); resolve(); }
+            }, { immediate: true });
+        });
+    }
 
     await mount();
     
@@ -887,7 +915,7 @@ onUnmounted(() => {
     document.removeEventListener('click', closeEmojiPickerOnOutsideClick);
     const sock = socket.value;
     if (sock) {
-        const events = ["dm:history", "dm:new-message", "dm:user-typing", "dm:delete-message", "dm:edit-message", "dm-more-messages", "connect"];
+        const events = ["dm:history", "dm:new-message", "dm:user-typing", "dm:delete-message", "dm:edit-message", "dm-more-messages", "dm-reaction-updated", "connect"];
         events.forEach(ev => sock.off(ev));
     }
 });
