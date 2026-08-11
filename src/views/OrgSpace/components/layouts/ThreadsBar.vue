@@ -355,10 +355,10 @@
 
 <script lang="ts" setup>
 
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { Thread, WorkSpace, Category as CategoryType } from '@/types/types';
-import { openedOrg, todoEnabled, filesEnabled } from '@/assets/var';
+import { openedOrg, todoEnabled, filesEnabled, user } from '@/assets/var';
 import draggable from 'vuedraggable';
 import useWSocket from '@/composables/useWSocket';
 import ThreadDropDown from '../dropdown/ThreadDropDown.vue';
@@ -403,6 +403,29 @@ watch(isChat, async (newVal) => {
         }
     }
 }, { immediate: true });
+
+onMounted(async () => {
+    const wsRef = await useWSocket();
+    const socket = wsRef.value;
+    if (socket) {
+        socket.on('notif:dm:new-message', (newMessage: any) => {
+            const peerId = newMessage.senderId === user.value?.id ? newMessage.recipientId : newMessage.senderId;
+            const existing = recentDMUsers.value.find(r => r.userId === peerId);
+            if (existing) {
+                existing.lastInteraction = newMessage.createdAt;
+            } else {
+                recentDMUsers.value.push({ userId: peerId, lastInteraction: newMessage.createdAt });
+            }
+        });
+    }
+});
+
+onUnmounted(async () => {
+    const wsRef = await useWSocket();
+    if (wsRef.value) {
+        wsRef.value.off('notif:dm:new-message');
+    }
+});
 
 const sortedChatMembers = computed(() => {
     let members = openedOrg.value?.members || [];

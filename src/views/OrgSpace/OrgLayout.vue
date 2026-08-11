@@ -426,7 +426,8 @@ const initSocketListener = async () => {
         const isMeTheSender = newMessage.senderId === user.value?.id;
         const conversationPeerId = isMeTheSender ? newMessage.recipientId : newMessage.senderId;
 
-        const isCurrentConversation = (route.name === 'OrgThreadChat' || route.name === 'OrgThreadChatPrivateMeet') && route.params.userId === conversationPeerId;
+        const peerMemberId = openedOrg.value?.members?.find(m => m.user?.id === conversationPeerId)?.id;
+        const isCurrentConversation = (route.name === 'OrgThreadChat' || route.name === 'OrgThreadChatPrivateMeet') && route.params.userId === peerMemberId;
 
         if (isCurrentConversation) {
             return;

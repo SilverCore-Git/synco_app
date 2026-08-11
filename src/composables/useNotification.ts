@@ -82,13 +82,13 @@ export function useNotification() {
 
   // Liste des notifications
   const notifications = ref<AppNotification[]>([]);
-  
+
   // Permission de notification
   const permission = ref<NotificationPermission>('default');
-  
+
   // Est-ce que la permission est accordée
   const isGranted = computed(() => permission.value === 'granted');
-  
+
   // Compteur de notifications non lues
   const unreadCount = computed(() => {
     return notifications.value.filter(n => !n.isRead).length;
@@ -115,13 +115,13 @@ export function useNotification() {
 
       // Charger les notifications existantes
       await loadNotifications();
-      
+
       // Demander la permission
       await requestPermission();
-      
+
       // Configurer les listeners WebSocket
       setupWebSocketListeners();
-      
+
       // Initialiser les services plateforme
       await initPlatformServices();
 
@@ -145,7 +145,7 @@ export function useNotification() {
         limit: limit.toString(),
         offset: offset.toString()
       });
-      
+
       if (read !== undefined) {
         queryParams.append('read', read.toString());
       }
@@ -187,7 +187,7 @@ export function useNotification() {
 
     try {
       permission.value = await Notification.requestPermission();
-      
+
       // Si accordée, initialiser les services FCM
       if (permission.value === 'granted') {
         await initFCMService();
@@ -208,7 +208,7 @@ export function useNotification() {
   ): Promise<SendNotificationResult> => {
     // Si un userId est fourni, l'utiliser, sinon utiliser le userId du store
     const targetUserId = payload.userId || user.value?.id;
-    
+
     if (!targetUserId) {
       return {
         success: false,
@@ -262,7 +262,7 @@ export function useNotification() {
     } catch (error) {
       console.error('[Notifications] Failed to mark as read:', error);
       toast.show('Échec de la mise à jour', 'error');
-      
+
       // Revertir si l'API échoue
       const notification = notifications.value.find(n => n.id === notificationId);
       if (notification) {
@@ -329,7 +329,7 @@ export function useNotification() {
     try {
       let markedCount = 0;
       const promises: Promise<void>[] = [];
-      
+
       // Optimistic update
       notifications.value.forEach(n => {
         if (!n.isRead && n.type === 'CUSTOM' && n.data?.type === 'TASK_UPDATE') {
@@ -337,7 +337,7 @@ export function useNotification() {
           markedCount++;
           // We can use the existing read API per notification
           promises.push(
-            sfetch(`/api/notifications/${n.id}/read`, { method: 'PATCH' }).then(() => {})
+            sfetch(`/api/notifications/${n.id}/read`, { method: 'PATCH' }).then(() => { })
           );
         }
       });
@@ -371,7 +371,7 @@ export function useNotification() {
     } catch (error) {
       console.error('[Notifications] Failed to mark all as read:', error);
       toast.show('Échec de la mise à jour', 'error');
-      
+
       // Recharger les notifications pour revertir
       await loadNotifications();
     }
@@ -409,7 +409,7 @@ export function useNotification() {
       if (!exists) {
         notifications.value.unshift(notification);
       }
-      
+
       // Afficher une toast notification
       showToastNotification(notification);
     });
