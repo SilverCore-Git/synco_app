@@ -182,15 +182,19 @@ onMounted(async () => {
       await initPeer();
     }
 
-  window.addEventListener('keydown', handleInput);
+    window.addEventListener('keydown', handleInput);
 
-  const initSound = () => {
-    SoundService.init();
-    window.removeEventListener('click', initSound);
-    window.removeEventListener('keydown', initSound);
-  };
-  window.addEventListener('click', initSound);
-  window.addEventListener('keydown', initSound);
+    const initSound = () => {
+      SoundService.init();
+      window.removeEventListener('click', initSound);
+      window.removeEventListener('keydown', initSound);
+    };
+    window.addEventListener('click', initSound);
+    window.addEventListener('keydown', initSound);
+  } catch (error) {
+    console.error('[DEBUG] Error in onMounted:', error);
+    alert('Une erreur est survenue lors de l’initialisation.');
+  }
 });
 
 </script>
