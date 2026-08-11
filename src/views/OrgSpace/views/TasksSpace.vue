@@ -32,7 +32,7 @@
         <main class="flex-1 overflow-y-auto p-6 w-full h-full space-y-6">
             
             <!-- Filter Bar -->
-            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 pb-2">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 pb-2 w-full min-w-0">
                 
                 <div class="flex items-center gap-2 overflow-x-auto w-full sm:w-auto scrollbar-hide shrink-0 pb-1">
                     <button @click="filterUserId = null" class="px-4 py-2 font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="!filterUserId ? 'primary shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 rounded-xl text-white/50 hover:bg-white/10'">
@@ -45,7 +45,7 @@
                 
                 <div class="hidden sm:block w-px h-6 bg-white/10 mx-2 shrink-0"></div>
                 
-                <div class="flex items-center gap-2 overflow-x-auto w-full scrollbar-hide pb-1">
+                <div class="flex items-center gap-2 overflow-x-auto w-full min-w-0 scrollbar-hide pb-1">
                     <button v-for="member in spaceMembers" :key="member.id" @click="filterUserId = member.userId" class="flex items-center gap-2 px-3 py-1.5 font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="filterUserId === member.userId ? 'primary shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 rounded-xl text-white/50 hover:bg-white/10'">
                         <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-5 h-5 rounded-full object-cover">
                         <div v-else class="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px]">
