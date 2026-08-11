@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col md:flex-row h-full w-full bg-(--bg) overflow-hidden">
+  <div class="flex flex-col md:flex-row h-full w-full bg-(--bg) overflow-hidden relative">
     
     <!-- Colonne Gauche : Liste des Rôles (Sidebar) -->
     <div class="w-full md:w-1/4 max-w-[320px] min-w-[280px] bg-(--bg2)/50 border-r border-(--border-color) flex flex-col h-full shrink-0">
@@ -165,34 +165,6 @@
           </div>
         </div>
 
-        <!-- Barre de Sauvegarde (Sticky Footer) -->
-        <div 
-          class="absolute bottom-0 left-0 right-0 border-t border-(--border-color) bg-(--bg)/90 backdrop-blur-md p-4 flex items-center justify-between transition-transform duration-300 z-10"
-          :class="hasChanges ? 'translate-y-0' : 'translate-y-full opacity-0 pointer-events-none'"
-        >
-          <span class="text-sm font-semibold text-yellow-500 flex items-center gap-2 ml-4">
-            <i class="bi bi-exclamation-triangle-fill" />
-            Modifications non enregistrées
-          </span>
-          <div class="flex items-center gap-3">
-            <button 
-              @click="resetChanges"
-              :disabled="isSaving"
-              class="px-4 py-2 text-sm font-semibold text-(--text2) hover:text-(--text) transition-colors"
-            >
-              Annuler
-            </button>
-            <button 
-              @click="saveDefaults"
-              :disabled="isSaving"
-              class="primary flex items-center gap-2"
-            >
-              <div v-if="isSaving" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              <span>Enregistrer les modifications</span>
-            </button>
-          </div>
-        </div>
-
       </template>
 
       <!-- État vide -->
@@ -209,6 +181,34 @@
         </p>
       </div>
 
+    </div>
+
+    <!-- Barre de Sauvegarde (Sticky Footer) Globale -->
+    <div 
+      class="absolute bottom-0 left-0 right-0 border-t border-(--border-color) bg-(--bg)/90 backdrop-blur-md p-4 flex items-center justify-between transition-transform duration-300 z-50 shadow-2xl"
+      :class="hasChanges ? 'translate-y-0' : 'translate-y-full opacity-0 pointer-events-none'"
+    >
+      <span class="text-sm font-semibold text-yellow-500 flex items-center gap-2 ml-6">
+        <i class="bi bi-exclamation-triangle-fill" />
+        Modifications non enregistrées
+      </span>
+      <div class="flex items-center gap-3 mr-6">
+        <button 
+          @click="resetChanges"
+          :disabled="isSaving"
+          class="px-4 py-2 text-sm font-semibold text-(--text2) hover:text-(--text) transition-colors"
+        >
+          Annuler
+        </button>
+        <button 
+          @click="saveDefaults"
+          :disabled="isSaving"
+          class="primary flex items-center gap-2 shadow-lg"
+        >
+          <div v-if="isSaving" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          <span>Enregistrer les modifications</span>
+        </button>
+      </div>
     </div>
 
     <!-- Modal Création -->
