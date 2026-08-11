@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' http://localhost:* ws://localhost:*; connect-src 'self' https://*.silvercore.fr wss://*.silvercore.fr http://localhost:* ws://localhost:*;"
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; connect-src 'self' blob: tauri: tauri://localhost http://tauri.localhost http://localhost:5174 http://127.0.0.1:5174 http://ipc.localhost https://api-synco.silvercore.fr ws://api-synco.silvercore.fr wss://api-synco.silvercore.fr ws://api-synco.silvercore.fr:9001 wss://api-synco.silvercore.fr:9001 https://auth.silvercore.fr https://livekit.silvercore.fr wss://livekit.silvercore.fr http://localhost:* https://localhost:* ws://localhost:* wss://localhost:* https://192.168.1.73:* https://huggingface.co https://*.huggingface.co https://cdn.jsdelivr.net https://raw.githubusercontent.com https://cas-bridge.xethub.hf.co https://*.cdn.hf.co; img-src 'self' data: blob: https://ui-avatars.com https://avatars.githubusercontent.com http://localhost:* https://localhost:* https://192.168.1.73:* https://api-synco.silvercore.fr; frame-src 'self' blob: http://localhost:* https://localhost:* https://192.168.1.73:* https://api-synco.silvercore.fr;"
     }
   },
   "plugins": {
