@@ -56,13 +56,18 @@
                 </div>
 
                 <div class="flex flex-col flex-1 min-w-0">
-                    <span class="text-sm font-medium text-(--text) truncate">
+                    <span class="text-sm font-medium text-(--text) truncate" :class="member.user && getUnreadCountByDMUserId(member.user.id).value > 0 ? 'text-red-400' : ''">
                         {{ member.user?.name }}
                     </span>
                     <span class="text-xs text-(--text2)">
                         {{ member.role }}
                     </span>
                 </div>
+
+                <div 
+                    v-if="member.user && getUnreadCountByDMUserId(member.user.id).value > 0"
+                    class="ml-auto w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]"
+                />
 
                 <button
                     v-if="member.user?.id !== keycloak.subject"
@@ -104,13 +109,18 @@
                 </div>
 
                 <div class="flex flex-col flex-1 min-w-0">
-                    <span class="text-sm font-medium text-(--text) truncate">
+                    <span class="text-sm font-medium text-(--text) truncate" :class="member.user && getUnreadCountByDMUserId(member.user.id).value > 0 ? 'text-red-400' : ''">
                         {{ member.user?.name }}
                     </span>
                     <span class="text-xs text-(--text2)">
                         {{ member.role }}
                     </span>
                 </div>
+
+                <div 
+                    v-if="member.user && getUnreadCountByDMUserId(member.user.id).value > 0"
+                    class="ml-auto w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]"
+                />
 
             </button>
 
@@ -182,10 +192,12 @@ import useSecurePeer from '@/composables/useSecurePeer';
 import { keycloak } from '@/assets/keycloak';
 import { openProfile } from '@/composables/useProfile';
 import { useUsersBar } from '@/composables/useUsersBar';
+import { useNotification } from '@/composables/useNotification';
 
 const route = useRoute();
 const { showUsersBar } = useUsersBar();
 const { startCall } = useSecurePeer();
+const { getUnreadCountByDMUserId } = useNotification();
 
 defineProps<{
     isLittleScreen: boolean;
