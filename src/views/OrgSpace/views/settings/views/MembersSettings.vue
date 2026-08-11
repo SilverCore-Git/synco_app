@@ -75,14 +75,14 @@
                                     <div class="px-6 py-4 flex items-center gap-4 hidden sm:flex">
                                         <div class="relative">
                                             <img
-                                                :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=062d1f&color=16ac77`"
+                                                :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(member.user?.name)}&background=062d1f&color=16ac77`"
                                                 class="w-10 h-10 rounded-full object-cover bg-(--bg) border border-(--border-color)"
                                             />
                                             <div v-if="isSelf(member.user?.id!)" class="absolute -bottom-1 -right-1 bg-(--primary) w-3.5 h-3.5 rounded-full border-2 border-(--bg2)" title="Vous" />
                                         </div>
                                         <div class="flex flex-col">
                                             <span class="text-sm font-bold text-(--text) group-hover:text-(--primary) transition-colors">
-                                                {{ member.user?.name || 'Utilisateur inconnu' }}
+                                                {{ $p(member.user?.name) || 'Utilisateur inconnu' }}
                                             </span>
                                             <span class="text-[11px] text-(--text2)">{{ member.user?.email }}</span>
                                         </div>
@@ -131,7 +131,7 @@
                                     <div class="px-6 py-4 flex items-center justify-end gap-2 hidden sm:flex">
                                         <button
                                             v-if="!isSelf(member.user?.id!) && can('ORG_MEMBERS')"
-                                            @click="confirmKickMember(member.id, member.user?.name || 'ce membre')"
+                                            @click="confirmKickMember(member.id, $p(member.user?.name) || 'ce membre')"
                                             class="p-2 rounded-xl text-(--text2) hover:bg-red-500/10 hover:text-red-500 transition-colors"
                                             title="Exclure le membre"
                                         >
@@ -147,14 +147,14 @@
                                             <div class="flex items-center gap-3">
                                                 <div class="relative">
                                                     <img
-                                                        :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=062d1f&color=16ac77`"
+                                                        :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(member.user?.name)}&background=062d1f&color=16ac77`"
                                                         class="w-10 h-10 rounded-full object-cover bg-(--bg) border border-(--border-color)"
                                                     />
                                                     <div v-if="isSelf(member.user?.id!)" class="absolute -bottom-1 -right-1 bg-(--primary) w-3.5 h-3.5 rounded-full border-2 border-(--bg2)" title="Vous" />
                                                 </div>
                                                 <div class="flex flex-col">
                                                     <span class="text-sm font-bold text-(--text)">
-                                                        {{ member.user?.name || 'Utilisateur inconnu' }}
+                                                        {{ $p(member.user?.name) || 'Utilisateur inconnu' }}
                                                     </span>
                                                     <span class="text-[11px] text-(--text2)">{{ member.user?.email }}</span>
                                                 </div>
@@ -163,7 +163,7 @@
                                             <!-- Actions (Mobile) -->
                                             <button
                                                 v-if="!isSelf(member.user?.id!) && can('ORG_MEMBERS')"
-                                                @click="confirmKickMember(member.id, member.user?.name || 'ce membre')"
+                                                @click="confirmKickMember(member.id, $p(member.user?.name) || 'ce membre')"
                                                 class="p-2 rounded-xl text-red-500 transition-colors"
                                                 title="Exclure le membre"
                                             >

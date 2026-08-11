@@ -51,7 +51,7 @@
                         <div class="flex items-center gap-3">
                             <i class="bi bi-folder-fill text-(--primary) text-xl"></i>
                             <h3 class="text-xl font-black text-(--text) tracking-wide">
-                                {{ spaceGroup.name }}
+                                {{ $p(spaceGroup.name) }}
                             </h3>
                             <span class="bg-white/10 text-xs px-2 py-0.5 rounded-full font-bold">
                                 {{ spaceGroup.tasks.length }} tâche(s)
@@ -106,9 +106,9 @@
                                     <div class="flex items-center justify-between mt-4">
                                         <div class="flex items-center -space-x-1.5" v-if="task.assignees?.length">
                                             <template v-for="assignee in task.assignees.slice(0,3)" :key="assignee.id">
-                                                <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="assignee.name" class="w-6 h-6 rounded-full object-cover border-2 border-(--bg2) z-10 hover:z-20">
-                                                <div v-else :title="assignee.name" class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10 hover:z-20">
-                                                    {{ assignee.name.substring(0, 2).toUpperCase() }}
+                                                <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="$p(assignee.name)" class="w-6 h-6 rounded-full object-cover border-2 border-(--bg2) z-10 hover:z-20">
+                                                <div v-else :title="$p(assignee.name)" class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10 hover:z-20">
+                                                    {{ $p(assignee.name).substring(0, 2).toUpperCase() }}
                                                 </div>
                                             </template>
                                             <div v-if="task.assignees.length > 3" class="w-6 h-6 rounded-full bg-white/10 text-white flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10">

@@ -15,10 +15,10 @@
         <div class="relative shrink-0">
 
             <img
-                :src="user?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.user?.name}&background=128a60&color=fff`"
-                :alt="user?.user?.name"
+                :src="user?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(user?.user?.name)}&background=128a60&color=fff`"
+                :alt="$p(user?.user?.name)"
                 class="w-8 h-8 rounded-full object-cover border border-white/10 group-hover:border-(--primary)/30 transition-colors"
-                @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${user?.user?.name}&background=128a60&color=fff`"
+                @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(user?.user?.name)}&background=128a60&color=fff`"
             />
             
             <div 
@@ -34,7 +34,7 @@
 
         <div class="flex flex-col flex-1 min-w-0 relative">
             <span class="text-sm font-bold truncate tracking-tight" :class="user?.user && getUnreadCountByDMUserId(user.user.id).value > 0 ? 'text-red-400' : ''">
-                {{ user?.user?.name }}
+                {{ $p(user?.user?.name) }}
             </span>
             <span class="text-[10px] opacity-40 uppercase tracking-widest font-medium leading-none">
                 {{ user?.role }}

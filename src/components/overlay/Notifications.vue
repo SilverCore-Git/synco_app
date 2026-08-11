@@ -41,7 +41,7 @@
 
                             <div class="flex-1 overflow-hidden" v-if="notif.msg">
                                 <h4 class="text-(--text) text-sm font-bold truncate flex items-center gap-1">
-                                    {{ (notif.msg as any)?.sender?.name }}
+                                    {{ $p((notif.msg as any)?.sender?.name) }}
                                     <span v-if="(notif.msg as any).webhookId" class="bg-(--primary)/20 text-(--primary) text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">APP</span>
                                 </h4>
                                 <p class="text-(--text) text-sm line-clamp-2 leading-snug">
@@ -65,14 +65,14 @@
                             
                             <div class="relative shrink-0">
                                 <img 
-                                    :src="notif.dmmsg?.sender?.avatarUrl  || `https://ui-avatars.com/api/?name=${notif.dmmsg?.sender?.name}&background=128a60&color=fff`"
+                                    :src="notif.dmmsg?.sender?.avatarUrl  || `https://ui-avatars.com/api/?name=${$p(notif.dmmsg?.sender?.name)}&background=128a60&color=fff`"
                                     class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
                                 />
                             </div>
 
                             <div class="flex-1 overflow-hidden" v-if="notif.dmmsg">
                                 <h4 class="text-(--text) text-sm font-bold truncate">
-                                    {{ notif.dmmsg?.sender?.name }}
+                                    {{ $p(notif.dmmsg?.sender?.name) }}
                                 </h4>
                                 <p class="text-(--text) text-sm line-clamp-2 leading-snug">
                                     {{ notif.dmmsg?.content }}
@@ -98,7 +98,7 @@
 
                                 <div class="flex-1 overflow-hidden">
                                     <p class="text-xs font-bold text-primary uppercase tracking-wider mb-1">Appel entrant</p>
-                                    <h4 class=" font-semibold truncate">{{ notif.call?.user?.name || 'Utilisateur inconnu' }}</h4>
+                                    <h4 class=" font-semibold truncate">{{ $p(notif.call?.user?.name) || 'Utilisateur inconnu' }}</h4>
                                 </div>
 
                             </div>
@@ -142,7 +142,7 @@
 
                                 <div class="flex-1 overflow-hidden">
                                     <p class="text-xs font-bold text-primary uppercase tracking-wider mb-1">Discussion privée</p>
-                                    <h4 class=" font-semibold truncate">{{ notif.privateMeet?.user?.name || 'Utilisateur inconnu' }}</h4>
+                                    <h4 class=" font-semibold truncate">{{ $p(notif.privateMeet?.user?.name) || 'Utilisateur inconnu' }}</h4>
                                 </div>
 
                             </div>

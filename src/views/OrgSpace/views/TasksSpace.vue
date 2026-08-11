@@ -49,9 +49,9 @@
                     <button v-for="member in spaceMembers" :key="member.id" @click="filterUserId = member.userId" class="flex items-center gap-2 px-3 py-1.5 font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="filterUserId === member.userId ? 'primary shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 rounded-xl text-white/50 hover:bg-white/10'">
                         <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-5 h-5 rounded-full object-cover">
                         <div v-else class="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px]">
-                            {{ member.user?.name?.substring(0,2).toUpperCase() }}
+                            {{ $p(member.user?.name)?.substring(0,2).toUpperCase() }}
                         </div>
-                        {{ member.user?.name }}
+                        {{ $p(member.user?.name) }}
                     </button>
                 </div>
                 
@@ -114,9 +114,9 @@
                             <div class="flex items-center justify-between mt-4">
                                 <div class="flex items-center -space-x-1.5" v-if="task.assignees?.length">
                                     <template v-for="assignee in task.assignees.slice(0,3)" :key="assignee.id">
-                                        <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="assignee.name" class="w-6 h-6 rounded-full object-cover border-2 border-(--bg2) z-10 hover:z-20">
-                                        <div v-else :title="assignee.name" class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10 hover:z-20">
-                                            {{ assignee.name.substring(0, 2).toUpperCase() }}
+                                        <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="$p(assignee.name)" class="w-6 h-6 rounded-full object-cover border-2 border-(--bg2) z-10 hover:z-20">
+                                        <div v-else :title="$p(assignee.name)" class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10 hover:z-20">
+                                            {{ $p(assignee.name).substring(0, 2).toUpperCase() }}
                                         </div>
                                     </template>
                                     <div v-if="task.assignees.length > 3" class="w-6 h-6 rounded-full bg-white/10 text-white flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10">

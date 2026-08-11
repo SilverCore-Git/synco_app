@@ -113,11 +113,11 @@
           </div>
 
           <div class="max-w-3xl flex flex-col gap-10 pb-32">
-            <template v-for="group in filteredPermissionGroups" :key="group.name">
+            <template v-for="group in filteredPermissionGroups" :key="$p(group.name)">
               <div v-if="group.keys.length > 0" class="flex flex-col gap-4">
                 
                 <h3 class="text-xs font-black uppercase tracking-widest text-(--primary) border-b border-(--border-color) pb-2">
-                  {{ group.name }}
+                  {{ $p(group.name) }}
                 </h3>
                 
                 <div class="flex flex-col gap-1">

@@ -44,10 +44,10 @@
 
                 <div class="relative">
                     <img 
-                        :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=128a60&color=fff`" 
-                        :alt="member.user?.name"
+                        :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(member.user?.name)}&background=128a60&color=fff`" 
+                        :alt="$p(member.user?.name)"
                         class="w-8 h-8 rounded-full"
-                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${member.user?.name}&background=128a60&color=fff`"
+                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(member.user?.name)}&background=128a60&color=fff`"
                     />
                     <span 
                         class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg2)"
@@ -57,7 +57,7 @@
 
                 <div class="flex flex-col flex-1 min-w-0">
                     <span class="text-sm font-medium text-(--text) truncate" :class="member.user && getUnreadCountByDMUserId(member.user.id).value > 0 ? 'text-red-400' : ''">
-                        {{ member.user?.name }}
+                        {{ $p(member.user?.name) }}
                     </span>
                     <span class="text-xs text-(--text2)">
                         {{ member.role }}
@@ -97,10 +97,10 @@
 
                 <div class="relative">
                     <img 
-                        :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=128a60&color=fff`" 
-                        :alt="member.user?.name"
+                        :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(member.user?.name)}&background=128a60&color=fff`" 
+                        :alt="$p(member.user?.name)"
                         class="w-8 h-8 rounded-full"
-                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${member.user?.name}&background=128a60&color=fff`"
+                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(member.user?.name)}&background=128a60&color=fff`"
                     />
                     <span 
                         class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg2)"
@@ -110,7 +110,7 @@
 
                 <div class="flex flex-col flex-1 min-w-0">
                     <span class="text-sm font-medium text-(--text) truncate" :class="member.user && getUnreadCountByDMUserId(member.user.id).value > 0 ? 'text-red-400' : ''">
-                        {{ member.user?.name }}
+                        {{ $p(member.user?.name) }}
                     </span>
                     <span class="text-xs text-(--text2)">
                         {{ member.role }}

@@ -13,16 +13,16 @@
 
 
                 <img 
-                    :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${recipient?.name}&background=128a60&color=fff`" 
-                    :alt="recipient.name"
-                    @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${recipient?.name}&background=128a60&color=fff`"
+                    :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`" 
+                    :alt="$p(recipient.name)"
+                    @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`"
                     class="w-9 h-9 rounded-full border border-white/10"
                 />
 
                 <div class="flex flex-col">
 
                     <h2 class="font-bold text-(--text) tracking-wide leading-none mb-1">
-                        {{ recipient.name }}
+                        {{ $p(recipient.name) }}
                     </h2>
 
                     <div class="flex items-center gap-1.5">
@@ -79,14 +79,14 @@
                    
                     <div class="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4 overflow-hidden border-2 border-white/10">
                         <img 
-                            :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${recipient?.name}&background=128a60&color=fff`" 
+                            :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`" 
                             class="w-full h-full object-cover" 
                         />
                     </div>
 
-                    <h1 class="text-3xl font-black text-(--text) mb-2">{{ recipient.name }}</h1>
+                    <h1 class="text-3xl font-black text-(--text) mb-2">{{ $p(recipient.name) }}</h1>
                     <p class="text-(--text2) text-sm">
-                        C'est le début de votre historique de messages directs avec <b>@{{ recipient.name }}</b>.
+                        C'est le début de votre historique de messages directs avec <b>@{{ $p(recipient.name) }}</b>.
                     </p>
 
                 </div>
@@ -150,7 +150,7 @@
                 </div>
 
                 <p class="text-[11px] text-(--text2) italic">
-                    {{ recipient.name }} est en train d'écrire
+                    {{ $p(recipient.name) }} est en train d'écrire
                 </p>
 
             </div>
@@ -269,7 +269,7 @@
                         @send="sendMessage"
                         @input="handleTyping"
                         ref="TextareaRef"
-                        :placeholder="'Message @' + recipient.name"
+                        :placeholder="'Message @' + $p(recipient.name)"
                     />
 
                     <div 

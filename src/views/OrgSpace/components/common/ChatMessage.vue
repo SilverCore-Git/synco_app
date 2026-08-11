@@ -23,14 +23,14 @@
                         <div class="z-10 absolute left-4 top-2.5 w-7 h-13 border-l-2 border-t-2 border-white/20 group-hover/reply:border-white/40 rounded-tl-md" />
 
                         <img 
-                            :src="msg.replyMessage?.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${msg.replyMessage?.sender?.name}&background=128a60&color=fff`"
-                            :alt="msg.replyMessage?.sender?.name"
-                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${msg.replyMessage?.sender?.name}&background=128a60&color=fff`"
+                            :src="msg.replyMessage?.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(msg.replyMessage?.sender?.name)}&background=128a60&color=fff`"
+                            :alt="$p(msg.replyMessage?.sender?.name)"
+                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(msg.replyMessage?.sender?.name)}&background=128a60&color=fff`"
                             class="w-4 h-4 rounded-full opacity-80 shrink-0"
                         />
                         
                         <span class="font-semibold text-(--primary)/80 ">
-                            @{{ msg.replyMessage?.sender?.name || 'Anonyme' }}
+                            @{{ $p(msg.replyMessage?.sender?.name) || 'Anonyme' }}
                         </span>
 
                         <div class="max-w-md opacity-70 pointer-events-none text-[11px] line-clamp-1 [&_p]:inline [&_h1]:inline [&_h2]:inline [&_h3]:inline">
@@ -90,9 +90,9 @@
 
                         <img 
                             v-if="msg.sender && !isStacked"
-                            :src="msg.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=128a60&color=fff`"
-                            :alt="msg.sender?.name"
-                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=128a60&color=fff`"
+                            :src="msg.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(msg.sender?.name)}&background=128a60&color=fff`"
+                            :alt="$p(msg.sender?.name)"
+                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(msg.sender?.name)}&background=128a60&color=fff`"
                             @click.stop="(e) => msg.sender && openProfile(msg.sender, e)"
                             class="rounded-full w-9 h-9 object-cover shrink-0 cursor-pointer hover:ring-2 hover:ring-(--primary)/50 transition-all"
                         />
@@ -111,7 +111,7 @@
                                     class="text-(--primary) font-bold text-xs tracking-tighter truncate cursor-pointer hover:underline"
                                     @click.stop="(e) => msg.sender && openProfile(msg.sender, e)"
                                 >
-                                    {{ msg.sender?.name || 'Anonyme' }}
+                                    {{ $p(msg.sender?.name) || 'Anonyme' }}
                                 </span>
 
                                 <span class="text-(--text2) text-[10px] whitespace-nowrap">

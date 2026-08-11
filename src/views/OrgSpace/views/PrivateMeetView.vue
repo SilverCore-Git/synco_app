@@ -102,7 +102,7 @@
                     @send="sendEncryptedMessage(newMessage); newMessage = ''"
                     @input=""
                     ref="inputComponent"
-                    :placeholder="'Message @' + recipient.user?.name"
+                    :placeholder="'Message @' + $p(recipient.user?.name)"
                 />
 
                 <button 
