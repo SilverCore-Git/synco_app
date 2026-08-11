@@ -13,7 +13,7 @@ import sfetch from '@/assets/utils/sfetch';
 
 const router = useRouter();
 const route = useRoute();
-const { getUnreadCountBySpaceId, getUnreadCountForTasks } = useNotification();
+const { getUnreadCountBySpaceId, getUnreadCountForTasks, getUnreadCountForDMs } = useNotification();
 
 const localSpaces = ref<WorkSpace[]>([]);
 
@@ -94,13 +94,17 @@ const onSpaceOrderChange = async () => {
                 />
             </RouterLink>
 
-            <RouterLink :to="`/${openedOrg.id}/chat?showView=0`">
+            <RouterLink :to="`/${openedOrg.id}/chat?showView=0`" class="relative">
                 <SpaceBarBTN
                     icon="bi-chat-dots"
                     label="Messages privées"
-                    iconFillOnActive
                     :active="route.name === 'OrgChat' || route.name === 'OrgThreadChat'"
+                    iconFillOnActive
                 />
+                <div 
+                    v-if="getUnreadCountForDMs > 0" 
+                    class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-pulse"
+                ></div>
             </RouterLink>
 
             <RouterLink v-if="todoEnabled" :to="`/${openedOrg.id}/tasks?showView=1`">

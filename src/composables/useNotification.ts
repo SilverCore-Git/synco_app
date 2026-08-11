@@ -621,6 +621,13 @@ export function useNotification() {
     return notifications.value.filter(n => !n.isRead && n.type === 'CUSTOM' && n.data?.type === 'TASK_UPDATE').length;
   });
 
+  /**
+   * Obtenir le nombre de notifications non lues pour tous les messages privés
+   */
+  const getUnreadCountForDMs = computed(() => {
+    return notifications.value.filter(n => !n.isRead && n.type === 'MESSAGE' && n.data?.dmUserId).length;
+  });
+
   // ==================== RETURN ====================
 
   return {
@@ -638,6 +645,7 @@ export function useNotification() {
     getUnreadCountByThreadId,
     getUnreadCountByDMUserId,
     getUnreadCountForTasks,
+    getUnreadCountForDMs,
 
     // Méthodes
     init,
