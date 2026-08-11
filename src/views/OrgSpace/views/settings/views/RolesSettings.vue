@@ -53,7 +53,7 @@
             <div class="flex flex-col pl-1">
               <span class="font-bold text-sm flex items-center gap-2" :class="selectedRoleId === role.id ? 'text-(--primary)' : 'text-(--text)'">
                 {{ role.name }}
-                <span v-if="role.isSystem" class="text-[9px] font-black bg-white/5 px-1.5 py-0.5 rounded text-(--text2) uppercase tracking-wider border border-(--border-color)">
+                <span v-if="role.name === 'OWNER'" class="text-[9px] font-black bg-white/5 px-1.5 py-0.5 rounded text-(--text2) uppercase tracking-wider border border-(--border-color)">
                   Sys
                 </span>
               </span>
@@ -94,7 +94,7 @@
           <div class="flex items-center gap-3">
             <!-- Bouton Supprimer -->
             <button 
-              v-if="!selectedRole.isSystem"
+              v-if="selectedRole.name !== 'OWNER'"
               @click="deleteRole(selectedRole)"
               class="w-10 h-10 flex items-center justify-center text-red-400 bg-red-400/10 hover:bg-red-400/20 rounded-lg transition-colors"
               title="Supprimer le rôle"
