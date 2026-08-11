@@ -646,6 +646,17 @@ const initListener = () => {
 
     socket.value.on("dm:new-message", async (msg: any) => {
         const decryptedMsg = await decryptSingleMessage(msg);
+        
+        if (msg.senderId === user.value?.id) {
+            const tempIndex = messages.value.findIndex(m => String(m.id).startsWith('temp-') && m.content === decryptedMsg?.content);
+            if (tempIndex !== -1) {
+                messages.value.splice(tempIndex, 1);
+            } else {
+                const fallbackTempIndex = messages.value.findIndex(m => String(m.id).startsWith('temp-'));
+                if (fallbackTempIndex !== -1) messages.value.splice(fallbackTempIndex, 1);
+            }
+        }
+
         messages.value.push(decryptedMsg);
         isSomeoneTyping.value = false;
         scrollToBottom();
@@ -714,29 +725,52 @@ const sendMessage = async () => {
 
     if (!newMessage.value.trim() || !socket.value || !recipient.value) return;
 
-    let finalContent = newMessage.value;
+    const clearContent = newMessage.value;
+    const tempId = `temp-${Date.now()}`;
+    const useEncryption = isE2EEEnabled.value && E2EEUnloked.value;
+
+    const tempMessage = {
+        id: tempId,
+        content: clearContent,
+        senderId: user.value?.id,
+        recipientId: recipient.value.id,
+        sender: user.value,
+        recipient: recipient.value,
+        createdAt: new Date(),
+        isE2EE: useEncryption,
+        isSending: true,
+        replyToId: messageWillBeResponded.value?.id,
+        replyMessage: messageWillBeResponded.value,
+    };
+    
+    messages.value.push(tempMessage);
+    
+    setMessageWillBeResponded(null);
+    newMessage.value = "";
+    stopTyping();
+    scrollToBottom();
+
+    let finalContent = clearContent;
     let finalEncryptedAesKey = null;
     let selfEncryptedAesKey = null;
     let finalIv = null;
-
-    const useEncryption = isE2EEEnabled.value && E2EEUnloked.value;
 
     if (useEncryption) 
     {
         
         const recipientPubKey = recipient.value.publicKey;
-        
         const myPubKey = user.value?.publicKey; 
 
         if (!recipientPubKey) 
         {
             toast.show("Clé du destinataire introuvable.", "error");
+            messages.value = messages.value.filter(m => m.id !== tempId);
             return;
         }
 
         try {
             
-            const encryptedData = await encryptForPeer(newMessage.value, recipientPubKey, myPubKey || undefined);
+            const encryptedData = await encryptForPeer(clearContent, recipientPubKey, myPubKey || undefined);
 
             finalContent = encryptedData.ciphertext;
             finalEncryptedAesKey = encryptedData.encryptedAesKey;
@@ -746,6 +780,7 @@ const sendMessage = async () => {
         } catch (e) {
             console.error("Erreur de chiffrement:", e);
             toast.show("Erreur lors du chiffrement.", "error");
+            messages.value = messages.value.filter(m => m.id !== tempId);
             return;
         }
     }
@@ -757,12 +792,8 @@ const sendMessage = async () => {
         selfEncryptedAesKey: selfEncryptedAesKey,
         nonce: finalIv,
         isE2EE: useEncryption,
-        replyToId: messageWillBeResponded.value?.id,
+        replyToId: tempMessage.replyToId,
     });
-
-    setMessageWillBeResponded(null);
-    newMessage.value = "";
-    stopTyping();
 
 };
 

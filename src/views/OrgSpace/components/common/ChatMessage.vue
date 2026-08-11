@@ -4,6 +4,7 @@
                     :key="msg.id" 
                     class="group relative px-4 py-2 flex flex-col justify-start items-start rounded-lg transition-colors w-full"
                     :class="[
+                        (msg as any).isSending ? 'opacity-50' : '',
                         selectedMessage == msg.id ? ' border border-(--primary) border-dashed animate-pulse' : '',
                         user?.id == msg.replyMessage?.senderId || isTagMe
                             ? 'border-l-2 border-(--primary-dark) bg-(--primary-dark)/30 hover:bg-(--primary-dark)/50' 
