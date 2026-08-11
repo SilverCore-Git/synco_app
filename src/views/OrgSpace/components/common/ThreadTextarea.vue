@@ -60,7 +60,7 @@ const mentionQuery = ref<string>('');
 const activeMentionIndex = ref<number>(0);
 const startMentionIndex = ref<number>(-1);
 
-const mockWorkspaceUsers = ref<{ id: string; name: string }[]>(openedOrg.value?.members?.map(m => ({ id: m.userId, name: m.user!.name })) || []);
+const mockWorkspaceUsers = ref<{ id: string; name: string; pseudo?: string }[]>(openedOrg.value?.members?.map(m => ({ id: m.userId, name: m.user!.name, pseudo: m.user!.pseudo })) || []);
 
 watch(() => props.modelValue, (text) => {
 
@@ -71,7 +71,7 @@ watch(() => props.modelValue, (text) => {
 
     const selectionStart = textareaRef.value?.selectionStart || 0;
     const textBeforeCursor = text.slice(0, selectionStart);
-    const mentionMatch = textBeforeCursor.match(/(?:^|\s)@(\w*)$/);
+    const mentionMatch = textBeforeCursor.match(/(?:^|\s)@([a-zA-Z0-9_\-\.]*)$/);
 
     if (mentionMatch) 
     {
@@ -86,7 +86,7 @@ watch(() => props.modelValue, (text) => {
 
 });
 
-const insertMention = (user: { id: string; name: string }) => {
+const insertMention = (user: { id: string; name: string; pseudo?: string }) => {
 
     if (startMentionIndex.value === -1) return;
 
@@ -94,7 +94,8 @@ const insertMention = (user: { id: string; name: string }) => {
     const beforeMention = text.slice(0, startMentionIndex.value);
     const afterMention = text.slice(textareaRef.value?.selectionStart || 0);
 
-    const updatedValue = `${beforeMention}@${user.name} ${afterMention}`;
+    const mentionText = user.pseudo ? user.pseudo : user.name.replace(/\s+/g, '');
+    const updatedValue = `${beforeMention}@${mentionText} ${afterMention}`;
     emit('update:modelValue', updatedValue);
     
     showMentions.value = false;
@@ -111,8 +112,9 @@ const handleKeydown = (e: KeyboardEvent) => {
     
     if (!showMentions.value) return;
 
+    const query = mentionQuery.value?.toLowerCase() || '';
     const filtered = mockWorkspaceUsers.value.filter(u => 
-        u.name.toLowerCase().includes(mentionQuery.value?.toLowerCase() || '')
+        u.name.toLowerCase().includes(query) || (u.pseudo && u.pseudo.toLowerCase().includes(query))
     );
 
     if (!filtered.length) return;

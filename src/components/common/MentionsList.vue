@@ -21,7 +21,10 @@
             <div class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center font-bold text-xs">
                 {{ user.name.charAt(0).toUpperCase() }}
             </div>
-            <span class="truncate">{{ user.name }}</span>
+            <div class="flex flex-col min-w-0">
+                <span class="truncate">{{ user.name }}</span>
+                <span v-if="user.pseudo" class="text-xs text-(--primary) truncate">@{{ user.pseudo }}</span>
+            </div>
         </button>
         
     </div>
@@ -35,7 +38,7 @@ import { computed } from 'vue';
 const props = defineProps<{
   isOpen: boolean;
   searchQuery: string;
-  users: Array<{ id: string; name: string }>;
+  users: Array<{ id: string; name: string; pseudo?: string }>;
   activeIndex: number;
 }>();
 
@@ -43,8 +46,10 @@ defineEmits(['select']);
 
 const filteredUsers = computed(() => {
     if (!props.searchQuery) return props.users;
+    const query = props.searchQuery.toLowerCase();
     return props.users.filter(u => 
-        u.name.toLowerCase().includes(props.searchQuery.toLowerCase())
+        u.name.toLowerCase().includes(query) || 
+        (u.pseudo && u.pseudo.toLowerCase().includes(query))
     );
 });
 

@@ -609,10 +609,15 @@ const initListener = () => {
         }
     });
 
-    socket.value.on('dm:history', async (data: { messages: any[]; hasMore: boolean } | any[]) => {
+    socket.value.on('dm:history', async (data: { recipientId?: string; messages: any[]; hasMore: boolean } | any[]) => {
         // Handle both old format (array) and new format (object with messages and hasMore)
         const history = Array.isArray(data) ? data : data.messages;
         const receivedHasMore = Array.isArray(data) ? true : data.hasMore;
+        const receivedRecipientId = Array.isArray(data) ? undefined : data.recipientId;
+
+        if (receivedRecipientId && recipient.value?.id && receivedRecipientId !== recipient.value.id) {
+            return; // Ignore history from another DM (race condition)
+        }
         
         messages.value = await procesMessages(history);
         hasMore.value = receivedHasMore;

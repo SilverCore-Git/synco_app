@@ -692,7 +692,14 @@ const initListener = () => {
         }
     });
 
-    socket.value.on("thread-history", async (history: Message[]) => {
+    socket.value.on("thread-history", async (data: { threadId?: string; messages: Message[] } | Message[]) => {
+        const history = Array.isArray(data) ? data : data.messages;
+        const receivedThreadId = Array.isArray(data) ? undefined : data.threadId;
+
+        if (receivedThreadId && thread.value?.id && receivedThreadId !== thread.value.id) {
+            return; // Ignore history from another thread
+        }
+
         rawMessages.value.clear();
         history.forEach(m => rawMessages.value.set(m.id, m));
         sortedMessages.value = await procesMessages(history);

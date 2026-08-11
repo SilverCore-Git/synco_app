@@ -407,7 +407,7 @@ const applyMentions = () => {
         {
             const span = document.createElement('span');
             span.innerHTML = text.replace(
-                /@(\w+)/g, 
+                /@([a-zA-Z0-9_\-\.]+)/g, 
                 '<span class="mention-tag">@$1</span>'
             );
             nodesToReplace.push({ oldNode: node as any, newNode: span });
