@@ -28,7 +28,7 @@
                     <template v-else-if="notif.type == 'notif:msg'">
 
                         <RouterLink
-                            :to="`/${openedOrg?.id}/${getSpaceIdByThreadId(notif.msg!.threadId)}/${notif.msg?.threadId}?type=text&select=${notif.msg?.id}`"
+                            :to="`/${(notif.msg as any)?.orgId || openedOrg?.id}/${(notif.msg as any)?.spaceId || getSpaceIdByThreadId(notif.msg!.threadId)}/${notif.msg?.threadId}?type=text&select=${notif.msg?.id}`"
                             class="flex items-center gap-3"
                         >
                             
