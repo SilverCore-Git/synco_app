@@ -148,18 +148,23 @@ watch(() => [props.isOpen, u.value?.avatarUrl, u.value?.name], async () => {
 }, { immediate: true });
 
 const role = computed(() => {
-    if (!openedOrg.value?.members || !u.value?.id) return 'member';
+    if (!openedOrg.value || !u.value?.id) return 'member';
+    if (openedOrg.value.ownerId === u.value.id) return 'owner';
+    if (!openedOrg.value.members) return 'member';
+    
     const member = openedOrg.value.members.find(m => m.userId === u.value.id);
     return member?.role || 'member';
 });
 
 const translatedRole = computed(() => {
-    if (role.value === 'owner' || role.value === 'ADMIN' || role.value === 'admin') return 'Administrateur';
+    if (role.value === 'owner') return 'Propriétaire';
+    if (role.value === 'ADMIN' || role.value === 'admin') return 'Administrateur';
     return 'Membre';
 });
 
 const roleColorClass = computed(() => {
-    if (role.value === 'owner' || role.value === 'ADMIN' || role.value === 'admin') return 'bg-orange-500';
+    if (role.value === 'owner') return 'bg-red-500';
+    if (role.value === 'ADMIN' || role.value === 'admin') return 'bg-orange-500';
     return 'bg-(--primary)';
 });
 
