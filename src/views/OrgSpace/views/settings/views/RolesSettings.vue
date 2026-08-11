@@ -528,6 +528,8 @@ function isRoleLocked(role: RoleData): boolean {
 }
 
 function getPermissionValue(roleId: string, perm: Permission): PermissionValue {
+  const role = roles.value.find((r: RoleData) => r.id === roleId);
+  if (role && role.name === 'OWNER') return 'ALLOW';
   return localPerms.value[roleId]?.[perm] || 'DENY';
 }
 
