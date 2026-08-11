@@ -1,10 +1,16 @@
 <template>
     <Popup :is-open="isOpen" @close="closeModal">
         <template #title>
-            <div class="flex items-center gap-2">
-                <i class="bi bi-check2-square text-(--primary)"></i>
-                <span v-if="!isEditing">Détails de la Tâche</span>
-                <span v-else>Modifier la Tâche</span>
+            <div class="flex flex-col gap-1">
+                <div v-if="task?.parentTask" class="flex items-center gap-1 text-[10px] font-bold text-(--text2) uppercase hover:text-(--primary) cursor-pointer transition-colors" @click="emit('open-task', task.parentTask)">
+                    <i class="bi bi-arrow-left-short text-sm"></i>
+                    {{ task.parentTask.title }}
+                </div>
+                <div class="flex items-center gap-2">
+                    <i class="bi bi-check2-square text-(--primary)"></i>
+                    <span v-if="!isEditing">Détails de la Tâche</span>
+                    <span v-else>Modifier la Tâche</span>
+                </div>
             </div>
         </template>
 
@@ -70,16 +76,36 @@
                 </div>
                 
                 <div class="space-y-2 max-h-[200px] overflow-y-auto pr-2">
-                    <div v-for="subtask in task.subtasks" :key="subtask.id" class="bg-black/20 border border-(--border-color) rounded-xl p-3 flex items-center justify-between group">
-                        <div class="flex items-center gap-3">
-                            <button @click="toggleSubtaskStatus(subtask)" class="text-xl transition-colors" :class="subtask.status === 'DONE' ? 'text-green-500' : 'text-(--text2) hover:text-(--primary)'">
-                                <i class="bi" :class="subtask.status === 'DONE' ? 'bi-check-circle-fill' : 'bi-circle'"></i>
+                    <div v-for="subtask in task.subtasks" :key="subtask.id" 
+                         @click="emit('open-task', subtask)"
+                         class="bg-black/20 border border-(--border-color) rounded-xl p-3 flex flex-col gap-2 group cursor-pointer hover:border-(--primary)/50 transition-colors">
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-center gap-3">
+                                <button @click.stop="toggleSubtaskStatus(subtask)" class="text-xl transition-colors mt-0.5" :class="subtask.status === 'DONE' ? 'text-green-500' : 'text-(--text2) hover:text-(--primary)'">
+                                    <i class="bi" :class="subtask.status === 'DONE' ? 'bi-check-circle-fill' : 'bi-circle'"></i>
+                                </button>
+                                <span class="text-sm font-bold" :class="subtask.status === 'DONE' ? 'text-(--text2) line-through' : 'text-white'">{{ subtask.title }}</span>
+                            </div>
+                            <button @click.stop="deleteSubtask(subtask.id)" class="text-red-500/50 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <i class="bi bi-trash-fill"></i>
                             </button>
-                            <span class="text-sm font-medium" :class="subtask.status === 'DONE' ? 'text-(--text2) line-through' : 'text-white'">{{ subtask.title }}</span>
                         </div>
-                        <button @click="deleteSubtask(subtask.id)" class="text-red-500/50 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <i class="bi bi-trash-fill"></i>
-                        </button>
+
+                        <div class="flex items-center justify-between pl-8" v-if="subtask.assignees?.length || subtask.dueDate">
+                            <div class="flex items-center -space-x-1.5" v-if="subtask.assignees?.length">
+                                <template v-for="assignee in subtask.assignees.slice(0,3)" :key="assignee.id">
+                                    <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="assignee.name" class="w-5 h-5 rounded-full object-cover border-2 border-black/20 z-10 hover:z-20">
+                                    <div v-else :title="assignee.name" class="w-5 h-5 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[8px] font-black border-2 border-black/20 z-10 hover:z-20">
+                                        {{ assignee.name.substring(0, 2).toUpperCase() }}
+                                    </div>
+                                </template>
+                            </div>
+                            <div v-else></div>
+
+                            <div v-if="subtask.dueDate" class="text-[9px] font-bold uppercase tracking-widest text-(--primary)">
+                                Échéance: {{ new Date(subtask.dueDate).toLocaleDateString() }}
+                            </div>
+                        </div>
                     </div>
                     
                     <div v-if="!task.subtasks || task.subtasks.length === 0" class="text-xs text-(--text2) italic text-center py-4">
@@ -117,7 +143,7 @@ const props = defineProps<{
     isOpen: boolean;
 }>();
 
-const emit = defineEmits(['close', 'update', 'delete']);
+const emit = defineEmits(['close', 'update', 'delete', 'open-task']);
 const route = useRoute();
 const toast = useToast();
 

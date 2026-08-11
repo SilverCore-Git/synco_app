@@ -95,7 +95,12 @@
                                      class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer active:cursor-grabbing hover:border-(--primary)/50 transition-all shadow-lg hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] group relative overflow-hidden"
                                 >
                                     <div class="flex justify-between items-start gap-2">
-                                        <p class="text-sm font-bold text-(--text) leading-snug">{{ task.title }}</p>
+                                        <div class="flex flex-col gap-1">
+                                            <p class="text-sm font-bold text-(--text) leading-snug">{{ task.title }}</p>
+                                            <span v-if="task.parentTask" class="text-[9px] font-bold text-(--primary) uppercase flex items-center gap-1 opacity-80">
+                                                <i class="bi bi-arrow-return-right"></i> {{ task.parentTask.title }}
+                                            </span>
+                                        </div>
                                     </div>
                                     
                                     <div class="flex items-center justify-between mt-4">
@@ -161,6 +166,7 @@
             @close="selectedTask = null"
             @update="onTaskUpdated"
             @delete="onTaskDeleted"
+            @open-task="handleOpenTask"
         />
 
         <Transition name="pop">
@@ -231,8 +237,6 @@ const spacesGroups = computed(() => {
     };
 
     rawTasks.value.forEach(task => {
-        // Exclude subtasks from main board
-        if (task.parentTaskId) return;
 
         // Only show tasks assigned to me
         if (!task.assignees?.some(a => a.id === user.value?.id)) return;
@@ -404,6 +408,20 @@ const onDrop = async (e: DragEvent, newStatus: string, targetGroupId: string) =>
 
 const openTaskDetails = (task: Task) => {
     selectedTask.value = task;
+};
+
+const handleOpenTask = async (taskPartial: any) => {
+    try {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskPartial.id}`);
+        if (res.ok) {
+            const fullTask = await res.json();
+            selectedTask.value = fullTask;
+        } else {
+            selectedTask.value = taskPartial; // Fallback
+        }
+    } catch (e) {
+        selectedTask.value = taskPartial; // Fallback
+    }
 };
 
 const onTaskCreated = (task: Task) => {
