@@ -305,7 +305,7 @@ import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 
 const toast = useToast();
 const orgId = computed(() => openedOrg.value?.id);
-const { fetchRoles, invalidateRolesCache, invalidateCache } = usePermissions(orgId);
+const { fetchRoles, invalidateRolesCache, invalidateCache, fetchPermissions } = usePermissions(orgId);
 
 const loading = ref(true);
 const isSaving = ref(false);
@@ -429,9 +429,10 @@ onUnmounted(() => {
   }
 });
 
-const handleRolesUpdated = () => {
+const handleRolesUpdated = async () => {
   invalidateCache();
   invalidateRolesCache();
+  await fetchPermissions();
   // Ne pas écraser les modifications locales en cours si possible,
   // mais pour faire simple et sûr : on recharge tout discrètement.
   if (!hasChanges.value) {
@@ -569,8 +570,8 @@ async function saveDefaults() {
     await loadData(true);
     
     // Invalidate local cache explicitly just in case WebSocket is slow
-    const { invalidateCache } = usePermissions(orgId);
     invalidateCache();
+    await fetchPermissions();
 
   } catch (err) {
     toast.show('Erreur lors de la sauvegarde', 'error');

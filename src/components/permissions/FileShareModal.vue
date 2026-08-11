@@ -101,7 +101,7 @@ const emit = defineEmits<{
 
 const toast = useToast();
 const orgId = computed(() => openedOrg.value?.id);
-const { fetchRoles, fetchOverrides, saveOverrides, invalidateCache } = usePermissions(orgId);
+const { fetchRoles, fetchOverrides, saveOverrides, invalidateCache, fetchPermissions } = usePermissions(orgId);
 
 const isLoading = ref(false);
 const isSaving = ref(false);
@@ -211,6 +211,7 @@ async function save() {
     if (ok) {
       originalOverrides.value = overrides;
       invalidateCache();
+      await fetchPermissions();
       toast.show('Permissions sauvegardées', 'success');
       emit('close');
     } else {
