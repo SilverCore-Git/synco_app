@@ -51,7 +51,7 @@
 
                 </template>
 
-                <div v-else class=" space-y-2 py-6">
+                <div v-else class=" py-6 flex flex-col">
                 
                     <div 
                             v-for="(msg, index) in sortedMessages" 

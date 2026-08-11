@@ -91,7 +91,7 @@
 
                 </div>
 
-                <div class="space-y-1 w-full">
+                <div class="flex flex-col w-full">
 
                     <template v-if="loading">
 
