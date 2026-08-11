@@ -4,15 +4,18 @@ import SpaceBarBTN from '../common/SpaceBarBTN.vue';
 import { useRoute, useRouter } from 'vue-router';
 import CreateNewSpace from '../popup/CreateNewSpace.vue';
 import { openedOrg, todoEnabled, aiEnabled, user } from '@/assets/var';
-import isAdmin from '@/assets/isAdmin';
 import { useNotification } from '@/composables/useNotification';
 import draggable from 'vuedraggable';
 import { ref, watch } from 'vue';
 import type { WorkSpace } from '@/types/types';
 import sfetch from '@/assets/utils/sfetch';
+import { usePermissions } from '@/composables/usePermissions';
+import { computed } from 'vue';
 
 const router = useRouter();
 const route = useRoute();
+const orgId = computed(() => openedOrg.value?.id);
+const { canAny } = usePermissions(orgId);
 const { getUnreadCountBySpaceId, getUnreadCountForTasks, getUnreadCountForDMs } = useNotification();
 
 const localSpaces = ref<WorkSpace[]>([]);
@@ -74,7 +77,7 @@ const onSpaceOrderChange = async () => {
                 />
             </RouterLink>
 
-            <RouterLink v-if="isAdmin" :to="`/${openedOrg.id}/settings?showView=0`">
+            <RouterLink v-if="canAny(['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI'])" :to="`/${openedOrg.id}/settings?showView=0`">
                 <SpaceBarBTN
                     icon="bi-gear"
                     label="Paramètres"
@@ -181,7 +184,7 @@ const onSpaceOrderChange = async () => {
             />
 
             <div
-                v-if="isAdmin"
+                v-if="canAny(['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI'])"
                 class="                
                     relative flex items-center justify-center 
                     w-12 h-12 cursor-pointer transition-all duration-300 ease-out

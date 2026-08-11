@@ -93,7 +93,7 @@
                                         <select
                                             :value="getMemberRoleId(member)"
                                             @change="updateRole(member.id, $event)"
-                                            :disabled="isSelf(member.user?.id!) || !isAdmin"
+                                            :disabled="isSelf(member.user?.id!) || !can('ORG_MEMBERS')"
                                             class="bg-(--bg) border border-(--border-color) rounded-lg px-3 py-1.5 text-xs text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
                                         >
                                             <option v-for="role in rolesList" :key="role.id" :value="role.id">
@@ -111,7 +111,7 @@
                                     <!-- Actions (Desktop) -->
                                     <div class="px-6 py-4 flex items-center justify-end gap-2 hidden sm:flex">
                                         <button
-                                            v-if="!isSelf(member.user?.id!) && isAdmin"
+                                            v-if="!isSelf(member.user?.id!) && can('ORG_MEMBERS')"
                                             @click="confirmKickMember(member.id, member.user?.name || 'ce membre')"
                                             class="p-2 rounded-xl text-(--text2) hover:bg-red-500/10 hover:text-red-500 transition-colors"
                                             title="Exclure le membre"
@@ -143,7 +143,7 @@
 
                                             <!-- Actions (Mobile) -->
                                             <button
-                                                v-if="!isSelf(member.user?.id!) && isAdmin"
+                                                v-if="!isSelf(member.user?.id!) && can('ORG_MEMBERS')"
                                                 @click="confirmKickMember(member.id, member.user?.name || 'ce membre')"
                                                 class="p-2 rounded-xl text-red-500 transition-colors"
                                                 title="Exclure le membre"
@@ -168,7 +168,7 @@
                                                 <select
                                                     :value="getMemberRoleId(member)"
                                                     @change="updateRole(member.id, $event)"
-                                                    :disabled="isSelf(member.user?.id!) || !isAdmin"
+                                                    :disabled="isSelf(member.user?.id!) || !can('ORG_MEMBERS')"
                                                     class="pr-4 py-4 !bg-(--bg) rounded-2xl"
                                                     :class="{ 'opacity-40 cursor-not-allowed': member?.role === 'OWNER' && isSelf(member.user?.id!) }"
                                                 >
@@ -474,7 +474,6 @@
 
 import { ref, computed, onMounted } from 'vue';
 import { openedOrg, user } from '@/assets/var';
-import isAdmin from '@/assets/isAdmin';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
@@ -489,7 +488,8 @@ const inviteLinks = ref<any[]>([]);
 const inviteLink = ref<string>('');
 const inviteMaxUses = ref<number>(1);
 
-const { fetchRoles } = usePermissions(computed(() => openedOrg.value?.id));
+const orgId = computed(() => openedOrg.value?.id);
+const { fetchRoles, can } = usePermissions(orgId);
 const rolesList = ref<any[]>([]);
 
 const getMemberRoleId = (member: any) => {
