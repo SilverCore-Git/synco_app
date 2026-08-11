@@ -13,7 +13,7 @@ import sfetch from '@/assets/utils/sfetch';
 
 const router = useRouter();
 const route = useRoute();
-const { getUnreadCountBySpaceId } = useNotification();
+const { getUnreadCountBySpaceId, getUnreadCountForTasks } = useNotification();
 
 const localSpaces = ref<WorkSpace[]>([]);
 
@@ -108,6 +108,7 @@ const onSpaceOrderChange = async () => {
                     icon="bi-list-check"
                     label="Mes Tâches"
                     :active="route.name === 'TasksGlobal'"
+                    :hasUnread="getUnreadCountForTasks > 0"
                 />
             </RouterLink>
             

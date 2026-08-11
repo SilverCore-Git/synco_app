@@ -207,9 +207,11 @@ import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import { user } from '@/assets/var';
 import confetti from 'canvas-confetti';
 import useWSocket from '@/composables/useWSocket';
+import { useNotification } from '@/composables/useNotification';
 
 const route = useRoute();
 const toast = useToast();
+const { markTasksAsRead } = useNotification();
 
 const rawTasks = ref<Task[]>([]);
 const loading = ref(true);
@@ -314,6 +316,9 @@ const loadLists = async () => {
             });
             
             rawTasks.value = allTasks;
+            
+            // Clear unread notifications
+            markTasksAsRead();
         }
     } catch (e) {
         toast.show("Erreur chargement des tâches", "error");

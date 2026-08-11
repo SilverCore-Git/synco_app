@@ -34,7 +34,7 @@
             <!-- Filter Bar -->
             <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 pb-2">
                 
-                <div class="flex items-center gap-2 overflow-x-auto w-full scrollbar-hide shrink-0 pb-1">
+                <div class="flex items-center gap-2 overflow-x-auto w-full sm:w-auto scrollbar-hide shrink-0 pb-1">
                     <button @click="filterUserId = null" class="px-4 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="!filterUserId ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10'">
                         Toutes les tâches
                     </button>
@@ -209,11 +209,13 @@ import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import confetti from 'canvas-confetti';
+import { useNotification } from '@/composables/useNotification';
 
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const { showUsersBar } = useUsersBar();
+const { markTasksAsRead } = useNotification();
 
 const tasks = ref<Task[]>([]);
 const loading = ref(true);
@@ -282,6 +284,9 @@ const loadTasks = async () => {
             const data = await res.json();
             // In the new model, we just use unlistedTasks for the space Kanban
             tasks.value = data.unlistedTasks;
+            
+            // Clear unread notifications
+            markTasksAsRead();
 
             // Handle deep linking from search
             if (route.query.select) {
