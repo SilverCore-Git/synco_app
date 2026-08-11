@@ -815,11 +815,17 @@ const initListener = () => {
 
 };
 
+let isJoiningThread = false;
+
 const joinThread = async (id: string) => {
+
+    if (isJoiningThread) return;
+    isJoiningThread = true;
 
     if (!socket.value) {
         debugMsg.value = 'Erreur : Pas de connexion Socket active.';
         loading.value = false;
+        isJoiningThread = false;
         return;
     }
     
@@ -839,6 +845,7 @@ const joinThread = async (id: string) => {
         debugMsg.value = 'Erreur : Clé privée introuvable (verrouillé).';
         loading.value = false;
         toast.show('[E2EE] Votre clé privée est introuvable. Veuillez déverrouiller votre espace sécurisé (PIN).', 'error');
+        isJoiningThread = false;
         return;
     }
 
@@ -863,6 +870,7 @@ const joinThread = async (id: string) => {
                     });
                     debugMsg.value = 'Récupération de la clé E2EE en cours... (en attente des autres membres)';
                     loading.value = true;
+                    isJoiningThread = false;
                     return;
                 } else {
                     debugMsg.value = 'Erreur : Clé publique introuvable. ' + response.error;
@@ -873,6 +881,7 @@ const joinThread = async (id: string) => {
                         query: { noRedirect: 'true' } 
                     });
                     toast.show(response.error, 'warning', 10000);
+                    isJoiningThread = false;
                     return;
                 }
             }
@@ -881,6 +890,7 @@ const joinThread = async (id: string) => {
             loading.value = false;
             console.error('[E2EE] erreur serveur : ', response)
             toast.show(response.error || '[E2EE] Accès refusé ou impossible de récupérer la clé du salon.', 'error');
+            isJoiningThread = false;
             return;
         }
 
@@ -910,6 +920,8 @@ const joinThread = async (id: string) => {
             toast.show('[E2EE] Échec du déchiffrement de la clé de session du salon.', 'error');
             loading.value = false;
         }
+
+        isJoiningThread = false;
 
     });
 
