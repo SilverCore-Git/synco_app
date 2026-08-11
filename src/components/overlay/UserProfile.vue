@@ -6,7 +6,7 @@
 
       <div
         v-if="isOpen"
-        class="fixed inset-0 z-200 flex"
+        class="fixed inset-0 z-[3000] flex"
         :class="!profilePosition ? 'items-center justify-center p-4 bg-black/70 backdrop-blur-md' : ''"
         @click.self="emit('close')"
         @contextmenu.prevent.self="emit('close')"

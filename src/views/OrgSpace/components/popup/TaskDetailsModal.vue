@@ -26,9 +26,15 @@
                             <i class="bi bi-folder text-(--primary)/80"></i>
                             {{ task.space?.name || 'Général' }}
                         </span>
-                        <span v-if="!isEditing && task?.creator" @click.stop="(e) => task?.creator && openProfile(task.creator, e)" class="flex items-center gap-1 whitespace-nowrap cursor-pointer hover:text-white transition-colors" :title="'Profil de ' + task.creator.name">
-                            <i class="bi bi-person text-(--primary)/80"></i>
-                            Créée par {{ task.creator.name.split(' ')[0] }}
+                        <span v-if="!isEditing && task?.creator" class="flex items-center gap-1.5 whitespace-nowrap">
+                            <span class="text-(--text2)">Créée par</span>
+                            <button @click.stop="(e) => task?.creator && openProfile(task.creator, e)" class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold transition-all shadow-sm" :title="'Profil de ' + task.creator.name">
+                                <img v-if="task.creator.avatarUrl" :src="task.creator.avatarUrl" class="w-4 h-4 rounded-full object-cover border border-black/20">
+                                <div v-else class="w-4 h-4 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[8px] font-black border border-black/20">
+                                    {{ task.creator.name.substring(0, 2).toUpperCase() }}
+                                </div>
+                                {{ task.creator.name.split(' ')[0] }}
+                            </button>
                         </span>
                         <span v-if="!isEditing" class="flex items-center gap-2 break-words">
                             <i class="bi bi-people-fill text-(--primary)/80"></i>
