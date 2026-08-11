@@ -103,7 +103,7 @@ const onSpaceOrderChange = async () => {
                 />
             </RouterLink>
 
-            <RouterLink v-if="todoEnabled" :to="`/${openedOrg.id}/tasks?showView=0`">
+            <RouterLink v-if="todoEnabled" :to="`/${openedOrg.id}/tasks?showView=1`">
                 <SpaceBarBTN
                     icon="bi-list-check"
                     label="Mes Tâches"
