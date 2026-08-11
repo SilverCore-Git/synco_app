@@ -20,6 +20,7 @@ import isDesktopApp from '@/assets/isDesktopApp';
 import { useToast } from '@/composables/useToast';
 import { decryptFromPeer, privateKey, decryptThreadKeyWithRsa, encryptThreadKeyForMember } from '@/assets/utils/crypto';
 import { SearchSyncService } from '@/services/SearchSyncService';
+import { usePermissions } from '@/composables/usePermissions';
 
 
 const props = defineProps<{
@@ -32,6 +33,7 @@ const { initPeer } = useSecurePeer();
 const { notify } = useNotifications();
 const route = useRoute();
 const toast = useToast();
+const { fetchPermissions } = usePermissions(computed(() => props.orgId));
 
 const mediaQuery = window.matchMedia('(max-width: 1024px)');
 const showRouterView = computed(() => !isLittleScreen.value || route.query.showView !== '0');
@@ -564,6 +566,7 @@ onMounted(async () => {
         openedOrg.value = await res.json(); 
     }
     await Promise.all([
+            fetchPermissions(),
             initSocketListener(),
             initPeer()
     ])
