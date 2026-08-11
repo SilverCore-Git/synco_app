@@ -38,6 +38,18 @@ export const PERMISSION_REGISTRY = {
   CONTENT_DELETE:{label: 'Supprimer le contenu', icon: 'bi-eraser',         description: 'Supprimer des messages ou des fichiers' },
   SHARE:        { label: 'Partager',             icon: 'bi-share',          description: 'Partager une ressource' },
 
+  // Tâches (Gestion Globale)
+  TASK_UPDATE_ALL: { label: 'Modifier toutes les tâches', icon: 'bi-card-checklist', description: 'Modifier les détails de n\'importe quelle tâche (titre, assignés...)' },
+  TASK_DELETE_ALL: { label: 'Supprimer toutes les tâches', icon: 'bi-trash-fill', description: 'Supprimer n\'importe quelle tâche' },
+  TASK_STATUS_ALL: { label: 'Statut de toutes les tâches', icon: 'bi-check-all', description: 'Modifier le statut de n\'importe quelle tâche' },
+  TASK_SUBTASK_ALL: { label: 'Sous-tâches (Globale)', icon: 'bi-list-nested', description: 'Créer des sous-tâches sur n\'importe quelle tâche' },
+
+  // Tâches (Hiérarchique - Rôles Inférieurs)
+  TASK_UPDATE_LOWER: { label: 'Modifier (Rôles Inférieurs)', icon: 'bi-card-text', description: 'Modifier les tâches créées par des rôles inférieurs' },
+  TASK_DELETE_LOWER: { label: 'Supprimer (Rôles Inférieurs)', icon: 'bi-trash', description: 'Supprimer les tâches créées par des rôles inférieurs' },
+  TASK_STATUS_LOWER: { label: 'Statut (Rôles Inférieurs)', icon: 'bi-check', description: 'Modifier le statut des tâches créées par des rôles inférieurs' },
+  TASK_SUBTASK_LOWER: { label: 'Sous-tâches (Rôles Inférieurs)', icon: 'bi-diagram-3', description: 'Créer des sous-tâches sur les tâches de rôles inférieurs' },
+
 } as const;
 
 export type Permission = keyof typeof PERMISSION_REGISTRY;
@@ -51,6 +63,7 @@ export interface RoleData {
   color: string | null;
   icon: string | null;
   isSystem: boolean;
+  position: number;
   orgId: string;
   memberCount: number;
   permissions: Array<{
