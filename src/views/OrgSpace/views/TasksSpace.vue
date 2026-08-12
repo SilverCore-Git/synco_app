@@ -358,7 +358,9 @@ const handleOpenTask = async (taskPartial: any) => {
 };
 
 const onTaskCreated = (task: Task) => {
-    tasks.value.unshift(task);
+    if (!task.parentTaskId && !tasks.value.some(t => t.id === task.id)) {
+        tasks.value.unshift(task);
+    }
 };
 
 const onTaskUpdated = (updatedTask: Task) => {
@@ -453,8 +455,20 @@ onMounted(async () => {
     
     const socket = await useWSocket();
     socket.value?.on('todo-added', ({ task }: { task: Task }) => {
-        if (task.spaceId === route.params.spaceId && !tasks.value.some(t => t.id === task.id)) {
-            tasks.value.unshift(task);
+        if (task.spaceId === route.params.spaceId) {
+            if (!task.parentTaskId) {
+                if (!tasks.value.some(t => t.id === task.id)) {
+                    tasks.value.unshift(task);
+                }
+            } else {
+                const parent = tasks.value.find(t => t.id === task.parentTaskId);
+                if (parent) {
+                    if (!parent.subtasks) parent.subtasks = [];
+                    if (!parent.subtasks.some(st => st.id === task.id)) {
+                        parent.subtasks.push(task);
+                    }
+                }
+            }
         }
     });
     socket.value?.on('todo-updated', ({ task }: { task: Task }) => {

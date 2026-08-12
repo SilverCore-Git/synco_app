@@ -430,7 +430,9 @@ const handleOpenTask = async (taskPartial: any) => {
 };
 
 const onTaskCreated = (task: Task) => {
-    rawTasks.value.push(task);
+    if (!task.parentTaskId && !rawTasks.value.some(t => t.id === task.id)) {
+        rawTasks.value.push(task);
+    }
 };
 
 const onTaskUpdated = (updatedTask: Task) => {
@@ -449,9 +451,18 @@ onMounted(async () => {
     
     const socket = await useWSocket();
     socket.value?.on('todo-added', ({ task }: { task: Task }) => {
-        // Prevent duplicate tasks
-        if (!rawTasks.value.some(t => t.id === task.id)) {
-            rawTasks.value.unshift(task);
+        if (!task.parentTaskId) {
+            if (!rawTasks.value.some(t => t.id === task.id)) {
+                rawTasks.value.unshift(task);
+            }
+        } else {
+            const parent = rawTasks.value.find(t => t.id === task.parentTaskId);
+            if (parent) {
+                if (!parent.subtasks) parent.subtasks = [];
+                if (!parent.subtasks.some(st => st.id === task.id)) {
+                    parent.subtasks.push(task);
+                }
+            }
         }
     });
     socket.value?.on('todo-updated', ({ task }: { task: Task }) => {

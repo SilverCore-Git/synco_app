@@ -296,8 +296,10 @@ const deleteTask = async () => {
 const onSubtaskCreated = (newSubtask: Task) => {
     if (props.task) {
         if (!props.task.subtasks) props.task.subtasks = [];
-        props.task.subtasks.push(newSubtask);
-        emit('update', props.task);
+        if (!props.task.subtasks.some(st => st.id === newSubtask.id)) {
+            props.task.subtasks.push(newSubtask);
+            emit('update', props.task);
+        }
     }
 };
 
