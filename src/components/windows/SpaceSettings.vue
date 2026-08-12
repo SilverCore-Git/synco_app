@@ -43,7 +43,7 @@
                                 <i v-if="!formData.logo.startsWith('data:')" :class="formData.logo" class="text-4xl text-(--primary)" />
                                 <img v-else :src="formData.logo" class="w-full h-full object-cover" />
                                 
-                                <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+                                <div @click="showLogoPicker = true" class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
                                     <i class="bi bi-camera-fill text-(--text) text-xl" />
                                 </div>
                             </div>
@@ -163,6 +163,13 @@
         :itemName="space.name"
         buttonText="Quitter l'espace"
     />
+
+    <Popup :is-open="showLogoPicker" @close="showLogoPicker = false">
+        <template #title>Modifier l'icône du Space</template>
+        <div class="min-h-[250px]">
+            <IconSelector type="square" ref="iconSelectorRef" v-model="formData.logo" @on-base64="onLogoCropped" />
+        </div>
+    </Popup>
     
     <!-- Webhooks Modals -->
     <WebhookCreate
@@ -235,6 +242,7 @@ import WebhookCreate from '@/views/OrgSpace/views/settings/views/components/Webh
 import WebhookEdit from '@/views/OrgSpace/views/settings/views/components/WebhookEdit.vue';
 import WebhookDetails from '@/views/OrgSpace/views/settings/views/components/WebhookDetails.vue';
 import WebhookTest from '@/views/OrgSpace/views/settings/views/components/WebhookTest.vue';
+import IconSelector from '@/components/common/IconSelector.vue';
 
 const props = defineProps<{
     space: WorkSpace;
@@ -251,6 +259,13 @@ const formData = reactive({
     name: props.space?.name || '',
     logo: props.space?.logo || ''
 });
+
+const showLogoPicker = ref<boolean>(false);
+
+const onLogoCropped = (base64: string) => {
+    formData.logo = base64;
+    showLogoPicker.value = false;
+};
 
 // Webhooks state
 const showCreateWebhookModal = ref<boolean>(false);
