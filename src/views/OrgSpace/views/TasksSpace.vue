@@ -29,10 +29,10 @@
             </div>
         </div>
 
-        <main class="flex-1 overflow-y-auto p-6 w-full h-full space-y-6">
+        <main class="flex-1 overflow-y-auto md:overflow-hidden flex flex-col p-6 w-full h-full gap-6">
             
             <!-- Filter Bar -->
-            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 pb-2 w-full min-w-0">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full min-w-0 shrink-0">
                 
                 <div class="flex items-center gap-2 overflow-x-auto w-full sm:w-auto scrollbar-hide shrink-0 pb-1">
                     <button @click="filterUserId = null" class="px-4 py-2 font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="!filterUserId ? 'primary shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 rounded-xl text-white/50 hover:bg-white/10'">
@@ -57,33 +57,33 @@
                 
             </div>
 
-            <div v-if="loading" class="w-full flex flex-col gap-6 animate-pulse pb-10 h-full">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start h-full">
-                    <div v-for="i in 3" :key="'skel-col-'+i" class="bg-black/20 rounded-2xl p-4 flex flex-col gap-4 border border-(--border-color) min-h-[60vh]">
-                        <div class="flex items-center justify-between mb-2">
+            <div v-if="loading" class="flex-1 min-h-0 w-full flex flex-col gap-6 animate-pulse pb-10">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
+                    <div v-for="i in 3" :key="'skel-col-'+i" class="bg-black/20 rounded-2xl p-4 flex flex-col gap-4 border border-(--border-color) h-full">
+                        <div class="flex items-center justify-between mb-2 shrink-0">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-xl bg-white/10"></div>
                                 <div class="w-24 h-4 bg-white/10 rounded-full"></div>
                             </div>
                             <div class="w-6 h-4 bg-white/10 rounded-full"></div>
                         </div>
-                        <div v-for="j in 3" :key="'skel-card-'+j" class="bg-white/5 border border-(--border-color) p-4 rounded-xl h-28"></div>
+                        <div v-for="j in 3" :key="'skel-card-'+j" class="bg-white/5 border border-(--border-color) p-4 rounded-xl h-28 shrink-0"></div>
                     </div>
                 </div>
             </div>
             
-            <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start h-full pb-10">
+            <div v-else class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-3 gap-6 pb-2">
                 
                 <!-- Columns -->
                 <div v-for="col in columns" :key="col.id" 
-                     class="bg-(--bg2)/40 border rounded-2xl p-4 min-h-[500px] flex flex-col transition-all"
+                     class="bg-(--bg2)/40 border rounded-2xl p-4 min-h-[400px] h-full flex flex-col transition-all"
                      :class="draggedOverCol === col.id ? 'border-(--primary) bg-(--primary)/5 shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)]' : 'border-(--border-color)'"
                      @dragover.prevent
                      @dragenter.prevent="draggedOverCol = col.id"
                      @dragleave.prevent="draggedOverCol = null"
                      @drop="onDrop($event, col.id); draggedOverCol = null"
                 >
-                    <div class="flex items-center justify-between mb-5">
+                    <div class="flex items-center justify-between mb-5 shrink-0">
                         <h4 class="font-black text-sm tracking-widest uppercase flex items-center gap-2" :class="col.color">
                             <i :class="col.icon"></i>
                             {{ col.title }}
@@ -93,7 +93,7 @@
                         </span>
                     </div>
 
-                    <div class="flex-1 space-y-4">
+                    <div class="flex-1 overflow-y-auto space-y-4 min-h-0 pr-1 custom-scrollbar">
                         <div v-for="task in filteredTasks(col.id)" :key="task.id" 
                              :id="'task-' + task.id"
                              draggable="true"
