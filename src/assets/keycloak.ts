@@ -152,7 +152,7 @@ async function tauriLogin(): Promise<{ token?: string; refreshToken?: string }> 
   const code = new URL(callbackUrl).searchParams.get('code');
   if (!code) return {};
 
-  // fetch natif — fonctionne car tauri-plugin-localhost résout le CORS
+  // fetch natif — fonctionne car connect-src dans la CSP de tauri.conf.json autorise KC_URL
   const tokenRes = await fetch(`${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

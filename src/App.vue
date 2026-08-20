@@ -19,9 +19,6 @@ import CallOverlay from './components/peer/CallOverlay.vue';
 import waitFor from './assets/utils/waitfor';
 import Popup from './components/Popup.vue';
 import { isProfileOpen, profileUser, closeProfile } from './composables/useProfile';
-//import { Capacitor } from '@capacitor/core';
-//import { App as CapApp, type URLOpenListenerEvent } from '@capacitor/app';
-//import { Browser } from '@capacitor/browser';
 
 const toast = useToast();
 const { Item: theme } = useSettingsItem('theme', 'dark');
