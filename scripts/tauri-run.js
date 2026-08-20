@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(__dirname, '..');
@@ -38,9 +39,12 @@ const patchedCsp = devLanIp
   ? baseCsp.split(DEV_LAN_ORIGIN_PLACEHOLDER).join(`https://${devLanIp}:*`)
   : baseCsp.split(` ${DEV_LAN_ORIGIN_PLACEHOLDER}`).join('');
 
-const result = spawnSync('npx', ['tauri', mode, ...forwardedArgs], {
+// On résout et on lance le binaire du CLI Tauri directement (plutôt que via npx) pour ne pas
+// dépendre de la façon dont le gestionnaire de paquets (npm/bun) a posé les shims dans .bin.
+const tauriCliEntry = createRequire(import.meta.url).resolve('@tauri-apps/cli/tauri.js');
+
+const result = spawnSync(process.execPath, [tauriCliEntry, mode, ...forwardedArgs], {
   stdio: 'inherit',
-  shell: true,
   cwd: ROOT_DIR,
   env: {
     ...process.env,
