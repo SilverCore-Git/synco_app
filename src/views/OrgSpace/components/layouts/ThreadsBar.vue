@@ -57,7 +57,7 @@
 
         </template>
 
-        <template v-else-if="isSettings && isAdmin" class="h-full w-full">
+        <template v-else-if="isSettings && canAny(['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI'])" class="h-full w-full">
 
             <div
                 class="
@@ -90,22 +90,19 @@
                     "
                 >
 
-                    <RouterLink
-                        v-for="view in settingsViews"
-                        :key="'settings-' + view.name + '-link'"
-                        :to="{ name: view.route, query: { ...route.query, showView: '1' } }"
-                        class="w-full"
-                        v-show="view.route !== 'OrgSettingsStorage' || filesEnabled"
-                    >
-                        <SettingsViewBtn
-                            :key="'settings-' + view.name + '-btn'"
-                            :name="view.name"
-                            :icon="view.icon"
-                            :active="
-                                route.name == view.route
-                            "
-                        />
-                    </RouterLink>
+                    <template v-for="view in settingsViews" :key="'settings-' + view.name + '-link'">
+                        <RouterLink
+                            v-if="can(view.permission) && (view.route !== 'OrgSettingsStorage' || filesEnabled)"
+                            :to="{ name: view.route, query: { ...route.query, showView: '1' } }"
+                            class="w-full"
+                        >
+                            <SettingsViewBtn
+                                :name="view.name"
+                                :icon="view.icon"
+                                :active="route.name === view.route"
+                            />
+                        </RouterLink>
+                    </template>
 
                 </ul>
 
@@ -358,10 +355,10 @@
 
 <script lang="ts" setup>
 
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { Thread, WorkSpace, Category as CategoryType } from '@/types/types';
-import { openedOrg, todoEnabled, filesEnabled } from '@/assets/var';
+import { openedOrg, todoEnabled, filesEnabled, user } from '@/assets/var';
 import draggable from 'vuedraggable';
 import useWSocket from '@/composables/useWSocket';
 import ThreadDropDown from '../dropdown/ThreadDropDown.vue';
@@ -369,7 +366,7 @@ import ThreadBarDropDown from '../dropdown/ThreadBarDropDown.vue';
 import ChatUserBtn from '../CanalBar/ChatUserBtn.vue';
 import SettingsViewBtn from '../CanalBar/SettingsViewBtn.vue';
 import { settingsViews } from '../../views/settings/settings';
-import isAdmin from '@/assets/isAdmin';
+import { usePermissions } from '@/composables/usePermissions';
 import Category from '../CanalBar/Category.vue';
 import isDesktopApp from '@/assets/isDesktopApp';
 import SpaceSearchModal from '../popup/SpaceSearchModal.vue';
@@ -377,6 +374,9 @@ import { chatSessions, activeSessionId, newSession, deleteSession, loadSession, 
 import { availableModels } from '@/services/LocalLLMService';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import sfetch from '@/assets/utils/sfetch';
+
+const orgId = computed(() => openedOrg.value?.id);
+const { canAny, can } = usePermissions(orgId);
 
 const route = useRoute();
 const router = useRouter();
@@ -403,6 +403,29 @@ watch(isChat, async (newVal) => {
         }
     }
 }, { immediate: true });
+
+onMounted(async () => {
+    const wsRef = await useWSocket();
+    const socket = wsRef.value;
+    if (socket) {
+        socket.on('notif:dm:new-message', (newMessage: any) => {
+            const peerId = newMessage.senderId === user.value?.id ? newMessage.recipientId : newMessage.senderId;
+            const existing = recentDMUsers.value.find(r => r.userId === peerId);
+            if (existing) {
+                existing.lastInteraction = newMessage.createdAt;
+            } else {
+                recentDMUsers.value.push({ userId: peerId, lastInteraction: newMessage.createdAt });
+            }
+        });
+    }
+});
+
+onUnmounted(async () => {
+    const wsRef = await useWSocket();
+    if (wsRef.value) {
+        wsRef.value.off('notif:dm:new-message');
+    }
+});
 
 const sortedChatMembers = computed(() => {
     let members = openedOrg.value?.members || [];

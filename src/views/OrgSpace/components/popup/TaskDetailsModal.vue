@@ -26,14 +26,24 @@
                             <i class="bi bi-folder text-(--primary)/80"></i>
                             {{ task.space?.name || 'Général' }}
                         </span>
+                        <span v-if="!isEditing && task?.creator" class="flex items-center gap-1.5 whitespace-nowrap">
+                            <span class="text-(--text2)">Créée par</span>
+                            <button @click.stop="(e) => task?.creator && openProfile(task.creator, e)" class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold transition-all shadow-sm" :title="'Profil de ' + $p(task.creator.name)">
+                                <img v-if="task.creator.avatarUrl" :src="task.creator.avatarUrl" class="w-4 h-4 rounded-full object-cover border border-black/20">
+                                <div v-else class="w-4 h-4 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[8px] font-black border border-black/20">
+                                    {{ $p(task.creator.name).substring(0, 2).toUpperCase() }}
+                                </div>
+                                {{ $p(task.creator.name).split(' ')[0] }}
+                            </button>
+                        </span>
                         <span v-if="!isEditing" class="flex items-center gap-2 break-words">
-                            <i class="bi bi-person-circle text-(--primary)/80"></i>
+                            <i class="bi bi-people-fill text-(--primary)/80"></i>
                             <span v-if="!task.assignees?.length">Personne</span>
                             <div v-else class="flex items-center -space-x-1.5">
                                 <template v-for="assignee in task.assignees.slice(0,5)" :key="assignee.id">
-                                    <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="assignee.name" class="w-5 h-5 rounded-full object-cover border border-(--bg2) z-10 hover:z-20">
-                                    <div v-else :title="assignee.name" class="w-5 h-5 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[8px] font-black border border-(--bg2) z-10 hover:z-20">
-                                        {{ assignee.name.substring(0, 2).toUpperCase() }}
+                                    <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="$p(assignee.name)" class="w-5 h-5 rounded-full object-cover border border-(--bg2) z-10 hover:z-20">
+                                    <div v-else :title="$p(assignee.name)" class="w-5 h-5 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[8px] font-black border border-(--bg2) z-10 hover:z-20">
+                                        {{ $p(assignee.name).substring(0, 2).toUpperCase() }}
                                     </div>
                                 </template>
                                 <div v-if="task.assignees.length > 5" class="w-5 h-5 rounded-full bg-white/10 text-white flex items-center justify-center text-[8px] font-black border border-(--bg2) z-10">
@@ -79,10 +89,10 @@
                         <div class="flex items-center gap-2">
                             <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-6 h-6 rounded-full object-cover">
                             <div v-else class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[10px] font-bold">
-                                {{ (member.user?.name || member.userId).substring(0, 2).toUpperCase() }}
+                                {{ ($p(member.user?.name) || member.userId).substring(0, 2).toUpperCase() }}
                             </div>
                             <span class="text-sm font-medium text-(--text) group-hover:text-white transition-colors">
-                                {{ member.user?.name || member.userId }}
+                                {{ $p(member.user?.name) || member.userId }}
                             </span>
                         </div>
                     </label>
@@ -141,9 +151,9 @@
                         <div class="flex items-center justify-between pl-8" v-if="subtask.assignees?.length || subtask.dueDate">
                             <div class="flex items-center -space-x-1.5" v-if="subtask.assignees?.length">
                                 <template v-for="assignee in subtask.assignees.slice(0,3)" :key="assignee.id">
-                                    <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="assignee.name" class="w-5 h-5 rounded-full object-cover border-2 border-black/20 z-10 hover:z-20">
-                                    <div v-else :title="assignee.name" class="w-5 h-5 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[8px] font-black border-2 border-black/20 z-10 hover:z-20">
-                                        {{ assignee.name.substring(0, 2).toUpperCase() }}
+                                    <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="$p(assignee.name)" class="w-5 h-5 rounded-full object-cover border-2 border-black/20 z-10 hover:z-20">
+                                    <div v-else :title="$p(assignee.name)" class="w-5 h-5 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[8px] font-black border-2 border-black/20 z-10 hover:z-20">
+                                        {{ $p(assignee.name).substring(0, 2).toUpperCase() }}
                                     </div>
                                 </template>
                             </div>
@@ -185,6 +195,7 @@ import { useRoute } from 'vue-router';
 import { useToast } from '@/composables/useToast';
 import confetti from 'canvas-confetti';
 import { openedOrg } from '@/assets/var';
+import { openProfile } from '@/composables/useProfile';
 
 const props = defineProps<{
     task: Task | null;
@@ -285,8 +296,10 @@ const deleteTask = async () => {
 const onSubtaskCreated = (newSubtask: Task) => {
     if (props.task) {
         if (!props.task.subtasks) props.task.subtasks = [];
-        props.task.subtasks.push(newSubtask);
-        emit('update', props.task);
+        if (!props.task.subtasks.some(st => st.id === newSubtask.id)) {
+            props.task.subtasks.push(newSubtask);
+            emit('update', props.task);
+        }
     }
 };
 

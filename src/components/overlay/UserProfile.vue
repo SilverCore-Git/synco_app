@@ -6,7 +6,7 @@
 
       <div
         v-if="isOpen"
-        class="fixed inset-0 z-200 flex"
+        class="fixed inset-0 z-[3000] flex"
         :class="!profilePosition ? 'items-center justify-center p-4 bg-black/70 backdrop-blur-md' : ''"
         @click.self="emit('close')"
         @contextmenu.prevent.self="emit('close')"
@@ -75,10 +75,19 @@
                         <h3 class="text-[11px] font-bold text-(--text2) uppercase tracking-wide mb-2">Rôles</h3>
                         <div class="flex flex-wrap gap-1.5">
                             <span 
+                                v-for="mr in memberRoles"
+                                :key="mr.role.id"
                                 class="flex items-center gap-1.5 px-2 py-1 rounded bg-(--bg) border border-(--border-color) text-xs font-medium text-(--text) shadow-sm"
                             >
-                                <div class="w-2.5 h-2.5 rounded-full shadow-sm" :class="roleColorClass"></div>
-                                {{ translatedRole }}
+                                <div class="w-2.5 h-2.5 rounded-full shadow-sm" :style="{ backgroundColor: mr.role.color || '#6b7280' }"></div>
+                                {{ mr.role.name }}
+                            </span>
+                            <span 
+                                v-if="memberRoles.length === 0"
+                                class="flex items-center gap-1.5 px-2 py-1 rounded bg-(--bg) border border-(--border-color) text-xs font-medium text-(--text) shadow-sm"
+                            >
+                                <div class="w-2.5 h-2.5 rounded-full shadow-sm bg-(--primary)"></div>
+                                Membre
                             </span>
                             <span v-if="u.id === user?.id" class="flex items-center gap-1.5 px-2 py-1 rounded bg-(--bg) border border-(--border-color) text-xs font-medium text-(--text) shadow-sm">
                                 Vous
@@ -147,20 +156,14 @@ watch(() => [props.isOpen, u.value?.avatarUrl, u.value?.name], async () => {
     }
 }, { immediate: true });
 
-const role = computed(() => {
-    if (!openedOrg.value?.members || !u.value?.id) return 'member';
-    const member = openedOrg.value.members.find(m => m.userId === u.value.id);
-    return member?.role || 'member';
+const orgMember = computed(() => {
+    if (!openedOrg.value?.members || !u.value?.id) return null;
+    return openedOrg.value.members.find(m => m.userId === u.value.id) || null;
 });
 
-const translatedRole = computed(() => {
-    if (role.value === 'owner' || role.value === 'ADMIN' || role.value === 'admin') return 'Administrateur';
-    return 'Membre';
-});
-
-const roleColorClass = computed(() => {
-    if (role.value === 'owner' || role.value === 'ADMIN' || role.value === 'admin') return 'bg-orange-500';
-    return 'bg-(--primary)';
+const memberRoles = computed(() => {
+    if (!orgMember.value?.memberRoles) return [];
+    return orgMember.value.memberRoles.filter((mr: any) => mr.role);
 });
 
 const userStatus = computed(() => {

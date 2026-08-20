@@ -8,7 +8,7 @@
         >
             <div v-if="embed.author" class="flex items-center gap-2 mb-2">
                 <img v-if="embed.author.icon_url" :src="embed.author.icon_url" class="w-5 h-5 rounded-full" />
-                <span class="text-xs font-semibold text-(--text)">{{ embed.author.name }}</span>
+                <span class="text-xs font-semibold text-(--text)">{{ $p(embed.author.name) }}</span>
             </div>
 
             <div v-if="embed.title" class="font-bold text-sm text-(--text) mb-1">

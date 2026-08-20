@@ -43,9 +43,9 @@
                             <div class="absolute -top-10 sm:-top-12 left-4 sm:left-6 p-1.5 bg-(--bg2) rounded-full z-10 shadow-lg">
                                 <div class="relative w-[80px] h-[80px] sm:w-[100px] sm:h-[100px] rounded-full overflow-hidden bg-(--bg)">
                                     <img 
-                                        :src="user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.name}&background=128a60&color=fff`" 
-                                        :alt="user?.name" 
-                                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${user?.name}&background=128a60&color=fff`"
+                                        :src="user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(user?.name)}&background=128a60&color=fff`" 
+                                        :alt="$p(user?.name)" 
+                                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(user?.name)}&background=128a60&color=fff`"
                                         class="w-full h-full object-cover"
                                     />
                                 </div>
@@ -316,6 +316,25 @@
                                 </div>
                             </div>
 
+                            <div 
+                                @click="privacyMode = !privacyMode"
+                                class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all max-w-md mt-4"
+                            >
+                                <div>
+                                    <h4 class="font-bold text-(--text)">Mode confidentialité</h4>
+                                    <p class="text-sm text-(--text2) mt-0.5">Masque les noms et prénoms pour ne garder que la première lettre</p>
+                                </div>
+                                <div 
+                                    class="w-12 h-6 rounded-full relative transition-colors duration-300 shrink-0"
+                                    :class="privacyMode ? 'bg-(--primary)' : 'bg-white/10'"
+                                >
+                                    <div 
+                                        class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
+                                        :class="privacyMode ? 'right-0.5' : 'left-0.5 opacity-50'"
+                                    ></div>
+                                </div>
+                            </div>
+
                         </div>
 
                     </div>
@@ -444,6 +463,7 @@ const toast = useToast();
 
 const { Item: theme } = useSettingsItem('theme', 'dark');
 const { Item: devMode } = useSettingsItem('devMode', false);
+const { Item: privacyMode } = useSettingsItem('privacyMode', false);
 
 const activeTab = ref<string>('account');
 const avatarChange = ref<boolean>(false);

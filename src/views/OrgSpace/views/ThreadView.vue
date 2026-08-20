@@ -51,10 +51,10 @@
 
                 </template>
 
-                <div v-else class=" space-y-2 py-6">
+                <div v-else class=" py-6 flex flex-col">
                 
                     <div 
-                            v-for="msg in sortedMessages" 
+                            v-for="(msg, index) in sortedMessages" 
                             :key="msg.id"
                             :id="'msg-' + msg.id"
                     >
@@ -68,6 +68,7 @@
                             :selectedMessage="selectedMessage"
                             :messages="sortedMessages"
                             :currentThreadKey="currentThreadKey"
+                            :is-stacked="index > 0 && sortedMessages[index-1]?.senderId === msg.senderId && sortedMessages[index-1]?.isWebhook === msg.isWebhook && !msg.replyToId && (new Date(msg.createdAt).getTime() - new Date(sortedMessages[index-1]!.createdAt).getTime() < 60000)"
                         />
                     </div>
 

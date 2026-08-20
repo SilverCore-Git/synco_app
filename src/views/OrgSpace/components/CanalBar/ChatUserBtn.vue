@@ -15,10 +15,10 @@
         <div class="relative shrink-0">
 
             <img
-                :src="user?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.user?.name}&background=128a60&color=fff`"
-                :alt="user?.user?.name"
+                :src="user?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(user?.user?.name)}&background=128a60&color=fff`"
+                :alt="$p(user?.user?.name)"
                 class="w-8 h-8 rounded-full object-cover border border-white/10 group-hover:border-(--primary)/30 transition-colors"
-                @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${user?.user?.name}&background=128a60&color=fff`"
+                @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(user?.user?.name)}&background=128a60&color=fff`"
             />
             
             <div 
@@ -33,17 +33,18 @@
         </div>
 
         <div class="flex flex-col flex-1 min-w-0 relative">
-            <div
-                v-if="user?.user && getUnreadCountByDMUserId(user.user.id).value > 0"
-                class="absolute -left-2 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-(--primary) rounded-full shadow-[0_0_8px_var(--primary)] animate-pulse"
-            />
-            <span class="text-sm font-bold truncate tracking-tight" :class="user?.user && getUnreadCountByDMUserId(user.user.id).value > 0 ? 'text-(--primary)' : ''">
-                {{ user?.user?.name }}
+            <span class="text-sm font-bold truncate tracking-tight" :class="user?.user && getUnreadCountByDMUserId(user.user.id).value > 0 ? 'text-red-400' : ''">
+                {{ $p(user?.user?.name) }}
             </span>
             <span class="text-[10px] opacity-40 uppercase tracking-widest font-medium leading-none">
                 {{ user?.role }}
             </span>
         </div>
+
+        <div 
+            v-if="user?.user && getUnreadCountByDMUserId(user.user.id).value > 0"
+            class="ml-auto w-2 h-2 mr-1.5 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]"
+        />
 
         <button
             v-if="user?.user?.id !== keycloak.subject"

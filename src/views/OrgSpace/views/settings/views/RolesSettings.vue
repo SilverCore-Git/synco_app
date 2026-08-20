@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col md:flex-row h-full w-full bg-(--bg) overflow-hidden">
+  <div class="flex flex-col md:flex-row h-full w-full bg-(--bg) overflow-hidden relative">
     
     <!-- Colonne Gauche : Liste des Rôles (Sidebar) -->
     <div class="w-full md:w-1/4 max-w-[320px] min-w-[280px] bg-(--bg2)/50 border-r border-(--border-color) flex flex-col h-full shrink-0">
@@ -27,26 +27,37 @@
         </div>
 
         <div 
-          v-for="role in roles" 
+          v-for="(role, index) in roles" 
           :key="role.id"
+          draggable="true"
+          @dragstart="handleDragStart(index)"
+          @dragenter="handleDragEnter(index)"
+          @dragover.prevent
+          @drop="handleDrop(index)"
+          @dragend="handleDragEnd"
           @click="selectRole(role)"
-          class="px-4 py-3 rounded-xl transition-all cursor-pointer flex items-center justify-between group border border-transparent"
-          :class="selectedRoleId === role.id ? 'bg-(--primary)/10 border-(--primary)/20 shadow-sm' : 'hover:bg-(--bg2)'"
+          class="px-4 py-3 rounded-xl transition-all cursor-pointer flex items-center justify-between group border"
+          :class="[
+            selectedRoleId === role.id ? 'bg-(--primary)/10 border-(--primary)/20 shadow-sm' : 'border-transparent hover:bg-(--bg2)',
+            dragOverRoleIndex === index ? 'border-t-2 border-t-(--primary) bg-(--bg2)/50' : '',
+            draggedRoleIndex === index ? 'opacity-30' : ''
+          ]"
         >
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2">
+            <i class="bi bi-grip-vertical text-(--text2) opacity-30 group-hover:opacity-100 cursor-grab active:cursor-grabbing hidden sm:block" title="Glisser pour réorganiser" />
             <!-- Pastille de couleur ronde -->
             <div 
               class="w-3 h-3 rounded-full shrink-0 shadow-inner"
               :style="{ backgroundColor: role.color || '#6b7280' }"
             />
-            <div class="flex flex-col">
+            <div class="flex flex-col pl-1">
               <span class="font-bold text-sm flex items-center gap-2" :class="selectedRoleId === role.id ? 'text-(--primary)' : 'text-(--text)'">
                 {{ role.name }}
-                <span v-if="role.isSystem" class="text-[9px] font-black bg-white/5 px-1.5 py-0.5 rounded text-(--text2) uppercase tracking-wider border border-(--border-color)">
+                <span v-if="role.name === 'OWNER'" class="text-[9px] font-black bg-white/5 px-1.5 py-0.5 rounded text-(--text2) uppercase tracking-wider border border-(--border-color)">
                   Sys
                 </span>
               </span>
-              <span class="text-xs text-(--text2) mt-0.5">{{ role.memberCount }} membre{{ role.memberCount !== 1 ? 's' : '' }}</span>
+              <span class="text-xs text-(--text2) mt-0.5">{{ role.memberCount }} membre{{ (role.memberCount || 0) !== 1 ? 's' : '' }}</span>
             </div>
           </div>
           <i class="bi bi-chevron-right text-xs transition-transform opacity-0 group-hover:opacity-100" :class="selectedRoleId === role.id ? 'opacity-100 translate-x-1 text-(--primary)' : 'text-(--text2)'" />
@@ -83,7 +94,7 @@
           <div class="flex items-center gap-3">
             <!-- Bouton Supprimer -->
             <button 
-              v-if="!selectedRole.isSystem"
+              v-if="selectedRole.name !== 'OWNER'"
               @click="deleteRole(selectedRole)"
               class="w-10 h-10 flex items-center justify-center text-red-400 bg-red-400/10 hover:bg-red-400/20 rounded-lg transition-colors"
               title="Supprimer le rôle"
@@ -102,11 +113,11 @@
           </div>
 
           <div class="max-w-3xl flex flex-col gap-10 pb-32">
-            <template v-for="group in filteredPermissionGroups" :key="group.name">
+            <template v-for="group in filteredPermissionGroups" :key="$p(group.name)">
               <div v-if="group.keys.length > 0" class="flex flex-col gap-4">
                 
                 <h3 class="text-xs font-black uppercase tracking-widest text-(--primary) border-b border-(--border-color) pb-2">
-                  {{ group.name }}
+                  {{ $p(group.name) }}
                 </h3>
                 
                 <div class="flex flex-col gap-1">
@@ -154,34 +165,6 @@
           </div>
         </div>
 
-        <!-- Barre de Sauvegarde (Sticky Footer) -->
-        <div 
-          class="absolute bottom-0 left-0 right-0 border-t border-(--border-color) bg-(--bg)/90 backdrop-blur-md p-4 flex items-center justify-between transition-transform duration-300 z-10"
-          :class="hasChanges ? 'translate-y-0' : 'translate-y-full opacity-0 pointer-events-none'"
-        >
-          <span class="text-sm font-semibold text-yellow-500 flex items-center gap-2 ml-4">
-            <i class="bi bi-exclamation-triangle-fill" />
-            Modifications non enregistrées
-          </span>
-          <div class="flex items-center gap-3">
-            <button 
-              @click="resetChanges"
-              :disabled="isSaving"
-              class="px-4 py-2 text-sm font-semibold text-(--text2) hover:text-(--text) transition-colors"
-            >
-              Annuler
-            </button>
-            <button 
-              @click="saveDefaults"
-              :disabled="isSaving"
-              class="primary flex items-center gap-2"
-            >
-              <div v-if="isSaving" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              <span>Enregistrer les modifications</span>
-            </button>
-          </div>
-        </div>
-
       </template>
 
       <!-- État vide -->
@@ -198,6 +181,34 @@
         </p>
       </div>
 
+    </div>
+
+    <!-- Barre de Sauvegarde (Sticky Footer) Globale -->
+    <div 
+      class="absolute bottom-0 left-0 right-0 border-t border-(--border-color) bg-(--bg)/90 backdrop-blur-md p-4 flex items-center justify-between transition-transform duration-300 z-50 shadow-2xl"
+      :class="hasChanges ? 'translate-y-0' : 'translate-y-full opacity-0 pointer-events-none'"
+    >
+      <span class="text-sm font-semibold text-yellow-500 flex items-center gap-2 ml-6">
+        <i class="bi bi-exclamation-triangle-fill" />
+        Modifications non enregistrées
+      </span>
+      <div class="flex items-center gap-3 mr-6">
+        <button 
+          @click="resetChanges"
+          :disabled="isSaving"
+          class="px-4 py-2 text-sm font-semibold text-(--text2) hover:text-(--text) transition-colors"
+        >
+          Annuler
+        </button>
+        <button 
+          @click="saveDefaults"
+          :disabled="isSaving"
+          class="primary flex items-center gap-2 shadow-lg"
+        >
+          <div v-if="isSaving" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          <span>Enregistrer les modifications</span>
+        </button>
+      </div>
     </div>
 
     <!-- Modal Création -->
@@ -294,7 +305,7 @@ import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 
 const toast = useToast();
 const orgId = computed(() => openedOrg.value?.id);
-const { fetchRoles, invalidateRolesCache, invalidateCache } = usePermissions(orgId);
+const { fetchRoles, invalidateRolesCache, invalidateCache, fetchPermissions } = usePermissions(orgId);
 
 const loading = ref(true);
 const isSaving = ref(false);
@@ -319,6 +330,55 @@ const presetColors = ['#94a3b8', '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#2
 const newRole = ref({ name: '', color: presetColors[0] });
 const searchQuery = ref('');
 
+// Drag and drop state
+const draggedRoleIndex = ref<number | null>(null);
+const dragOverRoleIndex = ref<number | null>(null);
+
+const handleDragStart = (index: number) => {
+  draggedRoleIndex.value = index;
+};
+
+const handleDragEnter = (index: number) => {
+  if (draggedRoleIndex.value !== null && draggedRoleIndex.value !== index) {
+    dragOverRoleIndex.value = index;
+  }
+};
+
+const handleDrop = async (index: number) => {
+  if (draggedRoleIndex.value === null || draggedRoleIndex.value === index) {
+    handleDragEnd();
+    return;
+  }
+  
+  const draggedIndex = draggedRoleIndex.value;
+  const newRoles = [...roles.value];
+  const [removed] = newRoles.splice(draggedIndex, 1);
+  if (!removed) return;
+  newRoles.splice(index, 0, removed);
+  roles.value = newRoles;
+
+  handleDragEnd();
+
+  try {
+    await sfetch(`/api/orgs/${orgId.value}/roles/reorder`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        roleIds: roles.value.map(r => r.id)
+      })
+    });
+    toast.show('Hiérarchie mise à jour', 'success');
+  } catch (err) {
+    console.error(err);
+    toast.show("Erreur lors de la sauvegarde de l'ordre", 'error');
+    await fetchRoles();
+  }
+};
+
+const handleDragEnd = () => {
+  draggedRoleIndex.value = null;
+  dragOverRoleIndex.value = null;
+};
+
 // État local des permissions par défaut
 const localPerms = ref<Record<string, Record<string, PermissionValue>>>({});
 const originalPerms = ref<Record<string, Record<string, PermissionValue>>>({});
@@ -339,6 +399,14 @@ const permissionGroups = [
   {
     name: 'Contenu & Fichiers',
     keys: ['VIEW', 'READ', 'WRITE', 'UPLOAD', 'CONTENT_DELETE', 'SHARE']
+  },
+  {
+    name: 'Tâches (Gestion Globale)',
+    keys: ['TASK_UPDATE_ALL', 'TASK_DELETE_ALL', 'TASK_STATUS_ALL', 'TASK_SUBTASK_ALL']
+  },
+  {
+    name: 'Tâches (Hiérarchie - Rôles Inférieurs)',
+    keys: ['TASK_UPDATE_LOWER', 'TASK_DELETE_LOWER', 'TASK_STATUS_LOWER', 'TASK_SUBTASK_LOWER']
   }
 ];
 
@@ -361,9 +429,10 @@ onUnmounted(() => {
   }
 });
 
-const handleRolesUpdated = () => {
+const handleRolesUpdated = async () => {
   invalidateCache();
   invalidateRolesCache();
+  await fetchPermissions();
   // Ne pas écraser les modifications locales en cours si possible,
   // mais pour faire simple et sûr : on recharge tout discrètement.
   if (!hasChanges.value) {
@@ -460,6 +529,8 @@ function isRoleLocked(role: RoleData): boolean {
 }
 
 function getPermissionValue(roleId: string, perm: Permission): PermissionValue {
+  const role = roles.value.find((r: RoleData) => r.id === roleId);
+  if (role && role.name === 'OWNER') return 'ALLOW';
   return localPerms.value[roleId]?.[perm] || 'DENY';
 }
 
@@ -499,8 +570,8 @@ async function saveDefaults() {
     await loadData(true);
     
     // Invalidate local cache explicitly just in case WebSocket is slow
-    const { invalidateCache } = usePermissions(orgId);
     invalidateCache();
+    await fetchPermissions();
 
   } catch (err) {
     toast.show('Erreur lors de la sauvegarde', 'error');

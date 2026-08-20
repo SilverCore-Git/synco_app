@@ -75,32 +75,51 @@
                                     <div class="px-6 py-4 flex items-center gap-4 hidden sm:flex">
                                         <div class="relative">
                                             <img
-                                                :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=062d1f&color=16ac77`"
+                                                :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(member.user?.name)}&background=062d1f&color=16ac77`"
                                                 class="w-10 h-10 rounded-full object-cover bg-(--bg) border border-(--border-color)"
                                             />
                                             <div v-if="isSelf(member.user?.id!)" class="absolute -bottom-1 -right-1 bg-(--primary) w-3.5 h-3.5 rounded-full border-2 border-(--bg2)" title="Vous" />
                                         </div>
                                         <div class="flex flex-col">
                                             <span class="text-sm font-bold text-(--text) group-hover:text-(--primary) transition-colors">
-                                                {{ member.user?.name || 'Utilisateur inconnu' }}
+                                                {{ $p(member.user?.name) || 'Utilisateur inconnu' }}
                                             </span>
                                             <span class="text-[11px] text-(--text2)">{{ member.user?.email }}</span>
                                         </div>
                                     </div>
 
-                                    <!-- Rôle (Desktop) -->
-                                    <div class="px-6 py-4 flex items-center hidden sm:flex">
-                                        <select
-                                            :value="getMemberRoleId(member)"
-                                            @change="updateRole(member.id, $event)"
-                                            :disabled="isSelf(member.user?.id!) || !isAdmin"
-                                            class="bg-(--bg) border border-(--border-color) rounded-lg px-3 py-1.5 text-xs text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                                    <div class="px-6 py-4 flex items-center hidden sm:flex relative role-dropdown-container" @click.stop>
+                                        <button 
+                                            @click="toggleRoleDropdown(member.id)"
+                                            class="bg-(--bg) border border-(--border-color) rounded-lg px-3 py-1.5 text-xs text-(--text) focus:outline-none focus:border-(--primary) transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 min-w-[120px] justify-between"
+                                            :disabled="isSelf(member.user?.id!) || !can('ORG_MEMBERS')"
+                                            :class="{ 'opacity-40 cursor-not-allowed': member?.role === 'OWNER' && isSelf(member.user?.id!) }"
                                         >
-                                            <option v-for="role in rolesList" :key="role.id" :value="role.id">
-                                                {{ role.name }}
-                                                <span v-if="role.isSystem"> (Système)</span>
-                                            </option>
-                                        </select>
+                                            <span class="truncate max-w-[150px]">{{ getMemberRoleNames(member) }}</span>
+                                            <i class="bi bi-chevron-down text-[10px]" />
+                                        </button>
+                                        
+                                        <!-- Dropdown des rôles -->
+                                        <div v-if="openRoleDropdownId === member.id" class="absolute top-12 left-6 z-50 bg-(--bg) border border-(--border-color) shadow-xl rounded-xl p-2 flex flex-col gap-1 min-w-[200px] max-h-64 overflow-y-auto">
+                                            <label 
+                                                v-for="role in rolesList" 
+                                                :key="role.id" 
+                                                class="flex items-center gap-3 px-3 py-2 hover:bg-(--bg2) rounded-lg cursor-pointer transition-colors"
+                                            >
+                                                <input 
+                                                    type="checkbox" 
+                                                    :value="role.id" 
+                                                    :checked="getMemberRoleIds(member).includes(role.id)"
+                                                    @change="toggleRoleForMember(member.id, role.id, $event)"
+                                                    class="w-4 h-4 rounded border-(--border-color) text-(--primary) focus:ring-(--primary) cursor-pointer"
+                                                />
+                                                <div class="flex items-center gap-2">
+                                                    <div class="w-3 h-3 rounded-full shadow-inner shrink-0" :style="{ backgroundColor: role.color || '#6b7280' }" />
+                                                    <span class="text-xs font-semibold text-(--text)">{{ role.name }}</span>
+                                                    <span v-if="role.name === 'OWNER'" class="text-[9px] font-black bg-white/5 px-1.5 py-0.5 rounded text-(--text2) uppercase tracking-wider border border-(--border-color) ml-1 shrink-0">Sys</span>
+                                                </div>
+                                            </label>
+                                        </div>
                                     </div>
 
                                     <!-- Date d'arrivée (Desktop) -->
@@ -111,8 +130,8 @@
                                     <!-- Actions (Desktop) -->
                                     <div class="px-6 py-4 flex items-center justify-end gap-2 hidden sm:flex">
                                         <button
-                                            v-if="!isSelf(member.user?.id!) && isAdmin"
-                                            @click="confirmKickMember(member.id, member.user?.name || 'ce membre')"
+                                            v-if="!isSelf(member.user?.id!) && can('ORG_MEMBERS')"
+                                            @click="confirmKickMember(member.id, $p(member.user?.name) || 'ce membre')"
                                             class="p-2 rounded-xl text-(--text2) hover:bg-red-500/10 hover:text-red-500 transition-colors"
                                             title="Exclure le membre"
                                         >
@@ -128,14 +147,14 @@
                                             <div class="flex items-center gap-3">
                                                 <div class="relative">
                                                     <img
-                                                        :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=062d1f&color=16ac77`"
+                                                        :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(member.user?.name)}&background=062d1f&color=16ac77`"
                                                         class="w-10 h-10 rounded-full object-cover bg-(--bg) border border-(--border-color)"
                                                     />
                                                     <div v-if="isSelf(member.user?.id!)" class="absolute -bottom-1 -right-1 bg-(--primary) w-3.5 h-3.5 rounded-full border-2 border-(--bg2)" title="Vous" />
                                                 </div>
                                                 <div class="flex flex-col">
                                                     <span class="text-sm font-bold text-(--text)">
-                                                        {{ member.user?.name || 'Utilisateur inconnu' }}
+                                                        {{ $p(member.user?.name) || 'Utilisateur inconnu' }}
                                                     </span>
                                                     <span class="text-[11px] text-(--text2)">{{ member.user?.email }}</span>
                                                 </div>
@@ -143,8 +162,8 @@
 
                                             <!-- Actions (Mobile) -->
                                             <button
-                                                v-if="!isSelf(member.user?.id!) && isAdmin"
-                                                @click="confirmKickMember(member.id, member.user?.name || 'ce membre')"
+                                                v-if="!isSelf(member.user?.id!) && can('ORG_MEMBERS')"
+                                                @click="confirmKickMember(member.id, $p(member.user?.name) || 'ce membre')"
                                                 class="p-2 rounded-xl text-red-500 transition-colors"
                                                 title="Exclure le membre"
                                             >
@@ -163,19 +182,38 @@
                                                 </span>
                                             </div>
 
-                                            <!-- Rôle -->
-                                            <div class="flex flex-col gap-2 bg-(--bg) border border-(--border-color) rounded-2xl px-4 text-xs text-(--text) focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer">
-                                                <select
-                                                    :value="getMemberRoleId(member)"
-                                                    @change="updateRole(member.id, $event)"
-                                                    :disabled="isSelf(member.user?.id!) || !isAdmin"
-                                                    class="pr-4 py-4 !bg-(--bg) rounded-2xl"
+                                            <!-- Rôle (Mobile) -->
+                                            <div class="flex flex-col gap-2 relative role-dropdown-container" @click.stop>
+                                                <button 
+                                                    @click="toggleRoleDropdown(member.id + '-mobile')"
+                                                    class="bg-(--bg) border border-(--border-color) rounded-2xl px-4 py-4 text-xs text-(--text) focus:outline-none transition-all cursor-pointer flex items-center justify-between disabled:opacity-50"
+                                                    :disabled="isSelf(member.user?.id!) || !can('ORG_MEMBERS')"
                                                     :class="{ 'opacity-40 cursor-not-allowed': member?.role === 'OWNER' && isSelf(member.user?.id!) }"
                                                 >
-                                                    <option v-for="role in rolesList" :key="role.id" :value="role.id">
-                                                        {{ role.name }}
-                                                    </option>
-                                                </select>
+                                                    <span class="truncate">{{ getMemberRoleNames(member) }}</span>
+                                                    <i class="bi bi-chevron-down text-sm text-(--text2)" />
+                                                </button>
+                                                
+                                                <div v-if="openRoleDropdownId === (member.id + '-mobile')" class="absolute top-14 left-0 right-0 z-50 bg-(--bg) border border-(--border-color) shadow-2xl rounded-xl p-2 flex flex-col gap-1 max-h-60 overflow-y-auto">
+                                                    <label 
+                                                        v-for="role in rolesList" 
+                                                        :key="role.id" 
+                                                        class="flex items-center gap-3 px-3 py-3 hover:bg-(--bg2) rounded-lg cursor-pointer transition-colors"
+                                                    >
+                                                        <input 
+                                                            type="checkbox" 
+                                                            :value="role.id" 
+                                                            :checked="getMemberRoleIds(member).includes(role.id)"
+                                                            @change="toggleRoleForMember(member.id, role.id, $event)"
+                                                            class="w-5 h-5 rounded border-(--border-color) text-(--primary) focus:ring-(--primary) cursor-pointer"
+                                                        />
+                                                        <div class="flex items-center gap-3">
+                                                            <div class="w-4 h-4 rounded-full shadow-inner shrink-0" :style="{ backgroundColor: role.color || '#6b7280' }" />
+                                                            <span class="text-sm font-semibold text-(--text)">{{ role.name }}</span>
+                                                            <span v-if="role.name === 'OWNER'" class="text-[9px] font-black bg-white/5 px-2 py-0.5 rounded text-(--text2) uppercase tracking-wider border border-(--border-color) ml-1 shrink-0">Sys</span>
+                                                        </div>
+                                                    </label>
+                                                </div>
                                             </div>
 
 
@@ -474,7 +512,6 @@
 
 import { ref, computed, onMounted } from 'vue';
 import { openedOrg, user } from '@/assets/var';
-import isAdmin from '@/assets/isAdmin';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
@@ -489,15 +526,60 @@ const inviteLinks = ref<any[]>([]);
 const inviteLink = ref<string>('');
 const inviteMaxUses = ref<number>(1);
 
-const { fetchRoles } = usePermissions(computed(() => openedOrg.value?.id));
+const orgId = computed(() => openedOrg.value?.id);
+const { fetchRoles, can } = usePermissions(orgId);
 const rolesList = ref<any[]>([]);
 
-const getMemberRoleId = (member: any) => {
+const getMemberRoleIds = (member: any): string[] => {
     if (member.memberRoles && member.memberRoles.length > 0) {
-        return member.memberRoles[0].roleId;
+        return member.memberRoles.map((mr: any) => mr.roleId);
     }
-    const systemRole = rolesList.value.find(r => r.isSystem && r.name === member.role);
-    return systemRole ? systemRole.id : '';
+    const legacyRole = rolesList.value.find(r => r.name === member.role);
+    return legacyRole ? [legacyRole.id] : [];
+};
+
+const getMemberRoleNames = (member: any): string => {
+    const ids = getMemberRoleIds(member);
+    if (ids.length === 0) return 'Aucun rôle';
+    const names = ids.map(id => rolesList.value.find(r => r.id === id)?.name).filter(Boolean);
+    if (names.length === 0) return 'Inconnu';
+    if (names.length === 1) return names[0] as string;
+    return `${names[0]} (+${names.length - 1})`;
+};
+
+const openRoleDropdownId = ref<string | null>(null);
+
+const toggleRoleDropdown = (memberId: string) => {
+    if (openRoleDropdownId.value === memberId) {
+        openRoleDropdownId.value = null;
+    } else {
+        openRoleDropdownId.value = memberId;
+    }
+};
+
+onMounted(() => {
+    document.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        if (!target.closest('.role-dropdown-container')) {
+            openRoleDropdownId.value = null;
+        }
+    });
+});
+
+const toggleRoleForMember = async (memberId: string, roleId: string, event: Event) => {
+    const member = openedOrg.value?.members?.find(m => m.id === memberId);
+    if (!member) return;
+    
+    let currentRoleIds = getMemberRoleIds(member);
+    const isChecked = (event.target as HTMLInputElement).checked;
+    
+    if (isChecked) {
+        if (!currentRoleIds.includes(roleId)) currentRoleIds.push(roleId);
+    } else {
+        currentRoleIds = currentRoleIds.filter(id => id !== roleId);
+    }
+    
+    await updateRoles(memberId, currentRoleIds);
 };
 
 // Modals state
@@ -558,20 +640,18 @@ const deleteInvite = async (code: string, state: 1 | 2) => {
 
 };
 
-const updateRole = async (memberId: string, event: Event) => {
-    const roleId = (event.target as HTMLSelectElement).value;
+const updateRoles = async (memberId: string, roleIds: string[]) => {
     try {
         const res = await sfetch(`/api/orgs/users/${openedOrg.value!.id}/role/${memberId}`, {
             method: 'PATCH',
-            body: JSON.stringify({ roleId })
+            body: JSON.stringify({ roleIds })
         });
         
         if (res.ok) {
-            toast.show('Rôle mis à jour avec succès', 'success');
+            toast.show('Rôles mis à jour', 'success');
         } else {
             const data = await res.json();
             toast.show(data.error || 'Erreur lors de la mise à jour', 'error');
-            // Revert state logic could be added here if needed
         }
     } catch (err) {
         toast.show('Erreur de connexion', 'error');

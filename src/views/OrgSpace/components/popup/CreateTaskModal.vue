@@ -120,10 +120,10 @@
                         <div class="flex items-center gap-2">
                             <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-6 h-6 rounded-full object-cover">
                             <div v-else class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[10px] font-bold">
-                                {{ (member.user?.name || member.userId).substring(0, 2).toUpperCase() }}
+                                {{ ($p(member.user?.name) || member.userId).substring(0, 2).toUpperCase() }}
                             </div>
                             <span class="text-sm font-medium text-(--text) group-hover:text-white transition-colors">
-                                {{ member.user?.name || member.userId }}
+                                {{ $p(member.user?.name) || member.userId }}
                             </span>
                         </div>
                     </label>

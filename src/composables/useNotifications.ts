@@ -189,13 +189,15 @@ const initListener = async () => {
         return;
     }
 
-    socket.value?.on('notif:new-message', async ({ message }: { message: Message }) => {
+    socket.value?.on('notif:new-message', async ({ message, spaceId, orgId }: { message: Message, spaceId?: string, orgId?: string }) => {
 
         if (route.params.threadId == message.threadId) return;
 
-        let decryptedMessage = message;
+        let decryptedMessage = message as any;
 
         decryptedMessage.content = message.content;
+        decryptedMessage.spaceId = spaceId;
+        decryptedMessage.orgId = orgId;
 
         messageNotif.value.push(decryptedMessage);
 

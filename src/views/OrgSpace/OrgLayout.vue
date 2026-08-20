@@ -20,6 +20,7 @@ import isDesktopApp from '@/assets/isDesktopApp';
 import { useToast } from '@/composables/useToast';
 import { decryptFromPeer, privateKey, decryptThreadKeyWithRsa, encryptThreadKeyForMember } from '@/assets/utils/crypto';
 import { SearchSyncService } from '@/services/SearchSyncService';
+import { usePermissions } from '@/composables/usePermissions';
 
 
 const props = defineProps<{
@@ -32,6 +33,7 @@ const { initPeer } = useSecurePeer();
 const { notify } = useNotifications();
 const route = useRoute();
 const toast = useToast();
+const { fetchPermissions } = usePermissions(computed(() => props.orgId));
 
 const mediaQuery = window.matchMedia('(max-width: 1024px)');
 const showRouterView = computed(() => !isLittleScreen.value || route.query.showView !== '0');
@@ -192,12 +194,7 @@ const initSocketListener = async () => {
         })
     } 
 
-    const me = openedOrg.value?.members?.find(member => member.user?.id == keycloak.userInfo?.sub);
-    if (me && me.user && me.user.data) {
-        me.user.data.status = 'online';
-        socket.value?.emit('update-status', { orgId: props.orgId, status: 'online' });
-    }
-    
+    // Removed forced 'online' status update. The backend now restores the user's lastStatus upon connection.
 
     socket.value?.on('member:new', ({ member }: { member: OrgMember }) => {
         openedOrg.value?.members?.push(member);
@@ -403,17 +400,21 @@ const initSocketListener = async () => {
         }
     });
 
-    socket.value?.on('notif:new-message', ({ message, spaceId }: { message: Message, spaceId: string }) => {
+    socket.value?.on('notif:new-message', ({ message, spaceId }: { message: Message, spaceId: string | null }) => {
         
         if (route.params.threadId == message.threadId) return;
 
-        const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
-        if (!space) return;
+        let thread;
+        if (spaceId) {
+            const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
+            if (space) thread = space.threads?.find(t => t.id === message.threadId);
+        } else {
+            thread = openedOrg.value?.home?.threads?.find(t => t.id === message.threadId);
+        }
 
-        const thread = space.threads.find(t => t.id === message.threadId);
-        if (!thread) return;
-
-        thread.hasUnread = true;
+        if (thread) {
+            thread.hasUnread = true;
+        }
 
     });
 
@@ -422,7 +423,8 @@ const initSocketListener = async () => {
         const isMeTheSender = newMessage.senderId === user.value?.id;
         const conversationPeerId = isMeTheSender ? newMessage.recipientId : newMessage.senderId;
 
-        const isCurrentConversation = (route.name === 'OrgThreadChat' || route.name === 'OrgThreadChatPrivateMeet') && route.params.userId === conversationPeerId;
+        const peerMemberId = openedOrg.value?.members?.find(m => m.user?.id === conversationPeerId)?.id;
+        const isCurrentConversation = (route.name === 'OrgThreadChat' || route.name === 'OrgThreadChatPrivateMeet') && route.params.userId === peerMemberId;
 
         if (isCurrentConversation) {
             return;
@@ -492,7 +494,7 @@ const initSocketListener = async () => {
 
 
 
-    socket.value?.on('thread:updated', ({ orgId, threadId, name }: { orgId: string, threadId: string, name: string }) => {
+    socket.value?.on('thread:updated', ({ orgId, thread }: { orgId: string, thread: any }) => {
         
         if (orgId !== props.orgId) return;
 
@@ -500,13 +502,13 @@ const initSocketListener = async () => {
         if (!org) return;
 
         org.spaces?.forEach(space => {
-            const t = space.threads?.find(t => t.id === threadId);
-            if (t) t.name = name;
+            const t = space.threads?.find(t => t.id === thread.id);
+            if (t) Object.assign(t, thread);
         });
 
         if (org.home) {
-            const t = org.home.threads?.find(t => t.id === threadId);
-            if (t) t.name = name;
+            const t = org.home.threads?.find(t => t.id === thread.id);
+            if (t) Object.assign(t, thread);
         }
 
     });
@@ -559,6 +561,7 @@ onMounted(async () => {
         openedOrg.value = await res.json(); 
     }
     await Promise.all([
+            fetchPermissions(),
             initSocketListener(),
             initPeer()
     ])

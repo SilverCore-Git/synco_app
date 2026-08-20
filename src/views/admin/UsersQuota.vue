@@ -42,10 +42,10 @@
                             <td class="p-4">
                                 <div class="flex items-center gap-3">
                                     <div class="w-10 h-10 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center font-bold text-lg shrink-0">
-                                        {{ user.name ? user.name.charAt(0).toUpperCase() : '?' }}
+                                        {{ $p(user.name) ? $p(user.name).charAt(0).toUpperCase() : '?' }}
                                     </div>
                                     <div>
-                                        <p class="font-bold text-sm text-(--text)">{{ user.name || 'Sans nom' }}</p>
+                                        <p class="font-bold text-sm text-(--text)">{{ $p(user.name) || 'Sans nom' }}</p>
                                         <p class="text-xs text-(--text2) font-mono mt-0.5">{{ user.email }}</p>
                                     </div>
                                 </div>
@@ -94,7 +94,7 @@
                 
                 <div class="p-6 border-b border-white/5 bg-(--bg2)">
                     <h3 class="text-xl font-black text-(--text)">Modifier les quotas</h3>
-                    <p class="text-sm text-(--text2) mt-1">Pour l'utilisateur <span class="font-bold text-(--text)">{{ selectedUser.name }}</span></p>
+                    <p class="text-sm text-(--text2) mt-1">Pour l'utilisateur <span class="font-bold text-(--text)">{{ $p(selectedUser.name) }}</span></p>
                 </div>
 
                 <div class="p-6 space-y-5">

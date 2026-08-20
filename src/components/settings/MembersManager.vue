@@ -75,7 +75,7 @@
 
                                     <div class="flex flex-col">
                                         <span class="text-sm font-bold text-(--text) flex items-center gap-2">
-                                            {{ member.user?.name || 'Utilisateur inconnu' }}
+                                            {{ $p(member.user?.name) || 'Utilisateur inconnu' }}
                                             <span v-if="isSelf(member.userId)" class="text-[9px] bg-(--white)/10 px-1.5 py-0.5 rounded text-(--text2)">VOUS</span>
                                         </span>
                                         <span class="text-[10px] text-(--text2)">{{ member.user?.email || 'Email non disponible' }}</span>
@@ -132,7 +132,7 @@
                         :src="orgMember.user?.avatarUrl || 'https://cdn.silvercore.fr/static/files/silverteams/avatar/default.png'" 
                         class="w-8 h-8 rounded-full" 
                     />
-                    <span class="text-sm font-bold text-(--text)">{{ orgMember.user?.name }}</span>
+                    <span class="text-sm font-bold text-(--text)">{{ $p(orgMember.user?.name) }}</span>
                 </div>
 
                 <button @click="invite(orgMember)" class="text-(--primary) text-xs font-black opacity-0 group-hover:opacity-100 transition-opacity">
@@ -155,7 +155,12 @@ import type { OrgMember } from '@/types/types';
 import { keycloak } from '@/assets/keycloak';
 import Popup from '../Popup.vue';
 import { openedOrg } from '@/assets/var';
-import isAdmin from '@/assets/isAdmin';
+import { usePermissions } from '@/composables/usePermissions';
+import { useRoute } from 'vue-router';
+
+const route = useRoute();
+const orgId = computed(() => openedOrg.value?.id);
+const { can } = usePermissions(orgId);
 
 const props = defineProps<{
     members: OrgMember[];        // members already in this scope
@@ -184,7 +189,7 @@ const isSelf = (userId: string) => userId === keycloak.userInfo?.sub;
 
 const canManage = (member: OrgMember) => {
     if (isSelf(member.userId)) return false;
-    return isAdmin.value || keycloak.userInfo?.sub === props.ownerId;
+    return can('SPACE_MANAGE', route.params.spaceId as string) || keycloak.userInfo?.sub === props.ownerId;
 };
 
 const invite = (member: OrgMember) => {

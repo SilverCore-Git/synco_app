@@ -13,16 +13,16 @@
 
 
                 <img 
-                    :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${recipient?.name}&background=128a60&color=fff`" 
-                    :alt="recipient.name"
-                    @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${recipient?.name}&background=128a60&color=fff`"
+                    :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`" 
+                    :alt="$p(recipient.name)"
+                    @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`"
                     class="w-9 h-9 rounded-full border border-white/10"
                 />
 
                 <div class="flex flex-col">
 
                     <h2 class="font-bold text-(--text) tracking-wide leading-none mb-1">
-                        {{ recipient.name }}
+                        {{ $p(recipient.name) }}
                     </h2>
 
                     <div class="flex items-center gap-1.5">
@@ -79,19 +79,19 @@
                    
                     <div class="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4 overflow-hidden border-2 border-white/10">
                         <img 
-                            :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${recipient?.name}&background=128a60&color=fff`" 
+                            :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`" 
                             class="w-full h-full object-cover" 
                         />
                     </div>
 
-                    <h1 class="text-3xl font-black text-(--text) mb-2">{{ recipient.name }}</h1>
+                    <h1 class="text-3xl font-black text-(--text) mb-2">{{ $p(recipient.name) }}</h1>
                     <p class="text-(--text2) text-sm">
-                        C'est le début de votre historique de messages directs avec <b>@{{ recipient.name }}</b>.
+                        C'est le début de votre historique de messages directs avec <b>@{{ $p(recipient.name) }}</b>.
                     </p>
 
                 </div>
 
-                <div class="space-y-1 w-full">
+                <div class="flex flex-col w-full">
 
                     <template v-if="loading">
 
@@ -112,12 +112,13 @@
                         </div>
 
                         <ChatMessage 
-                            v-for="msg in messages" 
+                            v-for="(msg, index) in messages" 
                             :key="msg.id" 
 
                             :selected-message="selectedMessage"
                             :msg="msg"
                             :messages="messages"
+                            :is-stacked="index > 0 && messages[index-1].senderId === msg.senderId && !msg.replyToId && (new Date(msg.createdAt).getTime() - new Date(messages[index-1].createdAt).getTime() < 60000)"
                         />
 
                     </template>
@@ -149,7 +150,7 @@
                 </div>
 
                 <p class="text-[11px] text-(--text2) italic">
-                    {{ recipient.name }} est en train d'écrire
+                    {{ $p(recipient.name) }} est en train d'écrire
                 </p>
 
             </div>
@@ -268,7 +269,7 @@
                         @send="sendMessage"
                         @input="handleTyping"
                         ref="TextareaRef"
-                        :placeholder="'Message @' + recipient.name"
+                        :placeholder="'Message @' + $p(recipient.name)"
                     />
 
                     <div 
@@ -358,7 +359,6 @@ import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import DropDown from '@/components/DropDown.vue';
 import EmojiPicker from '@/components/common/EmojiPicker.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
-import waitFor from '@/assets/utils/waitfor';
 import useSecurePeer from '@/composables/useSecurePeer';
 
 import { E2EEUnloked, privateKey, encryptForPeer, decryptFromPeer } from '@/assets/utils/crypto';
@@ -573,26 +573,36 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<
 
 const procesMessages = async (msgs: DMMessage[]) => {
 
-    const decryptedMessages = await Promise.all(msgs.map(async m => {
-        
-        let decryptedMain = await decryptSingleMessage(m);
-        if (!decryptedMain) return m;
+    const BATCH_SIZE = 10;
+    const results: (DMMessage | null)[] = [];
 
-        if (decryptedMain.replyMessage) 
-        {
-            const decryptedReply = await decryptSingleMessage(decryptedMain.replyMessage);
-            if (decryptedReply) {
-                decryptedMain.replyMessage = decryptedReply;
+    for (let i = 0; i < msgs.length; i += BATCH_SIZE) {
+        const batch = msgs.slice(i, i + BATCH_SIZE);
+
+        const decryptedBatch = await Promise.all(batch.map(async m => {
+            let decryptedMain = await decryptSingleMessage(m);
+            if (!decryptedMain) return m;
+
+            if (decryptedMain.replyMessage) {
+                const decryptedReply = await decryptSingleMessage(decryptedMain.replyMessage);
+                if (decryptedReply) {
+                    decryptedMain.replyMessage = decryptedReply;
+                }
             }
+
+            return decryptedMain;
+        }));
+
+        results.push(...decryptedBatch);
+
+        // Yield to main thread after each batch so the UI can paint
+        if (i + BATCH_SIZE < msgs.length) {
+            await new Promise(r => setTimeout(r, 0));
         }
+    }
 
-        return decryptedMain;
-
-    }));
-
-    return decryptedMessages.sort((a, b) => {
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    });
+    // Backend sends messages pre-sorted — no need to re-sort
+    return results as DMMessage[];
 
 };
 
@@ -600,7 +610,7 @@ const initListener = () => {
 
     if (!socket.value) return;
     
-    const events = ["dm:history", "dm:new-message", "dm:user-typing", "dm:delete-message", "dm:edit-message", "dm-more-messages", "connect"];
+    const events = ["dm:history", "dm:new-message", "dm:user-typing", "dm:delete-message", "dm:edit-message", "dm-more-messages", "dm-reaction-updated", "connect"];
     events.forEach(ev => socket.value?.off(ev));
 
     socket.value.on("connect", () => {
@@ -646,6 +656,17 @@ const initListener = () => {
 
     socket.value.on("dm:new-message", async (msg: any) => {
         const decryptedMsg = await decryptSingleMessage(msg);
+        
+        if (msg.senderId === user.value?.id) {
+            const tempIndex = messages.value.findIndex(m => String(m.id).startsWith('temp-') && m.content === decryptedMsg?.content);
+            if (tempIndex !== -1) {
+                messages.value.splice(tempIndex, 1);
+            } else {
+                const fallbackTempIndex = messages.value.findIndex(m => String(m.id).startsWith('temp-'));
+                if (fallbackTempIndex !== -1) messages.value.splice(fallbackTempIndex, 1);
+            }
+        }
+
         messages.value.push(decryptedMsg);
         isSomeoneTyping.value = false;
         scrollToBottom();
@@ -681,6 +702,12 @@ const initListener = () => {
         isSomeoneTyping.value = data.isTyping;
     });
 
+    // Centralized reaction listener — avoids per-ChatMessage socket registration
+    socket.value.on('dm-reaction-updated', (data: { dmMessageId: string; reactions: Record<string, { count: number; users: any[] }> }) => {
+        const msg = messages.value.find(m => m.id === data.dmMessageId);
+        if (msg) msg.reactions = data.reactions;
+    });
+
 };
 
 const joinDM = async (userId: string) => {
@@ -714,29 +741,52 @@ const sendMessage = async () => {
 
     if (!newMessage.value.trim() || !socket.value || !recipient.value) return;
 
-    let finalContent = newMessage.value;
+    const clearContent = newMessage.value;
+    const tempId = `temp-${Date.now()}`;
+    const useEncryption = isE2EEEnabled.value && E2EEUnloked.value;
+
+    const tempMessage = {
+        id: tempId,
+        content: clearContent,
+        senderId: user.value?.id,
+        recipientId: recipient.value.id,
+        sender: user.value,
+        recipient: recipient.value,
+        createdAt: new Date(),
+        isE2EE: useEncryption,
+        isSending: true,
+        replyToId: messageWillBeResponded.value?.id,
+        replyMessage: messageWillBeResponded.value,
+    };
+    
+    messages.value.push(tempMessage);
+    
+    setMessageWillBeResponded(null);
+    newMessage.value = "";
+    stopTyping();
+    scrollToBottom();
+
+    let finalContent = clearContent;
     let finalEncryptedAesKey = null;
     let selfEncryptedAesKey = null;
     let finalIv = null;
-
-    const useEncryption = isE2EEEnabled.value && E2EEUnloked.value;
 
     if (useEncryption) 
     {
         
         const recipientPubKey = recipient.value.publicKey;
-        
         const myPubKey = user.value?.publicKey; 
 
         if (!recipientPubKey) 
         {
             toast.show("Clé du destinataire introuvable.", "error");
+            messages.value = messages.value.filter(m => m.id !== tempId);
             return;
         }
 
         try {
             
-            const encryptedData = await encryptForPeer(newMessage.value, recipientPubKey, myPubKey || undefined);
+            const encryptedData = await encryptForPeer(clearContent, recipientPubKey, myPubKey || undefined);
 
             finalContent = encryptedData.ciphertext;
             finalEncryptedAesKey = encryptedData.encryptedAesKey;
@@ -746,6 +796,7 @@ const sendMessage = async () => {
         } catch (e) {
             console.error("Erreur de chiffrement:", e);
             toast.show("Erreur lors du chiffrement.", "error");
+            messages.value = messages.value.filter(m => m.id !== tempId);
             return;
         }
     }
@@ -757,12 +808,8 @@ const sendMessage = async () => {
         selfEncryptedAesKey: selfEncryptedAesKey,
         nonce: finalIv,
         isE2EE: useEncryption,
-        replyToId: messageWillBeResponded.value?.id,
+        replyToId: tempMessage.replyToId,
     });
-
-    setMessageWillBeResponded(null);
-    newMessage.value = "";
-    stopTyping();
 
 };
 
@@ -841,8 +888,21 @@ onMounted(async () => {
     const wsRef = await useWSocket();
     socket.value = wsRef.value; 
 
-    await waitFor(() => openedOrg.value !== null);
-    await waitFor(() => socket.value !== null);
+    // Reactive wait — resolves instantly if already set, otherwise watches for change
+    if (!openedOrg.value) {
+        await new Promise<void>(resolve => {
+            const stop = watch(() => openedOrg.value, (val) => {
+                if (val) { stop(); resolve(); }
+            }, { immediate: true });
+        });
+    }
+    if (!socket.value) {
+        await new Promise<void>(resolve => {
+            const stop = watch(() => socket.value, (val) => {
+                if (val) { stop(); resolve(); }
+            }, { immediate: true });
+        });
+    }
 
     await mount();
     
@@ -855,7 +915,7 @@ onUnmounted(() => {
     document.removeEventListener('click', closeEmojiPickerOnOutsideClick);
     const sock = socket.value;
     if (sock) {
-        const events = ["dm:history", "dm:new-message", "dm:user-typing", "dm:delete-message", "dm:edit-message", "dm-more-messages", "connect"];
+        const events = ["dm:history", "dm:new-message", "dm:user-typing", "dm:delete-message", "dm:edit-message", "dm-more-messages", "dm-reaction-updated", "connect"];
         events.forEach(ev => sock.off(ev));
     }
 });

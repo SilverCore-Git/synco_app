@@ -26,6 +26,14 @@ if ('serviceWorker' in navigator) {
 
 const app = createApp(App);
 
+import useSettingsItem from './composables/useSettingsItem';
+const { Item: privacyMode } = useSettingsItem('privacyMode', false);
+app.config.globalProperties.$p = ((name: any) => {
+    if (!name || typeof name !== 'string') return name;
+    if (privacyMode.value) return name.charAt(0).toUpperCase();
+    return name;
+}) as any;
+
 app.use(router);
 
 app.use(StarportPlugin());

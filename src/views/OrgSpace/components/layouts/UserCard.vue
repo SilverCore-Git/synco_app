@@ -97,10 +97,10 @@
 
                         <div v-else class="relative flex items-center justify-center">
                             <img 
-                                :src="user?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.user?.name}&background=128a60&color=fff`" 
-                                :alt="user?.user?.name" 
+                                :src="user?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(user?.user?.name)}&background=128a60&color=fff`" 
+                                :alt="$p(user?.user?.name)" 
                                 class="w-8 h-8 rounded-full object-cover"
-                                @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${user?.user?.name}&background=128a60&color=fff`"
+                                @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(user?.user?.name)}&background=128a60&color=fff`"
                             />
                             <div 
                                 v-if="user && user.user?.data?.status"
@@ -117,13 +117,13 @@
                                 class="text-sm font-bold truncate"
                                 :class="openedOrg == null ? 'text-transparent' : 'text-(--text)'"
                             >
-                                {{ user?.user?.name || 'Chargement...' }}
+                                {{ $p(user?.user?.name) || 'Chargement...' }}
                             </span>
                             <span 
                                 class="text-[10px] truncate font-medium uppercase tracking-wider"
                                 :class="openedOrg == null ? 'text-transparent' : 'text-(--text2)'"
                             >
-                                {{ user?.role }}
+                                {{ getMemberRoleNames(user) }}
                             </span>
                         </div>
 
@@ -194,6 +194,11 @@ const user = computed<OrgMember | undefined>(() => {
     );
 
 });
+
+const getMemberRoleNames = (member: any) => {
+    if (!member?.memberRoles || member.memberRoles.length === 0) return 'Membre';
+    return member.memberRoles.map((mr: any) => mr.role?.name).filter(Boolean).join(', ');
+};
 
 const ping = ref<number>(-1);
 const showUserSettings = ref<boolean>(false);

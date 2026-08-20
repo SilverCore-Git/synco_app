@@ -44,10 +44,10 @@
 
                 <div class="relative">
                     <img 
-                        :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=128a60&color=fff`" 
-                        :alt="member.user?.name"
+                        :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(member.user?.name)}&background=128a60&color=fff`" 
+                        :alt="$p(member.user?.name)"
                         class="w-8 h-8 rounded-full"
-                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${member.user?.name}&background=128a60&color=fff`"
+                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(member.user?.name)}&background=128a60&color=fff`"
                     />
                     <span 
                         class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg2)"
@@ -56,13 +56,18 @@
                 </div>
 
                 <div class="flex flex-col flex-1 min-w-0">
-                    <span class="text-sm font-medium text-(--text) truncate">
-                        {{ member.user?.name }}
+                    <span class="text-sm font-medium text-(--text) truncate" :class="member.user && getUnreadCountByDMUserId(member.user.id).value > 0 ? 'text-red-400' : ''">
+                        {{ $p(member.user?.name) }}
                     </span>
                     <span class="text-xs text-(--text2)">
                         {{ member.role }}
                     </span>
                 </div>
+
+                <div 
+                    v-if="member.user && getUnreadCountByDMUserId(member.user.id).value > 0"
+                    class="ml-auto w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]"
+                />
 
                 <button
                     v-if="member.user?.id !== keycloak.subject"
@@ -92,10 +97,10 @@
 
                 <div class="relative">
                     <img 
-                        :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}&background=128a60&color=fff`" 
-                        :alt="member.user?.name"
+                        :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(member.user?.name)}&background=128a60&color=fff`" 
+                        :alt="$p(member.user?.name)"
                         class="w-8 h-8 rounded-full"
-                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${member.user?.name}&background=128a60&color=fff`"
+                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(member.user?.name)}&background=128a60&color=fff`"
                     />
                     <span 
                         class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg2)"
@@ -104,13 +109,18 @@
                 </div>
 
                 <div class="flex flex-col flex-1 min-w-0">
-                    <span class="text-sm font-medium text-(--text) truncate">
-                        {{ member.user?.name }}
+                    <span class="text-sm font-medium text-(--text) truncate" :class="member.user && getUnreadCountByDMUserId(member.user.id).value > 0 ? 'text-red-400' : ''">
+                        {{ $p(member.user?.name) }}
                     </span>
                     <span class="text-xs text-(--text2)">
                         {{ member.role }}
                     </span>
                 </div>
+
+                <div 
+                    v-if="member.user && getUnreadCountByDMUserId(member.user.id).value > 0"
+                    class="ml-auto w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]"
+                />
 
             </button>
 
@@ -182,10 +192,12 @@ import useSecurePeer from '@/composables/useSecurePeer';
 import { keycloak } from '@/assets/keycloak';
 import { openProfile } from '@/composables/useProfile';
 import { useUsersBar } from '@/composables/useUsersBar';
+import { useNotification } from '@/composables/useNotification';
 
 const route = useRoute();
 const { showUsersBar } = useUsersBar();
 const { startCall } = useSecurePeer();
+const { getUnreadCountByDMUserId } = useNotification();
 
 defineProps<{
     isLittleScreen: boolean;
