@@ -2,7 +2,6 @@ import { keycloak } from "../keycloak";
 import { Capacitor } from "@capacitor/core";
 
 export default async function sfetch(url: string, arg?: any, retryCount = 0): Promise<Response> {
-    
     const headers: Record<string, string> = { ...arg?.headers };
 
     if (keycloak.authenticated) {
@@ -10,29 +9,21 @@ export default async function sfetch(url: string, arg?: any, retryCount = 0): Pr
             await keycloak.updateToken(60);
         } catch (error) {
             console.error('[sfetch] Failed to refresh token:', error);
-            const redirectUri = Capacitor.isNativePlatform() 
-              ? 'fr.silvercore.synco://callback' 
+            const redirectUri = Capacitor.isNativePlatform()
+              ? 'fr.silvercore.synco://callback'
               : window.location.origin;
-
-            keycloak.login({
-              redirectUri: redirectUri
-            });
+            keycloak.login({ redirectUri });
         }
     }
 
-    if (keycloak.token) 
-    {
+    if (keycloak.token) {
         headers['Authorization'] = `Bearer ${keycloak.token}`;
     }
 
-    if (arg?.body instanceof FormData)
-    {
+    if (arg?.body instanceof FormData) {
         delete headers['Content-Type'];
-    } 
-    else 
-    {
-        if (!headers['Content-Type']) 
-        {
+    } else {
+        if (!headers['Content-Type']) {
             headers['Content-Type'] = 'application/json';
         }
     }
