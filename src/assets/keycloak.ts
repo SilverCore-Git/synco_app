@@ -250,7 +250,7 @@ const initKC = async () => {
 
     // --- web ---
     const authenticated = await keycloak.init({
-      onLoad: 'check-sso',
+      onLoad: 'login-required',
       silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
       pkceMethod: 'S256',
       checkLoginIframe: false,
