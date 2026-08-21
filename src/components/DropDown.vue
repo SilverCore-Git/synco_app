@@ -108,7 +108,7 @@ const getDropdownPosition = () => {
     return {
         top: `${top}px`,
         left: `${left}px`,
-        minWidth: `${triggerRect.width}px`
+        ...(props.align !== 'mouse' ? { minWidth: `${triggerRect.width}px` } : {})
     };
 };
 
