@@ -200,6 +200,7 @@ import { openProfile } from '@/composables/useProfile';
 const props = defineProps<{
     task: Task | null;
     isOpen: boolean;
+    startInEditMode?: boolean;
 }>();
 
 const emit = defineEmits(['close', 'update', 'delete', 'open-task']);
@@ -240,7 +241,7 @@ watch(() => props.isOpen, (newVal) => {
         editForm.description = props.task.description || '';
         editForm.assigneeIds = props.task.assignees ? props.task.assignees.map(a => a.id) : [];
         searchAssignee.value = '';
-        isEditing.value = false;
+        isEditing.value = props.startInEditMode || false;
     }
 });
 

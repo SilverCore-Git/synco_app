@@ -87,7 +87,12 @@
                             </div>
 
                             <div class="flex-1 space-y-3">
-                                <div v-for="task in getTasks(spaceGroup.tasks, col.id)" :key="task.id" 
+                                <DropDown
+                                    v-for="task in getTasks(spaceGroup.tasks, col.id)" :key="task.id"
+                                    align="mouse" click="right" class="w-full"
+                                >
+                                <template #trigger>
+                                <div
                                      draggable="true"
                                      @dragstart="onDragStart($event, task, spaceGroup.id)"
                                      @dragend="onDragEnd"
@@ -147,6 +152,35 @@
                                     </div>
 
                                 </div>
+                                </template>
+                                <template #content>
+                                    <button
+                                        @click="startRenameTask(task)"
+                                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                                    >
+                                        <i class="bi bi-pencil" />
+                                        Renommer
+                                    </button>
+                                    <CreateTaskModal
+                                        :parentTaskId="task.id"
+                                        :hideSpaceSelect="true"
+                                        :defaultSpaceId="task.spaceId"
+                                        @created="(newTask: Task) => onSubtaskCreatedFromMenu(task, newTask)"
+                                    >
+                                        <button class="dropdown-item-annimate dropdown-item-style gap-2 w-full">
+                                            <i class="bi bi-list-nested" />
+                                            Ajouter une sous-tâche
+                                        </button>
+                                    </CreateTaskModal>
+                                    <button
+                                        @click="handleContextDeleteTask(task)"
+                                        class="dropdown-item-annimate dropdown-item-style gap-2 text-red-500! hover:bg-red-500/5!"
+                                    >
+                                        <i class="bi bi-trash" />
+                                        Supprimer
+                                    </button>
+                                </template>
+                                </DropDown>
                             </div>
                         </div>
                     </div>
@@ -160,9 +194,10 @@
             </div>
         </main>
         
-        <TaskDetailsModal 
-            :task="selectedTask" 
+        <TaskDetailsModal
+            :task="selectedTask"
             :isOpen="!!selectedTask"
+            :startInEditMode="openTaskInEditMode"
             @close="selectedTask = null"
             @update="onTaskUpdated"
             @delete="onTaskDeleted"
@@ -204,6 +239,7 @@ import { useToast } from '@/composables/useToast';
 import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
+import DropDown from '@/components/DropDown.vue';
 import { user } from '@/assets/var';
 import confetti from 'canvas-confetti';
 import useWSocket from '@/composables/useWSocket';
@@ -217,6 +253,7 @@ const rawTasks = ref<Task[]>([]);
 const loading = ref(true);
 const draggedOverCol = ref<string | null>(null);
 const selectedTask = ref<Task | null>(null);
+const openTaskInEditMode = ref(false);
 
 const isDraggingTask = ref(false);
 const isHoveringTrash = ref(false);
@@ -412,10 +449,38 @@ const onDrop = async (e: DragEvent, newStatus: string, targetGroupId: string) =>
 };
 
 const openTaskDetails = (task: Task) => {
+    openTaskInEditMode.value = false;
     selectedTask.value = task;
 };
 
+const startRenameTask = (task: Task) => {
+    openTaskInEditMode.value = true;
+    selectedTask.value = task;
+};
+
+const handleContextDeleteTask = async (task: Task) => {
+    try {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${task.id}`, {
+            method: 'DELETE'
+        });
+        if (!res.ok) throw new Error();
+        onTaskDeleted(task.id);
+        toast.show('Tâche supprimée', 'success');
+    } catch (e) {
+        toast.show('Erreur lors de la suppression', 'error');
+    }
+};
+
+const onSubtaskCreatedFromMenu = (parentTask: Task, newTask: Task) => {
+    onTaskCreated(newTask);
+    if (!parentTask.subtasks) parentTask.subtasks = [];
+    if (!parentTask.subtasks.some(st => st.id === newTask.id)) {
+        parentTask.subtasks.push(newTask);
+    }
+};
+
 const handleOpenTask = async (taskPartial: any) => {
+    openTaskInEditMode.value = false;
     try {
         const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskPartial.id}`);
         if (res.ok) {
