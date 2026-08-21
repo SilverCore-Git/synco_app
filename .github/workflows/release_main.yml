@@ -90,9 +90,49 @@ jobs:
           path: src-tauri/target/release/bundle/msi/*.msi
           if-no-files-found: error
 
+  build-linux-appimage:
+    name: Build de l'AppImage Linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Installation de Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Installation de Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Installation des dépendances système Tauri (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev \
+            build-essential curl wget file libxdo-dev libssl-dev \
+            libayatana-appindicator3-dev librsvg2-dev desktop-file-utils
+
+      - name: Génération des fichiers .env
+        run: |
+          echo "${{ secrets.ENV_PRODUCTION }}" > .env.production
+          echo "${{ secrets.ENV_PRODUCTION }}" > .env
+
+      - name: Installation des dépendances
+        run: bun install
+
+      - name: Build de l'AppImage
+        run: bun run tauri:build -- --bundles appimage
+
+      - name: Upload de l'AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: synco-linux-appimage
+          path: src-tauri/target/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
+
   create-release:
     name: Création de la release GitHub
-    needs: [ build-android-apk, build-windows-msi ]
+    needs: [ build-android-apk, build-windows-msi, build-linux-appimage ]
     runs-on: ubuntu-latest
     steps:
       - name: Téléchargement des artefacts

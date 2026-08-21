@@ -14,12 +14,6 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .invoke_handler(tauri::generate_handler![])
         .setup(|app| {
-            #[cfg(any(windows, target_os = "linux"))]
-            {
-                use tauri_plugin_deep_link::DeepLinkExt;
-                app.deep_link().register("fr.silvercore.synco")?;
-            }
-
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -27,6 +21,17 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            #[cfg(any(windows, target_os = "linux"))]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                // Sur Linux ça passe par xdg-mime/update-desktop-database (paquet desktop-file-utils) :
+                // s'il est absent, on ne veut pas planter toute l'appli, juste perdre le deep-link.
+                if let Err(e) = app.deep_link().register("fr.silvercore.synco") {
+                    log::warn!("Échec de l'enregistrement du schéma de deep-link (les liens fr.silvercore.synco:// ne fonctionneront pas) : {e}");
+                }
+            }
+
             Ok(())
         })
         .run(tauri::generate_context!())
