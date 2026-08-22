@@ -103,9 +103,9 @@
                                 @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(user?.user?.name)}&background=128a60&color=fff`"
                             />
                             <div 
-                                v-if="user && user.user?.data?.status"
+                                v-if="user && user.user?.data"
                                 class="absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-(--bg) rounded-full z-10" 
-                                :class="getColorByStatus(user.user.data.status)"
+                                :class="getColorByStatus(user.user.data.status || 'offline')"
                             />
                         </div>
 

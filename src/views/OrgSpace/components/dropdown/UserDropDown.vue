@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-import type { User } from '@/types/types';
+import type { User, UserStatus } from '@/types/types';
 import DropDown from '@/components/DropDown.vue';
 import useWSocket from '@/composables/useWSocket';
 import { openedOrg } from '@/assets/var';
@@ -60,15 +60,15 @@ const formatDate = (date: string | Date | undefined) => {
 };
 
 
-const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
+const setStatus = async (status: UserStatus) => {
 
-    if (!props.user) return;
+    if (!props.user || !openedOrg.value?.id) return;
     
     try {
 
         const socket = await useWSocket();
 
-        socket.value?.emit('update-status', { orgId: openedOrg.value?.id, status });
+        socket.value?.emit('update-status', { orgId: openedOrg.value.id, status });
 
         const me = openedOrg.value?.members?.find(member => member.user?.id == props.user?.id);
         if (me && me.user) me.user.data!.status = status;

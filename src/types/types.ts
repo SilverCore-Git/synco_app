@@ -1,6 +1,6 @@
 export type ThreadType = 'text' | 'vocal';
 export type NotificationType = 'MESSAGE' | 'CALL' | 'MENTION' | 'INVITATION' | 'CUSTOM';
-// export type UserStatus = 'online' | 'dnd' | 'idle' | 'offline';
+export type UserStatus = 'online' | 'idle' | 'dnd' | 'offline';
 
 export interface StoredFile {
   id: string;
@@ -111,7 +111,8 @@ export interface User {
   pinSalt?: string;           // String aléatoire
 
   data: {
-    status: string;
+    status: UserStatus;
+    lastStatus?: UserStatus;
     [key: string]: any;
   };
   files?: StoredFile[];

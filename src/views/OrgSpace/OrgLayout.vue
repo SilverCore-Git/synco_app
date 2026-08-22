@@ -184,18 +184,7 @@ const initSocketListener = async () => {
 
     const socket = await useWSocket();
 
-    socket.value?.emit('join-org', { orgId: props.orgId });
-    
-    const space = openedOrg.value?.spaces;
-    if (space)
-    {
-        space.forEach(space => {
-            socket.value?.emit('join-space', { orgId: props.orgId, spaceId: space.id });
-        })
-    } 
-
-    // Removed forced 'online' status update. The backend now restores the user's lastStatus upon connection.
-
+    // Enregistrer TOUS les écouteurs AVANT de rejoindre les rooms pour capturer les événements émis par le backend à la connexion
     socket.value?.on('member:new', ({ member }: { member: OrgMember }) => {
         openedOrg.value?.members?.push(member);
     });
@@ -226,7 +215,10 @@ const initSocketListener = async () => {
 
     socket.value?.on('user-status-changed', ({ status, userId }: { status: string, userId: string }) => {
         const member = openedOrg.value?.members?.find(m => m.userId === userId);            
-        if (member && member.user && member.user.data) member.user.data.status = status;
+        if (member && member.user && member.user.data) {
+            // Forcer la réactivité en créant une nouvelle référence pour `data`
+            member.user.data = { ...member.user.data, status };
+        }
     });
 
     socket.value?.on('user-data-updated', ({ userId, data }: { userId: string, data: any }) => {
@@ -533,6 +525,20 @@ const initSocketListener = async () => {
         }
         
     });
+
+    // Rejoindre les rooms APRÈS avoir enregistré tous les écouteurs
+    socket.value?.emit('join-org', { orgId: props.orgId });
+    
+    const space = openedOrg.value?.spaces;
+    if (space)
+    {
+        space.forEach(space => {
+            socket.value?.emit('join-space', { orgId: props.orgId, spaceId: space.id });
+        })
+    }
+    
+    // Demander au backend de synchroniser le statut après avoir rejoint les rooms
+    socket.value?.emit('request-status-sync', { orgId: props.orgId });
 
 }
 

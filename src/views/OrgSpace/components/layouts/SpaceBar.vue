@@ -7,7 +7,7 @@ import { openedOrg, todoEnabled, aiEnabled, user } from '@/assets/var';
 import { useNotification } from '@/composables/useNotification';
 import draggable from 'vuedraggable';
 import { ref, watch } from 'vue';
-import type { WorkSpace } from '@/types/types';
+import type { WorkSpace, UserStatus } from '@/types/types';
 import sfetch from '@/assets/utils/sfetch';
 import { usePermissions } from '@/composables/usePermissions';
 import { computed } from 'vue';
@@ -39,7 +39,7 @@ const onSpaceOrderChange = async () => {
     
     const newOrder = localSpaces.value.map(s => s.id);
     
-    if (!user.value.data) user.value.data = { status: 'online' };
+    if (!user.value.data) user.value.data = { status: 'offline' as UserStatus };
     if (!user.value.data.workspaceOrder) user.value.data.workspaceOrder = {};
     user.value.data.workspaceOrder[openedOrg.value.id] = newOrder;
     
