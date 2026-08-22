@@ -167,7 +167,7 @@
                                 class="dropdown-item-annimate dropdown-item-style gap-2"
                             >
                                 <i class="bi bi-pencil" />
-                                Renommer
+                                Modifier la tâche
                             </button>
                             <CreateTaskModal
                                 :parentTaskId="task.id"
