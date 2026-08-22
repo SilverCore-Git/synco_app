@@ -187,6 +187,7 @@
                         :isSelectionMode="selectedItems.size > 0"
                         @toggle-select="toggleSelection(folder.id)"
                         @show-permissions="openFolderPermissions(folder)"
+                        @request-delete="requestDeleteFolder"
                     />
 
                 </div>
