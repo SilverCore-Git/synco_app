@@ -94,7 +94,12 @@
                     </div>
 
                     <div class="flex-1 overflow-y-auto space-y-4 min-h-0 pr-1 custom-scrollbar">
-                        <div v-for="task in filteredTasks(col.id)" :key="task.id" 
+                        <DropDown
+                            v-for="task in filteredTasks(col.id)" :key="task.id"
+                            align="mouse" click="right" class="w-full"
+                        >
+                        <template #trigger>
+                        <div
                              :id="'task-' + task.id"
                              draggable="true"
                              @dragstart="onDragStart($event, task)"
@@ -155,14 +160,44 @@
                             </div>
 
                         </div>
+                        </template>
+                        <template #content>
+                            <button
+                                @click="startRenameTask(task)"
+                                class="dropdown-item-annimate dropdown-item-style gap-2"
+                            >
+                                <i class="bi bi-pencil" />
+                                Renommer
+                            </button>
+                            <CreateTaskModal
+                                :parentTaskId="task.id"
+                                :hideSpaceSelect="true"
+                                :defaultSpaceId="task.spaceId"
+                                @created="(newTask: Task) => onSubtaskCreatedFromMenu(task, newTask)"
+                            >
+                                <button class="dropdown-item-annimate dropdown-item-style gap-2 w-full">
+                                    <i class="bi bi-list-nested" />
+                                    Ajouter une sous-tâche
+                                </button>
+                            </CreateTaskModal>
+                            <button
+                                @click="handleContextDeleteTask(task)"
+                                class="dropdown-item-annimate dropdown-item-style gap-2 text-red-500! hover:bg-red-500/5!"
+                            >
+                                <i class="bi bi-trash" />
+                                Supprimer
+                            </button>
+                        </template>
+                        </DropDown>
                     </div>
                 </div>
             </div>
         </main>
         
-        <TaskDetailsModal 
-            :task="selectedTask" 
+        <TaskDetailsModal
+            :task="selectedTask"
             :isOpen="!!selectedTask"
+            :startInEditMode="openTaskInEditMode"
             @close="selectedTask = null"
             @update="onTaskUpdated"
             @delete="onTaskDeleted"
@@ -208,6 +243,7 @@ import useWSocket from '@/composables/useWSocket';
 import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
+import DropDown from '@/components/DropDown.vue';
 import confetti from 'canvas-confetti';
 import { useNotification } from '@/composables/useNotification';
 
@@ -227,6 +263,7 @@ const isHoveringTrash = ref(false);
 const isDeleting = ref(false);
 
 const selectedTask = ref<Task | null>(null);
+const openTaskInEditMode = ref(false);
 
 const columns = [
     { id: 'TODO', title: 'À faire', color: 'text-gray-400', icon: 'bi-circle' },
@@ -340,10 +377,38 @@ const loadTasks = async () => {
 };
 
 const openTaskDetails = (task: Task) => {
+    openTaskInEditMode.value = false;
     selectedTask.value = task;
 };
 
+const startRenameTask = (task: Task) => {
+    openTaskInEditMode.value = true;
+    selectedTask.value = task;
+};
+
+const handleContextDeleteTask = async (task: Task) => {
+    try {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${task.id}`, {
+            method: 'DELETE'
+        });
+        if (!res.ok) throw new Error();
+        onTaskDeleted(task.id);
+        toast.show('Tâche supprimée', 'success');
+    } catch (e) {
+        toast.show('Erreur lors de la suppression', 'error');
+    }
+};
+
+const onSubtaskCreatedFromMenu = (parentTask: Task, newTask: Task) => {
+    onTaskCreated(newTask);
+    if (!parentTask.subtasks) parentTask.subtasks = [];
+    if (!parentTask.subtasks.some(st => st.id === newTask.id)) {
+        parentTask.subtasks.push(newTask);
+    }
+};
+
 const handleOpenTask = async (taskPartial: any) => {
+    openTaskInEditMode.value = false;
     try {
         const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskPartial.id}`);
         if (res.ok) {

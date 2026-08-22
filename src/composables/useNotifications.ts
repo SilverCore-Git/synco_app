@@ -189,6 +189,11 @@ const initListener = async () => {
         return;
     }
 
+    // initListener() est appelé depuis plusieurs endroits (Notifications.vue,
+    // ChatView.vue, ThreadView.vue) sur le même socket singleton : on retire
+    // l'ancien écouteur avant d'en poser un nouveau pour ne jamais en empiler.
+    socket.value?.off('notif:new-message');
+
     socket.value?.on('notif:new-message', async ({ message, spaceId, orgId }: { message: Message, spaceId?: string, orgId?: string }) => {
 
         if (route.params.threadId == message.threadId) return;

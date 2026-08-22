@@ -9,7 +9,7 @@ import type { User } from '@/types/types';
 import Notifications from './components/overlay/Notifications.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
 import useSettingsItem from './composables/useSettingsItem';
-import { initKC } from './assets/keycloak';
+import { initKC, isTauriPlatform, loginWithSystemBrowser } from './assets/keycloak';
 import { E2EEUnloked, setupFirstTimeSecurity, unlockSecurity } from './assets/utils/crypto';
 import sfetch from './assets/utils/sfetch';
 import { useToast } from './composables/useToast';
@@ -50,6 +50,9 @@ watch(() => E2EEUnloked.value, (isUnlocked) => {
 });
 
 const authenticated = ref<boolean>(false);
+const isTauri = isTauriPlatform();
+const tauriLoginLoading = ref<boolean>(false);
+const tauriLoginError = ref<boolean>(false);
 const pinSetup = computed(() =>
   user.value?.pinSalt?.trim() &&
   user.value?.keyIv?.trim() &&
@@ -162,6 +165,33 @@ const handleInput = (e: KeyboardEvent) => {
   else if (e.key === 'Enter' && pin.value.length >= 4) submit();
   else if (e.key === 'Backspace') pin.value = pin.value.slice(0, -1);
 }
+const finishAuthInit = async () => {
+  await init.run();
+  await waitFor(() => user.value !== null);
+  await initPeer();
+};
+
+const handleTauriLogin = async () => {
+  tauriLoginLoading.value = true;
+  tauriLoginError.value = false;
+
+  try {
+    const success = await loginWithSystemBrowser();
+    authenticated.value = success;
+
+    if (success) {
+      await finishAuthInit();
+    } else {
+      tauriLoginError.value = true;
+    }
+  } catch (error) {
+    console.error('[DEBUG] Error during Tauri login:', error);
+    tauriLoginError.value = true;
+  } finally {
+    tauriLoginLoading.value = false;
+  }
+};
+
 onMounted(async () => {
   console.log('[DEBUG] onMounted start');
   try {
@@ -174,9 +204,7 @@ onMounted(async () => {
     console.log('[DEBUG] initKC done, authenticated =', authenticated.value);
 
     if (authenticated.value) {
-      await init.run();
-      await waitFor(() => user.value !== null);
-      await initPeer();
+      await finishAuthInit();
     }
 
     window.addEventListener('keydown', handleInput);
@@ -197,8 +225,6 @@ onMounted(async () => {
 </script>
 
 <template>
-
-  <Notifications />
 
   <div class="w-screen h-[100dvh] relative flex flex-col overflow-hidden">
 
@@ -323,8 +349,49 @@ onMounted(async () => {
 
     </div>
 
-    <div v-else>
-      <Loader />
+    <div v-else class="h-full w-full">
+
+      <div v-if="isTauri"
+        class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none">
+
+        <div class="mb-8 text-center max-w-lg">
+
+          <div class="flex flex-col items-center gap-4 mb-3">
+            <img src="/banner.svg" alt="Logo" class="h-16" />
+          </div>
+
+          <h2 class="text-xl font-bold text-(--text)">
+            Connectez-vous à votre compte
+          </h2>
+
+          <p class="text-sm text-(--text2) mt-2 leading-relaxed">
+            La connexion se fait dans votre navigateur, pour plus de sécurité.
+          </p>
+
+        </div>
+
+        <button
+          @click="handleTauriLogin"
+          class="primary"
+          :class="{ loader: tauriLoginLoading }"
+          :disabled="tauriLoginLoading"
+        >
+          <i class="bi bi-box-arrow-up-right mr-2" />
+          <span class="font-bold tracking-wide">Se connecter</span>
+        </button>
+
+        <p v-if="tauriLoginLoading" class="text-xs text-(--text2) mt-6 uppercase tracking-widest font-bold">
+          En attente de connexion dans le navigateur...
+        </p>
+
+        <p v-if="tauriLoginError" class="text-xs text-red-400 mt-6 font-medium">
+          La connexion a échoué. Réessayez.
+        </p>
+
+      </div>
+
+      <Loader v-else />
+
     </div>
 
   </div>

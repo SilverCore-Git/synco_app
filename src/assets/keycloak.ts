@@ -186,17 +186,53 @@ function isTokenExpired(token: string | null | undefined): boolean {
   }
 }
 
+/**
+ * Ouvre le navigateur système pour se connecter à Keycloak, puis termine
+ * l'initialisation du client keycloak-js avec les tokens obtenus.
+ * Doit être déclenché depuis une interaction utilisateur (clic bouton) —
+ * on ne veut pas ouvrir un onglet de navigateur sans action explicite.
+ */
+async function loginWithSystemBrowser(): Promise<boolean> {
+  try {
+    const redirectUri = 'fr.silvercore.synco://callback';
+    const fresh = await tauriLogin();
+    if (!fresh.token) return false;
+
+    const authenticated = await keycloak.init({
+      checkLoginIframe: false,
+      redirectUri,
+      responseMode: 'query',
+      token: fresh.token,
+      refreshToken: fresh.refreshToken,
+    });
+
+    if (authenticated) {
+      if (keycloak.token) localStorage.setItem('kc_token', keycloak.token);
+      if (keycloak.refreshToken) localStorage.setItem('kc_refreshToken', keycloak.refreshToken);
+      const userInfo: any = await keycloak.loadUserInfo();
+      localStorage.setItem('userId', userInfo.sub);
+      kcToken.value = keycloak.token || '';
+      setupTokenRefresh();
+    }
+    return authenticated;
+  } catch (error) {
+    console.error("[Keycloak] Échec de la connexion via le navigateur système", error);
+    return false;
+  }
+}
+
 const initKC = async () => {
   try {
     if (isTauriPlatform()) {
       const redirectUri = 'fr.silvercore.synco://callback';
-      let token = localStorage.getItem('kc_token') || undefined;
-      let refreshToken = localStorage.getItem('kc_refreshToken') || undefined;
+      const token = localStorage.getItem('kc_token') || undefined;
+      const refreshToken = localStorage.getItem('kc_refreshToken') || undefined;
 
       if (!token || isTokenExpired(token)) {
-        const fresh = await tauriLogin();
-        token = fresh.token;
-        refreshToken = fresh.refreshToken;
+        // Pas de session valide en cache : on laisse l'UI proposer à
+        // l'utilisateur de se connecter (bouton -> loginWithSystemBrowser),
+        // plutôt que d'ouvrir un onglet de navigateur sans action de sa part.
+        return false;
       }
 
       const authenticated = await keycloak.init({
@@ -250,7 +286,7 @@ const initKC = async () => {
 
     // --- web ---
     const authenticated = await keycloak.init({
-      onLoad: 'check-sso',
+      onLoad: 'login-required',
       silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
       pkceMethod: 'S256',
       checkLoginIframe: false,
@@ -269,4 +305,4 @@ const initKC = async () => {
   }
 };
 
-export { initKC, setupTokenRefresh, onTokenRefresh };
+export { initKC, setupTokenRefresh, onTokenRefresh, isTauriPlatform, loginWithSystemBrowser };
