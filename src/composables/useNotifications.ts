@@ -178,11 +178,16 @@ const notify = (type: NotificationType, payload: any, timeout?: number) => {
 
 };
 
+// Référence du handler posé par ce composable (et lui seul), pour pouvoir le
+// retirer sans toucher aux autres écouteurs de 'notif:new-message' sur le
+// même socket partagé (ex: OrgLayout.vue en pose un aussi, pour tout autre chose).
+let currentNewMessageHandler: ((payload: { message: Message, spaceId?: string, orgId?: string }) => void) | null = null;
+
 const initListener = async () => {
 
     const route = useRoute();
     const socket = await useWSocket();
-    
+
     const connected = await waitForSocketConnection(socket, 15000);
     if (!connected) {
         console.warn('[Notifications] Socket not connected, cannot setup listeners');
@@ -191,10 +196,14 @@ const initListener = async () => {
 
     // initListener() est appelé depuis plusieurs endroits (Notifications.vue,
     // ChatView.vue, ThreadView.vue) sur le même socket singleton : on retire
-    // l'ancien écouteur avant d'en poser un nouveau pour ne jamais en empiler.
-    socket.value?.off('notif:new-message');
+    // notre propre ancien écouteur avant d'en poser un nouveau, pour ne jamais
+    // en empiler plusieurs — sans jamais toucher aux écouteurs d'autres
+    // composables (ex: OrgLayout.vue) sur ce même événement.
+    if (currentNewMessageHandler) {
+        socket.value?.off('notif:new-message', currentNewMessageHandler);
+    }
 
-    socket.value?.on('notif:new-message', async ({ message, spaceId, orgId }: { message: Message, spaceId?: string, orgId?: string }) => {
+    currentNewMessageHandler = async ({ message, spaceId, orgId }: { message: Message, spaceId?: string, orgId?: string }) => {
 
         if (route.params.threadId == message.threadId) return;
 
@@ -206,7 +215,9 @@ const initListener = async () => {
 
         messageNotif.value.push(decryptedMessage);
 
-    })
+    };
+
+    socket.value?.on('notif:new-message', currentNewMessageHandler);
 
 }
 
