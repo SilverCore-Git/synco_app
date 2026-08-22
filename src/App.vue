@@ -2,7 +2,7 @@
 
 import Loader from './components/LogoLoader.vue';
 //import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import init, { refetchUser } from './assets/init';
 import { isLoaded, user } from './assets/var';
 import type { User } from '@/types/types';
@@ -194,6 +194,20 @@ const handleTauriLogin = async () => {
 
 onMounted(async () => {
   console.log('[DEBUG] onMounted start');
+
+  // Le premier rendu réel de l'app a été commité au DOM (on est dans
+  // onMounted), mais on attend un vrai cycle de peinture (nextTick + rAF)
+  // avant de retirer l'écran de démarrage statique (index.html), pour ne
+  // jamais laisser transparaître un rendu non stylé en dessous.
+  try {
+    await nextTick();
+    requestAnimationFrame(() => {
+      document.getElementById('boot-loader')?.remove();
+    });
+  } catch (e) {
+    document.getElementById('boot-loader')?.remove();
+  }
+
   try {
     const res = await fetch(`${import.meta.env.VITE_API_URL}/health`);
     console.log('[DEBUG] health check status:', res.status);
