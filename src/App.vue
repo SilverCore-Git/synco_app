@@ -226,8 +226,6 @@ onMounted(async () => {
 
 <template>
 
-  <Notifications />
-
   <div class="w-screen h-[100dvh] relative flex flex-col overflow-hidden">
 
     <div class="w-full">
