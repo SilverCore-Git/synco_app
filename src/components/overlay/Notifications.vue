@@ -193,16 +193,25 @@
 
 import getSpaceIdByThreadId from '@/assets/utils/getSpaceWithThreadId';
 import { openedOrg } from '@/assets/var';
-import useNotifications, { type NotificationType } from '@/composables/useNotifications';
+import useNotifications, { type Notification, type NotificationType } from '@/composables/useNotifications';
 import useSecurePeer from '@/composables/useSecurePeer';
 import { computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { SoundService } from '@/services/SoundService';
+import { isTauriPlatform } from '@/assets/keycloak';
+import useSettingsItem from '@/composables/useSettingsItem';
+import {
+    isPermissionGranted as isNativeNotifPermissionGranted,
+    requestPermission as requestNativeNotifPermission,
+    sendNotification as sendNativeNotification
+} from '@tauri-apps/plugin-notification';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 
 const { notifications, initListener, remove } = useNotifications();
 const router = useRouter();
 const { acceptCall, rejectCall } = useSecurePeer();
+const { Item: privacyMode } = useSettingsItem('privacyMode', false);
 
 
 const sortedNotifications = computed(() => {
@@ -254,16 +263,167 @@ const playNotificationSound = () => {
     SoundService.play('notification');
 };
 
+const formatName = (name?: string | null): string => {
+    if (!name) return 'Quelqu\'un';
+    return privacyMode.value ? name.charAt(0).toUpperCase() : name;
+};
+
+let nativeNotificationsGranted = false;
+
+const ensureNativeNotificationPermission = async (): Promise<void> => {
+    if (!isTauriPlatform()) return;
+    try {
+        nativeNotificationsGranted = await isNativeNotifPermissionGranted();
+        if (!nativeNotificationsGranted) {
+            const permission = await requestNativeNotifPermission();
+            nativeNotificationsGranted = permission === 'granted';
+        }
+    } catch (e) {
+        console.error('[Notifications] Failed to request native notification permission', e);
+    }
+};
+
+// Regroupe les notifications natives par conversation/appelant : posté avec le
+// même `id`, le plugin remplace le toast existant au lieu d'en empiler un nouveau.
+// 32 bits signés, comme attendu par le plugin.
+const hashToInt32 = (str: string): number => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = (hash * 31 + str.charCodeAt(i)) | 0;
+    }
+    return hash;
+};
+
+interface NativeNotifContext {
+    key: string;
+    title: string;
+    singleBody: string;
+    pluralBody: (count: number) => string;
+}
+
+const pendingNativeNotifCounts = new Map<number, number>();
+const pendingNativeNotifTimers = new Map<number, ReturnType<typeof setTimeout>>();
+// Laisse le temps à une rafale de messages rapprochés de s'accumuler avant
+// d'afficher/mettre à jour le toast, au lieu d'en poster un par message.
+const NATIVE_NOTIF_DEBOUNCE_MS = 1200;
+
+// Mis à jour par onFocusChanged plutôt qu'interrogé à la volée : évite une
+// requête isFocused() ponctuelle qui peut renvoyer un état obsolète au
+// moment précis où un message arrive.
+let isWindowFocused = true;
+
+const getNativeNotificationContext = (notif: Notification): NativeNotifContext | null => {
+    switch (notif.type) {
+        case 'notif:msg': {
+            const msg = notif.msg as any;
+            const name = formatName(msg?.sender?.name);
+            const body = msg?.embeds?.length > 0 ? msg.embeds[0].title : msg?.content;
+            return {
+                key: `msg:${msg?.threadId}`,
+                title: name,
+                singleBody: body || 'Nouveau message',
+                pluralBody: (count) => `${count} nouveaux messages`
+            };
+        }
+        case 'notif:dmmsg': {
+            const name = formatName(notif.dmmsg?.sender?.name);
+            return {
+                key: `dm:${notif.dmmsg?.senderId}`,
+                title: name,
+                singleBody: notif.dmmsg?.content || 'Nouveau message',
+                pluralBody: (count) => `${count} nouveaux messages`
+            };
+        }
+        case 'notif:call': {
+            const name = formatName(notif.call?.user?.name);
+            return {
+                key: `call:${notif.call?.id}`,
+                title: 'Appel entrant',
+                singleBody: name,
+                pluralBody: (count) => `${count} appels de ${name}`
+            };
+        }
+        case 'notif:privateMeet': {
+            const name = formatName(notif.privateMeet?.user?.name);
+            return {
+                key: `privateMeet:${notif.privateMeet?.id}`,
+                title: 'Discussion privée',
+                singleBody: name,
+                pluralBody: (count) => `${count} demandes de ${name}`
+            };
+        }
+        default:
+            return null;
+    }
+};
+
+const showNativeNotification = (notif: Notification) => {
+    if (!isTauriPlatform() || !nativeNotificationsGranted) return;
+
+    // L'utilisateur est déjà dans l'app : le popup in-app + le son suffisent.
+    if (isWindowFocused) return;
+
+    const ctx = getNativeNotificationContext(notif);
+    if (!ctx) return;
+
+    const id = hashToInt32(ctx.key);
+    const count = (pendingNativeNotifCounts.get(id) || 0) + 1;
+    pendingNativeNotifCounts.set(id, count);
+
+    // Une rafale de messages ne doit produire qu'une notification (mise à
+    // jour), pas une par message : on repousse l'envoi tant que d'autres
+    // messages du même contexte continuent d'arriver.
+    const existingTimer = pendingNativeNotifTimers.get(id);
+    if (existingTimer) clearTimeout(existingTimer);
+
+    pendingNativeNotifTimers.set(id, setTimeout(() => {
+        pendingNativeNotifTimers.delete(id);
+        const finalCount = pendingNativeNotifCounts.get(id) || count;
+        try {
+            sendNativeNotification({
+                id,
+                title: ctx.title,
+                body: finalCount > 1 ? ctx.pluralBody(finalCount) : ctx.singleBody
+            });
+        } catch (e) {
+            console.error('[Notifications] Failed to show native notification', e);
+        }
+    }, NATIVE_NOTIF_DEBOUNCE_MS));
+};
+
 watch(() => notifications.value.length, (newLength, oldLength) => {
     if (newLength > oldLength) {
         const latestNotif = notifications.value[notifications.value.length - 1];
         if (latestNotif && latestNotif.type !== 'toast') {
             playNotificationSound();
+            showNativeNotification(latestNotif);
         }
     }
 });
 
 onMounted(async () => {
+    await ensureNativeNotificationPermission();
+
+    if (isTauriPlatform()) {
+        try {
+            const appWindow = getCurrentWindow();
+            isWindowFocused = await appWindow.isFocused();
+
+            await appWindow.onFocusChanged(({ payload: focused }) => {
+                isWindowFocused = focused;
+
+                if (focused) {
+                    // Une fois l'app reprise en main, on repart de zéro pour le regroupement.
+                    pendingNativeNotifCounts.clear();
+                    pendingNativeNotifTimers.forEach(t => clearTimeout(t));
+                    pendingNativeNotifTimers.clear();
+                }
+            });
+        } catch (e) {
+            console.error('[Notifications] Failed to listen for window focus changes', e);
+        }
+    }
+
     await initListener();
 })
 
