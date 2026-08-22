@@ -14,7 +14,7 @@
                     @created="onTaskCreated"
                 >
                     <button class="group relative overflow-hidden !text-sm flex items-center gap-2 px-4 py-2 rounded-xl font-semibold border-2 border-(--primary) text-(--primary) bg-(--bg) shadow-[0_0_20px_rgba(var(--primary-rgb),0.5)] hover:bg-(--primary)/10 hover:shadow-[0_0_28px_rgba(var(--primary-rgb),0.65)] active:scale-90 transition-all duration-150 disabled:grayscale-100 disabled:cursor-not-allowed">
-                        <span class="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out bg-gradient-to-r from-transparent via-white/25 to-transparent skew-x-12 pointer-events-none"></span>
+                        <span class="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-[400ms] ease-out bg-gradient-to-r from-transparent via-white/25 to-transparent skew-x-12 pointer-events-none"></span>
                         <i class="bi bi-plus-lg relative z-10 transition-transform duration-300 group-hover:rotate-180"></i>
                         <span class="relative z-10">Créer une tâche</span>
                     </button>
