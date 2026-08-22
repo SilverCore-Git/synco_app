@@ -13,7 +13,7 @@
                     :hideSpaceSelect="true"
                     @created="onTaskCreated"
                 >
-                    <button class="!text-sm flex items-center gap-2 px-4 py-2 rounded-xl font-semibold border border-(--primary) text-(--primary) bg-(--bg) shadow-[0_0_12px_rgba(var(--primary-rgb),0.35)] hover:bg-(--primary)/10 transition-all">
+                    <button class="!text-sm flex items-center gap-2 px-4 py-2 rounded-xl font-semibold border-2 border-(--primary) text-(--primary) bg-(--bg) shadow-[0_0_20px_rgba(var(--primary-rgb),0.5)] hover:bg-(--primary)/10 hover:shadow-[0_0_28px_rgba(var(--primary-rgb),0.65)] active:scale-90 transition-all duration-150 disabled:grayscale-100 disabled:cursor-not-allowed">
                         <i class="bi bi-plus-lg"></i> Créer une tâche
                     </button>
                 </CreateTaskModal>
