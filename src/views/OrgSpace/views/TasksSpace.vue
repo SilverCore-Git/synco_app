@@ -13,7 +13,7 @@
                     :hideSpaceSelect="true"
                     @created="onTaskCreated"
                 >
-                    <button class="primary !text-sm flex items-center gap-2 shadow-sm">
+                    <button class="primary-glow !text-sm">
                         <i class="bi bi-plus-lg"></i> Créer une tâche
                     </button>
                 </CreateTaskModal>
@@ -167,7 +167,7 @@
                                 class="dropdown-item-annimate dropdown-item-style gap-2"
                             >
                                 <i class="bi bi-pencil" />
-                                Renommer
+                                Modifier la tâche
                             </button>
                             <CreateTaskModal
                                 :parentTaskId="task.id"

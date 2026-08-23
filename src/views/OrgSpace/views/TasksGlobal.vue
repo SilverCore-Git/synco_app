@@ -9,7 +9,7 @@
             
             <div class="ml-auto flex items-center gap-2">
                 <CreateTaskModal @created="onTaskCreated">
-                    <button class="primary !text-sm flex items-center gap-2">
+                    <button class="primary-glow !text-sm">
                         <i class="bi bi-plus-lg"></i>
                         Nouvelle Tâche
                     </button>
@@ -159,7 +159,7 @@
                                         class="dropdown-item-annimate dropdown-item-style gap-2"
                                     >
                                         <i class="bi bi-pencil" />
-                                        Renommer
+                                        Modifier la tâche
                                     </button>
                                     <CreateTaskModal
                                         :parentTaskId="task.id"

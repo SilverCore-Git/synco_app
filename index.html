@@ -52,9 +52,19 @@
 
   <body>
 
-    <div id="app">
+    <div id="app"></div>
 
-      <div style="
+    <!--
+      Écran de démarrage statique, indépendant du montage de Vue : #app est
+      remplacé dès que Vue se monte, sans garantie que le CSS (Tailwind,
+      injecté par Vite) soit déjà appliqué à ce moment précis. Si ce logo
+      vivait dans #app, le contenu de remplacement pouvait s'afficher un
+      instant sans ses classes de centrage (donc en haut à gauche) avant de
+      se repositionner. Ici, il reste affiché par-dessus tout jusqu'à ce
+      qu'App.vue le retire explicitement une fois son premier rendu stylé
+      confirmé (voir onMounted dans src/App.vue).
+    -->
+    <div id="boot-loader" style="
         position: fixed;
         inset: 0;
         z-index: 50;
@@ -62,27 +72,25 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        background-color: var(--bg);
+        background-color: #121214;
         user-select: none;
     ">
 
-        <div style="
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            border-radius: 0.75rem;
-        ">
-          
-          <img 
-            src="/favicon.ico" 
-            alt="Logo" 
-            style="height: 80px; z-index: 10; position: relative;" 
-          />
-          <div class="shimmer" />
+      <div style="
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          border-radius: 0.75rem;
+      ">
 
-        </div>
+        <img
+          src="/favicon.ico"
+          alt="Logo"
+          style="height: 80px; z-index: 10; position: relative;"
+        />
+        <div class="shimmer" />
 
       </div>
 

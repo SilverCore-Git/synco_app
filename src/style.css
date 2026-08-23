@@ -276,7 +276,8 @@ button.glass {
 button.primary,
 button.second,
 button.default,
-button.default-primary  {
+button.default-primary,
+button.primary-glow {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -290,8 +291,48 @@ button.default-primary  {
 button.primary:active,
 button.second:active,
 button.default:active,
-button.default-primary:active {
+button.default-primary:active,
+button.primary-glow:active {
   transform: scale(0.90);
+}
+
+/* Contour vert + glow + reflet au survol + rotation d'icône. Réutilisable
+   partout : juste `class="primary-glow"` sur un <button>, l'icône (<i>)
+   pivote automatiquement au survol, pas besoin d'élément supplémentaire. */
+button.primary-glow {
+  @apply gap-2 border-2 border-(--primary) text-(--primary) bg-(--bg);
+  padding: 0.7em 1.6em;
+  font-size: 1em;
+  font-weight: 600;
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(var(--primary-rgb), 0.5);
+}
+
+button.primary-glow:hover {
+  @apply bg-(--primary)/10;
+  box-shadow: 0 0 28px rgba(var(--primary-rgb), 0.65);
+}
+
+button.primary-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.25), transparent);
+  transform: translateX(-100%) skewX(-12deg);
+  transition: transform 400ms ease-out;
+  pointer-events: none;
+}
+
+button.primary-glow:hover::after {
+  transform: translateX(100%) skewX(-12deg);
+}
+
+button.primary-glow i {
+  transition: transform 300ms ease-in-out;
+}
+
+button.primary-glow:hover i {
+  transform: rotate(180deg);
 }
 
 button.default {

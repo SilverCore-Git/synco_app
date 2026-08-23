@@ -161,14 +161,14 @@
                     </div>
                 </div>
 
-                <div 
-                    v-if="filteredFolders.length > 0"
+                <div
+                    v-if="filteredFolders.length > 0 || filteredFiles.length > 0"
                     class="grid grid-cols-1 gap-3"
                 >
 
                 <div
-                    v-for="folder in filteredFolders" 
-                    :key="folder.id" 
+                    v-for="folder in filteredFolders"
+                    :key="folder.id"
                     draggable="true"
                     @dragstart="handleFolderDragStart($event, folder.id)"
                     @dragend="handleDragEnd"
@@ -177,7 +177,7 @@
                     @drop="handleDrop($event, folder.id)"
                     @click="currentFolderId = folder.id"
                 >
-                    
+
                     <FolderCard
                         :folder="folder"
                         :draggedIntoFolderId="draggedIntoFolderId"
@@ -187,45 +187,35 @@
                         :isSelectionMode="selectedItems.size > 0"
                         @toggle-select="toggleSelection(folder.id)"
                         @show-permissions="openFolderPermissions(folder)"
+                        @request-delete="requestDeleteFolder"
                     />
 
                 </div>
 
+                <FileCard
+                    v-for="file in filteredFiles"
+                    :id="'file-' + file.id"
+                    :key="file.id"
+                    draggable="true"
+                    :file="file"
+                    :draggedFileId="draggedFileId"
+                    :isSelected="selectedItems.has(file.id)"
+                    :isSelectionMode="selectedItems.size > 0"
+                    @toggle-select="toggleSelection(file.id)"
+                    @dragstart="handleDragStart($event, file.id)"
+                    @dragend="handleDragEnd"
+                    @file-deleted="handleFileDeleted"
+                    @request-delete="requestDeleteFile"
+                    @show-file-info="handleShowFileInfo"
+                    @file-watermarked="handleFileWatermarked"
+                    @show-permissions="openFilePermissions(file)"
+                />
+
                 </div>
 
-                <div class="mt-4">
-
-                    <h3 v-if="filteredFiles.length > 0" class="text-[10px] font-black uppercase tracking-[0.2em] text-(--text2) mb-4 px-1">
-                        Fichiers dans ce dossier
-                    </h3>
-                    
-                    <div class="grid grid-cols-1 gap-3">
-
-                        <FileCard
-                            v-for="file in filteredFiles" 
-                            :id="'file-' + file.id"
-                            :key="file.id"
-                            draggable="true"
-                            :file="file"
-                            :draggedFileId="draggedFileId"
-                            :isSelected="selectedItems.has(file.id)"
-                            :isSelectionMode="selectedItems.size > 0"
-                            @toggle-select="toggleSelection(file.id)"
-                            @dragstart="handleDragStart($event, file.id)"
-                            @dragend="handleDragEnd"
-                            @file-deleted="handleFileDeleted"
-                            @request-delete="requestDeleteFile"
-                            @show-file-info="handleShowFileInfo"
-                            @file-watermarked="handleFileWatermarked"
-                            @show-permissions="openFilePermissions(file)"
-                        />
-
-                    </div>
-
-                    <div v-if="filteredFolders.length === 0 && filteredFiles.length === 0" class="py-20 flex flex-col items-center justify-center text-(--text2)">
-                        <i class="bi bi-folder2-open text-5xl mb-3" />
-                        <p class="text-sm font-medium">Ce dossier est vide</p>
-                    </div>
+                <div v-if="filteredFolders.length === 0 && filteredFiles.length === 0" class="py-20 flex flex-col items-center justify-center text-(--text2)">
+                    <i class="bi bi-folder2-open text-5xl mb-3" />
+                    <p class="text-sm font-medium">Ce dossier est vide</p>
                 </div>
 
                 </template>
@@ -804,10 +794,12 @@ const createFolder = async (name: string) => {
             })
         });
 
-        if (res.ok) 
+        if (res.ok)
         {
             const newFolder = await res.json();
-            allFolders.value.push(newFolder);
+            if (!allFolders.value.some(f => f.id === newFolder.id)) {
+                allFolders.value.push(newFolder);
+            }
         }
 
     } catch (e) {
@@ -1006,9 +998,10 @@ const handleFiles = async (files: FileList | File[]) => {
             }
         );
 
-        if (uploadedFiles && Array.isArray(uploadedFiles)) 
+        if (uploadedFiles && Array.isArray(uploadedFiles))
         {
-            allFiles.value.push(...uploadedFiles);
+            const newFiles = uploadedFiles.filter(f => !allFiles.value.some(existing => existing.id === f.id));
+            allFiles.value.push(...newFiles);
             toast.show(`${uploadedFiles.length} fichier(s) ajouté(s)`, "success");
 
             // Process PDFs for semantic search

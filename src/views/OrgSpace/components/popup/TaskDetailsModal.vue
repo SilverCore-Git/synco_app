@@ -20,7 +20,11 @@
                 <div class="flex-1 min-w-0">
                     <h3 v-if="!isEditing" class="text-xl font-bold text-(--text) mb-2 break-words">{{ task.title }}</h3>
                     <input v-else v-model="editForm.title" type="text" class="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-white mb-2 font-bold" />
-                    
+
+                    <p v-if="!isEditing" class="text-xs font-bold uppercase tracking-wide mb-3" :class="statusInfo.color">
+                        {{ statusInfo.label }} depuis : {{ statusDuration }}
+                    </p>
+
                     <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-semibold text-(--text2) uppercase">
                         <span class="flex items-center gap-1 whitespace-nowrap">
                             <i class="bi bi-folder text-(--primary)/80"></i>
@@ -217,6 +221,35 @@ const editForm = reactive({
 });
 
 const searchAssignee = ref('');
+
+const statusInfo = computed(() => {
+    switch (props.task?.status) {
+        case 'TODO': return { label: 'À faire', color: 'text-gray-400' };
+        case 'IN_PROGRESS': return { label: 'En cours', color: 'text-blue-400' };
+        case 'DONE': return { label: 'Terminée', color: 'text-green-500' };
+        default: return { label: '', color: 'text-(--text2)' };
+    }
+});
+
+const formatDuration = (since: Date): string => {
+    const minutes = Math.floor((Date.now() - since.getTime()) / 60000);
+    if (minutes < 1) return "à l'instant";
+    if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''}`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} heure${hours > 1 ? 's' : ''}`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days} jour${days > 1 ? 's' : ''}`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months} mois`;
+    const years = Math.floor(months / 12);
+    return `${years} an${years > 1 ? 's' : ''}`;
+};
+
+const statusDuration = computed(() => {
+    const since = props.task?.statusChangedAt || props.task?.createdAt;
+    if (!since) return '';
+    return formatDuration(new Date(since));
+});
 
 const availableMembers = computed<OrgMember[]>(() => {
     if (!openedOrg.value?.members) return [];
