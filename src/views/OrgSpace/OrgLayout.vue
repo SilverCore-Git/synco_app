@@ -169,7 +169,14 @@ watch(() => [openedOrg.value, route.params.spaceId] as const, ([newOrg, spaceIdP
                                     type: 'TODO',
                                     textContent: task.title + (task.description ? ' ' + task.description : ''),
                                     vector: dummyVector,
-                                    metadata: { listId: task.todoListId }
+                                    metadata: { 
+                                        listId: task.todoListId,
+                                        status: task.status,
+                                        dueDate: task.dueDate,
+                                        assignees: task.assignees,
+                                        subtasks: task.subtasks,
+                                        parentTask: task.parentTask
+                                    }
                                 });
                             }
                         }
