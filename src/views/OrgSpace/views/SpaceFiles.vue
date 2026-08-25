@@ -227,8 +227,12 @@
         <div class="absolute left-5 bottom-5 z-20">
             <button 
                 v-if="currentFolderId !== 'root'"
-                class=" bg-(--primary-hover) hover:scale-110 active:scale-90 transition-all duration-200 p-2 w-12 h-12 rounded-full" 
+                class=" bg-(--primary-hover) transition-all duration-200 p-2 w-12 h-12 rounded-full" 
+                :class="draggedIntoFolderId === 'parent' ? 'scale-125 bg-(--primary) ring-4 ring-green-500/50' : 'hover:scale-110 active:scale-90'"
                 @click="goBack"
+                @drop="handleDropToParent($event)"
+                @dragover.prevent="draggedIntoFolderId = 'parent'"
+                @dragleave="draggedIntoFolderId = null"
             >
                 <i class="bi bi-arrow-left text-2xl " />
             </button>
@@ -825,7 +829,7 @@ const moveFile = async (fileId: string, folderId: string) => {
         {
             const fileIndex = allFiles.value.findIndex(f => f.id === fileId);
             if (fileIndex !== -1) {
-                allFiles.value[fileIndex]!.folderId = folderId;
+                allFiles.value[fileIndex]!.folderId = folderId === 'root' ? null : folderId;
             }
         }
         
@@ -909,6 +913,15 @@ const onDropToTrash = async (e: DragEvent) => {
     }
 };
 
+const handleDropToParent = async (event: DragEvent) => {
+    if (!currentFolderId.value || currentFolderId.value === 'root') return;
+    
+    const currentFolder = allFolders.value.find(f => f.id === currentFolderId.value);
+    const parentFolderId = currentFolder?.parentId || 'root';
+    
+    await handleDrop(event, parentFolderId);
+};
+
 const handleDrop = async (event: DragEvent, targetFolderId: string) => {
 
     event.preventDefault();
@@ -958,7 +971,7 @@ const moveFolder = async (folderId: string, parentId: string) => {
         {
             const index = allFolders.value.findIndex(f => f.id === folderId);
             if (index !== -1) {
-                allFolders.value[index]!.parentId = parentId;
+                allFolders.value[index]!.parentId = parentId === 'root' ? null : parentId;
             }
         }
 
