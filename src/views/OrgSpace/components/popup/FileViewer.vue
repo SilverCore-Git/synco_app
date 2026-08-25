@@ -1,6 +1,6 @@
 <template>
   <Window :is-open="isOpen" :hideCloseBtn="true" @close="closeViewer">
-    <div class="w-full h-full max-h-[90vh] bg-(--bg) overflow-hidden flex flex-col">
+    <div class="w-full h-full bg-(--bg) overflow-hidden flex flex-col">
       <!-- Header -->
       <div class="px-6 py-4 border-b border-(--bg2)/5 flex items-center justify-between shrink-0">
         <div class="flex items-center gap-3 min-w-0">
@@ -61,6 +61,34 @@
                 <iframe :src="fileUrl" class="w-full h-full border-none bg-white" @load="isLoading = false" @error="handleError"></iframe>
               </template>
 
+              <template v-else-if="isOfficeFile && onlyOfficeEnabled">
+                <div v-if="file.isE2EE" class="flex flex-col items-center justify-center h-full gap-4 text-center p-8">
+                    <i class="bi bi-shield-lock text-6xl text-warning"></i>
+                    <h3 class="text-xl font-bold text-slate-200">Fichier chiffré de bout en bout</h3>
+                    <p class="text-slate-400 max-w-md">
+                        OnlyOffice ne peut pas éditer des fichiers chiffrés de bout en bout car il nécessite un accès en clair au document sur le serveur.
+                    </p>
+                    <p class="text-slate-400 max-w-md mb-4">
+                        Voulez-vous désactiver le chiffrement de bout en bout pour ce fichier afin de pouvoir l'éditer en collaboration ?
+                    </p>
+                    <button @click="disableE2EE" :disabled="isDisablingE2EE" class="btn btn-primary w-64 mb-2">
+                        <span v-if="isDisablingE2EE" class="loading loading-spinner"></span>
+                        Oui, désactiver le chiffrement
+                    </button>
+                    <button @click="downloadFile(file.id)" class="btn btn-outline w-64">
+                        Garder chiffré et Télécharger
+                    </button>
+                </div>
+                <div v-else class="w-full h-full relative">
+                    <DocumentEditor 
+                        v-if="onlyOfficeConfig"
+                        id="docxEditor" 
+                        documentServerUrl="http://localhost:8080"
+                        :config="onlyOfficeConfig"
+                    />
+                </div>
+              </template>
+
               <template v-else-if="isTextFile">
                 <VueMonacoEditor
                   v-model:value="fileContent"
@@ -110,11 +138,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, shallowRef, computed, watch, onMounted, onUnmounted } from 'vue';
 import type { StoredFile } from '@/types/types';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { downloadFile } from '@/assets/utils/downloadFile';
-import { kcToken } from '@/assets/var';
+import { kcToken, onlyOfficeEnabled, user } from '@/assets/var';
+import { DocumentEditor } from '@onlyoffice/document-editor-vue';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import Window from '@/components/windows/Window.vue';
@@ -211,6 +240,116 @@ const isTextFile = computed(() => {
          mime === 'application/x-sh' ||
          mime.includes('sql');
 });
+
+const fileExtension = computed(() => {
+    return props.file.originalName.split('.').pop()?.toLowerCase() || '';
+});
+const isOfficeFile = computed(() => {
+    const ext = fileExtension.value;
+    return ['docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 'csv', 'txt', 'rtf'].includes(ext);
+});
+
+const getDocumentType = (ext: string) => {
+    if (['docx', 'doc', 'txt', 'rtf'].includes(ext)) return 'word';
+    if (['xlsx', 'xls', 'csv'].includes(ext)) return 'cell';
+    if (['pptx', 'ppt'].includes(ext)) return 'slide';
+    return 'word';
+};
+
+const documentUrlForOnlyOffice = computed(() => {
+    return `${(import.meta.env.VITE_API_URL || 'https://localhost:9000').replace('localhost', 'host.docker.internal')}/api/cdn/download/${props.file.id}?kc_token=Bearer ${kcToken.value}`;
+});
+
+const callbackUrlForOnlyOffice = computed(() => {
+    return `${(import.meta.env.VITE_API_URL || 'https://localhost:9000').replace('localhost', 'host.docker.internal')}/api/cdn/onlyoffice-callback/${props.file.id}`;
+});
+
+const onlyOfficeConfig = shallowRef<any>(null);
+
+const loadOnlyOfficeConfig = async () => {
+    const configObj = {
+        document: {
+            fileType: fileExtension.value,
+            key: props.file.id.substring(0, 20) + '_' + new Date(props.file.updatedAt).getTime(),
+            title: props.file.originalName,
+            url: documentUrlForOnlyOffice.value
+        },
+        documentType: getDocumentType(fileExtension.value),
+        editorConfig: {
+            user: {
+                id: user.value?.id || 'unknown',
+                name: user.value?.name || 'Utilisateur inconnu'
+            },
+            callbackUrl: callbackUrlForOnlyOffice.value,
+            lang: 'fr',
+            mode: 'edit'
+        }
+    };
+
+    try {
+        const res = await sfetch(`/api/cdn/onlyoffice-config`, {
+            method: 'POST',
+            body: JSON.stringify(configObj)
+        });
+        if (res.ok) {
+            const data = await res.json();
+            onlyOfficeConfig.value = {
+                ...configObj,
+                token: data.token
+            };
+        } else {
+            hasError.value = true;
+            toast.show("Erreur token OnlyOffice", "error");
+        }
+    } catch (err) {
+        hasError.value = true;
+    } finally {
+        isLoading.value = false;
+    }
+};
+
+const isDisablingE2EE = ref(false);
+
+const disableE2EE = async () => {
+    isDisablingE2EE.value = true;
+    try {
+        const res = await sfetch(`/api/cdn/download/${props.file.id}`);
+        if (!res.ok) throw new Error("Erreur de téléchargement");
+        
+        const buffer = await res.arrayBuffer();
+        const { key: spaceKey } = await getWorkspaceKey(props.file.workspaceId!);
+        const decryptedBuffer = await decryptFileLocal(
+            buffer, 
+            props.file.encryptedFileKey!, 
+            props.file.iv!, 
+            spaceKey
+        );
+        
+        const blob = new Blob([decryptedBuffer], { type: props.file.mimeType });
+        const formData = new FormData();
+        formData.append('file', blob, props.file.originalName);
+
+        const updateRes = await sfetch(`/api/cdn/disable-e2ee/${props.file.id}`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (updateRes.ok) {
+            const newMeta = await updateRes.json();
+            toast.show('Chiffrement désactivé, chargement de l\'éditeur...', 'success');
+            props.file.isE2EE = false;
+            emit('updated', newMeta);
+            await loadOnlyOfficeConfig();
+        } else {
+            const err = await updateRes.json();
+            toast.show(err.error || 'Erreur lors de la désactivation.', 'error');
+        }
+    } catch (err) {
+        toast.show('Erreur lors de l\'opération.', 'error');
+    } finally {
+        isDisablingE2EE.value = false;
+    }
+};
 
 const formatSize = (bytes: number | bigint) => {
     if (bytes === 0 || bytes === 0n) return '0 B';
@@ -325,17 +464,23 @@ const confirmDeleteFile = async () => {
   }
 };
 
-watch(() => props.isOpen, (isOpen) => {
+watch(() => props.isOpen, async (isOpen) => {
   if (isOpen) {
     isLoading.value = true;
     hasError.value = false;
+    e2eeObjectUrl.value = null;
+    onlyOfficeConfig.value = null;
     
     if (props.file.isE2EE && !isTextFile.value && (isImage.value || isPdf.value)) {
         loadE2EEPreview();
+    } else if (isOfficeFile.value && onlyOfficeEnabled.value && !props.file.isE2EE) {
+        await loadOnlyOfficeConfig();
     } else if (isTextFile.value) {
       fetchTextContent();
     } else if (!isImage.value && !isPdf.value) {
       isLoading.value = false; // no preview
+    } else {
+        isLoading.value = false;
     }
   } else {
     if (e2eeObjectUrl.value) {
@@ -343,6 +488,22 @@ watch(() => props.isOpen, (isOpen) => {
         e2eeObjectUrl.value = null;
     }
   }
+});
+
+onMounted(async () => {
+    if (props.isOpen) {
+        isLoading.value = true;
+        if (props.file.isE2EE && !isTextFile.value && (isImage.value || isPdf.value)) {
+            loadE2EEPreview();
+        } else if (isOfficeFile.value && onlyOfficeEnabled.value && !props.file.isE2EE) {
+            await loadOnlyOfficeConfig();
+        } else if (isTextFile.value) {
+            fetchTextContent();
+        } else {
+            isLoading.value = false;
+        }
+    }
+    window.addEventListener('keydown', handleKeydown);
 });
 
 const closeViewer = () => {
@@ -363,6 +524,5 @@ const handleKeydown = (e: KeyboardEvent) => {
   }
 };
 
-onMounted(() => window.addEventListener('keydown', handleKeydown));
 onUnmounted(() => window.removeEventListener('keydown', handleKeydown));
 </script>
