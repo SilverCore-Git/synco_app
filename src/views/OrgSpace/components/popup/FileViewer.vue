@@ -62,13 +62,20 @@
               </template>
 
               <template v-else-if="isTextFile">
-                <textarea 
-                  v-model="fileContent"
-                  class="w-full h-full resize-none bg-transparent text-(--text) p-6 font-mono text-sm focus:outline-none focus:ring-0 leading-relaxed"
-                  placeholder="Contenu du fichier..."
-                  :disabled="isSaving"
-                  spellcheck="false"
-                ></textarea>
+                <VueMonacoEditor
+                  v-model:value="fileContent"
+                  :language="getMonacoLanguage(file.mimeType, file.originalName)"
+                  theme="vs-dark"
+                  :options="{
+                    automaticLayout: true,
+                    readOnly: isSaving,
+                    minimap: { enabled: false },
+                    wordWrap: 'on',
+                    fontSize: 14,
+                    padding: { top: 16, bottom: 16 }
+                  }"
+                  class="w-full h-full text-left"
+                />
               </template>
 
               <template v-else>
@@ -114,6 +121,59 @@ import Window from '@/components/windows/Window.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { getWorkspaceKey } from '@/assets/utils/workspaceCrypto';
 import { decryptFileLocal } from '@/assets/utils/crypto';
+import { VueMonacoEditor, loader } from '@guolao/vue-monaco-editor';
+
+import * as monaco from 'monaco-editor';
+import editorWorker from 'monaco-editor/editor/editor.worker.js?worker';
+import jsonWorker from 'monaco-editor/language/json/json.worker.js?worker';
+import cssWorker from 'monaco-editor/language/css/css.worker.js?worker';
+import htmlWorker from 'monaco-editor/language/html/html.worker.js?worker';
+import tsWorker from 'monaco-editor/language/typescript/ts.worker.js?worker';
+
+self.MonacoEnvironment = {
+  getWorker(_, label) {
+    if (label === 'json') {
+      return new jsonWorker();
+    }
+    if (label === 'css' || label === 'scss' || label === 'less') {
+      return new cssWorker();
+    }
+    if (label === 'html' || label === 'handlebars' || label === 'razor') {
+      return new htmlWorker();
+    }
+    if (label === 'typescript' || label === 'javascript') {
+      return new tsWorker();
+    }
+    return new editorWorker();
+  }
+};
+
+loader.config({ monaco });
+
+const getMonacoLanguage = (mimeType: string, filename: string) => {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  
+  if (mimeType === 'application/json' || ext === 'json') return 'json';
+  if (mimeType === 'application/xml' || ext === 'xml') return 'xml';
+  if (mimeType === 'application/javascript' || ext === 'js') return 'javascript';
+  if (ext === 'ts') return 'typescript';
+  if (ext === 'vue' || ext === 'html') return 'html';
+  if (ext === 'css') return 'css';
+  if (ext === 'scss') return 'scss';
+  if (ext === 'py') return 'python';
+  if (ext === 'java') return 'java';
+  if (ext === 'c' || ext === 'cpp' || ext === 'h') return 'cpp';
+  if (ext === 'cs') return 'csharp';
+  if (ext === 'php') return 'php';
+  if (ext === 'go') return 'go';
+  if (ext === 'rs') return 'rust';
+  if (ext === 'rb') return 'ruby';
+  if (ext === 'sh' || mimeType === 'application/x-sh') return 'shell';
+  if (ext === 'sql' || mimeType.includes('sql')) return 'sql';
+  if (ext === 'md') return 'markdown';
+  
+  return 'plaintext';
+};
 
 const props = defineProps<{
   file: StoredFile;
