@@ -822,7 +822,7 @@ const moveFile = async (fileId: string, folderId: string) => {
 
         const res = await sfetch(`/api/spaces/${route.params.spaceId}/files/move`, {
             method: 'PATCH',
-            body: JSON.stringify({ fileId, folderId })
+            body: JSON.stringify({ fileId, folderId: folderId === 'root' ? null : folderId })
         });
 
         if (res.ok) 
@@ -964,7 +964,7 @@ const moveFolder = async (folderId: string, parentId: string) => {
 
         const res = await sfetch(`/api/spaces/${route.params.spaceId}/folders/move`, {
             method: 'PATCH',
-            body: JSON.stringify({ folderId, parentId })
+            body: JSON.stringify({ folderId, parentId: parentId === 'root' ? null : parentId })
         });
 
         if (res.ok) 
