@@ -86,7 +86,7 @@
                         <!-- File Card -->
                         <FileCard 
                             v-if="res.type === 'FILE'" 
-                            :file="{ id: res.id, originalName: res.metadata?.originalName || res.textContent, size: res.metadata?.size || 0, mimeType: res.metadata?.mimeType || '', createdAt: res.metadata?.createdAt || new Date(), _count: {} }" 
+                            :file="({ id: res.id, originalName: res.metadata?.originalName || res.textContent, size: res.metadata?.size || 0, mimeType: res.metadata?.mimeType || '', createdAt: res.metadata?.createdAt || new Date(), _count: {} } as any)" 
                             :draggedFileId="null" 
                         />
 
@@ -107,14 +107,16 @@
 
                         <!-- Thread Card -->
                         <div v-else-if="res.type === 'THREAD'" class="bg-(--bg2)/40 border border-(--border-color) rounded-xl p-2">
-                            <ThreadBtn :thread="{ id: res.id, name: res.textContent }" />
+                            <ThreadBtn :thread="({ id: res.id, name: res.textContent } as any)" />
                         </div>
 
                         <!-- Message Card -->
                         <div v-else class="bg-(--bg2)/20 border border-(--border-color) rounded-xl p-2">
                             <ChatMessage 
-                                :msg="{ id: res.id, content: res.textContent, sender: res.metadata?.sender || { name: 'Message' }, createdAt: res.metadata?.createdAt || new Date() }" 
-                                :isReadOnly="true" 
+                                :msg="({ id: res.id, content: res.textContent, sender: res.metadata?.sender || { name: 'Message' }, createdAt: res.metadata?.createdAt || new Date() } as any)" 
+                                :isReadOnly="true"
+                                :selectedMessage="null"
+                                :messages="[]"
                             />
                         </div>
                         
@@ -309,13 +311,7 @@ const goToResult = (res: any) => {
 
 import { onMounted, onUnmounted } from 'vue';
 
-const formatSize = (bytes: number) => {
-    if (!bytes || bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-};
+
 
 onMounted(() => {
     globalVectorWorker.addEventListener('message', handleWorkerMessage);

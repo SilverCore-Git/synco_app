@@ -441,20 +441,23 @@
         @close="showPermissions = false"
     />
 
-    <FolderPermissionsModal
+    <ManageAccessModal
         v-if="selectedFolderForPerms"
         :show="showFolderPermissions"
+        item-type="folder"
+        :item-id="selectedFolderForPerms.id"
+        :item-name="selectedFolderForPerms.name"
         :space-id="String(route.params.spaceId)"
-        :folder-id="selectedFolderForPerms.id"
-        :folder-name="selectedFolderForPerms.name"
         @close="showFolderPermissions = false"
     />
 
-    <FileShareModal
+    <ManageAccessModal
         v-if="selectedFileForPerms"
         :show="showFilePermissions"
-        :file-id="selectedFileForPerms.id"
-        :file-name="selectedFileForPerms.originalName"
+        item-type="file"
+        :item-id="selectedFileForPerms.id"
+        :item-name="selectedFileForPerms.originalName"
+        :space-id="String(route.params.spaceId)"
         @close="showFilePermissions = false"
     />
 
@@ -484,8 +487,7 @@ import { extractTextFromPDF } from '@/assets/utils/pdfExtractor';
 import VectorWorker from '@/workers/semantic.worker?worker';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 import SpacePermissionsModal from '@/components/permissions/SpacePermissionsModal.vue';
-import FolderPermissionsModal from '@/components/permissions/FolderPermissionsModal.vue';
-import FileShareModal from '@/components/permissions/FileShareModal.vue';
+import ManageAccessModal from '@/components/permissions/ManageAccessModal.vue';
 
 
 const { showUsersBar } = useUsersBar();
@@ -829,7 +831,7 @@ const moveFile = async (fileId: string, folderId: string) => {
         {
             const fileIndex = allFiles.value.findIndex(f => f.id === fileId);
             if (fileIndex !== -1) {
-                allFiles.value[fileIndex]!.folderId = folderId === 'root' ? null : folderId;
+                allFiles.value[fileIndex]!.folderId = folderId === 'root' ? undefined : folderId;
             }
         }
         
