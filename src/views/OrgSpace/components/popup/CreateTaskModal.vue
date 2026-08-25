@@ -13,6 +13,7 @@
                 </label>
                 <input 
                     v-model="form.title"
+                    @keydown.enter.prevent="handleSubmit"
                     type="text" 
                     placeholder="Qu'y a-t-il à faire ?"
                     ref="titleInput"
@@ -33,6 +34,8 @@
                 </label>
                 <textarea 
                     v-model="form.description"
+                    @keydown.ctrl.enter="handleSubmit"
+                    @keydown.meta.enter="handleSubmit"
                     placeholder="Plus de détails..."
                     rows="3"
                     class="
@@ -103,6 +106,7 @@
                     <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-sm"></i>
                     <input 
                         v-model="searchAssignee" 
+                        @keydown.enter.prevent
                         placeholder="Rechercher une personne..."
                         class="w-full bg-(--bg2)/30 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50 focus:ring-1 focus:ring-(--primary)/20 transition-all"
                         :disabled="loading"
