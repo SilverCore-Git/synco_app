@@ -646,9 +646,22 @@ const updateRoles = async (memberId: string, roleIds: string[]) => {
             method: 'PATCH',
             body: JSON.stringify({ roleIds })
         });
-        
+
         if (res.ok) {
             toast.show('Rôles mis à jour', 'success');
+
+            // Refléter le changement localement : le back ne notifie pas
+            // ce panel (seul roles:updated est émis, écouté par RolesSettings).
+            const member = openedOrg.value?.members?.find(m => m.id === memberId);
+            if (member) {
+                member.memberRoles = roleIds.map(roleId => ({
+                    roleId,
+                    role: rolesList.value.find(r => r.id === roleId),
+                }));
+                member.role = roleIds.some(id => rolesList.value.find(r => r.id === id)?.name === 'OWNER')
+                    ? 'OWNER'
+                    : 'MEMBER';
+            }
         } else {
             const data = await res.json();
             toast.show(data.error || 'Erreur lors de la mise à jour', 'error');
