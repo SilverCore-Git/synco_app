@@ -12,6 +12,7 @@ if (typeof (Promise as any).withResolvers !== 'function') {
 
 import { createApp } from 'vue'
 import './style.css'
+import 'drag-drop-touch';
 import App from './App.vue'
 import router from './router';
 import StarportPlugin from 'vue-starport'
