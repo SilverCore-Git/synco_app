@@ -130,6 +130,48 @@ jobs:
           path: src-tauri/target/release/bundle/appimage/*.AppImage
           if-no-files-found: error
 
+  build-docker-image:
+    name: Build et push de l'image Docker (front, prod)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Owner du repo en minuscule (requis par GHCR)
+        id: meta
+        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Connexion à GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extraction des VITE_* depuis le secret ENV_PRODUCTION (build args)
+        id: env
+        run: |
+          echo "${{ secrets.ENV_PRODUCTION }}" > /tmp/env.production
+          {
+            echo "args<<EOF"
+            grep '^VITE_' /tmp/env.production || true
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build et push de l'image prod
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: prod
+          push: true
+          build-args: ${{ steps.env.outputs.args }}
+          tags: |
+            ghcr.io/${{ steps.meta.outputs.owner }}/synco_app:latest
+            ghcr.io/${{ steps.meta.outputs.owner }}/synco_app:${{ github.sha }}
+
   create-release:
     name: Création de la release GitHub
     needs: [ build-android-apk, build-windows-msi, build-linux-appimage ]
