@@ -91,11 +91,12 @@
                         Renommer
                     </button>
                     <button 
+                        v-if="user?.id === folder.ownerId"
                         @click="$emit('show-permissions', folder)"
                         class="dropdown-item-annimate dropdown-item-style gap-2"
                     >
                         <i class="bi bi-shield-lock" />
-                        Permissions
+                        Gérer les accès
                     </button>
                     <button 
                         @click="$emit('request-delete', folder.id)"
@@ -121,6 +122,7 @@
 <script lang="ts" setup>  
 
 import type { Folder, StoredFile } from '@/types/types';
+import { user } from '@/assets/var';
 import { ref } from 'vue';
 import EditFolder from '../popup/EditFolder.vue';
 import DropDown from '@/components/DropDown.vue';

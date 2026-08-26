@@ -7,6 +7,8 @@
                 <h3 class="font-semibold text-(--text)">Tâches</h3>
             </div>
             
+            <TaskProgressGauge :tasks="tasks.filter(t => !filterUserId || t.assignees?.some(a => a.id === filterUserId))" class="mx-auto" />
+            
             <div class="flex items-center gap-4">
                 <CreateTaskModal 
                     :defaultSpaceId="route.params.spaceId as string" 
@@ -236,6 +238,7 @@ import { useRoute, useRouter } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import { openedOrg, user } from '@/assets/var';
 import type { Task, OrgMember } from '@/types/types';
+import TaskProgressGauge from '../components/SpaceTasks/TaskProgressGauge.vue';
 
 import { useToast } from '@/composables/useToast';
 import { useUsersBar } from '@/composables/useUsersBar';

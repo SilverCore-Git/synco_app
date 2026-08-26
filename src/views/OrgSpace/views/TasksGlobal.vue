@@ -7,6 +7,8 @@
                 <h3 class="font-semibold text-(--text)">Mes Tâches</h3>
             </div>
             
+            <TaskProgressGauge :tasks="rawTasks" class="mx-auto" />
+            
             <div class="ml-auto flex items-center gap-2">
                 <CreateTaskModal @created="onTaskCreated">
                     <button class="primary-glow !text-sm">
@@ -236,6 +238,7 @@ import { useRoute } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import type { Task, TodoList } from '@/types/types';
 import { useToast } from '@/composables/useToast';
+import TaskProgressGauge from '../components/SpaceTasks/TaskProgressGauge.vue';
 import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';

@@ -227,8 +227,12 @@
         <div class="absolute left-5 bottom-5 z-20">
             <button 
                 v-if="currentFolderId !== 'root'"
-                class=" bg-(--primary-hover) hover:scale-110 active:scale-90 transition-all duration-200 p-2 w-12 h-12 rounded-full" 
+                class=" bg-(--primary-hover) transition-all duration-200 p-2 w-12 h-12 rounded-full" 
+                :class="draggedIntoFolderId === 'parent' ? 'scale-125 bg-(--primary) ring-4 ring-green-500/50' : 'hover:scale-110 active:scale-90'"
                 @click="goBack"
+                @drop="handleDropToParent($event)"
+                @dragover.prevent="draggedIntoFolderId = 'parent'"
+                @dragleave="draggedIntoFolderId = null"
             >
                 <i class="bi bi-arrow-left text-2xl " />
             </button>
@@ -437,20 +441,23 @@
         @close="showPermissions = false"
     />
 
-    <FolderPermissionsModal
+    <ManageAccessModal
         v-if="selectedFolderForPerms"
         :show="showFolderPermissions"
+        item-type="folder"
+        :item-id="selectedFolderForPerms.id"
+        :item-name="selectedFolderForPerms.name"
         :space-id="String(route.params.spaceId)"
-        :folder-id="selectedFolderForPerms.id"
-        :folder-name="selectedFolderForPerms.name"
         @close="showFolderPermissions = false"
     />
 
-    <FileShareModal
+    <ManageAccessModal
         v-if="selectedFileForPerms"
         :show="showFilePermissions"
-        :file-id="selectedFileForPerms.id"
-        :file-name="selectedFileForPerms.originalName"
+        item-type="file"
+        :item-id="selectedFileForPerms.id"
+        :item-name="selectedFileForPerms.originalName"
+        :space-id="String(route.params.spaceId)"
         @close="showFilePermissions = false"
     />
 
@@ -480,8 +487,7 @@ import { extractTextFromPDF } from '@/assets/utils/pdfExtractor';
 import VectorWorker from '@/workers/semantic.worker?worker';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 import SpacePermissionsModal from '@/components/permissions/SpacePermissionsModal.vue';
-import FolderPermissionsModal from '@/components/permissions/FolderPermissionsModal.vue';
-import FileShareModal from '@/components/permissions/FileShareModal.vue';
+import ManageAccessModal from '@/components/permissions/ManageAccessModal.vue';
 
 
 const { showUsersBar } = useUsersBar();
@@ -818,14 +824,14 @@ const moveFile = async (fileId: string, folderId: string) => {
 
         const res = await sfetch(`/api/spaces/${route.params.spaceId}/files/move`, {
             method: 'PATCH',
-            body: JSON.stringify({ fileId, folderId })
+            body: JSON.stringify({ fileId, folderId: folderId === 'root' ? null : folderId })
         });
 
         if (res.ok) 
         {
             const fileIndex = allFiles.value.findIndex(f => f.id === fileId);
             if (fileIndex !== -1) {
-                allFiles.value[fileIndex]!.folderId = folderId;
+                allFiles.value[fileIndex]!.folderId = folderId === 'root' ? undefined : folderId;
             }
         }
         
@@ -909,6 +915,15 @@ const onDropToTrash = async (e: DragEvent) => {
     }
 };
 
+const handleDropToParent = async (event: DragEvent) => {
+    if (!currentFolderId.value || currentFolderId.value === 'root') return;
+    
+    const currentFolder = allFolders.value.find(f => f.id === currentFolderId.value);
+    const parentFolderId = currentFolder?.parentId || 'root';
+    
+    await handleDrop(event, parentFolderId);
+};
+
 const handleDrop = async (event: DragEvent, targetFolderId: string) => {
 
     event.preventDefault();
@@ -951,14 +966,14 @@ const moveFolder = async (folderId: string, parentId: string) => {
 
         const res = await sfetch(`/api/spaces/${route.params.spaceId}/folders/move`, {
             method: 'PATCH',
-            body: JSON.stringify({ folderId, parentId })
+            body: JSON.stringify({ folderId, parentId: parentId === 'root' ? null : parentId })
         });
 
         if (res.ok) 
         {
             const index = allFolders.value.findIndex(f => f.id === folderId);
             if (index !== -1) {
-                allFolders.value[index]!.parentId = parentId;
+                allFolders.value[index]!.parentId = parentId === 'root' ? null : parentId;
             }
         }
 

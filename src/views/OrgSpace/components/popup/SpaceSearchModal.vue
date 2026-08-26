@@ -16,7 +16,7 @@
                 ref="inputRef"
                 v-model="query"
                 type="text" 
-                placeholder="Rechercher par sens ou mot-clé (Deep search)..."
+                placeholder="Rechercher par sens ou mot-clé..."
                 class="w-full bg-transparent text-lg text-(--text) placeholder:text-(--text2) focus:outline-none"
                 @input="handleInput"
             />
@@ -75,47 +75,59 @@
                 <p>Aucun résultat trouvé pour "{{ query }}"</p>
             </div>
 
-            <div v-else class="space-y-6 pb-4">
-                
-                <div v-for="group in ['THREAD', 'FILE', 'TODO', 'MESSAGE']" :key="group">
-                    <div v-if="groupedResults[group] && groupedResults[group].length > 0">
-                        <h3 class="text-[10px] font-black tracking-widest uppercase text-(--text2) mb-2 px-2 flex items-center gap-2">
-                            <i class="bi" :class="{
-                                'bi-hash text-(--primary)': group === 'THREAD',
-                                'bi-file-earmark-text text-green-400': group === 'FILE',
-                                'bi-check2-square text-orange-400': group === 'TODO',
-                                'bi-chat-dots text-blue-400': group === 'MESSAGE'
-                            }" />
-                            {{ group === 'THREAD' ? 'Salons' : group === 'FILE' ? 'Fichiers' : group === 'TODO' ? 'Tâches' : 'Messages' }}
-                            <span class="text-(--text2) font-normal">({{ groupedResults[group].length }})</span>
-                        </h3>
+            <div v-else class="space-y-3 pb-4">
+                <button 
+                    v-for="res in filteredResults" 
+                    :key="res.id"
+                    @click="goToResult(res)"
+                    class="w-full text-left transition-all relative group/btn block mb-3"
+                >
+                    <div class="relative pointer-events-none w-full">
+                        <!-- File Card -->
+                        <FileCard 
+                            v-if="res.type === 'FILE'" 
+                            :file="({ id: res.id, originalName: res.metadata?.originalName || res.textContent, size: res.metadata?.size || 0, mimeType: res.metadata?.mimeType || '', createdAt: res.metadata?.createdAt || new Date(), _count: {} } as any)" 
+                            :draggedFileId="null" 
+                        />
+
+                        <!-- Task Card -->
+                        <TaskCard 
+                            v-else-if="res.type === 'TODO'" 
+                            :task="{ 
+                                id: res.id, 
+                                title: res.textContent, 
+                                status: res.metadata?.status || 'TODO', 
+                                dueDate: res.metadata?.dueDate, 
+                                assignees: res.metadata?.assignees || [], 
+                                subtasks: res.metadata?.subtasks || [],
+                                parentTask: res.metadata?.parentTask,
+                                createdAt: res.metadata?.createdAt
+                            }" 
+                        />
+
+                        <!-- Thread Card -->
+                        <div v-else-if="res.type === 'THREAD'" class="bg-(--bg2)/40 border border-(--border-color) rounded-xl p-2">
+                            <ThreadBtn :thread="({ id: res.id, name: res.textContent } as any)" />
+                        </div>
+
+                        <!-- Message Card -->
+                        <div v-else class="bg-(--bg2)/20 border border-(--border-color) rounded-xl p-2">
+                            <ChatMessage 
+                                :msg="({ id: res.id, content: res.textContent, sender: res.metadata?.sender || { name: 'Message' }, createdAt: res.metadata?.createdAt || new Date() } as any)" 
+                                :isReadOnly="true"
+                                :selectedMessage="null"
+                                :messages="[]"
+                            />
+                        </div>
                         
-                        <div class="space-y-1">
-                            <button 
-                                v-for="res in groupedResults[group]" 
-                                :key="res.id"
-                                @click="goToResult(res)"
-                                class="w-full text-left p-3 rounded-xl hover:bg-white/5 transition-colors flex items-start gap-3 border border-transparent hover:border-(--border-color) group/btn"
-                            >
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <p class="text-sm font-medium text-white line-clamp-1 group-hover/btn:text-(--primary) transition-colors">
-                                            {{ group === 'FILE' ? (res.metadata?.originalName || res.textContent) : res.textContent }}
-                                        </p>
-                                        <span class="text-[10px] text-(--primary)/60 font-bold bg-(--primary)/10 px-2 py-0.5 rounded shrink-0 ml-3">
-                                            {{ (res.score * 100).toFixed(0) }}%
-                                        </span>
-                                    </div>
-                                    <!-- Si c'est un message long, on montre la suite avec opacity reduite -->
-                                    <p v-if="group === 'MESSAGE'" class="text-xs text-(--text2) line-clamp-2 mt-1 font-mono">
-                                        {{ res.textContent }}
-                                    </p>
-                                </div>
-                            </button>
+                        <!-- Score overlay -->
+                        <div class="absolute top-3 right-3 z-10">
+                            <span class="text-[10px] text-(--primary) font-bold bg-(--primary)/20 px-2 py-1 rounded-full shadow-lg backdrop-blur-md">
+                                {{ (res.score * 100).toFixed(0) }}% match
+                            </span>
                         </div>
                     </div>
-                </div>
-
+                </button>
             </div>
         </div>
 
@@ -129,6 +141,10 @@ import { ref, computed, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 import globalVectorWorker from '@/services/GlobalVectorWorker';
+import FileCard from '../SpaceFiles/FileCard.vue';
+import TaskCard from '../SpaceTasks/TaskCard.vue';
+import ChatMessage from '../common/ChatMessage.vue';
+import ThreadBtn from '../CanalBar/ThreadBtn.vue';
 
 const props = defineProps<{ show: boolean }>();
 const emit = defineEmits(['close']);
@@ -157,19 +173,8 @@ const toggleFilter = (type: string) => {
     }
 };
 
-const groupedResults = computed(() => {
-    const groups: Record<string, any[]> = {
-        'THREAD': [],
-        'FILE': [],
-        'TODO': [],
-        'MESSAGE': []
-    };
-    for (const res of results.value) {
-        if (!activeFilters.value[res.type]) continue;
-        if (groups[res.type]) groups[res.type]!.push(res);
-        else groups['MESSAGE']!.push(res);
-    }
-    return groups;
+const filteredResults = computed(() => {
+    return results.value.filter(res => activeFilters.value[res.type] ?? activeFilters.value['MESSAGE']);
 });
 
 let searchTimeout: any = null;
@@ -207,7 +212,40 @@ const handleWorkerMessage = async (e: MessageEvent) => {
 
         try {
             const searchResults = await localSearchDB.searchByVector(vector, text, workspaceId, 50);
-            results.value = searchResults; // Removing 0.4 threshold because hybrid search scores are different
+            
+            // Augment TODO results with live data (assignees, dueDate, etc.)
+            if (searchResults.some(r => r.type === 'TODO')) {
+                const sfetch = (await import('@/assets/utils/sfetch')).default;
+                const tasksRes = await sfetch(`/api/tasks/${route.params.orgId}/spaces/${route.params.spaceId}/lists`);
+                if (tasksRes.ok) {
+                    const tasksData = await tasksRes.json();
+                    const allSpaceTasks = [...(tasksData.unlistedTasks || [])];
+                    if (tasksData.lists) {
+                        for (const list of tasksData.lists) {
+                            if (list.tasks) allSpaceTasks.push(...list.tasks);
+                        }
+                    }
+                    
+                    for (const res of searchResults) {
+                        if (res.type === 'TODO') {
+                            const found = allSpaceTasks.find((t: any) => t.id === res.id);
+                            if (found) {
+                                res.metadata = {
+                                    ...res.metadata,
+                                    status: found.status,
+                                    dueDate: found.dueDate,
+                                    assignees: found.assignees,
+                                    subtasks: found.subtasks,
+                                    parentTask: found.parentTask,
+                                    createdAt: found.createdAt
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+
+            results.value = searchResults;
         } catch (err) {
             console.error("[SpaceSearchModal] Search failed with error:", err);
         } finally {
@@ -272,6 +310,8 @@ const goToResult = (res: any) => {
 };
 
 import { onMounted, onUnmounted } from 'vue';
+
+
 
 onMounted(() => {
     globalVectorWorker.addEventListener('message', handleWorkerMessage);

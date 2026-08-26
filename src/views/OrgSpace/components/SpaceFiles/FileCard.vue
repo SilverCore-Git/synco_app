@@ -97,11 +97,12 @@
                         Voir les infos
                     </button>
                     <button 
-                        @click="showPermissionsModal(file)"
+                        v-if="user?.id === file.ownerId"
+                        @click="$emit('show-permissions', file)"
                         class="dropdown-item-annimate dropdown-item-style gap-2"
                     >
                         <i class="bi bi-shield-lock" />
-                        Permissions
+                        Gérer les accès
                     </button>
                     <button 
                         v-if="file.mimeType.startsWith('image/') || file.mimeType === 'application/pdf'"
@@ -159,6 +160,7 @@
 <script lang="ts" setup>
 
 import { useRouter, useRoute } from 'vue-router';
+import { user } from '@/assets/var';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { downloadFile } from '@/assets/utils/downloadFile';
 import DropDown from '@/components/DropDown.vue';
@@ -242,9 +244,7 @@ const showFileInfo = (file: StoredFile) => {
     emit('show-file-info', file);
 };
 
-const showPermissionsModal = (file: StoredFile) => {
-    emit('show-permissions', file);
-};
+
 
 // View message that contains this file
 const viewMessagesWithFile = async (file: StoredFile) => {

@@ -27,5 +27,10 @@ const aiEnabled = computed(() => {
     return openedOrg.value.activeModules?.ai === true;
 });
 
+const onlyOfficeEnabled = computed(() => {
+    if (!openedOrg.value) return false;
+    return openedOrg.value.activeModules?.onlyoffice === true;
+});
 
-export { organizations, openedOrg, isLoaded, user, member, isLittleScreen, kcToken, todoEnabled, filesEnabled, aiEnabled };
+
+export { organizations, openedOrg, isLoaded, user, member, isLittleScreen, kcToken, todoEnabled, filesEnabled, aiEnabled, onlyOfficeEnabled };
