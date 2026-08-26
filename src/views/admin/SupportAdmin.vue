@@ -158,6 +158,8 @@ import { useToast } from '@/composables/useToast';
 
 const toast = useToast();
 
+import { E2EEUnloked, privateKey, decryptThreadKeyWithRsa, encryptMessageWithContentKey, decryptMessageWithContentKey } from '@/assets/utils/crypto';
+
 interface TicketUser {
   id: string;
   name: string;
@@ -176,6 +178,7 @@ interface SupportTicket {
   organization?: { id: string; name: string };
   assignedModo?: { id: string; name: string };
   createdAt: string;
+  userEncryptedKey?: string;
 }
 
 const tickets = ref<SupportTicket[]>([]);
@@ -190,6 +193,8 @@ const chatContainer = ref<HTMLElement | null>(null);
 
 const formStatus = ref('');
 const formUrgency = ref('');
+
+let currentThreadKey: CryptoKey | null = null;
 
 const loadTickets = async () => {
   loading.value = true;
@@ -213,7 +218,21 @@ const loadMessages = async (threadId: string) => {
   try {
     const res = await sfetch(`/api/admin/support/threads/${threadId}/messages`);
     if (res.ok) {
-      messages.value = await res.json();
+      const msgs = await res.json();
+      const decrypted = [];
+      for (const msg of msgs) {
+        if (!msg.content || !msg.iv || !currentThreadKey) {
+          decrypted.push(msg);
+        } else {
+          try {
+            const content = await decryptMessageWithContentKey(msg.content, msg.iv, currentThreadKey);
+            decrypted.push({ ...msg, content });
+          } catch(e) {
+            decrypted.push({ ...msg, content: '[⚠️ Message chiffré illisible]' });
+          }
+        }
+      }
+      messages.value = decrypted;
       scrollToBottom();
     }
   } catch (e) {
@@ -223,10 +242,20 @@ const loadMessages = async (threadId: string) => {
   }
 };
 
-const selectTicket = (ticket: SupportTicket) => {
+const selectTicket = async (ticket: SupportTicket) => {
   selectedTicket.value = ticket;
   formStatus.value = ticket.status;
   formUrgency.value = ticket.urgency;
+  
+  currentThreadKey = null;
+  if (ticket.userEncryptedKey && privateKey.value) {
+    try {
+      currentThreadKey = await decryptThreadKeyWithRsa(ticket.userEncryptedKey, privateKey.value);
+    } catch (e) {
+      toast.show('Erreur de déchiffrement', 'error');
+    }
+  }
+  
   loadMessages(ticket.threadId);
 };
 
@@ -243,8 +272,10 @@ const updateTicket = async () => {
     if (res.ok) {
       const updated = await res.json();
       const idx = tickets.value.findIndex(t => t.id === updated.id);
-      if (idx !== -1) tickets.value[idx] = updated;
-      selectedTicket.value = updated;
+      if (idx !== -1) {
+        tickets.value[idx] = { ...tickets.value[idx], ...updated };
+      }
+      selectedTicket.value = tickets.value[idx] || updated;
       toast.show('Ticket mis à jour', 'success');
     }
   } catch (e) {
@@ -265,8 +296,10 @@ const acceptTicket = async () => {
     if (res.ok) {
       const updated = await res.json();
       const idx = tickets.value.findIndex(t => t.id === updated.id);
-      if (idx !== -1) tickets.value[idx] = updated;
-      selectedTicket.value = updated;
+      if (idx !== -1) {
+        tickets.value[idx] = { ...tickets.value[idx], ...updated };
+      }
+      selectedTicket.value = tickets.value[idx] || updated;
       formStatus.value = 'OPEN';
       toast.show('Ticket pris en charge', 'success');
     }
@@ -282,15 +315,17 @@ const closeTicket = async () => {
 };
 
 const sendMessage = async () => {
-  if (!selectedTicket.value || !newMessage.value.trim() || sending.value) return;
+  if (!selectedTicket.value || !newMessage.value.trim() || sending.value || !currentThreadKey) return;
   sending.value = true;
   try {
+    const { ciphertext, iv } = await encryptMessageWithContentKey(newMessage.value.trim(), currentThreadKey);
     const res = await sfetch(`/api/admin/support/threads/${selectedTicket.value.threadId}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ content: newMessage.value.trim() })
+      body: JSON.stringify({ content: ciphertext, iv })
     });
     if (res.ok) {
       const msg = await res.json();
+      msg.content = newMessage.value.trim();
       messages.value.push(msg);
       newMessage.value = '';
       scrollToBottom();
