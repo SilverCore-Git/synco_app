@@ -27,6 +27,12 @@ const routes = [
   },
 
   {
+    path: '/support',
+    name: 'ClientSupport',
+    component: () => import('./views/Support/ClientSupportPage.vue'),
+  },
+
+  {
     path: '/root',
     name: 'AdminPanel',
     component: AdminPanel,
