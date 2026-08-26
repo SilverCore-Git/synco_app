@@ -27,7 +27,7 @@ const routes = [
   },
 
   {
-    path: '/support',
+    path: '/support/:ticketId?',
     name: 'ClientSupport',
     component: () => import('./views/Support/ClientSupportPage.vue'),
   },

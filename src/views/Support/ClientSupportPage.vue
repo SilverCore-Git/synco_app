@@ -3,9 +3,9 @@
         <nav class="sticky top-0 z-50 bg-(--bg)/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 shrink-0">
             <div class="max-w-7xl mx-auto flex items-center justify-between w-full">
                 <div class="flex items-center gap-4">
-                    <button v-if="currentView !== 'list'" @click="currentView = 'list'" class="p-2 hover:bg-white/5 rounded-xl transition-colors">
+                    <router-link v-if="currentView !== 'list'" to="/support" class="p-2 hover:bg-white/5 rounded-xl transition-colors">
                         <i class="bi bi-arrow-left text-xl"></i>
-                    </button>
+                    </router-link>
                     <router-link v-else to="/" class="p-2 hover:bg-white/5 rounded-xl transition-colors">
                         <i class="bi bi-arrow-left text-xl"></i>
                     </router-link>
@@ -16,9 +16,9 @@
                     </div>
                 </div>
 
-                <button v-if="currentView === 'list'" @click="currentView = 'create'" class="primary flex items-center gap-2 text-sm">
+                <router-link v-if="currentView === 'list'" to="/support/new" class="primary flex items-center gap-2 text-sm px-4 py-2 rounded-lg font-bold">
                     <i class="bi bi-plus-lg"></i> Nouveau Ticket
-                </button>
+                </router-link>
             </div>
         </nav>
 
@@ -60,7 +60,7 @@
             <TicketCreateForm 
                 v-else-if="currentView === 'create'" 
                 @created="onTicketCreated"
-                @cancel="currentView = 'list'"
+                @cancel="router.push('/support')"
             />
 
             <TicketChat 
@@ -72,18 +72,41 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import TicketCreateForm from './TicketCreateForm.vue';
 import TicketChat from './TicketChat.vue';
 import sfetch from '@/assets/utils/sfetch';
 import { useToast } from '@/composables/useToast';
 
 const toast = useToast();
+const route = useRoute();
+const router = useRouter();
 
 const currentView = ref<'list' | 'create' | 'chat'>('list');
 const selectedTicket = ref<any>(null);
 const tickets = ref<any[]>([]);
 const loading = ref(false);
+
+const updateViewFromRoute = () => {
+    const ticketId = route.params.ticketId as string;
+    if (!ticketId) {
+        currentView.value = 'list';
+        selectedTicket.value = null;
+    } else if (ticketId === 'new') {
+        currentView.value = 'create';
+        selectedTicket.value = null;
+    } else {
+        currentView.value = 'chat';
+        // Find ticket from list
+        const ticket = tickets.value.find(t => t.id === ticketId);
+        if (ticket) {
+            selectedTicket.value = ticket;
+        } else {
+            // If not found (maybe not loaded yet), we'll fetch it or just wait
+        }
+    }
+};
 
 const loadTickets = async () => {
     loading.value = true;
@@ -91,6 +114,7 @@ const loadTickets = async () => {
         const res = await sfetch('/api/support/tickets');
         if (res.ok) {
             tickets.value = await res.json();
+            updateViewFromRoute();
         }
     } catch (e) {
         toast.show('Erreur lors du chargement des tickets', 'error');
@@ -99,18 +123,21 @@ const loadTickets = async () => {
     }
 };
 
+watch(() => route.params.ticketId, () => {
+    updateViewFromRoute();
+});
+
 onMounted(() => {
     loadTickets();
 });
 
 const openTicket = (ticket: any) => {
-    selectedTicket.value = ticket;
-    currentView.value = 'chat';
+    router.push(`/support/${ticket.id}`);
 };
 
 const onTicketCreated = (ticket: any) => {
     tickets.value.unshift(ticket);
-    openTicket(ticket);
     toast.show('Ticket créé avec succès', 'success');
+    router.push(`/support/${ticket.id}`);
 };
 </script>
