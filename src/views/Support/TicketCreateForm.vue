@@ -65,17 +65,20 @@ const submit = async () => {
         
         const threadKey = await generateThreadKey();
         
-        let encryptedKeyForUser = null;
+        const allKeys = [];
         if (user.value?.publicKey) {
-            encryptedKeyForUser = await encryptThreadKeyForMember(threadKey, user.value.publicKey);
+            const encryptedKeyForUser = await encryptThreadKeyForMember(threadKey, user.value.publicKey);
+            allKeys.push({
+                userId: user.value.id,
+                encryptedKey: encryptedKeyForUser
+            });
         }
         
-        const adminKeysPayload = [];
         for (const admin of adminsKeys) {
             if (admin.publicKey) {
                 const encryptedKey = await encryptThreadKeyForMember(threadKey, admin.publicKey);
-                adminKeysPayload.push({
-                    userId: admin.userId,
+                allKeys.push({
+                    userId: admin.id,
                     encryptedKey
                 });
             }
@@ -84,9 +87,8 @@ const submit = async () => {
         const payload = {
             domain: form.domain,
             subject: form.subject,
-            orgId: form.orgId || null,
-            userEncryptedKey: encryptedKeyForUser,
-            adminEncryptedKeys: adminKeysPayload
+            organizationId: form.orgId || null,
+            keys: allKeys
         };
 
         const res = await sfetch('/api/support/tickets', {
