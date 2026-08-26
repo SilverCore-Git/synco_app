@@ -4,21 +4,28 @@
             ref="messagesContainer"
             class="flex-1 overflow-y-auto p-4 custom-scrollbar w-full mb-18"
         >
-            <div v-if="ticket" class="flex flex-col justify-end min-h-full w-full">
-                <div class="mb-8 p-6 border-b border-(--border-color) bg-(--bg2) rounded-2xl mx-4">
-                    <div class="w-16 h-16 rounded-full bg-(--primary)/20 flex items-center justify-center mb-4 text-(--primary)">
-                        <i class="bi bi-headset text-2xl"></i>
+            <div v-if="ticket" class="flex flex-col justify-end min-h-full max-w-4xl mx-auto w-full">
+                <div class="mb-8 p-6 border-b border-(--border-color) bg-(--bg2) rounded-2xl mx-4 flex flex-col md:flex-row md:items-start justify-between gap-4">
+                    <div>
+                        <div class="w-16 h-16 rounded-full bg-(--primary)/20 flex items-center justify-center mb-4 text-(--primary)">
+                            <i class="bi bi-headset text-2xl"></i>
+                        </div>
+                        <h1 class="text-2xl font-black text-(--text) mb-2">{{ ticket.subject }}</h1>
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-white/5 text-(--text2)">
+                                {{ ticket.domain }}
+                            </span>
+                            <span class="text-xs text-(--text2)">Ticket #{{ ticket.id.substring(0, 8) }}</span>
+                        </div>
+                        <p class="text-(--text2) text-sm">
+                            L'équipe de support vous répondra dans les plus brefs délais. Vos messages sont chiffrés de bout en bout.
+                        </p>
                     </div>
-                    <h1 class="text-2xl font-black text-(--text) mb-2">{{ ticket.subject }}</h1>
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-white/5 text-(--text2)">
-                            {{ ticket.domain }}
-                        </span>
-                        <span class="text-xs text-(--text2)">Ticket #{{ ticket.id.substring(0, 8) }}</span>
+                    <div v-if="ticket.status !== 'CLOSED'">
+                        <button @click="closeTicket" class="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors">
+                            Clôturer le ticket
+                        </button>
                     </div>
-                    <p class="text-(--text2) text-sm">
-                        L'équipe de support vous répondra dans les plus brefs délais. Vos messages sont chiffrés de bout en bout.
-                    </p>
                 </div>
 
                 <div class="flex flex-col w-full space-y-4">
@@ -53,23 +60,29 @@
         </main>
 
         <footer class="absolute bottom-0 inset-x-0 p-2 bg-(--bg2) border-t border-(--border-color)">
-            <div class="relative flex items-center bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all">
-                <textarea
-                    v-model="newMessage"
-                    @keydown.enter.prevent="sendMessage"
-                    class="flex-1 bg-transparent border-none focus:outline-none text-sm text-(--text) resize-none py-1 custom-scrollbar"
-                    rows="1"
-                    placeholder="Écrivez votre message..."
-                ></textarea>
+            <div class="max-w-4xl mx-auto w-full">
+                <div v-if="ticket?.status === 'CLOSED'" class="text-center py-2 text-(--text2) text-sm font-bold">
+                    <i class="bi bi-lock-fill mr-2"></i> Ce ticket est clôturé.
+                </div>
+                <div v-else class="relative flex items-center bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all">
+                    <textarea
+                        ref="messageInput"
+                        v-model="newMessage"
+                        @keydown.enter.prevent="sendMessage"
+                        class="flex-1 bg-transparent border-none focus:outline-none text-sm text-(--text) resize-none py-1 custom-scrollbar"
+                        rows="1"
+                        placeholder="Écrivez votre message..."
+                    ></textarea>
 
-                <button 
-                    @click="sendMessage"
-                    :disabled="!newMessage.trim()"
-                    :class="newMessage.trim() ? 'text-(--primary)' : 'text-(--text2) opacity-50'"
-                    class="ml-3 transition-colors shrink-0"
-                >
-                    <i class="bi bi-send-fill text-lg"></i>
-                </button>
+                    <button 
+                        @click="sendMessage"
+                        :disabled="!newMessage.trim()"
+                        :class="newMessage.trim() ? 'text-(--primary)' : 'text-(--text2) opacity-50'"
+                        class="ml-3 transition-colors shrink-0"
+                    >
+                        <i class="bi bi-send-fill text-lg"></i>
+                    </button>
+                </div>
             </div>
         </footer>
     </div>
@@ -81,6 +94,7 @@ import { user } from '@/assets/var';
 import useWSocket from '@/composables/useWSocket';
 import { E2EEUnloked, privateKey, decryptThreadKeyWithRsa, encryptMessageWithContentKey, decryptMessageWithContentKey } from '@/assets/utils/crypto';
 import { useToast } from '@/composables/useToast';
+import sfetch from '@/assets/utils/sfetch';
 
 const props = defineProps<{
     ticket: any;
@@ -93,6 +107,7 @@ const messages = ref<any[]>([]);
 const newMessage = ref('');
 const loading = ref(true);
 const messagesContainer = ref<HTMLElement | null>(null);
+const messageInput = ref<HTMLTextAreaElement | null>(null);
 
 let currentThreadKey: CryptoKey | null = null;
 
@@ -100,6 +115,26 @@ const scrollToBottom = async () => {
     await nextTick();
     if (messagesContainer.value) {
         messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+    }
+};
+
+const closeTicket = async () => {
+    if (!confirm('Voulez-vous vraiment clôturer ce ticket ?')) return;
+    
+    try {
+        const res = await sfetch(`/api/support/tickets/${props.ticket.id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status: 'CLOSED' })
+        });
+        
+        if (res.ok) {
+            props.ticket.status = 'CLOSED';
+            toast.show('Ticket clôturé', 'success');
+        } else {
+            toast.show('Erreur lors de la clôture', 'error');
+        }
+    } catch(e) {
+        toast.show('Erreur réseau', 'error');
     }
 };
 
@@ -129,6 +164,12 @@ const initListener = () => {
         loading.value = false;
         messages.value = await Promise.all(data.map(m => decryptMsg(m)));
         scrollToBottom();
+        
+        // Auto-focus textarea if ticket is not closed
+        if (props.ticket.status !== 'CLOSED') {
+            await nextTick();
+            messageInput.value?.focus();
+        }
     });
 
     socket.value.on('ticket:new-message', async (msg: any) => {
