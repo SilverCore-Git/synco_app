@@ -65,22 +65,26 @@ const submit = async () => {
         
         const threadKey = await generateThreadKey();
         
+        const addedUserIds = new Set<string>();
         const allKeys = [];
+        
         if (user.value?.publicKey) {
             const encryptedKeyForUser = await encryptThreadKeyForMember(threadKey, user.value.publicKey);
             allKeys.push({
                 userId: user.value.id,
                 encryptedKey: encryptedKeyForUser
             });
+            addedUserIds.add(user.value.id);
         }
         
         for (const admin of adminsKeys) {
-            if (admin.publicKey) {
+            if (admin.publicKey && !addedUserIds.has(admin.id)) {
                 const encryptedKey = await encryptThreadKeyForMember(threadKey, admin.publicKey);
                 allKeys.push({
                     userId: admin.id,
                     encryptedKey
                 });
+                addedUserIds.add(admin.id);
             }
         }
 
