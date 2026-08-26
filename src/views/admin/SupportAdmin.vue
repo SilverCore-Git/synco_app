@@ -1,5 +1,5 @@
 <template>
-  <div class="flex gap-4 h-[calc(100vh-140px)] p-4 max-w-full">
+  <div class="flex h-full w-full bg-(--bg2) p-4 gap-4">
     <!-- Left: Tickets List -->
     <div class="w-80 flex flex-col bg-(--bg) rounded-2xl border border-white/5 shadow-lg overflow-hidden shrink-0">
       <div class="p-4 border-b border-white/5 flex items-center justify-between">

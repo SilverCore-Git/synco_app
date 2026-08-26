@@ -28,12 +28,13 @@
       </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto p-6 mt-4">
-      <router-view></router-view>
+    <main :class="$route.name === 'AdminSupport' ? 'p-0 w-full h-[calc(100vh-130px)]' : 'max-w-7xl mx-auto p-6 mt-4'">
+      <router-view class="h-full"></router-view>
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-// Admin layout - child routes are rendered in <router-view>
+import { useRoute } from 'vue-router';
+const $route = useRoute();
 </script>
