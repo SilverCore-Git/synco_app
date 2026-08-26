@@ -8,8 +8,13 @@ import path from 'path';
 
 // https://vite.dev/config/
 // Check if HTTPS should be used based on VITE_USE_HTTPS in .env file
-// We read .env directly since we're in Node.js context (vite.config.ts)
+// We read .env directly since we're in Node.js context (vite.config.ts).
+// process.env is checked first so a container/CI can set these without a
+// physical .env file on disk (e.g. Docker Compose environment vars).
 function getEnvValue(key: string, defaultValue: string = 'false', envFile: string = '.env'): string {
+  if (process.env[key] !== undefined) {
+    return process.env[key] as string;
+  }
   const envPath = path.resolve(process.cwd(), envFile);
   if (fs.existsSync(envPath)) {
     const envContent = fs.readFileSync(envPath, 'utf-8');
