@@ -45,7 +45,8 @@
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 mb-1">
-                                <h3 class="font-bold text-(--text) truncate">{{ ticket.subject }}</h3>
+                                <div v-if="ticket.hasUnreadClient" class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" title="Nouveau message"></div>
+                                <h3 class="font-bold text-(--text) truncate" :class="{ 'text-white': ticket.hasUnreadClient }">{{ ticket.subject }}</h3>
                                 <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-white/5 text-(--text2)">
                                     {{ ticket.domain }}
                                 </span>
@@ -78,6 +79,7 @@ import TicketCreateForm from './TicketCreateForm.vue';
 import TicketChat from './TicketChat.vue';
 import sfetch from '@/assets/utils/sfetch';
 import { useToast } from '@/composables/useToast';
+import useWSocket from '@/composables/useWSocket';
 
 const toast = useToast();
 const route = useRoute();
@@ -101,6 +103,7 @@ const updateViewFromRoute = () => {
         // Find ticket from list
         const ticket = tickets.value.find(t => t.id === ticketId);
         if (ticket) {
+            ticket.hasUnreadClient = false;
             selectedTicket.value = ticket;
         } else {
             // If not found (maybe not loaded yet), we'll fetch it or just wait
@@ -127,8 +130,20 @@ watch(() => route.params.ticketId, () => {
     updateViewFromRoute();
 });
 
-onMounted(() => {
-    loadTickets();
+onMounted(async () => {
+    await loadTickets();
+    
+    const socketRef = await useWSocket();
+    if (socketRef.value) {
+        socketRef.value.on('ticket:update', (data: any) => {
+            const ticket = tickets.value.find(t => t.id === data.id);
+            if (ticket) {
+                Object.assign(ticket, data);
+            } else {
+                loadTickets();
+            }
+        });
+    }
 });
 
 const openTicket = (ticket: any) => {

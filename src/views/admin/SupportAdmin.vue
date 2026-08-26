@@ -21,10 +21,18 @@
             <span class="text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider" :class="statusColors(ticket.status)">{{ ticket.status }}</span>
             <span class="text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider" :class="urgencyColors(ticket.urgency)">{{ ticket.urgency }}</span>
           </div>
-          <h3 class="font-bold text-sm truncate mb-1 text-(--text)">{{ ticket.subject }}</h3>
-          <p class="text-xs text-(--text2) truncate flex items-center gap-1">
-            <i class="bi bi-person-circle"></i> {{ ticket.creator?.name || 'Inconnu' }}
-          </p>
+          <div class="flex items-center gap-2 mb-1">
+            <div v-if="ticket.hasUnreadAdmin" class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" title="Nouveau message"></div>
+            <h3 class="font-bold text-sm truncate text-(--text)" :class="{'text-white': ticket.hasUnreadAdmin}">{{ ticket.subject }}</h3>
+          </div>
+          <div class="flex items-center justify-between mt-2">
+            <p class="text-[10px] text-(--text2) truncate flex items-center gap-1">
+              <i class="bi bi-person-circle"></i> {{ ticket.creator?.name || 'Inconnu' }}
+            </p>
+            <p v-if="ticket.assignedModo" class="text-[10px] text-(--primary) truncate flex items-center gap-1 bg-(--primary)/10 px-1.5 py-0.5 rounded-full">
+              <i class="bi bi-shield-check"></i> {{ ticket.assignedModo.name }}
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -155,10 +163,10 @@ import { ref, onMounted, nextTick } from 'vue';
 import sfetch from '@/assets/utils/sfetch';
 import { user } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
+import useWSocket from '@/composables/useWSocket';
+import { E2EEUnloked, privateKey, decryptThreadKeyWithRsa, encryptMessageWithContentKey, decryptMessageWithContentKey } from '@/assets/utils/crypto';
 
 const toast = useToast();
-
-import { E2EEUnloked, privateKey, decryptThreadKeyWithRsa, encryptMessageWithContentKey, decryptMessageWithContentKey } from '@/assets/utils/crypto';
 
 interface TicketUser {
   id: string;
@@ -243,6 +251,7 @@ const loadMessages = async (threadId: string) => {
 };
 
 const selectTicket = async (ticket: SupportTicket) => {
+  ticket.hasUnreadAdmin = false;
   selectedTicket.value = ticket;
   formStatus.value = ticket.status;
   formUrgency.value = ticket.urgency;
@@ -366,7 +375,24 @@ const urgencyColors = (urgency: string) => {
   }
 };
 
-onMounted(() => {
-  loadTickets();
+onMounted(async () => {
+  await loadTickets();
+  const socketRef = await useWSocket();
+  if (socketRef.value) {
+    socketRef.value.on('admin:ticket-update', (data: any) => {
+      const ticket = tickets.value.find(t => t.id === data.id);
+      if (ticket) {
+        Object.assign(ticket, data);
+        if (selectedTicket.value?.id === ticket.id && data.hasUnreadAdmin) {
+            // If the admin is currently looking at this ticket, maybe reload messages automatically
+            // or just loadMessages(ticket.threadId) - but actually they are also in the ticket room!
+            // Wait, SupportAdmin DOES NOT join the ticket room for new messages!
+            loadMessages(ticket.threadId);
+        }
+      } else {
+        loadTickets();
+      }
+    });
+  }
 });
 </script>

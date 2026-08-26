@@ -17,9 +17,16 @@
                             </span>
                             <span class="text-xs text-(--text2)">Ticket #{{ ticket.id.substring(0, 8) }}</span>
                         </div>
-                        <p class="text-(--text2) text-sm">
+                        <p class="text-(--text2) text-sm mb-4">
                             L'équipe de support vous répondra dans les plus brefs délais. Vos messages sont chiffrés de bout en bout.
                         </p>
+                        <div v-if="ticket.assignedModo" class="inline-flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-2 rounded-xl">
+                            <img :src="ticket.assignedModo.avatarUrl || `https://ui-avatars.com/api/?name=${ticket.assignedModo.name}&background=random`" class="w-8 h-8 rounded-full object-cover" />
+                            <div class="flex flex-col">
+                                <span class="text-[10px] text-(--text2) uppercase font-bold tracking-wider">Modérateur en charge</span>
+                                <span class="text-sm font-bold text-(--text)">{{ ticket.assignedModo.name }}</span>
+                            </div>
+                        </div>
                     </div>
                     <div v-if="ticket.status !== 'CLOSED'">
                         <button @click="closeTicket" class="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors">
