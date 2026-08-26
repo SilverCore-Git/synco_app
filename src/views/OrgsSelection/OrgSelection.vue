@@ -11,6 +11,7 @@ import { useToast } from '@/composables/useToast';
 import { keycloak } from '@/assets/keycloak';
 import DropDown from '@/components/DropDown.vue';
 import UserSettings from '@/components/windows/UserSettings.vue';
+import ClientSupportModal from '@/views/Support/ClientSupportModal.vue';
 
 const toast = useToast();
 
@@ -27,6 +28,8 @@ const searchQuery = ref('');
 const isSuperAdmin = ref(false);
 
 const showUserSettings = ref(false);
+const showSupport = ref(false);
+
 const showDeleteAccount = ref(false);
 const deleteAccountLoading = ref(false);
 
@@ -131,6 +134,13 @@ onMounted(async () => {
                             </router-link>
                         </div>
                     </template>
+
+                    <div class="h-px bg-white/5 my-1" />
+                    <div class="p-1">
+                        <button @click="showSupport = true" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--text) hover:text-(--text) hover:bg-white/5 rounded-lg transition-colors">
+                            <i class="bi bi-headset"></i> Support SAV
+                        </button>
+                    </div>
 
                     <div class="h-px bg-white/5 my-1" />
                     <div class="p-1">
@@ -283,4 +293,7 @@ onMounted(async () => {
         </template>
     </Popup>
 
+    <ClientSupportModal :is-open="showSupport" @close="showSupport = false" />
+
 </template>
+

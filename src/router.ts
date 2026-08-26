@@ -53,6 +53,11 @@ const routes = [
         path: 'orgs',
         name: 'AdminOrgs',
         component: () => import('./views/admin/OrgsQuota.vue'),
+      },
+      {
+        path: 'support',
+        name: 'AdminSupport',
+        component: () => import('./views/admin/SupportAdmin.vue'),
       }
     ]
   },
