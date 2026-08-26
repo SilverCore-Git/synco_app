@@ -1,23 +1,26 @@
 <template>
     <div class="flex flex-col h-screen bg-(--bg) text-(--text) w-full overflow-hidden">
-        <header class="h-14 border-b border-(--border-color) flex items-center px-4 bg-(--bg2) shrink-0 gap-3">
-            <button v-if="currentView !== 'list'" @click="currentView = 'list'" class="text-(--text2) hover:text-(--text)">
-                <i class="bi bi-arrow-left text-xl"></i>
-            </button>
-            <router-link v-else to="/" class="text-(--text2) hover:text-(--text)">
-                <i class="bi bi-house text-xl"></i>
-            </router-link>
-            <div class="w-8 h-8 rounded-full bg-(--primary)/20 flex items-center justify-center text-(--primary)">
-                <i class="bi bi-headset text-lg"></i>
+        <nav class="sticky top-0 z-50 bg-(--bg)/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 shrink-0">
+            <div class="max-w-7xl mx-auto flex items-center justify-between w-full">
+                <div class="flex items-center gap-4">
+                    <button v-if="currentView !== 'list'" @click="currentView = 'list'" class="p-2 hover:bg-white/5 rounded-xl transition-colors">
+                        <i class="bi bi-arrow-left text-xl"></i>
+                    </button>
+                    <router-link v-else to="/" class="p-2 hover:bg-white/5 rounded-xl transition-colors">
+                        <i class="bi bi-arrow-left text-xl"></i>
+                    </router-link>
+                    <div>
+                        <h1 class="text-xl font-black uppercase tracking-wider flex items-center gap-3">
+                            {{ currentView === 'list' ? 'Support SAV' : currentView === 'create' ? 'Nouveau Ticket' : 'Discussion Support' }}
+                        </h1>
+                    </div>
+                </div>
+
+                <button v-if="currentView === 'list'" @click="currentView = 'create'" class="primary flex items-center gap-2 text-sm">
+                    <i class="bi bi-plus-lg"></i> Nouveau Ticket
+                </button>
             </div>
-            <h2 class="font-bold">
-                {{ currentView === 'list' ? 'Mes Tickets de Support' : currentView === 'create' ? 'Nouveau Ticket' : 'Discussion Support' }}
-            </h2>
-            
-            <button v-if="currentView === 'list'" @click="currentView = 'create'" class="ml-auto primary flex items-center gap-2 text-sm">
-                <i class="bi bi-plus-lg"></i> Nouveau Ticket
-            </button>
-        </header>
+        </nav>
 
         <main class="flex-1 overflow-hidden relative">
             <div v-if="currentView === 'list'" class="h-full overflow-y-auto p-4 md:p-6 custom-scrollbar">
