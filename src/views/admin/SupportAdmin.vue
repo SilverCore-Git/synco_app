@@ -9,31 +9,39 @@
       <div class="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
         <div v-if="loading" class="p-4 text-center text-(--text2) text-sm animate-pulse">Chargement...</div>
         <div v-else-if="tickets.length === 0" class="p-4 text-center text-(--text2) text-sm">Aucun ticket</div>
-        <div 
-          v-else 
-          v-for="ticket in tickets" 
-          :key="ticket.id" 
-          @click="selectTicket(ticket)"
-          class="p-4 border border-white/5 rounded-xl cursor-pointer hover:bg-white/5 transition-colors group"
-          :class="{'bg-(--primary)/10 border-(--primary)/30': selectedTicket?.id === ticket.id}"
-        >
-          <div class="flex justify-between items-start mb-2">
-            <span class="text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider" :class="statusColors(ticket.status)">{{ ticket.status }}</span>
-            <span class="text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider" :class="urgencyColors(ticket.urgency)">{{ ticket.urgency }}</span>
+        <template v-else>
+          <div v-for="group in ticketGroups" :key="group.id" v-show="group.items.length > 0" class="mb-4">
+            <h3 class="text-[10px] font-black uppercase text-(--text2) tracking-wider mb-2 px-2 flex items-center gap-2">
+              <i class="bi" :class="group.icon"></i> {{ group.name }} ({{ group.items.length }})
+            </h3>
+            <div class="space-y-2">
+              <div 
+                v-for="ticket in group.items" 
+                :key="ticket.id" 
+                @click="selectTicket(ticket)"
+                class="p-4 border border-white/5 rounded-xl cursor-pointer hover:bg-white/5 transition-colors group"
+                :class="{'bg-(--primary)/10 border-(--primary)/30': selectedTicket?.id === ticket.id}"
+              >
+                <div class="flex justify-between items-start mb-2">
+                  <span class="text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider" :class="statusColors(ticket.status)">{{ ticket.status }}</span>
+                  <span class="text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider" :class="urgencyColors(ticket.urgency)">{{ ticket.urgency }}</span>
+                </div>
+                <div class="flex items-center gap-2 mb-1">
+                  <div v-if="ticket.hasUnreadAdmin" class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" title="Nouveau message"></div>
+                  <h3 class="font-bold text-sm truncate text-(--text)" :class="{'text-white': ticket.hasUnreadAdmin}">{{ ticket.subject }}</h3>
+                </div>
+                <div class="flex items-center justify-between mt-2">
+                  <p class="text-[10px] text-(--text2) truncate flex items-center gap-1">
+                    <i class="bi bi-person-circle"></i> {{ ticket.creator?.name || 'Inconnu' }}
+                  </p>
+                  <p v-if="ticket.assignedModo" class="text-[10px] text-(--primary) truncate flex items-center gap-1 bg-(--primary)/10 px-1.5 py-0.5 rounded-full">
+                    <i class="bi bi-shield-check"></i> {{ ticket.assignedModo.name }}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="flex items-center gap-2 mb-1">
-            <div v-if="ticket.hasUnreadAdmin" class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" title="Nouveau message"></div>
-            <h3 class="font-bold text-sm truncate text-(--text)" :class="{'text-white': ticket.hasUnreadAdmin}">{{ ticket.subject }}</h3>
-          </div>
-          <div class="flex items-center justify-between mt-2">
-            <p class="text-[10px] text-(--text2) truncate flex items-center gap-1">
-              <i class="bi bi-person-circle"></i> {{ ticket.creator?.name || 'Inconnu' }}
-            </p>
-            <p v-if="ticket.assignedModo" class="text-[10px] text-(--primary) truncate flex items-center gap-1 bg-(--primary)/10 px-1.5 py-0.5 rounded-full">
-              <i class="bi bi-shield-check"></i> {{ ticket.assignedModo.name }}
-            </p>
-          </div>
-        </div>
+        </template>
       </div>
     </div>
 
@@ -159,7 +167,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted, nextTick } from 'vue';
 import sfetch from '@/assets/utils/sfetch';
 import { user } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
@@ -187,9 +195,32 @@ interface SupportTicket {
   assignedModo?: { id: string; name: string };
   createdAt: string;
   userEncryptedKey?: string;
+  hasUnreadAdmin?: boolean;
 }
 
 const tickets = ref<SupportTicket[]>([]);
+
+const ticketGroups = computed(() => [
+  {
+    id: 'pending',
+    name: 'En attente',
+    icon: 'bi-hourglass-split',
+    items: tickets.value.filter(t => t.status === 'PENDING')
+  },
+  {
+    id: 'open',
+    name: 'Ouverts',
+    icon: 'bi-envelope-open',
+    items: tickets.value.filter(t => t.status === 'OPEN')
+  },
+  {
+    id: 'closed',
+    name: 'Fermés / Archivés',
+    icon: 'bi-check2-circle',
+    items: tickets.value.filter(t => t.status === 'CLOSED' || t.status === 'ARCHIVED')
+  }
+]);
+
 const loading = ref(true);
 const selectedTicket = ref<SupportTicket | null>(null);
 
