@@ -508,6 +508,13 @@ const onTaskUpdated = (updatedTask: Task) => {
     if (idx !== -1) {
         rawTasks.value[idx] = updatedTask;
     }
+    // selectedTask est une référence séparée passée à TaskDetailsModal : sans
+    // ça, la modale ouverte continue d'afficher l'ancien titre/description/
+    // assignés tant qu'on ne la referme pas (elle ne suit pas le remplacement
+    // ci-dessus dans rawTasks).
+    if (selectedTask.value?.id === updatedTask.id) {
+        selectedTask.value = updatedTask;
+    }
 };
 
 const onTaskDeleted = (taskId: string) => {
