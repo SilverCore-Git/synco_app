@@ -343,11 +343,17 @@ const toggleSubtaskStatus = async (subtask: Task) => {
     subtask.status = newStatus;
     
     try {
-        await sfetch(`/api/tasks/${route.params.orgId}/tasks/${subtask.id}`, {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${subtask.id}`, {
             method: 'PUT',
             body: JSON.stringify({ status: newStatus })
         });
-        
+
+        if (!res.ok) {
+            subtask.status = oldStatus;
+            toast.show("Erreur lors de la mise à jour", 'error');
+            return;
+        }
+
         if (newStatus === 'DONE') {
             try {
                 confetti({
@@ -369,9 +375,15 @@ const toggleSubtaskStatus = async (subtask: Task) => {
 
 const deleteSubtask = async (subtaskId: string) => {
     try {
-        await sfetch(`/api/tasks/${route.params.orgId}/tasks/${subtaskId}`, {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${subtaskId}`, {
             method: 'DELETE'
         });
+
+        if (!res.ok) {
+            toast.show("Erreur lors de la suppression", 'error');
+            return;
+        }
+
         if (props.task && props.task.subtasks) {
             props.task.subtasks = props.task.subtasks.filter(st => st.id !== subtaskId);
             emit('update', props.task);

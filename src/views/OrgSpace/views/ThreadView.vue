@@ -794,7 +794,6 @@ const initListener = () => {
     });
 
     socket.value.on('delete-message', (msgId: string) => {
-        if (!rawMessages.value.has(msgId)) return;
         rawMessages.value.delete(msgId);
         sortedMessages.value = sortedMessages.value.filter(m => m.id !== msgId);
     });

@@ -60,7 +60,7 @@
                         {{ $p(member.user?.name) }}
                     </span>
                     <span class="text-xs text-(--text2)">
-                        {{ member.role }}
+                        {{ getMemberRoleLabel(member) }}
                     </span>
                 </div>
 
@@ -113,7 +113,7 @@
                         {{ $p(member.user?.name) }}
                     </span>
                     <span class="text-xs text-(--text2)">
-                        {{ member.role }}
+                        {{ getMemberRoleLabel(member) }}
                     </span>
                 </div>
 
@@ -202,6 +202,17 @@ const { getUnreadCountByDMUserId } = useNotification();
 defineProps<{
     isLittleScreen: boolean;
 }>();
+
+// member.role est un champ legacy (OWNER/MEMBER uniquement depuis le
+// système de rôles multiples) — le vrai rôle affiché doit venir de
+// memberRoles, déjà inclus dans openedOrg.
+const getMemberRoleLabel = (member: any): string => {
+    if (member.memberRoles && member.memberRoles.length > 0) {
+        const names = member.memberRoles.map((mr: any) => mr.role?.name).filter(Boolean);
+        if (names.length > 0) return names.join(', ');
+    }
+    return member.role || 'Membre';
+};
 
 const members = computed(() => {
 
