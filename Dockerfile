@@ -70,7 +70,7 @@ ENV VITE_THREADS_E2EE_KEY=$VITE_THREADS_E2EE_KEY \
     VITE_FIREBASE_VAPID_KEY=$VITE_FIREBASE_VAPID_KEY
 COPY . .
 RUN printenv | grep '^VITE_' > .env.production
-RUN npm run build
+RUN NODE_OPTIONS=--max-old-space-size=6144 npm run build
 
 # ── prod : nginx sert le bundle statique ──────────────────────────────────
 FROM nginx:alpine AS prod

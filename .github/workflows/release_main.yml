@@ -38,6 +38,8 @@ jobs:
         run: bun install
 
       - name: Build des assets web
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: bun run build
 
       - name: Synchronisation Capacitor Android
@@ -81,6 +83,8 @@ jobs:
         run: bun install
 
       - name: Build de l'installeur MSI
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: bun run tauri:build -- --bundles msi
 
       - name: Upload du MSI
@@ -121,6 +125,8 @@ jobs:
         run: bun install
 
       - name: Build de l'AppImage
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: bun run tauri:build -- --bundles appimage
 
       - name: Upload de l'AppImage
