@@ -24,6 +24,7 @@
                             <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2) text-center">Orgs Créées / Max</th>
                             <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2) text-center">Max Users (par Org)</th>
                             <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2) text-center">Max Storage (par Org)</th>
+                            <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2) text-center">Rôle Synco</th>
                             <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2) text-right">Actions</th>
                         </tr>
                     </thead>
@@ -64,6 +65,14 @@
 
                             <td class="p-4 text-center">
                                 <span class="text-sm font-medium text-(--text)">{{ formatBytes(user.orgMaxStorage) }}</span>
+                            </td>
+
+                            <td class="p-4 text-center">
+                                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] uppercase font-black tracking-wider" 
+                                     :class="user.isAdmin ? 'bg-(--primary)/20 text-(--primary)' : user.isModo ? 'bg-orange-500/20 text-orange-500' : 'bg-white/5 text-(--text2)'">
+                                    <i class="bi" :class="user.isAdmin ? 'bi-shield-shaded' : user.isModo ? 'bi-shield-check' : 'bi-person'"></i>
+                                    {{ user.isAdmin ? 'Admin' : user.isModo ? 'Modo' : 'User' }}
+                                </div>
                             </td>
 
                             <td class="p-4 text-right">
@@ -144,6 +153,23 @@
 
                 </div>
 
+                <div class="px-6 pb-2 space-y-4">
+                    <label class="text-xs font-bold uppercase tracking-widest text-(--text2) flex items-center gap-2">
+                        <i class="bi bi-shield-lock"></i> Rôles Synco
+                    </label>
+                    <div class="flex items-center gap-3">
+                        <button @click="toggleRole('ADMIN')" class="flex-1 p-3 rounded-xl border flex items-center justify-center gap-2 transition-all font-bold text-sm"
+                            :class="selectedUser.isAdmin ? 'bg-(--primary)/20 border-(--primary)/50 text-(--primary)' : 'bg-(--bg2) border-white/10 text-(--text2) hover:bg-white/5'">
+                            <i class="bi" :class="selectedUser.isAdmin ? 'bi-shield-shaded' : 'bi-shield'"></i> Administrateur
+                        </button>
+                        
+                        <button @click="toggleRole('MODERATOR')" class="flex-1 p-3 rounded-xl border flex items-center justify-center gap-2 transition-all font-bold text-sm"
+                            :class="selectedUser.isModo ? 'bg-orange-500/20 border-orange-500/50 text-orange-500' : 'bg-(--bg2) border-white/10 text-(--text2) hover:bg-white/5'">
+                            <i class="bi" :class="selectedUser.isModo ? 'bi-shield-check' : 'bi-shield'"></i> Modérateur
+                        </button>
+                    </div>
+                </div>
+
                 <div class="p-6 bg-(--bg2) border-t border-white/5 flex gap-3 justify-end">
                     <button 
                         @click="closeModal" 
@@ -182,6 +208,8 @@ interface AdminUser {
     orgMaxUsers: number;
     orgMaxStorage: string | number; // BigInt as string
     ownedOrgsCount: number;
+    isAdmin?: boolean;
+    isModo?: boolean;
 }
 
 const users = ref<AdminUser[]>([]);
@@ -241,6 +269,31 @@ const openEditModal = (user: AdminUser) => {
 
 const closeModal = () => {
     selectedUser.value = null;
+};
+
+const toggleRole = async (role: 'ADMIN' | 'MODERATOR') => {
+    if (!selectedUser.value) return;
+    
+    // Si on veut ajouter ou retirer le rôle, en fonction de l'état actuel
+    const isAdding = role === 'ADMIN' ? !selectedUser.value.isAdmin : !selectedUser.value.isModo;
+    
+    try {
+        const res = await sfetch(`/api/admin/admins/${selectedUser.value.id}${isAdding ? '' : `?role=${role}`}`, {
+            method: isAdding ? 'POST' : 'DELETE',
+            body: isAdding ? JSON.stringify({ role }) : undefined
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            selectedUser.value.isAdmin = data.admins.includes(selectedUser.value.id);
+            selectedUser.value.isModo = data.moderators.includes(selectedUser.value.id);
+            toast.show(`Rôle mis à jour avec succès`, 'success');
+        } else {
+            toast.show((await res.json()).error || 'Erreur lors de la mise à jour du rôle', 'error');
+        }
+    } catch (e) {
+        toast.show('Erreur de réseau', 'error');
+    }
 };
 
 const saveQuotas = async () => {

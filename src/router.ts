@@ -42,7 +42,20 @@ const routes = [
         const res = await sfetch('/api/admin/isAdmin');
         if (res.ok) {
           const data = await res.json();
-          if (data.isAdmin) return next();
+          if (data.isAdmin) {
+            // Save role in localStorage or meta if needed, but we can just redirect if MODERATOR
+            if (data.role === 'MODERATOR' && _to.path !== '/root/support') {
+              return next('/root/support');
+            }
+            // Also store role in sessionStorage to read it easily in AdminPanel.vue
+            sessionStorage.setItem('adminRole', data.role);
+            
+            // Si redirigé sur la racine /root, l'admin va sur /users, le modo va sur /support
+            if (_to.path === '/root') {
+                return next(data.role === 'MODERATOR' ? '/root/support' : '/root/users');
+            }
+            return next();
+          }
         }
         return next('/');
       } catch (e) {
