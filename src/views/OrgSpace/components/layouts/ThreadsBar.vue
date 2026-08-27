@@ -404,11 +404,16 @@ watch(isChat, async (newVal) => {
     }
 }, { immediate: true });
 
+// Référence du handler posé par ce composant, pour ne retirer que le sien à
+// l'unmount : `off('notif:dm:new-message')` sans référence retirerait aussi
+// le listener indépendant d'OrgLayout.vue sur ce même événement partagé.
+let dmMessageHandler: ((newMessage: any) => void) | null = null;
+
 onMounted(async () => {
     const wsRef = await useWSocket();
     const socket = wsRef.value;
     if (socket) {
-        socket.on('notif:dm:new-message', (newMessage: any) => {
+        dmMessageHandler = (newMessage: any) => {
             const peerId = newMessage.senderId === user.value?.id ? newMessage.recipientId : newMessage.senderId;
             const existing = recentDMUsers.value.find(r => r.userId === peerId);
             if (existing) {
@@ -416,14 +421,15 @@ onMounted(async () => {
             } else {
                 recentDMUsers.value.push({ userId: peerId, lastInteraction: newMessage.createdAt });
             }
-        });
+        };
+        socket.on('notif:dm:new-message', dmMessageHandler);
     }
 });
 
 onUnmounted(async () => {
     const wsRef = await useWSocket();
-    if (wsRef.value) {
-        wsRef.value.off('notif:dm:new-message');
+    if (wsRef.value && dmMessageHandler) {
+        wsRef.value.off('notif:dm:new-message', dmMessageHandler);
     }
 });
 
