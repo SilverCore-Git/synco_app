@@ -129,6 +129,18 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
         run: bun run tauri:build -- --bundles appimage
 
+      - name: Retrait de libwayland-client bundlée (EGL_BAD_PARAMETER sur Mesa 25+, cf tauri-apps/tauri#15665)
+        run: |
+          cd src-tauri/target/release/bundle/appimage
+          APPIMAGE=$(ls *.AppImage)
+          chmod +x "$APPIMAGE"
+          ./"$APPIMAGE" --appimage-extract
+          rm -f squashfs-root/usr/lib/libwayland-client.so.0
+          curl -sL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          ./appimagetool --appimage-extract-and-run squashfs-root "$APPIMAGE"
+          rm -rf squashfs-root appimagetool
+
       - name: Upload de l'AppImage
         uses: actions/upload-artifact@v4
         with:
