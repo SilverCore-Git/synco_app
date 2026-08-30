@@ -11,6 +11,7 @@
             
             <div class="ml-auto flex items-center gap-4">
                 <button
+                    v-if="archivedCount > 0"
                     @click="showArchivedPanel = true"
                     class="text-(--text2) hover:text-(--text) transition-colors"
                     title="Tâches archivées"
@@ -276,6 +277,7 @@
             :orgId="route.params.orgId as string"
             @close="showArchivedPanel = false"
             @restored="onTaskRestored"
+            @count="archivedCount = $event"
         />
     </div>
 </template>
@@ -314,6 +316,7 @@ const isHoveringArchive = ref(false);
 const isArchiving = ref(false);
 const archivingAll = ref(false);
 const showArchivedPanel = ref(false);
+const archivedCount = ref(0);
 
 const columns = [
     { id: 'TODO', title: 'À faire', color: 'text-gray-400', icon: 'bi-circle' },
@@ -445,6 +448,7 @@ const archiveTaskById = async (taskId: string) => {
     });
     if (!res.ok) throw new Error("API Error");
     onTaskDeleted(taskId);
+    archivedCount.value++;
 };
 
 const onDropToArchive = async (e: DragEvent) => {
@@ -655,6 +659,7 @@ onMounted(async () => {
     socket.value?.on('todo-updated', ({ task }: { task: Task }) => {
         if (task.archived) {
             onTaskDeleted(task.id);
+            archivedCount.value++;
         } else {
             onTaskUpdated(task);
         }

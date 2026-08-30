@@ -21,6 +21,7 @@
                 </CreateTaskModal>
                 <div class="ml-auto flex items-center gap-4 text-(--text2)">
                     <button
+                        v-if="archivedCount > 0"
                         @click="showArchivedPanel = true"
                         class="hover:text-(--text) transition-colors"
                         title="Tâches archivées"
@@ -277,6 +278,7 @@
             :spaceId="route.params.spaceId as string"
             @close="showArchivedPanel = false"
             @restored="onTaskRestored"
+            @count="archivedCount = $event"
         />
     </div>
 </template>
@@ -318,6 +320,7 @@ const isHoveringArchive = ref(false);
 const isArchiving = ref(false);
 const archivingAll = ref(false);
 const showArchivedPanel = ref(false);
+const archivedCount = ref(0);
 
 const selectedTask = ref<Task | null>(null);
 const openTaskInEditMode = ref(false);
@@ -525,6 +528,7 @@ const archiveTaskById = async (taskId: string) => {
     });
     if (!res.ok) throw new Error("API Error");
     onTaskDeleted(taskId);
+    archivedCount.value++;
 };
 
 const onDropToArchive = async (e: DragEvent) => {
@@ -663,6 +667,7 @@ onMounted(async () => {
         if (task.spaceId === route.params.spaceId) {
             if (task.archived) {
                 onTaskDeleted(task.id);
+                archivedCount.value++;
             } else {
                 onTaskUpdated(task);
             }

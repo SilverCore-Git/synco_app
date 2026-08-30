@@ -88,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import sfetch from '@/assets/utils/sfetch';
 import type { Task } from '@/types/types';
 import { useToast } from '@/composables/useToast';
@@ -104,6 +104,7 @@ const emit = defineEmits<{
   close: [];
   restored: [task: Task];
   deleted: [taskId: string];
+  count: [count: number];
 }>();
 
 const toast = useToast();
@@ -181,4 +182,10 @@ const remove = async () => {
 watch(() => props.isOpen, (open) => {
   if (open) load();
 });
+
+watch(archivedTasks, (tasks) => {
+  emit('count', tasks.length);
+}, { deep: false });
+
+onMounted(load);
 </script>
