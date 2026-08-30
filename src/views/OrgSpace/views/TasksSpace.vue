@@ -559,7 +559,6 @@ const archiveTask = async (task: Task) => {
 const archiveAllDone = async () => {
     const doneTasks = filteredTasks('DONE');
     if (doneTasks.length === 0) return;
-    if (!confirm(`Archiver les ${doneTasks.length} tâche(s) terminée(s) ?`)) return;
 
     archivingAll.value = true;
     try {

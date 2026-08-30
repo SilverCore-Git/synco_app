@@ -61,7 +61,7 @@
                   <i class="bi bi-arrow-counterclockwise" /> Restaurer
                 </button>
                 <button
-                  @click="remove(task)"
+                  @click="askRemove(task)"
                   :disabled="pendingId === task.id"
                   class="text-xs font-bold p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
                   title="Supprimer définitivement"
@@ -75,6 +75,16 @@
       </div>
     </div>
   </transition>
+
+  <ConfirmDelete
+    :show="!!taskToRemove"
+    item-type="la tâche"
+    :item-name="taskToRemove?.title || ''"
+    button-text="Supprimer définitivement"
+    :loading="!!pendingId"
+    @cancel="taskToRemove = null"
+    @confirm="remove"
+  />
 </template>
 
 <script setup lang="ts">
@@ -82,6 +92,7 @@ import { ref, watch } from 'vue';
 import sfetch from '@/assets/utils/sfetch';
 import type { Task } from '@/types/types';
 import { useToast } from '@/composables/useToast';
+import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -99,6 +110,7 @@ const toast = useToast();
 const loading = ref(false);
 const pendingId = ref<string | null>(null);
 const archivedTasks = ref<Task[]>([]);
+const taskToRemove = ref<Task | null>(null);
 
 const formatDate = (date?: string | Date | null) => {
   if (!date) return '';
@@ -142,8 +154,13 @@ const restore = async (task: Task) => {
   }
 };
 
-const remove = async (task: Task) => {
-  if (!confirm(`Supprimer définitivement "${task.title}" ? Cette action est irréversible.`)) return;
+const askRemove = (task: Task) => {
+  taskToRemove.value = task;
+};
+
+const remove = async () => {
+  const task = taskToRemove.value;
+  if (!task) return;
   pendingId.value = task.id;
   try {
     const res = await sfetch(`/api/tasks/${props.orgId}/tasks/${task.id}`, {
@@ -157,6 +174,7 @@ const remove = async (task: Task) => {
     toast.show('Erreur lors de la suppression', 'error');
   } finally {
     pendingId.value = null;
+    taskToRemove.value = null;
   }
 };
 

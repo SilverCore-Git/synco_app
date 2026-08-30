@@ -479,7 +479,6 @@ const archiveTask = async (task: Task) => {
 const archiveAllDone = async (spaceGroup: { id: string, tasks: Task[] }) => {
     const doneTasks = getTasks(spaceGroup.tasks, 'DONE');
     if (doneTasks.length === 0) return;
-    if (!confirm(`Archiver les ${doneTasks.length} tâche(s) terminée(s) ?`)) return;
 
     archivingAll.value = true;
     try {
