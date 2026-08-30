@@ -80,4 +80,15 @@ Conformément au "Vibe" de Synco :
 - **Validation Zod :** Validation stricte de tous les champs lors de la création/modification d'une tâche pour éviter toute faille (XSS via la description, etc.).
 
 ---
+
+## 🗄️ 6. Archivage des Tâches (Extension V1.1)
+
+**Objectif :** Permettre de sortir une tâche du Kanban (typiquement une tâche `DONE`) sans la supprimer, pour garder l'historique tout en gardant les colonnes lisibles.
+
+- **Modèle de données :** `archived` (Boolean, défaut `false`) + `archivedAt` (DateTime, nullable) sur `Task`, indépendant de `status`. Les endpoints de listing (`/lists/me`, `/spaces/:spaceId/lists`) excluent `archived: true` par défaut.
+- **Consultation :** Deux endpoints dédiés (`GET /:orgId/archived/me`, `GET /:orgId/spaces/:spaceId/archived`) alimentent un panneau `ArchivedTasksPanel.vue`, ouvert via une icône dans la topbar (visible uniquement s'il existe des tâches archivées). Chaque entrée propose **Restaurer** (`archived: false`) ou **Supprimer définitivement** (via `ConfirmDelete.vue`, jamais de `confirm()` natif).
+- **Déclencheurs d'archivage :** drop d'une carte sur un bouton dédié (à côté de la corbeille en drag & drop), entrée "Archiver" dans le menu contextuel de la carte et dans `TaskDetailsModal.vue`, et action groupée "Archiver tout" sur la colonne `DONE` (sans confirmation, action réversible).
+- **Permissions :** l'archivage/désarchivage réutilise `TASK_STATUS_ALL` / `TASK_STATUS_LOWER` (même logique que le changement de statut) plutôt qu'une nouvelle permission dédiée.
+
+---
 *Fin du document de spécification technique pour la session de développement.*
