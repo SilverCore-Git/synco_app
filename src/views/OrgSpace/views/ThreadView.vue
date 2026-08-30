@@ -543,7 +543,7 @@ const validUpload = async () => {
     files.value = await uploadFiles(
         selectedFiles.value,
         {
-            workspaceId: String(route.params.spaceId),
+            workspaceId: (route.params.spaceId as string) || undefined,
         },
         (percent: number) => {
             fileSendProgress.value = percent;
