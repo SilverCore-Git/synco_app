@@ -159,8 +159,8 @@ import cssWorker from 'monaco-editor/language/css/css.worker.js?worker';
 import htmlWorker from 'monaco-editor/language/html/html.worker.js?worker';
 import tsWorker from 'monaco-editor/language/typescript/ts.worker.js?worker';
 
-self.MonacoEnvironment = {
-  getWorker(_, label) {
+(self as any).MonacoEnvironment = {
+  getWorker(_: any, label: string) {
     if (label === 'json') {
       return new jsonWorker();
     }
