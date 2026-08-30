@@ -257,6 +257,8 @@ export interface Task {
   status: 'TODO' | 'IN_PROGRESS' | 'DONE';
   statusChangedAt?: string | Date;
   dueDate?: string | Date | null;
+  archived?: boolean;
+  archivedAt?: string | Date | null;
   assignees?: User[];
   creatorId: string;
   creator?: User;

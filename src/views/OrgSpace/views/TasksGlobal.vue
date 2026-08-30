@@ -9,7 +9,14 @@
             
             <TaskProgressGauge :tasks="rawTasks" class="mx-auto" />
             
-            <div class="ml-auto flex items-center gap-2">
+            <div class="ml-auto flex items-center gap-4">
+                <button
+                    @click="showArchivedPanel = true"
+                    class="text-(--text2) hover:text-(--text) transition-colors"
+                    title="Tâches archivées"
+                >
+                    <i class="bi bi-archive-fill" />
+                </button>
                 <CreateTaskModal @created="onTaskCreated">
                     <button class="primary-glow !text-sm">
                         <i class="bi bi-plus-lg"></i>
@@ -83,9 +90,20 @@
                                     <i :class="col.icon"></i>
                                     {{ col.title }}
                                 </h4>
-                                <span class="bg-white/5 text-(--text2) text-xs px-2 py-0.5 rounded-full font-bold">
-                                    {{ getTasks(spaceGroup.tasks, col.id).length }}
-                                </span>
+                                <div class="flex items-center gap-2">
+                                    <button
+                                        v-if="col.id === 'DONE' && getTasks(spaceGroup.tasks, col.id).length > 0"
+                                        @click="archiveAllDone(spaceGroup)"
+                                        :disabled="archivingAll"
+                                        class="text-amber-500/80 hover:text-amber-500 transition-colors disabled:opacity-50"
+                                        title="Archiver toutes les tâches terminées"
+                                    >
+                                        <i class="bi bi-archive" />
+                                    </button>
+                                    <span class="bg-white/5 text-(--text2) text-xs px-2 py-0.5 rounded-full font-bold">
+                                        {{ getTasks(spaceGroup.tasks, col.id).length }}
+                                    </span>
+                                </div>
                             </div>
 
                             <div class="flex-1 space-y-3">
@@ -175,6 +193,13 @@
                                         </button>
                                     </CreateTaskModal>
                                     <button
+                                        @click="archiveTask(task)"
+                                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                                    >
+                                        <i class="bi bi-archive" />
+                                        Archiver
+                                    </button>
+                                    <button
                                         @click="handleContextDeleteTask(task)"
                                         class="dropdown-item-annimate dropdown-item-style gap-2 text-red-500! hover:bg-red-500/5!"
                                     >
@@ -207,28 +232,51 @@
         />
 
         <Transition name="pop">
-            <div v-if="isDraggingTask" 
-                 class="fixed bottom-8 right-8 w-16 h-16 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-2xl z-[100] border-4 transition-all duration-500"
-                 :class="[
-                    isDeleting ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
-                    isHoveringTrash && !isDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_rgba(239,68,68,0.8)]' : 'border-transparent'
-                 ]"
-                 @dragover.prevent="isHoveringTrash = true"
-                 @dragleave.prevent="isHoveringTrash = false"
-                 @drop="onDropToTrash">
-                 
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 transition-transform" :class="isDeleting ? 'scale-50' : ''">
-                    <g class="transition-all duration-300" style="transform-origin: 21px 6px;" :class="isHoveringTrash && !isDeleting ? 'rotate-[40deg]' : ''">
-                        <path d="M3 6h18"></path>
-                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </g>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
-                    <line x1="10" y1="11" x2="10" y2="17"></line>
-                    <line x1="14" y1="11" x2="14" y2="17"></line>
-                </svg>
+            <div v-if="isDraggingTask"
+                 class="fixed bottom-8 right-8 flex items-center gap-4 z-[100]">
+
+                <div class="w-16 h-16 bg-amber-500/90 text-white rounded-full flex items-center justify-center shadow-2xl border-4 transition-all duration-500"
+                     :class="[
+                        isArchiving ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
+                        isHoveringArchive && !isArchiving ? 'border-amber-300 scale-125 shadow-[0_0_40px_rgba(245,158,11,0.8)]' : 'border-transparent'
+                     ]"
+                     @dragover.prevent="isHoveringArchive = true"
+                     @dragleave.prevent="isHoveringArchive = false"
+                     @drop="onDropToArchive"
+                     title="Archiver">
+                    <i class="bi bi-archive-fill text-2xl transition-transform" :class="[isArchiving ? 'scale-50' : '', isHoveringArchive && !isArchiving ? 'scale-110' : '']"></i>
+                </div>
+
+                <div class="w-16 h-16 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-2xl border-4 transition-all duration-500"
+                     :class="[
+                        isDeleting ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
+                        isHoveringTrash && !isDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_rgba(239,68,68,0.8)]' : 'border-transparent'
+                     ]"
+                     @dragover.prevent="isHoveringTrash = true"
+                     @dragleave.prevent="isHoveringTrash = false"
+                     @drop="onDropToTrash"
+                     title="Supprimer">
+
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 transition-transform" :class="isDeleting ? 'scale-50' : ''">
+                        <g class="transition-all duration-300" style="transform-origin: 21px 6px;" :class="isHoveringTrash && !isDeleting ? 'rotate-[40deg]' : ''">
+                            <path d="M3 6h18"></path>
+                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </g>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
+                </div>
 
             </div>
         </Transition>
+
+        <ArchivedTasksPanel
+            :isOpen="showArchivedPanel"
+            :orgId="route.params.orgId as string"
+            @close="showArchivedPanel = false"
+            @restored="onTaskRestored"
+        />
     </div>
 </template>
 
@@ -243,6 +291,7 @@ import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import DropDown from '@/components/DropDown.vue';
+import ArchivedTasksPanel from '../components/popup/ArchivedTasksPanel.vue';
 import { user } from '@/assets/var';
 import confetti from 'canvas-confetti';
 import useWSocket from '@/composables/useWSocket';
@@ -261,6 +310,10 @@ const openTaskInEditMode = ref(false);
 const isDraggingTask = ref(false);
 const isHoveringTrash = ref(false);
 const isDeleting = ref(false);
+const isHoveringArchive = ref(false);
+const isArchiving = ref(false);
+const archivingAll = ref(false);
+const showArchivedPanel = ref(false);
 
 const columns = [
     { id: 'TODO', title: 'À faire', color: 'text-gray-400', icon: 'bi-circle' },
@@ -378,9 +431,70 @@ const onDragStart = (e: DragEvent, task: Task, spaceGroupId: string) => {
 };
 
 const onDragEnd = () => {
-    if (!isDeleting.value) {
+    if (!isDeleting.value && !isArchiving.value) {
         isDraggingTask.value = false;
         isHoveringTrash.value = false;
+        isHoveringArchive.value = false;
+    }
+};
+
+const archiveTaskById = async (taskId: string) => {
+    const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ archived: true })
+    });
+    if (!res.ok) throw new Error("API Error");
+    onTaskDeleted(taskId);
+};
+
+const onDropToArchive = async (e: DragEvent) => {
+    const taskId = e.dataTransfer?.getData('taskId');
+    if (!taskId) return;
+
+    isArchiving.value = true;
+    isHoveringArchive.value = false;
+
+    setTimeout(() => {
+        isDraggingTask.value = false;
+        isArchiving.value = false;
+    }, 600);
+
+    try {
+        await archiveTaskById(taskId);
+        toast.show("Tâche archivée", "success");
+    } catch (err) {
+        toast.show("Erreur lors de l'archivage", "error");
+    }
+};
+
+const archiveTask = async (task: Task) => {
+    try {
+        await archiveTaskById(task.id);
+        toast.show("Tâche archivée", "success");
+    } catch (e) {
+        toast.show("Erreur lors de l'archivage", "error");
+    }
+};
+
+const archiveAllDone = async (spaceGroup: { id: string, tasks: Task[] }) => {
+    const doneTasks = getTasks(spaceGroup.tasks, 'DONE');
+    if (doneTasks.length === 0) return;
+    if (!confirm(`Archiver les ${doneTasks.length} tâche(s) terminée(s) ?`)) return;
+
+    archivingAll.value = true;
+    try {
+        await Promise.all(doneTasks.map(t => archiveTaskById(t.id)));
+        toast.show("Tâches archivées", "success");
+    } catch (e) {
+        toast.show("Erreur lors de l'archivage groupé", "error");
+    } finally {
+        archivingAll.value = false;
+    }
+};
+
+const onTaskRestored = (task: Task) => {
+    if (!rawTasks.value.some(t => t.id === task.id)) {
+        rawTasks.value.push(task);
     }
 };
 
@@ -540,7 +654,11 @@ onMounted(async () => {
         }
     });
     socket.value?.on('todo-updated', ({ task }: { task: Task }) => {
-        onTaskUpdated(task);
+        if (task.archived) {
+            onTaskDeleted(task.id);
+        } else {
+            onTaskUpdated(task);
+        }
     });
     socket.value?.on('todo-deleted', ({ taskId }: { taskId: string }) => {
         onTaskDeleted(taskId);

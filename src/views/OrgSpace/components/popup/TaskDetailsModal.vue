@@ -178,9 +178,14 @@
 
         <template #footer>
             <div class="flex items-center justify-between w-full">
-                <button @click="deleteTask" class="text-xs text-red-500 font-bold hover:underline" :disabled="loading">
-                    Supprimer la tâche
-                </button>
+                <div class="flex items-center gap-4">
+                    <button @click="archiveTask" class="text-xs text-amber-500 font-bold hover:underline" :disabled="loading">
+                        Archiver la tâche
+                    </button>
+                    <button @click="deleteTask" class="text-xs text-red-500 font-bold hover:underline" :disabled="loading">
+                        Supprimer la tâche
+                    </button>
+                </div>
                 <button @click="closeModal" class="default bg-white/10 text-white hover:bg-white/20">
                     Fermer
                 </button>
@@ -303,6 +308,26 @@ const saveTask = async () => {
         }
     } catch (e) {
         toast.show('Erreur', 'error');
+    } finally {
+        loading.value = false;
+    }
+};
+
+const archiveTask = async () => {
+    if (!props.task) return;
+    loading.value = true;
+    try {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${props.task.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ archived: true })
+        });
+        if (res.ok) {
+            toast.show('Tâche archivée', 'success');
+            emit('delete', props.task.id);
+            closeModal();
+        }
+    } catch (e) {
+        toast.show('Erreur lors de l\'archivage', 'error');
     } finally {
         loading.value = false;
     }
