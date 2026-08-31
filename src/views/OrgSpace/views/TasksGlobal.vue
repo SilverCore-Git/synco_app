@@ -117,8 +117,14 @@
                                      draggable="true"
                                      @dragstart="onDragStart($event, task, spaceGroup.id)"
                                      @dragend="onDragEnd"
+                                     @dragover.prevent="onCardDragOver($event, task)"
+                                     @drop.stop="onCardDrop($event, task, col.id, spaceGroup.id)"
                                      @click="openTaskDetails(task)"
                                      class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer active:cursor-grabbing hover:border-(--primary)/50 transition-all shadow-lg hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] group relative overflow-hidden"
+                                     :class="[
+                                        dragOverTaskId === task.id && dragOverPosition === 'before' ? 'border-t-2 border-t-(--primary)' : '',
+                                        dragOverTaskId === task.id && dragOverPosition === 'after' ? 'border-b-2 border-b-(--primary)' : ''
+                                     ]"
                                 >
                                     <div class="flex justify-between items-start gap-2">
                                         <div class="flex flex-col gap-1">
@@ -298,10 +304,12 @@ import { user } from '@/assets/var';
 import confetti from 'canvas-confetti';
 import useWSocket from '@/composables/useWSocket';
 import { useNotification } from '@/composables/useNotification';
+import { useTaskOrder } from '@/composables/useTaskOrder';
 
 const route = useRoute();
 const toast = useToast();
 const { markTasksAsRead } = useNotification();
+const { fetchOrder, sortByOrder, persistOrder } = useTaskOrder(route.params.orgId as string);
 
 const rawTasks = ref<Task[]>([]);
 const loading = ref(true);
@@ -317,6 +325,9 @@ const isArchiving = ref(false);
 const archivingAll = ref(false);
 const showArchivedPanel = ref(false);
 const archivedCount = ref(0);
+
+const dragOverTaskId = ref<string | null>(null);
+const dragOverPosition = ref<'before' | 'after' | null>(null);
 
 const columns = [
     { id: 'TODO', title: 'À faire', color: 'text-gray-400', icon: 'bi-circle' },
@@ -358,7 +369,7 @@ const spacesGroups = computed(() => {
 });
 
 const getTasks = (tasks: Task[], status: string) => {
-    return tasks.filter((t: Task) => t.status === status);
+    return sortByOrder(tasks.filter((t: Task) => t.status === status));
 };
 
 const getProgress = (task: Task) => {
@@ -434,6 +445,8 @@ const onDragStart = (e: DragEvent, task: Task, spaceGroupId: string) => {
 };
 
 const onDragEnd = () => {
+    dragOverTaskId.value = null;
+    dragOverPosition.value = null;
     if (!isDeleting.value && !isArchiving.value) {
         isDraggingTask.value = false;
         isHoveringTrash.value = false;
@@ -527,29 +540,19 @@ const onDropToTrash = async (e: DragEvent) => {
     }
 };
 
-const onDrop = async (e: DragEvent, newStatus: string, targetGroupId: string) => {
-    const taskId = e.dataTransfer?.getData('taskId');
-    const sourceGroupId = e.dataTransfer?.getData('sourceGroupId');
-    if (!taskId || !sourceGroupId) return;
-
-    if (sourceGroupId !== targetGroupId) {
-        toast.show("Déplacement entre projets non supporté depuis cette vue", "info");
-        return;
-    }
-
-    const taskToMove = rawTasks.value.find(t => t.id === taskId);
-    if (!taskToMove || taskToMove.status === newStatus) return;
+const changeTaskStatus = async (taskToMove: Task, newStatus: string) => {
+    if (taskToMove.status === newStatus) return;
 
     const oldStatus = taskToMove.status;
-    taskToMove.status = newStatus as 'TODO' | 'IN_PROGRESS' | 'DONE'; 
+    taskToMove.status = newStatus as 'TODO' | 'IN_PROGRESS' | 'DONE';
 
     try {
-        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskId}`, {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskToMove.id}`, {
             method: 'PUT',
             body: JSON.stringify({ status: newStatus })
         });
         if (!res.ok) throw new Error();
-        
+
         if (newStatus === 'DONE') {
             try {
                 confetti({
@@ -561,11 +564,72 @@ const onDrop = async (e: DragEvent, newStatus: string, targetGroupId: string) =>
                 });
             } catch (e) {}
         }
-        
+
     } catch (err) {
-        taskToMove.status = oldStatus; 
+        taskToMove.status = oldStatus;
         toast.show("Erreur lors du déplacement", "error");
     }
+};
+
+const onDrop = async (e: DragEvent, newStatus: string, targetGroupId: string) => {
+    const taskId = e.dataTransfer?.getData('taskId');
+    const sourceGroupId = e.dataTransfer?.getData('sourceGroupId');
+    if (!taskId || !sourceGroupId) return;
+
+    if (sourceGroupId !== targetGroupId) {
+        toast.show("Déplacement entre projets non supporté depuis cette vue", "info");
+        return;
+    }
+
+    const taskToMove = rawTasks.value.find(t => t.id === taskId);
+    if (!taskToMove) return;
+
+    const spaceGroup = spacesGroups.value.find(g => g.id === targetGroupId);
+    if (spaceGroup) {
+        const columnTaskIds = getTasks(spaceGroup.tasks, newStatus)
+            .filter(t => t.id !== taskId)
+            .map(t => t.id);
+        columnTaskIds.push(taskId);
+        await persistOrder(columnTaskIds);
+    }
+
+    await changeTaskStatus(taskToMove, newStatus);
+};
+
+const onCardDragOver = (e: DragEvent, task: Task) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    dragOverTaskId.value = task.id;
+    dragOverPosition.value = e.clientY < midpoint ? 'before' : 'after';
+};
+
+const onCardDrop = async (e: DragEvent, targetTask: Task, newStatus: string, targetGroupId: string) => {
+    const taskId = e.dataTransfer?.getData('taskId');
+    const sourceGroupId = e.dataTransfer?.getData('sourceGroupId');
+    const position = dragOverPosition.value;
+    dragOverTaskId.value = null;
+    dragOverPosition.value = null;
+
+    if (!taskId || !sourceGroupId || taskId === targetTask.id) return;
+
+    if (sourceGroupId !== targetGroupId) {
+        toast.show("Déplacement entre projets non supporté depuis cette vue", "info");
+        return;
+    }
+
+    const taskToMove = rawTasks.value.find(t => t.id === taskId);
+    if (!taskToMove) return;
+
+    const spaceGroup = spacesGroups.value.find(g => g.id === targetGroupId);
+    if (!spaceGroup) return;
+
+    const columnTasks = getTasks(spaceGroup.tasks, newStatus).filter(t => t.id !== taskId);
+    const targetIndex = columnTasks.findIndex(t => t.id === targetTask.id);
+    const insertIndex = position === 'after' ? targetIndex + 1 : targetIndex;
+    columnTasks.splice(insertIndex, 0, taskToMove);
+
+    await persistOrder(columnTasks.map(t => t.id));
+    await changeTaskStatus(taskToMove, newStatus);
 };
 
 const openTaskDetails = (task: Task) => {
@@ -639,8 +703,9 @@ const onTaskDeleted = (taskId: string) => {
 };
 
 onMounted(async () => {
+    fetchOrder();
     loadLists();
-    
+
     const socket = await useWSocket();
     socket.value?.on('todo-added', ({ task }: { task: Task }) => {
         if (!rawTasks.value.some(t => t.id === task.id)) {

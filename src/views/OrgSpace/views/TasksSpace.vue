@@ -125,8 +125,14 @@
                              draggable="true"
                              @dragstart="onDragStart($event, task)"
                              @dragend="onDragEnd"
+                             @dragover.prevent="onCardDragOver($event, task)"
+                             @drop.stop="onCardDrop($event, task, col.id)"
                              @click="openTaskDetails(task)"
                              class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer active:cursor-grabbing hover:border-(--primary)/50 transition-all shadow-lg hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] group relative overflow-hidden"
+                             :class="[
+                                dragOverTaskId === task.id && dragOverPosition === 'before' ? 'border-t-2 border-t-(--primary)' : '',
+                                dragOverTaskId === task.id && dragOverPosition === 'after' ? 'border-b-2 border-b-(--primary)' : ''
+                             ]"
                         >
                             <div class="flex justify-between items-start gap-2">
                                 <div class="flex flex-col gap-1">
@@ -301,10 +307,12 @@ import DropDown from '@/components/DropDown.vue';
 import ArchivedTasksPanel from '../components/popup/ArchivedTasksPanel.vue';
 import confetti from 'canvas-confetti';
 import { useNotification } from '@/composables/useNotification';
+import { useTaskOrder } from '@/composables/useTaskOrder';
 
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
+const { fetchOrder, sortByOrder, persistOrder } = useTaskOrder(route.params.orgId as string);
 const { showUsersBar } = useUsersBar();
 const { markTasksAsRead } = useNotification();
 
@@ -322,6 +330,9 @@ const archivingAll = ref(false);
 const showArchivedPanel = ref(false);
 const archivedCount = ref(0);
 
+const dragOverTaskId = ref<string | null>(null);
+const dragOverPosition = ref<'before' | 'after' | null>(null);
+
 const selectedTask = ref<Task | null>(null);
 const openTaskInEditMode = ref(false);
 
@@ -338,13 +349,13 @@ const spaceMembers = computed<OrgMember[]>(() => {
 });
 
 const filteredTasks = (status: string) => {
-    return tasks.value.filter(t => {
+    return sortByOrder(tasks.value.filter(t => {
         if (t.status !== status) return false;
         if (filterUserId.value) {
             return t.assignees?.some(a => a.id === filterUserId.value);
         }
         return true;
-    });
+    }));
 };
 
 const getProgress = (task: Task) => {
@@ -514,6 +525,8 @@ const onDragStart = (e: DragEvent, task: Task) => {
 };
 
 const onDragEnd = () => {
+    dragOverTaskId.value = null;
+    dragOverPosition.value = null;
     if (!isDeleting.value && !isArchiving.value) {
         isDraggingTask.value = false;
         isHoveringTrash.value = false;
@@ -607,24 +620,20 @@ const onDropToTrash = async (e: DragEvent) => {
     }
 };
 
-const onDrop = async (e: DragEvent, newStatus: string) => {
-    const taskId = e.dataTransfer?.getData('taskId');
-    if (!taskId) return;
-
-    const taskToMove = tasks.value.find(t => t.id === taskId);
-    if (!taskToMove || taskToMove.status === newStatus) return;
+const changeTaskStatus = async (taskToMove: Task, newStatus: string) => {
+    if (taskToMove.status === newStatus) return;
 
     const oldStatus = taskToMove.status;
-    taskToMove.status = newStatus as 'TODO' | 'IN_PROGRESS' | 'DONE'; 
-    
+    taskToMove.status = newStatus as 'TODO' | 'IN_PROGRESS' | 'DONE';
+
     try {
-        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskId}`, {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskToMove.id}`, {
             method: 'PUT',
             body: JSON.stringify({ status: newStatus })
         });
-        
+
         if (!res.ok) throw new Error("API Error");
-        
+
         if (newStatus === 'DONE') {
             try {
                 confetti({
@@ -636,16 +645,60 @@ const onDrop = async (e: DragEvent, newStatus: string) => {
                 });
             } catch (e) {}
         }
-        
+
     } catch (err) {
-        taskToMove.status = oldStatus; 
+        taskToMove.status = oldStatus;
         toast.show("Erreur lors du déplacement", "error");
     }
 };
 
+const onDrop = async (e: DragEvent, newStatus: string) => {
+    const taskId = e.dataTransfer?.getData('taskId');
+    if (!taskId) return;
+
+    const taskToMove = tasks.value.find(t => t.id === taskId);
+    if (!taskToMove) return;
+
+    const columnTaskIds = filteredTasks(newStatus)
+        .filter(t => t.id !== taskId)
+        .map(t => t.id);
+    columnTaskIds.push(taskId);
+    await persistOrder(columnTaskIds);
+
+    await changeTaskStatus(taskToMove, newStatus);
+};
+
+const onCardDragOver = (e: DragEvent, task: Task) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    dragOverTaskId.value = task.id;
+    dragOverPosition.value = e.clientY < midpoint ? 'before' : 'after';
+};
+
+const onCardDrop = async (e: DragEvent, targetTask: Task, newStatus: string) => {
+    const taskId = e.dataTransfer?.getData('taskId');
+    const position = dragOverPosition.value;
+    dragOverTaskId.value = null;
+    dragOverPosition.value = null;
+
+    if (!taskId || taskId === targetTask.id) return;
+
+    const taskToMove = tasks.value.find(t => t.id === taskId);
+    if (!taskToMove) return;
+
+    const columnTasks = filteredTasks(newStatus).filter(t => t.id !== taskId);
+    const targetIndex = columnTasks.findIndex(t => t.id === targetTask.id);
+    const insertIndex = position === 'after' ? targetIndex + 1 : targetIndex;
+    columnTasks.splice(insertIndex, 0, taskToMove);
+
+    await persistOrder(columnTasks.map(t => t.id));
+    await changeTaskStatus(taskToMove, newStatus);
+};
+
 onMounted(async () => {
+    fetchOrder();
     loadTasks();
-    
+
     const socket = await useWSocket();
     socket.value?.on('todo-added', ({ task }: { task: Task }) => {
         if (task.spaceId === route.params.spaceId) {
