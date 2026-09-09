@@ -85,7 +85,6 @@ export class AIService {
                 sessionId: sessionId || undefined,
                 message,
                 syncoApiUrl: import.meta.env.VITE_API_URL,
-                ollamaUrl: this.config.endpointUrl,
                 modelId: this.config.modelId,
             }, this.abortController.signal);
         } else {
@@ -114,7 +113,6 @@ export class AIService {
             response = await this.gatewayFetch(`${gatewayUrl}/chat/${sessionId}/tool-result`, {
                 orgId,
                 syncoApiUrl: import.meta.env.VITE_API_URL,
-                ollamaUrl: this.config.endpointUrl,
                 modelId: this.config.modelId,
                 ...decision,
             }, this.abortController.signal);
@@ -378,16 +376,17 @@ export class AIService {
 }
 
 /**
- * Liste les modèles déjà présents sur le serveur Ollama d'une organisation, via sa Synco AI
- * Gateway (pas d'appel direct navigateur → Ollama, pour éviter une config CORS séparée sur
- * Ollama). Utilisé par AISettings.vue pour peupler le sélecteur de modèle du provider 'gateway'.
+ * Liste les modèles déjà présents sur l'Ollama d'une organisation, via sa Synco AI Gateway (pas
+ * d'appel direct navigateur → Ollama, pour éviter une config CORS séparée sur Ollama). La
+ * passerelle sait elle-même où joindre Ollama (OLLAMA_URL, config de déploiement) — on ne le lui
+ * dit pas ici. Utilisé par AISettings.vue pour peupler le sélecteur de modèle du provider 'gateway'.
  */
-export async function listGatewayModels(gatewayUrl: string, ollamaUrl: string): Promise<string[]> {
+export async function listGatewayModels(gatewayUrl: string): Promise<string[]> {
     if (keycloak.authenticated) {
         await keycloak.updateToken(60).catch(() => {});
     }
     const base = gatewayUrl.replace(/\/$/, '');
-    const url = `${base}/models?ollamaUrl=${encodeURIComponent(ollamaUrl)}`;
+    const url = `${base}/models`;
 
     const res = await fetch(url, {
         headers: keycloak.token ? { Authorization: `Bearer ${keycloak.token}` } : {},
