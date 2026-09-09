@@ -44,6 +44,72 @@ export class AIService {
         return this.chatOpenAICompatible(messages);
     }
 
+    /**
+     * Nouvelle boucle d'agent serveur (provider OpenAI, cf. refonte Synco AI) : le backend possède
+     * la conversation et exécute lui-même les tools 'server' — contrairement à chat()/chatOpenAICompatible
+     * ci-dessous qui restent l'ancien parseur regex <tool_call> côté client pour les autres providers.
+     */
+    public async *chatAgentTurn(orgId: string, sessionId: string | null, message: string): AsyncGenerator<any, void, unknown> {
+        this.abortController = new AbortController();
+
+        const response = await sfetch(`/api/orgs/${orgId}/ai/chat`, {
+            method: 'POST',
+            body: JSON.stringify({ sessionId: sessionId || undefined, message }),
+            signal: this.abortController.signal,
+        });
+
+        if (!response.ok) {
+            const err = await response.text().catch(() => '');
+            throw new Error(`Erreur agent IA (${response.status}): ${err}`);
+        }
+
+        yield* this.parseAgentEventStream(response.body);
+    }
+
+    public async *resumeAgentTurn(orgId: string, sessionId: string, decision: { accepted?: boolean; clientResult?: any }): AsyncGenerator<any, void, unknown> {
+        this.abortController = new AbortController();
+
+        const response = await sfetch(`/api/orgs/${orgId}/ai/chat/${sessionId}/tool-result`, {
+            method: 'POST',
+            body: JSON.stringify(decision),
+            signal: this.abortController.signal,
+        });
+
+        if (!response.ok) {
+            const err = await response.text().catch(() => '');
+            throw new Error(`Erreur agent IA (${response.status}): ${err}`);
+        }
+
+        yield* this.parseAgentEventStream(response.body);
+    }
+
+    private async *parseAgentEventStream(body: ReadableStream<Uint8Array> | null): AsyncGenerator<any, void, unknown> {
+        if (!body) throw new Error('Réponse vide du serveur.');
+
+        const reader = body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+
+            const chunks = buffer.split('\n\n');
+            buffer = chunks.pop() || '';
+
+            for (const chunk of chunks) {
+                const line = chunk.split('\n').find((l) => l.startsWith('data:'));
+                if (!line) continue;
+                try {
+                    yield JSON.parse(line.slice(5).trim());
+                } catch {
+                    // ignore malformed lines
+                }
+            }
+        }
+    }
+
     public interrupt() {
         if (this.isLocal) {
             localLLM.interrupt();

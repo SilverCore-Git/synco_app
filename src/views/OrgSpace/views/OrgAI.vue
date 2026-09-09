@@ -84,13 +84,18 @@
                   <IconSelector model-value="" @on-base64="(base64) => {
                     const id = 'img_' + Date.now();
                     temporaryImages[id] = base64;
-                    if (msg.tool_call) handleToolCall(msg.tool_call, true, index, id);
+                    if (msg.tool_call) {
+                      if (msg.viaAgentLoop) handleAgentToolDecision(msg.tool_call, true, index, id);
+                      else handleToolCall(msg.tool_call, true, index, id);
+                    }
                   }" />
                 </div>
                 <div v-else class="flex gap-2">
-                  <button @click="handleToolCall(msg.tool_call, true, index)"
+                  <button
+                    @click="msg.viaAgentLoop ? handleAgentToolDecision(msg.tool_call!, true, index) : handleToolCall(msg.tool_call!, true, index)"
                     class="bg-green-500/20 text-green-500 border border-green-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-500/30 transition-colors">Accepter</button>
-                  <button @click="handleToolCall(msg.tool_call, false, index)"
+                  <button
+                    @click="msg.viaAgentLoop ? handleAgentToolDecision(msg.tool_call!, false, index) : handleToolCall(msg.tool_call!, false, index)"
                     class="bg-red-500/20 text-red-500 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/30 transition-colors">Refuser</button>
                 </div>
               </div>
@@ -101,8 +106,12 @@
               </div>
               <div v-else-if="msg.tool_call.status === 'accepted'" class="text-green-500 text-xs font-bold mt-3"><i
                   class="bi bi-check-lg mr-1"></i> Action acceptée et exécutée.</div>
+              <div v-else-if="msg.tool_call.status === 'done'" class="text-green-500 text-xs font-bold mt-3"><i
+                  class="bi bi-check-lg mr-1"></i> Action exécutée.</div>
               <div v-else-if="msg.tool_call.status === 'rejected'" class="text-red-500 text-xs font-bold mt-3"><i
                   class="bi bi-x-lg mr-1"></i> Action refusée.</div>
+              <div v-else-if="msg.tool_call.status === 'error'" class="text-red-500 text-xs font-bold mt-3"><i
+                  class="bi bi-exclamation-triangle-fill mr-1"></i> Erreur lors de l'exécution.</div>
 
               <!-- Tool Results UI Rendering -->
               <div
@@ -411,8 +420,20 @@ const getSearchQuery = (argsStr: any) => {
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
-  tool_call?: { name: string; arguments: string; status: 'pending' | 'accepted' | 'rejected' | 'executing' };
+  tool_call?: {
+    toolCallId?: string;
+    name: string;
+    arguments: string;
+    status: 'pending' | 'accepted' | 'rejected' | 'executing' | 'done' | 'error';
+    category?: 'server' | 'client';
+    mutating?: boolean;
+    interactive?: boolean;
+    result?: any;
+  };
   tool_data?: any;
+  /** true si ce message vient de la nouvelle boucle d'agent serveur (provider OpenAI) plutôt que
+   *  de l'ancien parseur regex — détermine quel gestionnaire de tool utiliser. */
+  viaAgentLoop?: boolean;
 }
 
 const recommendedModelId = ref<string>('');
@@ -745,6 +766,187 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
   }
 };
 
+/**
+ * Consomme le flux SSE de la nouvelle boucle d'agent serveur (aiChatTurn/resumeAgentTurn) et
+ * met à jour les bulles de messages en conséquence. getIndex/setIndex permettent d'ouvrir une
+ * nouvelle bulle après un tool auto-exécuté, tout en gardant le rendu du tool sur la bulle d'origine.
+ */
+const consumeAgentStream = async (
+  generator: AsyncGenerator<any, void, unknown>,
+  getIndex: () => number,
+  setIndex: (i: number) => void
+) => {
+  for await (const ev of generator) {
+    if (!isGenerating.value) break;
+    const idx = getIndex();
+    if (!messages.value[idx]) break;
+
+    if (ev.type === 'session') {
+      if (activeSessionId.value !== ev.sessionId) {
+        activeSessionId.value = ev.sessionId;
+        fetchSessions();
+      }
+    } else if (ev.type === 'text') {
+      messages.value[idx]!.content += ev.delta;
+    } else if (ev.type === 'tool_call_result') {
+      messages.value[idx]!.tool_call = {
+        toolCallId: ev.toolCallId, name: ev.name, arguments: '', status: 'done',
+        category: 'server', mutating: false, result: ev.result
+      };
+      const newIdx = messages.value.length;
+      messages.value.push({ role: 'assistant', content: '', viaAgentLoop: true });
+      setIndex(newIdx);
+    } else if (ev.type === 'tool_call_pending') {
+      messages.value[idx]!.tool_call = {
+        toolCallId: ev.toolCallId, name: ev.name, arguments: JSON.stringify(ev.args),
+        status: 'pending', category: 'server', mutating: true
+      };
+    } else if (ev.type === 'tool_call_client_required') {
+      const toolCall: ChatMessage['tool_call'] = {
+        toolCallId: ev.toolCallId, name: ev.name, arguments: JSON.stringify(ev.args),
+        status: (ev.mutating || ev.interactive) ? 'pending' : 'executing',
+        category: 'client', mutating: ev.mutating, interactive: ev.interactive
+      };
+      messages.value[idx]!.tool_call = toolCall;
+      if (!ev.mutating && !ev.interactive) {
+        // Tool client non-mutant (ex: search_messages) : exécution immédiate, sans confirmation.
+        await handleAgentToolDecision(toolCall!, true, idx);
+        return;
+      }
+    } else if (ev.type === 'done') {
+      isGenerating.value = false;
+    } else if (ev.type === 'error') {
+      messages.value[idx]!.content += `\n\n**Erreur:** ${ev.error}`;
+      isGenerating.value = false;
+    }
+
+    await scrollToBottom();
+  }
+};
+
+/** Exécute côté client les tools de catégorie 'client' (contenu E2EE réel ou cérémonie de clé). */
+const executeClientTool = async (name: string, args: any, imageId?: string): Promise<any> => {
+  const orgId = route.params.orgId as string;
+
+  if (name === 'search_messages') {
+    const org = openedOrg.value;
+    if (org && org.spaces && privateKey.value) {
+      for (const space of org.spaces) {
+        await SearchSyncService.restoreWorkspaceIndexes(space.id, toRaw(privateKey.value));
+      }
+    }
+    const query = args.query;
+    const workerId = Date.now().toString();
+    const vector = await new Promise<number[]>((resolve, reject) => {
+      const handler = (e: MessageEvent) => {
+        if (e.data.id === workerId && e.data.status === 'complete') {
+          globalVectorWorker.removeEventListener('message', handler);
+          resolve(e.data.vector);
+        } else if (e.data.id === workerId && e.data.status === 'error') {
+          globalVectorWorker.removeEventListener('message', handler);
+          reject(new Error(e.data.error));
+        }
+      };
+      globalVectorWorker.addEventListener('message', handler);
+      globalVectorWorker.postMessage({ id: workerId, text: query, type: 'SEARCH' });
+    });
+    const searchResults = await localSearchDB.searchByVector(vector, query, undefined, 5);
+    return { query, results: searchResults };
+  }
+
+  if (name === 'create_thread') {
+    const threads = args.threads || [];
+    if (threads.length === 0) throw new Error('Aucun salon spécifié.');
+    const created = [];
+    for (const t of threads) {
+      created.push(await createThreadHelper(orgId, t.spaceId, t.name, t.type));
+    }
+    return { threads: created };
+  }
+
+  if (name === 'read_documentation') {
+    const docFiles = import.meta.glob('../../../../../doc/*.md', { query: '?raw', import: 'default', eager: true });
+    let fullDoc = '# Documentation de Synco\n\n';
+    for (const [path, content] of Object.entries(docFiles)) {
+      const fileName = path.split('/').pop()?.replace('.md', '') || path;
+      fullDoc += `## Chapitre : ${fileName}\n\n${content}\n\n---\n\n`;
+    }
+    return { content: fullDoc };
+  }
+
+  if (name === 'request_image_upload') {
+    return { id: imageId, note: `Utilise EXACTEMENT '${imageId}' pour le paramètre 'logo' de create_space.` };
+  }
+
+  throw new Error(`Outil client inconnu: ${name}`);
+};
+
+/** Accepte/refuse un tool_call posé par la nouvelle boucle d'agent serveur, puis reprend le flux. */
+const handleAgentToolDecision = async (
+  toolCall: NonNullable<ChatMessage['tool_call']>,
+  accept: boolean,
+  assistantMsgIndex: number,
+  imageId?: string
+) => {
+  const orgId = route.params.orgId as string;
+  const sessionId = activeSessionId.value;
+  if (!sessionId || !toolCall.toolCallId) return;
+
+  toolCall.status = 'executing';
+
+  let decision: { accepted?: boolean; clientResult?: any };
+
+  if (toolCall.category === 'client') {
+    if (!accept) {
+      decision = { clientResult: { error: "Action refusée par l'utilisateur." } };
+    } else {
+      try {
+        const args = typeof toolCall.arguments === 'string' ? JSON.parse(toolCall.arguments || '{}') : toolCall.arguments;
+        decision = { clientResult: await executeClientTool(toolCall.name, args, imageId) };
+      } catch (e: any) {
+        decision = { clientResult: { error: e.message || 'Erreur technique.' } };
+      }
+    }
+  } else {
+    decision = { accepted: accept };
+  }
+
+  isGenerating.value = true;
+  await scrollToBottom();
+  try {
+    let idx = assistantMsgIndex;
+    const generator = aiService.resumeAgentTurn(orgId, sessionId, decision);
+    await consumeAgentStream(generator, () => idx, (i) => { idx = i; });
+  } catch (e: any) {
+    if (messages.value[assistantMsgIndex]) messages.value[assistantMsgIndex]!.content += `\n\n**Erreur:** ${e.message}`;
+  } finally {
+    isGenerating.value = false;
+  }
+};
+
+/** Provider OpenAI : la conversation passe entièrement par la boucle d'agent serveur. */
+const sendMessageViaAgent = async (text: string) => {
+  const orgId = route.params.orgId as string;
+  messages.value.push({ role: 'user', content: text });
+  const assistantMsgIndex = messages.value.length;
+  messages.value.push({ role: 'assistant', content: '', viaAgentLoop: true });
+
+  isGenerating.value = true;
+  await scrollToBottom();
+
+  try {
+    let idx = assistantMsgIndex;
+    const generator = aiService.chatAgentTurn(orgId, activeSessionId.value, text);
+    await consumeAgentStream(generator, () => idx, (i) => { idx = i; });
+  } catch (error: any) {
+    if (error.message !== 'USER_STOPPED' && !String(error).includes('USER_STOPPED')) {
+      messages.value[assistantMsgIndex]!.content += `\n\n**Erreur:** ${error.message}`;
+    }
+  } finally {
+    isGenerating.value = false;
+  }
+};
+
 const sendMessage = async (hiddenPrompt?: string) => {
   if (isGenerating.value) {
     stopGeneration();
@@ -756,6 +958,14 @@ const sendMessage = async (hiddenPrompt?: string) => {
 
   if (!hiddenPrompt) {
     inputMsg.value = '';
+  }
+
+  if (!hiddenPrompt && aiService.config.provider === 'openai') {
+    await sendMessageViaAgent(text);
+    return;
+  }
+
+  if (!hiddenPrompt) {
     messages.value.push({ role: 'user', content: text });
   }
 
