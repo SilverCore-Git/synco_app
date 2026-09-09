@@ -20,7 +20,8 @@
       </div>
 
       <!-- Chat Container -->
-      <div class="flex-1 overflow-y-auto p-6 space-y-6 flex flex-col w-full max-w-5xl mx-auto" ref="chatContainer">
+      <div class="flex-1 overflow-y-auto p-6 space-y-6 flex flex-col w-full max-w-5xl mx-auto" ref="chatContainer"
+        @scroll="onChatScroll">
 
         <!-- Welcome Message -->
         <div v-if="messages.length === 0"
@@ -238,6 +239,18 @@
           </div>
         </div>
       </div>
+
+      <!-- Scroll to bottom -->
+      <Transition name="fade">
+        <button
+          v-if="showScrollToBottom"
+          @click="scrollToBottom()"
+          class="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 w-9 h-9 rounded-full bg-(--bg2) border border-(--border-color) shadow-lg flex items-center justify-center text-(--text2) hover:text-(--text) hover:border-(--primary)/40 transition-colors"
+          title="Aller en bas"
+        >
+          <i class="bi bi-arrow-down text-sm"></i>
+        </button>
+      </Transition>
 
       <!-- Loading / Status Bar / Manual Start -->
       <div v-if="aiIsLocal && !aiIsInitialized"
@@ -474,6 +487,16 @@ const scrollToBottom = async () => {
   if (chatContainer.value) {
     chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
   }
+  showScrollToBottom.value = false;
+};
+
+const showScrollToBottom = ref(false);
+
+const onChatScroll = () => {
+  const el = chatContainer.value;
+  if (!el) return;
+  const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+  showScrollToBottom.value = distanceFromBottom > 200;
 };
 
 const initError = ref('');
@@ -1047,6 +1070,9 @@ const sendMessage = async (hiddenPrompt?: string) => {
 onMounted(async () => {
   const recommended = await localLLM.getRecommendedModel();
   recommendedModelId.value = recommended.id;
+
+  await nextTick();
+  chatInputRef.value?.textarea?.focus();
 });
 
 watch(() => openedOrg.value, async (newVal) => {
