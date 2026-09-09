@@ -36,22 +36,40 @@
         <div v-for="(msg, index) in messages" :key="index"
           v-show="msg.role !== 'system' && !(msg.role === 'user' && msg.content && msg.content.startsWith('[SYSTEM]'))"
           class="flex w-full" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
-          <div class="max-w-[75%] rounded-2xl p-4 text-sm leading-relaxed"
-            :class="msg.role === 'user' ? 'bg-(--primary)/20 text-white border border-(--primary)/30 rounded-tr-sm' : 'bg-white/5 border border-white/10 rounded-tl-sm font-mono'">
-            <div class="flex items-center gap-2 mb-2 opacity-50 text-[10px] uppercase font-bold tracking-wider">
-              <i :class="msg.role === 'user' ? 'bi-person' : 'bi-robot'"></i>
-              {{ msg.role === 'user' ? 'Vous' : 'Synco AI' }}
-            </div>
+
+          <!-- User message: light bubble, right-aligned -->
+          <div v-if="msg.role === 'user'" class="max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed bg-(--primary)/15 border border-(--primary)/20">
+            <div v-html="formatMessage(msg.content)" @click="handleLinks" class="prose prose-invert max-w-none prose-sm"></div>
+          </div>
+
+          <!-- Assistant turn: new agent loop (OpenAI/Mistral/Gemini) — structured parts, Claude-like -->
+          <div v-else-if="msg.viaAgentLoop" class="w-full text-sm leading-relaxed text-(--text)">
+            <AgentTurn
+              :parts="msg.parts || []"
+              :is-generating="isGenerating && index === messages.length - 1"
+              @accept="(tool) => handleAgentToolDecision(tool, true, index)"
+              @reject="(tool) => handleAgentToolDecision(tool, false, index)"
+              @open-task="(t) => selectedTask = t"
+              @provide-image="(tool, base64) => {
+                const id = 'img_' + Date.now();
+                temporaryImages[id] = base64;
+                handleAgentToolDecision(tool, true, index, id);
+              }"
+            />
+          </div>
+
+          <!-- Assistant turn: legacy path (local/custom, migration pending) -->
+          <div v-else class="w-full text-sm leading-relaxed text-(--text)">
             <div v-if="msg.content" v-html="formatMessage(msg.content)" @click="handleLinks"
               class="prose prose-invert max-w-none prose-sm"></div>
-            <div v-else-if="msg.role === 'assistant' && isGenerating && !msg.tool_call" class="flex gap-1 py-2">
-              <div class="w-1.5 h-1.5 bg-white/50 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
-              <div class="w-1.5 h-1.5 bg-white/50 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
-              <div class="w-1.5 h-1.5 bg-white/50 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+            <div v-else-if="isGenerating && !msg.tool_call" class="flex gap-1 py-2">
+              <div class="w-1.5 h-1.5 bg-(--text2)/60 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+              <div class="w-1.5 h-1.5 bg-(--text2)/60 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+              <div class="w-1.5 h-1.5 bg-(--text2)/60 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
             </div>
 
-            <!-- Tool Call Widget -->
-            <div v-if="msg.tool_call" class="mt-4 bg-black/40 border border-(--primary)/30 rounded-xl p-4">
+            <!-- Tool Call Widget (legacy) -->
+            <div v-if="msg.tool_call" class="mt-3 bg-(--bg2)/60 border border-white/10 rounded-xl p-4">
               <div class="flex items-center gap-2 mb-2 text-(--primary) font-bold text-xs uppercase">
                 <i class="bi bi-search" v-if="msg.tool_call.name === 'search_messages'"></i>
                 <i class="bi bi-book" v-else-if="msg.tool_call.name === 'read_documentation'"></i>
@@ -84,18 +102,15 @@
                   <IconSelector model-value="" @on-base64="(base64) => {
                     const id = 'img_' + Date.now();
                     temporaryImages[id] = base64;
-                    if (msg.tool_call) {
-                      if (msg.viaAgentLoop) handleAgentToolDecision(msg.tool_call, true, index, id);
-                      else handleToolCall(msg.tool_call, true, index, id);
-                    }
+                    if (msg.tool_call) handleToolCall(msg.tool_call, true, index, id);
                   }" />
                 </div>
                 <div v-else class="flex gap-2">
                   <button
-                    @click="msg.viaAgentLoop ? handleAgentToolDecision(msg.tool_call!, true, index) : handleToolCall(msg.tool_call!, true, index)"
+                    @click="handleToolCall(msg.tool_call!, true, index)"
                     class="bg-green-500/20 text-green-500 border border-green-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-500/30 transition-colors">Accepter</button>
                   <button
-                    @click="msg.viaAgentLoop ? handleAgentToolDecision(msg.tool_call!, false, index) : handleToolCall(msg.tool_call!, false, index)"
+                    @click="handleToolCall(msg.tool_call!, false, index)"
                     class="bg-red-500/20 text-red-500 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/30 transition-colors">Refuser</button>
                 </div>
               </div>
@@ -106,12 +121,8 @@
               </div>
               <div v-else-if="msg.tool_call.status === 'accepted'" class="text-green-500 text-xs font-bold mt-3"><i
                   class="bi bi-check-lg mr-1"></i> Action acceptée et exécutée.</div>
-              <div v-else-if="msg.tool_call.status === 'done'" class="text-green-500 text-xs font-bold mt-3"><i
-                  class="bi bi-check-lg mr-1"></i> Action exécutée.</div>
               <div v-else-if="msg.tool_call.status === 'rejected'" class="text-red-500 text-xs font-bold mt-3"><i
                   class="bi bi-x-lg mr-1"></i> Action refusée.</div>
-              <div v-else-if="msg.tool_call.status === 'error'" class="text-red-500 text-xs font-bold mt-3"><i
-                  class="bi bi-exclamation-triangle-fill mr-1"></i> Erreur lors de l'exécution.</div>
 
               <!-- Tool Results UI Rendering -->
               <div
@@ -226,9 +237,6 @@
             </div>
           </div>
         </div>
-
-        <!-- System/Tool internal messages (hidden or subtle) -->
-        <div v-if="false"></div>
       </div>
 
       <!-- Loading / Status Bar / Manual Start -->
@@ -358,6 +366,8 @@ import ThreadMessage from '../components/common/ThreadMessage.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import IconSelector from '@/components/common/IconSelector.vue';
+import AgentTurn from '../components/ai/AgentTurn.vue';
+import type { TurnPart, ToolStep } from '../components/ai/agentTypes';
 import { useUsersBar } from '@/composables/useUsersBar';
 import useSettingsItem from '@/composables/useSettingsItem';
 import { useRoute, useRouter } from 'vue-router';
@@ -431,9 +441,14 @@ interface ChatMessage {
     result?: any;
   };
   tool_data?: any;
-  /** true si ce message vient de la nouvelle boucle d'agent serveur (provider OpenAI) plutôt que
-   *  de l'ancien parseur regex — détermine quel gestionnaire de tool utiliser. */
+  /**
+   * true si ce message vient de la nouvelle boucle d'agent serveur (providers OpenAI/Mistral/
+   * Gemini) plutôt que de l'ancien parseur regex — détermine quel gestionnaire de tool utiliser
+   * ET quel rendu appliquer (parts structurées vs. widget tool_call unique historique).
+   */
   viaAgentLoop?: boolean;
+  /** Uniquement pour viaAgentLoop : texte et tools entrelacés dans l'ordre d'arrivée. */
+  parts?: TurnPart[];
 }
 
 const recommendedModelId = ref<string>('');
@@ -766,10 +781,31 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
   }
 };
 
+/** Ajoute du texte au dernier segment 'text' de la turn, ou en ouvre un nouveau si le dernier segment est un tool. */
+const appendTextPart = (idx: number, delta: string) => {
+  const parts = messages.value[idx]!.parts!;
+  const last = parts[parts.length - 1];
+  if (last && last.type === 'text') last.text += delta;
+  else parts.push({ type: 'text', text: delta });
+};
+
+/** Met à jour le tool_call déjà présent dans la turn (par id), ou en ajoute un nouveau segment. */
+const upsertToolPart = (idx: number, toolCallId: string, patch: Partial<ToolStep> & { name: string }) => {
+  const parts = messages.value[idx]!.parts!;
+  const existing = parts.find((p) => p.type === 'tool' && p.tool.toolCallId === toolCallId) as { type: 'tool'; tool: ToolStep } | undefined;
+  if (existing) {
+    Object.assign(existing.tool, patch);
+  } else {
+    parts.push({ type: 'tool', tool: { toolCallId, status: 'pending', ...patch } });
+  }
+};
+
 /**
- * Consomme le flux SSE de la nouvelle boucle d'agent serveur (aiChatTurn/resumeAgentTurn) et
- * met à jour les bulles de messages en conséquence. getIndex/setIndex permettent d'ouvrir une
- * nouvelle bulle après un tool auto-exécuté, tout en gardant le rendu du tool sur la bulle d'origine.
+ * Consomme le flux SSE de la nouvelle boucle d'agent serveur (chatAgentTurn/resumeAgentTurn) et
+ * alimente les parts (texte + tools entrelacés) de la turn en cours. getIndex/setIndex existent
+ * pour compatibilité mais pointent désormais toujours vers LA MÊME turn : contrairement à l'ancien
+ * modèle une bulle par tool, tout le tour (texte + tools + texte...) reste dans un seul message,
+ * comme le fait réellement Claude.
  */
 const consumeAgentStream = async (
   generator: AsyncGenerator<any, void, unknown>,
@@ -787,36 +823,28 @@ const consumeAgentStream = async (
         fetchSessions();
       }
     } else if (ev.type === 'text') {
-      messages.value[idx]!.content += ev.delta;
+      appendTextPart(idx, ev.delta);
     } else if (ev.type === 'tool_call_result') {
-      messages.value[idx]!.tool_call = {
-        toolCallId: ev.toolCallId, name: ev.name, arguments: '', status: 'done',
-        category: 'server', mutating: false, result: ev.result
-      };
-      const newIdx = messages.value.length;
-      messages.value.push({ role: 'assistant', content: '', viaAgentLoop: true });
-      setIndex(newIdx);
+      upsertToolPart(idx, ev.toolCallId, { name: ev.name, status: 'done', category: 'server', mutating: false, result: ev.result });
     } else if (ev.type === 'tool_call_pending') {
-      messages.value[idx]!.tool_call = {
-        toolCallId: ev.toolCallId, name: ev.name, arguments: JSON.stringify(ev.args),
-        status: 'pending', category: 'server', mutating: true
-      };
+      upsertToolPart(idx, ev.toolCallId, { name: ev.name, args: ev.args, status: 'pending', category: 'server', mutating: true });
     } else if (ev.type === 'tool_call_client_required') {
-      const toolCall: ChatMessage['tool_call'] = {
-        toolCallId: ev.toolCallId, name: ev.name, arguments: JSON.stringify(ev.args),
+      upsertToolPart(idx, ev.toolCallId, {
+        name: ev.name, args: ev.args,
         status: (ev.mutating || ev.interactive) ? 'pending' : 'executing',
-        category: 'client', mutating: ev.mutating, interactive: ev.interactive
-      };
-      messages.value[idx]!.tool_call = toolCall;
+        category: 'client', mutating: ev.mutating, interactive: ev.interactive,
+      });
       if (!ev.mutating && !ev.interactive) {
         // Tool client non-mutant (ex: search_messages) : exécution immédiate, sans confirmation.
-        await handleAgentToolDecision(toolCall!, true, idx);
+        const parts = messages.value[idx]!.parts!;
+        const tool = (parts.find((p) => p.type === 'tool' && p.tool.toolCallId === ev.toolCallId) as { type: 'tool'; tool: ToolStep }).tool;
+        await handleAgentToolDecision(tool, true, idx);
         return;
       }
     } else if (ev.type === 'done') {
       isGenerating.value = false;
     } else if (ev.type === 'error') {
-      messages.value[idx]!.content += `\n\n**Erreur:** ${ev.error}`;
+      appendTextPart(idx, `\n\n**Erreur:** ${ev.error}`);
       isGenerating.value = false;
     }
 
@@ -881,9 +909,9 @@ const executeClientTool = async (name: string, args: any, imageId?: string): Pro
   throw new Error(`Outil client inconnu: ${name}`);
 };
 
-/** Accepte/refuse un tool_call posé par la nouvelle boucle d'agent serveur, puis reprend le flux. */
+/** Accepte/refuse un tool posé par la nouvelle boucle d'agent serveur, puis reprend le flux. */
 const handleAgentToolDecision = async (
-  toolCall: NonNullable<ChatMessage['tool_call']>,
+  toolCall: ToolStep,
   accept: boolean,
   assistantMsgIndex: number,
   imageId?: string
@@ -901,7 +929,7 @@ const handleAgentToolDecision = async (
       decision = { clientResult: { error: "Action refusée par l'utilisateur." } };
     } else {
       try {
-        const args = typeof toolCall.arguments === 'string' ? JSON.parse(toolCall.arguments || '{}') : toolCall.arguments;
+        const args = typeof toolCall.args === 'string' ? JSON.parse(toolCall.args || '{}') : toolCall.args;
         decision = { clientResult: await executeClientTool(toolCall.name, args, imageId) };
       } catch (e: any) {
         decision = { clientResult: { error: e.message || 'Erreur technique.' } };
@@ -918,18 +946,18 @@ const handleAgentToolDecision = async (
     const generator = aiService.resumeAgentTurn(orgId, sessionId, decision);
     await consumeAgentStream(generator, () => idx, (i) => { idx = i; });
   } catch (e: any) {
-    if (messages.value[assistantMsgIndex]) messages.value[assistantMsgIndex]!.content += `\n\n**Erreur:** ${e.message}`;
+    if (messages.value[assistantMsgIndex]) appendTextPart(assistantMsgIndex, `\n\n**Erreur:** ${e.message}`);
   } finally {
     isGenerating.value = false;
   }
 };
 
-/** Provider OpenAI : la conversation passe entièrement par la boucle d'agent serveur. */
+/** Providers OpenAI/Mistral/Gemini : la conversation passe entièrement par la boucle d'agent serveur. */
 const sendMessageViaAgent = async (text: string) => {
   const orgId = route.params.orgId as string;
   messages.value.push({ role: 'user', content: text });
   const assistantMsgIndex = messages.value.length;
-  messages.value.push({ role: 'assistant', content: '', viaAgentLoop: true });
+  messages.value.push({ role: 'assistant', content: '', viaAgentLoop: true, parts: [] });
 
   isGenerating.value = true;
   await scrollToBottom();
@@ -940,7 +968,7 @@ const sendMessageViaAgent = async (text: string) => {
     await consumeAgentStream(generator, () => idx, (i) => { idx = i; });
   } catch (error: any) {
     if (error.message !== 'USER_STOPPED' && !String(error).includes('USER_STOPPED')) {
-      messages.value[assistantMsgIndex]!.content += `\n\n**Erreur:** ${error.message}`;
+      appendTextPart(assistantMsgIndex, `\n\n**Erreur:** ${error.message}`);
     }
   } finally {
     isGenerating.value = false;
@@ -960,7 +988,7 @@ const sendMessage = async (hiddenPrompt?: string) => {
     inputMsg.value = '';
   }
 
-  if (!hiddenPrompt && aiService.config.provider === 'openai') {
+  if (!hiddenPrompt && ['openai', 'mistral', 'gemini'].includes(aiService.config.provider)) {
     await sendMessageViaAgent(text);
     return;
   }
