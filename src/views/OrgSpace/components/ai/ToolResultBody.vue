@@ -34,58 +34,92 @@
     </div>
     <p v-else-if="tool.name === 'search_messages'" class="text-xs text-(--text2)">Aucun résultat trouvé.</p>
 
-    <!-- create_task : carte cliquable qui ouvre le détail -->
-    <div
+    <!-- create_task : ouvre le détail -->
+    <EntityRow
         v-else-if="tool.name === 'create_task' && createdTask"
-        class="bg-black/20 border border-white/10 p-3 rounded-xl cursor-pointer hover:border-(--primary)/40 transition-colors flex justify-between items-center gap-3"
+        icon="bi-circle"
+        :title="createdTask.title"
+        :subtitle="createdTask.description"
         @click="$emit('open-task', createdTask)"
-    >
-        <div class="flex items-center gap-3 min-w-0">
-            <i class="bi bi-circle text-(--text2)"></i>
-            <div class="min-w-0">
-                <p class="text-sm font-medium text-(--text) truncate">{{ createdTask.title }}</p>
-                <p v-if="createdTask.description" class="text-xs text-(--text2) truncate">{{ createdTask.description }}</p>
-            </div>
-        </div>
-        <i class="bi bi-box-arrow-up-right text-(--text2) shrink-0"></i>
-    </div>
+    />
 
-    <!-- create_space : carte cliquable qui navigue -->
-    <div
+    <!-- create_space : navigue vers l'espace -->
+    <EntityRow
         v-else-if="tool.name === 'create_space' && createdSpace"
-        class="bg-black/20 border border-white/10 p-3 rounded-xl cursor-pointer hover:border-(--primary)/40 transition-colors flex justify-between items-center gap-3"
+        :icon="isImageLogo(createdSpace.logo) ? undefined : (createdSpace.logo || 'bi-folder')"
+        :logo="createdSpace.logo"
+        :title="createdSpace.name"
+        subtitle="Espace de travail"
         @click="router.push(`/${orgId}/${createdSpace.id}/`)"
-    >
-        <div class="flex items-center gap-3 min-w-0">
-            <i class="bi text-(--primary)" :class="createdSpace.logo || 'bi-folder'"></i>
-            <p class="text-sm font-medium text-(--text) truncate">{{ createdSpace.name }}</p>
-        </div>
-        <i class="bi bi-box-arrow-up-right text-(--text2) shrink-0"></i>
-    </div>
+    />
 
     <!-- create_thread : une carte par salon créé -->
     <div v-else-if="tool.name === 'create_thread' && createdThreads.length" class="flex flex-col gap-2">
-        <div
+        <EntityRow
             v-for="th in createdThreads" :key="th.id"
-            class="bg-black/20 border border-white/10 p-3 rounded-xl cursor-pointer hover:border-(--primary)/40 transition-colors flex justify-between items-center gap-3"
+            :icon="th.type === 'vocal' ? 'bi-volume-up-fill' : 'bi-hash'"
+            :title="th.name"
+            :subtitle="th.type === 'vocal' ? 'Salon vocal' : 'Salon textuel'"
             @click="router.push(`/${orgId}/${th.workspaceId || 'home'}/${th.id}`)"
-        >
-            <div class="flex items-center gap-3 min-w-0">
-                <i class="bi text-(--primary)" :class="th.type === 'vocal' ? 'bi-volume-up-fill' : 'bi-hash'"></i>
-                <p class="text-sm font-medium text-(--text) truncate">{{ th.name }}</p>
-            </div>
-            <i class="bi bi-box-arrow-up-right text-(--text2) shrink-0"></i>
-        </div>
+        />
     </div>
 
-    <!-- list_spaces / list_threads / list_members : liste simple -->
-    <ul v-else-if="isNamedList" class="flex flex-col gap-1 text-sm text-(--text)">
-        <li v-for="item in namedListItems" :key="item.id" class="flex items-center gap-2">
-            <i class="bi bi-dot text-(--text2)"></i>
-            {{ item.name }}
-        </li>
-        <li v-if="namedListItems.length === 0" class="text-(--text2) text-xs">Aucun résultat.</li>
-    </ul>
+    <!-- list_spaces : grille de cartes cliquables -->
+    <div v-else-if="tool.name === 'list_spaces'" class="grid grid-cols-2 gap-2">
+        <EntityRow
+            v-for="space in namedListItems" :key="space.id"
+            :icon="isImageLogo(space.logo) ? undefined : (space.logo || 'bi-folder')"
+            :logo="space.logo"
+            :title="space.name"
+            subtitle="Espace de travail"
+            @click="router.push(`/${orgId}/${space.id}/`)"
+        />
+        <p v-if="namedListItems.length === 0" class="text-xs text-(--text2) col-span-2">Aucun espace de travail.</p>
+    </div>
+
+    <!-- list_threads : liste de salons cliquables -->
+    <div v-else-if="tool.name === 'list_threads'" class="flex flex-col gap-2">
+        <EntityRow
+            v-for="th in namedListItems" :key="th.id"
+            :icon="th.type === 'vocal' ? 'bi-volume-up-fill' : 'bi-hash'"
+            :title="th.name"
+            :subtitle="th.type === 'vocal' ? 'Salon vocal' : 'Salon textuel'"
+            @click="router.push(`/${orgId}/${th.workspaceId || 'home'}/${th.id}`)"
+        />
+        <p v-if="namedListItems.length === 0" class="text-xs text-(--text2)">Aucun salon.</p>
+    </div>
+
+    <!-- list_members : grille de membres, clic = ouvrir la conversation privée -->
+    <div v-else-if="tool.name === 'list_members'" class="grid grid-cols-2 gap-2">
+        <EntityRow
+            v-for="member in namedListItems" :key="member.id"
+            :avatar-url="member.avatarUrl"
+            :title="member.name"
+            @click="router.push(`/${orgId}/chat/${member.id}`)"
+        />
+        <p v-if="namedListItems.length === 0" class="text-xs text-(--text2) col-span-2">Aucun membre.</p>
+    </div>
+
+    <!-- get_task : une seule carte -->
+    <EntityRow
+        v-else-if="tool.name === 'get_task' && singleTask"
+        :icon="statusIcon(singleTask.status)"
+        :title="singleTask.title"
+        :subtitle="singleTask.description"
+        @click="$emit('open-task', singleTask)"
+    />
+
+    <!-- read_tasks : toutes les tâches de l'utilisateur, à plat -->
+    <div v-else-if="tool.name === 'read_tasks'" class="flex flex-col gap-2">
+        <EntityRow
+            v-for="task in flattenedTasks" :key="task.id"
+            :icon="statusIcon(task.status)"
+            :title="task.title"
+            :subtitle="task.description"
+            @click="$emit('open-task', task)"
+        />
+        <p v-if="flattenedTasks.length === 0" class="text-xs text-(--text2)">Aucune tâche.</p>
+    </div>
 
     <!-- Erreur -->
     <p v-else-if="tool.status === 'error' || tool.result?.error" class="text-xs text-red-400">
@@ -103,6 +137,7 @@ import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { ToolStep } from './agentTypes';
 import ThreadMessage from '../common/ThreadMessage.vue';
+import EntityRow from './EntityRow.vue';
 import { openedOrg } from '@/assets/var';
 
 const props = defineProps<{ tool: ToolStep }>();
@@ -116,9 +151,19 @@ const searchResults = computed<any[]>(() => props.tool.result?.results || []);
 const createdTask = computed(() => (props.tool.name === 'create_task' ? props.tool.result : null));
 const createdSpace = computed(() => (props.tool.name === 'create_space' ? props.tool.result : null));
 const createdThreads = computed<any[]>(() => (props.tool.name === 'create_thread' ? (props.tool.result?.threads || []) : []));
+const singleTask = computed(() => (props.tool.name === 'get_task' ? props.tool.result : null));
 
-const isNamedList = computed(() => ['list_spaces', 'list_threads', 'list_members'].includes(props.tool.name));
-const namedListItems = computed<any[]>(() => Array.isArray(props.tool.result) ? props.tool.result : []);
+const namedListItems = computed<any[]>(() =>
+    ['list_spaces', 'list_threads', 'list_members'].includes(props.tool.name) && Array.isArray(props.tool.result)
+        ? props.tool.result
+        : []
+);
+
+const flattenedTasks = computed<any[]>(() => {
+    if (props.tool.name !== 'read_tasks' || !props.tool.result) return [];
+    const { lists = [], unlistedTasks = [] } = props.tool.result;
+    return [...unlistedTasks, ...lists.flatMap((l: any) => l.tasks || [])];
+});
 
 const prettyResult = computed(() => {
     try {
@@ -127,6 +172,16 @@ const prettyResult = computed(() => {
         return String(props.tool.result);
     }
 });
+
+function isImageLogo(logo?: string) {
+    return !!logo && logo.startsWith('data:image');
+}
+
+function statusIcon(status?: string) {
+    if (status === 'DONE') return 'bi-check-circle-fill';
+    if (status === 'IN_PROGRESS') return 'bi-arrow-repeat';
+    return 'bi-circle';
+}
 
 function spaceAndThreadName(workspaceId: string, threadId: string) {
     const space = openedOrg.value?.spaces?.find((s) => s.id === workspaceId);

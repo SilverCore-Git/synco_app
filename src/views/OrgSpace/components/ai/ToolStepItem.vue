@@ -60,7 +60,9 @@ import IconSelector from '@/components/common/IconSelector.vue';
 const props = defineProps<{ tool: ToolStep; isLast?: boolean }>();
 defineEmits(['accept', 'reject', 'open-task', 'provide-image']);
 
-const expanded = ref(false);
+// Les tools de lecture (non mutants) affichent directement leur résultat — c'est ce que
+// l'utilisateur a demandé. Les tools mutants restent repliés : leur confirmation textuelle suffit.
+const expanded = ref(!props.tool.mutating);
 
 const { label, icon } = toolLabel(props.tool.name);
 
