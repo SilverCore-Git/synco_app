@@ -2,12 +2,15 @@ import { openedOrg, user } from '@/assets/var';
 import { localLLM } from './LocalLLMService';
 import { computed, ref } from 'vue';
 import sfetch from '@/assets/utils/sfetch';
+import { keycloak } from '@/assets/keycloak';
 import { encryptForPeer, decryptFromPeer, privateKey } from '@/assets/utils/crypto';
 
 export interface AIProviderConfig {
-    provider: 'local' | 'openai' | 'gemini' | 'mistral' | 'custom';
+    provider: 'local' | 'openai' | 'gemini' | 'mistral' | 'custom' | 'gateway';
     apiKey?: string;
     endpointUrl?: string;
+    /** URL de la Synco AI Gateway auto-hébergée (provider 'gateway' uniquement). */
+    gatewayUrl?: string;
     modelId?: string;
 }
 
@@ -45,18 +48,53 @@ export class AIService {
     }
 
     /**
-     * Nouvelle boucle d'agent serveur (provider OpenAI, cf. refonte Synco AI) : le backend possède
-     * la conversation et exécute lui-même les tools 'server' — contrairement à chat()/chatOpenAICompatible
+     * Appel direct navigateur → passerelle, sans passer par sfetch (qui cible toujours
+     * VITE_API_URL) : on attache le même token Keycloak à la main, exactement comme sfetch le
+     * ferait, mais vers une origine arbitraire (l'URL de la Synco AI Gateway auto-hébergée).
+     */
+    private async gatewayFetch(url: string, body: any, signal: AbortSignal): Promise<Response> {
+        if (keycloak.authenticated) {
+            await keycloak.updateToken(60).catch(() => {});
+        }
+        return fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(keycloak.token ? { Authorization: `Bearer ${keycloak.token}` } : {}),
+            },
+            body: JSON.stringify(body),
+            signal,
+        });
+    }
+
+    /**
+     * Nouvelle boucle d'agent serveur (providers OpenAI/Mistral/Gemini via synco_api, ou une
+     * Synco AI Gateway auto-hébergée pour Ollama) : le backend qui répond possède la conversation
+     * et exécute lui-même les tools 'server' — contrairement à chat()/chatOpenAICompatible
      * ci-dessous qui restent l'ancien parseur regex <tool_call> côté client pour les autres providers.
      */
     public async *chatAgentTurn(orgId: string, sessionId: string | null, message: string): AsyncGenerator<any, void, unknown> {
         this.abortController = new AbortController();
 
-        const response = await sfetch(`/api/orgs/${orgId}/ai/chat`, {
-            method: 'POST',
-            body: JSON.stringify({ sessionId: sessionId || undefined, message }),
-            signal: this.abortController.signal,
-        });
+        let response: Response;
+
+        if (this.config.provider === 'gateway') {
+            const gatewayUrl = (this.config.gatewayUrl || '').replace(/\/$/, '');
+            response = await this.gatewayFetch(`${gatewayUrl}/chat`, {
+                orgId,
+                sessionId: sessionId || undefined,
+                message,
+                syncoApiUrl: import.meta.env.VITE_API_URL,
+                ollamaUrl: this.config.endpointUrl,
+                modelId: this.config.modelId,
+            }, this.abortController.signal);
+        } else {
+            response = await sfetch(`/api/orgs/${orgId}/ai/chat`, {
+                method: 'POST',
+                body: JSON.stringify({ sessionId: sessionId || undefined, message }),
+                signal: this.abortController.signal,
+            });
+        }
 
         if (!response.ok) {
             const err = await response.text().catch(() => '');
@@ -69,11 +107,24 @@ export class AIService {
     public async *resumeAgentTurn(orgId: string, sessionId: string, decision: { accepted?: boolean; clientResult?: any }): AsyncGenerator<any, void, unknown> {
         this.abortController = new AbortController();
 
-        const response = await sfetch(`/api/orgs/${orgId}/ai/chat/${sessionId}/tool-result`, {
-            method: 'POST',
-            body: JSON.stringify(decision),
-            signal: this.abortController.signal,
-        });
+        let response: Response;
+
+        if (this.config.provider === 'gateway') {
+            const gatewayUrl = (this.config.gatewayUrl || '').replace(/\/$/, '');
+            response = await this.gatewayFetch(`${gatewayUrl}/chat/${sessionId}/tool-result`, {
+                orgId,
+                syncoApiUrl: import.meta.env.VITE_API_URL,
+                ollamaUrl: this.config.endpointUrl,
+                modelId: this.config.modelId,
+                ...decision,
+            }, this.abortController.signal);
+        } else {
+            response = await sfetch(`/api/orgs/${orgId}/ai/chat/${sessionId}/tool-result`, {
+                method: 'POST',
+                body: JSON.stringify(decision),
+                signal: this.abortController.signal,
+            });
+        }
 
         if (!response.ok) {
             const err = await response.text().catch(() => '');

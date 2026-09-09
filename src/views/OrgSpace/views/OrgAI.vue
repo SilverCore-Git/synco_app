@@ -1011,7 +1011,7 @@ const sendMessage = async (hiddenPrompt?: string) => {
     inputMsg.value = '';
   }
 
-  if (!hiddenPrompt && ['openai', 'mistral', 'gemini'].includes(aiService.config.provider)) {
+  if (!hiddenPrompt && ['openai', 'mistral', 'gemini', 'gateway'].includes(aiService.config.provider)) {
     await sendMessageViaAgent(text);
     return;
   }

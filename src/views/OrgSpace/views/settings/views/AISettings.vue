@@ -52,8 +52,8 @@
                         
                         <div class="p-8 bg-(--bg2) border border-(--border-color) rounded-2xl shadow-sm space-y-6">
                             
-                            <!-- Clé API -->
-                            <div class="space-y-2">
+                            <!-- Clé API (inutile pour la passerelle auto-hébergée : authentification via le compte Synco) -->
+                            <div class="space-y-2" v-if="orgData.provider !== 'gateway'">
                                 <label class="text-xs font-semibold text-(--text)">Clé API ({{ orgData.provider }})</label>
                                 <div class="relative group">
                                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2) group-focus-within:text-(--primary) transition-colors">
@@ -78,7 +78,7 @@
                                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2) group-focus-within:text-(--primary) transition-colors">
                                         <i class="bi bi-link-45deg"></i>
                                     </div>
-                                    <input 
+                                    <input
                                         v-model="orgData.endpointUrl"
                                         type="text"
                                         class="w-full bg-(--bg) border border-(--border-color) pl-11 pr-4 py-3 text-sm focus:outline-none rounded-xl focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner text-(--text)"
@@ -86,6 +86,40 @@
                                     />
                                 </div>
                             </div>
+
+                            <!-- Passerelle + Ollama (Gateway only) -->
+                            <template v-if="orgData.provider === 'gateway'">
+                                <div class="space-y-2">
+                                    <label class="text-xs font-semibold text-(--text)">URL de votre Synco AI Gateway</label>
+                                    <div class="relative group">
+                                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2) group-focus-within:text-(--primary) transition-colors">
+                                            <i class="bi bi-hdd-network-fill"></i>
+                                        </div>
+                                        <input
+                                            v-model="orgData.gatewayUrl"
+                                            type="text"
+                                            class="w-full bg-(--bg) border border-(--border-color) pl-11 pr-4 py-3 text-sm focus:outline-none rounded-xl focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner text-(--text)"
+                                            placeholder="https://ia-gateway.mon-organisation.fr"
+                                        />
+                                    </div>
+                                    <p class="text-[10px] text-(--text2) leading-relaxed">Le navigateur appelle cette passerelle directement (pas notre serveur), avec votre compte Synco pour vous authentifier.</p>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-xs font-semibold text-(--text)">URL du serveur Ollama</label>
+                                    <div class="relative group">
+                                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2) group-focus-within:text-(--primary) transition-colors">
+                                            <i class="bi bi-link-45deg"></i>
+                                        </div>
+                                        <input
+                                            v-model="orgData.endpointUrl"
+                                            type="text"
+                                            class="w-full bg-(--bg) border border-(--border-color) pl-11 pr-4 py-3 text-sm focus:outline-none rounded-xl focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner text-(--text)"
+                                            placeholder="http://ollama.local:11434"
+                                        />
+                                    </div>
+                                    <p class="text-[10px] text-(--text2) leading-relaxed">L'endpoint Ollama que la passerelle va contacter (peut être local à la passerelle).</p>
+                                </div>
+                            </template>
 
                             <!-- Model ID -->
                             <div class="space-y-2">
@@ -115,7 +149,7 @@
                             </div>
 
                             <!-- Cloud Warning -->
-                            <div v-if="orgData.provider !== 'local' && orgData.provider !== 'custom'" class="bg-orange-500/5 border border-orange-500/20 p-5 rounded-xl mt-6 flex flex-col gap-4">
+                            <div v-if="orgData.provider !== 'local' && orgData.provider !== 'custom' && orgData.provider !== 'gateway'" class="bg-orange-500/5 border border-orange-500/20 p-5 rounded-xl mt-6 flex flex-col gap-4">
                                 <div class="flex items-start gap-3">
                                     <div class="w-8 h-8 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center shrink-0">
                                         <i class="bi bi-exclamation-triangle-fill"></i>
@@ -155,9 +189,9 @@
                     class="primary px-6 py-2.5 rounded-xl text-sm font-medium" 
                     :class="[
                         saving ? 'loader' : '',
-                        orgData.provider !== 'local' && orgData.provider !== 'custom' && !acceptCloudWarning ? 'opacity-50 grayscale-100 pointer-events-none' : ''
+                        orgData.provider !== 'local' && orgData.provider !== 'custom' && orgData.provider !== 'gateway' && !acceptCloudWarning ? 'opacity-50 grayscale-100 pointer-events-none' : ''
                     ]"
-                    :disabled="orgData.provider !== 'local' && orgData.provider !== 'custom' && !acceptCloudWarning"
+                    :disabled="orgData.provider !== 'local' && orgData.provider !== 'custom' && orgData.provider !== 'gateway' && !acceptCloudWarning"
                 >
                     Enregistrer les modifications
                 </button>
@@ -206,6 +240,7 @@ const showLearnMorePopup = ref<boolean>(false);
 const providers = [
     { id: 'local', name: 'WebGPU (Local Browser)', desc: 'Exécuté sur la carte graphique de l\'utilisateur. Gratuit, 100% privé, mais dépend des performances de chaque machine.' },
     { id: 'custom', name: 'Serveur Client (Custom API)', desc: 'Votre propre serveur local ou distant avec une API compatible OpenAI (Ollama, vLLM, etc.).' },
+    { id: 'gateway', name: 'Passerelle Synco AI (auto-hébergée)', desc: 'Votre propre Synco AI Gateway devant un Ollama que vous contrôlez : vrais outils IA, authentification via votre compte Synco, aucune clé à distribuer.' },
     { id: 'openai', name: 'OpenAI', desc: 'Modèles Cloud de pointe (GPT-4o, GPT-4o-mini).' },
     { id: 'gemini', name: 'Google Gemini', desc: 'Modèles très rapides et puissants (1.5 Pro, Flash).' },
     { id: 'mistral', name: 'Mistral AI', desc: 'Modèles souverains européens (Mistral Large, Pixtral).' },
@@ -218,6 +253,7 @@ const getAiConfig = () => {
         apiKey: '', // API key is never populated from backend
         hasApiKey: config.hasApiKey || false,
         endpointUrl: config.endpointUrl || '',
+        gatewayUrl: config.gatewayUrl || '',
         modelId: config.modelId || ''
     };
 };
@@ -230,6 +266,7 @@ const hasChanges = computed(() => {
         orgData.value.provider !== initial.provider ||
         (orgData.value.apiKey || '') !== '' ||
         orgData.value.endpointUrl !== initial.endpointUrl ||
+        orgData.value.gatewayUrl !== initial.gatewayUrl ||
         orgData.value.modelId !== initial.modelId
     );
 });
@@ -259,16 +296,22 @@ const saveSettings = async () => {
 
     // Validation
     if (orgData.value.provider !== 'local') {
-        if (!orgData.value.apiKey && !orgData.value.hasApiKey && orgData.value.provider !== 'custom') { 
+        if (!orgData.value.apiKey && !orgData.value.hasApiKey && orgData.value.provider !== 'custom' && orgData.value.provider !== 'gateway') {
             return toast.show('Veuillez entrer une clé API pour ce fournisseur.', 'error');
         }
         if (orgData.value.provider === 'custom' && !orgData.value.endpointUrl) {
             return toast.show('Veuillez entrer l\'URL de l\'endpoint pour le serveur custom.', 'error');
         }
+        if (orgData.value.provider === 'gateway' && !orgData.value.gatewayUrl) {
+            return toast.show('Veuillez entrer l\'URL de votre Synco AI Gateway.', 'error');
+        }
+        if (orgData.value.provider === 'gateway' && !orgData.value.endpointUrl) {
+            return toast.show('Veuillez entrer l\'URL du serveur Ollama utilisé par la passerelle.', 'error');
+        }
         if (!orgData.value.modelId) {
             return toast.show('Veuillez indiquer l\'ID du modèle à utiliser.', 'error');
         }
-        if (orgData.value.provider !== 'custom' && !acceptCloudWarning.value) {
+        if (orgData.value.provider !== 'custom' && orgData.value.provider !== 'gateway' && !acceptCloudWarning.value) {
             return toast.show('Vous devez accepter les conditions d\'utilisation des services cloud externes.', 'error');
         }
     }
@@ -280,6 +323,7 @@ const saveSettings = async () => {
         const aiConfigPayload: any = {
             provider: orgData.value.provider,
             endpointUrl: orgData.value.endpointUrl,
+            gatewayUrl: orgData.value.gatewayUrl,
             modelId: orgData.value.modelId
         };
 
@@ -330,7 +374,8 @@ watch(() => orgData.value.provider, (newProv, oldProv) => {
         else if (newProv === 'gemini' && (!orgData.value.modelId || !orgData.value.modelId.includes('gemini'))) orgData.value.modelId = 'gemini-1.5-flash';
         else if (newProv === 'mistral' && (!orgData.value.modelId || !orgData.value.modelId.includes('istral'))) orgData.value.modelId = 'pixtral-12b-2409';
         
-        if (newProv !== 'custom') orgData.value.endpointUrl = '';
+        if (newProv !== 'custom' && newProv !== 'gateway') orgData.value.endpointUrl = '';
+        if (newProv !== 'gateway') orgData.value.gatewayUrl = '';
     }
 });
 
