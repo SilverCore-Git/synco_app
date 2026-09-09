@@ -757,7 +757,7 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
       result = `${created.length} salon(s) créé(s) avec succès. Les clés E2EE ont été générées et distribuées.`;
 
     } else if (toolCall.name === 'read_documentation') {
-      const docFiles = import.meta.glob('../../../../../doc/*.md', { query: '?raw', import: 'default', eager: true });
+      const docFiles = import.meta.glob('../../../../doc/*.md', { query: '?raw', import: 'default', eager: true });
 
       let fullDoc = "# Documentation de Synco\n\n";
       for (const [path, content] of Object.entries(docFiles)) {
@@ -916,7 +916,7 @@ const executeClientTool = async (name: string, args: any, imageId?: string): Pro
   }
 
   if (name === 'read_documentation') {
-    const docFiles = import.meta.glob('../../../../../doc/*.md', { query: '?raw', import: 'default', eager: true });
+    const docFiles = import.meta.glob('../../../../doc/*.md', { query: '?raw', import: 'default', eager: true });
     let fullDoc = '# Documentation de Synco\n\n';
     for (const [path, content] of Object.entries(docFiles)) {
       const fileName = path.split('/').pop()?.replace('.md', '') || path;
