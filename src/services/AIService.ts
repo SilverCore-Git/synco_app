@@ -354,6 +354,63 @@ export const fetchSessions = async () => {
     }
 };
 
+/**
+ * Reconstruit les turns "parts" (texte + tools entrelacés) affichés par OrgAI.vue à partir des
+ * StoredMessage[] structurés persistés par la nouvelle boucle d'agent serveur (rôles 'user' /
+ * 'assistant' avec toolCalls / 'tool' avec le résultat) — sans quoi une session rechargée perd
+ * tout l'affichage des tools (ils n'existent que sous forme de turns "parts" côté client).
+ * Une seule "turn" regroupe tout ce qui suit un message 'user', jusqu'au 'user' suivant :
+ * une réponse peut en effet être composée de plusieurs StoredMessage successifs (texte, tool,
+ * texte, tool...) qui forment visuellement un seul tour assistant continu.
+ */
+function convertStoredMessagesToChatMessages(stored: any[]): any[] {
+    const result: any[] = [];
+    let currentTurn: any = null;
+
+    for (const m of stored) {
+        if (m.role === 'user') {
+            currentTurn = null;
+            result.push({ role: 'user', content: m.content || '' });
+            continue;
+        }
+
+        if (!currentTurn) {
+            currentTurn = { role: 'assistant', content: '', viaAgentLoop: true, parts: [] };
+            result.push(currentTurn);
+        }
+
+        if (m.role === 'assistant') {
+            if (m.content) currentTurn.parts.push({ type: 'text', text: m.content });
+            for (const tc of m.toolCalls || []) {
+                currentTurn.parts.push({
+                    type: 'tool',
+                    tool: {
+                        toolCallId: tc.id,
+                        name: tc.name,
+                        args: tc.arguments,
+                        status: tc.status === 'error' ? 'error' : 'pending',
+                        category: tc.category,
+                        mutating: tc.mutating,
+                    },
+                });
+            }
+        } else if (m.role === 'tool') {
+            const part = currentTurn.parts.find((p: any) => p.type === 'tool' && p.tool.toolCallId === m.toolCallId);
+            if (part) {
+                part.tool.status = m.toolResult?.error ? 'error' : 'done';
+                part.tool.result = m.toolResult;
+            }
+        }
+    }
+
+    return result;
+}
+
+/** true si ces messages viennent de la nouvelle boucle d'agent serveur (présence d'un rôle 'tool' ou de toolCalls structurés). */
+function isStructuredAgentTranscript(messages: any[]): boolean {
+    return messages.some((m) => m.role === 'tool' || (Array.isArray(m.toolCalls) && m.toolCalls.length > 0));
+}
+
 export const loadSession = async (id: string) => {
     if (!openedOrg.value) return;
     try {
@@ -382,6 +439,10 @@ export const loadSession = async (id: string) => {
                 }
             }
             
+            if (Array.isArray(loadedMessages) && isStructuredAgentTranscript(loadedMessages)) {
+                loadedMessages = convertStoredMessagesToChatMessages(loadedMessages);
+            }
+
             aiSessionMessages.value = loadedMessages;
         }
     } catch (e) {
