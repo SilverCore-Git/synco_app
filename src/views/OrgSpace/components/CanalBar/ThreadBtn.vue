@@ -24,9 +24,9 @@
             >
 
                 <div class="flex items-center justify-center w-5 h-5">
-                    <i 
-                        class="bi bi-hash text-xl group-hover:opacity-100"
-                        :class="active ? 'opacity-100' : 'opacity-40'"
+                    <i
+                        class="text-xl group-hover:opacity-100"
+                        :class="[icon, active ? 'opacity-100' : 'opacity-40']"
                     />
                 </div>
 
@@ -103,7 +103,10 @@ const props = defineProps<{
   thread: Thread;
   active?: boolean;
   hasUnread?: boolean;
+  icon?: string;
 }>();
+
+const icon = computed(() => props.icon || 'bi-hash');
 
 // Ignore attributes passed by Draggable (class, data-draggable)
 defineOptions({

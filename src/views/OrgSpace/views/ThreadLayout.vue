@@ -11,6 +11,7 @@
                 <MobileBackBtn />
 
                 <i v-if="thread.type === 'text'" class="bi bi-hash text-2xl text-(--text2)" />
+                <i v-else-if="thread.type === 'board'" class="bi bi-clipboard-data text-xl text-(--text2)" />
                 <i v-else class="bi bi-volume-up-fill text-xl text-(--text2)" />
 
                 <h2 class="font-bold text-(--text) tracking-wide lowercase">
@@ -35,7 +36,11 @@
             <VoiceThreadView :thread="thread" />
         </template>
 
-        <template v-else-if="!isVoice && openedOrg">
+        <template v-else-if="isBoard && openedOrg && thread">
+            <BoardView :thread="thread" />
+        </template>
+
+        <template v-else-if="!isVoice && !isBoard && openedOrg">
             <ThreadView :thread="thread" />
         </template>
 
@@ -54,6 +59,7 @@ import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import VoiceThreadView from './VoiceThreadView.vue';
 import ThreadView from './ThreadView.vue';
+import BoardView from './board/BoardView.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import type { Thread, WorkSpace } from '@/types/types';
 import { openedOrg } from '@/assets/var';
@@ -63,6 +69,7 @@ import { useUsersBar } from '@/composables/useUsersBar';
 const route = useRoute();
 
 const isVoice = computed<boolean>(() => route.query.type == 'vocal');
+const isBoard = computed<boolean>(() => route.query.type == 'board');
 const { showUsersBar } = useUsersBar();
 
 const thread = computed(() => {

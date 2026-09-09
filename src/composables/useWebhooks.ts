@@ -550,12 +550,14 @@ async function getSpaceChannels(spaceId: string): Promise<WebhookTargetChannel[]
       return [];
     }
     
-    // Mapper les threads vers le format attendu par les webhooks
-    return space.threads.map(thread => ({
-      id: thread.id,
-      name: thread.name,
-      type: thread.type
-    }));
+    // Mapper les threads vers le format attendu par les webhooks (les cahiers des charges ne sont pas des canaux de messages)
+    return space.threads
+      .filter((thread): thread is typeof thread & { type: 'text' | 'vocal' } => thread.type !== 'board')
+      .map(thread => ({
+        id: thread.id,
+        name: thread.name,
+        type: thread.type
+      }));
   } catch (err: any) {
     console.error('[Webhooks] Erreur lors de la récupération des channels:', err);
     return null;

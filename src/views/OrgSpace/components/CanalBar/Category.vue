@@ -60,20 +60,30 @@
                 <template #item="{ element: thread }">
 
                     <div class="cursor-grab active:cursor-grabbing w-full">
-                        <ThreadBtn 
+                        <ThreadBtn
                             v-if="thread.type === 'text'"
                             :thread="thread"
                             :active="route.params.threadId == thread.id"
                             :hasUnread="getUnreadCountByThreadId(thread.id).value > 0 || thread.hasUnread"
                             :key="'thread-text-' + thread.id"
-                            @click="navigateToThread(thread.id)"
+                            @click="navigateToThread(thread)"
                         />
 
-                        <VoiceThreadBtn 
+                        <VoiceThreadBtn
                             v-else-if="thread.type === 'vocal'"
                             :thread="thread"
                             :active="route.params.threadId == thread.id"
                             :key="'thread-vocal-' + thread.id"
+                        />
+
+                        <ThreadBtn
+                            v-else-if="thread.type === 'board'"
+                            :thread="thread"
+                            icon="bi-clipboard-data"
+                            :active="route.params.threadId == thread.id"
+                            :hasUnread="getUnreadCountByThreadId(thread.id).value > 0 || thread.hasUnread"
+                            :key="'thread-board-' + thread.id"
+                            @click="navigateToThread(thread)"
                         />
                     </div>
 
@@ -142,10 +152,10 @@ const onChange = async () => {
 };
 
 
-const navigateToThread = (threadId: string) => {
-    const name = (route.name == 'OrgHome' || route.name == 'OrgThreadHome') 
+const navigateToThread = (thread: Thread) => {
+    const name = (route.name == 'OrgHome' || route.name == 'OrgThreadHome')
                  ? 'OrgThreadHome' : 'SpaceThreadView';
-    router.push({ name, params: { ...route.params, threadId }, query: { ...route.query, type: 'text', showView: '1' } });
+    router.push({ name, params: { ...route.params, threadId: thread.id }, query: { ...route.query, type: thread.type, showView: '1' } });
 };
 
 </script>

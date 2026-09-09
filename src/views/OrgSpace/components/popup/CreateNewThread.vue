@@ -19,17 +19,21 @@
             <div class="relative flex flex-col p-1 bg-(--bg2)/20 rounded-xl border border-(--border-color)">
                 
                 <div class="absolute top-1 bottom-1 left-1 right-1 pointer-events-none flex flex-col">
-                    <div 
-                        class="w-full h-1/2 bg-white/10 rounded-lg shadow-sm transition-transform duration-300 ease-out"
-                        :class="form.type === 'text' ? 'translate-y-0' : 'translate-y-full'"
+                    <div
+                        class="w-full h-1/3 bg-white/10 rounded-lg shadow-sm transition-transform duration-300 ease-out"
+                        :class="{
+                            'translate-y-0': form.type === 'text',
+                            'translate-y-full': form.type === 'vocal',
+                            'translate-y-[200%]': form.type === 'board',
+                        }"
                     ></div>
                 </div>
 
-                <button 
+                <button
                     @click="form.type = 'text'"
                     type="button"
                     :class="[
-                        'relative w-full flex justify-start items-center gap-3 pl-3 py-2 text-lg rounded-lg transition-colors z-10', 
+                        'relative w-full flex justify-start items-center gap-3 pl-3 py-2 text-lg rounded-lg transition-colors z-10',
                         form.type === 'text' ? 'text-white' : 'text-white/40 hover:text-white/60'
                     ]"
                 >
@@ -37,18 +41,60 @@
                     <span>Texte</span>
                 </button>
 
-                <button 
+                <button
                     @click="form.type = 'vocal'"
                     type="button"
                     :class="[
-                        'relative w-full flex justify-start items-center gap-3 pl-3 py-2 text-lg rounded-lg transition-colors z-10', 
+                        'relative w-full flex justify-start items-center gap-3 pl-3 py-2 text-lg rounded-lg transition-colors z-10',
                         form.type === 'vocal' ? 'text-white' : 'text-white/40 hover:text-white/60'
                     ]"
                 >
                     <i class="bi bi-volume-up-fill" />
                     <span>Vocal</span>
                 </button>
+
+                <button
+                    v-if="aiModuleEnabled"
+                    @click="form.type = 'board'"
+                    type="button"
+                    :class="[
+                        'relative w-full flex justify-start items-center gap-3 pl-3 py-2 text-lg rounded-lg transition-colors z-10',
+                        form.type === 'board' ? 'text-white' : 'text-white/40 hover:text-white/60'
+                    ]"
+                >
+                    <i class="bi bi-clipboard-data" />
+                    <span>Cahier des charges</span>
+                </button>
             </div>
+
+        </div>
+
+        <div v-if="form.type === 'board'" class="flex gap-2 flex-col">
+
+            <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
+                Catégorie du projet
+            </label>
+
+            <select
+                v-model="form.boardCategory"
+                class="
+                    w-full bg-(--bg2)/30 border border-white/10 rounded-xl
+                    px-4 py-3 text-(--text)
+                    focus:outline-none focus:border-(--primary)/50 focus:ring-1
+                    focus:ring-(--primary)/20 transition-all
+                "
+            >
+                <option value="web">Développement Web</option>
+                <option value="software">Software / Application</option>
+                <option value="hardware">Hardware / Électronique</option>
+                <option value="immobilier">Immobilier / BTP</option>
+                <option value="marketing">Marketing / Communication</option>
+                <option value="autre">Autre</option>
+            </select>
+
+            <p class="text-[10px] text-white/40 leading-relaxed">
+                Oriente les suggestions de l'IA (participant virtuel) durant le brainstorming.
+            </p>
 
         </div>
 
@@ -185,10 +231,16 @@ const props = defineProps<{
 const form = reactive({
   name: '',
   type: 'text',
+  boardCategory: 'autre',
   isPrivate: false,
   accessMembersId: [] as string[],
   isReadOnly: false,
   writersId: [] as string[]
+});
+
+const aiModuleEnabled = computed(() => {
+    const org = openedOrg.value;
+    return !!org?.features?.includes('ai') && org?.activeModules?.ai === true;
 });
 
 const availableMembers = computed(() => {
@@ -220,6 +272,8 @@ watch(() => form.type, (newType) => {
 const closeModal = () => {
   isOpen.value = false;
   form.name = '';
+  form.type = 'text';
+  form.boardCategory = 'autre';
   form.isPrivate = false;
   form.accessMembersId = [];
   form.isReadOnly = false;
@@ -237,7 +291,7 @@ const handleSubmit = async () => {
         const spaceId = route.params.spaceId as string;
         let encryptedKeysPayload: Array<{ userId: string; encryptedKey: string }> = [];
 
-        if (form.type === 'text') 
+        if (form.type === 'text' || form.type === 'board')
         {
 
             try {
@@ -337,7 +391,7 @@ const handleSubmit = async () => {
                     openedOrg.value?.home?.threads?.push(thread);
                 }
                 await nextTick();
-                router.push({ name: 'OrgThreadHome', params: { orgId: route.params.orgId, threadId: res.id } });
+                router.push({ name: 'OrgThreadHome', params: { orgId: route.params.orgId, threadId: res.id }, query: { type: form.type } });
             } 
             else 
             {
@@ -358,7 +412,7 @@ const handleSubmit = async () => {
                 });
 
                 await nextTick();
-                router.push({ name: 'SpaceThreadView', params: { orgId: route.params.orgId, spaceId, threadId: res.id } });
+                router.push({ name: 'SpaceThreadView', params: { orgId: route.params.orgId, spaceId, threadId: res.id }, query: { type: form.type } });
             }
 
             toast.show('Salon créé avec succès.', 'success');

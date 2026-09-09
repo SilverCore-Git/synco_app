@@ -1,4 +1,7 @@
-export type ThreadType = 'text' | 'vocal';
+export type ThreadType = 'text' | 'vocal' | 'board';
+export type BoardCategory = 'web' | 'software' | 'hardware' | 'immobilier' | 'marketing' | 'autre';
+export type BoardStep = 'CONTEXT' | 'SCOPE' | 'FUNCTIONAL' | 'TECHNICAL' | 'CONSTRAINTS';
+export type CardStatus = 'PENDING' | 'VALIDATED' | 'REJECTED' | 'MERGED';
 export type NotificationType = 'MESSAGE' | 'CALL' | 'MENTION' | 'INVITATION' | 'CUSTOM';
 // export type UserStatus = 'online' | 'dnd' | 'idle' | 'offline';
 
@@ -39,6 +42,7 @@ export interface Thread {
   ownerId: string;
   membersId: string[];
   type: ThreadType;
+  boardCategory?: BoardCategory;
   isReadOnly: boolean;
   isPrivate: boolean;
   writersId: string[];
@@ -162,6 +166,37 @@ export interface Message {
     webhookName?: string | null;
     webhookAvatar?: string | null;
     embeds?: any[];
+}
+
+export interface CardVote {
+    id: string;
+    cardId: string;
+    userId: string;
+    value: 1 | -1;
+}
+
+export interface Card {
+    id: string;
+    threadId: string;
+    step: BoardStep;
+    content: string; // Encrypted (E2EE, comme Message)
+    nonce?: string | null;
+    iv?: string | null;
+    authorId?: string | null;
+    isAiGenerated: boolean;
+    status: CardStatus;
+    moderatedById?: string | null;
+    moderatedAt?: string | Date | null;
+    similarToCardId?: string | null;
+    mergedIntoId?: string | null;
+    score?: number;
+    myVote?: 1 | -1 | null;
+    createdAt: string | Date;
+    updatedAt: string | Date;
+
+    // Champs locaux (déchiffrés côté client, jamais envoyés au serveur en clair sauf pour l'IA à la demande)
+    clearContent?: string;
+    author?: User;
 }
 
 export interface DMMessageReaction {
