@@ -377,6 +377,31 @@ export class AIService {
     }
 }
 
+/**
+ * Liste les modèles déjà présents sur le serveur Ollama d'une organisation, via sa Synco AI
+ * Gateway (pas d'appel direct navigateur → Ollama, pour éviter une config CORS séparée sur
+ * Ollama). Utilisé par AISettings.vue pour peupler le sélecteur de modèle du provider 'gateway'.
+ */
+export async function listGatewayModels(gatewayUrl: string, ollamaUrl: string): Promise<string[]> {
+    if (keycloak.authenticated) {
+        await keycloak.updateToken(60).catch(() => {});
+    }
+    const base = gatewayUrl.replace(/\/$/, '');
+    const url = `${base}/models?ollamaUrl=${encodeURIComponent(ollamaUrl)}`;
+
+    const res = await fetch(url, {
+        headers: keycloak.token ? { Authorization: `Bearer ${keycloak.token}` } : {},
+    });
+
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({} as any));
+        throw new Error(body.error || `Erreur ${res.status} lors de la récupération des modèles.`);
+    }
+
+    const data = await res.json();
+    return Array.isArray(data.models) ? data.models : [];
+}
+
 export const aiService = new AIService();
 
 // Vue Reactive Bindings for OrgAI.vue compatibility

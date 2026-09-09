@@ -124,28 +124,51 @@
                             <!-- Model ID -->
                             <div class="space-y-2">
                                 <label class="text-xs font-semibold text-(--text)">Modèle à utiliser</label>
-                                <div class="relative group">
+
+                                <div v-if="showModelSelect" class="space-y-2">
+                                    <div class="relative group">
+                                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2) group-focus-within:text-(--primary) transition-colors">
+                                            <i class="bi bi-robot"></i>
+                                        </div>
+                                        <select
+                                            v-model="modelSelection"
+                                            class="w-full bg-(--bg) border border-(--border-color) pl-11 pr-4 py-3 text-sm focus:outline-none rounded-xl focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner text-(--text) appearance-none"
+                                        >
+                                            <option value="" disabled>{{ loadingModels ? 'Chargement des modèles...' : 'Choisir un modèle' }}</option>
+                                            <option v-for="model in availableModelOptions" :key="model" :value="model">{{ model }}</option>
+                                            <option value="__manual__">Autre (saisie manuelle)...</option>
+                                        </select>
+                                    </div>
+                                    <input
+                                        v-if="modelSelection === '__manual__'"
+                                        v-model="orgData.modelId"
+                                        type="text"
+                                        class="w-full bg-(--bg) border border-(--border-color) px-4 py-3 text-sm focus:outline-none rounded-xl focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all font-mono shadow-inner text-(--text)"
+                                        :placeholder="defaultModelPlaceholder"
+                                    />
+                                </div>
+
+                                <div v-else class="relative group">
                                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2) group-focus-within:text-(--primary) transition-colors">
                                         <i class="bi bi-robot"></i>
                                     </div>
-                                    <input 
+                                    <input
                                         v-model="orgData.modelId"
                                         type="text"
                                         class="w-full bg-(--bg) border border-(--border-color) pl-11 pr-4 py-3 text-sm focus:outline-none rounded-xl focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all font-mono shadow-inner text-(--text)"
                                         :placeholder="defaultModelPlaceholder"
                                     />
                                 </div>
-                                <div class="flex gap-2 mt-3 flex-wrap" v-if="recommendedModels.length > 0">
-                                    <button 
-                                        v-for="model in recommendedModels" 
-                                        :key="model"
-                                        @click="orgData.modelId = model"
-                                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm"
-                                        :class="orgData.modelId === model ? 'primary' : 'border border-(--border-color) bg-(--bg3) text-(--text2) hover:bg-(--bg)'"
-                                    >
-                                        {{ model }}
-                                    </button>
-                                </div>
+
+                                <p v-if="orgData.provider === 'gateway' && loadingModels" class="text-xs text-(--text2)">
+                                    <i class="bi bi-arrow-repeat animate-spin mr-1"></i> Récupération des modèles disponibles sur Ollama...
+                                </p>
+                                <p v-else-if="orgData.provider === 'gateway' && modelsError" class="text-xs text-red-400">
+                                    {{ modelsError }}
+                                </p>
+                                <p v-else-if="orgData.provider === 'gateway' && !orgData.endpointUrl" class="text-xs text-(--text2)">
+                                    Renseignez l'URL du serveur Ollama ci-dessus pour lister les modèles déjà téléchargés.
+                                </p>
                             </div>
 
                             <!-- Cloud Warning -->
@@ -228,6 +251,7 @@ import Popup from '@/components/Popup.vue';
 import { openedOrg, organizations } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
+import { listGatewayModels } from '@/services/AIService';
 
 
 const toast = useToast();
@@ -279,10 +303,69 @@ const defaultModelPlaceholder = computed(() => {
 });
 
 const recommendedModels = computed(() => {
-    if (orgData.value.provider === 'openai') return ['gpt-4o-mini', 'gpt-4o'];
-    if (orgData.value.provider === 'gemini') return ['gemini-1.5-flash', 'gemini-1.5-pro'];
-    if (orgData.value.provider === 'mistral') return ['pixtral-12b-2409', 'mistral-large-latest'];
+    if (orgData.value.provider === 'openai') return ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1', 'o3-mini'];
+    if (orgData.value.provider === 'gemini') return ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash'];
+    if (orgData.value.provider === 'mistral') return ['pixtral-12b-2409', 'mistral-large-latest', 'mistral-small-latest'];
     return [];
+});
+
+// Modèles réellement disponibles sur l'Ollama de l'org (provider 'gateway'), récupérés en
+// direct via la passerelle dès que son URL et celle d'Ollama sont renseignées.
+const ollamaModels = ref<string[]>([]);
+const loadingModels = ref(false);
+const modelsError = ref('');
+let modelsFetchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+const fetchOllamaModels = async () => {
+    if (orgData.value.provider !== 'gateway' || !orgData.value.gatewayUrl || !orgData.value.endpointUrl) {
+        ollamaModels.value = [];
+        return;
+    }
+    loadingModels.value = true;
+    modelsError.value = '';
+    try {
+        ollamaModels.value = await listGatewayModels(orgData.value.gatewayUrl, orgData.value.endpointUrl);
+        if (ollamaModels.value.length === 0) {
+            modelsError.value = "Aucun modèle trouvé sur cet Ollama — pensez à en télécharger un (ollama pull).";
+        }
+    } catch (e: any) {
+        ollamaModels.value = [];
+        modelsError.value = e.message || 'Impossible de récupérer la liste des modèles.';
+    } finally {
+        loadingModels.value = false;
+    }
+};
+
+watch([() => orgData.value.provider, () => orgData.value.gatewayUrl, () => orgData.value.endpointUrl], () => {
+    if (modelsFetchTimeout) clearTimeout(modelsFetchTimeout);
+    modelsFetchTimeout = setTimeout(fetchOllamaModels, 500);
+}, { immediate: true });
+
+const availableModelOptions = computed(() => {
+    if (orgData.value.provider === 'gateway') return ollamaModels.value;
+    if (['openai', 'gemini', 'mistral'].includes(orgData.value.provider)) return recommendedModels.value;
+    return [];
+});
+
+const showModelSelect = computed(() => availableModelOptions.value.length > 0 || (orgData.value.provider === 'gateway' && loadingModels.value));
+
+// Select lié à orgData.modelId : reflète l'option en cours si elle fait partie de la liste,
+// bascule sur "saisie manuelle" sinon (garde une valeur déjà configurée qui ne serait plus
+// dans la liste, ex. un modèle retiré d'Ollama ou un ancien choix hors liste curatée).
+const modelSelection = computed<string>({
+    get() {
+        if (orgData.value.modelId && availableModelOptions.value.includes(orgData.value.modelId)) {
+            return orgData.value.modelId;
+        }
+        return orgData.value.modelId ? '__manual__' : '';
+    },
+    set(value: string) {
+        if (value !== '__manual__') {
+            orgData.value.modelId = value;
+        } else if (availableModelOptions.value.includes(orgData.value.modelId)) {
+            orgData.value.modelId = '';
+        }
+    }
 });
 
 const resetChanges = () => {
