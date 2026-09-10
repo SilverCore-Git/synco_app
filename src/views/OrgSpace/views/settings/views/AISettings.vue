@@ -235,6 +235,7 @@ import { openedOrg, organizations } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import { listGatewayModels } from '@/services/AIService';
+import { ensureAiSessionKey } from '@/services/AiSessionKeyService';
 
 
 const toast = useToast();
@@ -382,6 +383,19 @@ const saveSettings = async () => {
 
     saving.value = true;
 
+    // Provisionne (ou récupère) la clé de session IA chiffrée AVANT d'activer le provider 'gateway' —
+    // sans ça, un membre pourrait se retrouver avec provider='gateway' mais aucune clé, et son premier
+    // chat échouerait silencieusement (cf. E2EE_PLAN.md §6). Idempotent : ne fait rien de coûteux si la
+    // clé existe déjà pour cette org.
+    if (orgData.value.provider === 'gateway') {
+        try {
+            await ensureAiSessionKey(openedOrg.value!.id);
+        } catch (keyErr: any) {
+            toast.show(keyErr?.message || "Impossible de provisionner la clé de session IA chiffrée pour cette organisation.", 'error');
+            saving.value = false;
+            return;
+        }
+    }
 
     try {
         const aiConfigPayload: any = {
