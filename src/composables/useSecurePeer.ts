@@ -329,14 +329,16 @@ export default function useSecurePeer() {
         }
 
         // Validate timestamp (prevent replay attacks - accept messages within last 30 seconds)
-        if (message.timestamp && Math.abs(Date.now() - message.timestamp) > 30000) {
-            console.warn('[SECURE-PEER] Rejecting old key exchange message (possible replay attack)');
+        // Both fields are required: a message missing either one is rejected outright,
+        // rather than skipping the check it would otherwise have failed.
+        if (!message.timestamp || Math.abs(Date.now() - message.timestamp) > 30000) {
+            console.warn('[SECURE-PEER] Rejecting key exchange message with missing/expired timestamp (possible replay attack)');
             return;
         }
 
         // Validate callId matches current session (prevent session confusion)
-        if (message.callId && message.callId !== session.callId) {
-            console.warn('[SECURE-PEER] CallId mismatch, possible session hijacking attempt');
+        if (!message.callId || message.callId !== session.callId) {
+            console.warn('[SECURE-PEER] Rejecting key exchange message with missing/mismatched callId (possible session hijacking attempt)');
             return;
         }
 
