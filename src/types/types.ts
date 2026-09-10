@@ -194,6 +194,12 @@ export interface DMMessage {
 
     replyMessage?: DMMessage | null;
     replies?: DMMessage[];
+
+    type?: 'text' | 'voice_invite';
+    voiceInviteThreadId?: string | null;
+    voiceInviteOrgId?: string | null;
+    voiceInviteSpaceId?: string | null;
+    voiceInviteThreadName?: string | null;
 }
 
 export interface OrgMember {

@@ -212,7 +212,7 @@
         </div>
 
         <!-- Call Controls -->
-        <CallControls 
+        <CallControls
             :isMicOn="isMicEnabled"
             :isCamOn="isCameraEnabled"
             :isScreenSharing="isScreenShareEnabled"
@@ -220,7 +220,10 @@
             @toggleCam="toggleCamera(!isCameraEnabled)"
             @toggleScreenShare="toggleScreenShare(!isScreenShareEnabled)"
             @endCall="leaveRoom(thread?.id || '', String(route.params.spaceId))"
+            @invite="voiceInviteModalRef?.openModal()"
         />
+
+        <VoiceInviteModal v-if="props.thread" ref="voiceInviteModalRef" :thread="props.thread" />
 
     </div>
 
@@ -266,12 +269,13 @@
 
 <script setup lang="ts">
 
-import { ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { onMounted, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { Track } from 'livekit-client';
 import useLiveKit from '@/composables/useLiveKit';
 import VideoTrack from '../components/common/VideoTrack.vue';
 import CallControls from '@/components/peer/CallControls.vue';
+import VoiceInviteModal from '../components/popup/VoiceInviteModal.vue';
 import type { Thread } from '@/types/types';
 import { openedOrg } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
@@ -282,7 +286,9 @@ const props = defineProps<{
 }>();
 
 const route = useRoute();
+const router = useRouter();
 const toast = useToast();
+const voiceInviteModalRef = ref<any>(null);
 
 const { 
     allParticipants, 
@@ -328,5 +334,14 @@ const joinCall = async () => {
         isConnecting.value = false;
     }
 };
+
+onMounted(() => {
+    if (route.query.autojoin === '1' && !isConnected.value) {
+        joinCall();
+        const nextQuery = { ...route.query };
+        delete nextQuery.autojoin;
+        router.replace({ query: nextQuery });
+    }
+});
 
 </script>

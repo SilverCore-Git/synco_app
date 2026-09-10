@@ -53,6 +53,17 @@
             <i class="bi" :class="isCamOn ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'" />
         </button>
 
+        <!-- Invite Button -->
+        <button
+            v-if="!isMinimized"
+            @click="handleInvite"
+            :class="isMinimized ? 'w-10 h-10 text-lg' : 'w-12 h-12 text-xl'"
+            class="rounded-full bg-(--white)/10 hover:bg-(--white)/20 text-(--white) transition-all"
+            title="Inviter un membre"
+        >
+            <i class="bi bi-person-plus-fill" />
+        </button>
+
         <!-- End Call Button -->
         <button
             @click="handleEndCall"
@@ -77,11 +88,12 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const emit = defineEmits(['toggleMic', 'toggleCam', 'toggleScreenShare', 'endCall']);
+const emit = defineEmits(['toggleMic', 'toggleCam', 'toggleScreenShare', 'endCall', 'invite']);
 
 const toggleMic = () => emit('toggleMic');
 const toggleCam = () => emit('toggleCam');
 const toggleScreenShare = () => emit('toggleScreenShare');
 const handleEndCall = () => emit('endCall');
+const handleInvite = () => emit('invite');
 
 </script>

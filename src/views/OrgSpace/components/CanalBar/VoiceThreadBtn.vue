@@ -36,12 +36,18 @@
                         {{ thread.name }}
                     </span>
 
-                    <div 
-                        v-if="currentParticipants.length > 0" 
-                        class="ml-auto text-[10px] bg-black/20 px-1.5 py-0.5 rounded-full opacity-60"
+                    <div
+                        v-if="currentParticipants.length > 0"
+                        class="text-[10px] bg-black/20 px-1.5 py-0.5 rounded-full opacity-60"
                     >
                         {{ currentParticipants.length }}
                     </div>
+
+                    <i
+                        @click.stop="voiceInviteModalRef?.openModal()"
+                        class="bi bi-person-plus-fill opacity-0 group-hover:opacity-100 transition-opacity hover:text-(--primary) text-sm ml-auto"
+                        title="Inviter un membre"
+                    />
 
                 </button>
             </template>
@@ -49,6 +55,9 @@
                 <button @click="showEditThread = !showEditThread" class="dropdown-item-annimate dropdown-item-style">
                     <i class="bi bi-pencil-fill mr-2" />
                     Modifier
+                </button>
+                <button @click="voiceInviteModalRef?.openModal()" class="dropdown-item-annimate dropdown-item-style">
+                    <i class="bi bi-person-plus-fill mr-2"></i> Inviter un membre
                 </button>
                 <button @click="openInviteModal" class="dropdown-item-annimate dropdown-item-style">
                     <i class="bi bi-link-45deg mr-2"></i> Gérer les liens d'invitation
@@ -66,6 +75,7 @@
         />
 
         <InviteLinkModal ref="inviteModalRef" :thread="thread" />
+        <VoiceInviteModal ref="voiceInviteModalRef" :thread="thread" />
         
         <ConfirmDelete
             :show="showConfirmDelete"
@@ -121,6 +131,7 @@ import { openedOrg } from '@/assets/var';
 import DropDown from '@/components/DropDown.vue';
 import UpdateThread from '../popup/UpdateThread.vue';
 import InviteLinkModal from '../popup/InviteLinkModal.vue';
+import VoiceInviteModal from '../popup/VoiceInviteModal.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { usePermissions } from '@/composables/usePermissions';
 
@@ -132,6 +143,7 @@ const props = defineProps<{
 const route = useRoute();
 const router = useRouter();
 const inviteModalRef = ref<any>(null);
+const voiceInviteModalRef = ref<any>(null);
 const showConfirmDelete = ref<boolean>(false);
 const showEditThread = ref<boolean>(false);
 
