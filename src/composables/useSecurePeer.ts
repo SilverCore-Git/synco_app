@@ -875,38 +875,6 @@ export default function useSecurePeer() {
         return callSecurityStatus.value.get(peerId) || { encrypted: false, authenticated: false, fingerprint: '' };
     };
 
-    /**
-     * Send encrypted signaling message over data channel
-     */
-    const sendEncryptedSignal = async (peerId: string, message: string): Promise<boolean> => {
-        const session = activeCalls.value.get(peerId);
-        const encryptionKey = callEncryptionKeys.value.get(peerId);
-        
-        if (!session || !encryptionKey) {
-            console.error('[SECURE-PEER] Cannot send encrypted signal: no session or key');
-            return false;
-        }
-
-        try {
-            const encoder = new TextEncoder();
-            const iv = crypto.getRandomValues(new Uint8Array(12));
-            
-            await crypto.subtle.encrypt(
-                { name: 'AES-GCM', iv },
-                encryptionKey,
-                encoder.encode(message)
-            );
-
-            // For now, use the session's data channel if available
-            // This is a simplified implementation
-            console.log('[SECURE-PEER] Encrypted signal prepared for:', peerId);
-            return true;
-        } catch (error) {
-            console.error('[SECURE-PEER] Error encrypting signal:', error);
-            return false;
-        }
-    };
-
     return {
         initPeer,
         startCall,
@@ -934,7 +902,6 @@ export default function useSecurePeer() {
         // Security features
         getCallSecurityStatus,
         verifySecurityFingerprint,
-        callSecurityStatus,
-        sendEncryptedSignal
+        callSecurityStatus
     };
 }
