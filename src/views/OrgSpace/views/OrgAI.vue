@@ -20,7 +20,8 @@
       </div>
 
       <!-- Chat Container -->
-      <div class="flex-1 overflow-y-auto p-6 space-y-6 flex flex-col w-full max-w-5xl mx-auto" ref="chatContainer">
+      <div class="flex-1 overflow-y-auto p-6 space-y-6 flex flex-col w-full max-w-5xl mx-auto" ref="chatContainer"
+        @scroll="onChatScroll">
 
         <!-- Welcome Message -->
         <div v-if="messages.length === 0"
@@ -36,22 +37,40 @@
         <div v-for="(msg, index) in messages" :key="index"
           v-show="msg.role !== 'system' && !(msg.role === 'user' && msg.content && msg.content.startsWith('[SYSTEM]'))"
           class="flex w-full" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
-          <div class="max-w-[75%] rounded-2xl p-4 text-sm leading-relaxed"
-            :class="msg.role === 'user' ? 'bg-(--primary)/20 text-white border border-(--primary)/30 rounded-tr-sm' : 'bg-white/5 border border-white/10 rounded-tl-sm font-mono'">
-            <div class="flex items-center gap-2 mb-2 opacity-50 text-[10px] uppercase font-bold tracking-wider">
-              <i :class="msg.role === 'user' ? 'bi-person' : 'bi-robot'"></i>
-              {{ msg.role === 'user' ? 'Vous' : 'Synco AI' }}
-            </div>
+
+          <!-- User message: light bubble, right-aligned -->
+          <div v-if="msg.role === 'user'" class="max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed bg-(--primary)/15 border border-(--primary)/20">
+            <div v-html="formatMessage(msg.content)" @click="handleLinks" class="prose prose-invert max-w-none prose-sm"></div>
+          </div>
+
+          <!-- Assistant turn: new agent loop (OpenAI/Mistral/Gemini) — structured parts, Claude-like -->
+          <div v-else-if="msg.viaAgentLoop" class="w-full text-sm leading-relaxed text-(--text)">
+            <AgentTurn
+              :parts="msg.parts || []"
+              :is-generating="isGenerating && index === messages.length - 1"
+              @accept="(tool) => handleAgentToolDecision(tool, true, index)"
+              @reject="(tool) => handleAgentToolDecision(tool, false, index)"
+              @open-task="(t) => selectedTask = t"
+              @provide-image="(tool, base64) => {
+                const id = 'img_' + Date.now();
+                temporaryImages[id] = base64;
+                handleAgentToolDecision(tool, true, index, id);
+              }"
+            />
+          </div>
+
+          <!-- Assistant turn: legacy path (local/custom, migration pending) -->
+          <div v-else class="w-full text-sm leading-relaxed text-(--text)">
             <div v-if="msg.content" v-html="formatMessage(msg.content)" @click="handleLinks"
               class="prose prose-invert max-w-none prose-sm"></div>
-            <div v-else-if="msg.role === 'assistant' && isGenerating && !msg.tool_call" class="flex gap-1 py-2">
-              <div class="w-1.5 h-1.5 bg-white/50 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
-              <div class="w-1.5 h-1.5 bg-white/50 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
-              <div class="w-1.5 h-1.5 bg-white/50 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+            <div v-else-if="isGenerating && !msg.tool_call" class="flex gap-1 py-2">
+              <div class="w-1.5 h-1.5 bg-(--text2)/60 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+              <div class="w-1.5 h-1.5 bg-(--text2)/60 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+              <div class="w-1.5 h-1.5 bg-(--text2)/60 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
             </div>
 
-            <!-- Tool Call Widget -->
-            <div v-if="msg.tool_call" class="mt-4 bg-black/40 border border-(--primary)/30 rounded-xl p-4">
+            <!-- Tool Call Widget (legacy) -->
+            <div v-if="msg.tool_call" class="mt-3 bg-(--bg2)/60 border border-white/10 rounded-xl p-4">
               <div class="flex items-center gap-2 mb-2 text-(--primary) font-bold text-xs uppercase">
                 <i class="bi bi-search" v-if="msg.tool_call.name === 'search_messages'"></i>
                 <i class="bi bi-book" v-else-if="msg.tool_call.name === 'read_documentation'"></i>
@@ -88,9 +107,11 @@
                   }" />
                 </div>
                 <div v-else class="flex gap-2">
-                  <button @click="handleToolCall(msg.tool_call, true, index)"
+                  <button
+                    @click="handleToolCall(msg.tool_call!, true, index)"
                     class="bg-green-500/20 text-green-500 border border-green-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-500/30 transition-colors">Accepter</button>
-                  <button @click="handleToolCall(msg.tool_call, false, index)"
+                  <button
+                    @click="handleToolCall(msg.tool_call!, false, index)"
                     class="bg-red-500/20 text-red-500 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/30 transition-colors">Refuser</button>
                 </div>
               </div>
@@ -217,10 +238,19 @@
             </div>
           </div>
         </div>
-
-        <!-- System/Tool internal messages (hidden or subtle) -->
-        <div v-if="false"></div>
       </div>
+
+      <!-- Scroll to bottom -->
+      <Transition name="fade">
+        <button
+          v-if="showScrollToBottom"
+          @click="scrollToBottom()"
+          class="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 w-9 h-9 rounded-full bg-(--bg2) border border-(--border-color) shadow-lg flex items-center justify-center text-(--text2) hover:text-(--text) hover:border-(--primary)/40 transition-colors"
+          title="Aller en bas"
+        >
+          <i class="bi bi-arrow-down text-sm"></i>
+        </button>
+      </Transition>
 
       <!-- Loading / Status Bar / Manual Start -->
       <div v-if="aiIsLocal && !aiIsInitialized"
@@ -343,12 +373,14 @@
 import { ref, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
 import * as webllm from '@mlc-ai/web-llm';
 import { localLLM, availableModels } from '@/services/LocalLLMService';
-import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages, syncSession, fetchSessions, activeSessionId, selectedModelId } from '@/services/AIService';
+import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages, syncSession, fetchSessions, activeSessionId, selectedModelId, setEncryptedSessionTitle } from '@/services/AIService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import IconSelector from '@/components/common/IconSelector.vue';
+import AgentTurn from '../components/ai/AgentTurn.vue';
+import type { TurnPart, ToolStep } from '../components/ai/agentTypes';
 import { useUsersBar } from '@/composables/useUsersBar';
 import useSettingsItem from '@/composables/useSettingsItem';
 import { useRoute, useRouter } from 'vue-router';
@@ -411,8 +443,25 @@ const getSearchQuery = (argsStr: any) => {
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
-  tool_call?: { name: string; arguments: string; status: 'pending' | 'accepted' | 'rejected' | 'executing' };
+  tool_call?: {
+    toolCallId?: string;
+    name: string;
+    arguments: string;
+    status: 'pending' | 'accepted' | 'rejected' | 'executing' | 'done' | 'error';
+    category?: 'server' | 'client';
+    mutating?: boolean;
+    interactive?: boolean;
+    result?: any;
+  };
   tool_data?: any;
+  /**
+   * true si ce message vient de la nouvelle boucle d'agent serveur (providers OpenAI/Mistral/
+   * Gemini) plutôt que de l'ancien parseur regex — détermine quel gestionnaire de tool utiliser
+   * ET quel rendu appliquer (parts structurées vs. widget tool_call unique historique).
+   */
+  viaAgentLoop?: boolean;
+  /** Uniquement pour viaAgentLoop : texte et tools entrelacés dans l'ordre d'arrivée. */
+  parts?: TurnPart[];
 }
 
 const recommendedModelId = ref<string>('');
@@ -438,6 +487,16 @@ const scrollToBottom = async () => {
   if (chatContainer.value) {
     chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
   }
+  showScrollToBottom.value = false;
+};
+
+const showScrollToBottom = ref(false);
+
+const onChatScroll = () => {
+  const el = chatContainer.value;
+  if (!el) return;
+  const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+  showScrollToBottom.value = distanceFromBottom > 200;
 };
 
 const initError = ref('');
@@ -698,7 +757,7 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
       result = `${created.length} salon(s) créé(s) avec succès. Les clés E2EE ont été générées et distribuées.`;
 
     } else if (toolCall.name === 'read_documentation') {
-      const docFiles = import.meta.glob('../../../../../doc/*.md', { query: '?raw', import: 'default', eager: true });
+      const docFiles = import.meta.glob('../../../../doc/*.md', { query: '?raw', import: 'default', eager: true });
 
       let fullDoc = "# Documentation de Synco\n\n";
       for (const [path, content] of Object.entries(docFiles)) {
@@ -745,6 +804,210 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
   }
 };
 
+/** Ajoute du texte au dernier segment 'text' de la turn, ou en ouvre un nouveau si le dernier segment est un tool. */
+const appendTextPart = (idx: number, delta: string) => {
+  const parts = messages.value[idx]!.parts!;
+  const last = parts[parts.length - 1];
+  if (last && last.type === 'text') last.text += delta;
+  else parts.push({ type: 'text', text: delta });
+};
+
+/** Met à jour le tool_call déjà présent dans la turn (par id), ou en ajoute un nouveau segment. */
+const upsertToolPart = (idx: number, toolCallId: string, patch: Partial<ToolStep> & { name: string }) => {
+  const parts = messages.value[idx]!.parts!;
+  const existing = parts.find((p) => p.type === 'tool' && p.tool.toolCallId === toolCallId) as { type: 'tool'; tool: ToolStep } | undefined;
+  if (existing) {
+    Object.assign(existing.tool, patch);
+  } else {
+    parts.push({ type: 'tool', tool: { toolCallId, status: 'pending', ...patch } });
+  }
+};
+
+/**
+ * Consomme le flux SSE de la nouvelle boucle d'agent serveur (chatAgentTurn/resumeAgentTurn) et
+ * alimente les parts (texte + tools entrelacés) de la turn en cours. getIndex/setIndex existent
+ * pour compatibilité mais pointent désormais toujours vers LA MÊME turn : contrairement à l'ancien
+ * modèle une bulle par tool, tout le tour (texte + tools + texte...) reste dans un seul message,
+ * comme le fait réellement Claude.
+ */
+const consumeAgentStream = async (
+  generator: AsyncGenerator<any, void, unknown>,
+  getIndex: () => number,
+  setIndex: (i: number) => void,
+  newSessionTitleSource?: string
+) => {
+  for await (const ev of generator) {
+    if (!isGenerating.value) break;
+    const idx = getIndex();
+    if (!messages.value[idx]) break;
+
+    if (ev.type === 'session') {
+      if (activeSessionId.value !== ev.sessionId) {
+        const isNewSession = !activeSessionId.value;
+        activeSessionId.value = ev.sessionId;
+        fetchSessions();
+
+        // Titre chiffré côté client pour le tout premier message d'une nouvelle session 'gateway' —
+        // synco_api ne peut plus le dériver lui-même une fois le content opaque pour lui (E2EE_PLAN.md §4.4).
+        // Fire-and-forget : ne doit jamais bloquer/faire échouer l'envoi du message.
+        if (isNewSession && newSessionTitleSource && aiService.config.provider === 'gateway') {
+          const orgId = route.params.orgId as string;
+          setEncryptedSessionTitle(orgId, ev.sessionId, newSessionTitleSource);
+        }
+      }
+    } else if (ev.type === 'text') {
+      appendTextPart(idx, ev.delta);
+    } else if (ev.type === 'tool_call_result') {
+      upsertToolPart(idx, ev.toolCallId, { name: ev.name, status: 'done', category: 'server', mutating: false, result: ev.result });
+    } else if (ev.type === 'tool_call_pending') {
+      upsertToolPart(idx, ev.toolCallId, { name: ev.name, args: ev.args, status: 'pending', category: 'server', mutating: true });
+    } else if (ev.type === 'tool_call_client_required') {
+      upsertToolPart(idx, ev.toolCallId, {
+        name: ev.name, args: ev.args,
+        status: (ev.mutating || ev.interactive) ? 'pending' : 'executing',
+        category: 'client', mutating: ev.mutating, interactive: ev.interactive,
+      });
+      if (!ev.mutating && !ev.interactive) {
+        // Tool client non-mutant (ex: search_messages) : exécution immédiate, sans confirmation.
+        const parts = messages.value[idx]!.parts!;
+        const tool = (parts.find((p) => p.type === 'tool' && p.tool.toolCallId === ev.toolCallId) as { type: 'tool'; tool: ToolStep }).tool;
+        await handleAgentToolDecision(tool, true, idx);
+        return;
+      }
+    } else if (ev.type === 'done') {
+      isGenerating.value = false;
+    } else if (ev.type === 'error') {
+      appendTextPart(idx, `\n\n**Erreur:** ${ev.error}`);
+      isGenerating.value = false;
+    }
+
+    await scrollToBottom();
+  }
+};
+
+/** Exécute côté client les tools de catégorie 'client' (contenu E2EE réel ou cérémonie de clé). */
+const executeClientTool = async (name: string, args: any, imageId?: string): Promise<any> => {
+  const orgId = route.params.orgId as string;
+
+  if (name === 'search_messages') {
+    const org = openedOrg.value;
+    if (org && org.spaces && privateKey.value) {
+      for (const space of org.spaces) {
+        await SearchSyncService.restoreWorkspaceIndexes(space.id, toRaw(privateKey.value));
+      }
+    }
+    const query = args.query;
+    const workerId = Date.now().toString();
+    const vector = await new Promise<number[]>((resolve, reject) => {
+      const handler = (e: MessageEvent) => {
+        if (e.data.id === workerId && e.data.status === 'complete') {
+          globalVectorWorker.removeEventListener('message', handler);
+          resolve(e.data.vector);
+        } else if (e.data.id === workerId && e.data.status === 'error') {
+          globalVectorWorker.removeEventListener('message', handler);
+          reject(new Error(e.data.error));
+        }
+      };
+      globalVectorWorker.addEventListener('message', handler);
+      globalVectorWorker.postMessage({ id: workerId, text: query, type: 'SEARCH' });
+    });
+    const searchResults = await localSearchDB.searchByVector(vector, query, undefined, 5);
+    return { query, results: searchResults };
+  }
+
+  if (name === 'create_thread') {
+    const threads = args.threads || [];
+    if (threads.length === 0) throw new Error('Aucun salon spécifié.');
+    const created = [];
+    for (const t of threads) {
+      created.push(await createThreadHelper(orgId, t.spaceId, t.name, t.type));
+    }
+    return { threads: created };
+  }
+
+  if (name === 'read_documentation') {
+    const docFiles = import.meta.glob('../../../../doc/*.md', { query: '?raw', import: 'default', eager: true });
+    let fullDoc = '# Documentation de Synco\n\n';
+    for (const [path, content] of Object.entries(docFiles)) {
+      const fileName = path.split('/').pop()?.replace('.md', '') || path;
+      fullDoc += `## Chapitre : ${fileName}\n\n${content}\n\n---\n\n`;
+    }
+    return { content: fullDoc };
+  }
+
+  if (name === 'request_image_upload') {
+    return { id: imageId, note: `Utilise EXACTEMENT '${imageId}' pour le paramètre 'logo' de create_space.` };
+  }
+
+  throw new Error(`Outil client inconnu: ${name}`);
+};
+
+/** Accepte/refuse un tool posé par la nouvelle boucle d'agent serveur, puis reprend le flux. */
+const handleAgentToolDecision = async (
+  toolCall: ToolStep,
+  accept: boolean,
+  assistantMsgIndex: number,
+  imageId?: string
+) => {
+  const orgId = route.params.orgId as string;
+  const sessionId = activeSessionId.value;
+  if (!sessionId || !toolCall.toolCallId) return;
+
+  toolCall.status = 'executing';
+
+  let decision: { accepted?: boolean; clientResult?: any };
+
+  if (toolCall.category === 'client') {
+    if (!accept) {
+      decision = { clientResult: { error: "Action refusée par l'utilisateur." } };
+    } else {
+      try {
+        const args = typeof toolCall.args === 'string' ? JSON.parse(toolCall.args || '{}') : toolCall.args;
+        decision = { clientResult: await executeClientTool(toolCall.name, args, imageId) };
+      } catch (e: any) {
+        decision = { clientResult: { error: e.message || 'Erreur technique.' } };
+      }
+    }
+  } else {
+    decision = { accepted: accept };
+  }
+
+  isGenerating.value = true;
+  await scrollToBottom();
+  try {
+    let idx = assistantMsgIndex;
+    const generator = aiService.resumeAgentTurn(orgId, sessionId, decision);
+    await consumeAgentStream(generator, () => idx, (i) => { idx = i; });
+  } catch (e: any) {
+    if (messages.value[assistantMsgIndex]) appendTextPart(assistantMsgIndex, `\n\n**Erreur:** ${e.message}`);
+  } finally {
+    isGenerating.value = false;
+  }
+};
+
+/** Providers OpenAI/Mistral/Gemini : la conversation passe entièrement par la boucle d'agent serveur. */
+const sendMessageViaAgent = async (text: string) => {
+  const orgId = route.params.orgId as string;
+  messages.value.push({ role: 'user', content: text });
+  const assistantMsgIndex = messages.value.length;
+  messages.value.push({ role: 'assistant', content: '', viaAgentLoop: true, parts: [] });
+
+  isGenerating.value = true;
+  await scrollToBottom();
+
+  try {
+    let idx = assistantMsgIndex;
+    const generator = aiService.chatAgentTurn(orgId, activeSessionId.value, text);
+    await consumeAgentStream(generator, () => idx, (i) => { idx = i; }, text);
+  } catch (error: any) {
+    if (error.message !== 'USER_STOPPED' && !String(error).includes('USER_STOPPED')) {
+      appendTextPart(assistantMsgIndex, `\n\n**Erreur:** ${error.message}`);
+    }
+  } finally {
+    isGenerating.value = false;
+  }
+};
+
 const sendMessage = async (hiddenPrompt?: string) => {
   if (isGenerating.value) {
     stopGeneration();
@@ -756,6 +1019,14 @@ const sendMessage = async (hiddenPrompt?: string) => {
 
   if (!hiddenPrompt) {
     inputMsg.value = '';
+  }
+
+  if (!hiddenPrompt && ['openai', 'mistral', 'gemini', 'gateway'].includes(aiService.config.provider)) {
+    await sendMessageViaAgent(text);
+    return;
+  }
+
+  if (!hiddenPrompt) {
     messages.value.push({ role: 'user', content: text });
   }
 
@@ -809,6 +1080,9 @@ const sendMessage = async (hiddenPrompt?: string) => {
 onMounted(async () => {
   const recommended = await localLLM.getRecommendedModel();
   recommendedModelId.value = recommended.id;
+
+  await nextTick();
+  chatInputRef.value?.textarea?.focus();
 });
 
 watch(() => openedOrg.value, async (newVal) => {
