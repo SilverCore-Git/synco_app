@@ -57,10 +57,13 @@ export class AIService {
      * E2EE_PLAN.md §3-4. `synco_api` ne voit jamais cette clé (appel direct navigateur→gateway).
      */
     private async gatewayFetch(orgId: string, url: string, body: any, signal: AbortSignal): Promise<Response> {
-        if (keycloak.authenticated) {
-            await keycloak.updateToken(60).catch(() => {});
-        }
-        const sessionKeyB64 = await getAiSessionKeyRawBase64(orgId);
+        // Indépendants l'un de l'autre (rafraîchir le token Keycloak / récupérer la clé de session
+        // IA) — en parallèle plutôt qu'en séquence, ça évite d'empiler deux aller-retours réseau
+        // quand ni l'un ni l'autre n'est déjà en cache (ex: tout premier message d'une session).
+        const [, sessionKeyB64] = await Promise.all([
+            keycloak.authenticated ? keycloak.updateToken(60).catch(() => {}) : Promise.resolve(),
+            getAiSessionKeyRawBase64(orgId),
+        ]);
         return fetch(url, {
             method: 'POST',
             headers: {
