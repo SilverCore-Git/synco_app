@@ -373,7 +373,7 @@
 import { ref, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
 import * as webllm from '@mlc-ai/web-llm';
 import { localLLM, availableModels } from '@/services/LocalLLMService';
-import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages, syncSession, fetchSessions, activeSessionId, selectedModelId } from '@/services/AIService';
+import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages, syncSession, fetchSessions, activeSessionId, selectedModelId, setEncryptedSessionTitle } from '@/services/AIService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
@@ -833,7 +833,8 @@ const upsertToolPart = (idx: number, toolCallId: string, patch: Partial<ToolStep
 const consumeAgentStream = async (
   generator: AsyncGenerator<any, void, unknown>,
   getIndex: () => number,
-  setIndex: (i: number) => void
+  setIndex: (i: number) => void,
+  newSessionTitleSource?: string
 ) => {
   for await (const ev of generator) {
     if (!isGenerating.value) break;
@@ -842,8 +843,17 @@ const consumeAgentStream = async (
 
     if (ev.type === 'session') {
       if (activeSessionId.value !== ev.sessionId) {
+        const isNewSession = !activeSessionId.value;
         activeSessionId.value = ev.sessionId;
         fetchSessions();
+
+        // Titre chiffré côté client pour le tout premier message d'une nouvelle session 'gateway' —
+        // synco_api ne peut plus le dériver lui-même une fois le content opaque pour lui (E2EE_PLAN.md §4.4).
+        // Fire-and-forget : ne doit jamais bloquer/faire échouer l'envoi du message.
+        if (isNewSession && newSessionTitleSource && aiService.config.provider === 'gateway') {
+          const orgId = route.params.orgId as string;
+          setEncryptedSessionTitle(orgId, ev.sessionId, newSessionTitleSource);
+        }
       }
     } else if (ev.type === 'text') {
       appendTextPart(idx, ev.delta);
@@ -988,7 +998,7 @@ const sendMessageViaAgent = async (text: string) => {
   try {
     let idx = assistantMsgIndex;
     const generator = aiService.chatAgentTurn(orgId, activeSessionId.value, text);
-    await consumeAgentStream(generator, () => idx, (i) => { idx = i; });
+    await consumeAgentStream(generator, () => idx, (i) => { idx = i; }, text);
   } catch (error: any) {
     if (error.message !== 'USER_STOPPED' && !String(error).includes('USER_STOPPED')) {
       appendTextPart(assistantMsgIndex, `\n\n**Erreur:** ${error.message}`);
