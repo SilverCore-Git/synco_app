@@ -3,7 +3,8 @@ import { localLLM } from './LocalLLMService';
 import { computed, ref } from 'vue';
 import sfetch from '@/assets/utils/sfetch';
 import { keycloak } from '@/assets/keycloak';
-import { encryptForPeer, decryptFromPeer, privateKey } from '@/assets/utils/crypto';
+import { encryptForPeer, decryptFromPeer, privateKey, encryptAiField, decryptAiField } from '@/assets/utils/crypto';
+import { ensureAiSessionKey, getAiSessionKeyRawBase64, AiSessionKeyUnavailableError } from './AiSessionKeyService';
 
 export interface AIProviderConfig {
     provider: 'local' | 'openai' | 'gemini' | 'mistral' | 'custom' | 'gateway';
@@ -51,16 +52,21 @@ export class AIService {
      * Appel direct navigateur → passerelle, sans passer par sfetch (qui cible toujours
      * VITE_API_URL) : on attache le même token Keycloak à la main, exactement comme sfetch le
      * ferait, mais vers une origine arbitraire (l'URL de la Synco AI Gateway auto-hébergée).
+     * Porte aussi la clé de session IA de l'org (X-Session-Key) — la passerelle en a besoin pour
+     * déchiffrer/chiffrer les champs sensibles avant/après son propre appel à synco_api, cf.
+     * E2EE_PLAN.md §3-4. `synco_api` ne voit jamais cette clé (appel direct navigateur→gateway).
      */
-    private async gatewayFetch(url: string, body: any, signal: AbortSignal): Promise<Response> {
+    private async gatewayFetch(orgId: string, url: string, body: any, signal: AbortSignal): Promise<Response> {
         if (keycloak.authenticated) {
             await keycloak.updateToken(60).catch(() => {});
         }
+        const sessionKeyB64 = await getAiSessionKeyRawBase64(orgId);
         return fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 ...(keycloak.token ? { Authorization: `Bearer ${keycloak.token}` } : {}),
+                'X-Session-Key': sessionKeyB64,
             },
             body: JSON.stringify(body),
             signal,
@@ -80,7 +86,7 @@ export class AIService {
 
         if (this.config.provider === 'gateway') {
             const gatewayUrl = (this.config.gatewayUrl || '').replace(/\/$/, '');
-            response = await this.gatewayFetch(`${gatewayUrl}/chat`, {
+            response = await this.gatewayFetch(orgId, `${gatewayUrl}/chat`, {
                 orgId,
                 sessionId: sessionId || undefined,
                 message,
@@ -110,7 +116,7 @@ export class AIService {
 
         if (this.config.provider === 'gateway') {
             const gatewayUrl = (this.config.gatewayUrl || '').replace(/\/$/, '');
-            response = await this.gatewayFetch(`${gatewayUrl}/chat/${sessionId}/tool-result`, {
+            response = await this.gatewayFetch(orgId, `${gatewayUrl}/chat/${sessionId}/tool-result`, {
                 orgId,
                 syncoApiUrl: import.meta.env.VITE_API_URL,
                 modelId: this.config.modelId,
@@ -420,9 +426,25 @@ export const activeSessionId = ref<string | null>(null);
 export const fetchSessions = async () => {
     if (!openedOrg.value) return;
     try {
-        const res = await sfetch(`/api/orgs/${openedOrg.value.id}/ai/sessions`);
+        const orgId = openedOrg.value.id;
+        const res = await sfetch(`/api/orgs/${orgId}/ai/sessions`);
         if (res.ok) {
-            chatSessions.value = await res.json();
+            const sessions: any[] = await res.json();
+
+            await Promise.all(sessions.map(async (session) => {
+                // Titre chiffré côté client (provider 'gateway' uniquement, cf. setEncryptedSessionTitle) —
+                // un titre pas encore posé (session flambant neuve) reste le défaut en clair de synco_api.
+                if (session.encryptionScheme === 'gateway-aes-gcm-v1' && typeof session.title === 'string' && session.title.startsWith('gcm1:')) {
+                    try {
+                        const key = await ensureAiSessionKey(orgId);
+                        session.title = await decryptAiField(key, session.id, '__session_title__', 'title', session.title);
+                    } catch (e) {
+                        session.title = '🔒 Titre chiffré';
+                    }
+                }
+            }));
+
+            chatSessions.value = sessions;
         }
     } catch (e) {
         console.error("Erreur chargement des sessions", e);
@@ -486,22 +508,74 @@ function isStructuredAgentTranscript(messages: any[]): boolean {
     return messages.some((m) => m.role === 'tool' || (Array.isArray(m.toolCalls) && m.toolCalls.length > 0));
 }
 
+/**
+ * Déchiffre les champs opaques `"gcm1:..."` d'un StoredMessage[] issu du nouveau flux agent
+ * serveur (provider 'gateway', session.encryptionScheme === 'gateway-aes-gcm-v1') : `content`,
+ * `toolResult`, `toolCalls[].arguments`, tous liés par AAD à `session.id` + l'id du message
+ * (cf. E2EE_PLAN.md §2 et §4.3). `pendingToolCall.args` n'est décrypté nulle part côté frontend
+ * aujourd'hui (aucun composant ne lit `session.pendingToolCall`) — laissé chiffré tel quel plutôt
+ * que déchiffré pour rien ; utiliser decryptAiField(key, session.id, '__pending__',
+ * 'pending_tool_call_args', ...) le jour où une UI en a besoin.
+ */
+async function decryptGatewaySessionMessages(key: CryptoKey, sessionId: string, messages: any[]): Promise<any[]> {
+    return Promise.all(messages.map(async (m) => {
+        const out = { ...m };
+
+        if (typeof out.content === 'string' && out.content.startsWith('gcm1:')) {
+            out.content = await decryptAiField(key, sessionId, m.id, 'content', out.content);
+        }
+
+        if (typeof out.toolResult === 'string' && out.toolResult.startsWith('gcm1:')) {
+            out.toolResult = JSON.parse(await decryptAiField(key, sessionId, m.id, 'tool_result', out.toolResult));
+        }
+
+        if (Array.isArray(out.toolCalls)) {
+            out.toolCalls = await Promise.all(out.toolCalls.map(async (tc: any) => {
+                if (typeof tc.arguments === 'string' && tc.arguments.startsWith('gcm1:')) {
+                    const decrypted = await decryptAiField(key, sessionId, m.id, `tool_call_arguments:${tc.id}`, tc.arguments);
+                    return { ...tc, arguments: JSON.parse(decrypted) };
+                }
+                return tc;
+            }));
+        }
+
+        return out;
+    }));
+}
+
 export const loadSession = async (id: string) => {
     if (!openedOrg.value) return;
     try {
-        const res = await sfetch(`/api/orgs/${openedOrg.value.id}/ai/sessions/${id}`);
+        const orgId = openedOrg.value.id;
+        const res = await sfetch(`/api/orgs/${orgId}/ai/sessions/${id}`);
         if (res.ok) {
             const session = await res.json();
             activeSessionId.value = session.id;
-            
+
             let loadedMessages = session.messages || [];
-            if (loadedMessages.isE2EE && loadedMessages.ciphertext && loadedMessages.encryptedAesKey && loadedMessages.iv) {
+
+            if (session.encryptionScheme === 'gateway-aes-gcm-v1') {
+                // Cas 3 (nouveau) : structure JSON en clair, mais content/toolResult/toolCalls[].arguments
+                // sont des chaînes opaques "gcm1:..." chiffrées avec la clé de session IA de l'org.
+                try {
+                    const key = await ensureAiSessionKey(orgId);
+                    loadedMessages = await decryptGatewaySessionMessages(key, session.id, Array.isArray(loadedMessages) ? loadedMessages : []);
+                } catch (e) {
+                    if (e instanceof AiSessionKeyUnavailableError) {
+                        loadedMessages = [{ role: 'system', content: '[🔒 Conversation chiffrée. Clé privée manquante.]' }];
+                    } else {
+                        console.error("Erreur de déchiffrement de la session AI (gateway)", e);
+                        loadedMessages = [{ role: 'system', content: '[⚠️ Impossible de déchiffrer cette conversation.]' }];
+                    }
+                }
+            } else if (loadedMessages && loadedMessages.isE2EE && loadedMessages.ciphertext && loadedMessages.encryptedAesKey && loadedMessages.iv) {
+                // Cas 2 (legacy E2EE client-driven, providers 'local'/'custom') : enveloppe RSA+AES-GCM auto-chiffrée.
                 if (privateKey.value) {
                     try {
                         const decryptedStr = await decryptFromPeer(
-                            loadedMessages.ciphertext, 
-                            loadedMessages.encryptedAesKey, 
-                            loadedMessages.iv, 
+                            loadedMessages.ciphertext,
+                            loadedMessages.encryptedAesKey,
+                            loadedMessages.iv,
                             privateKey.value
                         );
                         loadedMessages = JSON.parse(decryptedStr);
@@ -513,7 +587,8 @@ export const loadSession = async (id: string) => {
                     loadedMessages = [{ role: 'system', content: '[🔒 Conversation chiffrée. Clé privée manquante.]' }];
                 }
             }
-            
+            // Sinon cas 1 (legacy le plus ancien) : messages déjà en clair, rien à faire.
+
             if (Array.isArray(loadedMessages) && isStructuredAgentTranscript(loadedMessages)) {
                 loadedMessages = convertStoredMessagesToChatMessages(loadedMessages);
             }
@@ -547,6 +622,26 @@ export const newSession = () => {
     aiService.interrupt();
     aiSessionMessages.value = [];
     activeSessionId.value = null;
+};
+
+/**
+ * Pose le titre chiffré d'une session gateway. `syncSession()` ne s'applique pas au provider
+ * 'gateway' (c'est Synco_AI_Gateway, pas ce repo, qui écrit les messages) mais le titre reste à la
+ * charge du navigateur puisque `synco_api` ne peut plus le dériver lui-même depuis un `content`
+ * désormais chiffré (cf. E2EE_PLAN.md §4.4). À appeler juste après le tout premier message d'une
+ * nouvelle session gateway, en fire-and-forget (ne doit jamais bloquer/faire échouer l'envoi).
+ */
+export const setEncryptedSessionTitle = async (orgId: string, sessionId: string, plainTitle: string) => {
+    try {
+        const key = await ensureAiSessionKey(orgId);
+        const encryptedTitle = await encryptAiField(key, sessionId, '__session_title__', 'title', plainTitle.slice(0, 60));
+        await sfetch(`/api/orgs/${orgId}/ai/sessions/${sessionId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ title: encryptedTitle }),
+        });
+    } catch (e) {
+        console.error("Erreur lors de la pose du titre chiffré de la session AI", e);
+    }
 };
 
 export const syncSession = async (lastPrompt: string) => {
