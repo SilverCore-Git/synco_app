@@ -220,18 +220,23 @@ const initCall = async () => {
         const data = await joinRes.json();
         threadId.value = data.threadId;
 
-        // Ensure variables are in place for E2EE key derivation
         import.meta.env.VITE_LIVEKIT_URL = data.url;
-        
-        // Minor hack for E2EE: useLiveKit expects `openedOrg.value.id` to derive the key.
-        // We temporarily inject it in the global state if needed, but it's cleaner to pass it.
-        // Since we cannot easily modify useLiveKit without breaking OrgLayout, let's mock it.
+
+        // useLiveKit's broadcastUpdate/getWSData read openedOrg.value for the
+        // socket 'voc:update' payload and participant metadata lookup — a
+        // guest hasn't loaded the org through the normal app flow, so it's
+        // mocked with just the id the join response provided.
         const { openedOrg } = await import('@/assets/var');
         if (!openedOrg.value) {
             openedOrg.value = { id: data.orgId } as any;
         }
 
-        await connectToRoom(data.url, data.token, data.threadId, 'home');
+        // data.e2eeKey is normally null here: a guest joining via invite
+        // link has no ThreadKey (never a member the thread's E2EE key was
+        // distributed to), so the call falls back to unencrypted-at-app-layer
+        // rather than the previous behavior of deriving a "shared" key from
+        // public orgId/threadId that any outsider could compute too.
+        await connectToRoom(data.url, data.token, data.threadId, 'home', data.e2eeKey);
 
     } catch (err: any) {
         error.value = err.message;

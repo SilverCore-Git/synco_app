@@ -318,7 +318,7 @@ const joinCall = async () => {
 
         if (res.ok) {
             const data = await res.json();
-            await connectToRoom(data.url, data.token, props.thread.id, String(route.params.spaceId));
+            await connectToRoom(data.url, data.token, props.thread.id, String(route.params.spaceId), data.e2eeKey);
         } else {
             toast.show("Impossible de se connecter au salon", "error");
         }
