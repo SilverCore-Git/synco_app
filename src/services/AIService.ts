@@ -432,9 +432,14 @@ export const fetchSessions = async () => {
             const sessions: any[] = await res.json();
 
             await Promise.all(sessions.map(async (session) => {
-                // Titre chiffré côté client (provider 'gateway' uniquement, cf. setEncryptedSessionTitle) —
-                // un titre pas encore posé (session flambant neuve) reste le défaut en clair de synco_api.
-                if (session.encryptionScheme === 'gateway-aes-gcm-v1' && typeof session.title === 'string' && session.title.startsWith('gcm1:')) {
+                // Titre chiffré côté client (provider 'gateway' uniquement, cf. setEncryptedSessionTitle).
+                // Détecté par le préfixe "gcm1:" du champ lui-même, PAS par session.encryptionScheme : la
+                // passerelle Synco AI Gateway ne pose jamais ce marqueur (elle chiffre/déchiffre chaque
+                // champ selon son propre préfixe, sans jamais lire/écrire encryptionScheme — voir
+                // Synco_AI_Gateway/src/crypto.rs::decrypt_field_if_encrypted), donc s'y fier laisserait
+                // le titre affiché en clair-ciphertext indéfiniment. Un titre pas encore posé (session
+                // flambant neuve) reste le défaut en clair de synco_api, sans préfixe "gcm1:".
+                if (typeof session.title === 'string' && session.title.startsWith('gcm1:')) {
                     try {
                         const key = await ensureAiSessionKey(orgId);
                         session.title = await decryptAiField(key, session.id, '__session_title__', 'title', session.title);
@@ -509,31 +514,66 @@ function isStructuredAgentTranscript(messages: any[]): boolean {
 }
 
 /**
+ * true si au moins un champ de ces StoredMessage[] porte le préfixe "gcm1:" (nouveau flux agent
+ * serveur, provider 'gateway'). Sert de détecteur à la place de `session.encryptionScheme` : la
+ * passerelle Synco AI Gateway ne pose jamais ce marqueur côté synco_api (elle chiffre/déchiffre
+ * chaque champ selon son propre préfixe uniquement, cf. Synco_AI_Gateway/src/crypto.rs —
+ * `decrypt_field_if_encrypted`/`encrypt_field` ne lisent/écrivent jamais encryptionScheme), donc
+ * une session gateway a systématiquement encryptionScheme === null malgré un contenu chiffré.
+ */
+function hasEncryptedGatewayFields(messages: any[]): boolean {
+    return messages.some((m) => {
+        if (typeof m.content === 'string' && m.content.startsWith('gcm1:')) return true;
+        if (typeof m.toolResult === 'string' && m.toolResult.startsWith('gcm1:')) return true;
+        if (Array.isArray(m.toolCalls) && m.toolCalls.some((tc: any) => typeof tc.arguments === 'string' && tc.arguments.startsWith('gcm1:'))) return true;
+        return false;
+    });
+}
+
+/**
  * Déchiffre les champs opaques `"gcm1:..."` d'un StoredMessage[] issu du nouveau flux agent
- * serveur (provider 'gateway', session.encryptionScheme === 'gateway-aes-gcm-v1') : `content`,
- * `toolResult`, `toolCalls[].arguments`, tous liés par AAD à `session.id` + l'id du message
- * (cf. E2EE_PLAN.md §2 et §4.3). `pendingToolCall.args` n'est décrypté nulle part côté frontend
- * aujourd'hui (aucun composant ne lit `session.pendingToolCall`) — laissé chiffré tel quel plutôt
- * que déchiffré pour rien ; utiliser decryptAiField(key, session.id, '__pending__',
- * 'pending_tool_call_args', ...) le jour où une UI en a besoin.
+ * serveur : `content`, `toolResult`, `toolCalls[].arguments`, tous liés par AAD à `session.id` +
+ * l'id du message (cf. E2EE_PLAN.md §2 et §4.3). Chaque champ est déchiffré indépendamment — un
+ * échec isolé (auth GCM invalide, JSON malformé) retombe sur un placeholder pour CE champ, sans
+ * effacer le reste de l'historique : sans marqueur de session fiable (cf. hasEncryptedGatewayFields
+ * ci-dessus), on ne peut plus présumer que TOUT le contenu d'une session est chiffré de façon
+ * homogène. `pendingToolCall.args` n'est décrypté nulle part côté frontend aujourd'hui (aucun
+ * composant ne lit `session.pendingToolCall`) — laissé chiffré tel quel plutôt que déchiffré pour
+ * rien ; utiliser decryptAiField(key, session.id, '__pending__', 'pending_tool_call_args', ...) le
+ * jour où une UI en a besoin.
  */
 async function decryptGatewaySessionMessages(key: CryptoKey, sessionId: string, messages: any[]): Promise<any[]> {
     return Promise.all(messages.map(async (m) => {
         const out = { ...m };
 
         if (typeof out.content === 'string' && out.content.startsWith('gcm1:')) {
-            out.content = await decryptAiField(key, sessionId, m.id, 'content', out.content);
+            try {
+                out.content = await decryptAiField(key, sessionId, m.id, 'content', out.content);
+            } catch (e) {
+                console.error("[E2EE] Échec du déchiffrement du contenu du message", m.id, e);
+                out.content = '[⚠️ Contenu illisible.]';
+            }
         }
 
         if (typeof out.toolResult === 'string' && out.toolResult.startsWith('gcm1:')) {
-            out.toolResult = JSON.parse(await decryptAiField(key, sessionId, m.id, 'tool_result', out.toolResult));
+            try {
+                out.toolResult = JSON.parse(await decryptAiField(key, sessionId, m.id, 'tool_result', out.toolResult));
+            } catch (e) {
+                console.error("[E2EE] Échec du déchiffrement du résultat d'outil", m.id, e);
+                out.toolResult = { error: 'Résultat illisible.' };
+            }
         }
 
         if (Array.isArray(out.toolCalls)) {
             out.toolCalls = await Promise.all(out.toolCalls.map(async (tc: any) => {
                 if (typeof tc.arguments === 'string' && tc.arguments.startsWith('gcm1:')) {
-                    const decrypted = await decryptAiField(key, sessionId, m.id, `tool_call_arguments:${tc.id}`, tc.arguments);
-                    return { ...tc, arguments: JSON.parse(decrypted) };
+                    try {
+                        const decrypted = await decryptAiField(key, sessionId, m.id, `tool_call_arguments:${tc.id}`, tc.arguments);
+                        return { ...tc, arguments: JSON.parse(decrypted) };
+                    } catch (e) {
+                        console.error("[E2EE] Échec du déchiffrement des arguments d'outil", tc.id, e);
+                        return { ...tc, arguments: {} };
+                    }
                 }
                 return tc;
             }));
@@ -554,12 +594,12 @@ export const loadSession = async (id: string) => {
 
             let loadedMessages = session.messages || [];
 
-            if (session.encryptionScheme === 'gateway-aes-gcm-v1') {
+            if (Array.isArray(loadedMessages) && hasEncryptedGatewayFields(loadedMessages)) {
                 // Cas 3 (nouveau) : structure JSON en clair, mais content/toolResult/toolCalls[].arguments
                 // sont des chaînes opaques "gcm1:..." chiffrées avec la clé de session IA de l'org.
                 try {
                     const key = await ensureAiSessionKey(orgId);
-                    loadedMessages = await decryptGatewaySessionMessages(key, session.id, Array.isArray(loadedMessages) ? loadedMessages : []);
+                    loadedMessages = await decryptGatewaySessionMessages(key, session.id, loadedMessages);
                 } catch (e) {
                     if (e instanceof AiSessionKeyUnavailableError) {
                         loadedMessages = [{ role: 'system', content: '[🔒 Conversation chiffrée. Clé privée manquante.]' }];
@@ -630,6 +670,15 @@ export const newSession = () => {
  * charge du navigateur puisque `synco_api` ne peut plus le dériver lui-même depuis un `content`
  * désormais chiffré (cf. E2EE_PLAN.md §4.4). À appeler juste après le tout premier message d'une
  * nouvelle session gateway, en fire-and-forget (ne doit jamais bloquer/faire échouer l'envoi).
+ *
+ * On en profite pour poser `encryptionScheme: 'gateway-aes-gcm-v1'` sur la session — la passerelle
+ * ne le fait jamais elle-même (elle chiffre/déchiffre chaque champ par son seul préfixe "gcm1:",
+ * sans lire/écrire ce marqueur), alors qu'un provider 'gateway' chiffre TOUJOURS son contenu sans
+ * condition côté passerelle : c'est donc une affirmation vraie dès qu'on sait qu'on parle à une
+ * session gateway. Ça active enfin le garde-fou anti-downgrade déjà présent côté synco_api
+ * (PATCH /:sessionId refuse de changer encryptionScheme une fois posé) — synco_app lui-même ne
+ * s'appuie plus sur ce marqueur pour décider quoi déchiffrer (cf. hasEncryptedGatewayFields), donc
+ * son absence éventuelle (session encore plus ancienne que ce premier PATCH) ne casse rien ici.
  */
 export const setEncryptedSessionTitle = async (orgId: string, sessionId: string, plainTitle: string) => {
     try {
@@ -637,7 +686,7 @@ export const setEncryptedSessionTitle = async (orgId: string, sessionId: string,
         const encryptedTitle = await encryptAiField(key, sessionId, '__session_title__', 'title', plainTitle.slice(0, 60));
         await sfetch(`/api/orgs/${orgId}/ai/sessions/${sessionId}`, {
             method: 'PATCH',
-            body: JSON.stringify({ title: encryptedTitle }),
+            body: JSON.stringify({ title: encryptedTitle, encryptionScheme: 'gateway-aes-gcm-v1' }),
         });
     } catch (e) {
         console.error("Erreur lors de la pose du titre chiffré de la session AI", e);
