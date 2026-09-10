@@ -470,6 +470,118 @@ export function lockSecurity()
 }
 
 
+// For AI session E2EE (provider 'gateway' — clé de session partagée par organisation)
+
+export async function generateAiSessionKey(): Promise<CryptoKey>
+{
+    return await crypto.subtle.generateKey(
+        { name: "AES-GCM", length: 256 },
+        true,
+        ["encrypt", "decrypt"]
+    );
+}
+
+export async function wrapAiSessionKeyForMember(
+    rawKeyBytes: ArrayBuffer,
+    recipientPublicKeyJWK: string | object
+): Promise<string>
+{
+
+    const pubKey = await crypto.subtle.importKey(
+        "jwk",
+        typeof recipientPublicKeyJWK === 'string' ? JSON.parse(recipientPublicKeyJWK) : recipientPublicKeyJWK,
+        { name: "RSA-OAEP", hash: "SHA-256" },
+        false,
+        ["encrypt"]
+    );
+
+    const encryptedBuffer = await crypto.subtle.encrypt(
+        { name: "RSA-OAEP" },
+        pubKey,
+        rawKeyBytes
+    );
+
+    return btoa(String.fromCharCode(...new Uint8Array(encryptedBuffer)));
+
+}
+
+export async function unwrapAiSessionKey(
+    encryptedKeyBase64: string,
+    myPrivateKey: CryptoKey
+): Promise<ArrayBuffer>
+{
+
+    const encryptedKeyBuffer = Uint8Array.from(atob(encryptedKeyBase64), c => c.charCodeAt(0));
+
+    return await crypto.subtle.decrypt(
+        { name: "RSA-OAEP" },
+        myPrivateKey,
+        encryptedKeyBuffer
+    );
+
+}
+
+/**
+ * Wire format partagé avec `Synco_AI_Gateway` et `synco_api` (cf. E2EE_PLAN.md §2) :
+ * "gcm1:" + base64standard(nonce(12) || ciphertext||tag(16)), AAD = "{sessionId}:{messageId}:{fieldName}".
+ */
+export async function encryptAiField(
+    key: CryptoKey,
+    sessionId: string,
+    messageId: string,
+    fieldName: string,
+    plaintext: string
+): Promise<string>
+{
+
+    const encoder = new TextEncoder();
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const aad = encoder.encode(`${sessionId}:${messageId}:${fieldName}`);
+
+    const ciphertext = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv, additionalData: aad, tagLength: 128 },
+        key,
+        encoder.encode(plaintext)
+    );
+
+    const combined = new Uint8Array(iv.length + ciphertext.byteLength);
+    combined.set(iv, 0);
+    combined.set(new Uint8Array(ciphertext), iv.length);
+
+    return "gcm1:" + btoa(String.fromCharCode(...combined));
+
+}
+
+export async function decryptAiField(
+    key: CryptoKey,
+    sessionId: string,
+    messageId: string,
+    fieldName: string,
+    wireValue: string
+): Promise<string>
+{
+
+    if (!wireValue.startsWith("gcm1:")) {
+        throw new Error("Format de champ IA chiffré inconnu.");
+    }
+
+    const encoder = new TextEncoder();
+    const raw = Uint8Array.from(atob(wireValue.slice(5)), c => c.charCodeAt(0));
+    const iv = raw.slice(0, 12);
+    const ciphertext = raw.slice(12);
+    const aad = encoder.encode(`${sessionId}:${messageId}:${fieldName}`);
+
+    const decrypted = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv, additionalData: aad, tagLength: 128 },
+        key,
+        ciphertext
+    );
+
+    return new TextDecoder().decode(decrypted);
+
+}
+
+
 export const generateSalt = (): string => {
     const array = new Uint8Array(16);
     
