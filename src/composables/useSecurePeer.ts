@@ -102,11 +102,23 @@ async function generateECDHKeyPair(): Promise<CryptoKeyPair> {
 }
 
 /**
+ * Derive a per-call HKDF salt from the session's callId (itself a
+ * crypto.getRandomValues-backed identifier, cf. generateCallId()).
+ * Both peers already validate they share the same callId before this
+ * point, so hashing it gives a salt that's unique per call and known
+ * to both sides without an extra round trip on the wire.
+ */
+async function deriveSessionSalt(callId: string): Promise<ArrayBuffer> {
+    return crypto.subtle.digest('SHA-256', new TextEncoder().encode(callId));
+}
+
+/**
  * Derive a shared secret using ECDH
  */
 async function deriveSharedSecret(
     privKey: CryptoKey,
-    peerPublicKeyJWK: string
+    peerPublicKeyJWK: string,
+    callId: string
 ): Promise<CryptoKey> {
     const peerPublicKey = await crypto.subtle.importKey(
         'jwk',
@@ -115,6 +127,8 @@ async function deriveSharedSecret(
         true,
         []
     );
+
+    const salt = await deriveSessionSalt(callId);
 
     const sharedSecret = await crypto.subtle.deriveKey(
         {
@@ -126,7 +140,7 @@ async function deriveSharedSecret(
             name: 'HKDF',
             hash: 'SHA-256',
             info: new TextEncoder().encode('SilverTeams-Call-E2EE-Key'),
-            salt: new Uint8Array(32)
+            salt
         },
         true,
         ['encrypt', 'decrypt']
@@ -354,7 +368,8 @@ export default function useSecurePeer() {
                         // Derive shared secret
                         const sharedKey = await deriveSharedSecret(
                             sessionPrivateKey.value,
-                            message.publicKeyJWK
+                            message.publicKeyJWK,
+                            session.callId
                         );
                         
                         const keys = callEncryptionKeys.value;
@@ -398,7 +413,8 @@ export default function useSecurePeer() {
                         // Derive shared secret
                         const sharedKey = await deriveSharedSecret(
                             sessionPrivateKey.value,
-                            message.publicKeyJWK
+                            message.publicKeyJWK,
+                            session.callId
                         );
                         
                         const keys = callEncryptionKeys.value;
