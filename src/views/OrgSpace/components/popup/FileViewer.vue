@@ -129,12 +129,24 @@
   </Window>
 
   <ConfirmDelete
-      :show="showDeleteConfirm" 
-      @confirm="confirmDeleteFile" 
+      :show="showDeleteConfirm"
+      @confirm="confirmDeleteFile"
       @cancel="showDeleteConfirm = false"
       :itemName="file.originalName"
       itemType="le fichier"
   />
+
+  <Popup :isOpen="showUnsavedConfirm" @close="showUnsavedConfirm = false">
+    <template #title>Modifications non enregistrées</template>
+    <p class="text-(--text) text-sm">
+      Vous avez des modifications non enregistrées sur <strong>{{ file.originalName }}</strong>.
+      Si vous fermez maintenant, elles seront perdues.
+    </p>
+    <template #footer>
+      <button @click="showUnsavedConfirm = false" class="default">Annuler</button>
+      <button @click="confirmCloseWithoutSaving" class="danger">Fermer sans enregistrer</button>
+    </template>
+  </Popup>
 </template>
 
 <script setup lang="ts">
@@ -148,6 +160,7 @@ import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import Window from '@/components/windows/Window.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
+import Popup from '@/components/Popup.vue';
 import { getWorkspaceKey } from '@/assets/utils/workspaceCrypto';
 import { decryptFileLocal } from '@/assets/utils/crypto';
 import { VueMonacoEditor, loader } from '@guolao/vue-monaco-editor';
@@ -216,6 +229,7 @@ const isLoading = ref(true);
 const isSaving = ref(false);
 const hasError = ref(false);
 const showDeleteConfirm = ref(false);
+const showUnsavedConfirm = ref(false);
 
 const fileContent = ref('');
 const originalFileContent = ref('');
@@ -508,12 +522,15 @@ onMounted(async () => {
 
 const closeViewer = () => {
   if (isTextFile.value && fileContent.value !== originalFileContent.value) {
-    if (confirm("Vous avez des modifications non enregistrées. Êtes-vous sûr de vouloir fermer sans enregistrer ?")) {
-      emit('close');
-    }
+    showUnsavedConfirm.value = true;
   } else {
     emit('close');
   }
+};
+
+const confirmCloseWithoutSaving = () => {
+  showUnsavedConfirm.value = false;
+  emit('close');
 };
 
 const handleKeydown = (e: KeyboardEvent) => {

@@ -211,7 +211,7 @@ onMounted(async () => {
   try {
     const res = await fetch(`${import.meta.env.VITE_API_URL}/health`);
     console.log('[DEBUG] health check status:', res.status);
-    if (!res.ok) return alert('Api error');
+    if (!res.ok) return toast.show('Api error', 'error', 10000);
 
     console.log('[DEBUG] calling initKC...');
     authenticated.value = await initKC();
@@ -232,7 +232,7 @@ onMounted(async () => {
     window.addEventListener('keydown', initSound);
   } catch (error) {
     console.error('[DEBUG] Error in onMounted:', error);
-    alert('Une erreur est survenue lors de l’initialisation.');
+    toast.show('Une erreur est survenue lors de l’initialisation.', 'error', 10000);
   }
 });
 
@@ -246,9 +246,13 @@ onMounted(async () => {
       <TopBar />
     </div>
 
+    <!-- Monté même avant l'authentification, pour pouvoir afficher les
+         erreurs de démarrage (health check, initKC) via un toast plutôt
+         qu'un alert() natif. -->
+    <Notifications />
+
     <div v-if="authenticated" class="h-full w-full">
 
-      <Notifications />
       <CallOverlay />
       <UserProfile :isOpen="isProfileOpen" :profileUser="profileUser" @close="closeProfile"
         @send-message="handleSendMessageFromProfile" />
