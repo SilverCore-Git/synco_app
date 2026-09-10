@@ -5,10 +5,22 @@ export const E2EEUnloked = computed(() => {
     return privateKey.value !== null && typeof privateKey.value === 'object';
 });
 
-const PIN_ITERATIONS = 100000;
+// Existing accounts were provisioned with a 4-digit PIN and this iteration
+// count — bumping it globally would change the derived master key for
+// every account and permanently lock everyone out of their stored private
+// key. New setups/resets (App.vue now requires >=8 digits there) get the
+// higher count via a versioned salt (SALT_V2_PREFIX) instead, so legacy
+// accounts keep deriving under their original parameters.
+const PIN_ITERATIONS_LEGACY = 100000;
+const PIN_ITERATIONS_V2 = 600000; // OWASP 2023 recommendation for PBKDF2-SHA256
+const SALT_V2_PREFIX = "v2:";
 
-export async function deriveMasterKey (pin: string, salt: string): Promise<CryptoKey> 
+export async function deriveMasterKey (pin: string, salt: string): Promise<CryptoKey>
 {
+
+    const isV2 = salt.startsWith(SALT_V2_PREFIX);
+    const rawSalt = isV2 ? salt.slice(SALT_V2_PREFIX.length) : salt;
+    const iterations = isV2 ? PIN_ITERATIONS_V2 : PIN_ITERATIONS_LEGACY;
 
     const encoder = new TextEncoder();
     const baseKey = await crypto.subtle.importKey(
@@ -18,8 +30,8 @@ export async function deriveMasterKey (pin: string, salt: string): Promise<Crypt
     return await crypto.subtle.deriveKey(
         {
             name: "PBKDF2",
-            salt: encoder.encode(salt),
-            iterations: PIN_ITERATIONS,
+            salt: encoder.encode(rawSalt),
+            iterations,
             hash: "SHA-256",
         },
         baseKey,
@@ -603,10 +615,12 @@ export async function decryptAiField(
 }
 
 
+// Prefixed so deriveMasterKey can tell this salt apart from one generated
+// before the PIN_ITERATIONS_V2 bump and use the right iteration count.
 export const generateSalt = (): string => {
     const array = new Uint8Array(16);
-    
+
     window.crypto.getRandomValues(array);
-    
-    return btoa(String.fromCharCode(...array));
+
+    return SALT_V2_PREFIX + btoa(String.fromCharCode(...array));
 };
