@@ -4,6 +4,7 @@ import type { User } from '@/types/types';
 import { openedOrg } from '@/assets/var';
 import useNotifications from './useNotifications';
 import { keycloak } from '@/assets/keycloak';
+import { generateCallId } from '@/assets/utils/webhookCrypto';
 
 // ============================================================================
 // Configuration
@@ -441,7 +442,7 @@ export default function useSecurePeer() {
         // Create secure session
         const session: SecureCallSession = {
             call,
-            callId: `${peerId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            callId: `${peerId}-${generateCallId()}`,
             peerId,
             e2eeKey: null,
             e2eeKeyId: Date.now(),
