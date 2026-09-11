@@ -20,11 +20,19 @@
                     </div>
 
                     <p class="text-(--text) text-sm leading-relaxed mb-6">
-                        Êtes-vous sûr de vouloir supprimer <strong>{{ itemName }}</strong> ? 
+                        Êtes-vous sûr de vouloir supprimer <strong>{{ itemName }}</strong> ?
                         Cette action est irréversible et toutes les données associées seront perdues.
                     </p>
 
-                    <label 
+                    <div
+                        v-if="extraWarning"
+                        class="flex items-start gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 mb-6"
+                    >
+                        <i class="bi bi-info-circle text-amber-500 mt-0.5 shrink-0" />
+                        <p class="text-xs text-amber-200/90 leading-snug">{{ extraWarning }}</p>
+                    </div>
+
+                    <label
                         v-if="checkbox"
                         class="flex items-start gap-3 p-3 rounded-lg bg-red-500/5 border border-red-500/10 cursor-pointer group mb-4"
                     >
@@ -99,6 +107,7 @@ const props = defineProps<{
   checktext?: boolean;
   itemType?: string; // ex: "le salon", "le workspace"
   loading?: boolean;
+  extraWarning?: string; // avertissement additionnel affiché en encart (ex: clé restant listée côté hébergeur)
 }>();
 
 const acknowledge = ref<boolean>(false);

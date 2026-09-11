@@ -193,6 +193,34 @@
                             </div>
                             <p class="text-xs text-(--text2) mt-2 pointer-events-none">Édition collaborative de documents Word, Excel et PowerPoint.</p>
                         </div>
+
+                        <!-- Module Repos -->
+                        <div
+                            @click="toggleModule('repos')"
+                            class="bg-(--bg2) border rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden transition-all duration-300"
+                            :class="[
+                                !openedOrg?.features?.includes('repos') ? 'border-(--border-color) opacity-60 grayscale cursor-not-allowed' :
+                                orgData.reposEnabled ? 'border-(--primary) shadow-sm hover:shadow-md cursor-pointer' : 'border-(--border-color) hover:border-(--text)/20 cursor-pointer'
+                            ]"
+                        >
+                            <div v-if="!openedOrg?.features?.includes('repos')" class="absolute top-3 right-3">
+                                <i class="bi bi-lock-fill text-(--text2)" title="Non inclus"></i>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-colors"
+                                    :class="orgData.reposEnabled ? 'bg-(--primary)/10 text-(--primary)' : 'bg-(--bg) text-(--text2)'">
+                                    <i class="bi bi-diagram-3"></i>
+                                </div>
+                                <div class="flex-1 pointer-events-none">
+                                    <h4 class="font-bold text-sm text-(--text)">Repos</h4>
+                                </div>
+                                <label class="relative inline-flex items-center pointer-events-none" :class="{'cursor-not-allowed': !openedOrg?.features?.includes('repos'), 'cursor-pointer': openedOrg?.features?.includes('repos')}">
+                                    <input type="checkbox" v-model="orgData.reposEnabled" :disabled="!openedOrg?.features?.includes('repos')" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-black/20 border border-(--border-color) peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary) peer-checked:border-(--primary)"></div>
+                                </label>
+                            </div>
+                            <p class="text-xs text-(--text2) mt-2 pointer-events-none">Suivi organisationnel de dépôts Git externes (lecture seule) — statuts, tags et arborescence de branches.</p>
+                        </div>
                     </div>
                 </section>
 
@@ -289,7 +317,8 @@ const orgData = ref({
     todoEnabled: openedOrg.value?.features?.includes('todo') ? (openedOrg.value?.activeModules?.todo || false) : false,
     filesEnabled: openedOrg.value?.features?.includes('files') ? (openedOrg.value?.activeModules?.files !== false) : false,
     aiEnabled: openedOrg.value?.features?.includes('ai') ? (openedOrg.value?.activeModules?.ai === true) : false,
-    onlyofficeEnabled: openedOrg.value?.features?.includes('onlyoffice') ? (openedOrg.value?.activeModules?.onlyoffice === true) : false
+    onlyofficeEnabled: openedOrg.value?.features?.includes('onlyoffice') ? (openedOrg.value?.activeModules?.onlyoffice === true) : false,
+    reposEnabled: openedOrg.value?.features?.includes('repos') ? (openedOrg.value?.activeModules?.repos === true) : false
 });
 
 watch(() => orgData.value.logo, async (newLogo) => {
@@ -300,12 +329,13 @@ watch(() => orgData.value.logo, async (newLogo) => {
     }
 }, { immediate: true });
 
-const toggleModule = (module: 'todo' | 'files' | 'ai' | 'onlyoffice') => {
+const toggleModule = (module: 'todo' | 'files' | 'ai' | 'onlyoffice' | 'repos') => {
     if (!openedOrg.value?.features?.includes(module)) return;
     if (module === 'todo') orgData.value.todoEnabled = !orgData.value.todoEnabled;
     if (module === 'files') orgData.value.filesEnabled = !orgData.value.filesEnabled;
     if (module === 'ai') orgData.value.aiEnabled = !orgData.value.aiEnabled;
     if (module === 'onlyoffice') orgData.value.onlyofficeEnabled = !orgData.value.onlyofficeEnabled;
+    if (module === 'repos') orgData.value.reposEnabled = !orgData.value.reposEnabled;
 };
 
 const hasChanges = computed(() => {
@@ -316,6 +346,7 @@ const hasChanges = computed(() => {
         || orgData.value.filesEnabled !== (openedOrg.value?.activeModules?.files !== false)
         || orgData.value.aiEnabled !== (openedOrg.value?.activeModules?.ai === true)
         || orgData.value.onlyofficeEnabled !== (openedOrg.value?.activeModules?.onlyoffice === true)
+        || orgData.value.reposEnabled !== (openedOrg.value?.activeModules?.repos === true)
     )
 });
 
@@ -326,6 +357,7 @@ const resetChanges = () => {
     orgData.value.filesEnabled = openedOrg.value?.features?.includes('files') ? (openedOrg.value?.activeModules?.files !== false) : false;
     orgData.value.aiEnabled = openedOrg.value?.features?.includes('ai') ? (openedOrg.value?.activeModules?.ai === true) : false;
     orgData.value.onlyofficeEnabled = openedOrg.value?.features?.includes('onlyoffice') ? (openedOrg.value?.activeModules?.onlyoffice === true) : false;
+    orgData.value.reposEnabled = openedOrg.value?.features?.includes('repos') ? (openedOrg.value?.activeModules?.repos === true) : false;
 };
 
 const saveSettings = async () => {
@@ -348,7 +380,8 @@ const saveSettings = async () => {
                     todo: orgData.value.todoEnabled,
                     files: orgData.value.filesEnabled,
                     ai: orgData.value.aiEnabled,
-                    onlyoffice: orgData.value.onlyofficeEnabled
+                    onlyoffice: orgData.value.onlyofficeEnabled,
+                    repos: orgData.value.reposEnabled
                 }
             })
         }).then(res => res.json())
@@ -369,7 +402,8 @@ const saveSettings = async () => {
                 todo: orgData.value.todoEnabled,
                 files: orgData.value.filesEnabled,
                 ai: orgData.value.aiEnabled,
-                onlyoffice: orgData.value.onlyofficeEnabled
+                onlyoffice: orgData.value.onlyofficeEnabled,
+                repos: orgData.value.reposEnabled
             };
 
             const curentOrg = organizations.value.find(org => org.id === openedOrg.value?.id);
@@ -437,6 +471,7 @@ watch(() => openedOrg.value, (newOrg) => {
         orgData.value.filesEnabled = newOrg.features?.includes('files') ? (newOrg.activeModules?.files !== false) : false;
         orgData.value.aiEnabled = newOrg.features?.includes('ai') ? (newOrg.activeModules?.ai === true) : false;
         orgData.value.onlyofficeEnabled = newOrg.features?.includes('onlyoffice') ? (newOrg.activeModules?.onlyoffice === true) : false;
+        orgData.value.reposEnabled = newOrg.features?.includes('repos') ? (newOrg.activeModules?.repos === true) : false;
     }
 }, { deep: true });
 

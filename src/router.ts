@@ -194,6 +194,12 @@ const routes = [
         name: 'TasksSpace',
         component: () => import('./views/OrgSpace/views/TasksSpace.vue'),
         props: true,
+      },
+      {
+        path: ':spaceId/repos',
+        name: 'ReposSpace',
+        component: () => import('./views/OrgSpace/views/Repos.vue'),
+        props: true,
       }
 
     ]

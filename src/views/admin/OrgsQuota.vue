@@ -196,6 +196,17 @@
                                 <div class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
                             </label>
                         </div>
+
+                        <div class="flex items-center justify-between p-3 bg-white/5 rounded-xl mt-2">
+                            <div>
+                                <p class="text-sm font-bold text-(--text)">Repos</p>
+                                <p class="text-[10px] text-(--text2)">Suivi organisationnel de dépôts Git externes (lecture seule).</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" v-model="orgEditForm.features.repos" class="sr-only peer">
+                                <div class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
+                            </label>
+                        </div>
                     </div>
                 </div>
 
@@ -255,7 +266,8 @@ const orgEditForm = ref({
         todo: true,
         files: true,
         ai: true,
-        onlyoffice: true
+        onlyoffice: true,
+        repos: false
     }
 });
 
@@ -317,6 +329,7 @@ const openOrgEditModal = (org: AdminOrg) => {
             files: org.features?.includes('files') ?? true,
             ai: org.features?.includes('ai') ?? true,
             onlyoffice: org.features?.includes('onlyoffice') ?? false,
+            repos: org.features?.includes('repos') ?? false,
         }
     };
 };
@@ -338,6 +351,7 @@ const saveOrgQuotas = async () => {
         if (orgEditForm.value.features.files) featuresArray.push('files');
         if (orgEditForm.value.features.ai) featuresArray.push('ai');
         if (orgEditForm.value.features.onlyoffice) featuresArray.push('onlyoffice');
+        if (orgEditForm.value.features.repos) featuresArray.push('repos');
 
         const res = await sfetch(`/api/admin/organizations/${selectedOrg.value.id}`, {
             method: 'PATCH',

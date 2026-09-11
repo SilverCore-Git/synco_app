@@ -19,6 +19,8 @@ export const PERMISSION_REGISTRY = {
   ORG_WEBHOOKS: { label: 'Webhooks',             icon: 'bi-hdd-network',    description: 'Configurer les webhooks' },
   ORG_STORAGE:  { label: 'Stockage & Quotas',    icon: 'bi-server',         description: 'Gérer l\'espace de stockage de l\'organisation' },
   ORG_AI:       { label: 'Syncoraï (IA)',        icon: 'bi-robot',          description: 'Configurer l\'assistant Syncoraï' },
+  ORG_REPOS:        { label: 'Repos',                icon: 'bi-diagram-3',      description: 'Voir le module Repos (connexions, dépôts, branches)' },
+  ORG_REPOS_MANAGE: { label: 'Gérer les Repos',       icon: 'bi-diagram-3-fill', description: 'Créer/éditer/supprimer des connexions, projets, et modifier statut/tags' },
 
   // Espaces de travail
   SPACE_CREATE: { label: 'Créer un espace',      icon: 'bi-grid-plus',      description: 'Créer de nouveaux espaces de travail' },
