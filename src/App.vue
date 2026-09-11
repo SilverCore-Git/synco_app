@@ -10,7 +10,7 @@ import Notifications from './components/overlay/Notifications.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
 import useSettingsItem from './composables/useSettingsItem';
 import { initKC, isTauriPlatform, loginWithSystemBrowser } from './assets/keycloak';
-import { E2EEUnloked, setupFirstTimeSecurity, unlockSecurity, SALT_V2_PREFIX } from './assets/utils/crypto';
+import { E2EEUnloked, setupFirstTimeSecurityV3, unlockSecurity, unlockSecurityV3, SALT_V2_PREFIX, SALT_V3_PREFIX } from './assets/utils/crypto';
 import sfetch from './assets/utils/sfetch';
 import { useToast } from './composables/useToast';
 import TopBar from './components/layout/topBar.vue';
@@ -60,32 +60,68 @@ const pinSetup = computed(() =>
 );
 const isResettingPIN = ref<boolean>(false);
 
-// Legacy accounts were all created with a strict 4-digit PIN (the old
-// `press()` capped input at 4 and force-submitted there), so unlocking one
-// still safely auto-submits at exactly 4 digits. New setups and PIN resets
-// require a longer PIN (MIN_PIN_LENGTH) to make offline brute-force of the
-// PBKDF2-wrapped private key meaningfully harder — cf. crypto.ts's matching
-// PIN_ITERATIONS_V2 bump, gated by a salt format so existing accounts keep
-// unlocking under their original (lower) iteration count.
-// Whether an account is actually legacy is NOT "does it already have E2EE
-// set up" — every account satisfies that after its first unlock screen.
-// The real signal is the salt format: crypto.ts's generateSalt() always
-// prefixes new-style salts with "v2:" (see SALT_V2_PREFIX), so only a
-// pre-versioning salt (no prefix) means a true 4-digit legacy account.
+// Three PIN schemes coexist, detected by the pinSalt prefix (must match
+// crypto.ts's SALT_V2_PREFIX/SALT_V3_PREFIX exactly, checked in that order
+// so a future v4 salt is never misclassified and legacy/v2 accounts never
+// accidentally get routed through v3 logic):
+// - legacy (no prefix): the original 4-digit PIN, fully client-side.
+// - v2 ("v2:"): 6-10 digit PIN, fully client-side, higher PBKDF2 count.
+// - v3 ("v3:"): back to 4 digits — the offline-bruteforce resistance now
+//   comes from a server-held wrapSecret gated behind a rate-limited unlock
+//   endpoint (see crypto.ts's SALT_V3_PREFIX comment), not from PIN length.
+// v3 is the sole target for every new setup and every PIN reset going
+// forward, regardless of which scheme the account was on before.
+type PinScheme = 'legacy' | 'v2' | 'v3';
+const pinScheme = computed<PinScheme>(() => {
+  const salt = user.value?.pinSalt || '';
+  if (salt.startsWith(SALT_V3_PREFIX)) return 'v3';
+  if (salt.startsWith(SALT_V2_PREFIX)) return 'v2';
+  return 'legacy';
+});
+const isUnlockMode = computed(() => pinSetup.value && !isResettingPIN.value);
+
 const MIN_PIN_LENGTH = 6;
 const MAX_PIN_LENGTH = 10;
-const isLegacyUnlock = computed(() =>
-  pinSetup.value && !isResettingPIN.value && !user.value?.pinSalt?.startsWith(SALT_V2_PREFIX)
-);
-const pinMaxLength = computed(() => isLegacyUnlock.value ? 4 : MAX_PIN_LENGTH);
-const canSubmitPin = computed(() => pin.value.length >= (isLegacyUnlock.value ? 4 : MIN_PIN_LENGTH));
+const pinMaxLength = computed(() => {
+  if (isResettingPIN.value || !pinSetup.value) return 4; // every new setup/reset targets v3
+  return pinScheme.value === 'v2' ? MAX_PIN_LENGTH : 4; // legacy and v3 unlock: 4
+});
+const canSubmitPin = computed(() => {
+  const min = (isResettingPIN.value || !pinSetup.value || pinScheme.value !== 'v2') ? 4 : MIN_PIN_LENGTH;
+  return pin.value.length >= min;
+});
+
+// Lockout state for v3 unlock attempts (see submit()'s v3 branch below).
+const lockoutCountdown = ref<number>(0);
+let lockoutTimer: ReturnType<typeof setInterval> | null = null;
+const startLockoutCountdown = (seconds: number) => {
+  lockoutCountdown.value = seconds;
+  if (lockoutTimer) clearInterval(lockoutTimer);
+  lockoutTimer = setInterval(() => {
+    lockoutCountdown.value -= 1;
+    if (lockoutCountdown.value <= 0) {
+      clearInterval(lockoutTimer!);
+      lockoutTimer = null;
+    }
+  }, 1000);
+};
+const formatDuration = (seconds: number): string => {
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.ceil(seconds / 60)} min`;
+  return `${Math.ceil(seconds / 3600)}h`;
+};
 
 const press = (num: string) => {
   if (pin.value.length < pinMaxLength.value) {
     pin.value += num;
     if (window.navigator.vibrate) window.navigator.vibrate(10);
 
-    if (isLegacyUnlock.value && pin.value.length === 4) {
+    // Auto-submit at 4 digits on unlock only (legacy and v3 both use 4
+    // digits there) — never during setup/reset, where a manual tap gives
+    // the user one guaranteed beat to notice a typo before it becomes their
+    // new PIN with no undo. v2 never auto-submits (existing behavior).
+    const autoSubmit = isUnlockMode.value && (pinScheme.value === 'legacy' || pinScheme.value === 'v3');
+    if (autoSubmit && pin.value.length === 4) {
       setTimeout(() => submit(), 50);
     }
   }
@@ -98,8 +134,9 @@ const submit = async () => {
   try {
 
     if (isResettingPIN.value) {
-      // Mode réinitialisation : créer de nouvelles clés
-      const E2EEThings = await setupFirstTimeSecurity(pin.value);
+      // Mode réinitialisation : créer de nouvelles clés — toujours en v3,
+      // quel que soit le schéma précédent du compte.
+      const E2EEThings = await setupFirstTimeSecurityV3(pin.value);
 
       const res = await sfetch('/api/users/me/resetE2EE', {
         method: 'POST',
@@ -127,20 +164,52 @@ const submit = async () => {
 
       if (!user.value?.pinSalt || !user.value?.encryptedPrivateKey || !user.value?.keyIv) return;
 
-      const success = await unlockSecurity(pin.value, user.value.pinSalt, user.value.encryptedPrivateKey, user.value.keyIv);
-
-      if (!success) {
-        toast.show('Code PIN incorrect', 'error');
-        console.log('Code PIN incorrect');
-        pin.value = '';
+      if (pinScheme.value === 'v3') {
+        try {
+          await unlockSecurityV3(
+            pin.value, user.value.pinSalt, user.value.encryptedPrivateKey, user.value.keyIv,
+            async (verifier) => {
+              const res = await sfetch('/api/users/me/pin/unlock', {
+                method: 'POST',
+                body: JSON.stringify({ verifier })
+              });
+              if (res.status === 429) {
+                const body = await res.json();
+                throw Object.assign(new Error('locked'), { locked: true, retryAfterSeconds: body.retryAfterSeconds });
+              }
+              if (!res.ok) {
+                throw Object.assign(new Error('invalid'), { locked: false });
+              }
+              return res.json();
+            }
+          );
+          pin.value = '';
+        } catch (e: any) {
+          pin.value = '';
+          if (e?.locked) {
+            startLockoutCountdown(e.retryAfterSeconds);
+            toast.show(`Trop de tentatives. Réessayez dans ${formatDuration(e.retryAfterSeconds)}.`, 'error', 8000);
+          } else {
+            toast.show('Code PIN incorrect', 'error');
+          }
+        }
       } else {
-        pin.value = '';
+        // legacy / v2 : chemin inchangé, entièrement côté client.
+        const success = await unlockSecurity(pin.value, user.value.pinSalt, user.value.encryptedPrivateKey, user.value.keyIv);
+
+        if (!success) {
+          toast.show('Code PIN incorrect', 'error');
+          console.log('Code PIN incorrect');
+          pin.value = '';
+        } else {
+          pin.value = '';
+        }
       }
 
     }
     else {
 
-      const E2EEThings = await setupFirstTimeSecurity(pin.value);
+      const E2EEThings = await setupFirstTimeSecurityV3(pin.value);
 
       const res = await sfetch('/api/users/me/initE2EE', {
         method: 'POST',
@@ -317,7 +386,7 @@ onMounted(async () => {
                 Ce code PIN est la clé de vos conversations. <br />
                 <span class="text-amber-500/80 font-medium">S'il est perdu, elles resteront illisibles.</span>
                 <br />
-                <span class="text-(--text2)">Minimum {{ MIN_PIN_LENGTH }} chiffres.</span>
+                <span class="text-(--text2)">Code à 4 chiffres.</span>
               </p>
               <p v-if="isResettingPIN" class="text-sm text-amber-500/80 mt-2 font-medium">
                 Attention : vos anciens messages deviendront indéchiffrables.
@@ -325,7 +394,7 @@ onMounted(async () => {
 
             </div>
 
-            <div v-if="isLegacyUnlock" class="flex gap-4 mb-10 transition-transform duration-300">
+            <div v-if="pinMaxLength === 4" class="flex gap-4 mb-10 transition-transform duration-300">
 
               <div v-for="i in 4" :key="i"
                 class="w-14 h-18 border-2 rounded-2xl flex items-center justify-center text-2xl transition-all duration-150"
@@ -354,7 +423,12 @@ onMounted(async () => {
 
             </div>
 
-            <div class="grid grid-cols-3 gap-4 max-w-xs w-full">
+            <div v-if="lockoutCountdown > 0" class="text-center mb-10">
+              <p class="text-amber-500 font-medium">Trop de tentatives incorrectes.</p>
+              <p class="text-(--text2) text-sm mt-1">Réessayez dans {{ formatDuration(lockoutCountdown) }}</p>
+            </div>
+
+            <div v-else class="grid grid-cols-3 gap-4 max-w-xs w-full">
 
               <button v-for="num in [1, 2, 3, 4, 5, 6, 7, 8, 9]" :key="num" @click="press(num.toString())"
                 class="h-16 default-primary border-none">
