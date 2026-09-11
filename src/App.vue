@@ -10,7 +10,7 @@ import Notifications from './components/overlay/Notifications.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
 import useSettingsItem from './composables/useSettingsItem';
 import { initKC, isTauriPlatform, loginWithSystemBrowser } from './assets/keycloak';
-import { E2EEUnloked, setupFirstTimeSecurity, unlockSecurity } from './assets/utils/crypto';
+import { E2EEUnloked, setupFirstTimeSecurity, unlockSecurity, SALT_V2_PREFIX } from './assets/utils/crypto';
 import sfetch from './assets/utils/sfetch';
 import { useToast } from './composables/useToast';
 import TopBar from './components/layout/topBar.vue';
@@ -67,9 +67,16 @@ const isResettingPIN = ref<boolean>(false);
 // PBKDF2-wrapped private key meaningfully harder — cf. crypto.ts's matching
 // PIN_ITERATIONS_V2 bump, gated by a salt format so existing accounts keep
 // unlocking under their original (lower) iteration count.
-const MIN_PIN_LENGTH = 8;
-const MAX_PIN_LENGTH = 12;
-const isLegacyUnlock = computed(() => pinSetup.value && !isResettingPIN.value);
+// Whether an account is actually legacy is NOT "does it already have E2EE
+// set up" — every account satisfies that after its first unlock screen.
+// The real signal is the salt format: crypto.ts's generateSalt() always
+// prefixes new-style salts with "v2:" (see SALT_V2_PREFIX), so only a
+// pre-versioning salt (no prefix) means a true 4-digit legacy account.
+const MIN_PIN_LENGTH = 6;
+const MAX_PIN_LENGTH = 10;
+const isLegacyUnlock = computed(() =>
+  pinSetup.value && !isResettingPIN.value && !user.value?.pinSalt?.startsWith(SALT_V2_PREFIX)
+);
 const pinMaxLength = computed(() => isLegacyUnlock.value ? 4 : MAX_PIN_LENGTH);
 const canSubmitPin = computed(() => pin.value.length >= (isLegacyUnlock.value ? 4 : MIN_PIN_LENGTH));
 

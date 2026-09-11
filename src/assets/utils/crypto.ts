@@ -13,7 +13,7 @@ export const E2EEUnloked = computed(() => {
 // accounts keep deriving under their original parameters.
 const PIN_ITERATIONS_LEGACY = 100000;
 const PIN_ITERATIONS_V2 = 600000; // OWASP 2023 recommendation for PBKDF2-SHA256
-const SALT_V2_PREFIX = "v2:";
+export const SALT_V2_PREFIX = "v2:";
 
 export async function deriveMasterKey (pin: string, salt: string): Promise<CryptoKey>
 {
