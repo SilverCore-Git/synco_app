@@ -21,7 +21,7 @@ function getBase62Char(index: number): string {
  * 24 caractères base62 (≈ 144 bits d'entropie)
  */
 export function generateWebhookToken(): string {
-  return generateRandomBase62(16, 24);
+  return generateRandomBase62(24);
 }
 
 /**
@@ -29,27 +29,23 @@ export function generateWebhookToken(): string {
  * 36 caractères base62 (≈ 216 bits d'entropie)
  */
 export function generateWebhookSecret(): string {
-  return generateRandomBase62(24, 36);
+  return generateRandomBase62(36);
 }
 
 /**
  * Génère une chaîne base62 aléatoire
+ * Un octet CSPRNG par caractère de sortie (jamais de Math.random).
  */
-function generateRandomBase62(byteLength: number, targetLength: number): string {
-  const array = new Uint8Array(byteLength);
+function generateRandomBase62(targetLength: number): string {
+  const array = new Uint8Array(targetLength);
   crypto.getRandomValues(array);
-  
+
   let result = '';
   for (let i = 0; i < array.length; i++) {
     result += getBase62Char(array[i] as number);
   }
-  
-  // Assurer une longueur minimale
-  while (result.length < targetLength) {
-    result += getBase62Char(Math.floor(Math.random() * 256));
-  }
-  
-  return result.substring(0, targetLength);
+
+  return result;
 }
 
 // ============================================

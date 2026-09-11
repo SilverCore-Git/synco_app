@@ -5,10 +5,22 @@ export const E2EEUnloked = computed(() => {
     return privateKey.value !== null && typeof privateKey.value === 'object';
 });
 
-const PIN_ITERATIONS = 100000;
+// Existing accounts were provisioned with a 4-digit PIN and this iteration
+// count — bumping it globally would change the derived master key for
+// every account and permanently lock everyone out of their stored private
+// key. New setups/resets (App.vue now requires >=8 digits there) get the
+// higher count via a versioned salt (SALT_V2_PREFIX) instead, so legacy
+// accounts keep deriving under their original parameters.
+const PIN_ITERATIONS_LEGACY = 100000;
+const PIN_ITERATIONS_V2 = 600000; // OWASP 2023 recommendation for PBKDF2-SHA256
+const SALT_V2_PREFIX = "v2:";
 
-export async function deriveMasterKey (pin: string, salt: string): Promise<CryptoKey> 
+export async function deriveMasterKey (pin: string, salt: string): Promise<CryptoKey>
 {
+
+    const isV2 = salt.startsWith(SALT_V2_PREFIX);
+    const rawSalt = isV2 ? salt.slice(SALT_V2_PREFIX.length) : salt;
+    const iterations = isV2 ? PIN_ITERATIONS_V2 : PIN_ITERATIONS_LEGACY;
 
     const encoder = new TextEncoder();
     const baseKey = await crypto.subtle.importKey(
@@ -18,8 +30,8 @@ export async function deriveMasterKey (pin: string, salt: string): Promise<Crypt
     return await crypto.subtle.deriveKey(
         {
             name: "PBKDF2",
-            salt: encoder.encode(salt),
-            iterations: PIN_ITERATIONS,
+            salt: encoder.encode(rawSalt),
+            iterations,
             hash: "SHA-256",
         },
         baseKey,
@@ -348,21 +360,26 @@ export async function encryptFileLocal(
     );
     const encryptedBlob = new Blob([ciphertext]);
 
-    // 3. Encrypt the FileKey with the SpaceKey (KEK)
+    // 3. Encrypt the FileKey with the SpaceKey (KEK), using its own IV.
+    // Never reuse an IV across two AES-GCM operations, even under different
+    // keys — a dedicated random IV per operation removes any risk tied to a
+    // future key-reuse bug. It's prepended to the ciphertext below so no
+    // extra wire field / backend column is needed for it.
     const rawFileKey = await crypto.subtle.exportKey("raw", fileKey);
+    const keyIv = crypto.getRandomValues(new Uint8Array(12));
     const encryptedFileKeyBuffer = await crypto.subtle.encrypt(
-        { name: "AES-GCM", iv }, // We reuse the same IV for the KEK encryption or generate a new one, let's reuse for simplicity as it's safe if keys are different, but wait, AES-GCM needs unique IVs. Actually, using the same IV is fine because the keys are different (fileKey vs spaceKey). But to be strictly correct:
+        { name: "AES-GCM", iv: keyIv },
         spaceKey,
         rawFileKey
     );
-    
-    // Better: Generate a specific IV for the KEK encryption, or just use the same since it's a completely different key.
-    // To keep it simple and safe, let's just generate a second IV or append it.
-    // Actually, we can use the same `iv` because `spaceKey` encrypts `fileKey`, and `fileKey` encrypts `fileBuffer`. Two different keys. It is mathematically safe.
-    
+
+    const combinedFileKey = new Uint8Array(keyIv.length + encryptedFileKeyBuffer.byteLength);
+    combinedFileKey.set(keyIv, 0);
+    combinedFileKey.set(new Uint8Array(encryptedFileKeyBuffer), keyIv.length);
+
     return {
         encryptedBlob,
-        encryptedFileKey: btoa(String.fromCharCode(...new Uint8Array(encryptedFileKeyBuffer))),
+        encryptedFileKey: btoa(String.fromCharCode(...combinedFileKey)),
         iv: btoa(String.fromCharCode(...iv))
     };
 }
@@ -374,15 +391,31 @@ export async function decryptFileLocal(
     spaceKey: CryptoKey
 ): Promise<ArrayBuffer> 
 {
-    const encryptedFileKey = Uint8Array.from(atob(encryptedFileKeyBase64), c => c.charCodeAt(0));
+    const encryptedFileKeyBytes = Uint8Array.from(atob(encryptedFileKeyBase64), c => c.charCodeAt(0));
     const iv = Uint8Array.from(atob(ivBase64), c => c.charCodeAt(0));
 
-    // 1. Decrypt the FileKey using the SpaceKey
-    const rawFileKey = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv },
-        spaceKey,
-        encryptedFileKey
-    );
+    // 1. Decrypt the FileKey using the SpaceKey.
+    // Current format prepends a dedicated key-wrap IV to the ciphertext.
+    // Files encrypted before that fix wrapped the FileKey with the file's
+    // own `iv` instead — fall back to that legacy layout (detected via the
+    // AES-GCM auth tag, not an explicit version marker) so old uploads
+    // keep decrypting correctly.
+    let rawFileKey: ArrayBuffer;
+    try {
+        const keyIv = encryptedFileKeyBytes.slice(0, 12);
+        const wrappedFileKey = encryptedFileKeyBytes.slice(12);
+        rawFileKey = await crypto.subtle.decrypt(
+            { name: "AES-GCM", iv: keyIv },
+            spaceKey,
+            wrappedFileKey
+        );
+    } catch {
+        rawFileKey = await crypto.subtle.decrypt(
+            { name: "AES-GCM", iv },
+            spaceKey,
+            encryptedFileKeyBytes
+        );
+    }
 
     const fileKey = await crypto.subtle.importKey(
         "raw",
@@ -582,10 +615,12 @@ export async function decryptAiField(
 }
 
 
+// Prefixed so deriveMasterKey can tell this salt apart from one generated
+// before the PIN_ITERATIONS_V2 bump and use the right iteration count.
 export const generateSalt = (): string => {
     const array = new Uint8Array(16);
-    
+
     window.crypto.getRandomValues(array);
-    
-    return btoa(String.fromCharCode(...array));
+
+    return SALT_V2_PREFIX + btoa(String.fromCharCode(...array));
 };

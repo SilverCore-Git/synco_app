@@ -60,12 +60,25 @@ const pinSetup = computed(() =>
 );
 const isResettingPIN = ref<boolean>(false);
 
+// Legacy accounts were all created with a strict 4-digit PIN (the old
+// `press()` capped input at 4 and force-submitted there), so unlocking one
+// still safely auto-submits at exactly 4 digits. New setups and PIN resets
+// require a longer PIN (MIN_PIN_LENGTH) to make offline brute-force of the
+// PBKDF2-wrapped private key meaningfully harder — cf. crypto.ts's matching
+// PIN_ITERATIONS_V2 bump, gated by a salt format so existing accounts keep
+// unlocking under their original (lower) iteration count.
+const MIN_PIN_LENGTH = 8;
+const MAX_PIN_LENGTH = 12;
+const isLegacyUnlock = computed(() => pinSetup.value && !isResettingPIN.value);
+const pinMaxLength = computed(() => isLegacyUnlock.value ? 4 : MAX_PIN_LENGTH);
+const canSubmitPin = computed(() => pin.value.length >= (isLegacyUnlock.value ? 4 : MIN_PIN_LENGTH));
+
 const press = (num: string) => {
-  if (pin.value.length < 4) {
+  if (pin.value.length < pinMaxLength.value) {
     pin.value += num;
     if (window.navigator.vibrate) window.navigator.vibrate(10);
 
-    if (pin.value.length === 4) {
+    if (isLegacyUnlock.value && pin.value.length === 4) {
       setTimeout(() => submit(), 50);
     }
   }
@@ -162,7 +175,7 @@ const resetPIN = async () => {
 
 const handleInput = (e: KeyboardEvent) => {
   if (e.key >= '0' && e.key <= '9') press(e.key);
-  else if (e.key === 'Enter' && pin.value.length >= 4) submit();
+  else if (e.key === 'Enter' && canSubmitPin.value) submit();
   else if (e.key === 'Backspace') pin.value = pin.value.slice(0, -1);
 }
 const finishAuthInit = async () => {
@@ -211,7 +224,7 @@ onMounted(async () => {
   try {
     const res = await fetch(`${import.meta.env.VITE_API_URL}/health`);
     console.log('[DEBUG] health check status:', res.status);
-    if (!res.ok) return alert('Api error');
+    if (!res.ok) return toast.show('Api error', 'error', 10000);
 
     console.log('[DEBUG] calling initKC...');
     authenticated.value = await initKC();
@@ -232,7 +245,7 @@ onMounted(async () => {
     window.addEventListener('keydown', initSound);
   } catch (error) {
     console.error('[DEBUG] Error in onMounted:', error);
-    alert('Une erreur est survenue lors de l’initialisation.');
+    toast.show('Une erreur est survenue lors de l’initialisation.', 'error', 10000);
   }
 });
 
@@ -246,9 +259,13 @@ onMounted(async () => {
       <TopBar />
     </div>
 
+    <!-- Monté même avant l'authentification, pour pouvoir afficher les
+         erreurs de démarrage (health check, initKC) via un toast plutôt
+         qu'un alert() natif. -->
+    <Notifications />
+
     <div v-if="authenticated" class="h-full w-full">
 
-      <Notifications />
       <CallOverlay />
       <UserProfile :isOpen="isProfileOpen" :profileUser="profileUser" @close="closeProfile"
         @send-message="handleSendMessageFromProfile" />
@@ -292,6 +309,8 @@ onMounted(async () => {
               <p v-if="!pinSetup || isResettingPIN" class="text-sm text-(--text2) mt-2 leading-relaxed">
                 Ce code PIN est la clé de vos conversations. <br />
                 <span class="text-amber-500/80 font-medium">S'il est perdu, elles resteront illisibles.</span>
+                <br />
+                <span class="text-(--text2)">Minimum {{ MIN_PIN_LENGTH }} chiffres.</span>
               </p>
               <p v-if="isResettingPIN" class="text-sm text-amber-500/80 mt-2 font-medium">
                 Attention : vos anciens messages deviendront indéchiffrables.
@@ -299,7 +318,7 @@ onMounted(async () => {
 
             </div>
 
-            <div class="flex gap-4 mb-10 transition-transform duration-300">
+            <div v-if="isLegacyUnlock" class="flex gap-4 mb-10 transition-transform duration-300">
 
               <div v-for="i in 4" :key="i"
                 class="w-14 h-18 border-2 rounded-2xl flex items-center justify-center text-2xl transition-all duration-150"
@@ -310,6 +329,20 @@ onMounted(async () => {
                 ]">
                 <div class="w-3 h-3 rounded-full transition-all duration-300"
                   :class="pin.length >= i ? 'bg-(--primary)' : 'bg-white/10'" />
+              </div>
+
+            </div>
+
+            <div v-else class="flex flex-wrap justify-center gap-2 mb-10 max-w-xs">
+
+              <div v-for="i in MAX_PIN_LENGTH" :key="i"
+                class="w-6 h-8 border-b-2 flex items-center justify-center text-xl transition-all duration-150"
+                :class="[
+                  pin.length >= i
+                    ? 'border-(--primary)'
+                    : 'border-(--border-color)'
+                ]">
+                <div v-if="pin.length >= i" class="w-2.5 h-2.5 rounded-full bg-(--primary)" />
               </div>
 
             </div>
@@ -329,7 +362,7 @@ onMounted(async () => {
                 0
               </button>
 
-              <button @click="submit" class="primary" :disabled="pin.length < 4">
+              <button @click="submit" class="primary" :disabled="!canSubmitPin">
                 <span class="font-bold tracking-widest text-lg">OK</span>
               </button>
 
