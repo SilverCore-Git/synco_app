@@ -10,14 +10,14 @@
                         <i class="bi bi-calendar-event"></i>
                         <span>{{ mode === 'create' ? 'Nouvel événement' : "Modifier l'événement" }}</span>
                     </div>
-                    <button class="event-panel-close" @click="emit('close')"><i class="bi bi-x-lg"></i></button>
+                    <button class="event-panel-close" @click="closePanel"><i class="bi bi-x-lg"></i></button>
                 </div>
 
                 <div v-if="loadingDetails" class="flex-1 flex items-center justify-center">
                     <div class="w-8 h-8 border-4 border-(--primary)/30 border-t-(--primary) rounded-full animate-spin"></div>
                 </div>
 
-                <form v-else @submit.prevent="handleSave()" class="event-panel-body">
+                <form v-else @submit.prevent class="event-panel-body">
 
                     <!-- RSVP -->
                     <div v-if="showRsvp" class="rsvp-row">
@@ -44,12 +44,10 @@
                             class="title-input flex-1"
                             required
                         />
-                        <div class="color-swatch-trigger" @click="colorPickerOpen = !colorPickerOpen">
-                            <span class="color-dot" :style="{ background: color || 'var(--primary)' }"></span>
-                        </div>
+                        <span class="color-dot" :style="{ background: color || 'var(--primary)' }"></span>
                     </div>
 
-                    <div v-if="colorPickerOpen" class="color-swatch-panel">
+                    <div class="color-swatch-panel">
                         <button
                             v-for="c in colorPresets"
                             :key="c"
@@ -57,13 +55,13 @@
                             class="color-swatch"
                             :class="{ 'is-active': color === c }"
                             :style="{ background: c }"
-                            @click="color = c; colorPickerOpen = false"
+                            @click="color = c"
                         ></button>
                         <button
                             type="button"
                             class="color-swatch color-swatch-none"
                             :class="{ 'is-active': !color }"
-                            @click="color = null; colorPickerOpen = false"
+                            @click="color = null"
                         >
                             <i class="bi bi-slash-lg"></i>
                         </button>
@@ -212,51 +210,22 @@
                 <div v-if="!loadingDetails" class="event-panel-footer">
                     <div class="flex gap-2">
                         <template v-if="mode === 'edit'">
-                            <button v-if="isRecurringSeries" type="button" @click="askCancelOccurrence" class="danger !text-xs" :disabled="saving">
+                            <button v-if="isRecurringSeries" type="button" @click="askCancelOccurrence" class="danger !text-xs" :disabled="saveStatus === 'saving'">
                                 Annuler l'occurrence
                             </button>
-                            <button v-if="isRecurringSeries" type="button" @click="askDeleteSeries" class="danger !text-xs" :disabled="saving">
+                            <button v-if="isRecurringSeries" type="button" @click="askDeleteSeries" class="danger !text-xs" :disabled="saveStatus === 'saving'">
                                 Supprimer la série
                             </button>
-                            <button v-else type="button" @click="askDeleteSingle" class="danger !text-xs" :disabled="saving">
+                            <button v-else type="button" @click="askDeleteSingle" class="danger !text-xs" :disabled="saveStatus === 'saving'">
                                 Supprimer
                             </button>
                         </template>
                     </div>
 
-                    <div class="flex gap-2 justify-end flex-wrap">
-                        <button type="button" @click="emit('close')" class="default !text-xs" :disabled="saving">Annuler</button>
-
-                        <template v-if="mode === 'edit' && isRecurringSeries">
-                            <button
-                                type="button"
-                                @click="handleSave('occurrence')"
-                                class="primary !text-xs"
-                                :class="[saving ? 'loader' : '', !title.trim() ? 'opacity-50 pointer-events-none' : '']"
-                                :disabled="saving || !title.trim()"
-                            >
-                                Cette occurrence
-                            </button>
-                            <button
-                                type="button"
-                                @click="handleSave('series')"
-                                class="primary !text-xs"
-                                :class="[saving ? 'loader' : '', !title.trim() ? 'opacity-50 pointer-events-none' : '']"
-                                :disabled="saving || !title.trim()"
-                            >
-                                Toute la série
-                            </button>
-                        </template>
-                        <button
-                            v-else
-                            type="button"
-                            @click="handleSave('series')"
-                            class="primary !text-xs"
-                            :class="[saving ? 'loader' : '', !title.trim() ? 'opacity-50 pointer-events-none' : '']"
-                            :disabled="saving || !title.trim()"
-                        >
-                            {{ mode === 'create' ? 'Créer' : 'Enregistrer' }}
-                        </button>
+                    <div class="autosave-status">
+                        <i v-if="saveStatus === 'saving'" class="bi bi-arrow-repeat animate-spin"></i>
+                        <i v-else-if="saveStatus === 'saved'" class="bi bi-check-circle-fill"></i>
+                        <span>{{ saveStatusLabel }}</span>
                     </div>
                 </div>
             </aside>
@@ -275,7 +244,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { openedOrg, user } from '@/assets/var';
 import useSettingsItem from '@/composables/useSettingsItem';
@@ -315,7 +284,6 @@ const {
     createEvent,
     updateEvent,
     deleteEvent,
-    updateOccurrence,
     cancelOccurrence,
     addAttendees,
     removeAttendee,
@@ -328,7 +296,23 @@ const mode = computed<'create' | 'edit'>(() => (props.occurrence ? 'edit' : 'cre
 const isRecurringSeries = computed(() => !!props.occurrence?.isRecurring);
 
 const loadingDetails = ref(false);
-const saving = ref(false);
+
+// ── Enregistrement automatique ────────────────────────────────────────
+// Pas de bouton Enregistrer/Annuler : chaque modification du formulaire
+// déclenche une sauvegarde après un court débounce. En mode création, la
+// première sauvegarde valide (titre non vide) crée réellement l'événement
+// — draftEventId mémorise son id pour que les modifications suivantes
+// passent en mise à jour au lieu de recréer un doublon.
+const draftEventId = ref<string | null>(null);
+const effectiveEventId = computed(() => props.occurrence?.eventId || draftEventId.value);
+const saveStatus = ref<'idle' | 'saving' | 'saved'>('idle');
+const saveStatusLabel = computed(() => {
+    if (saveStatus.value === 'saving') return 'Enregistrement...';
+    if (saveStatus.value === 'saved') return 'Enregistré';
+    return '';
+});
+let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
+let initializing = false;
 
 // ── Sections repliables (réduit la charge visuelle par défaut) ────────
 const recurrenceOpen = ref(false);
@@ -341,7 +325,6 @@ const description = ref('');
 const location = ref('');
 const allDay = ref(false);
 const color = ref<string | null>(null);
-const colorPickerOpen = ref(false);
 const colorPresets = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#ec4899', '#06b6d4', '#8b5cf6', '#64748b'];
 const startDate = ref('');
 const startTime = ref('');
@@ -411,7 +394,10 @@ const attendeesSummary = computed(() => {
 });
 
 // ── Rappels ─────────────────────────────────────────────────────────
-const pendingReminderMinutes = ref<number[]>([]);
+// Les rappels sont toujours self-service, donc on les persiste dès qu'un
+// événement existe (réel ou brouillon autosauvegardé) ; avant ça, ils ne
+// vivent que localement et sont poussés vers l'API par performAutosave()
+// dès que le brouillon est créé.
 const newReminderPreset = ref<number | 'custom'>(10);
 const customReminderMinutes = ref(30);
 
@@ -420,11 +406,13 @@ interface DisplayReminder {
     minutesBefore: number;
 }
 
+const localReminders = ref<DisplayReminder[]>([]);
+
 const currentReminders = computed<DisplayReminder[]>(() => {
-    if (mode.value === 'edit') {
-        return (currentEvent.value?.reminders || []).map((r: EventReminder) => ({ id: r.id, minutesBefore: r.minutesBefore }));
+    if (mode.value === 'edit' && currentEvent.value) {
+        return (currentEvent.value.reminders || []).map((r: EventReminder) => ({ id: r.id, minutesBefore: r.minutesBefore }));
     }
-    return pendingReminderMinutes.value.map((m, i) => ({ id: `pending-${i}`, minutesBefore: m }));
+    return localReminders.value;
 });
 
 const remindersSummary = computed(() => {
@@ -442,20 +430,19 @@ async function addReminderItem() {
     const minutes = newReminderPreset.value === 'custom' ? customReminderMinutes.value : newReminderPreset.value;
     if (!minutes || minutes <= 0) return;
 
-    if (mode.value === 'edit' && props.occurrence) {
-        await addReminder(props.orgId, props.occurrence.eventId, minutes);
+    if (effectiveEventId.value) {
+        const reminder = await addReminder(props.orgId, effectiveEventId.value, minutes);
+        if (reminder) localReminders.value.push({ id: reminder.id, minutesBefore: reminder.minutesBefore });
     } else {
-        pendingReminderMinutes.value.push(minutes);
+        localReminders.value.push({ id: `pending-${Date.now()}-${Math.random()}`, minutesBefore: minutes });
     }
 }
 
 async function removeReminderItem(r: DisplayReminder) {
-    if (mode.value === 'edit' && props.occurrence) {
-        await removeReminder(props.orgId, props.occurrence.eventId, r.id);
-    } else {
-        const idx = pendingReminderMinutes.value.indexOf(r.minutesBefore);
-        if (idx !== -1) pendingReminderMinutes.value.splice(idx, 1);
+    if (effectiveEventId.value && !r.id.startsWith('pending-')) {
+        await removeReminder(props.orgId, effectiveEventId.value, r.id);
     }
+    localReminders.value = localReminders.value.filter(x => x.id !== r.id);
 }
 
 // ── RSVP ─────────────────────────────────────────────────────────────
@@ -488,7 +475,6 @@ function resetForm() {
     location.value = '';
     allDay.value = false;
     color.value = null;
-    colorPickerOpen.value = false;
     startDate.value = '';
     startTime.value = '';
     endDate.value = '';
@@ -501,12 +487,18 @@ function resetForm() {
     attendeeIds.value = [];
     initialAttendeeIds.value = [];
     attendeeSearch.value = '';
-    pendingReminderMinutes.value = [];
+    localReminders.value = [];
     newReminderPreset.value = 10;
     customReminderMinutes.value = 30;
     recurrenceOpen.value = false;
     attendeesOpen.value = false;
     remindersOpen.value = false;
+    draftEventId.value = null;
+    saveStatus.value = 'idle';
+    if (autosaveTimer) {
+        clearTimeout(autosaveTimer);
+        autosaveTimer = null;
+    }
 }
 
 function prefillFromInitialRange(range: InitialRange) {
@@ -565,6 +557,7 @@ function prefillFromOccurrence() {
 watch(() => props.show, async (isShown) => {
     if (!isShown) return;
 
+    initializing = true;
     resetForm();
     currentEvent.value = null;
 
@@ -579,6 +572,9 @@ watch(() => props.show, async (isShown) => {
     } else if (props.initialRange) {
         prefillFromInitialRange(props.initialRange);
     }
+
+    await nextTick();
+    initializing = false;
 }, { immediate: true });
 
 // ── Construction des payloads ────────────────────────────────────────
@@ -609,11 +605,33 @@ function buildRecurrenceRule() {
     return rule;
 }
 
-// ── Sauvegarde ────────────────────────────────────────────────────────
-async function handleSave(scope: 'occurrence' | 'series' = 'series') {
-    if (!title.value.trim() || !startDate.value) return;
+// ── Sauvegarde automatique ──────────────────────────────────────────
+// Pas de bouton Enregistrer : chaque champ surveillé programme un
+// autosave débounce. Tant que rien de persistant n'existe (mode create
+// sans draftEventId), la première sauvegarde valide crée réellement
+// l'événement ; les suivantes mettent à jour la série (on ne propose
+// plus le choix "cette occurrence / toute la série" — l'édition vit
+// désormais sans étape de confirmation explicite).
+let autosaveInFlight = false;
 
-    saving.value = true;
+function scheduleAutosave() {
+    if (initializing || !props.show) return;
+    if (autosaveTimer) clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(performAutosave, 600);
+}
+
+async function performAutosave() {
+    if (!title.value.trim() || !startDate.value) return;
+    if (autosaveInFlight) {
+        // Une sauvegarde est déjà en cours (ex: création en vol) — ne pas
+        // en démarrer une seconde en parallèle, qui dupliquerait l'événement
+        // tant que draftEventId n'est pas encore posé. On réessaiera après.
+        scheduleAutosave();
+        return;
+    }
+
+    autosaveInFlight = true;
+    saveStatus.value = 'saving';
     try {
         const dto: CreateEventDTO = {
             title: title.value.trim(),
@@ -625,45 +643,66 @@ async function handleSave(scope: 'occurrence' | 'series' = 'series') {
             color: color.value
         };
 
-        if (mode.value === 'create') {
+        if (!effectiveEventId.value) {
             dto.recurrenceRule = buildRecurrenceRule();
             dto.attendeeIds = attendeeIds.value;
 
             const created = await createEvent(props.orgId, dto);
-            if (created) {
-                for (const minutes of pendingReminderMinutes.value) {
-                    await addReminder(props.orgId, created.id, minutes);
-                }
-                emit('saved');
-                emit('close');
-            }
-        } else if (props.occurrence) {
-            const eventId = props.occurrence.eventId;
-
-            if (scope === 'occurrence') {
-                await updateOccurrence(props.orgId, eventId, props.occurrence.startAt, dto);
-            } else {
-                const seriesDto: UpdateEventDTO = { ...dto };
-                if (isRecurringSeries.value) {
-                    seriesDto.recurrenceRule = buildRecurrenceRule();
-                }
-                await updateEvent(props.orgId, eventId, seriesDto);
-
-                const initialSet = new Set(initialAttendeeIds.value);
-                const currentSet = new Set(attendeeIds.value);
-                const toAdd = attendeeIds.value.filter(id => !initialSet.has(id));
-                const toRemove = initialAttendeeIds.value.filter(id => !currentSet.has(id));
-
-                if (toAdd.length) await addAttendees(props.orgId, eventId, toAdd);
-                for (const id of toRemove) await removeAttendee(props.orgId, eventId, id);
+            if (!created) {
+                saveStatus.value = 'idle';
+                return;
             }
 
-            emit('saved');
-            emit('close');
+            draftEventId.value = created.id;
+            initialAttendeeIds.value = [...attendeeIds.value];
+
+            for (const r of localReminders.value) {
+                if (!r.id.startsWith('pending-')) continue;
+                const persisted = await addReminder(props.orgId, created.id, r.minutesBefore);
+                if (persisted) r.id = persisted.id;
+            }
+        } else {
+            const eventId = effectiveEventId.value;
+            const seriesDto: UpdateEventDTO = { ...dto, recurrenceRule: buildRecurrenceRule() };
+            await updateEvent(props.orgId, eventId, seriesDto);
+
+            const initialSet = new Set(initialAttendeeIds.value);
+            const currentSet = new Set(attendeeIds.value);
+            const toAdd = attendeeIds.value.filter(id => !initialSet.has(id));
+            const toRemove = initialAttendeeIds.value.filter(id => !currentSet.has(id));
+
+            if (toAdd.length) await addAttendees(props.orgId, eventId, toAdd);
+            for (const id of toRemove) await removeAttendee(props.orgId, eventId, id);
+            initialAttendeeIds.value = [...attendeeIds.value];
         }
+
+        emit('saved');
+        saveStatus.value = 'saved';
+    } catch (e) {
+        saveStatus.value = 'idle';
     } finally {
-        saving.value = false;
+        autosaveInFlight = false;
     }
+}
+
+watch(
+    [title, description, location, allDay, color, startDate, startTime, endDate, endTime, freq, interval, endType, untilDate, count, attendeeIds],
+    scheduleAutosave,
+    { deep: true }
+);
+
+// Fermer sans avoir rien tapé nettoie le brouillon déjà créé (titre non
+// vide déclenche la création dès performAutosave — fermer juste après
+// sans titre ne doit pas laisser un événement fantôme dans l'agenda).
+async function closePanel() {
+    if (autosaveTimer) {
+        clearTimeout(autosaveTimer);
+        autosaveTimer = null;
+    }
+    if (mode.value === 'create' && draftEventId.value && !title.value.trim()) {
+        await deleteEvent(props.orgId, draftEventId.value);
+    }
+    emit('close');
 }
 
 // ── Suppression / annulation ──────────────────────────────────────────
@@ -790,8 +829,23 @@ async function confirmDelete() {
     padding: 14px 18px;
     border-top: 1px solid var(--border-color);
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
     gap: 10px;
+    flex-wrap: wrap;
+}
+
+.autosave-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text2);
+    margin-left: auto;
+}
+.autosave-status .bi-check-circle-fill {
+    color: #22c55e;
 }
 
 .title-input {
@@ -809,18 +863,9 @@ async function confirmDelete() {
     border-bottom-color: var(--primary);
 }
 
-.color-swatch-trigger {
-    flex-shrink: 0;
-    padding: 6px;
-    border-radius: 8px;
-    cursor: pointer;
-}
-.color-swatch-trigger:hover {
-    background: rgba(255, 255, 255, 0.06);
-}
-
 .color-dot {
     display: block;
+    flex-shrink: 0;
     width: 14px;
     height: 14px;
     border-radius: 999px;

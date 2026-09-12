@@ -354,7 +354,8 @@ function onPanelClose() {
 }
 
 function onPanelSaved() {
-    clearSelectionIfCreating();
+    // Le panneau reste ouvert (autosave) : on ne touche pas à la sélection
+    // affichée, seulement aux occurrences pour refléter la modification.
     refetch();
 }
 
