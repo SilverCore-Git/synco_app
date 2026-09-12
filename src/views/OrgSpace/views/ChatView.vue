@@ -800,7 +800,7 @@ const trustCurrentKey = async () => {
 
 const sendMessage = async () => {
 
-    if (!newMessage.value.trim() || !socket.value || !recipient.value) return;
+    if ((!newMessage.value.trim() && selectedFiles.value.length === 0) || !socket.value || !recipient.value) return;
 
     const clearContent = newMessage.value;
     const tempId = `temp-${Date.now()}`;
@@ -878,15 +878,31 @@ const sendMessage = async () => {
         }
     }
     
-    socket.value?.emit("dm:send-message", {
-        recipientId: recipient.value.id,
-        content: finalContent,
-        encryptedAesKey: finalEncryptedAesKey,
-        selfEncryptedAesKey: selfEncryptedAesKey,
-        nonce: finalIv,
-        isE2EE: useEncryption,
-        replyToId: tempMessage.replyToId,
+    const pendingFiles = files.value;
+    selectedFiles.value = [];
+    files.value = [];
+
+    const confirmedMessage: any = await new Promise((resolve) => {
+        socket.value?.emit("dm:send-message", {
+            recipientId: recipient.value!.id,
+            content: finalContent,
+            encryptedAesKey: finalEncryptedAesKey,
+            selfEncryptedAesKey: selfEncryptedAesKey,
+            nonce: finalIv,
+            isE2EE: useEncryption,
+            replyToId: tempMessage.replyToId,
+        }, (response: any) => resolve(response));
     });
+
+    if (confirmedMessage?.error) {
+        toast.show(confirmedMessage.error, "error");
+        messages.value = messages.value.filter(m => m.id !== tempId);
+        return;
+    }
+
+    if (pendingFiles.length && confirmedMessage?.id) {
+        socket.value?.emit('edit-dm-message-files', { id: confirmedMessage.id, files: pendingFiles });
+    }
 
 };
 
