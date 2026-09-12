@@ -63,17 +63,17 @@
                 </div>
 
                 <div
-                    v-if="drag && drag.iso === day.iso"
+                    v-if="dragGhosts.get(day.iso)"
                     class="time-grid-drag-ghost"
-                    :style="ghostStyle"
+                    :style="dragGhosts.get(day.iso)!.style"
                 >
-                    {{ ghostLabel }}
+                    {{ dragGhosts.get(day.iso)!.label }}
                 </div>
 
                 <div
-                    v-if="selection && !drag && selectionIso === day.iso && !selection.allDay"
+                    v-if="!drag && !selection?.allDay && selectionSpans.get(day.iso)"
                     class="time-grid-selection-ghost"
-                    :style="selectionStyle"
+                    :style="{ top: selectionSpans.get(day.iso)!.top + 'px', height: selectionSpans.get(day.iso)!.height + 'px' }"
                 ></div>
             </div>
         </div>
@@ -175,27 +175,48 @@ function eventStyle(occ: OccurrenceInstance) {
     };
 }
 
-// ── Sélection persistante (reste affichée pendant la création) ────────
-const selectionIso = computed(() => props.selection ? isoDay(props.selection.start) : null);
+// ── Géométrie partagée : découpe un intervalle [start, end] (qui peut
+// traverser plusieurs jours) en un rectangle par colonne de jour traversée.
+function combineDateAndMinutes(date: Date, minutes: number): Date {
+    const d = new Date(date);
+    d.setHours(0, minutes, 0, 0);
+    return d;
+}
 
-const selectionStyle = computed(() => {
-    if (!props.selection) return {};
-    const s = props.selection.start;
-    const e = props.selection.end;
-    const startMin = s.getHours() * 60 + s.getMinutes();
-    const endMin = e.getHours() * 60 + e.getMinutes();
-    const top = (startMin / 60) * rowHeight;
-    const height = Math.max((endMin - startMin) / 60 * rowHeight, (SNAP_MINUTES / 60) * rowHeight);
-    return { top: `${top}px`, height: `${height}px` };
+function buildDaySpans(start: Date, end: Date): Map<string, { top: number; height: number }> {
+    const startIso = isoDay(start);
+    const endIso = isoDay(end);
+    const startMinutes = start.getHours() * 60 + start.getMinutes();
+    const endMinutes = end.getHours() * 60 + end.getMinutes();
+
+    const map = new Map<string, { top: number; height: number }>();
+    for (const day of days.value) {
+        if (day.iso < startIso || day.iso > endIso) continue;
+        const topMin = day.iso === startIso ? startMinutes : 0;
+        const bottomMin = day.iso === endIso ? endMinutes : 24 * 60;
+        const top = (topMin / 60) * rowHeight;
+        const height = Math.max(((bottomMin - topMin) / 60) * rowHeight, (SNAP_MINUTES / 60) * rowHeight);
+        map.set(day.iso, { top, height });
+    }
+    return map;
+}
+
+// ── Sélection persistante (reste affichée pendant la création) ────────
+const selectionSpans = computed(() => {
+    if (!props.selection || props.selection.allDay) return new Map<string, { top: number; height: number }>();
+    return buildDaySpans(props.selection.start, props.selection.end);
 });
 
-// ── Sélection par glisser (façon Google Agenda) ──────────────────────
+// ── Sélection par glisser (façon Google Agenda) — peut traverser
+// plusieurs colonnes de jour, ex: mardi 8h → samedi 20h.
 interface DragState {
-    iso: string;
-    date: Date;
+    anchorIso: string;
+    anchorDate: Date;
     colTop: number;
     startY: number;
     currentY: number;
+    currentIso: string;
+    currentDate: Date;
 }
 
 const drag = ref<DragState | null>(null);
@@ -214,7 +235,15 @@ function onPointerDown(e: MouseEvent, day: DayColumn) {
     const rect = target.getBoundingClientRect();
     const y = e.clientY - rect.top;
 
-    drag.value = { iso: day.iso, date: day.date, colTop: rect.top, startY: y, currentY: y };
+    drag.value = {
+        anchorIso: day.iso,
+        anchorDate: day.date,
+        colTop: rect.top,
+        startY: y,
+        currentY: y,
+        currentIso: day.iso,
+        currentDate: day.date
+    };
     window.addEventListener('mousemove', onPointerMove);
     window.addEventListener('mouseup', onPointerUp);
 }
@@ -222,43 +251,73 @@ function onPointerDown(e: MouseEvent, day: DayColumn) {
 function onPointerMove(e: MouseEvent) {
     if (!drag.value) return;
     const y = Math.max(0, Math.min(rowHeight * 24, e.clientY - drag.value.colTop));
-    drag.value = { ...drag.value, currentY: y };
+
+    const hovered = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest('.time-grid-day-col') as HTMLElement | null;
+    const hoveredIso = hovered?.dataset.iso;
+    const hoveredDay = hoveredIso ? days.value.find(d => d.iso === hoveredIso) : null;
+
+    drag.value = {
+        ...drag.value,
+        currentY: y,
+        currentIso: hoveredDay?.iso || drag.value.currentIso,
+        currentDate: hoveredDay?.date || drag.value.currentDate
+    };
 }
+
+// Résout le point de départ/fin chronologique réel d'un glisser (l'ancre
+// n'est pas toujours le point le plus tôt : on peut glisser vers la gauche
+// ou vers le haut).
+const dragSpan = computed(() => {
+    if (!drag.value) return null;
+    const d = drag.value;
+    const anchorMinutes = snap(pxToMinutes(d.startY));
+    const currentMinutes = snap(pxToMinutes(d.currentY));
+    const dtAnchor = combineDateAndMinutes(d.anchorDate, anchorMinutes);
+    const dtCurrent = combineDateAndMinutes(d.currentDate, currentMinutes);
+    const reversed = dtCurrent.getTime() < dtAnchor.getTime();
+
+    return {
+        start: reversed ? dtCurrent : dtAnchor,
+        end: reversed ? dtAnchor : dtCurrent,
+        startMinutes: reversed ? currentMinutes : anchorMinutes,
+        endMinutes: reversed ? anchorMinutes : currentMinutes
+    };
+});
 
 function onPointerUp(e: MouseEvent) {
     window.removeEventListener('mousemove', onPointerMove);
     window.removeEventListener('mouseup', onPointerUp);
-    if (!drag.value) return;
+    if (!drag.value || !dragSpan.value) { drag.value = null; return; }
 
-    const d = drag.value;
+    const span = dragSpan.value;
     drag.value = null;
 
-    const rawStart = snap(pxToMinutes(Math.min(d.startY, d.currentY)));
-    let rawEnd = snap(pxToMinutes(Math.max(d.startY, d.currentY)));
-    if (rawEnd - rawStart < SNAP_MINUTES) rawEnd = rawStart + 30; // simple clic → créneau de 30 min par défaut
-
-    const start = new Date(d.date);
-    start.setHours(0, rawStart, 0, 0);
-    const end = new Date(d.date);
-    end.setHours(0, rawEnd, 0, 0);
+    let { start, end } = span;
+    if (end.getTime() - start.getTime() < SNAP_MINUTES * 60000) {
+        end = new Date(start.getTime() + 30 * 60000); // simple clic → créneau de 30 min par défaut
+    }
 
     emit('create', { start, end, clientX: e.clientX, clientY: e.clientY });
 }
 
-const ghostStyle = computed(() => {
-    if (!drag.value) return {};
-    const top = Math.min(drag.value.startY, drag.value.currentY);
-    const height = Math.max(Math.abs(drag.value.currentY - drag.value.startY), (SNAP_MINUTES / 60) * rowHeight);
-    return { top: `${top}px`, height: `${height}px` };
-});
+const dragGhosts = computed(() => {
+    const span = dragSpan.value;
+    if (!span) return new Map<string, { style: Record<string, string>; label: string }>();
 
-const ghostLabel = computed(() => {
-    if (!drag.value) return '';
-    const rawStart = snap(pxToMinutes(Math.min(drag.value.startY, drag.value.currentY)));
-    let rawEnd = snap(pxToMinutes(Math.max(drag.value.startY, drag.value.currentY)));
-    if (rawEnd - rawStart < SNAP_MINUTES) rawEnd = rawStart + 30;
+    const spans = buildDaySpans(span.start, span.end);
+    const startIso = isoDay(span.start);
+    const endIso = isoDay(span.end);
     const fmt = (mins: number) => `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
-    return `${fmt(rawStart)} – ${fmt(rawEnd)}`;
+
+    const map = new Map<string, { style: Record<string, string>; label: string }>();
+    for (const [iso, geom] of spans) {
+        let label = '';
+        if (startIso === endIso) label = `${fmt(span.startMinutes)} – ${fmt(span.endMinutes)}`;
+        else if (iso === startIso) label = `${fmt(span.startMinutes)} →`;
+        else if (iso === endIso) label = `→ ${fmt(span.endMinutes)}`;
+        map.set(iso, { style: { top: `${geom.top}px`, height: `${geom.height}px` }, label });
+    }
+    return map;
 });
 
 function emitCreate(start: Date, end: Date, allDay: boolean, e: MouseEvent) {

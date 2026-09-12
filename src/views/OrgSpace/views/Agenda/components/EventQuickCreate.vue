@@ -91,7 +91,8 @@ const rangeLabel = computed(() => {
     if (allDay.value) {
         return sameDay ? dayFmt(start) : `${dayFmt(start)} → ${dayFmt(end)}`;
     }
-    return `${dayFmt(start)} · ${timeFmt(start)} – ${timeFmt(end)}`;
+    if (sameDay) return `${dayFmt(start)} · ${timeFmt(start)} – ${timeFmt(end)}`;
+    return `${dayFmt(start)} ${timeFmt(start)} → ${dayFmt(end)} ${timeFmt(end)}`;
 });
 
 const cardStyle = computed(() => {
