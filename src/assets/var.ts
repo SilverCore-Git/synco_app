@@ -32,5 +32,10 @@ const onlyOfficeEnabled = computed(() => {
     return openedOrg.value.activeModules?.onlyoffice === true;
 });
 
+const agendaEnabled = computed(() => {
+    if (!openedOrg.value) return false;
+    return openedOrg.value.activeModules?.agenda || false;
+});
 
-export { organizations, openedOrg, isLoaded, user, member, isLittleScreen, kcToken, todoEnabled, filesEnabled, aiEnabled, onlyOfficeEnabled };
+
+export { organizations, openedOrg, isLoaded, user, member, isLittleScreen, kcToken, todoEnabled, filesEnabled, aiEnabled, onlyOfficeEnabled, agendaEnabled };
