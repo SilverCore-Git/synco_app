@@ -218,39 +218,47 @@ const handleAction = async () => {
 
 };
 
+let mountedSocket: Awaited<ReturnType<typeof useWSocket>>['value'] = null;
+
+const onVocUpdate = ({ participants, threadId }: { participants: any[]; threadId: string }) => {
+    if (threadId === props.thread.id)
+    {
+        socketParticipants.value = participants;
+    }
+};
+
+const onVocGetUpdate = ({ threadId }: { threadId: string }) => {
+    if (threadId === props.thread.id && isActiveInRoom.value && room.value)
+    {
+        mountedSocket?.emit('voc:update', {
+            participants: getWSData(room.value),
+            threadId: props.thread.id,
+            orgId: route.params.orgId,
+            spaceId: route.params.spaceId
+        });
+    }
+};
+
 onMounted(async () => {
 
     const socketRef = await useWSocket();
     const socket = socketRef.value;
     if (!socket) return;
+    mountedSocket = socket;
 
-    socket.on('voc:update', ({ participants, threadId }) => {
-        if (threadId === props.thread.id) 
-        {
-            socketParticipants.value = participants;
-        }
-    });
+    // Chaque VoiceThreadBtn (un par salon vocal affiché) s'abonne à ces deux
+    // events sur le socket partagé de l'app : off('voc:update') sans handler
+    // précis retire TOUS les listeners de l'event, y compris ceux des autres
+    // salons — d'où la référence explicite pour ne désabonner que la sienne.
+    socket.on('voc:update', onVocUpdate);
+    socket.on('voc:get-update', onVocGetUpdate);
 
-    socket.on('voc:get-update', ({ threadId }) => {
-
-        if (threadId === props.thread.id && isActiveInRoom.value && room.value) 
-        {
-            socket.emit('voc:update', { 
-                participants: getWSData(room.value), 
-                threadId: props.thread.id, 
-                orgId: route.params.orgId, 
-                spaceId: route.params.spaceId 
-            });
-        }
-
-    });
-
-    if (!isActiveInRoom.value) 
+    if (!isActiveInRoom.value)
     {
-        
 
-        socket.emit('voc:get-update', { 
-            threadId: props.thread.id, 
+
+        socket.emit('voc:get-update', {
+            threadId: props.thread.id,
             orgId: route.params.orgId,
             spaceId: route.params.spaceId
         });
@@ -261,10 +269,10 @@ onMounted(async () => {
 
 onUnmounted(async () => {
     const socket = (await useWSocket()).value;
-    if (socket) 
+    if (socket)
     {
-        socket.off('voc:update');
-        socket.off('voc:get-update');
+        socket.off('voc:update', onVocUpdate);
+        socket.off('voc:get-update', onVocGetUpdate);
     }
 });
 
