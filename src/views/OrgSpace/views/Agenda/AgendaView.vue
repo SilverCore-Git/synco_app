@@ -37,7 +37,7 @@
                 </button>
                 <MiniCalendar
                     :cursor-date="cursorDate"
-                    :occurrences="occurrences"
+                    :occurrences="displayOccurrences"
                     @pick-day="goToDay"
                     @navigate-month="navigateMiniMonth"
                 />
@@ -51,7 +51,7 @@
                 <MonthGrid
                     v-else-if="viewMode === 'month'"
                     :cursor-date="cursorDate"
-                    :occurrences="occurrences"
+                    :occurrences="displayOccurrences"
                     :selection="selectionRange"
                     @open-event="openEditModal"
                     @create="onGridCreate"
@@ -61,7 +61,7 @@
                 <WeekGrid
                     v-else-if="viewMode === 'week'"
                     :cursor-date="cursorDate"
-                    :occurrences="occurrences"
+                    :occurrences="displayOccurrences"
                     :selection="selectionRange"
                     @open-event="openEditModal"
                     @create="onGridCreate"
@@ -70,7 +70,7 @@
                 <DayGrid
                     v-else
                     :cursor-date="cursorDate"
-                    :occurrences="occurrences"
+                    :occurrences="displayOccurrences"
                     :selection="selectionRange"
                     @open-event="openEditModal"
                     @create="onGridCreate"
@@ -103,7 +103,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import MonthGrid from './components/MonthGrid.vue';
 import WeekGrid from './components/WeekGrid.vue';
@@ -113,12 +113,66 @@ import EventQuickCreate from './components/EventQuickCreate.vue';
 import EventPanel from './components/EventPanel.vue';
 import { useAgenda } from '@/composables/useAgenda';
 import useWSocket from '@/composables/useWSocket';
-import type { OccurrenceInstance } from '@/types/agenda';
+import sfetch from '@/assets/utils/sfetch';
+import { user } from '@/assets/var';
+import type { Task, TodoList } from '@/types/types';
+import { TASK_DEADLINE_PREFIX, isTaskDeadlineOccurrence, taskIdFromDeadlineEventId, type OccurrenceInstance } from '@/types/agenda';
 
 const route = useRoute();
+const router = useRouter();
 const orgId = computed(() => route.params.orgId as string);
 
 const { occurrences, loading, viewingUserId, fetchRange, updateEvent, updateOccurrence } = useAgenda();
+
+// ── Échéances de tâches affichées comme événements dans l'agenda ──────
+// Pseudo-occurrences synthétisées côté front à partir des tâches qui me
+// sont assignées (ou personnelles) avec une date d'échéance — pas de
+// nouvel endpoint backend, on réutilise les tâches déjà chargées ailleurs
+// (TasksGlobal/TodosCard) et on les projette sur le jour de l'échéance.
+const myTasksWithDeadline = ref<Task[]>([]);
+
+async function loadTaskDeadlines() {
+    try {
+        const res = await sfetch(`/api/tasks/${orgId.value}/lists/me`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const allTasks: Task[] = [];
+        data.lists.forEach((list: TodoList) => list.tasks?.forEach(t => allTasks.push(t)));
+
+        myTasksWithDeadline.value = allTasks.filter(task => {
+            if (task.archived || task.status === 'DONE' || !task.dueDate) return false;
+            const isAssignedToMe = task.assignees?.some(a => a.id === user.value?.id);
+            const isMyPersonalTask = !task.spaceId && task.creatorId === user.value?.id;
+            return isAssignedToMe || isMyPersonalTask;
+        });
+    } catch (e) {
+        console.error('[Agenda] Failed to load task deadlines', e);
+    }
+}
+
+const taskDeadlineOccurrences = computed<OccurrenceInstance[]>(() => {
+    return myTasksWithDeadline.value.map(task => {
+        const due = new Date(task.dueDate!).toISOString();
+        return {
+            occurrenceKey: `${TASK_DEADLINE_PREFIX}${task.id}`,
+            eventId: `${TASK_DEADLINE_PREFIX}${task.id}`,
+            title: task.title,
+            description: task.description || null,
+            location: null,
+            startAt: due,
+            endAt: due,
+            allDay: true,
+            color: null,
+            isRecurring: false,
+            isException: false,
+            creatorId: task.creatorId,
+            attendees: []
+        };
+    });
+});
+
+// Fusion événements réels + échéances de tâches pour l'affichage dans les grilles.
+const displayOccurrences = computed(() => [...occurrences.value, ...taskDeadlineOccurrences.value]);
 
 type ViewMode = 'month' | 'week' | 'day';
 const viewMode = ref<ViewMode>('month');
@@ -271,10 +325,23 @@ function openCreateBlank() {
 }
 
 function openEditModal(occ: OccurrenceInstance) {
+    if (isTaskDeadlineOccurrence(occ.eventId)) {
+        openTaskDeadline(occ);
+        return;
+    }
     showQuickCreate.value = false;
     selectedOccurrence.value = occ;
     createInitialRange.value = null;
     showPanel.value = true;
+}
+
+// Une échéance de tâche n'est pas un vrai événement : on renvoie vers la
+// tâche elle-même (liste personnelle ou liste de l'espace) plutôt que
+// d'ouvrir le panneau d'édition d'événement.
+function openTaskDeadline(occ: OccurrenceInstance) {
+    const taskId = taskIdFromDeadlineEventId(occ.eventId);
+    const task = myTasksWithDeadline.value.find(t => t.id === taskId);
+    router.push(task?.spaceId ? `/${orgId.value}/${task.spaceId}/tasks` : `/${orgId.value}/tasks`);
 }
 
 function clearSelectionIfCreating() {
@@ -313,6 +380,7 @@ watch([viewMode, cursorDate, viewingUserId], () => {
 
 onMounted(async () => {
     refetch();
+    loadTaskDeadlines();
 
     const socket = await useWSocket();
     socket.value?.on('agenda:event-created', refetch);

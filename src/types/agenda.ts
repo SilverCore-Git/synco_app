@@ -2,6 +2,19 @@
 // Types pour le module Agenda
 // ============================================
 
+// Préfixe des pseudo-occurrences synthétisées côté front pour représenter
+// l'échéance d'une tâche (module Todo) directement dans l'agenda — ce ne
+// sont pas de vrais CalendarEvent, donc jamais envoyées à l'API agenda.
+export const TASK_DEADLINE_PREFIX = 'task-deadline:';
+
+export function isTaskDeadlineOccurrence(eventId: string): boolean {
+    return eventId.startsWith(TASK_DEADLINE_PREFIX);
+}
+
+export function taskIdFromDeadlineEventId(eventId: string): string {
+    return eventId.slice(TASK_DEADLINE_PREFIX.length);
+}
+
 // ============================================
 // Récurrence
 // ============================================

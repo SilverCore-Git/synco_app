@@ -1,12 +1,13 @@
 <template>
     <div
         class="event-chip"
-        :class="[compact ? 'event-chip-compact' : 'event-chip-full', statusClass]"
+        :class="[compact ? 'event-chip-compact' : 'event-chip-full', statusClass, { 'event-chip-deadline': isDeadline }]"
         :style="colorStyle"
         :title="tooltip"
         @click.stop="emit('click')"
     >
-        <span v-if="!occurrence.allDay" class="event-chip-time">{{ timeLabel }}</span>
+        <i v-if="isDeadline" class="bi bi-flag-fill event-chip-deadline-icon"></i>
+        <span v-if="!occurrence.allDay && !isDeadline" class="event-chip-time">{{ timeLabel }}</span>
         <span class="event-chip-title">{{ occurrence.title }}</span>
         <i v-if="occurrence.isRecurring" class="bi bi-arrow-repeat event-chip-recurring-icon" title="Événement récurrent"></i>
     </div>
@@ -14,7 +15,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { OccurrenceInstance } from '@/types/agenda';
+import { isTaskDeadlineOccurrence, type OccurrenceInstance } from '@/types/agenda';
 import { user } from '@/assets/var';
 
 const props = defineProps<{
@@ -25,6 +26,8 @@ const props = defineProps<{
 const emit = defineEmits<{
     click: [];
 }>();
+
+const isDeadline = computed(() => isTaskDeadlineOccurrence(props.occurrence.eventId));
 
 const myAttendance = computed(() => props.occurrence.attendees.find(a => a.userId === user.value?.id));
 
@@ -44,9 +47,10 @@ const timeLabel = computed(() => {
 });
 
 const tooltip = computed(() => {
-    return props.occurrence.location
+    const base = props.occurrence.location
         ? `${props.occurrence.title} — ${props.occurrence.location}`
         : props.occurrence.title;
+    return isDeadline.value ? `Échéance — ${base}` : base;
 });
 
 // La couleur personnalisée ne s'applique que sur les statuts "neutres" —
@@ -126,11 +130,22 @@ const colorStyle = computed(() => {
 
 .event-chip.is-event-dragging {
     opacity: 0.3;
-    pointer-events: none;
 }
 
 .status-pending {
     border-left-color: var(--text2);
     opacity: 0.85;
+}
+
+.event-chip-deadline {
+    border-left-style: dashed;
+    border-left-color: #f59e0b;
+    background: color-mix(in srgb, #f59e0b 14%, transparent);
+}
+
+.event-chip-deadline-icon {
+    font-size: 9px;
+    color: #f59e0b;
+    flex-shrink: 0;
 }
 </style>

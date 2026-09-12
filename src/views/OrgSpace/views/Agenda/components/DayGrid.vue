@@ -41,9 +41,9 @@
                     :class="{ 'is-event-dragging': eventDrag?.occ.occurrenceKey === occ.occurrenceKey }"
                     :style="eventStyle(occ)"
                 >
-                    <div v-if="!isMultiDay(occ)" class="time-grid-resize-handle top" @mousedown.stop="startEventDrag($event, occ, 'resize-top')"></div>
-                    <EventChip :occurrence="occ" @click="emit('open-event', occ)" @mousedown.stop="isMultiDay(occ) ? undefined : startEventDrag($event, occ, 'move')" />
-                    <div v-if="!isMultiDay(occ)" class="time-grid-resize-handle bottom" @mousedown.stop="startEventDrag($event, occ, 'resize-bottom')"></div>
+                    <div v-if="!isLocked(occ)" class="time-grid-resize-handle top" @mousedown.stop="startEventDrag($event, occ, 'resize-top')"></div>
+                    <EventChip :occurrence="occ" @click="emit('open-event', occ)" @mousedown.stop="isLocked(occ) ? undefined : startEventDrag($event, occ, 'move')" />
+                    <div v-if="!isLocked(occ)" class="time-grid-resize-handle bottom" @mousedown.stop="startEventDrag($event, occ, 'resize-bottom')"></div>
                 </div>
 
                 <div v-if="eventDrag" class="time-grid-drag-ghost is-event-preview" :style="eventDragGhostStyle">
@@ -63,7 +63,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import EventChip from './EventChip.vue';
-import type { OccurrenceInstance } from '@/types/agenda';
+import { isTaskDeadlineOccurrence, type OccurrenceInstance } from '@/types/agenda';
 
 const props = defineProps<{
     cursorDate: Date;
@@ -113,6 +113,10 @@ const dayOccurrences = computed(() => {
 
 function isMultiDay(occ: OccurrenceInstance): boolean {
     return isoDay(new Date(occ.startAt)) !== isoDay(new Date(occ.endAt));
+}
+
+function isLocked(occ: OccurrenceInstance): boolean {
+    return isMultiDay(occ) || isTaskDeadlineOccurrence(occ.eventId);
 }
 
 const allDayOccurrences = computed(() => dayOccurrences.value.filter(o => o.allDay));

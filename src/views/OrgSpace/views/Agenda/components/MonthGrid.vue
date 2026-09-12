@@ -35,7 +35,7 @@
                         compact
                         :class="{ 'is-event-dragging': movingEvent?.occ.occurrenceKey === occ.occurrenceKey }"
                         @click="emit('open-event', occ)"
-                        @mousedown.stop="startEventMove($event, occ)"
+                        @mousedown.stop="isTaskDeadlineOccurrence(occ.eventId) ? undefined : startEventMove($event, occ)"
                     />
                     <button
                         v-if="day.occurrences.length > 3"
@@ -54,7 +54,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import EventChip from './EventChip.vue';
-import type { OccurrenceInstance } from '@/types/agenda';
+import { isTaskDeadlineOccurrence, type OccurrenceInstance } from '@/types/agenda';
 
 const props = defineProps<{
     cursorDate: Date;
