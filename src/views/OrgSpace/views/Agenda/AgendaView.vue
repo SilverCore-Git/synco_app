@@ -138,6 +138,9 @@ async function loadTaskDeadlines() {
         const data = await res.json();
         const allTasks: Task[] = [];
         data.lists.forEach((list: TodoList) => list.tasks?.forEach(t => allTasks.push(t)));
+        // Les tâches créées hors d'une TodoList explicite (cas courant :
+        // "Créer une tâche" dans un espace) arrivent séparément ici.
+        data.unlistedTasks?.forEach((t: Task) => allTasks.push(t));
 
         myTasksWithDeadline.value = allTasks.filter(task => {
             if (task.archived || task.status === 'DONE' || !task.dueDate) return false;
