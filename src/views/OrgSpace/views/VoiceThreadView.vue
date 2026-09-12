@@ -18,9 +18,10 @@
             <!-- Focused User -->
             <div
                 :key="userFocused.identity"
+                :ref="(el) => setTileRef(userFocused.identity, el as Element | null)"
                 @click="userFocused = null"
                 class="
-                    relative bg-(--bg2) rounded-3xl 
+                    relative bg-(--bg2) rounded-3xl
                     overflow-hidden border border-(--border-color)
                     flex items-center justify-center group
                     w-full max-h-[70vh] aspect-video
@@ -70,10 +71,17 @@
                     <i v-if="!userFocused.isMicrophoneEnabled" class="bi bi-mic-mute-fill text-red-500 text-sm" />
                 </div>
 
-                <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div class="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <div class="bg-black/50 backdrop-blur-md px-2 py-1 rounded-md text-xs font-medium text-white/80 border border-white/10">
                         {{ userFocused.connectionQuality }}
                     </div>
+                    <button
+                        @click.stop="toggleFullscreen(userFocused.identity)"
+                        class="bg-black/50 hover:bg-black/70 backdrop-blur-md w-7 h-7 flex items-center justify-center rounded-md text-white border border-white/10 transition-colors"
+                        title="Plein écran"
+                    >
+                        <i class="bi" :class="fullscreenIdentity === userFocused.identity ? 'bi-fullscreen-exit' : 'bi-arrows-fullscreen'" />
+                    </button>
                 </div>
 
             </div>
@@ -148,12 +156,13 @@
             "
         >
                 
-            <div 
-                v-for="p in allParticipants" 
+            <div
+                v-for="p in allParticipants"
                 :key="p.identity"
+                :ref="(el) => setTileRef(p.identity, el as Element | null)"
                 @click="userFocused = p"
                 class="
-                    relative bg-(--bg2) rounded-3xl 
+                    relative bg-(--bg2) rounded-3xl
                     overflow-hidden border border-(--border-color)
                     flex items-center justify-center group
                     w-full max-w-sm 2xl:max-w-lg max-h-80 aspect-video
@@ -201,10 +210,17 @@
                     <i v-if="!p.isMicrophoneEnabled" class="bi bi-mic-mute-fill text-red-500 text-xs" />
                 </div>
 
-                <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div class="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <div class="bg-black/50 backdrop-blur-md px-2 py-1 rounded-md text-[10px] font-medium text-white/80 border border-white/10">
                         {{ p.connectionQuality }}
                     </div>
+                    <button
+                        @click.stop="toggleFullscreen(p.identity)"
+                        class="bg-black/50 hover:bg-black/70 backdrop-blur-md w-6 h-6 flex items-center justify-center rounded-md text-white border border-white/10 transition-colors"
+                        title="Plein écran"
+                    >
+                        <i class="bi text-xs" :class="fullscreenIdentity === p.identity ? 'bi-fullscreen-exit' : 'bi-arrows-fullscreen'" />
+                    </button>
                 </div>
 
             </div>
@@ -275,7 +291,7 @@
 
 <script setup lang="ts">
 
-import { onMounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Track } from 'livekit-client';
 import useLiveKit from '@/composables/useLiveKit';
@@ -313,6 +329,47 @@ const {
 
 const userFocused = ref<any>(null);
 const isConnecting = ref(false);
+
+// Permet de mettre n'importe quelle tuile (partage d'écran, caméra, avatar)
+// en plein écran natif sans dupliquer un <video> dédié : on demande le plein
+// écran sur la tuile elle-même (conserve le nom/l'icône affichés dessus).
+const tileRefs = new Map<string, HTMLElement>();
+const fullscreenIdentity = ref<string | null>(null);
+
+const setTileRef = (identity: string, el: Element | null) => {
+    if (el) tileRefs.set(identity, el as HTMLElement);
+    else tileRefs.delete(identity);
+};
+
+const onFullscreenChange = () => {
+    const fsEl = document.fullscreenElement;
+    fullscreenIdentity.value = fsEl
+        ? ([...tileRefs.entries()].find(([, el]) => el === fsEl)?.[0] ?? null)
+        : null;
+};
+
+const toggleFullscreen = async (identity: string) => {
+    const tile = tileRefs.get(identity);
+    if (!tile) return;
+    try {
+        if (document.fullscreenElement === tile) {
+            await document.exitFullscreen();
+        } else {
+            await tile.requestFullscreen();
+        }
+    } catch (e) {
+        toast.show("Impossible de passer en plein écran", "error");
+    }
+};
+
+onMounted(() => {
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+});
+
+onUnmounted(() => {
+    document.removeEventListener('fullscreenchange', onFullscreenChange);
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+});
 
 const getMeta = (p: any): any => {
     if (!openedOrg.value?.members) return {};
