@@ -37,7 +37,7 @@
                         <ul
                             class="
                                 flex justify-start items-start flex-col flex-1 min-h-0
-                                gap-3 w-full px-3 py-5 overflow-y-auto overflow-x-hidden
+                                gap-3 w-full px-3 py-5 overflow-scroll
                             "
                             :style="{ paddingBottom: userCardHeight + 'px' }"
                         >
@@ -87,7 +87,7 @@
                 <ul
                     class="
                         flex justify-start items-start flex-col flex-1 min-h-0
-                        gap-3 w-full px-3 py-5 overflow-y-auto overflow-x-hidden
+                        gap-3 w-full px-3 py-5 overflow-scroll
                     "
                     :style="{ paddingBottom: userCardHeight + 'px' }"
                 >
@@ -154,7 +154,7 @@
                 <ul
                     class="
                         flex justify-start items-start flex-col flex-1 min-h-0
-                        gap-3 w-full px-3 py-5 overflow-y-auto overflow-x-hidden
+                        gap-3 w-full px-3 py-5 overflow-y-auto
                     "
                     :style="{ paddingBottom: userCardHeight + 'px' }"
                 >
@@ -289,7 +289,7 @@
                         <ul
                             class="
                                 flex justify-start items-start flex-col flex-1 min-h-0
-                                gap-3 w-full px-3 py-5 overflow-y-auto overflow-x-hidden
+                                gap-3 w-full px-3 py-5 overflow-scroll
                             "
                             :style="{ paddingBottom: userCardHeight + 'px' }"
                         >
