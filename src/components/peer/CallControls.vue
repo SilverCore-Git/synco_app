@@ -19,16 +19,6 @@
             <i class="bi" :class="isScreenSharing ? 'bi-stop-circle-fill' : 'bi-display-fill'" />
         </button>
 
-        <!-- Mic Button -->
-        <button
-            @click="toggleMic"
-            :class="!isMicOn ? 'bg-red-500/50 text-red-200' : ''"
-            class="rounded-full w-12 h-12 text-xl bg-(--white)/10 hover:bg-(--white)/20 text-(--white) transition-all"
-            :title="isMicOn ? 'Couper le micro' : 'Activer le micro'"
-        >
-            <i class="bi" :class="isMicOn ? 'bi-mic-fill' : 'bi-mic-mute-fill'" />
-        </button>
-
         <!-- Camera Button -->
         <button
             @click="toggleCam"
@@ -37,6 +27,16 @@
             :title="isCamOn ? 'Désactiver la caméra' : 'Activer la caméra'"
         >
             <i class="bi" :class="isCamOn ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'" />
+        </button>
+
+        <!-- Mic Button -->
+        <button
+            @click="toggleMic"
+            :class="!isMicOn ? 'bg-red-500/50 text-red-200' : ''"
+            class="rounded-full w-12 h-12 text-xl bg-(--white)/10 hover:bg-(--white)/20 text-(--white) transition-all"
+            :title="isMicOn ? 'Couper le micro' : 'Activer le micro'"
+        >
+            <i class="bi" :class="isMicOn ? 'bi-mic-fill' : 'bi-mic-mute-fill'" />
         </button>
 
         <!-- Deafen Button -->
