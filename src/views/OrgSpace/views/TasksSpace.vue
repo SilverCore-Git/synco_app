@@ -50,7 +50,7 @@
                         @dragleave.prevent="dragOverArchiveBtn = false"
                         @drop="onDropToArchiveBtn"
                         class="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0"
-                        :class="dragOverArchiveBtn ? 'bg-amber-500 text-white scale-110 shadow-[0_4px_20px_rgba(245,158,11,0.5)]' : (showArchivedPanel ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10')"
+                        :class="dragOverArchiveBtn ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-[0_4px_20px_rgba(245,158,11,0.5)]' : (showArchivedPanel ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10')"
                     >
                         <i class="bi bi-archive-fill" />
                         Tâches archivées
@@ -67,7 +67,7 @@
                         @dragleave.prevent="dragOverMemberId = null"
                         @drop="onDropToAssign($event, member)"
                         class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0"
-                        :class="dragOverMemberId === member.userId ? 'bg-(--primary) text-white scale-110 shadow-[0_4px_20px_rgba(var(--primary-rgb),0.5)]' : (filterUserId === member.userId ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10')"
+                        :class="dragOverMemberId === member.userId ? 'bg-(--primary) text-white ring-2 ring-(--primary)/50 shadow-[0_4px_20px_rgba(var(--primary-rgb),0.5)]' : (filterUserId === member.userId ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10')"
                     >
                         <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-5 h-5 rounded-full object-cover">
                         <div v-else class="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px]">
