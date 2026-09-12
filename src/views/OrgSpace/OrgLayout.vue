@@ -5,7 +5,6 @@ import ThreadsBar from './components/layouts/ThreadsBar.vue';
 import SpaceBar from './components/layouts/SpaceBar.vue';
 import UserCard from './components/layouts/UserCard.vue';
 import UsersBar from './components/layouts/UsersBar.vue';
-import ActiveCallBanner from './components/layouts/ActiveCallBanner.vue';
 import { isLittleScreen, openedOrg, organizations, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
@@ -628,7 +627,6 @@ onBeforeUnmount(async () => {
                     ]"
                 >
                     <RouterView />
-                    <ActiveCallBanner />
                 </div>
             </Transition>
 
