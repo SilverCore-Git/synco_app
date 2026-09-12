@@ -31,6 +31,7 @@ export interface CalendarEvent {
   endAt: string;
   allDay: boolean;
   timezone: string;
+  color: string | null; // Hex #RRGGBB choisi par l'utilisateur
   creatorId: string;
   organizationId: string;
   recurrenceRule: RecurrenceRule | null;
@@ -97,6 +98,7 @@ export interface OccurrenceInstance {
   startAt: string; // ISO
   endAt: string;   // ISO
   allDay: boolean;
+  color: string | null;
   isRecurring: boolean;
   isException: boolean;
   creatorId: string;
@@ -125,6 +127,7 @@ export interface CreateEventDTO {
   endAt: string;
   allDay?: boolean;
   timezone?: string;
+  color?: string | null;
   recurrenceRule?: RecurrenceRule | null;
   attendeeIds?: string[];
 }

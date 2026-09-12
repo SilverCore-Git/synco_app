@@ -2,6 +2,7 @@
     <div
         class="event-chip"
         :class="[compact ? 'event-chip-compact' : 'event-chip-full', statusClass]"
+        :style="colorStyle"
         :title="tooltip"
         @click.stop="emit('click')"
     >
@@ -46,6 +47,18 @@ const tooltip = computed(() => {
     return props.occurrence.location
         ? `${props.occurrence.title} — ${props.occurrence.location}`
         : props.occurrence.title;
+});
+
+// La couleur personnalisée ne s'applique que sur les statuts "neutres" —
+// décliné/tentative gardent leur code couleur sémantique (rouge/ambre), plus
+// important à voir d'un coup d'œil que la couleur de préférence de l'événement.
+const colorStyle = computed(() => {
+    const c = props.occurrence.color;
+    if (!c || statusClass.value === 'status-declined' || statusClass.value === 'status-tentative') return {};
+    return {
+        borderLeftColor: c,
+        backgroundColor: `color-mix(in srgb, ${c} 16%, transparent)`
+    };
 });
 </script>
 
@@ -109,6 +122,11 @@ const tooltip = computed(() => {
 .status-tentative {
     border-left-color: #f59e0b;
     background: color-mix(in srgb, #f59e0b 14%, transparent);
+}
+
+.event-chip.is-event-dragging {
+    opacity: 0.3;
+    pointer-events: none;
 }
 
 .status-pending {

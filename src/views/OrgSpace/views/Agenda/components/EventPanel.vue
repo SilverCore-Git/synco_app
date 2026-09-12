@@ -35,14 +35,39 @@
                         </div>
                     </div>
 
-                    <!-- Titre -->
-                    <input
-                        v-model="title"
-                        type="text"
-                        placeholder="Ajouter un titre"
-                        class="title-input"
-                        required
-                    />
+                    <!-- Titre + couleur -->
+                    <div class="flex items-center gap-2">
+                        <input
+                            v-model="title"
+                            type="text"
+                            placeholder="Ajouter un titre"
+                            class="title-input flex-1"
+                            required
+                        />
+                        <div class="color-swatch-trigger" @click="colorPickerOpen = !colorPickerOpen">
+                            <span class="color-dot" :style="{ background: color || 'var(--primary)' }"></span>
+                        </div>
+                    </div>
+
+                    <div v-if="colorPickerOpen" class="color-swatch-panel">
+                        <button
+                            v-for="c in colorPresets"
+                            :key="c"
+                            type="button"
+                            class="color-swatch"
+                            :class="{ 'is-active': color === c }"
+                            :style="{ background: c }"
+                            @click="color = c; colorPickerOpen = false"
+                        ></button>
+                        <button
+                            type="button"
+                            class="color-swatch color-swatch-none"
+                            :class="{ 'is-active': !color }"
+                            @click="color = null; colorPickerOpen = false"
+                        >
+                            <i class="bi bi-slash-lg"></i>
+                        </button>
+                    </div>
 
                     <!-- Horaire -->
                     <div class="icon-row">
@@ -315,6 +340,9 @@ const title = ref('');
 const description = ref('');
 const location = ref('');
 const allDay = ref(false);
+const color = ref<string | null>(null);
+const colorPickerOpen = ref(false);
+const colorPresets = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#ec4899', '#06b6d4', '#8b5cf6', '#64748b'];
 const startDate = ref('');
 const startTime = ref('');
 const endDate = ref('');
@@ -459,6 +487,8 @@ function resetForm() {
     description.value = '';
     location.value = '';
     allDay.value = false;
+    color.value = null;
+    colorPickerOpen.value = false;
     startDate.value = '';
     startTime.value = '';
     endDate.value = '';
@@ -497,6 +527,7 @@ function prefillFromOccurrence() {
     description.value = occ.description || '';
     location.value = occ.location || '';
     allDay.value = occ.allDay;
+    color.value = occ.color;
 
     const s = splitISO(occ.startAt);
     const e = splitISO(occ.endAt);
@@ -590,7 +621,8 @@ async function handleSave(scope: 'occurrence' | 'series' = 'series') {
             location: location.value.trim() || null,
             startAt: computeStartAt(),
             endAt: computeEndAt(),
-            allDay: allDay.value
+            allDay: allDay.value,
+            color: color.value
         };
 
         if (mode.value === 'create') {
@@ -775,6 +807,54 @@ async function confirmDelete() {
 .title-input:focus {
     outline: none;
     border-bottom-color: var(--primary);
+}
+
+.color-swatch-trigger {
+    flex-shrink: 0;
+    padding: 6px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.color-swatch-trigger:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.color-dot {
+    display: block;
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+}
+
+.color-swatch-panel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 4px 0 2px;
+}
+
+.color-swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    border: 2px solid transparent;
+    transition: transform 0.1s ease;
+}
+.color-swatch:hover {
+    transform: scale(1.12);
+}
+.color-swatch.is-active {
+    border-color: var(--text);
+}
+
+.color-swatch-none {
+    background: transparent;
+    border: 1.5px dashed var(--text2);
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
 }
 
 .icon-row {

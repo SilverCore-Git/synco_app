@@ -8,7 +8,12 @@
                 v-for="day in days"
                 :key="day.iso"
                 class="month-grid-day"
-                :class="{ 'is-other-month': !day.inMonth, 'is-today': day.isToday, 'is-selected': isInSelection(day.date) }"
+                :class="{
+                    'is-other-month': !day.inMonth,
+                    'is-today': day.isToday,
+                    'is-selected': isInSelection(day.date) || isInPersistedSelection(day.date),
+                    'is-move-target': movingEvent && isoDay(movingEvent.targetDate) === day.iso
+                }"
                 @mousedown="onDayMouseDown($event, day)"
                 @mouseenter="onDayMouseEnter(day)"
             >
@@ -21,7 +26,9 @@
                         :key="occ.occurrenceKey"
                         :occurrence="occ"
                         compact
+                        :class="{ 'is-event-dragging': movingEvent?.occ.occurrenceKey === occ.occurrenceKey }"
                         @click="emit('open-event', occ)"
+                        @mousedown.stop="startEventMove($event, occ)"
                     />
                     <button
                         v-if="day.occurrences.length > 3"
@@ -45,12 +52,14 @@ import type { OccurrenceInstance } from '@/types/agenda';
 const props = defineProps<{
     cursorDate: Date;
     occurrences: OccurrenceInstance[];
+    selection?: { start: Date; end: Date; allDay?: boolean } | null;
 }>();
 
 const emit = defineEmits<{
     'open-event': [occ: OccurrenceInstance];
     'create': [range: { start: Date; end: Date; allDay?: boolean; clientX?: number; clientY?: number }];
     'select-day': [date: Date];
+    'reschedule': [payload: { occ: OccurrenceInstance; start: Date; end: Date }];
 }>();
 
 const weekdayLabels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -124,6 +133,7 @@ const isDragging = ref(false);
 
 function onDayMouseDown(e: MouseEvent, day: DayCell) {
     if (e.button !== 0) return;
+    if (movingEvent.value) return; // un déplacement d'événement est déjà en cours
     isDragging.value = true;
     dragStart.value = day.date;
     dragCurrent.value = day.date;
@@ -131,6 +141,10 @@ function onDayMouseDown(e: MouseEvent, day: DayCell) {
 }
 
 function onDayMouseEnter(day: DayCell) {
+    if (movingEvent.value) {
+        movingEvent.value = { ...movingEvent.value, targetDate: day.date };
+        return;
+    }
     if (!isDragging.value) return;
     dragCurrent.value = day.date;
 }
@@ -141,6 +155,15 @@ function isInSelection(date: Date): boolean {
     const b = dragCurrent.value.getTime();
     const t = date.getTime();
     return t >= Math.min(a, b) && t <= Math.max(a, b);
+}
+
+// ── Sélection persistante (reste affichée pendant la création) ────────
+function isInPersistedSelection(date: Date): boolean {
+    if (!props.selection) return false;
+    const a = isoDay(props.selection.start);
+    const b = isoDay(props.selection.end);
+    const t = isoDay(date);
+    return t >= (a < b ? a : b) && t <= (a < b ? b : a);
 }
 
 function finalizeSelection(e: MouseEvent) {
@@ -168,6 +191,44 @@ function finalizeSelection(e: MouseEvent) {
         en.setHours(10, 0, 0, 0);
         emit('create', { start: s, end: en, allDay: false, clientX: e.clientX, clientY: e.clientY });
     }
+}
+
+// ── Déplacement d'un événement existant vers un autre jour ─────────────
+interface MovingEventState {
+    occ: OccurrenceInstance;
+    targetDate: Date;
+}
+
+const movingEvent = ref<MovingEventState | null>(null);
+
+function startEventMove(e: MouseEvent, occ: OccurrenceInstance) {
+    if (e.button !== 0) return;
+    movingEvent.value = { occ, targetDate: new Date(occ.startAt) };
+    window.addEventListener('mouseup', finalizeEventMove);
+}
+
+function startOfDay(d: Date): Date {
+    const r = new Date(d);
+    r.setHours(0, 0, 0, 0);
+    return r;
+}
+
+function finalizeEventMove() {
+    window.removeEventListener('mouseup', finalizeEventMove);
+    if (!movingEvent.value) return;
+    const { occ, targetDate } = movingEvent.value;
+    movingEvent.value = null;
+
+    const origStart = new Date(occ.startAt);
+    const origEnd = new Date(occ.endAt);
+    const dayDeltaMs = startOfDay(targetDate).getTime() - startOfDay(origStart).getTime();
+    if (dayDeltaMs === 0) return;
+
+    emit('reschedule', {
+        occ,
+        start: new Date(origStart.getTime() + dayDeltaMs),
+        end: new Date(origEnd.getTime() + dayDeltaMs)
+    });
 }
 </script>
 

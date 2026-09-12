@@ -1,74 +1,90 @@
 <template>
-    <div class="flex flex-col h-full relative overflow-hidden w-full">
-        <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-(--border-color) bg-(--bg2) z-10 shrink-0 flex-wrap gap-y-2 py-2">
-            <div class="flex items-center gap-3">
-                <MobileBackBtn />
-                <i class="bi bi-calendar3 text-(--text)"></i>
-                <h3 class="font-semibold text-(--text)">Agenda</h3>
-            </div>
+    <div class="flex h-full relative overflow-hidden w-full">
+        <aside class="agenda-sidebar">
+            <button @click="openCreateBlank" class="primary-glow !text-sm w-full justify-center">
+                <i class="bi bi-plus-lg"></i>
+                Créer
+            </button>
+            <MiniCalendar
+                :cursor-date="cursorDate"
+                :occurrences="occurrences"
+                @pick-day="goToDay"
+                @navigate-month="navigateMiniMonth"
+            />
+        </aside>
 
-            <div class="flex items-center gap-2">
-                <button @click="goToday" class="default !text-xs !px-3 !py-1.5">Aujourd'hui</button>
-                <button @click="goPrev" class="default !text-xs !px-2 !py-1.5"><i class="bi bi-chevron-left"></i></button>
-                <button @click="goNext" class="default !text-xs !px-2 !py-1.5"><i class="bi bi-chevron-right"></i></button>
-                <span class="text-sm font-bold text-(--text) capitalize px-2 whitespace-nowrap">{{ periodLabel }}</span>
-            </div>
-
-            <div class="ml-auto flex items-center gap-3 flex-wrap">
-                <div class="flex items-center gap-1 bg-(--bg) border border-(--border-color) rounded-xl p-1">
-                    <button
-                        v-for="v in views"
-                        :key="v.id"
-                        @click="viewMode = v.id"
-                        class="text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
-                        :class="viewMode === v.id ? 'bg-(--primary) text-white' : 'text-(--text2) hover:text-(--text)'"
-                    >
-                        {{ v.label }}
-                    </button>
+        <div class="flex flex-col flex-1 overflow-hidden">
+            <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-(--border-color) bg-(--bg2) z-10 shrink-0 flex-wrap gap-y-2 py-2">
+                <div class="flex items-center gap-3">
+                    <MobileBackBtn />
+                    <i class="bi bi-calendar3 text-(--text)"></i>
+                    <h3 class="font-semibold text-(--text)">Agenda</h3>
                 </div>
 
-                <button @click="openCreateBlank" class="primary-glow !text-sm">
-                    <i class="bi bi-plus-lg"></i>
-                    Nouvel événement
-                </button>
+                <div class="flex items-center gap-2">
+                    <button @click="goToday" class="default !text-xs !px-3 !py-1.5">Aujourd'hui</button>
+                    <button @click="goPrev" class="default !text-xs !px-2 !py-1.5"><i class="bi bi-chevron-left"></i></button>
+                    <button @click="goNext" class="default !text-xs !px-2 !py-1.5"><i class="bi bi-chevron-right"></i></button>
+                    <span class="text-sm font-bold text-(--text) capitalize px-2 whitespace-nowrap">{{ periodLabel }}</span>
+                </div>
+
+                <div class="ml-auto flex items-center gap-3 flex-wrap">
+                    <div class="flex items-center gap-1 bg-(--bg) border border-(--border-color) rounded-xl p-1">
+                        <button
+                            v-for="v in views"
+                            :key="v.id"
+                            @click="viewMode = v.id"
+                            class="text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+                            :class="viewMode === v.id ? 'bg-(--primary) text-white' : 'text-(--text2) hover:text-(--text)'"
+                        >
+                            {{ v.label }}
+                        </button>
+                    </div>
+                </div>
             </div>
+
+            <main class="flex-1 overflow-hidden w-full h-full">
+                <div v-if="loading && occurrences.length === 0" class="w-full h-full flex items-center justify-center">
+                    <div class="w-8 h-8 border-4 border-(--primary)/30 border-t-(--primary) rounded-full animate-spin"></div>
+                </div>
+
+                <MonthGrid
+                    v-else-if="viewMode === 'month'"
+                    :cursor-date="cursorDate"
+                    :occurrences="occurrences"
+                    :selection="selectionRange"
+                    @open-event="openEditModal"
+                    @create="onGridCreate"
+                    @select-day="goToDay"
+                    @reschedule="onReschedule"
+                />
+                <WeekGrid
+                    v-else-if="viewMode === 'week'"
+                    :cursor-date="cursorDate"
+                    :occurrences="occurrences"
+                    :selection="selectionRange"
+                    @open-event="openEditModal"
+                    @create="onGridCreate"
+                    @reschedule="onReschedule"
+                />
+                <DayGrid
+                    v-else
+                    :cursor-date="cursorDate"
+                    :occurrences="occurrences"
+                    :selection="selectionRange"
+                    @open-event="openEditModal"
+                    @create="onGridCreate"
+                    @reschedule="onReschedule"
+                />
+            </main>
         </div>
-
-        <main class="flex-1 overflow-hidden w-full h-full">
-            <div v-if="loading && occurrences.length === 0" class="w-full h-full flex items-center justify-center">
-                <div class="w-8 h-8 border-4 border-(--primary)/30 border-t-(--primary) rounded-full animate-spin"></div>
-            </div>
-
-            <MonthGrid
-                v-else-if="viewMode === 'month'"
-                :cursor-date="cursorDate"
-                :occurrences="occurrences"
-                @open-event="openEditModal"
-                @create="onGridCreate"
-                @select-day="goToDay"
-            />
-            <WeekGrid
-                v-else-if="viewMode === 'week'"
-                :cursor-date="cursorDate"
-                :occurrences="occurrences"
-                @open-event="openEditModal"
-                @create="onGridCreate"
-            />
-            <DayGrid
-                v-else
-                :cursor-date="cursorDate"
-                :occurrences="occurrences"
-                @open-event="openEditModal"
-                @create="onGridCreate"
-            />
-        </main>
 
         <EventQuickCreate
             :visible="showQuickCreate"
             :org-id="orgId"
             :range="quickCreateRange"
             :anchor="quickCreateAnchor"
-            @close="showQuickCreate = false"
+            @close="onQuickCreateClose"
             @created="onQuickCreateCreated"
             @more-options="onQuickCreateMoreOptions"
         />
@@ -78,9 +94,9 @@
             :org-id="orgId"
             :occurrence="selectedOccurrence"
             :initial-range="createInitialRange"
-            @close="showPanel = false"
-            @saved="refetch"
-            @deleted="refetch"
+            @close="onPanelClose"
+            @saved="onPanelSaved"
+            @deleted="onPanelDeleted"
         />
     </div>
 </template>
@@ -92,6 +108,7 @@ import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import MonthGrid from './components/MonthGrid.vue';
 import WeekGrid from './components/WeekGrid.vue';
 import DayGrid from './components/DayGrid.vue';
+import MiniCalendar from './components/MiniCalendar.vue';
 import EventQuickCreate from './components/EventQuickCreate.vue';
 import EventPanel from './components/EventPanel.vue';
 import { useAgenda } from '@/composables/useAgenda';
@@ -101,7 +118,7 @@ import type { OccurrenceInstance } from '@/types/agenda';
 const route = useRoute();
 const orgId = computed(() => route.params.orgId as string);
 
-const { occurrences, loading, viewingUserId, fetchRange } = useAgenda();
+const { occurrences, loading, viewingUserId, fetchRange, updateEvent, updateOccurrence } = useAgenda();
 
 type ViewMode = 'month' | 'week' | 'day';
 const viewMode = ref<ViewMode>('month');
@@ -191,23 +208,40 @@ function goToDay(date: Date) {
     viewMode.value = 'day';
 }
 
-// ── Création rapide (glisser sur la grille) ──────────────────────────
+function navigateMiniMonth(delta: number) {
+    const d = new Date(cursorDate.value);
+    d.setMonth(d.getMonth() + delta);
+    cursorDate.value = d;
+}
+
+// ── Création rapide (glisser sur la grille) — la zone reste visuellement
+// sélectionnée tant que la popover ou le panneau de création est ouvert.
 interface Range { start: Date; end: Date; allDay?: boolean }
+
+const selectionRange = ref<Range | null>(null);
 
 const showQuickCreate = ref(false);
 const quickCreateRange = ref<Range | null>(null);
 const quickCreateAnchor = ref<{ x: number; y: number } | null>(null);
 
 function onGridCreate(range: Range & { clientX?: number; clientY?: number }) {
-    quickCreateRange.value = { start: range.start, end: range.end, allDay: !!range.allDay };
+    const r = { start: range.start, end: range.end, allDay: !!range.allDay };
+    quickCreateRange.value = r;
+    selectionRange.value = r;
     quickCreateAnchor.value = (range.clientX != null && range.clientY != null)
         ? { x: range.clientX, y: range.clientY }
         : null;
     showQuickCreate.value = true;
 }
 
+function onQuickCreateClose() {
+    showQuickCreate.value = false;
+    selectionRange.value = null;
+}
+
 function onQuickCreateCreated() {
     showQuickCreate.value = false;
+    selectionRange.value = null;
     refetch();
 }
 
@@ -224,6 +258,7 @@ const createInitialRange = ref<Range | null>(null);
 function openCreatePanel(range: Range) {
     selectedOccurrence.value = null;
     createInitialRange.value = range;
+    selectionRange.value = range;
     showPanel.value = true;
 }
 
@@ -240,6 +275,36 @@ function openEditModal(occ: OccurrenceInstance) {
     selectedOccurrence.value = occ;
     createInitialRange.value = null;
     showPanel.value = true;
+}
+
+function clearSelectionIfCreating() {
+    if (!selectedOccurrence.value) selectionRange.value = null;
+}
+
+function onPanelClose() {
+    showPanel.value = false;
+    clearSelectionIfCreating();
+}
+
+function onPanelSaved() {
+    clearSelectionIfCreating();
+    refetch();
+}
+
+function onPanelDeleted() {
+    clearSelectionIfCreating();
+    refetch();
+}
+
+// ── Déplacement / redimensionnement d'un événement existant ───────────
+async function onReschedule({ occ, start, end }: { occ: OccurrenceInstance; start: Date; end: Date }) {
+    const dto = { startAt: start.toISOString(), endAt: end.toISOString() };
+    if (occ.isRecurring) {
+        await updateOccurrence(orgId.value, occ.eventId, occ.startAt, dto);
+    } else {
+        await updateEvent(orgId.value, occ.eventId, dto);
+    }
+    refetch();
 }
 
 watch([viewMode, cursorDate, viewingUserId], () => {
@@ -268,3 +333,23 @@ onUnmounted(async () => {
     socket.value?.off('agenda:rsvp-updated', refetch);
 });
 </script>
+
+<style scoped>
+.agenda-sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    border-right: 1px solid var(--border-color);
+    background: var(--bg2);
+    overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+    .agenda-sidebar {
+        display: none;
+    }
+}
+</style>

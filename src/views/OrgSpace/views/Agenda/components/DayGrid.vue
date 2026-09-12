@@ -33,18 +33,28 @@
                 @mousedown="onPointerDown"
             >
                 <div v-for="h in hours" :key="'line-' + h" class="time-grid-hour-line" :style="{ height: rowHeight + 'px' }"></div>
+
                 <div
                     v-for="occ in timedOccurrences"
                     :key="occ.occurrenceKey"
                     class="time-grid-event"
+                    :class="{ 'is-event-dragging': eventDrag?.occ.occurrenceKey === occ.occurrenceKey }"
                     :style="eventStyle(occ)"
                 >
-                    <EventChip :occurrence="occ" @click="emit('open-event', occ)" />
+                    <div class="time-grid-resize-handle top" @mousedown.stop="startEventDrag($event, occ, 'resize-top')"></div>
+                    <EventChip :occurrence="occ" @click="emit('open-event', occ)" @mousedown.stop="startEventDrag($event, occ, 'move')" />
+                    <div class="time-grid-resize-handle bottom" @mousedown.stop="startEventDrag($event, occ, 'resize-bottom')"></div>
+                </div>
+
+                <div v-if="eventDrag" class="time-grid-drag-ghost is-event-preview" :style="eventDragGhostStyle">
+                    {{ eventDrag.occ.title }} · {{ eventDragLabel }}
                 </div>
 
                 <div v-if="drag" class="time-grid-drag-ghost" :style="ghostStyle">
                     {{ ghostLabel }}
                 </div>
+
+                <div v-if="selection && !drag && !selection.allDay" class="time-grid-selection-ghost" :style="selectionStyle"></div>
             </div>
         </div>
     </div>
@@ -58,16 +68,19 @@ import type { OccurrenceInstance } from '@/types/agenda';
 const props = defineProps<{
     cursorDate: Date;
     occurrences: OccurrenceInstance[];
+    selection?: { start: Date; end: Date; allDay?: boolean } | null;
 }>();
 
 const emit = defineEmits<{
     'open-event': [occ: OccurrenceInstance];
     'create': [range: { start: Date; end: Date; allDay?: boolean; clientX?: number; clientY?: number }];
+    'reschedule': [payload: { occ: OccurrenceInstance; start: Date; end: Date }];
 }>();
 
 const ROW_HEIGHT = 56;
 const rowHeight = ROW_HEIGHT;
 const SNAP_MINUTES = 15;
+const MIN_DURATION = 15;
 const hours = Array.from({ length: 24 }, (_, i) => i);
 
 function isoDay(d: Date): string {
@@ -119,9 +132,22 @@ function eventStyle(occ: OccurrenceInstance) {
 
     return {
         top: `${top}px`,
-        height: `${height}px`
+        height: `${height}px`,
+        '--event-color': occ.color || undefined
     };
 }
+
+// ── Sélection persistante (reste affichée pendant la création) ────────
+const selectionStyle = computed(() => {
+    if (!props.selection) return {};
+    const s = props.selection.start;
+    const e = props.selection.end;
+    const startMin = s.getHours() * 60 + s.getMinutes();
+    const endMin = e.getHours() * 60 + e.getMinutes();
+    const top = (startMin / 60) * rowHeight;
+    const height = Math.max((endMin - startMin) / 60 * rowHeight, (SNAP_MINUTES / 60) * rowHeight);
+    return { top: `${top}px`, height: `${height}px` };
+});
 
 // ── Sélection par glisser (façon Google Agenda) ──────────────────────
 interface DragState {
@@ -196,6 +222,97 @@ const ghostLabel = computed(() => {
 function emitCreate(start: Date, end: Date, allDay: boolean, e: MouseEvent) {
     emit('create', { start, end, allDay, clientX: e.clientX, clientY: e.clientY });
 }
+
+// ── Déplacement / redimensionnement d'un événement existant ───────────
+type EventDragMode = 'move' | 'resize-top' | 'resize-bottom';
+
+interface EventDragState {
+    occ: OccurrenceInstance;
+    mode: EventDragMode;
+    pointerStartY: number;
+    origStartMin: number;
+    origEndMin: number;
+    currentStartMin: number;
+    currentEndMin: number;
+}
+
+const eventDrag = ref<EventDragState | null>(null);
+
+function minutesOfDay(d: Date): number {
+    return d.getHours() * 60 + d.getMinutes();
+}
+
+function startEventDrag(e: MouseEvent, occ: OccurrenceInstance, mode: EventDragMode) {
+    if (e.button !== 0) return;
+    const start = new Date(occ.startAt);
+    const end = new Date(occ.endAt);
+
+    eventDrag.value = {
+        occ,
+        mode,
+        pointerStartY: e.clientY,
+        origStartMin: minutesOfDay(start),
+        origEndMin: minutesOfDay(end),
+        currentStartMin: minutesOfDay(start),
+        currentEndMin: minutesOfDay(end)
+    };
+    window.addEventListener('mousemove', onEventDragMove);
+    window.addEventListener('mouseup', onEventDragEnd);
+}
+
+function onEventDragMove(e: MouseEvent) {
+    if (!eventDrag.value) return;
+    const d = eventDrag.value;
+    const deltaMin = snap((e.clientY - d.pointerStartY) / rowHeight * 60);
+
+    if (d.mode === 'move') {
+        const duration = d.origEndMin - d.origStartMin;
+        let newStart = d.origStartMin + deltaMin;
+        let newEnd = newStart + duration;
+        if (newStart < 0) { newStart = 0; newEnd = duration; }
+        if (newEnd > 24 * 60) { newEnd = 24 * 60; newStart = 24 * 60 - duration; }
+        eventDrag.value = { ...d, currentStartMin: newStart, currentEndMin: newEnd };
+    } else if (d.mode === 'resize-top') {
+        const newStart = Math.min(d.origEndMin - MIN_DURATION, Math.max(0, d.origStartMin + deltaMin));
+        eventDrag.value = { ...d, currentStartMin: newStart, currentEndMin: d.origEndMin };
+    } else {
+        const newEnd = Math.max(d.origStartMin + MIN_DURATION, Math.min(24 * 60, d.origEndMin + deltaMin));
+        eventDrag.value = { ...d, currentStartMin: d.origStartMin, currentEndMin: newEnd };
+    }
+}
+
+function onEventDragEnd() {
+    window.removeEventListener('mousemove', onEventDragMove);
+    window.removeEventListener('mouseup', onEventDragEnd);
+    if (!eventDrag.value) return;
+
+    const d = eventDrag.value;
+    eventDrag.value = null;
+
+    const newStart = new Date(props.cursorDate);
+    newStart.setHours(0, d.currentStartMin, 0, 0);
+    const newEnd = new Date(props.cursorDate);
+    newEnd.setHours(0, d.currentEndMin, 0, 0);
+
+    const origStart = new Date(d.occ.startAt);
+    const origEnd = new Date(d.occ.endAt);
+    if (newStart.getTime() === origStart.getTime() && newEnd.getTime() === origEnd.getTime()) return;
+
+    emit('reschedule', { occ: d.occ, start: newStart, end: newEnd });
+}
+
+const eventDragGhostStyle = computed(() => {
+    if (!eventDrag.value) return {};
+    const top = (eventDrag.value.currentStartMin / 60) * rowHeight;
+    const height = ((eventDrag.value.currentEndMin - eventDrag.value.currentStartMin) / 60) * rowHeight;
+    return { top: `${top}px`, height: `${height}px` };
+});
+
+const eventDragLabel = computed(() => {
+    if (!eventDrag.value) return '';
+    const fmt = (mins: number) => `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+    return `${fmt(eventDrag.value.currentStartMin)} – ${fmt(eventDrag.value.currentEndMin)}`;
+});
 </script>
 
 <style scoped>
@@ -306,10 +423,26 @@ function emitCreate(start: Date, end: Date, allDay: boolean, e: MouseEvent) {
     left: 4px;
     right: 4px;
     border-radius: 6px;
-    overflow: hidden;
-    cursor: pointer;
+    overflow: visible;
+    cursor: grab;
     z-index: 1;
 }
+
+.time-grid-event.is-event-dragging {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.time-grid-resize-handle {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 6px;
+    cursor: ns-resize;
+    z-index: 3;
+}
+.time-grid-resize-handle.top { top: -2px; }
+.time-grid-resize-handle.bottom { bottom: -2px; }
 
 .time-grid-drag-ghost {
     position: absolute;
@@ -326,5 +459,23 @@ function emitCreate(start: Date, end: Date, allDay: boolean, e: MouseEvent) {
     padding: 2px 6px;
     display: flex;
     align-items: flex-start;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.time-grid-drag-ghost.is-event-preview {
+    z-index: 4;
+    background: color-mix(in srgb, var(--primary) 45%, transparent);
+}
+
+.time-grid-selection-ghost {
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--primary) 22%, transparent);
+    border: 1.5px solid var(--primary);
+    z-index: 1;
+    pointer-events: none;
 }
 </style>
