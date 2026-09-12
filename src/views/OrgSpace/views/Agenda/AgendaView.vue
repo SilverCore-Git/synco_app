@@ -142,8 +142,8 @@ async function loadTaskDeadlines() {
         myTasksWithDeadline.value = allTasks.filter(task => {
             if (task.archived || task.status === 'DONE' || !task.dueDate) return false;
             const isAssignedToMe = task.assignees?.some(a => a.id === user.value?.id);
-            const isMyPersonalTask = !task.spaceId && task.creatorId === user.value?.id;
-            return isAssignedToMe || isMyPersonalTask;
+            const isCreatedByMe = task.creatorId === user.value?.id;
+            return isAssignedToMe || isCreatedByMe;
         });
     } catch (e) {
         console.error('[Agenda] Failed to load task deadlines', e);
