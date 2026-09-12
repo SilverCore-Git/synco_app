@@ -11,12 +11,14 @@ import type { WorkSpace } from '@/types/types';
 import sfetch from '@/assets/utils/sfetch';
 import { usePermissions } from '@/composables/usePermissions';
 import { computed } from 'vue';
+import { useVoicePresence } from '@/composables/useVoicePresence';
 
 const router = useRouter();
 const route = useRoute();
 const orgId = computed(() => openedOrg.value?.id);
 const { canAny } = usePermissions(orgId);
 const { getUnreadCountBySpaceId, getUnreadCountForTasks, getUnreadCountForDMs } = useNotification();
+const { refreshForOrg, spaceHasVoiceActivity } = useVoicePresence();
 
 const localSpaces = ref<WorkSpace[]>([]);
 
@@ -32,6 +34,13 @@ watch(() => openedOrg.value?.spaces, () => {
         return indexA - indexB;
     });
 }, { immediate: true, deep: true });
+
+// Au (re)chargement de l'org, on demande un instantané socket de chaque
+// salon vocal pour savoir qui est déjà en vocal, même sans avoir nous-même
+// rejoint un appel depuis ce rechargement de page.
+watch(() => openedOrg.value?.id, (id) => {
+    if (id) refreshForOrg();
+}, { immediate: true });
 
 const onSpaceOrderChange = async () => {
     if (!openedOrg.value) return;
@@ -155,6 +164,7 @@ const onSpaceOrderChange = async () => {
                             :label="space.name"
                             :active="route.path.includes(space.id)"
                             :hasUnread="getUnreadCountBySpaceId(space.id).value > 0 || space.threads?.some((t: any) => t.hasUnread)"
+                            :inVoice="spaceHasVoiceActivity(space.id)"
                         />
                     </RouterLink>
                 </template>

@@ -6,15 +6,17 @@
             @click="$emit('click')"
             :aria-label="label"
             class="
-                relative flex items-center justify-center 
+                relative flex items-center justify-center
                 w-12 h-12 cursor-pointer transition-all duration-300 ease-out
-                bg-(--bg2)/50 rounded-xl overflow-hidden 
+                bg-(--bg2)/50 rounded-xl overflow-hidden
             "
             :class="[
-                active ? 'border-(--primary)/50 border-2' : 'border-(--text)/10 border',
+                inVoice ? 'border-green-500 border-2' : (active ? 'border-(--primary)/50 border-2' : 'border-(--text)/10 border'),
                 redhover ? 'hover:border-red-500/50' : 'hover:border-(--primary)/50'
             ]"
-            :style="[ active ? 'box-shadow: 0 0 10px 2px var(--primary-dark)' : '' ]"
+            :style="[
+                inVoice ? 'box-shadow: 0 0 12px 2px rgba(34,197,94,0.5)' : (active ? 'box-shadow: 0 0 10px 2px var(--primary-dark)' : '')
+            ]"
         >
 
             <div 
@@ -60,6 +62,14 @@
         <div v-if="hasUnread" class="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-(--bg) z-20"></div>
 
         <div
+            v-if="inVoice"
+            class="absolute bottom-0 right-0 w-5 h-5 bg-green-500 rounded-full border-2 border-(--bg) z-20 flex items-center justify-center"
+            title="En vocal"
+        >
+            <i class="bi bi-mic-fill text-white text-[9px]" />
+        </div>
+
+        <div
             class="
                 absolute left-14 top-1/2 -translate-y-1/2
                 hidden group-hover:flex z-50 pointer-events-none
@@ -103,6 +113,7 @@ const props = defineProps<{
     active?: boolean;
     iconFillOnActive?: boolean;
     redhover?: boolean;
+    inVoice?: boolean;
     hasUnread?: boolean;
 }>();
 
