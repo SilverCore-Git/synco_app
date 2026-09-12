@@ -42,8 +42,7 @@
               ressources ou de rédiger des textes, le tout en préservant 100% de votre vie privée.
             </template>
             <template v-else>
-              Posez-moi vos questions, demandez-moi d'analyser vos ressources ou de rédiger des textes — je suis là
-              pour vous aider sur ce workspace.
+              Posez-moi vos questions, demandez-moi d'analyser vos ressources ou de rédiger des textes.
             </template>
           </p>
 
