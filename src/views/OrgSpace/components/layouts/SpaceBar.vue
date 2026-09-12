@@ -3,7 +3,7 @@
 import SpaceBarBTN from '../common/SpaceBarBTN.vue';
 import { useRoute, useRouter } from 'vue-router';
 import CreateNewSpace from '../popup/CreateNewSpace.vue';
-import { openedOrg, todoEnabled, aiEnabled, user } from '@/assets/var';
+import { openedOrg, todoEnabled, aiEnabled, agendaEnabled, user } from '@/assets/var';
 import { useNotification } from '@/composables/useNotification';
 import draggable from 'vuedraggable';
 import { ref, watch } from 'vue';
@@ -116,7 +116,15 @@ const onSpaceOrderChange = async () => {
                     :hasUnread="getUnreadCountForTasks > 0"
                 />
             </RouterLink>
-            
+
+            <RouterLink v-if="agendaEnabled" :to="`/${openedOrg.id}/agenda?showView=1`">
+                <SpaceBarBTN
+                    icon="bi-calendar3"
+                    label="Agenda"
+                    :active="route.name === 'AgendaGlobal'"
+                />
+            </RouterLink>
+
             <RouterLink v-if="aiEnabled" :to="`/${openedOrg.id}/ai?showView=0`">
                 <SpaceBarBTN
                     icon="bi-robot"

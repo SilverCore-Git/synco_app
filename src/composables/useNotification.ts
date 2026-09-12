@@ -69,6 +69,30 @@ export interface NotificationTokenInfo {
   createdAt: string;
 }
 
+// ==================== STATE (partagé entre tous les appels) ====================
+// Ces refs vivent au niveau module (et non dans useNotification()) pour que tous
+// les composants qui appellent useNotification() lisent/écrivent le même état —
+// sinon chaque appel créait sa propre liste vide et les badges de non-lus
+// (SpaceBar, UsersBar, Category...) restaient bloqués à 0 tant que leur propre
+// instance n'avait pas elle-même appelé init()/loadNotifications().
+
+// Liste des notifications
+const notifications = ref<AppNotification[]>([]);
+
+// Permission de notification
+const permission = ref<NotificationPermission>('default');
+
+// Est-ce que la permission est accordée
+const isGranted = computed(() => permission.value === 'granted');
+
+// Compteur de notifications non lues
+const unreadCount = computed(() => {
+  return notifications.value.filter(n => !n.isRead).length;
+});
+
+// Est-ce que le composable est initialisé
+const isInitialized = ref(false);
+
 /**
  * Composable pour gérer les notifications
  * @returns Object avec state et méthodes pour les notifications
@@ -77,25 +101,6 @@ export function useNotification() {
   let socket: Ref<any> | null = null;
   const toast = useToast();
   const router = useRouter();
-
-  // ==================== STATE ====================
-
-  // Liste des notifications
-  const notifications = ref<AppNotification[]>([]);
-
-  // Permission de notification
-  const permission = ref<NotificationPermission>('default');
-
-  // Est-ce que la permission est accordée
-  const isGranted = computed(() => permission.value === 'granted');
-
-  // Compteur de notifications non lues
-  const unreadCount = computed(() => {
-    return notifications.value.filter(n => !n.isRead).length;
-  });
-
-  // Est-ce que le composable est initialisé
-  const isInitialized = ref(false);
 
   // ==================== MÉTHODES ====================
 
