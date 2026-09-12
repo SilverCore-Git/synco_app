@@ -44,20 +44,31 @@
                         Mes tâches
                     </button>
                     <button
-                        v-if="archivedCount > 0"
+                        v-if="archivedCount > 0 || isDraggingTask"
                         @click="showArchivedPanel = true"
+                        @dragover.prevent="dragOverArchiveBtn = true"
+                        @dragleave.prevent="dragOverArchiveBtn = false"
+                        @drop="onDropToArchiveBtn"
                         class="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0"
-                        :class="showArchivedPanel ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10'"
+                        :class="dragOverArchiveBtn ? 'bg-amber-500 text-white scale-110 shadow-[0_4px_20px_rgba(245,158,11,0.5)]' : (showArchivedPanel ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10')"
                     >
                         <i class="bi bi-archive-fill" />
                         Tâches archivées
                     </button>
                 </div>
-                
+
                 <div class="hidden sm:block w-px h-6 bg-white/10 mx-2 shrink-0"></div>
-                
+
                 <div class="flex items-center gap-2 overflow-x-auto w-full min-w-0 scrollbar-hide pb-1">
-                    <button v-for="member in spaceMembers" :key="member.id" @click="filterUserId = member.userId" class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="filterUserId === member.userId ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10'">
+                    <button
+                        v-for="member in spaceMembers" :key="member.id"
+                        @click="filterUserId = member.userId"
+                        @dragover.prevent="dragOverMemberId = member.userId"
+                        @dragleave.prevent="dragOverMemberId = null"
+                        @drop="onDropToAssign($event, member)"
+                        class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0"
+                        :class="dragOverMemberId === member.userId ? 'bg-(--primary) text-white scale-110 shadow-[0_4px_20px_rgba(var(--primary-rgb),0.5)]' : (filterUserId === member.userId ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10')"
+                    >
                         <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-5 h-5 rounded-full object-cover">
                         <div v-else class="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px]">
                             {{ $p(member.user?.name)?.substring(0,2).toUpperCase() }}
@@ -243,18 +254,6 @@
             <div v-if="isDraggingTask"
                  class="fixed bottom-8 right-8 flex items-center gap-4 z-[100]">
 
-                <div class="w-16 h-16 bg-amber-500/90 text-white rounded-full flex items-center justify-center shadow-2xl border-4 transition-all duration-500"
-                     :class="[
-                        isArchiving ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
-                        isHoveringArchive && !isArchiving ? 'border-amber-300 scale-125 shadow-[0_0_40px_rgba(245,158,11,0.8)]' : 'border-transparent'
-                     ]"
-                     @dragover.prevent="isHoveringArchive = true"
-                     @dragleave.prevent="isHoveringArchive = false"
-                     @drop="onDropToArchive"
-                     title="Archiver">
-                    <i class="bi bi-archive-fill text-2xl transition-transform" :class="[isArchiving ? 'scale-50' : '', isHoveringArchive && !isArchiving ? 'scale-110' : '']"></i>
-                </div>
-
                 <div class="w-16 h-16 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-2xl border-4 transition-all duration-500"
                      :class="[
                         isDeleting ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
@@ -325,11 +324,11 @@ const filterUserId = ref<string | null>(null);
 const isDraggingTask = ref(false);
 const isHoveringTrash = ref(false);
 const isDeleting = ref(false);
-const isHoveringArchive = ref(false);
-const isArchiving = ref(false);
 const archivingAll = ref(false);
 const showArchivedPanel = ref(false);
 const archivedCount = ref(0);
+const dragOverArchiveBtn = ref(false);
+const dragOverMemberId = ref<string | null>(null);
 
 const dragOverTaskId = ref<string | null>(null);
 const dragOverPosition = ref<'before' | 'after' | null>(null);
@@ -528,10 +527,11 @@ const onDragStart = (e: DragEvent, task: Task) => {
 const onDragEnd = () => {
     dragOverTaskId.value = null;
     dragOverPosition.value = null;
-    if (!isDeleting.value && !isArchiving.value) {
+    dragOverArchiveBtn.value = false;
+    dragOverMemberId.value = null;
+    if (!isDeleting.value) {
         isDraggingTask.value = false;
         isHoveringTrash.value = false;
-        isHoveringArchive.value = false;
     }
 };
 
@@ -545,23 +545,45 @@ const archiveTaskById = async (taskId: string) => {
     archivedCount.value++;
 };
 
-const onDropToArchive = async (e: DragEvent) => {
+const onDropToArchiveBtn = async (e: DragEvent) => {
     const taskId = e.dataTransfer?.getData('taskId');
+    dragOverArchiveBtn.value = false;
     if (!taskId) return;
-
-    isArchiving.value = true;
-    isHoveringArchive.value = false;
-
-    setTimeout(() => {
-        isDraggingTask.value = false;
-        isArchiving.value = false;
-    }, 600);
 
     try {
         await archiveTaskById(taskId);
         toast.show("Tâche archivée", "success");
     } catch (err) {
         toast.show("Erreur lors de l'archivage", "error");
+    }
+};
+
+const onDropToAssign = async (e: DragEvent, member: OrgMember) => {
+    const taskId = e.dataTransfer?.getData('taskId');
+    dragOverMemberId.value = null;
+    if (!taskId) return;
+
+    const task = tasks.value.find(t => t.id === taskId);
+    if (!task) return;
+
+    if (task.assignees?.some(a => a.id === member.userId)) {
+        toast.show(`${member.user?.name || 'Cet utilisateur'} est déjà assigné à cette tâche`, "info");
+        return;
+    }
+
+    const newAssigneeIds = [...(task.assignees?.map(a => a.id) || []), member.userId];
+
+    try {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ assigneeIds: newAssigneeIds })
+        });
+        if (!res.ok) throw new Error("API Error");
+        const updatedTask = await res.json();
+        onTaskUpdated(updatedTask);
+        toast.show(`Tâche assignée à ${member.user?.name || "l'utilisateur"}`, "success");
+    } catch (err) {
+        toast.show("Erreur lors de l'assignation", "error");
     }
 };
 
