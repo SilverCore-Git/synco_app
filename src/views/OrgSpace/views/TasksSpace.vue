@@ -21,14 +21,6 @@
                 </CreateTaskModal>
                 <div class="ml-auto flex items-center gap-4 text-(--text2)">
                     <button
-                        v-if="archivedCount > 0"
-                        @click="showArchivedPanel = true"
-                        class="hover:text-(--text) transition-colors"
-                        title="Tâches archivées"
-                    >
-                        <i class="bi bi-archive-fill" />
-                    </button>
-                    <button
                         @click="showUsersBar = !showUsersBar"
                         class="hover:text-(--text) transition-colors"
                         :class="showUsersBar ? 'text-(--text)' : ''"
@@ -45,18 +37,27 @@
             <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full min-w-0 shrink-0">
                 
                 <div class="flex items-center gap-2 overflow-x-auto w-full sm:w-auto scrollbar-hide shrink-0 pb-1">
-                    <button @click="filterUserId = null" class="px-4 py-2 font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="!filterUserId ? 'primary shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 rounded-xl text-white/50 hover:bg-white/10'">
+                    <button @click="filterUserId = null" class="px-4 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="!filterUserId ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10'">
                         Toutes les tâches
                     </button>
-                    <button @click="filterUserId = user?.id || null" class="px-4 py-2 font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="filterUserId === user?.id ? 'primary shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 rounded-xl text-white/50 hover:bg-white/10'">
+                    <button @click="filterUserId = user?.id || null" class="px-4 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="filterUserId === user?.id ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10'">
                         Mes tâches
+                    </button>
+                    <button
+                        v-if="archivedCount > 0"
+                        @click="showArchivedPanel = true"
+                        class="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0"
+                        :class="showArchivedPanel ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10'"
+                    >
+                        <i class="bi bi-archive-fill" />
+                        Tâches archivées
                     </button>
                 </div>
                 
                 <div class="hidden sm:block w-px h-6 bg-white/10 mx-2 shrink-0"></div>
                 
                 <div class="flex items-center gap-2 overflow-x-auto w-full min-w-0 scrollbar-hide pb-1">
-                    <button v-for="member in spaceMembers" :key="member.id" @click="filterUserId = member.userId" class="flex items-center gap-2 px-3 py-1.5 font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="filterUserId === member.userId ? 'primary shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 rounded-xl text-white/50 hover:bg-white/10'">
+                    <button v-for="member in spaceMembers" :key="member.id" @click="filterUserId = member.userId" class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="filterUserId === member.userId ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10'">
                         <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-5 h-5 rounded-full object-cover">
                         <div v-else class="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px]">
                             {{ $p(member.user?.name)?.substring(0,2).toUpperCase() }}
