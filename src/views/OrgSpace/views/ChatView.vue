@@ -215,7 +215,7 @@
 
                         <div class="w-10 h-10 shrink-0 flex items-center justify-center rounded bg-(--bg) border border-(--text)/5">
 
-                            <i class="bi text-xl" :class="[ getFileInfo(file as any).color, getFileInfo(file as any).icon ]" />
+                            <i class="bi text-xl" :class="[ getSelectedFileInfo(file).color, getSelectedFileInfo(file).icon ]" />
 
                         </div>
 
@@ -561,6 +561,11 @@ const handleDrop = (e: DragEvent) => {
 const removeFile = (index: number) => {
     selectedFiles.value.splice(index, 1);
 };
+
+// getFileInfo expects a StoredFile (originalName/mimeType) — the preview
+// chips render raw File objects (name/type) before upload, so adapt here
+// rather than changing the shared util every other caller relies on.
+const getSelectedFileInfo = (file: File) => getFileInfo({ originalName: file.name, mimeType: file.type } as any);
 
 const validUpload = async () => {
     fileSendProgress.value = 0;
