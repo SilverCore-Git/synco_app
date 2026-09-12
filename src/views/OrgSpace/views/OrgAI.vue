@@ -25,12 +25,40 @@
 
         <!-- Welcome Message -->
         <div v-if="messages.length === 0"
-          class="flex-1 flex flex-col items-center justify-center text-center opacity-50">
-          <i class="bi bi-cpu text-6xl mb-4 text-(--primary) opacity-50"></i>
-          <h3 class="text-xl font-bold mb-2">Bonjour, je suis Synco AI.</h3>
-          <p class="max-w-md text-sm">Je tourne entièrement en local sur votre machine. Posez-moi vos questions,
-            demandez-moi d'analyser vos ressources ou de rédiger des textes, le tout en préservant 100% de votre vie
-            privée.</p>
+          class="flex-1 flex flex-col items-center justify-center text-center px-4">
+
+          <div class="relative mb-6 group">
+            <div class="absolute inset-0 bg-(--primary)/20 blur-3xl rounded-full opacity-60 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <div class="relative w-20 h-20 bg-(--bg2) border border-white/10 rounded-full flex items-center justify-center shadow-2xl">
+              <i class="bi bi-cpu text-3xl text-(--primary)"></i>
+            </div>
+          </div>
+
+          <h3 class="text-2xl font-bold text-(--text) mb-3 tracking-wide">Bonjour, je suis Synco AI.</h3>
+
+          <p class="max-w-md text-sm text-(--text2) leading-relaxed mb-8">
+            <template v-if="aiIsLocal">
+              Je tourne entièrement en local sur votre machine. Posez-moi vos questions, demandez-moi d'analyser vos
+              ressources ou de rédiger des textes, le tout en préservant 100% de votre vie privée.
+            </template>
+            <template v-else>
+              Posez-moi vos questions, demandez-moi d'analyser vos ressources ou de rédiger des textes — je suis là
+              pour vous aider sur ce workspace.
+            </template>
+          </p>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-2xl">
+            <button
+              v-for="suggestion in suggestions"
+              :key="suggestion.label"
+              @click="useSuggestion(suggestion.prompt)"
+              class="flex flex-col items-start gap-2 p-4 rounded-2xl text-left bg-(--bg2) border border-(--border-color) hover:border-(--primary)/50 hover:bg-(--primary)/5 transition-all"
+            >
+              <i class="bi text-lg text-(--primary)" :class="suggestion.icon"></i>
+              <span class="text-xs font-medium text-(--text) leading-snug">{{ suggestion.label }}</span>
+            </button>
+          </div>
+
         </div>
 
         <!-- Messages -->
@@ -470,6 +498,18 @@ const isGenerating = ref(false);
 const hasStartedInit = ref(false);
 const inputMsg = ref('');
 const chatInputRef = ref<any>(null);
+
+const suggestions = [
+  { icon: 'bi-file-earmark-text', label: 'Résumer un document partagé dans ce workspace', prompt: 'Peux-tu me résumer ' },
+  { icon: 'bi-list-check', label: 'Faire le point sur les tâches en retard', prompt: 'Quelles sont mes tâches en retard ou qui arrivent bientôt à échéance ?' },
+  { icon: 'bi-pencil-square', label: 'Rédiger un message professionnel', prompt: 'Rédige-moi un message pour ' },
+];
+
+const useSuggestion = async (prompt: string) => {
+  inputMsg.value = prompt;
+  await nextTick();
+  chatInputRef.value?.textarea?.focus();
+};
 
 watch(activeSessionId, async () => {
   await nextTick();
