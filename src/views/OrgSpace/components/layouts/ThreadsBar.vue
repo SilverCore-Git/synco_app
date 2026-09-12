@@ -1,7 +1,7 @@
 <template>
 
     <div 
-        class="h-full w-full pb-20 bg-(--bg2) border-r border-l border-(--border-color) "
+        class="h-full w-full bg-(--bg2) border-r border-l border-(--border-color) "
         :class="isDesktopApp() ? 'border-t' : ''"
     >
 
@@ -36,15 +36,16 @@
 
                         <ul
                             class="
-                                flex justify-start items-start flex-col mb-11
-                                gap-3 h-full w-full px-3 py-5 overflow-scroll 
+                                flex justify-start items-start flex-col flex-1 min-h-0
+                                gap-3 w-full px-3 py-5 overflow-y-auto overflow-x-hidden
                             "
+                            :style="{ paddingBottom: userCardHeight + 'px' }"
                         >
 
-                            <div 
+                            <div
                                 v-for="i in 13"
                                 :key="i"
-                                class=" rounded-lg bg-(--white)/4 h-6 w-full animate-pulse" 
+                                class=" rounded-lg bg-(--white)/4 h-6 w-full animate-pulse"
                             />
 
                         </ul>
@@ -85,9 +86,10 @@
 
                 <ul
                     class="
-                        flex justify-start items-start flex-col mb-11
-                        gap-3 h-full w-full px-3 py-5 overflow-scroll
+                        flex justify-start items-start flex-col flex-1 min-h-0
+                        gap-3 w-full px-3 py-5 overflow-y-auto overflow-x-hidden
                     "
+                    :style="{ paddingBottom: userCardHeight + 'px' }"
                 >
 
                     <template v-for="view in settingsViews" :key="'settings-' + view.name + '-link'">
@@ -151,9 +153,10 @@
 
                 <ul
                     class="
-                        flex justify-start items-start flex-col mb-11
-                        gap-3 h-full w-full px-3 py-5 overflow-y-auto
+                        flex justify-start items-start flex-col flex-1 min-h-0
+                        gap-3 w-full px-3 py-5 overflow-y-auto overflow-x-hidden
                     "
+                    :style="{ paddingBottom: userCardHeight + 'px' }"
                 >
 
                     <RouterLink
@@ -285,12 +288,13 @@
 
                         <ul
                             class="
-                                flex justify-start items-start flex-col mb-11
-                                gap-3 h-full w-full px-3 py-5 overflow-scroll 
+                                flex justify-start items-start flex-col flex-1 min-h-0
+                                gap-3 w-full px-3 py-5 overflow-y-auto overflow-x-hidden
                             "
+                            :style="{ paddingBottom: userCardHeight + 'px' }"
                         >
 
-                            <SettingsViewBtn 
+                            <SettingsViewBtn
                                 v-if="!isHome"
                                 name="Rechercher"
                                 icon="bi-search"
@@ -358,7 +362,7 @@
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { Thread, WorkSpace, Category as CategoryType } from '@/types/types';
-import { openedOrg, todoEnabled, filesEnabled, user } from '@/assets/var';
+import { openedOrg, todoEnabled, filesEnabled, user, userCardHeight } from '@/assets/var';
 import draggable from 'vuedraggable';
 import useWSocket from '@/composables/useWSocket';
 import ThreadDropDown from '../dropdown/ThreadDropDown.vue';
