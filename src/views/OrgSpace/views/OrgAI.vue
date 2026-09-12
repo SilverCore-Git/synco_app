@@ -27,13 +27,6 @@
         <div v-if="messages.length === 0"
           class="flex-1 flex flex-col items-center justify-center text-center px-4">
 
-          <div class="relative mb-6 group">
-            <div class="absolute inset-0 bg-(--primary)/20 blur-3xl rounded-full opacity-60 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <div class="relative w-20 h-20 bg-(--bg2) border border-white/10 rounded-full flex items-center justify-center shadow-2xl">
-              <i class="bi bi-cpu text-3xl text-(--primary)"></i>
-            </div>
-          </div>
-
           <h3 class="text-2xl font-bold text-(--text) mb-3 tracking-wide">Bonjour, je suis Synco AI.</h3>
 
           <p class="max-w-md text-sm text-(--text2) leading-relaxed mb-8">
