@@ -1,8 +1,7 @@
 <template>
     <div
         class="
-            absolute left-1/2 -translate-x-1/2 bottom-25 flex
-            items-center gap-6 px-8 py-4
+            flex items-center gap-6 px-8 py-4
             bg-(--black)/40 border-(--white)/10
             backdrop-blur-xl rounded-full border-t
             transition-all duration-200

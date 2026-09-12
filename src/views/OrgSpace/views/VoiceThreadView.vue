@@ -1,16 +1,17 @@
 <template>
 
-    <div 
-        v-if="isConnected" 
+    <div
+        v-if="isConnected"
         class="relative w-full h-full flex flex-col overflow-hidden"
     >
-            
-        <div 
+
+        <div class="flex-1 min-h-0 overflow-y-auto">
+
+        <div
             v-if="userFocused"
             class="
                 flex flex-col justify-center items-center p-5 xl:p-10
-                gap-5 xl:gap-10 transition-all duration-500 h-full w-full
-                pb-32
+                gap-5 xl:gap-10 transition-all duration-500 min-h-full w-full
             "
         >
                
@@ -138,13 +139,12 @@
 
         </div>
 
-        <div 
+        <div
             v-else
             class="
-                grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:flex xl:flex-wrap 
+                grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:flex xl:flex-wrap
                 justify-center items-center p-4 xl:p-10
-                gap-6 transition-all duration-500 w-full h-full
-                pb-32
+                gap-6 transition-all duration-500 w-full min-h-full
             "
         >
                 
@@ -211,19 +211,23 @@
 
         </div>
 
+        </div>
+
         <!-- Call Controls -->
-        <CallControls
-            :isMicOn="isMicEnabled"
-            :isCamOn="isCameraEnabled"
-            :isScreenSharing="isScreenShareEnabled"
-            :isDeafened="isDeafened"
-            @toggleMic="toggleMicrophone(!isMicEnabled)"
-            @toggleCam="toggleCamera(!isCameraEnabled)"
-            @toggleScreenShare="toggleScreenShare(!isScreenShareEnabled)"
-            @toggleDeafen="toggleDeafen(!isDeafened)"
-            @endCall="leaveRoom(thread?.id || '', String(route.params.spaceId))"
-            @invite="voiceInviteModalRef?.openModal()"
-        />
+        <div class="flex justify-center py-4 shrink-0">
+            <CallControls
+                :isMicOn="isMicEnabled"
+                :isCamOn="isCameraEnabled"
+                :isScreenSharing="isScreenShareEnabled"
+                :isDeafened="isDeafened"
+                @toggleMic="toggleMicrophone(!isMicEnabled)"
+                @toggleCam="toggleCamera(!isCameraEnabled)"
+                @toggleScreenShare="toggleScreenShare(!isScreenShareEnabled)"
+                @toggleDeafen="toggleDeafen(!isDeafened)"
+                @endCall="leaveRoom(thread?.id || '', String(route.params.spaceId))"
+                @invite="voiceInviteModalRef?.openModal()"
+            />
+        </div>
 
         <VoiceInviteModal v-if="props.thread" ref="voiceInviteModalRef" :thread="props.thread" />
 
