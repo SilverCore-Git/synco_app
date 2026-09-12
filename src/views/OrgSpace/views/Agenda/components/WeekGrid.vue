@@ -44,14 +44,14 @@
 
                 <div
                     v-for="occ in day.timedOccurrences"
-                    :key="occ.occurrenceKey"
+                    :key="occ.occurrenceKey + '-' + day.iso"
                     class="time-grid-event"
                     :class="{ 'is-event-dragging': eventDrag?.occ.occurrenceKey === occ.occurrenceKey }"
-                    :style="eventStyle(occ)"
+                    :style="eventStyle(occ, day)"
                 >
-                    <div class="time-grid-resize-handle top" @mousedown.stop="startEventDrag($event, occ, 'resize-top')"></div>
-                    <EventChip :occurrence="occ" @click="emit('open-event', occ)" @mousedown.stop="startEventDrag($event, occ, 'move')" />
-                    <div class="time-grid-resize-handle bottom" @mousedown.stop="startEventDrag($event, occ, 'resize-bottom')"></div>
+                    <div v-if="!isMultiDay(occ)" class="time-grid-resize-handle top" @mousedown.stop="startEventDrag($event, occ, 'resize-top')"></div>
+                    <EventChip :occurrence="occ" @click="emit('open-event', occ)" @mousedown.stop="isMultiDay(occ) ? undefined : startEventDrag($event, occ, 'move')" />
+                    <div v-if="!isMultiDay(occ)" class="time-grid-resize-handle bottom" @mousedown.stop="startEventDrag($event, occ, 'resize-bottom')"></div>
                 </div>
 
                 <div
@@ -132,11 +132,23 @@ const days = computed<DayColumn[]>(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // Un événement qui dure plusieurs jours est répété dans chaque colonne
+    // de jour qu'il traverse (pas seulement sa colonne de départ).
     const byDay = new Map<string, OccurrenceInstance[]>();
     for (const occ of props.occurrences) {
-        const key = isoDay(new Date(occ.startAt));
-        if (!byDay.has(key)) byDay.set(key, []);
-        byDay.get(key)!.push(occ);
+        const cursor = new Date(occ.startAt);
+        cursor.setHours(0, 0, 0, 0);
+        const endDay = new Date(occ.endAt);
+        endDay.setHours(0, 0, 0, 0);
+
+        let guard = 0;
+        while (cursor.getTime() <= endDay.getTime() && guard < 366) {
+            const key = isoDay(cursor);
+            if (!byDay.has(key)) byDay.set(key, []);
+            byDay.get(key)!.push(occ);
+            cursor.setDate(cursor.getDate() + 1);
+            guard++;
+        }
     }
 
     const list: DayColumn[] = [];
@@ -158,11 +170,21 @@ const days = computed<DayColumn[]>(() => {
     return list;
 });
 
-function eventStyle(occ: OccurrenceInstance) {
+function isMultiDay(occ: OccurrenceInstance): boolean {
+    return isoDay(new Date(occ.startAt)) !== isoDay(new Date(occ.endAt));
+}
+
+// Découpe la portion d'un événement (éventuellement multi-jours) visible
+// dans une colonne de jour donnée.
+function eventStyle(occ: OccurrenceInstance, day: DayColumn) {
     const start = new Date(occ.startAt);
     const end = new Date(occ.endAt);
-    const startMinutes = start.getHours() * 60 + start.getMinutes();
-    let durationMinutes = (end.getTime() - start.getTime()) / 60000;
+    const startIso = isoDay(start);
+    const endIso = isoDay(end);
+
+    const startMinutes = day.iso === startIso ? start.getHours() * 60 + start.getMinutes() : 0;
+    const endMinutes = day.iso === endIso ? end.getHours() * 60 + end.getMinutes() : 24 * 60;
+    let durationMinutes = endMinutes - startMinutes;
     if (durationMinutes < 20) durationMinutes = 20;
 
     const top = (startMinutes / 60) * rowHeight;

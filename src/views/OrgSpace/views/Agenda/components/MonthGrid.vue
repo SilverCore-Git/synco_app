@@ -18,7 +18,14 @@
                 @mouseenter="onDayMouseEnter(day)"
             >
                 <div class="month-grid-day-header">
-                    <span class="month-grid-day-number">{{ day.date.getDate() }}</span>
+                    <button
+                        type="button"
+                        class="month-grid-day-number"
+                        @mousedown.stop
+                        @click.stop="emit('select-day', day.date)"
+                    >
+                        {{ day.date.getDate() }}
+                    </button>
                 </div>
                 <div class="month-grid-day-events">
                     <EventChip
@@ -100,12 +107,23 @@ const days = computed<DayCell[]>(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Grouper les occurrences par jour local (clé YYYY-MM-DD)
+    // Grouper les occurrences par jour local (clé YYYY-MM-DD) — un événement
+    // qui dure plusieurs jours est répété dans chaque jour qu'il traverse.
     const byDay = new Map<string, OccurrenceInstance[]>();
     for (const occ of props.occurrences) {
-        const key = isoDay(new Date(occ.startAt));
-        if (!byDay.has(key)) byDay.set(key, []);
-        byDay.get(key)!.push(occ);
+        const cursor = new Date(occ.startAt);
+        cursor.setHours(0, 0, 0, 0);
+        const endDay = new Date(occ.endAt);
+        endDay.setHours(0, 0, 0, 0);
+
+        let guard = 0;
+        while (cursor.getTime() <= endDay.getTime() && guard < 366) {
+            const key = isoDay(cursor);
+            if (!byDay.has(key)) byDay.set(key, []);
+            byDay.get(key)!.push(occ);
+            cursor.setDate(cursor.getDate() + 1);
+            guard++;
+        }
     }
 
     const list: DayCell[] = [];
@@ -311,6 +329,10 @@ function finalizeEventMove() {
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
+}
+.month-grid-day-number:hover {
+    background: color-mix(in srgb, var(--primary) 25%, transparent);
 }
 
 .month-grid-day-events {

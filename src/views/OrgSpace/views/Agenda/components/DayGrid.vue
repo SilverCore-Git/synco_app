@@ -41,9 +41,9 @@
                     :class="{ 'is-event-dragging': eventDrag?.occ.occurrenceKey === occ.occurrenceKey }"
                     :style="eventStyle(occ)"
                 >
-                    <div class="time-grid-resize-handle top" @mousedown.stop="startEventDrag($event, occ, 'resize-top')"></div>
-                    <EventChip :occurrence="occ" @click="emit('open-event', occ)" @mousedown.stop="startEventDrag($event, occ, 'move')" />
-                    <div class="time-grid-resize-handle bottom" @mousedown.stop="startEventDrag($event, occ, 'resize-bottom')"></div>
+                    <div v-if="!isMultiDay(occ)" class="time-grid-resize-handle top" @mousedown.stop="startEventDrag($event, occ, 'resize-top')"></div>
+                    <EventChip :occurrence="occ" @click="emit('open-event', occ)" @mousedown.stop="isMultiDay(occ) ? undefined : startEventDrag($event, occ, 'move')" />
+                    <div v-if="!isMultiDay(occ)" class="time-grid-resize-handle bottom" @mousedown.stop="startEventDrag($event, occ, 'resize-bottom')"></div>
                 </div>
 
                 <div v-if="eventDrag" class="time-grid-drag-ghost is-event-preview" :style="eventDragGhostStyle">
@@ -99,11 +99,21 @@ const isToday = computed(() => {
 
 const dayOccurrences = computed(() => {
     const iso = isoDay(props.cursorDate);
+    // Un événement multi-jours reste visible sur chaque jour qu'il traverse,
+    // pas seulement celui où il démarre.
     return props.occurrences
-        .filter(o => isoDay(new Date(o.startAt)) === iso)
+        .filter(o => {
+            const startIso = isoDay(new Date(o.startAt));
+            const endIso = isoDay(new Date(o.endAt));
+            return iso >= startIso && iso <= endIso;
+        })
         .slice()
         .sort((a, b) => a.startAt.localeCompare(b.startAt));
 });
+
+function isMultiDay(occ: OccurrenceInstance): boolean {
+    return isoDay(new Date(occ.startAt)) !== isoDay(new Date(occ.endAt));
+}
 
 const allDayOccurrences = computed(() => dayOccurrences.value.filter(o => o.allDay));
 const timedOccurrences = computed(() => dayOccurrences.value.filter(o => !o.allDay));
@@ -123,8 +133,13 @@ const allDayEnd = computed(() => {
 function eventStyle(occ: OccurrenceInstance) {
     const start = new Date(occ.startAt);
     const end = new Date(occ.endAt);
-    const startMinutes = start.getHours() * 60 + start.getMinutes();
-    let durationMinutes = (end.getTime() - start.getTime()) / 60000;
+    const iso = isoDay(props.cursorDate);
+    const startIso = isoDay(start);
+    const endIso = isoDay(end);
+
+    const startMinutes = iso === startIso ? start.getHours() * 60 + start.getMinutes() : 0;
+    const endMinutes = iso === endIso ? end.getHours() * 60 + end.getMinutes() : 24 * 60;
+    let durationMinutes = endMinutes - startMinutes;
     if (durationMinutes < 20) durationMinutes = 20;
 
     const top = (startMinutes / 60) * rowHeight;

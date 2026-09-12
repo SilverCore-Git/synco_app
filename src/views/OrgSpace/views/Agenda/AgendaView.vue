@@ -1,47 +1,47 @@
 <template>
-    <div class="flex h-full relative overflow-hidden w-full">
-        <aside class="agenda-sidebar">
-            <button @click="openCreateBlank" class="primary-glow !text-sm w-full justify-center">
-                <i class="bi bi-plus-lg"></i>
-                Créer
-            </button>
-            <MiniCalendar
-                :cursor-date="cursorDate"
-                :occurrences="occurrences"
-                @pick-day="goToDay"
-                @navigate-month="navigateMiniMonth"
-            />
-        </aside>
+    <div class="flex flex-col h-full relative overflow-hidden w-full">
+        <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-(--border-color) bg-(--bg2) z-10 shrink-0 flex-wrap gap-y-2 py-2 w-full">
+            <div class="flex items-center gap-3">
+                <MobileBackBtn />
+                <i class="bi bi-calendar3 text-(--text)"></i>
+                <h3 class="font-semibold text-(--text)">Agenda</h3>
+            </div>
 
-        <div class="flex flex-col flex-1 overflow-hidden">
-            <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-(--border-color) bg-(--bg2) z-10 shrink-0 flex-wrap gap-y-2 py-2">
-                <div class="flex items-center gap-3">
-                    <MobileBackBtn />
-                    <i class="bi bi-calendar3 text-(--text)"></i>
-                    <h3 class="font-semibold text-(--text)">Agenda</h3>
-                </div>
+            <div class="flex items-center gap-2">
+                <button @click="goToday" class="default !text-xs !px-3 !py-1.5">Aujourd'hui</button>
+                <button @click="goPrev" class="default !text-xs !px-2 !py-1.5"><i class="bi bi-chevron-left"></i></button>
+                <button @click="goNext" class="default !text-xs !px-2 !py-1.5"><i class="bi bi-chevron-right"></i></button>
+                <span class="text-sm font-bold text-(--text) capitalize px-2 whitespace-nowrap">{{ periodLabel }}</span>
+            </div>
 
-                <div class="flex items-center gap-2">
-                    <button @click="goToday" class="default !text-xs !px-3 !py-1.5">Aujourd'hui</button>
-                    <button @click="goPrev" class="default !text-xs !px-2 !py-1.5"><i class="bi bi-chevron-left"></i></button>
-                    <button @click="goNext" class="default !text-xs !px-2 !py-1.5"><i class="bi bi-chevron-right"></i></button>
-                    <span class="text-sm font-bold text-(--text) capitalize px-2 whitespace-nowrap">{{ periodLabel }}</span>
-                </div>
-
-                <div class="ml-auto flex items-center gap-3 flex-wrap">
-                    <div class="flex items-center gap-1 bg-(--bg) border border-(--border-color) rounded-xl p-1">
-                        <button
-                            v-for="v in views"
-                            :key="v.id"
-                            @click="viewMode = v.id"
-                            class="text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
-                            :class="viewMode === v.id ? 'bg-(--primary) text-white' : 'text-(--text2) hover:text-(--text)'"
-                        >
-                            {{ v.label }}
-                        </button>
-                    </div>
+            <div class="ml-auto flex items-center gap-3 flex-wrap">
+                <div class="flex items-center gap-1 bg-(--bg) border border-(--border-color) rounded-xl p-1">
+                    <button
+                        v-for="v in views"
+                        :key="v.id"
+                        @click="viewMode = v.id"
+                        class="text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+                        :class="viewMode === v.id ? 'bg-(--primary) text-white' : 'text-(--text2) hover:text-(--text)'"
+                    >
+                        {{ v.label }}
+                    </button>
                 </div>
             </div>
+        </div>
+
+        <div class="flex flex-1 overflow-hidden">
+            <aside class="agenda-sidebar">
+                <button @click="openCreateBlank" class="primary-glow !text-sm w-full justify-center">
+                    <i class="bi bi-plus-lg"></i>
+                    Créer
+                </button>
+                <MiniCalendar
+                    :cursor-date="cursorDate"
+                    :occurrences="occurrences"
+                    @pick-day="goToDay"
+                    @navigate-month="navigateMiniMonth"
+                />
+            </aside>
 
             <main class="flex-1 overflow-hidden w-full h-full">
                 <div v-if="loading && occurrences.length === 0" class="w-full h-full flex items-center justify-center">
@@ -336,7 +336,7 @@ onUnmounted(async () => {
 
 <style scoped>
 .agenda-sidebar {
-    width: 220px;
+    width: 15rem; /* = w-60, même largeur que la ThreadsBar (OrgLayout.vue) */
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
