@@ -46,16 +46,6 @@
                 <div class="grid grid-cols-4 gap-1.5 border-t border-(--white)/5 pt-2">
 
                     <button
-                        @click="toggleMicrophone(!isMicEnabled)"
-                        class="flex flex-col items-center justify-center gap-1 py-1.5 rounded-lg transition-all text-[9px] font-bold uppercase tracking-wider"
-                        :class="isMicEnabled ? 'bg-(--white)/5 text-(--text2) hover:bg-(--white)/10' : 'bg-red-500/20 text-red-500'"
-                        :title="isMicEnabled ? 'Couper le micro' : 'Activer le micro'"
-                    >
-                        <i class="bi text-sm" :class="isMicEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'" />
-                        Micro
-                    </button>
-
-                    <button
                         @click="toggleCamera(!isCameraEnabled)"
                         class="flex flex-col items-center justify-center gap-1 py-1.5 rounded-lg transition-all text-[9px] font-bold uppercase tracking-wider"
                         :class="isCameraEnabled ? 'bg-(--primary)/20 text-(--primary)' : 'bg-(--white)/5 text-(--text2) hover:bg-(--white)/10'"
@@ -73,6 +63,16 @@
                     >
                         <i class="bi bi-display text-sm" />
                         Écran
+                    </button>
+
+                    <button
+                        @click="toggleMicrophone(!isMicEnabled)"
+                        class="flex flex-col items-center justify-center gap-1 py-1.5 rounded-lg transition-all text-[9px] font-bold uppercase tracking-wider"
+                        :class="isMicEnabled ? 'bg-(--white)/5 text-(--text2) hover:bg-(--white)/10' : 'bg-red-500/20 text-red-500'"
+                        :title="isMicEnabled ? 'Couper le micro' : 'Activer le micro'"
+                    >
+                        <i class="bi text-sm" :class="isMicEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'" />
+                        Micro
                     </button>
 
                     <button
