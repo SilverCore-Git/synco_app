@@ -10,7 +10,7 @@
 
         <div class="time-grid-allday">
             <div class="time-grid-gutter-header time-grid-allday-label">Journée</div>
-            <div class="time-grid-allday-cell" @click="emit('create', allDayDate)">
+            <div class="time-grid-allday-cell" @click="emitCreate(allDayDate, allDayEnd, true, $event)">
                 <EventChip
                     v-for="occ in allDayOccurrences"
                     :key="occ.occurrenceKey"
@@ -30,7 +30,7 @@
             <div
                 class="time-grid-day-col"
                 :style="{ height: rowHeight * 24 + 'px' }"
-                @click="onColumnClick"
+                @mousedown="onPointerDown"
             >
                 <div v-for="h in hours" :key="'line-' + h" class="time-grid-hour-line" :style="{ height: rowHeight + 'px' }"></div>
                 <div
@@ -41,13 +41,17 @@
                 >
                     <EventChip :occurrence="occ" @click="emit('open-event', occ)" />
                 </div>
+
+                <div v-if="drag" class="time-grid-drag-ghost" :style="ghostStyle">
+                    {{ ghostLabel }}
+                </div>
             </div>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import EventChip from './EventChip.vue';
 import type { OccurrenceInstance } from '@/types/agenda';
 
@@ -58,11 +62,12 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     'open-event': [occ: OccurrenceInstance];
-    'create': [date: Date];
+    'create': [range: { start: Date; end: Date; allDay?: boolean; clientX?: number; clientY?: number }];
 }>();
 
 const ROW_HEIGHT = 56;
 const rowHeight = ROW_HEIGHT;
+const SNAP_MINUTES = 15;
 const hours = Array.from({ length: 24 }, (_, i) => i);
 
 function isoDay(d: Date): string {
@@ -96,6 +101,12 @@ const allDayDate = computed(() => {
     return d;
 });
 
+const allDayEnd = computed(() => {
+    const d = new Date(props.cursorDate);
+    d.setHours(23, 59, 0, 0);
+    return d;
+});
+
 function eventStyle(occ: OccurrenceInstance) {
     const start = new Date(occ.startAt);
     const end = new Date(occ.endAt);
@@ -112,17 +123,78 @@ function eventStyle(occ: OccurrenceInstance) {
     };
 }
 
-function onColumnClick(e: MouseEvent) {
+// ── Sélection par glisser (façon Google Agenda) ──────────────────────
+interface DragState {
+    colTop: number;
+    startY: number;
+    currentY: number;
+}
+
+const drag = ref<DragState | null>(null);
+
+function pxToMinutes(px: number): number {
+    return Math.max(0, Math.min(24 * 60, (px / rowHeight) * 60));
+}
+
+function snap(minutes: number): number {
+    return Math.round(minutes / SNAP_MINUTES) * SNAP_MINUTES;
+}
+
+function onPointerDown(e: MouseEvent) {
+    if (e.button !== 0) return;
     const target = e.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
-    const offsetY = e.clientY - rect.top;
-    const hourFloat = offsetY / rowHeight;
-    const hour = Math.max(0, Math.min(23, Math.floor(hourFloat)));
-    const minute = hourFloat - Math.floor(hourFloat) >= 0.5 ? 30 : 0;
+    const y = e.clientY - rect.top;
+
+    drag.value = { colTop: rect.top, startY: y, currentY: y };
+    window.addEventListener('mousemove', onPointerMove);
+    window.addEventListener('mouseup', onPointerUp);
+}
+
+function onPointerMove(e: MouseEvent) {
+    if (!drag.value) return;
+    const y = Math.max(0, Math.min(rowHeight * 24, e.clientY - drag.value.colTop));
+    drag.value = { ...drag.value, currentY: y };
+}
+
+function onPointerUp(e: MouseEvent) {
+    window.removeEventListener('mousemove', onPointerMove);
+    window.removeEventListener('mouseup', onPointerUp);
+    if (!drag.value) return;
+
+    const d = drag.value;
+    drag.value = null;
+
+    const rawStart = snap(pxToMinutes(Math.min(d.startY, d.currentY)));
+    let rawEnd = snap(pxToMinutes(Math.max(d.startY, d.currentY)));
+    if (rawEnd - rawStart < SNAP_MINUTES) rawEnd = rawStart + 30;
 
     const start = new Date(props.cursorDate);
-    start.setHours(hour, minute, 0, 0);
-    emit('create', start);
+    start.setHours(0, rawStart, 0, 0);
+    const end = new Date(props.cursorDate);
+    end.setHours(0, rawEnd, 0, 0);
+
+    emit('create', { start, end, clientX: e.clientX, clientY: e.clientY });
+}
+
+const ghostStyle = computed(() => {
+    if (!drag.value) return {};
+    const top = Math.min(drag.value.startY, drag.value.currentY);
+    const height = Math.max(Math.abs(drag.value.currentY - drag.value.startY), (SNAP_MINUTES / 60) * rowHeight);
+    return { top: `${top}px`, height: `${height}px` };
+});
+
+const ghostLabel = computed(() => {
+    if (!drag.value) return '';
+    const rawStart = snap(pxToMinutes(Math.min(drag.value.startY, drag.value.currentY)));
+    let rawEnd = snap(pxToMinutes(Math.max(drag.value.startY, drag.value.currentY)));
+    if (rawEnd - rawStart < SNAP_MINUTES) rawEnd = rawStart + 30;
+    const fmt = (mins: number) => `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+    return `${fmt(rawStart)} – ${fmt(rawEnd)}`;
+});
+
+function emitCreate(start: Date, end: Date, allDay: boolean, e: MouseEvent) {
+    emit('create', { start, end, allDay, clientX: e.clientX, clientY: e.clientY });
 }
 </script>
 
@@ -221,7 +293,8 @@ function onColumnClick(e: MouseEvent) {
 
 .time-grid-day-col {
     position: relative;
-    cursor: pointer;
+    cursor: crosshair;
+    user-select: none;
 }
 
 .time-grid-hour-line {
@@ -236,5 +309,22 @@ function onColumnClick(e: MouseEvent) {
     overflow: hidden;
     cursor: pointer;
     z-index: 1;
+}
+
+.time-grid-drag-ghost {
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--primary) 32%, transparent);
+    border: 1.5px dashed var(--primary);
+    z-index: 2;
+    pointer-events: none;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--primary);
+    padding: 2px 6px;
+    display: flex;
+    align-items: flex-start;
 }
 </style>

@@ -8,8 +8,9 @@
                 v-for="day in days"
                 :key="day.iso"
                 class="month-grid-day"
-                :class="{ 'is-other-month': !day.inMonth, 'is-today': day.isToday }"
-                @click="emit('create', day.date)"
+                :class="{ 'is-other-month': !day.inMonth, 'is-today': day.isToday, 'is-selected': isInSelection(day.date) }"
+                @mousedown="onDayMouseDown($event, day)"
+                @mouseenter="onDayMouseEnter(day)"
             >
                 <div class="month-grid-day-header">
                     <span class="month-grid-day-number">{{ day.date.getDate() }}</span>
@@ -25,6 +26,7 @@
                     <button
                         v-if="day.occurrences.length > 3"
                         class="month-grid-more"
+                        @mousedown.stop
                         @click.stop="emit('select-day', day.date)"
                     >
                         +{{ day.occurrences.length - 3 }} de plus
@@ -36,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import EventChip from './EventChip.vue';
 import type { OccurrenceInstance } from '@/types/agenda';
 
@@ -47,7 +49,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     'open-event': [occ: OccurrenceInstance];
-    'create': [date: Date];
+    'create': [range: { start: Date; end: Date; allDay?: boolean; clientX?: number; clientY?: number }];
     'select-day': [date: Date];
 }>();
 
@@ -114,6 +116,59 @@ const days = computed<DayCell[]>(() => {
 
     return list;
 });
+
+// ── Sélection par glisser (jour unique = créneau par défaut, plage = journée entière) ──
+const dragStart = ref<Date | null>(null);
+const dragCurrent = ref<Date | null>(null);
+const isDragging = ref(false);
+
+function onDayMouseDown(e: MouseEvent, day: DayCell) {
+    if (e.button !== 0) return;
+    isDragging.value = true;
+    dragStart.value = day.date;
+    dragCurrent.value = day.date;
+    window.addEventListener('mouseup', finalizeSelection);
+}
+
+function onDayMouseEnter(day: DayCell) {
+    if (!isDragging.value) return;
+    dragCurrent.value = day.date;
+}
+
+function isInSelection(date: Date): boolean {
+    if (!isDragging.value || !dragStart.value || !dragCurrent.value) return false;
+    const a = dragStart.value.getTime();
+    const b = dragCurrent.value.getTime();
+    const t = date.getTime();
+    return t >= Math.min(a, b) && t <= Math.max(a, b);
+}
+
+function finalizeSelection(e: MouseEvent) {
+    window.removeEventListener('mouseup', finalizeSelection);
+    if (!isDragging.value || !dragStart.value) return;
+    const a = dragStart.value;
+    const b = dragCurrent.value || a;
+    isDragging.value = false;
+
+    const start = new Date(Math.min(a.getTime(), b.getTime()));
+    const end = new Date(Math.max(a.getTime(), b.getTime()));
+    const isRange = start.getTime() !== end.getTime();
+
+    dragStart.value = null;
+    dragCurrent.value = null;
+
+    if (isRange) {
+        const endOfDay = new Date(end);
+        endOfDay.setHours(23, 59, 0, 0);
+        emit('create', { start, end: endOfDay, allDay: true, clientX: e.clientX, clientY: e.clientY });
+    } else {
+        const s = new Date(start);
+        s.setHours(9, 0, 0, 0);
+        const en = new Date(start);
+        en.setHours(10, 0, 0, 0);
+        emit('create', { start: s, end: en, allDay: false, clientX: e.clientX, clientY: e.clientY });
+    }
+}
 </script>
 
 <style scoped>
@@ -147,6 +202,7 @@ const days = computed<DayCell[]>(() => {
     grid-template-columns: repeat(7, 1fr);
     grid-auto-rows: 1fr;
     overflow-y: auto;
+    user-select: none;
 }
 
 .month-grid-day {
@@ -163,6 +219,11 @@ const days = computed<DayCell[]>(() => {
 
 .month-grid-day:hover {
     background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.month-grid-day.is-selected {
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--primary) 50%, transparent);
 }
 
 .is-other-month {

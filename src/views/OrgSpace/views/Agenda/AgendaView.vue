@@ -27,7 +27,7 @@
                     </button>
                 </div>
 
-                <button @click="openCreateModal(new Date())" class="primary-glow !text-sm">
+                <button @click="openCreateBlank" class="primary-glow !text-sm">
                     <i class="bi bi-plus-lg"></i>
                     Nouvel événement
                 </button>
@@ -44,7 +44,7 @@
                 :cursor-date="cursorDate"
                 :occurrences="occurrences"
                 @open-event="openEditModal"
-                @create="openCreateModal"
+                @create="onGridCreate"
                 @select-day="goToDay"
             />
             <WeekGrid
@@ -52,23 +52,33 @@
                 :cursor-date="cursorDate"
                 :occurrences="occurrences"
                 @open-event="openEditModal"
-                @create="openCreateModal"
+                @create="onGridCreate"
             />
             <DayGrid
                 v-else
                 :cursor-date="cursorDate"
                 :occurrences="occurrences"
                 @open-event="openEditModal"
-                @create="openCreateModal"
+                @create="onGridCreate"
             />
         </main>
 
-        <EventModal
-            :show="showModal"
+        <EventQuickCreate
+            :visible="showQuickCreate"
+            :org-id="orgId"
+            :range="quickCreateRange"
+            :anchor="quickCreateAnchor"
+            @close="showQuickCreate = false"
+            @created="onQuickCreateCreated"
+            @more-options="onQuickCreateMoreOptions"
+        />
+
+        <EventPanel
+            :show="showPanel"
             :org-id="orgId"
             :occurrence="selectedOccurrence"
-            :initial-date="createInitialDate"
-            @close="showModal = false"
+            :initial-range="createInitialRange"
+            @close="showPanel = false"
             @saved="refetch"
             @deleted="refetch"
         />
@@ -82,7 +92,8 @@ import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import MonthGrid from './components/MonthGrid.vue';
 import WeekGrid from './components/WeekGrid.vue';
 import DayGrid from './components/DayGrid.vue';
-import EventModal from './components/EventModal.vue';
+import EventQuickCreate from './components/EventQuickCreate.vue';
+import EventPanel from './components/EventPanel.vue';
 import { useAgenda } from '@/composables/useAgenda';
 import useWSocket from '@/composables/useWSocket';
 import type { OccurrenceInstance } from '@/types/agenda';
@@ -180,21 +191,55 @@ function goToDay(date: Date) {
     viewMode.value = 'day';
 }
 
-// ── Modale événement ───────────────────────────────────────────────
-const showModal = ref(false);
-const selectedOccurrence = ref<OccurrenceInstance | null>(null);
-const createInitialDate = ref<Date | null>(null);
+// ── Création rapide (glisser sur la grille) ──────────────────────────
+interface Range { start: Date; end: Date; allDay?: boolean }
 
-function openCreateModal(date: Date) {
+const showQuickCreate = ref(false);
+const quickCreateRange = ref<Range | null>(null);
+const quickCreateAnchor = ref<{ x: number; y: number } | null>(null);
+
+function onGridCreate(range: Range & { clientX?: number; clientY?: number }) {
+    quickCreateRange.value = { start: range.start, end: range.end, allDay: !!range.allDay };
+    quickCreateAnchor.value = (range.clientX != null && range.clientY != null)
+        ? { x: range.clientX, y: range.clientY }
+        : null;
+    showQuickCreate.value = true;
+}
+
+function onQuickCreateCreated() {
+    showQuickCreate.value = false;
+    refetch();
+}
+
+function onQuickCreateMoreOptions(range: Range) {
+    showQuickCreate.value = false;
+    openCreatePanel(range);
+}
+
+// ── Panneau latéral événement (édition complète) ─────────────────────
+const showPanel = ref(false);
+const selectedOccurrence = ref<OccurrenceInstance | null>(null);
+const createInitialRange = ref<Range | null>(null);
+
+function openCreatePanel(range: Range) {
     selectedOccurrence.value = null;
-    createInitialDate.value = date;
-    showModal.value = true;
+    createInitialRange.value = range;
+    showPanel.value = true;
+}
+
+function openCreateBlank() {
+    const start = new Date();
+    const minutes = start.getMinutes();
+    start.setMinutes(minutes < 30 ? 30 : 60, 0, 0);
+    const end = new Date(start.getTime() + 60 * 60000);
+    openCreatePanel({ start, end, allDay: false });
 }
 
 function openEditModal(occ: OccurrenceInstance) {
+    showQuickCreate.value = false;
     selectedOccurrence.value = occ;
-    createInitialDate.value = null;
-    showModal.value = true;
+    createInitialRange.value = null;
+    showPanel.value = true;
 }
 
 watch([viewMode, cursorDate, viewingUserId], () => {
