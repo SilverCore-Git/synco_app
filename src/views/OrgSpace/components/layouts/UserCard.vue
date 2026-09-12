@@ -1,72 +1,88 @@
 <template>
 
-    <div 
+    <div
+        ref="cardRootEl"
         class="absolute bottom-1 left-1 flex flex-col gap-1"
         :class="isLittleScreen ? 'w-full' : 'w-75'"
     >
 
         <Transition name="fade-slide-in-up">
-            
-            <div 
+
+            <div
                 v-if="isConnected"
                 class="
-                    flex flex-col gap-2 p-2 bg-(--bg) rounded-xl 
+                    flex flex-col gap-2 p-2.5 bg-(--bg) rounded-xl
                     border border-(--border-color) shadow-2xl
-                    animate-in fade-in slide-in-from-bottom-2 duration-300 
+                    animate-in fade-in slide-in-from-bottom-2 duration-300
                 "
             >
 
-                <div class="flex items-center justify-between px-1">
+                <div class="flex items-center gap-2 px-1 min-w-0">
 
-                    <div class="flex flex-col overflow-hidden">
-                        <span class="text-[10px] font-bold uppercase leading-none flex items-center gap-1.5" :class="connectionColor">
-                            <span class="relative flex h-2 w-2">
-                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                            </span>
-                            Vocal connecté
+                    <span class="relative flex h-2 w-2 shrink-0">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+
+                    <div class="flex flex-col min-w-0 flex-1">
+                        <span class="text-[10px] font-bold uppercase leading-none text-green-500 truncate">
+                            En vocal
                         </span>
                         <span class="text-[9px] text-(--text2) truncate font-medium mt-0.5">
-                            {{ ping }}ms • {{ room?.name }}
+                            {{ activeThreadName || room?.name }} • <span :class="connectionColor">{{ ping }}ms</span>
                         </span>
                     </div>
 
-                    <button 
-                        @click.stop="toggleMicrophone(!isMicEnabled)" 
-                        class="p-1.5 rounded-md transition-all active:scale-90"
-                        :class="isMicEnabled ? 'text-(--text2) hover:bg-(--primary)/10 hover:text-(--primary)' : 'text-red-500 bg-red-500/10'"
-                    >
-                        <i class="bi" :class="isMicEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'" />
-                    </button>
-
-                    <button 
-                        @click="leaveRoom(String(room?.name), String(route.params.spaceId))" 
-                        class="p-2 w-9 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-lg transition-all active:scale-90"
-                        title="Déconnecter le vocal"
+                    <button
+                        @click="leaveRoom(String(room?.name), String(route.params.spaceId))"
+                        class="shrink-0 w-8 h-8 flex items-center justify-center bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-lg transition-all active:scale-90"
+                        title="Raccrocher"
                     >
                         <i class="bi bi-telephone-x-fill text-xs" />
                     </button>
 
                 </div>
 
-                <div class="grid grid-cols-2 gap-2 border-t border-(--white)/5 pt-2">
+                <div class="grid grid-cols-4 gap-1.5 border-t border-(--white)/5 pt-2">
 
-                    <button 
-                        @click="toggleCamera(!isCameraEnabled)"
-                        class="flex items-center justify-center gap-2 py-1.5 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wider"
-                        :class="isCameraEnabled ? 'bg-(--primary)/20 text-(--primary)' : 'bg-(--white)/5 text-(--text2) hover:bg-(--white)/10'"
+                    <button
+                        @click="toggleMicrophone(!isMicEnabled)"
+                        class="flex flex-col items-center justify-center gap-1 py-1.5 rounded-lg transition-all text-[9px] font-bold uppercase tracking-wider"
+                        :class="isMicEnabled ? 'bg-(--white)/5 text-(--text2) hover:bg-(--white)/10' : 'bg-red-500/20 text-red-500'"
+                        :title="isMicEnabled ? 'Couper le micro' : 'Activer le micro'"
                     >
-                        <i class="bi" :class="isCameraEnabled ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'" />
+                        <i class="bi text-sm" :class="isMicEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'" />
+                        Micro
+                    </button>
+
+                    <button
+                        @click="toggleCamera(!isCameraEnabled)"
+                        class="flex flex-col items-center justify-center gap-1 py-1.5 rounded-lg transition-all text-[9px] font-bold uppercase tracking-wider"
+                        :class="isCameraEnabled ? 'bg-(--primary)/20 text-(--primary)' : 'bg-(--white)/5 text-(--text2) hover:bg-(--white)/10'"
+                        :title="isCameraEnabled ? 'Désactiver la caméra' : 'Activer la caméra'"
+                    >
+                        <i class="bi text-sm" :class="isCameraEnabled ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'" />
                         Vidéo
                     </button>
 
-                    <button 
+                    <button
                         @click="toggleScreenShare(!isScreenShareEnabled)"
-                        class="flex items-center justify-center gap-2 py-1.5 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wider"
+                        class="flex flex-col items-center justify-center gap-1 py-1.5 rounded-lg transition-all text-[9px] font-bold uppercase tracking-wider"
                         :class="isScreenShareEnabled ? 'bg-(--primary)/20 text-(--primary)' : 'bg-(--white)/5 text-(--text2) hover:bg-(--white)/10'"
+                        :title="isScreenShareEnabled ? 'Arrêter le partage' : 'Partager l\'écran'"
                     >
-                        <i class="bi bi-display" />
+                        <i class="bi bi-display text-sm" />
                         Écran
+                    </button>
+
+                    <button
+                        @click="toggleDeafen(!isDeafened)"
+                        class="flex flex-col items-center justify-center gap-1 py-1.5 rounded-lg transition-all text-[9px] font-bold uppercase tracking-wider"
+                        :class="isDeafened ? 'bg-red-500/20 text-red-500' : 'bg-(--white)/5 text-(--text2) hover:bg-(--white)/10'"
+                        :title="isDeafened ? 'Réactiver le son' : 'Couper le son'"
+                    >
+                        <i class="bi text-sm" :class="isDeafened ? 'bi-volume-mute-fill' : 'bi-volume-up-fill'" />
+                        Son
                     </button>
 
                 </div>
@@ -158,7 +174,7 @@ import getColorByStatus from '@/assets/utils/getColorByStatus';
 import type { OrgMember } from '@/types/types';
 import { onMounted, ref, computed, onUnmounted } from 'vue';
 import UserDropDown from '../dropdown/UserDropDown.vue';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, userCardHeight } from '@/assets/var';
 import useLiveKit from '@/composables/useLiveKit';
 import { ConnectionQuality } from 'livekit-client';
 import { useRoute } from 'vue-router';
@@ -170,17 +186,31 @@ defineProps<{
 }>();
 
 const route = useRoute();
-const { 
-    room, 
-    isConnected, 
-    leaveRoom, 
-    toggleMicrophone, 
+const {
+    room,
+    isConnected,
+    leaveRoom,
+    toggleMicrophone,
     toggleCamera,
     toggleScreenShare,
+    toggleDeafen,
     isCameraEnabled,
     isMicEnabled,
     isScreenShareEnabled,
+    isDeafened,
 } = useLiveKit();
+
+// room.name est le threadId LiveKit (cf. /api/livekit/token) : on retrouve
+// le nom lisible du salon plutôt que d'afficher cet identifiant brut.
+const activeThreadName = computed(() => {
+    const threadId = room.value?.name;
+    if (!threadId || !openedOrg.value) return '';
+    for (const space of openedOrg.value.spaces || []) {
+        const t = space.threads?.find(th => th.id === threadId);
+        if (t) return t.name;
+    }
+    return openedOrg.value.home?.threads?.find(th => th.id === threadId)?.name || '';
+});
 
 
 const user = computed<OrgMember | undefined>(() => {
@@ -212,19 +242,39 @@ const connectionColor = computed(() => {
 
 let pingInterval: any;
 onMounted(async () => {
-    
+
     pingInterval = setInterval(async () => {
 
-        if (isConnected.value && room.value) 
+        if (isConnected.value && room.value)
         {
             ping.value = room.value.localParticipant.engine.client?.rtt || 1;
         }
-        
+
     }, 2000);
 
 });
 
 onUnmounted(() => clearInterval(pingInterval));
+
+// Les barres qui scrollent (ThreadsBar...) réservent exactement cette
+// hauteur en bas plutôt qu'une marge fixe devinée, puisque la carte grandit
+// quand le cadre d'appel apparaît.
+const cardRootEl = ref<HTMLElement | null>(null);
+let cardResizeObserver: ResizeObserver | null = null;
+
+onMounted(() => {
+    if (!cardRootEl.value) return;
+    cardResizeObserver = new ResizeObserver((entries) => {
+        const entry = entries[0];
+        if (entry) userCardHeight.value = Math.ceil(entry.target.getBoundingClientRect().height);
+    });
+    cardResizeObserver.observe(cardRootEl.value);
+});
+
+onUnmounted(() => {
+    cardResizeObserver?.disconnect();
+    userCardHeight.value = 0;
+});
 
 </script>
 
