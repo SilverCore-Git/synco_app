@@ -26,7 +26,7 @@
 
             </div>
 
-            <div class="space-y-4 w-full overflow-hidden">
+            <div class="w-full overflow-hidden">
 
                 <div v-if="isFetchingMore" class="flex justify-center py-4">
                     <SpinLoader />
