@@ -28,7 +28,7 @@ const props = defineProps<{
 }>();
 
 
-const { showUsersBar } = useUsersBar();
+const { showUsersBar, setUsersBarHiddenByRoute } = useUsersBar();
 const { initPeer } = useSecurePeer();
 const { notify } = useNotifications();
 const route = useRoute();
@@ -43,6 +43,15 @@ const orgOnOpen = computed(() => {
 });
 
 import { watch, toRaw } from 'vue';
+
+// Dans Tâches/Fichiers, la barre des membres se masque par défaut, sans
+// toucher à la préférence enregistrée : on la restaure dès qu'on revient
+// sur un salon ou toute autre page (ex: ThreadLayout, OrgAI, Settings).
+const USERSBAR_AUTOHIDE_ROUTES = new Set(['TasksSpace', 'TasksGlobal', 'SpaceFiles']);
+
+watch(() => route.name, (name) => {
+    setUsersBarHiddenByRoute(USERSBAR_AUTOHIDE_ROUTES.has(name as string));
+}, { immediate: true });
 
 watch(() => route.params.spaceId, async (newSpaceId, oldSpaceId) => {
     if (newSpaceId && newSpaceId !== oldSpaceId && privateKey.value) {
