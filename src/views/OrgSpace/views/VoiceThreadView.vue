@@ -18,7 +18,7 @@
             <!-- Focused User -->
             <div
                 :key="userFocused.identity"
-                :ref="(el) => setTileRef(userFocused.identity, el as Element | null)"
+                :ref="getTileRefSetter(userFocused.identity)"
                 @click="userFocused = null"
                 class="
                     relative bg-(--bg2) rounded-3xl
@@ -159,7 +159,7 @@
             <div
                 v-for="p in allParticipants"
                 :key="p.identity"
-                :ref="(el) => setTileRef(p.identity, el as Element | null)"
+                :ref="getTileRefSetter(p.identity)"
                 @click="userFocused = p"
                 class="
                     relative bg-(--bg2) rounded-3xl
@@ -339,6 +339,20 @@ const fullscreenIdentity = ref<string | null>(null);
 const setTileRef = (identity: string, el: Element | null) => {
     if (el) tileRefs.set(identity, el as HTMLElement);
     else tileRefs.delete(identity);
+};
+
+// Une fonction inline différente à chaque rendu pour `:ref` force Vue à
+// débrancher/rebrancher la ref sur CHAQUE mise à jour (même sans rapport),
+// ce qui devient très fréquent une fois ActiveSpeakersChanged écouté. On
+// mémorise une fonction stable par participant pour éviter ce churn.
+const tileRefSetters = new Map<string, (el: Element | null) => void>();
+const getTileRefSetter = (identity: string) => {
+    let setter = tileRefSetters.get(identity);
+    if (!setter) {
+        setter = (el: Element | null) => setTileRef(identity, el);
+        tileRefSetters.set(identity, setter);
+    }
+    return setter;
 };
 
 const onFullscreenChange = () => {

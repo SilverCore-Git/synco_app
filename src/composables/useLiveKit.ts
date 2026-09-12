@@ -124,13 +124,26 @@ function useLiveKit()
             broadcastUpdate(threadId, spaceId);
         };
 
+        // ActiveSpeakersChanged/ConnectionQualityChanged peuvent arriver en
+        // rafale (plusieurs personnes qui parlent en même temps) ; on groupe
+        // ces re-rendus sur une frame plutôt que d'en déclencher un par event.
+        let syncScheduled = false;
+        const scheduleSync = () => {
+            if (syncScheduled) return;
+            syncScheduled = true;
+            requestAnimationFrame(() => {
+                syncScheduled = false;
+                handleSync();
+            });
+        };
+
         newRoom.on(RoomEvent.ParticipantConnected, handleSync);
         newRoom.on(RoomEvent.ParticipantDisconnected, handleSync);
         newRoom.on(RoomEvent.TrackMuted, handleSync);
         newRoom.on(RoomEvent.TrackUnmuted, handleSync);
         newRoom.on(RoomEvent.ParticipantMetadataChanged, handleSync);
-        newRoom.on(RoomEvent.ActiveSpeakersChanged, handleSync);
-        newRoom.on(RoomEvent.ConnectionQualityChanged, handleSync);
+        newRoom.on(RoomEvent.ActiveSpeakersChanged, scheduleSync);
+        newRoom.on(RoomEvent.ConnectionQualityChanged, scheduleSync);
 
         // Le stop natif du "partage d'écran" via la barre du navigateur (ou une
         // caméra coupée hors de nos boutons) dépublie la track sans passer par
