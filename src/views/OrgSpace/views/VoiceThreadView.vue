@@ -216,9 +216,11 @@
             :isMicOn="isMicEnabled"
             :isCamOn="isCameraEnabled"
             :isScreenSharing="isScreenShareEnabled"
+            :isDeafened="isDeafened"
             @toggleMic="toggleMicrophone(!isMicEnabled)"
             @toggleCam="toggleCamera(!isCameraEnabled)"
             @toggleScreenShare="toggleScreenShare(!isScreenShareEnabled)"
+            @toggleDeafen="toggleDeafen(!isDeafened)"
             @endCall="leaveRoom(thread?.id || '', String(route.params.spaceId))"
             @invite="voiceInviteModalRef?.openModal()"
         />
@@ -290,17 +292,19 @@ const router = useRouter();
 const toast = useToast();
 const voiceInviteModalRef = ref<any>(null);
 
-const { 
-    allParticipants, 
+const {
+    allParticipants,
     isConnected,
     isMicEnabled,
     isCameraEnabled,
     isScreenShareEnabled,
+    isDeafened,
     connectToRoom,
     leaveRoom,
     toggleMicrophone,
     toggleCamera,
-    toggleScreenShare
+    toggleScreenShare,
+    toggleDeafen
 } = useLiveKit();
 
 const userFocused = ref<any>(null);
