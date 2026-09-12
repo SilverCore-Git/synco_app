@@ -599,8 +599,8 @@ onBeforeUnmount(async () => {
         >
 
             <SpaceBar class="h-full" />
-            <ThreadsBar 
-                v-if="route.name !== 'TasksGlobal'"
+            <ThreadsBar
+                v-if="route.name !== 'TasksGlobal' && route.name !== 'AgendaGlobal'"
                 class="h-full " 
                 :class="[
                     isDesktopApp() ? 'rounded-tl-2xl' : '',
