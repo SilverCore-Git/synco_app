@@ -6,6 +6,16 @@
                 <i class="bi bi-house text-(--text)"></i>
                 <h3 class="font-semibold text-(--text)">Accueil</h3>
             </div>
+
+            <div class="ml-auto flex items-center gap-4 text-(--text2)">
+                <button
+                    @click="showUsersBar = !showUsersBar"
+                    class="hover:text-(--text) transition-colors"
+                    :class="showUsersBar ? 'text-(--text)' : ''"
+                >
+                    <i class="bi bi-people-fill" />
+                </button>
+            </div>
         </div>
 
         <main class="flex-1 overflow-y-auto p-4 md:p-6">
@@ -27,6 +37,9 @@ import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import PendingMessagesCard from '../components/Home/PendingMessagesCard.vue';
 import AgendaCard from '../components/Home/AgendaCard.vue';
 import TodosCard from '../components/Home/TodosCard.vue';
+import { useUsersBar } from '@/composables/useUsersBar';
+
+const { showUsersBar } = useUsersBar();
 
 const greeting = computed(() => {
     const hour = new Date().getHours();
