@@ -306,21 +306,16 @@ export function useNotification() {
    */
   const markDMAsRead = async (dmUserId: string): Promise<void> => {
     try {
-      let markedCount = 0;
-      // Optimistic update
+      // Optimistic update (best-effort, le cache local peut être vide)
       notifications.value.forEach(n => {
         if (!n.isRead && n.data?.dmUserId === dmUserId) {
           n.isRead = true;
-          markedCount++;
         }
       });
 
-      if (markedCount > 0) {
-        // We can reuse mark-read-by-thread but change the property, 
-        // or just rely on API for now if we don't have a specific socket event.
-        // Let's implement an API call or just a generic socket event for this later if needed.
-        // For now, we do optimistic update, the user will eventually sync.
-      }
+      // Toujours notifier via WebSocket : le serveur recalcule lui-même
+      // les notifications non lues à partir de la BDD.
+      socket?.value?.emit('notification:mark-read-by-dm', { dmUserId });
     } catch (error) {
       console.error('[Notifications] Failed to mark DM as read:', error);
       await loadNotifications();
