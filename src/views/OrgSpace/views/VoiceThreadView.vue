@@ -291,7 +291,7 @@
 
 <script setup lang="ts">
 
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref, type ComponentPublicInstance } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Track } from 'livekit-client';
 import useLiveKit from '@/composables/useLiveKit';
@@ -336,7 +336,7 @@ const isConnecting = ref(false);
 const tileRefs = new Map<string, HTMLElement>();
 const fullscreenIdentity = ref<string | null>(null);
 
-const setTileRef = (identity: string, el: Element | null) => {
+const setTileRef = (identity: string, el: Element | ComponentPublicInstance | null) => {
     if (el) tileRefs.set(identity, el as HTMLElement);
     else tileRefs.delete(identity);
 };
@@ -345,11 +345,11 @@ const setTileRef = (identity: string, el: Element | null) => {
 // débrancher/rebrancher la ref sur CHAQUE mise à jour (même sans rapport),
 // ce qui devient très fréquent une fois ActiveSpeakersChanged écouté. On
 // mémorise une fonction stable par participant pour éviter ce churn.
-const tileRefSetters = new Map<string, (el: Element | null) => void>();
+const tileRefSetters = new Map<string, (el: Element | ComponentPublicInstance | null) => void>();
 const getTileRefSetter = (identity: string) => {
     let setter = tileRefSetters.get(identity);
     if (!setter) {
-        setter = (el: Element | null) => setTileRef(identity, el);
+        setter = (el: Element | ComponentPublicInstance | null) => setTileRef(identity, el);
         tileRefSetters.set(identity, setter);
     }
     return setter;
