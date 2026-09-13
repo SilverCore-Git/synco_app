@@ -281,19 +281,19 @@ export function useNotification() {
    */
   const markThreadAsRead = async (threadId: string): Promise<void> => {
     try {
-      let markedCount = 0;
-      // Optimistic update
+      // Optimistic update (local cache may not be populated yet, so this
+      // is best-effort — the actual persistence happens server-side below
+      // regardless of whether anything matched locally)
       notifications.value.forEach(n => {
         if (!n.isRead && n.data?.threadId === threadId) {
           n.isRead = true;
-          markedCount++;
         }
       });
 
-      if (markedCount > 0) {
-        // Notifier via WebSocket
-        socket?.value?.emit('notification:mark-read-by-thread', { threadId });
-      }
+      // Toujours notifier via WebSocket : le serveur recalcule lui-même
+      // les notifications non lues à partir de la BDD, donc ce n'est pas
+      // conditionné par le cache local de notifications.value.
+      socket?.value?.emit('notification:mark-read-by-thread', { threadId });
     } catch (error) {
       console.error('[Notifications] Failed to mark thread as read:', error);
       // Recharger les notifications pour revertir
