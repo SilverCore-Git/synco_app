@@ -93,12 +93,20 @@ const unreadCount = computed(() => {
 // Est-ce que le composable est initialisé
 const isInitialized = ref(false);
 
+// Instance de socket partagée — même raison que `notifications` ci-dessus :
+// si chaque appel de useNotification() gardait sa propre variable locale,
+// seul le premier composant à avoir réussi init() avait un socket assigné
+// dans sa closure ; tous les autres (markThreadAsRead, markDMAsRead, ...
+// appelés depuis un composant différent) émettaient sur un socket resté
+// `null`, silencieusement absorbé par l'optional chaining — rien n'était
+// jamais persisté côté serveur bien que l'UI locale semblait à jour.
+let socket: Ref<any> | null = null;
+
 /**
  * Composable pour gérer les notifications
  * @returns Object avec state et méthodes pour les notifications
  */
 export function useNotification() {
-  let socket: Ref<any> | null = null;
   const toast = useToast();
   const router = useRouter();
 
