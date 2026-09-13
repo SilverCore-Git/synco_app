@@ -4,7 +4,7 @@
                     :key="msg.id" 
                     class="group relative px-4 flex flex-col justify-start items-start rounded-lg transition-colors w-full"
                     :class="[
-                        isStacked ? 'py-0.5 mt-0' : 'py-2 mt-2',
+                        isStacked ? 'py-0 mt-0' : 'py-2 mt-2',
                         selectedMessage == msg.id ? ' border border-(--primary) border-dashed animate-pulse' : '',
                         user?.id == msg.replyMessage?.senderId || isTagMe
                             ? 'border-l-2 border-(--primary-dark) bg-(--primary-dark)/30 hover:bg-(--primary-dark)/50' 

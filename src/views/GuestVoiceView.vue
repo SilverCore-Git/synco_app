@@ -220,8 +220,6 @@ const initCall = async () => {
         const data = await joinRes.json();
         threadId.value = data.threadId;
 
-        import.meta.env.VITE_LIVEKIT_URL = data.url;
-
         // useLiveKit's broadcastUpdate/getWSData read openedOrg.value for the
         // socket 'voc:update' payload and participant metadata lookup — a
         // guest hasn't loaded the org through the normal app flow, so it's

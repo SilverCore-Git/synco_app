@@ -31,6 +31,7 @@
                     <thead>
                         <tr class="border-b border-white/5 bg-(--bg2)/50">
                             <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2)">Organisation</th>
+                            <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2)">Owner</th>
                             <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2) w-1/4">Utilisateurs</th>
                             <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2) w-1/4">Stockage</th>
                             <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2) text-right">Actions</th>
@@ -38,12 +39,12 @@
                     </thead>
                     <tbody class="divide-y divide-white/5">
                         <tr v-if="loading">
-                            <td colspan="4" class="p-12 text-center">
+                            <td colspan="5" class="p-12 text-center">
                                 <div class="w-8 h-8 border-4 border-(--primary)/30 border-t-(--primary) rounded-full animate-spin mx-auto"></div>
                             </td>
                         </tr>
                         <tr v-else-if="error">
-                            <td colspan="4" class="p-12 text-center text-red-500 font-bold">
+                            <td colspan="5" class="p-12 text-center text-red-500 font-bold">
                                 {{ error }}
                             </td>
                         </tr>
@@ -60,7 +61,19 @@
                                     </div>
                                 </div>
                             </td>
-                            
+
+                            <td class="p-4">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <div class="w-8 h-8 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center font-bold text-sm shrink-0">
+                                        {{ (org.owner.name || '?').charAt(0).toUpperCase() }}
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-medium text-(--text) truncate">{{ org.owner.name || 'Sans nom' }}</p>
+                                        <p class="text-[10px] text-(--text2) font-mono truncate">{{ org.owner.email }}</p>
+                                    </div>
+                                </div>
+                            </td>
+
                             <td class="p-4">
                                 <div class="flex flex-col gap-1 w-full">
                                     <div class="flex justify-between text-xs font-bold">
@@ -96,7 +109,7 @@
                             </td>
                         </tr>
                         <tr v-if="!loading && !error && filteredOrgs.length === 0">
-                            <td colspan="4" class="p-8 text-center text-(--text2) text-sm">
+                            <td colspan="5" class="p-8 text-center text-(--text2) text-sm">
                                 Aucune organisation trouvée.
                             </td>
                         </tr>
@@ -243,6 +256,7 @@ interface AdminOrg {
     id: string;
     name: string;
     logo: string | null;
+    owner: { id: string; name: string; email: string; avatarUrl: string | null };
     maxUsers: number;
     currentUsers: number;
     maxStorage: string | number;

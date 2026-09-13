@@ -215,7 +215,7 @@
 
                         <div class="w-10 h-10 shrink-0 flex items-center justify-center rounded bg-(--bg) border border-(--text)/5">
 
-                            <i class="bi text-xl" :class="[ getFileInfo(file as any).color, getFileInfo(file as any).icon ]" />
+                            <i class="bi text-xl" :class="[ getSelectedFileInfo(file).color, getSelectedFileInfo(file).icon ]" />
 
                         </div>
 
@@ -562,6 +562,11 @@ const removeFile = (index: number) => {
     selectedFiles.value.splice(index, 1);
 };
 
+// getFileInfo expects a StoredFile (originalName/mimeType) — the preview
+// chips render raw File objects (name/type) before upload, so adapt here
+// rather than changing the shared util every other caller relies on.
+const getSelectedFileInfo = (file: File) => getFileInfo({ originalName: file.name, mimeType: file.type } as any);
+
 const validUpload = async () => {
     fileSendProgress.value = 0;
     files.value = await uploadFiles(
@@ -800,7 +805,7 @@ const trustCurrentKey = async () => {
 
 const sendMessage = async () => {
 
-    if (!newMessage.value.trim() || !socket.value || !recipient.value) return;
+    if ((!newMessage.value.trim() && selectedFiles.value.length === 0) || !socket.value || !recipient.value) return;
 
     const clearContent = newMessage.value;
     const tempId = `temp-${Date.now()}`;
@@ -878,15 +883,31 @@ const sendMessage = async () => {
         }
     }
     
-    socket.value?.emit("dm:send-message", {
-        recipientId: recipient.value.id,
-        content: finalContent,
-        encryptedAesKey: finalEncryptedAesKey,
-        selfEncryptedAesKey: selfEncryptedAesKey,
-        nonce: finalIv,
-        isE2EE: useEncryption,
-        replyToId: tempMessage.replyToId,
+    const pendingFiles = files.value;
+    selectedFiles.value = [];
+    files.value = [];
+
+    const confirmedMessage: any = await new Promise((resolve) => {
+        socket.value?.emit("dm:send-message", {
+            recipientId: recipient.value!.id,
+            content: finalContent,
+            encryptedAesKey: finalEncryptedAesKey,
+            selfEncryptedAesKey: selfEncryptedAesKey,
+            nonce: finalIv,
+            isE2EE: useEncryption,
+            replyToId: tempMessage.replyToId,
+        }, (response: any) => resolve(response));
     });
+
+    if (confirmedMessage?.error) {
+        toast.show(confirmedMessage.error, "error");
+        messages.value = messages.value.filter(m => m.id !== tempId);
+        return;
+    }
+
+    if (pendingFiles.length && confirmedMessage?.id) {
+        socket.value?.emit('edit-dm-message-files', { id: confirmedMessage.id, files: pendingFiles });
+    }
 
 };
 
