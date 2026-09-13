@@ -389,6 +389,24 @@ watch(() => selectedMessage.value, async (newId) => {
 
 const currentThreadKey = ref<CryptoKey | null>(null);
 
+// join-thread est maintenant émis en parallèle de get-thread-access (voir
+// joinThread) : "thread-history" peut donc arriver avant que la clé E2EE
+// n'ait fini d'être déchiffrée. procesMessages() sans clé renverrait les
+// messages en clair chiffré tel quel, sans jamais les redéchiffrer — on
+// attend donc explicitement que la clé soit prête avant de traiter l'historique.
+const waitForThreadKey = (): Promise<void> => {
+    if (currentThreadKey.value) return Promise.resolve();
+    return new Promise(resolve => {
+        const stop = watch(currentThreadKey, (val) => {
+            if (val) {
+                stop();
+                resolve();
+            }
+        });
+        setTimeout(() => { stop(); resolve(); }, 10000);
+    });
+};
+
 const selectedFiles = ref<File[]>([]);
 const files = ref<any[]>([]);
 const fileSendProgress = ref<null | number>(null);
@@ -701,6 +719,8 @@ const initListener = () => {
             return; // Ignore history from another thread
         }
 
+        await waitForThreadKey();
+
         rawMessages.value.clear();
         history.forEach(m => rawMessages.value.set(m.id, m));
         sortedMessages.value = await procesMessages(history);
@@ -863,6 +883,13 @@ const joinThread = async (id: string) => {
         toast.show('[E2EE] Timeout lors de la récupération de la clé du salon.', 'error');
     }, 10000);
 
+    // join-thread ne dépend pas de la clé E2EE déchiffrée (il fait sa propre
+    // vérification de permission côté serveur et renvoie l'historique via un
+    // listener "thread-history" déjà en place) : on l'émet en parallèle de
+    // get-thread-access plutôt que d'attendre son aller-retour complet avant
+    // de démarrer le second, pour ne pas payer deux latences réseau en série.
+    socket.value.emit("join-thread", { threadId: id });
+
     socket.value.emit("get-thread-access", { threadId: id }, async (response: { encryptedKey?: string, error?: string, needsReadd?: boolean }) => {
         clearTimeout(timeoutId);
 
@@ -905,10 +932,6 @@ const joinThread = async (id: string) => {
 
             const decryptedKey = await decryptThreadKeyWithRsa(response.encryptedKey, privateKey.value!);
             currentThreadKey.value = decryptedKey;
-
-            socket.value.emit("join-thread", { 
-                threadId: id
-            });
 
             let _thread;
             if (route.params.spaceId == 'home')  _thread = openedOrg.value?.home.threads.find(__thread => __thread.id == thread.value?.id);
