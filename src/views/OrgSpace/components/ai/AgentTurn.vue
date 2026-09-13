@@ -44,7 +44,7 @@ defineEmits<{
 
 function isLastTool(index: number) {
     for (let j = index + 1; j < props.parts.length; j++) {
-        if (props.parts[j].type === 'tool') return false;
+        if (props.parts[j]?.type === 'tool') return false;
     }
     return true;
 }

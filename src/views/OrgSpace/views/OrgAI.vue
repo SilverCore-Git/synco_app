@@ -825,15 +825,13 @@ const upsertToolPart = (idx: number, toolCallId: string, patch: Partial<ToolStep
 
 /**
  * Consomme le flux SSE de la nouvelle boucle d'agent serveur (chatAgentTurn/resumeAgentTurn) et
- * alimente les parts (texte + tools entrelacés) de la turn en cours. getIndex/setIndex existent
- * pour compatibilité mais pointent désormais toujours vers LA MÊME turn : contrairement à l'ancien
- * modèle une bulle par tool, tout le tour (texte + tools + texte...) reste dans un seul message,
- * comme le fait réellement Claude.
+ * alimente les parts (texte + tools entrelacés) de la turn en cours. getIndex pointe toujours
+ * vers LA MÊME turn : contrairement à l'ancien modèle une bulle par tool, tout le tour
+ * (texte + tools + texte...) reste dans un seul message, comme le fait réellement Claude.
  */
 const consumeAgentStream = async (
   generator: AsyncGenerator<any, void, unknown>,
   getIndex: () => number,
-  setIndex: (i: number) => void,
   newSessionTitleSource?: string
 ) => {
   for await (const ev of generator) {
@@ -975,9 +973,9 @@ const handleAgentToolDecision = async (
   isGenerating.value = true;
   await scrollToBottom();
   try {
-    let idx = assistantMsgIndex;
+    const idx = assistantMsgIndex;
     const generator = aiService.resumeAgentTurn(orgId, sessionId, decision);
-    await consumeAgentStream(generator, () => idx, (i) => { idx = i; });
+    await consumeAgentStream(generator, () => idx);
   } catch (e: any) {
     if (messages.value[assistantMsgIndex]) appendTextPart(assistantMsgIndex, `\n\n**Erreur:** ${e.message}`);
   } finally {
@@ -996,9 +994,9 @@ const sendMessageViaAgent = async (text: string) => {
   await scrollToBottom();
 
   try {
-    let idx = assistantMsgIndex;
+    const idx = assistantMsgIndex;
     const generator = aiService.chatAgentTurn(orgId, activeSessionId.value, text);
-    await consumeAgentStream(generator, () => idx, (i) => { idx = i; }, text);
+    await consumeAgentStream(generator, () => idx, text);
   } catch (error: any) {
     if (error.message !== 'USER_STOPPED' && !String(error).includes('USER_STOPPED')) {
       appendTextPart(assistantMsgIndex, `\n\n**Erreur:** ${error.message}`);
