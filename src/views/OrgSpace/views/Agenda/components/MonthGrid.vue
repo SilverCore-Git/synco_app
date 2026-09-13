@@ -29,7 +29,7 @@
                 </div>
                 <div class="month-grid-day-events">
                     <EventChip
-                        v-for="occ in day.occurrences.slice(0, 3)"
+                        v-for="occ in day.occurrences.slice(0, maxVisibleEvents)"
                         :key="occ.occurrenceKey"
                         :occurrence="occ"
                         compact
@@ -38,12 +38,12 @@
                         @mousedown.stop="isTaskDeadlineOccurrence(occ.eventId) ? undefined : startEventMove($event, occ)"
                     />
                     <button
-                        v-if="day.occurrences.length > 3"
+                        v-if="day.occurrences.length > maxVisibleEvents"
                         class="month-grid-more"
                         @mousedown.stop
                         @click.stop="emit('select-day', day.date)"
                     >
-                        +{{ day.occurrences.length - 3 }} de plus
+                        +{{ day.occurrences.length - maxVisibleEvents }} de plus
                     </button>
                 </div>
             </div>
@@ -55,6 +55,11 @@
 import { computed, ref } from 'vue';
 import EventChip from './EventChip.vue';
 import { isTaskDeadlineOccurrence, type OccurrenceInstance } from '@/types/agenda';
+import { isLittleScreen } from '@/assets/var';
+
+// Moins d'événements visibles par jour sur petit écran : les cases restent
+// lisibles et de même taille sans avoir à réduire encore la police/padding.
+const maxVisibleEvents = computed(() => isLittleScreen.value ? 2 : 3);
 
 const props = defineProps<{
     cursorDate: Date;
@@ -279,7 +284,17 @@ function finalizeEventMove() {
     flex: 1;
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    grid-auto-rows: 1fr;
+    /* minmax(0, 1fr) et non 1fr seul : avec 1fr, une case dont le contenu
+       (événements) dépasse la part équitable de la ligne agrandit CETTE
+       ligne par rapport aux autres — les cases n'ont alors plus la même
+       taille. minmax(0, ...) force une base de 0, donc les 1fr se
+       répartissent toujours à parts strictement égales, indépendamment
+       du contenu de chaque jour. */
+    grid-auto-rows: minmax(0, 1fr);
+    /* Plancher pour rester lisible sur petit écran plutôt que d'écraser
+       les 6 lignes du mois : la grille défile verticalement (overflow-y)
+       au lieu de rapetisser les cases en dessous de ce seuil. */
+    min-height: 480px;
     overflow-y: auto;
     user-select: none;
 }
@@ -288,11 +303,11 @@ function finalizeEventMove() {
     border-right: 1px solid var(--border-color);
     border-bottom: 1px solid var(--border-color);
     padding: 6px;
-    min-height: 100px;
     display: flex;
     flex-direction: column;
     gap: 4px;
     cursor: pointer;
+    overflow: hidden;
     transition: background 0.15s ease;
 }
 
@@ -352,5 +367,45 @@ function finalizeEventMove() {
 
 .month-grid-more:hover {
     color: var(--text);
+}
+
+/* Même palier que .agenda-sidebar (AgendaView.vue) : en dessous, la barre
+   latérale disparaît déjà, donc la grille récupère toute la largeur — on
+   resserre un peu pour compenser l'espace en moins par colonne. */
+@media (max-width: 900px) {
+    .month-grid-day {
+        padding: 4px;
+        gap: 2px;
+    }
+
+    .month-grid-days {
+        min-height: 380px;
+    }
+
+    .month-grid-day-number {
+        font-size: 10px;
+        width: 20px;
+        height: 20px;
+    }
+}
+
+@media (max-width: 600px) {
+    .month-grid-weekday {
+        padding: 6px 2px;
+        font-size: 9px;
+    }
+
+    .month-grid-day {
+        padding: 3px;
+    }
+
+    .month-grid-days {
+        min-height: 320px;
+    }
+
+    .month-grid-more {
+        font-size: 9px;
+        padding: 1px 2px;
+    }
 }
 </style>
