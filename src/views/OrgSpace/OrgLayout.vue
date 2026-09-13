@@ -14,6 +14,7 @@ import { useRoute } from 'vue-router';
 import { useUsersBar } from '@/composables/useUsersBar';
 import { keycloak } from '@/assets/keycloak';
 import useNotifications from '@/composables/useNotifications';
+import { useNotification } from '@/composables/useNotification';
 import { isMeeting } from '@/composables/usePrivatMeet';
 
 import isDesktopApp from '@/assets/isDesktopApp';
@@ -31,6 +32,7 @@ const props = defineProps<{
 const { showUsersBar, setUsersBarHiddenByRoute } = useUsersBar();
 const { initPeer } = useSecurePeer();
 const { notify } = useNotifications();
+const { init: initNotifications } = useNotification();
 const route = useRoute();
 const toast = useToast();
 const { fetchPermissions } = usePermissions(computed(() => props.orgId));
@@ -579,7 +581,8 @@ onMounted(async () => {
     await Promise.all([
             fetchPermissions(),
             initSocketListener(),
-            initPeer()
+            initPeer(),
+            initNotifications()
     ])
 
     handleTabletChange(mediaQuery);
