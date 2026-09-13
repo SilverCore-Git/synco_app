@@ -347,12 +347,12 @@ const spacesGroups = computed(() => {
 
     rawTasks.value.forEach(task => {
 
-        // Une tâche m'appartient si elle m'est assignée, ou si je l'ai créée sans espace
-        // (tâche personnelle non assignée, ex: créée par l'agent IA) — même règle que
-        // listMyTasks() côté backend (tasksService.ts).
+        // Une tâche m'appartient si elle m'est assignée, ou si je l'ai créée
+        // (dans un espace ou non) — même règle que listMyTasks() côté backend
+        // (tasksService.ts).
         const isAssignedToMe = task.assignees?.some(a => a.id === user.value?.id);
-        const isMyPersonalTask = !task.spaceId && task.creatorId === user.value?.id;
-        if (!isAssignedToMe && !isMyPersonalTask) return;
+        const isCreatedByMe = task.creatorId === user.value?.id;
+        if (!isAssignedToMe && !isCreatedByMe) return;
 
         if (!task.spaceId) {
             groups['personal']!.tasks.push(task);

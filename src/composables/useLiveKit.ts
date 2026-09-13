@@ -1,15 +1,17 @@
 import { ref, shallowRef } from 'vue';
-import { 
-    Room, 
-    RoomEvent,  
+import {
+    Room,
+    RoomEvent,
     RemoteTrack,
     Track,
     Participant,
     ExternalE2EEKeyProvider
 } from 'livekit-client';
 import { openedOrg } from '@/assets/var';
+import { decryptThreadKeyWithRsa, privateKey } from '@/assets/utils/crypto';
 import E2EEWorker from '../../node_modules/livekit-client/dist/livekit-client.e2ee.worker.js?worker&url';
 import useWSocket from './useWSocket';
+import { useToast } from './useToast';
 import type { OrgMember } from '@/types/types';
 
 
@@ -24,16 +26,30 @@ const isCameraEnabled = ref<boolean>(false);
 const isScreenShareEnabled = ref<boolean>(false);
 const isDeafened = ref<boolean>(false);
 const keyProvider = new ExternalE2EEKeyProvider();
+let intentionalDisconnect = false;
 
 
-async function getE2EEKey(threadId: string): Promise<string> 
-{
-    const input = `${import.meta.env.VITE_LIVEKIT_E2EE_KEY}_${openedOrg.value?.id}_${threadId}`;
-    const encoder = new TextEncoder();
-    const data = encoder.encode(input);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+/**
+ * Unwraps the room's E2EE media key from the RSA-OAEP-encrypted blob the
+ * backend returns alongside the LiveKit token. That blob is the thread's
+ * existing ThreadKey — the same AES key already used for this thread's
+ * text messages, already securely distributed per-member (cf.
+ * encryptThreadKeyForMember). The backend only ever handles/stores the
+ * ciphertext; it's meaningless without the recipient's RSA private key.
+ *
+ * Returns null when there's nothing to decrypt (thread has no E2EE key,
+ * e.g. a guest joining via invite link, or a non-E2EE thread) — callers
+ * treat that as "this call isn't E2EE", not an error.
+ */
+async function unwrapRoomKey(encryptedThreadKey: string | null | undefined): Promise<ArrayBuffer | null> {
+    if (!encryptedThreadKey || !privateKey.value) return null;
+    try {
+        const threadKey = await decryptThreadKeyWithRsa(encryptedThreadKey, privateKey.value);
+        return await crypto.subtle.exportKey('raw', threadKey);
+    } catch (e) {
+        console.error('[LiveKit E2EE] Impossible de déchiffrer la clé du salon:', e);
+        return null;
+    }
 }
 
 
@@ -79,18 +95,18 @@ function useLiveKit()
         
     };
 
-    const connectToRoom = async (_url: string, token: string, threadId: string, spaceId: string) => {
-        
-        if (room.value) 
+    const connectToRoom = async (url: string, token: string, threadId: string, spaceId: string, encryptedRoomKey?: string | null) => {
+
+        if (room.value)
         {
             await leaveRoom(room.value.name, spaceId);
         }
 
         let e2eeOptions = undefined;
-        const e2eeKey = await getE2EEKey(threadId);
-        if (e2eeKey) 
+        const roomKey = await unwrapRoomKey(encryptedRoomKey);
+        if (roomKey)
         {
-            await keyProvider.setKey(e2eeKey);
+            await keyProvider.setKey(roomKey);
             e2eeOptions = {
                 keyProvider,
                 worker: new Worker(E2EEWorker, { type: 'module' }),
@@ -108,20 +124,61 @@ function useLiveKit()
             broadcastUpdate(threadId, spaceId);
         };
 
+        // ActiveSpeakersChanged/ConnectionQualityChanged peuvent arriver en
+        // rafale (plusieurs personnes qui parlent en même temps) ; on groupe
+        // ces re-rendus sur une frame plutôt que d'en déclencher un par event.
+        let syncScheduled = false;
+        const scheduleSync = () => {
+            if (syncScheduled) return;
+            syncScheduled = true;
+            requestAnimationFrame(() => {
+                syncScheduled = false;
+                handleSync();
+            });
+        };
+
         newRoom.on(RoomEvent.ParticipantConnected, handleSync);
         newRoom.on(RoomEvent.ParticipantDisconnected, handleSync);
         newRoom.on(RoomEvent.TrackMuted, handleSync);
         newRoom.on(RoomEvent.TrackUnmuted, handleSync);
         newRoom.on(RoomEvent.ParticipantMetadataChanged, handleSync);
-        
+        newRoom.on(RoomEvent.ActiveSpeakersChanged, scheduleSync);
+        newRoom.on(RoomEvent.ConnectionQualityChanged, scheduleSync);
+
+        // Le stop natif du "partage d'écran" via la barre du navigateur (ou une
+        // caméra coupée hors de nos boutons) dépublie la track sans passer par
+        // toggleCamera/toggleScreenShare : sans ça, isCameraEnabled/
+        // isScreenShareEnabled restent bloqués sur leur dernière valeur connue.
+        const resyncLocal = () => { syncLocalState(); handleSync(); };
+        newRoom.on(RoomEvent.LocalTrackPublished, resyncLocal);
+        newRoom.on(RoomEvent.LocalTrackUnpublished, resyncLocal);
+
+        newRoom.on(RoomEvent.Disconnected, () => {
+            // Événement tardif d'une room déjà remplacée par un connectToRoom
+            // plus récent : ne pas écraser son état avec le nôtre.
+            if (room.value !== newRoom) return;
+
+            room.value = null;
+            isConnected.value = false;
+            allParticipants.value = [];
+            audioTracks.value.clear();
+            videoTracks.value.clear();
+
+            if (!intentionalDisconnect) {
+                useToast().show("Connexion au salon vocal perdue", "error");
+            }
+            intentionalDisconnect = false;
+        });
+
         newRoom.on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
 
-            if (track.kind === Track.Kind.Audio) 
+            if (track.kind === Track.Kind.Audio)
             {
-                track.attach(); 
+                const el = track.attach();
+                el.muted = isDeafened.value;
                 audioTracks.value.set(participant.identity, track);
-            } 
-            else 
+            }
+            else
             {
                 videoTracks.value.set(`${participant.identity}-${pub.source}`, track);
             }
@@ -138,7 +195,7 @@ function useLiveKit()
         });
 
         try {
-            await newRoom.connect(import.meta.env.VITE_LIVEKIT_URL, token);
+            await newRoom.connect(url, token);
             room.value = newRoom;
             isConnected.value = true;
             await newRoom.localParticipant.setMicrophoneEnabled(true);
@@ -167,9 +224,10 @@ function useLiveKit()
 
     const leaveRoom = async (threadId: string, spaceId: string) => {
 
-        if (room.value) 
+        if (room.value)
         {
 
+            intentionalDisconnect = true;
             await room.value.disconnect();
             
             await broadcastUpdate(threadId, spaceId, []);

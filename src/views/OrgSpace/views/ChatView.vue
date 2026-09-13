@@ -51,13 +51,22 @@
                     </template>
 
                     <template #content>
-                        <button 
-                            @click="createPrivateMeet" 
+                        <button
+                            @click="createPrivateMeet"
                             class="dropdown-item-annimate dropdown-item-style gap-2"
                             title="Conversation P2P chiffrée de bout en bout."
                         >
                             <i class="bi bi-shield-fill-check text-(--primary)" />
                             Session ephemere
+                        </button>
+                        <button
+                            v-if="recipient?.publicKey"
+                            @click="openKeyPanel"
+                            class="dropdown-item-annimate dropdown-item-style gap-2"
+                            title="Vérifier la clé de chiffrement de bout en bout."
+                        >
+                            <i class="bi bi-key-fill text-(--primary)" />
+                            Code de sécurité
                         </button>
                     </template>
 
@@ -206,7 +215,7 @@
 
                         <div class="w-10 h-10 shrink-0 flex items-center justify-center rounded bg-(--bg) border border-(--text)/5">
 
-                            <i class="bi text-xl" :class="[ getFileInfo(file as any).color, getFileInfo(file as any).icon ]" />
+                            <i class="bi text-xl" :class="[ getSelectedFileInfo(file).color, getSelectedFileInfo(file).icon ]" />
 
                         </div>
 
@@ -340,6 +349,35 @@
             <PrivateMeetView />
         </div>
 
+        <Popup :isOpen="showKeyPanel" @close="showKeyPanel = false">
+            <template #title>Code de sécurité</template>
+
+            <div v-if="keyTrustState === 'changed'" class="mb-4 flex items-start gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                <i class="bi bi-exclamation-triangle-fill text-red-400 mt-0.5" />
+                <p class="text-xs text-red-400 leading-relaxed">
+                    La clé de {{ $p(recipient?.name) }} a changé depuis votre dernière conversation chiffrée.
+                    Cela peut signifier qu'{{ $p(recipient?.name) }} a réinstallé l'application — ou qu'un tiers
+                    intercepte vos messages. Vérifiez ce code avec {{ $p(recipient?.name) }} par un autre moyen
+                    (appel, en personne) avant de faire confiance à la nouvelle clé.
+                </p>
+            </div>
+            <p v-else class="text-sm text-(--text2) mb-4 leading-relaxed">
+                Comparez ce code avec {{ $p(recipient?.name) }} par un autre moyen (appel, en personne) pour
+                confirmer que vos messages sont chiffrés uniquement entre vous deux.
+            </p>
+
+            <div class="px-4 py-3 rounded-xl bg-(--bg2) border border-(--border-color) text-center">
+                <span class="text-lg font-mono tracking-[0.2em] text-(--text)">{{ keyFingerprint }}</span>
+            </div>
+
+            <template #footer>
+                <button @click="showKeyPanel = false" class="default">Fermer</button>
+                <button v-if="keyTrustState === 'changed'" @click="trustCurrentKey" class="danger">
+                    Faire confiance à cette clé
+                </button>
+            </template>
+        </Popup>
+
     </div>
 
 </template>
@@ -368,6 +406,8 @@ import { uploadFiles } from '@/assets/uploadFile';
 import useResponse from '@/composables/useResponse';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useNotification } from '@/composables/useNotification';
+import { checkKeyTrust, trustKey, computeKeyFingerprint, type KeyTrustResult } from '@/assets/utils/keyTrust';
+import Popup from '@/components/Popup.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -521,6 +561,11 @@ const handleDrop = (e: DragEvent) => {
 const removeFile = (index: number) => {
     selectedFiles.value.splice(index, 1);
 };
+
+// getFileInfo expects a StoredFile (originalName/mimeType) — the preview
+// chips render raw File objects (name/type) before upload, so adapt here
+// rather than changing the shared util every other caller relies on.
+const getSelectedFileInfo = (file: File) => getFileInfo({ originalName: file.name, mimeType: file.type } as any);
 
 const validUpload = async () => {
     fileSendProgress.value = 0;
@@ -735,9 +780,32 @@ const getMessageSenderName = (msg: DMMessage): string => {
     return msg.sender?.name || 'Anonyme';
 };
 
+// TOFU pinning for the recipient's E2EE public key (audit finding #3): the
+// server is not treated as an authoritative source of key identity, so a
+// server that swaps in an attacker's key mid-conversation is surfaced here
+// instead of trusted silently — see sendMessage() below for the blocking
+// check, and keyTrust.ts for the underlying store.
+const showKeyPanel = ref<boolean>(false);
+const keyTrustState = ref<KeyTrustResult | null>(null);
+const keyFingerprint = ref<string>('');
+
+const openKeyPanel = async () => {
+    if (!recipient.value?.publicKey) return;
+    keyFingerprint.value = await computeKeyFingerprint(recipient.value.publicKey);
+    keyTrustState.value = await checkKeyTrust(recipient.value.id, recipient.value.publicKey);
+    showKeyPanel.value = true;
+};
+
+const trustCurrentKey = async () => {
+    if (!recipient.value?.publicKey) return;
+    await trustKey(recipient.value.id, recipient.value.publicKey);
+    keyTrustState.value = 'match';
+    toast.show('Nouvelle clé de sécurité approuvée.', 'warning');
+};
+
 const sendMessage = async () => {
 
-    if (!newMessage.value.trim() || !socket.value || !recipient.value) return;
+    if ((!newMessage.value.trim() && selectedFiles.value.length === 0) || !socket.value || !recipient.value) return;
 
     const clearContent = newMessage.value;
     const tempId = `temp-${Date.now()}`;
@@ -775,10 +843,26 @@ const sendMessage = async () => {
         const recipientPubKey = recipient.value.publicKey;
         const myPubKey = user.value?.publicKey; 
 
-        if (!recipientPubKey) 
+        if (!recipientPubKey)
         {
             toast.show("Clé du destinataire introuvable.", "error");
             messages.value = messages.value.filter(m => m.id !== tempId);
+            return;
+        }
+
+        const trust = await checkKeyTrust(recipient.value.id, recipientPubKey);
+        if (trust === 'changed')
+        {
+            toast.show(
+                `La clé de sécurité de ${recipient.value.name} a changé depuis votre dernier échange. Message non envoyé — vérifiez le code de sécurité avant de continuer.`,
+                'error',
+                10000
+            );
+            messages.value = messages.value.filter(m => m.id !== tempId);
+            newMessage.value = clearContent;
+            keyFingerprint.value = await computeKeyFingerprint(recipientPubKey);
+            keyTrustState.value = trust;
+            showKeyPanel.value = true;
             return;
         }
 
@@ -799,15 +883,31 @@ const sendMessage = async () => {
         }
     }
     
-    socket.value?.emit("dm:send-message", {
-        recipientId: recipient.value.id,
-        content: finalContent,
-        encryptedAesKey: finalEncryptedAesKey,
-        selfEncryptedAesKey: selfEncryptedAesKey,
-        nonce: finalIv,
-        isE2EE: useEncryption,
-        replyToId: tempMessage.replyToId,
+    const pendingFiles = files.value;
+    selectedFiles.value = [];
+    files.value = [];
+
+    const confirmedMessage: any = await new Promise((resolve) => {
+        socket.value?.emit("dm:send-message", {
+            recipientId: recipient.value!.id,
+            content: finalContent,
+            encryptedAesKey: finalEncryptedAesKey,
+            selfEncryptedAesKey: selfEncryptedAesKey,
+            nonce: finalIv,
+            isE2EE: useEncryption,
+            replyToId: tempMessage.replyToId,
+        }, (response: any) => resolve(response));
     });
+
+    if (confirmedMessage?.error) {
+        toast.show(confirmedMessage.error, "error");
+        messages.value = messages.value.filter(m => m.id !== tempId);
+        return;
+    }
+
+    if (pendingFiles.length && confirmedMessage?.id) {
+        socket.value?.emit('edit-dm-message-files', { id: confirmedMessage.id, files: pendingFiles });
+    }
 
 };
 

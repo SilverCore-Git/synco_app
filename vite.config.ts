@@ -62,6 +62,18 @@ export default defineConfig({
   },
   server: {
     host: true,
+    // HSTS is deliberately omitted here (unlike docker/nginx.conf): it's
+    // cached per-host by the browser for a year, and dev is sometimes
+    // accessed over plain HTTP (VITE_TAURI_DEV_IP / LAN testing) — forcing
+    // it would break that. frame-ancestors here only restricts iframe
+    // embedding, so it's safe to mirror prod for that one.
+    headers: {
+      'X-Frame-Options': 'DENY',
+      'X-Content-Type-Options': 'nosniff',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'Permissions-Policy': 'camera=(self), microphone=(self), geolocation=()',
+      'Content-Security-Policy': "frame-ancestors 'self';",
+    },
     proxy: {
       '/socket': {
         target: useHttps ? 'https://127.0.0.1:3467' : 'http://127.0.0.1:3467',

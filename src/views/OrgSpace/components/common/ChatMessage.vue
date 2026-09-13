@@ -4,7 +4,7 @@
                     :key="msg.id" 
                     class="group relative px-4 flex flex-col justify-start items-start rounded-lg transition-colors w-full"
                     :class="[
-                        isStacked ? 'py-0.5 mt-0' : 'py-2 mt-2',
+                        isStacked ? 'py-0 mt-0' : 'py-2 mt-2',
                         (msg as any).isSending ? 'opacity-50' : '',
                         selectedMessage == msg.id ? ' border border-(--primary) border-dashed animate-pulse' : '',
                         user?.id == msg.replyMessage?.senderId || isTagMe
@@ -120,11 +120,27 @@
 
                             </div>
 
-                            <div ref="messageContentRef" class="text-(--text) text-sm leading-relaxed wrap-break-word">
+                            <div v-if="msg.type !== 'voice_invite'" ref="messageContentRef" class="text-(--text) text-sm leading-relaxed wrap-break-word">
                                 <MarkdownRender :content="msg.content" />
                                 <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
                             </div>
-                            
+
+                            <div v-else class="mt-1 flex items-center gap-3 p-3 rounded-lg border border-(--text)/10 bg-white/3 max-w-sm">
+                                <div class="w-9 h-9 shrink-0 flex items-center justify-center rounded-full bg-(--primary)/15 text-(--primary)">
+                                    <i class="bi bi-volume-up-fill text-lg" />
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="text-xs text-(--text2)">Invitation à un salon vocal</div>
+                                    <div class="text-sm font-semibold truncate">{{ msg.voiceInviteThreadName || 'Salon vocal' }}</div>
+                                </div>
+                                <button
+                                    @click="joinVoiceInvite(msg)"
+                                    class="px-3 py-1.5 rounded-lg bg-(--primary) text-white text-xs font-medium hover:opacity-90 shrink-0"
+                                >
+                                    Rejoindre
+                                </button>
+                            </div>
+
                             <!-- Message reactions -->
                             <MessageReactions
                                 :message-id="msg.id"
@@ -295,7 +311,7 @@ const dropdownBtns: DropdownBtn[] = [
         icon: "bi-pencil-fill",
         tooltip: "modifier",
         func: () => openEditMessage(),
-        show: (msg: DMMessage) => msg.senderId == user.value?.id
+        show: (msg: DMMessage) => msg.senderId == user.value?.id && msg.type !== 'voice_invite'
     },
     {
         icon: "bi-arrow-90deg-left",
@@ -444,6 +460,30 @@ const deleteMessage = async () => {
     const socket = await useWSocket();
     socket.value?.emit('dm:delete-message', props.msg.id);
     showDeleteConfirm.value = false;
+};
+
+const joinVoiceInvite = (msg: DMMessage) => {
+    if (!msg.voiceInviteThreadId || !msg.voiceInviteOrgId) {
+        toast.show("Ce salon vocal n'existe plus.", "error");
+        return;
+    }
+
+    const path = msg.voiceInviteSpaceId
+        ? `/${msg.voiceInviteOrgId}/${msg.voiceInviteSpaceId}/${msg.voiceInviteThreadId}`
+        : `/${msg.voiceInviteOrgId}/home/${msg.voiceInviteThreadId}`;
+
+    try {
+        if (msg.voiceInviteOrgId === route.params.orgId) {
+            router.push({ path, query: { autojoin: '1' } });
+        } else {
+            // Org différente de celle actuellement ouverte : navigation dure pour forcer
+            // le rechargement d'openedOrg et du contexte socket (OrgLayout.vue ne réagit
+            // pas à un changement de orgId sur une instance déjà montée).
+            window.location.href = `${path}?autojoin=1`;
+        }
+    } catch (e) {
+        toast.show('Impossible de rejoindre le salon vocal.', 'error');
+    }
 };
 
 const editMessage = async (newContent: string) => {

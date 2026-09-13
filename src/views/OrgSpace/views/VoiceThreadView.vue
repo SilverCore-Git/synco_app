@@ -1,25 +1,27 @@
 <template>
 
-    <div 
-        v-if="isConnected" 
+    <div
+        v-if="isConnected"
         class="relative w-full h-full flex flex-col overflow-hidden"
     >
-            
-        <div 
+
+        <div class="flex-1 min-h-0 overflow-y-auto">
+
+        <div
             v-if="userFocused"
             class="
                 flex flex-col justify-center items-center p-5 xl:p-10
-                gap-5 xl:gap-10 transition-all duration-500 h-full w-full
-                pb-32
+                gap-5 xl:gap-10 transition-all duration-500 min-h-full w-full
             "
         >
                
             <!-- Focused User -->
             <div
                 :key="userFocused.identity"
+                :ref="getTileRefSetter(userFocused.identity)"
                 @click="userFocused = null"
                 class="
-                    relative bg-(--bg2) rounded-3xl 
+                    relative bg-(--bg2) rounded-3xl
                     overflow-hidden border border-(--border-color)
                     flex items-center justify-center group
                     w-full max-h-[70vh] aspect-video
@@ -69,10 +71,17 @@
                     <i v-if="!userFocused.isMicrophoneEnabled" class="bi bi-mic-mute-fill text-red-500 text-sm" />
                 </div>
 
-                <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div class="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <div class="bg-black/50 backdrop-blur-md px-2 py-1 rounded-md text-xs font-medium text-white/80 border border-white/10">
                         {{ userFocused.connectionQuality }}
                     </div>
+                    <button
+                        @click.stop="toggleFullscreen(userFocused.identity)"
+                        class="bg-black/50 hover:bg-black/70 backdrop-blur-md w-7 h-7 flex items-center justify-center rounded-md text-white border border-white/10 transition-colors"
+                        title="Plein écran"
+                    >
+                        <i class="bi" :class="fullscreenIdentity === userFocused.identity ? 'bi-fullscreen-exit' : 'bi-arrows-fullscreen'" />
+                    </button>
                 </div>
 
             </div>
@@ -138,22 +147,22 @@
 
         </div>
 
-        <div 
+        <div
             v-else
             class="
-                grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:flex xl:flex-wrap 
+                grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:flex xl:flex-wrap
                 justify-center items-center p-4 xl:p-10
-                gap-6 transition-all duration-500 w-full h-full
-                pb-32
+                gap-6 transition-all duration-500 w-full min-h-full
             "
         >
                 
-            <div 
-                v-for="p in allParticipants" 
+            <div
+                v-for="p in allParticipants"
                 :key="p.identity"
+                :ref="getTileRefSetter(p.identity)"
                 @click="userFocused = p"
                 class="
-                    relative bg-(--bg2) rounded-3xl 
+                    relative bg-(--bg2) rounded-3xl
                     overflow-hidden border border-(--border-color)
                     flex items-center justify-center group
                     w-full max-w-sm 2xl:max-w-lg max-h-80 aspect-video
@@ -201,26 +210,42 @@
                     <i v-if="!p.isMicrophoneEnabled" class="bi bi-mic-mute-fill text-red-500 text-xs" />
                 </div>
 
-                <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div class="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <div class="bg-black/50 backdrop-blur-md px-2 py-1 rounded-md text-[10px] font-medium text-white/80 border border-white/10">
                         {{ p.connectionQuality }}
                     </div>
+                    <button
+                        @click.stop="toggleFullscreen(p.identity)"
+                        class="bg-black/50 hover:bg-black/70 backdrop-blur-md w-6 h-6 flex items-center justify-center rounded-md text-white border border-white/10 transition-colors"
+                        title="Plein écran"
+                    >
+                        <i class="bi text-xs" :class="fullscreenIdentity === p.identity ? 'bi-fullscreen-exit' : 'bi-arrows-fullscreen'" />
+                    </button>
                 </div>
 
             </div>
 
         </div>
 
+        </div>
+
         <!-- Call Controls -->
-        <CallControls 
-            :isMicOn="isMicEnabled"
-            :isCamOn="isCameraEnabled"
-            :isScreenSharing="isScreenShareEnabled"
-            @toggleMic="toggleMicrophone(!isMicEnabled)"
-            @toggleCam="toggleCamera(!isCameraEnabled)"
-            @toggleScreenShare="toggleScreenShare(!isScreenShareEnabled)"
-            @endCall="leaveRoom(thread?.id || '', String(route.params.spaceId))"
-        />
+        <div class="flex justify-center py-4 shrink-0">
+            <CallControls
+                :isMicOn="isMicEnabled"
+                :isCamOn="isCameraEnabled"
+                :isScreenSharing="isScreenShareEnabled"
+                :isDeafened="isDeafened"
+                @toggleMic="toggleMicrophone(!isMicEnabled)"
+                @toggleCam="toggleCamera(!isCameraEnabled)"
+                @toggleScreenShare="toggleScreenShare(!isScreenShareEnabled)"
+                @toggleDeafen="toggleDeafen(!isDeafened)"
+                @endCall="leaveRoom(thread?.id || '', String(route.params.spaceId))"
+                @invite="voiceInviteModalRef?.openModal()"
+            />
+        </div>
+
+        <VoiceInviteModal v-if="props.thread" ref="voiceInviteModalRef" :thread="props.thread" />
 
     </div>
 
@@ -266,12 +291,13 @@
 
 <script setup lang="ts">
 
-import { ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { onMounted, onUnmounted, ref, type ComponentPublicInstance } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { Track } from 'livekit-client';
 import useLiveKit from '@/composables/useLiveKit';
 import VideoTrack from '../components/common/VideoTrack.vue';
 import CallControls from '@/components/peer/CallControls.vue';
+import VoiceInviteModal from '../components/popup/VoiceInviteModal.vue';
 import type { Thread } from '@/types/types';
 import { openedOrg } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
@@ -282,23 +308,82 @@ const props = defineProps<{
 }>();
 
 const route = useRoute();
+const router = useRouter();
 const toast = useToast();
+const voiceInviteModalRef = ref<any>(null);
 
-const { 
-    allParticipants, 
+const {
+    allParticipants,
     isConnected,
     isMicEnabled,
     isCameraEnabled,
     isScreenShareEnabled,
+    isDeafened,
     connectToRoom,
     leaveRoom,
     toggleMicrophone,
     toggleCamera,
-    toggleScreenShare
+    toggleScreenShare,
+    toggleDeafen
 } = useLiveKit();
 
 const userFocused = ref<any>(null);
 const isConnecting = ref(false);
+
+// Permet de mettre n'importe quelle tuile (partage d'écran, caméra, avatar)
+// en plein écran natif sans dupliquer un <video> dédié : on demande le plein
+// écran sur la tuile elle-même (conserve le nom/l'icône affichés dessus).
+const tileRefs = new Map<string, HTMLElement>();
+const fullscreenIdentity = ref<string | null>(null);
+
+const setTileRef = (identity: string, el: Element | ComponentPublicInstance | null) => {
+    if (el) tileRefs.set(identity, el as HTMLElement);
+    else tileRefs.delete(identity);
+};
+
+// Une fonction inline différente à chaque rendu pour `:ref` force Vue à
+// débrancher/rebrancher la ref sur CHAQUE mise à jour (même sans rapport),
+// ce qui devient très fréquent une fois ActiveSpeakersChanged écouté. On
+// mémorise une fonction stable par participant pour éviter ce churn.
+const tileRefSetters = new Map<string, (el: Element | ComponentPublicInstance | null) => void>();
+const getTileRefSetter = (identity: string) => {
+    let setter = tileRefSetters.get(identity);
+    if (!setter) {
+        setter = (el: Element | ComponentPublicInstance | null) => setTileRef(identity, el);
+        tileRefSetters.set(identity, setter);
+    }
+    return setter;
+};
+
+const onFullscreenChange = () => {
+    const fsEl = document.fullscreenElement;
+    fullscreenIdentity.value = fsEl
+        ? ([...tileRefs.entries()].find(([, el]) => el === fsEl)?.[0] ?? null)
+        : null;
+};
+
+const toggleFullscreen = async (identity: string) => {
+    const tile = tileRefs.get(identity);
+    if (!tile) return;
+    try {
+        if (document.fullscreenElement === tile) {
+            await document.exitFullscreen();
+        } else {
+            await tile.requestFullscreen();
+        }
+    } catch (e) {
+        toast.show("Impossible de passer en plein écran", "error");
+    }
+};
+
+onMounted(() => {
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+});
+
+onUnmounted(() => {
+    document.removeEventListener('fullscreenchange', onFullscreenChange);
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+});
 
 const getMeta = (p: any): any => {
     if (!openedOrg.value?.members) return {};
@@ -318,7 +403,7 @@ const joinCall = async () => {
 
         if (res.ok) {
             const data = await res.json();
-            await connectToRoom(data.url, data.token, props.thread.id, String(route.params.spaceId));
+            await connectToRoom(data.url, data.token, props.thread.id, String(route.params.spaceId), data.e2eeKey);
         } else {
             toast.show("Impossible de se connecter au salon", "error");
         }
@@ -328,5 +413,14 @@ const joinCall = async () => {
         isConnecting.value = false;
     }
 };
+
+onMounted(() => {
+    if (route.query.autojoin === '1' && !isConnected.value) {
+        joinCall();
+        const nextQuery = { ...route.query };
+        delete nextQuery.autojoin;
+        router.replace({ query: nextQuery });
+    }
+});
 
 </script>

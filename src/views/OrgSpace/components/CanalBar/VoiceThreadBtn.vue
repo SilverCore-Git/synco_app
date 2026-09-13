@@ -36,12 +36,18 @@
                         {{ thread.name }}
                     </span>
 
-                    <div 
-                        v-if="currentParticipants.length > 0" 
-                        class="ml-auto text-[10px] bg-black/20 px-1.5 py-0.5 rounded-full opacity-60"
+                    <div
+                        v-if="currentParticipants.length > 0"
+                        class="text-[10px] bg-black/20 px-1.5 py-0.5 rounded-full opacity-60"
                     >
                         {{ currentParticipants.length }}
                     </div>
+
+                    <i
+                        @click.stop="voiceInviteModalRef?.openModal()"
+                        class="bi bi-person-plus-fill opacity-0 group-hover:opacity-100 transition-opacity hover:text-(--primary) text-sm ml-auto"
+                        title="Inviter un membre"
+                    />
 
                 </button>
             </template>
@@ -49,6 +55,9 @@
                 <button @click="showEditThread = !showEditThread" class="dropdown-item-annimate dropdown-item-style">
                     <i class="bi bi-pencil-fill mr-2" />
                     Modifier
+                </button>
+                <button @click="voiceInviteModalRef?.openModal()" class="dropdown-item-annimate dropdown-item-style">
+                    <i class="bi bi-person-plus-fill mr-2"></i> Inviter un membre
                 </button>
                 <button @click="openInviteModal" class="dropdown-item-annimate dropdown-item-style">
                     <i class="bi bi-link-45deg mr-2"></i> Gérer les liens d'invitation
@@ -66,6 +75,7 @@
         />
 
         <InviteLinkModal ref="inviteModalRef" :thread="thread" />
+        <VoiceInviteModal ref="voiceInviteModalRef" :thread="thread" />
         
         <ConfirmDelete
             :show="showConfirmDelete"
@@ -121,6 +131,7 @@ import { openedOrg } from '@/assets/var';
 import DropDown from '@/components/DropDown.vue';
 import UpdateThread from '../popup/UpdateThread.vue';
 import InviteLinkModal from '../popup/InviteLinkModal.vue';
+import VoiceInviteModal from '../popup/VoiceInviteModal.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { usePermissions } from '@/composables/usePermissions';
 
@@ -132,6 +143,7 @@ const props = defineProps<{
 const route = useRoute();
 const router = useRouter();
 const inviteModalRef = ref<any>(null);
+const voiceInviteModalRef = ref<any>(null);
 const showConfirmDelete = ref<boolean>(false);
 const showEditThread = ref<boolean>(false);
 
@@ -196,14 +208,35 @@ const handleAction = async () => {
             body: JSON.stringify({ threadId: props.thread.id }),
         });
 
-        if (res.ok) 
+        if (res.ok)
         {
             const data = await res.json();
-            await connectToRoom(data.url, data.token, props.thread.id, String(route.params.spaceId));
+            await connectToRoom(data.url, data.token, props.thread.id, String(route.params.spaceId), data.e2eeKey);
         }
 
     }
 
+};
+
+let mountedSocket: Awaited<ReturnType<typeof useWSocket>>['value'] = null;
+
+const onVocUpdate = ({ participants, threadId }: { participants: any[]; threadId: string }) => {
+    if (threadId === props.thread.id)
+    {
+        socketParticipants.value = participants;
+    }
+};
+
+const onVocGetUpdate = ({ threadId }: { threadId: string }) => {
+    if (threadId === props.thread.id && isActiveInRoom.value && room.value)
+    {
+        mountedSocket?.emit('voc:update', {
+            participants: getWSData(room.value),
+            threadId: props.thread.id,
+            orgId: route.params.orgId,
+            spaceId: route.params.spaceId
+        });
+    }
 };
 
 onMounted(async () => {
@@ -211,34 +244,21 @@ onMounted(async () => {
     const socketRef = await useWSocket();
     const socket = socketRef.value;
     if (!socket) return;
+    mountedSocket = socket;
 
-    socket.on('voc:update', ({ participants, threadId }) => {
-        if (threadId === props.thread.id) 
-        {
-            socketParticipants.value = participants;
-        }
-    });
+    // Chaque VoiceThreadBtn (un par salon vocal affiché) s'abonne à ces deux
+    // events sur le socket partagé de l'app : off('voc:update') sans handler
+    // précis retire TOUS les listeners de l'event, y compris ceux des autres
+    // salons — d'où la référence explicite pour ne désabonner que la sienne.
+    socket.on('voc:update', onVocUpdate);
+    socket.on('voc:get-update', onVocGetUpdate);
 
-    socket.on('voc:get-update', ({ threadId }) => {
-
-        if (threadId === props.thread.id && isActiveInRoom.value && room.value) 
-        {
-            socket.emit('voc:update', { 
-                participants: getWSData(room.value), 
-                threadId: props.thread.id, 
-                orgId: route.params.orgId, 
-                spaceId: route.params.spaceId 
-            });
-        }
-
-    });
-
-    if (!isActiveInRoom.value) 
+    if (!isActiveInRoom.value)
     {
-        
 
-        socket.emit('voc:get-update', { 
-            threadId: props.thread.id, 
+
+        socket.emit('voc:get-update', {
+            threadId: props.thread.id,
             orgId: route.params.orgId,
             spaceId: route.params.spaceId
         });
@@ -249,10 +269,10 @@ onMounted(async () => {
 
 onUnmounted(async () => {
     const socket = (await useWSocket()).value;
-    if (socket) 
+    if (socket)
     {
-        socket.off('voc:update');
-        socket.off('voc:get-update');
+        socket.off('voc:update', onVocUpdate);
+        socket.off('voc:get-update', onVocGetUpdate);
     }
 });
 

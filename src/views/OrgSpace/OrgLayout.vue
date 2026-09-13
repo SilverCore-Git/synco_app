@@ -14,6 +14,7 @@ import { useRoute } from 'vue-router';
 import { useUsersBar } from '@/composables/useUsersBar';
 import { keycloak } from '@/assets/keycloak';
 import useNotifications from '@/composables/useNotifications';
+import { useNotification } from '@/composables/useNotification';
 import { isMeeting } from '@/composables/usePrivatMeet';
 
 import isDesktopApp from '@/assets/isDesktopApp';
@@ -28,9 +29,10 @@ const props = defineProps<{
 }>();
 
 
-const { showUsersBar } = useUsersBar();
+const { showUsersBar, setUsersBarHiddenByRoute } = useUsersBar();
 const { initPeer } = useSecurePeer();
 const { notify } = useNotifications();
+const { init: initNotifications } = useNotification();
 const route = useRoute();
 const toast = useToast();
 const { fetchPermissions } = usePermissions(computed(() => props.orgId));
@@ -43,6 +45,15 @@ const orgOnOpen = computed(() => {
 });
 
 import { watch, toRaw } from 'vue';
+
+// Dans Tâches/Fichiers, la barre des membres se masque par défaut, sans
+// toucher à la préférence enregistrée : on la restaure dès qu'on revient
+// sur un salon ou toute autre page (ex: ThreadLayout, OrgAI, Settings).
+const USERSBAR_AUTOHIDE_ROUTES = new Set(['TasksSpace', 'TasksGlobal', 'SpaceFiles']);
+
+watch(() => route.name, (name) => {
+    setUsersBarHiddenByRoute(USERSBAR_AUTOHIDE_ROUTES.has(name as string));
+}, { immediate: true });
 
 watch(() => route.params.spaceId, async (newSpaceId, oldSpaceId) => {
     if (newSpaceId && newSpaceId !== oldSpaceId && privateKey.value) {
@@ -570,7 +581,8 @@ onMounted(async () => {
     await Promise.all([
             fetchPermissions(),
             initSocketListener(),
-            initPeer()
+            initPeer(),
+            initNotifications()
     ])
 
     handleTabletChange(mediaQuery);
@@ -599,8 +611,8 @@ onBeforeUnmount(async () => {
         >
 
             <SpaceBar class="h-full" />
-            <ThreadsBar 
-                v-if="route.name !== 'TasksGlobal'"
+            <ThreadsBar
+                v-if="route.name !== 'TasksGlobal' && route.name !== 'AgendaGlobal' && route.name !== 'OrgHome'"
                 class="h-full " 
                 :class="[
                     isDesktopApp() ? 'rounded-tl-2xl' : '',

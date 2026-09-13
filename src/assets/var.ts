@@ -8,6 +8,11 @@ const user = ref<User | null>(null);
 const kcToken = ref<string>('');
 const isLoaded = ref<boolean>(false);
 const isLittleScreen = ref<boolean>(false);
+// Hauteur réelle (px) de la UserCard flottante (OrgLayout.vue) mesurée via
+// ResizeObserver — elle varie selon que le cadre d'appel vocal est affiché.
+// Les listes scrollables (ThreadsBar...) l'utilisent pour réserver exactement
+// la place qu'il faut en bas plutôt qu'une marge fixe devinée.
+const userCardHeight = ref<number>(0);
 const member = computed(() => {
     return openedOrg.value?.members?.find(m => m.userId == user.value?.id);
 });
@@ -32,5 +37,10 @@ const onlyOfficeEnabled = computed(() => {
     return openedOrg.value.activeModules?.onlyoffice === true;
 });
 
+const agendaEnabled = computed(() => {
+    if (!openedOrg.value) return false;
+    return openedOrg.value.activeModules?.agenda || false;
+});
 
-export { organizations, openedOrg, isLoaded, user, member, isLittleScreen, kcToken, todoEnabled, filesEnabled, aiEnabled, onlyOfficeEnabled };
+
+export { organizations, openedOrg, isLoaded, user, member, isLittleScreen, kcToken, todoEnabled, filesEnabled, aiEnabled, onlyOfficeEnabled, agendaEnabled, userCardHeight };

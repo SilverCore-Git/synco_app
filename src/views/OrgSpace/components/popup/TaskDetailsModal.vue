@@ -106,10 +106,10 @@
                 </div>
             </div>
 
-            <div v-if="isEditing" class="flex justify-end">
-                <button @click="saveTask" class="primary px-6 py-2 !text-sm" :disabled="loading">
-                    {{ loading ? 'Enregistrement...' : 'Enregistrer les modifications' }}
-                </button>
+            <div v-if="isEditing" class="flex justify-end items-center gap-2 text-xs font-semibold text-(--text2)">
+                <i v-if="saveStatus === 'saving'" class="bi bi-arrow-repeat animate-spin"></i>
+                <i v-else-if="saveStatus === 'saved'" class="bi bi-check-circle-fill text-green-500"></i>
+                <span>{{ saveStatusLabel }}</span>
             </div>
 
             <!-- Subtasks -->
@@ -195,7 +195,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, reactive, computed } from 'vue';
+import { ref, watch, reactive, computed, nextTick } from 'vue';
 import Popup from '@/components/Popup.vue';
 import CreateTaskModal from './CreateTaskModal.vue';
 import type { Task, OrgMember } from '@/types/types';
@@ -224,6 +224,18 @@ const editForm = reactive({
     description: '',
     assigneeIds: [] as string[]
 });
+
+// ── Enregistrement automatique ────────────────────────────────────────
+// Pas de bouton "Enregistrer" : chaque modification du formulaire
+// déclenche une sauvegarde après un court débounce.
+const saveStatus = ref<'idle' | 'saving' | 'saved'>('idle');
+const saveStatusLabel = computed(() => {
+    if (saveStatus.value === 'saving') return 'Enregistrement...';
+    if (saveStatus.value === 'saved') return 'Enregistré';
+    return '';
+});
+let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
+let initializing = false;
 
 const searchAssignee = ref('');
 
@@ -273,24 +285,40 @@ const filteredMembers = computed<OrgMember[]>(() => {
     });
 });
 
-watch(() => props.isOpen, (newVal) => {
+watch(() => props.isOpen, async (newVal) => {
     if (newVal && props.task) {
+        initializing = true;
         editForm.title = props.task.title;
         editForm.description = props.task.description || '';
         editForm.assigneeIds = props.task.assignees ? props.task.assignees.map(a => a.id) : [];
         searchAssignee.value = '';
         isEditing.value = props.startInEditMode || false;
+        saveStatus.value = 'idle';
+        await nextTick();
+        initializing = false;
     }
 });
 
 const closeModal = () => {
+    if (autosaveTimer) {
+        clearTimeout(autosaveTimer);
+        autosaveTimer = null;
+    }
     isEditing.value = false;
     emit('close');
 };
 
-const saveTask = async () => {
+function scheduleAutosave() {
+    if (initializing || !isEditing.value) return;
+    if (autosaveTimer) clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(performAutosave, 600);
+}
+
+watch(editForm, scheduleAutosave, { deep: true });
+
+const performAutosave = async () => {
     if (!props.task || !editForm.title.trim()) return;
-    loading.value = true;
+    saveStatus.value = 'saving';
     try {
         const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${props.task.id}`, {
             method: 'PUT',
@@ -303,13 +331,13 @@ const saveTask = async () => {
         if (res.ok) {
             const updated = await res.json();
             emit('update', updated);
-            isEditing.value = false;
-            toast.show('Tâche mise à jour', 'success');
+            saveStatus.value = 'saved';
+        } else {
+            saveStatus.value = 'idle';
         }
     } catch (e) {
-        toast.show('Erreur', 'error');
-    } finally {
-        loading.value = false;
+        saveStatus.value = 'idle';
+        toast.show('Erreur lors de l\'enregistrement', 'error');
     }
 };
 

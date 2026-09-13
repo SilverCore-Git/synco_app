@@ -2,6 +2,7 @@ import { keycloak } from "../keycloak";
 import sfetch from "./sfetch";
 import { getWorkspaceKey } from "./workspaceCrypto";
 import { decryptFileLocal } from "./crypto";
+import { useToast } from "@/composables/useToast";
 
 export const downloadFile = async (fileId: string) => {
     
@@ -65,7 +66,7 @@ export const downloadFile = async (fileId: string) => {
 
     } catch (e) {
         console.error("Download Error:", e);
-        alert("Erreur lors du téléchargement du fichier.");
+        useToast().show("Erreur lors du téléchargement du fichier.", "error");
     }
 
 };

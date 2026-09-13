@@ -18,18 +18,31 @@
                         <!-- Header with controls -->
                         <div class="absolute top-4 left-4 right-4 z-20 flex items-center justify-between">
                             <!-- Security Status -->
-                            <div 
-                                v-if="securityStatus" 
+                            <button
+                                v-if="securityStatus"
+                                @click="securityStatus.encrypted && !isCurrentPeerVerified ? openVerifyPanel() : undefined"
                                 class="flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border"
-                                :class="securityStatus.encrypted 
-                                    ? 'bg-green-500/20 border-green-500/30 text-green-400' 
-                                    : 'bg-yellow-500/20 border-yellow-500/30 text-yellow-400'"
+                                :class="[
+                                    !securityStatus.encrypted
+                                        ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-400'
+                                        : isCurrentPeerVerified
+                                            ? 'bg-green-500/20 border-green-500/30 text-green-400'
+                                            : 'bg-blue-500/20 border-blue-500/30 text-blue-300 hover:bg-blue-500/30 cursor-pointer'
+                                ]"
+                                :title="securityStatus.encrypted && !isCurrentPeerVerified ? 'Vérifier le code de sécurité' : ''"
                             >
-                                <i class="bi text-sm" :class="securityStatus.encrypted ? 'bi-shield-check-fill' : 'bi-shield-exclamation'"></i>
+                                <i
+                                    class="bi text-sm"
+                                    :class="!securityStatus.encrypted
+                                        ? 'bi-shield-exclamation'
+                                        : isCurrentPeerVerified ? 'bi-shield-check-fill' : 'bi-shield-lock'"
+                                />
                                 <span class="text-xs font-medium">
-                                    {{ securityStatus.encrypted ? 'E2EE Activé' : 'Chiffrement...' }}
+                                    {{ !securityStatus.encrypted
+                                        ? 'Chiffrement...'
+                                        : isCurrentPeerVerified ? 'E2EE vérifié' : 'E2EE — non vérifié' }}
                                 </span>
-                            </div>
+                            </button>
 
                             <!-- Timer and Minimize Button -->
                             <div class="flex items-center gap-4">
@@ -149,6 +162,55 @@
                 </div>
         </Transition>
 
+        <!-- SAS / Fingerprint Verification Panel -->
+        <Transition name="fade">
+            <div
+                v-if="showVerifyPanel"
+                class="fixed inset-0 z-[1100] bg-(--black)/70 flex items-center justify-center p-4"
+                @click.self="showVerifyPanel = false"
+            >
+                <div class="w-full max-w-sm bg-(--bg2) rounded-2xl p-6 shadow-2xl border border-(--white)/10">
+
+                    <div class="flex items-center gap-3 text-blue-400 mb-3">
+                        <i class="bi bi-shield-lock text-2xl" />
+                        <h3 class="text-lg font-bold text-(--text)">Vérifier l'appel</h3>
+                    </div>
+
+                    <p class="text-sm text-(--text2) mb-4 leading-relaxed">
+                        Lisez ce code à voix haute à votre interlocuteur, et demandez-lui de lire le sien.
+                        S'ils correspondent, l'appel n'est pas intercepté.
+                    </p>
+
+                    <div class="mb-4 px-4 py-3 rounded-xl bg-(--bg)/60 border border-(--white)/10 text-center">
+                        <span class="text-xl font-mono tracking-[0.2em] text-(--text)">{{ localFingerprint }}</span>
+                    </div>
+
+                    <label class="text-xs text-(--text2) mb-2 block">Code lu par votre interlocuteur :</label>
+                    <input
+                        v-model="fingerprintInput"
+                        type="text"
+                        maxlength="16"
+                        placeholder="Ex: 1A2B3C4D5E6F7890"
+                        class="w-full bg-black/20 border rounded-lg px-4 py-2 text-sm text-(--text) outline-none transition-all mb-2 font-mono uppercase"
+                        :class="verifyError ? 'border-red-500/60' : 'border-(--text)/10 focus:border-(--primary)/50'"
+                        @keydown.enter="confirmFingerprint"
+                    />
+                    <p v-if="verifyError" class="text-xs text-red-400 mb-4">
+                        Ce code ne correspond pas — l'appel pourrait être intercepté. Ne confirmez que si les deux codes sont réellement identiques.
+                    </p>
+                    <p v-else class="text-xs text-transparent mb-4 select-none">.</p>
+
+                    <div class="flex justify-end gap-3">
+                        <button @click="showVerifyPanel = false" class="default">Plus tard</button>
+                        <button @click="confirmFingerprint" :disabled="!fingerprintInput.trim()" class="primary" :class="{ 'opacity-40 cursor-not-allowed': !fingerprintInput.trim() }">
+                            Confirmer
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </Transition>
+
         <!-- Minimized Floating Window (16:9) - Only one instance per call -->
         <Transition name="slide-fade">
             <DraggableWindow 
@@ -232,13 +294,15 @@
                             </div>
 
                             <!-- Security Badge (minimized) -->
-                            <div 
-                                v-if="securityStatus?.encrypted" 
-                                class="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-[10px] font-medium"
+                            <button
+                                v-if="securityStatus?.encrypted"
+                                @click="!isCurrentPeerVerified ? openVerifyPanel() : undefined"
+                                class="absolute bottom-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                                :class="isCurrentPeerVerified ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-300'"
                             >
-                                <i class="bi bi-shield-check-fill text-xs" />
+                                <i class="bi text-xs" :class="isCurrentPeerVerified ? 'bi-shield-check-fill' : 'bi-shield-lock'" />
                                 <span class="ml-0.5">E2EE</span>
-                            </div>
+                            </button>
 
                         </div>
 
@@ -288,9 +352,9 @@ const isMinimized = ref<boolean>(false);
 const windowX = ref<number>(window.innerWidth - 350);
 const windowY = ref<number>(window.innerHeight - 220);
 
-const { 
-    isCalling, 
-    remoteStreams, 
+const {
+    isCalling,
+    remoteStreams,
     localStream,
     isMicOn,
     isCamOn,
@@ -299,8 +363,51 @@ const {
     toggleMic,
     toggleCam,
     toggleScreenShare,
-    getCallSecurityStatus
+    getCallSecurityStatus,
+    verifySecurityFingerprint
 } = useSecurePeer();
+
+// Get the current call's peer id — mirrors `securityStatus` below, so both
+// stay in sync with whichever remote participant is currently connected.
+const currentPeerId = computed<string | null>(() => {
+    if (remoteStreams.value.size === 0) return null;
+    return (remoteStreams.value.keys().next().value as string) ?? null;
+});
+
+// SAS verification: two peers only share the exact same fingerprint if
+// their ECDH key exchange wasn't intercepted (cf. useSecurePeer.ts
+// generateFingerprint). Tracked per-peerId, in-memory only, and reset on
+// call end — verifying today says nothing about tomorrow's call.
+const verifiedPeers = ref<Set<string>>(new Set());
+const showVerifyPanel = ref<boolean>(false);
+const fingerprintInput = ref<string>('');
+const verifyError = ref<boolean>(false);
+
+const isCurrentPeerVerified = computed<boolean>(() =>
+    currentPeerId.value !== null && verifiedPeers.value.has(currentPeerId.value)
+);
+
+const localFingerprint = computed<string>(() => {
+    if (!currentPeerId.value) return '';
+    return getCallSecurityStatus(currentPeerId.value).fingerprint;
+});
+
+const openVerifyPanel = () => {
+    fingerprintInput.value = '';
+    verifyError.value = false;
+    showVerifyPanel.value = true;
+};
+
+const confirmFingerprint = () => {
+    if (!currentPeerId.value) return;
+    const ok = verifySecurityFingerprint(currentPeerId.value, fingerprintInput.value.trim());
+    if (ok) {
+        verifiedPeers.value = new Set(verifiedPeers.value).add(currentPeerId.value);
+        showVerifyPanel.value = false;
+    } else {
+        verifyError.value = true;
+    }
+};
 
 // Call timer
 const callStartTime = ref<number | null>(null);
@@ -308,13 +415,7 @@ const callTimer = ref<string>('');
 
 // Compute security status for display
 const securityStatus = computed(() => {
-    if (remoteStreams.value.size > 0) {
-        const firstPeerId = remoteStreams.value.keys().next().value;
-        if (firstPeerId) {
-            return getCallSecurityStatus(firstPeerId);
-        }
-    }
-    return null;
+    return currentPeerId.value ? getCallSecurityStatus(currentPeerId.value) : null;
 });
 
 // Get participant name by peer ID
@@ -363,6 +464,8 @@ const handleEndCall = () => {
     endCall();
     stopTimer();
     isMinimized.value = false;
+    verifiedPeers.value = new Set();
+    showVerifyPanel.value = false;
 };
 
 // Watch for call state changes to manage timer

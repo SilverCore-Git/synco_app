@@ -21,6 +21,7 @@
                     <thead>
                         <tr class="border-b border-white/5 bg-(--bg2)/50">
                             <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2)">Utilisateur</th>
+                            <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2)">Organisations</th>
                             <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2) text-center">Orgs Créées / Max</th>
                             <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2) text-center">Max Users (par Org)</th>
                             <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2) text-center">Max Storage (par Org)</th>
@@ -29,12 +30,12 @@
                     </thead>
                     <tbody class="divide-y divide-white/5">
                         <tr v-if="loading">
-                            <td colspan="5" class="p-12 text-center">
+                            <td colspan="6" class="p-12 text-center">
                                 <div class="w-8 h-8 border-4 border-(--primary)/30 border-t-(--primary) rounded-full animate-spin mx-auto"></div>
                             </td>
                         </tr>
                         <tr v-else-if="error">
-                            <td colspan="5" class="p-12 text-center text-red-500 font-bold">
+                            <td colspan="6" class="p-12 text-center text-red-500 font-bold">
                                 {{ error }}
                             </td>
                         </tr>
@@ -50,9 +51,23 @@
                                     </div>
                                 </div>
                             </td>
-                            
+
+                            <td class="p-4">
+                                <div v-if="!user.organizations?.length" class="text-xs text-(--text2)">—</div>
+                                <div v-else class="flex flex-wrap gap-1 max-w-64">
+                                    <span
+                                        v-for="org in user.organizations"
+                                        :key="org.id"
+                                        class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-white/5 text-(--text2) truncate max-w-32"
+                                        :title="org.name"
+                                    >
+                                        {{ org.name }}
+                                    </span>
+                                </div>
+                            </td>
+
                             <td class="p-4 text-center">
-                                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold" 
+                                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold"
                                         :class="user.ownedOrgsCount >= user.maxOrgs && user.maxOrgs > 0 ? 'bg-red-500/10 text-red-500' : 'bg-(--primary)/10 text-(--primary)'">
                                     {{ user.ownedOrgsCount }} / {{ user.maxOrgs }}
                                 </div>
@@ -77,7 +92,7 @@
                             </td>
                         </tr>
                         <tr v-if="!loading && !error && filteredUsers.length === 0">
-                            <td colspan="5" class="p-8 text-center text-(--text2) text-sm">
+                            <td colspan="6" class="p-8 text-center text-(--text2) text-sm">
                                 Aucun utilisateur trouvé.
                             </td>
                         </tr>
@@ -182,6 +197,7 @@ interface AdminUser {
     orgMaxUsers: number;
     orgMaxStorage: string | number; // BigInt as string
     ownedOrgsCount: number;
+    organizations: { id: string; name: string; logo: string | null }[];
 }
 
 const users = ref<AdminUser[]>([]);
@@ -221,7 +237,21 @@ const fetchData = async () => {
     error.value = null;
     try {
         const res = await sfetch('/api/admin/users');
-        if (res.ok) users.value = await res.json();
+        if (res.ok) {
+            const rawUsers: Partial<AdminUser>[] = await res.json();
+            // Sécurité: certains utilisateurs créés avant l'ajout de ces
+            // champs (organizations, ...) peuvent ne pas les avoir.
+            users.value = rawUsers.map(u => ({
+                id: u.id ?? '',
+                name: u.name ?? '',
+                email: u.email ?? '',
+                maxOrgs: u.maxOrgs ?? 0,
+                orgMaxUsers: u.orgMaxUsers ?? 0,
+                orgMaxStorage: u.orgMaxStorage ?? 0,
+                ownedOrgsCount: u.ownedOrgsCount ?? 0,
+                organizations: u.organizations ?? []
+            }));
+        }
         else error.value = (await res.json()).error || 'Accès refusé.';
     } catch (e) {
         error.value = "Impossible de se connecter au serveur.";
