@@ -65,11 +65,11 @@
                             <td class="p-4">
                                 <div class="flex items-center gap-2 min-w-0">
                                     <div class="w-8 h-8 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center font-bold text-sm shrink-0">
-                                        {{ (org.owner.name || '?').charAt(0).toUpperCase() }}
+                                        {{ (org.owner?.name || '?').charAt(0).toUpperCase() }}
                                     </div>
                                     <div class="min-w-0">
-                                        <p class="text-sm font-medium text-(--text) truncate">{{ org.owner.name || 'Sans nom' }}</p>
-                                        <p class="text-[10px] text-(--text2) font-mono truncate">{{ org.owner.email }}</p>
+                                        <p class="text-sm font-medium text-(--text) truncate">{{ org.owner?.name || 'Sans nom' }}</p>
+                                        <p class="text-[10px] text-(--text2) font-mono truncate">{{ org.owner?.email }}</p>
                                     </div>
                                 </div>
                             </td>
@@ -316,7 +316,22 @@ const fetchData = async () => {
             sfetch('/api/admin/system-storage')
         ]);
         
-        if (orgRes.ok) orgs.value = await orgRes.json();
+        if (orgRes.ok) {
+            const rawOrgs: Partial<AdminOrg>[] = await orgRes.json();
+            // Sécurité: certaines organisations créées avant l'ajout de ces
+            // champs (owner, currentUsers, ...) peuvent ne pas les avoir.
+            orgs.value = rawOrgs.map(o => ({
+                id: o.id ?? '',
+                name: o.name ?? 'Sans nom',
+                logo: o.logo ?? null,
+                owner: o.owner ?? { id: '', name: 'Utilisateur inconnu', email: '', avatarUrl: null },
+                maxUsers: o.maxUsers ?? 0,
+                currentUsers: o.currentUsers ?? 0,
+                maxStorage: o.maxStorage ?? 0,
+                usedStorage: o.usedStorage ?? 0,
+                features: o.features ?? []
+            }));
+        }
         else error.value = (await orgRes.json()).error || 'Accès refusé.';
 
         if (storageRes.ok) {

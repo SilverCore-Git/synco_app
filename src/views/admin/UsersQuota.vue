@@ -53,7 +53,7 @@
                             </td>
 
                             <td class="p-4">
-                                <div v-if="user.organizations.length === 0" class="text-xs text-(--text2)">—</div>
+                                <div v-if="!user.organizations?.length" class="text-xs text-(--text2)">—</div>
                                 <div v-else class="flex flex-wrap gap-1 max-w-64">
                                     <span
                                         v-for="org in user.organizations"
@@ -237,7 +237,21 @@ const fetchData = async () => {
     error.value = null;
     try {
         const res = await sfetch('/api/admin/users');
-        if (res.ok) users.value = await res.json();
+        if (res.ok) {
+            const rawUsers: Partial<AdminUser>[] = await res.json();
+            // Sécurité: certains utilisateurs créés avant l'ajout de ces
+            // champs (organizations, ...) peuvent ne pas les avoir.
+            users.value = rawUsers.map(u => ({
+                id: u.id ?? '',
+                name: u.name ?? '',
+                email: u.email ?? '',
+                maxOrgs: u.maxOrgs ?? 0,
+                orgMaxUsers: u.orgMaxUsers ?? 0,
+                orgMaxStorage: u.orgMaxStorage ?? 0,
+                ownedOrgsCount: u.ownedOrgsCount ?? 0,
+                organizations: u.organizations ?? []
+            }));
+        }
         else error.value = (await res.json()).error || 'Accès refusé.';
     } catch (e) {
         error.value = "Impossible de se connecter au serveur.";
