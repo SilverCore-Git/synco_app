@@ -1,5 +1,5 @@
 <template>
-    <div class="time-grid">
+    <div class="time-grid" @wheel="onWheel">
         <div class="time-grid-header">
             <div class="time-grid-gutter-header"></div>
             <div
@@ -95,7 +95,32 @@ const emit = defineEmits<{
     'open-event': [occ: OccurrenceInstance];
     'create': [range: { start: Date; end: Date; allDay?: boolean; clientX?: number; clientY?: number }];
     'reschedule': [payload: { occ: OccurrenceInstance; start: Date; end: Date }];
+    'navigate': [direction: 1 | -1];
 }>();
+
+// ── Navigation par scroll horizontal (trackpad/molette shift) : glisser
+// sur l'axe x fait avancer/reculer d'une semaine, comme un défilement dans
+// le mois. Un geste vertical normal (deltaY dominant) n'est jamais
+// intercepté. Cumul + cooldown pour qu'un seul geste de swipe ne déclenche
+// qu'une seule navigation, même s'il envoie plusieurs évènements wheel.
+const HORIZONTAL_NAV_THRESHOLD = 60;
+const NAV_COOLDOWN_MS = 450;
+let horizontalAccum = 0;
+let navCooldown = false;
+
+function onWheel(e: WheelEvent) {
+    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+    e.preventDefault();
+    if (navCooldown) return;
+
+    horizontalAccum += e.deltaX;
+    if (Math.abs(horizontalAccum) < HORIZONTAL_NAV_THRESHOLD) return;
+
+    emit('navigate', horizontalAccum > 0 ? 1 : -1);
+    horizontalAccum = 0;
+    navCooldown = true;
+    setTimeout(() => { navCooldown = false; }, NAV_COOLDOWN_MS);
+}
 
 const ROW_HEIGHT = 48;
 const rowHeight = ROW_HEIGHT;

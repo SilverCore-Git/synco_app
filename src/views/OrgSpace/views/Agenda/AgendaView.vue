@@ -67,6 +67,7 @@
                     @open-event="openEditModal"
                     @create="onGridCreate"
                     @reschedule="onReschedule"
+                    @navigate="onWeekNavigate"
                 />
                 <DayGrid
                     v-else
@@ -115,6 +116,7 @@ import EventPanel from './components/EventPanel.vue';
 import CalendarAccessPanel from './components/CalendarAccessPanel.vue';
 import { useAgenda } from '@/composables/useAgenda';
 import { useCalendarAccess } from '@/composables/useCalendarAccess';
+import { useAgendaViewMode, type AgendaViewMode } from '@/composables/useAgendaViewMode';
 import useWSocket from '@/composables/useWSocket';
 import sfetch from '@/assets/utils/sfetch';
 import { user } from '@/assets/var';
@@ -182,11 +184,10 @@ const taskDeadlineOccurrences = computed<OccurrenceInstance[]>(() => {
 // useCalendarAccess.ts) + échéances de tâches pour l'affichage dans les grilles.
 const displayOccurrences = computed(() => [...occurrences.value, ...sharedOccurrences.value, ...taskDeadlineOccurrences.value]);
 
-type ViewMode = 'month' | 'week' | 'day';
-const viewMode = ref<ViewMode>('month');
+const { viewMode } = useAgendaViewMode();
 const cursorDate = ref<Date>(new Date());
 
-const views: { id: ViewMode; label: string }[] = [
+const views: { id: AgendaViewMode; label: string }[] = [
     { id: 'month', label: 'Mois' },
     { id: 'week', label: 'Semaine' },
     { id: 'day', label: 'Jour' }
@@ -266,6 +267,12 @@ function goNext() {
 
 function goToday() {
     cursorDate.value = new Date();
+}
+
+// Scroll horizontal (trackpad/molette) en vue semaine — voir WeekGrid.vue.
+function onWeekNavigate(direction: 1 | -1) {
+    if (direction > 0) goNext();
+    else goPrev();
 }
 
 function goToDay(date: Date) {

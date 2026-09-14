@@ -29,12 +29,18 @@ const useSettingsItem = (item: string, defaultValue: any) => {
                 
                 const value = await sdb.get(currentUser, item);
                 
-                if (value === undefined || value === null) 
+                if (value === undefined || value === null)
                 {
                     cacheEntry.Item.value = defaultValue;
-                    await sdb.set(currentUser, item, defaultValue);
-                } 
-                else 
+                    // `defaultValue === undefined` veut dire "pas de valeur par
+                    // défaut à retenir" (ex: dépend du device au moment de la
+                    // lecture) — ne rien persister tant que l'utilisateur n'a
+                    // pas fait de choix explicite (voir useAgendaViewMode.ts).
+                    if (defaultValue !== undefined) {
+                        await sdb.set(currentUser, item, defaultValue);
+                    }
+                }
+                else
                 {
                     cacheEntry.Item.value = value;
                 }
