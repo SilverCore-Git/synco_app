@@ -72,7 +72,7 @@ export const extractMentionTokens = (content: string | undefined | null): string
 
   const tokens: string[] = [];
   for (const match of content.matchAll(MENTION_TOKEN_REGEX)) {
-    tokens.push(normalize(match[1]));
+    if (match[1]) tokens.push(normalize(match[1]));
   }
 
   return tokens;
