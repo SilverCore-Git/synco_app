@@ -5,7 +5,7 @@
         <MentionsList
             :is-open="showMentions"
             :search-query="mentionQuery"
-            :users="mockWorkspaceUsers"
+            :users="mentionableUsers"
             :active-index="activeMentionIndex"
             @select="insertMention"
         />
@@ -36,6 +36,7 @@
 
 import { openedOrg } from '@/assets/var';
 import MentionsList from '@/components/common/MentionsList.vue';
+import { buildMentionableList, type MentionEntry } from '@/composables/useMentions';
 import { ref, watch, nextTick, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 
@@ -60,7 +61,11 @@ const mentionQuery = ref<string>('');
 const activeMentionIndex = ref<number>(0);
 const startMentionIndex = ref<number>(-1);
 
-const mockWorkspaceUsers = ref<{ id: string; name: string; pseudo?: string }[]>(openedOrg.value?.members?.map(m => ({ id: m.userId, name: m.user!.name, pseudo: m.user!.pseudo })) || []);
+const mentionableUsers = ref<MentionEntry[]>(buildMentionableList(openedOrg.value?.members));
+
+watch(() => openedOrg.value?.members, (members) => {
+    mentionableUsers.value = buildMentionableList(members);
+});
 
 watch(() => props.modelValue, (text) => {
 
@@ -86,7 +91,7 @@ watch(() => props.modelValue, (text) => {
 
 });
 
-const insertMention = (user: { id: string; name: string; pseudo?: string }) => {
+const insertMention = (user: MentionEntry) => {
 
     if (startMentionIndex.value === -1) return;
 
@@ -113,7 +118,7 @@ const handleKeydown = (e: KeyboardEvent) => {
     if (!showMentions.value) return;
 
     const query = mentionQuery.value?.toLowerCase() || '';
-    const filtered = mockWorkspaceUsers.value.filter(u => 
+    const filtered = mentionableUsers.value.filter(u =>
         u.name.toLowerCase().includes(query) || (u.pseudo && u.pseudo.toLowerCase().includes(query))
     );
 

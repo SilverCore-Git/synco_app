@@ -18,7 +18,13 @@
                 index === activeIndex ? 'bg-(--primary)/20 text-(--primary)' : 'hover:bg-white/5'
             ]"
         >
-            <div class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center font-bold text-xs">
+            <div
+                v-if="user.special"
+                class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-xs shrink-0"
+            >
+                <i class="bi" :class="user.special === 'everyone' ? 'bi-megaphone-fill' : 'bi-broadcast'" />
+            </div>
+            <div v-else class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center font-bold text-xs shrink-0">
                 {{ $p(user.name).charAt(0).toUpperCase() }}
             </div>
             <div class="flex flex-col min-w-0">
@@ -26,7 +32,7 @@
                 <span v-if="user.pseudo" class="text-xs text-(--primary) truncate">@{{ user.pseudo }}</span>
             </div>
         </button>
-        
+
     </div>
 
 </template>
@@ -34,11 +40,12 @@
 <script setup lang="ts">
 
 import { computed } from 'vue';
+import type { MentionEntry } from '@/composables/useMentions';
 
 const props = defineProps<{
   isOpen: boolean;
   searchQuery: string;
-  users: Array<{ id: string; name: string; pseudo?: string }>;
+  users: MentionEntry[];
   activeIndex: number;
 }>();
 
@@ -47,8 +54,8 @@ defineEmits(['select']);
 const filteredUsers = computed(() => {
     if (!props.searchQuery) return props.users;
     const query = props.searchQuery.toLowerCase();
-    return props.users.filter(u => 
-        u.name.toLowerCase().includes(query) || 
+    return props.users.filter(u =>
+        u.name.toLowerCase().includes(query) ||
         (u.pseudo && u.pseudo.toLowerCase().includes(query))
     );
 });

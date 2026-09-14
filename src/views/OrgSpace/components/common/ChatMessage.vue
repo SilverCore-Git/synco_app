@@ -120,7 +120,7 @@
 
                             </div>
 
-                            <div v-if="msg.type !== 'voice_invite'" ref="messageContentRef" class="text-(--text) text-sm leading-relaxed wrap-break-word">
+                            <div v-if="msg.type !== 'voice_invite'" ref="messageContentRef" @click="onMessageContentClick" class="text-(--text) text-sm leading-relaxed wrap-break-word">
                                 <MarkdownRender :content="msg.content" />
                                 <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
                             </div>
@@ -233,12 +233,13 @@ import type { DMMessage, DMMessageReaction, ReactionUser } from '@/types/types';
 import { downloadFile } from '@/assets/utils/downloadFile';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import { useRoute, useRouter } from 'vue-router';
-import { user } from '@/assets/var';
+import { user, openedOrg } from '@/assets/var';
 import { encryptForPeer } from '@/assets/utils/crypto';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useToast } from '@/composables/useToast';
 import { openProfile } from '@/composables/useProfile';
 import useSettingsItem from '@/composables/useSettingsItem';
+import { buildMentionLookup, renderMentions, handleMentionClick, isUserMentioned } from '@/composables/useMentions';
 
 const toast = useToast();
 const showReactionPicker = ref<boolean>(false);
@@ -352,14 +353,9 @@ const showDeleteConfirm = ref<boolean>(false);
 const showEditMessage = ref<boolean>(false);
 const messageContentRef = ref<HTMLElement | null>(null);
 
-const isTagMe = computed(() => {
+const mentionLookup = computed(() => buildMentionLookup(openedOrg.value?.members));
 
-    if (!props.msg.content || !user.value) return false;
-    
-    const regex = new RegExp(`@${user.value.name}\\b`, 'i');
-    return regex.test(props.msg.content);
-
-});
+const isTagMe = computed(() => isUserMentioned(props.msg.content, user.value, mentionLookup.value));
 
 const handleAddReaction = async (payload: { messageId: string; emoji: string; isDM: boolean }) => {
    
@@ -385,43 +381,12 @@ const handleAddReaction = async (payload: { messageId: string; emoji: string; is
 // Reaction updates are handled centrally in ChatView.vue — no per-instance socket listener needed
 
 const applyMentions = () => {
-
     if (!messageContentRef.value) return;
-    
-    const walker = document.createTreeWalker(
-        messageContentRef.value, 
-        NodeFilter.SHOW_TEXT, 
-        {
-            acceptNode: (node) => {
-                if (node.parentElement?.classList.contains('mention-tag')) {
-                    return NodeFilter.FILTER_REJECT;
-                }
-                return NodeFilter.FILTER_ACCEPT;
-            }
-        }
-    );
-    
-    let node;
-    const nodesToReplace: { oldNode: ChildNode, newNode: HTMLElement }[] = [];
-    
-    while (node = walker.nextNode())
-    {
-        const text = node.textContent || '';
-        if (text.includes('@')) 
-        {
-            const span = document.createElement('span');
-            span.innerHTML = text.replace(
-                /@([a-zA-Z0-9_\-\.]+)/g, 
-                '<span class="mention-tag">@$1</span>'
-            );
-            nodesToReplace.push({ oldNode: node as any, newNode: span });
-        }
-    }
+    renderMentions(messageContentRef.value, mentionLookup.value);
+};
 
-    nodesToReplace.forEach(({ oldNode, newNode }) => {
-        oldNode.parentNode?.replaceChild(newNode, oldNode);
-    });
-
+const onMessageContentClick = (event: MouseEvent) => {
+    handleMentionClick(event, mentionLookup.value, (mentionedUser, e) => openProfile(mentionedUser, e));
 };
 
 watch(() => props.msg.content, async () => {
@@ -523,6 +488,12 @@ const editMessage = async (newContent: string) => {
 
 :deep(.mention-tag:hover) {
     filter: brightness(1.2);
+}
+
+:deep(.mention-tag[data-mention-kind="everyone"]),
+:deep(.mention-tag[data-mention-kind="here"]) {
+    background-color: color-mix(in srgb, orange 55%, var(--primary-dark));
+    cursor: default;
 }
 
 </style>
