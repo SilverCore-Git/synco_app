@@ -41,6 +41,7 @@
                     @pick-day="goToDay"
                     @navigate-month="navigateMiniMonth"
                 />
+                <CalendarAccessPanel :org-id="orgId" @changed="refetch" />
             </aside>
 
             <main class="flex-1 overflow-hidden w-full h-full">
@@ -111,7 +112,9 @@ import DayGrid from './components/DayGrid.vue';
 import MiniCalendar from './components/MiniCalendar.vue';
 import EventQuickCreate from './components/EventQuickCreate.vue';
 import EventPanel from './components/EventPanel.vue';
+import CalendarAccessPanel from './components/CalendarAccessPanel.vue';
 import { useAgenda } from '@/composables/useAgenda';
+import { useCalendarAccess } from '@/composables/useCalendarAccess';
 import useWSocket from '@/composables/useWSocket';
 import sfetch from '@/assets/utils/sfetch';
 import { user } from '@/assets/var';
@@ -122,7 +125,8 @@ const route = useRoute();
 const router = useRouter();
 const orgId = computed(() => route.params.orgId as string);
 
-const { occurrences, loading, viewingUserId, fetchRange, updateEvent, updateOccurrence } = useAgenda();
+const { occurrences, loading, fetchRange, updateEvent, updateOccurrence } = useAgenda();
+const { sharedOccurrences, fetchGrants, fetchSharedOccurrences } = useCalendarAccess();
 
 // ── Échéances de tâches affichées comme événements dans l'agenda ──────
 // Pseudo-occurrences synthétisées côté front à partir des tâches qui me
@@ -174,8 +178,9 @@ const taskDeadlineOccurrences = computed<OccurrenceInstance[]>(() => {
     });
 });
 
-// Fusion événements réels + échéances de tâches pour l'affichage dans les grilles.
-const displayOccurrences = computed(() => [...occurrences.value, ...taskDeadlineOccurrences.value]);
+// Fusion événements réels (mon agenda + agendas partagés visibles, voir
+// useCalendarAccess.ts) + échéances de tâches pour l'affichage dans les grilles.
+const displayOccurrences = computed(() => [...occurrences.value, ...sharedOccurrences.value, ...taskDeadlineOccurrences.value]);
 
 type ViewMode = 'month' | 'week' | 'day';
 const viewMode = ref<ViewMode>('month');
@@ -237,7 +242,10 @@ function computeRangeISO(): { from: string; to: string } {
 
 async function refetch() {
     const { from, to } = computeRangeISO();
-    await fetchRange(orgId.value, from, to);
+    await Promise.all([
+        fetchRange(orgId.value, from, to),
+        fetchSharedOccurrences(orgId.value, from, to)
+    ]);
 }
 
 function goPrev() {
@@ -378,11 +386,20 @@ async function onReschedule({ occ, start, end }: { occ: OccurrenceInstance; star
     refetch();
 }
 
-watch([viewMode, cursorDate, viewingUserId], () => {
+watch([viewMode, cursorDate], () => {
     refetch();
 });
 
+// Un changement d'accès (demande acceptée/refusée, partage retiré...)
+// affecte quels agendas sont superposables : on recharge la liste des
+// accès puis les occurrences partagées visibles en découlent.
+async function onAccessUpdated() {
+    await fetchGrants(orgId.value);
+    refetch();
+}
+
 onMounted(async () => {
+    await fetchGrants(orgId.value);
     refetch();
     loadTaskDeadlines();
 
@@ -393,6 +410,7 @@ onMounted(async () => {
     socket.value?.on('agenda:occurrence-updated', refetch);
     socket.value?.on('agenda:occurrence-cancelled', refetch);
     socket.value?.on('agenda:rsvp-updated', refetch);
+    socket.value?.on('agenda:access-updated', onAccessUpdated);
 });
 
 onUnmounted(async () => {
@@ -403,6 +421,7 @@ onUnmounted(async () => {
     socket.value?.off('agenda:occurrence-updated', refetch);
     socket.value?.off('agenda:occurrence-cancelled', refetch);
     socket.value?.off('agenda:rsvp-updated', refetch);
+    socket.value?.off('agenda:access-updated', onAccessUpdated);
 });
 </script>
 

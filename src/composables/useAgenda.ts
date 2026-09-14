@@ -2,10 +2,9 @@
 // Composable pour la gestion de l'Agenda
 // ============================================
 
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import sfetch from '@/assets/utils/sfetch';
 import { useToast } from './useToast';
-import { user } from '@/assets/var';
 import type {
   CalendarEvent,
   CalendarEventWithDetails,
@@ -39,12 +38,6 @@ const myReminders = ref<ReminderWithEvent[]>([]);
 const loading = ref<boolean>(false);
 const error = ref<string | null>(null);
 
-// Agenda affiché : soi-même par défaut, ou un membre dirigé (cascade Équipes).
-// `null` = "moi" (résolu dynamiquement via `user`, jamais figé au chargement du module).
-const viewingUserId = ref<string | null>(null);
-
-const isViewingSelf = computed(() => !viewingUserId.value || viewingUserId.value === user.value?.id);
-
 // ============================================
 // Fonctions utilitaires internes
 // ============================================
@@ -58,17 +51,16 @@ function buildOccurrencePath(eventId: string, occurrenceStartAt: string): string
 // ============================================
 
 /**
- * Récupère les occurrences dans une plage de dates, pour soi ou (via le
- * cascade Équipes) pour un membre dirigé.
+ * Récupère mes propres occurrences dans une plage de dates. Pour les
+ * calendriers partagés par des collègues, voir useCalendarAccess.ts::
+ * fetchSharedOccurrences (state séparé, ne touche jamais `occurrences` ici).
  */
-async function fetchRange(orgId: string, from: string, to: string, userId?: string): Promise<OccurrenceInstance[] | null> {
+async function fetchRange(orgId: string, from: string, to: string): Promise<OccurrenceInstance[] | null> {
   loading.value = true;
   error.value = null;
 
   try {
-    const targetUserId = userId ?? viewingUserId.value ?? undefined;
     const params = new URLSearchParams({ from, to });
-    if (targetUserId) params.set('userId', targetUserId);
 
     const res = await sfetch(`/api/orgs/${orgId}/agenda/events?${params.toString()}`);
 
@@ -498,20 +490,6 @@ async function listMyReminders(orgId: string): Promise<ReminderWithEvent[] | nul
   }
 }
 
-// ============================================
-// Fonctions utilitaires — sélecteur "voir comme"
-// ============================================
-
-/** Bascule l'agenda affiché sur celui d'un membre dirigé */
-function setViewingUser(userId: string): void {
-  viewingUserId.value = userId;
-}
-
-/** Revient à son propre agenda */
-function resetViewingUser(): void {
-  viewingUserId.value = null;
-}
-
 /**
  * Réinitialise le state
  */
@@ -520,7 +498,6 @@ function resetState(): void {
   currentEvent.value = null;
   myReminders.value = [];
   error.value = null;
-  viewingUserId.value = null;
 }
 
 // ============================================
@@ -535,8 +512,6 @@ export function useAgenda() {
     myReminders,
     loading,
     error,
-    viewingUserId,
-    isViewingSelf,
 
     // Fonctions API — Événements
     fetchRange,
@@ -556,10 +531,6 @@ export function useAgenda() {
     addReminder,
     removeReminder,
     listMyReminders,
-
-    // Sélecteur "voir comme"
-    setViewingUser,
-    resetViewingUser,
 
     // Utilitaires
     resetState

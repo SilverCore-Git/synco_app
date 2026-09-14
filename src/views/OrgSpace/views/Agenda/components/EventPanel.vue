@@ -19,6 +19,21 @@
 
                 <form v-else @submit.prevent class="event-panel-body">
 
+                    <!-- Créer dans (délégation) -->
+                    <div v-if="mode === 'create' && writableSharedCalendars.length > 0" class="icon-row">
+                        <i class="bi bi-calendar2-week icon-row-icon"></i>
+                        <select v-model="targetOwnerId" class="field-input-sm flex-1">
+                            <option :value="null">Mon agenda</option>
+                            <option v-for="grant in writableSharedCalendars" :key="grant.id" :value="grant.ownerId">
+                                Agenda de {{ p(grant.owner.name) || grant.owner.pseudo }}
+                            </option>
+                        </select>
+                    </div>
+                    <div v-else-if="mode === 'edit' && currentEvent?.createdByDelegateId" class="delegate-badge">
+                        <i class="bi bi-person-check"></i>
+                        Ajouté par {{ p(delegateName) || 'un collègue' }}
+                    </div>
+
                     <!-- RSVP -->
                     <div v-if="showRsvp" class="rsvp-row">
                         <span class="text-[11px] font-bold text-(--text2) uppercase tracking-wider">Votre réponse</span>
@@ -249,6 +264,7 @@ import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { openedOrg, user } from '@/assets/var';
 import useSettingsItem from '@/composables/useSettingsItem';
 import { useAgenda } from '@/composables/useAgenda';
+import { useCalendarAccess } from '@/composables/useCalendarAccess';
 import type { OrgMember } from '@/types/types';
 import type {
     OccurrenceInstance,
@@ -291,6 +307,18 @@ const {
     addReminder,
     removeReminder
 } = useAgenda();
+
+const { acceptedSharedCalendars } = useCalendarAccess();
+
+// ── Création pour le compte d'un collègue (délégation en modification) ─
+const targetOwnerId = ref<string | null>(null);
+const writableSharedCalendars = computed(() => acceptedSharedCalendars.value.filter(g => g.level === 'WRITE'));
+const delegateName = computed(() => {
+    const delegateId = currentEvent.value?.createdByDelegateId;
+    if (!delegateId) return null;
+    if (delegateId === user.value?.id) return 'vous';
+    return openedOrg.value?.members?.find(m => m.userId === delegateId)?.user?.name || null;
+});
 
 const mode = computed<'create' | 'edit'>(() => (props.occurrence ? 'edit' : 'create'));
 const isRecurringSeries = computed(() => !!props.occurrence?.isRecurring);
@@ -494,6 +522,7 @@ function resetForm() {
     attendeesOpen.value = false;
     remindersOpen.value = false;
     draftEventId.value = null;
+    targetOwnerId.value = null;
     saveStatus.value = 'idle';
     if (autosaveTimer) {
         clearTimeout(autosaveTimer);
@@ -646,6 +675,7 @@ async function performAutosave() {
         if (!effectiveEventId.value) {
             dto.recurrenceRule = buildRecurrenceRule();
             dto.attendeeIds = attendeeIds.value;
+            if (targetOwnerId.value) dto.onBehalfOfUserId = targetOwnerId.value;
 
             const created = await createEvent(props.orgId, dto);
             if (!created) {
@@ -686,7 +716,7 @@ async function performAutosave() {
 }
 
 watch(
-    [title, description, location, allDay, color, startDate, startTime, endDate, endTime, freq, interval, endType, untilDate, count, attendeeIds],
+    [title, description, location, allDay, color, startDate, startTime, endDate, endTime, freq, interval, endType, untilDate, count, attendeeIds, targetOwnerId],
     scheduleAutosave,
     { deep: true }
 );
@@ -1003,6 +1033,20 @@ async function confirmDelete() {
 }
 .reminder-chip button:hover {
     color: var(--text);
+}
+
+.delegate-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text2);
+    background: color-mix(in srgb, var(--bg2) 50%, transparent);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 6px 10px;
+    width: fit-content;
 }
 
 .rsvp-row {

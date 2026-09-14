@@ -500,6 +500,14 @@ export function useNotification() {
           router.push(notification.data.route);
         }
         break;
+      // EVENT_*/CALENDAR_ACCESS_* (et tout futur type) n'ont pas de route
+      // dédiée codée en dur ici — le backend fournit data.route directement
+      // (voir agendaService.ts / calendarAccessService.ts).
+      default:
+        if (notification.data?.route) {
+          router.push(notification.data.route);
+        }
+        break;
     }
   };
 

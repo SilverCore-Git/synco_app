@@ -1,5 +1,9 @@
 export type ThreadType = 'text' | 'vocal';
-export type NotificationType = 'MESSAGE' | 'CALL' | 'MENTION' | 'INVITATION' | 'CUSTOM';
+export type NotificationType =
+  | 'MESSAGE' | 'CALL' | 'MENTION' | 'INVITATION' | 'CUSTOM'
+  | 'EVENT_INVITE' | 'EVENT_RSVP' | 'EVENT_REMINDER'
+  | 'CALENDAR_ACCESS_REQUEST' | 'CALENDAR_ACCESS_INVITE'
+  | 'CALENDAR_ACCESS_GRANTED' | 'CALENDAR_ACCESS_DECLINED' | 'CALENDAR_ACCESS_REVOKED';
 // export type UserStatus = 'online' | 'dnd' | 'idle' | 'offline';
 
 export interface StoredFile {
