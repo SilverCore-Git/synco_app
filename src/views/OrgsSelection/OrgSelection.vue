@@ -9,6 +9,7 @@ import Popup from '@/components/Popup.vue';
 import IconSelector from '@/components/common/IconSelector.vue';
 import { useToast } from '@/composables/useToast';
 import { keycloak } from '@/assets/keycloak';
+import { disconnectSocket } from '@/composables/useWSocket';
 import DropDown from '@/components/DropDown.vue';
 import UserSettings from '@/components/windows/UserSettings.vue';
 
@@ -129,7 +130,7 @@ onMounted(async () => {
                     </div>
                     <div class="h-px bg-white/5 my-1" />
                     <div class="p-1">
-                        <button @click="keycloak.logout()" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-500 font-bold hover:bg-red-500 hover:text-white rounded-lg transition-colors">
+                        <button @click="disconnectSocket(); keycloak.logout()" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-500 font-bold hover:bg-red-500 hover:text-white rounded-lg transition-colors">
                             <i class="bi bi-box-arrow-right"></i> Déconnexion
                         </button>
                     </div>

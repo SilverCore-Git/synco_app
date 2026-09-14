@@ -536,6 +536,7 @@ import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import { E2EEUnloked, lockSecurity } from '@/assets/utils/crypto';
 import { keycloak } from '@/assets/keycloak';
+import { disconnectSocket } from '@/composables/useWSocket';
 import { getAverageColor } from '@/assets/utils/getAverageColor';
 
 const props = withDefaults(defineProps<{
@@ -759,7 +760,7 @@ const changePassword = async () => {
             passwordForm.newPassword = '';
             passwordForm.confirmPassword = '';
             toast.show('Mot de passe modifié. Veuillez vous reconnecter.', 'success');
-            setTimeout(() => keycloak.logout(), 1500);
+            setTimeout(() => { disconnectSocket(); keycloak.logout(); }, 1500);
         } else {
             const err = await response.json().catch(() => ({}));
             toast.show(err.error || 'Erreur lors de la modification du mot de passe', 'error');
@@ -778,6 +779,7 @@ const deleteAccount = async () => {
         const response = await sfetch('/api/users/me', { method: 'DELETE' });
 
         if (response.ok) {
+            disconnectSocket();
             keycloak.logout();
         } else {
             const err = await response.json().catch(() => ({}));

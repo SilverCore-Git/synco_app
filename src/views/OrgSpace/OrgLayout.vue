@@ -592,10 +592,30 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(async () => {
+    // The socket is an app-wide singleton (see useWSocket.ts) shared with
+    // other features (DMs, notifications, calls) — it must stay connected
+    // across ordinary in-app navigation. Only the listeners registered by
+    // this component in initSocketListener() are torn down here; the
+    // connection itself is only ever closed on logout or app close.
     const socket = await useWSocket();
-    socket.value?.off('user-status-changed');
-    socket.value?.disconnect();
-    socket.value = null;
+    [
+        'member:new',
+        'member:kicked',
+        'user-status-changed',
+        'user-data-updated',
+        'key-requested',
+        'todo-added',
+        'space:updated',
+        'org-data-updated',
+        'category-updated',
+        'categories-updated',
+        'notif:new-message',
+        'notif:dm:new-message',
+        'privateMeet:incomingCall',
+        'thread:created',
+        'thread:updated',
+        'thread:deleted',
+    ].forEach(event => socket.value?.off(event));
 })
 
 </script>

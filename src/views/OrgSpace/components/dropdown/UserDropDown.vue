@@ -2,7 +2,7 @@
 
 import type { User } from '@/types/types';
 import DropDown from '@/components/DropDown.vue';
-import useWSocket from '@/composables/useWSocket';
+import useWSocket, { disconnectSocket } from '@/composables/useWSocket';
 import { openedOrg } from '@/assets/var';
 import { keycloak } from '@/assets/keycloak';
 import { computed, ref, watch } from 'vue';
@@ -194,7 +194,7 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
             <div class="h-px bg-white/5 my-1" />
 
             <div class="p-1 pb-8">
-                <button @click="keycloak.logout()" class="text-red-500! hover:bg-red-500! hover:text-(--white)! dropdown-item-style dropdown-item-annimate">
+                <button @click="disconnectSocket(); keycloak.logout()" class="text-red-500! hover:bg-red-500! hover:text-(--white)! dropdown-item-style dropdown-item-annimate">
                     <i class="bi bi-box-arrow-right mr-2" /> Déconnexion
                 </button>
             </div>
