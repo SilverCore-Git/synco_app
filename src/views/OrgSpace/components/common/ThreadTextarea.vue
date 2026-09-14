@@ -67,29 +67,28 @@ watch(() => openedOrg.value?.members, (members) => {
     mentionableUsers.value = buildMentionableList(members);
 });
 
-watch(() => props.modelValue, (text) => {
+const updateMentionState = (text: string, selectionStart: number) => {
 
     if (text === '') {
         showMentions.value = false;
         return;
     }
 
-    const selectionStart = textareaRef.value?.selectionStart || 0;
     const textBeforeCursor = text.slice(0, selectionStart);
     const mentionMatch = textBeforeCursor.match(/(?:^|\s)@([a-zA-Z0-9_\-\.]*)$/);
 
-    if (mentionMatch) 
+    if (mentionMatch)
     {
         showMentions.value = true;
         mentionQuery.value = mentionMatch[1] || '';
         startMentionIndex.value = textBeforeCursor.lastIndexOf('@');
-    } 
-    else 
+    }
+    else
     {
         showMentions.value = false;
     }
 
-});
+};
 
 const insertMention = (user: MentionEntry) => {
 
@@ -166,6 +165,7 @@ const onInput = (event: Event) => {
     emit('update:modelValue', target.value);
     emit('input');
     adjustHeight();
+    updateMentionState(target.value, target.selectionStart ?? target.value.length);
 };
 
 const handleEnter = (event: KeyboardEvent) => {
@@ -182,8 +182,9 @@ const handleEnter = (event: KeyboardEvent) => {
 };
 
 watch(() => props.modelValue, (newVal) => {
-    if (newVal === '') 
+    if (newVal === '')
     {
+        showMentions.value = false;
         nextTick(() => {
             if (textareaRef.value) {
                 textareaRef.value.style.height = 'auto';
@@ -194,6 +195,7 @@ watch(() => props.modelValue, (newVal) => {
 });
 
 watch(() => route.params.threadId, async () => {
+    showMentions.value = false;
     await nextTick();
     textareaRef.value?.focus();
 });
