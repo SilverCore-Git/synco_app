@@ -100,6 +100,8 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   pseudo?: string;
   avatarUrl?: string;
   job?: string;

@@ -15,6 +15,7 @@ import sfetch from './assets/utils/sfetch';
 import { useToast } from './composables/useToast';
 import TopBar from './components/layout/topBar.vue';
 import useSecurePeer from './composables/useSecurePeer';
+import useAppPresence from './composables/useAppPresence';
 import CallOverlay from './components/peer/CallOverlay.vue';
 import waitFor from './assets/utils/waitfor';
 import Popup from './components/Popup.vue';
@@ -258,6 +259,7 @@ const finishAuthInit = async () => {
   await init.run();
   await waitFor(() => user.value !== null);
   await initPeer();
+  useAppPresence();
 };
 
 const handleTauriLogin = async () => {
