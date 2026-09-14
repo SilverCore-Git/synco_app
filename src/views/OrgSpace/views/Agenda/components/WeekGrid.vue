@@ -99,12 +99,16 @@ const emit = defineEmits<{
 }>();
 
 // ── Navigation par scroll horizontal (trackpad/molette shift) : glisser
-// sur l'axe x fait avancer/reculer d'une semaine, comme un défilement dans
-// le mois. Un geste vertical normal (deltaY dominant) n'est jamais
-// intercepté. Cumul + cooldown pour qu'un seul geste de swipe ne déclenche
-// qu'une seule navigation, même s'il envoie plusieurs évènements wheel.
-const HORIZONTAL_NAV_THRESHOLD = 60;
-const NAV_COOLDOWN_MS = 450;
+// sur l'axe x décale la fenêtre de 7 jours d'un jour à la fois (défilement
+// continu jour par jour dans le mois — voir startOfWindow ci-dessus). Un
+// geste vertical normal (deltaY dominant) n'est jamais intercepté. Cumul +
+// cooldown pour qu'un seul geste de swipe ne déclenche qu'un décalage à la
+// fois, même s'il envoie plusieurs évènements wheel.
+// Décaler d'un seul jour par cran est une action bien plus légère que
+// paginer une semaine entière : seuil et cooldown plus courts pour que le
+// défilement continu (glisser longtemps) enchaîne les jours sans à-coups.
+const HORIZONTAL_NAV_THRESHOLD = 35;
+const NAV_COOLDOWN_MS = 180;
 let horizontalAccum = 0;
 let navCooldown = false;
 
@@ -128,10 +132,13 @@ const SNAP_MINUTES = 15;
 const MIN_DURATION = 15;
 const hours = Array.from({ length: 24 }, (_, i) => i);
 
-function startOfWeek(d: Date): Date {
+// Fenêtre glissante de 7 jours démarrant à cursorDate — pas calée sur
+// lundi-dimanche, pour permettre un défilement continu jour par jour (voir
+// onWheel plus bas et AgendaView.vue::onWeekNavigate). Les boutons
+// précédent/suivant paginent par bloc de 7 jours (AgendaView.vue::goPrev/
+// goNext), le scroll horizontal décale d'un jour à la fois.
+function startOfWindow(d: Date): Date {
     const date = new Date(d);
-    const day = (date.getDay() + 6) % 7; // 0 = Lundi
-    date.setDate(date.getDate() - day);
     date.setHours(0, 0, 0, 0);
     return date;
 }
@@ -153,7 +160,7 @@ interface DayColumn {
 }
 
 const days = computed<DayColumn[]>(() => {
-    const start = startOfWeek(props.cursorDate);
+    const start = startOfWindow(props.cursorDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 

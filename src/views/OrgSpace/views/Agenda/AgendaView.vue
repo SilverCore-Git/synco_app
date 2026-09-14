@@ -206,7 +206,10 @@ const periodLabel = computed(() => {
         return cursorDate.value.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
     }
     if (viewMode.value === 'week') {
-        const start = startOfWeek(cursorDate.value);
+        // Fenêtre glissante de 7 jours à partir du curseur (pas calée sur
+        // lundi-dimanche, voir WeekGrid.vue::startOfWindow).
+        const start = new Date(cursorDate.value);
+        start.setHours(0, 0, 0, 0);
         const end = new Date(start);
         end.setDate(end.getDate() + 6);
         const startLabel = start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
@@ -228,7 +231,8 @@ function computeRangeISO(): { from: string; to: string } {
         return { from: gridStart.toISOString(), to: gridEnd.toISOString() };
     }
     if (viewMode.value === 'week') {
-        const start = startOfWeek(cursorDate.value);
+        const start = new Date(cursorDate.value);
+        start.setHours(0, 0, 0, 0);
         const end = new Date(start);
         end.setDate(end.getDate() + 6);
         end.setHours(23, 59, 59, 999);
@@ -270,9 +274,12 @@ function goToday() {
 }
 
 // Scroll horizontal (trackpad/molette) en vue semaine — voir WeekGrid.vue.
+// Décale la fenêtre glissante de 7 jours d'un jour à la fois (contrairement
+// aux boutons précédent/suivant, qui paginent par bloc de 7 jours).
 function onWeekNavigate(direction: 1 | -1) {
-    if (direction > 0) goNext();
-    else goPrev();
+    const d = new Date(cursorDate.value);
+    d.setDate(d.getDate() + direction);
+    cursorDate.value = d;
 }
 
 function goToDay(date: Date) {
