@@ -41,6 +41,7 @@
                     @pick-day="goToDay"
                     @navigate-month="navigateMiniMonth"
                 />
+                <CalendarAccessPanel :org-id="orgId" @changed="refetch" />
             </aside>
 
             <main class="flex-1 overflow-hidden w-full h-full">
@@ -66,6 +67,7 @@
                     @open-event="openEditModal"
                     @create="onGridCreate"
                     @reschedule="onReschedule"
+                    @navigate="onWeekNavigate"
                 />
                 <DayGrid
                     v-else
@@ -111,7 +113,10 @@ import DayGrid from './components/DayGrid.vue';
 import MiniCalendar from './components/MiniCalendar.vue';
 import EventQuickCreate from './components/EventQuickCreate.vue';
 import EventPanel from './components/EventPanel.vue';
+import CalendarAccessPanel from './components/CalendarAccessPanel.vue';
 import { useAgenda } from '@/composables/useAgenda';
+import { useCalendarAccess } from '@/composables/useCalendarAccess';
+import { useAgendaViewMode, type AgendaViewMode } from '@/composables/useAgendaViewMode';
 import useWSocket from '@/composables/useWSocket';
 import sfetch from '@/assets/utils/sfetch';
 import { user } from '@/assets/var';
@@ -122,7 +127,8 @@ const route = useRoute();
 const router = useRouter();
 const orgId = computed(() => route.params.orgId as string);
 
-const { occurrences, loading, viewingUserId, fetchRange, updateEvent, updateOccurrence } = useAgenda();
+const { occurrences, loading, fetchRange, updateEvent, updateOccurrence } = useAgenda();
+const { sharedOccurrences, fetchGrants, fetchSharedOccurrences } = useCalendarAccess();
 
 // ── Échéances de tâches affichées comme événements dans l'agenda ──────
 // Pseudo-occurrences synthétisées côté front à partir des tâches qui me
@@ -174,14 +180,14 @@ const taskDeadlineOccurrences = computed<OccurrenceInstance[]>(() => {
     });
 });
 
-// Fusion événements réels + échéances de tâches pour l'affichage dans les grilles.
-const displayOccurrences = computed(() => [...occurrences.value, ...taskDeadlineOccurrences.value]);
+// Fusion événements réels (mon agenda + agendas partagés visibles, voir
+// useCalendarAccess.ts) + échéances de tâches pour l'affichage dans les grilles.
+const displayOccurrences = computed(() => [...occurrences.value, ...sharedOccurrences.value, ...taskDeadlineOccurrences.value]);
 
-type ViewMode = 'month' | 'week' | 'day';
-const viewMode = ref<ViewMode>('month');
+const { viewMode } = useAgendaViewMode();
 const cursorDate = ref<Date>(new Date());
 
-const views: { id: ViewMode; label: string }[] = [
+const views: { id: AgendaViewMode; label: string }[] = [
     { id: 'month', label: 'Mois' },
     { id: 'week', label: 'Semaine' },
     { id: 'day', label: 'Jour' }
@@ -200,7 +206,10 @@ const periodLabel = computed(() => {
         return cursorDate.value.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
     }
     if (viewMode.value === 'week') {
-        const start = startOfWeek(cursorDate.value);
+        // Fenêtre glissante de 7 jours à partir du curseur (pas calée sur
+        // lundi-dimanche, voir WeekGrid.vue::startOfWindow).
+        const start = new Date(cursorDate.value);
+        start.setHours(0, 0, 0, 0);
         const end = new Date(start);
         end.setDate(end.getDate() + 6);
         const startLabel = start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
@@ -222,7 +231,8 @@ function computeRangeISO(): { from: string; to: string } {
         return { from: gridStart.toISOString(), to: gridEnd.toISOString() };
     }
     if (viewMode.value === 'week') {
-        const start = startOfWeek(cursorDate.value);
+        const start = new Date(cursorDate.value);
+        start.setHours(0, 0, 0, 0);
         const end = new Date(start);
         end.setDate(end.getDate() + 6);
         end.setHours(23, 59, 59, 999);
@@ -237,7 +247,10 @@ function computeRangeISO(): { from: string; to: string } {
 
 async function refetch() {
     const { from, to } = computeRangeISO();
-    await fetchRange(orgId.value, from, to);
+    await Promise.all([
+        fetchRange(orgId.value, from, to),
+        fetchSharedOccurrences(orgId.value, from, to)
+    ]);
 }
 
 function goPrev() {
@@ -258,6 +271,15 @@ function goNext() {
 
 function goToday() {
     cursorDate.value = new Date();
+}
+
+// Scroll horizontal (trackpad/molette) en vue semaine — voir WeekGrid.vue.
+// Décale la fenêtre glissante de 7 jours d'un jour à la fois (contrairement
+// aux boutons précédent/suivant, qui paginent par bloc de 7 jours).
+function onWeekNavigate(direction: 1 | -1) {
+    const d = new Date(cursorDate.value);
+    d.setDate(d.getDate() + direction);
+    cursorDate.value = d;
 }
 
 function goToDay(date: Date) {
@@ -378,11 +400,20 @@ async function onReschedule({ occ, start, end }: { occ: OccurrenceInstance; star
     refetch();
 }
 
-watch([viewMode, cursorDate, viewingUserId], () => {
+watch([viewMode, cursorDate], () => {
     refetch();
 });
 
+// Un changement d'accès (demande acceptée/refusée, partage retiré...)
+// affecte quels agendas sont superposables : on recharge la liste des
+// accès puis les occurrences partagées visibles en découlent.
+async function onAccessUpdated() {
+    await fetchGrants(orgId.value);
+    refetch();
+}
+
 onMounted(async () => {
+    await fetchGrants(orgId.value);
     refetch();
     loadTaskDeadlines();
 
@@ -393,6 +424,7 @@ onMounted(async () => {
     socket.value?.on('agenda:occurrence-updated', refetch);
     socket.value?.on('agenda:occurrence-cancelled', refetch);
     socket.value?.on('agenda:rsvp-updated', refetch);
+    socket.value?.on('agenda:access-updated', onAccessUpdated);
 });
 
 onUnmounted(async () => {
@@ -403,6 +435,7 @@ onUnmounted(async () => {
     socket.value?.off('agenda:occurrence-updated', refetch);
     socket.value?.off('agenda:occurrence-cancelled', refetch);
     socket.value?.off('agenda:rsvp-updated', refetch);
+    socket.value?.off('agenda:access-updated', onAccessUpdated);
 });
 </script>
 

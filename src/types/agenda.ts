@@ -89,6 +89,10 @@ export interface EventReminder {
 export interface CalendarEventWithDetails extends CalendarEvent {
   attendees: EventAttendee[];
   reminders: EventReminder[]; // rappels de l'appelant uniquement
+  // Renseigné quand l'événement a été créé par un tiers ayant un accès en
+  // modification sur cet agenda (voir CalendarAccessGrant) — creatorId reste
+  // le propriétaire de l'agenda.
+  createdByDelegateId: string | null;
 }
 
 // ============================================
@@ -143,6 +147,10 @@ export interface CreateEventDTO {
   color?: string | null;
   recurrenceRule?: RecurrenceRule | null;
   attendeeIds?: string[];
+  // Créer l'événement pour le compte d'un tiers dont on a l'accès en
+  // modification (voir CalendarAccessGrant) — l'événement apparaît sur son
+  // agenda, pas sur le sien.
+  onBehalfOfUserId?: string;
 }
 
 // PATCH accepte un sous-ensemble quelconque des mêmes champs
@@ -240,4 +248,67 @@ export interface AgendaOccurrenceCancelledEvent {
 export interface AgendaRsvpUpdatedEvent {
   eventId: string;
   attendee: EventAttendee;
+}
+
+// ============================================
+// Partage d'agenda (CalendarAccessGrant)
+// ============================================
+export type CalendarAccessLevel = 'READ' | 'WRITE';
+export type CalendarAccessStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'REVOKED';
+export type CalendarGrantInitiator = 'REQUESTER' | 'OWNER';
+
+export interface UserSummary {
+  id: string;
+  name: string;
+  pseudo: string | null;
+  avatarUrl: string | null;
+}
+
+export interface CalendarAccessGrant {
+  id: string;
+  organizationId: string;
+  ownerId: string;
+  granteeId: string;
+  level: CalendarAccessLevel;
+  status: CalendarAccessStatus;
+  initiatedBy: CalendarGrantInitiator;
+  color: string | null;
+  requestedAt: string;
+  respondedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CalendarAccessGrantAsOwner extends CalendarAccessGrant {
+  grantee: UserSummary;
+}
+
+export interface CalendarAccessGrantAsGrantee extends CalendarAccessGrant {
+  owner: UserSummary;
+}
+
+export interface ListMyGrantsResponse {
+  asOwner: CalendarAccessGrantAsOwner[];
+  asGrantee: CalendarAccessGrantAsGrantee[];
+}
+
+export interface GrantResponse {
+  grant: CalendarAccessGrant;
+}
+
+export interface RevokeGrantResponse {
+  success: true;
+  grantId: string;
+}
+
+export interface AgendaAccessUpdatedEvent {
+  grant: CalendarAccessGrant;
+}
+
+// Occurrence taguée par calendrier source, construite côté client en
+// fusionnant mon agenda avec les agendas partagés visibles (voir
+// useAgenda.ts::fetchRange) — jamais renvoyée telle quelle par l'API.
+export interface MergedOccurrence extends OccurrenceInstance {
+  sourceOwnerId: string;
+  sourceColor: string;
 }

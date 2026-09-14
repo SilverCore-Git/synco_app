@@ -15,11 +15,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { isTaskDeadlineOccurrence, type OccurrenceInstance } from '@/types/agenda';
+import { isTaskDeadlineOccurrence, type OccurrenceInstance, type MergedOccurrence } from '@/types/agenda';
 import { user } from '@/assets/var';
 
 const props = defineProps<{
-    occurrence: OccurrenceInstance;
+    occurrence: OccurrenceInstance | MergedOccurrence;
     compact?: boolean;
 }>();
 
@@ -56,8 +56,11 @@ const tooltip = computed(() => {
 // La couleur personnalisée ne s'applique que sur les statuts "neutres" —
 // décliné/tentative gardent leur code couleur sémantique (rouge/ambre), plus
 // important à voir d'un coup d'œil que la couleur de préférence de l'événement.
+// Pour un événement venant d'un agenda partagé superposé (voir
+// useCalendarAccess.ts), la couleur du calendrier sert de repli quand
+// l'événement lui-même n'a pas de couleur propre.
 const colorStyle = computed(() => {
-    const c = props.occurrence.color;
+    const c = props.occurrence.color || (props.occurrence as MergedOccurrence).sourceColor;
     if (!c || statusClass.value === 'status-declined' || statusClass.value === 'status-tentative') return {};
     return {
         borderLeftColor: c,

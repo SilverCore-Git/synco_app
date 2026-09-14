@@ -1,5 +1,5 @@
 <template>
-    <div class="time-grid">
+    <div class="time-grid" @wheel="onWheel">
         <div class="time-grid-header">
             <div class="time-grid-gutter-header"></div>
             <div
@@ -95,7 +95,36 @@ const emit = defineEmits<{
     'open-event': [occ: OccurrenceInstance];
     'create': [range: { start: Date; end: Date; allDay?: boolean; clientX?: number; clientY?: number }];
     'reschedule': [payload: { occ: OccurrenceInstance; start: Date; end: Date }];
+    'navigate': [direction: 1 | -1];
 }>();
+
+// ── Navigation par scroll horizontal (trackpad/molette shift) : glisser
+// sur l'axe x décale la fenêtre de 7 jours d'un jour à la fois (défilement
+// continu jour par jour dans le mois — voir startOfWindow ci-dessus). Un
+// geste vertical normal (deltaY dominant) n'est jamais intercepté. Cumul +
+// cooldown pour qu'un seul geste de swipe ne déclenche qu'un décalage à la
+// fois, même s'il envoie plusieurs évènements wheel.
+// Décaler d'un seul jour par cran est une action bien plus légère que
+// paginer une semaine entière : seuil et cooldown plus courts pour que le
+// défilement continu (glisser longtemps) enchaîne les jours sans à-coups.
+const HORIZONTAL_NAV_THRESHOLD = 35;
+const NAV_COOLDOWN_MS = 180;
+let horizontalAccum = 0;
+let navCooldown = false;
+
+function onWheel(e: WheelEvent) {
+    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+    e.preventDefault();
+    if (navCooldown) return;
+
+    horizontalAccum += e.deltaX;
+    if (Math.abs(horizontalAccum) < HORIZONTAL_NAV_THRESHOLD) return;
+
+    emit('navigate', horizontalAccum > 0 ? 1 : -1);
+    horizontalAccum = 0;
+    navCooldown = true;
+    setTimeout(() => { navCooldown = false; }, NAV_COOLDOWN_MS);
+}
 
 const ROW_HEIGHT = 48;
 const rowHeight = ROW_HEIGHT;
@@ -103,10 +132,13 @@ const SNAP_MINUTES = 15;
 const MIN_DURATION = 15;
 const hours = Array.from({ length: 24 }, (_, i) => i);
 
-function startOfWeek(d: Date): Date {
+// Fenêtre glissante de 7 jours démarrant à cursorDate — pas calée sur
+// lundi-dimanche, pour permettre un défilement continu jour par jour (voir
+// onWheel plus bas et AgendaView.vue::onWeekNavigate). Les boutons
+// précédent/suivant paginent par bloc de 7 jours (AgendaView.vue::goPrev/
+// goNext), le scroll horizontal décale d'un jour à la fois.
+function startOfWindow(d: Date): Date {
     const date = new Date(d);
-    const day = (date.getDay() + 6) % 7; // 0 = Lundi
-    date.setDate(date.getDate() - day);
     date.setHours(0, 0, 0, 0);
     return date;
 }
@@ -128,7 +160,7 @@ interface DayColumn {
 }
 
 const days = computed<DayColumn[]>(() => {
-    const start = startOfWeek(props.cursorDate);
+    const start = startOfWindow(props.cursorDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
