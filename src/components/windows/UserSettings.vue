@@ -75,18 +75,34 @@
                     </div>
 
                     <div class="space-y-6 max-w-lg">
-                       
-                        <div class="space-y-1.5">
-                            <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Nom d'utilisateur</label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2)">
-                                    <i class="bi bi-person-fill"></i>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="space-y-1.5">
+                                <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Prénom</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2)">
+                                        <i class="bi bi-person-fill"></i>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        v-model="formData.firstName"
+                                        class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                    />
                                 </div>
-                                <input 
-                                    type="text" 
-                                    v-model="formData.name" 
-                                    class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
-                                />
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Nom</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2)">
+                                        <i class="bi bi-person-fill"></i>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        v-model="formData.lastName"
+                                        class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -218,23 +234,78 @@
                         </div>
 
                         <div class="space-y-4">
-                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Authentification</h4>
-                            
-                            <div class="p-5 bg-(--bg2) border border-(--border-color) rounded-xl hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-between group"
-                                @click="keycloak.accountManagement()"
-                            >
-                                <div class="flex items-center gap-4">
-                                    <div class="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-(--text2) group-hover:text-(--text) group-hover:bg-white/10 transition-colors">
-                                        <i class="bi bi-key-fill text-lg"></i>
-                                    </div>
-                                    <div>
-                                        <h4 class="font-bold text-(--text) text-sm">Mot de passe et authentification</h4>
-                                        <p class="text-xs text-(--text2) mt-0.5">Gérez votre mot de passe et l'A2F via Keycloak</p>
-                                    </div>
-                                </div>
-                                <i class="bi bi-box-arrow-up-right text-(--text2) group-hover:text-(--text) transition-colors"></i>
-                            </div>
+                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Mot de passe</h4>
 
+                            <div class="p-6 bg-(--bg2) border border-(--border-color) rounded-xl shadow-sm space-y-4 max-w-lg">
+
+                                <div class="space-y-1.5">
+                                    <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Mot de passe actuel</label>
+                                    <input
+                                        type="password"
+                                        v-model="passwordForm.currentPassword"
+                                        autocomplete="current-password"
+                                        class="w-full bg-(--bg) border border-(--border-color) rounded-xl px-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                    />
+                                </div>
+
+                                <div class="space-y-1.5">
+                                    <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Nouveau mot de passe</label>
+                                    <input
+                                        type="password"
+                                        v-model="passwordForm.newPassword"
+                                        autocomplete="new-password"
+                                        class="w-full bg-(--bg) border border-(--border-color) rounded-xl px-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                    />
+                                </div>
+
+                                <div class="space-y-1.5">
+                                    <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Confirmer le nouveau mot de passe</label>
+                                    <input
+                                        type="password"
+                                        v-model="passwordForm.confirmPassword"
+                                        autocomplete="new-password"
+                                        class="w-full bg-(--bg) border border-(--border-color) rounded-xl px-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                    />
+                                </div>
+
+                                <p v-if="passwordBlockReason" class="text-xs text-amber-500 flex items-center gap-1.5">
+                                    <i class="bi bi-info-circle-fill"></i>
+                                    {{ passwordBlockReason }}
+                                </p>
+
+                                <button
+                                    @click="changePassword"
+                                    class="primary flex items-center justify-center gap-2 text-sm"
+                                    :class="(!canSubmitPassword || isChangingPassword) ? 'opacity-40 grayscale cursor-not-allowed!' : ''"
+                                    :disabled="!canSubmitPassword || isChangingPassword"
+                                    :title="passwordBlockReason || ''"
+                                >
+                                    <i v-if="isChangingPassword" class="bi bi-arrow-repeat animate-spin"></i>
+                                    <i v-else class="bi bi-key-fill"></i>
+                                    <span>{{ isChangingPassword ? 'Modification...' : 'Modifier le mot de passe' }}</span>
+                                </button>
+
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <h4 class="text-xs font-black uppercase tracking-widest text-red-500">Zone de danger</h4>
+
+                            <div class="p-6 bg-red-500/5 border border-red-500/20 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center gap-6 max-w-lg">
+                                <div class="flex-1">
+                                    <h4 class="font-bold text-(--text) text-sm">Supprimer mon compte</h4>
+                                    <p class="text-xs text-(--text2) mt-1 leading-relaxed">
+                                        Cette action est définitive et supprime votre compte, votre profil et vos données personnelles, aussi bien dans Synco que dans l'annuaire d'authentification.
+                                    </p>
+                                </div>
+                                <button
+                                    @click="showDeleteAccount = true"
+                                    class="danger flex items-center gap-2 whitespace-nowrap text-sm"
+                                >
+                                    <i class="bi bi-trash-fill"></i>
+                                    Supprimer mon compte
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -439,6 +510,18 @@
 
     </Window>
 
+    <ConfirmDelete
+        :show="showDeleteAccount"
+        :itemName="user?.email || user?.name || 'votre compte'"
+        itemType="votre compte"
+        buttonText="Supprimer mon compte"
+        :checkbox="true"
+        :loading="isDeletingAccount"
+        extraWarning="Toutes vos données personnelles, messages et accès seront supprimés. Cette action ne peut pas être annulée."
+        @confirm="deleteAccount"
+        @cancel="showDeleteAccount = false"
+    />
+
 </template>
 
 <script setup lang="ts">
@@ -447,6 +530,7 @@ import { ref, reactive, watch, computed } from 'vue';
 import Window from './Window.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
 import ProfileUploader from '../common/ProfileUploader.vue';
+import ConfirmDelete from '../common/ConfirmDelete.vue';
 import { user } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
@@ -454,9 +538,12 @@ import { E2EEUnloked, lockSecurity } from '@/assets/utils/crypto';
 import { keycloak } from '@/assets/keycloak';
 import { getAverageColor } from '@/assets/utils/getAverageColor';
 
-defineProps<{
+const props = withDefaults(defineProps<{
   isOpen: boolean;
-}>();
+  initialTab?: string;
+}>(), {
+  initialTab: 'account'
+});
 
 const emit = defineEmits(['close']);
 const toast = useToast();
@@ -465,13 +552,30 @@ const { Item: theme } = useSettingsItem('theme', 'dark');
 const { Item: devMode } = useSettingsItem('devMode', false);
 const { Item: privacyMode } = useSettingsItem('privacyMode', false);
 
-const activeTab = ref<string>('account');
+const activeTab = ref<string>(props.initialTab);
 const avatarChange = ref<boolean>(false);
 const isUpdating = ref<boolean>(false);
 const dominantColor = ref('#16ac77');
 
+const passwordForm = reactive({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+});
+const isChangingPassword = ref<boolean>(false);
+
+const showDeleteAccount = ref<boolean>(false);
+const isDeletingAccount = ref<boolean>(false);
+
+// Ré-ouvrir la fenêtre doit toujours repartir de l'onglet demandé par l'appelant
+// (ex : "Supprimer mon compte" depuis le menu doit amener directement sur Sécurité).
+watch(() => props.isOpen, (open) => {
+    if (open) activeTab.value = props.initialTab;
+});
+
 const formData = reactive({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     job: '',
     description: ''
@@ -487,7 +591,8 @@ const notifPrefs = reactive({
 // Sync user data to form
 watch(user, (newVal) => {
     if (newVal) {
-        formData.name = newVal.name || '';
+        formData.firstName = newVal.firstName || '';
+        formData.lastName = newVal.lastName || '';
         formData.email = newVal.email || '';
         formData.job = newVal.job || '';
         formData.description = newVal.description || '';
@@ -541,11 +646,30 @@ const updateNotificationPrefs = async (key: keyof typeof notifPrefs, value: bool
 };
 
 const isModified = computed(() => {
-    return formData.name !== user.value?.name || 
+    return formData.firstName !== (user.value?.firstName || '') ||
+           formData.lastName !== (user.value?.lastName || '') ||
            formData.email !== user.value?.email ||
            formData.job !== (user.value?.job || '') ||
            formData.description !== (user.value?.description || '');
 });
+
+const passwordFormTouched = computed(() => {
+    return passwordForm.currentPassword !== '' ||
+           passwordForm.newPassword !== '' ||
+           passwordForm.confirmPassword !== '';
+});
+
+const passwordBlockReason = computed(() => {
+    if (!passwordFormTouched.value) return null;
+    if (passwordForm.currentPassword.length === 0) return 'Saisissez votre mot de passe actuel.';
+    if (passwordForm.newPassword.length === 0) return 'Saisissez un nouveau mot de passe.';
+    if (passwordForm.newPassword.length < 8) return 'Le nouveau mot de passe doit contenir au moins 8 caractères.';
+    if (passwordForm.confirmPassword.length === 0) return 'Confirmez le nouveau mot de passe.';
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) return 'Les deux mots de passe ne correspondent pas.';
+    return null;
+});
+
+const canSubmitPassword = computed(() => passwordFormTouched.value && !passwordBlockReason.value);
 
 const publicKeyFingerprint = computed(() => {
     if (!user.value?.publicKey) return 'Non disponible';
@@ -569,19 +693,39 @@ const copyToClipboard = async (text: string) => {
 
 const updateProfile = async () => {
     if (!isModified.value) return;
-    
+
     isUpdating.value = true;
     try {
+        const nameChanged = formData.firstName !== (user.value?.firstName || '') ||
+                             formData.lastName !== (user.value?.lastName || '');
+
+        if (nameChanged) {
+            const nameResponse = await sfetch('/api/users/me/name', {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    firstName: formData.firstName,
+                    lastName: formData.lastName
+                })
+            });
+
+            if (nameResponse.ok) {
+                const updatedUser = await nameResponse.json();
+                user.value = { ...user.value, ...updatedUser, firstName: formData.firstName, lastName: formData.lastName };
+            } else {
+                toast.show('Erreur lors de la mise à jour du nom', 'error');
+                return;
+            }
+        }
+
         const response = await sfetch('/api/users/me', {
             method: 'PATCH',
             body: JSON.stringify({
-                name: formData.name,
                 email: formData.email,
                 job: formData.job,
                 description: formData.description
             })
         });
-        
+
         if (response.ok) {
             const updatedUser = await response.json();
             user.value = { ...user.value, ...updatedUser };
@@ -594,6 +738,57 @@ const updateProfile = async () => {
         toast.show('Une erreur est survenue', 'error');
     } finally {
         isUpdating.value = false;
+    }
+};
+
+const changePassword = async () => {
+    if (!canSubmitPassword.value) return;
+
+    isChangingPassword.value = true;
+    try {
+        const response = await sfetch('/api/users/me/password', {
+            method: 'POST',
+            body: JSON.stringify({
+                currentPassword: passwordForm.currentPassword,
+                newPassword: passwordForm.newPassword
+            })
+        });
+
+        if (response.ok) {
+            passwordForm.currentPassword = '';
+            passwordForm.newPassword = '';
+            passwordForm.confirmPassword = '';
+            toast.show('Mot de passe modifié. Veuillez vous reconnecter.', 'success');
+            setTimeout(() => keycloak.logout(), 1500);
+        } else {
+            const err = await response.json().catch(() => ({}));
+            toast.show(err.error || 'Erreur lors de la modification du mot de passe', 'error');
+        }
+    } catch (e) {
+        console.error(e);
+        toast.show('Une erreur est survenue', 'error');
+    } finally {
+        isChangingPassword.value = false;
+    }
+};
+
+const deleteAccount = async () => {
+    isDeletingAccount.value = true;
+    try {
+        const response = await sfetch('/api/users/me', { method: 'DELETE' });
+
+        if (response.ok) {
+            keycloak.logout();
+        } else {
+            const err = await response.json().catch(() => ({}));
+            toast.show(err.error || 'Erreur lors de la suppression du compte', 'error');
+        }
+    } catch (e) {
+        console.error(e);
+        toast.show('Une erreur est survenue', 'error');
+    } finally {
+        isDeletingAccount.value = false;
+        showDeleteAccount.value = false;
     }
 };
 
