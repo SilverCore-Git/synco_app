@@ -24,15 +24,38 @@
                 <div class="space-y-12" :class="{'opacity-50 pointer-events-none grayscale': !openedOrg?.features?.includes('ai')}">
 
                     <section class="space-y-6">
-                        <h4 class="text-xs font-bold uppercase tracking-widest text-(--text2) mb-4">Fournisseur IA</h4>
-                        
+                        <h4 class="text-xs font-bold uppercase tracking-widest text-(--text2) mb-4">Local / Auto-hébergé</h4>
+
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <label v-for="prov in providers" :key="prov.id" 
+                            <label v-for="prov in localProviders" :key="prov.id"
                                 class="relative flex flex-col p-5 border rounded-2xl cursor-pointer transition-all hover:shadow-md group"
                                 :class="orgData.provider === prov.id ? 'border-(--primary) bg-(--primary)/5 shadow-sm' : 'border-(--border-color) bg-(--bg2) hover:border-(--text)/20'">
-                                
+
                                 <input type="radio" :value="prov.id" v-model="orgData.provider" name="provider" class="sr-only">
-                                
+
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="font-bold text-sm text-(--text)">{{ prov.name }}</span>
+                                    <div class="w-5 h-5 rounded-full border flex items-center justify-center transition-colors"
+                                         :class="orgData.provider === prov.id ? 'border-(--primary) bg-(--primary)' : 'border-(--text)/30 group-hover:border-(--text)/50 bg-transparent'">
+                                        <i v-if="orgData.provider === prov.id" class="bi bi-check text-white text-xs"></i>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-(--text2) leading-relaxed">{{ prov.desc }}</p>
+
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="space-y-6">
+                        <h4 class="text-xs font-bold uppercase tracking-widest text-(--text2) mb-4">Fournisseurs API Cloud</h4>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <label v-for="prov in cloudProviders" :key="prov.id"
+                                class="relative flex flex-col p-5 border rounded-2xl cursor-pointer transition-all hover:shadow-md group"
+                                :class="orgData.provider === prov.id ? 'border-(--primary) bg-(--primary)/5 shadow-sm' : 'border-(--border-color) bg-(--bg2) hover:border-(--text)/20'">
+
+                                <input type="radio" :value="prov.id" v-model="orgData.provider" name="provider" class="sr-only">
+
                                 <div class="flex items-center justify-between mb-3">
                                     <span class="font-bold text-sm text-(--text)">{{ prov.name }}</span>
                                     <div class="w-5 h-5 rounded-full border flex items-center justify-center transition-colors"
@@ -246,13 +269,16 @@ const acceptCloudWarning = ref<boolean>(false);
 const showLearnMorePopup = ref<boolean>(false);
 
 const providers = [
-    { id: 'local', name: 'WebGPU (Local Browser)', desc: 'Exécuté sur la carte graphique de l\'utilisateur. Gratuit, 100% privé, mais dépend des performances de chaque machine.' },
-    { id: 'custom', name: 'Serveur Client (Custom API)', desc: 'Votre propre serveur local ou distant avec une API compatible OpenAI (Ollama, vLLM, etc.).' },
-    { id: 'gateway', name: 'Passerelle Synco AI (auto-hébergée)', desc: 'Votre propre Synco AI Gateway devant un Ollama que vous contrôlez : vrais outils IA, authentification via votre compte Synco, aucune clé à distribuer.' },
-    { id: 'openai', name: 'OpenAI', desc: 'Modèles Cloud de pointe (GPT-4o, GPT-4o-mini).' },
-    { id: 'gemini', name: 'Google Gemini', desc: 'Modèles très rapides et puissants (1.5 Pro, Flash).' },
-    { id: 'mistral', name: 'Mistral AI', desc: 'Modèles souverains européens (Mistral Large, Pixtral).' },
+    { id: 'local', name: 'WebGPU (Local Browser)', desc: 'Exécuté sur la carte graphique de l\'utilisateur. Gratuit, 100% privé, mais dépend des performances de chaque machine.', category: 'local' },
+    { id: 'custom', name: 'Serveur Client (Custom API)', desc: 'Votre propre serveur local ou distant avec une API compatible OpenAI (Ollama, vLLM, etc.).', category: 'local' },
+    { id: 'gateway', name: 'Passerelle Synco AI (auto-hébergée)', desc: 'Votre propre Synco AI Gateway devant un Ollama que vous contrôlez : vrais outils IA, authentification via votre compte Synco, aucune clé à distribuer.', category: 'local' },
+    { id: 'openai', name: 'OpenAI', desc: 'Modèles Cloud de pointe (GPT-4o, GPT-4o-mini).', category: 'cloud' },
+    { id: 'gemini', name: 'Google Gemini', desc: 'Modèles très rapides et puissants (1.5 Pro, Flash).', category: 'cloud' },
+    { id: 'mistral', name: 'Mistral AI', desc: 'Modèles souverains européens (Mistral Large, Pixtral).', category: 'cloud' },
 ];
+
+const localProviders = computed(() => providers.filter(p => p.category === 'local'));
+const cloudProviders = computed(() => providers.filter(p => p.category === 'cloud'));
 
 const getAiConfig = () => {
     const config = openedOrg.value?.activeModules?.aiConfig || {};
