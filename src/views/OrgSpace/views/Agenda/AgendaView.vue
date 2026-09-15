@@ -67,7 +67,6 @@
                     @open-event="openEditModal"
                     @create="onGridCreate"
                     @reschedule="onReschedule"
-                    @navigate="onWeekNavigate"
                 />
                 <DayGrid
                     v-else
@@ -231,10 +230,16 @@ function computeRangeISO(): { from: string; to: string } {
         return { from: gridStart.toISOString(), to: gridEnd.toISOString() };
     }
     if (viewMode.value === 'week') {
+        // La grille affiche une fenêtre glissante bien plus large que 7 jours
+        // (défilement horizontal fluide, voir WeekGrid.vue) : on charge tout
+        // ce qu'elle peut atteindre par scroll (±120j, son MAX_HALF) en une
+        // fois, pour ne jamais avoir besoin de recharger pendant qu'on scroll.
+        const WEEK_VIEW_FETCH_HALF_DAYS = 120;
         const start = new Date(cursorDate.value);
         start.setHours(0, 0, 0, 0);
-        const end = new Date(start);
-        end.setDate(end.getDate() + 6);
+        start.setDate(start.getDate() - WEEK_VIEW_FETCH_HALF_DAYS);
+        const end = new Date(cursorDate.value);
+        end.setDate(end.getDate() + WEEK_VIEW_FETCH_HALF_DAYS);
         end.setHours(23, 59, 59, 999);
         return { from: start.toISOString(), to: end.toISOString() };
     }
@@ -271,15 +276,6 @@ function goNext() {
 
 function goToday() {
     cursorDate.value = new Date();
-}
-
-// Scroll horizontal (trackpad/molette) en vue semaine — voir WeekGrid.vue.
-// Décale la fenêtre glissante de 7 jours d'un jour à la fois (contrairement
-// aux boutons précédent/suivant, qui paginent par bloc de 7 jours).
-function onWeekNavigate(direction: 1 | -1) {
-    const d = new Date(cursorDate.value);
-    d.setDate(d.getDate() + direction);
-    cursorDate.value = d;
 }
 
 function goToDay(date: Date) {
