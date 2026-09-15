@@ -60,6 +60,47 @@
               </button>
             </div>
 
+            <div class="flex items-center gap-2 flex-wrap mb-5">
+              <span class="text-[11px] font-bold text-(--text2) uppercase tracking-wider mr-1">Dossiers</span>
+              <span
+                v-for="folder in folders" :key="folder.id"
+                class="text-xs font-bold px-3 py-1.5 rounded-lg bg-white/5 text-(--text2) flex items-center gap-1.5"
+              >
+                <i class="bi bi-folder2" /> {{ folder.title }}
+              </span>
+              <button
+                v-if="!showNewFolder"
+                @click="showNewFolder = true"
+                class="text-xs font-bold px-3 py-1.5 rounded-lg bg-white/5 text-(--text2) hover:bg-white/10 transition-colors flex items-center gap-1.5"
+              >
+                <i class="bi bi-plus-lg" /> Nouveau dossier
+              </button>
+              <form v-else @submit.prevent="createFolder" class="flex items-center gap-1.5">
+                <input
+                  v-model="newFolderTitle"
+                  type="text"
+                  autofocus
+                  placeholder="Nom du dossier..."
+                  class="text-xs bg-black/20 border border-(--text)/10 rounded-lg px-3 py-1.5 text-(--text) focus:border-(--primary)/50 outline-none transition-all w-40"
+                  @keydown.esc="showNewFolder = false; newFolderTitle = ''"
+                />
+                <button
+                  type="submit"
+                  :disabled="!newFolderTitle.trim() || creatingFolder"
+                  class="text-xs font-bold px-3 py-1.5 rounded-lg bg-(--primary)/10 text-(--primary) hover:bg-(--primary)/20 transition-colors disabled:opacity-50"
+                >
+                  Créer
+                </button>
+                <button
+                  type="button"
+                  @click="showNewFolder = false; newFolderTitle = ''"
+                  class="text-xs font-bold p-1.5 rounded-lg text-(--text2) hover:bg-white/5 transition-colors"
+                >
+                  <i class="bi bi-x-lg" />
+                </button>
+              </form>
+            </div>
+
             <div class="space-y-6">
               <div v-for="group in groupedTasks" :key="group.key">
                 <div class="flex items-center gap-2 mb-3">
@@ -221,6 +262,33 @@ const loadFolders = async () => {
     }
   } catch (e) {
     // Les dossiers sont secondaires : on n'affiche pas d'erreur bloquante ici.
+  }
+};
+
+const showNewFolder = ref(false);
+const newFolderTitle = ref('');
+const creatingFolder = ref(false);
+
+const createFolder = async () => {
+  const title = newFolderTitle.value.trim();
+  if (!title || creatingFolder.value) return;
+
+  creatingFolder.value = true;
+  try {
+    const res = await sfetch(`/api/tasks/${props.orgId}/lists`, {
+      method: 'POST',
+      body: JSON.stringify({ title, spaceId: props.spaceId || null })
+    });
+    if (!res.ok) throw new Error();
+    const list = await res.json();
+    folders.value.push({ id: list.id, title: list.title });
+    newFolderTitle.value = '';
+    showNewFolder.value = false;
+    toast.show('Dossier créé', 'success');
+  } catch (e) {
+    toast.show('Erreur lors de la création du dossier', 'error');
+  } finally {
+    creatingFolder.value = false;
   }
 };
 
