@@ -113,7 +113,7 @@
                         <div class="flex items-center gap-2">
                             <button
                                 v-if="col.id === 'DONE' && filteredTasks(col.id).length > 0"
-                                @click="archiveAllDone"
+                                @click="showArchiveAllConfirm = true"
                                 :disabled="archivingAll"
                                 class="text-amber-500/80 hover:text-amber-500 transition-colors disabled:opacity-50"
                                 title="Archiver toutes les tâches terminées"
@@ -286,6 +286,18 @@
             @restored="onTaskRestored"
             @count="archivedCount = $event"
         />
+
+        <ConfirmDelete
+            :show="showArchiveAllConfirm"
+            item-type="les tâches terminées"
+            :item-name="`${filteredTasks('DONE').length} tâche(s)`"
+            title="Archiver toutes les tâches terminées ?"
+            :message="`Êtes-vous sûr de vouloir archiver les ${filteredTasks('DONE').length} tâche(s) terminée(s) ? Vous pourrez les restaurer plus tard depuis les tâches archivées.`"
+            button-text="Archiver"
+            :loading="archivingAll"
+            @cancel="showArchiveAllConfirm = false"
+            @confirm="confirmArchiveAll"
+        />
     </div>
 </template>
 
@@ -305,6 +317,7 @@ import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import DropDown from '@/components/DropDown.vue';
 import ArchivedTasksPanel from '../components/popup/ArchivedTasksPanel.vue';
+import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import confetti from 'canvas-confetti';
 import { useNotification } from '@/composables/useNotification';
 import { useTaskOrder } from '@/composables/useTaskOrder';
@@ -325,6 +338,7 @@ const isDraggingTask = ref(false);
 const isHoveringTrash = ref(false);
 const isDeleting = ref(false);
 const archivingAll = ref(false);
+const showArchiveAllConfirm = ref(false);
 const showArchivedPanel = ref(false);
 const archivedCount = ref(0);
 const dragOverArchiveBtn = ref(false);
@@ -596,14 +610,18 @@ const archiveTask = async (task: Task) => {
     }
 };
 
-const archiveAllDone = async () => {
+const confirmArchiveAll = async () => {
     const doneTasks = filteredTasks('DONE');
-    if (doneTasks.length === 0) return;
+    if (doneTasks.length === 0) {
+        showArchiveAllConfirm.value = false;
+        return;
+    }
 
     archivingAll.value = true;
     try {
         await Promise.all(doneTasks.map(t => archiveTaskById(t.id)));
         toast.show("Tâches archivées", "success");
+        showArchiveAllConfirm.value = false;
     } catch (e) {
         toast.show("Erreur lors de l'archivage groupé", "error");
     } finally {
