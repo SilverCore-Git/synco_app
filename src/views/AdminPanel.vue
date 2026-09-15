@@ -1,8 +1,8 @@
 <template>
-  <div class="min-h-screen bg-(--bg2) text-(--text) font-sans">
-    
+  <div class="h-full flex flex-col overflow-hidden bg-(--bg2) text-(--text) font-sans">
+
     <!-- Top Navigation -->
-    <nav class="sticky top-0 z-50 bg-(--bg)/80 backdrop-blur-xl border-b border-white/5 px-6 py-4">
+    <nav class="shrink-0 z-50 bg-(--bg)/80 backdrop-blur-xl border-b border-white/5 px-6 py-4">
       <div class="max-w-7xl mx-auto flex items-center justify-between">
         <div class="flex items-center gap-4">
           <router-link to="/" class="p-2 hover:bg-white/5 rounded-xl transition-colors">
@@ -25,8 +25,10 @@
       </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto p-6 mt-4">
-      <router-view></router-view>
+    <main class="flex-1 min-h-0 overflow-y-auto">
+      <div class="max-w-7xl mx-auto p-6 mt-4">
+        <router-view></router-view>
+      </div>
     </main>
   </div>
 </template>

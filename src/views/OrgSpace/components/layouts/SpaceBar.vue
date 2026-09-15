@@ -3,7 +3,7 @@
 import SpaceBarBTN from '../common/SpaceBarBTN.vue';
 import { useRoute, useRouter } from 'vue-router';
 import CreateNewSpace from '../popup/CreateNewSpace.vue';
-import { openedOrg, todoEnabled, aiEnabled, agendaEnabled, user } from '@/assets/var';
+import { openedOrg, todoEnabled, aiEnabled, agendaEnabled, user, userCardHeight } from '@/assets/var';
 import { useNotification } from '@/composables/useNotification';
 import draggable from 'vuedraggable';
 import { ref, watch } from 'vue';
@@ -75,9 +75,12 @@ const onSpaceOrderChange = async () => {
         "
     >
 
-        <ul class="flex justify-start items-center flex-col gap-2 h-full w-full">
+        <ul
+            class="flex justify-start items-center flex-col gap-2 h-full w-full overflow-y-auto"
+            :style="{ paddingBottom: userCardHeight + 'px' }"
+        >
 
-            <RouterLink to="/">
+            <RouterLink to="/" class="shrink-0">
                 <SpaceBarBTN
                     icon="bi-arrow-bar-left"
                     label="Revenir aux organisation"
@@ -86,7 +89,7 @@ const onSpaceOrderChange = async () => {
                 />
             </RouterLink>
 
-            <RouterLink v-if="canAny(['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI'])" :to="`/${openedOrg.id}/settings?showView=0`">
+            <RouterLink v-if="canAny(['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI'])" :to="`/${openedOrg.id}/settings?showView=0`" class="shrink-0">
                 <SpaceBarBTN
                     icon="bi-gear"
                     label="Paramètres"
@@ -95,9 +98,9 @@ const onSpaceOrderChange = async () => {
                 />
             </RouterLink>
 
-            <hr class=" w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
+            <hr class="shrink-0 w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
 
-            <RouterLink :to="`/${openedOrg.id}/home?showView=0`">
+            <RouterLink :to="`/${openedOrg.id}/home?showView=1`" class="shrink-0">
                 <SpaceBarBTN
                     icon="bi-house"
                     label="Général"
@@ -107,7 +110,7 @@ const onSpaceOrderChange = async () => {
                 />
             </RouterLink>
 
-            <RouterLink :to="`/${openedOrg.id}/chat?showView=0`" class="relative">
+            <RouterLink :to="`/${openedOrg.id}/chat?showView=0`" class="relative shrink-0">
                 <SpaceBarBTN
                     icon="bi-chat-dots"
                     label="Messages privées"
@@ -117,7 +120,7 @@ const onSpaceOrderChange = async () => {
                 />
             </RouterLink>
 
-            <RouterLink v-if="todoEnabled" :to="`/${openedOrg.id}/tasks?showView=1`">
+            <RouterLink v-if="todoEnabled" :to="`/${openedOrg.id}/tasks?showView=1`" class="shrink-0">
                 <SpaceBarBTN
                     icon="bi-list-check"
                     label="Mes Tâches"
@@ -126,7 +129,7 @@ const onSpaceOrderChange = async () => {
                 />
             </RouterLink>
 
-            <RouterLink v-if="agendaEnabled" :to="`/${openedOrg.id}/agenda?showView=1`">
+            <RouterLink v-if="agendaEnabled" :to="`/${openedOrg.id}/agenda?showView=1`" class="shrink-0">
                 <SpaceBarBTN
                     icon="bi-calendar3"
                     label="Agenda"
@@ -134,7 +137,7 @@ const onSpaceOrderChange = async () => {
                 />
             </RouterLink>
 
-            <RouterLink v-if="aiEnabled" :to="`/${openedOrg.id}/ai?showView=0`">
+            <RouterLink v-if="aiEnabled" :to="`/${openedOrg.id}/ai?showView=0`" class="shrink-0">
                 <SpaceBarBTN
                     icon="bi-robot"
                     label="Synco AI"
@@ -142,7 +145,7 @@ const onSpaceOrderChange = async () => {
                 />
             </RouterLink>
             
-            <hr class=" w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
+            <hr class="shrink-0 w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
 
             <draggable
                 v-model="localSpaces"
@@ -151,12 +154,12 @@ const onSpaceOrderChange = async () => {
                 @change="onSpaceOrderChange"
                 ghost-class="opacity-50"
                 drag-class="cursor-grabbing"
-                class="flex flex-col gap-2 w-full"
+                class="shrink-0 flex flex-col gap-2 w-full"
             >
                 <template #item="{ element: space }">
                     <RouterLink
                         :to="`/${openedOrg.id}/${space.id}?showView=0`"
-                        class="w-full flex justify-center cursor-grab active:cursor-grabbing"
+                        class="w-full shrink-0 flex justify-center cursor-grab active:cursor-grabbing"
                     >
                         <SpaceBarBTN
                             :key="'space-' + space.id + '-btn'"
@@ -190,7 +193,10 @@ const onSpaceOrderChange = async () => {
         "
     >
 
-        <ul class="flex justify-start items-center flex-col gap-2 h-full w-full ">
+        <ul
+            class="flex justify-start items-center flex-col gap-2 h-full w-full overflow-y-auto"
+            :style="{ paddingBottom: userCardHeight + 'px' }"
+        >
 
             <SpaceBarBTN
                 icon="bi-arrow-bar-left"
@@ -208,7 +214,7 @@ const onSpaceOrderChange = async () => {
                 "
             />
 
-            <hr class=" w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
+            <hr class="shrink-0 w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
 
             <div 
                 v-for="i in 2"
@@ -220,7 +226,7 @@ const onSpaceOrderChange = async () => {
                 "
             />
             
-            <hr class=" w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
+            <hr class="shrink-0 w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
 
             <div 
                 v-for="i in 5"

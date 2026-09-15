@@ -1,33 +1,40 @@
 <template>
-    <div class="time-grid" @wheel="onWheel">
-        <div class="time-grid-header">
-            <div class="time-grid-gutter-header"></div>
+    <div class="time-grid">
+        <div class="time-grid-header" ref="headerEl">
+            <div class="time-grid-gutter-header sticky-gutter"></div>
             <div
                 v-for="day in days"
                 :key="'h-' + day.iso"
                 class="time-grid-day-header"
                 :class="{ 'is-today': day.isToday }"
+                :style="{ width: dayWidth + 'px' }"
             >
                 <span class="time-grid-day-name">{{ day.weekdayLabel }}</span>
                 <span class="time-grid-day-number">{{ day.date.getDate() }}</span>
             </div>
         </div>
 
-        <div class="time-grid-allday">
-            <div class="time-grid-gutter-header time-grid-allday-label">Journée</div>
-            <div v-for="day in days" :key="'ad-' + day.iso" class="time-grid-allday-cell" @click="emitCreate(allDayDate(day.date), allDayEndDate(day.date), true, $event)">
+        <div class="time-grid-allday" ref="alldayEl">
+            <div class="time-grid-gutter-header time-grid-allday-label sticky-gutter">Journée</div>
+            <div
+                v-for="day in days"
+                :key="'ad-' + day.iso"
+                class="time-grid-allday-cell"
+                :style="{ width: dayWidth + 'px' }"
+                @click="emitCreate(allDayDate(day.date), allDayEndDate(day.date), true, $event)"
+            >
                 <EventChip
                     v-for="occ in day.allDayOccurrences"
                     :key="occ.occurrenceKey"
                     :occurrence="occ"
                     compact
-                    @click="emit('open-event', occ)"
+                    @click.stop="emit('open-event', occ)"
                 />
             </div>
         </div>
 
-        <div class="time-grid-body">
-            <div class="time-grid-gutter-col">
+        <div class="time-grid-body" ref="bodyEl" @scroll="onBodyScroll">
+            <div class="time-grid-gutter-col sticky-gutter">
                 <div v-for="h in hours" :key="'lbl-' + h" class="time-grid-hour-label" :style="{ height: rowHeight + 'px' }">
                     {{ String(h).padStart(2, '0') }}:00
                 </div>
@@ -37,8 +44,9 @@
                 :key="'col-' + day.iso"
                 class="time-grid-day-col"
                 :data-iso="day.iso"
-                :style="{ height: rowHeight * 24 + 'px' }"
+                :style="{ height: rowHeight * 24 + 'px', width: dayWidth + 'px' }"
                 @mousedown="onPointerDown($event, day)"
+                @click="onDayTapCreate($event, day)"
             >
                 <div v-for="h in hours" :key="'line-' + h" class="time-grid-hour-line" :style="{ height: rowHeight + 'px' }"></div>
 
@@ -49,9 +57,9 @@
                     :class="{ 'is-event-dragging': eventDrag?.occ.occurrenceKey === occ.occurrenceKey }"
                     :style="eventStyle(occ, day)"
                 >
-                    <div v-if="!isLocked(occ)" class="time-grid-resize-handle top" @mousedown.stop="startEventDrag($event, occ, 'resize-top')"></div>
-                    <EventChip :occurrence="occ" @click="emit('open-event', occ)" @mousedown.stop="isLocked(occ) ? undefined : startEventDrag($event, occ, 'move')" />
-                    <div v-if="!isLocked(occ)" class="time-grid-resize-handle bottom" @mousedown.stop="startEventDrag($event, occ, 'resize-bottom')"></div>
+                    <div v-if="!isLocked(occ)" class="time-grid-resize-handle top" @pointerdown.stop="startEventDrag($event, occ, 'resize-top')" @click.stop></div>
+                    <EventChip :occurrence="occ" @click.stop="emit('open-event', occ)" @pointerdown.stop="isLocked(occ) ? undefined : startEventDrag($event, occ, 'move')" />
+                    <div v-if="!isLocked(occ)" class="time-grid-resize-handle bottom" @pointerdown.stop="startEventDrag($event, occ, 'resize-bottom')" @click.stop></div>
                 </div>
 
                 <div
@@ -81,9 +89,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import EventChip from './EventChip.vue';
 import { isTaskDeadlineOccurrence, type OccurrenceInstance } from '@/types/agenda';
+import { isLittleScreen } from '@/assets/var';
 
 const props = defineProps<{
     cursorDate: Date;
@@ -95,49 +104,21 @@ const emit = defineEmits<{
     'open-event': [occ: OccurrenceInstance];
     'create': [range: { start: Date; end: Date; allDay?: boolean; clientX?: number; clientY?: number }];
     'reschedule': [payload: { occ: OccurrenceInstance; start: Date; end: Date }];
-    'navigate': [direction: 1 | -1];
+    // Purement cosmétique (synchronisation du bandeau MiniCalendar) — ne
+    // touche jamais cursorDate/le fetch, voir AgendaView.vue.
+    'visible-range-change': [start: Date];
 }>();
-
-// ── Navigation par scroll horizontal (trackpad/molette shift) : glisser
-// sur l'axe x décale la fenêtre de 7 jours d'un jour à la fois (défilement
-// continu jour par jour dans le mois — voir startOfWindow ci-dessus). Un
-// geste vertical normal (deltaY dominant) n'est jamais intercepté. Cumul +
-// cooldown pour qu'un seul geste de swipe ne déclenche qu'un décalage à la
-// fois, même s'il envoie plusieurs évènements wheel.
-// Décaler d'un seul jour par cran est une action bien plus légère que
-// paginer une semaine entière : seuil et cooldown plus courts pour que le
-// défilement continu (glisser longtemps) enchaîne les jours sans à-coups.
-const HORIZONTAL_NAV_THRESHOLD = 35;
-const NAV_COOLDOWN_MS = 180;
-let horizontalAccum = 0;
-let navCooldown = false;
-
-function onWheel(e: WheelEvent) {
-    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
-    e.preventDefault();
-    if (navCooldown) return;
-
-    horizontalAccum += e.deltaX;
-    if (Math.abs(horizontalAccum) < HORIZONTAL_NAV_THRESHOLD) return;
-
-    emit('navigate', horizontalAccum > 0 ? 1 : -1);
-    horizontalAccum = 0;
-    navCooldown = true;
-    setTimeout(() => { navCooldown = false; }, NAV_COOLDOWN_MS);
-}
 
 const ROW_HEIGHT = 48;
 const rowHeight = ROW_HEIGHT;
 const SNAP_MINUTES = 15;
 const MIN_DURATION = 15;
 const hours = Array.from({ length: 24 }, (_, i) => i);
+const GUTTER_WIDTH = 56;
+const VISIBLE_DAYS = 7;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-// Fenêtre glissante de 7 jours démarrant à cursorDate — pas calée sur
-// lundi-dimanche, pour permettre un défilement continu jour par jour (voir
-// onWheel plus bas et AgendaView.vue::onWeekNavigate). Les boutons
-// précédent/suivant paginent par bloc de 7 jours (AgendaView.vue::goPrev/
-// goNext), le scroll horizontal décale d'un jour à la fois.
-function startOfWindow(d: Date): Date {
+function startOfDay(d: Date): Date {
     const date = new Date(d);
     date.setHours(0, 0, 0, 0);
     return date;
@@ -150,6 +131,152 @@ function isoDay(d: Date): string {
     return `${y}-${m}-${day}`;
 }
 
+// ── Défilement horizontal fluide et "infini" ────────────────────────────
+// Contrairement à une semaine calendaire figée, la grille affiche une
+// fenêtre glissante de jours consécutifs bien plus large que les 7 jours
+// visibles à l'écran (INITIAL_HALF de chaque côté du curseur), avec un
+// vrai scroll natif du navigateur (aucune interception de wheel, aucun
+// saut discret) — c'est ça qui rend le défilement lisse. Approcher un
+// bord de cette fenêtre l'étend silencieusement (ajout de jours), jusqu'à
+// un plafond (MAX_HALF) qui borne le nombre de colonnes réellement
+// présentes dans le DOM. Les données (props.occurrences) couvrent déjà
+// cette plage large (voir AgendaView.vue::computeRangeISO), donc étendre
+// la fenêtre n'a jamais besoin d'aller chercher de nouvelles données.
+const INITIAL_HALF = 45;
+const MAX_HALF = 120;
+const EDGE_MARGIN = 10;
+const EXTEND_CHUNK = 30;
+
+const bufferStart = ref<Date>(startOfDay(props.cursorDate));
+const bufferDayCount = ref(INITIAL_HALF * 2 + 1);
+let originalCenter = startOfDay(props.cursorDate);
+
+function resetBuffer(center: Date) {
+    originalCenter = startOfDay(center);
+    const start = new Date(originalCenter);
+    start.setDate(start.getDate() - INITIAL_HALF);
+    bufferStart.value = start;
+    bufferDayCount.value = INITIAL_HALF * 2 + 1;
+}
+
+const headerEl = ref<HTMLElement | null>(null);
+const alldayEl = ref<HTMLElement | null>(null);
+const bodyEl = ref<HTMLElement | null>(null);
+const dayWidth = ref(120);
+
+function measureDayWidth() {
+    if (!bodyEl.value) return;
+    const available = bodyEl.value.clientWidth - GUTTER_WIDTH;
+    dayWidth.value = Math.max(80, Math.floor(available / VISIBLE_DAYS));
+}
+
+function scrollToCenter() {
+    if (!bodyEl.value) return;
+    bodyEl.value.scrollLeft = INITIAL_HALF * dayWidth.value;
+    if (headerEl.value) headerEl.value.scrollLeft = bodyEl.value.scrollLeft;
+    if (alldayEl.value) alldayEl.value.scrollLeft = bodyEl.value.scrollLeft;
+}
+
+let resizeObserver: ResizeObserver | null = null;
+
+onMounted(() => {
+    measureDayWidth();
+    resizeObserver = new ResizeObserver(() => {
+        measureDayWidth();
+    });
+    if (bodyEl.value) resizeObserver.observe(bodyEl.value);
+    nextTick(() => {
+        scrollToCenter();
+        emitVisibleRangeChange();
+    });
+});
+
+onUnmounted(() => {
+    resizeObserver?.disconnect();
+    if (settleTimer) clearTimeout(settleTimer);
+});
+
+// Un changement de cursorDate (bouton précédent/suivant, "Aujourd'hui",
+// passage dans un autre mode puis retour) recentre la fenêtre et resynchronise
+// le scroll ; le défilement horizontal lui-même ne touche jamais cursorDate
+// (voir onBodyScroll/maybeExtendBuffer), donc aucun risque de boucle ou de
+// rechargement de données pendant qu'on scroll.
+watch(() => props.cursorDate, (newDate) => {
+    resetBuffer(newDate);
+    nextTick(() => {
+        scrollToCenter();
+        emitVisibleRangeChange();
+    });
+});
+
+let rafScheduled = false;
+let settleTimer: ReturnType<typeof setTimeout> | null = null;
+const VISIBLE_RANGE_SETTLE_MS = 180;
+
+function onBodyScroll() {
+    if (!bodyEl.value) return;
+    if (headerEl.value) headerEl.value.scrollLeft = bodyEl.value.scrollLeft;
+    if (alldayEl.value) alldayEl.value.scrollLeft = bodyEl.value.scrollLeft;
+
+    if (!rafScheduled) {
+        rafScheduled = true;
+        requestAnimationFrame(() => {
+            rafScheduled = false;
+            maybeExtendBuffer();
+        });
+    }
+
+    // Débattu : purement pour tenir le bandeau du MiniCalendar à jour sans
+    // spammer l'émission à chaque pixel scrollé.
+    if (settleTimer) clearTimeout(settleTimer);
+    settleTimer = setTimeout(emitVisibleRangeChange, VISIBLE_RANGE_SETTLE_MS);
+}
+
+function emitVisibleRangeChange() {
+    if (!bodyEl.value || dayWidth.value <= 0) return;
+    const leftIndex = Math.round(bodyEl.value.scrollLeft / dayWidth.value);
+    const visibleStart = new Date(bufferStart.value);
+    visibleStart.setDate(visibleStart.getDate() + leftIndex);
+    emit('visible-range-change', visibleStart);
+}
+
+function maybeExtendBuffer() {
+    if (!bodyEl.value || dayWidth.value <= 0) return;
+    const leftIndex = bodyEl.value.scrollLeft / dayWidth.value;
+
+    // Bord gauche : ajoute des jours avant, en compensant scrollLeft pour
+    // qu'aucun saut visuel ne se produise (le contenu déjà visible ne bouge pas).
+    if (leftIndex < EDGE_MARGIN) {
+        const earliestAllowed = new Date(originalCenter);
+        earliestAllowed.setDate(earliestAllowed.getDate() - MAX_HALF);
+        const currentSpan = (bufferStart.value.getTime() - earliestAllowed.getTime()) / DAY_MS;
+        const add = Math.max(0, Math.min(EXTEND_CHUNK, Math.floor(currentSpan)));
+        if (add > 0) {
+            bufferStart.value = new Date(bufferStart.value.getTime() - add * DAY_MS);
+            bufferDayCount.value += add;
+            nextTick(() => {
+                if (!bodyEl.value) return;
+                const delta = add * dayWidth.value;
+                bodyEl.value.scrollLeft += delta;
+                if (headerEl.value) headerEl.value.scrollLeft = bodyEl.value.scrollLeft;
+                if (alldayEl.value) alldayEl.value.scrollLeft = bodyEl.value.scrollLeft;
+            });
+        }
+        return;
+    }
+
+    // Bord droit : ajoute des jours après (aucune compensation nécessaire,
+    // le contenu existant ne se déplace pas quand on ajoute à la suite).
+    if (leftIndex > bufferDayCount.value - VISIBLE_DAYS - EDGE_MARGIN) {
+        const latestAllowedEnd = new Date(originalCenter);
+        latestAllowedEnd.setDate(latestAllowedEnd.getDate() + MAX_HALF);
+        const bufferEnd = new Date(bufferStart.value.getTime() + bufferDayCount.value * DAY_MS);
+        const currentSpan = (latestAllowedEnd.getTime() - bufferEnd.getTime()) / DAY_MS;
+        const add = Math.max(0, Math.min(EXTEND_CHUNK, Math.floor(currentSpan)));
+        if (add > 0) bufferDayCount.value += add;
+    }
+}
+
 interface DayColumn {
     date: Date;
     iso: string;
@@ -160,7 +287,6 @@ interface DayColumn {
 }
 
 const days = computed<DayColumn[]>(() => {
-    const start = startOfWindow(props.cursorDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -184,8 +310,8 @@ const days = computed<DayColumn[]>(() => {
     }
 
     const list: DayColumn[] = [];
-    for (let i = 0; i < 7; i++) {
-        const date = new Date(start);
+    for (let i = 0; i < bufferDayCount.value; i++) {
+        const date = new Date(bufferStart.value);
         date.setDate(date.getDate() + i);
         const iso = isoDay(date);
         const dayOccurrences = (byDay.get(iso) || []).slice().sort((a, b) => a.startAt.localeCompare(b.startAt));
@@ -292,6 +418,10 @@ function snap(minutes: number): number {
 
 function onPointerDown(e: MouseEvent, day: DayColumn) {
     if (e.button !== 0) return;
+    // Sur mobile, glisser sur une zone vide entre en conflit avec le scroll
+    // natif (horizontal ET vertical) — pas de sélection par glisser là,
+    // voir onDayTapCreate (simple tap) plus bas.
+    if (isLittleScreen.value) return;
     const target = e.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
     const y = e.clientY - rect.top;
@@ -385,6 +515,22 @@ function emitCreate(start: Date, end: Date, allDay: boolean, e: MouseEvent) {
     emit('create', { start, end, allDay, clientX: e.clientX, clientY: e.clientY });
 }
 
+// Sur mobile, un tap crée directement un créneau de 30 min à l'heure
+// tapée — pas de glisser pour choisir la durée (conflit avec le scroll,
+// voir onPointerDown ci-dessus). Ajuster la durée se fait ensuite via les
+// poignées de redimensionnement (voir startEventDrag, en pointer events).
+function onDayTapCreate(e: MouseEvent, day: DayColumn) {
+    if (!isLittleScreen.value) return;
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const startMinutes = snap(pxToMinutes(y));
+
+    const start = combineDateAndMinutes(day.date, startMinutes);
+    const end = new Date(start.getTime() + 30 * 60000);
+    emit('create', { start, end, clientX: e.clientX, clientY: e.clientY });
+}
+
 function allDayDate(date: Date): Date {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
@@ -418,8 +564,12 @@ function minutesOfDay(d: Date): number {
     return d.getHours() * 60 + d.getMinutes();
 }
 
-function startEventDrag(e: MouseEvent, occ: OccurrenceInstance, mode: EventDragMode) {
-    if (e.button !== 0) return;
+// En Pointer Events (pas mousedown/mousemove/mouseup) : ces poignées sont de
+// petites cibles dédiées (voir touch-action: none en CSS), donc activer le
+// tactile ici ne rentre pas en conflit avec le scroll de la grille — au
+// contraire d'un glisser sur une zone vide (voir onPointerDown/onDayTapCreate).
+function startEventDrag(e: PointerEvent, occ: OccurrenceInstance, mode: EventDragMode) {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
     const start = new Date(occ.startAt);
     const end = new Date(occ.endAt);
     const iso = isoDay(start);
@@ -435,11 +585,11 @@ function startEventDrag(e: MouseEvent, occ: OccurrenceInstance, mode: EventDragM
         currentEndMin: minutesOfDay(end),
         currentIso: iso
     };
-    window.addEventListener('mousemove', onEventDragMove);
-    window.addEventListener('mouseup', onEventDragEnd);
+    window.addEventListener('pointermove', onEventDragMove);
+    window.addEventListener('pointerup', onEventDragEnd);
 }
 
-function onEventDragMove(e: MouseEvent) {
+function onEventDragMove(e: PointerEvent) {
     if (!eventDrag.value) return;
     const d = eventDrag.value;
     const deltaMin = snap((e.clientY - d.pointerStartY) / rowHeight * 60);
@@ -465,8 +615,8 @@ function onEventDragMove(e: MouseEvent) {
 }
 
 function onEventDragEnd() {
-    window.removeEventListener('mousemove', onEventDragMove);
-    window.removeEventListener('mouseup', onEventDragEnd);
+    window.removeEventListener('pointermove', onEventDragMove);
+    window.removeEventListener('pointerup', onEventDragEnd);
     if (!eventDrag.value) return;
 
     const d = eventDrag.value;
@@ -510,10 +660,19 @@ const eventDragLabel = computed(() => {
 }
 
 .time-grid-header {
-    display: grid;
-    grid-template-columns: 56px repeat(7, 1fr);
+    display: flex;
+    overflow: hidden;
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
+}
+
+.sticky-gutter {
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    background: var(--bg);
+    flex-shrink: 0;
+    width: 56px;
 }
 
 .time-grid-gutter-header {
@@ -524,6 +683,7 @@ const eventDragLabel = computed(() => {
     display: flex;
     flex-direction: column;
     align-items: center;
+    flex-shrink: 0;
     padding: 8px 4px;
     gap: 2px;
 }
@@ -547,8 +707,8 @@ const eventDragLabel = computed(() => {
 }
 
 .time-grid-allday {
-    display: grid;
-    grid-template-columns: 56px repeat(7, 1fr);
+    display: flex;
+    overflow: hidden;
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
     min-height: 32px;
@@ -565,6 +725,7 @@ const eventDragLabel = computed(() => {
 }
 
 .time-grid-allday-cell {
+    flex-shrink: 0;
     border-right: 1px solid var(--border-color);
     padding: 3px;
     display: flex;
@@ -575,9 +736,8 @@ const eventDragLabel = computed(() => {
 
 .time-grid-body {
     flex: 1;
-    display: grid;
-    grid-template-columns: 56px repeat(7, 1fr);
-    overflow-y: auto;
+    display: flex;
+    overflow: auto;
     position: relative;
 }
 
@@ -594,6 +754,7 @@ const eventDragLabel = computed(() => {
 }
 
 .time-grid-day-col {
+    flex-shrink: 0;
     position: relative;
     border-right: 1px solid var(--border-color);
     cursor: crosshair;
@@ -612,6 +773,9 @@ const eventDragLabel = computed(() => {
     overflow: visible;
     cursor: grab;
     z-index: 1;
+    /* Poignée de déplacement tactile dédiée (voir startEventDrag en Pointer
+       Events) — ne doit jamais être interprétée comme un geste de scroll. */
+    touch-action: none;
 }
 
 .time-grid-event.is-event-dragging {
@@ -626,9 +790,20 @@ const eventDragLabel = computed(() => {
     height: 6px;
     cursor: ns-resize;
     z-index: 3;
+    touch-action: none;
 }
 .time-grid-resize-handle.top { top: -2px; }
 .time-grid-resize-handle.bottom { bottom: -2px; }
+
+/* Cible tactile plus généreuse sur pointeur "grossier" (doigt) — 6px est
+   jouable à la souris mais quasi impossible à attraper précisément au doigt. */
+@media (pointer: coarse) {
+    .time-grid-resize-handle {
+        height: 16px;
+    }
+    .time-grid-resize-handle.top { top: -8px; }
+    .time-grid-resize-handle.bottom { bottom: -8px; }
+}
 
 .time-grid-drag-ghost {
     position: absolute;

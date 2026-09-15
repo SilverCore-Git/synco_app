@@ -43,18 +43,6 @@
                     <button @click="filterUserId = user?.id || null" class="px-4 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="filterUserId === user?.id ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10'">
                         Mes tâches
                     </button>
-                    <button
-                        v-if="archivedCount > 0 || isDraggingTask"
-                        @click="showArchivedPanel = true"
-                        @dragover.prevent="dragOverArchiveBtn = true"
-                        @dragleave.prevent="dragOverArchiveBtn = false"
-                        @drop="onDropToArchiveBtn"
-                        class="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0"
-                        :class="dragOverArchiveBtn ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-[0_4px_20px_rgba(245,158,11,0.5)]' : (showArchivedPanel ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10')"
-                    >
-                        <i class="bi bi-archive-fill" />
-                        Tâches archivées
-                    </button>
                 </div>
 
                 <div class="hidden sm:block w-px h-6 bg-white/10 mx-2 shrink-0"></div>
@@ -76,7 +64,20 @@
                         {{ $p(member.user?.name) }}
                     </button>
                 </div>
-                
+
+                <button
+                    v-if="archivedCount > 0 || isDraggingTask"
+                    @click="showArchivedPanel = true"
+                    @dragover.prevent="dragOverArchiveBtn = true"
+                    @dragleave.prevent="dragOverArchiveBtn = false"
+                    @drop="onDropToArchiveBtn"
+                    class="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0 self-end sm:self-auto sm:ml-auto"
+                    :class="dragOverArchiveBtn ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-[0_4px_20px_rgba(245,158,11,0.5)]' : (showArchivedPanel ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10')"
+                >
+                    <i class="bi bi-archive-fill" />
+                    Tâches archivées
+                </button>
+
             </div>
 
             <div v-if="loading" class="flex-1 min-h-0 w-full flex flex-col gap-6 animate-pulse pb-10">
@@ -113,7 +114,7 @@
                         <div class="flex items-center gap-2">
                             <button
                                 v-if="col.id === 'DONE' && filteredTasks(col.id).length > 0"
-                                @click="archiveAllDone"
+                                @click="showArchiveAllConfirm = true"
                                 :disabled="archivingAll"
                                 class="text-amber-500/80 hover:text-amber-500 transition-colors disabled:opacity-50"
                                 title="Archiver toutes les tâches terminées"
@@ -286,6 +287,18 @@
             @restored="onTaskRestored"
             @count="archivedCount = $event"
         />
+
+        <ConfirmDelete
+            :show="showArchiveAllConfirm"
+            item-type="les tâches terminées"
+            :item-name="`${filteredTasks('DONE').length} tâche(s)`"
+            title="Archiver toutes les tâches terminées ?"
+            :message="`Êtes-vous sûr de vouloir archiver les ${filteredTasks('DONE').length} tâche(s) terminée(s) ? Vous pourrez les restaurer plus tard depuis les tâches archivées.`"
+            button-text="Archiver"
+            :loading="archivingAll"
+            @cancel="showArchiveAllConfirm = false"
+            @confirm="confirmArchiveAll"
+        />
     </div>
 </template>
 
@@ -305,6 +318,7 @@ import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import DropDown from '@/components/DropDown.vue';
 import ArchivedTasksPanel from '../components/popup/ArchivedTasksPanel.vue';
+import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import confetti from 'canvas-confetti';
 import { useNotification } from '@/composables/useNotification';
 import { useTaskOrder } from '@/composables/useTaskOrder';
@@ -325,6 +339,7 @@ const isDraggingTask = ref(false);
 const isHoveringTrash = ref(false);
 const isDeleting = ref(false);
 const archivingAll = ref(false);
+const showArchiveAllConfirm = ref(false);
 const showArchivedPanel = ref(false);
 const archivedCount = ref(0);
 const dragOverArchiveBtn = ref(false);
@@ -596,14 +611,18 @@ const archiveTask = async (task: Task) => {
     }
 };
 
-const archiveAllDone = async () => {
+const confirmArchiveAll = async () => {
     const doneTasks = filteredTasks('DONE');
-    if (doneTasks.length === 0) return;
+    if (doneTasks.length === 0) {
+        showArchiveAllConfirm.value = false;
+        return;
+    }
 
     archivingAll.value = true;
     try {
         await Promise.all(doneTasks.map(t => archiveTaskById(t.id)));
         toast.show("Tâches archivées", "success");
+        showArchiveAllConfirm.value = false;
     } catch (e) {
         toast.show("Erreur lors de l'archivage groupé", "error");
     } finally {

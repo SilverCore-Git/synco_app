@@ -86,7 +86,7 @@
                     
                     </div>
 
-                    <div class="z-20 flex justify-start items-start gap-3">
+                    <div class="z-20 flex justify-start items-start gap-3 min-w-0 w-full">
 
                         <img 
                             v-if="msg.sender && !isStacked"
@@ -163,22 +163,22 @@
                                     v-for="file in msg.files" 
                                     :key="file.id"
                                     class="
-                                        group/file relative flex items-center gap-3 p-2 
-                                        rounded-lg border border-(--text)/10 
-                                        bg-white/3 hover:bg-white/5 transition-all 
-                                        max-w-sm overflow-hidden
+                                        group/file relative flex items-center gap-3 p-2
+                                        rounded-lg border border-(--text)/10
+                                        bg-white/3 hover:bg-white/5 transition-all
+                                        max-w-full sm:max-w-sm min-w-0 overflow-hidden
                                     "
                                     :title="file.originalName"
                                 >
-                                
+
                                     <div class="w-10 h-10 shrink-0 flex items-center justify-center rounded bg-(--bg) border border-(--text)/5">
 
                                         <i class="bi text-xl" :class="[ getFileInfo(file).color, getFileInfo(file).icon ]" />
 
                                     </div>
 
-                                    <div class="flex flex-col min-w-0 pr-2">
-                                        <span class="text-xs font-medium text-(--text) truncate">
+                                    <div class="flex flex-col min-w-0 flex-1 pr-2">
+                                        <span class="text-xs font-medium text-(--text) truncate min-w-0">
                                             {{ file.originalName }}
                                         </span>
                                         <span class="text-[10px] text-(--text2) uppercase tracking-wider">

@@ -41,36 +41,127 @@
             <p class="text-sm font-medium">Aucune tâche archivée pour le moment.</p>
           </div>
 
-          <div v-else class="space-y-3">
-            <div
-              v-for="task in archivedTasks" :key="task.id"
-              class="flex items-center justify-between gap-3 p-4 bg-(--bg2)/40 border border-(--border-color) rounded-xl"
-            >
-              <div class="min-w-0">
-                <p class="text-sm font-bold text-(--text) truncate">{{ task.title }}</p>
-                <p class="text-[11px] text-(--text2) mt-0.5">
-                  Archivée le {{ formatDate(task.archivedAt) }}
-                </p>
-              </div>
-              <div class="flex items-center gap-2 shrink-0">
+          <template v-else>
+            <div class="flex items-center gap-2 mb-5">
+              <span class="text-[11px] font-bold text-(--text2) uppercase tracking-wider mr-1">Trier par</span>
+              <button
+                @click="sortMode = 'date'"
+                class="text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+                :class="sortMode === 'date' ? 'bg-(--primary) text-white' : 'bg-white/5 text-(--text2) hover:bg-white/10'"
+              >
+                <i class="bi bi-calendar3" /> Date
+              </button>
+              <button
+                @click="sortMode = 'folder'"
+                class="text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+                :class="sortMode === 'folder' ? 'bg-(--primary) text-white' : 'bg-white/5 text-(--text2) hover:bg-white/10'"
+              >
+                <i class="bi bi-folder2" /> Dossier
+              </button>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap mb-5">
+              <span class="text-[11px] font-bold text-(--text2) uppercase tracking-wider mr-1">Dossiers</span>
+              <span
+                class="text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors"
+                :class="dragOverFolderId === '__none__' ? 'bg-amber-500 text-white ring-2 ring-amber-300' : 'bg-white/5 text-(--text2)'"
+                @dragover.prevent="draggedTaskId && (dragOverFolderId = '__none__')"
+                @dragleave.prevent="dragOverFolderId = null"
+                @drop.prevent="onDropOnFolder($event, null)"
+              >
+                <i class="bi bi-dash-circle" /> Sans dossier
+              </span>
+              <span
+                v-for="folder in folders" :key="folder.id"
+                class="text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors"
+                :class="dragOverFolderId === folder.id ? 'bg-amber-500 text-white ring-2 ring-amber-300' : 'bg-white/5 text-(--text2)'"
+                @dragover.prevent="draggedTaskId && (dragOverFolderId = folder.id)"
+                @dragleave.prevent="dragOverFolderId = null"
+                @drop.prevent="onDropOnFolder($event, folder.id)"
+              >
+                <i class="bi bi-folder2" /> {{ folder.title }}
+              </span>
+              <button
+                v-if="!showNewFolder"
+                @click="showNewFolder = true"
+                class="text-xs font-bold px-3 py-1.5 rounded-lg bg-white/5 text-(--text2) hover:bg-white/10 transition-colors flex items-center gap-1.5"
+              >
+                <i class="bi bi-plus-lg" /> Nouveau dossier
+              </button>
+              <form v-else @submit.prevent="createFolder" class="flex items-center gap-1.5">
+                <input
+                  v-model="newFolderTitle"
+                  type="text"
+                  autofocus
+                  placeholder="Nom du dossier..."
+                  class="text-xs bg-black/20 border border-(--text)/10 rounded-lg px-3 py-1.5 text-(--text) focus:border-(--primary)/50 outline-none transition-all w-40"
+                  @keydown.esc="showNewFolder = false; newFolderTitle = ''"
+                />
                 <button
-                  @click="restore(task)"
-                  :disabled="pendingId === task.id"
-                  class="text-xs font-bold px-3 py-1.5 rounded-lg bg-(--primary)/10 text-(--primary) hover:bg-(--primary)/20 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                  type="submit"
+                  :disabled="!newFolderTitle.trim() || creatingFolder"
+                  class="text-xs font-bold px-3 py-1.5 rounded-lg bg-(--primary)/10 text-(--primary) hover:bg-(--primary)/20 transition-colors disabled:opacity-50"
                 >
-                  <i class="bi bi-arrow-counterclockwise" /> Restaurer
+                  Créer
                 </button>
                 <button
-                  @click="askRemove(task)"
-                  :disabled="pendingId === task.id"
-                  class="text-xs font-bold p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-                  title="Supprimer définitivement"
+                  type="button"
+                  @click="showNewFolder = false; newFolderTitle = ''"
+                  class="text-xs font-bold p-1.5 rounded-lg text-(--text2) hover:bg-white/5 transition-colors"
                 >
-                  <i class="bi bi-trash" />
+                  <i class="bi bi-x-lg" />
                 </button>
+              </form>
+            </div>
+
+            <div class="space-y-6">
+              <div v-for="group in groupedTasks" :key="group.key">
+                <div class="flex items-center gap-2 mb-3">
+                  <span class="text-[11px] font-black uppercase tracking-widest text-(--text2)">{{ group.label }}</span>
+                  <span class="text-[10px] text-(--text2)/60">({{ group.tasks.length }})</span>
+                  <div class="flex-1 h-px bg-white/10"></div>
+                </div>
+
+                <div class="space-y-3">
+                  <div
+                    v-for="task in group.tasks" :key="task.id"
+                    draggable="true"
+                    @dragstart="onTaskDragStart($event, task)"
+                    @dragend="onTaskDragEnd"
+                    class="flex items-center justify-between gap-3 p-4 bg-(--bg2)/40 border border-(--border-color) rounded-xl cursor-grab active:cursor-grabbing transition-opacity"
+                    :class="draggedTaskId === task.id ? 'opacity-40' : ''"
+                  >
+                    <div class="min-w-0">
+                      <p class="text-sm font-bold text-(--text) truncate">{{ task.title }}</p>
+                      <p class="text-[11px] text-(--text2) mt-0.5 flex items-center gap-1.5 flex-wrap">
+                        <span>Archivée le {{ formatDate(task.archivedAt) }}</span>
+                        <span v-if="task.todoList" class="inline-flex items-center gap-1 text-(--primary)">
+                          <i class="bi bi-folder2" />{{ task.todoList.title }}
+                        </span>
+                      </p>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                      <button
+                        @click="restore(task)"
+                        :disabled="pendingId === task.id"
+                        class="text-xs font-bold px-3 py-1.5 rounded-lg bg-(--primary)/10 text-(--primary) hover:bg-(--primary)/20 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <i class="bi bi-arrow-counterclockwise" /> Restaurer
+                      </button>
+                      <button
+                        @click="askRemove(task)"
+                        :disabled="pendingId === task.id"
+                        class="text-xs font-bold p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                        title="Supprimer définitivement"
+                      >
+                        <i class="bi bi-trash" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          </template>
         </main>
       </div>
     </div>
@@ -88,9 +179,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import sfetch from '@/assets/utils/sfetch';
-import type { Task } from '@/types/types';
+import type { Task, TodoList } from '@/types/types';
 import { useToast } from '@/composables/useToast';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 
@@ -112,11 +203,54 @@ const loading = ref(false);
 const pendingId = ref<string | null>(null);
 const archivedTasks = ref<Task[]>([]);
 const taskToRemove = ref<Task | null>(null);
+const sortMode = ref<'date' | 'folder'>('date');
+const folders = ref<{ id: string; title: string }[]>([]);
 
 const formatDate = (date?: string | Date | null) => {
   if (!date) return '';
   return new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 };
+
+const dayLabel = (date: Date) => {
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(new Date()) - startOfDay(date)) / 86400000);
+  if (diffDays === 0) return "Aujourd'hui";
+  if (diffDays === 1) return 'Hier';
+  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+};
+
+type TaskGroup = { key: string; label: string; tasks: Task[] };
+
+const groupedTasks = computed<TaskGroup[]>(() => {
+  const sorted = [...archivedTasks.value].sort(
+    (a, b) => new Date(b.archivedAt || 0).getTime() - new Date(a.archivedAt || 0).getTime()
+  );
+
+  const groups = new Map<string, TaskGroup>();
+
+  if (sortMode.value === 'folder') {
+    for (const task of sorted) {
+      const key = task.todoList?.id || '__none__';
+      const label = task.todoList?.title || 'Sans dossier';
+      if (!groups.has(key)) groups.set(key, { key, label, tasks: [] });
+      groups.get(key)!.tasks.push(task);
+    }
+    return [...groups.values()].sort((a, b) => {
+      if (a.key === '__none__') return 1;
+      if (b.key === '__none__') return -1;
+      return a.label.localeCompare(b.label, 'fr');
+    });
+  }
+
+  for (const task of sorted) {
+    const date = task.archivedAt ? new Date(task.archivedAt) : null;
+    const key = date ? `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}` : '__unknown__';
+    const label = date ? dayLabel(date) : 'Date inconnue';
+    if (!groups.has(key)) groups.set(key, { key, label, tasks: [] });
+    groups.get(key)!.tasks.push(task);
+  }
+  return [...groups.values()];
+});
 
 const load = async () => {
   loading.value = true;
@@ -133,6 +267,87 @@ const load = async () => {
     toast.show("Erreur chargement des archives", "error");
   } finally {
     loading.value = false;
+  }
+};
+
+const loadFolders = async () => {
+  try {
+    const url = props.spaceId
+      ? `/api/tasks/${props.orgId}/spaces/${props.spaceId}/lists`
+      : `/api/tasks/${props.orgId}/lists/me`;
+    const res = await sfetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      folders.value = (data.lists || []).map((l: TodoList) => ({ id: l.id, title: l.title }));
+    }
+  } catch (e) {
+    // Les dossiers sont secondaires : on n'affiche pas d'erreur bloquante ici.
+  }
+};
+
+const showNewFolder = ref(false);
+const newFolderTitle = ref('');
+const creatingFolder = ref(false);
+const draggedTaskId = ref<string | null>(null);
+const dragOverFolderId = ref<string | null>(null);
+
+const onTaskDragStart = (e: DragEvent, task: Task) => {
+  draggedTaskId.value = task.id;
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', task.id);
+  }
+};
+
+const onTaskDragEnd = () => {
+  draggedTaskId.value = null;
+  dragOverFolderId.value = null;
+};
+
+const assignToFolder = async (task: Task, folderId: string | null) => {
+  if ((task.todoListId || null) === folderId) return;
+  try {
+    const res = await sfetch(`/api/tasks/${props.orgId}/tasks/${task.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ todoListId: folderId })
+    });
+    if (!res.ok) throw new Error();
+    const updated = await res.json();
+    const idx = archivedTasks.value.findIndex(t => t.id === task.id);
+    if (idx !== -1) archivedTasks.value[idx] = updated;
+    toast.show(folderId ? 'Tâche déplacée dans le dossier' : 'Tâche retirée du dossier', 'success');
+  } catch (e) {
+    toast.show('Erreur lors du déplacement', 'error');
+  }
+};
+
+const onDropOnFolder = (e: DragEvent, folderId: string | null) => {
+  dragOverFolderId.value = null;
+  const taskId = e.dataTransfer?.getData('text/plain') || draggedTaskId.value;
+  const task = archivedTasks.value.find(t => t.id === taskId);
+  if (task) assignToFolder(task, folderId);
+};
+
+const createFolder = async () => {
+  const title = newFolderTitle.value.trim();
+  if (!title || creatingFolder.value) return;
+
+  creatingFolder.value = true;
+  try {
+    const res = await sfetch(`/api/tasks/${props.orgId}/lists`, {
+      method: 'POST',
+      body: JSON.stringify({ title, spaceId: props.spaceId || null })
+    });
+    if (!res.ok) throw new Error();
+    const list = await res.json();
+    folders.value.push({ id: list.id, title: list.title });
+    newFolderTitle.value = '';
+    showNewFolder.value = false;
+    toast.show('Dossier créé', 'success');
+  } catch (e) {
+    toast.show('Erreur lors de la création du dossier', 'error');
+  } finally {
+    creatingFolder.value = false;
   }
 };
 
@@ -180,12 +395,18 @@ const remove = async () => {
 };
 
 watch(() => props.isOpen, (open) => {
-  if (open) load();
+  if (open) {
+    load();
+    loadFolders();
+  }
 });
 
 watch(archivedTasks, (tasks) => {
   emit('count', tasks.length);
 }, { deep: false });
 
-onMounted(load);
+onMounted(() => {
+  load();
+  loadFolders();
+});
 </script>

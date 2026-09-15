@@ -2,7 +2,7 @@
 
     <div
         ref="cardRootEl"
-        class="absolute bottom-1 left-1 flex flex-col gap-1"
+        class="absolute bottom-1 left-1 z-30 flex flex-col gap-1"
         :class="isLittleScreen ? 'w-full' : 'w-75'"
     >
 

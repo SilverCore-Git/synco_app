@@ -38,6 +38,8 @@
                 <MiniCalendar
                     :cursor-date="cursorDate"
                     :occurrences="displayOccurrences"
+                    :highlight-start="weekHighlightStart"
+                    :highlight-end="weekHighlightEnd"
                     @pick-day="goToDay"
                     @navigate-month="navigateMiniMonth"
                 />
@@ -67,7 +69,7 @@
                     @open-event="openEditModal"
                     @create="onGridCreate"
                     @reschedule="onReschedule"
-                    @navigate="onWeekNavigate"
+                    @visible-range-change="onWeekVisibleRangeChange"
                 />
                 <DayGrid
                     v-else
@@ -119,7 +121,7 @@ import { useCalendarAccess } from '@/composables/useCalendarAccess';
 import { useAgendaViewMode, type AgendaViewMode } from '@/composables/useAgendaViewMode';
 import useWSocket from '@/composables/useWSocket';
 import sfetch from '@/assets/utils/sfetch';
-import { user } from '@/assets/var';
+import { user, isLittleScreen } from '@/assets/var';
 import type { Task, TodoList } from '@/types/types';
 import { TASK_DEADLINE_PREFIX, isTaskDeadlineOccurrence, taskIdFromDeadlineEventId, type OccurrenceInstance } from '@/types/agenda';
 
@@ -201,14 +203,25 @@ function startOfWeek(d: Date): Date {
     return date;
 }
 
+// Position réellement visible dans WeekGrid — mise à jour en direct pendant
+// le scroll horizontal (débattu, voir WeekGrid.vue::emitVisibleRangeChange),
+// jamais utilisée pour le fetch (qui reste ancré sur cursorDate, voir
+// computeRangeISO). Sert uniquement à garder l'en-tête et le bandeau du
+// MiniCalendar synchronisés avec ce qu'on voit réellement à l'écran.
+const weekVisibleStart = ref<Date | null>(null);
+function onWeekVisibleRangeChange(start: Date) {
+    weekVisibleStart.value = start;
+}
+const weekWindowStart = computed(() => weekVisibleStart.value || cursorDate.value);
+
 const periodLabel = computed(() => {
     if (viewMode.value === 'month') {
         return cursorDate.value.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
     }
     if (viewMode.value === 'week') {
-        // Fenêtre glissante de 7 jours à partir du curseur (pas calée sur
-        // lundi-dimanche, voir WeekGrid.vue::startOfWindow).
-        const start = new Date(cursorDate.value);
+        // Fenêtre glissante de 7 jours (pas calée sur lundi-dimanche, voir
+        // WeekGrid.vue::startOfDay), suit la position réellement visible.
+        const start = new Date(weekWindowStart.value);
         start.setHours(0, 0, 0, 0);
         const end = new Date(start);
         end.setDate(end.getDate() + 6);
@@ -217,6 +230,14 @@ const periodLabel = computed(() => {
         return `${startLabel} - ${endLabel}`;
     }
     return cursorDate.value.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+});
+
+const weekHighlightStart = computed(() => (viewMode.value === 'week' ? weekWindowStart.value : null));
+const weekHighlightEnd = computed(() => {
+    if (viewMode.value !== 'week') return null;
+    const end = new Date(weekWindowStart.value);
+    end.setDate(end.getDate() + 6);
+    return end;
 });
 
 function computeRangeISO(): { from: string; to: string } {
@@ -231,10 +252,16 @@ function computeRangeISO(): { from: string; to: string } {
         return { from: gridStart.toISOString(), to: gridEnd.toISOString() };
     }
     if (viewMode.value === 'week') {
+        // La grille affiche une fenêtre glissante bien plus large que 7 jours
+        // (défilement horizontal fluide, voir WeekGrid.vue) : on charge tout
+        // ce qu'elle peut atteindre par scroll (±120j, son MAX_HALF) en une
+        // fois, pour ne jamais avoir besoin de recharger pendant qu'on scroll.
+        const WEEK_VIEW_FETCH_HALF_DAYS = 120;
         const start = new Date(cursorDate.value);
         start.setHours(0, 0, 0, 0);
-        const end = new Date(start);
-        end.setDate(end.getDate() + 6);
+        start.setDate(start.getDate() - WEEK_VIEW_FETCH_HALF_DAYS);
+        const end = new Date(cursorDate.value);
+        end.setDate(end.getDate() + WEEK_VIEW_FETCH_HALF_DAYS);
         end.setHours(23, 59, 59, 999);
         return { from: start.toISOString(), to: end.toISOString() };
     }
@@ -273,15 +300,6 @@ function goToday() {
     cursorDate.value = new Date();
 }
 
-// Scroll horizontal (trackpad/molette) en vue semaine — voir WeekGrid.vue.
-// Décale la fenêtre glissante de 7 jours d'un jour à la fois (contrairement
-// aux boutons précédent/suivant, qui paginent par bloc de 7 jours).
-function onWeekNavigate(direction: 1 | -1) {
-    const d = new Date(cursorDate.value);
-    d.setDate(d.getDate() + direction);
-    cursorDate.value = d;
-}
-
 function goToDay(date: Date) {
     cursorDate.value = date;
     viewMode.value = 'day';
@@ -305,6 +323,16 @@ const quickCreateAnchor = ref<{ x: number; y: number } | null>(null);
 
 function onGridCreate(range: Range & { clientX?: number; clientY?: number }) {
     const r = { start: range.start, end: range.end, allDay: !!range.allDay };
+
+    // Le popover flottant ancré au point de clic n'a pas de bon sens sur un
+    // petit écran (marges trop courtes, positionnement anecdotique au
+    // toucher) — le panneau plein écran est directement la meilleure
+    // option, pas besoin d'une étape intermédiaire.
+    if (isLittleScreen.value) {
+        openCreatePanel(r);
+        return;
+    }
+
     quickCreateRange.value = r;
     selectionRange.value = r;
     quickCreateAnchor.value = (range.clientX != null && range.clientY != null)

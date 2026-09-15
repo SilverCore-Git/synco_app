@@ -27,6 +27,16 @@
             >
                 {{ day.date.getDate() }}
             </button>
+
+            <!-- Cadre de la semaine affichée dans WeekGrid — un rectangle par
+                 ligne de la grille traversée (1 ou 2, jamais plus, une
+                 fenêtre de 7 jours ne peut chevaucher que 2 lignes). -->
+            <div
+                v-for="seg in rangeSegments"
+                :key="'range-' + seg.row + '-' + seg.colStart"
+                class="mini-cal-range-box"
+                :style="{ gridRow: seg.row, gridColumn: `${seg.colStart} / span ${seg.colSpan}` }"
+            ></div>
         </div>
     </div>
 </template>
@@ -38,6 +48,12 @@ import type { OccurrenceInstance } from '@/types/agenda';
 const props = defineProps<{
     cursorDate: Date;
     occurrences: OccurrenceInstance[];
+    // Semaine actuellement visible dans WeekGrid (fenêtre glissante, pas
+    // forcément lundi-dimanche) — affichée comme un bandeau plutôt qu'un
+    // simple jour sélectionné, et mise à jour en direct pendant le scroll
+    // (voir AgendaView.vue). Absent/null en mode mois ou jour.
+    highlightStart?: Date | null;
+    highlightEnd?: Date | null;
 }>();
 
 const emit = defineEmits<{
@@ -85,7 +101,11 @@ const days = computed<MiniDay[]>(() => {
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const selectedIso = isoDay(cursor);
+    // Le cadre de la semaine (rangeSegments ci-dessous) remplace le simple
+    // point "jour sélectionné" pendant qu'un range est actif — évite la
+    // redondance visuelle avec cursorDate qui, lui, reste figé sur le point
+    // de départ de la navigation (voir AgendaView.vue).
+    const selectedIso = props.highlightStart ? null : isoDay(cursor);
 
     const eventDays = new Set(props.occurrences.map(o => isoDay(new Date(o.startAt))));
 
@@ -104,6 +124,47 @@ const days = computed<MiniDay[]>(() => {
         ptr.setDate(ptr.getDate() + 1);
     }
     return list;
+});
+
+// ── Cadre rectangulaire de la semaine affichée dans WeekGrid ────────────
+// La grille mini-calendrier est en CSS Grid 7 colonnes ; on positionne un
+// overlay par ligne de grille traversée (grid-row/grid-column), plutôt que
+// de teinter chaque jour individuellement — un simple fond par cellule se
+// scinde visuellement en 7 carrés séparés (gap entre lignes, coins arrondis
+// par bouton) au lieu de former UN rectangle, en plus de casser en deux
+// blocs disjoints dès que la fenêtre de 7 jours n'est pas alignée
+// lundi-dimanche (le cas général ici, voir WeekGrid.vue::startOfDay).
+interface RangeSegment {
+    row: number;
+    colStart: number;
+    colSpan: number;
+}
+
+const rangeSegments = computed<RangeSegment[]>(() => {
+    if (!props.highlightStart || !props.highlightEnd) return [];
+    const startIso = isoDay(props.highlightStart);
+    const endIso = isoDay(props.highlightEnd);
+    const list = days.value;
+    const startIdx = list.findIndex(d => d.iso === startIso);
+    const endIdx = list.findIndex(d => d.iso === endIso);
+    // La semaine visible peut déborder du mois actuellement affiché par le
+    // mini-calendrier (navigation manuelle du mois, ou scroll qui a
+    // dépassé la marge de grille) — pas de cadre à dessiner dans ce cas.
+    if (startIdx === -1 || endIdx === -1) return [];
+
+    const segments: RangeSegment[] = [];
+    let i = startIdx;
+    while (i <= endIdx) {
+        const row = Math.floor(i / 7);
+        const rowLastIdx = Math.min(row * 7 + 6, endIdx);
+        segments.push({
+            row: row + 1,
+            colStart: (i % 7) + 1,
+            colSpan: rowLastIdx - i + 1
+        });
+        i = rowLastIdx + 1;
+    }
+    return segments;
 });
 </script>
 
@@ -159,6 +220,7 @@ const days = computed<MiniDay[]>(() => {
 
 .mini-cal-day {
     position: relative;
+    z-index: 1;
     aspect-ratio: 1;
     font-size: 10.5px;
     font-weight: 600;
@@ -185,6 +247,17 @@ const days = computed<MiniDay[]>(() => {
 .mini-cal-day.is-selected {
     background: var(--primary);
     color: white;
+}
+
+.mini-cal-range-box {
+    z-index: 0;
+    align-self: stretch;
+    justify-self: stretch;
+    margin: 1px 0;
+    border: 1.5px solid var(--primary);
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    border-radius: 10px;
+    pointer-events: none;
 }
 
 .mini-cal-day.has-events:not(.is-selected)::after {

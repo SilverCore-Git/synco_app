@@ -16,12 +16,15 @@
                         <div class="flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
                             <i class="bi bi-exclamation-triangle text-2xl" />
                         </div>
-                        <h3 class="text-xl font-bold text-(--text)">Supprimer {{ itemType }} ?</h3>
+                        <h3 class="text-xl font-bold text-(--text)">{{ title || `Supprimer ${itemType} ?` }}</h3>
                     </div>
 
                     <p class="text-(--text) text-sm leading-relaxed mb-6">
-                        Êtes-vous sûr de vouloir supprimer <strong>{{ itemName }}</strong> ?
-                        Cette action est irréversible et toutes les données associées seront perdues.
+                        <template v-if="message">{{ message }}</template>
+                        <template v-else>
+                            Êtes-vous sûr de vouloir supprimer <strong>{{ itemName }}</strong> ?
+                            Cette action est irréversible et toutes les données associées seront perdues.
+                        </template>
                     </p>
 
                     <div
@@ -108,6 +111,8 @@ const props = defineProps<{
   checkbox?: boolean;
   checktext?: boolean;
   itemType?: string; // ex: "le salon", "le workspace"
+  title?: string; // surcharge le titre par défaut "Supprimer {itemType} ?"
+  message?: string; // surcharge le texte par défaut (utile pour une action non destructive)
   loading?: boolean;
   extraWarning?: string; // avertissement complémentaire affiché en encart ambre
 }>();
