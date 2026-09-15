@@ -63,8 +63,21 @@
             <div class="flex items-center gap-2 flex-wrap mb-5">
               <span class="text-[11px] font-bold text-(--text2) uppercase tracking-wider mr-1">Dossiers</span>
               <span
+                class="text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors"
+                :class="dragOverFolderId === '__none__' ? 'bg-amber-500 text-white ring-2 ring-amber-300' : 'bg-white/5 text-(--text2)'"
+                @dragover.prevent="draggedTaskId && (dragOverFolderId = '__none__')"
+                @dragleave.prevent="dragOverFolderId = null"
+                @drop.prevent="onDropOnFolder($event, null)"
+              >
+                <i class="bi bi-dash-circle" /> Sans dossier
+              </span>
+              <span
                 v-for="folder in folders" :key="folder.id"
-                class="text-xs font-bold px-3 py-1.5 rounded-lg bg-white/5 text-(--text2) flex items-center gap-1.5"
+                class="text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors"
+                :class="dragOverFolderId === folder.id ? 'bg-amber-500 text-white ring-2 ring-amber-300' : 'bg-white/5 text-(--text2)'"
+                @dragover.prevent="draggedTaskId && (dragOverFolderId = folder.id)"
+                @dragleave.prevent="dragOverFolderId = null"
+                @drop.prevent="onDropOnFolder($event, folder.id)"
               >
                 <i class="bi bi-folder2" /> {{ folder.title }}
               </span>
@@ -112,12 +125,19 @@
                 <div class="space-y-3">
                   <div
                     v-for="task in group.tasks" :key="task.id"
-                    class="flex items-center justify-between gap-3 p-4 bg-(--bg2)/40 border border-(--border-color) rounded-xl"
+                    draggable="true"
+                    @dragstart="onTaskDragStart($event, task)"
+                    @dragend="onTaskDragEnd"
+                    class="flex items-center justify-between gap-3 p-4 bg-(--bg2)/40 border border-(--border-color) rounded-xl cursor-grab active:cursor-grabbing transition-opacity"
+                    :class="draggedTaskId === task.id ? 'opacity-40' : ''"
                   >
                     <div class="min-w-0">
                       <p class="text-sm font-bold text-(--text) truncate">{{ task.title }}</p>
-                      <p class="text-[11px] text-(--text2) mt-0.5">
-                        Archivée le {{ formatDate(task.archivedAt) }}
+                      <p class="text-[11px] text-(--text2) mt-0.5 flex items-center gap-1.5 flex-wrap">
+                        <span>Archivée le {{ formatDate(task.archivedAt) }}</span>
+                        <span v-if="task.todoList" class="inline-flex items-center gap-1 text-(--primary)">
+                          <i class="bi bi-folder2" />{{ task.todoList.title }}
+                        </span>
                       </p>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
@@ -268,6 +288,45 @@ const loadFolders = async () => {
 const showNewFolder = ref(false);
 const newFolderTitle = ref('');
 const creatingFolder = ref(false);
+const draggedTaskId = ref<string | null>(null);
+const dragOverFolderId = ref<string | null>(null);
+
+const onTaskDragStart = (e: DragEvent, task: Task) => {
+  draggedTaskId.value = task.id;
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', task.id);
+  }
+};
+
+const onTaskDragEnd = () => {
+  draggedTaskId.value = null;
+  dragOverFolderId.value = null;
+};
+
+const assignToFolder = async (task: Task, folderId: string | null) => {
+  if ((task.todoListId || null) === folderId) return;
+  try {
+    const res = await sfetch(`/api/tasks/${props.orgId}/tasks/${task.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ todoListId: folderId })
+    });
+    if (!res.ok) throw new Error();
+    const updated = await res.json();
+    const idx = archivedTasks.value.findIndex(t => t.id === task.id);
+    if (idx !== -1) archivedTasks.value[idx] = updated;
+    toast.show(folderId ? 'Tâche déplacée dans le dossier' : 'Tâche retirée du dossier', 'success');
+  } catch (e) {
+    toast.show('Erreur lors du déplacement', 'error');
+  }
+};
+
+const onDropOnFolder = (e: DragEvent, folderId: string | null) => {
+  dragOverFolderId.value = null;
+  const taskId = e.dataTransfer?.getData('text/plain') || draggedTaskId.value;
+  const task = archivedTasks.value.find(t => t.id === taskId);
+  if (task) assignToFolder(task, folderId);
+};
 
 const createFolder = async () => {
   const title = newFolderTitle.value.trim();
