@@ -43,18 +43,6 @@
                     <button @click="filterUserId = user?.id || null" class="px-4 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="filterUserId === user?.id ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10'">
                         Mes tâches
                     </button>
-                    <button
-                        v-if="archivedCount > 0 || isDraggingTask"
-                        @click="showArchivedPanel = true"
-                        @dragover.prevent="dragOverArchiveBtn = true"
-                        @dragleave.prevent="dragOverArchiveBtn = false"
-                        @drop="onDropToArchiveBtn"
-                        class="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0"
-                        :class="dragOverArchiveBtn ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-[0_4px_20px_rgba(245,158,11,0.5)]' : (showArchivedPanel ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10')"
-                    >
-                        <i class="bi bi-archive-fill" />
-                        Tâches archivées
-                    </button>
                 </div>
 
                 <div class="hidden sm:block w-px h-6 bg-white/10 mx-2 shrink-0"></div>
@@ -76,7 +64,20 @@
                         {{ $p(member.user?.name) }}
                     </button>
                 </div>
-                
+
+                <button
+                    v-if="archivedCount > 0 || isDraggingTask"
+                    @click="showArchivedPanel = true"
+                    @dragover.prevent="dragOverArchiveBtn = true"
+                    @dragleave.prevent="dragOverArchiveBtn = false"
+                    @drop="onDropToArchiveBtn"
+                    class="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0 self-end sm:self-auto sm:ml-auto"
+                    :class="dragOverArchiveBtn ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-[0_4px_20px_rgba(245,158,11,0.5)]' : (showArchivedPanel ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10')"
+                >
+                    <i class="bi bi-archive-fill" />
+                    Tâches archivées
+                </button>
+
             </div>
 
             <div v-if="loading" class="flex-1 min-h-0 w-full flex flex-col gap-6 animate-pulse pb-10">
