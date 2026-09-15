@@ -41,36 +41,48 @@
             <p class="text-sm font-medium">Aucune tâche archivée pour le moment.</p>
           </div>
 
-          <div v-else class="space-y-3">
-            <div
-              v-for="task in archivedTasks" :key="task.id"
-              class="flex items-center justify-between gap-3 p-4 bg-(--bg2)/40 border border-(--border-color) rounded-xl"
-            >
-              <div class="min-w-0">
-                <p class="text-sm font-bold text-(--text) truncate">{{ task.title }}</p>
-                <p class="text-[11px] text-(--text2) mt-0.5">
-                  Archivée le {{ formatDate(task.archivedAt) }}
-                </p>
-              </div>
-              <div class="flex items-center gap-2 shrink-0">
-                <button
-                  @click="restore(task)"
-                  :disabled="pendingId === task.id"
-                  class="text-xs font-bold px-3 py-1.5 rounded-lg bg-(--primary)/10 text-(--primary) hover:bg-(--primary)/20 transition-colors flex items-center gap-1.5 disabled:opacity-50"
-                >
-                  <i class="bi bi-arrow-counterclockwise" /> Restaurer
-                </button>
-                <button
-                  @click="askRemove(task)"
-                  :disabled="pendingId === task.id"
-                  class="text-xs font-bold p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-                  title="Supprimer définitivement"
-                >
-                  <i class="bi bi-trash" />
-                </button>
+          <template v-else>
+            <div class="space-y-6">
+              <div v-for="group in groupedTasks" :key="group.key">
+                <div class="flex items-center gap-2 mb-3">
+                  <span class="text-[11px] font-black uppercase tracking-widest text-(--text2)">{{ group.label }}</span>
+                  <span class="text-[10px] text-(--text2)/60">({{ group.tasks.length }})</span>
+                  <div class="flex-1 h-px bg-white/10"></div>
+                </div>
+
+                <div class="space-y-3">
+                  <div
+                    v-for="task in group.tasks" :key="task.id"
+                    class="flex items-center justify-between gap-3 p-4 bg-(--bg2)/40 border border-(--border-color) rounded-xl"
+                  >
+                    <div class="min-w-0">
+                      <p class="text-sm font-bold text-(--text) truncate">{{ task.title }}</p>
+                      <p class="text-[11px] text-(--text2) mt-0.5">
+                        Archivée le {{ formatDate(task.archivedAt) }}
+                      </p>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                      <button
+                        @click="restore(task)"
+                        :disabled="pendingId === task.id"
+                        class="text-xs font-bold px-3 py-1.5 rounded-lg bg-(--primary)/10 text-(--primary) hover:bg-(--primary)/20 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <i class="bi bi-arrow-counterclockwise" /> Restaurer
+                      </button>
+                      <button
+                        @click="askRemove(task)"
+                        :disabled="pendingId === task.id"
+                        class="text-xs font-bold p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                        title="Supprimer définitivement"
+                      >
+                        <i class="bi bi-trash" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          </template>
         </main>
       </div>
     </div>
@@ -88,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import sfetch from '@/assets/utils/sfetch';
 import type { Task } from '@/types/types';
 import { useToast } from '@/composables/useToast';
@@ -117,6 +129,33 @@ const formatDate = (date?: string | Date | null) => {
   if (!date) return '';
   return new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 };
+
+const dayLabel = (date: Date) => {
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(new Date()) - startOfDay(date)) / 86400000);
+  if (diffDays === 0) return "Aujourd'hui";
+  if (diffDays === 1) return 'Hier';
+  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+};
+
+type TaskGroup = { key: string; label: string; tasks: Task[] };
+
+const groupedTasks = computed<TaskGroup[]>(() => {
+  const sorted = [...archivedTasks.value].sort(
+    (a, b) => new Date(b.archivedAt || 0).getTime() - new Date(a.archivedAt || 0).getTime()
+  );
+
+  const groups = new Map<string, TaskGroup>();
+
+  for (const task of sorted) {
+    const date = task.archivedAt ? new Date(task.archivedAt) : null;
+    const key = date ? `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}` : '__unknown__';
+    const label = date ? dayLabel(date) : 'Date inconnue';
+    if (!groups.has(key)) groups.set(key, { key, label, tasks: [] });
+    groups.get(key)!.tasks.push(task);
+  }
+  return [...groups.values()];
+});
 
 const load = async () => {
   loading.value = true;
