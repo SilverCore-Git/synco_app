@@ -16,7 +16,7 @@
                     :key="occ.occurrenceKey"
                     :occurrence="occ"
                     compact
-                    @click="emit('open-event', occ)"
+                    @click.stop="emit('open-event', occ)"
                 />
             </div>
         </div>
@@ -31,6 +31,7 @@
                 class="time-grid-day-col"
                 :style="{ height: rowHeight * 24 + 'px' }"
                 @mousedown="onPointerDown"
+                @click="onDayTapCreate"
             >
                 <div v-for="h in hours" :key="'line-' + h" class="time-grid-hour-line" :style="{ height: rowHeight + 'px' }"></div>
 
@@ -41,9 +42,9 @@
                     :class="{ 'is-event-dragging': eventDrag?.occ.occurrenceKey === occ.occurrenceKey }"
                     :style="eventStyle(occ)"
                 >
-                    <div v-if="!isLocked(occ)" class="time-grid-resize-handle top" @mousedown.stop="startEventDrag($event, occ, 'resize-top')"></div>
-                    <EventChip :occurrence="occ" @click="emit('open-event', occ)" @mousedown.stop="isLocked(occ) ? undefined : startEventDrag($event, occ, 'move')" />
-                    <div v-if="!isLocked(occ)" class="time-grid-resize-handle bottom" @mousedown.stop="startEventDrag($event, occ, 'resize-bottom')"></div>
+                    <div v-if="!isLocked(occ)" class="time-grid-resize-handle top" @pointerdown.stop="startEventDrag($event, occ, 'resize-top')" @click.stop></div>
+                    <EventChip :occurrence="occ" @click.stop="emit('open-event', occ)" @pointerdown.stop="isLocked(occ) ? undefined : startEventDrag($event, occ, 'move')" />
+                    <div v-if="!isLocked(occ)" class="time-grid-resize-handle bottom" @pointerdown.stop="startEventDrag($event, occ, 'resize-bottom')" @click.stop></div>
                 </div>
 
                 <div v-if="eventDrag" class="time-grid-drag-ghost is-event-preview" :style="eventDragGhostStyle">
@@ -64,6 +65,7 @@
 import { computed, ref } from 'vue';
 import EventChip from './EventChip.vue';
 import { isTaskDeadlineOccurrence, type OccurrenceInstance } from '@/types/agenda';
+import { isLittleScreen } from '@/assets/var';
 
 const props = defineProps<{
     cursorDate: Date;
@@ -187,6 +189,9 @@ function snap(minutes: number): number {
 
 function onPointerDown(e: MouseEvent) {
     if (e.button !== 0) return;
+    // Sur mobile, glisser sur une zone vide entre en conflit avec le scroll
+    // vertical natif — pas de sélection par glisser là, voir onDayTapCreate.
+    if (isLittleScreen.value) return;
     const target = e.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
     const y = e.clientY - rect.top;
@@ -242,6 +247,23 @@ function emitCreate(start: Date, end: Date, allDay: boolean, e: MouseEvent) {
     emit('create', { start, end, allDay, clientX: e.clientX, clientY: e.clientY });
 }
 
+// Sur mobile, un tap crée directement un créneau de 30 min à l'heure
+// tapée — pas de glisser pour choisir la durée (conflit avec le scroll
+// vertical). Ajuster la durée se fait ensuite via les poignées de
+// redimensionnement (voir startEventDrag, en pointer events).
+function onDayTapCreate(e: MouseEvent) {
+    if (!isLittleScreen.value) return;
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const startMinutes = snap(pxToMinutes(y));
+
+    const start = new Date(props.cursorDate);
+    start.setHours(0, startMinutes, 0, 0);
+    const end = new Date(start.getTime() + 30 * 60000);
+    emit('create', { start, end, clientX: e.clientX, clientY: e.clientY });
+}
+
 // ── Déplacement / redimensionnement d'un événement existant ───────────
 type EventDragMode = 'move' | 'resize-top' | 'resize-bottom';
 
@@ -261,8 +283,11 @@ function minutesOfDay(d: Date): number {
     return d.getHours() * 60 + d.getMinutes();
 }
 
-function startEventDrag(e: MouseEvent, occ: OccurrenceInstance, mode: EventDragMode) {
-    if (e.button !== 0) return;
+// En Pointer Events (pas mousedown/mousemove/mouseup) : ces poignées sont de
+// petites cibles dédiées (voir touch-action: none en CSS), donc activer le
+// tactile ici ne rentre pas en conflit avec le scroll de la grille.
+function startEventDrag(e: PointerEvent, occ: OccurrenceInstance, mode: EventDragMode) {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
     const start = new Date(occ.startAt);
     const end = new Date(occ.endAt);
 
@@ -275,11 +300,11 @@ function startEventDrag(e: MouseEvent, occ: OccurrenceInstance, mode: EventDragM
         currentStartMin: minutesOfDay(start),
         currentEndMin: minutesOfDay(end)
     };
-    window.addEventListener('mousemove', onEventDragMove);
-    window.addEventListener('mouseup', onEventDragEnd);
+    window.addEventListener('pointermove', onEventDragMove);
+    window.addEventListener('pointerup', onEventDragEnd);
 }
 
-function onEventDragMove(e: MouseEvent) {
+function onEventDragMove(e: PointerEvent) {
     if (!eventDrag.value) return;
     const d = eventDrag.value;
     const deltaMin = snap((e.clientY - d.pointerStartY) / rowHeight * 60);
@@ -301,8 +326,8 @@ function onEventDragMove(e: MouseEvent) {
 }
 
 function onEventDragEnd() {
-    window.removeEventListener('mousemove', onEventDragMove);
-    window.removeEventListener('mouseup', onEventDragEnd);
+    window.removeEventListener('pointermove', onEventDragMove);
+    window.removeEventListener('pointerup', onEventDragEnd);
     if (!eventDrag.value) return;
 
     const d = eventDrag.value;
@@ -445,6 +470,7 @@ const eventDragLabel = computed(() => {
     overflow: visible;
     cursor: grab;
     z-index: 1;
+    touch-action: none;
 }
 
 .time-grid-event.is-event-dragging {
@@ -459,9 +485,18 @@ const eventDragLabel = computed(() => {
     height: 6px;
     cursor: ns-resize;
     z-index: 3;
+    touch-action: none;
 }
 .time-grid-resize-handle.top { top: -2px; }
 .time-grid-resize-handle.bottom { bottom: -2px; }
+
+@media (pointer: coarse) {
+    .time-grid-resize-handle {
+        height: 16px;
+    }
+    .time-grid-resize-handle.top { top: -8px; }
+    .time-grid-resize-handle.bottom { bottom: -8px; }
+}
 
 .time-grid-drag-ghost {
     position: absolute;

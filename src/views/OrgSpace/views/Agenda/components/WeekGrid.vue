@@ -28,7 +28,7 @@
                     :key="occ.occurrenceKey"
                     :occurrence="occ"
                     compact
-                    @click="emit('open-event', occ)"
+                    @click.stop="emit('open-event', occ)"
                 />
             </div>
         </div>
@@ -46,6 +46,7 @@
                 :data-iso="day.iso"
                 :style="{ height: rowHeight * 24 + 'px', width: dayWidth + 'px' }"
                 @mousedown="onPointerDown($event, day)"
+                @click="onDayTapCreate($event, day)"
             >
                 <div v-for="h in hours" :key="'line-' + h" class="time-grid-hour-line" :style="{ height: rowHeight + 'px' }"></div>
 
@@ -56,9 +57,9 @@
                     :class="{ 'is-event-dragging': eventDrag?.occ.occurrenceKey === occ.occurrenceKey }"
                     :style="eventStyle(occ, day)"
                 >
-                    <div v-if="!isLocked(occ)" class="time-grid-resize-handle top" @mousedown.stop="startEventDrag($event, occ, 'resize-top')"></div>
-                    <EventChip :occurrence="occ" @click="emit('open-event', occ)" @mousedown.stop="isLocked(occ) ? undefined : startEventDrag($event, occ, 'move')" />
-                    <div v-if="!isLocked(occ)" class="time-grid-resize-handle bottom" @mousedown.stop="startEventDrag($event, occ, 'resize-bottom')"></div>
+                    <div v-if="!isLocked(occ)" class="time-grid-resize-handle top" @pointerdown.stop="startEventDrag($event, occ, 'resize-top')" @click.stop></div>
+                    <EventChip :occurrence="occ" @click.stop="emit('open-event', occ)" @pointerdown.stop="isLocked(occ) ? undefined : startEventDrag($event, occ, 'move')" />
+                    <div v-if="!isLocked(occ)" class="time-grid-resize-handle bottom" @pointerdown.stop="startEventDrag($event, occ, 'resize-bottom')" @click.stop></div>
                 </div>
 
                 <div
@@ -91,6 +92,7 @@
 import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import EventChip from './EventChip.vue';
 import { isTaskDeadlineOccurrence, type OccurrenceInstance } from '@/types/agenda';
+import { isLittleScreen } from '@/assets/var';
 
 const props = defineProps<{
     cursorDate: Date;
@@ -102,6 +104,9 @@ const emit = defineEmits<{
     'open-event': [occ: OccurrenceInstance];
     'create': [range: { start: Date; end: Date; allDay?: boolean; clientX?: number; clientY?: number }];
     'reschedule': [payload: { occ: OccurrenceInstance; start: Date; end: Date }];
+    // Purement cosmétique (synchronisation du bandeau MiniCalendar) — ne
+    // touche jamais cursorDate/le fetch, voir AgendaView.vue.
+    'visible-range-change': [start: Date];
 }>();
 
 const ROW_HEIGHT = 48;
@@ -180,11 +185,15 @@ onMounted(() => {
         measureDayWidth();
     });
     if (bodyEl.value) resizeObserver.observe(bodyEl.value);
-    nextTick(scrollToCenter);
+    nextTick(() => {
+        scrollToCenter();
+        emitVisibleRangeChange();
+    });
 });
 
 onUnmounted(() => {
     resizeObserver?.disconnect();
+    if (settleTimer) clearTimeout(settleTimer);
 });
 
 // Un changement de cursorDate (bouton précédent/suivant, "Aujourd'hui",
@@ -194,21 +203,41 @@ onUnmounted(() => {
 // rechargement de données pendant qu'on scroll.
 watch(() => props.cursorDate, (newDate) => {
     resetBuffer(newDate);
-    nextTick(scrollToCenter);
+    nextTick(() => {
+        scrollToCenter();
+        emitVisibleRangeChange();
+    });
 });
 
 let rafScheduled = false;
+let settleTimer: ReturnType<typeof setTimeout> | null = null;
+const VISIBLE_RANGE_SETTLE_MS = 180;
+
 function onBodyScroll() {
     if (!bodyEl.value) return;
     if (headerEl.value) headerEl.value.scrollLeft = bodyEl.value.scrollLeft;
     if (alldayEl.value) alldayEl.value.scrollLeft = bodyEl.value.scrollLeft;
 
-    if (rafScheduled) return;
-    rafScheduled = true;
-    requestAnimationFrame(() => {
-        rafScheduled = false;
-        maybeExtendBuffer();
-    });
+    if (!rafScheduled) {
+        rafScheduled = true;
+        requestAnimationFrame(() => {
+            rafScheduled = false;
+            maybeExtendBuffer();
+        });
+    }
+
+    // Débattu : purement pour tenir le bandeau du MiniCalendar à jour sans
+    // spammer l'émission à chaque pixel scrollé.
+    if (settleTimer) clearTimeout(settleTimer);
+    settleTimer = setTimeout(emitVisibleRangeChange, VISIBLE_RANGE_SETTLE_MS);
+}
+
+function emitVisibleRangeChange() {
+    if (!bodyEl.value || dayWidth.value <= 0) return;
+    const leftIndex = Math.round(bodyEl.value.scrollLeft / dayWidth.value);
+    const visibleStart = new Date(bufferStart.value);
+    visibleStart.setDate(visibleStart.getDate() + leftIndex);
+    emit('visible-range-change', visibleStart);
 }
 
 function maybeExtendBuffer() {
@@ -389,6 +418,10 @@ function snap(minutes: number): number {
 
 function onPointerDown(e: MouseEvent, day: DayColumn) {
     if (e.button !== 0) return;
+    // Sur mobile, glisser sur une zone vide entre en conflit avec le scroll
+    // natif (horizontal ET vertical) — pas de sélection par glisser là,
+    // voir onDayTapCreate (simple tap) plus bas.
+    if (isLittleScreen.value) return;
     const target = e.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
     const y = e.clientY - rect.top;
@@ -482,6 +515,22 @@ function emitCreate(start: Date, end: Date, allDay: boolean, e: MouseEvent) {
     emit('create', { start, end, allDay, clientX: e.clientX, clientY: e.clientY });
 }
 
+// Sur mobile, un tap crée directement un créneau de 30 min à l'heure
+// tapée — pas de glisser pour choisir la durée (conflit avec le scroll,
+// voir onPointerDown ci-dessus). Ajuster la durée se fait ensuite via les
+// poignées de redimensionnement (voir startEventDrag, en pointer events).
+function onDayTapCreate(e: MouseEvent, day: DayColumn) {
+    if (!isLittleScreen.value) return;
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const startMinutes = snap(pxToMinutes(y));
+
+    const start = combineDateAndMinutes(day.date, startMinutes);
+    const end = new Date(start.getTime() + 30 * 60000);
+    emit('create', { start, end, clientX: e.clientX, clientY: e.clientY });
+}
+
 function allDayDate(date: Date): Date {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
@@ -515,8 +564,12 @@ function minutesOfDay(d: Date): number {
     return d.getHours() * 60 + d.getMinutes();
 }
 
-function startEventDrag(e: MouseEvent, occ: OccurrenceInstance, mode: EventDragMode) {
-    if (e.button !== 0) return;
+// En Pointer Events (pas mousedown/mousemove/mouseup) : ces poignées sont de
+// petites cibles dédiées (voir touch-action: none en CSS), donc activer le
+// tactile ici ne rentre pas en conflit avec le scroll de la grille — au
+// contraire d'un glisser sur une zone vide (voir onPointerDown/onDayTapCreate).
+function startEventDrag(e: PointerEvent, occ: OccurrenceInstance, mode: EventDragMode) {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
     const start = new Date(occ.startAt);
     const end = new Date(occ.endAt);
     const iso = isoDay(start);
@@ -532,11 +585,11 @@ function startEventDrag(e: MouseEvent, occ: OccurrenceInstance, mode: EventDragM
         currentEndMin: minutesOfDay(end),
         currentIso: iso
     };
-    window.addEventListener('mousemove', onEventDragMove);
-    window.addEventListener('mouseup', onEventDragEnd);
+    window.addEventListener('pointermove', onEventDragMove);
+    window.addEventListener('pointerup', onEventDragEnd);
 }
 
-function onEventDragMove(e: MouseEvent) {
+function onEventDragMove(e: PointerEvent) {
     if (!eventDrag.value) return;
     const d = eventDrag.value;
     const deltaMin = snap((e.clientY - d.pointerStartY) / rowHeight * 60);
@@ -562,8 +615,8 @@ function onEventDragMove(e: MouseEvent) {
 }
 
 function onEventDragEnd() {
-    window.removeEventListener('mousemove', onEventDragMove);
-    window.removeEventListener('mouseup', onEventDragEnd);
+    window.removeEventListener('pointermove', onEventDragMove);
+    window.removeEventListener('pointerup', onEventDragEnd);
     if (!eventDrag.value) return;
 
     const d = eventDrag.value;
@@ -720,6 +773,9 @@ const eventDragLabel = computed(() => {
     overflow: visible;
     cursor: grab;
     z-index: 1;
+    /* Poignée de déplacement tactile dédiée (voir startEventDrag en Pointer
+       Events) — ne doit jamais être interprétée comme un geste de scroll. */
+    touch-action: none;
 }
 
 .time-grid-event.is-event-dragging {
@@ -734,9 +790,20 @@ const eventDragLabel = computed(() => {
     height: 6px;
     cursor: ns-resize;
     z-index: 3;
+    touch-action: none;
 }
 .time-grid-resize-handle.top { top: -2px; }
 .time-grid-resize-handle.bottom { bottom: -2px; }
+
+/* Cible tactile plus généreuse sur pointeur "grossier" (doigt) — 6px est
+   jouable à la souris mais quasi impossible à attraper précisément au doigt. */
+@media (pointer: coarse) {
+    .time-grid-resize-handle {
+        height: 16px;
+    }
+    .time-grid-resize-handle.top { top: -8px; }
+    .time-grid-resize-handle.bottom { bottom: -8px; }
+}
 
 .time-grid-drag-ghost {
     position: absolute;

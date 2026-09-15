@@ -21,7 +21,12 @@
                     'is-other-month': !day.inMonth,
                     'is-today': day.isToday,
                     'is-selected': day.isSelected,
-                    'has-events': day.hasEvents
+                    'has-events': day.hasEvents,
+                    'is-in-range': day.rangePosition !== null,
+                    'is-range-single': day.rangePosition === 'single',
+                    'is-range-start': day.rangePosition === 'start',
+                    'is-range-middle': day.rangePosition === 'middle',
+                    'is-range-end': day.rangePosition === 'end'
                 }"
                 @click="emit('pick-day', day.date)"
             >
@@ -38,6 +43,12 @@ import type { OccurrenceInstance } from '@/types/agenda';
 const props = defineProps<{
     cursorDate: Date;
     occurrences: OccurrenceInstance[];
+    // Semaine actuellement visible dans WeekGrid (fenêtre glissante, pas
+    // forcément lundi-dimanche) — affichée comme un bandeau plutôt qu'un
+    // simple jour sélectionné, et mise à jour en direct pendant le scroll
+    // (voir AgendaView.vue). Absent/null en mode mois ou jour.
+    highlightStart?: Date | null;
+    highlightEnd?: Date | null;
 }>();
 
 const emit = defineEmits<{
@@ -64,6 +75,8 @@ function isoDay(d: Date): string {
 
 const monthLabel = computed(() => props.cursorDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }));
 
+type RangePosition = 'single' | 'start' | 'middle' | 'end' | null;
+
 interface MiniDay {
     date: Date;
     iso: string;
@@ -71,6 +84,7 @@ interface MiniDay {
     isToday: boolean;
     isSelected: boolean;
     hasEvents: boolean;
+    rangePosition: RangePosition;
 }
 
 const days = computed<MiniDay[]>(() => {
@@ -87,19 +101,36 @@ const days = computed<MiniDay[]>(() => {
     today.setHours(0, 0, 0, 0);
     const selectedIso = isoDay(cursor);
 
+    // Le bandeau de semaine remplace le simple point "jour sélectionné" —
+    // évite l'incohérence visuelle une fois que le bandeau a défilé
+    // ailleurs pendant que cursorDate (figé, voir AgendaView.vue) reste sur
+    // le point de départ.
+    const rangeStartIso = props.highlightStart ? isoDay(props.highlightStart) : null;
+    const rangeEndIso = props.highlightEnd ? isoDay(props.highlightEnd) : null;
+
     const eventDays = new Set(props.occurrences.map(o => isoDay(new Date(o.startAt))));
 
     const list: MiniDay[] = [];
     const ptr = new Date(gridStart);
     while (ptr.getTime() <= gridEnd.getTime()) {
         const iso = isoDay(ptr);
+
+        let rangePosition: RangePosition = null;
+        if (rangeStartIso && rangeEndIso && iso >= rangeStartIso && iso <= rangeEndIso) {
+            if (rangeStartIso === rangeEndIso) rangePosition = 'single';
+            else if (iso === rangeStartIso) rangePosition = 'start';
+            else if (iso === rangeEndIso) rangePosition = 'end';
+            else rangePosition = 'middle';
+        }
+
         list.push({
             date: new Date(ptr),
             iso,
             inMonth: ptr.getMonth() === cursor.getMonth(),
             isToday: ptr.getTime() === today.getTime(),
-            isSelected: iso === selectedIso,
-            hasEvents: eventDays.has(iso)
+            isSelected: !rangeStartIso && iso === selectedIso,
+            hasEvents: eventDays.has(iso),
+            rangePosition
         });
         ptr.setDate(ptr.getDate() + 1);
     }
@@ -185,6 +216,20 @@ const days = computed<MiniDay[]>(() => {
 .mini-cal-day.is-selected {
     background: var(--primary);
     color: white;
+}
+
+.mini-cal-day.is-in-range {
+    background: color-mix(in srgb, var(--primary) 22%, transparent);
+    border-radius: 0;
+}
+.mini-cal-day.is-range-single {
+    border-radius: 999px;
+}
+.mini-cal-day.is-range-start {
+    border-radius: 999px 0 0 999px;
+}
+.mini-cal-day.is-range-end {
+    border-radius: 0 999px 999px 0;
 }
 
 .mini-cal-day.has-events:not(.is-selected)::after {
