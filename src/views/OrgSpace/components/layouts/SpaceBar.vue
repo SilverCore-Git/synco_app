@@ -100,7 +100,7 @@ const onSpaceOrderChange = async () => {
 
             <hr class="shrink-0 w-8 h-0.5 bg-(--text)/50 border-none rounded-full my-2" />
 
-            <RouterLink :to="`/${openedOrg.id}/home?showView=0`" class="shrink-0">
+            <RouterLink :to="`/${openedOrg.id}/home?showView=1`" class="shrink-0">
                 <SpaceBarBTN
                     icon="bi-house"
                     label="Général"
