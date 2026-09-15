@@ -120,7 +120,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
 import sfetch from '@/assets/utils/sfetch';
-import type { Task } from '@/types/types';
+import type { Task, TodoList } from '@/types/types';
 import { useToast } from '@/composables/useToast';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 
@@ -143,6 +143,7 @@ const pendingId = ref<string | null>(null);
 const archivedTasks = ref<Task[]>([]);
 const taskToRemove = ref<Task | null>(null);
 const sortMode = ref<'date' | 'folder'>('date');
+const folders = ref<{ id: string; title: string }[]>([]);
 
 const formatDate = (date?: string | Date | null) => {
   if (!date) return '';
@@ -168,8 +169,8 @@ const groupedTasks = computed<TaskGroup[]>(() => {
 
   if (sortMode.value === 'folder') {
     for (const task of sorted) {
-      const key = task.space?.id || '__none__';
-      const label = task.space?.name || 'Sans dossier';
+      const key = task.todoList?.id || '__none__';
+      const label = task.todoList?.title || 'Sans dossier';
       if (!groups.has(key)) groups.set(key, { key, label, tasks: [] });
       groups.get(key)!.tasks.push(task);
     }
@@ -205,6 +206,21 @@ const load = async () => {
     toast.show("Erreur chargement des archives", "error");
   } finally {
     loading.value = false;
+  }
+};
+
+const loadFolders = async () => {
+  try {
+    const url = props.spaceId
+      ? `/api/tasks/${props.orgId}/spaces/${props.spaceId}/lists`
+      : `/api/tasks/${props.orgId}/lists/me`;
+    const res = await sfetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      folders.value = (data.lists || []).map((l: TodoList) => ({ id: l.id, title: l.title }));
+    }
+  } catch (e) {
+    // Les dossiers sont secondaires : on n'affiche pas d'erreur bloquante ici.
   }
 };
 
@@ -252,12 +268,18 @@ const remove = async () => {
 };
 
 watch(() => props.isOpen, (open) => {
-  if (open) load();
+  if (open) {
+    load();
+    loadFolders();
+  }
 });
 
 watch(archivedTasks, (tasks) => {
   emit('count', tasks.length);
 }, { deep: false });
 
-onMounted(load);
+onMounted(() => {
+  load();
+  loadFolders();
+});
 </script>
