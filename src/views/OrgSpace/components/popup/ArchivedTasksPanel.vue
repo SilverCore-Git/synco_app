@@ -42,6 +42,24 @@
           </div>
 
           <template v-else>
+            <div class="flex items-center gap-2 mb-5">
+              <span class="text-[11px] font-bold text-(--text2) uppercase tracking-wider mr-1">Trier par</span>
+              <button
+                @click="sortMode = 'date'"
+                class="text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+                :class="sortMode === 'date' ? 'bg-(--primary) text-white' : 'bg-white/5 text-(--text2) hover:bg-white/10'"
+              >
+                <i class="bi bi-calendar3" /> Date
+              </button>
+              <button
+                @click="sortMode = 'folder'"
+                class="text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+                :class="sortMode === 'folder' ? 'bg-(--primary) text-white' : 'bg-white/5 text-(--text2) hover:bg-white/10'"
+              >
+                <i class="bi bi-folder2" /> Dossier
+              </button>
+            </div>
+
             <div class="space-y-6">
               <div v-for="group in groupedTasks" :key="group.key">
                 <div class="flex items-center gap-2 mb-3">
@@ -124,6 +142,7 @@ const loading = ref(false);
 const pendingId = ref<string | null>(null);
 const archivedTasks = ref<Task[]>([]);
 const taskToRemove = ref<Task | null>(null);
+const sortMode = ref<'date' | 'folder'>('date');
 
 const formatDate = (date?: string | Date | null) => {
   if (!date) return '';
@@ -146,6 +165,20 @@ const groupedTasks = computed<TaskGroup[]>(() => {
   );
 
   const groups = new Map<string, TaskGroup>();
+
+  if (sortMode.value === 'folder') {
+    for (const task of sorted) {
+      const key = task.space?.id || '__none__';
+      const label = task.space?.name || 'Sans dossier';
+      if (!groups.has(key)) groups.set(key, { key, label, tasks: [] });
+      groups.get(key)!.tasks.push(task);
+    }
+    return [...groups.values()].sort((a, b) => {
+      if (a.key === '__none__') return 1;
+      if (b.key === '__none__') return -1;
+      return a.label.localeCompare(b.label, 'fr');
+    });
+  }
 
   for (const task of sorted) {
     const date = task.archivedAt ? new Date(task.archivedAt) : null;
