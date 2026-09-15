@@ -3,7 +3,7 @@
 import SpaceBarBTN from '../common/SpaceBarBTN.vue';
 import { useRoute, useRouter } from 'vue-router';
 import CreateNewSpace from '../popup/CreateNewSpace.vue';
-import { openedOrg, todoEnabled, aiEnabled, agendaEnabled, user } from '@/assets/var';
+import { openedOrg, todoEnabled, aiEnabled, agendaEnabled, user, userCardHeight } from '@/assets/var';
 import { useNotification } from '@/composables/useNotification';
 import draggable from 'vuedraggable';
 import { ref, watch } from 'vue';
@@ -75,7 +75,10 @@ const onSpaceOrderChange = async () => {
         "
     >
 
-        <ul class="flex justify-start items-center flex-col gap-2 h-full w-full">
+        <ul
+            class="flex justify-start items-center flex-col gap-2 h-full w-full overflow-y-auto"
+            :style="{ paddingBottom: userCardHeight + 'px' }"
+        >
 
             <RouterLink to="/">
                 <SpaceBarBTN
@@ -190,7 +193,10 @@ const onSpaceOrderChange = async () => {
         "
     >
 
-        <ul class="flex justify-start items-center flex-col gap-2 h-full w-full ">
+        <ul
+            class="flex justify-start items-center flex-col gap-2 h-full w-full overflow-y-auto"
+            :style="{ paddingBottom: userCardHeight + 'px' }"
+        >
 
             <SpaceBarBTN
                 icon="bi-arrow-bar-left"
