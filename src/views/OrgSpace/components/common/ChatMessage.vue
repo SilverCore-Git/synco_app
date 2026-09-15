@@ -86,7 +86,7 @@
                     
                     </div>
 
-                    <div class="z-20 flex justify-start items-start gap-3">
+                    <div class="z-20 flex justify-start items-start gap-3 min-w-0 w-full">
 
                         <img 
                             v-if="msg.sender && !isStacked"
