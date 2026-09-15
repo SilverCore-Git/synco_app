@@ -134,10 +134,10 @@
             
                 <div v-if="fileSendProgress !== null" class="absolute inset-0 bg-(--bg)/40 z-10 pointer-events-none" />
 
-                <div 
-                    v-for="(file, index) in selectedFiles" 
-                    :key="index" 
-                    class="relative group bg-(--bg) border border-white/10 rounded-md px-3 py-1 flex items-center gap-2 overflow-hidden"
+                <div
+                    v-for="(file, index) in selectedFiles"
+                    :key="index"
+                    class="relative group bg-(--bg) border border-white/10 rounded-md px-3 py-1 flex items-center gap-2 overflow-hidden max-w-full min-w-0"
                 >
                 
                     <div 
