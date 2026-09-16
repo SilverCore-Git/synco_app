@@ -634,12 +634,25 @@ const initListener = () => {
     if (!socket.value) return;
 
     socket.value.off("thread-history").off("more-messages").off("new-message").off("keys-distributed")
-        .off("delete-message").off("edit-message").off("connect");
+        .off("delete-message").off("edit-message").off("connect").off("thread:deleted");
 
     socket.value.on("connect", () => {
         if (thread.value?.id) {
             joinThread(thread.value.id);
         }
+    });
+
+    // The sidebar (OrgLayout.vue) already removes the thread from the list
+    // on this event — here we also need to move a user actively viewing it
+    // elsewhere, since otherwise they're left on a dead route.
+    socket.value.on("thread:deleted", ({ threadId }: { threadId: string }) => {
+        if (threadId !== thread.value?.id) return;
+        toast.show('Ce salon a été supprimé.', 'warning');
+        router.push({
+            name: 'OrgHome',
+            params: { orgId: route.params.orgId },
+            query: { noRedirect: 'true' }
+        });
     });
 
     socket.value.on("keys-distributed", async ({ threadId }: { threadId: string }) => {
@@ -1053,7 +1066,7 @@ onUnmounted(() => {
     {
         socket.value.emit("leave-thread", thread.value?.id);
         socket.value.off("thread-history").off("more-messages").off("new-message")
-            .off("keys-distributed").off("delete-message").off("edit-message").off("connect");
+            .off("keys-distributed").off("delete-message").off("edit-message").off("connect").off("thread:deleted");
     }
     window.removeEventListener('paste', handlePaste);
     document.removeEventListener('click', closeEmojiPickerOnOutsideClick);
