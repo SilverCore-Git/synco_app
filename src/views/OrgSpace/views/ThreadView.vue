@@ -151,53 +151,7 @@
 
                     <div class="w-10 h-10 shrink-0 flex items-center justify-center rounded bg-(--bg) border border-(--text)/5">
 
-                        <template v-if="file.name.includes('67')">
-                            67
-                        </template>
-
-                        <template v-else-if="file.type.startsWith('image/')">
-                            <i class="bi bi-image text-(--primary)/60 text-xl" />
-                        </template>
-
-                        <template v-else-if="file.type.includes('pdf')">
-                            <i class="bi bi-file-earmark-pdf text-red-400 text-xl" />
-                        </template>
-
-                        <template v-else-if="file.type.includes('zip') || file.type.includes('rar') || file.type.includes('7z') || file.type.includes('tar')">
-                            <i class="bi bi-file-earmark-zip text-yellow-500 text-xl" />
-                        </template>
-
-                        <template v-else-if="file.type.includes('application/x-msdownload') || file.type.includes('exe')">
-                            <i class="bi bi-terminal-fill text-blue-400 text-xl" />
-                        </template>
-
-                        <template v-else-if="file.type.startsWith('text/') || file.type.includes('javascript') || file.type.includes('json') || file.type.includes('typescript')">
-                            <i class="bi bi-file-earmark-code text-indigo-400 text-xl" />
-                        </template>
-
-                        <template v-else-if="file.type.includes('word') || file.type.includes('officedocument.wordprocessingml')">
-                            <i class="bi bi-file-earmark-word text-blue-500 text-xl" />
-                        </template>
-
-                        <template v-else-if="file.type.includes('excel') || file.type.includes('spreadsheetml') || file.type.includes('csv')">
-                            <i class="bi bi-file-earmark-excel text-green-500 text-xl" />
-                        </template>
-
-                        <template v-else-if="file.type.includes('powerpoint') || file.type.includes('presentationml')">
-                            <i class="bi bi-file-earmark-ppt text-orange-500 text-xl" />
-                        </template>
-
-                        <template v-else-if="file.type.startsWith('video/')">
-                            <i class="bi bi-play-btn text-purple-400 text-xl" />
-                        </template>
-
-                        <template v-else-if="file.type.startsWith('audio/')">
-                            <i class="bi bi-music-note-beamed text-pink-400 text-xl" />
-                        </template>
-
-                        <template v-else>
-                            <i class="bi bi-file-earmark text-(--text2) text-xl" />
-                        </template>
+                        <i class="bi text-xl" :class="[ getSelectedFileInfo(file).color, getSelectedFileInfo(file).icon ]" />
 
                     </div>
 
@@ -257,7 +211,6 @@
                 </button>
                 
                 <ThreadTextarea
-                    v-show="!(selectedFiles.length && !files.length)"
                     v-model="newMessage"
                     @send="sendMessage"
                     @edit-last="editLastOwnMessage"
@@ -266,10 +219,7 @@
                     ref="TextareaRef"
                 />
 
-                <div 
-                    v-show="!(selectedFiles.length && !files.length)"
-                    class="flex gap-3 ml-3"
-                >
+                <div class="flex gap-3 ml-3">
                     <button
                         @click="showEmojiPicker = !showEmojiPicker"
                         class="text-(--text2) hover:text-(--primary) transition-colors"
@@ -278,13 +228,14 @@
                         <i class="bi bi-emoji-smile-fill text-xl" />
                     </button>
 
-                    <button 
+                    <button
                         @click="sendMessage"
-                        :disabled="(!newMessage.trim() && selectedFiles.length === 0) || !currentThreadKey"
+                        :disabled="(!newMessage.trim() && selectedFiles.length === 0) || !currentThreadKey || fileSendProgress !== null"
                         :class="(newMessage.trim() || selectedFiles.length > 0) && currentThreadKey ? 'text-(--primary)' : 'text-(--text2) opacity-50'"
                         class="transition-colors"
                     >
-                        <i class="bi bi-send-fill" />
+                        <i v-if="fileSendProgress !== null" class="bi bi-arrow-repeat animate-spin" />
+                        <i v-else class="bi bi-send-fill" />
                     </button>
 
                 </div>
@@ -296,33 +247,6 @@
                 >
                     <EmojiPicker @select="insertEmoji" />
                 </div>
-
-                <button 
-                    v-if="(selectedFiles.length && !files.length)"
-                    @click="validUpload" 
-                    class="primary flex items-center gap-2 min-w-24 justify-center relative overflow-hidden w-full"
-                    :disabled="fileSendProgress !== null"
-                >
-
-                    <template v-if="fileSendProgress !== null">
-
-                        <i class="bi bi-arrow-repeat animate-spin text-lg" />
-                        
-                        <span v-if="fileSendProgress == 100">Finalisation...</span>
-                        <span v-else>{{ fileSendProgress }}%</span>
-                        
-                        <div 
-                            class="absolute inset-0 bg-white/10 pointer-events-none transition-all duration-300"
-                            :style="{ width: fileSendProgress + '%' }"
-                        />
-
-                    </template>
-                    
-                    <template v-else>
-                        Valider les pièces jointes
-                    </template>
-
-                </button>
 
             </div>
 
@@ -359,6 +283,7 @@ import SpinLoader from '@/components/SpinLoader.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import useResponse from '@/composables/useResponse';
 import { uploadFiles } from '@/assets/uploadFile';
+import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { waitForSocketConnection } from '@/composables/useWSocket';
 
 import { SearchSyncService } from '@/services/SearchSyncService';
@@ -412,7 +337,6 @@ const waitForThreadKey = (): Promise<void> => {
 };
 
 const selectedFiles = ref<File[]>([]);
-const files = ref<any[]>([]);
 const fileSendProgress = ref<null | number>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const TextareaRef = ref<InstanceType<typeof ThreadTextarea> | null>(null);
@@ -577,18 +501,10 @@ const removeFile = (index: number) => {
     selectedFiles.value.splice(index, 1);
 };
 
-const validUpload = async () => {
-    fileSendProgress.value = 0;
-    files.value = await uploadFiles(
-        selectedFiles.value,
-        {
-            workspaceId: (route.params.spaceId as string) || undefined,
-        },
-        (percent: number) => {
-            fileSendProgress.value = percent;
-        }
-    )
-}
+// getFileInfo expects a StoredFile (originalName/mimeType) — the preview
+// chips render raw File objects (name/type) before upload, so adapt here
+// rather than changing the shared util every other caller relies on.
+const getSelectedFileInfo = (file: File) => getFileInfo({ originalName: file.name, mimeType: file.type } as any);
 
 const scrollToSelectedMessage = async () => {
 
@@ -980,12 +896,23 @@ const joinThread = async (id: string) => {
 
 const sendMessage = async () => {
 
-    if (!newMessage.value.trim() || !socket.value || !currentThreadKey.value) return;
+    if ((!newMessage.value.trim() && selectedFiles.value.length === 0) || !socket.value || !currentThreadKey.value) return;
 
     try {
 
+        let uploadedFiles: any[] = [];
+
+        if (selectedFiles.value.length) {
+            fileSendProgress.value = 0;
+            uploadedFiles = await uploadFiles(
+                selectedFiles.value,
+                { workspaceId: (route.params.spaceId as string) || undefined },
+                (percent: number) => { fileSendProgress.value = percent; }
+            );
+        }
+
         const { ciphertext, iv } = await encryptMessageWithContentKey(newMessage.value, currentThreadKey.value);
-        
+
         const payload = {
             threadId: thread.value?.id,
             content: ciphertext, 
@@ -1031,21 +958,19 @@ const sendMessage = async () => {
         newMessage.value = "";
         scrollToBottom();
 
-        if (selectedFiles.value.length) 
-        {
-            socket.value?.emit('edit-message-files', { id: lastMessageId.value, files: files.value });
-            await nextTick();
-            files.value = [];
-            selectedFiles.value = [];
-            fileSendProgress.value = null;
-
+        if (uploadedFiles.length) {
+            socket.value?.emit('edit-message-files', { id: lastMessageId.value, files: uploadedFiles });
         }
+
+        selectedFiles.value = [];
+        fileSendProgress.value = null;
 
     } catch (err) {
         console.error("Erreur lors de l'envoi du message :", err);
         toast.show('Une erreur est survenue lors de l\'envoi du message.', 'error');
+        fileSendProgress.value = null;
     }
-    
+
 };
 
 const scrollToBottom = async (instant = false) => {

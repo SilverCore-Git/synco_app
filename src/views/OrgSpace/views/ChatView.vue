@@ -261,22 +261,22 @@
                 </div>
 
                 <div class="relative flex items-center bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
-                    
-                    <input 
-                        type="file" 
-                        multiple 
-                        ref="fileInputRef" 
-                        class="hidden" 
+
+                    <input
+                        type="file"
+                        multiple
+                        ref="fileInputRef"
+                        class="hidden"
                         @change="(e) => handleFiles((e.target as HTMLInputElement).files)"
                     />
 
-                    <button 
+                    <button
                         @click="triggerFileSearch"
                         class="mr-3 text-(--text2) hover:text-(--primary) transition-colors"
                     >
                         <i class="bi bi-plus-circle-fill text-xl" />
                     </button>
-                    
+
                     <ThreadTextarea
                         v-model="newMessage"
                         @send="sendMessage"
@@ -286,11 +286,8 @@
                         :placeholder="'Message @' + $p(recipient.name)"
                     />
 
-                    <div 
-                        v-show="!(selectedFiles.length && !files.length)"
-                        class="flex gap-3 ml-3"
-                    >
-                        <button 
+                    <div class="flex gap-3 ml-3">
+                        <button
                             @click="showEmojiPicker = !showEmojiPicker"
                             class="text-(--text2) hover:text-(--primary) transition-colors"
                             title="Ajouter un emoji"
@@ -298,43 +295,17 @@
                             <i class="bi bi-emoji-smile-fill text-xl" />
                         </button>
 
-                        <button 
+                        <button
                             @click="sendMessage"
-                            :disabled="(!newMessage.trim() && selectedFiles.length === 0) "
+                            :disabled="(!newMessage.trim() && selectedFiles.length === 0) || fileSendProgress !== null"
                             :class="(newMessage.trim() || selectedFiles.length > 0) ? 'text-(--primary)' : 'text-(--text2) opacity-50'"
                             class="transition-colors"
                         >
-                            <i class="bi bi-send-fill" />
+                            <i v-if="fileSendProgress !== null" class="bi bi-arrow-repeat animate-spin" />
+                            <i v-else class="bi bi-send-fill" />
                         </button>
 
                     </div>
-
-                    <button 
-                        v-if="(selectedFiles.length && !files.length)"
-                        @click="validUpload" 
-                        class="primary flex items-center gap-2 min-w-24 justify-center relative overflow-hidden w-full"
-                        :disabled="fileSendProgress !== null"
-                    >
-
-                        <template v-if="fileSendProgress !== null">
-
-                            <i class="bi bi-arrow-repeat animate-spin text-lg" />
-                            
-                            <span v-if="fileSendProgress == 100">Finalisation...</span>
-                            <span v-else>{{ fileSendProgress }}%</span>
-                            
-                            <div 
-                                class="absolute inset-0 bg-white/10 pointer-events-none transition-all duration-300"
-                                :style="{ width: fileSendProgress + '%' }"
-                            />
-
-                        </template>
-                        
-                        <template v-else>
-                            Valider les pièces jointes
-                        </template>
-
-                    </button>
 
                 </div>
 
@@ -453,7 +424,6 @@ const endEdit = () => {
 };
 
 const selectedFiles = ref<File[]>([]);
-const files = ref<any[]>([]);
 const fileSendProgress = ref<null | number>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
@@ -552,19 +522,19 @@ const handleFiles = (filesList: FileList | File[] | null) => {
 
 };
 
-// const handlePaste = (e: ClipboardEvent) => {
-//     const items = e.clipboardData?.items;
-//     if (!items) return;
-    
-//     for (const item of items) 
-//     {
-//         if (item.kind === 'file') 
-//         {
-//             const file = item.getAsFile();
-//             if (file) handleFiles([file]);
-//         }
-//     }
-// };
+const handlePaste = (e: ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of items)
+    {
+        if (item.kind === 'file')
+        {
+            const file = item.getAsFile();
+            if (file) handleFiles([file]);
+        }
+    }
+};
 
 const cancelReply = () => {
     setMessageWillBeResponded(null);
@@ -588,17 +558,6 @@ const removeFile = (index: number) => {
 // chips render raw File objects (name/type) before upload, so adapt here
 // rather than changing the shared util every other caller relies on.
 const getSelectedFileInfo = (file: File) => getFileInfo({ originalName: file.name, mimeType: file.type } as any);
-
-const validUpload = async () => {
-    fileSendProgress.value = 0;
-    files.value = await uploadFiles(
-        selectedFiles.value,
-        {},
-        (percent: number) => {
-            fileSendProgress.value = percent;
-        }
-    )
-}
 
 const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<DMMessage | null> => {
 
@@ -905,9 +864,22 @@ const sendMessage = async () => {
         }
     }
     
-    const pendingFiles = files.value;
+    let uploadedFiles: any[] = [];
+    if (selectedFiles.value.length) {
+        fileSendProgress.value = 0;
+        try {
+            uploadedFiles = await uploadFiles(
+                selectedFiles.value,
+                {},
+                (percent: number) => { fileSendProgress.value = percent; }
+            );
+        } catch (e) {
+            console.error('Erreur upload fichiers:', e);
+            toast.show('Échec de l\'envoi des pièces jointes.', 'error');
+        }
+    }
     selectedFiles.value = [];
-    files.value = [];
+    fileSendProgress.value = null;
 
     const confirmedMessage: any = await new Promise((resolve) => {
         socket.value?.emit("dm:send-message", {
@@ -927,8 +899,8 @@ const sendMessage = async () => {
         return;
     }
 
-    if (pendingFiles.length && confirmedMessage?.id) {
-        socket.value?.emit('edit-dm-message-files', { id: confirmedMessage.id, files: pendingFiles });
+    if (uploadedFiles.length && confirmedMessage?.id) {
+        socket.value?.emit('edit-dm-message-files', { id: confirmedMessage.id, files: uploadedFiles });
     }
 
 };
@@ -1028,11 +1000,13 @@ onMounted(async () => {
     
     // Ajouter l'écouteur pour fermer le picker sur clic extérieur
     document.addEventListener('click', closeEmojiPickerOnOutsideClick);
+    window.addEventListener('paste', handlePaste);
 });
 
 onUnmounted(() => {
     stopTyping();
     document.removeEventListener('click', closeEmojiPickerOnOutsideClick);
+    window.removeEventListener('paste', handlePaste);
     const sock = socket.value;
     if (sock) {
         const events = ["dm:history", "dm:new-message", "dm:user-typing", "dm:delete-message", "dm:edit-message", "dm-more-messages", "dm-reaction-updated", "connect"];
