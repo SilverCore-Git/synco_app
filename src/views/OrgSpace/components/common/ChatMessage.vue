@@ -120,10 +120,26 @@
 
                             </div>
 
-                            <div v-if="msg.type !== 'voice_invite'" ref="messageContentRef" @click="onMessageContentClick" class="text-(--text) text-sm leading-relaxed wrap-break-word">
-                                <MarkdownRender :content="msg.content" />
-                                <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
-                            </div>
+                            <template v-if="msg.type !== 'voice_invite'">
+                                <div v-if="isEditing" class="w-full">
+                                    <textarea
+                                        ref="editTextareaRef"
+                                        v-model="editContent"
+                                        rows="1"
+                                        class="w-full bg-(--bg) border border-(--primary)/60 rounded-lg px-2 py-1.5 text-sm text-(--text) outline-none resize-none focus:border-(--primary)"
+                                        @keydown.enter.exact.prevent="saveEdit"
+                                        @keydown.esc.prevent="cancelEdit"
+                                        @input="autoResizeEdit"
+                                    />
+                                    <p class="text-[10px] text-(--text2) mt-1">
+                                        échap pour annuler • entrée pour enregistrer
+                                    </p>
+                                </div>
+                                <div v-else ref="messageContentRef" @click="onMessageContentClick" class="text-(--text) text-sm leading-relaxed wrap-break-word">
+                                    <MarkdownRender :content="msg.content" />
+                                    <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
+                                </div>
+                            </template>
 
                             <div v-else class="mt-1 flex items-center gap-3 p-3 rounded-lg border border-(--text)/10 bg-white/3 max-w-sm">
                                 <div class="w-9 h-9 shrink-0 flex items-center justify-center rounded-full bg-(--primary)/15 text-(--primary)">
@@ -212,12 +228,6 @@
             @cancel="showDeleteConfirm = false"
         />
 
-        <EditMessage 
-            :is-open="showEditMessage" 
-            :initial-content="msg.content"
-            @close="showEditMessage = false"
-            @save="editMessage"
-        />
 
 </template>
 
@@ -227,7 +237,6 @@ import { computed, nextTick, ref, watch } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
 import useWSocket from '@/composables/useWSocket';
-import EditMessage from '../popup/EditMessage.vue';
 import MessageReactions from '@/components/common/MessageReactions.vue';
 import type { DMMessage, DMMessageReaction, ReactionUser } from '@/types/types';
 import { downloadFile } from '@/assets/utils/downloadFile';
@@ -281,6 +290,12 @@ const props = defineProps<{
     messages: DMMessage[];
     currentThreadKey?: CryptoKey | null;
     isStacked?: boolean;
+    isEditing?: boolean;
+}>();
+
+const emit = defineEmits<{
+    (e: 'edit-start'): void;
+    (e: 'edit-end'): void;
 }>();
 
 interface DropdownBtn {
@@ -311,7 +326,7 @@ const dropdownBtns: DropdownBtn[] = [
     {
         icon: "bi-pencil-fill",
         tooltip: "modifier",
-        func: () => openEditMessage(),
+        func: () => startEdit(),
         show: (msg: DMMessage) => msg.senderId == user.value?.id && msg.type !== 'voice_invite'
     },
     {
@@ -350,8 +365,26 @@ const { setMessageWillBeResponded } = useResponse();
 
 const showPlusDropdown = ref<boolean>(false);
 const showDeleteConfirm = ref<boolean>(false);
-const showEditMessage = ref<boolean>(false);
 const messageContentRef = ref<HTMLElement | null>(null);
+const editContent = ref<string>('');
+const editTextareaRef = ref<HTMLTextAreaElement | null>(null);
+
+const autoResizeEdit = () => {
+    const el = editTextareaRef.value;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 300)}px`;
+};
+
+watch(() => props.isEditing, (editing) => {
+    if (!editing) return;
+    editContent.value = props.msg.content;
+    nextTick(() => {
+        editTextareaRef.value?.focus();
+        editTextareaRef.value?.select();
+        autoResizeEdit();
+    });
+});
 
 const mentionLookup = computed(() => buildMentionLookup(openedOrg.value?.members));
 
@@ -416,9 +449,13 @@ const openDeleteConfirm = () => {
     showDeleteConfirm.value = true;
 };
 
-const openEditMessage = () => {
+const startEdit = () => {
     showPlusDropdown.value = false;
-    showEditMessage.value = true;
+    emit('edit-start');
+}
+
+const cancelEdit = () => {
+    emit('edit-end');
 }
 
 const deleteMessage = async () => {
@@ -451,21 +488,29 @@ const joinVoiceInvite = (msg: DMMessage) => {
     }
 };
 
-const editMessage = async (newContent: string) => {
+const saveEdit = async () => {
+
+    const content = editContent.value.trim();
+    if (!content || content === props.msg.content) {
+        emit('edit-end');
+        return;
+    }
 
     const myPubKey = user.value?.publicKey;
 
-    const { ciphertext, encryptedAesKey, iv, selfEncryptedAesKey } = await encryptForPeer(newContent, props.msg.sender?.publicKey!, myPubKey);
+    const { ciphertext, encryptedAesKey, iv, selfEncryptedAesKey } = await encryptForPeer(content, props.msg.sender?.publicKey!, myPubKey);
 
     const socket = await useWSocket();
-        
-    socket.value?.emit('dm:edit-message', { 
-        id: props.msg.id, 
+
+    socket.value?.emit('dm:edit-message', {
+        id: props.msg.id,
         newContent: ciphertext,
         encryptedAesKey,
         selfEncryptedAesKey: selfEncryptedAesKey,
         nonce: iv,
     });
+
+    emit('edit-end');
 
 };
 

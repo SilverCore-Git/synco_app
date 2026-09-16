@@ -120,14 +120,18 @@
                             <div class="animate-spin h-5 w-5 border-2 border-(--primary) border-t-transparent rounded-full" />
                         </div>
 
-                        <ChatMessage 
-                            v-for="(msg, index) in messages" 
-                            :key="msg.id" 
+                        <ChatMessage
+                            v-for="(msg, index) in messages"
+                            :key="msg.id"
+                            :id="'msg-' + msg.id"
 
                             :selected-message="selectedMessage"
                             :msg="msg"
                             :messages="messages"
                             :is-stacked="index > 0 && messages[index-1].senderId === msg.senderId && !msg.replyToId && (new Date(msg.createdAt).getTime() - new Date(messages[index-1].createdAt).getTime() < 60000)"
+                            :is-editing="editingMessageId === msg.id"
+                            @edit-start="editingMessageId = msg.id"
+                            @edit-end="editingMessageId = null"
                         />
 
                     </template>
@@ -277,6 +281,7 @@
                         v-model="newMessage"
                         @send="sendMessage"
                         @input="handleTyping"
+                        @edit-last="editLastOwnMessage"
                         ref="TextareaRef"
                         :placeholder="'Message @' + $p(recipient.name)"
                     />
@@ -429,6 +434,16 @@ const isFetchingMore = ref<boolean>(false);
 const hasMore = ref<boolean>(true);
 const isSomeoneTyping = ref<boolean>(false);
 let typingTimeout: any = null;
+const editingMessageId = ref<string | null>(null);
+
+const editLastOwnMessage = () => {
+    const last = [...messages.value].reverse().find(m => m.senderId === user.value?.id && m.type !== 'voice_invite');
+    if (!last) return;
+    editingMessageId.value = last.id;
+    nextTick(() => {
+        document.getElementById('msg-' + last.id)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+};
 
 const selectedFiles = ref<File[]>([]);
 const files = ref<any[]>([]);

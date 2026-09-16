@@ -69,6 +69,9 @@
                             :messages="sortedMessages"
                             :currentThreadKey="currentThreadKey"
                             :is-stacked="index > 0 && sortedMessages[index-1]?.senderId === msg.senderId && sortedMessages[index-1]?.isWebhook === msg.isWebhook && !msg.replyToId && (new Date(msg.createdAt).getTime() - new Date(sortedMessages[index-1]!.createdAt).getTime() < 60000)"
+                            :is-editing="editingMessageId === msg.id"
+                            @edit-start="editingMessageId = msg.id"
+                            @edit-end="editingMessageId = null"
                         />
                     </div>
 
@@ -257,6 +260,7 @@
                     v-show="!(selectedFiles.length && !files.length)"
                     v-model="newMessage"
                     @send="sendMessage"
+                    @edit-last="editLastOwnMessage"
                     :placeholder="currentThreadKey ? 'Envoyer un message...' : loading ? 'Génération de la clé...' : (debugMsg || 'Erreur : Clé introuvable, rechargez la page')"
                     :disabled="!currentThreadKey"
                     ref="TextareaRef"
@@ -425,6 +429,16 @@ const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
 const lastMessageId = ref<string>('');
 const showEmojiPicker = ref<boolean>(false);
 const showUnreadDelimiterAfterId = ref<string | null>(null);
+const editingMessageId = ref<string | null>(null);
+
+const editLastOwnMessage = () => {
+    const last = [...sortedMessages.value].reverse().find(m => m.senderId === user.value?.id);
+    if (!last) return;
+    editingMessageId.value = last.id;
+    nextTick(() => {
+        document.getElementById('msg-' + last.id)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+};
 
 const saveLastRead = () => {
     if (!thread.value || sortedMessages.value.length === 0) return;
