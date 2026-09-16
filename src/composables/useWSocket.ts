@@ -26,7 +26,12 @@ const setupTokenRefreshListener = () => {
 
 const useWSocket = async (): Promise<Ref<Socket | null>> => {
     
-    if (socket.value?.connected) return socket as Ref<Socket | null>;
+    // Return any existing instance, connected or still connecting — not just
+    // connected ones. Checking `.connected` here left a window between
+    // `io()` being called (which releases isConnecting, see below) and the
+    // 'connect' event firing where a concurrent caller would pass both
+    // checks and spin up a second, redundant socket instance.
+    if (socket.value) return socket as Ref<Socket | null>;
 
     if (isConnecting.value)
     {
