@@ -8,10 +8,21 @@ let unsubscribeTokenRefresh: (() => void) | null = null;
 
 const getToken = () => keycloak.token || '';
 
+// Keeps the live socket's session alive across Keycloak token refreshes.
+// Previously this disconnected the socket to force a fresh handshake with
+// the new token — but a client-initiated disconnect (reason "io client
+// disconnect") never auto-reconnects in socket.io, so every token refresh
+// permanently killed the connection until something incidentally called
+// useWSocket() again. The server already exposes 'auth:refresh' for exactly
+// this (see ws.ts) — use it to push the new token in place, no disconnect.
 const forceReconnect = async () => {
     if (socket.value?.connected) {
-        console.log('[WS] Forcing reconnection due to token refresh');
-        socket.value.disconnect();
+        socket.value.emit('auth:refresh', getToken(), (res: { ok?: boolean }) => {
+            if (!res?.ok) {
+                console.warn('[WS] auth:refresh rejected, forcing reconnect');
+                socket.value?.disconnect().connect();
+            }
+        });
     }
 };
 
@@ -143,8 +154,26 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             }
         });
 
-        socket.value.on("disconnect", (reason) => {
+        socket.value.on("disconnect", async (reason) => {
             console.warn("[WS] Disconnected:", reason);
+            // socket.io does not auto-reconnect after "io server disconnect"
+            // (server called socket.disconnect(), e.g. the token-expiry
+            // revalidation in ws.ts) or "io client disconnect" — every other
+            // reason (transport close, ping timeout, ...) already retries via
+            // the `reconnection` option. Without this the socket stays dead
+            // until some unrelated component happens to call useWSocket()
+            // again. Refresh the token first so we don't immediately hit the
+            // same expired-token wall on the next attempt.
+            if (reason === "io server disconnect" || reason === "io client disconnect") {
+                if (keycloak.authenticated) {
+                    try {
+                        await keycloak.updateToken(-1);
+                    } catch (e) {
+                        console.error("[WS] Failed to refresh token before reconnect", e);
+                    }
+                }
+                socket.value?.connect();
+            }
         });
 
         setupTokenRefreshListener();
