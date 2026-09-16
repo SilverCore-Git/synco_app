@@ -570,6 +570,8 @@ function handleTabletChange(e: any)
 
 onMounted(async () => {
 
+    localStorage.setItem('lastOpenedOrgId', props.orgId);
+
     if (!openedOrg.value || openedOrg.value.id !== props.orgId) {
         const res = await sfetch(`/api/orgs/${props.orgId}`);
         if (!res.ok) {
