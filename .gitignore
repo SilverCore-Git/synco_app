@@ -30,3 +30,4 @@ dist-ssr
 .env.production
 .claude
 CLAUDE.md
+sync app.env.production
