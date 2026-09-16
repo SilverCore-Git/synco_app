@@ -71,7 +71,7 @@
                             :is-stacked="index > 0 && sortedMessages[index-1]?.senderId === msg.senderId && sortedMessages[index-1]?.isWebhook === msg.isWebhook && !msg.replyToId && (new Date(msg.createdAt).getTime() - new Date(sortedMessages[index-1]!.createdAt).getTime() < 60000)"
                             :is-editing="editingMessageId === msg.id"
                             @edit-start="editingMessageId = msg.id"
-                            @edit-end="editingMessageId = null"
+                            @edit-end="endEdit"
                         />
                     </div>
 
@@ -437,6 +437,13 @@ const editLastOwnMessage = () => {
     editingMessageId.value = last.id;
     nextTick(() => {
         document.getElementById('msg-' + last.id)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+};
+
+const endEdit = () => {
+    editingMessageId.value = null;
+    nextTick(() => {
+        TextareaRef.value?.textarea?.focus();
     });
 };
 
