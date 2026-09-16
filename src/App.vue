@@ -283,26 +283,20 @@ const handleTauriLogin = async () => {
   }
 };
 
-onMounted(async () => {
-  console.log('[DEBUG] onMounted start');
+const bootError = ref<boolean>(false);
+const bootLoading = ref<boolean>(false);
 
-  // Le premier rendu réel de l'app a été commité au DOM (on est dans
-  // onMounted), mais on attend un vrai cycle de peinture (nextTick + rAF)
-  // avant de retirer l'écran de démarrage statique (index.html), pour ne
-  // jamais laisser transparaître un rendu non stylé en dessous.
-  try {
-    await nextTick();
-    requestAnimationFrame(() => {
-      document.getElementById('boot-loader')?.remove();
-    });
-  } catch (e) {
-    document.getElementById('boot-loader')?.remove();
-  }
+const bootstrap = async () => {
+  bootError.value = false;
+  bootLoading.value = true;
 
   try {
     const res = await fetch(`${import.meta.env.VITE_API_URL}/health`);
     console.log('[DEBUG] health check status:', res.status);
-    if (!res.ok) return toast.show('Api error', 'error', 10000);
+    if (!res.ok) {
+      bootError.value = true;
+      return toast.show('Api error', 'error', 10000);
+    }
 
     console.log('[DEBUG] calling initKC...');
     authenticated.value = await initKC();
@@ -322,9 +316,31 @@ onMounted(async () => {
     window.addEventListener('click', initSound);
     window.addEventListener('keydown', initSound);
   } catch (error) {
-    console.error('[DEBUG] Error in onMounted:', error);
+    console.error('[DEBUG] Error in bootstrap:', error);
+    bootError.value = true;
     toast.show('Une erreur est survenue lors de l’initialisation.', 'error', 10000);
+  } finally {
+    bootLoading.value = false;
   }
+};
+
+onMounted(async () => {
+  console.log('[DEBUG] onMounted start');
+
+  // Le premier rendu réel de l'app a été commité au DOM (on est dans
+  // onMounted), mais on attend un vrai cycle de peinture (nextTick + rAF)
+  // avant de retirer l'écran de démarrage statique (index.html), pour ne
+  // jamais laisser transparaître un rendu non stylé en dessous.
+  try {
+    await nextTick();
+    requestAnimationFrame(() => {
+      document.getElementById('boot-loader')?.remove();
+    });
+  } catch (e) {
+    document.getElementById('boot-loader')?.remove();
+  }
+
+  await bootstrap();
 });
 
 </script>
@@ -364,7 +380,7 @@ onMounted(async () => {
 
         <div class="w-full h-full" key="lock" v-else>
 
-          <div v-if="pinLoading"
+          <div v-if="pinLoading || !user"
             class="w-full h-full flex flex-col items-center justify-center bg-(--bg3) p-6 select-none">
             <Loader />
           </div>
@@ -518,6 +534,16 @@ onMounted(async () => {
           La connexion a échoué. Réessayez.
         </p>
 
+      </div>
+
+      <div v-else-if="bootError"
+        class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none text-center">
+        <p class="text-sm text-(--text2) mb-4 max-w-sm">
+          Impossible de contacter le serveur. Vérifiez votre connexion et réessayez.
+        </p>
+        <button @click="bootstrap" class="primary" :class="{ loader: bootLoading }" :disabled="bootLoading">
+          Réessayer
+        </button>
       </div>
 
       <Loader v-else />
