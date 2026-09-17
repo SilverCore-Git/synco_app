@@ -268,6 +268,17 @@ export interface Tag {
   color: string;
 }
 
+// Métadonnées légères d'une image attachée à une tâche — les champs E2EE
+// complets sont récupérés à la demande via GET /api/cdn/meta/:id (comme
+// FileCard.vue le fait déjà) plutôt que dupliqués dans la charge de la tâche.
+export interface TaskAttachment {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  createdAt: string | Date;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -292,6 +303,8 @@ export interface Task {
   subtasks?: Task[];
 
   tags?: Tag[];
+  attachments?: TaskAttachment[];
+  _count?: { attachments?: number };
 
   createdAt: string | Date;
   updatedAt: string | Date;

@@ -77,7 +77,37 @@
             <div class="bg-white/5 rounded-xl p-4 border border-white/10">
                 <h4 class="text-xs font-bold text-(--text2) uppercase mb-2">Description</h4>
                 <p v-if="!isEditing" class="text-sm text-white/80 whitespace-pre-wrap">{{ task.description || 'Aucune description fournie.' }}</p>
-                <textarea v-else v-model="editForm.description" rows="3" class="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-white/80 resize-none"></textarea>
+                <textarea v-else v-model="editForm.description" @paste="handlePaste" rows="3" class="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-white/80 resize-none" placeholder="Collez une image pour l'ajouter en pièce jointe"></textarea>
+            </div>
+
+            <!-- Pièces jointes -->
+            <div class="bg-white/5 rounded-xl p-4 border border-white/10">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-xs font-bold text-(--text2) uppercase">Pièces jointes</h4>
+                    <button type="button" @click="imageInput?.click()" class="text-[11px] font-bold text-(--text2) hover:text-(--primary) flex items-center gap-1" :disabled="uploadingImage">
+                        <i class="bi bi-paperclip"></i>
+                        Ajouter une image
+                    </button>
+                    <input ref="imageInput" type="file" accept="image/*" multiple hidden @change="onPickImages" />
+                </div>
+                <div v-if="task.attachments?.length" class="flex flex-wrap gap-2">
+                    <div
+                        v-for="attachment in task.attachments" :key="attachment.id"
+                        class="relative group w-16 h-16 rounded-lg overflow-hidden border border-white/10 cursor-pointer bg-black/20"
+                        @click="openAttachment(attachment)"
+                    >
+                        <img v-if="attachmentPreviews[attachment.id]" :src="attachmentPreviews[attachment.id]" class="w-full h-full object-cover" />
+                        <i v-else class="bi bi-image absolute inset-0 flex items-center justify-center text-(--text2)"></i>
+                        <button
+                            type="button"
+                            @click.stop="removeAttachment(attachment)"
+                            class="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs"
+                        >
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
+                <p v-else class="text-xs text-(--text2) italic">Aucune pièce jointe. Collez ou ajoutez une image pour donner du contexte.</p>
             </div>
 
             <div v-if="isEditing" class="bg-white/5 rounded-xl p-4 border border-white/10 mt-4">
@@ -209,20 +239,31 @@
             </div>
         </template>
     </Popup>
+
+    <FileViewer
+        v-if="viewingFile"
+        :file="viewingFile"
+        :isOpen="!!viewingFile"
+        @close="viewingFile = null"
+        @deleted="onAttachmentViewerDeleted"
+    />
 </template>
 
 <script setup lang="ts">
-import { ref, watch, reactive, computed, nextTick } from 'vue';
+import { ref, watch, reactive, computed, nextTick, onBeforeUnmount } from 'vue';
 import Popup from '@/components/Popup.vue';
 import CreateTaskModal from './CreateTaskModal.vue';
 import TaskTagPicker from './TaskTagPicker.vue';
-import type { Task, OrgMember } from '@/types/types';
+import FileViewer from './FileViewer.vue';
+import type { Task, OrgMember, TaskAttachment, StoredFile } from '@/types/types';
 import sfetch from '@/assets/utils/sfetch';
 import { useRoute } from 'vue-router';
 import { useToast } from '@/composables/useToast';
 import confetti from 'canvas-confetti';
 import { openedOrg } from '@/assets/var';
 import { openProfile } from '@/composables/useProfile';
+import { uploadFile } from '@/assets/uploadFile';
+import { getFilePreviewUrl } from '@/assets/utils/downloadFile';
 
 const props = defineProps<{
     task: Task | null;
@@ -236,6 +277,107 @@ const toast = useToast();
 
 const isEditing = ref(false);
 const loading = ref(false);
+
+// ── Pièces jointes (images) ─────────────────────────────────────────
+const imageInput = ref<HTMLInputElement | null>(null);
+const uploadingImage = ref(false);
+const attachmentPreviews = ref<Record<string, string>>({});
+const viewingFile = ref<StoredFile | null>(null);
+let viewingAttachmentId: string | null = null;
+
+const resolveAttachmentPreview = async (attachment: TaskAttachment) => {
+    if (attachmentPreviews.value[attachment.id]) return;
+    try {
+        const preview = await getFilePreviewUrl(attachment.id);
+        attachmentPreviews.value[attachment.id] = preview.url;
+    } catch (e) {
+        console.error('[TaskDetailsModal] Failed to load attachment preview', e);
+    }
+};
+
+const resolveAllAttachmentPreviews = () => {
+    (props.task?.attachments || []).forEach(resolveAttachmentPreview);
+};
+
+const uploadAttachments = async (files: File[]) => {
+    if (!props.task) return;
+    uploadingImage.value = true;
+    try {
+        for (const file of files) {
+            const uploaded = await uploadFile(file, { taskId: props.task.id, workspaceId: props.task.spaceId || undefined });
+            if (!props.task.attachments) props.task.attachments = [];
+            props.task.attachments.unshift(uploaded);
+            resolveAttachmentPreview(uploaded);
+        }
+        emit('update', props.task);
+    } catch (e) {
+        toast.show('Erreur lors de l\'ajout de l\'image', 'error');
+    } finally {
+        uploadingImage.value = false;
+    }
+};
+
+const handlePaste = (e: ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const files: File[] = [];
+    for (const item of items) {
+        if (item.type.startsWith('image/')) {
+            const file = item.getAsFile();
+            if (file) files.push(file);
+        }
+    }
+    if (files.length) uploadAttachments(files);
+};
+
+const onPickImages = (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    if (input.files?.length) uploadAttachments(Array.from(input.files));
+    input.value = '';
+};
+
+const openAttachment = async (attachment: TaskAttachment) => {
+    try {
+        const res = await sfetch(`/api/cdn/meta/${attachment.id}`);
+        if (!res.ok) throw new Error();
+        viewingAttachmentId = attachment.id;
+        viewingFile.value = await res.json();
+    } catch (e) {
+        toast.show('Impossible de charger la pièce jointe', 'error');
+    }
+};
+
+const onAttachmentViewerDeleted = () => {
+    if (props.task && viewingAttachmentId) {
+        removeAttachmentLocally(viewingAttachmentId);
+    }
+    viewingFile.value = null;
+};
+
+const removeAttachmentLocally = (attachmentId: string) => {
+    if (!props.task?.attachments) return;
+    props.task.attachments = props.task.attachments.filter(a => a.id !== attachmentId);
+    if (attachmentPreviews.value[attachmentId]) {
+        delete attachmentPreviews.value[attachmentId];
+    }
+    emit('update', props.task);
+};
+
+const removeAttachment = async (attachment: TaskAttachment) => {
+    try {
+        const res = await sfetch(`/api/cdn/${attachment.id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        removeAttachmentLocally(attachment.id);
+    } catch (e) {
+        toast.show('Erreur lors de la suppression de la pièce jointe', 'error');
+    }
+};
+
+onBeforeUnmount(() => {
+    Object.values(attachmentPreviews.value).forEach(url => {
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+    });
+});
 
 const editForm = reactive({
     title: '',
@@ -314,6 +456,7 @@ watch(() => props.isOpen, async (newVal) => {
         searchAssignee.value = '';
         isEditing.value = props.startInEditMode || false;
         saveStatus.value = 'idle';
+        resolveAllAttachmentPreviews();
         await nextTick();
         initializing = false;
     }

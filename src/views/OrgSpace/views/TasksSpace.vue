@@ -198,9 +198,15 @@
                                 </div>
                                 <div v-else></div>
 
-                                <div v-if="task.subtasks && task.subtasks.length > 0" class="flex items-center gap-1.5 text-xs bg-white/5 px-2.5 py-1 rounded-lg font-bold text-white/50">
-                                    <i class="bi bi-check2-square text-(--primary)"></i>
-                                    {{ task.subtasks.filter((st: any) => st.status === 'DONE').length }}/{{ task.subtasks.length }}
+                                <div class="flex items-center gap-1.5">
+                                    <div v-if="task._count?.attachments" class="flex items-center gap-1 text-xs bg-white/5 px-2 py-1 rounded-lg font-bold text-white/50">
+                                        <i class="bi bi-paperclip"></i>
+                                        {{ task._count.attachments }}
+                                    </div>
+                                    <div v-if="task.subtasks && task.subtasks.length > 0" class="flex items-center gap-1.5 text-xs bg-white/5 px-2.5 py-1 rounded-lg font-bold text-white/50">
+                                        <i class="bi bi-check2-square text-(--primary)"></i>
+                                        {{ task.subtasks.filter((st: any) => st.status === 'DONE').length }}/{{ task.subtasks.length }}
+                                    </div>
                                 </div>
                             </div>
 

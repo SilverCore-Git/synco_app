@@ -32,20 +32,47 @@
                 <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                     Description (optionnel)
                 </label>
-                <textarea 
+                <textarea
                     v-model="form.description"
                     @keydown.ctrl.enter="handleSubmit"
                     @keydown.meta.enter="handleSubmit"
-                    placeholder="Plus de détails..."
+                    @paste="handlePaste"
+                    placeholder="Plus de détails... (collez une image pour l'ajouter en pièce jointe)"
                     rows="3"
                     class="
-                        w-full bg-(--bg2)/30 border border-white/10 rounded-xl 
-                        px-4 py-3 text-(--text) placeholder:text-(--text2) 
+                        w-full bg-(--bg2)/30 border border-white/10 rounded-xl
+                        px-4 py-3 text-(--text) placeholder:text-(--text2)
                         focus:outline-none focus:border-(--primary)/50 focus:ring-1
                         focus:ring-(--primary)/20 transition-all resize-none
                     "
                     :disabled="loading"
                 ></textarea>
+
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button
+                        type="button"
+                        @click="imageInput?.click()"
+                        class="text-[11px] font-bold text-(--text2) hover:text-(--primary) flex items-center gap-1"
+                        :disabled="loading"
+                    >
+                        <i class="bi bi-paperclip"></i>
+                        Joindre une image
+                    </button>
+                    <input ref="imageInput" type="file" accept="image/*" multiple hidden @change="onPickImages" />
+                </div>
+
+                <div v-if="stagedImages.length" class="flex flex-wrap gap-2">
+                    <div v-for="(img, idx) in stagedImages" :key="img.previewUrl" class="relative group w-16 h-16 rounded-lg overflow-hidden border border-white/10">
+                        <img :src="img.previewUrl" class="w-full h-full object-cover" />
+                        <button
+                            type="button"
+                            @click="removeStagedImage(idx)"
+                            class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white"
+                        >
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div class="flex flex-col gap-2">
@@ -170,6 +197,7 @@ import TaskTagPicker from './TaskTagPicker.vue';
 import { useRoute } from 'vue-router';
 import { openedOrg, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
+import { uploadFiles } from '@/assets/uploadFile';
 import { useToast } from '@/composables/useToast';
 import type { OrgMember } from '@/types/types';
 
@@ -200,6 +228,49 @@ const form = reactive({
 
 const searchAssignee = ref('');
 
+interface StagedImage {
+    file: File;
+    previewUrl: string;
+}
+const stagedImages = ref<StagedImage[]>([]);
+const imageInput = ref<HTMLInputElement | null>(null);
+
+const addStagedImages = (files: File[]) => {
+    for (const file of files) {
+        if (!file.type.startsWith('image/')) continue;
+        stagedImages.value.push({ file, previewUrl: URL.createObjectURL(file) });
+    }
+};
+
+const handlePaste = (e: ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const files: File[] = [];
+    for (const item of items) {
+        if (item.type.startsWith('image/')) {
+            const file = item.getAsFile();
+            if (file) files.push(file);
+        }
+    }
+    if (files.length) addStagedImages(files);
+};
+
+const onPickImages = (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    if (input.files?.length) addStagedImages(Array.from(input.files));
+    input.value = '';
+};
+
+const removeStagedImage = (idx: number) => {
+    const [removed] = stagedImages.value.splice(idx, 1);
+    if (removed) URL.revokeObjectURL(removed.previewUrl);
+};
+
+const clearStagedImages = () => {
+    stagedImages.value.forEach(img => URL.revokeObjectURL(img.previewUrl));
+    stagedImages.value = [];
+};
+
 const availableMembers = computed<OrgMember[]>(() => {
     if (!openedOrg.value?.members) return [];
     if (!form.spaceId) {
@@ -229,6 +300,7 @@ const openModal = () => {
     form.assigneeIds = user.value?.id ? [user.value.id] : [];
     form.tagIds = [];
     searchAssignee.value = '';
+    clearStagedImages();
     nextTick(() => {
         titleInput.value?.focus();
     });
@@ -272,6 +344,18 @@ const handleSubmit = async () => {
 
         if (res.ok) {
             const task = await res.json();
+
+            if (stagedImages.value.length) {
+                try {
+                    task.attachments = await uploadFiles(
+                        stagedImages.value.map(img => img.file),
+                        { taskId: task.id, workspaceId: task.spaceId || undefined }
+                    );
+                } catch (e) {
+                    toast.show('Tâche créée, mais l\'ajout des images a échoué.', 'error');
+                }
+            }
+
             emit('created', task);
             toast.show('Tâche créée avec succès.', 'success');
             closeModal();

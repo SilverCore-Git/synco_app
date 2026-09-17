@@ -8,6 +8,7 @@ export interface UploadContext {
     messageId?: string;
     folderId?: string;
     dmMessageId?: string;
+    taskId?: string;
 }
 
 export default async function uploadFile(
@@ -62,6 +63,7 @@ export default async function uploadFile(
         if (context.messageId) formData.append('messageId', context.messageId);
         if (context.folderId) formData.append('folderId', context.folderId);
         if (context.dmMessageId) formData.append('dmMessageId', context.dmMessageId);
+        if (context.taskId) formData.append('taskId', context.taskId);
 
         if (isE2EE) {
             formData.append('isE2EE', 'true');
