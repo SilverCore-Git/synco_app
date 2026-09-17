@@ -110,6 +110,37 @@
                 <p v-else class="text-xs text-(--text2) italic">Aucune pièce jointe. Collez ou ajoutez une image pour donner du contexte.</p>
             </div>
 
+            <!-- Fichiers liés (uniquement pour les tâches d'espace : le gestionnaire de fichiers est propre à un espace) -->
+            <div v-if="task.spaceId" class="bg-white/5 rounded-xl p-4 border border-white/10">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-xs font-bold text-(--text2) uppercase">Fichiers liés</h4>
+                    <button type="button" @click="showFilePicker = true" class="text-[11px] font-bold text-(--text2) hover:text-(--primary) flex items-center gap-1">
+                        <i class="bi bi-link-45deg"></i>
+                        Lier un fichier
+                    </button>
+                </div>
+                <div v-if="task.linkedFiles?.length" class="space-y-1.5">
+                    <div
+                        v-for="link in task.linkedFiles" :key="link.id"
+                        class="flex items-center gap-3 p-2 rounded-lg border border-(--border-color) hover:border-(--primary)/50 cursor-pointer group transition-colors"
+                        @click="openLinkedFile(link)"
+                    >
+                        <div class="w-8 h-8 flex items-center justify-center rounded-lg bg-black/20 shrink-0">
+                            <i :class="[getFileInfo(link.file as any).icon, getFileInfo(link.file as any).color]" class="text-base" />
+                        </div>
+                        <p class="flex-1 min-w-0 text-sm font-semibold text-(--text) truncate">{{ link.file.originalName }}</p>
+                        <button
+                            type="button"
+                            @click.stop="unlinkFile(link)"
+                            class="text-(--text2) hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
+                <p v-else class="text-xs text-(--text2) italic">Aucun fichier lié.</p>
+            </div>
+
             <div v-if="isEditing" class="bg-white/5 rounded-xl p-4 border border-white/10 mt-4">
                 <h4 class="text-xs font-bold text-(--text2) uppercase mb-2">Assignation</h4>
                 <div class="relative mb-2">
@@ -247,6 +278,14 @@
         @close="viewingFile = null"
         @deleted="onAttachmentViewerDeleted"
     />
+
+    <FilePickerModal
+        v-if="task?.spaceId"
+        :isOpen="showFilePicker"
+        :spaceId="task.spaceId"
+        @close="showFilePicker = false"
+        @select="onFileLinked"
+    />
 </template>
 
 <script setup lang="ts">
@@ -255,7 +294,8 @@ import Popup from '@/components/Popup.vue';
 import CreateTaskModal from './CreateTaskModal.vue';
 import TaskTagPicker from './TaskTagPicker.vue';
 import FileViewer from './FileViewer.vue';
-import type { Task, OrgMember, TaskAttachment, StoredFile } from '@/types/types';
+import FilePickerModal from './FilePickerModal.vue';
+import type { Task, OrgMember, TaskAttachment, TaskLinkedFile, StoredFile } from '@/types/types';
 import sfetch from '@/assets/utils/sfetch';
 import { useRoute } from 'vue-router';
 import { useToast } from '@/composables/useToast';
@@ -264,6 +304,7 @@ import { openedOrg } from '@/assets/var';
 import { openProfile } from '@/composables/useProfile';
 import { uploadFile } from '@/assets/uploadFile';
 import { getFilePreviewUrl } from '@/assets/utils/downloadFile';
+import { getFileInfo } from '@/assets/utils/getFileIcon';
 
 const props = defineProps<{
     task: Task | null;
@@ -284,6 +325,7 @@ const uploadingImage = ref(false);
 const attachmentPreviews = ref<Record<string, string>>({});
 const viewingFile = ref<StoredFile | null>(null);
 let viewingAttachmentId: string | null = null;
+let viewingLinkedFileId: string | null = null;
 
 const resolveAttachmentPreview = async (attachment: TaskAttachment) => {
     if (attachmentPreviews.value[attachment.id]) return;
@@ -341,15 +383,23 @@ const openAttachment = async (attachment: TaskAttachment) => {
         const res = await sfetch(`/api/cdn/meta/${attachment.id}`);
         if (!res.ok) throw new Error();
         viewingAttachmentId = attachment.id;
+        viewingLinkedFileId = null;
         viewingFile.value = await res.json();
     } catch (e) {
         toast.show('Impossible de charger la pièce jointe', 'error');
     }
 };
 
+// Le bouton "Supprimer" de FileViewer supprime le fichier réel : pour une
+// pièce jointe cela retire l'image de la tâche, pour un fichier lié cela
+// supprime le fichier du gestionnaire de fichiers (le lien disparaît en
+// cascade côté serveur) — deux conséquences différentes, d'où le suivi
+// séparé de quel type de fichier est actuellement ouvert dans la visionneuse.
 const onAttachmentViewerDeleted = () => {
     if (props.task && viewingAttachmentId) {
         removeAttachmentLocally(viewingAttachmentId);
+    } else if (props.task && viewingLinkedFileId) {
+        removeLinkedFileLocally(viewingLinkedFileId);
     }
     viewingFile.value = null;
 };
@@ -370,6 +420,59 @@ const removeAttachment = async (attachment: TaskAttachment) => {
         removeAttachmentLocally(attachment.id);
     } catch (e) {
         toast.show('Erreur lors de la suppression de la pièce jointe', 'error');
+    }
+};
+
+// ── Fichiers liés ────────────────────────────────────────────────────
+const showFilePicker = ref(false);
+
+const removeLinkedFileLocally = (fileId: string) => {
+    if (!props.task?.linkedFiles) return;
+    props.task.linkedFiles = props.task.linkedFiles.filter(l => l.fileId !== fileId);
+    emit('update', props.task);
+};
+
+const openLinkedFile = async (link: TaskLinkedFile) => {
+    try {
+        const res = await sfetch(`/api/cdn/meta/${link.fileId}`);
+        if (!res.ok) throw new Error();
+        viewingLinkedFileId = link.fileId;
+        viewingAttachmentId = null;
+        viewingFile.value = await res.json();
+    } catch (e) {
+        toast.show('Impossible de charger le fichier', 'error');
+    }
+};
+
+const onFileLinked = async (file: StoredFile) => {
+    if (!props.task) return;
+    showFilePicker.value = false;
+    try {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${props.task.id}/files/${file.id}`, {
+            method: 'POST'
+        });
+        if (!res.ok) throw new Error();
+        const link: TaskLinkedFile = await res.json();
+        if (!props.task.linkedFiles) props.task.linkedFiles = [];
+        if (!props.task.linkedFiles.some(l => l.fileId === file.id)) {
+            props.task.linkedFiles.unshift(link);
+        }
+        emit('update', props.task);
+    } catch (e) {
+        toast.show('Erreur lors de la liaison du fichier', 'error');
+    }
+};
+
+const unlinkFile = async (link: TaskLinkedFile) => {
+    if (!props.task) return;
+    try {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${props.task.id}/files/${link.fileId}`, {
+            method: 'DELETE'
+        });
+        if (!res.ok) throw new Error();
+        removeLinkedFileLocally(link.fileId);
+    } catch (e) {
+        toast.show('Erreur lors de la suppression du lien', 'error');
     }
 };
 
