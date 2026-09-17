@@ -55,6 +55,10 @@
                                 </div>
                             </div>
                         </span>
+                        <span v-if="!isEditing && task.dueDate" class="flex items-center gap-1 whitespace-nowrap text-(--primary)">
+                            <i class="bi bi-calendar-event"></i>
+                            {{ new Date(task.dueDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) }}
+                        </span>
                     </div>
 
                     <div v-if="!isEditing && task.tags?.length" class="flex flex-wrap gap-1.5 mt-3">
@@ -77,136 +81,164 @@
             <div class="bg-white/5 rounded-xl p-4 border border-white/10">
                 <h4 class="text-xs font-bold text-(--text2) uppercase mb-2">Description</h4>
                 <p v-if="!isEditing" class="text-sm text-white/80 whitespace-pre-wrap">{{ task.description || 'Aucune description fournie.' }}</p>
-                <textarea v-else v-model="editForm.description" @paste="handlePaste" rows="3" class="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-white/80 resize-none" placeholder="Collez une image pour l'ajouter en pièce jointe"></textarea>
-            </div>
+                <textarea v-else v-model="editForm.description" @paste="handlePaste" @dragenter.prevent="onAttachmentsDragEnter" @dragover.prevent @dragleave.prevent="onAttachmentsDragLeave" @drop.prevent="onAttachmentsDrop" rows="3" class="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-white/80 placeholder:opacity-60 resize-none" placeholder="Plus de détails..."></textarea>
 
-            <!-- Pièces jointes -->
-            <div
-                class="bg-(--text)/5 rounded-xl p-4 border transition-colors"
-                :class="isAttachmentsDragOver ? 'border-(--primary) bg-(--primary)/5' : 'border-(--border-color)'"
-                @dragenter.prevent="onAttachmentsDragEnter"
-                @dragover.prevent
-                @dragleave.prevent="onAttachmentsDragLeave"
-                @drop.prevent="onAttachmentsDrop"
-            >
-                <div class="flex items-center justify-between mb-2">
-                    <h4 class="text-xs font-bold text-(--text2) uppercase">Pièces jointes</h4>
-                    <span v-if="task.attachments?.length" class="text-[10px] font-bold text-(--text2)">{{ task.attachments.length }}</span>
+                <!-- Barre d'images : toute la zone est cliquable ; Ctrl+V et glisser-déposer marchent aussi ici -->
+                <div
+                    :tabindex="uploadingImage ? -1 : 0"
+                    role="button"
+                    aria-label="Ajouter une image"
+                    @click="!uploadingImage && imageInput?.click()"
+                    @keydown.enter.prevent="!uploadingImage && imageInput?.click()"
+                    @keydown.space.prevent="!uploadingImage && imageInput?.click()"
+                    @paste="handlePaste"
+                    @dragenter.prevent="onAttachmentsDragEnter"
+                    @dragover.prevent
+                    @dragleave.prevent="onAttachmentsDragLeave"
+                    @drop.prevent="onAttachmentsDrop"
+                    class="mt-3 flex items-center gap-2 rounded-lg border border-dashed px-2.5 py-2 transition-colors cursor-pointer hover:border-(--primary)/50 hover:bg-(--primary)/5 focus:outline-none focus:border-(--primary)/50"
+                    :class="[isAttachmentsDragOver ? 'border-(--primary) bg-(--primary)/5' : 'border-(--border-color)', uploadingImage ? 'opacity-50 pointer-events-none' : '']"
+                >
+                    <i v-if="uploadingImage" class="bi bi-arrow-repeat animate-spin text-(--text2) shrink-0"></i>
+                    <i v-else class="bi bi-paperclip text-(--text2) shrink-0"></i>
+                    <div v-if="task.attachments?.length" class="flex items-center gap-1.5 overflow-x-auto">
+                        <div
+                            v-for="attachment in task.attachments" :key="attachment.id"
+                            class="relative group w-8 h-8 rounded-md overflow-hidden border border-(--border-color) shrink-0 cursor-pointer bg-(--bg3)"
+                            @click.stop="openAttachment(attachment)"
+                        >
+                            <img v-if="attachmentPreviews[attachment.id]" :src="attachmentPreviews[attachment.id]" class="w-full h-full object-cover" />
+                            <i v-else class="bi bi-image absolute inset-0 flex items-center justify-center text-(--text2) text-xs"></i>
+                            <button
+                                type="button"
+                                @click.stop="removeAttachment(attachment)"
+                                class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white"
+                            >
+                                <i class="bi bi-x-lg text-[10px]"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <span v-else class="text-xs text-(--text2)">Cliquez, glissez ou collez une image ici</span>
                 </div>
                 <input ref="imageInput" type="file" accept="image/*" multiple hidden @change="onPickImages" />
-
-                <div v-if="task.attachments?.length" class="flex flex-wrap gap-2">
-                    <div
-                        v-for="attachment in task.attachments" :key="attachment.id"
-                        class="relative group w-16 h-16 rounded-lg overflow-hidden border border-(--border-color) cursor-pointer bg-(--bg3)"
-                        @click="openAttachment(attachment)"
-                    >
-                        <img v-if="attachmentPreviews[attachment.id]" :src="attachmentPreviews[attachment.id]" class="w-full h-full object-cover" />
-                        <i v-else class="bi bi-image absolute inset-0 flex items-center justify-center text-(--text2)"></i>
-                        <button
-                            type="button"
-                            @click.stop="removeAttachment(attachment)"
-                            class="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-(--bg3)/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-(--text) text-xs"
-                        >
-                            <i class="bi bi-x-lg"></i>
-                        </button>
-                    </div>
-                    <button
-                        type="button"
-                        @click="imageInput?.click()"
-                        :disabled="uploadingImage"
-                        class="w-16 h-16 rounded-lg border-2 border-dashed border-(--border-color) hover:border-(--primary) flex items-center justify-center text-(--text2) hover:text-(--primary) transition-colors shrink-0"
-                        title="Ajouter une image"
-                    >
-                        <i v-if="uploadingImage" class="bi bi-arrow-repeat animate-spin"></i>
-                        <i v-else class="bi bi-plus-lg text-lg"></i>
-                    </button>
-                </div>
-                <button
-                    v-else
-                    type="button"
-                    @click="imageInput?.click()"
-                    :disabled="uploadingImage"
-                    class="w-full flex flex-col items-center justify-center gap-1.5 py-6 rounded-lg border-2 border-dashed border-(--border-color) hover:border-(--primary) text-(--text2) hover:text-(--primary) transition-colors"
-                >
-                    <i v-if="uploadingImage" class="bi bi-arrow-repeat animate-spin text-xl"></i>
-                    <i v-else class="bi bi-paperclip text-xl"></i>
-                    <span class="text-xs font-semibold">Cliquez, glissez ou collez une image ici</span>
-                </button>
             </div>
 
-            <!-- Fichiers liés (uniquement pour les tâches d'espace : le gestionnaire de fichiers est propre à un espace) -->
-            <div v-if="task.spaceId" class="bg-(--text)/5 rounded-xl p-4 border border-(--border-color)">
-                <div class="flex items-center justify-between mb-2">
-                    <h4 class="text-xs font-bold text-(--text2) uppercase">Fichiers liés</h4>
-                    <button type="button" @click="showFilePicker = true" class="text-[11px] font-bold text-(--text2) hover:text-(--primary) flex items-center gap-1">
+            <!-- Options secondaires : repliées par défaut, un seul volet ouvert à la fois -->
+            <div class="flex flex-col gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button v-if="isEditing" type="button" @click="toggleSection('date')" class="pill" :class="pillClass('date', !!editForm.dueDate)">
+                        <i class="bi bi-calendar-event"></i>
+                        {{ dueDateLabel }}
+                    </button>
+                    <button v-if="isEditing" type="button" @click="toggleSection('assignees')" class="pill" :class="pillClass('assignees', editForm.assigneeIds.length > 0)">
+                        <i class="bi bi-people"></i>
+                        {{ assigneesLabel }}
+                    </button>
+                    <button v-if="isEditing" type="button" @click="toggleSection('tags')" class="pill" :class="pillClass('tags', editForm.tagIds.length > 0)">
+                        <i class="bi bi-tags"></i>
+                        {{ editForm.tagIds.length ? `${editForm.tagIds.length} tag${editForm.tagIds.length > 1 ? 's' : ''}` : 'Tags' }}
+                    </button>
+                    <button v-if="task.spaceId" type="button" @click="toggleSection('linkedFiles')" class="pill" :class="pillClass('linkedFiles', (task.linkedFiles?.length || 0) > 0)">
                         <i class="bi bi-link-45deg"></i>
-                        Lier un fichier
+                        {{ task.linkedFiles?.length ? `${task.linkedFiles.length} fichier${task.linkedFiles.length > 1 ? 's' : ''}` : 'Fichiers liés' }}
                     </button>
                 </div>
-                <div v-if="task.linkedFiles?.length" class="space-y-1.5">
-                    <div
-                        v-for="link in task.linkedFiles" :key="link.id"
-                        class="flex items-center gap-3 p-2 rounded-lg border border-(--border-color) hover:border-(--primary)/50 cursor-pointer group transition-colors"
-                        @click="openLinkedFile(link)"
-                    >
-                        <div class="w-8 h-8 flex items-center justify-center rounded-lg bg-(--bg3) shrink-0">
-                            <i :class="[getFileInfo(link.file as any).icon, getFileInfo(link.file as any).color]" class="text-base" />
-                        </div>
-                        <p class="flex-1 min-w-0 text-sm font-semibold text-(--text) truncate">{{ link.file.originalName }}</p>
-                        <button
-                            type="button"
-                            @click.stop="unlinkFile(link)"
-                            class="text-(--text2) hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                            <i class="bi bi-x-lg"></i>
-                        </button>
-                    </div>
-                </div>
-                <p v-else class="text-xs text-(--text2) italic">Aucun fichier lié.</p>
-            </div>
 
-            <div v-if="isEditing" class="bg-white/5 rounded-xl p-4 border border-white/10 mt-4">
-                <h4 class="text-xs font-bold text-(--text2) uppercase mb-2">Assignation</h4>
-                <div class="relative mb-2">
-                    <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-sm"></i>
-                    <input 
-                        v-model="searchAssignee" 
-                        placeholder="Rechercher une personne..."
-                        class="w-full bg-black/40 border border-white/20 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
-                        :disabled="loading"
-                    />
-                </div>
-                <div class="bg-black/40 border border-white/20 rounded-xl p-3 max-h-40 overflow-y-auto space-y-2">
-                    <label v-for="member in filteredMembers" :key="member.id" class="flex items-center gap-3 cursor-pointer group">
-                        <input 
-                            type="checkbox" 
-                            :value="member.userId" 
-                            v-model="editForm.assigneeIds"
-                            class="w-4 h-4 rounded bg-black/20 border-white/20 text-(--primary) focus:ring-(--primary) focus:ring-offset-0"
-                            :disabled="loading"
-                        />
-                        <div class="flex items-center gap-2">
-                            <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-6 h-6 rounded-full object-cover">
-                            <div v-else class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[10px] font-bold">
-                                {{ ($p(member.user?.name) || member.userId).substring(0, 2).toUpperCase() }}
+                <div v-if="activeSection" class="bg-white/5 rounded-xl p-4 border border-white/10">
+
+                    <template v-if="activeSection === 'date'">
+                        <div class="flex gap-2">
+                            <input
+                                v-model="editForm.dueDate"
+                                type="date"
+                                class="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-(--primary)/50"
+                                :disabled="loading"
+                            />
+                            <input
+                                v-model="editForm.dueTime"
+                                type="time"
+                                class="w-28 bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-(--primary)/50"
+                                :disabled="loading"
+                            />
+                            <button v-if="editForm.dueDate" type="button" @click="editForm.dueDate = ''; editForm.dueTime = ''" class="text-(--text2) hover:text-red-500 transition-colors px-2" title="Retirer l'échéance">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    </template>
+
+                    <template v-else-if="activeSection === 'assignees'">
+                        <div class="relative mb-2">
+                            <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-sm"></i>
+                            <input
+                                v-model="searchAssignee"
+                                placeholder="Rechercher une personne..."
+                                class="w-full bg-black/40 border border-white/20 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
+                                :disabled="loading"
+                            />
+                        </div>
+                        <div class="max-h-40 overflow-y-auto space-y-2">
+                            <label v-for="member in filteredMembers" :key="member.id" class="flex items-center gap-3 cursor-pointer group">
+                                <input
+                                    type="checkbox"
+                                    :value="member.userId"
+                                    v-model="editForm.assigneeIds"
+                                    class="w-4 h-4 rounded bg-black/20 border-white/20 text-(--primary) focus:ring-(--primary) focus:ring-offset-0"
+                                    :disabled="loading"
+                                />
+                                <div class="flex items-center gap-2">
+                                    <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-6 h-6 rounded-full object-cover">
+                                    <div v-else class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[10px] font-bold">
+                                        {{ ($p(member.user?.name) || member.userId).substring(0, 2).toUpperCase() }}
+                                    </div>
+                                    <span class="text-sm font-medium text-(--text) group-hover:text-white transition-colors">
+                                        {{ $p(member.user?.name) || member.userId }}
+                                    </span>
+                                </div>
+                            </label>
+                            <div v-if="filteredMembers.length === 0" class="text-xs text-center text-(--text2) py-2">
+                                Aucun résultat
                             </div>
-                            <span class="text-sm font-medium text-(--text) group-hover:text-white transition-colors">
-                                {{ $p(member.user?.name) || member.userId }}
-                            </span>
                         </div>
-                    </label>
-                    <div v-if="filteredMembers.length === 0" class="text-xs text-center text-(--text2) py-2">
-                        Aucun résultat
-                    </div>
-                </div>
-            </div>
+                    </template>
 
-            <div v-if="isEditing" class="bg-white/5 rounded-xl p-4 border border-white/10 mt-4">
-                <TaskTagPicker
-                    :orgId="route.params.orgId as string"
-                    v-model="editForm.tagIds"
-                />
+                    <template v-else-if="activeSection === 'tags'">
+                        <TaskTagPicker
+                            :orgId="route.params.orgId as string"
+                            v-model="editForm.tagIds"
+                        />
+                    </template>
+
+                    <template v-else-if="activeSection === 'linkedFiles'">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-(--text2) uppercase">Fichiers liés</span>
+                            <button type="button" @click="showFilePicker = true" class="text-[11px] font-bold text-(--text2) hover:text-(--primary) flex items-center gap-1">
+                                <i class="bi bi-link-45deg"></i>
+                                Lier un fichier
+                            </button>
+                        </div>
+                        <div v-if="task.linkedFiles?.length" class="space-y-1.5 max-h-52 overflow-y-auto">
+                            <div
+                                v-for="link in task.linkedFiles" :key="link.id"
+                                class="flex items-center gap-3 p-2 rounded-lg border border-(--border-color) hover:border-(--primary)/50 cursor-pointer group transition-colors"
+                                @click="openLinkedFile(link)"
+                            >
+                                <div class="w-8 h-8 flex items-center justify-center rounded-lg bg-(--bg3) shrink-0">
+                                    <i :class="[getFileInfo(link.file as any).icon, getFileInfo(link.file as any).color]" class="text-base" />
+                                </div>
+                                <p class="flex-1 min-w-0 text-sm font-semibold text-(--text) truncate">{{ link.file.originalName }}</p>
+                                <button
+                                    type="button"
+                                    @click.stop="unlinkFile(link)"
+                                    class="text-(--text2) hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <p v-else class="text-xs text-(--text2) italic">Aucun fichier lié.</p>
+                    </template>
+
+                </div>
             </div>
 
             <div v-if="isEditing" class="flex justify-end items-center gap-2 text-xs font-semibold text-(--text2)">
@@ -530,8 +562,36 @@ onBeforeUnmount(() => {
 const editForm = reactive({
     title: '',
     description: '',
+    dueDate: '',
+    dueTime: '',
     assigneeIds: [] as string[],
     tagIds: [] as string[]
+});
+
+type Section = 'date' | 'assignees' | 'tags' | 'linkedFiles';
+const activeSection = ref<Section | null>(null);
+
+const toggleSection = (key: Section) => {
+    activeSection.value = activeSection.value === key ? null : key;
+};
+
+const pillClass = (key: Section, hasValue: boolean) => {
+    if (activeSection.value === key) return 'bg-(--primary) border-(--primary) text-white';
+    if (hasValue) return 'bg-(--primary)/10 border-(--primary)/40 text-(--primary)';
+    return 'bg-transparent border-white/10 text-(--text2) hover:border-(--primary)/50 hover:text-(--primary)';
+};
+
+const dueDateLabel = computed(() => {
+    if (!editForm.dueDate) return 'Échéance';
+    const d = new Date(editForm.dueDate + 'T00:00:00');
+    const label = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    return editForm.dueTime ? `${label} ${editForm.dueTime}` : label;
+});
+
+const assigneesLabel = computed(() => {
+    const n = editForm.assigneeIds.length;
+    if (n === 0) return 'Assigné(s)';
+    return `${n} personne${n > 1 ? 's' : ''}`;
 });
 
 // ── Enregistrement automatique ────────────────────────────────────────
@@ -599,15 +659,32 @@ watch(() => props.isOpen, async (newVal) => {
         initializing = true;
         editForm.title = props.task.title;
         editForm.description = props.task.description || '';
+        if (props.task.dueDate) {
+            const d = new Date(props.task.dueDate);
+            editForm.dueDate = d.toISOString().slice(0, 10);
+            const hh = String(d.getHours()).padStart(2, '0');
+            const mm = String(d.getMinutes()).padStart(2, '0');
+            editForm.dueTime = (hh === '00' && mm === '00') ? '' : `${hh}:${mm}`;
+        } else {
+            editForm.dueDate = '';
+            editForm.dueTime = '';
+        }
         editForm.assigneeIds = props.task.assignees ? props.task.assignees.map(a => a.id) : [];
         editForm.tagIds = props.task.tags ? props.task.tags.map(t => t.id) : [];
         searchAssignee.value = '';
         isEditing.value = props.startInEditMode || false;
+        activeSection.value = null;
         saveStatus.value = 'idle';
         resolveAllAttachmentPreviews();
         await nextTick();
         initializing = false;
     }
+});
+
+watch(isEditing, (editing) => {
+    // "Fichiers liés" stays visible outside edit mode too — only close the
+    // edit-only sections (date/assignees/tags) when leaving edit mode.
+    if (!editing && activeSection.value !== 'linkedFiles') activeSection.value = null;
 });
 
 const closeModal = () => {
@@ -631,11 +708,18 @@ const performAutosave = async () => {
     if (!props.task || !editForm.title.trim()) return;
     saveStatus.value = 'saving';
     try {
+        let dueDate = null;
+        if (editForm.dueDate) {
+            const dateStr = editForm.dueDate + (editForm.dueTime ? `T${editForm.dueTime}` : 'T00:00');
+            dueDate = new Date(dateStr).toISOString();
+        }
+
         const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${props.task.id}`, {
             method: 'PUT',
             body: JSON.stringify({
                 title: editForm.title,
                 description: editForm.description,
+                dueDate,
                 assigneeIds: editForm.assigneeIds,
                 tagIds: editForm.tagIds
             })
@@ -758,3 +842,18 @@ const deleteSubtask = async (subtaskId: string) => {
     }
 };
 </script>
+
+<style scoped>
+.pill {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-width: 1px;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+</style>
