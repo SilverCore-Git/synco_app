@@ -582,7 +582,7 @@ const procesMessages = async (msgs: Message[]) => {
         let decryptedMain = await decryptSingleMessage(m);
         if (!decryptedMain) return m;
 
-        if (decryptedMain.replyMessage) 
+        if (decryptedMain.replyMessage)
         {
             const decryptedReply = await decryptSingleMessage(decryptedMain.replyMessage);
             if (decryptedReply) {
@@ -707,26 +707,12 @@ const initListener = () => {
     socket.value.on("new-message", async (msg: Message) => {
         if (msg.threadId !== thread.value?.id) return;
 
-        let clearContent = msg.content;
-        if (msg.isWebhook) {
-            clearContent = msg.content; // Skip decryption for webhooks
-        } else if (msg.content && msg.content.trim() !== "" && currentThreadKey.value) 
-        {
-            try {
-                const vectorInit = msg.iv && msg.iv.trim() !== "" ? msg.iv : msg.nonce;
-                clearContent = await decryptMessageWithContentKey(msg.content, vectorInit, currentThreadKey.value);
-            } catch (err) {
-                console.error("[E2EE] Échec réception à la volée :", err);
-                clearContent = "🔒 Impossible de déchiffrer ce message en direct.";
-            }
-        }
-        
-        // Format reactions if they exist
-        // reactions can be either an array (from Prisma) or already grouped (from WebSocket)
-        const formattedReactions = msg.reactions 
-            ? (Array.isArray(msg.reactions) ? formatReactions(msg.reactions as any) : msg.reactions)
-            : {};
-        const decrypted = { ...msg, content: clearContent, reactions: formattedReactions };
+        // Reuses procesMessages() rather than decrypting msg.content by hand here, so a
+        // live-pushed message gets the same recursive decryption of replyMessage/transferMessage
+        // as history load does — the two used to disagree, leaving a just-sent reply's quote
+        // box showing raw ciphertext until the next full reload.
+        const decrypted = (await procesMessages([msg]))[0] ?? msg;
+        const clearContent = decrypted.content;
         sortedMessages.value.push(decrypted);
         
         const container = messagesContainer.value;
@@ -740,7 +726,7 @@ const initListener = () => {
         }
 
         // Generate vector for the newly received message if we have the content
-        if (clearContent && !clearContent.startsWith("🔒") && !msg.isWebhook) {
+        if (clearContent && !clearContent.startsWith("[⚠️") && !msg.isWebhook) {
             const hasFiles = Array.isArray(msg.files) && msg.files.length > 0;
             let vectorText = clearContent;
             if (hasFiles) {

@@ -33,14 +33,14 @@
                         </span>
 
                         <div class="max-w-md opacity-70 pointer-events-none text-[11px] line-clamp-1 [&_p]:inline [&_h1]:inline [&_h2]:inline [&_h3]:inline">
-                            <MarkdownRender :content="msg.content" />
+                            <MarkdownRender :content="msg.replyMessage?.content || ''" />
                         </div>
 
                     </div>
 
-                    <div 
+                    <div
                         class="
-                            absolute -top-5 right-3 sdropdown 
+                            absolute -top-5 right-3 sdropdown
                             flex-raw items-start z-80
                             rounded-xl border border-(--text)/10
                             bg-(--bg) shadow-xl ring-1 ring-white/5 focus:outline-none
