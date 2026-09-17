@@ -18,8 +18,8 @@
                     placeholder="Qu'y a-t-il à faire ?"
                     ref="titleInput"
                     class="
-                        w-full bg-(--bg2)/30 border border-white/10 rounded-xl 
-                        px-4 py-3 text-(--text) placeholder:text-(--text2) 
+                        w-full bg-(--bg2)/30 border border-white/10 rounded-xl
+                        px-4 py-3 text-(--text) placeholder:text-(--text2) placeholder:opacity-60
                         focus:outline-none focus:border-(--primary)/50 focus:ring-1
                         focus:ring-(--primary)/20 transition-all
                     "
@@ -41,27 +41,32 @@
                     @dragover.prevent
                     @dragleave.prevent="onImagesDragLeave"
                     @drop.prevent="onImagesDrop"
-                    placeholder="Plus de détails... (collez ou glissez une image pour l'ajouter en pièce jointe)"
+                    placeholder="Plus de détails..."
                     rows="3"
                     class="
                         w-full bg-(--bg2)/30 border border-white/10 rounded-xl
-                        px-4 py-3 text-(--text) placeholder:text-(--text2)
+                        px-4 py-3 text-(--text) placeholder:text-(--text2) placeholder:opacity-60
                         focus:outline-none focus:border-(--primary)/50 focus:ring-1
                         focus:ring-(--primary)/20 transition-all resize-none
                     "
                     :disabled="loading"
                 ></textarea>
 
-                <!-- Barre d'images : toujours visible sous la description, Ctrl+V/glisser-déposer marchent ici aussi -->
+                <!-- Barre d'images : toute la zone est cliquable, Ctrl+V/glisser-déposer marchent ici aussi -->
                 <div
-                    tabindex="0"
+                    :tabindex="loading ? -1 : 0"
+                    role="button"
+                    aria-label="Ajouter une image"
+                    @click="!loading && imageInput?.click()"
+                    @keydown.enter.prevent="!loading && imageInput?.click()"
+                    @keydown.space.prevent="!loading && imageInput?.click()"
                     @paste="handlePaste"
                     @dragenter.prevent="onImagesDragEnter"
                     @dragover.prevent
                     @dragleave.prevent="onImagesDragLeave"
                     @drop.prevent="onImagesDrop"
-                    class="flex items-center gap-2 rounded-lg border border-dashed px-2.5 py-2 transition-colors focus:outline-none"
-                    :class="isImagesDragOver ? 'border-(--primary) bg-(--primary)/5' : 'border-(--border-color)'"
+                    class="flex items-center gap-2 rounded-lg border border-dashed px-2.5 py-2 transition-colors cursor-pointer hover:border-(--primary)/50 hover:bg-(--primary)/5 focus:outline-none focus:border-(--primary)/50"
+                    :class="[isImagesDragOver ? 'border-(--primary) bg-(--primary)/5' : 'border-(--border-color)', loading ? 'opacity-50 pointer-events-none' : '']"
                 >
                     <i class="bi bi-paperclip text-(--text2) shrink-0"></i>
                     <div v-if="stagedImages.length" class="flex items-center gap-1.5 overflow-x-auto">
@@ -69,22 +74,15 @@
                             <img :src="img.previewUrl" class="w-full h-full object-cover" />
                             <button
                                 type="button"
-                                @click="removeStagedImage(idx)"
+                                @click.stop="removeStagedImage(idx)"
                                 class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white"
                             >
                                 <i class="bi bi-x-lg text-[10px]"></i>
                             </button>
                         </div>
+                        <span class="text-xs text-(--text2)">Cliquez pour ajouter</span>
                     </div>
-                    <span v-else class="text-xs text-(--text2)">Glissez ou collez (Ctrl+V) une image ici</span>
-                    <button
-                        type="button"
-                        @click="imageInput?.click()"
-                        :disabled="loading"
-                        class="ml-auto text-[11px] font-bold text-(--text2) hover:text-(--primary) transition-colors shrink-0"
-                    >
-                        + Image
-                    </button>
+                    <span v-else class="text-xs text-(--text2)">Cliquez, glissez ou collez une image ici</span>
                 </div>
                 <input ref="imageInput" type="file" accept="image/*" multiple hidden @change="onPickImages" />
             </div>
