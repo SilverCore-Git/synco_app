@@ -57,6 +57,7 @@ jobs:
           name: synco-android-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          retention-days: 1 # additional safety for artifact retention
 
   build-windows-msi:
     name: Build de l'installeur Windows (MSI)
@@ -93,6 +94,7 @@ jobs:
           name: synco-windows-msi
           path: src-tauri/target/release/bundle/msi/*.msi
           if-no-files-found: error
+          retention-days: 1 # additional safety for artifact retention
 
   build-linux-appimage:
     name: Build de l'AppImage Linux
@@ -149,6 +151,7 @@ jobs:
           name: synco-linux-appimage
           path: src-tauri/target/release/bundle/appimage/*.AppImage
           if-no-files-found: error
+          retention-days: 1 # additional safety for artifact retention
 
   build-docker-image:
     name: Build et push de l'image Docker (front, prod)
