@@ -1,9 +1,8 @@
 <script setup lang="ts">
 
-import { organizations } from '@/assets/var';
+import { organizations, user } from '@/assets/var';
 import OrgBtn from './components/OrgBtn.vue';
 import { onMounted, reactive, ref, computed } from 'vue';
-import type { User } from '@/types/types';
 import sfetch from '@/assets/utils/sfetch';
 import Popup from '@/components/Popup.vue';
 import IconSelector from '@/components/common/IconSelector.vue';
@@ -15,10 +14,8 @@ import UserSettings from '@/components/windows/UserSettings.vue';
 
 const toast = useToast();
 
-const me = ref<User | undefined>(undefined);
-
 const showCreateNewOrg = ref<boolean>(false);
-const canCreateOrg = ref<boolean>(false);
+const canCreateOrg = ref<boolean | null>(null);
 const newOrgForm = reactive({
   name: '',
   logo: ''
@@ -71,7 +68,6 @@ const createNewOrg = async () => {
 }
 
 onMounted(async () => {
-    me.value = await sfetch('/api/users/me').then(res => res.json());
     const res = await sfetch('/api/users/me/cancreateorg');
     const data = await res.json();
     canCreateOrg.value = data.canCreateOrg;
@@ -95,17 +91,17 @@ onMounted(async () => {
             <DropDown align="right" content-iner-t-w="w-64">
                 <template #trigger>
                     <button class="w-10 h-10 rounded-full overflow-hidden border-2 border-white/10 hover:border-(--primary)/50 transition-all shadow-sm focus:outline-none">
-                        <img 
-                            :src="me?.avatarUrl || `https://ui-avatars.com/api/?name=${me?.name || 'User'}&background=128a60&color=fff`" 
-                            alt="Profile" 
+                        <img
+                            :src="user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=128a60&color=fff`"
+                            alt="Profile"
                             class="w-full h-full object-cover"
                         />
                     </button>
                 </template>
                 <template #content>
                     <div class="p-3 border-b border-white/5 bg-(--bg2) rounded-t-xl">
-                        <p class="text-sm font-bold text-(--text) truncate">{{ me?.name || 'Utilisateur' }}</p>
-                        <p class="text-xs text-(--text2) truncate">{{ me?.email || '' }}</p>
+                        <p class="text-sm font-bold text-(--text) truncate">{{ user?.name || 'Utilisateur' }}</p>
+                        <p class="text-xs text-(--text2) truncate">{{ user?.email || '' }}</p>
                     </div>
                     <div class="p-1">
                         <button @click="openUserSettings('account')" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--text) hover:text-(--text) hover:bg-white/5 rounded-lg transition-colors">
@@ -158,7 +154,7 @@ onMounted(async () => {
         </header>
 
         <div class="w-full max-w-7xl">
-            <div v-if="filteredOrganizations.length > 0 || canCreateOrg" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 place-items-stretch w-full max-w-6xl mx-auto">
+            <div v-if="filteredOrganizations.length > 0 || canCreateOrg !== false" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 place-items-stretch w-full max-w-6xl mx-auto">
                 
                 <div 
                     v-for="org in filteredOrganizations" 
@@ -170,12 +166,14 @@ onMounted(async () => {
                 </div>
 
                 <div v-if="canCreateOrg" class="w-full">
-                    <OrgBtn 
-                        :org="{ id: 'create', name: 'Créer une organisation', logo: '', role: '', memberCount: '' }" 
-                        :isCreate="true" 
+                    <OrgBtn
+                        :org="{ id: 'create', name: 'Créer une organisation', logo: '', role: '', memberCount: '' }"
+                        :isCreate="true"
                         @click="showCreateNewOrg = true"
                     />
                 </div>
+
+                <div v-else-if="canCreateOrg === null" class="w-full h-[180px] rounded-2xl bg-white/5 animate-pulse" />
 
             </div>
             

@@ -158,7 +158,7 @@ import Popup from '@/components/Popup.vue';
 import SpinLoader from '@/components/SpinLoader.vue';
 import { useWebhooks } from '@/composables/useWebhooks';
 import { ALL_WEBHOOK_PERMISSIONS, type WebhookPermission } from '@/types/webhooks';
-import type { WebhookTargetChannel } from '@/types/webhooks';
+import type { Webhook, WebhookTargetChannel } from '@/types/webhooks';
 
 const props = defineProps<{
     spaceId: string;
@@ -166,7 +166,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     (e: 'close'): void;
-    (e: 'created'): void;
+    (e: 'created', webhook: Webhook): void;
 }>();
 
 const { 
@@ -227,8 +227,8 @@ const handleCreate = async () => {
             targetChannelId: targetChannelId.value
         });
         
-        if (result?.success) {
-            emit('created');
+        if (result?.success && result.webhook) {
+            emit('created', result.webhook);
         }
     } catch (err) {
         console.error('Erreur lors de la création:', err);

@@ -82,12 +82,19 @@
                             </td>
 
                             <td class="p-4 text-right">
-                                <button 
+                                <button
                                     @click="openEditModal(user)"
                                     class="p-2 text-(--text2) hover:text-(--primary) hover:bg-(--primary)/10 rounded-lg transition-colors"
                                     title="Modifier les quotas"
                                 >
                                     <i class="bi bi-pencil-square text-lg"></i>
+                                </button>
+                                <button
+                                    @click="openDeleteModal(user)"
+                                    class="p-2 text-(--text2) hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                    title="Supprimer l'utilisateur"
+                                >
+                                    <i class="bi bi-trash3 text-lg"></i>
                                 </button>
                             </td>
                         </tr>
@@ -179,6 +186,18 @@
             </div>
         </div>
 
+        <ConfirmDelete
+            :show="!!userToDelete"
+            :itemName="userToDelete?.name || userToDelete?.email || 'cet utilisateur'"
+            itemType="cet utilisateur"
+            buttonText="Supprimer l'utilisateur"
+            :checkbox="true"
+            :loading="isDeleting"
+            extraWarning="Toutes les données de ce compte (messages, fichiers, accès) seront supprimées définitivement, sur toutes les organisations dont il est membre."
+            @confirm="confirmDeleteUser"
+            @cancel="userToDelete = null"
+        />
+
     </div>
 </template>
 
@@ -186,6 +205,7 @@
 import { ref, computed, onMounted } from 'vue';
 import sfetch from '@/assets/utils/sfetch';
 import { useToast } from '@/composables/useToast';
+import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 
 const toast = useToast();
 
@@ -207,6 +227,8 @@ const searchQuery = ref('');
 
 const selectedUser = ref<AdminUser | null>(null);
 const isSaving = ref(false);
+const userToDelete = ref<AdminUser | null>(null);
+const isDeleting = ref(false);
 const editForm = ref({
     maxOrgs: 0,
     orgMaxUsers: 0,
@@ -305,6 +327,31 @@ const saveQuotas = async () => {
         toast.show('Erreur de connexion', 'error');
     } finally {
         isSaving.value = false;
+    }
+};
+
+const openDeleteModal = (user: AdminUser) => {
+    userToDelete.value = user;
+};
+
+const confirmDeleteUser = async () => {
+    if (!userToDelete.value) return;
+    isDeleting.value = true;
+    try {
+        const res = await sfetch(`/api/admin/users/${userToDelete.value.id}`, {
+            method: 'DELETE'
+        });
+        if (res.ok) {
+            users.value = users.value.filter(u => u.id !== userToDelete.value!.id);
+            toast.show('Utilisateur supprimé avec succès', 'success');
+            userToDelete.value = null;
+        } else {
+            toast.show((await res.json()).error || 'Erreur lors de la suppression', 'error');
+        }
+    } catch (e) {
+        toast.show('Erreur de connexion', 'error');
+    } finally {
+        isDeleting.value = false;
     }
 };
 

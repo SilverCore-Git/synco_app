@@ -160,7 +160,11 @@ export interface Webhook {
   
   // URLs
   url: string;
-  
+  // Aperçu masqué renvoyé à la place de `url` dans les listings (le jeton
+  // n'y est jamais inclus, cf. audit H3 côté backend) : ex.
+  // ".../api/webhooks/<id>/••••••••••••••••••••••••".
+  urlPreview?: string;
+
   // Timestamps
   createdAt: string | Date;
   updatedAt: string | Date;

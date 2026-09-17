@@ -140,7 +140,21 @@
 
                             </div>
 
-                            <div ref="messageContentRef" @click="onMessageContentClick" class="text-(--text) text-sm leading-relaxed wrap-break-word">
+                            <div v-if="isEditing" class="w-full">
+                                <textarea
+                                    ref="editTextareaRef"
+                                    v-model="editContent"
+                                    rows="1"
+                                    class="w-full bg-(--bg) border border-(--primary)/60 rounded-lg px-2 py-1.5 text-sm text-(--text) outline-none resize-none focus:border-(--primary)"
+                                    @keydown.enter.exact.prevent="saveEdit"
+                                    @keydown.esc.prevent="cancelEdit"
+                                    @input="autoResizeEdit"
+                                />
+                                <p class="text-[10px] text-(--text2) mt-1">
+                                    échap pour annuler • entrée pour enregistrer
+                                </p>
+                            </div>
+                            <div v-else ref="messageContentRef" @click="onMessageContentClick" class="text-(--text) text-sm leading-relaxed wrap-break-word">
                                 <MarkdownRender :content="msg.content" />
                                 <WebhookEmbed v-if="msg.isWebhook && msg.embeds && msg.embeds.length > 0" :embeds="msg.embeds" />
                                 <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
@@ -219,12 +233,6 @@
             @cancel="showDeleteConfirm = false"
         />
 
-        <EditMessage 
-            :is-open="showEditMessage" 
-            :initial-content="msg.content"
-            @close="showEditMessage = false"
-            @save="editMessage"
-        />
 
 </template>
 
@@ -234,7 +242,6 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
 import useWSocket from '@/composables/useWSocket';
-import EditMessage from '../popup/EditMessage.vue';
 import MessageReactions from '@/components/common/MessageReactions.vue';
 import type { Message } from '@/types/types';
 import { downloadFile } from '@/assets/utils/downloadFile';
@@ -259,6 +266,12 @@ const props = defineProps<{
     currentThreadKey?: CryptoKey | null;
     isReadOnly?: boolean;
     isStacked?: boolean;
+    isEditing?: boolean;
+}>();
+
+const emit = defineEmits<{
+    (e: 'edit-start'): void;
+    (e: 'edit-end'): void;
 }>();
 
 interface DropdownBtn {
@@ -279,8 +292,8 @@ const dropdownBtns: DropdownBtn[] = [
     {
         icon: "bi-pencil-fill",
         tooltip: "modifier",
-        func: () => openEditMessage(),
-        show: () => true
+        func: () => startEdit(),
+        show: (msg: Message) => msg.senderId == user.value?.id
     },
     {
         icon: "bi-arrow-90deg-left",
@@ -341,8 +354,26 @@ onUnmounted(async () => {
 
 const showPlusDropdown = ref<boolean>(false);
 const showDeleteConfirm = ref<boolean>(false);
-const showEditMessage = ref<boolean>(false);
 const messageContentRef = ref<HTMLElement | null>(null);
+const editContent = ref<string>('');
+const editTextareaRef = ref<HTMLTextAreaElement | null>(null);
+
+const autoResizeEdit = () => {
+    const el = editTextareaRef.value;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 300)}px`;
+};
+
+watch(() => props.isEditing, (editing) => {
+    if (!editing) return;
+    editContent.value = props.msg.content;
+    nextTick(() => {
+        editTextareaRef.value?.focus();
+        editTextareaRef.value?.select();
+        autoResizeEdit();
+    });
+});
 
 
 const mentionLookup = computed(() => buildMentionLookup(openedOrg.value?.members));
@@ -407,9 +438,13 @@ const openDeleteConfirm = () => {
     showDeleteConfirm.value = true;
 };
 
-const openEditMessage = () => {
+const startEdit = () => {
     showPlusDropdown.value = false;
-    showEditMessage.value = true;
+    emit('edit-start');
+}
+
+const cancelEdit = () => {
+    emit('edit-end');
 }
 
 const deleteMessage = async () => {
@@ -418,9 +453,15 @@ const deleteMessage = async () => {
     showDeleteConfirm.value = false;
 };
 
-const editMessage = async (newContent: string) => {
+const saveEdit = async () => {
 
-    const { ciphertext, iv } = await encryptMessageWithContentKey(newContent, props.currentThreadKey!);
+    const content = editContent.value.trim();
+    if (!content || content === props.msg.content) {
+        emit('edit-end');
+        return;
+    }
+
+    const { ciphertext, iv } = await encryptMessageWithContentKey(content, props.currentThreadKey!);
 
     const socket = await useWSocket();
 
@@ -429,6 +470,8 @@ const editMessage = async (newContent: string) => {
         content: ciphertext,
         iv: iv
     });
+
+    emit('edit-end');
 
 };
 

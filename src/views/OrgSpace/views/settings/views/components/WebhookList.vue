@@ -136,7 +136,7 @@
                 <!-- URL du webhook (mini) -->
                 <div class="mt-3 pl-13">
                     <code class="text-xs text-(--text2) bg-(--white)/5 px-2 py-1 rounded">
-                        {{ getShortUrl(webhook.url) }}
+                        {{ getShortUrl(webhook) }}
                     </code>
                 </div>
 
@@ -200,8 +200,13 @@ const formatDate = (date: string | Date): string => {
     });
 };
 
-// Retourne une URL raccourcie
-const getShortUrl = (url: string): string => {
+// Retourne une URL raccourcie. Le listing ne renvoie jamais le jeton (cf.
+// audit H3 côté backend) donc `webhook.url` n'est disponible que juste
+// après création/régénération — on retombe sinon sur `urlPreview`, l'aperçu
+// masqué renvoyé par le backend pour ce cas précis.
+const getShortUrl = (webhook: Webhook): string => {
+    const url = webhook.url;
+    if (!url) return webhook.urlPreview || 'URL masquée — voir les détails';
     try {
         const urlObj = new URL(url);
         const pathParts = urlObj.pathname.split('/');

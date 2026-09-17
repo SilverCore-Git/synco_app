@@ -4,6 +4,7 @@
             <div class="flex items-center gap-2">
                 <i class="bi bi-check2-square text-(--text)"></i>
                 <h3 class="font-semibold text-(--text)">Tâches</h3>
+                <span v-if="unreadTaskCount > 0" class="dash-badge">{{ unreadTaskCount }}</span>
             </div>
             <RouterLink :to="`/${orgId}/tasks`" class="text-xs text-(--text2) hover:text-(--text)">
                 Voir tout <i class="bi bi-arrow-right"></i>
@@ -37,16 +38,23 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { openedOrg, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import type { Task, TodoList } from '@/types/types';
+import { useNotification } from '@/composables/useNotification';
 
 const orgId = computed(() => openedOrg.value?.id);
 const rawTasks = ref<Task[]>([]);
 const loading = ref(true);
 
-onMounted(async () => {
+const { notifications, init: initNotifications } = useNotification();
+
+const unreadTaskCount = computed(() =>
+    notifications.value.filter(n => n.type === 'TASK_ASSIGNED' && !n.isRead).length
+);
+
+const loadTasks = async () => {
     if (!orgId.value) return;
     try {
         const res = await sfetch(`/api/tasks/${orgId.value}/lists/me`);
@@ -63,10 +71,26 @@ onMounted(async () => {
         }
     } catch (e) {
         console.error('[TodosCard] Failed to load tasks', e);
-    } finally {
-        loading.value = false;
     }
+};
+
+onMounted(async () => {
+    await initNotifications();
+    await loadTasks();
+    loading.value = false;
 });
+
+// Une tâche assignée en temps réel (utilisateur déjà connecté) doit
+// apparaître ici sans recharger la page — notifications.value est un
+// singleton partagé sur lequel useNotification() préfixe les nouvelles
+// notifications reçues via le socket 'notification:push'.
+watch(
+    () => notifications.value[0]?.id,
+    (latestId, previousId) => {
+        if (!latestId || latestId === previousId) return;
+        if (notifications.value[0]?.type === 'TASK_ASSIGNED') loadTasks();
+    }
+);
 
 const myTasks = computed(() => {
     return rawTasks.value.filter(task => {

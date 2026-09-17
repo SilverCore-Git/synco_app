@@ -50,6 +50,7 @@ const emit = defineEmits<{
     (e: 'update:modelValue', value: string): void;
     (e: 'send', value: string): void;
     (e: 'input'): void;
+    (e: 'edit-last'): void;
 }>();
 
 const route = useRoute();
@@ -113,7 +114,12 @@ const insertMention = (user: MentionEntry) => {
 };
 
 const handleKeydown = (e: KeyboardEvent) => {
-    
+
+    if (e.key === 'ArrowUp' && !showMentions.value && props.modelValue === '') {
+        emit('edit-last');
+        return;
+    }
+
     if (!showMentions.value) return;
 
     const query = mentionQuery.value?.toLowerCase() || '';

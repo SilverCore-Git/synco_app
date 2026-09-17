@@ -12,7 +12,7 @@
                     URL du Webhook
                 </h3>
                 <div class="bg-(--white)/5 border border-(--white)/10 rounded-xl p-3 flex items-center justify-between">
-                    <code class="text-sm text-(--text2) overflow-x-auto">{{ webhook.url }}</code>
+                    <code class="text-sm text-(--text2) overflow-x-auto">{{ webhook.url || webhook.urlPreview || 'URL masquée' }}</code>
                     <button 
                         @click="copyUrl"
                         class="flex items-center gap-2 text-(--text2) hover:text-(--primary) transition-all"
