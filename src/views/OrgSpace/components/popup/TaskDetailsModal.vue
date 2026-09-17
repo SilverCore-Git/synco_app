@@ -81,15 +81,20 @@
             </div>
 
             <!-- Pièces jointes -->
-            <div class="bg-(--text)/5 rounded-xl p-4 border border-(--border-color)">
+            <div
+                class="bg-(--text)/5 rounded-xl p-4 border transition-colors"
+                :class="isAttachmentsDragOver ? 'border-(--primary) bg-(--primary)/5' : 'border-(--border-color)'"
+                @dragenter.prevent="onAttachmentsDragEnter"
+                @dragover.prevent
+                @dragleave.prevent="onAttachmentsDragLeave"
+                @drop.prevent="onAttachmentsDrop"
+            >
                 <div class="flex items-center justify-between mb-2">
                     <h4 class="text-xs font-bold text-(--text2) uppercase">Pièces jointes</h4>
-                    <button type="button" @click="imageInput?.click()" class="text-[11px] font-bold text-(--text2) hover:text-(--primary) flex items-center gap-1" :disabled="uploadingImage">
-                        <i class="bi bi-paperclip"></i>
-                        Ajouter une image
-                    </button>
-                    <input ref="imageInput" type="file" accept="image/*" multiple hidden @change="onPickImages" />
+                    <span v-if="task.attachments?.length" class="text-[10px] font-bold text-(--text2)">{{ task.attachments.length }}</span>
                 </div>
+                <input ref="imageInput" type="file" accept="image/*" multiple hidden @change="onPickImages" />
+
                 <div v-if="task.attachments?.length" class="flex flex-wrap gap-2">
                     <div
                         v-for="attachment in task.attachments" :key="attachment.id"
@@ -106,8 +111,28 @@
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
+                    <button
+                        type="button"
+                        @click="imageInput?.click()"
+                        :disabled="uploadingImage"
+                        class="w-16 h-16 rounded-lg border-2 border-dashed border-(--border-color) hover:border-(--primary) flex items-center justify-center text-(--text2) hover:text-(--primary) transition-colors shrink-0"
+                        title="Ajouter une image"
+                    >
+                        <i v-if="uploadingImage" class="bi bi-arrow-repeat animate-spin"></i>
+                        <i v-else class="bi bi-plus-lg text-lg"></i>
+                    </button>
                 </div>
-                <p v-else class="text-xs text-(--text2) italic">Aucune pièce jointe. Collez ou ajoutez une image pour donner du contexte.</p>
+                <button
+                    v-else
+                    type="button"
+                    @click="imageInput?.click()"
+                    :disabled="uploadingImage"
+                    class="w-full flex flex-col items-center justify-center gap-1.5 py-6 rounded-lg border-2 border-dashed border-(--border-color) hover:border-(--primary) text-(--text2) hover:text-(--primary) transition-colors"
+                >
+                    <i v-if="uploadingImage" class="bi bi-arrow-repeat animate-spin text-xl"></i>
+                    <i v-else class="bi bi-paperclip text-xl"></i>
+                    <span class="text-xs font-semibold">Cliquez, glissez ou collez une image ici</span>
+                </button>
             </div>
 
             <!-- Fichiers liés (uniquement pour les tâches d'espace : le gestionnaire de fichiers est propre à un espace) -->
@@ -376,6 +401,26 @@ const onPickImages = (e: Event) => {
     const input = e.target as HTMLInputElement;
     if (input.files?.length) uploadAttachments(Array.from(input.files));
     input.value = '';
+};
+
+const isAttachmentsDragOver = ref(false);
+let attachmentsDragCounter = 0;
+
+const onAttachmentsDragEnter = () => {
+    attachmentsDragCounter++;
+    isAttachmentsDragOver.value = true;
+};
+
+const onAttachmentsDragLeave = () => {
+    attachmentsDragCounter = Math.max(0, attachmentsDragCounter - 1);
+    if (attachmentsDragCounter === 0) isAttachmentsDragOver.value = false;
+};
+
+const onAttachmentsDrop = (e: DragEvent) => {
+    attachmentsDragCounter = 0;
+    isAttachmentsDragOver.value = false;
+    const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type.startsWith('image/'));
+    if (files.length) uploadAttachments(files);
 };
 
 const openAttachment = async (attachment: TaskAttachment) => {

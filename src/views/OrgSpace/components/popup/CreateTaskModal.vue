@@ -48,30 +48,47 @@
                     :disabled="loading"
                 ></textarea>
 
-                <div class="flex items-center gap-2 flex-wrap">
-                    <button
-                        type="button"
-                        @click="imageInput?.click()"
-                        class="text-[11px] font-bold text-(--text2) hover:text-(--primary) flex items-center gap-1"
-                        :disabled="loading"
-                    >
-                        <i class="bi bi-paperclip"></i>
-                        Joindre une image
-                    </button>
-                    <input ref="imageInput" type="file" accept="image/*" multiple hidden @change="onPickImages" />
-                </div>
+                <input ref="imageInput" type="file" accept="image/*" multiple hidden @change="onPickImages" />
 
-                <div v-if="stagedImages.length" class="flex flex-wrap gap-2">
-                    <div v-for="(img, idx) in stagedImages" :key="img.previewUrl" class="relative group w-16 h-16 rounded-lg overflow-hidden border border-(--border-color)">
-                        <img :src="img.previewUrl" class="w-full h-full object-cover" />
+                <div
+                    class="rounded-lg border-2 border-dashed transition-colors p-2"
+                    :class="isImagesDragOver ? 'border-(--primary) bg-(--primary)/5' : 'border-(--border-color)'"
+                    @dragenter.prevent="onImagesDragEnter"
+                    @dragover.prevent
+                    @dragleave.prevent="onImagesDragLeave"
+                    @drop.prevent="onImagesDrop"
+                >
+                    <div v-if="stagedImages.length" class="flex flex-wrap gap-2">
+                        <div v-for="(img, idx) in stagedImages" :key="img.previewUrl" class="relative group w-16 h-16 rounded-lg overflow-hidden border border-(--border-color)">
+                            <img :src="img.previewUrl" class="w-full h-full object-cover" />
+                            <button
+                                type="button"
+                                @click="removeStagedImage(idx)"
+                                class="absolute inset-0 bg-(--bg3)/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-(--text)"
+                            >
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
                         <button
                             type="button"
-                            @click="removeStagedImage(idx)"
-                            class="absolute inset-0 bg-(--bg3)/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-(--text)"
+                            @click="imageInput?.click()"
+                            :disabled="loading"
+                            class="w-16 h-16 rounded-lg border-2 border-dashed border-(--border-color) hover:border-(--primary) flex items-center justify-center text-(--text2) hover:text-(--primary) transition-colors shrink-0"
+                            title="Ajouter une image"
                         >
-                            <i class="bi bi-x-lg"></i>
+                            <i class="bi bi-plus-lg text-lg"></i>
                         </button>
                     </div>
+                    <button
+                        v-else
+                        type="button"
+                        @click="imageInput?.click()"
+                        :disabled="loading"
+                        class="w-full flex flex-col items-center justify-center gap-1.5 py-4 text-(--text2) hover:text-(--primary) transition-colors"
+                    >
+                        <i class="bi bi-paperclip text-lg"></i>
+                        <span class="text-xs font-semibold">Cliquez, glissez ou collez une image ici</span>
+                    </button>
                 </div>
             </div>
 
@@ -259,6 +276,26 @@ const onPickImages = (e: Event) => {
     const input = e.target as HTMLInputElement;
     if (input.files?.length) addStagedImages(Array.from(input.files));
     input.value = '';
+};
+
+const isImagesDragOver = ref(false);
+let imagesDragCounter = 0;
+
+const onImagesDragEnter = () => {
+    imagesDragCounter++;
+    isImagesDragOver.value = true;
+};
+
+const onImagesDragLeave = () => {
+    imagesDragCounter = Math.max(0, imagesDragCounter - 1);
+    if (imagesDragCounter === 0) isImagesDragOver.value = false;
+};
+
+const onImagesDrop = (e: DragEvent) => {
+    imagesDragCounter = 0;
+    isImagesDragOver.value = false;
+    const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type.startsWith('image/'));
+    if (files.length) addStagedImages(files);
 };
 
 const removeStagedImage = (idx: number) => {
