@@ -302,7 +302,7 @@ import { useToast } from '@/composables/useToast';
 import confetti from 'canvas-confetti';
 import { openedOrg } from '@/assets/var';
 import { openProfile } from '@/composables/useProfile';
-import { uploadFile } from '@/assets/uploadFile';
+import uploadFile from '@/assets/uploadFile';
 import { getFilePreviewUrl } from '@/assets/utils/downloadFile';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 
