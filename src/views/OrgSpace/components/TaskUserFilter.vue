@@ -25,7 +25,7 @@
         </template>
 
         <template #content>
-            <div @click.stop>
+            <div>
                 <button
                     type="button"
                     @click="select(null)"
