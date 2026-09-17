@@ -68,15 +68,25 @@
                 <div v-if="tags.length > 0" class="hidden sm:block w-px h-6 bg-(--border-color) mx-2 shrink-0"></div>
 
                 <div v-if="tags.length > 0" class="flex items-center gap-2 overflow-x-auto w-full min-w-0 scrollbar-hide pb-1">
+                    <i class="bi bi-tags text-(--text2) text-sm shrink-0" title="Filtrer par tag"></i>
                     <button
                         v-for="tag in tags" :key="tag.id"
                         @click="toggleTagFilter(tag.id)"
-                        class="px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0 border"
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0 border"
                         :style="filterTagIds.includes(tag.id)
                             ? { backgroundColor: tag.color, borderColor: tag.color, color: '#fff' }
                             : { borderColor: tag.color, color: tag.color, backgroundColor: 'transparent' }"
                     >
+                        <i v-if="filterTagIds.includes(tag.id)" class="bi bi-check-lg"></i>
                         {{ tag.name }}
+                    </button>
+                    <button
+                        v-if="filterTagIds.length"
+                        @click="filterTagIds = []"
+                        class="text-[11px] font-bold text-(--text2) hover:text-(--text) whitespace-nowrap shrink-0 flex items-center gap-1"
+                    >
+                        <i class="bi bi-x-lg"></i>
+                        Effacer
                     </button>
                 </div>
 

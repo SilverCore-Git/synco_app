@@ -266,6 +266,7 @@ export interface Tag {
   id: string;
   name: string;
   color: string;
+  creatorId: string;
 }
 
 // Métadonnées légères d'une image attachée à une tâche — les champs E2EE
