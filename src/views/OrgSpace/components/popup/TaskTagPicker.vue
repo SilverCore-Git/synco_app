@@ -1,5 +1,5 @@
 <template>
-    <div class="flex flex-col gap-2">
+    <div class="flex flex-col gap-2" @click.stop>
         <div class="flex items-center justify-between">
             <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                 Tags

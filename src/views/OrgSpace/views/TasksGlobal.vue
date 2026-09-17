@@ -28,27 +28,30 @@
         </div>
 
         <main class="flex-1 overflow-y-auto p-6 w-full h-full space-y-8">
-            <div v-if="tags.length > 0" class="flex items-center gap-2 overflow-x-auto w-full scrollbar-hide pb-1 shrink-0">
-                <i class="bi bi-tags text-(--text2) text-sm shrink-0" title="Filtrer par tag"></i>
-                <button
-                    v-for="tag in tags" :key="tag.id"
-                    @click="toggleTagFilter(tag.id)"
-                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0 border"
-                    :style="filterTagIds.includes(tag.id)
-                        ? { backgroundColor: tag.color, borderColor: tag.color, color: '#fff' }
-                        : { borderColor: tag.color, color: tag.color, backgroundColor: 'transparent' }"
-                >
-                    <i v-if="filterTagIds.includes(tag.id)" class="bi bi-check-lg"></i>
-                    {{ tag.name }}
-                </button>
-                <button
-                    v-if="filterTagIds.length"
-                    @click="filterTagIds = []"
-                    class="text-[11px] font-bold text-(--text2) hover:text-(--text) whitespace-nowrap shrink-0 flex items-center gap-1"
-                >
-                    <i class="bi bi-x-lg"></i>
-                    Effacer
-                </button>
+            <div v-if="tags.length > 0" class="flex items-center gap-2 w-full shrink-0">
+                <DropDown align="left" content-iner-t-w="min-w-[280px]">
+                    <template #trigger>
+                        <button type="button" class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap h-full" :class="filterTagIds.length ? 'bg-(--primary)/15 text-(--primary)' : 'bg-white/5 text-white/70 hover:bg-white/10'">
+                            <i class="bi bi-tags"></i>
+                            {{ filterTagIds.length ? `${filterTagIds.length} tag${filterTagIds.length > 1 ? 's' : ''}` : 'Tags' }}
+                            <i class="bi bi-chevron-down text-[10px] opacity-60"></i>
+                        </button>
+                    </template>
+                    <template #content>
+                        <div @click.stop>
+                            <button
+                                v-if="filterTagIds.length"
+                                type="button"
+                                @click="filterTagIds = []"
+                                class="text-[11px] font-bold text-(--text2) hover:text-(--text) flex items-center gap-1 mb-2"
+                            >
+                                <i class="bi bi-x-lg"></i>
+                                Tout désélectionner
+                            </button>
+                            <TaskTagPicker :orgId="route.params.orgId as string" v-model="filterTagIds" />
+                        </div>
+                    </template>
+                </DropDown>
             </div>
 
             <div v-if="loading" class="w-full flex flex-col gap-12 animate-pulse pb-10">
@@ -341,6 +344,7 @@ import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import DropDown from '@/components/DropDown.vue';
+import TaskTagPicker from '../components/popup/TaskTagPicker.vue';
 import ArchivedTasksPanel from '../components/popup/ArchivedTasksPanel.vue';
 import { user } from '@/assets/var';
 import confetti from 'canvas-confetti';
@@ -360,13 +364,6 @@ const loading = ref(true);
 const draggedOverCol = ref<string | null>(null);
 const filterTagIds = ref<string[]>([]);
 
-const toggleTagFilter = (tagId: string) => {
-    if (filterTagIds.value.includes(tagId)) {
-        filterTagIds.value = filterTagIds.value.filter(id => id !== tagId);
-    } else {
-        filterTagIds.value = [...filterTagIds.value, tagId];
-    }
-};
 const selectedTask = ref<Task | null>(null);
 const openTaskInEditMode = ref(false);
 
