@@ -24,7 +24,7 @@ dist-ssr
 *.sw?
 /.vite
 .env
-.env.prod
+.env.production
 \n# Local AI Models\npublic/models\n
 /public/models
 .env.production
