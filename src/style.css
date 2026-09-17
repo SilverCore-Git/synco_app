@@ -54,8 +54,10 @@ body.light {
   --black: #000;
   --white: #fff;
 
-  --text: #27272a; 
-  
+  --text: #27272a;
+
+  --border-color: rgba(0, 0, 0, 0.1);
+
 }
 
 html {

@@ -419,10 +419,10 @@ onMounted(async () => {
                 :class="[
                   pin.length >= i
                     ? 'border-(--primary) bg-(--primary)/10 scale-105'
-                    : 'border-(--border-color) bg-white/5'
+                    : 'border-(--border-color) bg-(--text)/5'
                 ]">
                 <div class="w-3 h-3 rounded-full transition-all duration-300"
-                  :class="pin.length >= i ? 'bg-(--primary)' : 'bg-white/10'" />
+                  :class="pin.length >= i ? 'bg-(--primary)' : 'bg-(--text)/10'" />
               </div>
 
             </div>
