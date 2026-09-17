@@ -29,4 +29,6 @@ dist-ssr
 /public/models
 .env.production
 .claude
+CLAUDE.md
 sync app.env.production
+graphify-out
