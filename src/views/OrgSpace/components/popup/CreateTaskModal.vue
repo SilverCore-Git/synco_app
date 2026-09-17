@@ -37,7 +37,11 @@
                     @keydown.ctrl.enter="handleSubmit"
                     @keydown.meta.enter="handleSubmit"
                     @paste="handlePaste"
-                    placeholder="Plus de détails... (collez une image pour l'ajouter en pièce jointe)"
+                    @dragenter.prevent="onImagesDragEnter"
+                    @dragover.prevent
+                    @dragleave.prevent="onImagesDragLeave"
+                    @drop.prevent="onImagesDrop"
+                    placeholder="Plus de détails... (collez ou glissez une image pour l'ajouter en pièce jointe)"
                     rows="3"
                     class="
                         w-full bg-(--bg2)/30 border border-white/10 rounded-xl
@@ -47,6 +51,41 @@
                     "
                     :disabled="loading"
                 ></textarea>
+
+                <!-- Barre d'images : toujours visible sous la description, Ctrl+V/glisser-déposer marchent ici aussi -->
+                <div
+                    tabindex="0"
+                    @paste="handlePaste"
+                    @dragenter.prevent="onImagesDragEnter"
+                    @dragover.prevent
+                    @dragleave.prevent="onImagesDragLeave"
+                    @drop.prevent="onImagesDrop"
+                    class="flex items-center gap-2 rounded-lg border border-dashed px-2.5 py-2 transition-colors focus:outline-none"
+                    :class="isImagesDragOver ? 'border-(--primary) bg-(--primary)/5' : 'border-(--border-color)'"
+                >
+                    <i class="bi bi-paperclip text-(--text2) shrink-0"></i>
+                    <div v-if="stagedImages.length" class="flex items-center gap-1.5 overflow-x-auto">
+                        <div v-for="(img, idx) in stagedImages" :key="img.previewUrl" class="relative group w-8 h-8 rounded-md overflow-hidden border border-(--border-color) shrink-0">
+                            <img :src="img.previewUrl" class="w-full h-full object-cover" />
+                            <button
+                                type="button"
+                                @click="removeStagedImage(idx)"
+                                class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white"
+                            >
+                                <i class="bi bi-x-lg text-[10px]"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <span v-else class="text-xs text-(--text2)">Glissez ou collez (Ctrl+V) une image ici</span>
+                    <button
+                        type="button"
+                        @click="imageInput?.click()"
+                        :disabled="loading"
+                        class="ml-auto text-[11px] font-bold text-(--text2) hover:text-(--primary) transition-colors shrink-0"
+                    >
+                        + Image
+                    </button>
+                </div>
                 <input ref="imageInput" type="file" accept="image/*" multiple hidden @change="onPickImages" />
             </div>
 
@@ -64,10 +103,6 @@
                     <button type="button" @click="toggleSection('tags')" class="pill" :class="pillClass('tags', form.tagIds.length > 0)">
                         <i class="bi bi-tags"></i>
                         {{ form.tagIds.length ? `${form.tagIds.length} tag${form.tagIds.length > 1 ? 's' : ''}` : 'Tags' }}
-                    </button>
-                    <button type="button" @click="toggleSection('images')" class="pill" :class="pillClass('images', stagedImages.length > 0)">
-                        <i class="bi bi-paperclip"></i>
-                        {{ stagedImages.length ? `${stagedImages.length} image${stagedImages.length > 1 ? 's' : ''}` : 'Image' }}
                     </button>
                     <button v-if="!hideSpaceSelect" type="button" @click="toggleSection('space')" class="pill" :class="pillClass('space', !!form.spaceId)">
                         <i class="bi bi-folder2"></i>
@@ -139,49 +174,6 @@
                             :orgId="route.params.orgId as string"
                             v-model="form.tagIds"
                         />
-                    </template>
-
-                    <template v-else-if="activeSection === 'images'">
-                        <div
-                            class="rounded-lg border-2 border-dashed transition-colors p-2"
-                            :class="isImagesDragOver ? 'border-(--primary) bg-(--primary)/5' : 'border-(--border-color)'"
-                            @dragenter.prevent="onImagesDragEnter"
-                            @dragover.prevent
-                            @dragleave.prevent="onImagesDragLeave"
-                            @drop.prevent="onImagesDrop"
-                        >
-                            <div v-if="stagedImages.length" class="flex flex-wrap gap-2">
-                                <div v-for="(img, idx) in stagedImages" :key="img.previewUrl" class="relative group w-16 h-16 rounded-lg overflow-hidden border border-(--border-color)">
-                                    <img :src="img.previewUrl" class="w-full h-full object-cover" />
-                                    <button
-                                        type="button"
-                                        @click="removeStagedImage(idx)"
-                                        class="absolute inset-0 bg-(--bg3)/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-(--text)"
-                                    >
-                                        <i class="bi bi-x-lg"></i>
-                                    </button>
-                                </div>
-                                <button
-                                    type="button"
-                                    @click="imageInput?.click()"
-                                    :disabled="loading"
-                                    class="w-16 h-16 rounded-lg border-2 border-dashed border-(--border-color) hover:border-(--primary) flex items-center justify-center text-(--text2) hover:text-(--primary) transition-colors shrink-0"
-                                    title="Ajouter une image"
-                                >
-                                    <i class="bi bi-plus-lg text-lg"></i>
-                                </button>
-                            </div>
-                            <button
-                                v-else
-                                type="button"
-                                @click="imageInput?.click()"
-                                :disabled="loading"
-                                class="w-full flex flex-col items-center justify-center gap-1.5 py-4 text-(--text2) hover:text-(--primary) transition-colors"
-                            >
-                                <i class="bi bi-paperclip text-lg"></i>
-                                <span class="text-xs font-semibold">Cliquez, glissez ou collez une image ici</span>
-                            </button>
-                        </div>
                     </template>
 
                     <template v-else-if="activeSection === 'space'">
@@ -341,7 +333,7 @@ const filteredMembers = computed<OrgMember[]>(() => {
     });
 });
 
-type Section = 'date' | 'assignees' | 'tags' | 'images' | 'space';
+type Section = 'date' | 'assignees' | 'tags' | 'space';
 const activeSection = ref<Section | null>(null);
 
 const toggleSection = (key: Section) => {
