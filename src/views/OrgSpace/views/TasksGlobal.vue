@@ -28,6 +28,32 @@
         </div>
 
         <main class="flex-1 overflow-y-auto p-6 w-full h-full space-y-8">
+            <div v-if="tags.length > 0" class="flex items-center gap-2 w-full shrink-0">
+                <DropDown align="left" content-iner-t-w="min-w-[280px]">
+                    <template #trigger>
+                        <button type="button" class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap h-full" :class="filterTagIds.length ? 'bg-(--primary)/15 text-(--primary)' : 'bg-white/5 text-white/70 hover:bg-white/10'">
+                            <i class="bi bi-tags"></i>
+                            {{ filterTagIds.length ? `${filterTagIds.length} tag${filterTagIds.length > 1 ? 's' : ''}` : 'Tags' }}
+                            <i class="bi bi-chevron-down text-[10px] opacity-60"></i>
+                        </button>
+                    </template>
+                    <template #content>
+                        <div @click.stop>
+                            <button
+                                v-if="filterTagIds.length"
+                                type="button"
+                                @click="filterTagIds = []"
+                                class="text-[11px] font-bold text-(--text2) hover:text-(--text) flex items-center gap-1 mb-2"
+                            >
+                                <i class="bi bi-x-lg"></i>
+                                Tout désélectionner
+                            </button>
+                            <TaskTagPicker :orgId="route.params.orgId as string" v-model="filterTagIds" />
+                        </div>
+                    </template>
+                </DropDown>
+            </div>
+
             <div v-if="loading" class="w-full flex flex-col gap-12 animate-pulse pb-10">
                 <div v-for="s in 2" :key="'skel-space-'+s" class="space-y-4">
                     <div class="flex items-center justify-between border-b border-white/10 pb-2">
@@ -53,10 +79,28 @@
             </div>
             
             <div v-else class="space-y-12 pb-10">
-                
+
+                <!-- Onglets de statut (mobile) : partagés par tous les projets -->
+                <div class="relative flex items-center gap-1 p-1 bg-white/5 rounded-xl md:hidden">
+                    <div
+                        class="absolute top-1 bottom-1 rounded-lg bg-(--primary) shadow-lg transition-all duration-300 ease-out"
+                        :style="tabIndicatorStyle"
+                    ></div>
+                    <button
+                        v-for="(col, idx) in columns" :key="col.id"
+                        :ref="(el) => setTabRef(idx, el)"
+                        @click="mobileActiveColumn = col.id"
+                        class="relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-colors"
+                        :class="mobileActiveColumn === col.id ? 'text-white' : 'text-(--text2)'"
+                    >
+                        <i :class="col.icon"></i>
+                        {{ col.title }}
+                    </button>
+                </div>
+
                 <!-- Swimlanes (Rows by Project) -->
                 <div v-for="spaceGroup in spacesGroups" :key="spaceGroup.id" class="space-y-4">
-                    
+
                     <div class="flex items-center justify-between border-b border-white/10 pb-2">
                         <div class="flex items-center gap-3">
                             <i class="bi bi-folder-fill text-(--primary) text-xl"></i>
@@ -67,7 +111,7 @@
                                 {{ spaceGroup.tasks.length }} tâche(s)
                             </span>
                         </div>
-                        
+
                         <CreateTaskModal :defaultSpaceId="spaceGroup.id === 'personal' ? null : spaceGroup.id" @created="onTaskCreated">
                             <button class="text-xs bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg font-bold transition-colors flex items-center gap-2">
                                 <i class="bi bi-plus"></i> Ajouter ici
@@ -75,10 +119,71 @@
                         </CreateTaskModal>
                     </div>
 
-                    <!-- Kanban Board inside the row -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 items-start">
-                        
-                        <div v-for="col in columns" :key="col.id" 
+                    <!-- Mobile : liste simple filtrée par l'onglet actif, pas de glisser-déposer -->
+                    <div class="md:hidden space-y-3">
+                        <div
+                            v-for="task in getTasks(spaceGroup.tasks, mobileActiveColumn)" :key="task.id"
+                            @click="openTaskDetails(task)"
+                            class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
+                        >
+                            <p class="text-sm font-bold text-(--text) leading-snug">{{ task.title }}</p>
+                            <span v-if="task.parentTask" class="text-[9px] font-bold text-(--primary) uppercase flex items-center gap-1 opacity-80 mt-1">
+                                <i class="bi bi-arrow-return-right"></i> {{ task.parentTask.title }}
+                            </span>
+
+                            <div v-if="task.tags?.length" class="flex flex-wrap gap-1 mt-2">
+                                <span
+                                    v-for="tag in task.tags.slice(0, 3)" :key="tag.id"
+                                    class="px-2 py-0.5 rounded-full text-[9px] font-bold border"
+                                    :style="{ borderColor: tag.color, color: tag.color }"
+                                >
+                                    {{ tag.name }}
+                                </span>
+                            </div>
+
+                            <div class="flex items-center justify-between mt-3">
+                                <div class="flex items-center -space-x-1.5" v-if="task.assignees?.length">
+                                    <template v-for="assignee in task.assignees.slice(0,3)" :key="assignee.id">
+                                        <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="$p(assignee.name)" class="w-6 h-6 rounded-full object-cover border-2 border-(--bg2)">
+                                        <div v-else :title="$p(assignee.name)" class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[9px] font-black border-2 border-(--bg2)">
+                                            {{ $p(assignee.name).substring(0, 2).toUpperCase() }}
+                                        </div>
+                                    </template>
+                                </div>
+                                <div v-else></div>
+
+                                <div class="flex items-center gap-1.5" @click.stop>
+                                    <button
+                                        v-if="prevStatus(task.status)"
+                                        @click="changeTaskStatus(task, prevStatus(task.status)!)"
+                                        class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
+                                        :class="columnColor(prevStatus(task.status)!)"
+                                        :title="`Repasser à « ${columnTitle(prevStatus(task.status)!)} »`"
+                                    >
+                                        <i :class="columnIcon(prevStatus(task.status)!)"></i>
+                                    </button>
+                                    <button
+                                        v-if="nextStatus(task.status)"
+                                        @click="changeTaskStatus(task, nextStatus(task.status)!)"
+                                        class="flex items-center gap-1.5 px-3 h-8 rounded-lg bg-(--primary)/10 hover:bg-(--primary)/20 text-(--primary) font-bold text-[11px] transition-colors"
+                                        :title="`Passer à « ${columnTitle(nextStatus(task.status)!)} »`"
+                                    >
+                                        <i :class="columnIcon(nextStatus(task.status)!)"></i>
+                                        {{ columnTitle(nextStatus(task.status)!) }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p v-if="getTasks(spaceGroup.tasks, mobileActiveColumn).length === 0" class="text-xs text-(--text2) italic text-center py-4">
+                            Aucune tâche ici.
+                        </p>
+                    </div>
+
+                    <!-- Desktop : Kanban Board inside the row -->
+                    <div class="hidden md:grid md:grid-cols-3 gap-4 lg:gap-6 items-start">
+
+                        <div v-for="col in columns" :key="col.id"
                              class="bg-black/20 border rounded-2xl p-4 min-h-[200px] flex flex-col transition-all"
                              :class="draggedOverCol === `${spaceGroup.id}-${col.id}` ? 'border-(--primary) bg-white/5 shadow-[0_0_15px_rgba(var(--primary-rgb),0.2)]' : 'border-(--border-color)'"
                              @dragover.prevent
@@ -134,7 +239,20 @@
                                             </span>
                                         </div>
                                     </div>
-                                    
+
+                                    <div v-if="task.tags?.length" class="flex flex-wrap gap-1 mt-2">
+                                        <span
+                                            v-for="tag in task.tags.slice(0, 3)" :key="tag.id"
+                                            class="px-2 py-0.5 rounded-full text-[9px] font-bold border"
+                                            :style="{ borderColor: tag.color, color: tag.color }"
+                                        >
+                                            {{ tag.name }}
+                                        </span>
+                                        <span v-if="task.tags.length > 3" class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-(--text)/5 text-(--text2)">
+                                            +{{ task.tags.length - 3 }}
+                                        </span>
+                                    </div>
+
                                     <div class="flex items-center justify-between mt-4">
                                         <div class="flex items-center -space-x-1.5" v-if="task.assignees?.length">
                                             <template v-for="assignee in task.assignees.slice(0,3)" :key="assignee.id">
@@ -149,9 +267,15 @@
                                         </div>
                                         <div v-else></div>
                                         
-                                        <div v-if="task.subtasks && task.subtasks.length > 0" class="flex items-center gap-1.5 text-xs bg-white/5 px-2.5 py-1 rounded-lg font-bold text-white/50">
-                                            <i class="bi bi-check2-square text-(--primary)"></i>
-                                            {{ task.subtasks.filter((st: any) => st.status === 'DONE').length }}/{{ task.subtasks.length }}
+                                        <div class="flex items-center gap-1.5">
+                                            <div v-if="task._count?.attachments" class="flex items-center gap-1 text-xs bg-(--text)/5 px-2 py-1 rounded-lg font-bold text-(--text2)">
+                                                <i class="bi bi-paperclip"></i>
+                                                {{ task._count.attachments }}
+                                            </div>
+                                            <div v-if="task.subtasks && task.subtasks.length > 0" class="flex items-center gap-1.5 text-xs bg-white/5 px-2.5 py-1 rounded-lg font-bold text-white/50">
+                                                <i class="bi bi-check2-square text-(--primary)"></i>
+                                                {{ task.subtasks.filter((st: any) => st.status === 'DONE').length }}/{{ task.subtasks.length }}
+                                            </div>
                                         </div>
                                     </div>
 
@@ -289,7 +413,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import type { Task, TodoList } from '@/types/types';
@@ -299,21 +423,26 @@ import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import DropDown from '@/components/DropDown.vue';
+import TaskTagPicker from '../components/popup/TaskTagPicker.vue';
 import ArchivedTasksPanel from '../components/popup/ArchivedTasksPanel.vue';
 import { user } from '@/assets/var';
 import confetti from 'canvas-confetti';
 import useWSocket from '@/composables/useWSocket';
 import { useNotification } from '@/composables/useNotification';
 import { useTaskOrder } from '@/composables/useTaskOrder';
+import { useTaskTags } from '@/composables/useTaskTags';
 
 const route = useRoute();
 const toast = useToast();
 const { markTasksAsRead } = useNotification();
 const { fetchOrder, sortByOrder, persistOrder } = useTaskOrder(route.params.orgId as string);
+const { tags, loadTags } = useTaskTags(route.params.orgId as string);
 
 const rawTasks = ref<Task[]>([]);
 const loading = ref(true);
 const draggedOverCol = ref<string | null>(null);
+const filterTagIds = ref<string[]>([]);
+
 const selectedTask = ref<Task | null>(null);
 const openTaskInEditMode = ref(false);
 
@@ -334,6 +463,49 @@ const columns = [
     { id: 'IN_PROGRESS', title: 'En cours', color: 'text-blue-400', icon: 'bi-arrow-repeat' },
     { id: 'DONE', title: 'Terminé', color: 'text-green-500', icon: 'bi-check-circle-fill' }
 ];
+
+// ── Vue mobile : le glisser-déposer natif ne fonctionne pas au toucher,
+// donc pas de 3 colonnes côte à côte — un onglet à la fois (partagé par
+// tous les projets), et de petites flèches sur chaque carte pour changer
+// de statut sans glisser.
+const mobileActiveColumn = ref<string>('TODO');
+
+const prevStatus = (status: string): string | null => {
+    const idx = columns.findIndex(c => c.id === status);
+    return idx > 0 ? columns[idx - 1].id : null;
+};
+
+const nextStatus = (status: string): string | null => {
+    const idx = columns.findIndex(c => c.id === status);
+    return idx >= 0 && idx < columns.length - 1 ? columns[idx + 1].id : null;
+};
+
+const columnTitle = (status: string) => columns.find(c => c.id === status)?.title || status;
+const columnIcon = (status: string) => columns.find(c => c.id === status)?.icon || 'bi-circle';
+const columnColor = (status: string) => columns.find(c => c.id === status)?.color || 'text-(--text2)';
+
+// Indicateur qui glisse d'un onglet à l'autre au lieu de sauter instantanément
+// (mesuré en pixels sur le DOM plutôt que calculé en % : plus fiable que de
+// recalculer des marges/gaps Tailwind à la main).
+const tabRefs = ref<(HTMLElement | null)[]>([]);
+const tabIndicatorStyle = ref({ left: '0px', width: '0px' });
+
+const setTabRef = (idx: number, el: Element | { $el?: Element } | null) => {
+    tabRefs.value[idx] = (el as HTMLElement) || null;
+};
+
+const updateTabIndicator = () => {
+    const idx = columns.findIndex(c => c.id === mobileActiveColumn.value);
+    const el = tabRefs.value[idx];
+    if (el) {
+        tabIndicatorStyle.value = { left: `${el.offsetLeft}px`, width: `${el.offsetWidth}px` };
+    }
+};
+
+watch(mobileActiveColumn, () => nextTick(updateTabIndicator));
+onMounted(() => nextTick(updateTabIndicator));
+window.addEventListener('resize', updateTabIndicator);
+onUnmounted(() => window.removeEventListener('resize', updateTabIndicator));
 
 const spacesGroups = computed(() => {
     const groups: Record<string, { id: string, name: string, tasks: Task[] }> = {};
@@ -373,7 +545,11 @@ const spacesGroups = computed(() => {
 });
 
 const getTasks = (tasks: Task[], status: string) => {
-    return sortByOrder(tasks.filter((t: Task) => t.status === status));
+    return sortByOrder(tasks.filter((t: Task) => {
+        if (t.status !== status) return false;
+        if (filterTagIds.value.length && !t.tags?.some(tag => filterTagIds.value.includes(tag.id))) return false;
+        return true;
+    }));
 };
 
 const getProgress = (task: Task) => {
@@ -708,6 +884,7 @@ const onTaskDeleted = (taskId: string) => {
 
 onMounted(async () => {
     fetchOrder();
+    loadTags();
     loadLists();
 
     const socket = await useWSocket();

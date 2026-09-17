@@ -8,112 +8,277 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <i class="bi bi-check2-square text-(--primary)"></i>
-                    <span v-if="!isEditing">Détails de la Tâche</span>
-                    <span v-else>Modifier la Tâche</span>
+                    Détails de la Tâche
                 </div>
             </div>
         </template>
 
         <div v-if="task" class="space-y-6 w-full max-w-full sm:w-[500px]">
-            <!-- Header -->
-            <div class="flex justify-between items-start gap-4">
-                <div class="flex-1 min-w-0">
-                    <h3 v-if="!isEditing" class="text-xl font-bold text-(--text) mb-2 break-words">{{ task.title }}</h3>
-                    <input v-else v-model="editForm.title" type="text" class="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-white mb-2 font-bold" />
+            <!-- Header : chaque champ se modifie en cliquant directement dessus -->
+            <div>
+                <h3 v-if="!isEditingTitle" @click="startEditTitle" class="text-xl font-bold text-(--text) mb-2 break-words cursor-text rounded-lg px-2 -mx-2 py-0.5 hover:bg-white/5 transition-colors" title="Cliquer pour modifier">{{ editForm.title }}</h3>
+                <input
+                    v-else
+                    ref="titleInputEl"
+                    v-model="editForm.title"
+                    type="text"
+                    @blur="commitEditTitle"
+                    @keydown.enter="commitEditTitle"
+                    @keydown.escape="cancelEditTitle"
+                    class="w-full bg-black/40 border border-(--primary)/50 rounded-lg px-3 py-2 text-white mb-2 font-bold focus:outline-none"
+                />
 
-                    <p v-if="!isEditing" class="text-xs font-bold uppercase tracking-wide mb-3" :class="statusInfo.color">
-                        {{ statusInfo.label }} depuis : {{ statusDuration }}
-                    </p>
+                <p class="text-xs font-bold uppercase tracking-wide mb-3" :class="statusInfo.color">
+                    {{ statusInfo.label }} depuis : {{ statusDuration }}
+                </p>
 
-                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-semibold text-(--text2) uppercase">
-                        <span class="flex items-center gap-1 whitespace-nowrap">
-                            <i class="bi bi-folder text-(--primary)/80"></i>
-                            {{ task.space?.name || 'Général' }}
-                        </span>
-                        <span v-if="!isEditing && task?.creator" class="flex items-center gap-1.5 whitespace-nowrap">
-                            <span class="text-(--text2)">Créée par</span>
-                            <button @click.stop="(e) => task?.creator && openProfile(task.creator, e)" class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold transition-all shadow-sm" :title="'Profil de ' + $p(task.creator.name)">
-                                <img v-if="task.creator.avatarUrl" :src="task.creator.avatarUrl" class="w-4 h-4 rounded-full object-cover border border-black/20">
-                                <div v-else class="w-4 h-4 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[8px] font-black border border-black/20">
-                                    {{ $p(task.creator.name).substring(0, 2).toUpperCase() }}
-                                </div>
-                                {{ $p(task.creator.name).split(' ')[0] }}
-                            </button>
-                        </span>
-                        <span v-if="!isEditing" class="flex items-center gap-2 break-words">
-                            <i class="bi bi-people-fill text-(--primary)/80"></i>
-                            <span v-if="!task.assignees?.length">Personne</span>
-                            <div v-else class="flex items-center -space-x-1.5">
-                                <template v-for="assignee in task.assignees.slice(0,5)" :key="assignee.id">
-                                    <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="$p(assignee.name)" class="w-5 h-5 rounded-full object-cover border border-(--bg2) z-10 hover:z-20">
-                                    <div v-else :title="$p(assignee.name)" class="w-5 h-5 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[8px] font-black border border-(--bg2) z-10 hover:z-20">
-                                        {{ $p(assignee.name).substring(0, 2).toUpperCase() }}
-                                    </div>
-                                </template>
-                                <div v-if="task.assignees.length > 5" class="w-5 h-5 rounded-full bg-white/10 text-white flex items-center justify-center text-[8px] font-black border border-(--bg2) z-10">
-                                    +{{ task.assignees.length - 5 }}
-                                </div>
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-semibold text-(--text2) uppercase">
+                    <span class="flex items-center gap-1 whitespace-nowrap">
+                        <i class="bi bi-folder text-(--primary)/80"></i>
+                        {{ task.space?.name || 'Général' }}
+                    </span>
+                    <span v-if="task?.creator" class="flex items-center gap-1.5 whitespace-nowrap">
+                        <span class="text-(--text2)">Créée par</span>
+                        <button @click.stop="(e) => task?.creator && openProfile(task.creator, e)" class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold transition-all shadow-sm" :title="'Profil de ' + $p(task.creator.name)">
+                            <img v-if="task.creator.avatarUrl" :src="task.creator.avatarUrl" class="w-4 h-4 rounded-full object-cover border border-black/20">
+                            <div v-else class="w-4 h-4 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[8px] font-black border border-black/20">
+                                {{ $p(task.creator.name).substring(0, 2).toUpperCase() }}
                             </div>
-                        </span>
-                    </div>
+                            {{ $p(task.creator.name).split(' ')[0] }}
+                        </button>
+                    </span>
+                    <button
+                        type="button"
+                        @click="toggleSection('assignees')"
+                        class="flex items-center gap-2 break-words rounded-md px-1.5 py-1 -mx-1.5 transition-colors"
+                        :class="activeSection === 'assignees' ? 'bg-(--primary)/15 text-(--primary)' : 'hover:bg-white/5'"
+                        title="Cliquer pour modifier les assignés"
+                    >
+                        <i class="bi bi-people-fill" :class="activeSection === 'assignees' ? 'text-(--primary)' : 'text-(--primary)/80'"></i>
+                        <span v-if="!task.assignees?.length">Personne</span>
+                        <div v-else class="flex items-center -space-x-1.5">
+                            <template v-for="assignee in task.assignees.slice(0,5)" :key="assignee.id">
+                                <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="$p(assignee.name)" class="w-5 h-5 rounded-full object-cover border border-(--bg2) z-10">
+                                <div v-else :title="$p(assignee.name)" class="w-5 h-5 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[8px] font-black border border-(--bg2) z-10">
+                                    {{ $p(assignee.name).substring(0, 2).toUpperCase() }}
+                                </div>
+                            </template>
+                            <div v-if="task.assignees.length > 5" class="w-5 h-5 rounded-full bg-white/10 text-white flex items-center justify-center text-[8px] font-black border border-(--bg2) z-10">
+                                +{{ task.assignees.length - 5 }}
+                            </div>
+                        </div>
+                    </button>
+                    <button
+                        type="button"
+                        @click="toggleSection('date')"
+                        class="flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-1 -mx-1.5 transition-colors"
+                        :class="activeSection === 'date' ? 'bg-(--primary)/15 text-(--primary)' : (editForm.dueDate ? 'text-(--primary) hover:bg-white/5' : 'hover:bg-white/5')"
+                        title="Cliquer pour modifier l'échéance"
+                    >
+                        <i class="bi bi-calendar-event"></i>
+                        {{ dueDateLabel }}
+                    </button>
+                    <button
+                        v-if="task.spaceId"
+                        type="button"
+                        @click="toggleSection('linkedFiles')"
+                        class="flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-1 -mx-1.5 transition-colors"
+                        :class="activeSection === 'linkedFiles' ? 'bg-(--primary)/15 text-(--primary)' : 'hover:bg-white/5'"
+                        title="Cliquer pour lier/voir des fichiers"
+                    >
+                        <i class="bi bi-link-45deg"></i>
+                        {{ task.linkedFiles?.length ? `${task.linkedFiles.length} fichier${task.linkedFiles.length > 1 ? 's' : ''} lié${task.linkedFiles.length > 1 ? 's' : ''}` : 'Aucun fichier lié' }}
+                    </button>
                 </div>
-                
-                <button @click="isEditing = !isEditing" class="text-(--text2) hover:text-white transition-colors bg-white/5 px-3 py-1.5 rounded-lg">
-                    <i class="bi" :class="isEditing ? 'bi-x-lg' : 'bi-pencil-fill'"></i>
+
+                <button type="button" @click="toggleSection('tags')" class="flex flex-wrap items-center gap-1.5 mt-3 rounded-lg -mx-1.5 px-1.5 py-1 transition-colors" :class="activeSection === 'tags' ? 'bg-(--primary)/10' : 'hover:bg-white/5'" title="Cliquer pour modifier les tags">
+                    <span
+                        v-for="tag in task.tags" :key="tag.id"
+                        class="px-2.5 py-1 rounded-full text-[10px] font-bold border"
+                        :style="{ borderColor: tag.color, color: tag.color }"
+                    >
+                        {{ tag.name }}
+                    </span>
+                    <span v-if="!task.tags?.length" class="text-[11px] font-bold text-(--text2) flex items-center gap-1">
+                        <i class="bi bi-tag"></i>
+                        Aucun tag
+                    </span>
                 </button>
             </div>
 
             <!-- Description -->
             <div class="bg-white/5 rounded-xl p-4 border border-white/10">
                 <h4 class="text-xs font-bold text-(--text2) uppercase mb-2">Description</h4>
-                <p v-if="!isEditing" class="text-sm text-white/80 whitespace-pre-wrap">{{ task.description || 'Aucune description fournie.' }}</p>
-                <textarea v-else v-model="editForm.description" rows="3" class="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-white/80 resize-none"></textarea>
-            </div>
+                <p
+                    v-if="!isEditingDescription"
+                    @click="startEditDescription"
+                    class="text-sm whitespace-pre-wrap cursor-text rounded-lg -mx-2 px-2 py-1 hover:bg-white/5 transition-colors"
+                    :class="editForm.description ? 'text-white/80' : 'text-(--text2) italic'"
+                    title="Cliquer pour modifier"
+                >{{ editForm.description || 'Aucune description fournie. Cliquez pour en ajouter une.' }}</p>
+                <textarea
+                    v-else
+                    ref="descriptionInputEl"
+                    v-model="editForm.description"
+                    @blur="isEditingDescription = false"
+                    @keydown.escape="cancelEditDescription"
+                    @paste="handlePaste"
+                    @dragenter.prevent="onAttachmentsDragEnter"
+                    @dragover.prevent
+                    @dragleave.prevent="onAttachmentsDragLeave"
+                    @drop.prevent="onAttachmentsDrop"
+                    rows="3"
+                    class="w-full bg-black/40 border border-(--primary)/50 rounded-lg px-3 py-2 text-white/80 placeholder:opacity-60 resize-none focus:outline-none"
+                    placeholder="Plus de détails..."
+                ></textarea>
 
-            <div v-if="isEditing" class="bg-white/5 rounded-xl p-4 border border-white/10 mt-4">
-                <h4 class="text-xs font-bold text-(--text2) uppercase mb-2">Assignation</h4>
-                <div class="relative mb-2">
-                    <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-sm"></i>
-                    <input 
-                        v-model="searchAssignee" 
-                        placeholder="Rechercher une personne..."
-                        class="w-full bg-black/40 border border-white/20 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
-                        :disabled="loading"
-                    />
-                </div>
-                <div class="bg-black/40 border border-white/20 rounded-xl p-3 max-h-40 overflow-y-auto space-y-2">
-                    <label v-for="member in filteredMembers" :key="member.id" class="flex items-center gap-3 cursor-pointer group">
-                        <input 
-                            type="checkbox" 
-                            :value="member.userId" 
-                            v-model="editForm.assigneeIds"
-                            class="w-4 h-4 rounded bg-black/20 border-white/20 text-(--primary) focus:ring-(--primary) focus:ring-offset-0"
-                            :disabled="loading"
-                        />
-                        <div class="flex items-center gap-2">
-                            <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-6 h-6 rounded-full object-cover">
-                            <div v-else class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[10px] font-bold">
-                                {{ ($p(member.user?.name) || member.userId).substring(0, 2).toUpperCase() }}
-                            </div>
-                            <span class="text-sm font-medium text-(--text) group-hover:text-white transition-colors">
-                                {{ $p(member.user?.name) || member.userId }}
-                            </span>
+                <!-- Barre d'images : toute la zone est cliquable ; Ctrl+V et glisser-déposer marchent aussi ici -->
+                <div
+                    :tabindex="uploadingImage ? -1 : 0"
+                    role="button"
+                    aria-label="Ajouter une image"
+                    @click="!uploadingImage && imageInput?.click()"
+                    @keydown.enter.prevent="!uploadingImage && imageInput?.click()"
+                    @keydown.space.prevent="!uploadingImage && imageInput?.click()"
+                    @paste="handlePaste"
+                    @dragenter.prevent="onAttachmentsDragEnter"
+                    @dragover.prevent
+                    @dragleave.prevent="onAttachmentsDragLeave"
+                    @drop.prevent="onAttachmentsDrop"
+                    class="mt-3 flex items-center gap-2 rounded-lg border border-dashed px-2.5 py-2 transition-colors cursor-pointer hover:border-(--primary)/50 hover:bg-(--primary)/5 focus:outline-none focus:border-(--primary)/50"
+                    :class="[isAttachmentsDragOver ? 'border-(--primary) bg-(--primary)/5' : 'border-(--border-color)', uploadingImage ? 'opacity-50 pointer-events-none' : '']"
+                >
+                    <i v-if="uploadingImage" class="bi bi-arrow-repeat animate-spin text-(--text2) shrink-0"></i>
+                    <i v-else class="bi bi-paperclip text-(--text2) shrink-0"></i>
+                    <div v-if="task.attachments?.length" class="flex items-center gap-1.5 overflow-x-auto">
+                        <div
+                            v-for="attachment in task.attachments" :key="attachment.id"
+                            class="relative group w-8 h-8 rounded-md overflow-hidden border border-(--border-color) shrink-0 cursor-pointer bg-(--bg3)"
+                            @click.stop="openAttachment(attachment)"
+                        >
+                            <img v-if="attachmentPreviews[attachment.id]" :src="attachmentPreviews[attachment.id]" class="w-full h-full object-cover" />
+                            <i v-else class="bi bi-image absolute inset-0 flex items-center justify-center text-(--text2) text-xs"></i>
+                            <button
+                                type="button"
+                                @click.stop="removeAttachment(attachment)"
+                                class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white"
+                            >
+                                <i class="bi bi-x-lg text-[10px]"></i>
+                            </button>
                         </div>
-                    </label>
-                    <div v-if="filteredMembers.length === 0" class="text-xs text-center text-(--text2) py-2">
-                        Aucun résultat
                     </div>
+                    <span v-else class="text-xs text-(--text2)">Cliquez, glissez ou collez une image ici</span>
+                </div>
+                <input ref="imageInput" type="file" accept="image/*" multiple hidden @change="onPickImages" />
+            </div>
+
+            <!-- Volet d'édition : ouvert en cliquant sur le champ correspondant dans l'en-tête ci-dessus -->
+            <div v-if="activeSection">
+                <div class="bg-white/5 rounded-xl p-4 border border-white/10">
+
+                    <template v-if="activeSection === 'date'">
+                        <div class="flex gap-2">
+                            <input
+                                v-model="editForm.dueDate"
+                                type="date"
+                                class="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-(--primary)/50"
+                                :disabled="loading"
+                            />
+                            <input
+                                v-model="editForm.dueTime"
+                                type="time"
+                                class="w-28 bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-(--primary)/50"
+                                :disabled="loading"
+                            />
+                            <button v-if="editForm.dueDate" type="button" @click="editForm.dueDate = ''; editForm.dueTime = ''" class="text-(--text2) hover:text-red-500 transition-colors px-2" title="Retirer l'échéance">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    </template>
+
+                    <template v-else-if="activeSection === 'assignees'">
+                        <div class="relative mb-2">
+                            <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-sm"></i>
+                            <input
+                                v-model="searchAssignee"
+                                placeholder="Rechercher une personne..."
+                                class="w-full bg-black/40 border border-white/20 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
+                                :disabled="loading"
+                            />
+                        </div>
+                        <div class="max-h-40 overflow-y-auto space-y-2">
+                            <label v-for="member in filteredMembers" :key="member.id" class="flex items-center gap-3 cursor-pointer group">
+                                <input
+                                    type="checkbox"
+                                    :value="member.userId"
+                                    v-model="editForm.assigneeIds"
+                                    class="w-4 h-4 rounded bg-black/20 border-white/20 text-(--primary) focus:ring-(--primary) focus:ring-offset-0"
+                                    :disabled="loading"
+                                />
+                                <div class="flex items-center gap-2">
+                                    <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-6 h-6 rounded-full object-cover">
+                                    <div v-else class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[10px] font-bold">
+                                        {{ ($p(member.user?.name) || member.userId).substring(0, 2).toUpperCase() }}
+                                    </div>
+                                    <span class="text-sm font-medium text-(--text) group-hover:text-white transition-colors">
+                                        {{ $p(member.user?.name) || member.userId }}
+                                    </span>
+                                </div>
+                            </label>
+                            <div v-if="filteredMembers.length === 0" class="text-xs text-center text-(--text2) py-2">
+                                Aucun résultat
+                            </div>
+                        </div>
+                    </template>
+
+                    <template v-else-if="activeSection === 'tags'">
+                        <TaskTagPicker
+                            :orgId="route.params.orgId as string"
+                            v-model="editForm.tagIds"
+                        />
+                    </template>
+
+                    <template v-else-if="activeSection === 'linkedFiles'">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-(--text2) uppercase">Fichiers liés</span>
+                            <button type="button" @click="showFilePicker = true" class="text-[11px] font-bold text-(--text2) hover:text-(--primary) flex items-center gap-1">
+                                <i class="bi bi-link-45deg"></i>
+                                Lier un fichier
+                            </button>
+                        </div>
+                        <div v-if="task.linkedFiles?.length" class="space-y-1.5 max-h-52 overflow-y-auto">
+                            <div
+                                v-for="link in task.linkedFiles" :key="link.id"
+                                class="flex items-center gap-3 p-2 rounded-lg border border-(--border-color) hover:border-(--primary)/50 cursor-pointer group transition-colors"
+                                @click="openLinkedFile(link)"
+                            >
+                                <div class="w-8 h-8 flex items-center justify-center rounded-lg bg-(--bg3) shrink-0">
+                                    <i :class="[getFileInfo(link.file as any).icon, getFileInfo(link.file as any).color]" class="text-base" />
+                                </div>
+                                <p class="flex-1 min-w-0 text-sm font-semibold text-(--text) truncate">{{ link.file.originalName }}</p>
+                                <button
+                                    type="button"
+                                    @click.stop="unlinkFile(link)"
+                                    class="text-(--text2) hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <p v-else class="text-xs text-(--text2) italic">Aucun fichier lié.</p>
+                    </template>
+
                 </div>
             </div>
 
-            <div v-if="isEditing" class="flex justify-end items-center gap-2 text-xs font-semibold text-(--text2)">
+            <div v-if="saveStatus !== 'idle'" class="flex justify-end items-center gap-2 text-xs font-semibold text-(--text2)">
                 <i v-if="saveStatus === 'saving'" class="bi bi-arrow-repeat animate-spin"></i>
                 <i v-else-if="saveStatus === 'saved'" class="bi bi-check-circle-fill text-green-500"></i>
                 <span>{{ saveStatusLabel }}</span>
             </div>
 
             <!-- Subtasks -->
-            <div v-if="!isEditing" class="space-y-3">
+            <div class="space-y-3">
                 <div class="flex items-center justify-between border-b border-white/10 pb-2">
                     <h4 class="text-sm font-bold text-(--text) flex items-center gap-2">
                         <i class="bi bi-list-nested text-(--primary)"></i>
@@ -192,19 +357,41 @@
             </div>
         </template>
     </Popup>
+
+    <FileViewer
+        v-if="viewingFile"
+        :file="viewingFile"
+        :isOpen="!!viewingFile"
+        @close="viewingFile = null"
+        @deleted="onAttachmentViewerDeleted"
+    />
+
+    <FilePickerModal
+        v-if="task?.spaceId"
+        :isOpen="showFilePicker"
+        :spaceId="task.spaceId"
+        @close="showFilePicker = false"
+        @select="onFileLinked"
+    />
 </template>
 
 <script setup lang="ts">
-import { ref, watch, reactive, computed, nextTick } from 'vue';
+import { ref, watch, reactive, computed, nextTick, onBeforeUnmount } from 'vue';
 import Popup from '@/components/Popup.vue';
 import CreateTaskModal from './CreateTaskModal.vue';
-import type { Task, OrgMember } from '@/types/types';
+import TaskTagPicker from './TaskTagPicker.vue';
+import FileViewer from './FileViewer.vue';
+import FilePickerModal from './FilePickerModal.vue';
+import type { Task, OrgMember, TaskAttachment, TaskLinkedFile, StoredFile } from '@/types/types';
 import sfetch from '@/assets/utils/sfetch';
 import { useRoute } from 'vue-router';
 import { useToast } from '@/composables/useToast';
 import confetti from 'canvas-confetti';
 import { openedOrg } from '@/assets/var';
 import { openProfile } from '@/composables/useProfile';
+import uploadFile from '@/assets/uploadFile';
+import { getFilePreviewUrl } from '@/assets/utils/downloadFile';
+import { getFileInfo } from '@/assets/utils/getFileIcon';
 
 const props = defineProps<{
     task: Task | null;
@@ -216,13 +403,245 @@ const emit = defineEmits(['close', 'update', 'delete', 'open-task']);
 const route = useRoute();
 const toast = useToast();
 
-const isEditing = ref(false);
 const loading = ref(false);
+
+// ── Édition au clic, champ par champ (pas de mode "édition" global) ────
+const isEditingTitle = ref(false);
+const isEditingDescription = ref(false);
+const titleInputEl = ref<HTMLInputElement | null>(null);
+const descriptionInputEl = ref<HTMLTextAreaElement | null>(null);
+
+const startEditTitle = () => {
+    isEditingTitle.value = true;
+    nextTick(() => titleInputEl.value?.focus());
+};
+
+// Un titre vide n'est jamais valide : on revient au dernier titre connu
+// plutôt que de laisser le champ affiché vide après un blur/Enter.
+const commitEditTitle = () => {
+    if (!editForm.title.trim() && props.task) editForm.title = props.task.title;
+    isEditingTitle.value = false;
+};
+
+const cancelEditTitle = () => {
+    if (props.task) editForm.title = props.task.title;
+    isEditingTitle.value = false;
+};
+
+const startEditDescription = () => {
+    isEditingDescription.value = true;
+    nextTick(() => descriptionInputEl.value?.focus());
+};
+
+const cancelEditDescription = () => {
+    if (props.task) editForm.description = props.task.description || '';
+    isEditingDescription.value = false;
+};
+
+// ── Pièces jointes (images) ─────────────────────────────────────────
+const imageInput = ref<HTMLInputElement | null>(null);
+const uploadingImage = ref(false);
+const attachmentPreviews = ref<Record<string, string>>({});
+const viewingFile = ref<StoredFile | null>(null);
+let viewingAttachmentId: string | null = null;
+let viewingLinkedFileId: string | null = null;
+
+const resolveAttachmentPreview = async (attachment: TaskAttachment) => {
+    if (attachmentPreviews.value[attachment.id]) return;
+    try {
+        const preview = await getFilePreviewUrl(attachment.id);
+        attachmentPreviews.value[attachment.id] = preview.url;
+    } catch (e) {
+        console.error('[TaskDetailsModal] Failed to load attachment preview', e);
+    }
+};
+
+const resolveAllAttachmentPreviews = () => {
+    (props.task?.attachments || []).forEach(resolveAttachmentPreview);
+};
+
+const uploadAttachments = async (files: File[]) => {
+    if (!props.task) return;
+    uploadingImage.value = true;
+    try {
+        for (const file of files) {
+            const uploaded = await uploadFile(file, { taskId: props.task.id, workspaceId: props.task.spaceId || undefined });
+            if (!props.task.attachments) props.task.attachments = [];
+            props.task.attachments.unshift(uploaded);
+            resolveAttachmentPreview(uploaded);
+        }
+        emit('update', props.task);
+    } catch (e) {
+        toast.show('Erreur lors de l\'ajout de l\'image', 'error');
+    } finally {
+        uploadingImage.value = false;
+    }
+};
+
+const handlePaste = (e: ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const files: File[] = [];
+    for (const item of items) {
+        if (item.type.startsWith('image/')) {
+            const file = item.getAsFile();
+            if (file) files.push(file);
+        }
+    }
+    if (files.length) uploadAttachments(files);
+};
+
+const onPickImages = (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    if (input.files?.length) uploadAttachments(Array.from(input.files));
+    input.value = '';
+};
+
+const isAttachmentsDragOver = ref(false);
+let attachmentsDragCounter = 0;
+
+const onAttachmentsDragEnter = () => {
+    attachmentsDragCounter++;
+    isAttachmentsDragOver.value = true;
+};
+
+const onAttachmentsDragLeave = () => {
+    attachmentsDragCounter = Math.max(0, attachmentsDragCounter - 1);
+    if (attachmentsDragCounter === 0) isAttachmentsDragOver.value = false;
+};
+
+const onAttachmentsDrop = (e: DragEvent) => {
+    attachmentsDragCounter = 0;
+    isAttachmentsDragOver.value = false;
+    const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type.startsWith('image/'));
+    if (files.length) uploadAttachments(files);
+};
+
+const openAttachment = async (attachment: TaskAttachment) => {
+    try {
+        const res = await sfetch(`/api/cdn/meta/${attachment.id}`);
+        if (!res.ok) throw new Error();
+        viewingAttachmentId = attachment.id;
+        viewingLinkedFileId = null;
+        viewingFile.value = await res.json();
+    } catch (e) {
+        toast.show('Impossible de charger la pièce jointe', 'error');
+    }
+};
+
+// Le bouton "Supprimer" de FileViewer supprime le fichier réel : pour une
+// pièce jointe cela retire l'image de la tâche, pour un fichier lié cela
+// supprime le fichier du gestionnaire de fichiers (le lien disparaît en
+// cascade côté serveur) — deux conséquences différentes, d'où le suivi
+// séparé de quel type de fichier est actuellement ouvert dans la visionneuse.
+const onAttachmentViewerDeleted = () => {
+    if (props.task && viewingAttachmentId) {
+        removeAttachmentLocally(viewingAttachmentId);
+    } else if (props.task && viewingLinkedFileId) {
+        removeLinkedFileLocally(viewingLinkedFileId);
+    }
+    viewingFile.value = null;
+};
+
+const removeAttachmentLocally = (attachmentId: string) => {
+    if (!props.task?.attachments) return;
+    props.task.attachments = props.task.attachments.filter(a => a.id !== attachmentId);
+    if (attachmentPreviews.value[attachmentId]) {
+        delete attachmentPreviews.value[attachmentId];
+    }
+    emit('update', props.task);
+};
+
+const removeAttachment = async (attachment: TaskAttachment) => {
+    try {
+        const res = await sfetch(`/api/cdn/${attachment.id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        removeAttachmentLocally(attachment.id);
+    } catch (e) {
+        toast.show('Erreur lors de la suppression de la pièce jointe', 'error');
+    }
+};
+
+// ── Fichiers liés ────────────────────────────────────────────────────
+const showFilePicker = ref(false);
+
+const removeLinkedFileLocally = (fileId: string) => {
+    if (!props.task?.linkedFiles) return;
+    props.task.linkedFiles = props.task.linkedFiles.filter(l => l.fileId !== fileId);
+    emit('update', props.task);
+};
+
+const openLinkedFile = async (link: TaskLinkedFile) => {
+    try {
+        const res = await sfetch(`/api/cdn/meta/${link.fileId}`);
+        if (!res.ok) throw new Error();
+        viewingLinkedFileId = link.fileId;
+        viewingAttachmentId = null;
+        viewingFile.value = await res.json();
+    } catch (e) {
+        toast.show('Impossible de charger le fichier', 'error');
+    }
+};
+
+const onFileLinked = async (file: StoredFile) => {
+    if (!props.task) return;
+    showFilePicker.value = false;
+    try {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${props.task.id}/files/${file.id}`, {
+            method: 'POST'
+        });
+        if (!res.ok) throw new Error();
+        const link: TaskLinkedFile = await res.json();
+        if (!props.task.linkedFiles) props.task.linkedFiles = [];
+        if (!props.task.linkedFiles.some(l => l.fileId === file.id)) {
+            props.task.linkedFiles.unshift(link);
+        }
+        emit('update', props.task);
+    } catch (e) {
+        toast.show('Erreur lors de la liaison du fichier', 'error');
+    }
+};
+
+const unlinkFile = async (link: TaskLinkedFile) => {
+    if (!props.task) return;
+    try {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${props.task.id}/files/${link.fileId}`, {
+            method: 'DELETE'
+        });
+        if (!res.ok) throw new Error();
+        removeLinkedFileLocally(link.fileId);
+    } catch (e) {
+        toast.show('Erreur lors de la suppression du lien', 'error');
+    }
+};
+
+onBeforeUnmount(() => {
+    Object.values(attachmentPreviews.value).forEach(url => {
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+    });
+});
 
 const editForm = reactive({
     title: '',
     description: '',
-    assigneeIds: [] as string[]
+    dueDate: '',
+    dueTime: '',
+    assigneeIds: [] as string[],
+    tagIds: [] as string[]
+});
+
+type Section = 'date' | 'assignees' | 'tags' | 'linkedFiles';
+const activeSection = ref<Section | null>(null);
+
+const toggleSection = (key: Section) => {
+    activeSection.value = activeSection.value === key ? null : key;
+};
+
+const dueDateLabel = computed(() => {
+    if (!editForm.dueDate) return 'Aucune échéance';
+    const d = new Date(editForm.dueDate + 'T00:00:00');
+    const label = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    return editForm.dueTime ? `${label} ${editForm.dueTime}` : label;
 });
 
 // ── Enregistrement automatique ────────────────────────────────────────
@@ -290,12 +709,28 @@ watch(() => props.isOpen, async (newVal) => {
         initializing = true;
         editForm.title = props.task.title;
         editForm.description = props.task.description || '';
+        if (props.task.dueDate) {
+            const d = new Date(props.task.dueDate);
+            editForm.dueDate = d.toISOString().slice(0, 10);
+            const hh = String(d.getHours()).padStart(2, '0');
+            const mm = String(d.getMinutes()).padStart(2, '0');
+            editForm.dueTime = (hh === '00' && mm === '00') ? '' : `${hh}:${mm}`;
+        } else {
+            editForm.dueDate = '';
+            editForm.dueTime = '';
+        }
         editForm.assigneeIds = props.task.assignees ? props.task.assignees.map(a => a.id) : [];
+        editForm.tagIds = props.task.tags ? props.task.tags.map(t => t.id) : [];
         searchAssignee.value = '';
-        isEditing.value = props.startInEditMode || false;
+        isEditingTitle.value = false;
+        isEditingDescription.value = false;
+        activeSection.value = null;
         saveStatus.value = 'idle';
+        resolveAllAttachmentPreviews();
         await nextTick();
         initializing = false;
+        // "Renommer" depuis le menu contextuel : ouvre directement le titre en édition.
+        if (props.startInEditMode) startEditTitle();
     }
 });
 
@@ -304,12 +739,13 @@ const closeModal = () => {
         clearTimeout(autosaveTimer);
         autosaveTimer = null;
     }
-    isEditing.value = false;
+    isEditingTitle.value = false;
+    isEditingDescription.value = false;
     emit('close');
 };
 
 function scheduleAutosave() {
-    if (initializing || !isEditing.value) return;
+    if (initializing) return;
     if (autosaveTimer) clearTimeout(autosaveTimer);
     autosaveTimer = setTimeout(performAutosave, 600);
 }
@@ -320,12 +756,20 @@ const performAutosave = async () => {
     if (!props.task || !editForm.title.trim()) return;
     saveStatus.value = 'saving';
     try {
+        let dueDate = null;
+        if (editForm.dueDate) {
+            const dateStr = editForm.dueDate + (editForm.dueTime ? `T${editForm.dueTime}` : 'T00:00');
+            dueDate = new Date(dateStr).toISOString();
+        }
+
         const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${props.task.id}`, {
             method: 'PUT',
             body: JSON.stringify({
                 title: editForm.title,
                 description: editForm.description,
-                assigneeIds: editForm.assigneeIds
+                dueDate,
+                assigneeIds: editForm.assigneeIds,
+                tagIds: editForm.tagIds
             })
         });
         if (res.ok) {

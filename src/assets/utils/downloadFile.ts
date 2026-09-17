@@ -4,6 +4,53 @@ import { getWorkspaceKey } from "./workspaceCrypto";
 import { decryptFileLocal } from "./crypto";
 import { useToast } from "@/composables/useToast";
 
+export interface FilePreview {
+    url: string;
+    // true when `url` is a blob: URL the caller must URL.revokeObjectURL() when done with it
+    isBlob: boolean;
+}
+
+// Resolves a displayable URL for a stored file (e.g. an <img> src), handling
+// E2EE decryption the same way downloadFile() does below — reused wherever a
+// file needs to be *shown* rather than saved to disk (task attachment
+// thumbnails, linked-file previews).
+export const getFilePreviewUrl = async (fileId: string): Promise<FilePreview> => {
+    const metaRes = await sfetch(`/api/cdn/meta/${fileId}`, { method: 'GET' });
+    if (!metaRes.ok) throw new Error("Failed to fetch file metadata");
+    const metadata = await metaRes.json();
+
+    if (!metadata.isE2EE) {
+        return {
+            url: `${import.meta.env.VITE_API_URL}/api/cdn/download/${fileId}?token=Bearer ${keycloak.token}&inline=true`,
+            isBlob: false
+        };
+    }
+
+    if (!metadata.workspaceId) {
+        throw new Error("Cannot decrypt E2EE file without a Workspace ID");
+    }
+
+    const fileRes = await sfetch(`/api/cdn/download/${fileId}`, { method: 'GET' });
+    if (!fileRes.ok) throw new Error("Failed to fetch encrypted file");
+    const encryptedBuffer = await fileRes.arrayBuffer();
+
+    const { key: spaceKey } = await getWorkspaceKey(metadata.workspaceId);
+
+    if (!metadata.encryptedFileKey || !metadata.iv) {
+        throw new Error("Missing E2EE metadata (key or iv) for file decryption");
+    }
+
+    const decryptedBuffer = await decryptFileLocal(
+        encryptedBuffer,
+        metadata.encryptedFileKey,
+        metadata.iv,
+        spaceKey
+    );
+
+    const blob = new Blob([decryptedBuffer], { type: metadata.mimeType });
+    return { url: URL.createObjectURL(blob), isBlob: true };
+};
+
 export const downloadFile = async (fileId: string) => {
     
     try {

@@ -262,6 +262,40 @@ export interface TodoList {
   updatedAt: string | Date;
 }
 
+export interface Tag {
+  id: string;
+  name: string;
+  color: string;
+  creatorId: string;
+}
+
+// Métadonnées légères d'une image attachée à une tâche — les champs E2EE
+// complets sont récupérés à la demande via GET /api/cdn/meta/:id (comme
+// FileCard.vue le fait déjà) plutôt que dupliqués dans la charge de la tâche.
+export interface TaskAttachment {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  createdAt: string | Date;
+}
+
+// Fichier du gestionnaire de fichiers référencé par une tâche — le lien ne
+// possède pas le fichier, le retirer ne le supprime jamais (voir TaskAttachment
+// ci-dessus pour les images possédées par la tâche).
+export interface TaskLinkedFile {
+  id: string; // id du lien (TaskFileLink), pas du fichier
+  taskId: string;
+  fileId: string;
+  file: {
+    id: string;
+    originalName: string;
+    mimeType: string;
+    size: number;
+    folderId?: string | null;
+  };
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -280,11 +314,16 @@ export interface Task {
   space?: WorkSpace | null;
   organizationId: string;
   organization?: Org;
-  
+
   parentTaskId?: string | null;
   parentTask?: Task | null;
   subtasks?: Task[];
-  
+
+  tags?: Tag[];
+  attachments?: TaskAttachment[];
+  linkedFiles?: TaskLinkedFile[];
+  _count?: { attachments?: number };
+
   createdAt: string | Date;
   updatedAt: string | Date;
 }
