@@ -79,10 +79,23 @@
             </div>
             
             <div v-else class="space-y-12 pb-10">
-                
+
+                <!-- Onglets de statut (mobile) : partagés par tous les projets -->
+                <div class="flex items-center gap-1 p-1 bg-white/5 rounded-xl md:hidden">
+                    <button
+                        v-for="col in columns" :key="col.id"
+                        @click="mobileActiveColumn = col.id"
+                        class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all"
+                        :class="mobileActiveColumn === col.id ? 'bg-(--primary) text-white shadow-lg' : 'text-(--text2)'"
+                    >
+                        <i :class="col.icon"></i>
+                        {{ col.title }}
+                    </button>
+                </div>
+
                 <!-- Swimlanes (Rows by Project) -->
                 <div v-for="spaceGroup in spacesGroups" :key="spaceGroup.id" class="space-y-4">
-                    
+
                     <div class="flex items-center justify-between border-b border-white/10 pb-2">
                         <div class="flex items-center gap-3">
                             <i class="bi bi-folder-fill text-(--primary) text-xl"></i>
@@ -93,7 +106,7 @@
                                 {{ spaceGroup.tasks.length }} tâche(s)
                             </span>
                         </div>
-                        
+
                         <CreateTaskModal :defaultSpaceId="spaceGroup.id === 'personal' ? null : spaceGroup.id" @created="onTaskCreated">
                             <button class="text-xs bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg font-bold transition-colors flex items-center gap-2">
                                 <i class="bi bi-plus"></i> Ajouter ici
@@ -101,10 +114,69 @@
                         </CreateTaskModal>
                     </div>
 
-                    <!-- Kanban Board inside the row -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 items-start">
-                        
-                        <div v-for="col in columns" :key="col.id" 
+                    <!-- Mobile : liste simple filtrée par l'onglet actif, pas de glisser-déposer -->
+                    <div class="md:hidden space-y-3">
+                        <div
+                            v-for="task in getTasks(spaceGroup.tasks, mobileActiveColumn)" :key="task.id"
+                            @click="openTaskDetails(task)"
+                            class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
+                        >
+                            <p class="text-sm font-bold text-(--text) leading-snug">{{ task.title }}</p>
+                            <span v-if="task.parentTask" class="text-[9px] font-bold text-(--primary) uppercase flex items-center gap-1 opacity-80 mt-1">
+                                <i class="bi bi-arrow-return-right"></i> {{ task.parentTask.title }}
+                            </span>
+
+                            <div v-if="task.tags?.length" class="flex flex-wrap gap-1 mt-2">
+                                <span
+                                    v-for="tag in task.tags.slice(0, 3)" :key="tag.id"
+                                    class="px-2 py-0.5 rounded-full text-[9px] font-bold border"
+                                    :style="{ borderColor: tag.color, color: tag.color }"
+                                >
+                                    {{ tag.name }}
+                                </span>
+                            </div>
+
+                            <div class="flex items-center justify-between mt-3">
+                                <div class="flex items-center -space-x-1.5" v-if="task.assignees?.length">
+                                    <template v-for="assignee in task.assignees.slice(0,3)" :key="assignee.id">
+                                        <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="$p(assignee.name)" class="w-6 h-6 rounded-full object-cover border-2 border-(--bg2)">
+                                        <div v-else :title="$p(assignee.name)" class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[9px] font-black border-2 border-(--bg2)">
+                                            {{ $p(assignee.name).substring(0, 2).toUpperCase() }}
+                                        </div>
+                                    </template>
+                                </div>
+                                <div v-else></div>
+
+                                <div class="flex items-center gap-1.5" @click.stop>
+                                    <button
+                                        v-if="prevStatus(task.status)"
+                                        @click="changeTaskStatus(task, prevStatus(task.status)!)"
+                                        class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-(--text2) transition-colors"
+                                        title="Statut précédent"
+                                    >
+                                        <i class="bi bi-chevron-left"></i>
+                                    </button>
+                                    <button
+                                        v-if="nextStatus(task.status)"
+                                        @click="changeTaskStatus(task, nextStatus(task.status)!)"
+                                        class="w-8 h-8 rounded-lg bg-(--primary)/10 hover:bg-(--primary)/20 text-(--primary) flex items-center justify-center transition-colors"
+                                        title="Statut suivant"
+                                    >
+                                        <i class="bi bi-chevron-right"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p v-if="getTasks(spaceGroup.tasks, mobileActiveColumn).length === 0" class="text-xs text-(--text2) italic text-center py-4">
+                            Aucune tâche ici.
+                        </p>
+                    </div>
+
+                    <!-- Desktop : Kanban Board inside the row -->
+                    <div class="hidden md:grid md:grid-cols-3 gap-4 lg:gap-6 items-start">
+
+                        <div v-for="col in columns" :key="col.id"
                              class="bg-black/20 border rounded-2xl p-4 min-h-[200px] flex flex-col transition-all"
                              :class="draggedOverCol === `${spaceGroup.id}-${col.id}` ? 'border-(--primary) bg-white/5 shadow-[0_0_15px_rgba(var(--primary-rgb),0.2)]' : 'border-(--border-color)'"
                              @dragover.prevent
@@ -384,6 +456,22 @@ const columns = [
     { id: 'IN_PROGRESS', title: 'En cours', color: 'text-blue-400', icon: 'bi-arrow-repeat' },
     { id: 'DONE', title: 'Terminé', color: 'text-green-500', icon: 'bi-check-circle-fill' }
 ];
+
+// ── Vue mobile : le glisser-déposer natif ne fonctionne pas au toucher,
+// donc pas de 3 colonnes côte à côte — un onglet à la fois (partagé par
+// tous les projets), et de petites flèches sur chaque carte pour changer
+// de statut sans glisser.
+const mobileActiveColumn = ref<string>('TODO');
+
+const prevStatus = (status: string): string | null => {
+    const idx = columns.findIndex(c => c.id === status);
+    return idx > 0 ? columns[idx - 1].id : null;
+};
+
+const nextStatus = (status: string): string | null => {
+    const idx = columns.findIndex(c => c.id === status);
+    return idx >= 0 && idx < columns.length - 1 ? columns[idx + 1].id : null;
+};
 
 const spacesGroups = computed(() => {
     const groups: Record<string, { id: string, name: string, tasks: Task[] }> = {};

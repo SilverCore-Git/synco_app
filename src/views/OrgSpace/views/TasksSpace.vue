@@ -33,8 +33,8 @@
 
         <main class="flex-1 overflow-y-auto md:overflow-hidden flex flex-col p-6 w-full h-full gap-6">
             
-            <!-- Filter Bar -->
-            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full min-w-0 shrink-0">
+            <!-- Filter Bar : toujours sur une seule ligne, y compris sur mobile -->
+            <div class="flex flex-row flex-nowrap items-center gap-2 w-full min-w-0 shrink-0">
                 
                 <!-- Hors glisser-déposer : un sélecteur compact (scalable à 100 membres) -->
                 <TaskUserFilter
@@ -97,11 +97,11 @@
                     @dragover.prevent="dragOverArchiveBtn = true"
                     @dragleave.prevent="dragOverArchiveBtn = false"
                     @drop="onDropToArchiveBtn"
-                    class="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0 self-end sm:self-auto sm:ml-auto"
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0 ml-auto"
                     :class="dragOverArchiveBtn ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-[0_4px_20px_rgba(245,158,11,0.5)]' : (showArchivedPanel ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10')"
                 >
                     <i class="bi bi-archive-fill" />
-                    Tâches archivées
+                    <span class="hidden sm:inline">Tâches archivées</span>
                 </button>
 
             </div>
@@ -121,10 +121,85 @@
                 </div>
             </div>
             
-            <div v-else class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-3 gap-6 pb-2">
-                
+            <!-- Mobile : un onglet à la fois, pas de glisser-déposer (ne marche pas au toucher) -->
+            <div v-if="!loading" class="flex-1 min-h-0 flex flex-col md:hidden">
+                <div class="flex items-center gap-1 p-1 bg-white/5 rounded-xl mb-4 shrink-0">
+                    <button
+                        v-for="col in columns" :key="col.id"
+                        @click="mobileActiveColumn = col.id"
+                        class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all"
+                        :class="mobileActiveColumn === col.id ? 'bg-(--primary) text-white shadow-lg' : 'text-(--text2)'"
+                    >
+                        <i :class="col.icon"></i>
+                        {{ col.title }}
+                        <span class="bg-black/20 px-1.5 rounded-full">{{ filteredTasks(col.id).length }}</span>
+                    </button>
+                </div>
+
+                <div class="flex-1 overflow-y-auto space-y-3 pr-1">
+                    <div
+                        v-for="task in filteredTasks(mobileActiveColumn)" :key="task.id"
+                        @click="openTaskDetails(task)"
+                        class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
+                    >
+                        <p class="text-sm font-bold text-(--text) leading-snug">{{ task.title }}</p>
+                        <span v-if="task.parentTask" class="text-[9px] font-bold text-(--primary) uppercase flex items-center gap-1 opacity-80 mt-1">
+                            <i class="bi bi-arrow-return-right"></i> {{ task.parentTask.title }}
+                        </span>
+
+                        <div v-if="task.tags?.length" class="flex flex-wrap gap-1 mt-2">
+                            <span
+                                v-for="tag in task.tags.slice(0, 3)" :key="tag.id"
+                                class="px-2 py-0.5 rounded-full text-[9px] font-bold border"
+                                :style="{ borderColor: tag.color, color: tag.color }"
+                            >
+                                {{ tag.name }}
+                            </span>
+                        </div>
+
+                        <div class="flex items-center justify-between mt-3">
+                            <div class="flex items-center -space-x-1.5" v-if="task.assignees?.length">
+                                <template v-for="assignee in task.assignees.slice(0,3)" :key="assignee.id">
+                                    <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="$p(assignee.name)" class="w-6 h-6 rounded-full object-cover border-2 border-(--bg2)">
+                                    <div v-else :title="$p(assignee.name)" class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[9px] font-black border-2 border-(--bg2)">
+                                        {{ $p(assignee.name).substring(0, 2).toUpperCase() }}
+                                    </div>
+                                </template>
+                            </div>
+                            <div v-else></div>
+
+                            <div class="flex items-center gap-1.5" @click.stop>
+                                <button
+                                    v-if="prevStatus(task.status)"
+                                    @click="changeTaskStatus(task, prevStatus(task.status)!)"
+                                    class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-(--text2) transition-colors"
+                                    title="Statut précédent"
+                                >
+                                    <i class="bi bi-chevron-left"></i>
+                                </button>
+                                <button
+                                    v-if="nextStatus(task.status)"
+                                    @click="changeTaskStatus(task, nextStatus(task.status)!)"
+                                    class="w-8 h-8 rounded-lg bg-(--primary)/10 hover:bg-(--primary)/20 text-(--primary) flex items-center justify-center transition-colors"
+                                    title="Statut suivant"
+                                >
+                                    <i class="bi bi-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="filteredTasks(mobileActiveColumn).length === 0" class="text-center text-(--text2) text-sm py-12">
+                        Aucune tâche ici.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Desktop : les 3 colonnes côte à côte avec glisser-déposer -->
+            <div v-if="!loading" class="hidden md:grid flex-1 min-h-0 md:grid-cols-3 gap-6 pb-2">
+
                 <!-- Columns -->
-                <div v-for="col in columns" :key="col.id" 
+                <div v-for="col in columns" :key="col.id"
                      class="bg-(--bg2)/40 border rounded-2xl p-4 min-h-[400px] h-full flex flex-col transition-all"
                      :class="draggedOverCol === col.id ? 'border-(--primary) bg-(--primary)/5 shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)]' : 'border-(--border-color)'"
                      @dragover.prevent
@@ -406,6 +481,21 @@ const columns = [
     { id: 'IN_PROGRESS', title: 'En cours', color: 'text-blue-400', icon: 'bi-arrow-repeat' },
     { id: 'DONE', title: 'Terminé', color: 'text-green-500', icon: 'bi-check-circle-fill' }
 ];
+
+// ── Vue mobile : le glisser-déposer natif ne fonctionne pas au toucher,
+// donc pas de 3 colonnes côte à côte — un onglet à la fois, et de petites
+// flèches sur chaque carte pour changer de statut sans glisser.
+const mobileActiveColumn = ref<string>('TODO');
+
+const prevStatus = (status: string): string | null => {
+    const idx = columns.findIndex(c => c.id === status);
+    return idx > 0 ? columns[idx - 1].id : null;
+};
+
+const nextStatus = (status: string): string | null => {
+    const idx = columns.findIndex(c => c.id === status);
+    return idx >= 0 && idx < columns.length - 1 ? columns[idx + 1].id : null;
+};
 
 const spaceMembers = computed<OrgMember[]>(() => {
     const space = openedOrg.value?.spaces?.find(s => s.id === route.params.spaceId);

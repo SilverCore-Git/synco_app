@@ -1,26 +1,26 @@
 <template>
     <DropDown align="left" content-iner-t-w="min-w-[280px]" @toggled="onToggled">
         <template #trigger>
-            <button type="button" class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap bg-white/5 text-white/70 hover:bg-white/10 h-full">
+            <button type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap bg-white/5 text-white/70 hover:bg-white/10 h-full min-w-0 max-w-[140px]">
                 <template v-if="!modelValue">
-                    <i class="bi bi-people-fill"></i>
-                    Toutes les tâches
+                    <i class="bi bi-people-fill shrink-0"></i>
+                    <span class="truncate">Toutes</span>
                 </template>
                 <template v-else-if="modelValue === currentUserId">
-                    <img v-if="me?.avatarUrl" :src="me.avatarUrl" class="w-5 h-5 rounded-full object-cover">
-                    <div v-else class="w-5 h-5 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[9px] font-bold">
+                    <img v-if="me?.avatarUrl" :src="me.avatarUrl" class="w-5 h-5 rounded-full object-cover shrink-0">
+                    <div v-else class="w-5 h-5 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[9px] font-bold shrink-0">
                         {{ ($p(me?.name) || '?').substring(0, 2).toUpperCase() }}
                     </div>
-                    Mes tâches
+                    <span class="truncate">Moi</span>
                 </template>
                 <template v-else>
-                    <img v-if="selectedMember?.user?.avatarUrl" :src="selectedMember.user.avatarUrl" class="w-5 h-5 rounded-full object-cover">
-                    <div v-else class="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px]">
+                    <img v-if="selectedMember?.user?.avatarUrl" :src="selectedMember.user.avatarUrl" class="w-5 h-5 rounded-full object-cover shrink-0">
+                    <div v-else class="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px] shrink-0">
                         {{ ($p(selectedMember?.user?.name) || '?').substring(0, 2).toUpperCase() }}
                     </div>
-                    {{ $p(selectedMember?.user?.name) || 'Membre' }}
+                    <span class="truncate">{{ $p(selectedMember?.user?.name) || 'Membre' }}</span>
                 </template>
-                <i class="bi bi-chevron-down text-[10px] opacity-60"></i>
+                <i class="bi bi-chevron-down text-[10px] opacity-60 shrink-0"></i>
             </button>
         </template>
 
