@@ -81,12 +81,17 @@
             <div v-else class="space-y-12 pb-10">
 
                 <!-- Onglets de statut (mobile) : partagés par tous les projets -->
-                <div class="flex items-center gap-1 p-1 bg-white/5 rounded-xl md:hidden">
+                <div class="relative flex items-center gap-1 p-1 bg-white/5 rounded-xl md:hidden">
+                    <div
+                        class="absolute top-1 bottom-1 rounded-lg bg-(--primary) shadow-lg transition-all duration-300 ease-out"
+                        :style="tabIndicatorStyle"
+                    ></div>
                     <button
-                        v-for="col in columns" :key="col.id"
+                        v-for="(col, idx) in columns" :key="col.id"
+                        :ref="(el) => setTabRef(idx, el)"
                         @click="mobileActiveColumn = col.id"
-                        class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all"
-                        :class="mobileActiveColumn === col.id ? 'bg-(--primary) text-white shadow-lg' : 'text-(--text2)'"
+                        class="relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-colors"
+                        :class="mobileActiveColumn === col.id ? 'text-white' : 'text-(--text2)'"
                     >
                         <i :class="col.icon"></i>
                         {{ col.title }}
@@ -151,18 +156,20 @@
                                     <button
                                         v-if="prevStatus(task.status)"
                                         @click="changeTaskStatus(task, prevStatus(task.status)!)"
-                                        class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-(--text2) transition-colors"
-                                        title="Statut précédent"
+                                        class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
+                                        :class="columnColor(prevStatus(task.status)!)"
+                                        :title="`Repasser à « ${columnTitle(prevStatus(task.status)!)} »`"
                                     >
-                                        <i class="bi bi-chevron-left"></i>
+                                        <i :class="columnIcon(prevStatus(task.status)!)"></i>
                                     </button>
                                     <button
                                         v-if="nextStatus(task.status)"
                                         @click="changeTaskStatus(task, nextStatus(task.status)!)"
-                                        class="w-8 h-8 rounded-lg bg-(--primary)/10 hover:bg-(--primary)/20 text-(--primary) flex items-center justify-center transition-colors"
-                                        title="Statut suivant"
+                                        class="flex items-center gap-1.5 px-3 h-8 rounded-lg bg-(--primary)/10 hover:bg-(--primary)/20 text-(--primary) font-bold text-[11px] transition-colors"
+                                        :title="`Passer à « ${columnTitle(nextStatus(task.status)!)} »`"
                                     >
-                                        <i class="bi bi-chevron-right"></i>
+                                        <i :class="columnIcon(nextStatus(task.status)!)"></i>
+                                        {{ columnTitle(nextStatus(task.status)!) }}
                                     </button>
                                 </div>
                             </div>
@@ -406,7 +413,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import type { Task, TodoList } from '@/types/types';
@@ -472,6 +479,33 @@ const nextStatus = (status: string): string | null => {
     const idx = columns.findIndex(c => c.id === status);
     return idx >= 0 && idx < columns.length - 1 ? columns[idx + 1].id : null;
 };
+
+const columnTitle = (status: string) => columns.find(c => c.id === status)?.title || status;
+const columnIcon = (status: string) => columns.find(c => c.id === status)?.icon || 'bi-circle';
+const columnColor = (status: string) => columns.find(c => c.id === status)?.color || 'text-(--text2)';
+
+// Indicateur qui glisse d'un onglet à l'autre au lieu de sauter instantanément
+// (mesuré en pixels sur le DOM plutôt que calculé en % : plus fiable que de
+// recalculer des marges/gaps Tailwind à la main).
+const tabRefs = ref<(HTMLElement | null)[]>([]);
+const tabIndicatorStyle = ref({ left: '0px', width: '0px' });
+
+const setTabRef = (idx: number, el: Element | { $el?: Element } | null) => {
+    tabRefs.value[idx] = (el as HTMLElement) || null;
+};
+
+const updateTabIndicator = () => {
+    const idx = columns.findIndex(c => c.id === mobileActiveColumn.value);
+    const el = tabRefs.value[idx];
+    if (el) {
+        tabIndicatorStyle.value = { left: `${el.offsetLeft}px`, width: `${el.offsetWidth}px` };
+    }
+};
+
+watch(mobileActiveColumn, () => nextTick(updateTabIndicator));
+onMounted(() => nextTick(updateTabIndicator));
+window.addEventListener('resize', updateTabIndicator);
+onUnmounted(() => window.removeEventListener('resize', updateTabIndicator));
 
 const spacesGroups = computed(() => {
     const groups: Record<string, { id: string, name: string, tasks: Task[] }> = {};
