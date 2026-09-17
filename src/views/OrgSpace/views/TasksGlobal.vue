@@ -156,7 +156,7 @@
                                         >
                                             {{ tag.name }}
                                         </span>
-                                        <span v-if="task.tags.length > 3" class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-white/5 text-white/50">
+                                        <span v-if="task.tags.length > 3" class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-(--text)/5 text-(--text2)">
                                             +{{ task.tags.length - 3 }}
                                         </span>
                                     </div>
@@ -176,7 +176,7 @@
                                         <div v-else></div>
                                         
                                         <div class="flex items-center gap-1.5">
-                                            <div v-if="task._count?.attachments" class="flex items-center gap-1 text-xs bg-white/5 px-2 py-1 rounded-lg font-bold text-white/50">
+                                            <div v-if="task._count?.attachments" class="flex items-center gap-1 text-xs bg-(--text)/5 px-2 py-1 rounded-lg font-bold text-(--text2)">
                                                 <i class="bi bi-paperclip"></i>
                                                 {{ task._count.attachments }}
                                             </div>

@@ -62,12 +62,12 @@
                 </div>
 
                 <div v-if="stagedImages.length" class="flex flex-wrap gap-2">
-                    <div v-for="(img, idx) in stagedImages" :key="img.previewUrl" class="relative group w-16 h-16 rounded-lg overflow-hidden border border-white/10">
+                    <div v-for="(img, idx) in stagedImages" :key="img.previewUrl" class="relative group w-16 h-16 rounded-lg overflow-hidden border border-(--border-color)">
                         <img :src="img.previewUrl" class="w-full h-full object-cover" />
                         <button
                             type="button"
                             @click="removeStagedImage(idx)"
-                            class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white"
+                            class="absolute inset-0 bg-(--bg3)/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-(--text)"
                         >
                             <i class="bi bi-x-lg"></i>
                         </button>

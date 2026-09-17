@@ -32,14 +32,14 @@
             </span>
         </div>
 
-        <div v-if="showCreateForm" class="flex flex-col gap-2 bg-(--bg2)/30 border border-white/10 rounded-xl p-3 mt-1">
+        <div v-if="showCreateForm" class="flex flex-col gap-2 bg-(--bg2)/30 border border-(--border-color) rounded-xl p-3 mt-1">
             <input
                 v-model="newTagName"
                 @keydown.enter.prevent="handleCreateTag"
                 type="text"
                 maxlength="40"
                 placeholder="Nom du tag"
-                class="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
+                class="w-full bg-(--bg3) border border-(--border-color) rounded-lg px-3 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
             />
             <div class="flex items-center gap-2 flex-wrap">
                 <button

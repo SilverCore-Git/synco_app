@@ -81,7 +81,7 @@
             </div>
 
             <!-- Pièces jointes -->
-            <div class="bg-white/5 rounded-xl p-4 border border-white/10">
+            <div class="bg-(--text)/5 rounded-xl p-4 border border-(--border-color)">
                 <div class="flex items-center justify-between mb-2">
                     <h4 class="text-xs font-bold text-(--text2) uppercase">Pièces jointes</h4>
                     <button type="button" @click="imageInput?.click()" class="text-[11px] font-bold text-(--text2) hover:text-(--primary) flex items-center gap-1" :disabled="uploadingImage">
@@ -93,7 +93,7 @@
                 <div v-if="task.attachments?.length" class="flex flex-wrap gap-2">
                     <div
                         v-for="attachment in task.attachments" :key="attachment.id"
-                        class="relative group w-16 h-16 rounded-lg overflow-hidden border border-white/10 cursor-pointer bg-black/20"
+                        class="relative group w-16 h-16 rounded-lg overflow-hidden border border-(--border-color) cursor-pointer bg-(--bg3)"
                         @click="openAttachment(attachment)"
                     >
                         <img v-if="attachmentPreviews[attachment.id]" :src="attachmentPreviews[attachment.id]" class="w-full h-full object-cover" />
@@ -101,7 +101,7 @@
                         <button
                             type="button"
                             @click.stop="removeAttachment(attachment)"
-                            class="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs"
+                            class="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-(--bg3)/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-(--text) text-xs"
                         >
                             <i class="bi bi-x-lg"></i>
                         </button>
@@ -111,7 +111,7 @@
             </div>
 
             <!-- Fichiers liés (uniquement pour les tâches d'espace : le gestionnaire de fichiers est propre à un espace) -->
-            <div v-if="task.spaceId" class="bg-white/5 rounded-xl p-4 border border-white/10">
+            <div v-if="task.spaceId" class="bg-(--text)/5 rounded-xl p-4 border border-(--border-color)">
                 <div class="flex items-center justify-between mb-2">
                     <h4 class="text-xs font-bold text-(--text2) uppercase">Fichiers liés</h4>
                     <button type="button" @click="showFilePicker = true" class="text-[11px] font-bold text-(--text2) hover:text-(--primary) flex items-center gap-1">
@@ -125,7 +125,7 @@
                         class="flex items-center gap-3 p-2 rounded-lg border border-(--border-color) hover:border-(--primary)/50 cursor-pointer group transition-colors"
                         @click="openLinkedFile(link)"
                     >
-                        <div class="w-8 h-8 flex items-center justify-center rounded-lg bg-black/20 shrink-0">
+                        <div class="w-8 h-8 flex items-center justify-center rounded-lg bg-(--bg3) shrink-0">
                             <i :class="[getFileInfo(link.file as any).icon, getFileInfo(link.file as any).color]" class="text-base" />
                         </div>
                         <p class="flex-1 min-w-0 text-sm font-semibold text-(--text) truncate">{{ link.file.originalName }}</p>

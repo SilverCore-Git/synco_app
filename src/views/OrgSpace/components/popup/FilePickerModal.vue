@@ -9,7 +9,7 @@
                     v-model="search"
                     autofocus
                     placeholder="Rechercher un fichier..."
-                    class="w-full bg-(--bg2)/30 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50 focus:ring-1 focus:ring-(--primary)/20 transition-all"
+                    class="w-full bg-(--bg2)/30 border border-(--border-color) rounded-xl pl-9 pr-4 py-2.5 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50 focus:ring-1 focus:ring-(--primary)/20 transition-all"
                 />
             </div>
 
@@ -22,7 +22,7 @@
                         @click="pick(file)"
                         class="w-full flex items-center gap-3 p-2.5 rounded-xl border border-(--border-color) hover:border-(--primary)/50 hover:bg-(--primary)/5 transition-all text-left"
                     >
-                        <div class="w-9 h-9 flex items-center justify-center rounded-lg bg-black/20 shrink-0">
+                        <div class="w-9 h-9 flex items-center justify-center rounded-lg bg-(--bg3) shrink-0">
                             <i :class="[getFileInfo(file).icon, getFileInfo(file).color]" class="text-lg" />
                         </div>
                         <div class="flex-1 min-w-0">
