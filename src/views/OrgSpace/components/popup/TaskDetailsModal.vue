@@ -56,8 +56,18 @@
                             </div>
                         </span>
                     </div>
+
+                    <div v-if="!isEditing && task.tags?.length" class="flex flex-wrap gap-1.5 mt-3">
+                        <span
+                            v-for="tag in task.tags" :key="tag.id"
+                            class="px-2.5 py-1 rounded-full text-[10px] font-bold border"
+                            :style="{ borderColor: tag.color, color: tag.color }"
+                        >
+                            {{ tag.name }}
+                        </span>
+                    </div>
                 </div>
-                
+
                 <button @click="isEditing = !isEditing" class="text-(--text2) hover:text-white transition-colors bg-white/5 px-3 py-1.5 rounded-lg">
                     <i class="bi" :class="isEditing ? 'bi-x-lg' : 'bi-pencil-fill'"></i>
                 </button>
@@ -104,6 +114,13 @@
                         Aucun résultat
                     </div>
                 </div>
+            </div>
+
+            <div v-if="isEditing" class="bg-white/5 rounded-xl p-4 border border-white/10 mt-4">
+                <TaskTagPicker
+                    :orgId="route.params.orgId as string"
+                    v-model="editForm.tagIds"
+                />
             </div>
 
             <div v-if="isEditing" class="flex justify-end items-center gap-2 text-xs font-semibold text-(--text2)">
@@ -198,6 +215,7 @@
 import { ref, watch, reactive, computed, nextTick } from 'vue';
 import Popup from '@/components/Popup.vue';
 import CreateTaskModal from './CreateTaskModal.vue';
+import TaskTagPicker from './TaskTagPicker.vue';
 import type { Task, OrgMember } from '@/types/types';
 import sfetch from '@/assets/utils/sfetch';
 import { useRoute } from 'vue-router';
@@ -222,7 +240,8 @@ const loading = ref(false);
 const editForm = reactive({
     title: '',
     description: '',
-    assigneeIds: [] as string[]
+    assigneeIds: [] as string[],
+    tagIds: [] as string[]
 });
 
 // ── Enregistrement automatique ────────────────────────────────────────
@@ -291,6 +310,7 @@ watch(() => props.isOpen, async (newVal) => {
         editForm.title = props.task.title;
         editForm.description = props.task.description || '';
         editForm.assigneeIds = props.task.assignees ? props.task.assignees.map(a => a.id) : [];
+        editForm.tagIds = props.task.tags ? props.task.tags.map(t => t.id) : [];
         searchAssignee.value = '';
         isEditing.value = props.startInEditMode || false;
         saveStatus.value = 'idle';
@@ -325,7 +345,8 @@ const performAutosave = async () => {
             body: JSON.stringify({
                 title: editForm.title,
                 description: editForm.description,
-                assigneeIds: editForm.assigneeIds
+                assigneeIds: editForm.assigneeIds,
+                tagIds: editForm.tagIds
             })
         });
         if (res.ok) {

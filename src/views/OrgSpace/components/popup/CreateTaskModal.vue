@@ -136,6 +136,12 @@
                     </div>
                 </div>
             </div>
+
+            <TaskTagPicker
+                v-if="route.params.orgId"
+                :orgId="route.params.orgId as string"
+                v-model="form.tagIds"
+            />
         </form>
 
         <template #footer>
@@ -160,6 +166,7 @@
 <script setup lang="ts">
 import { ref, reactive, nextTick, computed } from 'vue';
 import Popup from '@/components/Popup.vue';
+import TaskTagPicker from './TaskTagPicker.vue';
 import { useRoute } from 'vue-router';
 import { openedOrg, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
@@ -187,7 +194,8 @@ const form = reactive({
     dueDate: '',
     dueTime: '',
     spaceId: props.defaultSpaceId || null as string | null,
-    assigneeIds: user.value?.id ? [user.value.id] : [] as string[]
+    assigneeIds: user.value?.id ? [user.value.id] : [] as string[],
+    tagIds: [] as string[]
 });
 
 const searchAssignee = ref('');
@@ -219,6 +227,7 @@ const openModal = () => {
     form.dueTime = '';
     form.spaceId = props.defaultSpaceId || null;
     form.assigneeIds = user.value?.id ? [user.value.id] : [];
+    form.tagIds = [];
     searchAssignee.value = '';
     nextTick(() => {
         titleInput.value?.focus();
@@ -251,6 +260,7 @@ const handleSubmit = async () => {
             dueDate: finalDueDate,
             spaceId: form.spaceId,
             assigneeIds: form.assigneeIds,
+            tagIds: form.tagIds,
             parentTaskId: props.parentTaskId || null,
             status: 'TODO'
         };

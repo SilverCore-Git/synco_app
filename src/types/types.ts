@@ -262,6 +262,12 @@ export interface TodoList {
   updatedAt: string | Date;
 }
 
+export interface Tag {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -280,11 +286,13 @@ export interface Task {
   space?: WorkSpace | null;
   organizationId: string;
   organization?: Org;
-  
+
   parentTaskId?: string | null;
   parentTask?: Task | null;
   subtasks?: Task[];
-  
+
+  tags?: Tag[];
+
   createdAt: string | Date;
   updatedAt: string | Date;
 }

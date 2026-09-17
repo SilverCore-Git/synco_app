@@ -28,6 +28,19 @@
         </div>
 
         <main class="flex-1 overflow-y-auto p-6 w-full h-full space-y-8">
+            <div v-if="tags.length > 0" class="flex items-center gap-2 overflow-x-auto w-full scrollbar-hide pb-1 shrink-0">
+                <button
+                    v-for="tag in tags" :key="tag.id"
+                    @click="toggleTagFilter(tag.id)"
+                    class="px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0 border"
+                    :style="filterTagIds.includes(tag.id)
+                        ? { backgroundColor: tag.color, borderColor: tag.color, color: '#fff' }
+                        : { borderColor: tag.color, color: tag.color, backgroundColor: 'transparent' }"
+                >
+                    {{ tag.name }}
+                </button>
+            </div>
+
             <div v-if="loading" class="w-full flex flex-col gap-12 animate-pulse pb-10">
                 <div v-for="s in 2" :key="'skel-space-'+s" class="space-y-4">
                     <div class="flex items-center justify-between border-b border-white/10 pb-2">
@@ -134,7 +147,20 @@
                                             </span>
                                         </div>
                                     </div>
-                                    
+
+                                    <div v-if="task.tags?.length" class="flex flex-wrap gap-1 mt-2">
+                                        <span
+                                            v-for="tag in task.tags.slice(0, 3)" :key="tag.id"
+                                            class="px-2 py-0.5 rounded-full text-[9px] font-bold border"
+                                            :style="{ borderColor: tag.color, color: tag.color }"
+                                        >
+                                            {{ tag.name }}
+                                        </span>
+                                        <span v-if="task.tags.length > 3" class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-white/5 text-white/50">
+                                            +{{ task.tags.length - 3 }}
+                                        </span>
+                                    </div>
+
                                     <div class="flex items-center justify-between mt-4">
                                         <div class="flex items-center -space-x-1.5" v-if="task.assignees?.length">
                                             <template v-for="assignee in task.assignees.slice(0,3)" :key="assignee.id">
@@ -305,15 +331,26 @@ import confetti from 'canvas-confetti';
 import useWSocket from '@/composables/useWSocket';
 import { useNotification } from '@/composables/useNotification';
 import { useTaskOrder } from '@/composables/useTaskOrder';
+import { useTaskTags } from '@/composables/useTaskTags';
 
 const route = useRoute();
 const toast = useToast();
 const { markTasksAsRead } = useNotification();
 const { fetchOrder, sortByOrder, persistOrder } = useTaskOrder(route.params.orgId as string);
+const { tags, loadTags } = useTaskTags(route.params.orgId as string);
 
 const rawTasks = ref<Task[]>([]);
 const loading = ref(true);
 const draggedOverCol = ref<string | null>(null);
+const filterTagIds = ref<string[]>([]);
+
+const toggleTagFilter = (tagId: string) => {
+    if (filterTagIds.value.includes(tagId)) {
+        filterTagIds.value = filterTagIds.value.filter(id => id !== tagId);
+    } else {
+        filterTagIds.value = [...filterTagIds.value, tagId];
+    }
+};
 const selectedTask = ref<Task | null>(null);
 const openTaskInEditMode = ref(false);
 
@@ -373,7 +410,11 @@ const spacesGroups = computed(() => {
 });
 
 const getTasks = (tasks: Task[], status: string) => {
-    return sortByOrder(tasks.filter((t: Task) => t.status === status));
+    return sortByOrder(tasks.filter((t: Task) => {
+        if (t.status !== status) return false;
+        if (filterTagIds.value.length && !t.tags?.some(tag => filterTagIds.value.includes(tag.id))) return false;
+        return true;
+    }));
 };
 
 const getProgress = (task: Task) => {
@@ -708,6 +749,7 @@ const onTaskDeleted = (taskId: string) => {
 
 onMounted(async () => {
     fetchOrder();
+    loadTags();
     loadLists();
 
     const socket = await useWSocket();
