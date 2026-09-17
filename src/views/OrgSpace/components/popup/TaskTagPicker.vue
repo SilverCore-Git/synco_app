@@ -1,5 +1,5 @@
 <template>
-    <div class="flex flex-col gap-2" @click.stop>
+    <div class="flex flex-col gap-2 w-full" @click.stop>
         <div class="flex items-center justify-between">
             <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                 Tags
@@ -14,7 +14,37 @@
             </button>
         </div>
 
-        <div v-if="tags.length > 6" class="relative">
+        <div v-if="showCreateForm" class="flex flex-col gap-2 bg-(--bg2)/30 border border-(--border-color) rounded-xl p-3">
+            <input
+                v-model="newTagName"
+                ref="newTagInput"
+                @keydown.enter.prevent="handleCreateTag"
+                type="text"
+                maxlength="40"
+                placeholder="Nom du tag"
+                class="w-full bg-(--bg3) border border-(--border-color) rounded-lg px-3 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
+            />
+            <div class="flex items-center gap-2 flex-wrap">
+                <button
+                    v-for="color in presetColors" :key="color"
+                    type="button"
+                    @click="newTagColor = color"
+                    class="w-6 h-6 rounded-full border-2 transition-all"
+                    :style="{ backgroundColor: color, borderColor: newTagColor === color ? '#fff' : 'transparent' }"
+                ></button>
+                <button
+                    type="button"
+                    @click="handleCreateTag"
+                    :disabled="!newTagName.trim() || creating"
+                    class="ml-auto primary !text-xs !px-3 !py-1.5"
+                    :class="creating ? 'loader' : ''"
+                >
+                    Créer
+                </button>
+            </div>
+        </div>
+
+        <div v-if="tags.length > 0" class="relative">
             <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-xs"></i>
             <input
                 v-model="search"
@@ -24,10 +54,10 @@
             />
         </div>
 
-        <div class="flex flex-wrap gap-2">
+        <div class="flex flex-col gap-1 max-h-56 overflow-y-auto">
             <template v-for="tag in filteredTags" :key="tag.id">
-                <!-- Mini-formulaire d'édition inline, remplace le chip -->
-                <div v-if="editingTagId === tag.id" class="flex flex-col gap-2 bg-(--bg2)/30 border border-(--border-color) rounded-xl p-3 w-full">
+                <!-- Mini-formulaire d'édition inline, remplace la ligne -->
+                <div v-if="editingTagId === tag.id" class="flex flex-col gap-2 bg-(--bg2)/50 border border-(--border-color) rounded-lg p-2.5">
                     <input
                         v-model="editName"
                         @keydown.enter.prevent="handleSaveEdit"
@@ -60,26 +90,26 @@
                     </div>
                 </div>
 
-                <!-- Chip normal, sélectionnable, avec crayon/poubelle au survol pour son créateur -->
+                <!-- Ligne normale : cliquer sélectionne/désélectionne le tag pour le filtre ou la tâche -->
                 <div
                     v-else
-                    class="group relative pl-3 pr-1.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 border transition-all"
-                    :style="isSelected(tag.id)
-                        ? { backgroundColor: tag.color, borderColor: tag.color, color: '#fff' }
-                        : { borderColor: tag.color, color: tag.color, backgroundColor: 'transparent' }"
+                    class="flex items-center gap-2 rounded-lg pl-1 pr-1.5 py-1 transition-colors"
+                    :class="isSelected(tag.id) ? 'bg-(--primary)/10' : 'hover:bg-(--text)/5'"
                 >
-                    <button type="button" @click="toggle(tag.id)" class="flex items-center gap-1.5">
-                        <i v-if="isSelected(tag.id)" class="bi bi-check-lg"></i>
-                        {{ tag.name }}
+                    <button type="button" @click="toggle(tag.id)" class="flex-1 min-w-0 flex items-center gap-2 py-1 text-left">
+                        <span class="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0" :style="{ borderColor: tag.color, backgroundColor: isSelected(tag.id) ? tag.color : 'transparent' }">
+                            <i v-if="isSelected(tag.id)" class="bi bi-check-lg text-white text-[9px]"></i>
+                        </span>
+                        <span class="text-sm font-semibold truncate" :style="{ color: tag.color }">{{ tag.name }}</span>
                     </button>
-                    <span v-if="tag.creatorId === currentUserId" class="flex items-center gap-0.5 pl-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button type="button" @click.stop="startEdit(tag)" class="w-4 h-4 flex items-center justify-center hover:scale-110 transition-transform" title="Renommer">
-                            <i class="bi bi-pencil-fill text-[9px]"></i>
+                    <div v-if="tag.creatorId === currentUserId" class="flex items-center gap-1 shrink-0">
+                        <button type="button" @click.stop="startEdit(tag)" class="w-7 h-7 rounded-lg flex items-center justify-center text-(--text2) hover:text-(--primary) hover:bg-(--primary)/10 transition-colors" title="Renommer">
+                            <i class="bi bi-pencil text-xs"></i>
                         </button>
-                        <button type="button" @click.stop="confirmDeleteTag = tag" class="w-4 h-4 flex items-center justify-center hover:scale-110 transition-transform" title="Supprimer">
-                            <i class="bi bi-trash-fill text-[9px]"></i>
+                        <button type="button" @click.stop="confirmDeleteTag = tag" class="w-7 h-7 rounded-lg flex items-center justify-center text-(--text2) hover:text-red-500 hover:bg-red-500/10 transition-colors" title="Supprimer">
+                            <i class="bi bi-trash text-xs"></i>
                         </button>
-                    </span>
+                    </div>
                 </div>
             </template>
 
@@ -89,36 +119,6 @@
             <span v-else-if="tags.length > 0 && filteredTags.length === 0" class="text-xs text-(--text2) italic py-1.5">
                 Aucun tag ne correspond à « {{ search }} ».
             </span>
-        </div>
-
-        <div v-if="showCreateForm" class="flex flex-col gap-2 bg-(--bg2)/30 border border-(--border-color) rounded-xl p-3 mt-1">
-            <input
-                v-model="newTagName"
-                ref="newTagInput"
-                @keydown.enter.prevent="handleCreateTag"
-                type="text"
-                maxlength="40"
-                placeholder="Nom du tag"
-                class="w-full bg-(--bg3) border border-(--border-color) rounded-lg px-3 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
-            />
-            <div class="flex items-center gap-2 flex-wrap">
-                <button
-                    v-for="color in presetColors" :key="color"
-                    type="button"
-                    @click="newTagColor = color"
-                    class="w-6 h-6 rounded-full border-2 transition-all"
-                    :style="{ backgroundColor: color, borderColor: newTagColor === color ? '#fff' : 'transparent' }"
-                ></button>
-                <button
-                    type="button"
-                    @click="handleCreateTag"
-                    :disabled="!newTagName.trim() || creating"
-                    class="ml-auto primary !text-xs !px-3 !py-1.5"
-                    :class="creating ? 'loader' : ''"
-                >
-                    Créer
-                </button>
-            </div>
         </div>
 
         <ConfirmDelete
