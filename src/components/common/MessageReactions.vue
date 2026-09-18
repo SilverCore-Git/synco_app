@@ -124,6 +124,7 @@ const toggleReaction = async (emoji: string) => {
         v-for="reaction in formattedReactions"
         :key="reaction.emoji"
         @click="!isReadOnly && toggleReaction(reaction.emoji)"
+        :title="reaction.users.map(u => u.name || 'Anonyme').join(', ')"
         class="flex items-center gap-1 px-2 py-1 rounded-xl text-sm transition-colors"
         :class="[
           reaction.hasReacted ? 'ring-1 ring-(--primary-dark)' : '',
