@@ -16,7 +16,7 @@
                     :key="occ.occurrenceKey"
                     :occurrence="occ"
                     compact
-                    @click.stop="emit('open-event', occ)"
+                    @click="emit('open-event', occ)"
                 />
             </div>
         </div>
@@ -43,7 +43,7 @@
                     :style="eventStyle(occ)"
                 >
                     <div v-if="!isLocked(occ)" class="time-grid-resize-handle top" @pointerdown.stop="startEventDrag($event, occ, 'resize-top')" @mousedown.stop @click.stop></div>
-                    <EventChip :occurrence="occ" @click.stop="emit('open-event', occ)" @pointerdown.stop="isLocked(occ) ? undefined : startEventDrag($event, occ, 'move')" @mousedown.stop />
+                    <EventChip :occurrence="occ" @click="emit('open-event', occ)" @pointerdown.stop="isLocked(occ) ? undefined : startEventDrag($event, occ, 'move')" @mousedown.stop />
                     <div v-if="!isLocked(occ)" class="time-grid-resize-handle bottom" @pointerdown.stop="startEventDrag($event, occ, 'resize-bottom')" @mousedown.stop @click.stop></div>
                 </div>
 
@@ -283,7 +283,7 @@ const eventDrag = ref<EventDragState | null>(null);
 // is-event-dragging / pointer-events:none) — sinon un simple clic sans
 // déplacement fait disparaître la cible du clic natif qui suit juste après
 // (le mouseup/click est alors hit-testé sur l'élément derrière), et
-// @click.stop="emit('open-event', occ)" ne se déclenche jamais.
+// @click="emit('open-event', occ)" ne se déclenche jamais.
 let pendingDrag: EventDragState | null = null;
 const DRAG_CONFIRM_PX = 4;
 
