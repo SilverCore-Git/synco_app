@@ -61,9 +61,37 @@
     @keyframes shine {
       0% { transform: translateX(-150%) skewX(-20deg); }
       30% { transform: translateX(150%) skewX(-20deg); }
-      
+
       31% { transform: translateX(-150%) skewX(-20deg); }
       100% { transform: translateX(-150%) skewX(-20deg); }
+    }
+
+    /* Barre indéterminée : ce loader statique disparaît avant que
+       App.vue connaisse une vraie progression (health check, Keycloak...),
+       donc pas de largeur pilotée ici — juste de quoi rester visuellement
+       cohérent avec la barre déterminée du LogoLoader.vue qui prend le
+       relais (même dimensions/couleur). */
+    #boot-progress-track {
+      width: 10rem;
+      height: 0.25rem;
+      border-radius: 999px;
+      background-color: rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+      margin-top: 1.5rem;
+    }
+
+    #boot-progress-bar {
+      height: 100%;
+      width: 33%;
+      border-radius: 999px;
+      background-color: #16ac77;
+      animation: boot-progress-indeterminate 1.4s ease-in-out infinite;
+    }
+
+    @keyframes boot-progress-indeterminate {
+      0% { transform: translateX(-100%); }
+      50% { transform: translateX(300%); }
+      100% { transform: translateX(300%); }
     }
 
   </style>
@@ -110,6 +138,10 @@
         />
         <div class="shimmer" />
 
+      </div>
+
+      <div id="boot-progress-track">
+        <div id="boot-progress-bar"></div>
       </div>
 
     </div>

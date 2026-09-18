@@ -255,11 +255,20 @@ const handleInput = (e: KeyboardEvent) => {
   else if (e.key === 'Enter' && canSubmitPin.value) submit();
   else if (e.key === 'Backspace') pin.value = pin.value.slice(0, -1);
 }
+// Progression du tout premier chargement (écran affiché avant même le PIN,
+// v-if="pinLoading || !user" dans le template) — étapes pondérées à la main
+// plutôt qu'un vrai pourcentage d'octets transférés, qui n'a pas de sens ici
+// (peu de requêtes, surtout de la latence réseau/Keycloak).
+const bootProgress = ref(0);
+
 const finishAuthInit = async () => {
   await init.run();
+  bootProgress.value = 85;
   await waitFor(() => user.value !== null);
   await initPeer();
+  bootProgress.value = 95;
   useAppPresence();
+  bootProgress.value = 100;
 };
 
 const handleTauriLogin = async () => {
@@ -289,6 +298,7 @@ const bootLoading = ref<boolean>(false);
 const bootstrap = async () => {
   bootError.value = false;
   bootLoading.value = true;
+  bootProgress.value = 5;
 
   try {
     const res = await fetch(`${import.meta.env.VITE_API_URL}/health`);
@@ -297,13 +307,17 @@ const bootstrap = async () => {
       bootError.value = true;
       return toast.show('Api error', 'error', 10000);
     }
+    bootProgress.value = 25;
 
     console.log('[DEBUG] calling initKC...');
     authenticated.value = await initKC();
     console.log('[DEBUG] initKC done, authenticated =', authenticated.value);
+    bootProgress.value = 50;
 
     if (authenticated.value) {
       await finishAuthInit();
+    } else {
+      bootProgress.value = 100;
     }
 
     window.addEventListener('keydown', handleInput);
@@ -382,7 +396,7 @@ onMounted(async () => {
 
           <div v-if="pinLoading || !user" key="pin-loading"
             class="w-full h-full flex flex-col items-center justify-center bg-(--bg3) p-6 select-none animate-app-reveal">
-            <Loader />
+            <Loader :progress="!user ? bootProgress : undefined" />
           </div>
 
           <div v-else key="pin-form" class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none animate-app-reveal">
@@ -546,7 +560,7 @@ onMounted(async () => {
         </button>
       </div>
 
-      <Loader v-else />
+      <Loader v-else :progress="bootProgress" />
 
     </div>
 
