@@ -1,2 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Templates/scripts Linux : toujours LF, même sur un checkout Windows (sinon les fichiers générés
+# depuis ces templates héritent de CRLF, ce qui casse le parsing strict de certains outils Linux,
+# ex: Icon=app\r dans un .desktop qui ne matche plus jamais un fichier app.png).
+src-tauri/linux/** text eol=lf
