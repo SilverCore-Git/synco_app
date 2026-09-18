@@ -28,7 +28,7 @@
         </div>
 
         <main class="flex-1 overflow-y-auto p-6 w-full h-full space-y-8">
-            <div v-if="tags.length > 0" class="flex items-center gap-2 w-full shrink-0">
+            <div class="flex items-center gap-2 w-full shrink-0">
                 <DropDown align="left" content-iner-t-w="min-w-[280px]">
                     <template #trigger>
                         <button type="button" class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap h-full" :class="filterTagIds.length ? 'bg-(--primary)/15 text-(--primary)' : 'bg-white/5 text-white/70 hover:bg-white/10'">
