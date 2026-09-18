@@ -55,7 +55,11 @@ class Init
                 if (res.ok) {
                     openedOrg.value = await res.json();
                     if (isFreshLaunch) {
-                        router.replace({ name: 'OrgHome', params: { orgId } });
+                        // showView explicite : sur mobile (OrgLayout.showRouterView),
+                        // l'absence du paramètre atterrit correctement sur le contenu
+                        // par défaut, mais un lien explicite est plus robuste et évite
+                        // toute ambiguïté si cette logique change côté OrgLayout.
+                        router.replace({ name: 'OrgHome', params: { orgId }, query: { showView: '1' } });
                     }
                 } else if (isFreshLaunch) {
                     // Org no longer accessible (left, deleted...): drop the stale preference.

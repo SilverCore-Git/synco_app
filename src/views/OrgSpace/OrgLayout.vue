@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-import { computed, onBeforeUnmount, onMounted } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import ThreadsBar from './components/layouts/ThreadsBar.vue';
 import SpaceBar from './components/layouts/SpaceBar.vue';
 import UserCard from './components/layouts/UserCard.vue';
@@ -46,6 +46,12 @@ const orgOnOpen = computed(() => {
 });
 
 const orgReady = computed(() => openedOrg.value?.id === props.orgId);
+
+// Le panneau de contenu utilise v-show (pas v-if) pour la bascule liste/contenu
+// sur mobile — un cycle display:none -> visible relance une animation CSS.
+// Sans ce flag, la révélation (animate-app-reveal) rejouerait à chaque tap de
+// navigation sur mobile au lieu de ne jouer qu'une fois après le chargement.
+const orgContentRevealed = ref(false);
 
 import { watch, toRaw } from 'vue';
 
@@ -657,11 +663,13 @@ onBeforeUnmount(async () => {
                 v-else
                 key="org-content"
                 v-show="showRouterView"
-                class="overflow-hidden bg-(--bg3) animate-app-reveal"
+                class="overflow-hidden bg-(--bg3)"
                 :class="[
                     isDesktopApp() ? 'border-t border-white/10' : '',
-                    isLittleScreen ? 'fixed top-0 right-0 h-full w-full z-50 bg-(--bg) shadow-lg' : 'relative flex-1 h-full min-w-0'
+                    isLittleScreen ? 'fixed top-0 right-0 h-full w-full z-50 bg-(--bg) shadow-lg' : 'relative flex-1 h-full min-w-0',
+                    orgContentRevealed ? '' : 'animate-app-reveal'
                 ]"
+                @animationend="orgContentRevealed = true"
             >
                 <RouterView />
             </div>
