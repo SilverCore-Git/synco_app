@@ -437,6 +437,13 @@ const toggleFullscreen = async (identity: string) => {
 
 onMounted(() => {
     document.addEventListener('fullscreenchange', onFullscreenChange);
+
+    // Chargé ici (pas seulement dans joinCall) car ce composant peut monter
+    // alors qu'on est déjà connecté au salon (navigation vers un onglet vocal
+    // actif) — sans ça, canMuteOthers/canDisconnectOthers restaient bloqués
+    // à false tant que fetchPermissions n'avait jamais été déclenché pour cet
+    // espace sur cette session.
+    fetchPermissions(spaceId.value);
 });
 
 onUnmounted(() => {
