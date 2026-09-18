@@ -57,6 +57,15 @@
             <i class="bi bi-person-plus-fill" />
         </button>
 
+        <!-- Settings Button -->
+        <button
+            @click="handleSettings"
+            class="rounded-full w-12 h-12 text-xl bg-(--white)/10 hover:bg-(--white)/20 text-(--white) transition-all"
+            title="Réglages du salon vocal"
+        >
+            <i class="bi bi-gear-fill" />
+        </button>
+
         <!-- End Call Button -->
         <button
             @click="handleEndCall"
@@ -80,7 +89,7 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const emit = defineEmits(['toggleMic', 'toggleCam', 'toggleScreenShare', 'toggleDeafen', 'endCall', 'invite']);
+const emit = defineEmits(['toggleMic', 'toggleCam', 'toggleScreenShare', 'toggleDeafen', 'endCall', 'invite', 'settings']);
 
 const toggleMic = () => emit('toggleMic');
 const toggleCam = () => emit('toggleCam');
@@ -88,5 +97,6 @@ const toggleScreenShare = () => emit('toggleScreenShare');
 const toggleDeafen = () => emit('toggleDeafen');
 const handleEndCall = () => emit('endCall');
 const handleInvite = () => emit('invite');
+const handleSettings = () => emit('settings');
 
 </script>

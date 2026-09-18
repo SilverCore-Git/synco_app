@@ -16,6 +16,14 @@
         >
                
             <!-- Focused User -->
+            <VoiceParticipantMenu
+                :participant="userFocused"
+                :threadId="props.thread?.id || ''"
+                :isSelf="userFocused.identity === ownIdentity"
+                :canMute="canMuteOthers"
+                :canDisconnect="canDisconnectOthers"
+                :getName="getParticipantName"
+            >
             <div
                 :key="userFocused.identity"
                 :ref="getTileRefSetter(userFocused.identity)"
@@ -85,16 +93,25 @@
                 </div>
 
             </div>
+            </VoiceParticipantMenu>
 
             <!-- Other Participants Grid -->
             <div class="flex justify-center items-center gap-4 flex-wrap w-full max-w-6xl">
-                <div 
-                    v-for="p in allParticipants" 
+                <VoiceParticipantMenu
+                    v-for="p in allParticipants"
                     :key="p.identity"
+                    :participant="p"
+                    :threadId="props.thread?.id || ''"
+                    :isSelf="p.identity === ownIdentity"
+                    :canMute="canMuteOthers"
+                    :canDisconnect="canDisconnectOthers"
+                    :getName="getParticipantName"
+                >
+                <div
                     v-show="p.identity !== userFocused.identity"
                     @click="userFocused = p"
                     class="
-                        relative bg-(--bg2) rounded-2xl 
+                        relative bg-(--bg2) rounded-2xl
                         overflow-hidden border border-(--border-color)
                         flex items-center justify-center group
                         w-48 aspect-video cursor-pointer hover:border-white/20
@@ -143,6 +160,7 @@
                     </div>
 
                 </div>
+                </VoiceParticipantMenu>
             </div>
 
         </div>
@@ -156,9 +174,17 @@
             "
         >
                 
-            <div
+            <VoiceParticipantMenu
                 v-for="p in allParticipants"
                 :key="p.identity"
+                :participant="p"
+                :threadId="props.thread?.id || ''"
+                :isSelf="p.identity === ownIdentity"
+                :canMute="canMuteOthers"
+                :canDisconnect="canDisconnectOthers"
+                :getName="getParticipantName"
+            >
+            <div
                 :ref="getTileRefSetter(p.identity)"
                 @click="userFocused = p"
                 class="
@@ -224,6 +250,7 @@
                 </div>
 
             </div>
+            </VoiceParticipantMenu>
 
         </div>
 
@@ -240,12 +267,14 @@
                 @toggleCam="toggleCamera(!isCameraEnabled)"
                 @toggleScreenShare="toggleScreenShare(!isScreenShareEnabled)"
                 @toggleDeafen="toggleDeafen(!isDeafened)"
-                @endCall="leaveRoom(thread?.id || '', String(route.params.spaceId))"
+                @endCall="leaveRoom(props.thread?.id || '', String(route.params.spaceId))"
                 @invite="voiceInviteModalRef?.openModal()"
+                @settings="voiceSettingsOpen = true"
             />
         </div>
 
         <VoiceInviteModal v-if="props.thread" ref="voiceInviteModalRef" :thread="props.thread" />
+        <VoiceSettingsModal :isOpen="voiceSettingsOpen" @close="voiceSettingsOpen = false" />
 
     </div>
 
@@ -260,7 +289,7 @@
         </div>
 
         <h2 class="text-2xl font-bold text-(--text) mb-3 tracking-wide">
-            {{ thread?.name || 'Salon vocal' }}
+            {{ props.thread?.name || 'Salon vocal' }}
         </h2>
         <p class="text-sm text-(--text2) max-w-md text-center mb-10 leading-relaxed">
             Rejoignez ce salon pour discuter de vive voix, activer votre caméra ou partager votre écran avec les autres membres.
@@ -291,17 +320,20 @@
 
 <script setup lang="ts">
 
-import { onMounted, onUnmounted, ref, type ComponentPublicInstance } from 'vue';
+import { computed, onMounted, onUnmounted, ref, type ComponentPublicInstance } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Track } from 'livekit-client';
 import useLiveKit from '@/composables/useLiveKit';
 import VideoTrack from '../components/common/VideoTrack.vue';
 import CallControls from '@/components/peer/CallControls.vue';
 import VoiceInviteModal from '../components/popup/VoiceInviteModal.vue';
+import VoiceSettingsModal from '../components/popup/VoiceSettingsModal.vue';
+import VoiceParticipantMenu from '../components/dropdown/VoiceParticipantMenu.vue';
 import type { Thread } from '@/types/types';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import { useToast } from '@/composables/useToast';
+import { usePermissions } from '@/composables/usePermissions';
 
 const props = defineProps<{
     thread?: Thread;
@@ -311,6 +343,15 @@ const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const voiceInviteModalRef = ref<any>(null);
+const voiceSettingsOpen = ref(false);
+
+const orgId = computed(() => String(route.params.orgId || ''));
+const spaceId = computed(() => String(route.params.spaceId || ''));
+const ownIdentity = computed(() => user.value?.id || '');
+
+const { can, fetchPermissions } = usePermissions(orgId);
+const canMuteOthers = computed(() => can('VOICE_MUTE_OTHERS', spaceId.value));
+const canDisconnectOthers = computed(() => can('VOICE_DISCONNECT', spaceId.value));
 
 const {
     allParticipants,
@@ -391,11 +432,15 @@ const getMeta = (p: any): any => {
     return member?.user || {};
 };
 
+const getParticipantName = (p: any): string => getMeta(p).name || '';
+
 const joinCall = async () => {
     if (!props.thread?.id) return;
-    
+
     isConnecting.value = true;
     try {
+        fetchPermissions(spaceId.value);
+
         const res = await sfetch('/api/livekit/token', {
             method: 'POST',
             body: JSON.stringify({ threadId: props.thread.id }),
