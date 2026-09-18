@@ -460,6 +460,25 @@ const resolveAllAttachmentPreviews = () => {
     (props.task?.attachments || []).forEach(resolveAttachmentPreview);
 };
 
+// `props.task` vient souvent d'une liste/Kanban qui ne charge qu'un
+// _count.attachments (pas les pièces jointes elles-mêmes, cf. tasksService.ts)
+// — sans ce refetch, la popup pouvait ne jamais afficher de pièce jointe pour
+// une tâche ouverte depuis le Kanban, même juste après en avoir ajouté une.
+const refreshTaskAttachments = async () => {
+    if (!props.task) return;
+    try {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${props.task.id}`);
+        if (!res.ok) return;
+        const fullTask = await res.json();
+        if (!props.task || props.task.id !== fullTask.id) return; // la tâche a changé entre-temps
+        props.task.attachments = fullTask.attachments;
+        props.task.linkedFiles = fullTask.linkedFiles;
+        resolveAllAttachmentPreviews();
+    } catch (e) {
+        console.error('[TaskDetailsModal] Failed to refresh task attachments', e);
+    }
+};
+
 const uploadAttachments = async (files: File[]) => {
     if (!props.task) return;
     uploadingImage.value = true;
@@ -727,6 +746,7 @@ watch(() => props.isOpen, async (newVal) => {
         activeSection.value = null;
         saveStatus.value = 'idle';
         resolveAllAttachmentPreviews();
+        refreshTaskAttachments();
         await nextTick();
         initializing = false;
         // "Renommer" depuis le menu contextuel : ouvre directement le titre en édition.
