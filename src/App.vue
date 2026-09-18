@@ -1,6 +1,7 @@
 <script setup lang="ts">
 
 import Loader from './components/LogoLoader.vue';
+import SpinLoader from './components/SpinLoader.vue';
 //import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import init, { refetchUser } from './assets/init';
@@ -463,21 +464,28 @@ onMounted(async () => {
 
         <div v-if="E2EEUnloked && !pinLoading" class="w-full h-full" key="app">
 
-          <div v-if="isLoaded" class="w-full h-full animate-app-reveal" key="loaded">
-            <RouterView />
-          </div>
+          <!-- Une fois déverrouillé, les données d'org sont presque toujours déjà
+               chargées (elles se chargent en parallèle depuis avant l'écran PIN) ;
+               ce court instant d'attente reste discret plutôt que de réafficher
+               le plein écran logo+barre, qui donnait l'impression d'un rechargement. -->
+          <Transition name="fade" mode="out-in">
+            <div v-if="isLoaded" class="w-full h-full animate-app-reveal" key="loaded">
+              <RouterView />
+            </div>
 
-          <div v-else class="w-full h-full animate-app-reveal" key="loading">
-            <Loader />
-          </div>
+            <div v-else class="w-full h-full flex items-center justify-center bg-(--bg)" key="loading">
+              <SpinLoader />
+            </div>
+          </Transition>
 
         </div>
 
         <div class="w-full h-full" key="lock" v-else>
 
+          <Transition name="fade" mode="out-in">
           <div v-if="pinLoading" key="pin-loading"
-            class="w-full h-full flex flex-col items-center justify-center bg-(--bg3) p-6 select-none animate-app-reveal">
-            <Loader />
+            class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none animate-app-reveal">
+            <SpinLoader />
           </div>
 
           <div v-else key="pin-form" class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none animate-app-reveal">
@@ -583,6 +591,7 @@ onMounted(async () => {
             </Popup>
 
           </div>
+          </Transition>
 
         </div>
 
