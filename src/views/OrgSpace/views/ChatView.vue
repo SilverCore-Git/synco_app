@@ -120,9 +120,13 @@
                             <div class="animate-spin h-5 w-5 border-2 border-(--primary) border-t-transparent rounded-full" />
                         </div>
 
+                        <template v-for="(msg, index) in messages" :key="msg.id">
+                        <div v-if="showUnreadDelimiterAfterId === msg.id" class="flex items-center gap-4 my-6 px-4">
+                            <div class="h-px flex-1 bg-red-500/50"></div>
+                            <span class="text-xs font-bold text-red-500 uppercase tracking-widest">Nouveaux messages</span>
+                            <div class="h-px flex-1 bg-red-500/50"></div>
+                        </div>
                         <ChatMessage
-                            v-for="(msg, index) in messages"
-                            :key="msg.id"
                             :id="'msg-' + msg.id"
 
                             :selected-message="selectedMessage"
@@ -133,6 +137,7 @@
                             @edit-start="editingMessageId = msg.id"
                             @edit-end="endEdit"
                         />
+                        </template>
 
                     </template>
 
@@ -390,7 +395,7 @@ const router = useRouter();
 const toast = useToast();
 const { startCall } = useSecurePeer();
 const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
-const { markDMAsRead } = useNotification();
+const { markDMAsRead, getUnreadCountByDMUserId } = useNotification();
 
 const socket = ref<Socket | null>(null);
 
@@ -404,6 +409,16 @@ const loading = ref<boolean>(true);
 const isFetchingMore = ref<boolean>(false);
 const hasMore = ref<boolean>(true);
 const isSomeoneTyping = ref<boolean>(false);
+const showUnreadDelimiterAfterId = ref<string | null>(null);
+
+// Même mécanisme que ThreadView.vue (localStorage `lastRead_...` + marqueur
+// affiché au dernier id connu) — juste scopé par destinataire plutôt que par thread.
+const saveLastRead = () => {
+    if (!recipient.value || messages.value.length === 0) return;
+    const lastMsg = messages.value[messages.value.length - 1];
+    if (!lastMsg) return;
+    localStorage.setItem(`lastRead_dm_${recipient.value.id}`, lastMsg.id);
+};
 let typingTimeout: any = null;
 const editingMessageId = ref<string | null>(null);
 
@@ -657,6 +672,7 @@ const initListener = () => {
         hasMore.value = receivedHasMore;
         loading.value = false;
         scrollToBottom(true);
+        setTimeout(() => { saveLastRead(); }, 500); // Après la fin du scroll
     });
 
     socket.value.on('dm-more-messages', async (data: { messages: any[]; hasMore: boolean }) => {
@@ -694,6 +710,7 @@ const initListener = () => {
         messages.value.push(decryptedMsg);
         isSomeoneTyping.value = false;
         scrollToBottom();
+        setTimeout(() => { saveLastRead(); }, 100);
     });
 
     socket.value.on('dm:delete-message', (msgId: string) => {
@@ -735,10 +752,15 @@ const initListener = () => {
 };
 
 const joinDM = async (userId: string) => {
-    
+
     loading.value = true;
     messages.value = [];
-    
+
+    // Capturé avant markDMAsRead() qui remet le compteur à zéro juste après.
+    const savedLastRead = localStorage.getItem(`lastRead_dm_${userId}`);
+    const hadUnread = getUnreadCountByDMUserId(userId).value > 0;
+    showUnreadDelimiterAfterId.value = (hadUnread && savedLastRead) ? savedLastRead : null;
+
     socket.value?.emit("join-dm", { recipientId: userId });
     markDMAsRead(userId);
 
@@ -915,6 +937,9 @@ const handleScroll = (e: Event) => {
     if (container.scrollTop < 100 && !isFetchingMore.value && hasMore.value) {
         loadMoreDM();
     }
+
+    const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 10;
+    if (isAtBottom) saveLastRead();
 };
 
 const loadMoreDM = async () => {
