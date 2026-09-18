@@ -16,18 +16,11 @@
         >
                
             <!-- Focused User -->
-            <VoiceParticipantMenu
-                :participant="userFocused"
-                :threadId="props.thread?.id || ''"
-                :isSelf="userFocused.identity === ownIdentity"
-                :canMute="canMuteOthers"
-                :canDisconnect="canDisconnectOthers"
-                :getName="getParticipantName"
-            >
             <div
                 :key="userFocused.identity"
                 :ref="getTileRefSetter(userFocused.identity)"
                 @click="userFocused = null"
+                @contextmenu.prevent.stop="onTileContextMenu($event, userFocused)"
                 class="
                     relative bg-(--bg2) rounded-3xl
                     overflow-hidden border border-(--border-color)
@@ -93,23 +86,23 @@
                 </div>
 
             </div>
-            </VoiceParticipantMenu>
+            <VoiceParticipantMenu
+                :ref="getMenuRefSetter(userFocused.identity)"
+                :participant="userFocused"
+                :threadId="props.thread?.id || ''"
+                :isSelf="userFocused.identity === ownIdentity"
+                :canMute="canMuteOthers"
+                :canDisconnect="canDisconnectOthers"
+                :getName="getParticipantName"
+            />
 
             <!-- Other Participants Grid -->
             <div class="flex justify-center items-center gap-4 flex-wrap w-full max-w-6xl">
-                <VoiceParticipantMenu
-                    v-for="p in allParticipants"
-                    :key="p.identity"
-                    :participant="p"
-                    :threadId="props.thread?.id || ''"
-                    :isSelf="p.identity === ownIdentity"
-                    :canMute="canMuteOthers"
-                    :canDisconnect="canDisconnectOthers"
-                    :getName="getParticipantName"
-                >
+                <template v-for="p in allParticipants" :key="p.identity">
                 <div
                     v-show="p.identity !== userFocused.identity"
                     @click="userFocused = p"
+                    @contextmenu.prevent.stop="onTileContextMenu($event, p)"
                     class="
                         relative bg-(--bg2) rounded-2xl
                         overflow-hidden border border-(--border-color)
@@ -160,7 +153,16 @@
                     </div>
 
                 </div>
-                </VoiceParticipantMenu>
+                <VoiceParticipantMenu
+                    :ref="getMenuRefSetter(p.identity)"
+                    :participant="p"
+                    :threadId="props.thread?.id || ''"
+                    :isSelf="p.identity === ownIdentity"
+                    :canMute="canMuteOthers"
+                    :canDisconnect="canDisconnectOthers"
+                    :getName="getParticipantName"
+                />
+                </template>
             </div>
 
         </div>
@@ -174,19 +176,11 @@
             "
         >
                 
-            <VoiceParticipantMenu
-                v-for="p in allParticipants"
-                :key="p.identity"
-                :participant="p"
-                :threadId="props.thread?.id || ''"
-                :isSelf="p.identity === ownIdentity"
-                :canMute="canMuteOthers"
-                :canDisconnect="canDisconnectOthers"
-                :getName="getParticipantName"
-            >
+            <template v-for="p in allParticipants" :key="p.identity">
             <div
                 :ref="getTileRefSetter(p.identity)"
                 @click="userFocused = p"
+                @contextmenu.prevent.stop="onTileContextMenu($event, p)"
                 class="
                     relative bg-(--bg2) rounded-3xl
                     overflow-hidden border border-(--border-color)
@@ -250,7 +244,16 @@
                 </div>
 
             </div>
-            </VoiceParticipantMenu>
+            <VoiceParticipantMenu
+                :ref="getMenuRefSetter(p.identity)"
+                :participant="p"
+                :threadId="props.thread?.id || ''"
+                :isSelf="p.identity === ownIdentity"
+                :canMute="canMuteOthers"
+                :canDisconnect="canDisconnectOthers"
+                :getName="getParticipantName"
+            />
+            </template>
 
         </div>
 
@@ -269,12 +272,10 @@
                 @toggleDeafen="toggleDeafen(!isDeafened)"
                 @endCall="leaveRoom(props.thread?.id || '', String(route.params.spaceId))"
                 @invite="voiceInviteModalRef?.openModal()"
-                @settings="voiceSettingsOpen = true"
             />
         </div>
 
         <VoiceInviteModal v-if="props.thread" ref="voiceInviteModalRef" :thread="props.thread" />
-        <VoiceSettingsModal :isOpen="voiceSettingsOpen" @close="voiceSettingsOpen = false" />
 
     </div>
 
@@ -327,7 +328,6 @@ import useLiveKit from '@/composables/useLiveKit';
 import VideoTrack from '../components/common/VideoTrack.vue';
 import CallControls from '@/components/peer/CallControls.vue';
 import VoiceInviteModal from '../components/popup/VoiceInviteModal.vue';
-import VoiceSettingsModal from '../components/popup/VoiceSettingsModal.vue';
 import VoiceParticipantMenu from '../components/dropdown/VoiceParticipantMenu.vue';
 import type { Thread } from '@/types/types';
 import { openedOrg, user } from '@/assets/var';
@@ -344,7 +344,6 @@ const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const voiceInviteModalRef = ref<any>(null);
-const voiceSettingsOpen = ref(false);
 
 const orgId = computed(() => String(route.params.orgId || ''));
 const spaceId = computed(() => String(route.params.spaceId || ''));
@@ -395,6 +394,24 @@ const getTileRefSetter = (identity: string) => {
         tileRefSetters.set(identity, setter);
     }
     return setter;
+};
+
+// Menu contextuel par participant : la tuile déclenche l'ouverture via son
+// propre @contextmenu (cf. FileCard.vue, le pattern déjà utilisé ailleurs
+// dans l'app), plutôt que de faire de VoiceParticipantMenu un wrapper autour
+// de la tuile — ça évite de perturber la mise en page grid/flex des tuiles.
+const menuRefs = new Map<string, { open: (e: MouseEvent) => void }>();
+const menuRefSetters = new Map<string, (el: any) => void>();
+const getMenuRefSetter = (identity: string) => {
+    let setter = menuRefSetters.get(identity);
+    if (!setter) {
+        setter = (el: any) => { if (el) menuRefs.set(identity, el); else menuRefs.delete(identity); };
+        menuRefSetters.set(identity, setter);
+    }
+    return setter;
+};
+const onTileContextMenu = (e: MouseEvent, p: any) => {
+    menuRefs.get(p.identity)?.open(e);
 };
 
 const onFullscreenChange = () => {

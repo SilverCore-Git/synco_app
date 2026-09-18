@@ -1,9 +1,14 @@
 <template>
 
-    <DropDown click="right" align="mouse">
+    <!-- Ancre invisible : DropDown a besoin d'un élément #trigger monté pour se positionner,
+         mais l'ouverture réelle se fait par contextmenu sur la tuile elle-même (cf. VoiceThreadView),
+         via la méthode `open()` exposée ci-dessous. display:none la sort entièrement du flux
+         (grid/flex) pour ne pas perturber la mise en page des tuiles. -->
+    <div class="hidden">
+    <DropDown ref="dropdownRef" align="mouse">
 
         <template #trigger>
-            <slot />
+            <span />
         </template>
 
         <template #content>
@@ -49,6 +54,7 @@
         </template>
 
     </DropDown>
+    </div>
 
     <ConfirmDelete
         :show="showConfirm"
@@ -83,8 +89,13 @@ const props = defineProps<{
 const { participantVolumes, setParticipantVolume, muteParticipant, disconnectParticipant } = useLiveKit();
 const toast = useToast();
 
+const dropdownRef = ref<any>(null);
 const showConfirm = ref(false);
 const disconnecting = ref(false);
+
+/** Ouvre le menu — appelé depuis le gestionnaire @contextmenu de la tuile parente. */
+const open = (e: MouseEvent) => dropdownRef.value?.toggleDropdown(e);
+defineExpose({ open });
 
 const displayName = computed(() => props.getName(props.participant) || 'Anonyme');
 const volume = computed(() => participantVolumes.get(props.participant.identity) ?? 100);
