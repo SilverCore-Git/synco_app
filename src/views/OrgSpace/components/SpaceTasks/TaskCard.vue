@@ -14,8 +14,21 @@
             </div>
             <slot name="header-right"></slot>
         </div>
-        
-        <div class="flex items-center justify-between mt-4" v-if="task.assignees?.length || (task.subtasks && task.subtasks.length > 0)">
+
+        <div v-if="task.tags?.length" class="flex flex-wrap gap-1 mt-2">
+            <span
+                v-for="tag in task.tags.slice(0, 3)" :key="tag.id"
+                class="px-2 py-0.5 rounded-full text-[9px] font-bold border"
+                :style="{ borderColor: tag.color, color: tag.color }"
+            >
+                {{ tag.name }}
+            </span>
+            <span v-if="task.tags.length > 3" class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-(--text)/5 text-(--text2)">
+                +{{ task.tags.length - 3 }}
+            </span>
+        </div>
+
+        <div class="flex items-center justify-between mt-4" v-if="task.assignees?.length || (task.subtasks && task.subtasks.length > 0) || task._count?.attachments">
             <div class="flex items-center -space-x-1.5" v-if="task.assignees?.length">
                 <template v-for="assignee in task.assignees.slice(0,3)" :key="assignee.id">
                     <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="assignee.name" class="w-6 h-6 rounded-full object-cover border-2 border-(--bg2) z-10 hover:z-20">
@@ -29,9 +42,15 @@
             </div>
             <div v-else></div>
             
-            <div v-if="task.subtasks && task.subtasks.length > 0" class="flex items-center gap-1.5 text-xs bg-white/5 px-2.5 py-1 rounded-lg font-bold text-white/50">
-                <i class="bi bi-check2-square text-(--primary)"></i>
-                {{ task.subtasks.filter((st: any) => st.status === 'DONE').length }}/{{ task.subtasks.length }}
+            <div class="flex items-center gap-1.5">
+                <div v-if="task._count?.attachments" class="flex items-center gap-1 text-xs bg-(--text)/5 px-2 py-1 rounded-lg font-bold text-(--text2)">
+                    <i class="bi bi-paperclip"></i>
+                    {{ task._count.attachments }}
+                </div>
+                <div v-if="task.subtasks && task.subtasks.length > 0" class="flex items-center gap-1.5 text-xs bg-white/5 px-2.5 py-1 rounded-lg font-bold text-white/50">
+                    <i class="bi bi-check2-square text-(--primary)"></i>
+                    {{ task.subtasks.filter((st: any) => st.status === 'DONE').length }}/{{ task.subtasks.length }}
+                </div>
             </div>
         </div>
 
@@ -62,9 +81,11 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{ task: any }>();
+import type { Task } from '@/types/types';
 
-const getProgress = (task: any) => {
+defineProps<{ task: Task }>();
+
+const getProgress = (task: Task) => {
     if (!task.dueDate) return { percent: 0, text: '', color: 'bg-green-500' };
     const start = new Date(task.createdAt || Date.now()).getTime();
     const end = new Date(task.dueDate).getTime();

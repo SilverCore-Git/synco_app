@@ -20,26 +20,21 @@
             <p>Aucune tâche en attente</p>
         </div>
 
-        <ul v-else class="dash-card-body space-y-1 animate-app-reveal">
+        <ul v-else class="dash-card-body space-y-2 animate-app-reveal">
             <li v-for="task in items" :key="task.id">
-                <RouterLink
-                    :to="taskLink(task)"
-                    class="dash-row"
-                    :class="isNewOrUpdated(task) ? 'bg-(--primary)/8 border border-(--primary)/30 hover:bg-(--primary)/12' : ''"
-                >
-                    <i class="bi shrink-0" :class="isNewOrUpdated(task) ? 'bi-circle-fill text-(--primary)' : 'bi-circle text-(--text2)'"></i>
-                    <div class="flex-1 min-w-0 text-left">
-                        <p class="text-sm font-medium text-(--text) truncate flex items-center gap-1.5">
-                            {{ task.title }}
-                            <span v-if="isNewOrUpdated(task)" class="dash-new-pill">
-                                {{ isNewlyAssigned(task) ? 'Nouveau' : 'Mis à jour' }}
-                            </span>
-                        </p>
-                        <p class="text-xs text-(--text2) truncate">{{ task.space?.name || 'Tâche personnelle' }}</p>
-                    </div>
-                    <span v-if="task.dueDate" class="text-[11px] font-semibold shrink-0" :class="dueInfo(task).color">
-                        {{ dueInfo(task).text }}
-                    </span>
+                <RouterLink :to="taskLink(task)" class="block">
+                    <TaskCard :task="task" :class="isNewOrUpdated(task) ? 'ring-2 ring-(--primary)/60' : ''">
+                        <template #header-right>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <span v-if="isNewOrUpdated(task)" class="dash-new-pill">
+                                    {{ isNewlyAssigned(task) ? 'Nouveau' : 'Mis à jour' }}
+                                </span>
+                                <span class="text-[9px] font-bold text-(--text2) uppercase truncate max-w-20">
+                                    {{ task.space?.name || 'Perso' }}
+                                </span>
+                            </div>
+                        </template>
+                    </TaskCard>
                 </RouterLink>
             </li>
         </ul>
@@ -52,6 +47,7 @@ import { openedOrg, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import type { Task, TodoList } from '@/types/types';
 import { useNotification } from '@/composables/useNotification';
+import TaskCard from '../SpaceTasks/TaskCard.vue';
 
 const orgId = computed(() => openedOrg.value?.id);
 const rawTasks = ref<Task[]>([]);
@@ -158,20 +154,6 @@ const items = computed(() => {
 function taskLink(task: Task): string {
     return task.spaceId ? `/${orgId.value}/${task.spaceId}/tasks` : `/${orgId.value}/tasks`;
 }
-
-function dueInfo(task: Task): { text: string; color: string } {
-    const end = new Date(task.dueDate!).getTime();
-    const now = Date.now();
-    const remainingMs = end - now;
-
-    if (remainingMs <= 0) return { text: 'En retard', color: 'text-red-500' };
-
-    const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
-    if (remainingHours < 24) return { text: `${remainingHours}h restantes`, color: 'text-orange-400' };
-
-    const remainingDays = Math.floor(remainingHours / 24);
-    return { text: `${remainingDays}j restants`, color: remainingDays <= 2 ? 'text-orange-400' : 'text-(--text2)' };
-}
 </script>
 
 <style scoped>
@@ -211,20 +193,6 @@ function dueInfo(task: Task): { text: string; color: string } {
     padding: 2rem 1rem;
     color: var(--text2);
     font-size: 0.8rem;
-}
-
-.dash-row {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    padding: 0.5rem 0.6rem;
-    border-radius: 0.75rem;
-    text-align: left;
-    transition: background-color 0.15s;
-}
-.dash-row:hover {
-    background: rgba(255, 255, 255, 0.04);
 }
 
 .dash-new-pill {
