@@ -364,7 +364,7 @@ onMounted(async () => {
       <UserProfile :isOpen="isProfileOpen" :profileUser="profileUser" @close="closeProfile"
         @send-message="handleSendMessageFromProfile" />
 
-      <Transition name="page-lock" mode="out-in">
+      <Transition name="page-lock" mode="out-in" appear>
 
         <div v-if="E2EEUnloked && !pinLoading" class="w-full h-full" key="app">
 
@@ -384,12 +384,14 @@ onMounted(async () => {
 
         <div class="w-full h-full" key="lock" v-else>
 
-          <div v-if="pinLoading || !user"
+          <Transition name="app-reveal" appear>
+
+          <div v-if="pinLoading || !user" key="pin-loading"
             class="w-full h-full flex flex-col items-center justify-center bg-(--bg3) p-6 select-none">
             <Loader />
           </div>
 
-          <div v-else class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none">
+          <div v-else key="pin-form" class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none">
 
             <div class="mb-8 text-center max-w-lg">
 
@@ -492,6 +494,8 @@ onMounted(async () => {
             </Popup>
 
           </div>
+
+          </Transition>
 
         </div>
 
