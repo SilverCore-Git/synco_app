@@ -1,4 +1,4 @@
-name: Release on main
+name: Release on main (local act test)
 
 on:
   push:
@@ -28,6 +28,9 @@ jobs:
 
       - name: Configuration du SDK Android
         uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: true
+          packages: 'platform-tools' # le paquet legacy "tools" n'existe plus dans le repo Google (cf android-actions/setup-android#537)
 
       - name: Génération des fichiers .env
         run: |
@@ -48,7 +51,9 @@ jobs:
       - name: Build de l'APK debug (non signé)
         working-directory: android
         run: |
+          sed -i 's/\r$//' gradlew
           chmod +x gradlew
+          sed -i '/org.gradle.java.home/d' gradle.properties # ignore un org.gradle.java.home local (chemin Windows non portable en CI)
           ./gradlew assembleDebug
 
       - name: Upload de l'APK
@@ -108,7 +113,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev \
-            build-essential curl wget file libxdo-dev libssl-dev \
+            build-essential curl wget file libxdo-dev libssl-dev patchelf \
             libayatana-appindicator3-dev librsvg2-dev desktop-file-utils \
             gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
             gstreamer1.0-plugins-bad gstreamer1.0-libav \
@@ -125,6 +130,8 @@ jobs:
       - name: Build de l'AppImage
         env:
           NODE_OPTIONS: --max-old-space-size=6144
+          APPIMAGE_EXTRACT_AND_RUN: "1" # linuxdeploy a besoin de FUSE, absent des runners/conteneurs ubuntu-24.04+
+          NO_STRIP: "true" # le strip des binutils récents (ubuntu-24.04+) plante sur la section .relr.dyn de certaines libs (cf tauri-apps/tauri#15106)
         run: bun run tauri:build -- --bundles appimage
 
       - name: Retrait de libwayland-client bundlée (EGL_BAD_PARAMETER sur Mesa 25+, cf tauri-apps/tauri#15665)
