@@ -1,8 +1,17 @@
 import type { OrgMember, User } from '@/types/types';
 
-// Matches "@token" where token can contain letters, digits, underscores, hyphens and dots
-// (same charset the composer's autocomplete uses when inserting a mention).
-export const MENTION_TOKEN_REGEX = /@([a-zA-Z0-9_\-.]+)/g;
+// Token charset for a mention: any Unicode letter/digit (so accented names like "José" or
+// "Amélie" match, not just ASCII) plus underscore, hyphen, dot and apostrophe (for names like
+// "O'Brien"). Shared with the composer's live "@query" detection in ThreadTextarea.vue so the
+// two never drift out of sync again.
+const MENTION_CHAR_CLASS = "\\p{L}\\p{N}_.'’-";
+
+// Matches "@token" using the charset above.
+export const MENTION_TOKEN_REGEX = new RegExp(`@([${MENTION_CHAR_CLASS}]+)`, 'gu');
+
+// Matches an in-progress "@query" right before the cursor, used to drive the autocomplete
+// dropdown while typing.
+export const MENTION_QUERY_REGEX = new RegExp(`(?:^|\\s)@([${MENTION_CHAR_CLASS}]*)$`, 'u');
 
 export interface MentionEntry {
   id: string;

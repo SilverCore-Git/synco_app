@@ -1,37 +1,39 @@
 import sfetch from "./utils/sfetch";
 
+// Shared across all sdb.get() callers so N settings items (theme, devMode, ...)
+// loading at once don't each fire their own GET /api/users/me.
+let profilePromise: Promise<any> | null = null;
+
+async function fetchProfile(): Promise<any> {
+    if (!profilePromise) {
+        profilePromise = sfetch('/api/users/me').then(res => res.ok ? res.json() : null);
+    }
+    return profilePromise;
+}
+
 export const sdb = {
-    
-    async get(user: any, key: string): Promise<any> 
+
+    // App settings live in our own DB (User.data.settings, via /api/users/me and
+    // /api/users/me/settings) rather than as Keycloak user attributes: the realm's
+    // User Profile schema silently drops any attribute it doesn't declare, even
+    // when written through the admin API, so a value would "save" (200/201) but
+    // never come back on the next read.
+    async get(user: any, key: string): Promise<any>
     {
         if (!user) return undefined;
-        
-        if (!user.profile) {
-            try { await user.loadUserProfile(); } catch (e) { console.error(e); }
-        }
-        
-        const attributes = user.profile?.attributes || {};
-        const val = attributes[key] ? attributes[key][0] : undefined;
-        
-        if (val === 'true') return true;
-        if (val === 'false') return false;
-        if (!isNaN(Number(val)) && val !== '') return Number(val);
-        
-        return val;
+
+        const profile = await fetchProfile();
+        return profile?.data?.settings?.[key];
     },
 
-    async set(user: any, key: string, value: any) 
+    async set(user: any, key: string, value: any)
     {
         if (!user) return;
-        
-        if (!user.profile) user.profile = { attributes: {} };
-        if (!user.profile.attributes) user.profile.attributes = {};
-        user.profile.attributes[key] = [String(value)];
-        
-        return await sfetch('/api/users/me/update-attr', {
+
+        return await sfetch('/api/users/me/settings', {
             method: 'POST',
-            body: JSON.stringify({ attributs: { [key]: String(value) } })
-        })
+            body: JSON.stringify({ settings: { [key]: value } })
+        });
     }
 
 };

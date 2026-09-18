@@ -458,6 +458,8 @@ export function useNotification() {
         return 'warning';
       case 'INVITATION':
         return 'success';
+      case 'TASK_ASSIGNED':
+        return 'info';
       case 'CUSTOM':
       default:
         return 'info';

@@ -378,7 +378,7 @@
                                 </div>
                                 <div 
                                     class="w-12 h-6 rounded-full relative transition-colors duration-300 shrink-0"
-                                    :class="devMode ? 'bg-(--primary)' : 'bg-white/10'"
+                                    :class="devMode ? 'bg-(--primary)' : 'bg-(--text)/15'"
                                 >
                                     <div 
                                         class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
@@ -397,7 +397,7 @@
                                 </div>
                                 <div 
                                     class="w-12 h-6 rounded-full relative transition-colors duration-300 shrink-0"
-                                    :class="privacyMode ? 'bg-(--primary)' : 'bg-white/10'"
+                                    :class="privacyMode ? 'bg-(--primary)' : 'bg-(--text)/15'"
                                 >
                                     <div 
                                         class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
@@ -435,7 +435,7 @@
                             </div>
                             <div 
                                 class="w-12 h-6 rounded-full relative transition-colors duration-300"
-                                :class="notifPrefs.push ? 'bg-(--primary)' : 'bg-white/10'"
+                                :class="notifPrefs.push ? 'bg-(--primary)' : 'bg-(--text)/15'"
                             >
                                 <div 
                                     class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
@@ -454,7 +454,7 @@
                             </div>
                             <div 
                                 class="w-12 h-6 rounded-full relative transition-colors duration-300"
-                                :class="notifPrefs.email ? 'bg-(--primary)' : 'bg-white/10'"
+                                :class="notifPrefs.email ? 'bg-(--primary)' : 'bg-(--text)/15'"
                             >
                                 <div 
                                     class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
@@ -473,7 +473,7 @@
                             </div>
                             <div 
                                 class="w-12 h-6 rounded-full relative transition-colors duration-300"
-                                :class="notifPrefs.sound ? 'bg-(--primary)' : 'bg-white/10'"
+                                :class="notifPrefs.sound ? 'bg-(--primary)' : 'bg-(--text)/15'"
                             >
                                 <div 
                                     class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
@@ -492,7 +492,7 @@
                             </div>
                             <div 
                                 class="w-12 h-6 rounded-full relative transition-colors duration-300"
-                                :class="notifPrefs.mentionsOnly ? 'bg-(--primary)' : 'bg-white/10'"
+                                :class="notifPrefs.mentionsOnly ? 'bg-(--primary)' : 'bg-(--text)/15'"
                             >
                                 <div 
                                     class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"

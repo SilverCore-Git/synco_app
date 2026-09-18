@@ -36,7 +36,7 @@
 
 import { openedOrg } from '@/assets/var';
 import MentionsList from '@/components/common/MentionsList.vue';
-import { buildMentionableList, type MentionEntry } from '@/composables/useMentions';
+import { buildMentionableList, MENTION_QUERY_REGEX, type MentionEntry } from '@/composables/useMentions';
 import { ref, watch, nextTick, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 
@@ -50,6 +50,7 @@ const emit = defineEmits<{
     (e: 'update:modelValue', value: string): void;
     (e: 'send', value: string): void;
     (e: 'input'): void;
+    (e: 'edit-last'): void;
 }>();
 
 const route = useRoute();
@@ -75,7 +76,7 @@ const updateMentionState = (text: string, selectionStart: number) => {
     }
 
     const textBeforeCursor = text.slice(0, selectionStart);
-    const mentionMatch = textBeforeCursor.match(/(?:^|\s)@([a-zA-Z0-9_\-\.]*)$/);
+    const mentionMatch = textBeforeCursor.match(MENTION_QUERY_REGEX);
 
     if (mentionMatch)
     {
@@ -113,7 +114,12 @@ const insertMention = (user: MentionEntry) => {
 };
 
 const handleKeydown = (e: KeyboardEvent) => {
-    
+
+    if (e.key === 'ArrowUp' && !showMentions.value && props.modelValue === '') {
+        emit('edit-last');
+        return;
+    }
+
     if (!showMentions.value) return;
 
     const query = mentionQuery.value?.toLowerCase() || '';

@@ -18,8 +18,8 @@
                     placeholder="Qu'y a-t-il à faire ?"
                     ref="titleInput"
                     class="
-                        w-full bg-(--bg2)/30 border border-white/10 rounded-xl 
-                        px-4 py-3 text-(--text) placeholder:text-(--text2) 
+                        w-full bg-(--bg2)/30 border border-white/10 rounded-xl
+                        px-4 py-3 text-(--text) placeholder:text-(--text2) placeholder:opacity-60
                         focus:outline-none focus:border-(--primary)/50 focus:ring-1
                         focus:ring-(--primary)/20 transition-all
                     "
@@ -32,110 +32,164 @@
                 <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                     Description (optionnel)
                 </label>
-                <textarea 
+                <textarea
                     v-model="form.description"
                     @keydown.ctrl.enter="handleSubmit"
                     @keydown.meta.enter="handleSubmit"
+                    @paste="handlePaste"
+                    @dragenter.prevent="onImagesDragEnter"
+                    @dragover.prevent
+                    @dragleave.prevent="onImagesDragLeave"
+                    @drop.prevent="onImagesDrop"
                     placeholder="Plus de détails..."
                     rows="3"
                     class="
-                        w-full bg-(--bg2)/30 border border-white/10 rounded-xl 
-                        px-4 py-3 text-(--text) placeholder:text-(--text2) 
+                        w-full bg-(--bg2)/30 border border-white/10 rounded-xl
+                        px-4 py-3 text-(--text) placeholder:text-(--text2) placeholder:opacity-60
                         focus:outline-none focus:border-(--primary)/50 focus:ring-1
                         focus:ring-(--primary)/20 transition-all resize-none
                     "
                     :disabled="loading"
                 ></textarea>
-            </div>
 
-            <div class="flex flex-col gap-2">
-                <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
-                    Date d'échéance (optionnel)
-                </label>
-                <div class="flex gap-2">
-                    <input 
-                        v-model="form.dueDate"
-                        type="date" 
-                        class="
-                            w-full bg-(--bg2)/30 border border-white/10 rounded-xl 
-                            px-4 py-3 text-(--text) placeholder:text-(--text2) 
-                            focus:outline-none focus:border-(--primary)/50 focus:ring-1
-                            focus:ring-(--primary)/20 transition-all
-                        "
-                        :disabled="loading"
-                    />
-                    <input 
-                        v-model="form.dueTime"
-                        type="time" 
-                        class="
-                            w-32 bg-(--bg2)/30 border border-white/10 rounded-xl 
-                            px-4 py-3 text-(--text) placeholder:text-(--text2) 
-                            focus:outline-none focus:border-(--primary)/50 focus:ring-1
-                            focus:ring-(--primary)/20 transition-all
-                        "
-                        :disabled="loading"
-                    />
-                </div>
-            </div>
-
-            <div class="flex flex-col gap-2" v-if="!hideSpaceSelect">
-                <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
-                    Projet
-                </label>
-                <select 
-                    v-model="form.spaceId"
-                    class="
-                        w-full bg-(--bg2)/30 border border-white/10 rounded-xl 
-                        px-4 py-3 text-(--text) 
-                        focus:outline-none focus:border-(--primary)/50 transition-all
-                    "
-                    :disabled="loading"
+                <!-- Barre d'images : toute la zone est cliquable, Ctrl+V/glisser-déposer marchent ici aussi -->
+                <div
+                    :tabindex="loading ? -1 : 0"
+                    role="button"
+                    aria-label="Ajouter une image"
+                    @click="!loading && imageInput?.click()"
+                    @keydown.enter.prevent="!loading && imageInput?.click()"
+                    @keydown.space.prevent="!loading && imageInput?.click()"
+                    @paste="handlePaste"
+                    @dragenter.prevent="onImagesDragEnter"
+                    @dragover.prevent
+                    @dragleave.prevent="onImagesDragLeave"
+                    @drop.prevent="onImagesDrop"
+                    class="flex items-center gap-2 rounded-lg border border-dashed px-2.5 py-2 transition-colors cursor-pointer hover:border-(--primary)/50 hover:bg-(--primary)/5 focus:outline-none focus:border-(--primary)/50"
+                    :class="[isImagesDragOver ? 'border-(--primary) bg-(--primary)/5' : 'border-(--border-color)', loading ? 'opacity-50 pointer-events-none' : '']"
                 >
-                    <option :value="null">Tâche personnelle (Général)</option>
-                    <option v-for="space in openedOrg?.spaces || []" :key="space.id" :value="space.id">
-                        {{ space.name }}
-                    </option>
-                </select>
+                    <i class="bi bi-paperclip text-(--text2) shrink-0"></i>
+                    <div v-if="stagedImages.length" class="flex items-center gap-1.5 overflow-x-auto">
+                        <div v-for="(img, idx) in stagedImages" :key="img.previewUrl" class="relative group w-8 h-8 rounded-md overflow-hidden border border-(--border-color) shrink-0">
+                            <img :src="img.previewUrl" class="w-full h-full object-cover" />
+                            <button
+                                type="button"
+                                @click.stop="removeStagedImage(idx)"
+                                class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white"
+                            >
+                                <i class="bi bi-x-lg text-[10px]"></i>
+                            </button>
+                        </div>
+                        <span class="text-xs text-(--text2)">Cliquez pour ajouter</span>
+                    </div>
+                    <span v-else class="text-xs text-(--text2)">Cliquez, glissez ou collez une image ici</span>
+                </div>
+                <input ref="imageInput" type="file" accept="image/*" multiple hidden @change="onPickImages" />
             </div>
 
+            <!-- Options secondaires : repliées par défaut, un seul volet ouvert à la fois -->
             <div class="flex flex-col gap-2">
-                <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
-                    Assignation (Multiples)
-                </label>
-                <div class="relative mb-1">
-                    <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-sm"></i>
-                    <input 
-                        v-model="searchAssignee" 
-                        @keydown.enter.prevent
-                        placeholder="Rechercher une personne..."
-                        class="w-full bg-(--bg2)/30 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50 focus:ring-1 focus:ring-(--primary)/20 transition-all"
-                        :disabled="loading"
-                    />
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button type="button" @click="toggleSection('date')" class="pill" :class="pillClass('date', !!form.dueDate)">
+                        <i class="bi bi-calendar-event"></i>
+                        {{ dueDateLabel }}
+                    </button>
+                    <button type="button" @click="toggleSection('assignees')" class="pill" :class="pillClass('assignees', form.assigneeIds.length > 0)">
+                        <i class="bi bi-people"></i>
+                        {{ assigneesLabel }}
+                    </button>
+                    <button type="button" @click="toggleSection('tags')" class="pill" :class="pillClass('tags', form.tagIds.length > 0)">
+                        <i class="bi bi-tags"></i>
+                        {{ form.tagIds.length ? `${form.tagIds.length} tag${form.tagIds.length > 1 ? 's' : ''}` : 'Tags' }}
+                    </button>
+                    <button v-if="!hideSpaceSelect" type="button" @click="toggleSection('space')" class="pill" :class="pillClass('space', !!form.spaceId)">
+                        <i class="bi bi-folder2"></i>
+                        {{ spaceLabel }}
+                    </button>
                 </div>
-                <div class="bg-(--bg2)/30 border border-white/10 rounded-xl p-3 max-h-40 overflow-y-auto space-y-2">
-                    <label v-for="member in filteredMembers" :key="member.id" class="flex items-center gap-3 cursor-pointer group">
-                        <input 
-                            type="checkbox" 
-                            :value="member.userId" 
-                            v-model="form.assigneeIds"
-                            class="w-4 h-4 rounded bg-black/20 border-white/20 text-(--primary) focus:ring-(--primary) focus:ring-offset-0"
-                            :disabled="loading"
-                        />
-                        <div class="flex items-center gap-2">
-                            <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-6 h-6 rounded-full object-cover">
-                            <div v-else class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[10px] font-bold">
-                                {{ ($p(member.user?.name) || member.userId).substring(0, 2).toUpperCase() }}
-                            </div>
-                            <span class="text-sm font-medium text-(--text) group-hover:text-white transition-colors">
-                                {{ $p(member.user?.name) || member.userId }}
-                            </span>
+
+                <div v-if="activeSection" class="bg-(--bg2)/30 border border-white/10 rounded-xl p-3">
+
+                    <template v-if="activeSection === 'date'">
+                        <div class="flex gap-2">
+                            <input
+                                v-model="form.dueDate"
+                                type="date"
+                                class="w-full bg-(--bg3) border border-white/10 rounded-lg px-3 py-2 text-sm text-(--text) focus:outline-none focus:border-(--primary)/50 transition-all"
+                                :disabled="loading"
+                            />
+                            <input
+                                v-model="form.dueTime"
+                                type="time"
+                                class="w-28 bg-(--bg3) border border-white/10 rounded-lg px-3 py-2 text-sm text-(--text) focus:outline-none focus:border-(--primary)/50 transition-all"
+                                :disabled="loading"
+                            />
+                            <button v-if="form.dueDate" type="button" @click="form.dueDate = ''; form.dueTime = ''" class="text-(--text2) hover:text-red-500 transition-colors px-2" title="Retirer l'échéance">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
                         </div>
-                    </label>
-                    <div v-if="filteredMembers.length === 0" class="text-xs text-center text-(--text2) py-2">
-                        Aucun résultat
-                    </div>
+                    </template>
+
+                    <template v-else-if="activeSection === 'assignees'">
+                        <div class="relative mb-2">
+                            <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-sm"></i>
+                            <input
+                                v-model="searchAssignee"
+                                @keydown.enter.prevent
+                                placeholder="Rechercher une personne..."
+                                class="w-full bg-(--bg3) border border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50 transition-all"
+                                :disabled="loading"
+                            />
+                        </div>
+                        <div class="max-h-40 overflow-y-auto space-y-2">
+                            <label v-for="member in filteredMembers" :key="member.id" class="flex items-center gap-3 cursor-pointer group">
+                                <input
+                                    type="checkbox"
+                                    :value="member.userId"
+                                    v-model="form.assigneeIds"
+                                    class="w-4 h-4 rounded bg-black/20 border-white/20 text-(--primary) focus:ring-(--primary) focus:ring-offset-0"
+                                    :disabled="loading"
+                                />
+                                <div class="flex items-center gap-2">
+                                    <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-6 h-6 rounded-full object-cover">
+                                    <div v-else class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[10px] font-bold">
+                                        {{ ($p(member.user?.name) || member.userId).substring(0, 2).toUpperCase() }}
+                                    </div>
+                                    <span class="text-sm font-medium text-(--text) group-hover:text-white transition-colors">
+                                        {{ $p(member.user?.name) || member.userId }}
+                                    </span>
+                                </div>
+                            </label>
+                            <div v-if="filteredMembers.length === 0" class="text-xs text-center text-(--text2) py-2">
+                                Aucun résultat
+                            </div>
+                        </div>
+                    </template>
+
+                    <template v-else-if="activeSection === 'tags'">
+                        <TaskTagPicker
+                            v-if="route.params.orgId"
+                            :orgId="route.params.orgId as string"
+                            v-model="form.tagIds"
+                        />
+                    </template>
+
+                    <template v-else-if="activeSection === 'space'">
+                        <select
+                            v-model="form.spaceId"
+                            class="w-full bg-(--bg3) border border-white/10 rounded-lg px-3 py-2 text-sm text-(--text) focus:outline-none focus:border-(--primary)/50 transition-all"
+                            :disabled="loading"
+                        >
+                            <option :value="null">Tâche personnelle (Général)</option>
+                            <option v-for="space in openedOrg?.spaces || []" :key="space.id" :value="space.id">
+                                {{ space.name }}
+                            </option>
+                        </select>
+                    </template>
+
                 </div>
             </div>
+
         </form>
 
         <template #footer>
@@ -160,9 +214,11 @@
 <script setup lang="ts">
 import { ref, reactive, nextTick, computed } from 'vue';
 import Popup from '@/components/Popup.vue';
+import TaskTagPicker from './TaskTagPicker.vue';
 import { useRoute } from 'vue-router';
 import { openedOrg, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
+import { uploadFiles } from '@/assets/uploadFile';
 import { useToast } from '@/composables/useToast';
 import type { OrgMember } from '@/types/types';
 
@@ -187,10 +243,74 @@ const form = reactive({
     dueDate: '',
     dueTime: '',
     spaceId: props.defaultSpaceId || null as string | null,
-    assigneeIds: user.value?.id ? [user.value.id] : [] as string[]
+    assigneeIds: user.value?.id ? [user.value.id] : [] as string[],
+    tagIds: [] as string[]
 });
 
 const searchAssignee = ref('');
+
+interface StagedImage {
+    file: File;
+    previewUrl: string;
+}
+const stagedImages = ref<StagedImage[]>([]);
+const imageInput = ref<HTMLInputElement | null>(null);
+
+const addStagedImages = (files: File[]) => {
+    for (const file of files) {
+        if (!file.type.startsWith('image/')) continue;
+        stagedImages.value.push({ file, previewUrl: URL.createObjectURL(file) });
+    }
+};
+
+const handlePaste = (e: ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const files: File[] = [];
+    for (const item of items) {
+        if (item.type.startsWith('image/')) {
+            const file = item.getAsFile();
+            if (file) files.push(file);
+        }
+    }
+    if (files.length) addStagedImages(files);
+};
+
+const onPickImages = (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    if (input.files?.length) addStagedImages(Array.from(input.files));
+    input.value = '';
+};
+
+const isImagesDragOver = ref(false);
+let imagesDragCounter = 0;
+
+const onImagesDragEnter = () => {
+    imagesDragCounter++;
+    isImagesDragOver.value = true;
+};
+
+const onImagesDragLeave = () => {
+    imagesDragCounter = Math.max(0, imagesDragCounter - 1);
+    if (imagesDragCounter === 0) isImagesDragOver.value = false;
+};
+
+const onImagesDrop = (e: DragEvent) => {
+    imagesDragCounter = 0;
+    isImagesDragOver.value = false;
+    const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type.startsWith('image/'));
+    if (files.length) addStagedImages(files);
+};
+
+const removeStagedImage = (idx: number) => {
+    const [removed] = stagedImages.value.splice(idx, 1);
+    if (removed) URL.revokeObjectURL(removed.previewUrl);
+};
+
+const clearStagedImages = () => {
+    stagedImages.value.forEach(img => URL.revokeObjectURL(img.previewUrl));
+    stagedImages.value = [];
+};
 
 const availableMembers = computed<OrgMember[]>(() => {
     if (!openedOrg.value?.members) return [];
@@ -211,6 +331,38 @@ const filteredMembers = computed<OrgMember[]>(() => {
     });
 });
 
+type Section = 'date' | 'assignees' | 'tags' | 'space';
+const activeSection = ref<Section | null>(null);
+
+const toggleSection = (key: Section) => {
+    activeSection.value = activeSection.value === key ? null : key;
+};
+
+const pillClass = (key: Section, hasValue: boolean) => {
+    if (activeSection.value === key) return 'bg-(--primary) border-(--primary) text-white';
+    if (hasValue) return 'bg-(--primary)/10 border-(--primary)/40 text-(--primary)';
+    return 'bg-transparent border-white/10 text-(--text2) hover:border-(--primary)/50 hover:text-(--primary)';
+};
+
+const dueDateLabel = computed(() => {
+    if (!form.dueDate) return 'Échéance';
+    const d = new Date(form.dueDate + 'T00:00:00');
+    const label = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    return form.dueTime ? `${label} ${form.dueTime}` : label;
+});
+
+const assigneesLabel = computed(() => {
+    const n = form.assigneeIds.length;
+    if (n === 0) return 'Assigné(s)';
+    if (n === 1 && form.assigneeIds[0] === user.value?.id) return 'Moi';
+    return `${n} personne${n > 1 ? 's' : ''}`;
+});
+
+const spaceLabel = computed(() => {
+    if (!form.spaceId) return 'Général';
+    return openedOrg.value?.spaces?.find(s => s.id === form.spaceId)?.name || 'Projet';
+});
+
 const openModal = () => {
     isOpen.value = true;
     form.title = '';
@@ -219,7 +371,10 @@ const openModal = () => {
     form.dueTime = '';
     form.spaceId = props.defaultSpaceId || null;
     form.assigneeIds = user.value?.id ? [user.value.id] : [];
+    form.tagIds = [];
     searchAssignee.value = '';
+    activeSection.value = null;
+    clearStagedImages();
     nextTick(() => {
         titleInput.value?.focus();
     });
@@ -251,6 +406,7 @@ const handleSubmit = async () => {
             dueDate: finalDueDate,
             spaceId: form.spaceId,
             assigneeIds: form.assigneeIds,
+            tagIds: form.tagIds,
             parentTaskId: props.parentTaskId || null,
             status: 'TODO'
         };
@@ -262,6 +418,18 @@ const handleSubmit = async () => {
 
         if (res.ok) {
             const task = await res.json();
+
+            if (stagedImages.value.length) {
+                try {
+                    task.attachments = await uploadFiles(
+                        stagedImages.value.map(img => img.file),
+                        { taskId: task.id, workspaceId: task.spaceId || undefined }
+                    );
+                } catch (e) {
+                    toast.show('Tâche créée, mais l\'ajout des images a échoué.', 'error');
+                }
+            }
+
             emit('created', task);
             toast.show('Tâche créée avec succès.', 'success');
             closeModal();
@@ -275,3 +443,18 @@ const handleSubmit = async () => {
     }
 };
 </script>
+
+<style scoped>
+.pill {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-width: 1px;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+</style>

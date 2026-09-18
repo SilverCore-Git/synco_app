@@ -62,7 +62,7 @@
                 <button @click="openInviteModal" class="dropdown-item-annimate dropdown-item-style">
                     <i class="bi bi-link-45deg mr-2"></i> Gérer les liens d'invitation
                 </button>
-                <button v-if="can('FOLDER_DELETE', route.params.spaceId as string, thread.id)" @click="showConfirmDelete = !showConfirmDelete" class="dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!">
+                <button v-if="can('FOLDER_DELETE')" @click="showConfirmDelete = !showConfirmDelete" class="dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!">
                     <i class="bi bi-trash-fill mr-2" /> Supprimer
                 </button>
             </template>

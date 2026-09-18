@@ -1,5 +1,6 @@
 import sfetch from "./utils/sfetch";
 import { isLoaded, organizations, user, openedOrg } from "./var";
+import router from "../router";
 
 class Init 
 {
@@ -38,13 +39,27 @@ class Init
     private async initOpenedOrg()
     {
         const path = window.location.pathname;
-        const orgId = path.split('/')[1];
-        
+        let orgId = path.split('/')[1];
+
+        // No org in the URL (fresh launch landing on "/"): fall back to the
+        // last org the user had open, so the app doesn't always restart on
+        // the org selection screen.
+        const isFreshLaunch = !orgId;
+        if (isFreshLaunch) {
+            orgId = localStorage.getItem('lastOpenedOrgId') || '';
+        }
+
         if (orgId && !['invite', 'root'].includes(orgId)) {
             try {
                 const res = await sfetch(`/api/orgs/${orgId}`);
                 if (res.ok) {
                     openedOrg.value = await res.json();
+                    if (isFreshLaunch) {
+                        router.replace({ name: 'OrgHome', params: { orgId } });
+                    }
+                } else if (isFreshLaunch) {
+                    // Org no longer accessible (left, deleted...): drop the stale preference.
+                    localStorage.removeItem('lastOpenedOrgId');
                 }
             } catch (e) {
                 console.error('Failed to prefetch org', e);

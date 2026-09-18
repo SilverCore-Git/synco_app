@@ -22,6 +22,7 @@ import { useToast } from '@/composables/useToast';
 import { decryptFromPeer, privateKey, decryptThreadKeyWithRsa, encryptThreadKeyForMember } from '@/assets/utils/crypto';
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { usePermissions } from '@/composables/usePermissions';
+import SpinLoader from '@/components/SpinLoader.vue';
 
 
 const props = defineProps<{
@@ -43,6 +44,8 @@ const showRouterView = computed(() => !isLittleScreen.value || route.query.showV
 const orgOnOpen = computed(() => {
     return organizations.value.find(org => org.id === route.params.orgId);
 });
+
+const orgReady = computed(() => openedOrg.value?.id === props.orgId);
 
 import { watch, toRaw } from 'vue';
 
@@ -570,6 +573,8 @@ function handleTabletChange(e: any)
 
 onMounted(async () => {
 
+    localStorage.setItem('lastOpenedOrgId', props.orgId);
+
     if (!openedOrg.value || openedOrg.value.id !== props.orgId) {
         const res = await sfetch(`/api/orgs/${props.orgId}`);
         if (!res.ok) {
@@ -641,7 +646,17 @@ onBeforeUnmount(async () => {
             />
 
             <Transition name="slide-in-right">
-                <div 
+                <div
+                    v-if="!orgReady"
+                    key="org-loading"
+                    class="flex-1 h-full min-w-0 flex items-center justify-center bg-(--bg3)"
+                    :class="isDesktopApp() ? 'border-t border-white/10' : ''"
+                >
+                    <SpinLoader />
+                </div>
+                <div
+                    v-else
+                    key="org-content"
                     v-show="showRouterView"
                     class=" overflow-hidden bg-(--bg3)"
                     :class="[

@@ -145,7 +145,7 @@
 
                         <div class="flex items-center gap-0.5">
 
-                            <button @click.stop="showUserSettings = !showUserSettings" class="p-1.5 rounded-md active:scale-90 transition-all group/settings text-(--white) hover:text-(--primary) hover:rotate-45">
+                            <button @click.stop="showUserSettings = !showUserSettings" class="p-1.5 rounded-md active:scale-90 transition-all group/settings text-(--text) hover:text-(--primary) hover:rotate-45">
                                 <i class="bi bi-gear-fill text-md group-hover/settings:rotate-45 transition-transform duration-300" />
                             </button>
 

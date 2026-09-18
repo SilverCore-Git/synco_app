@@ -56,10 +56,10 @@
 
             <button @click="showEditThread = !showEditThread" class="dropdown-item-annimate dropdown-item-style">
                 <i class="bi bi-pencil-fill mr-2" />
-                Mondifier
+                Modifier
             </button>
 
-            <button v-if="can('FOLDER_DELETE', route.params.spaceId as string, thread.id)" @click="showConfirmDelete = !showConfirmDelete" class="dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!">
+            <button v-if="can('FOLDER_DELETE')" @click="showConfirmDelete = !showConfirmDelete" class="dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!">
                 <i class="bi bi-trash-fill mr-2" />
                 Supprimer
             </button>
@@ -98,7 +98,6 @@ import useSettingsItem from '@/composables/useSettingsItem';
 import { useToast } from '@/composables/useToast';
 import { usePermissions } from '@/composables/usePermissions';
 import { computed } from 'vue';
-import { useRoute } from 'vue-router';
 const props = defineProps<{
   thread: Thread;
   active?: boolean;
@@ -115,7 +114,6 @@ const emit = defineEmits(['click']);
 const showEditThread = ref<boolean>(false);
 const showConfirmDelete = ref<boolean>(false);
 const toast = useToast();
-const route = useRoute();
 const orgId = computed(() => openedOrg.value?.id);
 const { can } = usePermissions(orgId);
 const { Item: devMode } = useSettingsItem('devMode', false);
@@ -129,7 +127,7 @@ const deleteThread = async () => {
     const socket = await useWSocket();
     const connected = await waitForSocketConnection(socket, 15000);
     if (!connected) {
-        console.error('[ThreadBtn] Socket not connected, cannot delete thread');
+        toast.show('Connexion au serveur perdue, réessayez.', 'error');
         return;
     }
     socket.value?.emit('thread:delete', ({ orgId: openedOrg.value?.id, threadId: props.thread.id }));

@@ -33,21 +33,21 @@
 
         <main class="flex-1 overflow-y-auto md:overflow-hidden flex flex-col p-6 w-full h-full gap-6">
             
-            <!-- Filter Bar -->
-            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full min-w-0 shrink-0">
+            <!-- Filter Bar : toujours sur une seule ligne, y compris sur mobile -->
+            <div class="flex flex-row flex-nowrap items-center gap-2 w-full min-w-0 shrink-0">
                 
-                <div class="flex items-center gap-2 overflow-x-auto w-full sm:w-auto scrollbar-hide shrink-0 pb-1">
-                    <button @click="filterUserId = null" class="px-4 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="!filterUserId ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10'">
-                        Toutes les tâches
-                    </button>
-                    <button @click="filterUserId = user?.id || null" class="px-4 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0" :class="filterUserId === user?.id ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10'">
-                        Mes tâches
-                    </button>
-                </div>
+                <!-- Hors glisser-déposer : un sélecteur compact (scalable à 100 membres) -->
+                <TaskUserFilter
+                    v-if="!isDraggingTask"
+                    v-model="filterUserId"
+                    :members="spaceMembers"
+                    :current-user-id="user?.id || null"
+                    :me="user"
+                />
 
-                <div class="hidden sm:block w-px h-6 bg-white/10 mx-2 shrink-0"></div>
-
-                <div class="flex items-center gap-2 overflow-x-auto w-full min-w-0 scrollbar-hide pb-1">
+                <!-- Pendant un glisser-déposer : la liste des membres redevient visible,
+                     chaque avatar servant de cible pour assigner la tâche déposée. -->
+                <div v-else class="flex items-center gap-2 overflow-x-auto w-full min-w-0 scrollbar-hide pb-1">
                     <button
                         v-for="member in spaceMembers" :key="member.id"
                         @click="filterUserId = member.userId"
@@ -65,17 +65,43 @@
                     </button>
                 </div>
 
+                <div v-if="tags.length > 0" class="hidden sm:block w-px h-6 bg-(--border-color) mx-2 shrink-0"></div>
+
+                <DropDown v-if="tags.length > 0" align="left" content-iner-t-w="min-w-[280px]">
+                    <template #trigger>
+                        <button type="button" class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap h-full" :class="filterTagIds.length ? 'bg-(--primary)/15 text-(--primary)' : 'bg-white/5 text-white/70 hover:bg-white/10'">
+                            <i class="bi bi-tags"></i>
+                            {{ filterTagIds.length ? `${filterTagIds.length} tag${filterTagIds.length > 1 ? 's' : ''}` : 'Tags' }}
+                            <i class="bi bi-chevron-down text-[10px] opacity-60"></i>
+                        </button>
+                    </template>
+                    <template #content>
+                        <div @click.stop>
+                            <button
+                                v-if="filterTagIds.length"
+                                type="button"
+                                @click="filterTagIds = []"
+                                class="text-[11px] font-bold text-(--text2) hover:text-(--text) flex items-center gap-1 mb-2"
+                            >
+                                <i class="bi bi-x-lg"></i>
+                                Tout désélectionner
+                            </button>
+                            <TaskTagPicker :orgId="route.params.orgId as string" v-model="filterTagIds" />
+                        </div>
+                    </template>
+                </DropDown>
+
                 <button
                     v-if="archivedCount > 0 || isDraggingTask"
                     @click="showArchivedPanel = true"
                     @dragover.prevent="dragOverArchiveBtn = true"
                     @dragleave.prevent="dragOverArchiveBtn = false"
                     @drop="onDropToArchiveBtn"
-                    class="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0 self-end sm:self-auto sm:ml-auto"
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0 ml-auto"
                     :class="dragOverArchiveBtn ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-[0_4px_20px_rgba(245,158,11,0.5)]' : (showArchivedPanel ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10')"
                 >
                     <i class="bi bi-archive-fill" />
-                    Tâches archivées
+                    <span class="hidden sm:inline">Tâches archivées</span>
                 </button>
 
             </div>
@@ -95,10 +121,92 @@
                 </div>
             </div>
             
-            <div v-else class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-3 gap-6 pb-2">
-                
+            <!-- Mobile : un onglet à la fois, pas de glisser-déposer (ne marche pas au toucher) -->
+            <div v-if="!loading" class="flex-1 min-h-0 flex flex-col md:hidden">
+                <div class="relative flex items-center gap-1 p-1 bg-white/5 rounded-xl mb-4 shrink-0">
+                    <div
+                        class="absolute top-1 bottom-1 rounded-lg bg-(--primary) shadow-lg transition-all duration-300 ease-out"
+                        :style="tabIndicatorStyle"
+                    ></div>
+                    <button
+                        v-for="(col, idx) in columns" :key="col.id"
+                        :ref="(el) => setTabRef(idx, el)"
+                        @click="mobileActiveColumn = col.id"
+                        class="relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-colors"
+                        :class="mobileActiveColumn === col.id ? 'text-white' : 'text-(--text2)'"
+                    >
+                        <i :class="col.icon"></i>
+                        {{ col.title }}
+                        <span class="bg-black/20 px-1.5 rounded-full">{{ filteredTasks(col.id).length }}</span>
+                    </button>
+                </div>
+
+                <div class="flex-1 overflow-y-auto space-y-3 pr-1">
+                    <div
+                        v-for="task in filteredTasks(mobileActiveColumn)" :key="task.id"
+                        @click="openTaskDetails(task)"
+                        class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
+                    >
+                        <p class="text-sm font-bold text-(--text) leading-snug">{{ task.title }}</p>
+                        <span v-if="task.parentTask" class="text-[9px] font-bold text-(--primary) uppercase flex items-center gap-1 opacity-80 mt-1">
+                            <i class="bi bi-arrow-return-right"></i> {{ task.parentTask.title }}
+                        </span>
+
+                        <div v-if="task.tags?.length" class="flex flex-wrap gap-1 mt-2">
+                            <span
+                                v-for="tag in task.tags.slice(0, 3)" :key="tag.id"
+                                class="px-2 py-0.5 rounded-full text-[9px] font-bold border"
+                                :style="{ borderColor: tag.color, color: tag.color }"
+                            >
+                                {{ tag.name }}
+                            </span>
+                        </div>
+
+                        <div class="flex items-center justify-between mt-3">
+                            <div class="flex items-center -space-x-1.5" v-if="task.assignees?.length">
+                                <template v-for="assignee in task.assignees.slice(0,3)" :key="assignee.id">
+                                    <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="$p(assignee.name)" class="w-6 h-6 rounded-full object-cover border-2 border-(--bg2)">
+                                    <div v-else :title="$p(assignee.name)" class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[9px] font-black border-2 border-(--bg2)">
+                                        {{ $p(assignee.name).substring(0, 2).toUpperCase() }}
+                                    </div>
+                                </template>
+                            </div>
+                            <div v-else></div>
+
+                            <div class="flex items-center gap-1.5" @click.stop>
+                                <button
+                                    v-if="prevStatus(task.status)"
+                                    @click="changeTaskStatus(task, prevStatus(task.status)!)"
+                                    class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
+                                    :class="columnColor(prevStatus(task.status)!)"
+                                    :title="`Repasser à « ${columnTitle(prevStatus(task.status)!)} »`"
+                                >
+                                    <i :class="columnIcon(prevStatus(task.status)!)"></i>
+                                </button>
+                                <button
+                                    v-if="nextStatus(task.status)"
+                                    @click="changeTaskStatus(task, nextStatus(task.status)!)"
+                                    class="flex items-center gap-1.5 px-3 h-8 rounded-lg bg-(--primary)/10 hover:bg-(--primary)/20 text-(--primary) font-bold text-[11px] transition-colors"
+                                    :title="`Passer à « ${columnTitle(nextStatus(task.status)!)} »`"
+                                >
+                                    <i :class="columnIcon(nextStatus(task.status)!)"></i>
+                                    {{ columnTitle(nextStatus(task.status)!) }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="filteredTasks(mobileActiveColumn).length === 0" class="text-center text-(--text2) text-sm py-12">
+                        Aucune tâche ici.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Desktop : les 3 colonnes côte à côte avec glisser-déposer -->
+            <div v-if="!loading" class="hidden md:grid flex-1 min-h-0 md:grid-cols-3 gap-6 pb-2">
+
                 <!-- Columns -->
-                <div v-for="col in columns" :key="col.id" 
+                <div v-for="col in columns" :key="col.id"
                      class="bg-(--bg2)/40 border rounded-2xl p-4 min-h-[400px] h-full flex flex-col transition-all"
                      :class="draggedOverCol === col.id ? 'border-(--primary) bg-(--primary)/5 shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)]' : 'border-(--border-color)'"
                      @dragover.prevent
@@ -155,7 +263,20 @@
                                     </span>
                                 </div>
                             </div>
-                            
+
+                            <div v-if="task.tags?.length" class="flex flex-wrap gap-1 mt-2">
+                                <span
+                                    v-for="tag in task.tags.slice(0, 3)" :key="tag.id"
+                                    class="px-2 py-0.5 rounded-full text-[9px] font-bold border"
+                                    :style="{ borderColor: tag.color, color: tag.color }"
+                                >
+                                    {{ tag.name }}
+                                </span>
+                                <span v-if="task.tags.length > 3" class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-(--text)/5 text-(--text2)">
+                                    +{{ task.tags.length - 3 }}
+                                </span>
+                            </div>
+
                             <div class="flex items-center justify-between mt-4">
                                 <div class="flex items-center -space-x-1.5" v-if="task.assignees?.length">
                                     <template v-for="assignee in task.assignees.slice(0,3)" :key="assignee.id">
@@ -169,10 +290,16 @@
                                     </div>
                                 </div>
                                 <div v-else></div>
-                                
-                                <div v-if="task.subtasks && task.subtasks.length > 0" class="flex items-center gap-1.5 text-xs bg-white/5 px-2.5 py-1 rounded-lg font-bold text-white/50">
-                                    <i class="bi bi-check2-square text-(--primary)"></i>
-                                    {{ task.subtasks.filter((st: any) => st.status === 'DONE').length }}/{{ task.subtasks.length }}
+
+                                <div class="flex items-center gap-1.5">
+                                    <div v-if="task._count?.attachments" class="flex items-center gap-1 text-xs bg-(--text)/5 px-2 py-1 rounded-lg font-bold text-(--text2)">
+                                        <i class="bi bi-paperclip"></i>
+                                        {{ task._count.attachments }}
+                                    </div>
+                                    <div v-if="task.subtasks && task.subtasks.length > 0" class="flex items-center gap-1.5 text-xs bg-white/5 px-2.5 py-1 rounded-lg font-bold text-white/50">
+                                        <i class="bi bi-check2-square text-(--primary)"></i>
+                                        {{ task.subtasks.filter((st: any) => st.status === 'DONE').length }}/{{ task.subtasks.length }}
+                                    </div>
                                 </div>
                             </div>
 
@@ -303,7 +430,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import { openedOrg, user } from '@/assets/var';
@@ -314,19 +441,23 @@ import { useToast } from '@/composables/useToast';
 import { useUsersBar } from '@/composables/useUsersBar';
 import useWSocket from '@/composables/useWSocket';
 import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
+import TaskUserFilter from '../components/TaskUserFilter.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import DropDown from '@/components/DropDown.vue';
+import TaskTagPicker from '../components/popup/TaskTagPicker.vue';
 import ArchivedTasksPanel from '../components/popup/ArchivedTasksPanel.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import confetti from 'canvas-confetti';
 import { useNotification } from '@/composables/useNotification';
 import { useTaskOrder } from '@/composables/useTaskOrder';
+import { useTaskTags } from '@/composables/useTaskTags';
 
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const { fetchOrder, sortByOrder, persistOrder } = useTaskOrder(route.params.orgId as string);
+const { tags, loadTags } = useTaskTags(route.params.orgId as string);
 const { showUsersBar } = useUsersBar();
 const { markTasksAsRead } = useNotification();
 
@@ -334,6 +465,7 @@ const tasks = ref<Task[]>([]);
 const loading = ref(true);
 const draggedOverCol = ref<string | null>(null);
 const filterUserId = ref<string | null>(null);
+const filterTagIds = ref<string[]>([]);
 
 const isDraggingTask = ref(false);
 const isHoveringTrash = ref(false);
@@ -357,6 +489,48 @@ const columns = [
     { id: 'DONE', title: 'Terminé', color: 'text-green-500', icon: 'bi-check-circle-fill' }
 ];
 
+// ── Vue mobile : le glisser-déposer natif ne fonctionne pas au toucher,
+// donc pas de 3 colonnes côte à côte — un onglet à la fois, et de petites
+// flèches sur chaque carte pour changer de statut sans glisser.
+const mobileActiveColumn = ref<string>('TODO');
+
+const prevStatus = (status: string): string | null => {
+    const idx = columns.findIndex(c => c.id === status);
+    return idx > 0 ? columns[idx - 1]?.id ?? null : null;
+};
+
+const nextStatus = (status: string): string | null => {
+    const idx = columns.findIndex(c => c.id === status);
+    return idx >= 0 && idx < columns.length - 1 ? columns[idx + 1]?.id ?? null : null;
+};
+
+const columnTitle = (status: string) => columns.find(c => c.id === status)?.title || status;
+const columnIcon = (status: string) => columns.find(c => c.id === status)?.icon || 'bi-circle';
+const columnColor = (status: string) => columns.find(c => c.id === status)?.color || 'text-(--text2)';
+
+// Indicateur qui glisse d'un onglet à l'autre au lieu de sauter instantanément
+// (mesuré en pixels sur le DOM plutôt que calculé en % : plus fiable que de
+// recalculer des marges/gaps Tailwind à la main).
+const tabRefs = ref<(HTMLElement | null)[]>([]);
+const tabIndicatorStyle = ref({ left: '0px', width: '0px' });
+
+const setTabRef = (idx: number, el: Element | { $el?: Element } | null) => {
+    tabRefs.value[idx] = (el as HTMLElement) || null;
+};
+
+const updateTabIndicator = () => {
+    const idx = columns.findIndex(c => c.id === mobileActiveColumn.value);
+    const el = tabRefs.value[idx];
+    if (el) {
+        tabIndicatorStyle.value = { left: `${el.offsetLeft}px`, width: `${el.offsetWidth}px` };
+    }
+};
+
+watch(mobileActiveColumn, () => nextTick(updateTabIndicator));
+onMounted(() => nextTick(updateTabIndicator));
+window.addEventListener('resize', updateTabIndicator);
+onUnmounted(() => window.removeEventListener('resize', updateTabIndicator));
+
 const spaceMembers = computed<OrgMember[]>(() => {
     const space = openedOrg.value?.spaces?.find(s => s.id === route.params.spaceId);
     if (!space || !openedOrg.value?.members) return [];
@@ -366,9 +540,8 @@ const spaceMembers = computed<OrgMember[]>(() => {
 const filteredTasks = (status: string) => {
     return sortByOrder(tasks.value.filter(t => {
         if (t.status !== status) return false;
-        if (filterUserId.value) {
-            return t.assignees?.some(a => a.id === filterUserId.value);
-        }
+        if (filterUserId.value && !t.assignees?.some(a => a.id === filterUserId.value)) return false;
+        if (filterTagIds.value.length && !t.tags?.some(tag => filterTagIds.value.includes(tag.id))) return false;
         return true;
     }));
 };
@@ -739,6 +912,7 @@ const onCardDrop = async (e: DragEvent, targetTask: Task, newStatus: string) => 
 
 onMounted(async () => {
     fetchOrder();
+    loadTags();
     loadTasks();
 
     const socket = await useWSocket();
