@@ -98,7 +98,7 @@
 
     </main>
 
-    <footer v-if="thread" class="absolute bottom-0 inset-x-0 p-1 bg-transparent mt-auto">
+    <footer v-if="thread" class="absolute bottom-0 inset-x-0 z-[110] p-1 bg-transparent mt-auto">
 
         <transition name="fade-bottom">
 

@@ -149,7 +149,7 @@
 
         </main>
 
-        <footer v-if="recipient" class="absolute bottom-0 inset-x-0 p-1 bg-transparent mt-auto">
+        <footer v-if="recipient" class="absolute bottom-0 inset-x-0 z-[110] p-1 bg-transparent mt-auto">
 
             <div v-if="isSomeoneTyping" class="h-5 flex justify-start items-center px-4 gap-2 select-none">
             
