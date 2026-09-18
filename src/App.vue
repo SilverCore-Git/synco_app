@@ -288,6 +288,11 @@ const handleTauriLogin = async () => {
     authenticated.value = success;
 
     if (success) {
+      // bootstrap() a pu déjà pousser bootProgress vers 100 (tentative
+      // d'auto-connexion échouée, cf. branche isTauri && !authenticated) —
+      // sans ce reset, finishAuthInit() partirait de 100 pour retomber vers
+      // 50-85, donc la barre reculerait visuellement après le clic.
+      bootProgress.value = 50;
       await finishAuthInit();
     } else {
       tauriLoginError.value = true;
@@ -380,7 +385,75 @@ onMounted(async () => {
          qu'un alert() natif. -->
     <Notifications />
 
-    <div v-if="authenticated" class="h-full w-full">
+    <!-- Écran de connexion Tauri (bureau) : authenticated est déjà à false
+         ici, mais tant que l'utilisateur n'a pas cliqué "Se connecter" on
+         reste sur ce bouton plutôt que le loader ci-dessous. -->
+    <div v-if="isTauri && !authenticated" class="h-full w-full">
+
+      <div class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none">
+
+        <div class="mb-8 text-center max-w-lg">
+
+          <div class="flex flex-col items-center gap-4 mb-3">
+            <img src="/banner.svg" alt="Logo" class="h-16" />
+          </div>
+
+          <h2 class="text-xl font-bold text-(--text)">
+            Connectez-vous à votre compte
+          </h2>
+
+          <p class="text-sm text-(--text2) mt-2 leading-relaxed">
+            La connexion se fait dans votre navigateur, pour plus de sécurité.
+          </p>
+
+        </div>
+
+        <button
+          @click="handleTauriLogin"
+          class="primary"
+          :class="{ loader: tauriLoginLoading }"
+          :disabled="tauriLoginLoading"
+        >
+          <i class="bi bi-box-arrow-up-right mr-2" />
+          <span class="font-bold tracking-wide">Se connecter</span>
+        </button>
+
+        <p v-if="tauriLoginLoading" class="text-xs text-(--text2) mt-6 uppercase tracking-widest font-bold">
+          En attente de connexion dans le navigateur...
+        </p>
+
+        <p v-if="tauriLoginError" class="text-xs text-red-400 mt-6 font-medium">
+          La connexion a échoué. Réessayez.
+        </p>
+
+      </div>
+
+    </div>
+
+    <div v-else-if="bootError" class="h-full w-full">
+      <div class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none text-center">
+        <p class="text-sm text-(--text2) mb-4 max-w-sm">
+          Impossible de contacter le serveur. Vérifiez votre connexion et réessayez.
+        </p>
+        <button @click="bootstrap" class="primary" :class="{ loader: bootLoading }" :disabled="bootLoading">
+          Réessayer
+        </button>
+      </div>
+    </div>
+
+    <!-- Un seul loader persistant pour toute la fenêtre de démarrage : que
+         ce soit "en attente de Keycloak" (!authenticated) ou "authentifié
+         mais données pas encore chargées" (!user), c'est le MÊME élément —
+         pas de remount au moment où authenticated bascule, donc l'icône ne
+         refait plus son fade-in au milieu du chargement. -->
+    <div
+      v-else-if="!authenticated || !user"
+      class="h-full w-full flex flex-col items-center justify-center bg-(--bg3) p-6 select-none animate-app-reveal"
+    >
+      <Loader :progress="bootProgress" />
+    </div>
+
+    <div v-else class="h-full w-full">
 
       <CallOverlay />
       <UserProfile :isOpen="isProfileOpen" :profileUser="profileUser" @close="closeProfile"
@@ -402,9 +475,9 @@ onMounted(async () => {
 
         <div class="w-full h-full" key="lock" v-else>
 
-          <div v-if="pinLoading || !user" key="pin-loading"
+          <div v-if="pinLoading" key="pin-loading"
             class="w-full h-full flex flex-col items-center justify-center bg-(--bg3) p-6 select-none animate-app-reveal">
-            <Loader :progress="!user ? bootProgress : undefined" />
+            <Loader />
           </div>
 
           <div v-else key="pin-form" class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none animate-app-reveal">
@@ -514,61 +587,6 @@ onMounted(async () => {
         </div>
 
       </Transition>
-
-    </div>
-
-    <div v-else class="h-full w-full">
-
-      <div v-if="isTauri"
-        class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none">
-
-        <div class="mb-8 text-center max-w-lg">
-
-          <div class="flex flex-col items-center gap-4 mb-3">
-            <img src="/banner.svg" alt="Logo" class="h-16" />
-          </div>
-
-          <h2 class="text-xl font-bold text-(--text)">
-            Connectez-vous à votre compte
-          </h2>
-
-          <p class="text-sm text-(--text2) mt-2 leading-relaxed">
-            La connexion se fait dans votre navigateur, pour plus de sécurité.
-          </p>
-
-        </div>
-
-        <button
-          @click="handleTauriLogin"
-          class="primary"
-          :class="{ loader: tauriLoginLoading }"
-          :disabled="tauriLoginLoading"
-        >
-          <i class="bi bi-box-arrow-up-right mr-2" />
-          <span class="font-bold tracking-wide">Se connecter</span>
-        </button>
-
-        <p v-if="tauriLoginLoading" class="text-xs text-(--text2) mt-6 uppercase tracking-widest font-bold">
-          En attente de connexion dans le navigateur...
-        </p>
-
-        <p v-if="tauriLoginError" class="text-xs text-red-400 mt-6 font-medium">
-          La connexion a échoué. Réessayez.
-        </p>
-
-      </div>
-
-      <div v-else-if="bootError"
-        class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none text-center">
-        <p class="text-sm text-(--text2) mb-4 max-w-sm">
-          Impossible de contacter le serveur. Vérifiez votre connexion et réessayez.
-        </p>
-        <button @click="bootstrap" class="primary" :class="{ loader: bootLoading }" :disabled="bootLoading">
-          Réessayer
-        </button>
-      </div>
-
-      <Loader v-else :progress="bootProgress" />
 
     </div>
 
