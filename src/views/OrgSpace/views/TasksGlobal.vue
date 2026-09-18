@@ -27,7 +27,7 @@
             </div>
         </div>
 
-        <main class="flex-1 overflow-y-auto p-6 w-full h-full space-y-6">
+        <main class="flex-1 overflow-y-auto md:overflow-hidden flex flex-col p-6 w-full h-full gap-6">
             <!-- Filtres : espace (perso + tous les projets où j'ai des tâches) et tags -->
             <div class="flex items-center gap-2 w-full shrink-0 flex-wrap">
                 <DropDown align="left" content-iner-t-w="min-w-[240px]">
@@ -66,7 +66,11 @@
                                 class="text-left px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-2 truncate"
                                 :class="filterSpaceId === space.id ? 'bg-(--primary)/15 text-(--primary)' : 'hover:bg-(--text)/5 text-(--text)'"
                             >
-                                <i class="bi bi-folder-fill shrink-0"></i>
+                                <img v-if="space.logo && space.logo.includes('data:')" :src="space.logo" class="w-4 h-4 rounded object-cover shrink-0" />
+                                <i v-else-if="space.logo" class="bi shrink-0" :class="space.logo"></i>
+                                <span v-else class="w-4 h-4 rounded bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[8px] font-black shrink-0">
+                                    {{ space.name.substring(0, 2).toUpperCase() }}
+                                </span>
                                 <span class="truncate">{{ $p(space.name) }}</span>
                             </button>
                         </div>
@@ -108,9 +112,9 @@
                 </button>
             </div>
 
-            <div v-if="loading" class="w-full flex flex-col gap-4 animate-pulse pb-10">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 items-start">
-                    <div v-for="i in 3" :key="'skel-col-'+i" class="bg-black/20 rounded-2xl p-4 flex flex-col gap-4 border border-(--border-color) min-h-[40vh]">
+            <div v-if="loading" class="flex-1 min-h-0 w-full flex flex-col gap-4 animate-pulse pb-10">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 items-start h-full">
+                    <div v-for="i in 3" :key="'skel-col-'+i" class="bg-black/20 rounded-2xl p-4 flex flex-col gap-4 border border-(--border-color) h-full">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center gap-2">
                                 <div class="w-6 h-6 rounded-lg bg-(--text)/10"></div>
@@ -123,10 +127,15 @@
                 </div>
             </div>
 
-            <div v-else class="space-y-6 pb-10">
+            <div v-else-if="myTasks.length === 0" class="flex-1 min-h-0 flex flex-col items-center justify-center text-(--text2)">
+                <i class="bi bi-emoji-smile text-6xl mb-4" />
+                <p class="text-base font-medium">Vous n'avez aucune tâche assignée.</p>
+            </div>
+
+            <template v-else>
 
                 <!-- Onglets de statut (mobile) -->
-                <div class="relative flex items-center gap-1 p-1 bg-(--text)/5 rounded-xl md:hidden">
+                <div class="relative flex items-center gap-1 p-1 bg-(--text)/5 rounded-xl md:hidden shrink-0">
                     <div
                         class="absolute top-1 bottom-1 rounded-lg bg-(--primary) shadow-lg transition-all duration-300 ease-out"
                         :style="tabIndicatorStyle"
@@ -144,7 +153,7 @@
                 </div>
 
                 <!-- Mobile : liste simple filtrée par l'onglet actif, pas de glisser-déposer -->
-                <div class="md:hidden space-y-3">
+                <div class="flex-1 min-h-0 overflow-y-auto md:hidden space-y-3">
                     <TaskCard
                         v-for="task in filteredTasks(mobileActiveColumn)" :key="task.id"
                         :task="task"
@@ -185,10 +194,10 @@
                 </div>
 
                 <!-- Desktop : un seul tableau Kanban regroupant tous les espaces + le personnel -->
-                <div class="hidden md:grid md:grid-cols-3 gap-4 lg:gap-6 items-start">
+                <div class="hidden md:grid flex-1 min-h-0 md:grid-cols-3 gap-4 lg:gap-6 pb-2">
 
                     <div v-for="col in columns" :key="col.id"
-                         class="bg-black/20 border rounded-2xl p-4 min-h-[50vh] flex flex-col transition-all"
+                         class="bg-black/20 border rounded-2xl p-4 min-h-[400px] h-full flex flex-col transition-all"
                          :class="draggedOverCol === col.id ? 'border-(--primary) bg-(--text)/5 shadow-[0_0_15px_rgba(var(--primary-rgb),0.2)]' : 'border-(--border-color)'"
                          @dragover.prevent
                          @dragenter.prevent="draggedOverCol = col.id"
@@ -216,7 +225,7 @@
                             </div>
                         </div>
 
-                        <div class="flex-1 space-y-3">
+                        <div class="flex-1 overflow-y-auto space-y-3 min-h-0 pr-1 custom-scrollbar">
                             <DropDown
                                 v-for="task in filteredTasks(col.id)" :key="task.id"
                                 align="mouse" click="right" class="w-full"
@@ -283,12 +292,7 @@
                     </div>
                 </div>
 
-                <div v-if="myTasks.length === 0" class="py-20 flex flex-col items-center justify-center text-(--text2)">
-                    <i class="bi bi-emoji-smile text-6xl mb-4" />
-                    <p class="text-base font-medium">Vous n'avez aucune tâche assignée.</p>
-                </div>
-
-            </div>
+            </template>
         </main>
 
         <TaskDetailsModal
@@ -365,7 +369,7 @@ import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import DropDown from '@/components/DropDown.vue';
 import TaskTagPicker from '../components/popup/TaskTagPicker.vue';
 import ArchivedTasksPanel from '../components/popup/ArchivedTasksPanel.vue';
-import { user } from '@/assets/var';
+import { user, openedOrg } from '@/assets/var';
 import confetti from 'canvas-confetti';
 import useWSocket from '@/composables/useWSocket';
 import { useNotification } from '@/composables/useNotification';
@@ -465,7 +469,13 @@ const spaceOptions = computed(() => {
             map.set(t.spaceId, t.space?.name || 'Projet');
         }
     });
-    return Array.from(map, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+    // task.space (GET /lists/me) n'expose que {id, name} — le logo vient de
+    // openedOrg.spaces, déjà chargé en mémoire (assets/init.ts).
+    return Array.from(map, ([id, name]) => ({
+        id,
+        name,
+        logo: openedOrg.value?.spaces?.find(s => s.id === id)?.logo || null
+    })).sort((a, b) => a.name.localeCompare(b.name));
 });
 
 const filterSpaceLabel = computed(() => {
