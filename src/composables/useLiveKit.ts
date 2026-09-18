@@ -7,6 +7,7 @@ import {
     Participant,
     ExternalE2EEKeyProvider,
     VideoPresets,
+    ScreenSharePresets,
     type VideoCaptureOptions,
     type ScreenShareCaptureOptions
 } from 'livekit-client';
@@ -163,12 +164,15 @@ function useLiveKit()
             adaptiveStream: true,
             dynacast: true,
             e2ee: e2eeOptions,
-            // Simulcast : publie plusieurs couches de qualité pour la caméra, le SFU
-            // ne transmettant à chaque spectateur que la couche adaptée à sa bande
-            // passante réelle (combiné à adaptiveStream/dynacast ci-dessus).
+            // Simulcast : publie plusieurs couches de qualité (caméra ET partage
+            // d'écran) — le SFU ne transmet à chaque spectateur que la couche
+            // adaptée à sa bande passante réelle (combiné à adaptiveStream/dynacast
+            // ci-dessus), ce qui évite les lags dus à une connexion faible chez un
+            // participant sans dégrader tout le monde.
             publishDefaults: {
                 simulcast: true,
                 videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360, VideoPresets.h720],
+                screenShareSimulcastLayers: [ScreenSharePresets.h360fps15, ScreenSharePresets.h720fps15],
             }
         });
 

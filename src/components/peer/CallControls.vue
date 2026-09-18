@@ -128,7 +128,7 @@
             >
                 <i class="bi" :class="isDeafened ? 'bi-volume-mute-fill' : 'bi-volume-up-fill'" />
             </button>
-            <DropDown v-if="speakerDevices.length" align="top" contentInerTW="!w-64">
+            <DropDown align="top" contentInerTW="!w-64">
                 <template #trigger>
                     <button class="w-6 h-12 flex items-center justify-center text-(--white)/60 hover:text-(--white) hover:bg-(--white)/10 border-l border-(--white)/10 transition-colors">
                         <i class="bi bi-chevron-up text-[10px]" />
@@ -145,6 +145,11 @@
                         <span class="truncate">{{ d.label || 'Enceinte' }}</span>
                         <i v-if="prefs.speakerDeviceId === d.deviceId" class="bi bi-check text-(--primary)" />
                     </button>
+                    <p v-if="!speakerDevices.length" class="px-3 py-2 text-[11px] text-(--text2) leading-relaxed">
+                        {{ supportsSinkId
+                            ? "Aucune enceinte détectée."
+                            : "Votre navigateur ne permet pas de choisir l'enceinte de sortie (non supporté par Firefox/Safari — essayez Chrome ou Edge)." }}
+                    </p>
                 </template>
             </DropDown>
         </div>
@@ -209,6 +214,12 @@ const prefs = ref(getVoicePrefs());
 const micDevices = ref<MediaDeviceInfo[]>([]);
 const camDevices = ref<MediaDeviceInfo[]>([]);
 const speakerDevices = ref<MediaDeviceInfo[]>([]);
+
+// Firefox et Safari n'implémentent pas HTMLMediaElement.setSinkId — enumerateDevices()
+// n'y remonte alors jamais de device 'audiooutput', ce qui faisait disparaître le
+// sélecteur d'enceinte sans explication. On distingue "pas de device" de
+// "navigateur non supporté" pour donner un message utile plutôt qu'un vide silencieux.
+const supportsSinkId = typeof HTMLMediaElement !== 'undefined' && 'setSinkId' in HTMLMediaElement.prototype;
 
 const resolutionKeys = Object.keys(RESOLUTION_PRESETS) as Array<keyof typeof RESOLUTION_PRESETS>;
 const frameRates = FRAMERATE_PRESETS;
