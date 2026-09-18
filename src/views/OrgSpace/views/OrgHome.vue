@@ -19,7 +19,9 @@
         </div>
 
         <main class="flex-1 overflow-y-auto p-4 md:p-6">
-            <h2 class="text-xl font-bold text-(--text) mb-6 animate-app-reveal">{{ greeting }}, {{ $p(user?.name) }} 👋</h2>
+            <h2 class="text-xl font-bold text-(--text) mb-6 animate-app-reveal">
+                {{ greeting }}, {{ $p(user?.name) }} <span class="inline-block animate-wave">👋</span>
+            </h2>
 
             <div class="dash-grid">
                 <PendingMessagesCard class="animate-app-reveal" style="animation-delay: 0.06s" />

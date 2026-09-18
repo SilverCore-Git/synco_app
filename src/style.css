@@ -691,3 +691,21 @@ button.tab:not(.active) {
 .animate-sidebar-reveal {
   animation: sidebar-reveal-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+/* Petit signe de la main sur l'emoji 👋 du message d'accueil (OrgHome.vue) —
+   pivote depuis le poignet (transform-origin bas-droite), démarre une fois
+   le titre déjà apparu (délai) plutôt qu'en même temps que le fade-in. */
+@keyframes wave {
+  0%, 100% { transform: rotate(0deg); }
+  10% { transform: rotate(14deg); }
+  20% { transform: rotate(-8deg); }
+  30% { transform: rotate(14deg); }
+  40% { transform: rotate(-4deg); }
+  50% { transform: rotate(10deg); }
+  60% { transform: rotate(0deg); }
+}
+
+.animate-wave {
+  transform-origin: 70% 70%;
+  animation: wave 1.4s ease-in-out 0.5s 1;
+}
