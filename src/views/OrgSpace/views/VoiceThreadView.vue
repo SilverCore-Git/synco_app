@@ -97,7 +97,7 @@
             />
 
             <!-- Other Participants Grid -->
-            <div class="flex justify-center items-center gap-4 flex-wrap w-full max-w-6xl">
+            <div class="grid gap-4 w-full max-w-6xl grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]">
                 <template v-for="p in allParticipants" :key="p.identity">
                 <div
                     v-show="p.identity !== userFocused.identity"
@@ -107,7 +107,7 @@
                         relative bg-(--bg2) rounded-2xl
                         overflow-hidden border border-(--border-color)
                         flex items-center justify-center group
-                        w-48 aspect-video cursor-pointer hover:border-white/20
+                        w-full aspect-video cursor-pointer hover:border-white/20
                         transition-colors shadow-lg
                     "
                 >
@@ -170,8 +170,8 @@
         <div
             v-else
             class="
-                grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:flex xl:flex-wrap
-                justify-center items-center p-4 xl:p-10
+                grid grid-cols-[repeat(auto-fill,minmax(18rem,1fr))]
+                justify-center justify-items-center items-center p-4 xl:p-10
                 gap-6 transition-all duration-500 w-full min-h-full
             "
         >
