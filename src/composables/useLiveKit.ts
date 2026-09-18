@@ -278,8 +278,18 @@ function useLiveKit()
             await newRoom.connect(url, token);
             room.value = newRoom;
             isConnected.value = true;
-            await newRoom.localParticipant.setMicrophoneEnabled(true);
-            
+
+            const { getVoicePrefs } = await import('@/assets/utils/voicePrefs');
+            const prefs = getVoicePrefs();
+            await newRoom.localParticipant.setMicrophoneEnabled(true, prefs.micDeviceId ? { deviceId: prefs.micDeviceId } : undefined);
+
+            // Périphérique de sortie audio choisi dans les réglages, appliqué dès la
+            // connexion — échoue silencieusement si le device a disparu depuis
+            // (débranché) : on reste alors sur le device par défaut du navigateur.
+            if (prefs.speakerDeviceId) {
+                try { await newRoom.switchActiveDevice('audiooutput', prefs.speakerDeviceId); } catch { /* device indisponible */ }
+            }
+
             // Broadcast decrypted profile info to guests/others via LiveKit metadata
             const { user, member } = await import('@/assets/var');
             

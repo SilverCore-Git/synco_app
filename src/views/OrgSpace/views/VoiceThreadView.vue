@@ -264,8 +264,8 @@
                 :isScreenSharing="isScreenShareEnabled"
                 :isDeafened="isDeafened"
                 @toggleMic="toggleMicrophone(!isMicEnabled)"
-                @toggleCam="toggleCamera(!isCameraEnabled)"
-                @toggleScreenShare="toggleScreenShare(!isScreenShareEnabled)"
+                @toggleCam="onToggleCam"
+                @toggleScreenShare="onToggleScreenShare"
                 @toggleDeafen="toggleDeafen(!isDeafened)"
                 @endCall="leaveRoom(props.thread?.id || '', String(route.params.spaceId))"
                 @invite="voiceInviteModalRef?.openModal()"
@@ -334,6 +334,7 @@ import { openedOrg, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import { useToast } from '@/composables/useToast';
 import { usePermissions } from '@/composables/usePermissions';
+import { getVoicePrefs, resolveCameraCaptureOptions } from '@/assets/utils/voicePrefs';
 
 const props = defineProps<{
     thread?: Thread;
@@ -433,6 +434,24 @@ const getMeta = (p: any): any => {
 };
 
 const getParticipantName = (p: any): string => getMeta(p).name || '';
+
+// Applique le device + la résolution/framerate choisis dans les réglages
+// vocaux uniquement à l'activation (pas de changement de constraints si on
+// désactive) — évite de republier une track qu'on est en train de couper.
+const onToggleCam = () => {
+    if (isCameraEnabled.value) { toggleCamera(false); return; }
+    const prefs = getVoicePrefs();
+    const { resolution, frameRate } = resolveCameraCaptureOptions(prefs);
+    toggleCamera(true, { deviceId: prefs.camDeviceId, resolution, frameRate });
+};
+
+const onToggleScreenShare = () => {
+    if (isScreenShareEnabled.value) { toggleScreenShare(false); return; }
+    const prefs = getVoicePrefs();
+    // ScreenShareCaptureOptions ne porte pas de frameRate au premier niveau
+    // (contrairement à VideoCaptureOptions) — il se règle via resolution.frameRate.
+    toggleScreenShare(true, { resolution: { ...prefs.screenResolution, frameRate: prefs.screenFrameRate } });
+};
 
 const joinCall = async () => {
     if (!props.thread?.id) return;
