@@ -472,12 +472,12 @@ const mobileActiveColumn = ref<string>('TODO');
 
 const prevStatus = (status: string): string | null => {
     const idx = columns.findIndex(c => c.id === status);
-    return idx > 0 ? columns[idx - 1].id : null;
+    return idx > 0 ? columns[idx - 1]?.id ?? null : null;
 };
 
 const nextStatus = (status: string): string | null => {
     const idx = columns.findIndex(c => c.id === status);
-    return idx >= 0 && idx < columns.length - 1 ? columns[idx + 1].id : null;
+    return idx >= 0 && idx < columns.length - 1 ? columns[idx + 1]?.id ?? null : null;
 };
 
 const columnTitle = (status: string) => columns.find(c => c.id === status)?.title || status;
