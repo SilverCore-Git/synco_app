@@ -648,3 +648,26 @@ button.tab:not(.active) {
   opacity: 0;
   transform: scale(0.95);
 }
+
+
+/* Révélation de l'UI juste après le déverrouillage de la session (App.vue) :
+   pas de mode "out-in" — le loader (position fixed, au-dessus) s'efface
+   pendant que l'appli, déjà en train d'apparaître dessous, continue son
+   animation. Le fondu du loader masque ainsi la bascule/mise en page brute
+   du RouterView au lieu de la montrer d'un coup. */
+.app-reveal-enter-active {
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.app-reveal-enter-from {
+  opacity: 0;
+  transform: scale(0.98) translateY(8px);
+}
+
+.app-reveal-leave-active {
+  transition: opacity 0.35s ease;
+}
+
+.app-reveal-leave-to {
+  opacity: 0;
+}

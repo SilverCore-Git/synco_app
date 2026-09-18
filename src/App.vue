@@ -368,13 +368,17 @@ onMounted(async () => {
 
         <div v-if="E2EEUnloked && !pinLoading" class="w-full h-full" key="app">
 
-          <div v-if="isLoaded" class="w-full h-full">
-            <RouterView />
-          </div>
+          <Transition name="app-reveal" appear>
 
-          <div v-else class="w-full h-full">
-            <Loader />
-          </div>
+            <div v-if="isLoaded" class="w-full h-full" key="loaded">
+              <RouterView />
+            </div>
+
+            <div v-else class="w-full h-full" key="loading">
+              <Loader />
+            </div>
+
+          </Transition>
 
         </div>
 
