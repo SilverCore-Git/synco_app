@@ -870,7 +870,7 @@ const sendMessage = async () => {
         try {
             uploadedFiles = await uploadFiles(
                 selectedFiles.value,
-                {},
+                { dmPeerId: recipient.value!.id },
                 (percent: number) => { fileSendProgress.value = percent; }
             );
         } catch (e) {

@@ -28,7 +28,7 @@
                   </button>
                 </div>
                 <button
-                  v-if="(isTextFile || isMarkdown) && fileContent !== originalFileContent && !(isMarkdown && file.isE2EE)"
+                  v-if="(isTextFile || isMarkdown) && fileContent !== originalFileContent"
                   @click="saveContent"
                   class="primary !px-4 !py-2 text-sm gap-2"
                   :class="{ 'loader': isSaving }"
@@ -109,27 +109,6 @@
                 <MarkdownDocumentPreview :content="fileContent" />
               </template>
 
-              <template v-else-if="isMarkdown && viewMode === 'edit' && file.isE2EE">
-                <div class="flex flex-col items-center justify-center h-full gap-4 text-center p-8">
-                    <i class="bi bi-shield-lock text-6xl text-warning"></i>
-                    <h3 class="text-xl font-bold text-slate-200">Fichier chiffré de bout en bout</h3>
-                    <p class="text-slate-400 max-w-md">
-                        La lecture chiffrée de bout en bout est prise en charge, mais pas l'enregistrement en place :
-                        modifier ce fichier réécrirait son contenu en clair côté serveur.
-                    </p>
-                    <p class="text-slate-400 max-w-md mb-4">
-                        Voulez-vous désactiver le chiffrement de bout en bout pour ce fichier afin de pouvoir l'éditer ?
-                    </p>
-                    <button @click="disableE2EE" :disabled="isDisablingE2EE" class="btn btn-primary w-64 mb-2">
-                        <span v-if="isDisablingE2EE" class="loading loading-spinner"></span>
-                        Oui, désactiver le chiffrement
-                    </button>
-                    <button @click="downloadFile(file.id)" class="btn btn-outline w-64">
-                        Garder chiffré et Télécharger
-                    </button>
-                </div>
-              </template>
-
               <template v-else-if="isTextFile || isMarkdown">
                 <VueMonacoEditor
                   v-model:value="fileContent"
@@ -204,7 +183,7 @@ import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import Popup from '@/components/Popup.vue';
 import MarkdownDocumentPreview from './MarkdownDocumentPreview.vue';
 import { getWorkspaceKey } from '@/assets/utils/workspaceCrypto';
-import { decryptFileLocal } from '@/assets/utils/crypto';
+import { decryptFileLocal, encryptFileLocal } from '@/assets/utils/crypto';
 import { VueMonacoEditor, loader } from '@guolao/vue-monaco-editor';
 
 import * as monaco from 'monaco-editor';
@@ -486,17 +465,42 @@ const loadE2EEPreview = async () => {
 
 const saveContent = async () => {
   if (fileContent.value === originalFileContent.value) return;
-  
+
   isSaving.value = true;
   try {
-    const res = await sfetch(`/api/cdn/content/${props.file.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'text/plain'
-      },
-      body: fileContent.value
-    });
-    
+    let res: Response;
+
+    if (props.file.isE2EE) {
+      // Le contenu ne doit jamais transiter en clair vers le serveur : on le
+      // rechiffre côté client (nouvelle DEK + IV, comme à l'upload) avant
+      // envoi, via la route binaire dédiée aux fichiers déjà E2EE.
+      if (!props.file.workspaceId) {
+        throw new Error("Fichier E2EE sans espace de travail associé : sauvegarde impossible.");
+      }
+      const { key: spaceKey, version } = await getWorkspaceKey(props.file.workspaceId);
+      const plainBuffer = await new Blob([fileContent.value]).arrayBuffer();
+      const { encryptedBlob, encryptedFileKey, iv } = await encryptFileLocal(plainBuffer, spaceKey);
+
+      const formData = new FormData();
+      formData.append('file', encryptedBlob, props.file.originalName);
+      formData.append('iv', iv);
+      formData.append('encryptedFileKey', encryptedFileKey);
+      formData.append('keyVersion', String(version));
+
+      res = await sfetch(`/api/cdn/content-e2ee/${props.file.id}`, {
+        method: 'PUT',
+        body: formData
+      });
+    } else {
+      res = await sfetch(`/api/cdn/content/${props.file.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'text/plain'
+        },
+        body: fileContent.value
+      });
+    }
+
     if (res.ok) {
       const updatedMetadata = await res.json();
       originalFileContent.value = fileContent.value;
