@@ -368,30 +368,24 @@ onMounted(async () => {
 
         <div v-if="E2EEUnloked && !pinLoading" class="w-full h-full" key="app">
 
-          <Transition name="app-reveal" appear>
+          <div v-if="isLoaded" class="w-full h-full animate-app-reveal" key="loaded">
+            <RouterView />
+          </div>
 
-            <div v-if="isLoaded" class="w-full h-full" key="loaded">
-              <RouterView />
-            </div>
-
-            <div v-else class="w-full h-full" key="loading">
-              <Loader />
-            </div>
-
-          </Transition>
+          <div v-else class="w-full h-full animate-app-reveal" key="loading">
+            <Loader />
+          </div>
 
         </div>
 
         <div class="w-full h-full" key="lock" v-else>
 
-          <Transition name="app-reveal" appear>
-
           <div v-if="pinLoading || !user" key="pin-loading"
-            class="w-full h-full flex flex-col items-center justify-center bg-(--bg3) p-6 select-none">
+            class="w-full h-full flex flex-col items-center justify-center bg-(--bg3) p-6 select-none animate-app-reveal">
             <Loader />
           </div>
 
-          <div v-else key="pin-form" class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none">
+          <div v-else key="pin-form" class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none animate-app-reveal">
 
             <div class="mb-8 text-center max-w-lg">
 
@@ -494,8 +488,6 @@ onMounted(async () => {
             </Popup>
 
           </div>
-
-          </Transition>
 
         </div>
 

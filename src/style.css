@@ -651,23 +651,24 @@ button.tab:not(.active) {
 
 
 /* Révélation de l'UI juste après le déverrouillage de la session (App.vue) :
-   pas de mode "out-in" — le loader (position fixed, au-dessus) s'efface
-   pendant que l'appli, déjà en train d'apparaître dessous, continue son
-   animation. Le fondu du loader masque ainsi la bascule/mise en page brute
-   du RouterView au lieu de la montrer d'un coup. */
-.app-reveal-enter-active {
-  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+   application directe d'une animation CSS @keyframes plutôt que des classes
+   <Transition> de Vue — une animation se rejoue automatiquement à chaque
+   fois que le navigateur insère un nouvel élément portant cette classe
+   (v-if/v-else créent bien un nouveau nœud à chaque bascule), sans dépendre
+   du timing d'accrochage rAF de <Transition> ni de ses classes -enter-from
+   / -enter-active, qui peuvent être invisibles si l'état "avant" et l'état
+   "après" se résolvent dans le même tick. */
+@keyframes app-reveal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
-.app-reveal-enter-from {
-  opacity: 0;
-  transform: scale(0.98) translateY(8px);
-}
-
-.app-reveal-leave-active {
-  transition: opacity 0.35s ease;
-}
-
-.app-reveal-leave-to {
-  opacity: 0;
+.animate-app-reveal {
+  animation: app-reveal-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
