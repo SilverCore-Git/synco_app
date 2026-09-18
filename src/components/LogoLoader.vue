@@ -13,7 +13,7 @@
     <div class="w-40 h-1 rounded-full bg-(--text)/10 overflow-hidden mt-6">
       <div
         v-if="progress !== undefined"
-        class="h-full rounded-full bg-(--primary) transition-[width] duration-300 ease-out"
+        class="h-full rounded-full bg-(--primary) transition-[width] duration-500 ease-out"
         :style="{ width: `${Math.min(100, Math.max(0, progress))}%` }"
       />
       <div v-else class="h-full w-1/3 rounded-full bg-(--primary) progress-indeterminate" />

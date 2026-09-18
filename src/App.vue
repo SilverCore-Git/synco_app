@@ -262,9 +262,17 @@ const handleInput = (e: KeyboardEvent) => {
 const bootProgress = ref(0);
 
 const finishAuthInit = async () => {
-  await init.run();
-  bootProgress.value = 85;
+  // init.run() lance 3 requêtes en parallèle (user, orgs, org ouverte) —
+  // sans ça la barre restait figée à 50% pendant tout ce temps puis sautait
+  // d'un coup à 85%. On avance plutôt à chaque requête qui termine, dans
+  // l'ordre où elles arrivent (pas forcément 1-2-3).
+  let completedInitSteps = 0;
+  await init.run(() => {
+    completedInitSteps++;
+    bootProgress.value = 50 + (completedInitSteps / 3) * 35;
+  });
   await waitFor(() => user.value !== null);
+  bootProgress.value = 90;
   await initPeer();
   bootProgress.value = 95;
   useAppPresence();

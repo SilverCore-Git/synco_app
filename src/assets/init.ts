@@ -7,13 +7,20 @@ class Init
 
     constructor () {}
 
-    public async run()
+    // onStep : appelé après CHAQUE sous-requête (pas juste à la toute fin),
+    // pour que App.vue puisse faire avancer sa barre de progression au fil
+    // de l'eau plutôt que de rester figée pendant tout le Promise.all.
+    public async run(onStep?: () => void)
     {
+        const step = async (p: Promise<void>) => {
+            await p;
+            onStep?.();
+        };
         try {
             await Promise.all([
-                this.InitUser(),
-                this.initOrg(),
-                this.initOpenedOrg()
+                step(this.InitUser()),
+                step(this.initOrg()),
+                step(this.initOpenedOrg())
             ]);
         }
         catch (e) {
