@@ -22,10 +22,19 @@
 
         <ul v-else class="dash-card-body space-y-1 animate-app-reveal">
             <li v-for="task in items" :key="task.id">
-                <RouterLink :to="taskLink(task)" class="dash-row">
-                    <i class="bi bi-circle text-(--text2) shrink-0"></i>
+                <RouterLink
+                    :to="taskLink(task)"
+                    class="dash-row"
+                    :class="isNewOrUpdated(task) ? 'bg-(--primary)/8 border border-(--primary)/30 hover:bg-(--primary)/12' : ''"
+                >
+                    <i class="bi shrink-0" :class="isNewOrUpdated(task) ? 'bi-circle-fill text-(--primary)' : 'bi-circle text-(--text2)'"></i>
                     <div class="flex-1 min-w-0 text-left">
-                        <p class="text-sm font-medium text-(--text) truncate">{{ task.title }}</p>
+                        <p class="text-sm font-medium text-(--text) truncate flex items-center gap-1.5">
+                            {{ task.title }}
+                            <span v-if="isNewOrUpdated(task)" class="dash-new-pill">
+                                {{ isNewlyAssigned(task) ? 'Nouveau' : 'Mis à jour' }}
+                            </span>
+                        </p>
                         <p class="text-xs text-(--text2) truncate">{{ task.space?.name || 'Tâche personnelle' }}</p>
                     </div>
                     <span v-if="task.dueDate" class="text-[11px] font-semibold shrink-0" :class="dueInfo(task).color">
@@ -38,7 +47,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { openedOrg, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import type { Task, TodoList } from '@/types/types';
@@ -53,6 +62,35 @@ const { notifications, init: initNotifications } = useNotification();
 const unreadTaskCount = computed(() =>
     notifications.value.filter(n => n.type === 'TASK_ASSIGNED' && !n.isRead).length
 );
+
+// Tâches nouvellement assignées : id de tâche porté par les notifications
+// TASK_ASSIGNED non lues (voir tasksService.ts notifyTaskAssignment côté API).
+const newlyAssignedTaskIds = computed(() => {
+    const ids = new Set<string>();
+    notifications.value.forEach(n => {
+        const taskId = n.data?.taskId;
+        if (n.type === 'TASK_ASSIGNED' && !n.isRead && taskId) {
+            ids.add(taskId);
+        }
+    });
+    return ids;
+});
+
+function isNewlyAssigned(task: Task): boolean {
+    return newlyAssignedTaskIds.value.has(task.id);
+}
+
+// Pas de notification dédiée pour une simple mise à jour (titre, échéance,
+// statut...) — on compare plutôt updatedAt à la dernière visite de cette
+// carte, mémorisée en local. Se remet à zéro à chaque démontage du widget,
+// donc une tâche reste "mise à jour" jusqu'à la prochaine visite de Home.
+const LAST_SEEN_KEY = 'todosCardLastSeenAt';
+const lastSeenAt = ref<number>(Number(localStorage.getItem(LAST_SEEN_KEY)) || 0);
+
+function isNewOrUpdated(task: Task): boolean {
+    if (isNewlyAssigned(task)) return true;
+    return new Date(task.updatedAt).getTime() > lastSeenAt.value;
+}
 
 const loadTasks = async () => {
     if (!orgId.value) return;
@@ -78,6 +116,10 @@ onMounted(async () => {
     await initNotifications();
     await loadTasks();
     loading.value = false;
+});
+
+onUnmounted(() => {
+    localStorage.setItem(LAST_SEEN_KEY, String(Date.now()));
 });
 
 // Une tâche assignée en temps réel (utilisateur déjà connecté) doit
@@ -183,5 +225,18 @@ function dueInfo(task: Task): { text: string; color: string } {
 }
 .dash-row:hover {
     background: rgba(255, 255, 255, 0.04);
+}
+
+.dash-new-pill {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+    background: var(--primary);
+    color: var(--white);
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 </style>
