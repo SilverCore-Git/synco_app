@@ -1,23 +1,21 @@
 <script setup lang="ts">
 
-import { organizations } from '@/assets/var';
+import { organizations, user } from '@/assets/var';
 import OrgBtn from './components/OrgBtn.vue';
 import { onMounted, reactive, ref, computed } from 'vue';
-import type { User } from '@/types/types';
 import sfetch from '@/assets/utils/sfetch';
 import Popup from '@/components/Popup.vue';
 import IconSelector from '@/components/common/IconSelector.vue';
 import { useToast } from '@/composables/useToast';
 import { keycloak } from '@/assets/keycloak';
+import { disconnectSocket } from '@/composables/useWSocket';
 import DropDown from '@/components/DropDown.vue';
 import UserSettings from '@/components/windows/UserSettings.vue';
 
 const toast = useToast();
 
-const me = ref<User | undefined>(undefined);
-
 const showCreateNewOrg = ref<boolean>(false);
-const canCreateOrg = ref<boolean>(false);
+const canCreateOrg = ref<boolean | null>(null);
 const newOrgForm = reactive({
   name: '',
   logo: ''
@@ -27,22 +25,11 @@ const searchQuery = ref('');
 const isSuperAdmin = ref(false);
 
 const showUserSettings = ref(false);
-const showDeleteAccount = ref(false);
-const deleteAccountLoading = ref(false);
+const userSettingsInitialTab = ref<'account' | 'security'>('account');
 
-const handleDeleteAccount = async () => {
-    deleteAccountLoading.value = true;
-    try {
-        await sfetch('/api/users/me', { method: 'DELETE' });
-        // S'il n'y a pas de route DELETE, on peut aussi rediriger vers le management Keycloak
-        keycloak.accountManagement();
-    } catch(e) {
-        toast.show("Erreur lors de la suppression ou action déléguée au fournisseur d'identité.", "error");
-        keycloak.accountManagement();
-    } finally {
-        deleteAccountLoading.value = false;
-        showDeleteAccount.value = false;
-    }
+const openUserSettings = (tab: 'account' | 'security' = 'account') => {
+    userSettingsInitialTab.value = tab;
+    showUserSettings.value = true;
 }
 
 const filteredOrganizations = computed(() => {
@@ -81,7 +68,6 @@ const createNewOrg = async () => {
 }
 
 onMounted(async () => {
-    me.value = await sfetch('/api/users/me').then(res => res.json());
     const res = await sfetch('/api/users/me/cancreateorg');
     const data = await res.json();
     canCreateOrg.value = data.canCreateOrg;
@@ -105,20 +91,20 @@ onMounted(async () => {
             <DropDown align="right" content-iner-t-w="w-64">
                 <template #trigger>
                     <button class="w-10 h-10 rounded-full overflow-hidden border-2 border-white/10 hover:border-(--primary)/50 transition-all shadow-sm focus:outline-none">
-                        <img 
-                            :src="me?.avatarUrl || `https://ui-avatars.com/api/?name=${me?.name || 'User'}&background=128a60&color=fff`" 
-                            alt="Profile" 
+                        <img
+                            :src="user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=128a60&color=fff`"
+                            alt="Profile"
                             class="w-full h-full object-cover"
                         />
                     </button>
                 </template>
                 <template #content>
                     <div class="p-3 border-b border-white/5 bg-(--bg2) rounded-t-xl">
-                        <p class="text-sm font-bold text-(--text) truncate">{{ me?.name || 'Utilisateur' }}</p>
-                        <p class="text-xs text-(--text2) truncate">{{ me?.email || '' }}</p>
+                        <p class="text-sm font-bold text-(--text) truncate">{{ user?.name || 'Utilisateur' }}</p>
+                        <p class="text-xs text-(--text2) truncate">{{ user?.email || '' }}</p>
                     </div>
                     <div class="p-1">
-                        <button @click="showUserSettings = true" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--text) hover:text-(--text) hover:bg-white/5 rounded-lg transition-colors">
+                        <button @click="openUserSettings('account')" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--text) hover:text-(--text) hover:bg-white/5 rounded-lg transition-colors">
                             <i class="bi bi-person-fill"></i> Mon Profil
                         </button>
                     </div>
@@ -134,13 +120,13 @@ onMounted(async () => {
 
                     <div class="h-px bg-white/5 my-1" />
                     <div class="p-1">
-                        <button @click="showDeleteAccount = true" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors">
+                        <button @click="openUserSettings('security')" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors">
                             <i class="bi bi-trash-fill"></i> Supprimer mon compte
                         </button>
                     </div>
                     <div class="h-px bg-white/5 my-1" />
                     <div class="p-1">
-                        <button @click="keycloak.logout()" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-500 font-bold hover:bg-red-500 hover:text-white rounded-lg transition-colors">
+                        <button @click="disconnectSocket(); keycloak.logout()" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-500 font-bold hover:bg-red-500 hover:text-white rounded-lg transition-colors">
                             <i class="bi bi-box-arrow-right"></i> Déconnexion
                         </button>
                     </div>
@@ -168,7 +154,7 @@ onMounted(async () => {
         </header>
 
         <div class="w-full max-w-7xl">
-            <div v-if="filteredOrganizations.length > 0 || canCreateOrg" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 place-items-stretch w-full max-w-6xl mx-auto">
+            <div v-if="filteredOrganizations.length > 0 || canCreateOrg !== false" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 place-items-stretch w-full max-w-6xl mx-auto">
                 
                 <div 
                     v-for="org in filteredOrganizations" 
@@ -180,12 +166,14 @@ onMounted(async () => {
                 </div>
 
                 <div v-if="canCreateOrg" class="w-full">
-                    <OrgBtn 
-                        :org="{ id: 'create', name: 'Créer une organisation', logo: '', role: '', memberCount: '' }" 
-                        :isCreate="true" 
+                    <OrgBtn
+                        :org="{ id: 'create', name: 'Créer une organisation', logo: '', role: '', memberCount: '' }"
+                        :isCreate="true"
                         @click="showCreateNewOrg = true"
                     />
                 </div>
+
+                <div v-else-if="canCreateOrg === null" class="w-full h-[180px] rounded-2xl bg-white/5 animate-pulse" />
 
             </div>
             
@@ -259,28 +247,6 @@ onMounted(async () => {
 
     </Popup>
 
-    <UserSettings :is-open="showUserSettings" @close="showUserSettings = false" />
-
-    <Popup :isOpen="showDeleteAccount" @close="showDeleteAccount = false">
-        <template #title>
-            <div class="flex items-center gap-2 text-red-500">
-                <i class="bi bi-exclamation-triangle-fill"></i>
-                Supprimer le compte
-            </div>
-        </template>
-        <div class="space-y-4">
-            <p class="text-sm text-(--text) leading-relaxed">
-                Êtes-vous sûr de vouloir supprimer définitivement votre compte ? 
-                Cette action est irréversible et supprimera toutes vos données personnelles.
-            </p>
-        </div>
-        <template #footer>
-            <button @click="showDeleteAccount = false" class="default" :disabled="deleteAccountLoading">Annuler</button>
-            <button @click="handleDeleteAccount" class="danger flex items-center gap-2" :disabled="deleteAccountLoading">
-                <i v-if="deleteAccountLoading" class="bi bi-arrow-repeat animate-spin"></i>
-                Confirmer la suppression
-            </button>
-        </template>
-    </Popup>
+    <UserSettings :is-open="showUserSettings" :initial-tab="userSettingsInitialTab" @close="showUserSettings = false" />
 
 </template>

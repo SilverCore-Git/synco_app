@@ -51,13 +51,22 @@
                     </template>
 
                     <template #content>
-                        <button 
-                            @click="createPrivateMeet" 
+                        <button
+                            @click="createPrivateMeet"
                             class="dropdown-item-annimate dropdown-item-style gap-2"
                             title="Conversation P2P chiffrée de bout en bout."
                         >
                             <i class="bi bi-shield-fill-check text-(--primary)" />
                             Session ephemere
+                        </button>
+                        <button
+                            v-if="recipient?.publicKey"
+                            @click="openKeyPanel"
+                            class="dropdown-item-annimate dropdown-item-style gap-2"
+                            title="Vérifier la clé de chiffrement de bout en bout."
+                        >
+                            <i class="bi bi-key-fill text-(--primary)" />
+                            Code de sécurité
                         </button>
                     </template>
 
@@ -111,14 +120,18 @@
                             <div class="animate-spin h-5 w-5 border-2 border-(--primary) border-t-transparent rounded-full" />
                         </div>
 
-                        <ChatMessage 
-                            v-for="(msg, index) in messages" 
-                            :key="msg.id" 
+                        <ChatMessage
+                            v-for="(msg, index) in messages"
+                            :key="msg.id"
+                            :id="'msg-' + msg.id"
 
                             :selected-message="selectedMessage"
                             :msg="msg"
                             :messages="messages"
                             :is-stacked="index > 0 && messages[index-1].senderId === msg.senderId && !msg.replyToId && (new Date(msg.createdAt).getTime() - new Date(messages[index-1].createdAt).getTime() < 60000)"
+                            :is-editing="editingMessageId === msg.id"
+                            @edit-start="editingMessageId = msg.id"
+                            @edit-end="endEdit"
                         />
 
                     </template>
@@ -136,7 +149,7 @@
 
         </main>
 
-        <footer v-if="recipient" class="absolute bottom-0 inset-x-0 p-1 bg-transparent mt-auto">
+        <footer v-if="recipient" class="absolute bottom-0 inset-x-0 z-[110] p-1 bg-transparent mt-auto">
 
             <div v-if="isSomeoneTyping" class="h-5 flex justify-start items-center px-4 gap-2 select-none">
             
@@ -192,10 +205,10 @@
                 
                     <div v-if="fileSendProgress !== null" class="absolute inset-0 bg-(--bg)/40 z-10 pointer-events-none" />
 
-                    <div 
-                        v-for="(file, index) in selectedFiles" 
-                        :key="index" 
-                        class="relative group bg-(--bg) border border-white/10 rounded-md px-3 py-1 flex items-center gap-2 overflow-hidden"
+                    <div
+                        v-for="(file, index) in selectedFiles"
+                        :key="index"
+                        class="relative group bg-(--bg) border border-white/10 rounded-md px-3 py-1 flex items-center gap-2 overflow-hidden max-w-full min-w-0"
                     >
                     
                         <div 
@@ -206,7 +219,7 @@
 
                         <div class="w-10 h-10 shrink-0 flex items-center justify-center rounded bg-(--bg) border border-(--text)/5">
 
-                            <i class="bi text-xl" :class="[ getFileInfo(file as any).color, getFileInfo(file as any).icon ]" />
+                            <i class="bi text-xl" :class="[ getSelectedFileInfo(file).color, getSelectedFileInfo(file).icon ]" />
 
                         </div>
 
@@ -248,35 +261,33 @@
                 </div>
 
                 <div class="relative flex items-center bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
-                    
-                    <input 
-                        type="file" 
-                        multiple 
-                        ref="fileInputRef" 
-                        class="hidden" 
+
+                    <input
+                        type="file"
+                        multiple
+                        ref="fileInputRef"
+                        class="hidden"
                         @change="(e) => handleFiles((e.target as HTMLInputElement).files)"
                     />
 
-                    <button 
+                    <button
                         @click="triggerFileSearch"
                         class="mr-3 text-(--text2) hover:text-(--primary) transition-colors"
                     >
                         <i class="bi bi-plus-circle-fill text-xl" />
                     </button>
-                    
+
                     <ThreadTextarea
                         v-model="newMessage"
                         @send="sendMessage"
                         @input="handleTyping"
+                        @edit-last="editLastOwnMessage"
                         ref="TextareaRef"
                         :placeholder="'Message @' + $p(recipient.name)"
                     />
 
-                    <div 
-                        v-show="!(selectedFiles.length && !files.length)"
-                        class="flex gap-3 ml-3"
-                    >
-                        <button 
+                    <div class="flex gap-3 ml-3">
+                        <button
                             @click="showEmojiPicker = !showEmojiPicker"
                             class="text-(--text2) hover:text-(--primary) transition-colors"
                             title="Ajouter un emoji"
@@ -284,43 +295,17 @@
                             <i class="bi bi-emoji-smile-fill text-xl" />
                         </button>
 
-                        <button 
+                        <button
                             @click="sendMessage"
-                            :disabled="(!newMessage.trim() && selectedFiles.length === 0) "
+                            :disabled="(!newMessage.trim() && selectedFiles.length === 0) || fileSendProgress !== null"
                             :class="(newMessage.trim() || selectedFiles.length > 0) ? 'text-(--primary)' : 'text-(--text2) opacity-50'"
                             class="transition-colors"
                         >
-                            <i class="bi bi-send-fill" />
+                            <i v-if="fileSendProgress !== null" class="bi bi-arrow-repeat animate-spin" />
+                            <i v-else class="bi bi-send-fill" />
                         </button>
 
                     </div>
-
-                    <button 
-                        v-if="(selectedFiles.length && !files.length)"
-                        @click="validUpload" 
-                        class="primary flex items-center gap-2 min-w-24 justify-center relative overflow-hidden w-full"
-                        :disabled="fileSendProgress !== null"
-                    >
-
-                        <template v-if="fileSendProgress !== null">
-
-                            <i class="bi bi-arrow-repeat animate-spin text-lg" />
-                            
-                            <span v-if="fileSendProgress == 100">Finalisation...</span>
-                            <span v-else>{{ fileSendProgress }}%</span>
-                            
-                            <div 
-                                class="absolute inset-0 bg-white/10 pointer-events-none transition-all duration-300"
-                                :style="{ width: fileSendProgress + '%' }"
-                            />
-
-                        </template>
-                        
-                        <template v-else>
-                            Valider les pièces jointes
-                        </template>
-
-                    </button>
 
                 </div>
 
@@ -339,6 +324,35 @@
         <div v-if="isPrivateMeet" class="absolute inset-0 z-50 backdrop-blur-xs">
             <PrivateMeetView />
         </div>
+
+        <Popup :isOpen="showKeyPanel" @close="showKeyPanel = false">
+            <template #title>Code de sécurité</template>
+
+            <div v-if="keyTrustState === 'changed'" class="mb-4 flex items-start gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                <i class="bi bi-exclamation-triangle-fill text-red-400 mt-0.5" />
+                <p class="text-xs text-red-400 leading-relaxed">
+                    La clé de {{ $p(recipient?.name) }} a changé depuis votre dernière conversation chiffrée.
+                    Cela peut signifier qu'{{ $p(recipient?.name) }} a réinstallé l'application — ou qu'un tiers
+                    intercepte vos messages. Vérifiez ce code avec {{ $p(recipient?.name) }} par un autre moyen
+                    (appel, en personne) avant de faire confiance à la nouvelle clé.
+                </p>
+            </div>
+            <p v-else class="text-sm text-(--text2) mb-4 leading-relaxed">
+                Comparez ce code avec {{ $p(recipient?.name) }} par un autre moyen (appel, en personne) pour
+                confirmer que vos messages sont chiffrés uniquement entre vous deux.
+            </p>
+
+            <div class="px-4 py-3 rounded-xl bg-(--bg2) border border-(--border-color) text-center">
+                <span class="text-lg font-mono tracking-[0.2em] text-(--text)">{{ keyFingerprint }}</span>
+            </div>
+
+            <template #footer>
+                <button @click="showKeyPanel = false" class="default">Fermer</button>
+                <button v-if="keyTrustState === 'changed'" @click="trustCurrentKey" class="danger">
+                    Faire confiance à cette clé
+                </button>
+            </template>
+        </Popup>
 
     </div>
 
@@ -368,6 +382,8 @@ import { uploadFiles } from '@/assets/uploadFile';
 import useResponse from '@/composables/useResponse';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useNotification } from '@/composables/useNotification';
+import { checkKeyTrust, trustKey, computeKeyFingerprint, type KeyTrustResult } from '@/assets/utils/keyTrust';
+import Popup from '@/components/Popup.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -389,9 +405,25 @@ const isFetchingMore = ref<boolean>(false);
 const hasMore = ref<boolean>(true);
 const isSomeoneTyping = ref<boolean>(false);
 let typingTimeout: any = null;
+const editingMessageId = ref<string | null>(null);
+
+const editLastOwnMessage = () => {
+    const last = [...messages.value].reverse().find(m => m.senderId === user.value?.id && m.type !== 'voice_invite');
+    if (!last) return;
+    editingMessageId.value = last.id;
+    nextTick(() => {
+        document.getElementById('msg-' + last.id)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+};
+
+const endEdit = () => {
+    editingMessageId.value = null;
+    nextTick(() => {
+        TextareaRef.value?.textarea?.focus();
+    });
+};
 
 const selectedFiles = ref<File[]>([]);
-const files = ref<any[]>([]);
 const fileSendProgress = ref<null | number>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
@@ -490,19 +522,19 @@ const handleFiles = (filesList: FileList | File[] | null) => {
 
 };
 
-// const handlePaste = (e: ClipboardEvent) => {
-//     const items = e.clipboardData?.items;
-//     if (!items) return;
-    
-//     for (const item of items) 
-//     {
-//         if (item.kind === 'file') 
-//         {
-//             const file = item.getAsFile();
-//             if (file) handleFiles([file]);
-//         }
-//     }
-// };
+const handlePaste = (e: ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of items)
+    {
+        if (item.kind === 'file')
+        {
+            const file = item.getAsFile();
+            if (file) handleFiles([file]);
+        }
+    }
+};
 
 const cancelReply = () => {
     setMessageWillBeResponded(null);
@@ -522,18 +554,10 @@ const removeFile = (index: number) => {
     selectedFiles.value.splice(index, 1);
 };
 
-const validUpload = async () => {
-    fileSendProgress.value = 0;
-    files.value = await uploadFiles(
-        selectedFiles.value,
-        {
-            workspaceId: String(route.params.spaceId),
-        },
-        (percent: number) => {
-            fileSendProgress.value = percent;
-        }
-    )
-}
+// getFileInfo expects a StoredFile (originalName/mimeType) — the preview
+// chips render raw File objects (name/type) before upload, so adapt here
+// rather than changing the shared util every other caller relies on.
+const getSelectedFileInfo = (file: File) => getFileInfo({ originalName: file.name, mimeType: file.type } as any);
 
 const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<DMMessage | null> => {
 
@@ -737,9 +761,32 @@ const getMessageSenderName = (msg: DMMessage): string => {
     return msg.sender?.name || 'Anonyme';
 };
 
+// TOFU pinning for the recipient's E2EE public key (audit finding #3): the
+// server is not treated as an authoritative source of key identity, so a
+// server that swaps in an attacker's key mid-conversation is surfaced here
+// instead of trusted silently — see sendMessage() below for the blocking
+// check, and keyTrust.ts for the underlying store.
+const showKeyPanel = ref<boolean>(false);
+const keyTrustState = ref<KeyTrustResult | null>(null);
+const keyFingerprint = ref<string>('');
+
+const openKeyPanel = async () => {
+    if (!recipient.value?.publicKey) return;
+    keyFingerprint.value = await computeKeyFingerprint(recipient.value.publicKey);
+    keyTrustState.value = await checkKeyTrust(recipient.value.id, recipient.value.publicKey);
+    showKeyPanel.value = true;
+};
+
+const trustCurrentKey = async () => {
+    if (!recipient.value?.publicKey) return;
+    await trustKey(recipient.value.id, recipient.value.publicKey);
+    keyTrustState.value = 'match';
+    toast.show('Nouvelle clé de sécurité approuvée.', 'warning');
+};
+
 const sendMessage = async () => {
 
-    if (!newMessage.value.trim() || !socket.value || !recipient.value) return;
+    if ((!newMessage.value.trim() && selectedFiles.value.length === 0) || !socket.value || !recipient.value) return;
 
     const clearContent = newMessage.value;
     const tempId = `temp-${Date.now()}`;
@@ -777,10 +824,26 @@ const sendMessage = async () => {
         const recipientPubKey = recipient.value.publicKey;
         const myPubKey = user.value?.publicKey; 
 
-        if (!recipientPubKey) 
+        if (!recipientPubKey)
         {
             toast.show("Clé du destinataire introuvable.", "error");
             messages.value = messages.value.filter(m => m.id !== tempId);
+            return;
+        }
+
+        const trust = await checkKeyTrust(recipient.value.id, recipientPubKey);
+        if (trust === 'changed')
+        {
+            toast.show(
+                `La clé de sécurité de ${recipient.value.name} a changé depuis votre dernier échange. Message non envoyé — vérifiez le code de sécurité avant de continuer.`,
+                'error',
+                10000
+            );
+            messages.value = messages.value.filter(m => m.id !== tempId);
+            newMessage.value = clearContent;
+            keyFingerprint.value = await computeKeyFingerprint(recipientPubKey);
+            keyTrustState.value = trust;
+            showKeyPanel.value = true;
             return;
         }
 
@@ -801,15 +864,44 @@ const sendMessage = async () => {
         }
     }
     
-    socket.value?.emit("dm:send-message", {
-        recipientId: recipient.value.id,
-        content: finalContent,
-        encryptedAesKey: finalEncryptedAesKey,
-        selfEncryptedAesKey: selfEncryptedAesKey,
-        nonce: finalIv,
-        isE2EE: useEncryption,
-        replyToId: tempMessage.replyToId,
+    let uploadedFiles: any[] = [];
+    if (selectedFiles.value.length) {
+        fileSendProgress.value = 0;
+        try {
+            uploadedFiles = await uploadFiles(
+                selectedFiles.value,
+                {},
+                (percent: number) => { fileSendProgress.value = percent; }
+            );
+        } catch (e) {
+            console.error('Erreur upload fichiers:', e);
+            toast.show('Échec de l\'envoi des pièces jointes.', 'error');
+        }
+    }
+    selectedFiles.value = [];
+    fileSendProgress.value = null;
+
+    const confirmedMessage: any = await new Promise((resolve) => {
+        socket.value?.emit("dm:send-message", {
+            recipientId: recipient.value!.id,
+            content: finalContent,
+            encryptedAesKey: finalEncryptedAesKey,
+            selfEncryptedAesKey: selfEncryptedAesKey,
+            nonce: finalIv,
+            isE2EE: useEncryption,
+            replyToId: tempMessage.replyToId,
+        }, (response: any) => resolve(response));
     });
+
+    if (confirmedMessage?.error) {
+        toast.show(confirmedMessage.error, "error");
+        messages.value = messages.value.filter(m => m.id !== tempId);
+        return;
+    }
+
+    if (uploadedFiles.length && confirmedMessage?.id) {
+        socket.value?.emit('edit-dm-message-files', { id: confirmedMessage.id, files: uploadedFiles });
+    }
 
 };
 
@@ -908,11 +1000,13 @@ onMounted(async () => {
     
     // Ajouter l'écouteur pour fermer le picker sur clic extérieur
     document.addEventListener('click', closeEmojiPickerOnOutsideClick);
+    window.addEventListener('paste', handlePaste);
 });
 
 onUnmounted(() => {
     stopTyping();
     document.removeEventListener('click', closeEmojiPickerOnOutsideClick);
+    window.removeEventListener('paste', handlePaste);
     const sock = socket.value;
     if (sock) {
         const events = ["dm:history", "dm:new-message", "dm:user-typing", "dm:delete-message", "dm:edit-message", "dm-more-messages", "dm-reaction-updated", "connect"];

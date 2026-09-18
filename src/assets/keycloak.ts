@@ -128,14 +128,14 @@ async function tauriLogin(): Promise<{ token?: string; refreshToken?: string }> 
     resolveDeepLink = resolve;
   });
 
-  onOpenUrl((urls) => {
+  onOpenUrl((urls: string[]) => {
     const url = urls[0];
     if (url && url.includes('code=')) resolveDeepLink(url);
   });
 
-  const unlistenSingleInstance = await listen<string[]>('single-instance', (event) => {
-    const args = event.payload;
-    const urlArg = args.find((a) => a.startsWith(redirectUri));
+  const unlistenSingleInstance = await listen('single-instance', (event: any) => {
+    const args = event.payload as string[];
+    const urlArg = args.find((a: string) => a.startsWith(redirectUri));
     if (urlArg) resolveDeepLink(urlArg);
   });
 

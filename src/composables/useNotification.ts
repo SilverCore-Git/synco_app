@@ -69,33 +69,46 @@ export interface NotificationTokenInfo {
   createdAt: string;
 }
 
+// ==================== STATE (partagé entre tous les appels) ====================
+// Ces refs vivent au niveau module (et non dans useNotification()) pour que tous
+// les composants qui appellent useNotification() lisent/écrivent le même état —
+// sinon chaque appel créait sa propre liste vide et les badges de non-lus
+// (SpaceBar, UsersBar, Category...) restaient bloqués à 0 tant que leur propre
+// instance n'avait pas elle-même appelé init()/loadNotifications().
+
+// Liste des notifications
+const notifications = ref<AppNotification[]>([]);
+
+// Permission de notification
+const permission = ref<NotificationPermission>('default');
+
+// Est-ce que la permission est accordée
+const isGranted = computed(() => permission.value === 'granted');
+
+// Compteur de notifications non lues
+const unreadCount = computed(() => {
+  return notifications.value.filter(n => !n.isRead).length;
+});
+
+// Est-ce que le composable est initialisé
+const isInitialized = ref(false);
+
+// Instance de socket partagée — même raison que `notifications` ci-dessus :
+// si chaque appel de useNotification() gardait sa propre variable locale,
+// seul le premier composant à avoir réussi init() avait un socket assigné
+// dans sa closure ; tous les autres (markThreadAsRead, markDMAsRead, ...
+// appelés depuis un composant différent) émettaient sur un socket resté
+// `null`, silencieusement absorbé par l'optional chaining — rien n'était
+// jamais persisté côté serveur bien que l'UI locale semblait à jour.
+let socket: Ref<any> | null = null;
+
 /**
  * Composable pour gérer les notifications
  * @returns Object avec state et méthodes pour les notifications
  */
 export function useNotification() {
-  let socket: Ref<any> | null = null;
   const toast = useToast();
   const router = useRouter();
-
-  // ==================== STATE ====================
-
-  // Liste des notifications
-  const notifications = ref<AppNotification[]>([]);
-
-  // Permission de notification
-  const permission = ref<NotificationPermission>('default');
-
-  // Est-ce que la permission est accordée
-  const isGranted = computed(() => permission.value === 'granted');
-
-  // Compteur de notifications non lues
-  const unreadCount = computed(() => {
-    return notifications.value.filter(n => !n.isRead).length;
-  });
-
-  // Est-ce que le composable est initialisé
-  const isInitialized = ref(false);
 
   // ==================== MÉTHODES ====================
 
@@ -276,19 +289,19 @@ export function useNotification() {
    */
   const markThreadAsRead = async (threadId: string): Promise<void> => {
     try {
-      let markedCount = 0;
-      // Optimistic update
+      // Optimistic update (local cache may not be populated yet, so this
+      // is best-effort — the actual persistence happens server-side below
+      // regardless of whether anything matched locally)
       notifications.value.forEach(n => {
         if (!n.isRead && n.data?.threadId === threadId) {
           n.isRead = true;
-          markedCount++;
         }
       });
 
-      if (markedCount > 0) {
-        // Notifier via WebSocket
-        socket?.value?.emit('notification:mark-read-by-thread', { threadId });
-      }
+      // Toujours notifier via WebSocket : le serveur recalcule lui-même
+      // les notifications non lues à partir de la BDD, donc ce n'est pas
+      // conditionné par le cache local de notifications.value.
+      socket?.value?.emit('notification:mark-read-by-thread', { threadId });
     } catch (error) {
       console.error('[Notifications] Failed to mark thread as read:', error);
       // Recharger les notifications pour revertir
@@ -301,21 +314,16 @@ export function useNotification() {
    */
   const markDMAsRead = async (dmUserId: string): Promise<void> => {
     try {
-      let markedCount = 0;
-      // Optimistic update
+      // Optimistic update (best-effort, le cache local peut être vide)
       notifications.value.forEach(n => {
         if (!n.isRead && n.data?.dmUserId === dmUserId) {
           n.isRead = true;
-          markedCount++;
         }
       });
 
-      if (markedCount > 0) {
-        // We can reuse mark-read-by-thread but change the property, 
-        // or just rely on API for now if we don't have a specific socket event.
-        // Let's implement an API call or just a generic socket event for this later if needed.
-        // For now, we do optimistic update, the user will eventually sync.
-      }
+      // Toujours notifier via WebSocket : le serveur recalcule lui-même
+      // les notifications non lues à partir de la BDD.
+      socket?.value?.emit('notification:mark-read-by-dm', { dmUserId });
     } catch (error) {
       console.error('[Notifications] Failed to mark DM as read:', error);
       await loadNotifications();
@@ -450,6 +458,8 @@ export function useNotification() {
         return 'warning';
       case 'INVITATION':
         return 'success';
+      case 'TASK_ASSIGNED':
+        return 'info';
       case 'CUSTOM':
       default:
         return 'info';
@@ -488,6 +498,14 @@ export function useNotification() {
         }
         break;
       case 'CUSTOM':
+        if (notification.data?.route) {
+          router.push(notification.data.route);
+        }
+        break;
+      // EVENT_*/CALENDAR_ACCESS_* (et tout futur type) n'ont pas de route
+      // dédiée codée en dur ici — le backend fournit data.route directement
+      // (voir agendaService.ts / calendarAccessService.ts).
+      default:
         if (notification.data?.route) {
           router.push(notification.data.route);
         }

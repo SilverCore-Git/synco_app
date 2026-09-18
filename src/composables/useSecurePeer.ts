@@ -4,6 +4,7 @@ import type { User } from '@/types/types';
 import { openedOrg } from '@/assets/var';
 import useNotifications from './useNotifications';
 import { keycloak } from '@/assets/keycloak';
+import { generateCallId } from '@/assets/utils/webhookCrypto';
 
 // ============================================================================
 // Configuration
@@ -101,11 +102,23 @@ async function generateECDHKeyPair(): Promise<CryptoKeyPair> {
 }
 
 /**
+ * Derive a per-call HKDF salt from the session's callId (itself a
+ * crypto.getRandomValues-backed identifier, cf. generateCallId()).
+ * Both peers already validate they share the same callId before this
+ * point, so hashing it gives a salt that's unique per call and known
+ * to both sides without an extra round trip on the wire.
+ */
+async function deriveSessionSalt(callId: string): Promise<ArrayBuffer> {
+    return crypto.subtle.digest('SHA-256', new TextEncoder().encode(callId));
+}
+
+/**
  * Derive a shared secret using ECDH
  */
 async function deriveSharedSecret(
     privKey: CryptoKey,
-    peerPublicKeyJWK: string
+    peerPublicKeyJWK: string,
+    callId: string
 ): Promise<CryptoKey> {
     const peerPublicKey = await crypto.subtle.importKey(
         'jwk',
@@ -114,6 +127,8 @@ async function deriveSharedSecret(
         true,
         []
     );
+
+    const salt = await deriveSessionSalt(callId);
 
     const sharedSecret = await crypto.subtle.deriveKey(
         {
@@ -125,7 +140,7 @@ async function deriveSharedSecret(
             name: 'HKDF',
             hash: 'SHA-256',
             info: new TextEncoder().encode('SilverTeams-Call-E2EE-Key'),
-            salt: new Uint8Array(32)
+            salt
         },
         true,
         ['encrypt', 'decrypt']
@@ -328,14 +343,16 @@ export default function useSecurePeer() {
         }
 
         // Validate timestamp (prevent replay attacks - accept messages within last 30 seconds)
-        if (message.timestamp && Math.abs(Date.now() - message.timestamp) > 30000) {
-            console.warn('[SECURE-PEER] Rejecting old key exchange message (possible replay attack)');
+        // Both fields are required: a message missing either one is rejected outright,
+        // rather than skipping the check it would otherwise have failed.
+        if (!message.timestamp || Math.abs(Date.now() - message.timestamp) > 30000) {
+            console.warn('[SECURE-PEER] Rejecting key exchange message with missing/expired timestamp (possible replay attack)');
             return;
         }
 
         // Validate callId matches current session (prevent session confusion)
-        if (message.callId && message.callId !== session.callId) {
-            console.warn('[SECURE-PEER] CallId mismatch, possible session hijacking attempt');
+        if (!message.callId || message.callId !== session.callId) {
+            console.warn('[SECURE-PEER] Rejecting key exchange message with missing/mismatched callId (possible session hijacking attempt)');
             return;
         }
 
@@ -351,7 +368,8 @@ export default function useSecurePeer() {
                         // Derive shared secret
                         const sharedKey = await deriveSharedSecret(
                             sessionPrivateKey.value,
-                            message.publicKeyJWK
+                            message.publicKeyJWK,
+                            session.callId
                         );
                         
                         const keys = callEncryptionKeys.value;
@@ -395,7 +413,8 @@ export default function useSecurePeer() {
                         // Derive shared secret
                         const sharedKey = await deriveSharedSecret(
                             sessionPrivateKey.value,
-                            message.publicKeyJWK
+                            message.publicKeyJWK,
+                            session.callId
                         );
                         
                         const keys = callEncryptionKeys.value;
@@ -441,7 +460,7 @@ export default function useSecurePeer() {
         // Create secure session
         const session: SecureCallSession = {
             call,
-            callId: `${peerId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            callId: `${peerId}-${generateCallId()}`,
             peerId,
             e2eeKey: null,
             e2eeKeyId: Date.now(),
@@ -856,38 +875,6 @@ export default function useSecurePeer() {
         return callSecurityStatus.value.get(peerId) || { encrypted: false, authenticated: false, fingerprint: '' };
     };
 
-    /**
-     * Send encrypted signaling message over data channel
-     */
-    const sendEncryptedSignal = async (peerId: string, message: string): Promise<boolean> => {
-        const session = activeCalls.value.get(peerId);
-        const encryptionKey = callEncryptionKeys.value.get(peerId);
-        
-        if (!session || !encryptionKey) {
-            console.error('[SECURE-PEER] Cannot send encrypted signal: no session or key');
-            return false;
-        }
-
-        try {
-            const encoder = new TextEncoder();
-            const iv = crypto.getRandomValues(new Uint8Array(12));
-            
-            await crypto.subtle.encrypt(
-                { name: 'AES-GCM', iv },
-                encryptionKey,
-                encoder.encode(message)
-            );
-
-            // For now, use the session's data channel if available
-            // This is a simplified implementation
-            console.log('[SECURE-PEER] Encrypted signal prepared for:', peerId);
-            return true;
-        } catch (error) {
-            console.error('[SECURE-PEER] Error encrypting signal:', error);
-            return false;
-        }
-    };
-
     return {
         initPeer,
         startCall,
@@ -915,7 +902,6 @@ export default function useSecurePeer() {
         // Security features
         getCallSecurityStatus,
         verifySecurityFingerprint,
-        callSecurityStatus,
-        sendEncryptedSignal
+        callSecurityStatus
     };
 }

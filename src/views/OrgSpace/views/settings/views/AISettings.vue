@@ -24,15 +24,38 @@
                 <div class="space-y-12" :class="{'opacity-50 pointer-events-none grayscale': !openedOrg?.features?.includes('ai')}">
 
                     <section class="space-y-6">
-                        <h4 class="text-xs font-bold uppercase tracking-widest text-(--text2) mb-4">Fournisseur IA</h4>
-                        
+                        <h4 class="text-xs font-bold uppercase tracking-widest text-(--text2) mb-4">Local / Auto-hébergé</h4>
+
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <label v-for="prov in providers" :key="prov.id" 
+                            <label v-for="prov in localProviders" :key="prov.id"
                                 class="relative flex flex-col p-5 border rounded-2xl cursor-pointer transition-all hover:shadow-md group"
                                 :class="orgData.provider === prov.id ? 'border-(--primary) bg-(--primary)/5 shadow-sm' : 'border-(--border-color) bg-(--bg2) hover:border-(--text)/20'">
-                                
+
                                 <input type="radio" :value="prov.id" v-model="orgData.provider" name="provider" class="sr-only">
-                                
+
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="font-bold text-sm text-(--text)">{{ prov.name }}</span>
+                                    <div class="w-5 h-5 rounded-full border flex items-center justify-center transition-colors"
+                                         :class="orgData.provider === prov.id ? 'border-(--primary) bg-(--primary)' : 'border-(--text)/30 group-hover:border-(--text)/50 bg-transparent'">
+                                        <i v-if="orgData.provider === prov.id" class="bi bi-check text-white text-xs"></i>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-(--text2) leading-relaxed">{{ prov.desc }}</p>
+
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="space-y-6">
+                        <h4 class="text-xs font-bold uppercase tracking-widest text-(--text2) mb-4">Fournisseurs API Cloud</h4>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <label v-for="prov in cloudProviders" :key="prov.id"
+                                class="relative flex flex-col p-5 border rounded-2xl cursor-pointer transition-all hover:shadow-md group"
+                                :class="orgData.provider === prov.id ? 'border-(--primary) bg-(--primary)/5 shadow-sm' : 'border-(--border-color) bg-(--bg2) hover:border-(--text)/20'">
+
+                                <input type="radio" :value="prov.id" v-model="orgData.provider" name="provider" class="sr-only">
+
                                 <div class="flex items-center justify-between mb-3">
                                     <span class="font-bold text-sm text-(--text)">{{ prov.name }}</span>
                                     <div class="w-5 h-5 rounded-full border flex items-center justify-center transition-colors"
@@ -52,8 +75,8 @@
                         
                         <div class="p-8 bg-(--bg2) border border-(--border-color) rounded-2xl shadow-sm space-y-6">
                             
-                            <!-- Clé API -->
-                            <div class="space-y-2">
+                            <!-- Clé API (inutile pour la passerelle auto-hébergée : authentification via le compte Synco) -->
+                            <div class="space-y-2" v-if="orgData.provider !== 'gateway'">
                                 <label class="text-xs font-semibold text-(--text)">Clé API ({{ orgData.provider }})</label>
                                 <div class="relative group">
                                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2) group-focus-within:text-(--primary) transition-colors">
@@ -78,7 +101,7 @@
                                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2) group-focus-within:text-(--primary) transition-colors">
                                         <i class="bi bi-link-45deg"></i>
                                     </div>
-                                    <input 
+                                    <input
                                         v-model="orgData.endpointUrl"
                                         type="text"
                                         class="w-full bg-(--bg) border border-(--border-color) pl-11 pr-4 py-3 text-sm focus:outline-none rounded-xl focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner text-(--text)"
@@ -87,35 +110,75 @@
                                 </div>
                             </div>
 
+                            <!-- Passerelle (Gateway only) : un seul champ — la passerelle sait elle-même où trouver Ollama -->
+                            <div class="space-y-2" v-if="orgData.provider === 'gateway'">
+                                <label class="text-xs font-semibold text-(--text)">URL de votre Synco AI Gateway</label>
+                                <div class="relative group">
+                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2) group-focus-within:text-(--primary) transition-colors">
+                                        <i class="bi bi-hdd-network-fill"></i>
+                                    </div>
+                                    <input
+                                        v-model="orgData.gatewayUrl"
+                                        type="text"
+                                        class="w-full bg-(--bg) border border-(--border-color) pl-11 pr-4 py-3 text-sm focus:outline-none rounded-xl focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner text-(--text)"
+                                        placeholder="https://ia-gateway.mon-organisation.fr"
+                                    />
+                                </div>
+                                <p class="text-[10px] text-(--text2) leading-relaxed">Le navigateur appelle cette passerelle directement (pas notre serveur), avec votre compte Synco pour vous authentifier. Ollama vit à côté (ou dans le même conteneur) de cette passerelle — elle sait déjà où le trouver.</p>
+                            </div>
+
                             <!-- Model ID -->
                             <div class="space-y-2">
                                 <label class="text-xs font-semibold text-(--text)">Modèle à utiliser</label>
-                                <div class="relative group">
+
+                                <div v-if="showModelSelect" class="space-y-2">
+                                    <div class="relative group">
+                                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2) group-focus-within:text-(--primary) transition-colors">
+                                            <i class="bi bi-robot"></i>
+                                        </div>
+                                        <select
+                                            v-model="modelSelection"
+                                            class="w-full bg-(--bg) border border-(--border-color) pl-11 pr-4 py-3 text-sm focus:outline-none rounded-xl focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner text-(--text) appearance-none"
+                                        >
+                                            <option value="" disabled>{{ loadingModels ? 'Chargement des modèles...' : 'Choisir un modèle' }}</option>
+                                            <option v-for="model in availableModelOptions" :key="model" :value="model">{{ model }}</option>
+                                            <option value="__manual__">Autre (saisie manuelle)...</option>
+                                        </select>
+                                    </div>
+                                    <input
+                                        v-if="modelSelection === '__manual__'"
+                                        v-model="orgData.modelId"
+                                        type="text"
+                                        class="w-full bg-(--bg) border border-(--border-color) px-4 py-3 text-sm focus:outline-none rounded-xl focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all font-mono shadow-inner text-(--text)"
+                                        :placeholder="defaultModelPlaceholder"
+                                    />
+                                </div>
+
+                                <div v-else class="relative group">
                                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2) group-focus-within:text-(--primary) transition-colors">
                                         <i class="bi bi-robot"></i>
                                     </div>
-                                    <input 
+                                    <input
                                         v-model="orgData.modelId"
                                         type="text"
                                         class="w-full bg-(--bg) border border-(--border-color) pl-11 pr-4 py-3 text-sm focus:outline-none rounded-xl focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all font-mono shadow-inner text-(--text)"
                                         :placeholder="defaultModelPlaceholder"
                                     />
                                 </div>
-                                <div class="flex gap-2 mt-3 flex-wrap" v-if="recommendedModels.length > 0">
-                                    <button 
-                                        v-for="model in recommendedModels" 
-                                        :key="model"
-                                        @click="orgData.modelId = model"
-                                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm"
-                                        :class="orgData.modelId === model ? 'primary' : 'border border-(--border-color) bg-(--bg3) text-(--text2) hover:bg-(--bg)'"
-                                    >
-                                        {{ model }}
-                                    </button>
-                                </div>
+
+                                <p v-if="orgData.provider === 'gateway' && loadingModels" class="text-xs text-(--text2)">
+                                    <i class="bi bi-arrow-repeat animate-spin mr-1"></i> Récupération des modèles disponibles sur Ollama...
+                                </p>
+                                <p v-else-if="orgData.provider === 'gateway' && modelsError" class="text-xs text-red-400">
+                                    {{ modelsError }}
+                                </p>
+                                <p v-else-if="orgData.provider === 'gateway' && !orgData.gatewayUrl" class="text-xs text-(--text2)">
+                                    Renseignez l'URL de votre passerelle ci-dessus pour lister les modèles déjà téléchargés sur Ollama.
+                                </p>
                             </div>
 
                             <!-- Cloud Warning -->
-                            <div v-if="orgData.provider !== 'local' && orgData.provider !== 'custom'" class="bg-orange-500/5 border border-orange-500/20 p-5 rounded-xl mt-6 flex flex-col gap-4">
+                            <div v-if="orgData.provider !== 'local' && orgData.provider !== 'custom' && orgData.provider !== 'gateway'" class="bg-orange-500/5 border border-orange-500/20 p-5 rounded-xl mt-6 flex flex-col gap-4">
                                 <div class="flex items-start gap-3">
                                     <div class="w-8 h-8 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center shrink-0">
                                         <i class="bi bi-exclamation-triangle-fill"></i>
@@ -155,9 +218,9 @@
                     class="primary px-6 py-2.5 rounded-xl text-sm font-medium" 
                     :class="[
                         saving ? 'loader' : '',
-                        orgData.provider !== 'local' && orgData.provider !== 'custom' && !acceptCloudWarning ? 'opacity-50 grayscale-100 pointer-events-none' : ''
+                        orgData.provider !== 'local' && orgData.provider !== 'custom' && orgData.provider !== 'gateway' && !acceptCloudWarning ? 'opacity-50 grayscale-100 pointer-events-none' : ''
                     ]"
-                    :disabled="orgData.provider !== 'local' && orgData.provider !== 'custom' && !acceptCloudWarning"
+                    :disabled="orgData.provider !== 'local' && orgData.provider !== 'custom' && orgData.provider !== 'gateway' && !acceptCloudWarning"
                 >
                     Enregistrer les modifications
                 </button>
@@ -194,6 +257,8 @@ import Popup from '@/components/Popup.vue';
 import { openedOrg, organizations } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
+import { listGatewayModels } from '@/services/AIService';
+import { ensureAiSessionKey } from '@/services/AiSessionKeyService';
 
 
 const toast = useToast();
@@ -204,12 +269,16 @@ const acceptCloudWarning = ref<boolean>(false);
 const showLearnMorePopup = ref<boolean>(false);
 
 const providers = [
-    { id: 'local', name: 'WebGPU (Local Browser)', desc: 'Exécuté sur la carte graphique de l\'utilisateur. Gratuit, 100% privé, mais dépend des performances de chaque machine.' },
-    { id: 'custom', name: 'Serveur Client (Custom API)', desc: 'Votre propre serveur local ou distant avec une API compatible OpenAI (Ollama, vLLM, etc.).' },
-    { id: 'openai', name: 'OpenAI', desc: 'Modèles Cloud de pointe (GPT-4o, GPT-4o-mini).' },
-    { id: 'gemini', name: 'Google Gemini', desc: 'Modèles très rapides et puissants (1.5 Pro, Flash).' },
-    { id: 'mistral', name: 'Mistral AI', desc: 'Modèles souverains européens (Mistral Large, Pixtral).' },
+    { id: 'local', name: 'WebGPU (Local Browser)', desc: 'Exécuté sur la carte graphique de l\'utilisateur. Gratuit, 100% privé, mais dépend des performances de chaque machine.', category: 'local' },
+    { id: 'custom', name: 'Serveur Client (Custom API)', desc: 'Votre propre serveur local ou distant avec une API compatible OpenAI (Ollama, vLLM, etc.).', category: 'local' },
+    { id: 'gateway', name: 'Passerelle Synco AI (auto-hébergée)', desc: 'Votre propre Synco AI Gateway devant un Ollama que vous contrôlez : vrais outils IA, authentification via votre compte Synco, aucune clé à distribuer.', category: 'local' },
+    { id: 'openai', name: 'OpenAI', desc: 'Modèles Cloud de pointe (GPT-4o, GPT-4o-mini).', category: 'cloud' },
+    { id: 'gemini', name: 'Google Gemini', desc: 'Modèles très rapides et puissants (1.5 Pro, Flash).', category: 'cloud' },
+    { id: 'mistral', name: 'Mistral AI', desc: 'Modèles souverains européens (Mistral Large, Pixtral).', category: 'cloud' },
 ];
+
+const localProviders = computed(() => providers.filter(p => p.category === 'local'));
+const cloudProviders = computed(() => providers.filter(p => p.category === 'cloud'));
 
 const getAiConfig = () => {
     const config = openedOrg.value?.activeModules?.aiConfig || {};
@@ -218,6 +287,7 @@ const getAiConfig = () => {
         apiKey: '', // API key is never populated from backend
         hasApiKey: config.hasApiKey || false,
         endpointUrl: config.endpointUrl || '',
+        gatewayUrl: config.gatewayUrl || '',
         modelId: config.modelId || ''
     };
 };
@@ -230,6 +300,7 @@ const hasChanges = computed(() => {
         orgData.value.provider !== initial.provider ||
         (orgData.value.apiKey || '') !== '' ||
         orgData.value.endpointUrl !== initial.endpointUrl ||
+        orgData.value.gatewayUrl !== initial.gatewayUrl ||
         orgData.value.modelId !== initial.modelId
     );
 });
@@ -242,10 +313,70 @@ const defaultModelPlaceholder = computed(() => {
 });
 
 const recommendedModels = computed(() => {
-    if (orgData.value.provider === 'openai') return ['gpt-4o-mini', 'gpt-4o'];
-    if (orgData.value.provider === 'gemini') return ['gemini-1.5-flash', 'gemini-1.5-pro'];
-    if (orgData.value.provider === 'mistral') return ['pixtral-12b-2409', 'mistral-large-latest'];
+    if (orgData.value.provider === 'openai') return ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1', 'o3-mini'];
+    if (orgData.value.provider === 'gemini') return ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash'];
+    if (orgData.value.provider === 'mistral') return ['pixtral-12b-2409', 'mistral-large-latest', 'mistral-small-latest'];
     return [];
+});
+
+// Modèles réellement disponibles sur l'Ollama de l'org (provider 'gateway'), récupérés en
+// direct via la passerelle dès que son URL est renseignée — c'est elle qui sait où trouver
+// Ollama (OLLAMA_URL, une config de déploiement de la passerelle, pas des paramètres Synco).
+const ollamaModels = ref<string[]>([]);
+const loadingModels = ref(false);
+const modelsError = ref('');
+let modelsFetchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+const fetchOllamaModels = async () => {
+    if (orgData.value.provider !== 'gateway' || !orgData.value.gatewayUrl) {
+        ollamaModels.value = [];
+        return;
+    }
+    loadingModels.value = true;
+    modelsError.value = '';
+    try {
+        ollamaModels.value = await listGatewayModels(orgData.value.gatewayUrl);
+        if (ollamaModels.value.length === 0) {
+            modelsError.value = "Aucun modèle trouvé sur cet Ollama — pensez à en télécharger un (ollama pull).";
+        }
+    } catch (e: any) {
+        ollamaModels.value = [];
+        modelsError.value = e.message || 'Impossible de récupérer la liste des modèles.';
+    } finally {
+        loadingModels.value = false;
+    }
+};
+
+watch([() => orgData.value.provider, () => orgData.value.gatewayUrl], () => {
+    if (modelsFetchTimeout) clearTimeout(modelsFetchTimeout);
+    modelsFetchTimeout = setTimeout(fetchOllamaModels, 500);
+}, { immediate: true });
+
+const availableModelOptions = computed(() => {
+    if (orgData.value.provider === 'gateway') return ollamaModels.value;
+    if (['openai', 'gemini', 'mistral'].includes(orgData.value.provider)) return recommendedModels.value;
+    return [];
+});
+
+const showModelSelect = computed(() => availableModelOptions.value.length > 0 || (orgData.value.provider === 'gateway' && loadingModels.value));
+
+// Select lié à orgData.modelId : reflète l'option en cours si elle fait partie de la liste,
+// bascule sur "saisie manuelle" sinon (garde une valeur déjà configurée qui ne serait plus
+// dans la liste, ex. un modèle retiré d'Ollama ou un ancien choix hors liste curatée).
+const modelSelection = computed<string>({
+    get() {
+        if (orgData.value.modelId && availableModelOptions.value.includes(orgData.value.modelId)) {
+            return orgData.value.modelId;
+        }
+        return orgData.value.modelId ? '__manual__' : '';
+    },
+    set(value: string) {
+        if (value !== '__manual__') {
+            orgData.value.modelId = value;
+        } else if (availableModelOptions.value.includes(orgData.value.modelId)) {
+            orgData.value.modelId = '';
+        }
+    }
 });
 
 const resetChanges = () => {
@@ -259,27 +390,44 @@ const saveSettings = async () => {
 
     // Validation
     if (orgData.value.provider !== 'local') {
-        if (!orgData.value.apiKey && !orgData.value.hasApiKey && orgData.value.provider !== 'custom') { 
+        if (!orgData.value.apiKey && !orgData.value.hasApiKey && orgData.value.provider !== 'custom' && orgData.value.provider !== 'gateway') {
             return toast.show('Veuillez entrer une clé API pour ce fournisseur.', 'error');
         }
         if (orgData.value.provider === 'custom' && !orgData.value.endpointUrl) {
             return toast.show('Veuillez entrer l\'URL de l\'endpoint pour le serveur custom.', 'error');
         }
+        if (orgData.value.provider === 'gateway' && !orgData.value.gatewayUrl) {
+            return toast.show('Veuillez entrer l\'URL de votre Synco AI Gateway.', 'error');
+        }
         if (!orgData.value.modelId) {
             return toast.show('Veuillez indiquer l\'ID du modèle à utiliser.', 'error');
         }
-        if (orgData.value.provider !== 'custom' && !acceptCloudWarning.value) {
+        if (orgData.value.provider !== 'custom' && orgData.value.provider !== 'gateway' && !acceptCloudWarning.value) {
             return toast.show('Vous devez accepter les conditions d\'utilisation des services cloud externes.', 'error');
         }
     }
 
     saving.value = true;
 
+    // Provisionne (ou récupère) la clé de session IA chiffrée AVANT d'activer le provider 'gateway' —
+    // sans ça, un membre pourrait se retrouver avec provider='gateway' mais aucune clé, et son premier
+    // chat échouerait silencieusement (cf. E2EE_PLAN.md §6). Idempotent : ne fait rien de coûteux si la
+    // clé existe déjà pour cette org.
+    if (orgData.value.provider === 'gateway') {
+        try {
+            await ensureAiSessionKey(openedOrg.value!.id);
+        } catch (keyErr: any) {
+            toast.show(keyErr?.message || "Impossible de provisionner la clé de session IA chiffrée pour cette organisation.", 'error');
+            saving.value = false;
+            return;
+        }
+    }
 
     try {
         const aiConfigPayload: any = {
             provider: orgData.value.provider,
             endpointUrl: orgData.value.endpointUrl,
+            gatewayUrl: orgData.value.gatewayUrl,
             modelId: orgData.value.modelId
         };
 
@@ -331,6 +479,7 @@ watch(() => orgData.value.provider, (newProv, oldProv) => {
         else if (newProv === 'mistral' && (!orgData.value.modelId || !orgData.value.modelId.includes('istral'))) orgData.value.modelId = 'pixtral-12b-2409';
         
         if (newProv !== 'custom') orgData.value.endpointUrl = '';
+        if (newProv !== 'gateway') orgData.value.gatewayUrl = '';
     }
 });
 

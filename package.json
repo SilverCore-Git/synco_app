@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 5174",
-    "build": "vue-tsc -b && vite build",
+    "build": "node ./node_modules/vue-tsc/bin/vue-tsc.js -b && vite build",
     "preview": "vite preview",
     "download-models": "node scripts/download_ai_models.js",
     "tauri:dev": "node scripts/tauri-run.js dev",

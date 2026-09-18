@@ -5,7 +5,7 @@
         <MentionsList
             :is-open="showMentions"
             :search-query="mentionQuery"
-            :users="mockWorkspaceUsers"
+            :users="mentionableUsers"
             :active-index="activeMentionIndex"
             @select="insertMention"
         />
@@ -36,6 +36,7 @@
 
 import { openedOrg } from '@/assets/var';
 import MentionsList from '@/components/common/MentionsList.vue';
+import { buildMentionableList, MENTION_QUERY_REGEX, type MentionEntry } from '@/composables/useMentions';
 import { ref, watch, nextTick, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 
@@ -49,6 +50,7 @@ const emit = defineEmits<{
     (e: 'update:modelValue', value: string): void;
     (e: 'send', value: string): void;
     (e: 'input'): void;
+    (e: 'edit-last'): void;
 }>();
 
 const route = useRoute();
@@ -60,33 +62,36 @@ const mentionQuery = ref<string>('');
 const activeMentionIndex = ref<number>(0);
 const startMentionIndex = ref<number>(-1);
 
-const mockWorkspaceUsers = ref<{ id: string; name: string; pseudo?: string }[]>(openedOrg.value?.members?.map(m => ({ id: m.userId, name: m.user!.name, pseudo: m.user!.pseudo })) || []);
+const mentionableUsers = ref<MentionEntry[]>(buildMentionableList(openedOrg.value?.members));
 
-watch(() => props.modelValue, (text) => {
+watch(() => openedOrg.value?.members, (members) => {
+    mentionableUsers.value = buildMentionableList(members);
+});
+
+const updateMentionState = (text: string, selectionStart: number) => {
 
     if (text === '') {
         showMentions.value = false;
         return;
     }
 
-    const selectionStart = textareaRef.value?.selectionStart || 0;
     const textBeforeCursor = text.slice(0, selectionStart);
-    const mentionMatch = textBeforeCursor.match(/(?:^|\s)@([a-zA-Z0-9_\-\.]*)$/);
+    const mentionMatch = textBeforeCursor.match(MENTION_QUERY_REGEX);
 
-    if (mentionMatch) 
+    if (mentionMatch)
     {
         showMentions.value = true;
         mentionQuery.value = mentionMatch[1] || '';
         startMentionIndex.value = textBeforeCursor.lastIndexOf('@');
-    } 
-    else 
+    }
+    else
     {
         showMentions.value = false;
     }
 
-});
+};
 
-const insertMention = (user: { id: string; name: string; pseudo?: string }) => {
+const insertMention = (user: MentionEntry) => {
 
     if (startMentionIndex.value === -1) return;
 
@@ -109,11 +114,16 @@ const insertMention = (user: { id: string; name: string; pseudo?: string }) => {
 };
 
 const handleKeydown = (e: KeyboardEvent) => {
-    
+
+    if (e.key === 'ArrowUp' && !showMentions.value && props.modelValue === '') {
+        emit('edit-last');
+        return;
+    }
+
     if (!showMentions.value) return;
 
     const query = mentionQuery.value?.toLowerCase() || '';
-    const filtered = mockWorkspaceUsers.value.filter(u => 
+    const filtered = mentionableUsers.value.filter(u =>
         u.name.toLowerCase().includes(query) || (u.pseudo && u.pseudo.toLowerCase().includes(query))
     );
 
@@ -161,6 +171,7 @@ const onInput = (event: Event) => {
     emit('update:modelValue', target.value);
     emit('input');
     adjustHeight();
+    updateMentionState(target.value, target.selectionStart ?? target.value.length);
 };
 
 const handleEnter = (event: KeyboardEvent) => {
@@ -177,8 +188,9 @@ const handleEnter = (event: KeyboardEvent) => {
 };
 
 watch(() => props.modelValue, (newVal) => {
-    if (newVal === '') 
+    if (newVal === '')
     {
+        showMentions.value = false;
         nextTick(() => {
             if (textareaRef.value) {
                 textareaRef.value.style.height = 'auto';
@@ -189,6 +201,7 @@ watch(() => props.modelValue, (newVal) => {
 });
 
 watch(() => route.params.threadId, async () => {
+    showMentions.value = false;
     await nextTick();
     textareaRef.value?.focus();
 });

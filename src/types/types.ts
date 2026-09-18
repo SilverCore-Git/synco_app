@@ -1,5 +1,9 @@
 export type ThreadType = 'text' | 'vocal';
-export type NotificationType = 'MESSAGE' | 'CALL' | 'MENTION' | 'INVITATION' | 'CUSTOM';
+export type NotificationType =
+  | 'MESSAGE' | 'CALL' | 'MENTION' | 'INVITATION' | 'CUSTOM' | 'TASK_ASSIGNED'
+  | 'EVENT_INVITE' | 'EVENT_RSVP' | 'EVENT_REMINDER'
+  | 'CALENDAR_ACCESS_REQUEST' | 'CALENDAR_ACCESS_INVITE'
+  | 'CALENDAR_ACCESS_GRANTED' | 'CALENDAR_ACCESS_DECLINED' | 'CALENDAR_ACCESS_REVOKED';
 // export type UserStatus = 'online' | 'dnd' | 'idle' | 'offline';
 
 export interface StoredFile {
@@ -100,6 +104,8 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   pseudo?: string;
   avatarUrl?: string;
   job?: string;
@@ -194,6 +200,12 @@ export interface DMMessage {
 
     replyMessage?: DMMessage | null;
     replies?: DMMessage[];
+
+    type?: 'text' | 'voice_invite';
+    voiceInviteThreadId?: string | null;
+    voiceInviteOrgId?: string | null;
+    voiceInviteSpaceId?: string | null;
+    voiceInviteThreadName?: string | null;
 }
 
 export interface OrgMember {
@@ -250,6 +262,40 @@ export interface TodoList {
   updatedAt: string | Date;
 }
 
+export interface Tag {
+  id: string;
+  name: string;
+  color: string;
+  creatorId: string;
+}
+
+// Métadonnées légères d'une image attachée à une tâche — les champs E2EE
+// complets sont récupérés à la demande via GET /api/cdn/meta/:id (comme
+// FileCard.vue le fait déjà) plutôt que dupliqués dans la charge de la tâche.
+export interface TaskAttachment {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  createdAt: string | Date;
+}
+
+// Fichier du gestionnaire de fichiers référencé par une tâche — le lien ne
+// possède pas le fichier, le retirer ne le supprime jamais (voir TaskAttachment
+// ci-dessus pour les images possédées par la tâche).
+export interface TaskLinkedFile {
+  id: string; // id du lien (TaskFileLink), pas du fichier
+  taskId: string;
+  fileId: string;
+  file: {
+    id: string;
+    originalName: string;
+    mimeType: string;
+    size: number;
+    folderId?: string | null;
+  };
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -257,6 +303,8 @@ export interface Task {
   status: 'TODO' | 'IN_PROGRESS' | 'DONE';
   statusChangedAt?: string | Date;
   dueDate?: string | Date | null;
+  archived?: boolean;
+  archivedAt?: string | Date | null;
   assignees?: User[];
   creatorId: string;
   creator?: User;
@@ -266,11 +314,16 @@ export interface Task {
   space?: WorkSpace | null;
   organizationId: string;
   organization?: Org;
-  
+
   parentTaskId?: string | null;
   parentTask?: Task | null;
   subtasks?: Task[];
-  
+
+  tags?: Tag[];
+  attachments?: TaskAttachment[];
+  linkedFiles?: TaskLinkedFile[];
+  _count?: { attachments?: number };
+
   createdAt: string | Date;
   updatedAt: string | Date;
 }

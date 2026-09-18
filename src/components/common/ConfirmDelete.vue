@@ -16,25 +16,54 @@
                         <div class="flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
                             <i class="bi bi-exclamation-triangle text-2xl" />
                         </div>
-                        <h3 class="text-xl font-bold text-(--text)">Supprimer {{ itemType }} ?</h3>
+                        <h3 class="text-xl font-bold text-(--text)">{{ title || `Supprimer ${itemType} ?` }}</h3>
                     </div>
 
                     <p class="text-(--text) text-sm leading-relaxed mb-6">
-                        Êtes-vous sûr de vouloir supprimer <strong>{{ itemName }}</strong> ? 
-                        Cette action est irréversible et toutes les données associées seront perdues.
+                        <template v-if="message">{{ message }}</template>
+                        <template v-else>
+                            Êtes-vous sûr de vouloir supprimer <strong>{{ itemName }}</strong> ?
+                            Cette action est irréversible et toutes les données associées seront perdues.
+                        </template>
                     </p>
 
-                    <label 
+                    <div
+                        v-if="extraWarning"
+                        class="flex items-start gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 mb-6"
+                    >
+                        <i class="bi bi-exclamation-triangle-fill text-amber-500 mt-0.5 shrink-0" />
+                        <span class="text-xs text-amber-500 leading-snug">
+                            {{ extraWarning }}
+                        </span>
+                    </div>
+
+                    <label
                         v-if="checkbox"
                         class="flex items-start gap-3 p-3 rounded-lg bg-red-500/5 border border-red-500/10 cursor-pointer group mb-4"
                     >
-                        <input 
-                            v-model="acknowledge" 
-                            type="checkbox" 
+                        <input
+                            v-model="acknowledge"
+                            type="checkbox"
                             class="mt-1 accent-red-500 h-4 w-4"
                         />
                         <span class="text-xs text-(--text) leading-snug select-none">
                             Je comprends que cette action supprimera définitivement toutes les données liées à ce contenu.
+                        </span>
+                    </label>
+
+                    <!-- Choix secondaire optionnel (ex: "Supprimer aussi les fichiers liés ?") -->
+                    <label
+                        v-if="extraOptionLabel"
+                        class="flex items-start gap-3 p-3 rounded-lg bg-(--text)/5 border border-(--border-color) cursor-pointer group mb-4"
+                    >
+                        <input
+                            :checked="extraOptionValue"
+                            @change="emit('update:extraOptionValue', ($event.target as HTMLInputElement).checked)"
+                            type="checkbox"
+                            class="mt-1 accent-red-500 h-4 w-4"
+                        />
+                        <span class="text-xs text-(--text) leading-snug select-none">
+                            {{ extraOptionLabel }}
                         </span>
                     </label>
 
@@ -98,7 +127,12 @@ const props = defineProps<{
   checkbox?: boolean;
   checktext?: boolean;
   itemType?: string; // ex: "le salon", "le workspace"
+  title?: string; // surcharge le titre par défaut "Supprimer {itemType} ?"
+  message?: string; // surcharge le texte par défaut (utile pour une action non destructive)
   loading?: boolean;
+  extraWarning?: string; // avertissement complémentaire affiché en encart ambre
+  extraOptionLabel?: string; // libellé d'une case à cocher optionnelle (ex: "Supprimer aussi les fichiers liés")
+  extraOptionValue?: boolean; // valeur (v-model) de cette case
 }>();
 
 const acknowledge = ref<boolean>(false);
@@ -118,7 +152,7 @@ const submitDisabled = computed<boolean>(() => {
 
 });
 
-const emit = defineEmits(['confirm', 'cancel']);
+const emit = defineEmits(['confirm', 'cancel', 'update:extraOptionValue']);
 
 const handleEsc = (e: KeyboardEvent) => {
   if (e.key === 'Escape') emit('cancel');

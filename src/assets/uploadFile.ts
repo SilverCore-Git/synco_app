@@ -4,10 +4,11 @@ import { encryptFileLocal } from "./utils/crypto";
 import { getWorkspaceKey } from "./utils/workspaceCrypto";
 
 export interface UploadContext {
-    workspaceId: string;
+    workspaceId?: string;
     messageId?: string;
     folderId?: string;
     dmMessageId?: string;
+    taskId?: string;
 }
 
 export default async function uploadFile(
@@ -58,10 +59,11 @@ export default async function uploadFile(
         formData.append('file', finalFile);
 
         formData.append('orgId', openedOrg.value!.id);
-        formData.append('workspaceId', context.workspaceId);
+        if (context.workspaceId) formData.append('workspaceId', context.workspaceId);
         if (context.messageId) formData.append('messageId', context.messageId);
         if (context.folderId) formData.append('folderId', context.folderId);
         if (context.dmMessageId) formData.append('dmMessageId', context.dmMessageId);
+        if (context.taskId) formData.append('taskId', context.taskId);
 
         if (isE2EE) {
             formData.append('isE2EE', 'true');

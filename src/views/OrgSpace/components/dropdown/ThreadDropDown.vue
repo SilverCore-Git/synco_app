@@ -20,6 +20,7 @@ const router = useRouter();
 const isModalOpen = ref<boolean>(false);
 const isDeleting = ref<boolean>(false);
 const showUpdateSpace = ref<boolean>(false);
+const deleteFilesToo = ref<boolean>(false);
 const isHome = computed(()=> route.name == 'OrgHome' || route.name == 'OrgThreadHome');
 
 
@@ -29,6 +30,7 @@ const currentWorkspace = computed(() => {
 });
 
 const openConfirmModal = () => {
+    deleteFilesToo.value = false;
     isModalOpen.value = true;
 }
 
@@ -36,7 +38,7 @@ const handleDelete = async () => {
 
     isDeleting.value = true;
 
-    const res = await sfetch(`/api/spaces/${currentWorkspace.value?.id}`, {
+    const res = await sfetch(`/api/spaces/${currentWorkspace.value?.id}?deleteFiles=${deleteFilesToo.value}`, {
         method: 'DELETE'
     });
 
@@ -119,6 +121,9 @@ const handleDelete = async () => {
         item-type="le workspace"
         :item-name="currentWorkspace.name"
         :loading="isDeleting"
+        extra-option-label="Supprimer aussi les fichiers et dossiers liés dans le gestionnaire de fichiers"
+        :extra-option-value="deleteFilesToo"
+        @update:extra-option-value="deleteFilesToo = $event"
         @cancel="isModalOpen = false"
         @confirm="handleDelete"
     />

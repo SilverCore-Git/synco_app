@@ -4,7 +4,7 @@
                     :key="msg.id" 
                     class="group relative px-4 flex flex-col justify-start items-start rounded-lg transition-colors w-full"
                     :class="[
-                        isStacked ? 'py-0.5 mt-0' : 'py-2 mt-2',
+                        isStacked ? 'py-0 mt-0' : 'py-2 mt-2',
                         selectedMessage == msg.id ? ' border border-(--primary) border-dashed animate-pulse' : '',
                         user?.id == msg.replyMessage?.senderId || isTagMe
                             ? 'border-l-2 border-(--primary-dark) bg-(--primary-dark)/30 hover:bg-(--primary-dark)/50' 
@@ -33,14 +33,14 @@
                         </span>
 
                         <div class="max-w-md opacity-70 pointer-events-none text-[11px] line-clamp-1 [&_p]:inline [&_h1]:inline [&_h2]:inline [&_h3]:inline">
-                            <MarkdownRender :content="msg.content" />
+                            <MarkdownRender :content="msg.replyMessage?.content || ''" />
                         </div>
 
                     </div>
 
-                    <div 
+                    <div
                         class="
-                            absolute -top-5 right-3 sdropdown 
+                            absolute -top-5 right-3 sdropdown
                             flex-raw items-start z-80
                             rounded-xl border border-(--text)/10
                             bg-(--bg) shadow-xl ring-1 ring-white/5 focus:outline-none
@@ -87,7 +87,7 @@
                     
                     <!-- Emoji reaction picker dropdown - REMOVED: using MessageReactions component instead -->
 
-                    <div class="z-20 flex justify-start items-start gap-3">
+                    <div class="z-20 flex justify-start items-start gap-3 min-w-0 w-full">
 
                         <img 
                             v-if="msg.isWebhook && !isStacked"
@@ -140,7 +140,21 @@
 
                             </div>
 
-                            <div ref="messageContentRef" class="text-(--text) text-sm leading-relaxed wrap-break-word">
+                            <div v-if="isEditing" class="w-full">
+                                <textarea
+                                    ref="editTextareaRef"
+                                    v-model="editContent"
+                                    rows="1"
+                                    class="w-full bg-(--bg) border border-(--primary)/60 rounded-lg px-2 py-1.5 text-sm text-(--text) outline-none resize-none focus:border-(--primary)"
+                                    @keydown.enter.exact.prevent="saveEdit"
+                                    @keydown.esc.prevent="cancelEdit"
+                                    @input="autoResizeEdit"
+                                />
+                                <p class="text-[10px] text-(--text2) mt-1">
+                                    échap pour annuler • entrée pour enregistrer
+                                </p>
+                            </div>
+                            <div v-else ref="messageContentRef" @click="onMessageContentClick" class="text-(--text) text-sm leading-relaxed wrap-break-word">
                                 <MarkdownRender :content="msg.content" />
                                 <WebhookEmbed v-if="msg.isWebhook && msg.embeds && msg.embeds.length > 0" :embeds="msg.embeds" />
                                 <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
@@ -170,22 +184,22 @@
                                     v-for="file in msg.files" 
                                     :key="file.id"
                                     class="
-                                        group/file relative flex items-center gap-3 p-2 
-                                        rounded-lg border border-(--text)/10 
-                                        bg-white/3 hover:bg-white/5 transition-all 
-                                        max-w-sm overflow-hidden
+                                        group/file relative flex items-center gap-3 p-2
+                                        rounded-lg border border-(--text)/10
+                                        bg-white/3 hover:bg-white/5 transition-all
+                                        max-w-full sm:max-w-sm min-w-0 overflow-hidden
                                     "
                                     :title="file.originalName"
                                 >
-                                
+
                                     <div class="w-10 h-10 shrink-0 flex items-center justify-center rounded bg-(--bg) border border-(--text)/5">
 
                                         <i class="bi text-xl" :class="[ getFileInfo(file as any).color, getFileInfo(file as any).icon ]" />
 
                                     </div>
 
-                                    <div class="flex flex-col min-w-0 pr-2">
-                                        <span class="text-xs font-medium text-(--text) truncate">
+                                    <div class="flex flex-col min-w-0 flex-1 pr-2">
+                                        <span class="text-xs font-medium text-(--text) truncate min-w-0">
                                             {{ file.originalName }}
                                         </span>
                                         <span class="text-[10px] text-(--text2) uppercase tracking-wider">
@@ -219,12 +233,6 @@
             @cancel="showDeleteConfirm = false"
         />
 
-        <EditMessage 
-            :is-open="showEditMessage" 
-            :initial-content="msg.content"
-            @close="showEditMessage = false"
-            @save="editMessage"
-        />
 
 </template>
 
@@ -234,18 +242,18 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
 import useWSocket from '@/composables/useWSocket';
-import EditMessage from '../popup/EditMessage.vue';
 import MessageReactions from '@/components/common/MessageReactions.vue';
 import type { Message } from '@/types/types';
 import { downloadFile } from '@/assets/utils/downloadFile';
 import { encryptMessageWithContentKey } from '@/assets/utils/crypto';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import { useRoute, useRouter } from 'vue-router';
-import { user, member } from '@/assets/var';
+import { user, member, openedOrg } from '@/assets/var';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useToast } from '@/composables/useToast';
 import { openProfile } from '@/composables/useProfile';
 import WebhookEmbed from './WebhookEmbed.vue';
+import { buildMentionLookup, renderMentions, handleMentionClick, isUserMentioned } from '@/composables/useMentions';
 
 const toast = useToast();
 const showReactionPicker = ref<boolean>(false);
@@ -258,6 +266,12 @@ const props = defineProps<{
     currentThreadKey?: CryptoKey | null;
     isReadOnly?: boolean;
     isStacked?: boolean;
+    isEditing?: boolean;
+}>();
+
+const emit = defineEmits<{
+    (e: 'edit-start'): void;
+    (e: 'edit-end'): void;
 }>();
 
 interface DropdownBtn {
@@ -278,8 +292,8 @@ const dropdownBtns: DropdownBtn[] = [
     {
         icon: "bi-pencil-fill",
         tooltip: "modifier",
-        func: () => openEditMessage(),
-        show: () => true
+        func: () => startEdit(),
+        show: (msg: Message) => msg.senderId == user.value?.id
     },
     {
         icon: "bi-arrow-90deg-left",
@@ -340,18 +354,31 @@ onUnmounted(async () => {
 
 const showPlusDropdown = ref<boolean>(false);
 const showDeleteConfirm = ref<boolean>(false);
-const showEditMessage = ref<boolean>(false);
 const messageContentRef = ref<HTMLElement | null>(null);
+const editContent = ref<string>('');
+const editTextareaRef = ref<HTMLTextAreaElement | null>(null);
 
+const autoResizeEdit = () => {
+    const el = editTextareaRef.value;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 300)}px`;
+};
 
-const isTagMe = computed(() => {
-
-    if (!props.msg.content || !user.value) return false;
-    
-    const regex = new RegExp(`@${user.value.name}\\b`, 'i');
-    return regex.test(props.msg.content);
-
+watch(() => props.isEditing, (editing) => {
+    if (!editing) return;
+    editContent.value = props.msg.content;
+    nextTick(() => {
+        editTextareaRef.value?.focus();
+        editTextareaRef.value?.select();
+        autoResizeEdit();
+    });
 });
+
+
+const mentionLookup = computed(() => buildMentionLookup(openedOrg.value?.members));
+
+const isTagMe = computed(() => isUserMentioned(props.msg.content, user.value, mentionLookup.value));
 
 const handleAddReaction = async (payload: { messageId: string; emoji: string; isDM: boolean }) => {
    
@@ -375,43 +402,12 @@ const handleAddReaction = async (payload: { messageId: string; emoji: string; is
 };
 
 const applyMentions = () => {
-
     if (!messageContentRef.value) return;
-    
-    const walker = document.createTreeWalker(
-        messageContentRef.value, 
-        NodeFilter.SHOW_TEXT, 
-        {
-            acceptNode: (node) => {
-                if (node.parentElement?.classList.contains('mention-tag')) {
-                    return NodeFilter.FILTER_REJECT;
-                }
-                return NodeFilter.FILTER_ACCEPT;
-            }
-        }
-    );
-    
-    let node;
-    const nodesToReplace: { oldNode: ChildNode, newNode: HTMLElement }[] = [];
-    
-    while (node = walker.nextNode())
-    {
-        const text = node.textContent || '';
-        if (text.includes('@')) 
-        {
-            const span = document.createElement('span');
-            span.innerHTML = text.replace(
-                /@(\w+)/g, 
-                '<span class="mention-tag">@$1</span>'
-            );
-            nodesToReplace.push({ oldNode: node as any, newNode: span });
-        }
-    }
+    renderMentions(messageContentRef.value, mentionLookup.value);
+};
 
-    nodesToReplace.forEach(({ oldNode, newNode }) => {
-        oldNode.parentNode?.replaceChild(newNode, oldNode);
-    });
-
+const onMessageContentClick = (event: MouseEvent) => {
+    handleMentionClick(event, mentionLookup.value, (mentionedUser, e) => openProfile(mentionedUser, e));
 };
 
 watch(() => props.msg.content, async () => {
@@ -442,9 +438,13 @@ const openDeleteConfirm = () => {
     showDeleteConfirm.value = true;
 };
 
-const openEditMessage = () => {
+const startEdit = () => {
     showPlusDropdown.value = false;
-    showEditMessage.value = true;
+    emit('edit-start');
+}
+
+const cancelEdit = () => {
+    emit('edit-end');
 }
 
 const deleteMessage = async () => {
@@ -453,9 +453,15 @@ const deleteMessage = async () => {
     showDeleteConfirm.value = false;
 };
 
-const editMessage = async (newContent: string) => {
+const saveEdit = async () => {
 
-    const { ciphertext, iv } = await encryptMessageWithContentKey(newContent, props.currentThreadKey!);
+    const content = editContent.value.trim();
+    if (!content || content === props.msg.content) {
+        emit('edit-end');
+        return;
+    }
+
+    const { ciphertext, iv } = await encryptMessageWithContentKey(content, props.currentThreadKey!);
 
     const socket = await useWSocket();
 
@@ -464,6 +470,8 @@ const editMessage = async (newContent: string) => {
         content: ciphertext,
         iv: iv
     });
+
+    emit('edit-end');
 
 };
 
@@ -486,6 +494,12 @@ const editMessage = async (newContent: string) => {
 
 :deep(.mention-tag:hover) {
     filter: brightness(1.2);
+}
+
+:deep(.mention-tag[data-mention-kind="everyone"]),
+:deep(.mention-tag[data-mention-kind="here"]) {
+    background-color: color-mix(in srgb, orange 55%, var(--primary-dark));
+    cursor: default;
 }
 
 </style>

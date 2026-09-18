@@ -31,6 +31,7 @@
                     <thead>
                         <tr class="border-b border-white/5 bg-(--bg2)/50">
                             <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2)">Organisation</th>
+                            <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2)">Owner</th>
                             <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2) w-1/4">Utilisateurs</th>
                             <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2) w-1/4">Stockage</th>
                             <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2) text-right">Actions</th>
@@ -38,12 +39,12 @@
                     </thead>
                     <tbody class="divide-y divide-white/5">
                         <tr v-if="loading">
-                            <td colspan="4" class="p-12 text-center">
+                            <td colspan="5" class="p-12 text-center">
                                 <div class="w-8 h-8 border-4 border-(--primary)/30 border-t-(--primary) rounded-full animate-spin mx-auto"></div>
                             </td>
                         </tr>
                         <tr v-else-if="error">
-                            <td colspan="4" class="p-12 text-center text-red-500 font-bold">
+                            <td colspan="5" class="p-12 text-center text-red-500 font-bold">
                                 {{ error }}
                             </td>
                         </tr>
@@ -60,7 +61,19 @@
                                     </div>
                                 </div>
                             </td>
-                            
+
+                            <td class="p-4">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <div class="w-8 h-8 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center font-bold text-sm shrink-0">
+                                        {{ (org.owner?.name || '?').charAt(0).toUpperCase() }}
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-medium text-(--text) truncate">{{ org.owner?.name || 'Sans nom' }}</p>
+                                        <p class="text-[10px] text-(--text2) font-mono truncate">{{ org.owner?.email }}</p>
+                                    </div>
+                                </div>
+                            </td>
+
                             <td class="p-4">
                                 <div class="flex flex-col gap-1 w-full">
                                     <div class="flex justify-between text-xs font-bold">
@@ -96,7 +109,7 @@
                             </td>
                         </tr>
                         <tr v-if="!loading && !error && filteredOrgs.length === 0">
-                            <td colspan="4" class="p-8 text-center text-(--text2) text-sm">
+                            <td colspan="5" class="p-8 text-center text-(--text2) text-sm">
                                 Aucune organisation trouvée.
                             </td>
                         </tr>
@@ -196,6 +209,17 @@
                                 <div class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
                             </label>
                         </div>
+
+                        <div class="flex items-center justify-between p-3 bg-white/5 rounded-xl mt-2">
+                            <div>
+                                <p class="text-sm font-bold text-(--text)">Agenda</p>
+                                <p class="text-[10px] text-(--text2)">Calendrier personnel et collaboratif avec RSVP et rappels.</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" v-model="orgEditForm.features.agenda" class="sr-only peer">
+                                <div class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary)"></div>
+                            </label>
+                        </div>
                     </div>
                 </div>
 
@@ -232,6 +256,7 @@ interface AdminOrg {
     id: string;
     name: string;
     logo: string | null;
+    owner: { id: string; name: string; email: string; avatarUrl: string | null };
     maxUsers: number;
     currentUsers: number;
     maxStorage: string | number;
@@ -255,7 +280,8 @@ const orgEditForm = ref({
         todo: true,
         files: true,
         ai: true,
-        onlyoffice: true
+        onlyoffice: true,
+        agenda: true
     }
 });
 
@@ -290,7 +316,22 @@ const fetchData = async () => {
             sfetch('/api/admin/system-storage')
         ]);
         
-        if (orgRes.ok) orgs.value = await orgRes.json();
+        if (orgRes.ok) {
+            const rawOrgs: Partial<AdminOrg>[] = await orgRes.json();
+            // Sécurité: certaines organisations créées avant l'ajout de ces
+            // champs (owner, currentUsers, ...) peuvent ne pas les avoir.
+            orgs.value = rawOrgs.map(o => ({
+                id: o.id ?? '',
+                name: o.name ?? 'Sans nom',
+                logo: o.logo ?? null,
+                owner: o.owner ?? { id: '', name: 'Utilisateur inconnu', email: '', avatarUrl: null },
+                maxUsers: o.maxUsers ?? 0,
+                currentUsers: o.currentUsers ?? 0,
+                maxStorage: o.maxStorage ?? 0,
+                usedStorage: o.usedStorage ?? 0,
+                features: o.features ?? []
+            }));
+        }
         else error.value = (await orgRes.json()).error || 'Accès refusé.';
 
         if (storageRes.ok) {
@@ -317,6 +358,7 @@ const openOrgEditModal = (org: AdminOrg) => {
             files: org.features?.includes('files') ?? true,
             ai: org.features?.includes('ai') ?? true,
             onlyoffice: org.features?.includes('onlyoffice') ?? false,
+            agenda: org.features?.includes('agenda') ?? false,
         }
     };
 };
@@ -338,6 +380,7 @@ const saveOrgQuotas = async () => {
         if (orgEditForm.value.features.files) featuresArray.push('files');
         if (orgEditForm.value.features.ai) featuresArray.push('ai');
         if (orgEditForm.value.features.onlyoffice) featuresArray.push('onlyoffice');
+        if (orgEditForm.value.features.agenda) featuresArray.push('agenda');
 
         const res = await sfetch(`/api/admin/organizations/${selectedOrg.value.id}`, {
             method: 'PATCH',

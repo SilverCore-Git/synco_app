@@ -4,7 +4,7 @@
                     :key="msg.id" 
                     class="group relative px-4 flex flex-col justify-start items-start rounded-lg transition-colors w-full"
                     :class="[
-                        isStacked ? 'py-0.5 mt-0' : 'py-2 mt-2',
+                        isStacked ? 'py-0 mt-0' : 'py-2 mt-2',
                         (msg as any).isSending ? 'opacity-50' : '',
                         selectedMessage == msg.id ? ' border border-(--primary) border-dashed animate-pulse' : '',
                         user?.id == msg.replyMessage?.senderId || isTagMe
@@ -86,7 +86,7 @@
                     
                     </div>
 
-                    <div class="z-20 flex justify-start items-start gap-3">
+                    <div class="z-20 flex justify-start items-start gap-3 min-w-0 w-full">
 
                         <img 
                             v-if="msg.sender && !isStacked"
@@ -120,11 +120,43 @@
 
                             </div>
 
-                            <div ref="messageContentRef" class="text-(--text) text-sm leading-relaxed wrap-break-word">
-                                <MarkdownRender :content="msg.content" />
-                                <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
+                            <template v-if="msg.type !== 'voice_invite'">
+                                <div v-if="isEditing" class="w-full">
+                                    <textarea
+                                        ref="editTextareaRef"
+                                        v-model="editContent"
+                                        rows="1"
+                                        class="w-full bg-(--bg) border border-(--primary)/60 rounded-lg px-2 py-1.5 text-sm text-(--text) outline-none resize-none focus:border-(--primary)"
+                                        @keydown.enter.exact.prevent="saveEdit"
+                                        @keydown.esc.prevent="cancelEdit"
+                                        @input="autoResizeEdit"
+                                    />
+                                    <p class="text-[10px] text-(--text2) mt-1">
+                                        échap pour annuler • entrée pour enregistrer
+                                    </p>
+                                </div>
+                                <div v-else ref="messageContentRef" @click="onMessageContentClick" class="text-(--text) text-sm leading-relaxed wrap-break-word">
+                                    <MarkdownRender :content="msg.content" />
+                                    <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
+                                </div>
+                            </template>
+
+                            <div v-else class="mt-1 flex items-center gap-3 p-3 rounded-lg border border-(--text)/10 bg-white/3 max-w-sm">
+                                <div class="w-9 h-9 shrink-0 flex items-center justify-center rounded-full bg-(--primary)/15 text-(--primary)">
+                                    <i class="bi bi-volume-up-fill text-lg" />
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="text-xs text-(--text2)">Invitation à un salon vocal</div>
+                                    <div class="text-sm font-semibold truncate">{{ msg.voiceInviteThreadName || 'Salon vocal' }}</div>
+                                </div>
+                                <button
+                                    @click="joinVoiceInvite(msg)"
+                                    class="px-3 py-1.5 rounded-lg bg-(--primary) text-white text-xs font-medium hover:opacity-90 shrink-0"
+                                >
+                                    Rejoindre
+                                </button>
                             </div>
-                            
+
                             <!-- Message reactions -->
                             <MessageReactions
                                 :message-id="msg.id"
@@ -147,22 +179,22 @@
                                     v-for="file in msg.files" 
                                     :key="file.id"
                                     class="
-                                        group/file relative flex items-center gap-3 p-2 
-                                        rounded-lg border border-(--text)/10 
-                                        bg-white/3 hover:bg-white/5 transition-all 
-                                        max-w-sm overflow-hidden
+                                        group/file relative flex items-center gap-3 p-2
+                                        rounded-lg border border-(--text)/10
+                                        bg-white/3 hover:bg-white/5 transition-all
+                                        max-w-full sm:max-w-sm min-w-0 overflow-hidden
                                     "
                                     :title="file.originalName"
                                 >
-                                
+
                                     <div class="w-10 h-10 shrink-0 flex items-center justify-center rounded bg-(--bg) border border-(--text)/5">
 
                                         <i class="bi text-xl" :class="[ getFileInfo(file).color, getFileInfo(file).icon ]" />
 
                                     </div>
 
-                                    <div class="flex flex-col min-w-0 pr-2">
-                                        <span class="text-xs font-medium text-(--text) truncate">
+                                    <div class="flex flex-col min-w-0 flex-1 pr-2">
+                                        <span class="text-xs font-medium text-(--text) truncate min-w-0">
                                             {{ file.originalName }}
                                         </span>
                                         <span class="text-[10px] text-(--text2) uppercase tracking-wider">
@@ -196,12 +228,6 @@
             @cancel="showDeleteConfirm = false"
         />
 
-        <EditMessage 
-            :is-open="showEditMessage" 
-            :initial-content="msg.content"
-            @close="showEditMessage = false"
-            @save="editMessage"
-        />
 
 </template>
 
@@ -211,18 +237,18 @@ import { computed, nextTick, ref, watch } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
 import useWSocket from '@/composables/useWSocket';
-import EditMessage from '../popup/EditMessage.vue';
 import MessageReactions from '@/components/common/MessageReactions.vue';
 import type { DMMessage, DMMessageReaction, ReactionUser } from '@/types/types';
 import { downloadFile } from '@/assets/utils/downloadFile';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import { useRoute, useRouter } from 'vue-router';
-import { user } from '@/assets/var';
+import { user, openedOrg } from '@/assets/var';
 import { encryptForPeer } from '@/assets/utils/crypto';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useToast } from '@/composables/useToast';
 import { openProfile } from '@/composables/useProfile';
 import useSettingsItem from '@/composables/useSettingsItem';
+import { buildMentionLookup, renderMentions, handleMentionClick, isUserMentioned } from '@/composables/useMentions';
 
 const toast = useToast();
 const showReactionPicker = ref<boolean>(false);
@@ -264,6 +290,12 @@ const props = defineProps<{
     messages: DMMessage[];
     currentThreadKey?: CryptoKey | null;
     isStacked?: boolean;
+    isEditing?: boolean;
+}>();
+
+const emit = defineEmits<{
+    (e: 'edit-start'): void;
+    (e: 'edit-end'): void;
 }>();
 
 interface DropdownBtn {
@@ -294,8 +326,8 @@ const dropdownBtns: DropdownBtn[] = [
     {
         icon: "bi-pencil-fill",
         tooltip: "modifier",
-        func: () => openEditMessage(),
-        show: (msg: DMMessage) => msg.senderId == user.value?.id
+        func: () => startEdit(),
+        show: (msg: DMMessage) => msg.senderId == user.value?.id && msg.type !== 'voice_invite'
     },
     {
         icon: "bi-arrow-90deg-left",
@@ -333,17 +365,30 @@ const { setMessageWillBeResponded } = useResponse();
 
 const showPlusDropdown = ref<boolean>(false);
 const showDeleteConfirm = ref<boolean>(false);
-const showEditMessage = ref<boolean>(false);
 const messageContentRef = ref<HTMLElement | null>(null);
+const editContent = ref<string>('');
+const editTextareaRef = ref<HTMLTextAreaElement | null>(null);
 
-const isTagMe = computed(() => {
+const autoResizeEdit = () => {
+    const el = editTextareaRef.value;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 300)}px`;
+};
 
-    if (!props.msg.content || !user.value) return false;
-    
-    const regex = new RegExp(`@${user.value.name}\\b`, 'i');
-    return regex.test(props.msg.content);
-
+watch(() => props.isEditing, (editing) => {
+    if (!editing) return;
+    editContent.value = props.msg.content;
+    nextTick(() => {
+        editTextareaRef.value?.focus();
+        editTextareaRef.value?.select();
+        autoResizeEdit();
+    });
 });
+
+const mentionLookup = computed(() => buildMentionLookup(openedOrg.value?.members));
+
+const isTagMe = computed(() => isUserMentioned(props.msg.content, user.value, mentionLookup.value));
 
 const handleAddReaction = async (payload: { messageId: string; emoji: string; isDM: boolean }) => {
    
@@ -369,43 +414,12 @@ const handleAddReaction = async (payload: { messageId: string; emoji: string; is
 // Reaction updates are handled centrally in ChatView.vue — no per-instance socket listener needed
 
 const applyMentions = () => {
-
     if (!messageContentRef.value) return;
-    
-    const walker = document.createTreeWalker(
-        messageContentRef.value, 
-        NodeFilter.SHOW_TEXT, 
-        {
-            acceptNode: (node) => {
-                if (node.parentElement?.classList.contains('mention-tag')) {
-                    return NodeFilter.FILTER_REJECT;
-                }
-                return NodeFilter.FILTER_ACCEPT;
-            }
-        }
-    );
-    
-    let node;
-    const nodesToReplace: { oldNode: ChildNode, newNode: HTMLElement }[] = [];
-    
-    while (node = walker.nextNode())
-    {
-        const text = node.textContent || '';
-        if (text.includes('@')) 
-        {
-            const span = document.createElement('span');
-            span.innerHTML = text.replace(
-                /@([a-zA-Z0-9_\-\.]+)/g, 
-                '<span class="mention-tag">@$1</span>'
-            );
-            nodesToReplace.push({ oldNode: node as any, newNode: span });
-        }
-    }
+    renderMentions(messageContentRef.value, mentionLookup.value);
+};
 
-    nodesToReplace.forEach(({ oldNode, newNode }) => {
-        oldNode.parentNode?.replaceChild(newNode, oldNode);
-    });
-
+const onMessageContentClick = (event: MouseEvent) => {
+    handleMentionClick(event, mentionLookup.value, (mentionedUser, e) => openProfile(mentionedUser, e));
 };
 
 watch(() => props.msg.content, async () => {
@@ -435,9 +449,13 @@ const openDeleteConfirm = () => {
     showDeleteConfirm.value = true;
 };
 
-const openEditMessage = () => {
+const startEdit = () => {
     showPlusDropdown.value = false;
-    showEditMessage.value = true;
+    emit('edit-start');
+}
+
+const cancelEdit = () => {
+    emit('edit-end');
 }
 
 const deleteMessage = async () => {
@@ -446,21 +464,53 @@ const deleteMessage = async () => {
     showDeleteConfirm.value = false;
 };
 
-const editMessage = async (newContent: string) => {
+const joinVoiceInvite = (msg: DMMessage) => {
+    if (!msg.voiceInviteThreadId || !msg.voiceInviteOrgId) {
+        toast.show("Ce salon vocal n'existe plus.", "error");
+        return;
+    }
+
+    const path = msg.voiceInviteSpaceId
+        ? `/${msg.voiceInviteOrgId}/${msg.voiceInviteSpaceId}/${msg.voiceInviteThreadId}`
+        : `/${msg.voiceInviteOrgId}/home/${msg.voiceInviteThreadId}`;
+
+    try {
+        if (msg.voiceInviteOrgId === route.params.orgId) {
+            router.push({ path, query: { autojoin: '1' } });
+        } else {
+            // Org différente de celle actuellement ouverte : navigation dure pour forcer
+            // le rechargement d'openedOrg et du contexte socket (OrgLayout.vue ne réagit
+            // pas à un changement de orgId sur une instance déjà montée).
+            window.location.href = `${path}?autojoin=1`;
+        }
+    } catch (e) {
+        toast.show('Impossible de rejoindre le salon vocal.', 'error');
+    }
+};
+
+const saveEdit = async () => {
+
+    const content = editContent.value.trim();
+    if (!content || content === props.msg.content) {
+        emit('edit-end');
+        return;
+    }
 
     const myPubKey = user.value?.publicKey;
 
-    const { ciphertext, encryptedAesKey, iv, selfEncryptedAesKey } = await encryptForPeer(newContent, props.msg.sender?.publicKey!, myPubKey);
+    const { ciphertext, encryptedAesKey, iv, selfEncryptedAesKey } = await encryptForPeer(content, props.msg.sender?.publicKey!, myPubKey);
 
     const socket = await useWSocket();
-        
-    socket.value?.emit('dm:edit-message', { 
-        id: props.msg.id, 
+
+    socket.value?.emit('dm:edit-message', {
+        id: props.msg.id,
         newContent: ciphertext,
         encryptedAesKey,
         selfEncryptedAesKey: selfEncryptedAesKey,
         nonce: iv,
     });
+
+    emit('edit-end');
 
 };
 
@@ -483,6 +533,12 @@ const editMessage = async (newContent: string) => {
 
 :deep(.mention-tag:hover) {
     filter: brightness(1.2);
+}
+
+:deep(.mention-tag[data-mention-kind="everyone"]),
+:deep(.mention-tag[data-mention-kind="here"]) {
+    background-color: color-mix(in srgb, orange 55%, var(--primary-dark));
+    cursor: default;
 }
 
 </style>

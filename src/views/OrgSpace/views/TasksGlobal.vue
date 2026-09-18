@@ -9,7 +9,15 @@
             
             <TaskProgressGauge :tasks="rawTasks" class="mx-auto" />
             
-            <div class="ml-auto flex items-center gap-2">
+            <div class="ml-auto flex items-center gap-4">
+                <button
+                    v-if="archivedCount > 0"
+                    @click="showArchivedPanel = true"
+                    class="text-(--text2) hover:text-(--text) transition-colors"
+                    title="Tâches archivées"
+                >
+                    <i class="bi bi-archive-fill" />
+                </button>
                 <CreateTaskModal @created="onTaskCreated">
                     <button class="primary-glow !text-sm">
                         <i class="bi bi-plus-lg"></i>
@@ -20,6 +28,32 @@
         </div>
 
         <main class="flex-1 overflow-y-auto p-6 w-full h-full space-y-8">
+            <div v-if="tags.length > 0" class="flex items-center gap-2 w-full shrink-0">
+                <DropDown align="left" content-iner-t-w="min-w-[280px]">
+                    <template #trigger>
+                        <button type="button" class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap h-full" :class="filterTagIds.length ? 'bg-(--primary)/15 text-(--primary)' : 'bg-white/5 text-white/70 hover:bg-white/10'">
+                            <i class="bi bi-tags"></i>
+                            {{ filterTagIds.length ? `${filterTagIds.length} tag${filterTagIds.length > 1 ? 's' : ''}` : 'Tags' }}
+                            <i class="bi bi-chevron-down text-[10px] opacity-60"></i>
+                        </button>
+                    </template>
+                    <template #content>
+                        <div @click.stop>
+                            <button
+                                v-if="filterTagIds.length"
+                                type="button"
+                                @click="filterTagIds = []"
+                                class="text-[11px] font-bold text-(--text2) hover:text-(--text) flex items-center gap-1 mb-2"
+                            >
+                                <i class="bi bi-x-lg"></i>
+                                Tout désélectionner
+                            </button>
+                            <TaskTagPicker :orgId="route.params.orgId as string" v-model="filterTagIds" />
+                        </div>
+                    </template>
+                </DropDown>
+            </div>
+
             <div v-if="loading" class="w-full flex flex-col gap-12 animate-pulse pb-10">
                 <div v-for="s in 2" :key="'skel-space-'+s" class="space-y-4">
                     <div class="flex items-center justify-between border-b border-white/10 pb-2">
@@ -45,10 +79,28 @@
             </div>
             
             <div v-else class="space-y-12 pb-10">
-                
+
+                <!-- Onglets de statut (mobile) : partagés par tous les projets -->
+                <div class="relative flex items-center gap-1 p-1 bg-white/5 rounded-xl md:hidden">
+                    <div
+                        class="absolute top-1 bottom-1 rounded-lg bg-(--primary) shadow-lg transition-all duration-300 ease-out"
+                        :style="tabIndicatorStyle"
+                    ></div>
+                    <button
+                        v-for="(col, idx) in columns" :key="col.id"
+                        :ref="(el) => setTabRef(idx, el)"
+                        @click="mobileActiveColumn = col.id"
+                        class="relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-colors"
+                        :class="mobileActiveColumn === col.id ? 'text-white' : 'text-(--text2)'"
+                    >
+                        <i :class="col.icon"></i>
+                        {{ col.title }}
+                    </button>
+                </div>
+
                 <!-- Swimlanes (Rows by Project) -->
                 <div v-for="spaceGroup in spacesGroups" :key="spaceGroup.id" class="space-y-4">
-                    
+
                     <div class="flex items-center justify-between border-b border-white/10 pb-2">
                         <div class="flex items-center gap-3">
                             <i class="bi bi-folder-fill text-(--primary) text-xl"></i>
@@ -59,7 +111,7 @@
                                 {{ spaceGroup.tasks.length }} tâche(s)
                             </span>
                         </div>
-                        
+
                         <CreateTaskModal :defaultSpaceId="spaceGroup.id === 'personal' ? null : spaceGroup.id" @created="onTaskCreated">
                             <button class="text-xs bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg font-bold transition-colors flex items-center gap-2">
                                 <i class="bi bi-plus"></i> Ajouter ici
@@ -67,10 +119,71 @@
                         </CreateTaskModal>
                     </div>
 
-                    <!-- Kanban Board inside the row -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 items-start">
-                        
-                        <div v-for="col in columns" :key="col.id" 
+                    <!-- Mobile : liste simple filtrée par l'onglet actif, pas de glisser-déposer -->
+                    <div class="md:hidden space-y-3">
+                        <div
+                            v-for="task in getTasks(spaceGroup.tasks, mobileActiveColumn)" :key="task.id"
+                            @click="openTaskDetails(task)"
+                            class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
+                        >
+                            <p class="text-sm font-bold text-(--text) leading-snug">{{ task.title }}</p>
+                            <span v-if="task.parentTask" class="text-[9px] font-bold text-(--primary) uppercase flex items-center gap-1 opacity-80 mt-1">
+                                <i class="bi bi-arrow-return-right"></i> {{ task.parentTask.title }}
+                            </span>
+
+                            <div v-if="task.tags?.length" class="flex flex-wrap gap-1 mt-2">
+                                <span
+                                    v-for="tag in task.tags.slice(0, 3)" :key="tag.id"
+                                    class="px-2 py-0.5 rounded-full text-[9px] font-bold border"
+                                    :style="{ borderColor: tag.color, color: tag.color }"
+                                >
+                                    {{ tag.name }}
+                                </span>
+                            </div>
+
+                            <div class="flex items-center justify-between mt-3">
+                                <div class="flex items-center -space-x-1.5" v-if="task.assignees?.length">
+                                    <template v-for="assignee in task.assignees.slice(0,3)" :key="assignee.id">
+                                        <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="$p(assignee.name)" class="w-6 h-6 rounded-full object-cover border-2 border-(--bg2)">
+                                        <div v-else :title="$p(assignee.name)" class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[9px] font-black border-2 border-(--bg2)">
+                                            {{ $p(assignee.name).substring(0, 2).toUpperCase() }}
+                                        </div>
+                                    </template>
+                                </div>
+                                <div v-else></div>
+
+                                <div class="flex items-center gap-1.5" @click.stop>
+                                    <button
+                                        v-if="prevStatus(task.status)"
+                                        @click="changeTaskStatus(task, prevStatus(task.status)!)"
+                                        class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
+                                        :class="columnColor(prevStatus(task.status)!)"
+                                        :title="`Repasser à « ${columnTitle(prevStatus(task.status)!)} »`"
+                                    >
+                                        <i :class="columnIcon(prevStatus(task.status)!)"></i>
+                                    </button>
+                                    <button
+                                        v-if="nextStatus(task.status)"
+                                        @click="changeTaskStatus(task, nextStatus(task.status)!)"
+                                        class="flex items-center gap-1.5 px-3 h-8 rounded-lg bg-(--primary)/10 hover:bg-(--primary)/20 text-(--primary) font-bold text-[11px] transition-colors"
+                                        :title="`Passer à « ${columnTitle(nextStatus(task.status)!)} »`"
+                                    >
+                                        <i :class="columnIcon(nextStatus(task.status)!)"></i>
+                                        {{ columnTitle(nextStatus(task.status)!) }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p v-if="getTasks(spaceGroup.tasks, mobileActiveColumn).length === 0" class="text-xs text-(--text2) italic text-center py-4">
+                            Aucune tâche ici.
+                        </p>
+                    </div>
+
+                    <!-- Desktop : Kanban Board inside the row -->
+                    <div class="hidden md:grid md:grid-cols-3 gap-4 lg:gap-6 items-start">
+
+                        <div v-for="col in columns" :key="col.id"
                              class="bg-black/20 border rounded-2xl p-4 min-h-[200px] flex flex-col transition-all"
                              :class="draggedOverCol === `${spaceGroup.id}-${col.id}` ? 'border-(--primary) bg-white/5 shadow-[0_0_15px_rgba(var(--primary-rgb),0.2)]' : 'border-(--border-color)'"
                              @dragover.prevent
@@ -83,9 +196,20 @@
                                     <i :class="col.icon"></i>
                                     {{ col.title }}
                                 </h4>
-                                <span class="bg-white/5 text-(--text2) text-xs px-2 py-0.5 rounded-full font-bold">
-                                    {{ getTasks(spaceGroup.tasks, col.id).length }}
-                                </span>
+                                <div class="flex items-center gap-2">
+                                    <button
+                                        v-if="col.id === 'DONE' && getTasks(spaceGroup.tasks, col.id).length > 0"
+                                        @click="archiveAllDone(spaceGroup)"
+                                        :disabled="archivingAll"
+                                        class="text-amber-500/80 hover:text-amber-500 transition-colors disabled:opacity-50"
+                                        title="Archiver toutes les tâches terminées"
+                                    >
+                                        <i class="bi bi-archive" />
+                                    </button>
+                                    <span class="bg-white/5 text-(--text2) text-xs px-2 py-0.5 rounded-full font-bold">
+                                        {{ getTasks(spaceGroup.tasks, col.id).length }}
+                                    </span>
+                                </div>
                             </div>
 
                             <div class="flex-1 space-y-3">
@@ -98,8 +222,14 @@
                                      draggable="true"
                                      @dragstart="onDragStart($event, task, spaceGroup.id)"
                                      @dragend="onDragEnd"
+                                     @dragover.prevent="onCardDragOver($event, task)"
+                                     @drop.stop="onCardDrop($event, task, col.id, spaceGroup.id)"
                                      @click="openTaskDetails(task)"
                                      class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer active:cursor-grabbing hover:border-(--primary)/50 transition-all shadow-lg hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] group relative overflow-hidden"
+                                     :class="[
+                                        dragOverTaskId === task.id && dragOverPosition === 'before' ? 'border-t-2 border-t-(--primary)' : '',
+                                        dragOverTaskId === task.id && dragOverPosition === 'after' ? 'border-b-2 border-b-(--primary)' : ''
+                                     ]"
                                 >
                                     <div class="flex justify-between items-start gap-2">
                                         <div class="flex flex-col gap-1">
@@ -109,7 +239,20 @@
                                             </span>
                                         </div>
                                     </div>
-                                    
+
+                                    <div v-if="task.tags?.length" class="flex flex-wrap gap-1 mt-2">
+                                        <span
+                                            v-for="tag in task.tags.slice(0, 3)" :key="tag.id"
+                                            class="px-2 py-0.5 rounded-full text-[9px] font-bold border"
+                                            :style="{ borderColor: tag.color, color: tag.color }"
+                                        >
+                                            {{ tag.name }}
+                                        </span>
+                                        <span v-if="task.tags.length > 3" class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-(--text)/5 text-(--text2)">
+                                            +{{ task.tags.length - 3 }}
+                                        </span>
+                                    </div>
+
                                     <div class="flex items-center justify-between mt-4">
                                         <div class="flex items-center -space-x-1.5" v-if="task.assignees?.length">
                                             <template v-for="assignee in task.assignees.slice(0,3)" :key="assignee.id">
@@ -124,9 +267,15 @@
                                         </div>
                                         <div v-else></div>
                                         
-                                        <div v-if="task.subtasks && task.subtasks.length > 0" class="flex items-center gap-1.5 text-xs bg-white/5 px-2.5 py-1 rounded-lg font-bold text-white/50">
-                                            <i class="bi bi-check2-square text-(--primary)"></i>
-                                            {{ task.subtasks.filter((st: any) => st.status === 'DONE').length }}/{{ task.subtasks.length }}
+                                        <div class="flex items-center gap-1.5">
+                                            <div v-if="task._count?.attachments" class="flex items-center gap-1 text-xs bg-(--text)/5 px-2 py-1 rounded-lg font-bold text-(--text2)">
+                                                <i class="bi bi-paperclip"></i>
+                                                {{ task._count.attachments }}
+                                            </div>
+                                            <div v-if="task.subtasks && task.subtasks.length > 0" class="flex items-center gap-1.5 text-xs bg-white/5 px-2.5 py-1 rounded-lg font-bold text-white/50">
+                                                <i class="bi bi-check2-square text-(--primary)"></i>
+                                                {{ task.subtasks.filter((st: any) => st.status === 'DONE').length }}/{{ task.subtasks.length }}
+                                            </div>
                                         </div>
                                     </div>
 
@@ -175,6 +324,13 @@
                                         </button>
                                     </CreateTaskModal>
                                     <button
+                                        @click="archiveTask(task)"
+                                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                                    >
+                                        <i class="bi bi-archive" />
+                                        Archiver
+                                    </button>
+                                    <button
                                         @click="handleContextDeleteTask(task)"
                                         class="dropdown-item-annimate dropdown-item-style gap-2 text-red-500! hover:bg-red-500/5!"
                                     >
@@ -207,33 +363,57 @@
         />
 
         <Transition name="pop">
-            <div v-if="isDraggingTask" 
-                 class="fixed bottom-8 right-8 w-16 h-16 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-2xl z-[100] border-4 transition-all duration-500"
-                 :class="[
-                    isDeleting ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
-                    isHoveringTrash && !isDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_rgba(239,68,68,0.8)]' : 'border-transparent'
-                 ]"
-                 @dragover.prevent="isHoveringTrash = true"
-                 @dragleave.prevent="isHoveringTrash = false"
-                 @drop="onDropToTrash">
-                 
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 transition-transform" :class="isDeleting ? 'scale-50' : ''">
-                    <g class="transition-all duration-300" style="transform-origin: 21px 6px;" :class="isHoveringTrash && !isDeleting ? 'rotate-[40deg]' : ''">
-                        <path d="M3 6h18"></path>
-                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </g>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
-                    <line x1="10" y1="11" x2="10" y2="17"></line>
-                    <line x1="14" y1="11" x2="14" y2="17"></line>
-                </svg>
+            <div v-if="isDraggingTask"
+                 class="fixed bottom-8 right-8 flex items-center gap-4 z-[100]">
+
+                <div class="w-16 h-16 bg-amber-500/90 text-white rounded-full flex items-center justify-center shadow-2xl border-4 transition-all duration-500"
+                     :class="[
+                        isArchiving ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
+                        isHoveringArchive && !isArchiving ? 'border-amber-300 scale-125 shadow-[0_0_40px_rgba(245,158,11,0.8)]' : 'border-transparent'
+                     ]"
+                     @dragover.prevent="isHoveringArchive = true"
+                     @dragleave.prevent="isHoveringArchive = false"
+                     @drop="onDropToArchive"
+                     title="Archiver">
+                    <i class="bi bi-archive-fill text-2xl transition-transform" :class="[isArchiving ? 'scale-50' : '', isHoveringArchive && !isArchiving ? 'scale-110' : '']"></i>
+                </div>
+
+                <div class="w-16 h-16 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-2xl border-4 transition-all duration-500"
+                     :class="[
+                        isDeleting ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
+                        isHoveringTrash && !isDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_rgba(239,68,68,0.8)]' : 'border-transparent'
+                     ]"
+                     @dragover.prevent="isHoveringTrash = true"
+                     @dragleave.prevent="isHoveringTrash = false"
+                     @drop="onDropToTrash"
+                     title="Supprimer">
+
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 transition-transform" :class="isDeleting ? 'scale-50' : ''">
+                        <g class="transition-all duration-300" style="transform-origin: 21px 6px;" :class="isHoveringTrash && !isDeleting ? 'rotate-[40deg]' : ''">
+                            <path d="M3 6h18"></path>
+                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </g>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
+                </div>
 
             </div>
         </Transition>
+
+        <ArchivedTasksPanel
+            :isOpen="showArchivedPanel"
+            :orgId="route.params.orgId as string"
+            @close="showArchivedPanel = false"
+            @restored="onTaskRestored"
+            @count="archivedCount = $event"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import type { Task, TodoList } from '@/types/types';
@@ -243,30 +423,89 @@ import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import DropDown from '@/components/DropDown.vue';
+import TaskTagPicker from '../components/popup/TaskTagPicker.vue';
+import ArchivedTasksPanel from '../components/popup/ArchivedTasksPanel.vue';
 import { user } from '@/assets/var';
 import confetti from 'canvas-confetti';
 import useWSocket from '@/composables/useWSocket';
 import { useNotification } from '@/composables/useNotification';
+import { useTaskOrder } from '@/composables/useTaskOrder';
+import { useTaskTags } from '@/composables/useTaskTags';
 
 const route = useRoute();
 const toast = useToast();
 const { markTasksAsRead } = useNotification();
+const { fetchOrder, sortByOrder, persistOrder } = useTaskOrder(route.params.orgId as string);
+const { tags, loadTags } = useTaskTags(route.params.orgId as string);
 
 const rawTasks = ref<Task[]>([]);
 const loading = ref(true);
 const draggedOverCol = ref<string | null>(null);
+const filterTagIds = ref<string[]>([]);
+
 const selectedTask = ref<Task | null>(null);
 const openTaskInEditMode = ref(false);
 
 const isDraggingTask = ref(false);
 const isHoveringTrash = ref(false);
 const isDeleting = ref(false);
+const isHoveringArchive = ref(false);
+const isArchiving = ref(false);
+const archivingAll = ref(false);
+const showArchivedPanel = ref(false);
+const archivedCount = ref(0);
+
+const dragOverTaskId = ref<string | null>(null);
+const dragOverPosition = ref<'before' | 'after' | null>(null);
 
 const columns = [
     { id: 'TODO', title: 'À faire', color: 'text-gray-400', icon: 'bi-circle' },
     { id: 'IN_PROGRESS', title: 'En cours', color: 'text-blue-400', icon: 'bi-arrow-repeat' },
     { id: 'DONE', title: 'Terminé', color: 'text-green-500', icon: 'bi-check-circle-fill' }
 ];
+
+// ── Vue mobile : le glisser-déposer natif ne fonctionne pas au toucher,
+// donc pas de 3 colonnes côte à côte — un onglet à la fois (partagé par
+// tous les projets), et de petites flèches sur chaque carte pour changer
+// de statut sans glisser.
+const mobileActiveColumn = ref<string>('TODO');
+
+const prevStatus = (status: string): string | null => {
+    const idx = columns.findIndex(c => c.id === status);
+    return idx > 0 ? columns[idx - 1]?.id ?? null : null;
+};
+
+const nextStatus = (status: string): string | null => {
+    const idx = columns.findIndex(c => c.id === status);
+    return idx >= 0 && idx < columns.length - 1 ? columns[idx + 1]?.id ?? null : null;
+};
+
+const columnTitle = (status: string) => columns.find(c => c.id === status)?.title || status;
+const columnIcon = (status: string) => columns.find(c => c.id === status)?.icon || 'bi-circle';
+const columnColor = (status: string) => columns.find(c => c.id === status)?.color || 'text-(--text2)';
+
+// Indicateur qui glisse d'un onglet à l'autre au lieu de sauter instantanément
+// (mesuré en pixels sur le DOM plutôt que calculé en % : plus fiable que de
+// recalculer des marges/gaps Tailwind à la main).
+const tabRefs = ref<(HTMLElement | null)[]>([]);
+const tabIndicatorStyle = ref({ left: '0px', width: '0px' });
+
+const setTabRef = (idx: number, el: Element | { $el?: Element } | null) => {
+    tabRefs.value[idx] = (el as HTMLElement) || null;
+};
+
+const updateTabIndicator = () => {
+    const idx = columns.findIndex(c => c.id === mobileActiveColumn.value);
+    const el = tabRefs.value[idx];
+    if (el) {
+        tabIndicatorStyle.value = { left: `${el.offsetLeft}px`, width: `${el.offsetWidth}px` };
+    }
+};
+
+watch(mobileActiveColumn, () => nextTick(updateTabIndicator));
+onMounted(() => nextTick(updateTabIndicator));
+window.addEventListener('resize', updateTabIndicator);
+onUnmounted(() => window.removeEventListener('resize', updateTabIndicator));
 
 const spacesGroups = computed(() => {
     const groups: Record<string, { id: string, name: string, tasks: Task[] }> = {};
@@ -280,8 +519,12 @@ const spacesGroups = computed(() => {
 
     rawTasks.value.forEach(task => {
 
-        // Only show tasks assigned to me
-        if (!task.assignees?.some(a => a.id === user.value?.id)) return;
+        // Une tâche m'appartient si elle m'est assignée, ou si je l'ai créée
+        // (dans un espace ou non) — même règle que listMyTasks() côté backend
+        // (tasksService.ts).
+        const isAssignedToMe = task.assignees?.some(a => a.id === user.value?.id);
+        const isCreatedByMe = task.creatorId === user.value?.id;
+        if (!isAssignedToMe && !isCreatedByMe) return;
 
         if (!task.spaceId) {
             groups['personal']!.tasks.push(task);
@@ -302,7 +545,11 @@ const spacesGroups = computed(() => {
 });
 
 const getTasks = (tasks: Task[], status: string) => {
-    return tasks.filter((t: Task) => t.status === status);
+    return sortByOrder(tasks.filter((t: Task) => {
+        if (t.status !== status) return false;
+        if (filterTagIds.value.length && !t.tags?.some(tag => filterTagIds.value.includes(tag.id))) return false;
+        return true;
+    }));
 };
 
 const getProgress = (task: Task) => {
@@ -378,9 +625,72 @@ const onDragStart = (e: DragEvent, task: Task, spaceGroupId: string) => {
 };
 
 const onDragEnd = () => {
-    if (!isDeleting.value) {
+    dragOverTaskId.value = null;
+    dragOverPosition.value = null;
+    if (!isDeleting.value && !isArchiving.value) {
         isDraggingTask.value = false;
         isHoveringTrash.value = false;
+        isHoveringArchive.value = false;
+    }
+};
+
+const archiveTaskById = async (taskId: string) => {
+    const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ archived: true })
+    });
+    if (!res.ok) throw new Error("API Error");
+    onTaskDeleted(taskId);
+    archivedCount.value++;
+};
+
+const onDropToArchive = async (e: DragEvent) => {
+    const taskId = e.dataTransfer?.getData('taskId');
+    if (!taskId) return;
+
+    isArchiving.value = true;
+    isHoveringArchive.value = false;
+
+    setTimeout(() => {
+        isDraggingTask.value = false;
+        isArchiving.value = false;
+    }, 600);
+
+    try {
+        await archiveTaskById(taskId);
+        toast.show("Tâche archivée", "success");
+    } catch (err) {
+        toast.show("Erreur lors de l'archivage", "error");
+    }
+};
+
+const archiveTask = async (task: Task) => {
+    try {
+        await archiveTaskById(task.id);
+        toast.show("Tâche archivée", "success");
+    } catch (e) {
+        toast.show("Erreur lors de l'archivage", "error");
+    }
+};
+
+const archiveAllDone = async (spaceGroup: { id: string, tasks: Task[] }) => {
+    const doneTasks = getTasks(spaceGroup.tasks, 'DONE');
+    if (doneTasks.length === 0) return;
+
+    archivingAll.value = true;
+    try {
+        await Promise.all(doneTasks.map(t => archiveTaskById(t.id)));
+        toast.show("Tâches archivées", "success");
+    } catch (e) {
+        toast.show("Erreur lors de l'archivage groupé", "error");
+    } finally {
+        archivingAll.value = false;
+    }
+};
+
+const onTaskRestored = (task: Task) => {
+    if (!rawTasks.value.some(t => t.id === task.id)) {
+        rawTasks.value.push(task);
     }
 };
 
@@ -410,29 +720,19 @@ const onDropToTrash = async (e: DragEvent) => {
     }
 };
 
-const onDrop = async (e: DragEvent, newStatus: string, targetGroupId: string) => {
-    const taskId = e.dataTransfer?.getData('taskId');
-    const sourceGroupId = e.dataTransfer?.getData('sourceGroupId');
-    if (!taskId || !sourceGroupId) return;
-
-    if (sourceGroupId !== targetGroupId) {
-        toast.show("Déplacement entre projets non supporté depuis cette vue", "info");
-        return;
-    }
-
-    const taskToMove = rawTasks.value.find(t => t.id === taskId);
-    if (!taskToMove || taskToMove.status === newStatus) return;
+const changeTaskStatus = async (taskToMove: Task, newStatus: string) => {
+    if (taskToMove.status === newStatus) return;
 
     const oldStatus = taskToMove.status;
-    taskToMove.status = newStatus as 'TODO' | 'IN_PROGRESS' | 'DONE'; 
+    taskToMove.status = newStatus as 'TODO' | 'IN_PROGRESS' | 'DONE';
 
     try {
-        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskId}`, {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskToMove.id}`, {
             method: 'PUT',
             body: JSON.stringify({ status: newStatus })
         });
         if (!res.ok) throw new Error();
-        
+
         if (newStatus === 'DONE') {
             try {
                 confetti({
@@ -444,11 +744,72 @@ const onDrop = async (e: DragEvent, newStatus: string, targetGroupId: string) =>
                 });
             } catch (e) {}
         }
-        
+
     } catch (err) {
-        taskToMove.status = oldStatus; 
+        taskToMove.status = oldStatus;
         toast.show("Erreur lors du déplacement", "error");
     }
+};
+
+const onDrop = async (e: DragEvent, newStatus: string, targetGroupId: string) => {
+    const taskId = e.dataTransfer?.getData('taskId');
+    const sourceGroupId = e.dataTransfer?.getData('sourceGroupId');
+    if (!taskId || !sourceGroupId) return;
+
+    if (sourceGroupId !== targetGroupId) {
+        toast.show("Déplacement entre projets non supporté depuis cette vue", "info");
+        return;
+    }
+
+    const taskToMove = rawTasks.value.find(t => t.id === taskId);
+    if (!taskToMove) return;
+
+    const spaceGroup = spacesGroups.value.find(g => g.id === targetGroupId);
+    if (spaceGroup) {
+        const columnTaskIds = getTasks(spaceGroup.tasks, newStatus)
+            .filter(t => t.id !== taskId)
+            .map(t => t.id);
+        columnTaskIds.push(taskId);
+        await persistOrder(columnTaskIds);
+    }
+
+    await changeTaskStatus(taskToMove, newStatus);
+};
+
+const onCardDragOver = (e: DragEvent, task: Task) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    dragOverTaskId.value = task.id;
+    dragOverPosition.value = e.clientY < midpoint ? 'before' : 'after';
+};
+
+const onCardDrop = async (e: DragEvent, targetTask: Task, newStatus: string, targetGroupId: string) => {
+    const taskId = e.dataTransfer?.getData('taskId');
+    const sourceGroupId = e.dataTransfer?.getData('sourceGroupId');
+    const position = dragOverPosition.value;
+    dragOverTaskId.value = null;
+    dragOverPosition.value = null;
+
+    if (!taskId || !sourceGroupId || taskId === targetTask.id) return;
+
+    if (sourceGroupId !== targetGroupId) {
+        toast.show("Déplacement entre projets non supporté depuis cette vue", "info");
+        return;
+    }
+
+    const taskToMove = rawTasks.value.find(t => t.id === taskId);
+    if (!taskToMove) return;
+
+    const spaceGroup = spacesGroups.value.find(g => g.id === targetGroupId);
+    if (!spaceGroup) return;
+
+    const columnTasks = getTasks(spaceGroup.tasks, newStatus).filter(t => t.id !== taskId);
+    const targetIndex = columnTasks.findIndex(t => t.id === targetTask.id);
+    const insertIndex = position === 'after' ? targetIndex + 1 : targetIndex;
+    columnTasks.splice(insertIndex, 0, taskToMove);
+
+    await persistOrder(columnTasks.map(t => t.id));
+    await changeTaskStatus(taskToMove, newStatus);
 };
 
 const openTaskDetails = (task: Task) => {
@@ -522,8 +883,10 @@ const onTaskDeleted = (taskId: string) => {
 };
 
 onMounted(async () => {
+    fetchOrder();
+    loadTags();
     loadLists();
-    
+
     const socket = await useWSocket();
     socket.value?.on('todo-added', ({ task }: { task: Task }) => {
         if (!rawTasks.value.some(t => t.id === task.id)) {
@@ -540,7 +903,12 @@ onMounted(async () => {
         }
     });
     socket.value?.on('todo-updated', ({ task }: { task: Task }) => {
-        onTaskUpdated(task);
+        if (task.archived) {
+            onTaskDeleted(task.id);
+            archivedCount.value++;
+        } else {
+            onTaskUpdated(task);
+        }
     });
     socket.value?.on('todo-deleted', ({ taskId }: { taskId: string }) => {
         onTaskDeleted(taskId);

@@ -409,7 +409,7 @@ onMounted(async () => {
             const appWindow = getCurrentWindow();
             isWindowFocused = await appWindow.isFocused();
 
-            await appWindow.onFocusChanged(({ payload: focused }) => {
+            await appWindow.onFocusChanged(({ payload: focused }: { payload: boolean }) => {
                 isWindowFocused = focused;
 
                 if (focused) {

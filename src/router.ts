@@ -190,6 +190,12 @@ const routes = [
         props: true,
       },
       {
+        path: 'agenda',
+        name: 'AgendaGlobal',
+        component: () => import('./views/OrgSpace/views/Agenda/AgendaView.vue'),
+        props: true,
+      },
+      {
         path: ':spaceId/tasks',
         name: 'TasksSpace',
         component: () => import('./views/OrgSpace/views/TasksSpace.vue'),

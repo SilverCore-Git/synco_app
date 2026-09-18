@@ -14,6 +14,7 @@ import { useRoute } from 'vue-router';
 import { useUsersBar } from '@/composables/useUsersBar';
 import { keycloak } from '@/assets/keycloak';
 import useNotifications from '@/composables/useNotifications';
+import { useNotification } from '@/composables/useNotification';
 import { isMeeting } from '@/composables/usePrivatMeet';
 
 import isDesktopApp from '@/assets/isDesktopApp';
@@ -21,6 +22,7 @@ import { useToast } from '@/composables/useToast';
 import { decryptFromPeer, privateKey, decryptThreadKeyWithRsa, encryptThreadKeyForMember } from '@/assets/utils/crypto';
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { usePermissions } from '@/composables/usePermissions';
+import SpinLoader from '@/components/SpinLoader.vue';
 
 
 const props = defineProps<{
@@ -28,9 +30,10 @@ const props = defineProps<{
 }>();
 
 
-const { showUsersBar } = useUsersBar();
+const { showUsersBar, setUsersBarHiddenByRoute } = useUsersBar();
 const { initPeer } = useSecurePeer();
 const { notify } = useNotifications();
+const { init: initNotifications } = useNotification();
 const route = useRoute();
 const toast = useToast();
 const { fetchPermissions } = usePermissions(computed(() => props.orgId));
@@ -42,7 +45,18 @@ const orgOnOpen = computed(() => {
     return organizations.value.find(org => org.id === route.params.orgId);
 });
 
+const orgReady = computed(() => openedOrg.value?.id === props.orgId);
+
 import { watch, toRaw } from 'vue';
+
+// Dans Tâches/Fichiers, la barre des membres se masque par défaut, sans
+// toucher à la préférence enregistrée : on la restaure dès qu'on revient
+// sur un salon ou toute autre page (ex: ThreadLayout, OrgAI, Settings).
+const USERSBAR_AUTOHIDE_ROUTES = new Set(['TasksSpace', 'TasksGlobal', 'SpaceFiles', 'AgendaGlobal']);
+
+watch(() => route.name, (name) => {
+    setUsersBarHiddenByRoute(USERSBAR_AUTOHIDE_ROUTES.has(name as string));
+}, { immediate: true });
 
 watch(() => route.params.spaceId, async (newSpaceId, oldSpaceId) => {
     if (newSpaceId && newSpaceId !== oldSpaceId && privateKey.value) {
@@ -559,6 +573,8 @@ function handleTabletChange(e: any)
 
 onMounted(async () => {
 
+    localStorage.setItem('lastOpenedOrgId', props.orgId);
+
     if (!openedOrg.value || openedOrg.value.id !== props.orgId) {
         const res = await sfetch(`/api/orgs/${props.orgId}`);
         if (!res.ok) {
@@ -570,7 +586,8 @@ onMounted(async () => {
     await Promise.all([
             fetchPermissions(),
             initSocketListener(),
-            initPeer()
+            initPeer(),
+            initNotifications()
     ])
 
     handleTabletChange(mediaQuery);
@@ -580,10 +597,30 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(async () => {
+    // The socket is an app-wide singleton (see useWSocket.ts) shared with
+    // other features (DMs, notifications, calls) — it must stay connected
+    // across ordinary in-app navigation. Only the listeners registered by
+    // this component in initSocketListener() are torn down here; the
+    // connection itself is only ever closed on logout or app close.
     const socket = await useWSocket();
-    socket.value?.off('user-status-changed');
-    socket.value?.disconnect();
-    socket.value = null;
+    [
+        'member:new',
+        'member:kicked',
+        'user-status-changed',
+        'user-data-updated',
+        'key-requested',
+        'todo-added',
+        'space:updated',
+        'org-data-updated',
+        'category-updated',
+        'categories-updated',
+        'notif:new-message',
+        'notif:dm:new-message',
+        'privateMeet:incomingCall',
+        'thread:created',
+        'thread:updated',
+        'thread:deleted',
+    ].forEach(event => socket.value?.off(event));
 })
 
 </script>
@@ -599,8 +636,8 @@ onBeforeUnmount(async () => {
         >
 
             <SpaceBar class="h-full" />
-            <ThreadsBar 
-                v-if="route.name !== 'TasksGlobal'"
+            <ThreadsBar
+                v-if="route.name !== 'TasksGlobal' && route.name !== 'AgendaGlobal' && route.name !== 'OrgHome'"
                 class="h-full " 
                 :class="[
                     isDesktopApp() ? 'rounded-tl-2xl' : '',
@@ -609,7 +646,17 @@ onBeforeUnmount(async () => {
             />
 
             <Transition name="slide-in-right">
-                <div 
+                <div
+                    v-if="!orgReady"
+                    key="org-loading"
+                    class="flex-1 h-full min-w-0 flex items-center justify-center bg-(--bg3)"
+                    :class="isDesktopApp() ? 'border-t border-white/10' : ''"
+                >
+                    <SpinLoader />
+                </div>
+                <div
+                    v-else
+                    key="org-content"
                     v-show="showRouterView"
                     class=" overflow-hidden bg-(--bg3)"
                     :class="[

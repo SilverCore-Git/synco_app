@@ -146,14 +146,15 @@ import type { Webhook } from '@/types/webhooks';
 
 const route = useRoute();
 
-const { 
-    webhooks, 
-    loading, 
-    error, 
-    activeWebhooks, 
-    inactiveWebhooks, 
+const {
+    webhooks,
+    loading,
+    error,
+    activeWebhooks,
+    inactiveWebhooks,
     totalWebhooks,
     listWebhooks,
+    getWebhook,
     deleteWebhook,
     toggleWebhookActive
 } = useWebhooks();
@@ -233,9 +234,16 @@ const openTestModal = (webhook: Webhook) => {
     showTestModal.value = true;
 };
 
-const openDetailsModal = (webhook: Webhook) => {
+const openDetailsModal = async (webhook: Webhook) => {
     detailsWebhook.value = webhook;
     showDetailsModal.value = true;
+    // Le listing masque le jeton (cf. audit H3) donc `webhook.url` n'y est
+    // jamais renseigné : on va chercher la version complète (URL comprise
+    // si l'utilisateur courant est le créateur) via l'endpoint dédié.
+    const result = await getWebhook(webhook.id);
+    if (result?.success && result.webhook) {
+        detailsWebhook.value = result.webhook;
+    }
 };
 
 const openEditModalFromDetails = (webhook: Webhook) => {
@@ -273,8 +281,14 @@ const toggleWebhook = async (webhook: Webhook, isActive: boolean) => {
 };
 
 // Callbacks
-const onWebhookCreated = () => {
+const onWebhookCreated = (webhook: Webhook) => {
     showCreateModal.value = false;
+    // L'URL complète (jeton compris) n'est disponible que dans la réponse de
+    // création — le listing qui suit la masque (cf. audit H3) — donc on
+    // ouvre directement les détails avec cet objet-ci pour que l'utilisateur
+    // puisse la copier avant qu'elle ne redevienne masquée.
+    detailsWebhook.value = webhook;
+    showDetailsModal.value = true;
     if (currentSpaceId.value) {
         listWebhooks(currentSpaceId.value);
     }

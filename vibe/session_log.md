@@ -595,4 +595,94 @@ git commit -m "feat(settings): add developer mode and fix local org deletion"
 1. Ajouter potentiellement ce mode développeur à d'autres endroits de l'interface (fichiers, utilisateurs, espaces).
 ---
 
+## 📅 **30 Août 2026 - Archivage des Tâches (Todo Module)**
 
+**Durée** : Session complète  
+**Priorité** : ⭐⭐⭐⭐ (Haute)  
+**Complexité** : Moyenne  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Ajouter un état "archivé" aux tâches (voir `synco_app/vibe/features/TODO_MODULE_FEATURE.md`, section 6) : une tâche `DONE` peut être archivée pour disparaître du Kanban sans être supprimée, avec un panneau dédié pour la consulter et la restaurer.
+
+### **Fichiers Créés**
+| Fichier | Description |
+|---------|-------------|
+| `src/views/OrgSpace/components/popup/ArchivedTasksPanel.vue` | Modal listant les tâches archivées (fetch lazy + au mount), avec restauration et suppression définitive (via `ConfirmDelete.vue`), et émission d'un événement `count` pour synchroniser le badge du bouton "Archives" côté parent. |
+
+### **Fichiers Modifiés**
+| Fichier | Modification |
+|---------|--------------|
+| `src/types/types.ts` | Ajout de `archived?: boolean` et `archivedAt?: string \| Date \| null` sur `Task`. |
+| `src/views/OrgSpace/views/TasksSpace.vue` | Bouton "Archiver" à côté de la corbeille en drag & drop, action groupée "Archiver tout" sur la colonne Terminé, entrée "Archiver" au menu contextuel, bouton "Archives" dans la topbar (masqué si `archivedCount === 0`), intégration `ArchivedTasksPanel`. |
+| `src/views/OrgSpace/views/TasksGlobal.vue` | Mêmes ajouts que `TasksSpace.vue`, adaptés à la structure en swimlanes par espace (archivage groupé par colonne DONE de chaque groupe). |
+| `src/views/OrgSpace/components/popup/TaskDetailsModal.vue` | Bouton "Archiver la tâche" à côté de "Supprimer la tâche" dans le footer. |
+| `vibe/features/TODO_MODULE_FEATURE.md` | Ajout de la section 6 documentant l'extension "Archivage". |
+
+### **Fonctionnalités Implémentées**
+✅ **Archivage individuel** : drag & drop sur un bouton ambre dédié (à côté de la corbeille), ou depuis le menu contextuel / la modale de détails.  
+✅ **Archivage groupé** : bouton sur la colonne "Terminé" pour archiver toutes les tâches `DONE` en une fois (action réversible, pas de dialogue de confirmation).  
+✅ **Panneau Archives** : accessible depuis la topbar (masqué tant qu'il n'y a aucune tâche archivée), liste avec restauration en un clic et suppression définitive protégée par `ConfirmDelete.vue`.  
+✅ **Respect des conventions Synco** : aucun `alert()`/`confirm()` natif — réutilisation du composant `ConfirmDelete.vue` existant pour la suppression irréversible.  
+✅ **Synchro temps réel** : quand une tâche est archivée par un autre utilisateur, elle disparaît du board via le socket `todo-updated` et le compteur d'archives se met à jour.
+
+### **Commits**
+```bash
+git commit -m "feat(tasks): add UI to archive tasks and view archives"
+git commit -m "fix(tasks): use ConfirmDelete instead of native confirm()"
+git commit -m "fix(tasks): hide archives button in header when there are no archived tasks"
+```
+**Date** : 30 Août 2026
+
+### **Prochaines Étapes**
+1. Étendre l'affichage des tâches archivées aux listes (`TodoList`) et pas uniquement aux tâches non-listées du Kanban, si le besoin apparaît.
+2. Envisager une notification/toast lorsqu'une tâche que je suis en train de consulter est archivée par un autre membre.
+
+---
+
+## 📅 **17 Septembre 2026 - Tags, pièces jointes (images) et fichiers liés pour le module Todo**
+
+**Durée** : Session complète  
+**Priorité** : ⭐⭐⭐⭐ (Haute)  
+**Complexité** : Élevée (3 fonctionnalités, backend + frontend, cross-repo)  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Trois ajouts au module Todo (voir `vibe/features/TODO_TAGS_ATTACHMENTS_FEATURE.md`), en gardant l'esprit "simplicité extrême" du module (pas de nouvel écran) : tags (créer/assigner/filtrer), coller/attacher des images de contexte à une tâche, lier une tâche à un fichier déjà présent dans le gestionnaire de fichiers de l'espace.
+
+### **Fichiers Créés**
+| Fichier | Description |
+|---------|-------------|
+| `vibe/features/TODO_TAGS_ATTACHMENTS_FEATURE.md` | Spécification des 3 fonctionnalités (architecture, permissions, choix UX). |
+| `src/composables/useTaskTags.ts` | Wrapper de l'API CRUD des tags (`/api/tasks/:orgId/tags`), partagé par tous les points d'usage. |
+| `src/views/OrgSpace/components/popup/TaskTagPicker.vue` | Chips à cocher + mini-formulaire "+ Nouveau tag" (palette de 8 couleurs), utilisé dans `CreateTaskModal` et `TaskDetailsModal`. |
+| `src/views/OrgSpace/components/popup/FilePickerModal.vue` | Sélecteur de fichier : liste plate cherchable sourcée depuis `GET /api/spaces/:spaceId/files` (pas de nouvelle route, pas de navigation par dossiers — plus rapide pour "je cherche vite un fichier à lier"). |
+
+### **Fichiers Modifiés**
+| Fichier | Modification |
+|---------|--------------|
+| `src/types/types.ts` | `Tag`, `TaskAttachment`, `TaskLinkedFile` + champs `tags`/`attachments`/`linkedFiles`/`_count` sur `Task`. |
+| `src/assets/uploadFile.ts` | `UploadContext.taskId` — permet d'attacher un upload à une tâche comme les contextes `messageId`/`folderId` existants. |
+| `src/assets/utils/downloadFile.ts` | Nouvelle fonction `getFilePreviewUrl()` : même logique de déchiffrement E2EE que `downloadFile()`, mais retourne une URL affichable (blob ou lien direct) au lieu de déclencher un téléchargement — réutilisée pour les vignettes de pièces jointes. |
+| `src/views/OrgSpace/components/popup/CreateTaskModal.vue` | `TaskTagPicker` intégré ; coller/joindre des images les met en attente côté client (la tâche n'existe pas encore) puis les upload juste après la création. |
+| `src/views/OrgSpace/components/popup/TaskDetailsModal.vue` | `TaskTagPicker` (mode édition) + pastilles en lecture seule ; section "Pièces jointes" (upload immédiat via `taskId`, vignettes, lightbox `FileViewer.vue`) ; section "Fichiers liés" (tâches d'espace uniquement) avec `FilePickerModal`. |
+| `src/views/OrgSpace/views/TasksGlobal.vue` / `TasksSpace.vue` | Pastilles de tags + badge nombre de pièces jointes sur les cartes Kanban ; barre de filtre par tag (multi-sélection, logique OU) à côté du filtre par membre existant. |
+
+### **Fonctionnalités Implémentées**
+✅ **Tags** : partagés à l'échelle de l'organisation (tâches personnelles + tâches d'espace), création libre, suppression/renommage réservés au créateur ou à un admin.  
+✅ **Pièces jointes (images)** : coller directement dans la description ou bouton trombone, réutilise le pipeline CDN existant (chiffrement, quota, validation MIME) — donc toujours soumis au module Fichiers de l'organisation.  
+✅ **Fichiers liés** : référence pure vers un fichier déjà dans le gestionnaire de fichiers, ne le possède jamais (retirer le lien ne supprime pas le fichier).  
+✅ **Sécurité** : chaque nouvelle route backend vérifie l'appartenance à l'org via `getPermission` avant tout accès Prisma (le module Tasks a déjà eu des routes sans ce contrôle par le passé — voir mémoire projet).
+
+### **Commits**
+```bash
+git commit -m "feat(tasks): add tag picker, filters and pills to the todo module"
+git commit -m "feat(tasks): paste/attach images to tasks for context"
+git commit -m "feat(tasks): link a file-manager file to a task"
+```
+**Date** : 17 Septembre 2026
+
+### **Prochaines Étapes**
+1. Pas de synchronisation WebSocket pour les tags/pièces jointes/fichiers liés (simplification assumée) — envisager un événement socket dédié si la latence de rafraîchissement devient gênante en usage collaboratif intense.
+2. Vérification manuelle en navigateur non effectuée dans cette session (pas de Node.js disponible dans le sandbox d'exécution) — à tester : coller une image dans les deux modales, filtrer par tag, lier/délier un fichier, avant de considérer la branche prête à review.
+---

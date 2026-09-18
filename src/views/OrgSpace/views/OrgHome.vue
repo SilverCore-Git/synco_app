@@ -1,57 +1,63 @@
 <template>
-    <div v-if="!hasThreads" class="flex flex-col items-center justify-center h-full w-full bg-(--bg3) text-(--text) p-6 relative">
-        <div class="absolute top-4 left-4 z-50">
-            <MobileBackBtn />
+    <div class="flex flex-col h-full relative overflow-hidden w-full">
+        <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-(--border-color) bg-(--bg2) z-10 shrink-0">
+            <div class="flex items-center gap-3">
+                <MobileBackBtn />
+                <i class="bi bi-house text-(--text)"></i>
+                <h3 class="font-semibold text-(--text)">Accueil</h3>
+            </div>
+
+            <div class="ml-auto flex items-center gap-4 text-(--text2)">
+                <button
+                    @click="showUsersBar = !showUsersBar"
+                    class="hover:text-(--text) transition-colors"
+                    :class="showUsersBar ? 'text-(--text)' : ''"
+                >
+                    <i class="bi bi-people-fill" />
+                </button>
+            </div>
         </div>
-        <i class="bi bi-house text-6xl text-white/10 mb-4"></i>
-        <h2 class="text-xl font-bold mb-2 text-center">Bienvenue !</h2>
-        <p class="text-white/40 text-center max-w-sm">
-            <!-- mettre phrase de bienvenue  -->
-            
-        </p>
+
+        <main class="flex-1 overflow-y-auto p-4 md:p-6">
+            <h2 class="text-xl font-bold text-(--text) mb-6">{{ greeting }}, {{ $p(user?.name) }} 👋</h2>
+
+            <div class="dash-grid">
+                <PendingMessagesCard />
+                <AgendaCard v-if="agendaEnabled" />
+                <TodosCard v-if="todoEnabled" />
+            </div>
+        </main>
     </div>
 </template>
 
 <script lang="ts" setup>
-
-import { onMounted, ref } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import { openedOrg, isLittleScreen } from '@/assets/var';
+import { computed } from 'vue';
+import { user, todoEnabled, agendaEnabled } from '@/assets/var';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
+import PendingMessagesCard from '../components/Home/PendingMessagesCard.vue';
+import AgendaCard from '../components/Home/AgendaCard.vue';
+import TodosCard from '../components/Home/TodosCard.vue';
+import { useUsersBar } from '@/composables/useUsersBar';
 
-const router = useRouter();
-const route = useRoute();
-const hasThreads = ref(true);
+const { showUsersBar } = useUsersBar();
 
-onMounted(() => {
-    // Don't auto-redirect if coming from a thread access error (avoid loop)
-    if (route.query.noRedirect === 'true') {
-        hasThreads.value = false;
-        return;
-    }
-
-    const homeThreads = openedOrg.value?.home.threads?.filter((th: any) => th.type === 'text');
-    const firstThread = homeThreads && homeThreads.length > 0 ? homeThreads[0] : null;
-    
-    if (!firstThread) {
-        hasThreads.value = false;
-        return;
-    }
-
-    if (isLittleScreen.value) {
-        if (route.query.showView !== '0') {
-            router.replace({ query: { ...route.query, showView: '0' } });
-        }
-    } else {
-        router.replace({
-            name: 'OrgThreadHome',
-            params: {
-                threadId: firstThread.id
-            },
-            query: route.query
-        });
-    }
-
-})
-
+const greeting = computed(() => {
+    const hour = new Date().getHours();
+    if (hour < 6) return 'Bonsoir';
+    if (hour < 18) return 'Bonjour';
+    return 'Bonsoir';
+});
 </script>
+
+<style scoped>
+.dash-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.dash-grid > * {
+    max-height: 22rem;
+}
+</style>
