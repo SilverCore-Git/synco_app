@@ -1,5 +1,5 @@
 <template>
-  <Window :is-open="isOpen" :hideCloseBtn="true" @close="closeViewer">
+  <Window :is-open="isOpen" :hideCloseBtn="true" :z-index="2500" @close="closeViewer">
     <div class="w-full h-full bg-(--bg) overflow-hidden flex flex-col">
       <!-- Header -->
       <div class="px-6 py-4 border-b border-(--bg2)/5 flex items-center justify-between shrink-0">
@@ -156,7 +156,7 @@
       itemType="le fichier"
   />
 
-  <Popup :isOpen="showUnsavedConfirm" @close="showUnsavedConfirm = false">
+  <Popup :isOpen="showUnsavedConfirm" :z-index="2600" @close="showUnsavedConfirm = false">
     <template #title>Modifications non enregistrées</template>
     <p class="text-(--text) text-sm">
       Vous avez des modifications non enregistrées sur <strong>{{ file.originalName }}</strong>.
