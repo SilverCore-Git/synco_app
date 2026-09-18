@@ -59,7 +59,7 @@
                 Modifier
             </button>
 
-            <button v-if="can('FOLDER_DELETE', route.params.spaceId as string, thread.id)" @click="showConfirmDelete = !showConfirmDelete" class="dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!">
+            <button v-if="can('FOLDER_DELETE')" @click="showConfirmDelete = !showConfirmDelete" class="dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!">
                 <i class="bi bi-trash-fill mr-2" />
                 Supprimer
             </button>
@@ -98,7 +98,6 @@ import useSettingsItem from '@/composables/useSettingsItem';
 import { useToast } from '@/composables/useToast';
 import { usePermissions } from '@/composables/usePermissions';
 import { computed } from 'vue';
-import { useRoute } from 'vue-router';
 const props = defineProps<{
   thread: Thread;
   active?: boolean;
@@ -115,7 +114,6 @@ const emit = defineEmits(['click']);
 const showEditThread = ref<boolean>(false);
 const showConfirmDelete = ref<boolean>(false);
 const toast = useToast();
-const route = useRoute();
 const orgId = computed(() => openedOrg.value?.id);
 const { can } = usePermissions(orgId);
 const { Item: devMode } = useSettingsItem('devMode', false);
