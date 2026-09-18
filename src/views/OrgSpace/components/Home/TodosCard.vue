@@ -152,7 +152,10 @@ const items = computed(() => {
 });
 
 function taskLink(task: Task): string {
-    return task.spaceId ? `/${orgId.value}/${task.spaceId}/tasks` : `/${orgId.value}/tasks`;
+    // ?select= : TasksSpace.vue / TasksGlobal.vue ouvrent la tâche et
+    // mettent sa carte en surbrillance (scroll + glow) à l'arrivée.
+    const base = task.spaceId ? `/${orgId.value}/${task.spaceId}/tasks` : `/${orgId.value}/tasks`;
+    return `${base}?select=${task.id}`;
 }
 </script>
 

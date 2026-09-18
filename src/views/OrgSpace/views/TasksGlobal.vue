@@ -219,6 +219,7 @@
                                 >
                                 <template #trigger>
                                 <div
+                                     :id="'task-' + task.id"
                                      draggable="true"
                                      @dragstart="onDragStart($event, task, spaceGroup.id)"
                                      @dragend="onDragEnd"
@@ -414,7 +415,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import type { Task, TodoList } from '@/types/types';
 import { useToast } from '@/composables/useToast';
@@ -433,6 +434,7 @@ import { useTaskOrder } from '@/composables/useTaskOrder';
 import { useTaskTags } from '@/composables/useTaskTags';
 
 const route = useRoute();
+const router = useRouter();
 const toast = useToast();
 const { markTasksAsRead } = useNotification();
 const { fetchOrder, sortByOrder, persistOrder } = useTaskOrder(route.params.orgId as string);
@@ -603,9 +605,44 @@ const loadLists = async () => {
             });
             
             rawTasks.value = allTasks;
-            
+
             // Clear unread notifications
             markTasksAsRead();
+
+            // Deep-link depuis Home/recherche : ouvre la tâche et la met en
+            // surbrillance dans le Kanban (même mécanisme que TasksSpace.vue).
+            if (route.query.select) {
+                const searchId = route.query.select as string;
+                const foundTask = allTasks.find(t => t.id === searchId);
+
+                if (foundTask) {
+                    selectedTask.value = foundTask;
+
+                    setTimeout(() => {
+                        const el = document.getElementById('task-' + searchId);
+                        if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            const originalTransition = el.style.transition;
+                            const originalTransform = el.style.transform;
+                            const originalBoxShadow = el.style.boxShadow;
+
+                            el.style.transition = 'all 0.3s ease';
+                            el.style.transform = 'scale(1.05)';
+                            el.style.boxShadow = '0 0 0 4px var(--primary), 0 10px 30px rgba(0,0,0,0.5)';
+                            el.style.zIndex = '10';
+
+                            setTimeout(() => {
+                                el.style.transform = originalTransform;
+                                el.style.boxShadow = originalBoxShadow;
+                                el.style.zIndex = '';
+                                setTimeout(() => el.style.transition = originalTransition, 300);
+                            }, 3000);
+                        }
+                    }, 500);
+
+                    router.replace({ query: { ...route.query, select: undefined } });
+                }
+            }
         }
     } catch (e) {
         toast.show("Erreur chargement des tâches", "error");
