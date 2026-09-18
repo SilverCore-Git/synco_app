@@ -4,7 +4,7 @@
 
     <div class="relative flex items-center justify-center overflow-hidden rounded-xl">
 
-      <img src="/favicon.ico" alt="Logo" class="h-20 relative z-10" />
+      <img src="/assets/logo/synco/favicon_synco.svg" alt="Logo" class="h-20 relative z-10" />
 
       <div class="shimmer absolute inset-0 z-20 pointer-events-none" />
 
