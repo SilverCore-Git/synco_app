@@ -645,28 +645,26 @@ onBeforeUnmount(async () => {
                 ]" 
             />
 
-            <Transition name="slide-in-right">
-                <div
-                    v-if="!orgReady"
-                    key="org-loading"
-                    class="flex-1 h-full min-w-0 flex items-center justify-center bg-(--bg3)"
-                    :class="isDesktopApp() ? 'border-t border-white/10' : ''"
-                >
-                    <SpinLoader />
-                </div>
-                <div
-                    v-else
-                    key="org-content"
-                    v-show="showRouterView"
-                    class=" overflow-hidden bg-(--bg3)"
-                    :class="[
-                        isDesktopApp() ? 'border-t border-white/10' : '',
-                        isLittleScreen ? 'fixed top-0 right-0 h-full w-full z-50 bg-(--bg) shadow-lg' : 'relative flex-1 h-full min-w-0'
-                    ]"
-                >
-                    <RouterView />
-                </div>
-            </Transition>
+            <div
+                v-if="!orgReady"
+                key="org-loading"
+                class="flex-1 h-full min-w-0 flex items-center justify-center bg-(--bg3) animate-app-reveal"
+                :class="isDesktopApp() ? 'border-t border-white/10' : ''"
+            >
+                <SpinLoader />
+            </div>
+            <div
+                v-else
+                key="org-content"
+                v-show="showRouterView"
+                class="overflow-hidden bg-(--bg3) animate-app-reveal"
+                :class="[
+                    isDesktopApp() ? 'border-t border-white/10' : '',
+                    isLittleScreen ? 'fixed top-0 right-0 h-full w-full z-50 bg-(--bg) shadow-lg' : 'relative flex-1 h-full min-w-0'
+                ]"
+            >
+                <RouterView />
+            </div>
 
             <Transition name="fade">
                 <div 

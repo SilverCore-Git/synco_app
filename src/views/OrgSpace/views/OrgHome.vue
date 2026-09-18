@@ -19,12 +19,12 @@
         </div>
 
         <main class="flex-1 overflow-y-auto p-4 md:p-6">
-            <h2 class="text-xl font-bold text-(--text) mb-6">{{ greeting }}, {{ $p(user?.name) }} 👋</h2>
+            <h2 class="text-xl font-bold text-(--text) mb-6 animate-app-reveal">{{ greeting }}, {{ $p(user?.name) }} 👋</h2>
 
             <div class="dash-grid">
-                <PendingMessagesCard />
-                <AgendaCard v-if="agendaEnabled" />
-                <TodosCard v-if="todoEnabled" />
+                <PendingMessagesCard class="animate-app-reveal" style="animation-delay: 0.06s" />
+                <AgendaCard v-if="agendaEnabled" class="animate-app-reveal" style="animation-delay: 0.12s" />
+                <TodosCard v-if="todoEnabled" class="animate-app-reveal" style="animation-delay: 0.18s" />
             </div>
         </main>
     </div>
