@@ -1,17 +1,21 @@
-import { ref, shallowRef } from 'vue';
+import { ref, reactive, shallowRef } from 'vue';
 import {
     Room,
     RoomEvent,
     RemoteTrack,
     Track,
     Participant,
-    ExternalE2EEKeyProvider
+    ExternalE2EEKeyProvider,
+    VideoPresets,
+    type VideoCaptureOptions,
+    type ScreenShareCaptureOptions
 } from 'livekit-client';
 import { openedOrg } from '@/assets/var';
 import { decryptThreadKeyWithRsa, privateKey } from '@/assets/utils/crypto';
 import E2EEWorker from '../../node_modules/livekit-client/dist/livekit-client.e2ee.worker.js?worker&url';
 import useWSocket from './useWSocket';
 import { useToast } from './useToast';
+import sfetch from '@/assets/utils/sfetch';
 import type { OrgMember } from '@/types/types';
 
 
@@ -27,6 +31,48 @@ const isScreenShareEnabled = ref<boolean>(false);
 const isDeafened = ref<boolean>(false);
 const keyProvider = new ExternalE2EEKeyProvider();
 let intentionalDisconnect = false;
+
+// ── Volume local par participant (0-200%) ───────────────────────────────
+// Un <audio> natif plafonne à 100% (el.volume max = 1) : pour permettre un
+// boost au-delà, chaque flux audio distant est routé à travers un GainNode
+// Web Audio plutôt que de compter sur el.volume.
+const VOLUMES_STORAGE_KEY = 'synco:voiceVolumes';
+let audioCtx: AudioContext | null = null;
+const gainNodes = new Map<string, GainNode>();
+const participantVolumes = reactive<Map<string, number>>(new Map());
+
+function loadStoredVolumes(): Record<string, number> {
+    try {
+        const raw = localStorage.getItem(VOLUMES_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+    } catch {
+        return {};
+    }
+}
+
+function persistVolumes() {
+    try {
+        const obj: Record<string, number> = {};
+        participantVolumes.forEach((v, k) => { obj[k] = v; });
+        localStorage.setItem(VOLUMES_STORAGE_KEY, JSON.stringify(obj));
+    } catch {
+        // localStorage indisponible (navigation privée, quota) : préférence non persistée, sans impact fonctionnel
+    }
+}
+
+function getStoredVolume(identity: string): number {
+    if (participantVolumes.has(identity)) return participantVolumes.get(identity)!;
+    const stored = loadStoredVolumes()[identity];
+    const vol = typeof stored === 'number' ? stored : 100;
+    participantVolumes.set(identity, vol);
+    return vol;
+}
+
+function getAudioContext(): AudioContext {
+    if (!audioCtx) audioCtx = new AudioContext();
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    return audioCtx;
+}
 
 
 /**
@@ -116,10 +162,21 @@ function useLiveKit()
         const newRoom = new Room({
             adaptiveStream: true,
             dynacast: true,
-            e2ee: e2eeOptions
+            e2ee: e2eeOptions,
+            // Simulcast : publie plusieurs couches de qualité pour la caméra, le SFU
+            // ne transmettant à chaque spectateur que la couche adaptée à sa bande
+            // passante réelle (combiné à adaptiveStream/dynacast ci-dessus).
+            publishDefaults: {
+                simulcast: true,
+                videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360, VideoPresets.h720],
+            }
         });
 
         const handleSync = () => {
+            // Un mute forcé côté serveur (modération) ne déclenche que TrackMuted,
+            // pas LocalTrackPublished/Unpublished : sans ce resync ici, le bouton
+            // micro local resterait affiché "actif" après un mute distant.
+            syncLocalState();
             allParticipants.value = [newRoom.localParticipant, ...Array.from(newRoom.remoteParticipants.values())];
             broadcastUpdate(threadId, spaceId);
         };
@@ -163,6 +220,8 @@ function useLiveKit()
             allParticipants.value = [];
             audioTracks.value.clear();
             videoTracks.value.clear();
+            gainNodes.forEach(g => g.disconnect());
+            gainNodes.clear();
 
             if (!intentionalDisconnect) {
                 useToast().show("Connexion au salon vocal perdue", "error");
@@ -175,7 +234,24 @@ function useLiveKit()
             if (track.kind === Track.Kind.Audio)
             {
                 const el = track.attach();
-                el.muted = isDeafened.value;
+                // Routage via un GainNode Web Audio (cf. déclarations en tête de fichier) :
+                // permet un volume par-participant jusqu'à 200%, ce qu'un <audio>
+                // natif (max 100%) ne permet pas. Le gain porte aussi l'assourdissement
+                // (deafen) — plus fiable que el.muted une fois l'élément capturé par
+                // createMediaElementSource sur certains navigateurs.
+                try {
+                    const ctx = getAudioContext();
+                    const source = ctx.createMediaElementSource(el);
+                    const gain = ctx.createGain();
+                    const vol = getStoredVolume(participant.identity);
+                    gain.gain.value = isDeafened.value ? 0 : vol / 100;
+                    source.connect(gain);
+                    gain.connect(ctx.destination);
+                    gainNodes.set(participant.identity, gain);
+                } catch (e) {
+                    console.error('[LiveKit Audio] Impossible de router le flux via Web Audio:', e);
+                    el.muted = isDeafened.value;
+                }
                 audioTracks.value.set(participant.identity, track);
             }
             else
@@ -189,7 +265,11 @@ function useLiveKit()
 
         newRoom.on(RoomEvent.TrackUnsubscribed, (track, pub, participant) => {
             track.detach();
-            if (track.kind === Track.Kind.Audio) audioTracks.value.delete(participant.identity);
+            if (track.kind === Track.Kind.Audio) {
+                audioTracks.value.delete(participant.identity);
+                gainNodes.get(participant.identity)?.disconnect();
+                gainNodes.delete(participant.identity);
+            }
             else videoTracks.value.delete(`${participant.identity}-${pub.source}`);
             handleSync();
         });
@@ -237,6 +317,8 @@ function useLiveKit()
             allParticipants.value = [];
             audioTracks.value.clear();
             videoTracks.value.clear();
+            gainNodes.forEach(g => g.disconnect());
+            gainNodes.clear();
 
         }
 
@@ -251,12 +333,13 @@ function useLiveKit()
         isMicEnabled,
         isScreenShareEnabled,
         isDeafened,
+        participantVolumes,
         getWSData,
         connectToRoom,
         leaveRoom,
-        toggleCamera: async (en: boolean) => {
+        toggleCamera: async (en: boolean, captureOptions?: VideoCaptureOptions) => {
             if (!room.value) return;
-            await room.value.localParticipant.setCameraEnabled(en);
+            await room.value.localParticipant.setCameraEnabled(en, captureOptions);
             isCameraEnabled.value = en;
         },
         toggleMicrophone: async (en: boolean) => {
@@ -264,17 +347,52 @@ function useLiveKit()
             await room.value.localParticipant.setMicrophoneEnabled(en);
             isMicEnabled.value = en;
         },
-        toggleScreenShare: async (en: boolean) => {
+        toggleScreenShare: async (en: boolean, captureOptions?: ScreenShareCaptureOptions) => {
             if (!room.value) return;
-            await room.value.localParticipant.setScreenShareEnabled(en);
+            await room.value.localParticipant.setScreenShareEnabled(en, captureOptions);
             isScreenShareEnabled.value = en;
         },
         toggleDeafen: (en: boolean) => {
             isDeafened.value = en;
-            audioTracks.value.forEach(track => {
-                track.attachedElements.forEach(el => {
-                    el.muted = en;
-                });
+            gainNodes.forEach((gain, identity) => {
+                gain.gain.value = en ? 0 : getStoredVolume(identity) / 100;
+            });
+        },
+
+        /** Volume local (0-200%) appliqué au flux d'un participant distant — jamais envoyé au serveur. */
+        setParticipantVolume: (identity: string, pct: number) => {
+            const clamped = Math.min(200, Math.max(0, Math.round(pct)));
+            participantVolumes.set(identity, clamped);
+            persistVolumes();
+            const gain = gainNodes.get(identity);
+            if (gain && !isDeafened.value) gain.gain.value = clamped / 100;
+        },
+
+        /** Change le périphérique micro/caméra/enceinte actif sans republier (API native LiveKit). */
+        switchDevice: async (kind: MediaDeviceKind, deviceId: string) => {
+            if (!room.value) return;
+            await room.value.switchActiveDevice(kind, deviceId);
+        },
+
+        /** Applique une nouvelle résolution/framerate à une track vidéo locale déjà publiée, sans republier. */
+        applyVideoQuality: async (source: Track.Source.Camera | Track.Source.ScreenShare, options: VideoCaptureOptions) => {
+            if (!room.value) return;
+            const pub = room.value.localParticipant.getTrackPublication(source);
+            await pub?.videoTrack?.restartTrack(options);
+        },
+
+        /** Force la coupure/réactivation du micro d'un autre participant (nécessite VOICE_MUTE_OTHERS). */
+        muteParticipant: async (threadId: string, identity: string, muted: boolean) => {
+            return sfetch(`/api/livekit/rooms/${threadId}/participants/${identity}/mute`, {
+                method: 'POST',
+                body: JSON.stringify({ muted }),
+            });
+        },
+
+        /** Expulse un participant du salon vocal (nécessite VOICE_DISCONNECT). */
+        disconnectParticipant: async (threadId: string, identity: string) => {
+            return sfetch(`/api/livekit/rooms/${threadId}/participants/${identity}`, {
+                method: 'DELETE',
             });
         }
     };
