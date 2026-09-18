@@ -72,7 +72,7 @@ const onSpaceOrderChange = async () => {
         class="
             h-full min-w-17 bg-(--bg)
             flex justify-start items-center flex-col pt-2.5
-            animate-app-reveal
+            animate-sidebar-reveal
         "
     >
 
