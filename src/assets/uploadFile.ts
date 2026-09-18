@@ -27,8 +27,16 @@ export default async function uploadFile(
     return new Promise(async (resolve, reject) => {
 
         const formData = new FormData();
-        
-        let finalFile = file;
+
+        // Le File.type que renvoie le navigateur pour un .md n'est pas fiable
+        // (souvent vide selon l'OS) — on force un mimetype cohérent par
+        // extension plutôt que de dépendre de la détection du navigateur.
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        const mimeOverride = (ext === 'md' || ext === 'markdown') ? 'text/markdown' : undefined;
+
+        let finalFile = mimeOverride && file.type !== mimeOverride
+            ? new File([file], file.name, { type: mimeOverride })
+            : file;
         let isE2EE = false;
         let encryptedFileKeyBase64 = "";
         let ivBase64 = "";
@@ -38,13 +46,13 @@ export default async function uploadFile(
             try {
                 // 1. Get the WorkspaceKey
                 const { key: spaceKey, version } = await getWorkspaceKey(context.workspaceId);
-                
+
                 // 2. Encrypt the file locally
                 const arrayBuffer = await file.arrayBuffer();
                 const { encryptedBlob, encryptedFileKey, iv } = await encryptFileLocal(arrayBuffer, spaceKey);
-                
+
                 // 3. Prepare E2EE parameters
-                finalFile = new File([encryptedBlob], file.name, { type: file.type });
+                finalFile = new File([encryptedBlob], file.name, { type: mimeOverride || file.type });
                 isE2EE = true;
                 encryptedFileKeyBase64 = encryptedFileKey;
                 ivBase64 = iv;

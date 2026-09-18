@@ -11,8 +11,24 @@
               </div>
 
               <div class="flex items-center gap-2">
-                <button 
-                  v-if="isTextFile && fileContent !== originalFileContent"
+                <div v-if="isMarkdown" class="flex items-center rounded-lg bg-(--bg2)/50 p-0.5 mr-1">
+                  <button
+                    @click="viewMode = 'preview'"
+                    class="px-3 py-1.5 text-sm rounded-md transition-colors"
+                    :class="viewMode === 'preview' ? 'bg-(--primary) text-white' : 'text-(--text2) hover:text-(--text)'"
+                  >
+                    Aperçu
+                  </button>
+                  <button
+                    @click="viewMode = 'edit'"
+                    class="px-3 py-1.5 text-sm rounded-md transition-colors"
+                    :class="viewMode === 'edit' ? 'bg-(--primary) text-white' : 'text-(--text2) hover:text-(--text)'"
+                  >
+                    Édition
+                  </button>
+                </div>
+                <button
+                  v-if="(isTextFile || isMarkdown) && fileContent !== originalFileContent && !(isMarkdown && file.isE2EE)"
                   @click="saveContent"
                   class="primary !px-4 !py-2 text-sm gap-2"
                   :class="{ 'loader': isSaving }"
@@ -21,7 +37,7 @@
                   <i class="bi bi-floppy" />
                   Enregistrer
                 </button>
-                <button 
+                <button
                   @click="downloadFile(file.id)"
                   class="p-2 rounded-lg hover:bg-white/5 text-(--text2) hover:text-(--text) active:scale-90 transition-all duration-200 ml-2"
                   title="Télécharger"
@@ -89,7 +105,32 @@
                 </div>
               </template>
 
-              <template v-else-if="isTextFile">
+              <template v-else-if="isMarkdown && viewMode === 'preview'">
+                <MarkdownDocumentPreview :content="fileContent" />
+              </template>
+
+              <template v-else-if="isMarkdown && viewMode === 'edit' && file.isE2EE">
+                <div class="flex flex-col items-center justify-center h-full gap-4 text-center p-8">
+                    <i class="bi bi-shield-lock text-6xl text-warning"></i>
+                    <h3 class="text-xl font-bold text-slate-200">Fichier chiffré de bout en bout</h3>
+                    <p class="text-slate-400 max-w-md">
+                        La lecture chiffrée de bout en bout est prise en charge, mais pas l'enregistrement en place :
+                        modifier ce fichier réécrirait son contenu en clair côté serveur.
+                    </p>
+                    <p class="text-slate-400 max-w-md mb-4">
+                        Voulez-vous désactiver le chiffrement de bout en bout pour ce fichier afin de pouvoir l'éditer ?
+                    </p>
+                    <button @click="disableE2EE" :disabled="isDisablingE2EE" class="btn btn-primary w-64 mb-2">
+                        <span v-if="isDisablingE2EE" class="loading loading-spinner"></span>
+                        Oui, désactiver le chiffrement
+                    </button>
+                    <button @click="downloadFile(file.id)" class="btn btn-outline w-64">
+                        Garder chiffré et Télécharger
+                    </button>
+                </div>
+              </template>
+
+              <template v-else-if="isTextFile || isMarkdown">
                 <VueMonacoEditor
                   v-model:value="fileContent"
                   :language="getMonacoLanguage(file.mimeType, file.originalName)"
@@ -161,6 +202,7 @@ import sfetch from '@/assets/utils/sfetch';
 import Window from '@/components/windows/Window.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import Popup from '@/components/Popup.vue';
+import MarkdownDocumentPreview from './MarkdownDocumentPreview.vue';
 import { getWorkspaceKey } from '@/assets/utils/workspaceCrypto';
 import { decryptFileLocal } from '@/assets/utils/crypto';
 import { VueMonacoEditor, loader } from '@guolao/vue-monaco-editor';
@@ -212,7 +254,7 @@ const getMonacoLanguage = (mimeType: string, filename: string) => {
   if (ext === 'rb') return 'ruby';
   if (ext === 'sh' || mimeType === 'application/x-sh') return 'shell';
   if (ext === 'sql' || mimeType.includes('sql')) return 'sql';
-  if (ext === 'md') return 'markdown';
+  if (ext === 'md' || ext === 'markdown') return 'markdown';
   
   return 'plaintext';
 };
@@ -233,6 +275,7 @@ const showUnsavedConfirm = ref(false);
 
 const fileContent = ref('');
 const originalFileContent = ref('');
+const viewMode = ref<'edit' | 'preview'>('preview');
 
 const e2eeObjectUrl = ref<string | null>(null);
 
@@ -247,9 +290,9 @@ const isImage = computed(() => props.file.mimeType.startsWith('image/'));
 const isPdf = computed(() => props.file.mimeType === 'application/pdf');
 const isTextFile = computed(() => {
   const mime = props.file.mimeType;
-  return mime.startsWith('text/') || 
-         mime === 'application/json' || 
-         mime === 'application/xml' || 
+  return mime.startsWith('text/') ||
+         mime === 'application/json' ||
+         mime === 'application/xml' ||
          mime === 'application/javascript' ||
          mime === 'application/x-sh' ||
          mime.includes('sql');
@@ -258,6 +301,11 @@ const isTextFile = computed(() => {
 const fileExtension = computed(() => {
     return props.file.originalName.split('.').pop()?.toLowerCase() || '';
 });
+
+// Détection par extension, pas par mimeType : des .md déjà en base avant ce
+// fix peuvent avoir un mimeType incorrect (application/octet-stream) — on ne
+// veut pas dépendre de ça pour les reconnaître.
+const isMarkdown = computed(() => ['md', 'markdown'].includes(fileExtension.value));
 const isOfficeFile = computed(() => {
     const ext = fileExtension.value;
     return ['docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 'csv', 'txt', 'rtf'].includes(ext);
@@ -353,7 +401,11 @@ const disableE2EE = async () => {
             toast.show('Chiffrement désactivé, chargement de l\'éditeur...', 'success');
             props.file.isE2EE = false;
             emit('updated', newMeta);
-            await loadOnlyOfficeConfig();
+            if (isMarkdown.value) {
+                await fetchTextContent();
+            } else {
+                await loadOnlyOfficeConfig();
+            }
         } else {
             const err = await updateRes.json();
             toast.show(err.error || 'Erreur lors de la désactivation.', 'error');
@@ -380,7 +432,7 @@ const handleError = () => {
 };
 
 const fetchTextContent = async () => {
-  if (!isTextFile.value) return;
+  if (!isTextFile.value && !isMarkdown.value) return;
   isLoading.value = true;
   try {
     const res = await sfetch(`/api/cdn/download/${props.file.id}`);
@@ -485,7 +537,9 @@ watch(() => props.isOpen, async (isOpen) => {
     e2eeObjectUrl.value = null;
     onlyOfficeConfig.value = null;
     
-    if (props.file.isE2EE && !isTextFile.value && (isImage.value || isPdf.value)) {
+    if (isMarkdown.value) {
+      fetchTextContent();
+    } else if (props.file.isE2EE && !isTextFile.value && (isImage.value || isPdf.value)) {
         loadE2EEPreview();
     } else if (isOfficeFile.value && onlyOfficeEnabled.value && !props.file.isE2EE) {
         await loadOnlyOfficeConfig();
@@ -507,7 +561,9 @@ watch(() => props.isOpen, async (isOpen) => {
 onMounted(async () => {
     if (props.isOpen) {
         isLoading.value = true;
-        if (props.file.isE2EE && !isTextFile.value && (isImage.value || isPdf.value)) {
+        if (isMarkdown.value) {
+            fetchTextContent();
+        } else if (props.file.isE2EE && !isTextFile.value && (isImage.value || isPdf.value)) {
             loadE2EEPreview();
         } else if (isOfficeFile.value && onlyOfficeEnabled.value && !props.file.isE2EE) {
             await loadOnlyOfficeConfig();
@@ -521,7 +577,7 @@ onMounted(async () => {
 });
 
 const closeViewer = () => {
-  if (isTextFile.value && fileContent.value !== originalFileContent.value) {
+  if ((isTextFile.value || isMarkdown.value) && fileContent.value !== originalFileContent.value) {
     showUnsavedConfirm.value = true;
   } else {
     emit('close');

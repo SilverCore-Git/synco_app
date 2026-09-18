@@ -8,9 +8,14 @@ import { computed } from 'vue';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   content: string;
-}>();
+  // 'chat': bulles de message (compact, pas d'images/tableaux). 'document':
+  // fichier markdown du file manager (moins restrictif).
+  mode?: 'chat' | 'document';
+}>(), {
+  mode: 'chat'
+});
 
 marked.setOptions({
   breaks: true,
@@ -23,37 +28,60 @@ DOMPurify.addHook('afterSanitizeAttributes', function(node) {
         node.setAttribute('target', '_blank');
         node.setAttribute('rel', 'noopener noreferrer');
     }
+    if (node.tagName === 'IMG') {
+        node.setAttribute('loading', 'lazy');
+        node.setAttribute('decoding', 'async');
+    }
 });
 
-const SANITIZE_OPTIONS = {
-    ALLOWED_TAGS: [
-        'p', 'br', 'strong', 'em', 'del', 'code', 'pre', 
-        'ul', 'ol', 'li', 'blockquote', 'a', 'h1', 'h2', 'h3'
-    ],
-    ALLOWED_ATTR: ['href', 'target', 'class', 'rel'],
-    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i
-};
+const CHAT_ALLOWED_TAGS = [
+    'p', 'br', 'strong', 'em', 'del', 'code', 'pre',
+    'ul', 'ol', 'li', 'blockquote', 'a', 'h1', 'h2', 'h3'
+];
 
-// Simple cache to avoid re-parsing identical markdown content
+// Un document markdown (file manager) a des besoins plus larges qu'un
+// message de chat : titres profonds, tableaux, images, séparateurs, cases
+// à cocher GFM. Rien qui permette des gestionnaires d'événements ou du CSS.
+const DOCUMENT_ALLOWED_TAGS = [
+    ...CHAT_ALLOWED_TAGS,
+    'h4', 'h5', 'h6', 'hr', 'img', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'input'
+];
+
+const ALLOWED_URI_REGEXP = /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i;
+
+const sanitizeOptions = computed(() => props.mode === 'document' ? {
+    ALLOWED_TAGS: DOCUMENT_ALLOWED_TAGS,
+    ALLOWED_ATTR: ['href', 'target', 'class', 'rel', 'src', 'alt', 'title', 'type', 'checked', 'disabled', 'align'],
+    ALLOWED_URI_REGEXP
+} : {
+    ALLOWED_TAGS: CHAT_ALLOWED_TAGS,
+    ALLOWED_ATTR: ['href', 'target', 'class', 'rel'],
+    ALLOWED_URI_REGEXP
+});
+
+// Simple cache to avoid re-parsing identical markdown content, namespaced by
+// mode so a 'chat' render of some text can't be reused for 'document' (and
+// vice versa) even if the raw content string happens to match.
 const htmlCache = new Map<string, string>();
 const MAX_CACHE_SIZE = 200;
 
 const renderedHtml = computed(() => {
 
     if (!props.content) return '';
-    
-    const cached = htmlCache.get(props.content);
+
+    const cacheKey = `${props.mode}:${props.content}`;
+    const cached = htmlCache.get(cacheKey);
     if (cached) return cached;
 
     const rawHtml = marked.parse(props.content) as string;
-    const sanitized = DOMPurify.sanitize(rawHtml, SANITIZE_OPTIONS);
+    const sanitized = DOMPurify.sanitize(rawHtml, sanitizeOptions.value);
 
     // Evict oldest entries if cache grows too large
     if (htmlCache.size >= MAX_CACHE_SIZE) {
         const firstKey = htmlCache.keys().next().value;
         if (firstKey) htmlCache.delete(firstKey);
     }
-    htmlCache.set(props.content, sanitized);
+    htmlCache.set(cacheKey, sanitized);
 
     return sanitized;
 });
@@ -150,6 +178,47 @@ const renderedHtml = computed(() => {
 .markdown-body :deep(h2:first-child),
 .markdown-body :deep(h3:first-child) {
   margin-top: 0;
+}
+
+.markdown-body :deep(h4),
+.markdown-body :deep(h5),
+.markdown-body :deep(h6) {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 700;
+  line-height: 1.3;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.markdown-body :deep(hr) {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 1rem 0;
+}
+
+.markdown-body :deep(img) {
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 0.5rem 0;
+}
+
+.markdown-body :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5rem 0;
+  font-size: 0.9em;
+}
+
+.markdown-body :deep(th),
+.markdown-body :deep(td) {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+}
+
+.markdown-body :deep(th) {
+  background-color: rgba(255, 255, 255, 0.05);
+  font-weight: 700;
 }
 
 </style>
