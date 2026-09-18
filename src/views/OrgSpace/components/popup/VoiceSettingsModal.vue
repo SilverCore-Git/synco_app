@@ -208,6 +208,7 @@ const onQualityModeChange = (mode: VideoQualityMode) => {
 </script>
 
 <style scoped>
+@reference "@/style.css";
 
 .voice-select {
     @apply w-full bg-(--bg2) border border-(--border-color) rounded-lg px-3 py-2 text-sm text-(--text) outline-none focus:border-(--primary)/50 transition-colors;
