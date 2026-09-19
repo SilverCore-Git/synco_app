@@ -93,6 +93,17 @@ const isDeafened = ref<boolean>(false);
 // fournit nativement (ActiveSpeakersChanged) pour les vocal threads.
 const remoteSpeaking = ref<Map<string, boolean>>(new Map());
 
+// "Le flux distant a une piste vidéo" par peerId, en primitif booléen plutôt
+// que dérivé de remoteStreams.get(peerId).getVideoTracks() : sur une
+// renégociation, le navigateur redonne le MÊME objet MediaStream que la
+// première fois (même id), juste muté en place avec la piste ajoutée — donc
+// un computed qui lit ses tracks recalcule bien (après triggerRef), mais son
+// RÉSULTAT (cet objet, par référence) ne change pas, et Vue court-circuite
+// la propagation vers les computed qui en dépendent (hasRemoteVideo)
+// puisqu'il ne voit "rien de changé" à son niveau. Un booléen ici est comparé
+// par valeur, pas par référence, donc ne souffre pas de ce court-circuit.
+const remoteHasVideo = ref<Map<string, boolean>>(new Map());
+
 // Éléments <video>/<audio> du flux distant réellement montés, enregistrés par
 // CallOverlay.vue via :ref — nécessaire pour appliquer setSinkId (changement
 // d'enceinte) sur l'élément qui joue vraiment le son, pas sur le MediaStream
@@ -592,6 +603,21 @@ export default function useSecurePeer() {
     };
 
     /**
+     * Met à jour, en booléen primitif, si un peer a actuellement une piste
+     * vidéo distante active — cf. commentaire sur remoteHasVideo plus haut
+     * pour pourquoi ça ne peut pas être un computed dérivé de remoteStreams.
+     * `some(readyState !== 'ended')` plutôt que `.length > 0` : une piste
+     * coupée localement par l'autre côté (toggleCam/stopScreenShare, sans
+     * renégociation) reste présente dans le stream, juste à l'état 'ended'.
+     */
+    const updateRemoteHasVideo = (peerId: string, stream: MediaStream) => {
+        const hasVideo = stream.getVideoTracks().some(t => t.readyState !== 'ended');
+        const videoMap = remoteHasVideo.value;
+        videoMap.set(peerId, hasVideo);
+        remoteHasVideo.value = videoMap;
+    };
+
+    /**
      * Handle call events with E2EE setup
      */
     const handleCallEvents = (call: MediaConnection, isCaller: boolean) => {
@@ -644,13 +670,30 @@ export default function useSecurePeer() {
             // Sur une renégociation (caméra/écran activé après le début de
             // l'appel), le navigateur redonne le MÊME objet MediaStream que la
             // première fois (même stream id), juste muté en place avec la
-            // nouvelle piste — Map.set() sur une Map réactive ne déclenche
-            // RIEN dans ce cas : Vue compare par référence (Object.is) et voit
-            // "même clé, même valeur", donc aucune mise à jour n'était
-            // propagée à hasRemoteVideo/currentRemoteStream côté receveur,
-            // même si `incomingStream` contenait bien la piste vidéo. Forcé
-            // explicitement, seul moyen fiable de notifier Vue ici.
+            // nouvelle piste — Map.set() sur une Map réactive ne déclenche rien
+            // dans ce cas (Vue compare par référence). Forcé explicitement.
             triggerRef(remoteStreams);
+
+            // Insuffisant à lui seul : un computed qui dérive de
+            // remoteStreams.get(peerId).getVideoTracks() (ex: un ancien
+            // hasRemoteVideo) se recalcule bien grâce au triggerRef ci-dessus,
+            // mais son RÉSULTAT (ce même objet MediaStream, par référence) est
+            // identique à avant — Vue voit alors "rien de changé" à CE niveau
+            // et court-circuite la propagation vers les computed qui en
+            // dépendent, qui ne se ré-exécutent donc jamais. D'où ce booléen
+            // primitif à part, mis à jour explicitement ici : comparé par
+            // valeur, il ne souffre pas de ce court-circuit.
+            updateRemoteHasVideo(peerId, incomingStream);
+
+            // Quand l'autre côté coupe sa caméra/son partage (toggleCam/
+            // stopScreenShare), il ne renégocie PAS la fin de la piste — elle
+            // reste dans le sender, juste arrêtée localement — donc aucun
+            // nouvel événement 'stream' ne se déclenche ici pour nous
+            // prévenir. La seule façon de le détecter côté receveur est
+            // d'écouter la fin de la piste elle-même.
+            incomingStream.getVideoTracks().forEach(track => {
+                track.onended = () => updateRemoteHasVideo(peerId, incomingStream);
+            });
 
             monitorAudio(incomingStream, (val) => {
                 const speaking = new Map(remoteSpeaking.value);
@@ -1158,6 +1201,11 @@ export default function useSecurePeer() {
         const speaking = new Map(remoteSpeaking.value);
         speaking.delete(peerId);
         remoteSpeaking.value = speaking;
+
+        const videoMap = new Map(remoteHasVideo.value);
+        videoMap.delete(peerId);
+        remoteHasVideo.value = videoMap;
+
         remoteMediaEls.delete(peerId);
 
         if (activeCalls.value.size === 0) cleanupCall();
@@ -1186,6 +1234,7 @@ export default function useSecurePeer() {
         callEncryptionKeys.value = new Map();
         callSecurityStatus.value = new Map();
         remoteSpeaking.value = new Map();
+        remoteHasVideo.value = new Map();
         remoteMediaEls.clear();
         enteringCall.value = null;
         isCalling.value = false;
@@ -1314,6 +1363,7 @@ export default function useSecurePeer() {
         registerRemoteMediaElement,
         remoteStreams,
         remoteSpeaking,
+        remoteHasVideo,
         localStream,
         isCalling,
         isSpeaking,

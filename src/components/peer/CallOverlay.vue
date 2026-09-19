@@ -380,6 +380,7 @@ const {
     isCalling,
     remoteStreams,
     remoteSpeaking,
+    remoteHasVideo,
     activeCalls,
     localStream,
     isMicOn,
@@ -417,7 +418,16 @@ const currentRemoteStream = computed<MediaStream | null>(() =>
 // La caméra et le partage d'écran se remplacent l'un l'autre sur la même
 // track vidéo (cf. useSecurePeer.ts toggleCam/toggleScreenShare) : un seul
 // flux vidéo possible à la fois, pas besoin de distinguer les deux ici.
-const hasRemoteVideo = computed<boolean>(() => (currentRemoteStream.value?.getVideoTracks().length ?? 0) > 0);
+//
+// Dérivé de remoteHasVideo (booléen primitif tenu à jour par
+// useSecurePeer.ts), PAS de currentRemoteStream.getVideoTracks() : sur une
+// renégociation, currentRemoteStream reste le MÊME objet MediaStream par
+// référence (juste muté en place), donc un computed dérivé de son contenu ne
+// se propage jamais correctement — cf. le commentaire détaillé sur
+// remoteHasVideo dans useSecurePeer.ts.
+const hasRemoteVideo = computed<boolean>(() =>
+    currentPeerId.value !== null && !!remoteHasVideo.value.get(currentPeerId.value)
+);
 
 const isRemoteSpeaking = computed<boolean>(() =>
     currentPeerId.value !== null && !!remoteSpeaking.value.get(currentPeerId.value)
