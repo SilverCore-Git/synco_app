@@ -50,6 +50,10 @@ export const PERMISSION_REGISTRY = {
   TASK_STATUS_LOWER: { label: 'Statut (Rôles Inférieurs)', icon: 'bi-check', description: 'Modifier le statut des tâches créées par des rôles inférieurs' },
   TASK_SUBTASK_LOWER: { label: 'Sous-tâches (Rôles Inférieurs)', icon: 'bi-diagram-3', description: 'Créer des sous-tâches sur les tâches de rôles inférieurs' },
 
+  // Salons vocaux
+  VOICE_MUTE_OTHERS: { label: 'Couper le micro des autres', icon: 'bi-mic-mute', description: "Forcer la coupure du micro d'un participant en salon vocal" },
+  VOICE_DISCONNECT: { label: "Expulser d'un salon vocal", icon: 'bi-telephone-x', description: "Déconnecter un participant d'un salon vocal" },
+
 } as const;
 
 export type Permission = keyof typeof PERMISSION_REGISTRY;

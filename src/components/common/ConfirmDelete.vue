@@ -4,7 +4,7 @@
         
         <Transition name="fade">
 
-            <div v-if="show" class="fixed inset-0 z-1000 flex items-center justify-center p-4">
+            <div v-if="show" class="fixed inset-0 z-[3000] flex items-center justify-center p-4">
 
                 <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="emit('cancel')" />
 

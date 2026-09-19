@@ -4,9 +4,10 @@
 
         <Transition name="fade">
 
-            <div 
-                v-if="isOpen" 
-                class="fixed inset-0 z-100 flex items-center justify-center p-2 sm:p-4 md:p-10 bg-black/60 backdrop-blur-sm"
+            <div
+                v-if="isOpen"
+                class="fixed inset-0 flex items-center justify-center p-2 sm:p-4 md:p-10 bg-black/60 backdrop-blur-sm"
+                :style="{ zIndex: props.zIndex }"
                 @click.self="emit('close')"
             >
 
@@ -56,10 +57,17 @@
 
 import { onMounted, onUnmounted } from 'vue';
 
-defineProps<{
+// Teleporté à body comme Popup.vue — sans z-index explicite de l'appelant,
+// rien ne garantit l'ordre d'empilement entre une Window et une Popup
+// ouverte depuis un contexte différent (ex: FileViewer ouvert depuis la
+// popup de détail d'une tâche a besoin de passer devant elle).
+const props = withDefaults(defineProps<{
   isOpen: boolean;
   hideCloseBtn?: boolean;
-}>();
+  zIndex?: number;
+}>(), {
+  zIndex: 100
+});
 
 const emit = defineEmits(['close']);
 

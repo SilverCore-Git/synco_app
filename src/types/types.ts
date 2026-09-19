@@ -144,7 +144,7 @@ export interface MessageReaction {
 export interface Message {
     id: string;
     threadId: string;
-    senderId: string;
+    senderId: string | null;
     replyToId: string | null;
     transferId: string | null;
     content: string;
@@ -157,14 +157,15 @@ export interface Message {
 
     sender?: User;
     files?: StoredFile[];
-    
+
     replyMessage?: Message | null;
     replies?: Message[];
     transferMessage?: Message | null;
     transferredIn?: Message[];
-    
+
     isWebhook?: boolean;
     webhookId?: string | null;
+    webhookCreatorId?: string | null;
     webhookName?: string | null;
     webhookAvatar?: string | null;
     embeds?: any[];

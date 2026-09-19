@@ -12,12 +12,12 @@
             <div v-for="i in 3" :key="i" class="h-12 bg-white/5 rounded-xl"></div>
         </div>
 
-        <div v-else-if="items.length === 0" class="dash-card-empty">
+        <div v-else-if="items.length === 0" class="dash-card-empty animate-app-reveal">
             <i class="bi bi-check2-circle text-2xl text-(--text2)"></i>
             <p>Aucun message en attente</p>
         </div>
 
-        <ul v-else class="dash-card-body space-y-1">
+        <ul v-else class="dash-card-body space-y-1 animate-app-reveal">
             <li v-for="item in items" :key="item.key">
                 <button class="dash-row" @click="openItem(item)">
                     <img

@@ -111,7 +111,7 @@
                             <div class=" rounded-full bg-(--white)/6 h-9 w-9 animate-pulse" />
                         </div>
 
-                        <div v-else class="relative flex items-center justify-center">
+                        <div v-else class="relative flex items-center justify-center animate-app-reveal">
                             <img 
                                 :src="user?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(user?.user?.name)}&background=128a60&color=fff`" 
                                 :alt="$p(user?.user?.name)" 
@@ -125,9 +125,9 @@
                             />
                         </div>
 
-                        <div 
+                        <div
                             class="flex flex-col min-w-0 flex-1 leading-tight select-none"
-                            :class="openedOrg == null ? 'bg-(--white)/8 rounded-lg animate-pulse' : ''"
+                            :class="openedOrg == null ? 'bg-(--white)/8 rounded-lg animate-pulse' : 'animate-app-reveal'"
                         >
                             <span 
                                 class="text-sm font-bold truncate"

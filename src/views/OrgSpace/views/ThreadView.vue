@@ -68,7 +68,7 @@
                             :selectedMessage="selectedMessage"
                             :messages="sortedMessages"
                             :currentThreadKey="currentThreadKey"
-                            :is-stacked="index > 0 && sortedMessages[index-1]?.senderId === msg.senderId && sortedMessages[index-1]?.isWebhook === msg.isWebhook && !msg.replyToId && (new Date(msg.createdAt).getTime() - new Date(sortedMessages[index-1]!.createdAt).getTime() < 60000)"
+                            :is-stacked="index > 0 && sameAuthor(sortedMessages[index-1]!, msg) && !msg.replyToId && (new Date(msg.createdAt).getTime() - new Date(sortedMessages[index-1]!.createdAt).getTime() < 60000)"
                             :is-editing="editingMessageId === msg.id"
                             @edit-start="editingMessageId = msg.id"
                             @edit-end="endEdit"
@@ -517,6 +517,15 @@ const scrollToSelectedMessage = async () => {
 
     console.log(targetEl)
 
+};
+
+// Un message webhook n'a pas de senderId (jamais d'expéditeur humain) : deux
+// messages webhook consécutifs comparent donc toujours senderId=null à
+// senderId=null. On compare webhookId dans ce cas pour ne pas regrouper deux
+// bots différents comme s'ils étaient le même expéditeur.
+const sameAuthor = (a: Message, b: Message): boolean => {
+    if (a.isWebhook || b.isWebhook) return a.isWebhook === b.isWebhook && a.webhookId === b.webhookId;
+    return a.senderId === b.senderId;
 };
 
 // Utility function to transform Prisma reaction array to grouped object

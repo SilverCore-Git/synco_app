@@ -2,6 +2,7 @@ import { keycloak } from "./keycloak";
 import { openedOrg } from "./var";
 import { encryptFileLocal } from "./utils/crypto";
 import { getWorkspaceKey } from "./utils/workspaceCrypto";
+import { getDMConversationKey } from "./utils/dmCrypto";
 
 export interface UploadContext {
     workspaceId?: string;
@@ -9,6 +10,10 @@ export interface UploadContext {
     folderId?: string;
     dmMessageId?: string;
     taskId?: string;
+    // L'autre participant de la conversation DM — permet de chiffrer la
+    // pièce jointe de bout en bout avant même que le DMMessage existe
+    // (le fichier est uploadé avant le message, puis lié après coup).
+    dmPeerId?: string;
 }
 
 export default async function uploadFile(
@@ -27,24 +32,35 @@ export default async function uploadFile(
     return new Promise(async (resolve, reject) => {
 
         const formData = new FormData();
-        
-        let finalFile = file;
+
+        // Le File.type que renvoie le navigateur pour un .md n'est pas fiable
+        // (souvent vide selon l'OS) — on force un mimetype cohérent par
+        // extension plutôt que de dépendre de la détection du navigateur.
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        const mimeOverride = (ext === 'md' || ext === 'markdown') ? 'text/markdown' : undefined;
+
+        let finalFile = mimeOverride && file.type !== mimeOverride
+            ? new File([file], file.name, { type: mimeOverride })
+            : file;
         let isE2EE = false;
         let encryptedFileKeyBase64 = "";
         let ivBase64 = "";
         let keyVersion = 1;
 
-        if (context.workspaceId) {
+        if (context.workspaceId || context.dmPeerId) {
             try {
-                // 1. Get the WorkspaceKey
-                const { key: spaceKey, version } = await getWorkspaceKey(context.workspaceId);
-                
+                // 1. Get the KEK: a workspace key (shared by all members) or a
+                // DM conversation key (shared by exactly the 2 participants).
+                const { key: kek, version } = context.workspaceId
+                    ? await getWorkspaceKey(context.workspaceId)
+                    : await getDMConversationKey(context.dmPeerId!);
+
                 // 2. Encrypt the file locally
                 const arrayBuffer = await file.arrayBuffer();
-                const { encryptedBlob, encryptedFileKey, iv } = await encryptFileLocal(arrayBuffer, spaceKey);
-                
+                const { encryptedBlob, encryptedFileKey, iv } = await encryptFileLocal(arrayBuffer, kek);
+
                 // 3. Prepare E2EE parameters
-                finalFile = new File([encryptedBlob], file.name, { type: file.type });
+                finalFile = new File([encryptedBlob], file.name, { type: mimeOverride || file.type });
                 isE2EE = true;
                 encryptedFileKeyBase64 = encryptedFileKey;
                 ivBase64 = iv;

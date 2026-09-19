@@ -1,10 +1,22 @@
 <template>
     <Teleport to="body">
         <Transition name="panel-fade">
-            <div v-if="show" class="event-panel-catcher"></div>
+            <div v-if="show" class="event-panel-catcher" @click="closePanel"></div>
         </Transition>
         <Transition name="panel-slide">
-            <aside v-if="show" class="event-panel">
+            <aside v-if="show" class="event-panel" :class="{ 'is-expanded': isExpanded }" :style="dragStyle">
+                <!-- Poignée : mobile uniquement — glisser vers le haut ouvre en plein
+                     écran, vers le bas replie/ferme (même logique que Popup.vue). -->
+                <div
+                    class="event-panel-handle"
+                    @pointerdown="onHandlePointerDown"
+                    @pointermove="onHandlePointerMove"
+                    @pointerup="onHandlePointerUp"
+                    @pointercancel="onHandlePointerUp"
+                >
+                    <div class="event-panel-handle-bar"></div>
+                </div>
+
                 <div class="event-panel-header">
                     <div class="flex items-center gap-2 text-(--text2) text-xs font-bold uppercase tracking-wider">
                         <i class="bi bi-calendar-event"></i>
@@ -259,7 +271,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { openedOrg, user } from '@/assets/var';
 import useSettingsItem from '@/composables/useSettingsItem';
@@ -293,6 +305,100 @@ const emit = defineEmits<{
     saved: [];
     deleted: [];
 }>();
+
+// ── Fermeture au clavier ─────────────────────────────────────────────
+const handleEsc = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && props.show) closePanel();
+};
+onMounted(() => window.addEventListener('keydown', handleEsc));
+onUnmounted(() => window.removeEventListener('keydown', handleEsc));
+
+// ── Feuille mobile : glisser la poignée déplie/replie/ferme (même logique
+// que components/Popup.vue — dupliquée ici faute de composable partagé,
+// seuls ces deux endroits en ont besoin pour l'instant).
+const isExpanded = ref(false);
+const isDragging = ref(false);
+const isSnapping = ref(false);
+const isClosing = ref(false);
+const dragDeltaY = ref(0);
+let dragStartY = 0;
+let dragStartExpanded = false;
+let snapTimeout: ReturnType<typeof setTimeout> | null = null;
+let closeTimeout: ReturnType<typeof setTimeout> | null = null;
+
+const PANEL_CLOSE_THRESHOLD = 120;
+const PANEL_TOGGLE_THRESHOLD = 60;
+
+const onHandlePointerDown = (e: PointerEvent) => {
+    isDragging.value = true;
+    dragStartY = e.clientY;
+    dragStartExpanded = isExpanded.value;
+    dragDeltaY.value = 0;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+};
+
+const onHandlePointerMove = (e: PointerEvent) => {
+    if (!isDragging.value) return;
+    const delta = e.clientY - dragStartY;
+    dragDeltaY.value = Math.max(delta, -40);
+};
+
+const onHandlePointerUp = () => {
+    if (!isDragging.value) return;
+    isDragging.value = false;
+    const delta = dragDeltaY.value;
+    dragDeltaY.value = 0;
+
+    if (!dragStartExpanded && delta > PANEL_CLOSE_THRESHOLD) {
+        // On termine nous-mêmes la glissade jusqu'en bas avant de fermer :
+        // sinon l'inline style figerait le panneau à sa position de lâcher
+        // au lieu de continuer jusqu'en bas (voir Popup.vue).
+        isClosing.value = true;
+        if (closeTimeout) clearTimeout(closeTimeout);
+        closeTimeout = setTimeout(() => closePanel(), 250);
+        return;
+    }
+
+    if (!dragStartExpanded && delta < -PANEL_TOGGLE_THRESHOLD) {
+        isExpanded.value = true;
+    } else if (dragStartExpanded && delta > PANEL_TOGGLE_THRESHOLD) {
+        isExpanded.value = false;
+    }
+
+    isSnapping.value = true;
+    if (snapTimeout) clearTimeout(snapTimeout);
+    snapTimeout = setTimeout(() => { isSnapping.value = false; }, 320);
+};
+
+const dragStyle = computed(() => {
+    if (isDragging.value) {
+        return { transform: `translateY(${dragDeltaY.value}px)`, transition: 'none' };
+    }
+    if (isClosing.value) {
+        return { transform: 'translateY(100%)', transition: 'transform 0.25s cubic-bezier(0.32, 0, 0.67, 0)' };
+    }
+    if (isSnapping.value) {
+        return { transform: 'translateY(0)', transition: 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)' };
+    }
+    return {};
+});
+
+watch(() => props.show, (open) => {
+    if (!open) {
+        isExpanded.value = false;
+        isDragging.value = false;
+        isSnapping.value = false;
+        isClosing.value = false;
+        dragDeltaY.value = 0;
+        if (snapTimeout) { clearTimeout(snapTimeout); snapTimeout = null; }
+        if (closeTimeout) { clearTimeout(closeTimeout); closeTimeout = null; }
+    }
+});
+
+onUnmounted(() => {
+    if (snapTimeout) clearTimeout(snapTimeout);
+    if (closeTimeout) clearTimeout(closeTimeout);
+});
 
 const {
     currentEvent,
@@ -792,7 +898,9 @@ async function confirmDelete() {
     position: fixed;
     inset: 0;
     z-index: 1800;
-    background: transparent;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
+    cursor: pointer;
 }
 
 .event-panel {
@@ -808,6 +916,60 @@ async function confirmDelete() {
     z-index: 1900;
     display: flex;
     flex-direction: column;
+}
+
+.event-panel-handle {
+    display: none;
+}
+
+/* Sous 640px (breakpoint sm de Tailwind) : feuille ancrée en bas comme
+   Popup.vue, plutôt qu'un tiroir latéral — glisser la poignée déplie en
+   plein écran ou referme, cf. les handlers on Handle* dans le script. */
+@media (max-width: 639px) {
+    .event-panel {
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: auto;
+        max-height: 90dvh;
+        border-left: none;
+        border-top: 1px solid var(--border-color);
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.25);
+    }
+
+    .event-panel.is-expanded {
+        height: 100dvh;
+        max-height: none;
+        border-radius: 0;
+    }
+
+    .event-panel-handle {
+        display: flex;
+        justify-content: center;
+        padding: 8px 0 4px;
+        flex-shrink: 0;
+        cursor: grab;
+        touch-action: none;
+    }
+    .event-panel-handle:active {
+        cursor: grabbing;
+    }
+
+    .event-panel-handle-bar {
+        width: 40px;
+        height: 6px;
+        border-radius: 999px;
+        background: var(--text2);
+        opacity: 0.4;
+    }
+
+    .panel-slide-enter-from,
+    .panel-slide-leave-to {
+        transform: translateY(100%);
+    }
 }
 
 .panel-slide-enter-active,

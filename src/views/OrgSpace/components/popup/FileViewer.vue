@@ -1,5 +1,5 @@
 <template>
-  <Window :is-open="isOpen" :hideCloseBtn="true" @close="closeViewer">
+  <Window :is-open="isOpen" :hideCloseBtn="true" :z-index="2500" @close="closeViewer">
     <div class="w-full h-full bg-(--bg) overflow-hidden flex flex-col">
       <!-- Header -->
       <div class="px-6 py-4 border-b border-(--bg2)/5 flex items-center justify-between shrink-0">
@@ -11,8 +11,24 @@
               </div>
 
               <div class="flex items-center gap-2">
-                <button 
-                  v-if="isTextFile && fileContent !== originalFileContent"
+                <div v-if="isMarkdown" class="flex items-center rounded-lg bg-(--bg2)/50 p-0.5 mr-1">
+                  <button
+                    @click="viewMode = 'preview'"
+                    class="px-3 py-1.5 text-sm rounded-md transition-colors"
+                    :class="viewMode === 'preview' ? 'bg-(--primary) text-white' : 'text-(--text2) hover:text-(--text)'"
+                  >
+                    Aperçu
+                  </button>
+                  <button
+                    @click="viewMode = 'edit'"
+                    class="px-3 py-1.5 text-sm rounded-md transition-colors"
+                    :class="viewMode === 'edit' ? 'bg-(--primary) text-white' : 'text-(--text2) hover:text-(--text)'"
+                  >
+                    Édition
+                  </button>
+                </div>
+                <button
+                  v-if="(isTextFile || isMarkdown) && fileContent !== originalFileContent"
                   @click="saveContent"
                   class="primary !px-4 !py-2 text-sm gap-2"
                   :class="{ 'loader': isSaving }"
@@ -21,7 +37,7 @@
                   <i class="bi bi-floppy" />
                   Enregistrer
                 </button>
-                <button 
+                <button
                   @click="downloadFile(file.id)"
                   class="p-2 rounded-lg hover:bg-white/5 text-(--text2) hover:text-(--text) active:scale-90 transition-all duration-200 ml-2"
                   title="Télécharger"
@@ -89,7 +105,11 @@
                 </div>
               </template>
 
-              <template v-else-if="isTextFile">
+              <template v-else-if="isMarkdown && viewMode === 'preview'">
+                <MarkdownDocumentPreview :content="fileContent" />
+              </template>
+
+              <template v-else-if="isTextFile || isMarkdown">
                 <VueMonacoEditor
                   v-model:value="fileContent"
                   :language="getMonacoLanguage(file.mimeType, file.originalName)"
@@ -136,7 +156,7 @@
       itemType="le fichier"
   />
 
-  <Popup :isOpen="showUnsavedConfirm" @close="showUnsavedConfirm = false">
+  <Popup :isOpen="showUnsavedConfirm" :z-index="2600" @close="showUnsavedConfirm = false">
     <template #title>Modifications non enregistrées</template>
     <p class="text-(--text) text-sm">
       Vous avez des modifications non enregistrées sur <strong>{{ file.originalName }}</strong>.
@@ -161,8 +181,9 @@ import sfetch from '@/assets/utils/sfetch';
 import Window from '@/components/windows/Window.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import Popup from '@/components/Popup.vue';
+import MarkdownDocumentPreview from './MarkdownDocumentPreview.vue';
 import { getWorkspaceKey } from '@/assets/utils/workspaceCrypto';
-import { decryptFileLocal } from '@/assets/utils/crypto';
+import { decryptFileLocal, encryptFileLocal } from '@/assets/utils/crypto';
 import { VueMonacoEditor, loader } from '@guolao/vue-monaco-editor';
 
 import * as monaco from 'monaco-editor';
@@ -212,7 +233,7 @@ const getMonacoLanguage = (mimeType: string, filename: string) => {
   if (ext === 'rb') return 'ruby';
   if (ext === 'sh' || mimeType === 'application/x-sh') return 'shell';
   if (ext === 'sql' || mimeType.includes('sql')) return 'sql';
-  if (ext === 'md') return 'markdown';
+  if (ext === 'md' || ext === 'markdown') return 'markdown';
   
   return 'plaintext';
 };
@@ -233,6 +254,7 @@ const showUnsavedConfirm = ref(false);
 
 const fileContent = ref('');
 const originalFileContent = ref('');
+const viewMode = ref<'edit' | 'preview'>('preview');
 
 const e2eeObjectUrl = ref<string | null>(null);
 
@@ -247,9 +269,9 @@ const isImage = computed(() => props.file.mimeType.startsWith('image/'));
 const isPdf = computed(() => props.file.mimeType === 'application/pdf');
 const isTextFile = computed(() => {
   const mime = props.file.mimeType;
-  return mime.startsWith('text/') || 
-         mime === 'application/json' || 
-         mime === 'application/xml' || 
+  return mime.startsWith('text/') ||
+         mime === 'application/json' ||
+         mime === 'application/xml' ||
          mime === 'application/javascript' ||
          mime === 'application/x-sh' ||
          mime.includes('sql');
@@ -258,6 +280,11 @@ const isTextFile = computed(() => {
 const fileExtension = computed(() => {
     return props.file.originalName.split('.').pop()?.toLowerCase() || '';
 });
+
+// Détection par extension, pas par mimeType : des .md déjà en base avant ce
+// fix peuvent avoir un mimeType incorrect (application/octet-stream) — on ne
+// veut pas dépendre de ça pour les reconnaître.
+const isMarkdown = computed(() => ['md', 'markdown'].includes(fileExtension.value));
 const isOfficeFile = computed(() => {
     const ext = fileExtension.value;
     return ['docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 'csv', 'txt', 'rtf'].includes(ext);
@@ -353,7 +380,11 @@ const disableE2EE = async () => {
             toast.show('Chiffrement désactivé, chargement de l\'éditeur...', 'success');
             props.file.isE2EE = false;
             emit('updated', newMeta);
-            await loadOnlyOfficeConfig();
+            if (isMarkdown.value) {
+                await fetchTextContent();
+            } else {
+                await loadOnlyOfficeConfig();
+            }
         } else {
             const err = await updateRes.json();
             toast.show(err.error || 'Erreur lors de la désactivation.', 'error');
@@ -380,7 +411,7 @@ const handleError = () => {
 };
 
 const fetchTextContent = async () => {
-  if (!isTextFile.value) return;
+  if (!isTextFile.value && !isMarkdown.value) return;
   isLoading.value = true;
   try {
     const res = await sfetch(`/api/cdn/download/${props.file.id}`);
@@ -434,17 +465,42 @@ const loadE2EEPreview = async () => {
 
 const saveContent = async () => {
   if (fileContent.value === originalFileContent.value) return;
-  
+
   isSaving.value = true;
   try {
-    const res = await sfetch(`/api/cdn/content/${props.file.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'text/plain'
-      },
-      body: fileContent.value
-    });
-    
+    let res: Response;
+
+    if (props.file.isE2EE) {
+      // Le contenu ne doit jamais transiter en clair vers le serveur : on le
+      // rechiffre côté client (nouvelle DEK + IV, comme à l'upload) avant
+      // envoi, via la route binaire dédiée aux fichiers déjà E2EE.
+      if (!props.file.workspaceId) {
+        throw new Error("Fichier E2EE sans espace de travail associé : sauvegarde impossible.");
+      }
+      const { key: spaceKey, version } = await getWorkspaceKey(props.file.workspaceId);
+      const plainBuffer = await new Blob([fileContent.value]).arrayBuffer();
+      const { encryptedBlob, encryptedFileKey, iv } = await encryptFileLocal(plainBuffer, spaceKey);
+
+      const formData = new FormData();
+      formData.append('file', encryptedBlob, props.file.originalName);
+      formData.append('iv', iv);
+      formData.append('encryptedFileKey', encryptedFileKey);
+      formData.append('keyVersion', String(version));
+
+      res = await sfetch(`/api/cdn/content-e2ee/${props.file.id}`, {
+        method: 'PUT',
+        body: formData
+      });
+    } else {
+      res = await sfetch(`/api/cdn/content/${props.file.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'text/plain'
+        },
+        body: fileContent.value
+      });
+    }
+
     if (res.ok) {
       const updatedMetadata = await res.json();
       originalFileContent.value = fileContent.value;
@@ -485,7 +541,9 @@ watch(() => props.isOpen, async (isOpen) => {
     e2eeObjectUrl.value = null;
     onlyOfficeConfig.value = null;
     
-    if (props.file.isE2EE && !isTextFile.value && (isImage.value || isPdf.value)) {
+    if (isMarkdown.value) {
+      fetchTextContent();
+    } else if (props.file.isE2EE && !isTextFile.value && (isImage.value || isPdf.value)) {
         loadE2EEPreview();
     } else if (isOfficeFile.value && onlyOfficeEnabled.value && !props.file.isE2EE) {
         await loadOnlyOfficeConfig();
@@ -507,7 +565,9 @@ watch(() => props.isOpen, async (isOpen) => {
 onMounted(async () => {
     if (props.isOpen) {
         isLoading.value = true;
-        if (props.file.isE2EE && !isTextFile.value && (isImage.value || isPdf.value)) {
+        if (isMarkdown.value) {
+            fetchTextContent();
+        } else if (props.file.isE2EE && !isTextFile.value && (isImage.value || isPdf.value)) {
             loadE2EEPreview();
         } else if (isOfficeFile.value && onlyOfficeEnabled.value && !props.file.isE2EE) {
             await loadOnlyOfficeConfig();
@@ -521,7 +581,7 @@ onMounted(async () => {
 });
 
 const closeViewer = () => {
-  if (isTextFile.value && fileContent.value !== originalFileContent.value) {
+  if ((isTextFile.value || isMarkdown.value) && fileContent.value !== originalFileContent.value) {
     showUnsavedConfirm.value = true;
   } else {
     emit('close');

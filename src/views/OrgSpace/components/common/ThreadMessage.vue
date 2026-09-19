@@ -21,14 +21,25 @@
                         
                         <div class="z-10 absolute left-4 top-2.5 w-7 h-13 border-l-2 border-t-2 border-white/20 group-hover/reply:border-white/40 rounded-tl-md"></div>
 
-                        <img 
+                        <img
+                            v-if="msg.replyMessage?.isWebhook"
+                            :src="msg.replyMessage?.webhookAvatar || `https://ui-avatars.com/api/?name=${msg.replyMessage?.webhookName || 'Webhook'}&background=7c3aed&color=fff`"
+                            :alt="msg.replyMessage?.webhookName || 'Webhook'"
+                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${msg.replyMessage?.webhookName || 'Webhook'}&background=7c3aed&color=fff`"
+                            class="w-4 h-4 rounded-full opacity-80 shrink-0"
+                        />
+                        <img
+                            v-else
                             :src="msg.replyMessage?.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(msg.replyMessage?.sender?.name)}&background=128a60&color=fff`"
                             :alt="$p(msg.replyMessage?.sender?.name)"
                             @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(msg.replyMessage?.sender?.name)}&background=128a60&color=fff`"
                             class="w-4 h-4 rounded-full opacity-80 shrink-0"
                         />
-                        
-                        <span class="font-semibold text-(--primary)/80 ">
+
+                        <span v-if="msg.replyMessage?.isWebhook" class="font-semibold text-(--primary)/80 ">
+                            @{{ msg.replyMessage?.webhookName || 'Webhook' }}
+                        </span>
+                        <span v-else class="font-semibold text-(--primary)/80 ">
                             @{{ $p(msg.replyMessage?.sender?.name) || 'Anonyme' }}
                         </span>
 
@@ -73,9 +84,9 @@
                             "
                         >
 
-                            <button 
-                                v-if="msg.senderId == user?.id || member?.role === 'ADMIN' || member?.role === 'admin'"
-                                @click="openDeleteConfirm" 
+                            <button
+                                v-if="isMessageOwner(msg) || member?.role === 'ADMIN' || member?.role === 'admin'"
+                                @click="openDeleteConfirm"
                                 class="dropdown-item-annimate dropdown-item-style  text-red-400! hover:bg-red-500/10!"
                             >
                                 Supprimer le message
@@ -282,6 +293,14 @@ interface DropdownBtn {
     show: (msg: Message) => boolean;
 }
 
+// Un message webhook n'a pas de senderId (aucun expéditeur humain) : la
+// suppression reste possible pour le créateur du webhook via webhookCreatorId,
+// mais l'édition ne l'est jamais (cf. dropdownBtns "modifier" ci-dessous).
+function isMessageOwner(msg: Message): boolean {
+    if (msg.isWebhook) return msg.webhookCreatorId === user.value?.id;
+    return msg.senderId === user.value?.id;
+}
+
 const dropdownBtns: DropdownBtn[] = [
     {
         icon: "bi-clipboard-fill",
@@ -321,7 +340,7 @@ const dropdownBtns: DropdownBtn[] = [
         tooltip: "supprimer",
         func: () => openDeleteConfirm(),
         class: "text-red-400! hover:bg-red-500/10!",
-        show: (msg: Message) => msg.senderId == user.value?.id
+        show: (msg: Message) => isMessageOwner(msg)
     }
 ];
 

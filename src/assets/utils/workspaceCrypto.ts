@@ -58,15 +58,13 @@ export async function getWorkspaceKey(workspaceId: string): Promise<{ key: Crypt
                 if (!member.publicKey) continue; // Skip users who haven't generated their keypair yet
                 
                 try {
-                    const rsaPub = await crypto.subtle.importKey(
-                        "jwk",
-                        JSON.parse(member.publicKey),
-                        { name: "RSA-OAEP", hash: "SHA-256" },
-                        true,
-                        ["encrypt"]
-                    );
-                    
-                    const encryptedKeyBase64 = await encryptSpaceKeyForMember(newSpaceKey, rsaPub);
+                    // encryptSpaceKeyForMember() already imports the JWK itself
+                    // (crypto.ts:313-335) — passing it an already-imported
+                    // CryptoKey here made it re-run importKey("jwk", ...) on a
+                    // CryptoKey object instead of a JsonWebKey, which throws and
+                    // was silently swallowed below, so no member ever actually
+                    // got a wrapped copy and key generation always failed.
+                    const encryptedKeyBase64 = await encryptSpaceKeyForMember(newSpaceKey, member.publicKey);
                     keysToDistribute.push({
                         userId: member.id,
                         encryptedKey: encryptedKeyBase64

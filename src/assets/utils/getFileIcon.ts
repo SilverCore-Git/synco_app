@@ -57,8 +57,12 @@ export const getFileInfo = (file: StoredFile) => {
     if (mime.includes('application/x-msdownload') || name.endsWith('.exe') || name.endsWith('.msi') || name.endsWith('.rpm') || name.endsWith('.dmg') || name.endsWith('.appimage') || name.endsWith('.deb')) 
         return { icon: 'bi-terminal-fill', color: 'text-blue-400' };
     
+    // MARKDOWN
+    if (name.endsWith('.md') || name.endsWith('.markdown'))
+        return { icon: 'bi-markdown', color: 'text-sky-400' };
+
     // CODE, SCRIPTS & TEXTE
-    if (mime.startsWith('text/') || mime.includes('javascript') || mime.includes('json') || mime.includes('typescript') || name.endsWith('.sh') || name.endsWith('.bash') || name.endsWith('.yaml') || name.endsWith('.yml')) 
+    if (mime.startsWith('text/') || mime.includes('javascript') || mime.includes('json') || mime.includes('typescript') || name.endsWith('.sh') || name.endsWith('.bash') || name.endsWith('.yaml') || name.endsWith('.yml'))
         return { icon: 'bi-file-earmark-code', color: 'text-indigo-400' };
 
     // DESIGN VECTORIEL / MAQUETTAGE (Figma, Illustrator, SVG autonome)

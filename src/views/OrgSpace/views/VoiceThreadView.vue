@@ -20,6 +20,7 @@
                 :key="userFocused.identity"
                 :ref="getTileRefSetter(userFocused.identity)"
                 @click="userFocused = null"
+                @contextmenu.prevent.stop="onTileContextMenu($event, userFocused)"
                 class="
                     relative bg-(--bg2) rounded-3xl
                     overflow-hidden border border-(--border-color)
@@ -85,19 +86,28 @@
                 </div>
 
             </div>
+            <VoiceParticipantMenu
+                :ref="getMenuRefSetter(userFocused.identity)"
+                :participant="userFocused"
+                :threadId="props.thread?.id || ''"
+                :isSelf="userFocused.identity === ownIdentity"
+                :canMute="canMuteOthers"
+                :canDisconnect="canDisconnectOthers"
+                :getName="getParticipantName"
+            />
 
             <!-- Other Participants Grid -->
-            <div class="flex justify-center items-center gap-4 flex-wrap w-full max-w-6xl">
-                <div 
-                    v-for="p in allParticipants" 
-                    :key="p.identity"
+            <div class="grid gap-4 w-full max-w-6xl grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]">
+                <template v-for="p in allParticipants" :key="p.identity">
+                <div
                     v-show="p.identity !== userFocused.identity"
                     @click="userFocused = p"
+                    @contextmenu.prevent.stop="onTileContextMenu($event, p)"
                     class="
-                        relative bg-(--bg2) rounded-2xl 
+                        relative bg-(--bg2) rounded-2xl
                         overflow-hidden border border-(--border-color)
                         flex items-center justify-center group
-                        w-48 aspect-video cursor-pointer hover:border-white/20
+                        w-full aspect-video cursor-pointer hover:border-white/20
                         transition-colors shadow-lg
                     "
                 >
@@ -143,6 +153,16 @@
                     </div>
 
                 </div>
+                <VoiceParticipantMenu
+                    :ref="getMenuRefSetter(p.identity)"
+                    :participant="p"
+                    :threadId="props.thread?.id || ''"
+                    :isSelf="p.identity === ownIdentity"
+                    :canMute="canMuteOthers"
+                    :canDisconnect="canDisconnectOthers"
+                    :getName="getParticipantName"
+                />
+                </template>
             </div>
 
         </div>
@@ -150,17 +170,17 @@
         <div
             v-else
             class="
-                grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:flex xl:flex-wrap
-                justify-center items-center p-4 xl:p-10
+                grid grid-cols-[repeat(auto-fill,minmax(18rem,1fr))]
+                justify-center justify-items-center items-center p-4 xl:p-10
                 gap-6 transition-all duration-500 w-full min-h-full
             "
         >
                 
+            <template v-for="p in allParticipants" :key="p.identity">
             <div
-                v-for="p in allParticipants"
-                :key="p.identity"
                 :ref="getTileRefSetter(p.identity)"
                 @click="userFocused = p"
+                @contextmenu.prevent.stop="onTileContextMenu($event, p)"
                 class="
                     relative bg-(--bg2) rounded-3xl
                     overflow-hidden border border-(--border-color)
@@ -224,6 +244,16 @@
                 </div>
 
             </div>
+            <VoiceParticipantMenu
+                :ref="getMenuRefSetter(p.identity)"
+                :participant="p"
+                :threadId="props.thread?.id || ''"
+                :isSelf="p.identity === ownIdentity"
+                :canMute="canMuteOthers"
+                :canDisconnect="canDisconnectOthers"
+                :getName="getParticipantName"
+            />
+            </template>
 
         </div>
 
@@ -237,10 +267,10 @@
                 :isScreenSharing="isScreenShareEnabled"
                 :isDeafened="isDeafened"
                 @toggleMic="toggleMicrophone(!isMicEnabled)"
-                @toggleCam="toggleCamera(!isCameraEnabled)"
-                @toggleScreenShare="toggleScreenShare(!isScreenShareEnabled)"
+                @toggleCam="onToggleCam"
+                @toggleScreenShare="onToggleScreenShare"
                 @toggleDeafen="toggleDeafen(!isDeafened)"
-                @endCall="leaveRoom(thread?.id || '', String(route.params.spaceId))"
+                @endCall="leaveRoom(props.thread?.id || '', String(route.params.spaceId))"
                 @invite="voiceInviteModalRef?.openModal()"
             />
         </div>
@@ -260,7 +290,7 @@
         </div>
 
         <h2 class="text-2xl font-bold text-(--text) mb-3 tracking-wide">
-            {{ thread?.name || 'Salon vocal' }}
+            {{ props.thread?.name || 'Salon vocal' }}
         </h2>
         <p class="text-sm text-(--text2) max-w-md text-center mb-10 leading-relaxed">
             Rejoignez ce salon pour discuter de vive voix, activer votre caméra ou partager votre écran avec les autres membres.
@@ -291,17 +321,20 @@
 
 <script setup lang="ts">
 
-import { onMounted, onUnmounted, ref, type ComponentPublicInstance } from 'vue';
+import { computed, onMounted, onUnmounted, ref, type ComponentPublicInstance } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Track } from 'livekit-client';
 import useLiveKit from '@/composables/useLiveKit';
 import VideoTrack from '../components/common/VideoTrack.vue';
 import CallControls from '@/components/peer/CallControls.vue';
 import VoiceInviteModal from '../components/popup/VoiceInviteModal.vue';
+import VoiceParticipantMenu from '../components/dropdown/VoiceParticipantMenu.vue';
 import type { Thread } from '@/types/types';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import { useToast } from '@/composables/useToast';
+import { usePermissions } from '@/composables/usePermissions';
+import { getVoicePrefs, resolveCameraCaptureOptions } from '@/assets/utils/voicePrefs';
 
 const props = defineProps<{
     thread?: Thread;
@@ -311,6 +344,14 @@ const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const voiceInviteModalRef = ref<any>(null);
+
+const orgId = computed(() => String(route.params.orgId || ''));
+const spaceId = computed(() => String(route.params.spaceId || ''));
+const ownIdentity = computed(() => user.value?.id || '');
+
+const { can, fetchPermissions } = usePermissions(orgId);
+const canMuteOthers = computed(() => can('VOICE_MUTE_OTHERS', spaceId.value));
+const canDisconnectOthers = computed(() => can('VOICE_DISCONNECT', spaceId.value));
 
 const {
     allParticipants,
@@ -355,6 +396,24 @@ const getTileRefSetter = (identity: string) => {
     return setter;
 };
 
+// Menu contextuel par participant : la tuile déclenche l'ouverture via son
+// propre @contextmenu (cf. FileCard.vue, le pattern déjà utilisé ailleurs
+// dans l'app), plutôt que de faire de VoiceParticipantMenu un wrapper autour
+// de la tuile — ça évite de perturber la mise en page grid/flex des tuiles.
+const menuRefs = new Map<string, { open: (e: MouseEvent) => void }>();
+const menuRefSetters = new Map<string, (el: any) => void>();
+const getMenuRefSetter = (identity: string) => {
+    let setter = menuRefSetters.get(identity);
+    if (!setter) {
+        setter = (el: any) => { if (el) menuRefs.set(identity, el); else menuRefs.delete(identity); };
+        menuRefSetters.set(identity, setter);
+    }
+    return setter;
+};
+const onTileContextMenu = (e: MouseEvent, p: any) => {
+    menuRefs.get(p.identity)?.open(e);
+};
+
 const onFullscreenChange = () => {
     const fsEl = document.fullscreenElement;
     fullscreenIdentity.value = fsEl
@@ -378,6 +437,13 @@ const toggleFullscreen = async (identity: string) => {
 
 onMounted(() => {
     document.addEventListener('fullscreenchange', onFullscreenChange);
+
+    // Chargé ici (pas seulement dans joinCall) car ce composant peut monter
+    // alors qu'on est déjà connecté au salon (navigation vers un onglet vocal
+    // actif) — sans ça, canMuteOthers/canDisconnectOthers restaient bloqués
+    // à false tant que fetchPermissions n'avait jamais été déclenché pour cet
+    // espace sur cette session.
+    fetchPermissions(spaceId.value);
 });
 
 onUnmounted(() => {
@@ -391,11 +457,33 @@ const getMeta = (p: any): any => {
     return member?.user || {};
 };
 
+const getParticipantName = (p: any): string => getMeta(p).name || '';
+
+// Applique le device + la résolution/framerate choisis dans les réglages
+// vocaux uniquement à l'activation (pas de changement de constraints si on
+// désactive) — évite de republier une track qu'on est en train de couper.
+const onToggleCam = () => {
+    if (isCameraEnabled.value) { toggleCamera(false); return; }
+    const prefs = getVoicePrefs();
+    const { resolution, frameRate } = resolveCameraCaptureOptions(prefs);
+    toggleCamera(true, { deviceId: prefs.camDeviceId, resolution, frameRate });
+};
+
+const onToggleScreenShare = () => {
+    if (isScreenShareEnabled.value) { toggleScreenShare(false); return; }
+    const prefs = getVoicePrefs();
+    // ScreenShareCaptureOptions ne porte pas de frameRate au premier niveau
+    // (contrairement à VideoCaptureOptions) — il se règle via resolution.frameRate.
+    toggleScreenShare(true, { resolution: { ...prefs.screenResolution, frameRate: prefs.screenFrameRate } });
+};
+
 const joinCall = async () => {
     if (!props.thread?.id) return;
-    
+
     isConnecting.value = true;
     try {
+        fetchPermissions(spaceId.value);
+
         const res = await sfetch('/api/livekit/token', {
             method: 'POST',
             body: JSON.stringify({ threadId: props.thread.id }),

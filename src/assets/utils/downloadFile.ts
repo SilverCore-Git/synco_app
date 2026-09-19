@@ -1,8 +1,18 @@
 import { keycloak } from "../keycloak";
 import sfetch from "./sfetch";
 import { getWorkspaceKey } from "./workspaceCrypto";
+import { getDMConversationKey } from "./dmCrypto";
 import { decryptFileLocal } from "./crypto";
 import { useToast } from "@/composables/useToast";
+
+// GET /api/cdn/meta/:id resolves `dmPeerId` server-side (the other DM
+// participant) when the file is attached to a DMMessage, so callers never
+// need to know/pass it themselves — see cdnRoutes.ts's /meta/:id handler.
+const resolveFileKey = async (metadata: { workspaceId?: string; dmPeerId?: string }) => {
+    if (metadata.workspaceId) return getWorkspaceKey(metadata.workspaceId);
+    if (metadata.dmPeerId) return getDMConversationKey(metadata.dmPeerId);
+    throw new Error("Cannot decrypt E2EE file: no workspace or DM conversation associated");
+};
 
 export interface FilePreview {
     url: string;
@@ -26,15 +36,11 @@ export const getFilePreviewUrl = async (fileId: string): Promise<FilePreview> =>
         };
     }
 
-    if (!metadata.workspaceId) {
-        throw new Error("Cannot decrypt E2EE file without a Workspace ID");
-    }
-
     const fileRes = await sfetch(`/api/cdn/download/${fileId}`, { method: 'GET' });
     if (!fileRes.ok) throw new Error("Failed to fetch encrypted file");
     const encryptedBuffer = await fileRes.arrayBuffer();
 
-    const { key: spaceKey } = await getWorkspaceKey(metadata.workspaceId);
+    const { key: kek } = await resolveFileKey(metadata);
 
     if (!metadata.encryptedFileKey || !metadata.iv) {
         throw new Error("Missing E2EE metadata (key or iv) for file decryption");
@@ -44,7 +50,7 @@ export const getFilePreviewUrl = async (fileId: string): Promise<FilePreview> =>
         encryptedBuffer,
         metadata.encryptedFileKey,
         metadata.iv,
-        spaceKey
+        kek
     );
 
     const blob = new Blob([decryptedBuffer], { type: metadata.mimeType });
@@ -72,18 +78,15 @@ export const downloadFile = async (fileId: string) => {
         }
 
         // E2EE Download Flow
-        if (!metadata.workspaceId) {
-            throw new Error("Cannot decrypt E2EE file without a Workspace ID");
-        }
 
         // 2. Fetch the raw encrypted file content
         const fileRes = await sfetch(`/api/cdn/download/${fileId}`, { method: 'GET' });
         if (!fileRes.ok) throw new Error("Failed to fetch encrypted file");
-        
+
         const encryptedBuffer = await fileRes.arrayBuffer();
 
-        // 3. Fetch the WorkspaceKey
-        const { key: spaceKey } = await getWorkspaceKey(metadata.workspaceId);
+        // 3. Fetch the KEK (workspace key or DM conversation key)
+        const { key: kek } = await resolveFileKey(metadata);
 
         // 4. Decrypt the file
         if (!metadata.encryptedFileKey || !metadata.iv) {
@@ -91,10 +94,10 @@ export const downloadFile = async (fileId: string) => {
         }
 
         const decryptedBuffer = await decryptFileLocal(
-            encryptedBuffer, 
-            metadata.encryptedFileKey, 
-            metadata.iv, 
-            spaceKey
+            encryptedBuffer,
+            metadata.encryptedFileKey,
+            metadata.iv,
+            kek
         );
 
         // 5. Trigger download of decrypted file

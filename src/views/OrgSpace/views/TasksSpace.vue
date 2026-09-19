@@ -65,9 +65,9 @@
                     </button>
                 </div>
 
-                <div v-if="tags.length > 0" class="hidden sm:block w-px h-6 bg-(--border-color) mx-2 shrink-0"></div>
+                <div class="hidden sm:block w-px h-6 bg-(--border-color) mx-2 shrink-0"></div>
 
-                <DropDown v-if="tags.length > 0" align="left" content-iner-t-w="min-w-[280px]">
+                <DropDown align="left" content-iner-t-w="min-w-[280px]">
                     <template #trigger>
                         <button type="button" class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap h-full" :class="filterTagIds.length ? 'bg-(--primary)/15 text-(--primary)' : 'bg-white/5 text-white/70 hover:bg-white/10'">
                             <i class="bi bi-tags"></i>
@@ -451,13 +451,11 @@ import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import confetti from 'canvas-confetti';
 import { useNotification } from '@/composables/useNotification';
 import { useTaskOrder } from '@/composables/useTaskOrder';
-import { useTaskTags } from '@/composables/useTaskTags';
 
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const { fetchOrder, sortByOrder, persistOrder } = useTaskOrder(route.params.orgId as string);
-const { tags, loadTags } = useTaskTags(route.params.orgId as string);
 const { showUsersBar } = useUsersBar();
 const { markTasksAsRead } = useNotification();
 
@@ -912,7 +910,6 @@ const onCardDrop = async (e: DragEvent, targetTask: Task, newStatus: string) => 
 
 onMounted(async () => {
     fetchOrder();
-    loadTags();
     loadTasks();
 
     const socket = await useWSocket();

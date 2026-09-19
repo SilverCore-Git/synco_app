@@ -33,15 +33,15 @@
                         >
                             
                             <div class="relative shrink-0">
-                                <img 
-                                    :src="(notif.msg as any)?.sender?.avatarUrl  || ''"
+                                <img
+                                    :src="(notif.msg as any)?.isWebhook ? ((notif.msg as any)?.webhookAvatar || `https://ui-avatars.com/api/?name=${(notif.msg as any)?.webhookName || 'Webhook'}&background=7c3aed&color=fff`) : ((notif.msg as any)?.sender?.avatarUrl || '')"
                                     class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
                                 />
                             </div>
 
                             <div class="flex-1 overflow-hidden" v-if="notif.msg">
                                 <h4 class="text-(--text) text-sm font-bold truncate flex items-center gap-1">
-                                    {{ $p((notif.msg as any)?.sender?.name) }}
+                                    {{ (notif.msg as any)?.isWebhook ? ((notif.msg as any)?.webhookName || 'Webhook') : $p((notif.msg as any)?.sender?.name) }}
                                     <span v-if="(notif.msg as any).webhookId" class="bg-(--primary)/20 text-(--primary) text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">APP</span>
                                 </h4>
                                 <p class="text-(--text) text-sm line-clamp-2 leading-snug">
@@ -316,7 +316,7 @@ const getNativeNotificationContext = (notif: Notification): NativeNotifContext |
     switch (notif.type) {
         case 'notif:msg': {
             const msg = notif.msg as any;
-            const name = formatName(msg?.sender?.name);
+            const name = msg?.isWebhook ? (msg?.webhookName || 'Webhook') : formatName(msg?.sender?.name);
             const body = msg?.embeds?.length > 0 ? msg.embeds[0].title : msg?.content;
             return {
                 key: `msg:${msg?.threadId}`,

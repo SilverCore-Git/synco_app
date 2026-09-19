@@ -6,7 +6,8 @@
 
       <div
         v-if="isOpen"
-        class="fixed inset-0 z-[2000] flex items-end sm:items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm"
+        class="fixed inset-0 flex items-end sm:items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm"
+        :style="{ zIndex: props.zIndex }"
         @click.self="emit('close')"
       >
 
@@ -80,9 +81,17 @@
 
 import { onMounted, onUnmounted, ref, computed, watch } from 'vue';
 
-const props = defineProps<{
+// Ce composant est Teleporté à body au même titre que Window.vue — sans
+// z-index explicite passé par l'appelant, deux instances issues de
+// contextes différents (ex: une Popup ouverte depuis l'intérieur d'un
+// Window) n'ont aucune garantie d'ordre d'empilement l'une par rapport
+// à l'autre au-delà de cette valeur par défaut.
+const props = withDefaults(defineProps<{
   isOpen: boolean;
-}>();
+  zIndex?: number;
+}>(), {
+  zIndex: 2000
+});
 
 const emit = defineEmits(['close']);
 

@@ -90,21 +90,22 @@
             class="flex flex-col gap-1 ml-7 mt-1 mb-2"
         >
 
-            <div 
-                v-for="p in currentParticipants" 
-                :key="p.identity"
-                class="flex items-center gap-2 py-1 px-1 rounded transition-colors"
+            <template v-for="p in currentParticipants" :key="p.identity">
+            <div
+                @click="openProfile(getMeta(p), $event)"
+                @contextmenu.prevent.stop="onParticipantContextMenu($event, p)"
+                class="flex items-center gap-2 py-1 px-1 rounded transition-colors cursor-pointer hover:bg-(--primary)/10"
                 :class="p.isSpeaking ? 'text-(--primary)' : 'text-(--text)'"
             >
 
                 <div class="relative">
-                    <img 
-                        :src="getMeta(p).avatarUrl || `https://ui-avatars.com/api/?name=${getMeta(p).name}`" 
+                    <img
+                        :src="getMeta(p).avatarUrl || `https://ui-avatars.com/api/?name=${getMeta(p).name}`"
                         class="w-5 h-5 rounded-full object-cover transition-transform"
                         :class="p.isSpeaking ? 'scale-110 ring-2 ring-(--primary)' : ''"
                     />
                 </div>
-                
+
                 <span class="text-xs truncate font-medium">
                     {{ getMeta(p).name || 'Anonyme' }}
                 </span>
@@ -112,6 +113,16 @@
                 <i v-if="!p.isMicrophoneEnabled" class="bi bi-mic-mute-fill text-[10px] ml-auto opacity-40" />
 
             </div>
+            <VoiceParticipantMenu
+                :ref="getMenuRefSetter(p.identity)"
+                :participant="p"
+                :threadId="props.thread.id"
+                :isSelf="p.identity === ownIdentity"
+                :canMute="canMuteOthers"
+                :canDisconnect="canDisconnectOthers"
+                :getName="(pp: any) => getMeta(pp).name || ''"
+            />
+            </template>
 
         </div>
 
@@ -127,13 +138,15 @@ import useLiveKit from '@/composables/useLiveKit';
 import sfetch from '@/assets/utils/sfetch';
 import { useRoute, useRouter } from 'vue-router';
 import useWSocket, { waitForSocketConnection } from '@/composables/useWSocket';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, user } from '@/assets/var';
 import DropDown from '@/components/DropDown.vue';
 import UpdateThread from '../popup/UpdateThread.vue';
 import InviteLinkModal from '../popup/InviteLinkModal.vue';
 import VoiceInviteModal from '../popup/VoiceInviteModal.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
+import VoiceParticipantMenu from '../dropdown/VoiceParticipantMenu.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { openProfile } from '@/composables/useProfile';
 
 const props = defineProps<{
   thread: Thread;
@@ -148,7 +161,27 @@ const showConfirmDelete = ref<boolean>(false);
 const showEditThread = ref<boolean>(false);
 
 const orgId = computed(() => openedOrg.value?.id);
-const { can } = usePermissions(orgId);
+const spaceId = computed(() => String(route.params.spaceId || ''));
+const ownIdentity = computed(() => user.value?.id || '');
+const { can, fetchPermissions } = usePermissions(orgId);
+const canMuteOthers = computed(() => can('VOICE_MUTE_OTHERS', spaceId.value));
+const canDisconnectOthers = computed(() => can('VOICE_DISCONNECT', spaceId.value));
+
+// Menu de modération par participant : même pattern que VoiceThreadView.vue
+// (contextmenu sur la ligne + toggleDropdown() manuel exposé par le composant).
+const menuRefs = new Map<string, { open: (e: MouseEvent) => void }>();
+const menuRefSetters = new Map<string, (el: any) => void>();
+const getMenuRefSetter = (identity: string) => {
+    let setter = menuRefSetters.get(identity);
+    if (!setter) {
+        setter = (el: any) => { if (el) menuRefs.set(identity, el); else menuRefs.delete(identity); };
+        menuRefSetters.set(identity, setter);
+    }
+    return setter;
+};
+const onParticipantContextMenu = (e: MouseEvent, p: any) => {
+    menuRefs.get(p.identity)?.open(e);
+};
 
 const { room, isConnected, connectToRoom, allParticipants, getWSData } = useLiveKit();
 
@@ -240,6 +273,11 @@ const onVocGetUpdate = ({ threadId }: { threadId: string }) => {
 };
 
 onMounted(async () => {
+
+    // Nécessaire pour que canMuteOthers/canDisconnectOthers soient corrects
+    // même si l'utilisateur n'a pas rejoint ce salon vocal lui-même (ex: un
+    // modérateur qui veut agir depuis la sidebar sans se connecter à l'appel).
+    fetchPermissions(spaceId.value);
 
     const socketRef = await useWSocket();
     const socket = socketRef.value;
