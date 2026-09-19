@@ -94,6 +94,43 @@
                                 {{ msg.text || 'Aucun message' }}
                             </p>
 
+                            <!-- Chiffrement/envoi (expéditeur) ou réception en cours -->
+                            <div
+                                v-else-if="msg.status === 'sending' || msg.status === 'receiving'"
+                                class="mt-1 flex items-center gap-3 bg-(--bg)/60 border border-(--border-color) rounded-xl px-3 py-2 max-w-sm"
+                            >
+                                <div class="relative w-9 h-9 shrink-0 flex items-center justify-center">
+                                    <svg class="w-9 h-9 -rotate-90" viewBox="0 0 36 36">
+                                        <circle cx="18" cy="18" r="15.5" fill="none" stroke="currentColor" class="text-(--border-color)" stroke-width="3" />
+                                        <circle
+                                            cx="18" cy="18" r="15.5" fill="none" stroke="currentColor" class="text-(--primary) transition-all duration-200"
+                                            stroke-width="3" stroke-linecap="round"
+                                            :stroke-dasharray="97.4"
+                                            :stroke-dashoffset="97.4 * (1 - (msg.progress || 0) / 100)"
+                                        />
+                                    </svg>
+                                    <span class="absolute text-[9px] font-bold text-(--text2)">{{ msg.progress || 0 }}%</span>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-(--text) text-sm font-medium truncate">{{ msg.fileName }}</p>
+                                    <p class="text-(--text2) text-xs">
+                                        {{ msg.status === 'sending' ? 'Envoi chiffré…' : 'Réception…' }} {{ formatFileSize(msg.fileSize) }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Échec de déchiffrement (terminé, mais pas de fileUrl) -->
+                            <div
+                                v-else-if="!msg.fileUrl"
+                                class="mt-1 flex items-center gap-3 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2 max-w-sm"
+                            >
+                                <i class="bi bi-exclamation-triangle-fill text-xl text-red-400" />
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-(--text) text-sm font-medium truncate">{{ msg.fileName }}</p>
+                                    <p class="text-red-400 text-xs">Échec de réception du fichier</p>
+                                </div>
+                            </div>
+
                             <a
                                 v-else
                                 :href="msg.fileUrl"

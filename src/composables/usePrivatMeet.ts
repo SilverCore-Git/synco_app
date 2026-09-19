@@ -23,16 +23,40 @@ export const isMeeting = ref<boolean>(false);
 // mémoire (chiffrement + buffer complet des deux côtés), pas de streaming.
 const MAX_FILE_SIZE = 200 * 1024 * 1024; // 200 Mo
 
+// Un fichier chiffré est découpé nous-mêmes en morceaux de cette taille
+// (plutôt qu'un seul connection.send() sur tout le ciphertext) pour pouvoir
+// afficher une vraie progression des deux côtés — PeerJS chunke déjà en
+// interne les gros payloads, mais ne remonte aucun événement de progression
+// exploitable : côté récepteur, un fichier volumineux restait invisible
+// jusqu'à l'arrivée du tout dernier octet, plusieurs dizaines de secondes
+// sans aucun signe que quoi que ce soit était en cours.
+const FILE_CHUNK_SIZE = 64 * 1024; // 64 Ko
+
 export interface MeetMessage {
     kind: 'text' | 'file';
     sender: 'Vous' | 'Correspondant.e';
     text?: string;
+    fileId?: string;
     fileName?: string;
     fileType?: string;
     fileSize?: number;
     fileUrl?: string;
+    status?: 'sending' | 'receiving' | 'done';
+    progress?: number;
     timestamp: number;
 }
+
+interface IncomingFileTransfer {
+    chunks: ArrayBuffer[];
+    receivedChunks: number;
+    totalChunks: number;
+    encryptedAesKey: ArrayBuffer;
+    iv: ArrayBuffer;
+}
+
+// Suivi interne des fichiers en cours de réception (pas exposé, pas
+// réactif — seul messages.value pilote l'affichage).
+const incomingFileTransfers = new Map<string, IncomingFileTransfer>();
 
 const peer = ref<Peer | null>(null);
 const myPeerId = ref<string>('');
@@ -208,33 +232,82 @@ const setupDataConnection = (conn: DataConnection) => {
 
         }
 
-        else if (data.type === 'ENCRYPTED_FILE' && sessionPrivateKey.value) {
+        // Un fichier arrive en 3 temps : FILE_META (métadonnées + clé/iv,
+        // crée la bulle "réception..." tout de suite), puis une série de
+        // FILE_CHUNK (chaque arrivée met à jour la progression affichée),
+        // reconstitué et déchiffré une fois le dernier morceau reçu.
+        else if (data.type === 'FILE_META') {
+
+            incomingFileTransfers.set(data.fileId, {
+                chunks: new Array(data.totalChunks),
+                receivedChunks: 0,
+                totalChunks: data.totalChunks,
+                encryptedAesKey: data.encryptedAesKey,
+                iv: data.iv
+            });
+
+            messages.value.push({
+                kind: 'file',
+                sender: 'Correspondant.e',
+                fileId: data.fileId,
+                fileName: data.fileName,
+                fileType: data.fileType,
+                fileSize: data.fileSize,
+                status: 'receiving',
+                progress: 0,
+                timestamp: Date.now()
+            });
+
+        }
+
+        else if (data.type === 'FILE_CHUNK' && sessionPrivateKey.value) {
+
+            const transfer = incomingFileTransfers.get(data.fileId);
+            // Pas de FILE_META connu pour ce fileId (canal rouvert entre-temps,
+            // etc.) : on ignore plutôt que de planter sur un tableau absent.
+            if (!transfer) return;
+
+            transfer.chunks[data.chunkIndex] = data.data;
+            transfer.receivedChunks++;
+
+            updateFileMessage(data.fileId, {
+                progress: Math.round((transfer.receivedChunks / transfer.totalChunks) * 100)
+            });
+
+            if (transfer.receivedChunks < transfer.totalChunks) return;
+
+            incomingFileTransfers.delete(data.fileId);
 
             try {
 
+                const totalLength = transfer.chunks.reduce((sum, c) => sum + c.byteLength, 0);
+                const fullCiphertext = new Uint8Array(totalLength);
+                let offset = 0;
+                for (const chunk of transfer.chunks) {
+                    fullCiphertext.set(new Uint8Array(chunk), offset);
+                    offset += chunk.byteLength;
+                }
+
+                const message = messages.value.find(m => m.fileId === data.fileId);
+
                 const decryptedBuffer = await decryptBufferFromPeer(
-                    data.ciphertext,
-                    data.encryptedAesKey,
-                    data.iv,
+                    fullCiphertext.buffer,
+                    transfer.encryptedAesKey,
+                    transfer.iv,
                     sessionPrivateKey.value
                 );
 
-                const blob = new Blob([decryptedBuffer], { type: data.fileType || 'application/octet-stream' });
+                const blob = new Blob([decryptedBuffer], { type: message?.fileType || 'application/octet-stream' });
 
-                messages.value.push({
-                    kind: 'file',
-                    sender: 'Correspondant.e',
-                    fileName: data.fileName,
-                    fileType: data.fileType,
-                    fileSize: data.fileSize,
-                    fileUrl: URL.createObjectURL(blob),
-                    timestamp: Date.now()
-                });
+                updateFileMessage(data.fileId, { status: 'done', progress: 100, fileUrl: URL.createObjectURL(blob) });
 
                 notifyIfAway(conn.peer);
 
             } catch (e) {
                 console.error('Erreur de déchiffrement de fichier P2P:', e);
+                // Débloque quand même l'UI (sort de l'état "réception...") —
+                // sans fileUrl, la bulle affichera l'échec plutôt qu'un lien.
+                updateFileMessage(data.fileId, { status: 'done' });
             }
 
         }
@@ -252,6 +325,16 @@ const setupDataConnection = (conn: DataConnection) => {
         console.log('Meet closed');
     });
 
+};
+
+/**
+ * Modifie en place l'entrée de messages.value correspondant à ce fileId
+ * (progression, changement de statut, url une fois déchiffré) — la bulle
+ * reste la même, seul son contenu affiché change.
+ */
+const updateFileMessage = (fileId: string, patch: Partial<MeetMessage>) => {
+    const message = messages.value.find(m => m.fileId === fileId);
+    if (message) Object.assign(message, patch);
 };
 
 /**
@@ -319,36 +402,67 @@ const sendEncryptedFile = async (file: File) => {
         return { error: `Fichier trop volumineux (max ${MAX_FILE_SIZE / (1024 * 1024)} Mo).` };
     }
 
+    const fileId = crypto.randomUUID();
+
+    // Bulle affichée tout de suite (chiffrement + envoi) plutôt qu'une fois
+    // tout terminé — c'est précisément l'absence de retour visuel pendant
+    // cette attente qui rendait un envoi de fichier volumineux déroutant.
+    messages.value.push({
+        kind: 'file',
+        sender: 'Vous',
+        fileId,
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        fileUrl: URL.createObjectURL(file),
+        status: 'sending',
+        progress: 0,
+        timestamp: Date.now()
+    });
+
     try {
 
         const buffer = await file.arrayBuffer();
         const { ciphertext, encryptedAesKey, iv } = await encryptBufferForPeer(buffer, peerPublicKeyJWK.value);
 
+        const totalChunks = Math.max(1, Math.ceil(ciphertext.byteLength / FILE_CHUNK_SIZE));
+
         connection.value.send({
-            type: 'ENCRYPTED_FILE',
+            type: 'FILE_META',
+            fileId,
             fileName: file.name,
             fileType: file.type,
             fileSize: file.size,
-            ciphertext,
+            totalChunks,
             encryptedAesKey,
             iv
         });
 
-        messages.value.push({
-            kind: 'file',
-            sender: 'Vous',
-            fileName: file.name,
-            fileType: file.type,
-            fileSize: file.size,
-            fileUrl: URL.createObjectURL(file),
-            timestamp: Date.now()
-        });
+        // await sur chaque envoi : DataConnection.send() renvoie une promesse
+        // qui se résout une fois le morceau réellement accepté par le canal
+        // (backpressure PeerJS gérée en interne) — l'attendre ici cadence
+        // naturellement les mises à jour de progression sur le rythme réel
+        // de l'envoi plutôt que de les afficher toutes d'un coup.
+        for (let i = 0; i < totalChunks; i++) {
+            const start = i * FILE_CHUNK_SIZE;
+            const chunk = ciphertext.slice(start, start + FILE_CHUNK_SIZE);
+            await connection.value.send({
+                type: 'FILE_CHUNK',
+                fileId,
+                chunkIndex: i,
+                data: chunk
+            });
+            updateFileMessage(fileId, { progress: Math.round(((i + 1) / totalChunks) * 100) });
+        }
+
+        updateFileMessage(fileId, { status: 'done', progress: 100 });
 
         return { error: null };
 
     } catch (e) {
-        console.error("Erreur de chiffrement de fichier P2P:", e);
-        return { error: "Échec du chiffrement du fichier." };
+        console.error("Erreur de chiffrement/d'envoi de fichier P2P:", e);
+        updateFileMessage(fileId, { status: 'done' });
+        return { error: "Échec de l'envoi du fichier." };
     }
 
 };
