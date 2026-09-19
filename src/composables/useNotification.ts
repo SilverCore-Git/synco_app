@@ -470,6 +470,11 @@ export function useNotification() {
         return 'success';
       case 'TASK_ASSIGNED':
         return 'info';
+      case 'MISSED_CALL':
+      case 'MISSED_MEET':
+        return 'warning';
+      case 'WORKSPACE_ADDED':
+        return 'success';
       case 'CUSTOM':
       default:
         return 'info';

@@ -24,7 +24,7 @@
             </h2>
 
             <div class="dash-grid">
-                <PendingMessagesCard class="animate-app-reveal" style="animation-delay: 0.06s" />
+                <NotificationsCard class="animate-app-reveal" style="animation-delay: 0.06s" />
                 <AgendaCard v-if="agendaEnabled" class="animate-app-reveal" style="animation-delay: 0.12s" />
                 <TodosCard v-if="todoEnabled" class="animate-app-reveal" style="animation-delay: 0.18s" />
             </div>
@@ -36,7 +36,7 @@
 import { computed } from 'vue';
 import { user, todoEnabled, agendaEnabled } from '@/assets/var';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
-import PendingMessagesCard from '../components/Home/PendingMessagesCard.vue';
+import NotificationsCard from '../components/Home/NotificationsCard.vue';
 import AgendaCard from '../components/Home/AgendaCard.vue';
 import TodosCard from '../components/Home/TodosCard.vue';
 import { useUsersBar } from '@/composables/useUsersBar';
