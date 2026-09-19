@@ -1,4 +1,4 @@
-import { ref, shallowRef } from 'vue';
+import { ref, shallowRef, triggerRef } from 'vue';
 import { Peer, type MediaConnection } from 'peerjs';
 import type { User } from '@/types/types';
 import { openedOrg } from '@/assets/var';
@@ -640,6 +640,17 @@ export default function useSecurePeer() {
             const streams = remoteStreams.value;
             streams.set(peerId, incomingStream);
             remoteStreams.value = streams;
+
+            // Sur une renégociation (caméra/écran activé après le début de
+            // l'appel), le navigateur redonne le MÊME objet MediaStream que la
+            // première fois (même stream id), juste muté en place avec la
+            // nouvelle piste — Map.set() sur une Map réactive ne déclenche
+            // RIEN dans ce cas : Vue compare par référence (Object.is) et voit
+            // "même clé, même valeur", donc aucune mise à jour n'était
+            // propagée à hasRemoteVideo/currentRemoteStream côté receveur,
+            // même si `incomingStream` contenait bien la piste vidéo. Forcé
+            // explicitement, seul moyen fiable de notifier Vue ici.
+            triggerRef(remoteStreams);
 
             monitorAudio(incomingStream, (val) => {
                 const speaking = new Map(remoteSpeaking.value);
