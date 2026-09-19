@@ -2,7 +2,7 @@ import { useToast } from "@/composables/useToast";
 import type { DMMessage, Message, OrgMember } from "@/types/types";
 import { ref, watch } from "vue";
 import useWSocket, { waitForSocketConnection } from "./useWSocket";
-import { useRoute } from "vue-router";
+import router from "@/router";
 
 
 type NotificationType = 'toast' | 'notif:msg' | 'notif:dmmsg' | 'notif:call' | 'notif:privateMeet';
@@ -195,7 +195,6 @@ let currentNewMessageHandler: ((payload: { message: Message, spaceId?: string, o
 
 const initListener = async () => {
 
-    const route = useRoute();
     const socket = await useWSocket();
 
     const connected = await waitForSocketConnection(socket, 15000);
@@ -215,7 +214,7 @@ const initListener = async () => {
 
     currentNewMessageHandler = async ({ message, spaceId, orgId }: { message: Message, spaceId?: string, orgId?: string }) => {
 
-        if (route.params.threadId == message.threadId) return;
+        if (router.currentRoute.value.params.threadId == message.threadId) return;
 
         let decryptedMessage = message as any;
 
