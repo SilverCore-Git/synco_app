@@ -17,19 +17,22 @@
                     >
                         <!-- Header with controls -->
                         <div class="absolute top-4 left-4 right-4 z-20 flex items-center justify-between">
-                            <!-- Security Status -->
+                            <!-- Security Status : bouton discret icône seule — au clic,
+                                 explique le fonctionnement du chiffrement plutôt que
+                                 d'afficher un gros libellé en permanence (même traitement
+                                 que le bouclier des sessions éphémères, PrivateMeetView.vue). -->
                             <button
                                 v-if="securityStatus"
-                                @click="securityStatus.encrypted && !isCurrentPeerVerified ? openVerifyPanel() : undefined"
-                                class="flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border"
+                                @click="openSecurityInfo"
+                                class="flex items-center justify-center w-9 h-9 rounded-full backdrop-blur-md border transition-colors"
                                 :class="[
                                     !securityStatus.encrypted
                                         ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-400'
                                         : isCurrentPeerVerified
-                                            ? 'bg-green-500/20 border-green-500/30 text-green-400'
-                                            : 'bg-blue-500/20 border-blue-500/30 text-blue-300 hover:bg-blue-500/30 cursor-pointer'
+                                            ? 'bg-green-500/20 border-green-500/30 text-green-400 hover:bg-green-500/30'
+                                            : 'bg-blue-500/20 border-blue-500/30 text-blue-300 hover:bg-blue-500/30'
                                 ]"
-                                :title="securityStatus.encrypted && !isCurrentPeerVerified ? 'Vérifier le code de sécurité' : ''"
+                                title="Sécurité de l'appel"
                             >
                                 <i
                                     class="bi text-sm"
@@ -37,9 +40,6 @@
                                         ? 'bi-shield-exclamation'
                                         : isCurrentPeerVerified ? 'bi-shield-check-fill' : 'bi-shield-lock'"
                                 />
-                                <span class="text-xs font-medium">
-                                    {{ !securityStatus.encrypted ? 'Chiffrement...' : 'Appel sécurisé' }}
-                                </span>
                             </button>
 
                             <!-- Timer and Minimize Button -->
@@ -228,6 +228,81 @@
             </div>
         </Transition>
 
+        <!-- Popup d'explication du chiffrement, ouverte par le bouclier discret
+             (fullscreen et minimisé) — contenu éducatif, pas d'action requise,
+             sauf le renvoi vers la vérification SAS quand elle est pertinente. -->
+        <Popup :isOpen="showSecurityInfo" @close="showSecurityInfo = false">
+            <template #title>Sécurité de l'appel</template>
+
+            <div class="space-y-5 text-sm text-(--text2) leading-relaxed">
+
+                <div class="flex items-start gap-3">
+                    <i class="bi bi-router-fill text-lg text-(--primary) mt-0.5 shrink-0" />
+                    <div>
+                        <p class="text-(--text) font-semibold mb-1">Connexion directe (peer-to-peer)</p>
+                        <p>
+                            Le son et la vidéo ne transitent jamais par les serveurs de Synco.
+                            Une fois l'appel établi, votre appareil communique directement avec
+                            celui de votre correspondant.
+                        </p>
+                        <p class="mt-2 flex items-center gap-1.5 text-xs font-medium" :class="connectionType === 'relay' ? 'text-yellow-500' : connectionType === 'direct' ? 'text-green-500' : 'text-(--text2)'">
+                            <i class="bi" :class="connectionType === 'relay' ? 'bi-exclamation-triangle-fill' : connectionType === 'direct' ? 'bi-check-circle-fill' : 'bi-hourglass-split'" />
+                            {{ connectionType === 'relay'
+                                ? 'Connexion actuelle : relayée (réseau restrictif) — le média reste chiffré de bout en bout malgré tout'
+                                : connectionType === 'direct'
+                                    ? 'Connexion actuelle : directe'
+                                    : 'Connexion en cours de vérification…' }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-3">
+                    <i class="bi bi-key-fill text-lg text-(--primary) mt-0.5 shrink-0" />
+                    <div>
+                        <p class="text-(--text) font-semibold mb-1">Chiffrement de bout en bout</p>
+                        <p>
+                            WebRTC chiffre déjà nativement tout le média (DTLS-SRTP, automatique
+                            et obligatoire). Synco ajoute une seconde couche : à l'établissement
+                            de l'appel, vos deux appareils négocient une clé de session unique
+                            (ECDH) que seul votre correspondant peut calculer — même le serveur
+                            de signalisation qui vous met en relation ne peut pas la connaître.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-3 pt-3 border-t border-(--border-color)">
+                    <i class="bi" :class="isCurrentPeerVerified ? 'bi-shield-check-fill text-lg text-green-500 mt-0.5 shrink-0' : 'bi-patch-question-fill text-lg text-(--primary) mt-0.5 shrink-0'" />
+                    <div class="flex-1">
+                        <p class="text-(--text) font-semibold mb-1">Vérification anti-interception</p>
+                        <p v-if="!securityStatus?.encrypted">
+                            L'échange de clé est en cours d'établissement — la vérification sera
+                            disponible une fois l'appel chiffré.
+                        </p>
+                        <template v-else-if="isCurrentPeerVerified">
+                            <p class="text-green-500 font-medium flex items-center gap-1.5">
+                                <i class="bi bi-check-circle-fill" />
+                                Code vérifié pour cet appel
+                            </p>
+                        </template>
+                        <template v-else>
+                            <p class="mb-3">
+                                Un serveur de signalisation compromis pourrait en théorie
+                                s'interposer sur l'échange de clé initial. Lire à voix haute un
+                                court code à votre correspondant (et comparer le sien) confirme
+                                qu'aucun tiers ne s'est glissé entre vous deux.
+                            </p>
+                            <button @click="startVerificationFromInfo" class="primary !text-xs !py-1.5">
+                                <i class="bi bi-shield-lock" />
+                                Vérifier le code de sécurité
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+            </div>
+
+        </Popup>
+
         <!-- Minimized Floating Window (16:9) - Only one instance per call -->
         <Transition name="slide-fade">
             <DraggableWindow
@@ -315,15 +390,15 @@
                                 />
                             </div>
 
-                            <!-- Security Badge (minimized) -->
+                            <!-- Security Badge (minimized) — icône seule, même popup d'info -->
                             <button
                                 v-if="securityStatus?.encrypted"
-                                @click="!isCurrentPeerVerified ? openVerifyPanel() : undefined"
-                                class="absolute bottom-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                                @click="openSecurityInfo"
+                                class="absolute bottom-2 left-2 w-5 h-5 rounded-full flex items-center justify-center"
                                 :class="isCurrentPeerVerified ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-300'"
+                                title="Sécurité de l'appel"
                             >
-                                <i class="bi text-xs" :class="isCurrentPeerVerified ? 'bi-shield-check-fill' : 'bi-shield-lock'" />
-                                <span class="ml-0.5">Sécurisé</span>
+                                <i class="bi text-[10px]" :class="isCurrentPeerVerified ? 'bi-shield-check-fill' : 'bi-shield-lock'" />
                             </button>
 
                         </div>
@@ -369,6 +444,7 @@ import useSecurePeer from '@/composables/useSecurePeer';
 import { computed, onUnmounted, ref, watch, type ComponentPublicInstance } from 'vue';
 import DraggableWindow from '../common/DraggableWindow.vue';
 import CallControls from './CallControls.vue';
+import Popup from '@/components/Popup.vue';
 import { openedOrg, user } from '@/assets/var';
 import { getVoicePrefs, resolveCameraCaptureOptions } from '@/assets/utils/voicePrefs';
 
@@ -507,6 +583,27 @@ const openVerifyPanel = () => {
     }
 };
 
+// Popup d'explication ouverte au clic sur le bouclier — remplace l'ancien
+// gros libellé texte ("Chiffrement..."/"Appel sécurisé") en permanence
+// affiché, même traitement que le bouclier des sessions éphémères
+// (PrivateMeetView.vue).
+const showSecurityInfo = ref<boolean>(false);
+
+const openSecurityInfo = () => {
+    showSecurityInfo.value = true;
+    connectionType.value = null;
+    if (currentPeerId.value) {
+        getConnectionType(currentPeerId.value).then(type => { connectionType.value = type; });
+    }
+};
+
+// Depuis la popup d'info : bascule directement vers la vérification SAS
+// sans avoir à rouvrir un second bouclier.
+const startVerificationFromInfo = () => {
+    showSecurityInfo.value = false;
+    openVerifyPanel();
+};
+
 const confirmFingerprint = () => {
     if (!currentPeerId.value) return;
     const ok = verifySecurityFingerprint(currentPeerId.value, fingerprintInput.value.trim());
@@ -575,6 +672,7 @@ const handleEndCall = () => {
     isMinimized.value = false;
     verifiedPeers.value = new Set();
     showVerifyPanel.value = false;
+    showSecurityInfo.value = false;
 };
 
 // Watch for call state changes to manage timer
