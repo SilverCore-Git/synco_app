@@ -48,7 +48,7 @@ interface SecureCallSession {
 }
 
 interface KeyExchangeMessage {
-    type: 'KEY_EXCHANGE_REQUEST' | 'KEY_EXCHANGE_RESPONSE' | 'KEY_CONFIRMATION' | 'RENEGOTIATE_OFFER' | 'RENEGOTIATE_ANSWER';
+    type: 'KEY_EXCHANGE_REQUEST' | 'KEY_EXCHANGE_RESPONSE' | 'KEY_CONFIRMATION' | 'RENEGOTIATE_OFFER' | 'RENEGOTIATE_ANSWER' | 'HANGUP';
     publicKeyJWK?: string;
     timestamp?: number;
     callId?: string;
@@ -554,6 +554,21 @@ export default function useSecurePeer() {
                     } else {
                         console.warn('[SECURE-PEER] RENEGOTIATE_ANSWER reçue sans sdp de', peerId);
                     }
+                    break;
+
+                // MediaConnection.close() de PeerJS ne prévient jamais le
+                // correspondant — il faut attendre que SON PROPRE ICE détecte
+                // la perte de transport (état 'failed', pas juste
+                // 'disconnected') pour que son propre call.on('close') se
+                // déclenche, ce qui peut prendre de longues secondes, voire
+                // ne jamais aboutir proprement selon le réseau. En fermant
+                // notre côté ici en réponse à ce message explicite, on
+                // déclenche notre 'close' local tout de suite, qui route vers
+                // le même nettoyage (removePeerFromCall) que pour un
+                // raccroché initié localement.
+                case 'HANGUP':
+                    console.log('[SECURE-PEER] HANGUP reçu de', peerId);
+                    session.call.close();
                     break;
             }
         } catch (error) {
@@ -1248,7 +1263,25 @@ export default function useSecurePeer() {
      * End all calls
      */
     const endCall = () => {
-        activeCalls.value.forEach(session => session.call.close());
+        activeCalls.value.forEach(session => {
+            // Prévient le correspondant explicitement AVANT de fermer —
+            // MediaConnection.close() de PeerJS ne signale rien de lui-même,
+            // le correspondant devrait sinon attendre que son propre ICE
+            // détecte la coupure (cf. commentaire sur le cas 'HANGUP').
+            if (session.dataChannel?.readyState === 'open') {
+                try {
+                    session.dataChannel.send(JSON.stringify({
+                        type: 'HANGUP',
+                        timestamp: Date.now(),
+                        callId: session.callId
+                    } satisfies KeyExchangeMessage));
+                } catch (e) {
+                    // Le canal peut s'être fermé entre le check et l'envoi — sans
+                    // conséquence, le correspondant détectera la coupure via ICE.
+                }
+            }
+            session.call.close();
+        });
         cleanupCall();
     };
 
