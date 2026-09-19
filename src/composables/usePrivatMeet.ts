@@ -8,6 +8,7 @@ import { useToast } from './useToast';
 import type { OrgMember } from '@/types/types';
 import router from '@/router';
 import { openedOrg } from '@/assets/var';
+import waitFor from '@/assets/utils/waitfor';
 
 // ============================================================================
 // État partagé — niveau module, comme useSecurePeer.ts (pas par instance de
@@ -468,6 +469,24 @@ const sendEncryptedFile = async (file: File) => {
 };
 
 /**
+ * initPeer() peut résoudre avant que le Peer soit réellement prêt : sa garde
+ * de départ (peer.value déjà non-null) ne dit rien sur l'événement 'open' —
+ * et même sur une toute première init, la fonction ne l'attend pas non plus.
+ * myPeerId.value reste alors vide, connectToPeer() s'arrête aussitôt sur son
+ * garde-fou `!myId` (silencieusement, sans jamais réessayer), et l'appelant
+ * restait bloqué indéfiniment sur "Établissement du canal sécurisé..." —
+ * exactement le symptôme "parfois, ça reste bloqué" rapporté, une course
+ * dépendant du temps de connexion au serveur de signalisation à ce moment
+ * précis. L'ancien code (avant que initPeer() ne soit appelé une fois pour
+ * toute la session dans OrgLayout.vue) attendait déjà explicitement ça — la
+ * refonte avait fait sauter cette attente par erreur.
+ */
+const ensurePeerReady = async (): Promise<boolean> => {
+    await initPeer(myOrgMemberId);
+    return await waitFor(() => myPeerId.value !== '', 8000);
+};
+
+/**
  * Initie une nouvelle session (bouton "Session éphémère" dans ChatView.vue).
  * Seul ce chemin émet privateMeet:call — accepter une invitation entrante
  * passe par acceptIncomingMeet(), qui ne ré-émet jamais call. Les deux
@@ -488,7 +507,14 @@ const startMeet = async (recipient: OrgMember) => {
 
     router.push({ name: 'OrgThreadChatPrivateMeet', params: { userId: recipient.id } });
 
-    await initPeer(myOrgMemberId);
+    const ready = await ensurePeerReady();
+    if (!ready) {
+        meetLoadingStatus.value = 'Connexion au serveur impossible.';
+        setTimeout(() => {
+            if (activeMeetPeerId.value === recipient.id) endMeet();
+        }, 2000);
+        return;
+    }
 
     const socket = await useWSocket();
 
@@ -526,12 +552,34 @@ const acceptIncomingMeet = async (caller: OrgMember) => {
 
     router.push({ name: 'OrgThreadChatPrivateMeet', params: { userId: caller.id } });
 
-    await initPeer(myOrgMemberId);
+    const ready = await ensurePeerReady();
+    if (!ready) {
+        meetLoadingStatus.value = 'Connexion au serveur impossible.';
+        setTimeout(() => {
+            if (activeMeetPeerId.value === caller.id) endMeet();
+        }, 2000);
+        return;
+    }
 
     const socket = await useWSocket();
 
     socket.value?.emit('privateMeet:accept', { callerId: caller.userId });
     connectToPeer(caller.id);
+
+    // Filet de sécurité : si la connexion P2P elle-même ne s'établit jamais
+    // (négociation ICE bloquée, l'appelant a fermé sa page entre-temps,
+    // etc.), rien d'autre ne sortait l'utilisateur de "Établissement du
+    // canal sécurisé..." — contrairement à startMeet(), qui a déjà son
+    // propre délai d'attente côté appelant.
+    clearPendingCallTimeout();
+    pendingCallTimeout = setTimeout(() => {
+        if (isMeetConnecting.value && activeMeetPeerId.value === caller.id) {
+            meetLoadingStatus.value = 'Impossible d\'établir la connexion.';
+            setTimeout(() => {
+                if (activeMeetPeerId.value === caller.id) endMeet();
+            }, 2000);
+        }
+    }, 15000);
 
 };
 
