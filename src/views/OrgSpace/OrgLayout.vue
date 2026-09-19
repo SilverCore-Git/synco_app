@@ -34,7 +34,7 @@ const props = defineProps<{
 
 const { showUsersBar, setUsersBarHiddenByRoute } = useUsersBar();
 const { initPeer } = useSecurePeer();
-const { initPeer: initPrivateMeetPeer } = usePrivateMeet();
+const { initPeer: initPrivateMeetPeer, startRingtone: startPrivateMeetRingtone } = usePrivateMeet();
 const { notify } = useNotifications();
 const { init: initNotifications } = useNotification();
 const { fetchRecentDMs, recordDMInteraction } = useRecentDMs();
@@ -498,7 +498,13 @@ const initSocketListener = async () => {
 
     socket.value?.on('privateMeet:incomingCall', async ({ callerId }: { callerId: string }) => {
         const orgMember = openedOrg.value?.members?.find(m => m.userId === callerId);
-        if (!isMeeting.value) notify('notif:privateMeet', orgMember, -1);
+        if (!isMeeting.value) {
+            notify('notif:privateMeet', orgMember, -1);
+            // Sonnerie en boucle (même son que les appels DM) tant que
+            // l'invitation n'a pas été acceptée/refusée — stoppée dans
+            // usePrivatMeet.ts (acceptIncomingMeet/declineIncomingMeet).
+            startPrivateMeetRingtone();
+        }
     });
     socket.value?.on('thread:created', ({ orgId, thread }: { orgId: string, thread: any }) => {
         

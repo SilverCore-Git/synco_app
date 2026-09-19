@@ -64,6 +64,24 @@ interface IncomingFileTransfer {
 // réactif — seul messages.value pilote l'affichage).
 const incomingFileTransfers = new Map<string, IncomingFileTransfer>();
 
+// Même son que les appels DM (useSecurePeer.ts) — une instance séparée pour
+// ne pas se marcher dessus si un appel classique sonne en même temps qu'une
+// invitation à une session éphémère. Avant ça, une invitation entrante ou
+// un appel en cours de sonnerie ne jouait que le petit "ding" générique de
+// Notifications.vue (playNotificationSound), une seule fois — pas le vrai
+// son d'appel en boucle.
+const ringtone = new Audio('/callSound.wav');
+ringtone.loop = true;
+
+const startRingtone = () => {
+    ringtone.play().catch(() => {});
+};
+
+const stopRingtone = () => {
+    ringtone.pause();
+    ringtone.currentTime = 0;
+};
+
 const peer = ref<Peer | null>(null);
 const myPeerId = ref<string>('');
 const connection = ref<DataConnection | null>(null);
@@ -220,6 +238,7 @@ const setupDataConnection = (conn: DataConnection) => {
         isMeetConnecting.value = false;
         isMeeting.value = true;
         clearPendingCallTimeout();
+        stopRingtone();
         console.log('Text P2P canal open');
 
         if (sessionPublicKeyJWK.value) {
@@ -363,6 +382,7 @@ const setupDataConnection = (conn: DataConnection) => {
         activeMeetPeerId.value = null;
         activeMeetPeerUserId.value = null;
         clearPendingCallTimeout();
+        stopRingtone();
         console.log('Meet closed');
     });
 
@@ -569,6 +589,7 @@ const startMeet = async (recipient: OrgMember) => {
 
     socket.value?.emit('privateMeet:call', { recipientId: recipient.userId });
     meetLoadingStatus.value = 'En attente de la réponse...';
+    startRingtone();
 
     clearPendingCallTimeout();
     pendingCallTimeout = setTimeout(() => {
@@ -591,6 +612,12 @@ const startMeet = async (recipient: OrgMember) => {
 const acceptIncomingMeet = async (caller: OrgMember) => {
 
     if (!caller.id || !caller.userId) return;
+
+    // La sonnerie de l'invitation entrante (démarrée dans OrgLayout.vue dès
+    // la réception de privateMeet:incomingCall) s'arrête dès qu'on répond —
+    // pas d'attendre que la connexion P2P s'établisse, comme pour un appel
+    // classique (acceptCall() dans useSecurePeer.ts).
+    stopRingtone();
 
     activeMeetPeerId.value = caller.id;
     activeMeetPeerUserId.value = caller.userId;
@@ -632,6 +659,7 @@ const acceptIncomingMeet = async (caller: OrgMember) => {
 
 const declineIncomingMeet = async (caller: OrgMember) => {
     if (!caller.userId) return;
+    stopRingtone();
     const socket = await useWSocket();
     socket.value?.emit('privateMeet:decline', { callerId: caller.userId });
 };
@@ -691,6 +719,7 @@ const getConnectionType = async (): Promise<'direct' | 'relay' | 'unknown'> => {
  * useSecurePeer.ts, qui ne détruit jamais son peer non plus).
  */
 const endMeet = () => {
+    stopRingtone();
     connection.value?.close({ flush: true });
     connection.value = null;
     isConnected.value = false;
@@ -745,7 +774,11 @@ export default function usePrivateMeet() {
         declineIncomingMeet,
         endMeet,
         destroyChat,
-        getConnectionType
+        getConnectionType,
+        // Exposée pour OrgLayout.vue : la sonnerie d'une invitation entrante
+        // doit démarrer dès la réception de privateMeet:incomingCall (avant
+        // même que l'utilisateur clique "Répondre"), qui n'est écouté que là.
+        startRingtone
     };
 
 }

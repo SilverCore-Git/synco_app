@@ -437,11 +437,20 @@ const showNativeNotification = (notif: Notification) => {
     }, NATIVE_NOTIF_DEBOUNCE_MS));
 };
 
+// notif:call (appels DM) et notif:privateMeet (invitations éphémères) ont
+// déjà leur propre sonnerie en boucle (callSound.wav, démarrée dans
+// useSecurePeer.ts / usePrivatMeet.ts dès l'arrivée de l'appel/l'invitation)
+// — jouer en plus le "ding" générique par-dessus n'a pas de sens pour un
+// appel qui sonne en continu, contrairement à un simple message.
+const RINGING_NOTIF_TYPES: NotificationType[] = ['notif:call', 'notif:privateMeet'];
+
 watch(() => notifications.value.length, (newLength, oldLength) => {
     if (newLength > oldLength) {
         const latestNotif = notifications.value[notifications.value.length - 1];
         if (latestNotif && latestNotif.type !== 'toast') {
-            playNotificationSound();
+            if (!RINGING_NOTIF_TYPES.includes(latestNotif.type)) {
+                playNotificationSound();
+            }
             showNativeNotification(latestNotif);
         }
     }
