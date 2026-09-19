@@ -139,16 +139,30 @@ const myTasks = computed(() => {
     });
 });
 
-const items = computed(() => {
-    const withDue = myTasks.value
+// À échéance égale (ou absente), les tâches avec deadline la plus proche
+// d'abord, puis les autres par création la plus récente — réutilisé pour
+// les deux groupes ci-dessous (fraîches et le reste) plutôt que dupliqué.
+function sortByDueThenRecency(list: Task[]): Task[] {
+    const withDue = list
         .filter(t => !!t.dueDate)
         .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
 
-    const withoutDue = myTasks.value
+    const withoutDue = list
         .filter(t => !t.dueDate)
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    return [...withDue, ...withoutDue].slice(0, 8);
+    return [...withDue, ...withoutDue];
+}
+
+const items = computed(() => {
+    // Priorité aux tâches avec une actualité (nouvellement assignée ou mise
+    // à jour depuis la dernière visite — cf. isNewOrUpdated) avant tout le
+    // reste, qui garde l'ordre par deadline la plus proche puis les moins
+    // urgentes (sans échéance) en dernier.
+    const fresh = myTasks.value.filter(t => isNewOrUpdated(t));
+    const rest = myTasks.value.filter(t => !isNewOrUpdated(t));
+
+    return [...sortByDueThenRecency(fresh), ...sortByDueThenRecency(rest)].slice(0, 8);
 });
 
 function taskLink(task: Task): string {
