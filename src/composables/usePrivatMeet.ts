@@ -98,6 +98,17 @@ const meetLoadingStatus = ref<string>('');
 let myOrgMemberId = '';
 let pendingCallTimeout: ReturnType<typeof setTimeout> | null = null;
 
+// useSecurePeer.ts (les appels) enregistre lui aussi un Peer sur le MÊME
+// serveur de signalisation avec le MÊME OrgMember.id comme identifiant (les
+// deux composables sont initialisés côte à côte dans OrgLayout.vue). Deux
+// objets Peer distincts revendiquant le même id sur le même serveur PeerJS
+// entrent en conflit — c'était la cause exacte de la boucle "Établissement
+// du canal sécurisé" / connexion qui s'ouvre puis se ferme sans fin : le
+// serveur ne peut faire vivre qu'une seule connexion par id à la fois. Un
+// suffixe distinct isole complètement l'espace de nommage des deux features.
+const MEET_PEER_SUFFIX = '-meet';
+const toMeetPeerId = (orgMemberId: string) => `${orgMemberId}${MEET_PEER_SUFFIX}`;
+
 const clearPendingCallTimeout = () => {
     if (pendingCallTimeout) {
         clearTimeout(pendingCallTimeout);
@@ -144,7 +155,7 @@ const initPeer = async (userId?: string): Promise<void> => {
             debug: 1
         };
 
-        peer.value = myOrgMemberId ? new Peer(myOrgMemberId, peerOptions) : new Peer(peerOptions);
+        peer.value = myOrgMemberId ? new Peer(toMeetPeerId(myOrgMemberId), peerOptions) : new Peer(peerOptions);
 
         peer.value.on('open', (id) => {
             myPeerId.value = id;
@@ -178,7 +189,7 @@ const initPeer = async (userId?: string): Promise<void> => {
 const connectToPeer = (targetPeerId: string) => {
 
     const myId = String(myPeerId.value);
-    const targetId = String(targetPeerId);
+    const targetId = toMeetPeerId(String(targetPeerId));
 
     if (!peer.value || !myId) return;
 
@@ -244,7 +255,7 @@ const setupDataConnection = (conn: DataConnection) => {
                     timestamp: Date.now()
                 });
 
-                notifyIfAway(conn.peer);
+                notifyIfAway();
 
             } catch (e) {
                 console.error('Erreur de déchiffrement P2P:', e);
@@ -327,7 +338,7 @@ const setupDataConnection = (conn: DataConnection) => {
                 // "l'autre les a vraiment tous reçus et pu les déchiffrer".
                 connection.value?.send({ type: 'FILE_RECEIVED', fileId: data.fileId });
 
-                notifyIfAway(conn.peer);
+                notifyIfAway();
 
             } catch (e) {
                 console.error('Erreur de déchiffrement de fichier P2P:', e);
@@ -376,7 +387,14 @@ const updateFileMessage = (fileId: string, patch: Partial<MeetMessage>) => {
  * Jamais le contenu du message dans la notification (même règle que pour
  * les DM/threads) — juste de quoi savoir qu'il faut y retourner.
  */
-const notifyIfAway = (peerId: string) => {
+const notifyIfAway = () => {
+
+    // Lit activeMeetPeerId (la source de vérité déjà maintenue pour "avec
+    // qui suis-je en session") plutôt que conn.peer — depuis le suffixage
+    // des ids PeerJS (cf. MEET_PEER_SUFFIX), conn.peer n'est plus directement
+    // un OrgMember.id et ne peut plus servir tel quel à retrouver le membre.
+    const peerId = activeMeetPeerId.value;
+    if (!peerId) return;
 
     const current = router.currentRoute.value;
     const onThisMeet = current.name === 'OrgThreadChatPrivateMeet' && current.params.userId === peerId;
@@ -681,7 +699,23 @@ const endMeet = () => {
     activeMeetPeerId.value = null;
     activeMeetPeerUserId.value = null;
     peerPublicKeyJWK.value = null;
+
+    // Vider messages.value ne suffit pas à réellement libérer un fichier de
+    // la mémoire : chaque bulle fichier porte un Blob URL (URL.createObjectURL,
+    // côté envoyeur ET receveur) qui garde le Blob sous-jacent vivant tant
+    // qu'il n'est pas explicitement révoqué — sans ça, le contenu déchiffré
+    // resterait accessible en mémoire (via cette URL) bien après la fin de
+    // la session éphémère.
+    for (const msg of messages.value) {
+        if (msg.fileUrl) URL.revokeObjectURL(msg.fileUrl);
+    }
     messages.value = [];
+
+    // Purge tout transfert de fichier entrant resté incomplet (session
+    // fermée en plein milieu d'une réception) — ses morceaux déjà reçus ne
+    // doivent pas non plus traîner en mémoire.
+    incomingFileTransfers.clear();
+
     clearPendingCallTimeout();
 };
 

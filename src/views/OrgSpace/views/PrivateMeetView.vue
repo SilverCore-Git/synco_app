@@ -34,6 +34,18 @@
 
         </header>
 
+        <!-- Le header ci-dessus (avec le retour habituel) n'est monté que
+             tant qu'une session est active pour cette personne — sans lui,
+             cet écran "aucune session active" était un cul-de-sac. -->
+        <button
+            v-if="!recipient && !isMeetConnecting"
+            @click="leaveEmptyMeet"
+            class="absolute top-4 right-4 z-20 p-2 rounded-lg text-(--text2) hover:text-(--text) hover:bg-white/5 transition-colors"
+            title="Fermer"
+        >
+            <i class="bi bi-x-lg text-lg" />
+        </button>
+
         <template v-if="isMeetConnecting">
 
             <div class="flex-1 flex items-center justify-center gap-8 flex-col">
@@ -243,18 +255,6 @@
                     </div>
                 </div>
 
-                <div class="flex items-start gap-3 pt-3 border-t border-(--border-color)">
-                    <i class="bi bi-info-circle text-lg text-(--text2) mt-0.5 shrink-0" />
-                    <div>
-                        <p class="text-(--text) font-semibold mb-1">Limite connue</p>
-                        <p>
-                            Contrairement aux appels vocaux, l'échange de clé initial n'est pas
-                            encore vérifiable par un code de sécurité — un serveur de signalisation
-                            compromis pourrait en théorie s'y interposer.
-                        </p>
-                    </div>
-                </div>
-
             </div>
 
         </Popup>
@@ -320,6 +320,13 @@ const recipient = computed(() => {
 const close = async () => {
     endMeet();
     await router.push({ name: 'OrgThreadChat', params: { userId: route.params.userId } });
+};
+
+// Écran "aucune session active" (pas de connexion à couper, juste revenir
+// au DM normal de cette personne) — endMeet() n'a rien à faire ici puisque
+// justement aucune session n'est active.
+const leaveEmptyMeet = () => {
+    router.push({ name: 'OrgThreadChat', params: { userId: route.params.userId } });
 };
 
 // Un fichier en cours d'envoi/réception (ou envoyé mais pas encore confirmé
