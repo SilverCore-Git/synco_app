@@ -2,8 +2,8 @@
     <section class="dash-card">
         <header class="dash-card-header">
             <div class="flex items-center gap-2">
-                <i class="bi bi-chat-dots text-(--text)"></i>
-                <h3 class="font-semibold text-(--text)">Messages</h3>
+                <i class="bi bi-bell text-(--text)"></i>
+                <h3 class="font-semibold text-(--text)">Notifications</h3>
                 <span v-if="totalUnread > 0" class="dash-badge">{{ totalUnread }}</span>
             </div>
         </header>
@@ -14,17 +14,28 @@
 
         <div v-else-if="items.length === 0" class="dash-card-empty animate-app-reveal">
             <i class="bi bi-check2-circle text-2xl text-(--text2)"></i>
-            <p>Aucun message en attente</p>
+            <p>Aucune notification en attente</p>
         </div>
 
         <ul v-else class="dash-card-body space-y-1 animate-app-reveal">
             <li v-for="item in items" :key="item.key">
                 <button class="dash-row" @click="openItem(item)">
-                    <img
-                        :src="item.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title)}&background=128a60&color=fff`"
-                        class="w-9 h-9 rounded-full shrink-0"
-                        alt=""
-                    />
+                    <div class="relative shrink-0">
+                        <img
+                            :src="item.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title)}&background=128a60&color=fff`"
+                            class="w-9 h-9 rounded-full"
+                            alt=""
+                        />
+                        <span v-if="item.kind === 'missedCall'" class="dash-row-badge bg-red-500">
+                            <i class="bi bi-telephone-x-fill" />
+                        </span>
+                        <span v-else-if="item.kind === 'missedMeet'" class="dash-row-badge bg-red-500">
+                            <i class="bi bi-shield-x" />
+                        </span>
+                        <span v-else-if="item.kind === 'workspaceAdded'" class="dash-row-badge bg-(--primary)">
+                            <i class="bi bi-plus-lg" />
+                        </span>
+                    </div>
                     <div class="flex-1 min-w-0 text-left">
                         <p class="text-sm font-medium text-(--text) truncate">{{ item.title }}</p>
                         <p class="text-xs text-(--text2) truncate">{{ item.subtitle }}</p>
@@ -45,9 +56,10 @@ import { useRouter } from 'vue-router';
 import { openedOrg } from '@/assets/var';
 import { useNotification } from '@/composables/useNotification';
 import { formatRelativeTime } from '@/assets/utils/relativeTime';
+import type { NotificationType } from '@/types/types';
 
 const router = useRouter();
-const { notifications, init } = useNotification();
+const { notifications, init, markAsRead } = useNotification();
 const loading = ref(true);
 
 onMounted(async () => {
@@ -57,7 +69,7 @@ onMounted(async () => {
 
 interface DashItem {
     key: string;
-    kind: 'dm' | 'thread';
+    kind: 'dm' | 'thread' | 'missedCall' | 'missedMeet' | 'workspaceAdded';
     title: string;
     subtitle: string;
     avatar?: string | null;
@@ -66,6 +78,12 @@ interface DashItem {
     dmUserId?: string;
     threadId?: string;
     spaceId?: string | null;
+    // Pour missedCall/missedMeet/workspaceAdded : route déjà résolue côté
+    // serveur (createAndSendNotification, cf. call.ts/privateMeet.ts/
+    // spaces.ts) — contrairement aux DM/threads, pas besoin de la
+    // reconstruire ici à partir d'un id.
+    route?: string;
+    notifId: string;
 }
 
 const orgMemberIds = computed(() => new Set((openedOrg.value?.members || []).map(m => m.userId)));
@@ -89,7 +107,8 @@ const unreadDMs = computed<DashItem[]>(() => {
                 avatar: n.metadata?.senderAvatar || member?.user?.avatarUrl || null,
                 count: 1,
                 latestAt: n.createdAt,
-                dmUserId
+                dmUserId,
+                notifId: n.id
             });
         } else {
             existing.count++;
@@ -120,7 +139,8 @@ const unreadThreads = computed<DashItem[]>(() => {
                 count: 1,
                 latestAt: n.createdAt,
                 threadId,
-                spaceId: n.data?.spaceId || null
+                spaceId: n.data?.spaceId || null,
+                notifId: n.id
             });
         } else {
             existing.count++;
@@ -131,13 +151,36 @@ const unreadThreads = computed<DashItem[]>(() => {
     return [...groups.values()];
 });
 
+// Appels manqués, sessions éphémères manquées, ajouts à un workspace — pas
+// groupées comme les DM/threads (ce sont des événements ponctuels, pas des
+// conversations qui s'accumulent), une ligne par notification.
+const OTHER_TYPES: NotificationType[] = ['MISSED_CALL', 'MISSED_MEET', 'WORKSPACE_ADDED'];
+
+const otherNotifs = computed<DashItem[]>(() => {
+    const orgId = openedOrg.value?.id;
+
+    return notifications.value
+        .filter(n => !n.isRead && OTHER_TYPES.includes(n.type) && (!n.data?.orgId || n.data.orgId === orgId))
+        .map((n): DashItem => ({
+            key: `notif-${n.id}`,
+            kind: n.type === 'MISSED_CALL' ? 'missedCall' : n.type === 'MISSED_MEET' ? 'missedMeet' : 'workspaceAdded',
+            title: n.metadata?.senderName || 'Quelqu\'un',
+            subtitle: n.body,
+            avatar: n.metadata?.senderAvatar || null,
+            count: 1,
+            latestAt: n.createdAt,
+            route: n.data?.route as string | undefined,
+            notifId: n.id
+        }));
+});
+
 const items = computed(() =>
-    [...unreadDMs.value, ...unreadThreads.value]
+    [...unreadDMs.value, ...unreadThreads.value, ...otherNotifs.value]
         .sort((a, b) => new Date(b.latestAt).getTime() - new Date(a.latestAt).getTime())
         .slice(0, 8)
 );
 
-const totalUnread = computed(() => unreadDMs.value.length + unreadThreads.value.length);
+const totalUnread = computed(() => unreadDMs.value.length + unreadThreads.value.length + otherNotifs.value.length);
 
 function openItem(item: DashItem) {
     const orgId = openedOrg.value?.id;
@@ -145,9 +188,18 @@ function openItem(item: DashItem) {
 
     if (item.kind === 'dm' && item.dmUserId) {
         router.push({ name: 'OrgThreadChat', params: { orgId, userId: item.dmUserId } });
-    } else if (item.kind === 'thread' && item.threadId) {
-        router.push(`/${orgId}/${item.spaceId || 'home'}/${item.threadId}`);
+        return;
     }
+    if (item.kind === 'thread' && item.threadId) {
+        router.push(`/${orgId}/${item.spaceId || 'home'}/${item.threadId}`);
+        return;
+    }
+    // missedCall / missedMeet / workspaceAdded : événements ponctuels sans
+    // route reconstructible localement — pas de vue dédiée à "rouvrir" une
+    // fois lus (contrairement à un DM/thread, toujours là), donc marqués lus
+    // au clic plutôt que de rester affichés indéfiniment.
+    markAsRead(item.notifId);
+    if (item.route) router.push(item.route);
 }
 </script>
 
@@ -202,6 +254,21 @@ function openItem(item: DashItem) {
 }
 .dash-row:hover {
     background: rgba(255, 255, 255, 0.04);
+}
+
+.dash-row-badge {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.5rem;
+    color: white;
+    border: 2px solid var(--bg2);
 }
 
 .dash-badge {

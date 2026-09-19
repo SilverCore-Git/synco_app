@@ -66,6 +66,12 @@ jobs:
 
   build-windows-msi:
     name: Build de l'installeur Windows (MSI)
+    # Enchaîné après build-android-apk (au lieu de tourner en parallèle) : sous `act` sur Windows, les
+    # jobs concurrents partagent le même checkout/dossier de travail réel (contrairement au vrai CI
+    # GitHub où chaque job a sa propre VM isolée), ce qui a corrompu .env/.env.production pendant un
+    # build simultané (VITE_API_URL embarqué en "http://localhost:9000" au lieu de la vraie valeur).
+    # Un seul `act push` reste possible, l'exécution est juste séquentielle au lieu de parallèle.
+    needs: build-android-apk
     runs-on: windows-latest
     steps:
       - name: Checkout du code
@@ -96,6 +102,7 @@ jobs:
 
   build-linux-appimage:
     name: Build de l'AppImage Linux
+    needs: build-windows-msi # voir commentaire sur build-windows-msi : exécution séquentielle voulue sous act
     runs-on: ubuntu-latest
     steps:
       - name: Checkout du code
@@ -118,6 +125,7 @@ jobs:
             gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
             gstreamer1.0-plugins-bad gstreamer1.0-libav \
             xdg-utils shared-mime-info
+          sudo apt-get install -y libfuse2t64 || sudo apt-get install -y libfuse2 # linuxdeploy (AppImage) est lié à l'ABI fuse2, absente par défaut sur ubuntu-24.04+
 
       - name: Génération des fichiers .env
         run: |
@@ -130,7 +138,10 @@ jobs:
       - name: Build de l'AppImage
         env:
           NODE_OPTIONS: --max-old-space-size=6144
-          APPIMAGE_EXTRACT_AND_RUN: "1" # linuxdeploy a besoin de FUSE, absent des runners/conteneurs ubuntu-24.04+
+          # Pas de APPIMAGE_EXTRACT_AND_RUN ici (contrairement au vrai CI) : sous act/Docker, ce mode
+          # provoque une race condition sur le plugin gtk (le dossier d'extraction temporaire de
+          # linuxdeploy est nettoyé avant que le plugin ne s'exécute -> "exit code 127"). En local on
+          # utilise du vrai FUSE à la place, via `act --privileged` (ou --container-options "--privileged").
           NO_STRIP: "true" # le strip des binutils récents (ubuntu-24.04+) plante sur la section .relr.dyn de certaines libs (cf tauri-apps/tauri#15106)
         run: bun run tauri:build -- --bundles appimage
 
@@ -156,6 +167,7 @@ jobs:
 
   build-docker-image:
     name: Build et push de l'image Docker (front, prod)
+    needs: build-linux-appimage # voir commentaire sur build-windows-msi : exécution séquentielle voulue sous act
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -198,7 +210,7 @@ jobs:
 
   create-release:
     name: Création de la release GitHub
-    needs: [ build-android-apk, build-windows-msi, build-linux-appimage ]
+    needs: [ build-android-apk, build-windows-msi, build-linux-appimage, build-docker-image ]
     runs-on: ubuntu-latest
     steps:
       - name: Téléchargement des artefacts
@@ -208,11 +220,24 @@ jobs:
           path: release-assets
           merge-multiple: true
 
+      # `github.run_number` est toujours figé à 1 sous act (pas un vrai run GitHub), donc
+      # `dev-${{ github.run_number }}` écraserait la même release "dev-1" à chaque test local.
+      # On calcule ici le prochain numéro à partir des releases "dev-N" déjà publiées sur le repo.
+      - name: Calcul du prochain numéro de build (uniquement pour les tests locaux via act)
+        id: buildnum
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LAST=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases?per_page=100" \
+            | grep -o '"tag_name": *"dev-[0-9]\+"' | grep -o '[0-9]\+' | sort -n | tail -1)
+          echo "next=$(( ${LAST:-0} + 1 ))" >> "$GITHUB_OUTPUT"
+
       - name: Création de la release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: dev-${{ github.run_number }}
-          name: "Synco dev build #${{ github.run_number }}"
+          tag_name: dev-${{ steps.buildnum.outputs.next }}
+          name: "Synco dev build #${{ steps.buildnum.outputs.next }}"
           prerelease: true
           generate_release_notes: true
           files: release-assets/**

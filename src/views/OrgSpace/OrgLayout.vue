@@ -9,17 +9,19 @@ import { isLittleScreen, openedOrg, organizations, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import useSecurePeer from '@/composables/useSecurePeer';
+import usePrivateMeet from '@/composables/usePrivatMeet';
 import type { Category, DMMessage, Message, OrgMember } from '@/types/types';
 import { useRoute } from 'vue-router';
 import { useUsersBar } from '@/composables/useUsersBar';
 import { keycloak } from '@/assets/keycloak';
 import useNotifications from '@/composables/useNotifications';
 import { useNotification } from '@/composables/useNotification';
+import { useRecentDMs } from '@/composables/useRecentDMs';
 import { isMeeting } from '@/composables/usePrivatMeet';
 
 import isDesktopApp from '@/assets/isDesktopApp';
 import { useToast } from '@/composables/useToast';
-import { decryptFromPeer, privateKey, decryptThreadKeyWithRsa, encryptThreadKeyForMember } from '@/assets/utils/crypto';
+import { privateKey, decryptThreadKeyWithRsa, encryptThreadKeyForMember } from '@/assets/utils/crypto';
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { usePermissions } from '@/composables/usePermissions';
 import SpinLoader from '@/components/SpinLoader.vue';
@@ -32,8 +34,10 @@ const props = defineProps<{
 
 const { showUsersBar, setUsersBarHiddenByRoute } = useUsersBar();
 const { initPeer } = useSecurePeer();
-const { notify } = useNotifications();
+const { initPeer: initPrivateMeetPeer, startRingtone: startPrivateMeetRingtone } = usePrivateMeet();
+const { notify, notifications } = useNotifications();
 const { init: initNotifications } = useNotification();
+const { fetchRecentDMs, recordDMInteraction } = useRecentDMs();
 const route = useRoute();
 const toast = useToast();
 const { fetchPermissions } = usePermissions(computed(() => props.orgId));
@@ -302,30 +306,49 @@ const initSocketListener = async () => {
     });
 
     socket.value?.on('space:updated', async ({ orgId, spaceId, data }: { orgId: string, spaceId: string, data: { logo: string, name: string, members: string[] } }) => {
-        
+
         if (orgId !== props.orgId) return;
 
-        const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
-        if (!space) return;
+        const myUserId = keycloak.userInfo?.sub || '';
+        const iAmMember = data.members.includes(myUserId);
+        const index = openedOrg.value?.spaces?.findIndex(s => s.id === spaceId) ?? -1;
 
+        // Le space ne fait pas encore partie de ma liste : soit on vient tout
+        // juste de m'y ajouter (il faut le faire apparaître), soit l'event ne
+        // me concerne pas (space auquel je n'ai jamais appartenu) — auquel cas
+        // on ignore, sans quoi on relancerait un fetch pour rien à chaque
+        // modif d'un space qu'on n'a jamais vu.
+        if (index === -1) {
+
+            if (!iAmMember) return;
+
+            socket.value?.emit('join-space', { orgId: props.orgId, spaceId });
+
+            const newSpace = await sfetch(`/api/spaces/${spaceId}`).then(res => res.json());
+            openedOrg.value?.spaces?.push(newSpace);
+
+            return;
+
+        }
+
+        const space = openedOrg.value!.spaces![index]!;
         space.logo = data.logo;
         space.name = data.name;
         space.membersId = data.members;
 
-        if (data.members.includes(keycloak.userInfo?.sub || '')) 
+        if (iAmMember)
         {
-            
-            socket.value?.emit('join-space', { orgId: props.orgId, spaceId });
-            
-            const space = await sfetch(`/api/spaces/${spaceId}`).then(res => res.json());
-            const index = openedOrg.value?.spaces?.findIndex(s => s.id === spaceId);
-            if (index !== undefined && index !== -1 && openedOrg.value?.spaces) openedOrg.value.spaces[index] = space;
 
-        } 
+            socket.value?.emit('join-space', { orgId: props.orgId, spaceId });
+
+            const refreshedSpace = await sfetch(`/api/spaces/${spaceId}`).then(res => res.json());
+            if (openedOrg.value?.spaces) openedOrg.value.spaces[index] = refreshedSpace;
+
+        }
         else
         {
             socket.value?.emit('leave-space', { orgId: props.orgId, spaceId });
-            openedOrg.value?.spaces?.splice(openedOrg.value.spaces.findIndex(s => s.id === spaceId), 1);
+            openedOrg.value?.spaces?.splice(index, 1);
         }
 
     });
@@ -450,6 +473,11 @@ const initSocketListener = async () => {
         const isMeTheSender = newMessage.senderId === user.value?.id;
         const conversationPeerId = isMeTheSender ? newMessage.recipientId : newMessage.senderId;
 
+        // Tient le cache partagé "DM récents" à jour même si ThreadsBar est
+        // démonté (Tasks/Agenda/Home) — ce listener est le seul persistant
+        // pour toute la durée de vie de l'org.
+        recordDMInteraction(conversationPeerId, new Date(newMessage.createdAt).toISOString());
+
         const peerMemberId = openedOrg.value?.members?.find(m => m.user?.id === conversationPeerId)?.id;
         const isCurrentConversation = (route.name === 'OrgThreadChat' || route.name === 'OrgThreadChatPrivateMeet') && route.params.userId === peerMemberId;
 
@@ -457,38 +485,44 @@ const initSocketListener = async () => {
             return;
         }
 
-        try {
+        // La notification n'affiche jamais le contenu du message (en clair ou
+        // chiffré E2EE) — seulement qui l'a envoyé et sa photo de profil — donc
+        // il n'y a plus besoin de le déchiffrer ici rien que pour un toast qui
+        // ne le montrera pas. `content` est explicitement retiré en plus de ne
+        // pas être rempli, pour qu'aucun code d'affichage futur ne puisse
+        // accidentellement s'en servir.
+        const { content: _content, ...msgWithoutContent } = newMessage;
+        notify('notif:dmmsg', msgWithoutContent);
 
-            const msg: DMMessage = { ...newMessage };
-
-            const keyToUse = isMeTheSender 
-                ? msg.selfEncryptedAesKey 
-                : msg.encryptedAesKey;
-
-
-            if (msg.isE2EE && (!keyToUse || !privateKey.value)) 
-            {
-                msg.content = "🔒 Impossible de déchiffrer : Clé manquante.";
-                notify('notif:dmmsg', msg);
-                return;
-            }
-
-            if (msg.isE2EE) {
-                msg.content = await decryptFromPeer(msg.content, keyToUse!, msg.nonce, privateKey.value!);
-            }
-
-            notify('notif:dmmsg', msg);
-
-        } catch (cryptoErr) {
-            console.error("[E2EE DM Notif] Échec du déchiffrement de la notification :", cryptoErr);
-            const fallbackMsg = { ...newMessage, content: "🔒 Nouveau message (Déchiffrement impossible)" };
-            notify('notif:dmmsg', fallbackMsg);
-        }
     });
 
     socket.value?.on('privateMeet:incomingCall', async ({ callerId }: { callerId: string }) => {
         const orgMember = openedOrg.value?.members?.find(m => m.userId === callerId);
-        if (!isMeeting.value) notify('notif:privateMeet', orgMember, -1);
+        if (!isMeeting.value) {
+            notify('notif:privateMeet', orgMember, -1);
+            // Sonnerie en boucle (même son que les appels DM) tant que
+            // l'invitation n'a pas été acceptée/refusée — stoppée dans
+            // usePrivatMeet.ts (acceptIncomingMeet/declineIncomingMeet), ou
+            // ci-dessous si l'appelant annule avant qu'on ait répondu.
+            startPrivateMeetRingtone();
+        }
+    });
+
+    // L'appelant a raccroché/abandonné avant qu'on ait répondu (cf.
+    // notifyMeetCancelledIfUnconnected() dans usePrivatMeet.ts) : la carte
+    // "invitation entrante" n'a plus lieu d'être — sans ça, elle restait
+    // affichée indéfiniment avec des boutons pointant vers un appel déjà
+    // terminé. Filtre directement par expéditeur plutôt que de suivre un id
+    // à part : robuste même si le clic sur Répondre/Refuser a déjà retiré la
+    // carte entre-temps (filtre alors sur un tableau qui ne la contient
+    // déjà plus — sans effet, pas d'erreur). Comme pour un vrai téléphone,
+    // un "chat privé manqué" reste derrière une fois la carte retirée.
+    socket.value?.on('privateMeet:cancelled', ({ fromUserId }: { fromUserId: string }) => {
+        notifications.value = notifications.value.filter(
+            n => !(n.type === 'notif:privateMeet' && n.privateMeet?.userId === fromUserId)
+        );
+        const orgMember = openedOrg.value?.members?.find(m => m.userId === fromUserId);
+        notify('notif:missedMeet', orgMember, 8000);
     });
     socket.value?.on('thread:created', ({ orgId, thread }: { orgId: string, thread: any }) => {
         
@@ -589,11 +623,19 @@ onMounted(async () => {
         }
         openedOrg.value = await res.json(); 
     }
+    // Le peer des sessions éphémères doit être identifié par le même id
+    // (OrgMember.id) que PrivateMeetView.vue/ChatView.vue utilisent comme
+    // cible de connexion — c'est aussi ce qui permet à quelqu'un de nous
+    // appeler alors qu'on n'a encore ouvert aucune conversation.
+    const myOrgMemberId = openedOrg.value?.members?.find(m => m.userId === user.value?.id)?.id;
+
     await Promise.all([
             fetchPermissions(),
             initSocketListener(),
             initPeer(),
-            initNotifications()
+            initPrivateMeetPeer(myOrgMemberId),
+            initNotifications(),
+            fetchRecentDMs()
     ])
 
     handleTabletChange(mediaQuery);
@@ -623,6 +665,7 @@ onBeforeUnmount(async () => {
         'notif:new-message',
         'notif:dm:new-message',
         'privateMeet:incomingCall',
+        'privateMeet:cancelled',
         'thread:created',
         'thread:updated',
         'thread:deleted',

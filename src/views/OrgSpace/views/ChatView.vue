@@ -326,7 +326,10 @@
 
         </footer>
 
-        <div v-if="isPrivateMeet" class="absolute inset-0 z-50 backdrop-blur-xs">
+        <!-- z-[150] : au-dessus du footer normal ci-dessus (z-[110], toujours
+             monté sous cet overlay), sinon sa textarea passait devant celle
+             de la session éphémère au lieu d'être masquée derrière. -->
+        <div v-if="isPrivateMeet" class="absolute inset-0 z-[150] backdrop-blur-xs">
             <PrivateMeetView />
         </div>
 
@@ -368,7 +371,7 @@
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { DMMessage, OrgMember } from '@/types/types';
-import { openedOrg, user } from '@/assets/var';
+import { openedOrg, user, isLittleScreen } from '@/assets/var';
 import useWSocket from '@/composables/useWSocket';
 import type { Socket } from 'socket.io-client';
 import getColorByStatus from '@/assets/utils/getColorByStatus';
@@ -382,11 +385,13 @@ import useSecurePeer from '@/composables/useSecurePeer';
 
 import { E2EEUnloked, privateKey, encryptForPeer, decryptFromPeer } from '@/assets/utils/crypto';
 import PrivateMeetView from './PrivateMeetView.vue';
+import usePrivateMeet from '@/composables/usePrivatMeet';
 import ChatMessage from '../components/common/ChatMessage.vue';
 import { uploadFiles } from '@/assets/uploadFile';
 import useResponse from '@/composables/useResponse';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useNotification } from '@/composables/useNotification';
+import { useRecentDMs } from '@/composables/useRecentDMs';
 import { checkKeyTrust, trustKey, computeKeyFingerprint, type KeyTrustResult } from '@/assets/utils/keyTrust';
 import Popup from '@/components/Popup.vue';
 
@@ -394,13 +399,32 @@ const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const { startCall } = useSecurePeer();
+const { activeMeetPeerId, startMeet } = usePrivateMeet();
 const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
 const { markDMAsRead, getUnreadCountByDMUserId } = useNotification();
+const { fetchRecentDMs, getMostRecentDMUserId } = useRecentDMs();
 
 const socket = ref<Socket | null>(null);
 
 const TextareaRef = ref<InstanceType<typeof ThreadTextarea> | null>(null);
 const isPrivateMeet = computed(() => route.name == 'OrgThreadChatPrivateMeet');
+
+// Si on ouvre le DM normal de quelqu'un avec qui une session éphémère
+// tourne déjà (potentiellement démarrée depuis une tout autre page, la
+// session survit maintenant à la navigation), on est redirigé sur cette
+// session au lieu de voir le DM normal — "retourner sur la discussion doit
+// nous ramener sur elle", plutôt que de la laisser tourner invisible en
+// arrière-plan sans qu'on puisse y revenir autrement qu'en re-cliquant
+// "Session éphémère".
+watch(
+    [() => route.name, () => route.params.userId, activeMeetPeerId],
+    ([routeName, userId, meetPeerId]) => {
+        if (routeName === 'OrgThreadChat' && meetPeerId && meetPeerId === userId) {
+            router.replace({ name: 'OrgThreadChatPrivateMeet', params: { userId } });
+        }
+    },
+    { immediate: true }
+);
 const isE2EEEnabled = ref<boolean>(true);
 const messages = ref<any[]>([]);
 const newMessage = ref<string>("");
@@ -420,6 +444,15 @@ const saveLastRead = () => {
     localStorage.setItem(`lastRead_dm_${recipient.value.id}`, lastMsg.id);
 };
 let typingTimeout: any = null;
+
+// Même fix que ThreadView.vue (salons) : distingue "on ouvre/change
+// réellement de conversation" de "le socket vient de se reconnecter alors
+// qu'on regarde toujours le même DM" — sans ça, toute reconnexion
+// socket.io (coupure réseau, veille, redémarrage serveur...) vidait
+// visuellement la conversation puis la rechargeait avec un saut de scroll
+// forcé, alors que rien n'avait réellement changé.
+let joinedDMUserId: string | null = null;
+let pendingSilentRejoin = false;
 const editingMessageId = ref<string | null>(null);
 
 const editLastOwnMessage = () => {
@@ -654,7 +687,10 @@ const initListener = () => {
 
     socket.value.on("connect", () => {
         if (recipient.value?.id) {
-            joinDM(recipient.value.id);
+            // Une reconnexion sur le DM déjà affiché ne doit rien changer
+            // visuellement — rejoin silencieux plutôt qu'un rechargement
+            // complet (skeleton + liste vidée + saut de scroll).
+            joinDM(recipient.value.id, joinedDMUserId === recipient.value.id);
         }
     });
 
@@ -667,12 +703,21 @@ const initListener = () => {
         if (receivedRecipientId && recipient.value?.id && receivedRecipientId !== recipient.value.id) {
             return; // Ignore history from another DM (race condition)
         }
-        
+
         messages.value = await procesMessages(history);
         hasMore.value = receivedHasMore;
         loading.value = false;
-        scrollToBottom(true);
-        setTimeout(() => { saveLastRead(); }, 500); // Après la fin du scroll
+        if (recipient.value?.id) joinedDMUserId = recipient.value.id;
+
+        // Rejoin silencieux : la liste vient d'être rafraîchie en place
+        // (sans skeleton, cf. joinDM), mais forcer le scroll ici jetterait
+        // quand même l'utilisateur en bas s'il relisait plus haut.
+        if (pendingSilentRejoin) {
+            pendingSilentRejoin = false;
+        } else {
+            scrollToBottom(true);
+            setTimeout(() => { saveLastRead(); }, 500); // Après la fin du scroll
+        }
     });
 
     socket.value.on('dm-more-messages', async (data: { messages: any[]; hasMore: boolean }) => {
@@ -751,15 +796,25 @@ const initListener = () => {
 
 };
 
-const joinDM = async (userId: string) => {
+const joinDM = async (userId: string, silent = false) => {
 
-    loading.value = true;
-    messages.value = [];
+    if (silent) {
+        pendingSilentRejoin = true;
+    } else {
+        // Repli défensif : une navigation franche vers CE DM efface tout
+        // rejoin silencieux resté en suspens (ex: une reconnexion visant un
+        // autre DM entre-temps abandonné par le garde de dm:history
+        // ci-dessus, sans jamais consommer le flag) — sinon le prochain
+        // dm:history sauterait son scroll par erreur.
+        pendingSilentRejoin = false;
+        loading.value = true;
+        messages.value = [];
 
-    // Capturé avant markDMAsRead() qui remet le compteur à zéro juste après.
-    const savedLastRead = localStorage.getItem(`lastRead_dm_${userId}`);
-    const hadUnread = getUnreadCountByDMUserId(userId).value > 0;
-    showUnreadDelimiterAfterId.value = (hadUnread && savedLastRead) ? savedLastRead : null;
+        // Capturé avant markDMAsRead() qui remet le compteur à zéro juste après.
+        const savedLastRead = localStorage.getItem(`lastRead_dm_${userId}`);
+        const hadUnread = getUnreadCountByDMUserId(userId).value > 0;
+        showUnreadDelimiterAfterId.value = (hadUnread && savedLastRead) ? savedLastRead : null;
+    }
 
     socket.value?.emit("join-dm", { recipientId: userId });
     markDMAsRead(userId);
@@ -928,8 +983,8 @@ const sendMessage = async () => {
 };
 
 const createPrivateMeet = () => {
-    const memberId = openedOrg.value?.members?.find((m: OrgMember) => m.id === route.params.userId)?.id;
-    router.push({ name: 'OrgThreadChatPrivateMeet', params: { userId: memberId } });
+    const member = openedOrg.value?.members?.find((m: OrgMember) => m.id === route.params.userId);
+    if (member) startMeet(member);
 };
 
 const handleScroll = (e: Event) => {
@@ -997,9 +1052,17 @@ watch(() => route.params.userId, async () => {
 });
 
 onMounted(async () => {
-    if (!route.params.userId) {
-        const firstUser = openedOrg.value?.members?.[0];
-        if (firstUser) router.replace({ params: { ...route.params, userId: firstUser.id }, query: route.query });
+    // Sur petit écran, la liste des conversations EST la vue (cf. OrgLayout.vue,
+    // ThreadsBar prend toute la largeur) — y rediriger automatiquement masquerait
+    // cette liste. Sur desktop, ouvrir directement la dernière conversation
+    // évite d'atterrir sur l'écran "Sélectionnez une discussion" à chaque fois.
+    if (!route.params.userId && !isLittleScreen.value) {
+        await fetchRecentDMs();
+        const mostRecentUserId = getMostRecentDMUserId();
+        const target = mostRecentUserId
+            ? openedOrg.value?.members?.find(m => m.user?.id === mostRecentUserId)
+            : openedOrg.value?.members?.[0];
+        if (target) router.replace({ params: { ...route.params, userId: target.id }, query: route.query });
     }
 
     const wsRef = await useWSocket();

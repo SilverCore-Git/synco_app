@@ -359,10 +359,10 @@
 
 <script lang="ts" setup>
 
-import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { Thread, WorkSpace, Category as CategoryType } from '@/types/types';
-import { openedOrg, todoEnabled, filesEnabled, user, userCardHeight } from '@/assets/var';
+import { openedOrg, todoEnabled, filesEnabled, userCardHeight } from '@/assets/var';
 import draggable from 'vuedraggable';
 import useWSocket from '@/composables/useWSocket';
 import ThreadDropDown from '../dropdown/ThreadDropDown.vue';
@@ -377,7 +377,7 @@ import SpaceSearchModal from '../popup/SpaceSearchModal.vue';
 import { chatSessions, activeSessionId, newSession, deleteSession, loadSession, aiIsLocal, selectedModelId } from '@/services/AIService';
 import { availableModels } from '@/services/LocalLLMService';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
-import sfetch from '@/assets/utils/sfetch';
+import { useRecentDMs } from '@/composables/useRecentDMs';
 
 const orgId = computed(() => openedOrg.value?.id);
 const { canAny, can } = usePermissions(orgId);
@@ -404,49 +404,14 @@ const showDropDown = ref<boolean>(false);
 const showSearchModal = ref<boolean>(false);
 
 const searchDMQuery = ref('');
-const recentDMUsers = ref<{userId: string, lastInteraction: string}[]>([]);
 
-watch(isChat, async (newVal) => {
-    if (newVal) {
-        try {
-            const res = await sfetch('/api/users/me/dms/recent');
-            if (res.ok) {
-                recentDMUsers.value = await res.json();
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    }
-}, { immediate: true });
-
-// Référence du handler posé par ce composant, pour ne retirer que le sien à
-// l'unmount : `off('notif:dm:new-message')` sans référence retirerait aussi
-// le listener indépendant d'OrgLayout.vue sur ce même événement partagé.
-let dmMessageHandler: ((newMessage: any) => void) | null = null;
-
-onMounted(async () => {
-    const wsRef = await useWSocket();
-    const socket = wsRef.value;
-    if (socket) {
-        dmMessageHandler = (newMessage: any) => {
-            const peerId = newMessage.senderId === user.value?.id ? newMessage.recipientId : newMessage.senderId;
-            const existing = recentDMUsers.value.find(r => r.userId === peerId);
-            if (existing) {
-                existing.lastInteraction = newMessage.createdAt;
-            } else {
-                recentDMUsers.value.push({ userId: peerId, lastInteraction: newMessage.createdAt });
-            }
-        };
-        socket.on('notif:dm:new-message', dmMessageHandler);
-    }
-});
-
-onUnmounted(async () => {
-    const wsRef = await useWSocket();
-    if (wsRef.value && dmMessageHandler) {
-        wsRef.value.off('notif:dm:new-message', dmMessageHandler);
-    }
-});
+// État partagé (survit au démontage/remontage de ThreadsBar entre les
+// sections Tasks/Agenda/Home et le reste) — chargé une fois par session dans
+// OrgLayout.vue, tenu à jour par son listener socket persistant. Avant ce
+// changement, chaque ouverture du panneau DM refaisait l'appel réseau et
+// repartait d'une liste vide, d'où le délai visible et le tri qui "sautait"
+// une fois la réponse arrivée.
+const { recentDMUsers } = useRecentDMs();
 
 const sortedChatMembers = computed(() => {
     let members = openedOrg.value?.members || [];

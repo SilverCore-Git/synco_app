@@ -1,7 +1,8 @@
 <template>
 
                 <div
-                    :key="msg.id" 
+                    v-bind="$attrs"
+                    :key="msg.id"
                     class="group relative px-4 flex flex-col justify-start items-start rounded-lg transition-colors w-full"
                     :class="[
                         isStacked ? 'py-0 mt-0' : 'py-2 mt-2',
@@ -232,6 +233,14 @@
 </template>
 
 <script setup lang="ts">
+
+// Le composant a 2 racines (la bulle de message + ConfirmDelete, tout en
+// bas) : Vue ne peut pas reporter automatiquement les attrs "orphelins"
+// (ex. l'`id="msg-..."` passé par ChatView.vue) sur un composant multi-racine
+// — d'où l'avertissement "Extraneous non-props attributes". On désactive
+// l'héritage auto et on le reporte nous-mêmes sur la bulle, seule racine
+// pour laquelle un id a du sens.
+defineOptions({ inheritAttrs: false });
 
 import { computed, nextTick, ref, watch } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';

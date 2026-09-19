@@ -7,7 +7,7 @@
                 <h3 class="font-semibold text-(--text)">Mes Tâches</h3>
             </div>
 
-            <TaskProgressGauge :tasks="myTasks" class="mx-auto" />
+            <TaskProgressGauge :tasks="visibleTasks" class="mx-auto" />
 
             <div class="ml-auto flex items-center gap-4">
                 <CreateTaskModal @created="onTaskCreated">
@@ -100,7 +100,7 @@
                     class="text-[11px] font-bold text-(--text2) hover:text-(--text) flex items-center gap-1 ml-1"
                 >
                     <i class="bi bi-x-circle"></i>
-                    Réinitialiser
+                    Réinitialiser les filtres
                 </button>
 
                 <button
@@ -357,6 +357,15 @@
             @cancel="showArchiveAllConfirm = false"
             @confirm="confirmArchiveAll"
         />
+
+        <ConfirmDelete
+            :show="!!showDeleteTaskConfirm"
+            item-type="la tâche"
+            :item-name="showDeleteTaskConfirm?.title || 'cette tâche'"
+            :loading="deletingTask"
+            @cancel="showDeleteTaskConfirm = null"
+            @confirm="confirmDeleteTask"
+        />
     </div>
 </template>
 
@@ -490,14 +499,23 @@ const filterSpaceLabel = computed(() => {
     return spaceOptions.value.find(s => s.id === filterSpaceId.value)?.name || 'Espace';
 });
 
-const filteredTasks = (status: string) => {
-    return sortByOrder(myTasks.value.filter(t => {
-        if (t.archived || t.status !== status) return false;
+// Base commune à la jauge de progression (TaskProgressGauge) ET aux
+// colonnes du tableau (filteredTasks ci-dessous) — sans ça, la jauge lisait
+// myTasks brut (tout, tous espaces/tags confondus) pendant que le tableau
+// appliquait déjà les filtres, donc sélectionner un espace ou un tag
+// changeait ce qui s'affichait sans jamais faire bouger la jauge.
+const visibleTasks = computed(() => {
+    return myTasks.value.filter(t => {
+        if (t.archived) return false;
         if (filterTagIds.value.length && !t.tags?.some(tag => filterTagIds.value.includes(tag.id))) return false;
         if (filterSpaceId.value === 'personal' && t.spaceId) return false;
         if (filterSpaceId.value && filterSpaceId.value !== 'personal' && t.spaceId !== filterSpaceId.value) return false;
         return true;
-    }));
+    });
+});
+
+const filteredTasks = (status: string) => {
+    return sortByOrder(visibleTasks.value.filter(t => t.status === status));
 };
 
 const loadLists = async () => {
@@ -756,7 +774,17 @@ const startRenameTask = (task: Task) => {
     selectedTask.value = task;
 };
 
-const handleContextDeleteTask = async (task: Task) => {
+const showDeleteTaskConfirm = ref<Task | null>(null);
+const deletingTask = ref(false);
+
+const handleContextDeleteTask = (task: Task) => {
+    showDeleteTaskConfirm.value = task;
+};
+
+const confirmDeleteTask = async () => {
+    const task = showDeleteTaskConfirm.value;
+    if (!task) return;
+    deletingTask.value = true;
     try {
         const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${task.id}`, {
             method: 'DELETE'
@@ -764,8 +792,11 @@ const handleContextDeleteTask = async (task: Task) => {
         if (!res.ok) throw new Error();
         onTaskDeleted(task.id);
         toast.show('Tâche supprimée', 'success');
+        showDeleteTaskConfirm.value = null;
     } catch (e) {
         toast.show('Erreur lors de la suppression', 'error');
+    } finally {
+        deletingTask.value = false;
     }
 };
 

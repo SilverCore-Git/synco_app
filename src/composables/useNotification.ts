@@ -418,8 +418,18 @@ export function useNotification() {
         notifications.value.unshift(notification);
       }
 
-      // Afficher une toast notification
-      showToastNotification(notification);
+      // Les messages (DM ou salon) ont déjà leur propre toast riche — avatar,
+      // nom, aperçu du contenu, clic vers le message en surbrillance — posté
+      // indépendamment par useNotifications.ts (cf. OrgLayout.vue, événements
+      // notif:new-message / notif:dm:new-message). Doubler avec ce toast
+      // générique ("Vous avez reçu un nouveau message", sans avatar ni lien
+      // fonctionnel) ne faisait qu'empiler une seconde popup à chaque message,
+      // y compris pour un thread qu'on est déjà en train de regarder. On
+      // garde l'entrée dans la liste (centre de notifications, badge) mais on
+      // n'affiche pas ce toast-ci pour ce type.
+      if (notification.type !== 'MESSAGE') {
+        showToastNotification(notification);
+      }
     });
 
     // Notification marquée comme lue (synchronisation entre onglets)
@@ -460,6 +470,11 @@ export function useNotification() {
         return 'success';
       case 'TASK_ASSIGNED':
         return 'info';
+      case 'MISSED_CALL':
+      case 'MISSED_MEET':
+        return 'warning';
+      case 'WORKSPACE_ADDED':
+        return 'success';
       case 'CUSTOM':
       default:
         return 'info';
@@ -476,10 +491,12 @@ export function useNotification() {
     // Naviguer en fonction du type et des données
     switch (notification.type) {
       case 'MESSAGE':
-        if (notification.data?.threadId) {
-          router.push(`/chat/thread/${notification.data.threadId}`);
-        } else if (notification.data?.dmUserId) {
-          router.push(`/chat/dm/${notification.data.dmUserId}`);
+        // /chat/thread/:id et /chat/dm/:id n'ont jamais été des routes valides
+        // (les salons/DM vivent sous /:orgId/..., cf. router.ts) — le backend
+        // fournit maintenant directement le bon chemin, avec le message ciblé
+        // en surbrillance via ?select=.
+        if (notification.data?.route) {
+          router.push(notification.data.route);
         }
         break;
       case 'CALL':

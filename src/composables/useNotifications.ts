@@ -2,10 +2,10 @@ import { useToast } from "@/composables/useToast";
 import type { DMMessage, Message, OrgMember } from "@/types/types";
 import { ref, watch } from "vue";
 import useWSocket, { waitForSocketConnection } from "./useWSocket";
-import { useRoute } from "vue-router";
+import router from "@/router";
 
 
-type NotificationType = 'toast' | 'notif:msg' | 'notif:dmmsg' | 'notif:call' | 'notif:privateMeet';
+type NotificationType = 'toast' | 'notif:msg' | 'notif:dmmsg' | 'notif:call' | 'notif:privateMeet' | 'notif:privateMeetMsg' | 'notif:missedCall' | 'notif:missedMeet';
 
 interface Notification {
 
@@ -26,8 +26,18 @@ interface Notification {
     // if notif:call
     call?: OrgMember;
 
-    // if notif:privateMeet
+    // if notif:privateMeet (invitation entrante) et notif:privateMeetMsg
+    // (message reçu pendant qu'on n'est pas sur la session) — jamais le
+    // contenu du message, juste qui a écrit (même règle que notif:dmmsg).
     privateMeet?: OrgMember;
+    privateMeetMsg?: OrgMember;
+
+    // if notif:missedCall / notif:missedMeet — laissé derrière quand un
+    // appel DM ou une invitation à une session éphémère n'a jamais abouti
+    // (annulé par l'appelant, ou personne n'a répondu), pour qu'il en reste
+    // une trace visible même une fois la sonnerie/carte d'appel disparue.
+    missedCall?: OrgMember;
+    missedMeet?: OrgMember;
 
 }
 
@@ -38,25 +48,44 @@ const notifications = ref<Notification[]>([]);
 
 const removeAfter: number = 3000;
 
+// Compteur monotone plutôt que `notifications.value.length + 1` (l'ancien
+// schéma) : une fois qu'une notification est retirée entre-temps, `length`
+// peut retomber sur une valeur déjà utilisée par une autre — deux
+// notifications distinctes se retrouvant avec le même id, `remove(id)`
+// (utilisé maintenant pour retirer une carte d'invitation précise dès
+// l'annulation par l'appelant) risquerait alors de retirer la mauvaise.
+let nextNotifId = 1;
+const allocNotifId = () => nextNotifId++;
+
 watch(callNotif, (newList) => {
 
-    if (!newList || newList.length === 0) return;
-
-    const lastCall = newList[newList.length - 1];
-
-    const alreadyNotified = notifications.value.some(n => n.call?.id === lastCall?.id);
-
-    if (!alreadyNotified) 
+    if (newList && newList.length > 0)
     {
-    
-        notifications.value.push({
-            id: Date.now(), 
-            type: 'notif:call',
-            createdAt: new Date(),
-            call: lastCall
-        });
-        
+
+        const lastCall = newList[newList.length - 1];
+
+        const alreadyNotified = notifications.value.some(n => n.call?.id === lastCall?.id);
+
+        if (!alreadyNotified)
+        {
+
+            notifications.value.push({
+                id: allocNotifId(),
+                type: 'notif:call',
+                createdAt: new Date(),
+                call: lastCall
+            });
+
+        }
+
     }
+
+    // Un appel qui sort de callNotif (accepté, refusé, ou annulé par
+    // l'appelant avant réponse) doit aussi faire disparaître sa carte de
+    // notification : sinon elle reste affichée indéfiniment avec des
+    // boutons "Répondre"/"Refuser" pointant vers un appel déjà terminé.
+    const stillRinging = new Set((newList || []).map(m => m.id));
+    notifications.value = notifications.value.filter(n => n.type !== 'notif:call' || (!!n.call?.id && stillRinging.has(n.call.id)));
 
 }, { deep: true });
 
@@ -67,7 +96,7 @@ watch(() => messageNotif.value, () => {
     if (messageNotif.value.length > lastMsgNotifLength)
     {
 
-        const id: number = notifications.value.length + 1;
+        const id: number = allocNotifId();
 
         notifications.value.push({
             id,
@@ -93,7 +122,7 @@ watch(() => toasts.value, () => {
     if (toasts.value.length > lastToastsLength)
     {
 
-        const id: number = notifications.value.length + 1;
+        const id: number = allocNotifId();
 
         notifications.value.push({
             id,
@@ -118,9 +147,12 @@ const remove = (id: number) => {
     notifications.value = notifications.value.filter(n => n.id !== id);
 }
 
-const notify = (type: NotificationType, payload: any, timeout?: number) => {
-    
-    const id: number = notifications.value.length + 1;
+// Retourne l'id de la notification créée — utilisé notamment pour retirer
+// précisément une carte d'invitation privateMeet (timeout: -1, donc pas
+// d'auto-suppression) dès que l'appelant annule.
+const notify = (type: NotificationType, payload: any, timeout?: number): number => {
+
+    const id: number = allocNotifId();
 
     if (type === 'toast')
     {
@@ -168,6 +200,33 @@ const notify = (type: NotificationType, payload: any, timeout?: number) => {
             privateMeet: payload
         });
     }
+    else if (type === 'notif:privateMeetMsg')
+    {
+        notifications.value.push({
+            id,
+            type,
+            createdAt: new Date(),
+            privateMeetMsg: payload
+        });
+    }
+    else if (type === 'notif:missedCall')
+    {
+        notifications.value.push({
+            id,
+            type,
+            createdAt: new Date(),
+            missedCall: payload
+        });
+    }
+    else if (type === 'notif:missedMeet')
+    {
+        notifications.value.push({
+            id,
+            type,
+            createdAt: new Date(),
+            missedMeet: payload
+        });
+    }
 
     if (timeout !== -1)
     {
@@ -175,6 +234,8 @@ const notify = (type: NotificationType, payload: any, timeout?: number) => {
             remove(id);
         }, timeout || removeAfter);
     }
+
+    return id;
 
 };
 
@@ -185,7 +246,6 @@ let currentNewMessageHandler: ((payload: { message: Message, spaceId?: string, o
 
 const initListener = async () => {
 
-    const route = useRoute();
     const socket = await useWSocket();
 
     const connected = await waitForSocketConnection(socket, 15000);
@@ -203,17 +263,23 @@ const initListener = async () => {
         socket.value?.off('notif:new-message', currentNewMessageHandler);
     }
 
-    currentNewMessageHandler = async ({ message, spaceId, orgId }: { message: Message, spaceId?: string, orgId?: string }) => {
+    currentNewMessageHandler = async ({ message, spaceId, orgId, threadName }: { message: Message, spaceId?: string, orgId?: string, threadName?: string }) => {
 
-        if (route.params.threadId == message.threadId) return;
+        if (router.currentRoute.value.params.threadId == message.threadId) return;
 
-        let decryptedMessage = message as any;
+        // Le contenu du message (en clair ou chiffré E2EE) ne doit jamais
+        // apparaître dans une notification — uniquement qui l'a envoyé, où, et
+        // sa photo de profil. On ne recopie donc jamais `content` ici ; seul
+        // notif.msg.threadName (et notif.msg.sender/id/threadId, déjà présents
+        // sur `message`) sert à construire le toast.
+        const notifPayload = message as any;
 
-        decryptedMessage.content = message.content;
-        decryptedMessage.spaceId = spaceId;
-        decryptedMessage.orgId = orgId;
+        delete notifPayload.content;
+        notifPayload.spaceId = spaceId;
+        notifPayload.orgId = orgId;
+        notifPayload.threadName = threadName;
 
-        messageNotif.value.push(decryptedMessage);
+        messageNotif.value.push(notifPayload);
 
     };
 

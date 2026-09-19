@@ -180,7 +180,7 @@
                             class="w-full bg-(--bg3) border border-white/10 rounded-lg px-3 py-2 text-sm text-(--text) focus:outline-none focus:border-(--primary)/50 transition-all"
                             :disabled="loading"
                         >
-                            <option :value="null">Tâche personnelle (Général)</option>
+                            <option :value="null">Perso</option>
                             <option v-for="space in openedOrg?.spaces || []" :key="space.id" :value="space.id">
                                 {{ space.name }}
                             </option>

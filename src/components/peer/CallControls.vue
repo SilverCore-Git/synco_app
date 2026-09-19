@@ -156,6 +156,7 @@
 
         <!-- Invite Button -->
         <button
+            v-if="showInvite"
             @click="handleInvite"
             class="rounded-xl w-12 h-12 text-xl bg-(--white)/10 hover:bg-(--white)/20 text-(--white) transition-all"
             title="Inviter un membre"
@@ -178,9 +179,7 @@
 <script setup lang="ts">
 
 import { onMounted, onUnmounted, ref } from 'vue';
-import { Track } from 'livekit-client';
 import DropDown from '@/components/DropDown.vue';
-import useLiveKit from '@/composables/useLiveKit';
 import {
     getVoicePrefs,
     saveVoicePrefs,
@@ -195,9 +194,21 @@ interface Props {
     isCamOn: boolean;
     isScreenSharing: boolean;
     isDeafened?: boolean;
+    // Partagé par useLiveKit.ts (vocal threads) et useSecurePeer.ts (appels
+    // privés) — chacun a sa propre implémentation, donc ce composant les
+    // reçoit en props plutôt que d'importer l'un des deux composables
+    // directement, ce qui le rendrait inutilisable par l'autre système.
+    switchDevice: (kind: MediaDeviceKind, deviceId: string) => void | Promise<void>;
+    applyVideoQuality: (
+        source: 'camera' | 'screenshare',
+        options: { resolution: { width: number; height: number }; frameRate: number }
+    ) => void | Promise<void>;
+    showInvite?: boolean;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+    showInvite: true,
+});
 
 const emit = defineEmits(['toggleMic', 'toggleCam', 'toggleScreenShare', 'toggleDeafen', 'endCall', 'invite']);
 
@@ -207,8 +218,6 @@ const toggleScreenShare = () => emit('toggleScreenShare');
 const toggleDeafen = () => emit('toggleDeafen');
 const handleEndCall = () => emit('endCall');
 const handleInvite = () => emit('invite');
-
-const { switchDevice, applyVideoQuality } = useLiveKit();
 
 const prefs = ref(getVoicePrefs());
 const micDevices = ref<MediaDeviceInfo[]>([]);
@@ -258,18 +267,18 @@ onUnmounted(() => {
 const selectMic = (deviceId: string) => {
     prefs.value.micDeviceId = deviceId;
     saveVoicePrefs({ micDeviceId: deviceId });
-    switchDevice('audioinput', deviceId);
+    props.switchDevice('audioinput', deviceId);
 };
 
 const selectSpeaker = (deviceId: string) => {
     prefs.value.speakerDeviceId = deviceId;
     saveVoicePrefs({ speakerDeviceId: deviceId });
-    switchDevice('audiooutput', deviceId);
+    props.switchDevice('audiooutput', deviceId);
 };
 
 const onCamDeviceChange = () => {
     saveVoicePrefs({ camDeviceId: prefs.value.camDeviceId });
-    if (prefs.value.camDeviceId) switchDevice('videoinput', prefs.value.camDeviceId);
+    if (prefs.value.camDeviceId) props.switchDevice('videoinput', prefs.value.camDeviceId);
 };
 
 const onCamQualityChange = () => {
@@ -277,7 +286,7 @@ const onCamQualityChange = () => {
     prefs.value.camResolution = resolution;
     saveVoicePrefs({ camResolution: resolution, camFrameRate: prefs.value.camFrameRate });
     if (props.isCamOn) {
-        applyVideoQuality(Track.Source.Camera, { resolution, frameRate: prefs.value.camFrameRate });
+        props.applyVideoQuality('camera', { resolution, frameRate: prefs.value.camFrameRate });
     }
 };
 
@@ -286,7 +295,7 @@ const onScreenQualityChange = () => {
     prefs.value.screenResolution = resolution;
     saveVoicePrefs({ screenResolution: resolution, screenFrameRate: prefs.value.screenFrameRate });
     if (props.isScreenSharing) {
-        applyVideoQuality(Track.Source.ScreenShare, { resolution, frameRate: prefs.value.screenFrameRate });
+        props.applyVideoQuality('screenshare', { resolution, frameRate: prefs.value.screenFrameRate });
     }
 };
 
@@ -295,7 +304,7 @@ const onQualityModeChange = (mode: VideoQualityMode) => {
     saveVoicePrefs({ qualityMode: mode });
     const { resolution, frameRate } = resolveCameraCaptureOptions(prefs.value);
     if (props.isCamOn) {
-        applyVideoQuality(Track.Source.Camera, { resolution, frameRate });
+        props.applyVideoQuality('camera', { resolution, frameRate });
     }
 };
 

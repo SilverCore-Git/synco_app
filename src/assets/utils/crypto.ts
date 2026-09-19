@@ -190,6 +190,91 @@ export async function decryptFromPeer (
 };
 
 
+// Mêmes fonctions que encryptForPeer/decryptFromPeer, mais sur un ArrayBuffer
+// brut plutôt qu'une chaîne — pour le partage de fichiers en session
+// éphémère (usePrivatMeet.ts). Pas de base64 ici : les objets envoyés par
+// PeerJS DataConnection utilisent sa sérialisation binaire native (le même
+// mécanisme qui découpe déjà les gros payloads en chunks), donc encoder en
+// base64 n'apporterait que ~33% de taille en plus pour rien.
+export async function encryptBufferForPeer (buffer: ArrayBuffer, peerPublicKeyJWK: string, myPublicKeyJWK?: string | object)
+{
+
+    const publicKey = await crypto.subtle.importKey(
+        "jwk",
+        JSON.parse(peerPublicKeyJWK),
+        { name: "RSA-OAEP", hash: "SHA-256" },
+        true,
+        ["encrypt"]
+    );
+
+    const fileKey = await crypto.subtle.generateKey(
+        { name: "AES-GCM", length: 256 },
+        true,
+        ["encrypt"]
+    );
+
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        fileKey,
+        buffer
+    );
+
+    const exportedAesKey = await crypto.subtle.exportKey("raw", fileKey);
+    const encryptedAesKey = await crypto.subtle.encrypt(
+        { name: "RSA-OAEP" },
+        publicKey,
+        exportedAesKey
+    );
+
+    let selfEncryptedAesKey: ArrayBuffer | undefined = undefined;
+    if (myPublicKeyJWK) {
+        const myPubKey = await crypto.subtle.importKey(
+            "jwk",
+            typeof myPublicKeyJWK === 'string' ? JSON.parse(myPublicKeyJWK) : myPublicKeyJWK,
+            { name: "RSA-OAEP", hash: "SHA-256" },
+            false,
+            ["encrypt"]
+        );
+        selfEncryptedAesKey = await crypto.subtle.encrypt({ name: "RSA-OAEP" }, myPubKey, exportedAesKey);
+    }
+
+    return {
+        ciphertext,
+        encryptedAesKey,
+        iv: iv.buffer,
+        selfEncryptedAesKey
+    };
+
+}
+
+export async function decryptBufferFromPeer (
+    ciphertext: ArrayBuffer,
+    encryptedAesKey: ArrayBuffer,
+    iv: ArrayBuffer,
+    myPrivateKey: CryptoKey
+): Promise<ArrayBuffer>
+{
+
+    const aesKeyRaw = await crypto.subtle.decrypt(
+        { name: "RSA-OAEP" },
+        myPrivateKey,
+        encryptedAesKey
+    );
+
+    const aesKey = await crypto.subtle.importKey(
+        "raw", aesKeyRaw, "AES-GCM", false, ["decrypt"]
+    );
+
+    return await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv },
+        aesKey,
+        ciphertext
+    );
+
+}
+
+
 // For thread E2EE
 
 export async function decryptThreadKeyWithRsa(
