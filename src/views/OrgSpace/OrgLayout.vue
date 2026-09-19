@@ -15,6 +15,7 @@ import { useUsersBar } from '@/composables/useUsersBar';
 import { keycloak } from '@/assets/keycloak';
 import useNotifications from '@/composables/useNotifications';
 import { useNotification } from '@/composables/useNotification';
+import { useRecentDMs } from '@/composables/useRecentDMs';
 import { isMeeting } from '@/composables/usePrivatMeet';
 
 import isDesktopApp from '@/assets/isDesktopApp';
@@ -34,6 +35,7 @@ const { showUsersBar, setUsersBarHiddenByRoute } = useUsersBar();
 const { initPeer } = useSecurePeer();
 const { notify } = useNotifications();
 const { init: initNotifications } = useNotification();
+const { fetchRecentDMs, recordDMInteraction } = useRecentDMs();
 const route = useRoute();
 const toast = useToast();
 const { fetchPermissions } = usePermissions(computed(() => props.orgId));
@@ -450,6 +452,11 @@ const initSocketListener = async () => {
         const isMeTheSender = newMessage.senderId === user.value?.id;
         const conversationPeerId = isMeTheSender ? newMessage.recipientId : newMessage.senderId;
 
+        // Tient le cache partagé "DM récents" à jour même si ThreadsBar est
+        // démonté (Tasks/Agenda/Home) — ce listener est le seul persistant
+        // pour toute la durée de vie de l'org.
+        recordDMInteraction(conversationPeerId, newMessage.createdAt);
+
         const peerMemberId = openedOrg.value?.members?.find(m => m.user?.id === conversationPeerId)?.id;
         const isCurrentConversation = (route.name === 'OrgThreadChat' || route.name === 'OrgThreadChatPrivateMeet') && route.params.userId === peerMemberId;
 
@@ -593,7 +600,8 @@ onMounted(async () => {
             fetchPermissions(),
             initSocketListener(),
             initPeer(),
-            initNotifications()
+            initNotifications(),
+            fetchRecentDMs()
     ])
 
     handleTabletChange(mediaQuery);

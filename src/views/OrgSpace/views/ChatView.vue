@@ -368,7 +368,7 @@
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { DMMessage, OrgMember } from '@/types/types';
-import { openedOrg, user } from '@/assets/var';
+import { openedOrg, user, isLittleScreen } from '@/assets/var';
 import useWSocket from '@/composables/useWSocket';
 import type { Socket } from 'socket.io-client';
 import getColorByStatus from '@/assets/utils/getColorByStatus';
@@ -387,6 +387,7 @@ import { uploadFiles } from '@/assets/uploadFile';
 import useResponse from '@/composables/useResponse';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useNotification } from '@/composables/useNotification';
+import { useRecentDMs } from '@/composables/useRecentDMs';
 import { checkKeyTrust, trustKey, computeKeyFingerprint, type KeyTrustResult } from '@/assets/utils/keyTrust';
 import Popup from '@/components/Popup.vue';
 
@@ -396,6 +397,7 @@ const toast = useToast();
 const { startCall } = useSecurePeer();
 const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
 const { markDMAsRead, getUnreadCountByDMUserId } = useNotification();
+const { fetchRecentDMs, getMostRecentDMUserId } = useRecentDMs();
 
 const socket = ref<Socket | null>(null);
 
@@ -997,9 +999,17 @@ watch(() => route.params.userId, async () => {
 });
 
 onMounted(async () => {
-    if (!route.params.userId) {
-        const firstUser = openedOrg.value?.members?.[0];
-        if (firstUser) router.replace({ params: { ...route.params, userId: firstUser.id }, query: route.query });
+    // Sur petit écran, la liste des conversations EST la vue (cf. OrgLayout.vue,
+    // ThreadsBar prend toute la largeur) — y rediriger automatiquement masquerait
+    // cette liste. Sur desktop, ouvrir directement la dernière conversation
+    // évite d'atterrir sur l'écran "Sélectionnez une discussion" à chaque fois.
+    if (!route.params.userId && !isLittleScreen.value) {
+        await fetchRecentDMs();
+        const mostRecentUserId = getMostRecentDMUserId();
+        const target = mostRecentUserId
+            ? openedOrg.value?.members?.find(m => m.user?.id === mostRecentUserId)
+            : openedOrg.value?.members?.[0];
+        if (target) router.replace({ params: { ...route.params, userId: target.id }, query: route.query });
     }
 
     const wsRef = await useWSocket();
