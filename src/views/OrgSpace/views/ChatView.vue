@@ -1082,8 +1082,13 @@ onMounted(async () => {
     // socket.io met l'émission en file d'attente jusqu'à la connexion, sans
     // aucun retour ni timeout visible : l'écran restait sur le squelette de
     // chargement, parfois de longues secondes, sans explication. Même
-    // attente explicite que ThreadView.vue pour les salons.
-    const connected = await waitForSocketConnection(socket, 15000);
+    // attente explicite que ThreadView.vue pour les salons. wsRef (pas
+    // socket) : même valeur (même instance Socket sous-jacente), mais son
+    // type Ref<Socket|null> est exactement celui attendu par
+    // waitForSocketConnection puisqu'ils viennent tous deux de
+    // useWSocket.ts — évite un conflit de typage structurel entre deux
+    // imports distincts du type Socket de socket.io-client.
+    const connected = await waitForSocketConnection(wsRef, 15000);
     if (!connected) {
         loading.value = false;
         toast.show('Impossible de se connecter au serveur. Vérifiez votre connexion et réessayez.', 'error');

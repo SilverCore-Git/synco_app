@@ -1,4 +1,17 @@
-import type Peer from 'peerjs';
+// Pas d'import du type Peer de 'peerjs' ici, exprès : useSecurePeer.ts
+// l'importe en named (`import { Peer } from 'peerjs'`) et usePrivatMeet.ts
+// en default (`import Peer from 'peerjs'`) — deux imports du MÊME type qui,
+// une fois passés à une fonction typée sur un `Peer` importé une troisième
+// fois ici, ne sont plus reconnus comme identiques par vue-tsc (des membres
+// protégés comme `_serializers` sont alors comparés nominalement entre deux
+// "instanciations" du même type, et l'assignation échoue). Un type
+// structurel local, limité aux seuls membres réellement utilisés,
+// contourne complètement le problème.
+interface ReconnectablePeer {
+    readonly destroyed: boolean;
+    readonly disconnected: boolean;
+    reconnect(): void;
+}
 
 /**
  * PeerJS's Peer object does NOT auto-reconnect its own signaling connection
@@ -16,7 +29,7 @@ import type Peer from 'peerjs';
  * than retrying instantly forever.
  */
 export function createPeerReconnector(
-    getPeer: () => Peer | null,
+    getPeer: () => ReconnectablePeer | null,
     options: { baseDelay?: number; maxDelay?: number } = {}
 ) {
     const baseDelay = options.baseDelay ?? 1000;
