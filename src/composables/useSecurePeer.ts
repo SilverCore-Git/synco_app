@@ -1079,6 +1079,53 @@ export default function useSecurePeer() {
     };
 
     /**
+     * Vérifie, via les stats WebRTC réelles de la connexion (pas une simple
+     * supposition depuis la config), si le média circule vraiment en direct
+     * entre les deux pairs ou passe par un serveur relais TURN. PEER_CONFIG
+     * ne déclare que des serveurs STUN (pas de TURN) : quand la connexion
+     * aboutit, elle est donc nécessairement directe — mais ceci le confirme
+     * depuis la paire de candidats ICE réellement sélectionnée, plutôt que de
+     * se fier uniquement à la config statique.
+     */
+    const getConnectionType = async (peerId: string): Promise<'direct' | 'relay' | 'unknown'> => {
+        const session = activeCalls.value.get(peerId);
+        const pc = session?.call.peerConnection;
+        if (!pc) return 'unknown';
+
+        try {
+            const stats = await pc.getStats();
+            let pair: RTCIceCandidatePairStats | null = null;
+
+            stats.forEach((report) => {
+                if (report.type === 'candidate-pair' && report.state === 'succeeded' && (report as any).nominated) {
+                    pair = report as RTCIceCandidatePairStats;
+                }
+            });
+
+            // Repli si aucune paire n'est marquée "nominated" par ce navigateur
+            // (le champ est optionnel selon les implémentations).
+            if (!pair) {
+                stats.forEach((report) => {
+                    if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                        pair = report as RTCIceCandidatePairStats;
+                    }
+                });
+            }
+
+            if (!pair) return 'unknown';
+
+            const local = stats.get((pair as RTCIceCandidatePairStats).localCandidateId);
+            const remote = stats.get((pair as RTCIceCandidatePairStats).remoteCandidateId);
+            const isRelay = local?.candidateType === 'relay' || remote?.candidateType === 'relay';
+
+            return isRelay ? 'relay' : 'direct';
+        } catch (e) {
+            console.error('[SECURE-PEER] getConnectionType a échoué:', e);
+            return 'unknown';
+        }
+    };
+
+    /**
      * Get security status for a call
      */
     const getCallSecurityStatus = (peerId: string): SecurityStatus => {
@@ -1120,6 +1167,7 @@ export default function useSecurePeer() {
         // Security features
         getCallSecurityStatus,
         verifySecurityFingerprint,
+        getConnectionType,
         callSecurityStatus
     };
 }

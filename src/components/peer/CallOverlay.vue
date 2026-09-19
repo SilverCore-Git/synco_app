@@ -191,6 +191,19 @@
                         <span class="text-xl font-mono tracking-[0.2em] text-(--text)">{{ localFingerprint }}</span>
                     </div>
 
+                    <!-- Vérifié via RTCPeerConnection.getStats() sur la paire ICE
+                         réellement retenue, pas juste déduit de la config. -->
+                    <div v-if="connectionType" class="flex items-center gap-2 mb-4 text-xs" :class="connectionType === 'relay' ? 'text-yellow-400' : 'text-green-400'">
+                        <i class="bi" :class="connectionType === 'relay' ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill'" />
+                        <span>
+                            {{ connectionType === 'direct'
+                                ? 'Connexion directe entre vos deux appareils (pas de serveur intermédiaire pour le média).'
+                                : connectionType === 'relay'
+                                    ? 'Connexion relayée (TURN) — nécessaire à cause de votre réseau, le média transite par un relais mais reste chiffré de bout en bout.'
+                                    : 'Type de connexion inconnu.' }}
+                        </span>
+                    </div>
+
                     <label class="text-xs text-(--text2) mb-2 block">Code lu par votre interlocuteur :</label>
                     <input
                         v-model="fingerprintInput"
@@ -385,7 +398,8 @@ const {
     applyVideoQuality,
     registerRemoteMediaElement,
     getCallSecurityStatus,
-    verifySecurityFingerprint
+    verifySecurityFingerprint,
+    getConnectionType
 } = useSecurePeer();
 
 // Le peer courant : d'abord celui dont on a déjà un flux (appel connecté),
@@ -470,10 +484,19 @@ const localFingerprint = computed<string>(() => {
     return getCallSecurityStatus(currentPeerId.value).fingerprint;
 });
 
+// 'direct' | 'relay' | 'unknown' | null (pas encore chargé) — vérifié depuis
+// les stats WebRTC réelles (cf. useSecurePeer.ts getConnectionType), pas
+// supposé depuis la config statique.
+const connectionType = ref<'direct' | 'relay' | 'unknown' | null>(null);
+
 const openVerifyPanel = () => {
     fingerprintInput.value = '';
     verifyError.value = false;
+    connectionType.value = null;
     showVerifyPanel.value = true;
+    if (currentPeerId.value) {
+        getConnectionType(currentPeerId.value).then(type => { connectionType.value = type; });
+    }
 };
 
 const confirmFingerprint = () => {
