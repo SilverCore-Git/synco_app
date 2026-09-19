@@ -100,7 +100,7 @@
                     class="text-[11px] font-bold text-(--text2) hover:text-(--text) flex items-center gap-1 ml-1"
                 >
                     <i class="bi bi-x-circle"></i>
-                    Réinitialiser
+                    Réinitialiser les filtres
                 </button>
 
                 <button
