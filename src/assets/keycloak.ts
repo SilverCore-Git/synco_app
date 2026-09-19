@@ -3,9 +3,9 @@ import { kcToken } from "./var";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
 import { App as CapApp, type URLOpenListenerEvent } from "@capacitor/app";
-import { open } from '@tauri-apps/plugin-shell';
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
 import { listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 
 const KC_URL = import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080/auth';
 const KC_REALM = import.meta.env.VITE_KEYCLOAK_REALM || 'SilverTeams';
@@ -145,7 +145,7 @@ async function tauriLogin(): Promise<{ token?: string; refreshToken?: string }> 
     + `&response_type=code&scope=openid&state=${state}`
     + `&code_challenge=${codeChallenge}&code_challenge_method=S256`;
 
-  await open(authUrl);
+  await invoke('open_external_url', { url: authUrl });
   const callbackUrl = await deepLinkArrived;
   unlistenSingleInstance();
 
