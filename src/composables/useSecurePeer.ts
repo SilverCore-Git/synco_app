@@ -1,8 +1,9 @@
 import { ref, shallowRef, triggerRef } from 'vue';
 import { Peer, type MediaConnection } from 'peerjs';
-import type { User } from '@/types/types';
+import type { User, OrgMember } from '@/types/types';
 import { openedOrg } from '@/assets/var';
 import useNotifications from './useNotifications';
+import useWSocket from './useWSocket';
 import { keycloak } from '@/assets/keycloak';
 import { generateCallId } from '@/assets/utils/webhookCrypto';
 import { getVoicePrefs, resolveCameraCaptureOptions } from '@/assets/utils/voicePrefs';
@@ -29,6 +30,12 @@ interface SecureCallSession {
     // par la signalisation PeerJS/serveur : on doit renégocier nous-mêmes,
     // via ce canal déjà chiffré et authentifié.
     dataChannel: RTCDataChannel | null;
+    // Vrai dès que le flux distant arrive ('stream'), c-à-d dès que l'appel
+    // a réellement été décroché — sert à distinguer un appel encore en
+    // sonnerie (où ni MediaConnection.close() ni le canal HANGUP, pas encore
+    // ouvert, ne préviennent le correspondant : cf. call:cancel) d'un appel
+    // déjà établi qu'on raccroche normalement.
+    answered: boolean;
 }
 
 interface KeyExchangeMessage {
@@ -117,6 +124,20 @@ const callSecurityStatus = ref<Map<string, SecurityStatus>>(new Map());
 // prévu pour cet usage est public/sounds/call_incoming.mp3.
 const ringtone = new Audio('/sounds/call_incoming.mp3');
 ringtone.loop = true;
+
+// Durée maximale de sonnerie avant abandon automatique côté appelant, si
+// personne ne décroche — sans ça, la sonnerie et la notification restaient
+// affichées indéfiniment des deux côtés (rien ne mettait fin à l'appel tant
+// que l'appelant ne raccrochait pas manuellement).
+const CALL_RING_TIMEOUT = 30000;
+let ringTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+const clearRingTimeout = () => {
+    if (ringTimeoutId) {
+        clearTimeout(ringTimeoutId);
+        ringTimeoutId = null;
+    }
+};
 
 // ============================================================================
 // Key Agreement Protocol (ECDH + HKDF)
@@ -288,6 +309,21 @@ export default function useSecurePeer() {
         peer.value.on('close', () => {
             console.warn('[SECURE-PEER] Peer connection closed');
         });
+
+        // Seul moyen fiable de savoir que l'appelant a raccroché/abandonné
+        // AVANT qu'on ait répondu (cf. le commentaire détaillé sur
+        // endCall()) — PeerJS ne relaie rien dans ce cas. Enregistré une
+        // seule fois pour toute la session (comme le reste de initPeer()),
+        // pas par appel.
+        const socket = await useWSocket();
+        socket.value?.off('call:cancelled');
+        socket.value?.on('call:cancelled', ({ fromUserId }: { fromUserId: string }) => {
+            const call = enteringCall.value;
+            if (!call || call.peer !== fromUserId) return;
+            const member = openedOrg.value?.members?.find(m => m.user?.id === fromUserId);
+            if (!member) return;
+            dismissMissedIncomingCall(call, member);
+        });
     };
 
     const cleanupPeer = () => {
@@ -305,6 +341,25 @@ export default function useSecurePeer() {
             }
             peer.value = null;
         }
+    };
+
+    // Utilisé à la fois par call.on('close') (l'appelant a fermé une
+    // MediaConnection déjà négociée avec nous) et par le listener
+    // call:cancelled ci-dessous (l'appelant a annulé via le socket, seul
+    // moyen fiable de le savoir tant qu'on n'a pas encore répondu — cf.
+    // commentaire détaillé sur endCall()). Le garde `enteringCall.value !==
+    // call` protège contre un signal tardif/dupliqué arrivant après qu'on a
+    // déjà répondu ou raccroché nous-mêmes.
+    const dismissMissedIncomingCall = (call: MediaConnection, member: OrgMember) => {
+        if (enteringCall.value !== call) return;
+        enteringCall.value = null;
+        callNotif.value = callNotif.value.filter(m => m.user?.id !== call.peer);
+        ringtone.pause();
+        ringtone.currentTime = 0;
+        // La carte "Appel entrant" disparaît (ligne au-dessus), mais sans
+        // rien d'autre il n'en reste aucune trace — comme un vrai
+        // téléphone, on laisse un "appel manqué" derrière.
+        notify('notif:missedCall', member, 8000);
     };
 
     /**
@@ -326,17 +381,10 @@ export default function useSecurePeer() {
         // avant l'acceptation, aucun listener 'close' n'était posé sur cet appel,
         // donc enteringCall/callNotif/la sonnerie restaient bloqués indéfiniment
         // côté appelé, avec un bouton "Répondre" mort pointant vers un appel fermé.
-        call.on('close', () => {
-            if (enteringCall.value !== call) return;
-            enteringCall.value = null;
-            callNotif.value = callNotif.value.filter(m => m.user?.id !== call.peer);
-            ringtone.pause();
-            ringtone.currentTime = 0;
-            // La carte "Appel entrant" disparaît (ligne au-dessus), mais sans
-            // rien d'autre il n'en reste aucune trace — comme un vrai
-            // téléphone, on laisse un "appel manqué" derrière.
-            notify('notif:missedCall', member, 8000);
-        });
+        // Ceci ne couvre en réalité que le cas où NOUS fermons nous-mêmes cet
+        // objet (ex: rejectCall()) — cf. call:cancelled plus bas pour le cas
+        // réel rapporté (l'APPELANT raccroche), que .close() ne signale pas.
+        call.on('close', () => dismissMissedIncomingCall(call, member));
 
         enteringCall.value = call;
         callNotif.value.push(member);
@@ -652,7 +700,8 @@ export default function useSecurePeer() {
             keyAgreementComplete: false,
             authenticated: false,
             keyExchangeTimeout: null,
-            dataChannel: null
+            dataChannel: null,
+            answered: false
         };
         
         const calls = activeCalls.value;
@@ -662,6 +711,8 @@ export default function useSecurePeer() {
         call.on('stream', (incomingStream) => {
             ringtone.pause();
             ringtone.currentTime = 0;
+            session.answered = true;
+            clearRingTimeout();
 
             console.log(
                 '[SECURE-PEER] "stream" event for', peerId,
@@ -1173,6 +1224,12 @@ export default function useSecurePeer() {
 
             handleCallEvents(call, true);
 
+            clearRingTimeout();
+            ringTimeoutId = setTimeout(() => {
+                const session = activeCalls.value.get(recipient.id);
+                if (session && !session.answered) endCall();
+            }, CALL_RING_TIMEOUT);
+
         } catch (err) {
             console.error("[SECURE-PEER] Erreur startCall:", err);
             cleanupCall();
@@ -1225,6 +1282,7 @@ export default function useSecurePeer() {
     const cleanupCall = () => {
         ringtone.pause();
         ringtone.currentTime = 0;
+        clearRingTimeout();
         localStream.value?.getTracks().forEach(track => track.stop());
         screenStream.value?.getTracks().forEach(track => track.stop());
         localStream.value = null;
@@ -1257,11 +1315,11 @@ export default function useSecurePeer() {
      */
     const endCall = () => {
         activeCalls.value.forEach(session => {
-            // Prévient le correspondant explicitement AVANT de fermer —
-            // MediaConnection.close() de PeerJS ne signale rien de lui-même,
-            // le correspondant devrait sinon attendre que son propre ICE
-            // détecte la coupure (cf. commentaire sur le cas 'HANGUP').
             if (session.dataChannel?.readyState === 'open') {
+                // Prévient le correspondant explicitement AVANT de fermer —
+                // MediaConnection.close() de PeerJS ne signale rien de lui-même,
+                // le correspondant devrait sinon attendre que son propre ICE
+                // détecte la coupure (cf. commentaire sur le cas 'HANGUP').
                 try {
                     session.dataChannel.send(JSON.stringify({
                         type: 'HANGUP',
@@ -1272,6 +1330,18 @@ export default function useSecurePeer() {
                     // Le canal peut s'être fermé entre le check et l'envoi — sans
                     // conséquence, le correspondant détectera la coupure via ICE.
                 }
+            } else if (!session.answered) {
+                // Ça sonne encore, personne n'a décroché : le canal HANGUP
+                // ci-dessus n'existe pas encore, et MediaConnection.close()
+                // (juste en dessous) ne relaie RIEN au correspondant côté
+                // PeerJS (vérifié dans sa source : close() n'émet 'close' que
+                // localement, aucun message n'est envoyé à l'autre pair tant
+                // qu'il n'a pas répondu — son propre canal de négociation
+                // n'existe même pas encore). Sans ce signal applicatif via le
+                // socket, sa carte "Appel entrant" et sa sonnerie restaient
+                // affichées indéfiniment après qu'on ait raccroché.
+                const targetUserId = session.peerId;
+                useWSocket().then(socket => socket.value?.emit('call:cancel', { targetUserId }));
             }
             session.call.close();
         });
