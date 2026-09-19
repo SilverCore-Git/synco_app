@@ -444,6 +444,15 @@ const saveLastRead = () => {
     localStorage.setItem(`lastRead_dm_${recipient.value.id}`, lastMsg.id);
 };
 let typingTimeout: any = null;
+
+// Même fix que ThreadView.vue (salons) : distingue "on ouvre/change
+// réellement de conversation" de "le socket vient de se reconnecter alors
+// qu'on regarde toujours le même DM" — sans ça, toute reconnexion
+// socket.io (coupure réseau, veille, redémarrage serveur...) vidait
+// visuellement la conversation puis la rechargeait avec un saut de scroll
+// forcé, alors que rien n'avait réellement changé.
+let joinedDMUserId: string | null = null;
+let pendingSilentRejoin = false;
 const editingMessageId = ref<string | null>(null);
 
 const editLastOwnMessage = () => {
@@ -678,7 +687,10 @@ const initListener = () => {
 
     socket.value.on("connect", () => {
         if (recipient.value?.id) {
-            joinDM(recipient.value.id);
+            // Une reconnexion sur le DM déjà affiché ne doit rien changer
+            // visuellement — rejoin silencieux plutôt qu'un rechargement
+            // complet (skeleton + liste vidée + saut de scroll).
+            joinDM(recipient.value.id, joinedDMUserId === recipient.value.id);
         }
     });
 
@@ -691,12 +703,21 @@ const initListener = () => {
         if (receivedRecipientId && recipient.value?.id && receivedRecipientId !== recipient.value.id) {
             return; // Ignore history from another DM (race condition)
         }
-        
+
         messages.value = await procesMessages(history);
         hasMore.value = receivedHasMore;
         loading.value = false;
-        scrollToBottom(true);
-        setTimeout(() => { saveLastRead(); }, 500); // Après la fin du scroll
+        if (recipient.value?.id) joinedDMUserId = recipient.value.id;
+
+        // Rejoin silencieux : la liste vient d'être rafraîchie en place
+        // (sans skeleton, cf. joinDM), mais forcer le scroll ici jetterait
+        // quand même l'utilisateur en bas s'il relisait plus haut.
+        if (pendingSilentRejoin) {
+            pendingSilentRejoin = false;
+        } else {
+            scrollToBottom(true);
+            setTimeout(() => { saveLastRead(); }, 500); // Après la fin du scroll
+        }
     });
 
     socket.value.on('dm-more-messages', async (data: { messages: any[]; hasMore: boolean }) => {
@@ -775,15 +796,25 @@ const initListener = () => {
 
 };
 
-const joinDM = async (userId: string) => {
+const joinDM = async (userId: string, silent = false) => {
 
-    loading.value = true;
-    messages.value = [];
+    if (silent) {
+        pendingSilentRejoin = true;
+    } else {
+        // Repli défensif : une navigation franche vers CE DM efface tout
+        // rejoin silencieux resté en suspens (ex: une reconnexion visant un
+        // autre DM entre-temps abandonné par le garde de dm:history
+        // ci-dessus, sans jamais consommer le flag) — sinon le prochain
+        // dm:history sauterait son scroll par erreur.
+        pendingSilentRejoin = false;
+        loading.value = true;
+        messages.value = [];
 
-    // Capturé avant markDMAsRead() qui remet le compteur à zéro juste après.
-    const savedLastRead = localStorage.getItem(`lastRead_dm_${userId}`);
-    const hadUnread = getUnreadCountByDMUserId(userId).value > 0;
-    showUnreadDelimiterAfterId.value = (hadUnread && savedLastRead) ? savedLastRead : null;
+        // Capturé avant markDMAsRead() qui remet le compteur à zéro juste après.
+        const savedLastRead = localStorage.getItem(`lastRead_dm_${userId}`);
+        const hadUnread = getUnreadCountByDMUserId(userId).value > 0;
+        showUnreadDelimiterAfterId.value = (hadUnread && savedLastRead) ? savedLastRead : null;
+    }
 
     socket.value?.emit("join-dm", { recipientId: userId });
     markDMAsRead(userId);

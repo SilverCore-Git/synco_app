@@ -647,7 +647,11 @@ const initListener = () => {
 
     socket.value.on("connect", () => {
         if (thread.value?.id) {
-            joinThread(thread.value.id);
+            // Un simple aller-retour de connexion (coupure réseau, mise en
+            // veille, redémarrage serveur...) alors qu'on regarde déjà ce
+            // salon ne doit pas se voir : rejoin silencieux plutôt qu'un
+            // rechargement complet (skeleton + liste vidée + saut de scroll).
+            joinThread(thread.value.id, joinedThreadId === thread.value.id);
         }
     });
 
@@ -686,13 +690,18 @@ const initListener = () => {
 
         loading.value = false;
         hasMore.value = history.length >= 20;
-        
-        if (selectedMessage.value && selectedMessage.value !== 'undefined') 
-        {
+
+        // Rejoin silencieux (reconnexion sur le salon déjà affiché) : la
+        // liste vient d'être rafraîchie en place (sans skeleton, cf.
+        // joinThread), mais forcer le scroll ici jetterait quand même
+        // l'utilisateur en bas de la conversation s'il était en train de
+        // relire plus haut — exactement le "ça se recharge tout seul" dont
+        // il se plaint, juste déplacé du skeleton au saut de scroll.
+        if (pendingSilentRejoin) {
+            pendingSilentRejoin = false;
+        } else if (selectedMessage.value && selectedMessage.value !== 'undefined') {
             await scrollToSelectedMessage();
-        } 
-        else 
-        {
+        } else {
             scrollToBottom(true);
             setTimeout(() => { saveLastRead(); }, 500); // Save after scroll completes
         }
@@ -789,7 +798,25 @@ const initListener = () => {
 
 let isJoiningThread = false;
 
-const joinThread = async (id: string) => {
+// Id du salon pour lequel on a déjà chargé l'historique avec succès. Sert à
+// distinguer "on ouvre/change réellement de salon" (où un état de
+// chargement visible est normal) de "le socket vient de se reconnecter
+// alors qu'on regarde toujours le même salon" (où un rechargement visuel
+// complet — skeleton + liste vidée + saut de scroll forcé — n'a aucune
+// raison d'être : socket.io se reconnecte tout seul en continu, y compris
+// sur une simple coupure réseau, la mise en veille du téléphone/PC, ou un
+// redémarrage serveur, cf. reconnection:true/reconnectionAttempts:Infinity
+// dans useWSocket.ts). Non réactif exprès (ref inutile, jamais lu par le
+// template).
+let joinedThreadId: string | null = null;
+
+// Mis à true juste avant un rejoin silencieux (reconnexion sur le même
+// salon) — lu par le handler "thread-history" ci-dessous pour savoir s'il
+// doit sauter le saut de scroll forcé qui accompagne normalement un
+// (re)chargement visible.
+let pendingSilentRejoin = false;
+
+const joinThread = async (id: string, silent = false) => {
 
     if (isJoiningThread) return;
     isJoiningThread = true;
@@ -800,16 +827,26 @@ const joinThread = async (id: string) => {
         isJoiningThread = false;
         return;
     }
-    
-    loading.value = true;
-    currentThreadKey.value = null;
-    sortedMessages.value = [];
-    
-    const savedLastRead = localStorage.getItem(`lastRead_${id}`);
-    if (thread.value?.hasUnread && savedLastRead) {
-        showUnreadDelimiterAfterId.value = savedLastRead;
+
+    if (silent) {
+        pendingSilentRejoin = true;
     } else {
-        showUnreadDelimiterAfterId.value = null;
+        // Repli défensif : une navigation franche vers CE salon efface tout
+        // rejoin silencieux resté en suspens (ex: une reconnexion visant un
+        // autre salon entre-temps abandonné par le garde de thread-history
+        // ci-dessous, sans jamais consommer le flag) — sinon le prochain
+        // thread-history sauterait son scroll par erreur.
+        pendingSilentRejoin = false;
+        loading.value = true;
+        currentThreadKey.value = null;
+        sortedMessages.value = [];
+
+        const savedLastRead = localStorage.getItem(`lastRead_${id}`);
+        if (thread.value?.hasUnread && savedLastRead) {
+            showUnreadDelimiterAfterId.value = savedLastRead;
+        } else {
+            showUnreadDelimiterAfterId.value = null;
+        }
     }
 
     if (!privateKey.value) 
@@ -877,17 +914,23 @@ const joinThread = async (id: string) => {
 
             const decryptedKey = await decryptThreadKeyWithRsa(response.encryptedKey, privateKey.value!);
             currentThreadKey.value = decryptedKey;
+            joinedThreadId = id;
 
             let _thread;
             if (route.params.spaceId == 'home')  _thread = openedOrg.value?.home.threads.find(__thread => __thread.id == thread.value?.id);
             else _thread = (openedOrg.value?.spaces?.find(space => space.id == route.params.spaceId))?.threads.find(__thread => __thread.id == thread.value?.id);
 
             if (_thread) _thread.hasUnread = false;
-            
+
             markThreadAsRead(id);
 
-            await nextTick();
-            TextareaRef.value?.textarea?.focus();
+            // Ne vole le focus du textarea qu'au véritable chargement — sur
+            // un rejoin silencieux (reconnexion), l'utilisateur peut être en
+            // train de taper ou d'interagir ailleurs sur la page.
+            if (!silent) {
+                await nextTick();
+                TextareaRef.value?.textarea?.focus();
+            }
 
         } catch (cryptoErr) {
             debugMsg.value = 'Erreur : Déchiffrement RSA échoué.';
