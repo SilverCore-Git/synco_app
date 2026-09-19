@@ -157,7 +157,26 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             isConnected.value = false;
             console.error("[WS] ❌ Connection Error:", err.message);
             console.error("[WS] Token present:", !!getToken());
-            // Si l'erreur est liée à l'authentification (ex: token expiré), on force un rafraîchissement
+
+            // Cause confirmée du "ça reste bloqué sur déconnecté même après
+            // reconnexion" : quand cette erreur vient d'un paquet
+            // CONNECT_ERROR renvoyé par le serveur (ex: notre middleware
+            // io.use() a rejeté le token au moment précis de la tentative —
+            // le genre de course qu'on essaie déjà de limiter côté serveur,
+            // mais qui reste possible dans un cas limite comme un onglet
+            // resté en veille très longtemps), socket.io-client appelle en
+            // interne destroy() sur CE Socket avant même d'émettre cet
+            // événement (cf. onpacket() dans node_modules/socket.io-client/
+            // build/cjs/socket.js) — destroy() désabonne définitivement ce
+            // Socket des événements du Manager pour "éviter les
+            // reconnexions". Le Manager, lui, continue bien de rouvrir le
+            // transport en arrière-plan (reconnection:true), mais plus
+            // personne n'écoute plus ce succès pour NOTRE namespace : sans
+            // rappeler connect() nous-mêmes, la connexion reste cassée pour
+            // de bon après la moindre authentification refusée, même une
+            // fois le token corrigé. C'est la vraie raison pour laquelle
+            // isConnected ne repassait jamais à true après ce genre
+            // d'échec — pas un bug d'affichage dans la bannière.
             if (keycloak.authenticated) {
                 try {
                     await keycloak.updateToken(-1);
@@ -165,6 +184,7 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
                     console.error("[WS] Failed to force refresh token after connection error", e);
                 }
             }
+            setTimeout(() => socket.value?.connect(), 1000);
         });
 
         socket.value.on("disconnect", async (reason) => {
