@@ -490,6 +490,13 @@ const confirmFingerprint = () => {
 // Call timer
 const callStartTime = ref<number | null>(null);
 const callTimer = ref<string>('');
+// startTimer() est appelé depuis des watchers, pas depuis le corps synchrone
+// de setup() — onUnmounted() n'y a plus d'instance active à laquelle
+// s'attacher (Vue le signale par un warning et n'enregistre rien), donc
+// l'intervalle n'était jamais nettoyé. Suivi dans une ref et nettoyé par
+// stopTimer(), lui-même appelé depuis le SEUL onUnmounted du composant
+// (enregistré une fois, en synchrone, plus bas).
+const timerIntervalId = ref<ReturnType<typeof setInterval> | null>(null);
 
 // Compute security status for display
 const securityStatus = computed(() => {
@@ -501,16 +508,16 @@ const startTimer = () => {
     if (callStartTime.value) return;
     callStartTime.value = Date.now();
     updateTimer();
-    const timerInterval = setInterval(updateTimer, 1000);
-
-    onUnmounted(() => {
-        clearInterval(timerInterval);
-    });
+    timerIntervalId.value = setInterval(updateTimer, 1000);
 };
 
 const stopTimer = () => {
     callStartTime.value = null;
     callTimer.value = '';
+    if (timerIntervalId.value) {
+        clearInterval(timerIntervalId.value);
+        timerIntervalId.value = null;
+    }
 };
 
 const updateTimer = () => {

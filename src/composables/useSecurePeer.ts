@@ -484,11 +484,22 @@ export default function useSecurePeer() {
      */
     const handleCallEvents = (call: MediaConnection, isCaller: boolean) => {
         const peerId = call.peer;
-        
+
+        // Le callId DOIT être partagé entre les deux côtés : handleKeyExchangeMessage
+        // rejette tout message dont le callId ne correspond pas exactement à
+        // session.callId (protection anti session-hijacking). En générer un
+        // localement ici, indépendamment de chaque côté, produisait deux valeurs
+        // différentes qui ne pouvaient jamais correspondre — chaque échange de
+        // clé était donc rejeté, sur CHAQUE appel. L'appelant le génère et le
+        // transmet via call.metadata (cf. startCall) ; l'appelé le relit depuis
+        // ce même metadata au lieu d'en fabriquer un autre.
+        const callId = (call.metadata as { callId?: string } | undefined)?.callId
+            || `${peerId}-${generateCallId()}`;
+
         // Create secure session
         const session: SecureCallSession = {
             call,
-            callId: `${peerId}-${generateCallId()}`,
+            callId,
             peerId,
             e2eeKey: null,
             e2eeKeyId: Date.now(),
@@ -905,12 +916,15 @@ export default function useSecurePeer() {
             isCalling.value = true;
             ringtone.play().catch(() => {});
 
-            // Create call with E2EE metadata
+            // Create call with E2EE metadata — callId généré ici et transmis dans
+            // les metadata pour que handleCallEvents (côté appelé) le relise au
+            // lieu d'en générer un différent (cf. commentaire dans handleCallEvents).
             const call = peer.value.call(recipient.id, localStream.value, {
                 metadata: {
                     e2ee: true,
                     version: '1.0',
-                    publicKeyJWK: sessionPublicKeyJWK.value
+                    publicKeyJWK: sessionPublicKeyJWK.value,
+                    callId: `${recipient.id}-${generateCallId()}`
                 }
             });
 
