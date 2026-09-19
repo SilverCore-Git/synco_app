@@ -8,6 +8,7 @@ import init, { refetchUser } from './assets/init';
 import { isLoaded, user } from './assets/var';
 import type { User } from '@/types/types';
 import Notifications from './components/overlay/Notifications.vue';
+import ConnectionStatusBanner from './components/overlay/ConnectionStatusBanner.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
 import useSettingsItem from './composables/useSettingsItem';
 import { initKC, isTauriPlatform, loginWithSystemBrowser } from './assets/keycloak';
@@ -19,6 +20,7 @@ import useSecurePeer from './composables/useSecurePeer';
 import useAppPresence from './composables/useAppPresence';
 import CallOverlay from './components/peer/CallOverlay.vue';
 import waitFor from './assets/utils/waitfor';
+import { debugLog } from './assets/utils/debugLog';
 import Popup from './components/Popup.vue';
 import { isProfileOpen, profileUser, closeProfile } from './composables/useProfile';
 
@@ -162,7 +164,7 @@ const submit = async () => {
 
     if (pinSetup.value) {
 
-      console.log('Connection...');
+      debugLog('Connection...');
 
       if (!user.value?.pinSalt || !user.value?.encryptedPrivateKey || !user.value?.keyIv) return;
 
@@ -201,7 +203,6 @@ const submit = async () => {
 
         if (!success) {
           toast.show('Code PIN incorrect', 'error');
-          console.log('Code PIN incorrect');
           pin.value = '';
         } else {
           pin.value = '';
@@ -299,7 +300,7 @@ const handleTauriLogin = async () => {
       tauriLoginError.value = true;
     }
   } catch (error) {
-    console.error('[DEBUG] Error during Tauri login:', error);
+    console.error('Error during Tauri login:', error);
     tauriLoginError.value = true;
   } finally {
     tauriLoginLoading.value = false;
@@ -316,16 +317,16 @@ const bootstrap = async () => {
 
   try {
     const res = await fetch(`${import.meta.env.VITE_API_URL}/health`);
-    console.log('[DEBUG] health check status:', res.status);
+    debugLog('[boot] health check status:', res.status);
     if (!res.ok) {
       bootError.value = true;
       return toast.show('Api error', 'error', 10000);
     }
     bootProgress.value = 25;
 
-    console.log('[DEBUG] calling initKC...');
+    debugLog('[boot] calling initKC...');
     authenticated.value = await initKC();
-    console.log('[DEBUG] initKC done, authenticated =', authenticated.value);
+    debugLog('[boot] initKC done, authenticated =', authenticated.value);
     bootProgress.value = 50;
 
     if (authenticated.value) {
@@ -344,7 +345,7 @@ const bootstrap = async () => {
     window.addEventListener('click', initSound);
     window.addEventListener('keydown', initSound);
   } catch (error) {
-    console.error('[DEBUG] Error in bootstrap:', error);
+    console.error('Error in bootstrap:', error);
     bootError.value = true;
     toast.show('Une erreur est survenue lors de l’initialisation.', 'error', 10000);
   } finally {
@@ -353,7 +354,7 @@ const bootstrap = async () => {
 };
 
 onMounted(async () => {
-  console.log('[DEBUG] onMounted start');
+  debugLog('[boot] onMounted start');
 
   // Le premier rendu réel de l'app a été commité au DOM (on est dans
   // onMounted), mais on attend un vrai cycle de peinture (nextTick + rAF)
@@ -385,6 +386,7 @@ onMounted(async () => {
          erreurs de démarrage (health check, initKC) via un toast plutôt
          qu'un alert() natif. -->
     <Notifications />
+    <ConnectionStatusBanner />
 
     <!-- Écran de connexion Tauri (bureau) : authenticated est déjà à false
          ici, mais tant que l'utilisateur n'a pas cliqué "Se connecter" on

@@ -372,7 +372,7 @@ import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { DMMessage, OrgMember } from '@/types/types';
 import { openedOrg, user, isLittleScreen } from '@/assets/var';
-import useWSocket from '@/composables/useWSocket';
+import useWSocket, { waitForSocketConnection } from '@/composables/useWSocket';
 import type { Socket } from 'socket.io-client';
 import getColorByStatus from '@/assets/utils/getColorByStatus';
 import getTextByStatus from '@/assets/utils/getTextByStatus';
@@ -830,8 +830,6 @@ const scrollToSelectedMessage = async () => {
     const targetEl = document.getElementById(`msg-${selectedMessage.value}`);
     if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    console.log(targetEl)
-
 };
 
 const getMessageSenderName = (msg: DMMessage): string => {
@@ -1066,7 +1064,7 @@ onMounted(async () => {
     }
 
     const wsRef = await useWSocket();
-    socket.value = wsRef.value; 
+    socket.value = wsRef.value;
 
     // Reactive wait — resolves instantly if already set, otherwise watches for change
     if (!openedOrg.value) {
@@ -1076,12 +1074,25 @@ onMounted(async () => {
             }, { immediate: true });
         });
     }
-    if (!socket.value) {
-        await new Promise<void>(resolve => {
-            const stop = watch(() => socket.value, (val) => {
-                if (val) { stop(); resolve(); }
-            }, { immediate: true });
-        });
+
+    // `socket.value` existe dès que le client socket.io est construit —
+    // bien avant que la connexion WebSocket ait réellement abouti (attendre
+    // juste "non-null", comme avant, ne garantissait donc rien). join-dm
+    // finissait par partir en émettant sur un socket pas encore connecté —
+    // socket.io met l'émission en file d'attente jusqu'à la connexion, sans
+    // aucun retour ni timeout visible : l'écran restait sur le squelette de
+    // chargement, parfois de longues secondes, sans explication. Même
+    // attente explicite que ThreadView.vue pour les salons. wsRef (pas
+    // socket) : même valeur (même instance Socket sous-jacente), mais son
+    // type Ref<Socket|null> est exactement celui attendu par
+    // waitForSocketConnection puisqu'ils viennent tous deux de
+    // useWSocket.ts — évite un conflit de typage structurel entre deux
+    // imports distincts du type Socket de socket.io-client.
+    const connected = await waitForSocketConnection(wsRef, 15000);
+    if (!connected) {
+        loading.value = false;
+        toast.show('Impossible de se connecter au serveur. Vérifiez votre connexion et réessayez.', 'error');
+        return;
     }
 
     await mount();

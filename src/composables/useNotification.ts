@@ -5,6 +5,7 @@ import { useToast } from './useToast';
 import { useRouter } from 'vue-router';
 import sfetch from '../assets/utils/sfetch';
 import type { NotificationType } from '../types/types';
+import { debugLog } from '../assets/utils/debugLog';
 
 // Types étendus pour le frontend
 export interface NotificationData {
@@ -558,7 +559,7 @@ export function useNotification() {
   const initFCMService = async (): Promise<void> => {
     try {
       // Ce sera géré par le composable useFCM.ts séparé
-      console.log('[Notifications] FCM service initialization (handled by useFCM)');
+      debugLog('[Notifications] FCM service initialization (handled by useFCM)');
     } catch (error) {
       console.error('[Notifications] FCM initialization error:', error);
     }
@@ -570,7 +571,7 @@ export function useNotification() {
   const initCapacitorService = async (): Promise<void> => {
     try {
       // À implémenter dans notifications_capacitor_mobile.md
-      console.log('[Notifications] Capacitor service initialization');
+      debugLog('[Notifications] Capacitor service initialization');
     } catch (error) {
       console.error('[Notifications] Capacitor initialization error:', error);
     }
@@ -582,7 +583,7 @@ export function useNotification() {
   const initTauriService = async (): Promise<void> => {
     try {
       // À implémenter dans notifications_tauri_desktop.md
-      console.log('[Notifications] Tauri service initialization');
+      debugLog('[Notifications] Tauri service initialization');
     } catch (error) {
       console.error('[Notifications] Tauri initialization error:', error);
     }

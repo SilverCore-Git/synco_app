@@ -21,22 +21,51 @@ function isTauriPlatform(): boolean {
   return '__TAURI_INTERNALS__' in window;
 }
 
-const setupTokenRefresh = () => {
-  keycloak.onTokenExpired = () => {
-    keycloak.updateToken(30)
-      .then((refreshed) => {
-        if (refreshed) {
-          kcToken.value = keycloak.token || '';
-          if (Capacitor.isNativePlatform() || isTauriPlatform()) {
-            if (keycloak.token) localStorage.setItem('kc_token', keycloak.token);
-            if (keycloak.refreshToken) localStorage.setItem('kc_refreshToken', keycloak.refreshToken);
-          }
+const doTokenRefresh = (minValiditySeconds: number) => {
+  keycloak.updateToken(minValiditySeconds)
+    .then((refreshed) => {
+      if (refreshed) {
+        kcToken.value = keycloak.token || '';
+        if (Capacitor.isNativePlatform() || isTauriPlatform()) {
+          if (keycloak.token) localStorage.setItem('kc_token', keycloak.token);
+          if (keycloak.refreshToken) localStorage.setItem('kc_refreshToken', keycloak.refreshToken);
         }
-      })
-      .catch((err) => {
-        console.error('[Keycloak] Échec du refresh du token', err);
-      });
-  };
+      }
+    })
+    .catch((err) => {
+      console.error('[Keycloak] Échec du refresh du token', err);
+    });
+};
+
+// Un seul intervalle pour toute la session (setupTokenRefresh() est rappelé
+// après chaque flux d'auth — natif, web, Tauri...) — sans ce garde, chaque
+// rappel en empilerait un de plus.
+let proactiveRefreshInterval: ReturnType<typeof setInterval> | null = null;
+
+const setupTokenRefresh = () => {
+  // keycloak-js programme ce callback via un UNIQUE setTimeout calculé comme
+  // (exp - now), sans aucune marge : il ne se déclenche donc qu'à l'instant
+  // exact où le jeton expire, jamais avant. Le serveur socket.io revalide
+  // chaque connexion toutes les 60s (ws.ts) et la coupe immédiatement si le
+  // jeton y est déjà expiré à cet instant précis — sans marge de sécurité
+  // côté client, le moindre aller-retour réseau pour le refresh (ou pire,
+  // un onglet mis en arrière-plan : les navigateurs limitent fortement la
+  // fréquence des setTimeout/setInterval dans cet état, retardant d'autant
+  // ce setTimeout précis calculé à l'avance) fait perdre cette course et
+  // coupe une connexion par ailleurs parfaitement saine. C'est très
+  // probablement la cause des déconnexions "aléatoires" du socket.io
+  // observées en prod : rien à voir avec la stabilité du réseau ou du
+  // serveur, juste un jeton renouvelé une fraction de seconde trop tard.
+  keycloak.onTokenExpired = () => doTokenRefresh(30);
+
+  // Rafraîchissement proactif, avec une marge large (90s), vérifié toutes
+  // les 20s — élimine la course ci-dessus au lieu de simplement réduire sa
+  // fenêtre : même avec un onglet en arrière-plan (throttling navigateur
+  // limitant au pire à ~1 vérification/minute), il reste une marge
+  // confortable avant l'expiration réelle.
+  if (!proactiveRefreshInterval) {
+    proactiveRefreshInterval = setInterval(() => doTokenRefresh(90), 20000);
+  }
 };
 
 const onTokenRefresh = (callback: () => void): (() => void) => {
