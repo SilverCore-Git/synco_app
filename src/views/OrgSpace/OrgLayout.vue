@@ -35,7 +35,7 @@ const props = defineProps<{
 const { showUsersBar, setUsersBarHiddenByRoute } = useUsersBar();
 const { initPeer } = useSecurePeer();
 const { initPeer: initPrivateMeetPeer, startRingtone: startPrivateMeetRingtone } = usePrivateMeet();
-const { notify } = useNotifications();
+const { notify, notifications } = useNotifications();
 const { init: initNotifications } = useNotification();
 const { fetchRecentDMs, recordDMInteraction } = useRecentDMs();
 const route = useRoute();
@@ -502,9 +502,27 @@ const initSocketListener = async () => {
             notify('notif:privateMeet', orgMember, -1);
             // Sonnerie en boucle (même son que les appels DM) tant que
             // l'invitation n'a pas été acceptée/refusée — stoppée dans
-            // usePrivatMeet.ts (acceptIncomingMeet/declineIncomingMeet).
+            // usePrivatMeet.ts (acceptIncomingMeet/declineIncomingMeet), ou
+            // ci-dessous si l'appelant annule avant qu'on ait répondu.
             startPrivateMeetRingtone();
         }
+    });
+
+    // L'appelant a raccroché/abandonné avant qu'on ait répondu (cf.
+    // notifyMeetCancelledIfUnconnected() dans usePrivatMeet.ts) : la carte
+    // "invitation entrante" n'a plus lieu d'être — sans ça, elle restait
+    // affichée indéfiniment avec des boutons pointant vers un appel déjà
+    // terminé. Filtre directement par expéditeur plutôt que de suivre un id
+    // à part : robuste même si le clic sur Répondre/Refuser a déjà retiré la
+    // carte entre-temps (filtre alors sur un tableau qui ne la contient
+    // déjà plus — sans effet, pas d'erreur). Comme pour un vrai téléphone,
+    // un "chat privé manqué" reste derrière une fois la carte retirée.
+    socket.value?.on('privateMeet:cancelled', ({ fromUserId }: { fromUserId: string }) => {
+        notifications.value = notifications.value.filter(
+            n => !(n.type === 'notif:privateMeet' && n.privateMeet?.userId === fromUserId)
+        );
+        const orgMember = openedOrg.value?.members?.find(m => m.userId === fromUserId);
+        notify('notif:missedMeet', orgMember, 8000);
     });
     socket.value?.on('thread:created', ({ orgId, thread }: { orgId: string, thread: any }) => {
         
@@ -647,6 +665,7 @@ onBeforeUnmount(async () => {
         'notif:new-message',
         'notif:dm:new-message',
         'privateMeet:incomingCall',
+        'privateMeet:cancelled',
         'thread:created',
         'thread:updated',
         'thread:deleted',

@@ -200,6 +200,68 @@
 
                     </template>
 
+                    <template v-else-if="notif.type == 'notif:missedCall'">
+
+                        <RouterLink
+                            :to="`/${openedOrg?.id}/chat/${notif.missedCall?.id}`"
+                            class="flex items-center gap-3"
+                            @click="remove(notif.id)"
+                        >
+
+                            <div class="relative shrink-0">
+                                <img
+                                    :src="notif.missedCall?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(notif.missedCall?.user?.name)}&background=ef4444&color=fff`"
+                                    class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
+                                />
+                                <span class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center border-2 border-(--bg2)">
+                                    <i class="bi bi-telephone-x-fill text-white text-[9px]" />
+                                </span>
+                            </div>
+
+                            <div class="flex-1 overflow-hidden">
+                                <h4 class="text-(--text) text-sm font-bold truncate">
+                                    {{ $p(notif.missedCall?.user?.name) }}
+                                </h4>
+                                <p class="text-red-400 text-sm truncate">
+                                    Appel manqué
+                                </p>
+                            </div>
+
+                        </RouterLink>
+
+                    </template>
+
+                    <template v-else-if="notif.type == 'notif:missedMeet'">
+
+                        <RouterLink
+                            :to="`/${openedOrg?.id}/chat/${notif.missedMeet?.id}`"
+                            class="flex items-center gap-3"
+                            @click="remove(notif.id)"
+                        >
+
+                            <div class="relative shrink-0">
+                                <img
+                                    :src="notif.missedMeet?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(notif.missedMeet?.user?.name)}&background=ef4444&color=fff`"
+                                    class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
+                                />
+                                <span class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center border-2 border-(--bg2)">
+                                    <i class="bi bi-shield-x text-white text-[9px]" />
+                                </span>
+                            </div>
+
+                            <div class="flex-1 overflow-hidden">
+                                <h4 class="text-(--text) text-sm font-bold truncate">
+                                    {{ $p(notif.missedMeet?.user?.name) }}
+                                </h4>
+                                <p class="text-red-400 text-sm truncate">
+                                    Session éphémère manquée
+                                </p>
+                            </div>
+
+                        </RouterLink>
+
+                    </template>
+
                 </div>
 
                 <!-- Pas de croix générique pour un appel entrant : "Refuser" est le
@@ -290,6 +352,8 @@ const getStyles = (type: NotificationType, toastType?: string) => {
         case 'notif:call': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
         case 'notif:privateMeet': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
         case 'notif:privateMeetMsg': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:missedCall': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:missedMeet': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
 
     }
 
@@ -396,6 +460,24 @@ const getNativeNotificationContext = (notif: Notification): NativeNotifContext |
                 title: 'Session éphémère',
                 singleBody: `${name} vous a écrit`,
                 pluralBody: (count) => `${count} nouveaux messages de ${name}`
+            };
+        }
+        case 'notif:missedCall': {
+            const name = formatName(notif.missedCall?.user?.name);
+            return {
+                key: `missedCall:${notif.missedCall?.id}`,
+                title: 'Appel manqué',
+                singleBody: name,
+                pluralBody: (count) => `${count} appels manqués de ${name}`
+            };
+        }
+        case 'notif:missedMeet': {
+            const name = formatName(notif.missedMeet?.user?.name);
+            return {
+                key: `missedMeet:${notif.missedMeet?.id}`,
+                title: 'Session éphémère manquée',
+                singleBody: name,
+                pluralBody: (count) => `${count} invitations manquées de ${name}`
             };
         }
         default:

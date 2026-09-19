@@ -195,7 +195,21 @@ const initPeer = async (userId?: string): Promise<void> => {
         socket.value?.on('privateMeet:declined', () => {
             const { show } = useToast();
             show('La conversation a été refusée.', 'error');
-            endMeet();
+            // cleanupMeetState() (pas endMeet()) : on réagit déjà à un signal
+            // distant, pas la peine de renvoyer privateMeet:cancel à
+            // quelqu'un qui vient justement de nous répondre.
+            cleanupMeetState();
+        });
+
+        // Symétrique de privateMeet:declined, côté appelé cette fois : reçu
+        // quand l'appelant raccroche/abandonne avant qu'on ait répondu (ou
+        // pendant que la connexion P2P s'établissait). OrgLayout.vue gère en
+        // plus le retrait de la carte "invitation entrante" et le "manqué"
+        // qui doit rester derrière — ce composable ne s'occupe ici que de
+        // nettoyer son propre état (sonnerie, éventuelle connexion en cours).
+        socket.value?.off('privateMeet:cancelled');
+        socket.value?.on('privateMeet:cancelled', () => {
+            cleanupMeetState();
         });
 
     } catch (error) {
@@ -703,14 +717,26 @@ const getConnectionType = async (): Promise<'direct' | 'relay' | 'unknown'> => {
     }
 };
 
+// Émis quand JE mets fin à une session localement (raccrocher pendant que ça
+// sonne/se connecte, ou un des timeouts sans réponse) AVANT qu'elle ait
+// jamais été établie — sans ce signal, l'autre côté n'avait aucun moyen de
+// savoir qu'on avait abandonné : sa carte "invitation entrante" restait
+// affichée indéfiniment, et son propre statut de connexion restait bloqué.
+// Ne PAS appeler ceci depuis un handler qui réagit déjà à un signal distant
+// (privateMeet:declined/cancelled) — ça renverrait le signal à l'infini vers
+// quelqu'un qui vient justement de l'émettre.
+const notifyMeetCancelledIfUnconnected = () => {
+    if (isConnected.value) return;
+    const targetUserId = activeMeetPeerUserId.value;
+    if (!targetUserId) return;
+    useWSocket().then(socket => socket.value?.emit('privateMeet:cancel', { targetUserId }));
+};
+
 /**
- * Termine la session en cours explicitement (bouton raccrocher). Ce n'est
- * plus déclenché automatiquement au démontage de PrivateMeetView.vue — une
- * session éphémère doit survivre à la navigation, seule une action
- * explicite (ou l'autre partie qui ferme) doit y mettre fin.
- * close({flush:true}) fait circuler un message de fermeture à travers le
- * canal avant de le fermer, pour que le correspondant le sache tout de
- * suite plutôt que de devoir attendre la détection ICE.
+ * Nettoyage local pur, sans notifier personne — utilisé par endMeet() (après
+ * avoir notifié l'autre côté si besoin) ET directement par les handlers qui
+ * réagissent à un signal DÉJÀ reçu de l'autre côté (privateMeet:declined,
+ * privateMeet:cancelled), où prévenir en retour n'aurait pas de sens.
  *
  * Ne détruit PAS peer.value : c'est le point d'écoute PeerJS pour TOUTE la
  * session org (initialisé une fois par OrgLayout.vue), pas par conversation
@@ -718,7 +744,7 @@ const getConnectionType = async (): Promise<'direct' | 'relay' | 'unknown'> => {
  * éphémère après la première (même choix que cleanupCall() dans
  * useSecurePeer.ts, qui ne détruit jamais son peer non plus).
  */
-const endMeet = () => {
+const cleanupMeetState = () => {
     stopRingtone();
     connection.value?.close({ flush: true });
     connection.value = null;
@@ -746,6 +772,22 @@ const endMeet = () => {
     incomingFileTransfers.clear();
 
     clearPendingCallTimeout();
+};
+
+/**
+ * Termine la session en cours explicitement (bouton raccrocher, ou l'un des
+ * timeouts sans réponse dans startMeet()/acceptIncomingMeet()). Ce n'est plus
+ * déclenché automatiquement au démontage de PrivateMeetView.vue — une
+ * session éphémère doit survivre à la navigation, seule une action
+ * explicite (ou l'autre partie qui ferme) doit y mettre fin.
+ * close({flush:true}) fait circuler un message de fermeture à travers le
+ * canal avant de le fermer si la session était déjà connectée ; sinon
+ * (encore en sonnerie/en cours d'établissement), notifyMeetCancelledIfUnconnected()
+ * prévient l'autre côté par le même canal socket que privateMeet:call.
+ */
+const endMeet = () => {
+    notifyMeetCancelledIfUnconnected();
+    cleanupMeetState();
 };
 
 // Conservé pour compatibilité de nommage avec l'existant (composants qui

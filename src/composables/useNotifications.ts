@@ -5,7 +5,7 @@ import useWSocket, { waitForSocketConnection } from "./useWSocket";
 import router from "@/router";
 
 
-type NotificationType = 'toast' | 'notif:msg' | 'notif:dmmsg' | 'notif:call' | 'notif:privateMeet' | 'notif:privateMeetMsg';
+type NotificationType = 'toast' | 'notif:msg' | 'notif:dmmsg' | 'notif:call' | 'notif:privateMeet' | 'notif:privateMeetMsg' | 'notif:missedCall' | 'notif:missedMeet';
 
 interface Notification {
 
@@ -32,6 +32,13 @@ interface Notification {
     privateMeet?: OrgMember;
     privateMeetMsg?: OrgMember;
 
+    // if notif:missedCall / notif:missedMeet — laissé derrière quand un
+    // appel DM ou une invitation à une session éphémère n'a jamais abouti
+    // (annulé par l'appelant, ou personne n'a répondu), pour qu'il en reste
+    // une trace visible même une fois la sonnerie/carte d'appel disparue.
+    missedCall?: OrgMember;
+    missedMeet?: OrgMember;
+
 }
 
 const { toasts } = useToast();
@@ -40,6 +47,15 @@ const messageNotif = ref<Message[]>([]);
 const notifications = ref<Notification[]>([]);
 
 const removeAfter: number = 3000;
+
+// Compteur monotone plutôt que `notifications.value.length + 1` (l'ancien
+// schéma) : une fois qu'une notification est retirée entre-temps, `length`
+// peut retomber sur une valeur déjà utilisée par une autre — deux
+// notifications distinctes se retrouvant avec le même id, `remove(id)`
+// (utilisé maintenant pour retirer une carte d'invitation précise dès
+// l'annulation par l'appelant) risquerait alors de retirer la mauvaise.
+let nextNotifId = 1;
+const allocNotifId = () => nextNotifId++;
 
 watch(callNotif, (newList) => {
 
@@ -54,7 +70,7 @@ watch(callNotif, (newList) => {
         {
 
             notifications.value.push({
-                id: Date.now(),
+                id: allocNotifId(),
                 type: 'notif:call',
                 createdAt: new Date(),
                 call: lastCall
@@ -80,7 +96,7 @@ watch(() => messageNotif.value, () => {
     if (messageNotif.value.length > lastMsgNotifLength)
     {
 
-        const id: number = notifications.value.length + 1;
+        const id: number = allocNotifId();
 
         notifications.value.push({
             id,
@@ -106,7 +122,7 @@ watch(() => toasts.value, () => {
     if (toasts.value.length > lastToastsLength)
     {
 
-        const id: number = notifications.value.length + 1;
+        const id: number = allocNotifId();
 
         notifications.value.push({
             id,
@@ -131,9 +147,12 @@ const remove = (id: number) => {
     notifications.value = notifications.value.filter(n => n.id !== id);
 }
 
-const notify = (type: NotificationType, payload: any, timeout?: number) => {
-    
-    const id: number = notifications.value.length + 1;
+// Retourne l'id de la notification créée — utilisé notamment pour retirer
+// précisément une carte d'invitation privateMeet (timeout: -1, donc pas
+// d'auto-suppression) dès que l'appelant annule.
+const notify = (type: NotificationType, payload: any, timeout?: number): number => {
+
+    const id: number = allocNotifId();
 
     if (type === 'toast')
     {
@@ -190,6 +209,24 @@ const notify = (type: NotificationType, payload: any, timeout?: number) => {
             privateMeetMsg: payload
         });
     }
+    else if (type === 'notif:missedCall')
+    {
+        notifications.value.push({
+            id,
+            type,
+            createdAt: new Date(),
+            missedCall: payload
+        });
+    }
+    else if (type === 'notif:missedMeet')
+    {
+        notifications.value.push({
+            id,
+            type,
+            createdAt: new Date(),
+            missedMeet: payload
+        });
+    }
 
     if (timeout !== -1)
     {
@@ -197,6 +234,8 @@ const notify = (type: NotificationType, payload: any, timeout?: number) => {
             remove(id);
         }, timeout || removeAfter);
     }
+
+    return id;
 
 };
 

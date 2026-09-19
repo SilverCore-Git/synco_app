@@ -225,7 +225,7 @@ async function generateFingerprint(sessionKey: CryptoKey, callId: string): Promi
 // ============================================================================
 
 export default function useSecurePeer() {
-    const { callNotif } = useNotifications();
+    const { callNotif, notify } = useNotifications();
 
     /**
      * Initialize the Peer with secure configuration
@@ -332,6 +332,10 @@ export default function useSecurePeer() {
             callNotif.value = callNotif.value.filter(m => m.user?.id !== call.peer);
             ringtone.pause();
             ringtone.currentTime = 0;
+            // La carte "Appel entrant" disparaît (ligne au-dessus), mais sans
+            // rien d'autre il n'en reste aucune trace — comme un vrai
+            // téléphone, on laisse un "appel manqué" derrière.
+            notify('notif:missedCall', member, 8000);
         });
 
         enteringCall.value = call;
@@ -1370,9 +1374,18 @@ export default function useSecurePeer() {
         cleanupPeer,
         rejectCall: () => {
             if (!enteringCall.value) return;
-            enteringCall.value.close();
-            callNotif.value = callNotif.value.filter(m => m.user?.id !== enteringCall.value?.peer);
+            const call = enteringCall.value;
+            // Nullifié AVANT .close() : le listener 'close' posé dans
+            // handleIncomingCall (qui pousse la notification "Appel manqué"
+            // quand c'est l'APPELANT qui raccroche avant réponse) se base sur
+            // `enteringCall.value !== call` pour ignorer une fermeture qu'on a
+            // nous-mêmes déclenchée via "Refuser" — un refus explicite n'est
+            // pas un appel manqué. Si .close() émet 'close' de façon
+            // synchrone (comportement PeerJS), l'ancien ordre (close() avant
+            // la remise à null) aurait laissé passer la garde par erreur.
             enteringCall.value = null;
+            call.close();
+            callNotif.value = callNotif.value.filter(m => m.user?.id !== call.peer);
             ringtone.pause();
             ringtone.currentTime = 0;
         },
