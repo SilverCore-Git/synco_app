@@ -85,7 +85,7 @@ watch(callNotif, (newList) => {
     // notification : sinon elle reste affichée indéfiniment avec des
     // boutons "Répondre"/"Refuser" pointant vers un appel déjà terminé.
     const stillRinging = new Set((newList || []).map(m => m.id));
-    notifications.value = notifications.value.filter(n => n.type !== 'notif:call' || stillRinging.has(n.call?.id));
+    notifications.value = notifications.value.filter(n => n.type !== 'notif:call' || (!!n.call?.id && stillRinging.has(n.call.id)));
 
 }, { deep: true });
 

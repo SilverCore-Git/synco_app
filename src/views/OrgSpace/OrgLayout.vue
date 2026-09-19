@@ -331,7 +331,7 @@ const initSocketListener = async () => {
 
         }
 
-        const space = openedOrg.value!.spaces![index];
+        const space = openedOrg.value!.spaces![index]!;
         space.logo = data.logo;
         space.name = data.name;
         space.membersId = data.members;
@@ -476,7 +476,7 @@ const initSocketListener = async () => {
         // Tient le cache partagé "DM récents" à jour même si ThreadsBar est
         // démonté (Tasks/Agenda/Home) — ce listener est le seul persistant
         // pour toute la durée de vie de l'org.
-        recordDMInteraction(conversationPeerId, newMessage.createdAt);
+        recordDMInteraction(conversationPeerId, new Date(newMessage.createdAt).toISOString());
 
         const peerMemberId = openedOrg.value?.members?.find(m => m.user?.id === conversationPeerId)?.id;
         const isCurrentConversation = (route.name === 'OrgThreadChat' || route.name === 'OrgThreadChatPrivateMeet') && route.params.userId === peerMemberId;
