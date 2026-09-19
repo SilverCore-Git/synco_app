@@ -220,11 +220,24 @@ jobs:
           path: release-assets
           merge-multiple: true
 
+      # `github.run_number` est toujours figé à 1 sous act (pas un vrai run GitHub), donc
+      # `dev-${{ github.run_number }}` écraserait la même release "dev-1" à chaque test local.
+      # On calcule ici le prochain numéro à partir des releases "dev-N" déjà publiées sur le repo.
+      - name: Calcul du prochain numéro de build (uniquement pour les tests locaux via act)
+        id: buildnum
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LAST=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases?per_page=100" \
+            | grep -o '"tag_name": *"dev-[0-9]\+"' | grep -o '[0-9]\+' | sort -n | tail -1)
+          echo "next=$(( ${LAST:-0} + 1 ))" >> "$GITHUB_OUTPUT"
+
       - name: Création de la release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: dev-${{ github.run_number }}
-          name: "Synco dev build #${{ github.run_number }}"
+          tag_name: dev-${{ steps.buildnum.outputs.next }}
+          name: "Synco dev build #${{ steps.buildnum.outputs.next }}"
           prerelease: true
           generate_release_notes: true
           files: release-assets/**
