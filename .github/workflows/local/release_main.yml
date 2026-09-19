@@ -1,4 +1,4 @@
-name: Release on main
+name: Release on main (local act test)
 
 on:
   push:
@@ -28,6 +28,9 @@ jobs:
 
       - name: Configuration du SDK Android
         uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: true
+          packages: 'platform-tools' # le paquet legacy "tools" n'existe plus dans le repo Google (cf android-actions/setup-android#537)
 
       - name: Génération des fichiers .env
         run: |
@@ -48,7 +51,9 @@ jobs:
       - name: Build de l'APK debug (non signé)
         working-directory: android
         run: |
+          sed -i 's/\r$//' gradlew
           chmod +x gradlew
+          sed -i '/org.gradle.java.home/d' gradle.properties # ignore un org.gradle.java.home local (chemin Windows non portable en CI)
           ./gradlew assembleDebug
 
       - name: Upload de l'APK
@@ -61,6 +66,12 @@ jobs:
 
   build-windows-msi:
     name: Build de l'installeur Windows (MSI)
+    # Enchaîné après build-android-apk (au lieu de tourner en parallèle) : sous `act` sur Windows, les
+    # jobs concurrents partagent le même checkout/dossier de travail réel (contrairement au vrai CI
+    # GitHub où chaque job a sa propre VM isolée), ce qui a corrompu .env/.env.production pendant un
+    # build simultané (VITE_API_URL embarqué en "http://localhost:9000" au lieu de la vraie valeur).
+    # Un seul `act push` reste possible, l'exécution est juste séquentielle au lieu de parallèle.
+    needs: build-android-apk
     runs-on: windows-latest
     steps:
       - name: Checkout du code
@@ -91,6 +102,7 @@ jobs:
 
   build-linux-appimage:
     name: Build de l'AppImage Linux
+    needs: build-windows-msi # voir commentaire sur build-windows-msi : exécution séquentielle voulue sous act
     runs-on: ubuntu-latest
     steps:
       - name: Checkout du code
@@ -108,11 +120,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev \
-            build-essential curl wget file libxdo-dev libssl-dev \
+            build-essential curl wget file libxdo-dev libssl-dev patchelf \
             libayatana-appindicator3-dev librsvg2-dev desktop-file-utils \
             gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
             gstreamer1.0-plugins-bad gstreamer1.0-libav \
             xdg-utils shared-mime-info
+          sudo apt-get install -y libfuse2t64 || sudo apt-get install -y libfuse2 # linuxdeploy (AppImage) est lié à l'ABI fuse2, absente par défaut sur ubuntu-24.04+
 
       - name: Génération des fichiers .env
         run: |
@@ -125,20 +138,20 @@ jobs:
       - name: Build de l'AppImage
         env:
           NODE_OPTIONS: --max-old-space-size=6144
+          # Pas de APPIMAGE_EXTRACT_AND_RUN ici (contrairement au vrai CI) : sous act/Docker, ce mode
+          # provoque une race condition sur le plugin gtk (le dossier d'extraction temporaire de
+          # linuxdeploy est nettoyé avant que le plugin ne s'exécute -> "exit code 127"). En local on
+          # utilise du vrai FUSE à la place, via `act --privileged` (ou --container-options "--privileged").
+          NO_STRIP: "true" # le strip des binutils récents (ubuntu-24.04+) plante sur la section .relr.dyn de certaines libs (cf tauri-apps/tauri#15106)
         run: bun run tauri:build -- --bundles appimage
 
-      - name: Retrait de libs bundlées problématiques (EGL_BAD_PARAMETER sur Mesa 25+ cf tauri-apps/tauri#15665, segfault GStreamer/JACK)
+      - name: Retrait de libwayland-client bundlée (EGL_BAD_PARAMETER sur Mesa 25+, cf tauri-apps/tauri#15665)
         run: |
           cd src-tauri/target/release/bundle/appimage
           APPIMAGE=$(ls *.AppImage)
           chmod +x "$APPIMAGE"
           ./"$APPIMAGE" --appimage-extract
           rm -f squashfs-root/usr/lib/libwayland-client.so.0
-          # libgstfluidsynthmidi.so (rendu MIDI, inutilisé par l'app) dépend de la couche de
-          # compat JACK de pipewire ; sur certaines distros la version système de pipewire n'a
-          # pas le symbole attendu (pw_log_topic_register), ce qui fait planter (SIGSEGV) le
-          # scan des plugins GStreamer au lancement, avant même d'afficher une fenêtre.
-          rm -f squashfs-root/usr/lib/gstreamer-1.0/libgstfluidsynthmidi.so
           curl -sL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool
           ./appimagetool --appimage-extract-and-run squashfs-root "$APPIMAGE"
@@ -154,6 +167,7 @@ jobs:
 
   build-docker-image:
     name: Build et push de l'image Docker (front, prod)
+    needs: build-linux-appimage # voir commentaire sur build-windows-msi : exécution séquentielle voulue sous act
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -196,7 +210,7 @@ jobs:
 
   create-release:
     name: Création de la release GitHub
-    needs: [ build-android-apk, build-windows-msi, build-linux-appimage ]
+    needs: [ build-android-apk, build-windows-msi, build-linux-appimage, build-docker-image ]
     runs-on: ubuntu-latest
     steps:
       - name: Téléchargement des artefacts

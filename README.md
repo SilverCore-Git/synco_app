@@ -88,6 +88,22 @@ npm run preview       # Preview production build
 npm run type-check    # TypeScript validation
 ```
 
+### Building the Linux AppImage locally on Fedora
+
+`linuxdeploy`'s cached tools assume Ubuntu/Debian paths and a `strip` that
+understands whatever ELF features your toolchain emits. On Fedora, set these
+before `npm run tauri:build -- --bundles appimage` (adjust the GStreamer paths
+if `rpm -ql gstreamer1` reports something else on your version):
+
+```bash
+export NO_STRIP=true
+export GSTREAMER_PLUGINS_DIR=/usr/lib64/gstreamer-1.0
+export GSTREAMER_HELPERS_DIR=/usr/libexec/gstreamer-1.0
+```
+
+`fuse-libs` must also be installed (`sudo dnf install fuse-libs`) since Tauri
+runs `linuxdeploy` as an AppImage itself.
+
 ## 🎯 Development Guidelines
 
 - **TypeScript Strict**: Zero `any` types allowed
