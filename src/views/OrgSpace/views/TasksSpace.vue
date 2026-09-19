@@ -451,13 +451,11 @@ import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import confetti from 'canvas-confetti';
 import { useNotification } from '@/composables/useNotification';
 import { useTaskOrder } from '@/composables/useTaskOrder';
-import { useTaskTags } from '@/composables/useTaskTags';
 
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const { fetchOrder, sortByOrder, persistOrder } = useTaskOrder(route.params.orgId as string);
-const { tags, loadTags } = useTaskTags(route.params.orgId as string);
 const { showUsersBar } = useUsersBar();
 const { markTasksAsRead } = useNotification();
 
@@ -912,7 +910,6 @@ const onCardDrop = async (e: DragEvent, targetTask: Task, newStatus: string) => 
 
 onMounted(async () => {
     fetchOrder();
-    loadTags();
     loadTasks();
 
     const socket = await useWSocket();

@@ -91,18 +91,18 @@
                         />
 
                         <!-- Task Card -->
-                        <TaskCard 
-                            v-else-if="res.type === 'TODO'" 
-                            :task="{ 
-                                id: res.id, 
-                                title: res.textContent, 
-                                status: res.metadata?.status || 'TODO', 
-                                dueDate: res.metadata?.dueDate, 
-                                assignees: res.metadata?.assignees || [], 
+                        <TaskCard
+                            v-else-if="res.type === 'TODO'"
+                            :task="({
+                                id: res.id,
+                                title: res.textContent,
+                                status: res.metadata?.status || 'TODO',
+                                dueDate: res.metadata?.dueDate,
+                                assignees: res.metadata?.assignees || [],
                                 subtasks: res.metadata?.subtasks || [],
                                 parentTask: res.metadata?.parentTask,
                                 createdAt: res.metadata?.createdAt
-                            }" 
+                            } as any)"
                         />
 
                         <!-- Thread Card -->
