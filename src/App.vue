@@ -396,7 +396,7 @@ onMounted(async () => {
         <div class="mb-8 text-center max-w-lg">
 
           <div class="flex flex-col items-center gap-4 mb-3">
-            <img src="/banner.svg" alt="Logo" class="h-16" />
+            <img :src="theme === 'light' ? '/assets/logo/synco/light_banner_synco.svg' : '/banner.svg'" alt="Logo" class="h-16" />
           </div>
 
           <h2 class="text-xl font-bold text-(--text)">
@@ -494,7 +494,7 @@ onMounted(async () => {
 
               <div class="flex flex-col items-center gap-4 mb-3">
 
-                <img src="/banner.svg" alt="Logo" class=" h-16" />
+                <img :src="theme === 'light' ? '/assets/logo/synco/light_banner_synco.svg' : '/banner.svg'" alt="Logo" class=" h-16" />
 
               </div>
 
