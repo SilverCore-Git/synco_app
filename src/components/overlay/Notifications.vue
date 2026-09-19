@@ -34,7 +34,7 @@
                             
                             <div class="relative shrink-0">
                                 <img
-                                    :src="(notif.msg as any)?.isWebhook ? ((notif.msg as any)?.webhookAvatar || `https://ui-avatars.com/api/?name=${(notif.msg as any)?.webhookName || 'Webhook'}&background=7c3aed&color=fff`) : ((notif.msg as any)?.sender?.avatarUrl || '')"
+                                    :src="(notif.msg as any)?.isWebhook ? ((notif.msg as any)?.webhookAvatar || `https://ui-avatars.com/api/?name=${(notif.msg as any)?.webhookName || 'Webhook'}&background=7c3aed&color=fff`) : ((notif.msg as any)?.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${$p((notif.msg as any)?.sender?.name)}&background=128a60&color=fff`)"
                                     class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
                                 />
                             </div>
@@ -91,8 +91,8 @@
                             <div class="flex items-center gap-3">
 
                                 <div class="relative">
-                                    <img 
-                                        :src="notif.call?.user?.avatarUrl || ''"
+                                    <img
+                                        :src="notif.call?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(notif.call?.user?.name)}&background=128a60&color=fff`"
                                         class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
                                     />
                                 </div>
@@ -135,8 +135,8 @@
                             <div class="flex items-center gap-3">
 
                                 <div class="relative">
-                                    <img 
-                                        :src="notif.privateMeet?.user?.avatarUrl || ''"
+                                    <img
+                                        :src="notif.privateMeet?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(notif.privateMeet?.user?.name)}&background=128a60&color=fff`"
                                         class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
                                     />
                                 </div>

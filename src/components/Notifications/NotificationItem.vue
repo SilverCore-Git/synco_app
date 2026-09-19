@@ -117,7 +117,18 @@ const displaySender = computed(() => {
   return props.notification.metadata?.senderName || 'Système';
 });
 
-const senderAvatar = computed(() => props.notification.metadata?.senderAvatar as string | undefined);
+// PP si on en a une, sinon les initiales générées comme partout ailleurs
+// dans l'app (cf. ChatUserBtn.vue, Notifications.vue, ...) — seule une
+// notification sans expéditeur identifiable (système, CALL/INVITATION
+// sans personne associée) retombe sur l'icône générique du type.
+const senderAvatar = computed(() => {
+  const realAvatar = props.notification.metadata?.senderAvatar as string | undefined;
+  if (realAvatar) return realAvatar;
+  if (displaySender.value && displaySender.value !== 'Système') {
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(displaySender.value)}&background=128a60&color=fff`;
+  }
+  return undefined;
+});
 </script>
 
 <template>
