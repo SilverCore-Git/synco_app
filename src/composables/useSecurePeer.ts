@@ -146,18 +146,40 @@ async function deriveSharedSecret(
 
     const salt = await deriveSessionSalt(callId);
 
-    const sharedSecret = await crypto.subtle.deriveKey(
-        {
-            name: 'ECDH',
-            public: peerPublicKey
-        },
+    // deriveKey() ne peut pas enchaîner ECDH -> HKDF en un seul appel : son
+    // 3e paramètre (derivedKeyAlgorithm) décrit l'algorithme de la clé FINALE
+    // désirée, pas une seconde étape de dérivation — passer {name:'HKDF',...}
+    // là ne produit pas une clé AES-GCM utilisable et échoue (DOMException
+    // "An invalid or illegal string was specified"). Le chaînage ECDH -> HKDF
+    // -> AES-GCM demande 3 étapes explicites :
+
+    // 1. Bits bruts du secret partagé ECDH.
+    const sharedBits = await crypto.subtle.deriveBits(
+        { name: 'ECDH', public: peerPublicKey },
         privKey,
+        256
+    );
+
+    // 2. Ces bits importés comme clé de base HKDF (non extractible, ne sert
+    //    qu'à dériver — jamais utilisée directement pour chiffrer).
+    const hkdfBaseKey = await crypto.subtle.importKey(
+        'raw',
+        sharedBits,
+        'HKDF',
+        false,
+        ['deriveKey']
+    );
+
+    // 3. Clé AES-GCM finale, dérivée via HKDF (salt + info) depuis la base.
+    const sharedSecret = await crypto.subtle.deriveKey(
         {
             name: 'HKDF',
             hash: 'SHA-256',
             info: new TextEncoder().encode('SilverTeams-Call-E2EE-Key'),
             salt
         },
+        hkdfBaseKey,
+        { name: 'AES-GCM', length: 256 },
         true,
         ['encrypt', 'decrypt']
     );
