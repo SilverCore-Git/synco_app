@@ -7,7 +7,7 @@
                 <h3 class="font-semibold text-(--text)">Mes Tâches</h3>
             </div>
 
-            <TaskProgressGauge :tasks="myTasks" class="mx-auto" />
+            <TaskProgressGauge :tasks="visibleTasks" class="mx-auto" />
 
             <div class="ml-auto flex items-center gap-4">
                 <CreateTaskModal @created="onTaskCreated">
@@ -490,14 +490,23 @@ const filterSpaceLabel = computed(() => {
     return spaceOptions.value.find(s => s.id === filterSpaceId.value)?.name || 'Espace';
 });
 
-const filteredTasks = (status: string) => {
-    return sortByOrder(myTasks.value.filter(t => {
-        if (t.archived || t.status !== status) return false;
+// Base commune à la jauge de progression (TaskProgressGauge) ET aux
+// colonnes du tableau (filteredTasks ci-dessous) — sans ça, la jauge lisait
+// myTasks brut (tout, tous espaces/tags confondus) pendant que le tableau
+// appliquait déjà les filtres, donc sélectionner un espace ou un tag
+// changeait ce qui s'affichait sans jamais faire bouger la jauge.
+const visibleTasks = computed(() => {
+    return myTasks.value.filter(t => {
+        if (t.archived) return false;
         if (filterTagIds.value.length && !t.tags?.some(tag => filterTagIds.value.includes(tag.id))) return false;
         if (filterSpaceId.value === 'personal' && t.spaceId) return false;
         if (filterSpaceId.value && filterSpaceId.value !== 'personal' && t.spaceId !== filterSpaceId.value) return false;
         return true;
-    }));
+    });
+});
+
+const filteredTasks = (status: string) => {
+    return sortByOrder(visibleTasks.value.filter(t => t.status === status));
 };
 
 const loadLists = async () => {

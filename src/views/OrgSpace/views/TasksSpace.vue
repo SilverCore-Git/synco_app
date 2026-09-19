@@ -7,7 +7,7 @@
                 <h3 class="font-semibold text-(--text)">Tâches</h3>
             </div>
             
-            <TaskProgressGauge :tasks="tasks.filter(t => !filterUserId || t.assignees?.some(a => a.id === filterUserId))" class="mx-auto" />
+            <TaskProgressGauge :tasks="visibleTasks" class="mx-auto" />
             
             <div class="flex items-center gap-4">
                 <CreateTaskModal 
@@ -535,13 +535,21 @@ const spaceMembers = computed<OrgMember[]>(() => {
     return openedOrg.value.members.filter(m => space.membersId.includes(m.userId));
 });
 
-const filteredTasks = (status: string) => {
-    return sortByOrder(tasks.value.filter(t => {
-        if (t.status !== status) return false;
+// Base commune à la jauge de progression (TaskProgressGauge, dans le
+// template ci-dessus) ET aux colonnes (filteredTasks ci-dessous) — avant ce
+// fix, la jauge répliquait seulement le filtre membre à la main et ignorait
+// complètement le filtre par tag, donc filtrer par tag changeait le tableau
+// sans jamais faire bouger la jauge.
+const visibleTasks = computed(() => {
+    return tasks.value.filter(t => {
         if (filterUserId.value && !t.assignees?.some(a => a.id === filterUserId.value)) return false;
         if (filterTagIds.value.length && !t.tags?.some(tag => filterTagIds.value.includes(tag.id))) return false;
         return true;
-    }));
+    });
+});
+
+const filteredTasks = (status: string) => {
+    return sortByOrder(visibleTasks.value.filter(t => t.status === status));
 };
 
 const getProgress = (task: Task) => {
