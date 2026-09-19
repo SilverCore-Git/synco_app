@@ -33,7 +33,7 @@
         </div>
 
         <div class="flex flex-col flex-1 min-w-0 relative">
-            <span class="text-sm font-bold truncate tracking-tight" :class="user?.user && getUnreadCountByDMUserId(user.user.id).value > 0 ? 'text-red-400' : ''">
+            <span class="text-sm font-bold truncate tracking-tight" :class="hasUnread ? 'text-red-400' : ''">
                 {{ $p(user?.user?.name) }}
             </span>
             <span class="text-[10px] opacity-40 uppercase tracking-widest font-medium leading-none">
@@ -41,8 +41,8 @@
             </span>
         </div>
 
-        <div 
-            v-if="user?.user && getUnreadCountByDMUserId(user.user.id).value > 0"
+        <div
+            v-if="hasUnread"
             class="ml-auto w-2 h-2 mr-1.5 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]"
         />
 
@@ -61,6 +61,7 @@
 
 <script lang="ts" setup>
 
+import { computed } from 'vue';
 import getColorByStatus from '@/assets/utils/getColorByStatus';
 import type { OrgMember } from '@/types/types';
 import useSecurePeer from '@/composables/useSecurePeer';
@@ -75,5 +76,12 @@ const props = defineProps<{
 const emit = defineEmits(['click']);
 const { startCall } = useSecurePeer();
 const { getUnreadCountByDMUserId } = useNotification();
+
+// Mémorisé ici plutôt qu'appelé deux fois dans le template : chaque appel de
+// getUnreadCountByDMUserId() construit un nouveau computed() (cf.
+// useNotification.ts), donc l'appeler inline recréait cet objet à chaque
+// rendu, pour chaque utilisateur de la liste DM — coût redondant qui
+// s'additionnait avec le nombre de conversations affichées.
+const hasUnread = computed(() => !!props.user.user && getUnreadCountByDMUserId(props.user.user.id).value > 0);
 
 </script>
