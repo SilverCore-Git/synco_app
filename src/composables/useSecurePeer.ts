@@ -88,10 +88,18 @@ const remoteMediaEls = new Map<string, HTMLMediaElement>();
 // Session keys for E2EE
 const sessionPrivateKey = ref<CryptoKey | null>(null);
 const sessionPublicKeyJWK = ref<string>('');
-const callEncryptionKeys = shallowRef<Map<string, CryptoKey>>(new Map());
+// ref() et non shallowRef() : partout dans ce fichier, la mise à jour de ces
+// Maps se fait en récupérant `.value`, en appelant `.set()` dessus, puis en
+// réassignant `.value` à cette MÊME référence — un shallowRef ne déclenche
+// rien dans ce cas (Object.is voit la même référence, donc "pas de
+// changement"), ce qui laissait `securityStatus` figé sur "Chiffrement..."
+// dans CallOverlay.vue même une fois la négociation réellement terminée
+// (le chiffrement media lui-même n'est pas affecté, il lit session.e2eeKey
+// directement — seul l'affichage restait figé).
+const callEncryptionKeys = ref<Map<string, CryptoKey>>(new Map());
 
 // Security status
-const callSecurityStatus = shallowRef<Map<string, SecurityStatus>>(new Map());
+const callSecurityStatus = ref<Map<string, SecurityStatus>>(new Map());
 
 const ringtone = new Audio('/callSound.wav');
 ringtone.loop = true;
