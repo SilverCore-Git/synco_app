@@ -103,15 +103,21 @@ const getActionText = (type: string, data: any) => {
   }
 };
 
-// Afficher l'expéditeur
+// Afficher l'expéditeur — createAndSendNotification() ne fait jamais
+// d'include Prisma sur `sender` (seule la route GET /notifications le fait,
+// et sans displayName/username), donc pour une notification reçue en direct
+// via le socket, `sender` est quasi toujours vide : on retombe alors sur
+// `metadata.senderName`, déjà rempli côté backend pour les messages.
 const displaySender = computed(() => {
   if (props.notification.sender) {
-    return props.notification.sender.displayName || 
-           props.notification.sender.username || 
+    return props.notification.sender.displayName ||
+           props.notification.sender.username ||
            props.notification.sender.id;
   }
-  return 'Système';
+  return props.notification.metadata?.senderName || 'Système';
 });
+
+const senderAvatar = computed(() => props.notification.metadata?.senderAvatar as string | undefined);
 </script>
 
 <template>
@@ -121,7 +127,13 @@ const displaySender = computed(() => {
     @click="handleClick"
   >
     <div class="notification-content">
-      <div class="notification-icon" :style="{ color: getNotificationColor(props.notification.type) }">
+      <img
+        v-if="senderAvatar"
+        :src="senderAvatar"
+        :alt="displaySender"
+        class="notification-avatar"
+      />
+      <div v-else class="notification-icon" :style="{ color: getNotificationColor(props.notification.type) }">
         <svg v-if="props.notification.type === 'MESSAGE'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
         </svg>
@@ -213,6 +225,14 @@ const displaySender = computed(() => {
   flex-shrink: 0;
   width: 24px;
   height: 24px;
+}
+
+.notification-avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .notification-icon :deep(svg) {
