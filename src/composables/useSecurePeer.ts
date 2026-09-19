@@ -519,6 +519,7 @@ export default function useSecurePeer() {
                 // propre offer via ce canal pour qu'on négocie manuellement.
                 case 'RENEGOTIATE_OFFER':
                     if (message.sdp) {
+                        console.log('[SECURE-PEER] RENEGOTIATE_OFFER reçue de', peerId, '— signalingState avant:', session.call.peerConnection.signalingState);
                         const pc = session.call.peerConnection;
                         await pc.setRemoteDescription(message.sdp);
                         const answer = await pc.createAnswer();
@@ -529,12 +530,18 @@ export default function useSecurePeer() {
                             timestamp: Date.now(),
                             callId: session.callId
                         } satisfies KeyExchangeMessage));
+                        console.log('[SECURE-PEER] RENEGOTIATE_ANSWER envoyée à', peerId, '— senders vidéo:', pc.getSenders().filter(s => s.track?.kind === 'video').length, 'receivers vidéo:', pc.getReceivers().filter(r => r.track?.kind === 'video').length);
+                    } else {
+                        console.warn('[SECURE-PEER] RENEGOTIATE_OFFER reçue sans sdp de', peerId);
                     }
                     break;
 
                 case 'RENEGOTIATE_ANSWER':
                     if (message.sdp) {
                         await session.call.peerConnection.setRemoteDescription(message.sdp);
+                        console.log('[SECURE-PEER] RENEGOTIATE_ANSWER appliquée pour', peerId, '— signalingState:', session.call.peerConnection.signalingState);
+                    } else {
+                        console.warn('[SECURE-PEER] RENEGOTIATE_ANSWER reçue sans sdp de', peerId);
                     }
                     break;
             }
@@ -563,12 +570,13 @@ export default function useSecurePeer() {
     const triggerRenegotiation = async (peerId: string) => {
         const session = activeCalls.value.get(peerId);
         if (!session?.dataChannel || session.dataChannel.readyState !== 'open') {
-            console.warn('[SECURE-PEER] Impossible de renégocier : canal de signalisation indisponible pour', peerId);
+            console.warn('[SECURE-PEER] Impossible de renégocier : canal de signalisation indisponible pour', peerId, '(dataChannel:', session?.dataChannel?.readyState, ')');
             return;
         }
 
         try {
             const pc = session.call.peerConnection;
+            console.log('[SECURE-PEER] triggerRenegotiation pour', peerId, '— senders vidéo avant offer:', pc.getSenders().filter(s => s.track?.kind === 'video').length, 'signalingState:', pc.signalingState);
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
             session.dataChannel.send(JSON.stringify({
@@ -577,6 +585,7 @@ export default function useSecurePeer() {
                 timestamp: Date.now(),
                 callId: session.callId
             } satisfies KeyExchangeMessage));
+            console.log('[SECURE-PEER] RENEGOTIATE_OFFER envoyée à', peerId);
         } catch (err) {
             console.error('[SECURE-PEER] triggerRenegotiation a échoué:', err);
         }
@@ -619,6 +628,13 @@ export default function useSecurePeer() {
         call.on('stream', (incomingStream) => {
             ringtone.pause();
             ringtone.currentTime = 0;
+
+            console.log(
+                '[SECURE-PEER] "stream" event for', peerId,
+                '— audio tracks:', incomingStream.getAudioTracks().length,
+                'video tracks:', incomingStream.getVideoTracks().length,
+                'stream id:', incomingStream.id
+            );
 
             // Store remote stream (DTLS-SRTP encryption is automatic in WebRTC)
             const streams = remoteStreams.value;
@@ -864,8 +880,10 @@ export default function useSecurePeer() {
         activeCalls.value.forEach(session => {
             const sender = session.call.peerConnection.getSenders().find(s => s.track?.kind === 'video');
             if (sender) {
+                console.log('[SECURE-PEER] publishVideoTrack: sender vidéo existant, replaceTrack (pas de renégociation nécessaire) pour', session.peerId);
                 sender.replaceTrack(track);
             } else {
+                console.log('[SECURE-PEER] publishVideoTrack: aucun sender vidéo, addTrack + renégociation pour', session.peerId);
                 session.call.peerConnection.addTrack(track, localStream.value!);
                 triggerRenegotiation(session.peerId);
             }
