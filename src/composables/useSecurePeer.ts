@@ -5,6 +5,7 @@ import { openedOrg } from '@/assets/var';
 import useNotifications from './useNotifications';
 import { keycloak } from '@/assets/keycloak';
 import { generateCallId } from '@/assets/utils/webhookCrypto';
+import { getVoicePrefs } from '@/assets/utils/voicePrefs';
 
 // ============================================================================
 // Configuration
@@ -68,6 +69,21 @@ const activeCalls = ref<Map<string, SecureCallSession>>(new Map());
 const isMicOn = ref<boolean>(true);
 const isCamOn = ref<boolean>(false);
 const isScreenSharing = ref<boolean>(false);
+
+// Deafen simple (mute de l'élément média distant) : à 2 personnes, le
+// GainNode par-participant à volume réglable des vocal threads (useLiveKit.ts)
+// serait de la sur-ingénierie — cf. plan.
+const isDeafened = ref<boolean>(false);
+
+// "Le correspondant parle" par peerId — équivalent P2P de ce que LiveKit
+// fournit nativement (ActiveSpeakersChanged) pour les vocal threads.
+const remoteSpeaking = ref<Map<string, boolean>>(new Map());
+
+// Éléments <video>/<audio> du flux distant réellement montés, enregistrés par
+// CallOverlay.vue via :ref — nécessaire pour appliquer setSinkId (changement
+// d'enceinte) sur l'élément qui joue vraiment le son, pas sur le MediaStream
+// lui-même (qui n'a pas cette API).
+const remoteMediaEls = new Map<string, HTMLMediaElement>();
 
 // Session keys for E2EE
 const sessionPrivateKey = ref<CryptoKey | null>(null);
@@ -488,11 +504,17 @@ export default function useSecurePeer() {
         call.on('stream', (incomingStream) => {
             ringtone.pause();
             ringtone.currentTime = 0;
-            
+
             // Store remote stream (DTLS-SRTP encryption is automatic in WebRTC)
             const streams = remoteStreams.value;
             streams.set(peerId, incomingStream);
             remoteStreams.value = streams;
+
+            monitorAudio(incomingStream, (val) => {
+                const speaking = new Map(remoteSpeaking.value);
+                speaking.set(peerId, val);
+                remoteSpeaking.value = speaking;
+            });
         });
 
         call.on('close', () => removePeerFromCall(peerId));
@@ -598,6 +620,112 @@ export default function useSecurePeer() {
     };
 
     /**
+     * Enregistre/désenregistre l'élément <video>/<audio> qui joue réellement
+     * le flux distant d'un peer — appelé via :ref depuis CallOverlay.vue.
+     * Applique tout de suite l'enceinte déjà choisie (voicePrefs), pour que
+     * changer de tuile focus/PiP (donc de <video> monté) ne perde pas le
+     * choix précédent.
+     */
+    const registerRemoteMediaElement = (peerId: string, el: HTMLMediaElement | null) => {
+        if (el) {
+            remoteMediaEls.set(peerId, el);
+            const speakerId = getVoicePrefs().speakerDeviceId;
+            if (speakerId && 'setSinkId' in el) {
+                (el as any).setSinkId(speakerId).catch(() => {});
+            }
+        }
+        // Pas de suppression ici sur démontage (el === null) : le plein écran
+        // et la fenêtre réduite ont chacun leur propre <video>, et pendant la
+        // transition entre les deux, le nouveau peut se monter (et s'enregistrer)
+        // avant que l'ancien ne se démonte — un `delete` ici effacerait alors le
+        // bon élément qui vient d'être enregistré. cleanupCall()/removePeerFromCall()
+        // nettoient déjà la map à la fin de l'appel ou du peer concerné.
+    };
+
+    /**
+     * Change de périphérique micro/caméra/enceinte en cours d'appel, comme
+     * switchDevice() dans useLiveKit.ts pour les vocal threads.
+     */
+    const switchDevice = async (kind: MediaDeviceKind, deviceId: string) => {
+        if (kind === 'audiooutput') {
+            for (const el of remoteMediaEls.values()) {
+                if ('setSinkId' in el) {
+                    await (el as any).setSinkId(deviceId).catch((e: unknown) =>
+                        console.error('[SECURE-PEER] setSinkId a échoué:', e));
+                }
+            }
+            return;
+        }
+
+        try {
+            const newStream = kind === 'audioinput'
+                ? await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } } })
+                : await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } });
+
+            const newTrack = kind === 'audioinput' ? newStream.getAudioTracks()[0] : newStream.getVideoTracks()[0];
+            if (!newTrack || !localStream.value) return;
+
+            // videoinput : rien à remplacer si la caméra n'est pas active — le
+            // device choisi sera repris à la prochaine activation via voicePrefs.
+            if (kind === 'videoinput' && !isCamOn.value) {
+                newTrack.stop();
+                return;
+            }
+
+            const trackKind = kind === 'audioinput' ? 'audio' : 'video';
+            const oldTrack = localStream.value.getTracks().find(t => t.kind === trackKind);
+            if (oldTrack) {
+                oldTrack.stop();
+                localStream.value.removeTrack(oldTrack);
+            }
+            localStream.value.addTrack(newTrack);
+
+            if (kind === 'audioinput') newTrack.enabled = isMicOn.value;
+
+            activeCalls.value.forEach(session => {
+                const sender = session.call.peerConnection.getSenders().find(s => s.track?.kind === trackKind);
+                if (sender) sender.replaceTrack(newTrack);
+                else if (kind === 'videoinput') session.call.peerConnection.addTrack(newTrack, localStream.value!);
+            });
+        } catch (err) {
+            console.error('[SECURE-PEER] switchDevice a échoué:', err);
+        }
+    };
+
+    /**
+     * Applique une nouvelle résolution/framerate à la track vidéo active
+     * (caméra ou partage d'écran) sans la republier, comme applyVideoQuality()
+     * dans useLiveKit.ts.
+     */
+    const applyVideoQuality = async (
+        source: 'camera' | 'screenshare',
+        options: { resolution: { width: number; height: number }; frameRate: number }
+    ) => {
+        const track = source === 'camera'
+            ? localStream.value?.getVideoTracks()[0]
+            : screenStream.value?.getVideoTracks()[0];
+        if (!track) return;
+
+        try {
+            await track.applyConstraints({
+                width: options.resolution.width,
+                height: options.resolution.height,
+                frameRate: options.frameRate
+            });
+        } catch (err) {
+            console.error('[SECURE-PEER] applyVideoQuality a échoué:', err);
+        }
+    };
+
+    /**
+     * Coupe/réactive le son du correspondant — mute simple de l'élément média
+     * (cf. plan : pas de GainNode/volume par-participant, sur-ingénierie à 2).
+     */
+    const toggleDeafen = () => {
+        isDeafened.value = !isDeafened.value;
+    };
+
+    /**
      * Toggle microphone
      */
     const toggleMic = () => {
@@ -609,14 +737,23 @@ export default function useSecurePeer() {
     };
 
     /**
-     * Toggle camera
+     * Toggle camera. `captureOptions` (device/résolution/framerate) est
+     * construit par la vue depuis voicePrefs à l'activation — même split de
+     * responsabilité que toggleCamera() dans useLiveKit.ts.
      */
-    const toggleCam = async () => {
+    const toggleCam = async (captureOptions?: { deviceId?: string; resolution?: { width: number; height: number }; frameRate?: number }) => {
         try {
             if (!isCamOn.value) {
-                const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        deviceId: captureOptions?.deviceId ? { exact: captureOptions.deviceId } : undefined,
+                        width: captureOptions?.resolution?.width,
+                        height: captureOptions?.resolution?.height,
+                        frameRate: captureOptions?.frameRate
+                    }
+                });
                 const videoTrack = videoStream.getVideoTracks()[0];
-                
+
                 if (localStream.value) {
                     if (!videoTrack) return console.error('[SECURE-PEER] Video track is undefined');
                     localStream.value.addTrack(videoTrack);
@@ -643,12 +780,14 @@ export default function useSecurePeer() {
     };
 
     /**
-     * Toggle screen sharing
+     * Toggle screen sharing. Même logique de `captureOptions` que toggleCam.
      */
-    const toggleScreenShare = async () => {
+    const toggleScreenShare = async (captureOptions?: { resolution?: { width: number; height: number; frameRate?: number } }) => {
         try {
             if (!isScreenSharing.value) {
-                screenStream.value = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                screenStream.value = await navigator.mediaDevices.getDisplayMedia({
+                    video: captureOptions?.resolution ? { ...captureOptions.resolution } : true
+                });
                 const screenTrack = screenStream.value.getVideoTracks()[0];
 
                 if (!screenTrack) return console.error('[SECURE-PEER] screenTrack is undefined');
@@ -691,9 +830,13 @@ export default function useSecurePeer() {
         if (!enteringCall.value) return;
 
         try {
-            localStream.value = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            const micDeviceId = getVoicePrefs().micDeviceId;
+            localStream.value = await navigator.mediaDevices.getUserMedia({
+                audio: micDeviceId ? { deviceId: { exact: micDeviceId } } : true,
+                video: false
+            });
             isCamOn.value = false;
-            
+
             monitorAudio(localStream.value, (val) => isSpeaking.value = val);
             enteringCall.value.answer(localStream.value);
             handleCallEvents(enteringCall.value, false);
@@ -751,9 +894,13 @@ export default function useSecurePeer() {
         }
 
         try {
-            localStream.value = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            const micDeviceId = getVoicePrefs().micDeviceId;
+            localStream.value = await navigator.mediaDevices.getUserMedia({
+                audio: micDeviceId ? { deviceId: { exact: micDeviceId } } : true,
+                video: false
+            });
             isCamOn.value = false;
-            
+
             monitorAudio(localStream.value, (val) => isSpeaking.value = val);
             isCalling.value = true;
             ringtone.play().catch(() => {});
@@ -806,6 +953,11 @@ export default function useSecurePeer() {
         status.delete(peerId);
         callSecurityStatus.value = status;
 
+        const speaking = new Map(remoteSpeaking.value);
+        speaking.delete(peerId);
+        remoteSpeaking.value = speaking;
+        remoteMediaEls.delete(peerId);
+
         if (activeCalls.value.size === 0) cleanupCall();
     };
 
@@ -831,6 +983,8 @@ export default function useSecurePeer() {
         activeCalls.value = new Map();
         callEncryptionKeys.value = new Map();
         callSecurityStatus.value = new Map();
+        remoteSpeaking.value = new Map();
+        remoteMediaEls.clear();
         enteringCall.value = null;
         isCalling.value = false;
         isCamOn.value = false;
@@ -904,14 +1058,21 @@ export default function useSecurePeer() {
         toggleMic,
         toggleCam,
         toggleScreenShare,
+        toggleDeafen,
+        switchDevice,
+        applyVideoQuality,
+        registerRemoteMediaElement,
         remoteStreams,
+        remoteSpeaking,
         localStream,
         isCalling,
         isSpeaking,
         isMicOn,
         isCamOn,
         isScreenSharing,
+        isDeafened,
         enteringCall,
+        activeCalls,
         // Security features
         getCallSecurityStatus,
         verifySecurityFingerprint,

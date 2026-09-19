@@ -1,17 +1,17 @@
 <template>
     <Teleport to="body">
-        
+
         <!-- Fullscreen Call Mode -->
         <Transition name="fade">
-            <div 
+            <div
                 v-if="isCalling && !isMinimized"
                 class="fixed inset-0 z-[1000] bg-(--black)/95 flex items-center justify-center p-4"
                 @click.self="isMinimized = true"
             >
-                    <div 
+                    <div
                         class="
-                            relative w-full max-w-6xl aspect-video 
-                            bg-(--bg2) rounded-3xl overflow-hidden 
+                            relative w-full max-w-6xl aspect-video
+                            bg-(--bg2) rounded-3xl overflow-hidden
                             shadow-2xl border border-(--white)/10
                         "
                     >
@@ -49,7 +49,7 @@
                                 <div v-if="callTimer" class="px-3 py-1.5 rounded-full bg-(--black)/50 backdrop-blur-md">
                                     <span class="text-sm font-mono text-(--white)">{{ callTimer }}</span>
                                 </div>
-                                <button 
+                                <button
                                     @click="isMinimized = true"
                                     class="default hover:bg-(--white)/10 rounded-full p-1.5"
                                     title="Minimiser"
@@ -61,101 +61,107 @@
 
                         <!-- Video Area -->
                         <div class="w-full h-full relative">
-                            
-                            <!-- Remote Streams -->
-                            <div v-if="remoteStreams.size" class="grid flex-1 gap-4 p-4">
-                                <div 
-                                    v-for="[id, stream] of remoteStreams"
-                                    :key="id"
-                                    class="relative bg-(--black) rounded-xl overflow-hidden"
-                                >
-                                    <video 
-                                        :srcObject="stream" 
-                                        autoplay 
+
+                            <!-- Remote Tile (video if active, avatar + speaking ring otherwise) -->
+                            <div class="absolute inset-0 flex items-center justify-center p-6 pt-16">
+                                <div class="relative w-full h-full bg-(--black) rounded-2xl overflow-hidden flex items-center justify-center">
+
+                                    <!-- L'élément média reste monté tant qu'un flux distant existe, même
+                                         sans vidéo (appel audio seul) : c'est lui qui joue le son, et
+                                         registerRemoteMediaElement() (setSinkId) a besoin d'un élément
+                                         qui reste présent pendant tout l'appel, pas seulement quand la
+                                         caméra est active. -->
+                                    <video
+                                        v-if="currentRemoteStream"
+                                        :ref="setRemoteVideoRef"
+                                        :srcObject="currentRemoteStream"
+                                        autoplay
+                                        :muted="isDeafened"
                                         class="w-full h-full object-cover"
+                                        :class="{ 'opacity-0 absolute': !hasRemoteVideo }"
                                     />
-                                    <div class="absolute bottom-2 left-2 bg-(--black)/70 px-2 py-1 rounded">
-                                        <span class="text-xs text-(--white) font-medium">{{ getParticipantName(id) }}</span>
+
+                                    <div v-if="!hasRemoteVideo" class="flex flex-col items-center gap-4">
+                                        <img
+                                            :src="currentPeerAvatar"
+                                            class="w-32 h-32 rounded-full border-4 transition-all duration-300"
+                                            :class="isRemoteSpeaking ? 'border-(--primary) scale-110 shadow-[0_0_30px_rgba(var(--primary-rgb),0.5)]' : 'border-transparent'"
+                                        />
+                                        <p v-if="remoteStreams.size === 0" class="text-lg font-medium text-(--white)/60 animate-pulse">
+                                            Appel en cours...
+                                        </p>
+                                        <div v-if="securityStatus?.encrypted" class="flex items-center gap-2 text-green-400/60 text-sm">
+                                            <i class="bi bi-lock-fill" />
+                                            <span>Appel sécurisé E2EE</span>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Waiting State -->
-                            <div v-else class="w-full h-full flex flex-col items-center justify-center gap-4 text-(--white)/40">
-                                <div class="w-24 h-24 rounded-full bg-(--white)/5 flex items-center justify-center animate-pulse">
-                                    <i class="bi bi-person-fill text-5xl" />
-                                </div>
-                                <p class="text-lg font-medium animate-pulse">Appel en cours...</p>
-                                <div v-if="securityStatus?.encrypted" class="flex items-center gap-2 text-green-400/60 text-sm">
-                                    <i class="bi bi-lock-fill" />
-                                    <span>Appel sécurisé E2EE</span>
+
+                                    <div
+                                        v-if="currentPeerName"
+                                        class="
+                                            absolute bottom-4 left-4
+                                            flex items-center gap-2
+                                            bg-black/60 backdrop-blur-md
+                                            px-4 py-2 rounded-xl border
+                                            border-white/10 shadow-lg
+                                        "
+                                    >
+                                        <span class="text-sm font-bold text-white">{{ currentPeerName }}</span>
+                                    </div>
+
                                 </div>
                             </div>
 
-                            <!-- Local Video Preview -->
-                            <div 
+                            <!-- Local Video Preview (PiP) -->
+                            <div
                                 class="
-                                    absolute bottom-6 right-6 w-48 aspect-video 
-                                    overflow-hidden border-2 border-(--white)/20 
-                                    shadow-xl bg-(--black) rounded-xl
+                                    absolute bottom-6 right-6 w-48 aspect-video
+                                    overflow-hidden border-2 border-(--white)/20
+                                    shadow-xl bg-(--bg2) rounded-xl
                                 "
                             >
-                                <video 
-                                    v-if="localStream"
-                                    :srcObject="localStream" 
-                                    autoplay 
-                                    muted 
+                                <video
+                                    v-if="localStream && (isCamOn || isScreenSharing)"
+                                    :srcObject="localStream"
+                                    autoplay
+                                    muted
                                     class="w-full h-full object-cover mirror"
                                 />
-                                <div v-else class="w-full h-full flex items-center justify-center bg-(--black)/50">
-                                    <i class="bi bi-camera-video-off-fill text-(--white)/30 text-2xl" />
+                                <div v-else class="w-full h-full flex items-center justify-center">
+                                    <img
+                                        :src="myAvatar"
+                                        class="w-16 h-16 rounded-full border-2 transition-all duration-300"
+                                        :class="isSpeaking ? 'border-(--primary) scale-105 shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)]' : 'border-transparent'"
+                                    />
+                                </div>
+                                <div v-if="!isMicOn" class="absolute bottom-1.5 left-1.5 bg-black/60 backdrop-blur-md rounded-md w-6 h-6 flex items-center justify-center">
+                                    <i class="bi bi-mic-mute-fill text-red-500 text-xs" />
                                 </div>
                             </div>
 
                         </div>
 
                         <!-- Call Controls -->
-                        <div 
+                        <div
                             class="
-                                absolute left-1/2 -translate-x-1/2 bottom-25 
-                                flex items-center bg-(--black)/60 border-(--white)/10
-                                backdrop-blur-xl rounded-full border-t p-2
+                                absolute left-1/2 -translate-x-1/2 bottom-6
+                                flex items-center justify-center
                             "
                         >
-                            <button
-                                @click="toggleScreenShare"
-                                :class="isScreenSharing ? 'bg-(--primary)/30 text-(--primary)' : ''"
-                                class="rounded-full bg-(--white)/10 hover:bg-(--white)/20 text-(--white) transition-all w-12 h-12 text-xl mx-1"
-                                title="Partager l'écran"
-                            >
-                                <i class="bi" :class="isScreenSharing ? 'bi-stop-circle-fill' : 'bi-display-fill'" />
-                            </button>
-
-                            <button
-                                @click="toggleMic"
-                                :class="!isMicOn ? 'bg-red-500/50 text-red-200' : ''"
-                                class="rounded-full bg-(--white)/10 hover:bg-(--white)/20 text-(--white) transition-all w-12 h-12 text-xl mx-1"
-                                :title="isMicOn ? 'Couper le micro' : 'Activer le micro'"
-                            >
-                                <i class="bi" :class="isMicOn ? 'bi-mic-fill' : 'bi-mic-mute-fill'" />
-                            </button>
-
-                            <button
-                                @click="toggleCam"
-                                :class="!isCamOn ? 'bg-(--white)/5 text-(--white)/50' : ''"
-                                class="rounded-full bg-(--white)/10 hover:bg-(--white)/20 text-(--white) transition-all w-12 h-12 text-xl mx-1"
-                                :title="isCamOn ? 'Désactiver la caméra' : 'Activer la caméra'"
-                            >
-                                <i class="bi" :class="isCamOn ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'" />
-                            </button>
-
-                            <button
-                                @click="handleEndCall"
-                                class="rounded-full bg-red-500 hover:bg-red-600 text-(--white) shadow-lg shadow-red-500/20 transition-all hover:scale-110 flex items-center justify-center w-14 h-14 text-2xl mx-1"
-                                title="Raccrocher"
-                            >
-                                <i class="bi bi-telephone-x-fill" />
-                            </button>
+                            <CallControls
+                                :isMicOn="isMicOn"
+                                :isCamOn="isCamOn"
+                                :isScreenSharing="isScreenSharing"
+                                :isDeafened="isDeafened"
+                                :showInvite="false"
+                                :switchDevice="switchDevice"
+                                :applyVideoQuality="applyVideoQuality"
+                                @toggleMic="toggleMic"
+                                @toggleCam="onToggleCam"
+                                @toggleScreenShare="onToggleScreenShare"
+                                @toggleDeafen="toggleDeafen"
+                                @endCall="handleEndCall"
+                            />
                         </div>
 
                     </div>
@@ -213,7 +219,7 @@
 
         <!-- Minimized Floating Window (16:9) - Only one instance per call -->
         <Transition name="slide-fade">
-            <DraggableWindow 
+            <DraggableWindow
                 v-if="isCalling && isMinimized"
                 :initialX="windowX"
                 :initialY="windowY"
@@ -224,28 +230,28 @@
                 :key="remoteStreams.size > 0 ? `call-${Array.from(remoteStreams.keys())[0]}` : 'call-waiting'"
             >
                 <template #header>
-                    <div 
+                    <div
                         class="
-                            relative w-full h-full bg-(--bg2) rounded-2xl 
+                            relative w-full h-full bg-(--bg2) rounded-2xl
                             overflow-hidden shadow-2xl border border-(--white)/10
                             group
                         "
                     >
                         <!-- Header with close/minimize and timer -->
                         <div class="absolute top-2 left-2 right-2 z-10 flex items-center justify-between">
-                            <button 
+                            <button
                                 @click="handleEndCall"
                                 class="rounded-full bg-red-500/80 hover:bg-red-500 p-1.5 text-white transition-colors"
                                 title="Raccrocher"
                             >
                                 <i class="bi bi-telephone-x-fill text-sm" />
                             </button>
-                            
+
                             <div v-if="callTimer" class="px-2 py-1 rounded bg-(--black)/40">
                                 <span class="text-xs font-mono text-(--white)">{{ callTimer }}</span>
                             </div>
 
-                            <button 
+                            <button
                                 @click="isMinimized = false"
                                 class="rounded-full bg-(--primary)/80 hover:bg-(--primary) p-1.5 text-white transition-colors"
                                 title="Plein écran"
@@ -256,39 +262,44 @@
 
                         <!-- Video Content -->
                         <div class="w-full h-full relative pt-8">
-                            
-                            <!-- Remote Streams -->
-                            <div v-if="remoteStreams.size" class="w-full h-full">
-                                <video 
-                                    :srcObject="Array.from(remoteStreams.values())[0] as MediaStream" 
-                                    autoplay 
-                                    class="w-full h-full object-cover"
-                                />
-                                <div class="absolute bottom-1 left-1 bg-(--black)/70 px-1.5 py-0.5 rounded text-[10px]">
-                                    <span class="text-(--white) font-medium truncate max-w-[120px] block">{{ getParticipantName(Array.from(remoteStreams.keys())[0] as string) }}</span>
-                                </div>
+
+                            <!-- Élément média toujours monté tant qu'un flux existe (même sans
+                                 vidéo, cf. plein écran ci-dessus) : c'est lui qui joue le son. -->
+                            <video
+                                v-if="currentRemoteStream"
+                                :ref="setRemoteVideoRef"
+                                :srcObject="currentRemoteStream"
+                                autoplay
+                                :muted="isDeafened"
+                                class="w-full h-full object-cover"
+                                :class="{ 'opacity-0 absolute': !hasRemoteVideo }"
+                            />
+
+                            <div v-if="hasRemoteVideo" class="absolute bottom-1 left-1 bg-(--black)/70 px-1.5 py-0.5 rounded text-[10px]">
+                                <span class="text-(--white) font-medium truncate max-w-[120px] block">{{ currentPeerName }}</span>
                             </div>
-                            
-                            <!-- Waiting State - Minimal, timer shows call is active -->
-                            <div v-else class="w-full h-full flex items-center justify-center">
-                                <div class="w-10 h-10 rounded-full bg-(--white)/5 flex items-center justify-center animate-pulse">
-                                    <i class="bi bi-person-fill text-xl" />
-                                </div>
+
+                            <div v-if="!hasRemoteVideo" class="w-full h-full flex items-center justify-center">
+                                <img
+                                    :src="currentPeerAvatar"
+                                    class="w-14 h-14 rounded-full border-2 transition-all duration-300"
+                                    :class="isRemoteSpeaking ? 'border-(--primary) shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)]' : 'border-transparent'"
+                                />
                             </div>
 
                             <!-- Local Video Preview (small) -->
-                            <div 
-                                v-if="localStream && isCamOn" 
+                            <div
+                                v-if="localStream && (isCamOn || isScreenSharing)"
                                 class="
-                                    absolute bottom-2 right-2 w-20 aspect-video 
-                                    overflow-hidden border border-(--white)/20 
+                                    absolute bottom-2 right-2 w-20 aspect-video
+                                    overflow-hidden border border-(--white)/20
                                     shadow-lg bg-(--black) rounded-lg
                                 "
                             >
-                                <video 
-                                    :srcObject="localStream" 
-                                    autoplay 
-                                    muted 
+                                <video
+                                    :srcObject="localStream"
+                                    autoplay
+                                    muted
                                     class="w-full h-full object-cover mirror"
                                 />
                             </div>
@@ -307,9 +318,9 @@
                         </div>
 
                         <!-- Hover Controls (minimized) -->
-                        <div 
+                        <div
                             class="
-                                absolute left-1/2 -translate-x-1/2 -bottom-10 
+                                absolute left-1/2 -translate-x-1/2 -bottom-10
                                 flex items-center bg-(--black)/60 border-(--white)/10
                                 backdrop-blur-xl rounded-full border-t p-1.5
                                 opacity-0 group-hover:opacity-100 group-hover:-bottom-2
@@ -325,7 +336,7 @@
                             </button>
 
                             <button
-                                @click="toggleCam"
+                                @click="onToggleCam"
                                 :class="!isCamOn ? 'bg-(--white)/5 text-(--white)/50' : ''"
                                 class="rounded-full bg-(--white)/10 hover:bg-(--white)/20 text-(--white) transition-all w-9 h-9 text-lg mx-1"
                             >
@@ -344,9 +355,11 @@
 <script setup lang="ts">
 
 import useSecurePeer from '@/composables/useSecurePeer';
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { computed, onUnmounted, ref, watch, type ComponentPublicInstance } from 'vue';
 import DraggableWindow from '../common/DraggableWindow.vue';
-import { openedOrg } from '@/assets/var';
+import CallControls from './CallControls.vue';
+import { openedOrg, user } from '@/assets/var';
+import { getVoicePrefs, resolveCameraCaptureOptions } from '@/assets/utils/voicePrefs';
 
 const isMinimized = ref<boolean>(false);
 const windowX = ref<number>(window.innerWidth - 350);
@@ -355,24 +368,89 @@ const windowY = ref<number>(window.innerHeight - 220);
 const {
     isCalling,
     remoteStreams,
+    remoteSpeaking,
+    activeCalls,
     localStream,
     isMicOn,
     isCamOn,
     isScreenSharing,
+    isDeafened,
+    isSpeaking,
     endCall,
     toggleMic,
     toggleCam,
     toggleScreenShare,
+    toggleDeafen,
+    switchDevice,
+    applyVideoQuality,
+    registerRemoteMediaElement,
     getCallSecurityStatus,
     verifySecurityFingerprint
 } = useSecurePeer();
 
-// Get the current call's peer id — mirrors `securityStatus` below, so both
-// stay in sync with whichever remote participant is currently connected.
+// Le peer courant : d'abord celui dont on a déjà un flux (appel connecté),
+// sinon le peer qu'on est en train d'appeler/de rejoindre — activeCalls a
+// déjà une entrée dès startCall(), avant toute réponse, donc ça couvre aussi
+// l'état "ça sonne" sans avoir besoin d'un état dédié.
 const currentPeerId = computed<string | null>(() => {
-    if (remoteStreams.value.size === 0) return null;
-    return (remoteStreams.value.keys().next().value as string) ?? null;
+    if (remoteStreams.value.size > 0) return (remoteStreams.value.keys().next().value as string) ?? null;
+    if (activeCalls.value.size > 0) return (activeCalls.value.keys().next().value as string) ?? null;
+    return null;
 });
+
+const currentRemoteStream = computed<MediaStream | null>(() =>
+    currentPeerId.value ? remoteStreams.value.get(currentPeerId.value) ?? null : null
+);
+
+// La caméra et le partage d'écran se remplacent l'un l'autre sur la même
+// track vidéo (cf. useSecurePeer.ts toggleCam/toggleScreenShare) : un seul
+// flux vidéo possible à la fois, pas besoin de distinguer les deux ici.
+const hasRemoteVideo = computed<boolean>(() => (currentRemoteStream.value?.getVideoTracks().length ?? 0) > 0);
+
+const isRemoteSpeaking = computed<boolean>(() =>
+    currentPeerId.value !== null && !!remoteSpeaking.value.get(currentPeerId.value)
+);
+
+const getParticipantName = (peerId: string | null): string => {
+    if (!peerId || !openedOrg.value?.members) return '';
+    const member = openedOrg.value.members.find(m => m.user?.id === peerId);
+    return member?.user?.name || '';
+};
+
+const getParticipantAvatar = (peerId: string | null): string => {
+    if (!peerId) return '';
+    const member = openedOrg.value?.members?.find(m => m.user?.id === peerId);
+    return member?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(member?.user?.name || '')}&background=128a60&color=fff`;
+};
+
+const currentPeerName = computed(() => getParticipantName(currentPeerId.value));
+const currentPeerAvatar = computed(() => getParticipantAvatar(currentPeerId.value));
+const myAvatar = computed(() => user.value?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.value?.name || '')}&background=128a60&color=fff`);
+
+// Applique le device/résolution/framerate choisis dans les réglages à
+// l'activation, comme onToggleCam/onToggleScreenShare dans VoiceThreadView.vue.
+const onToggleCam = () => {
+    if (isCamOn.value) { toggleCam(); return; }
+    const prefs = getVoicePrefs();
+    const { resolution, frameRate } = resolveCameraCaptureOptions(prefs);
+    toggleCam({ deviceId: prefs.camDeviceId, resolution, frameRate });
+};
+
+const onToggleScreenShare = () => {
+    if (isScreenSharing.value) { toggleScreenShare(); return; }
+    const prefs = getVoicePrefs();
+    toggleScreenShare({ resolution: { ...prefs.screenResolution, frameRate: prefs.screenFrameRate } });
+};
+
+// L'élément <video> réellement monté doit être enregistré pour que
+// switchDevice('audiooutput', ...) puisse lui appliquer setSinkId — un seul
+// interlocuteur à la fois en appel privé, donc pas besoin du Map de setters
+// mémoïsés par identity utilisé dans VoiceThreadView.vue (N participants).
+const setRemoteVideoRef = (el: Element | ComponentPublicInstance | null) => {
+    const peerId = currentPeerId.value;
+    if (!peerId) return;
+    registerRemoteMediaElement(peerId, (el as HTMLMediaElement) || null);
+};
 
 // SAS verification: two peers only share the exact same fingerprint if
 // their ECDH key exchange wasn't intercepted (cf. useSecurePeer.ts
@@ -418,20 +496,13 @@ const securityStatus = computed(() => {
     return currentPeerId.value ? getCallSecurityStatus(currentPeerId.value) : null;
 });
 
-// Get participant name by peer ID
-const getParticipantName = (peerId: string): string => {
-    if (!openedOrg.value?.members) return 'Utilisateur';
-    const member = openedOrg.value.members.find(m => m.user?.id === peerId);
-    return member?.user?.name || peerId.substring(0, 8);
-};
-
 // Start call timer when call begins
 const startTimer = () => {
     if (callStartTime.value) return;
     callStartTime.value = Date.now();
     updateTimer();
     const timerInterval = setInterval(updateTimer, 1000);
-    
+
     onUnmounted(() => {
         clearInterval(timerInterval);
     });
@@ -447,12 +518,12 @@ const updateTimer = () => {
         callTimer.value = '';
         return;
     }
-    
+
     const seconds = Math.floor((Date.now() - callStartTime.value) / 1000);
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    
+
     callTimer.value = [
         hours.toString().padStart(2, '0'),
         minutes.toString().padStart(2, '0'),
