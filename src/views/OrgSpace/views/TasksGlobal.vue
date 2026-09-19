@@ -357,6 +357,15 @@
             @cancel="showArchiveAllConfirm = false"
             @confirm="confirmArchiveAll"
         />
+
+        <ConfirmDelete
+            :show="!!showDeleteTaskConfirm"
+            item-type="la tâche"
+            :item-name="showDeleteTaskConfirm?.title || 'cette tâche'"
+            :loading="deletingTask"
+            @cancel="showDeleteTaskConfirm = null"
+            @confirm="confirmDeleteTask"
+        />
     </div>
 </template>
 
@@ -765,7 +774,17 @@ const startRenameTask = (task: Task) => {
     selectedTask.value = task;
 };
 
-const handleContextDeleteTask = async (task: Task) => {
+const showDeleteTaskConfirm = ref<Task | null>(null);
+const deletingTask = ref(false);
+
+const handleContextDeleteTask = (task: Task) => {
+    showDeleteTaskConfirm.value = task;
+};
+
+const confirmDeleteTask = async () => {
+    const task = showDeleteTaskConfirm.value;
+    if (!task) return;
+    deletingTask.value = true;
     try {
         const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${task.id}`, {
             method: 'DELETE'
@@ -773,8 +792,11 @@ const handleContextDeleteTask = async (task: Task) => {
         if (!res.ok) throw new Error();
         onTaskDeleted(task.id);
         toast.show('Tâche supprimée', 'success');
+        showDeleteTaskConfirm.value = null;
     } catch (e) {
         toast.show('Erreur lors de la suppression', 'error');
+    } finally {
+        deletingTask.value = false;
     }
 };
 

@@ -359,6 +359,15 @@
         </template>
     </Popup>
 
+    <ConfirmDelete
+        :show="showDeleteConfirm"
+        item-type="la tâche"
+        :item-name="task?.title || 'cette tâche'"
+        :loading="deleting"
+        @cancel="showDeleteConfirm = false"
+        @confirm="confirmDeleteTask"
+    />
+
     <FileViewer
         v-if="viewingFile"
         :file="viewingFile"
@@ -379,6 +388,7 @@
 <script setup lang="ts">
 import { ref, watch, reactive, computed, nextTick, onBeforeUnmount } from 'vue';
 import Popup from '@/components/Popup.vue';
+import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import CreateTaskModal from './CreateTaskModal.vue';
 import TaskTagPicker from './TaskTagPicker.vue';
 import FileViewer from './FileViewer.vue';
@@ -762,6 +772,7 @@ const closeModal = () => {
     }
     isEditingTitle.value = false;
     isEditingDescription.value = false;
+    showDeleteConfirm.value = false;
     emit('close');
 };
 
@@ -826,22 +837,31 @@ const archiveTask = async () => {
     }
 };
 
-const deleteTask = async () => {
+const showDeleteConfirm = ref(false);
+const deleting = ref(false);
+
+const deleteTask = () => {
     if (!props.task) return;
-    loading.value = true;
+    showDeleteConfirm.value = true;
+};
+
+const confirmDeleteTask = async () => {
+    if (!props.task) return;
+    deleting.value = true;
     try {
         const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${props.task.id}`, {
             method: 'DELETE'
         });
         if (res.ok) {
             toast.show('Tâche supprimée', 'success');
+            showDeleteConfirm.value = false;
             emit('delete', props.task.id);
             closeModal();
         }
     } catch (e) {
         toast.show('Erreur de suppression', 'error');
     } finally {
-        loading.value = false;
+        deleting.value = false;
     }
 };
 
