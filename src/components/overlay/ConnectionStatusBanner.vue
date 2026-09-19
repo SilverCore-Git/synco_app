@@ -3,7 +3,7 @@
         <Transition name="slide-down">
             <div v-if="showBanner" class="connection-banner" role="status">
                 <span class="spinner" />
-                <span>{{ label }}</span>
+                <span>Connexion au serveur perdue. Reconnexion en cours...</span>
             </div>
         </Transition>
     </Teleport>
@@ -14,32 +14,38 @@ import { computed, ref, watch } from 'vue';
 import { isConnected, connectionAttempted } from '@/composables/useWSocket';
 
 // Le simple fait d'être `!isConnected` pendant quelques centaines de ms (le
-// temps normal d'un handshake) ne mérite pas d'alerter l'utilisateur — la
+// temps normal d'un handshake) ne mérite pas d'alerter l'utilisateur : la
 // bannière n'apparaît que si la coupure dure vraiment, pour ne pas clignoter
 // à chaque micro-reconnexion invisible sinon (déjà gérées en silence ailleurs
 // dans l'app, cf. le rejoin silencieux de ThreadView.vue/ChatView.vue).
 const SHOW_DELAY_MS = 1500;
 
+// Un seul computed dérivé plutôt qu'un watch sur deux refs séparées : évite
+// toute ambiguïté sur l'ordre/la forme des valeurs reçues, et garantit que
+// "reconnecté" (isConnected repasse à true) fait immédiatement retomber
+// isDown à false, sans dépendre de la façon dont les deux refs sources ont
+// changé l'une par rapport à l'autre.
+const isDown = computed(() => connectionAttempted.value && !isConnected.value);
+
 const showBanner = ref(false);
 let showTimeout: ReturnType<typeof setTimeout> | null = null;
 
-watch([isConnected, connectionAttempted], ([connected, attempted]) => {
+watch(isDown, (down) => {
     if (showTimeout) {
         clearTimeout(showTimeout);
         showTimeout = null;
     }
 
-    if (!attempted || connected) {
+    if (down) {
+        showTimeout = setTimeout(() => {
+            showBanner.value = true;
+        }, SHOW_DELAY_MS);
+    } else {
+        // Reconnecté (ou pas encore de tentative) : masquée tout de suite,
+        // sans attendre quoi que ce soit.
         showBanner.value = false;
-        return;
     }
-
-    showTimeout = setTimeout(() => {
-        showBanner.value = true;
-    }, SHOW_DELAY_MS);
 }, { immediate: true });
-
-const label = computed(() => 'Connexion au serveur perdue — reconnexion en cours…');
 </script>
 
 <style scoped>
