@@ -38,9 +38,7 @@
                                         : isCurrentPeerVerified ? 'bi-shield-check-fill' : 'bi-shield-lock'"
                                 />
                                 <span class="text-xs font-medium">
-                                    {{ !securityStatus.encrypted
-                                        ? 'Chiffrement...'
-                                        : isCurrentPeerVerified ? 'E2EE vérifié' : 'E2EE — non vérifié' }}
+                                    {{ !securityStatus.encrypted ? 'Chiffrement...' : 'Appel sécurisé' }}
                                 </span>
                             </button>
 
@@ -92,7 +90,7 @@
                                         </p>
                                         <div v-if="securityStatus?.encrypted" class="flex items-center gap-2 text-green-400/60 text-sm">
                                             <i class="bi bi-lock-fill" />
-                                            <span>Appel sécurisé E2EE</span>
+                                            <span>Appel sécurisé</span>
                                         </div>
                                     </div>
 
@@ -325,7 +323,7 @@
                                 :class="isCurrentPeerVerified ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-300'"
                             >
                                 <i class="bi text-xs" :class="isCurrentPeerVerified ? 'bi-shield-check-fill' : 'bi-shield-lock'" />
-                                <span class="ml-0.5">E2EE</span>
+                                <span class="ml-0.5">Sécurisé</span>
                             </button>
 
                         </div>

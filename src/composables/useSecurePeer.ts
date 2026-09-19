@@ -5,7 +5,7 @@ import { openedOrg } from '@/assets/var';
 import useNotifications from './useNotifications';
 import { keycloak } from '@/assets/keycloak';
 import { generateCallId } from '@/assets/utils/webhookCrypto';
-import { getVoicePrefs } from '@/assets/utils/voicePrefs';
+import { getVoicePrefs, resolveCameraCaptureOptions } from '@/assets/utils/voicePrefs';
 
 // ============================================================================
 // Configuration
@@ -37,13 +37,22 @@ interface SecureCallSession {
     keyAgreementComplete: boolean;
     authenticated: boolean;
     keyExchangeTimeout: any | null;
+    // Référence au canal 'secure-control' une fois ouvert, réutilisé pour la
+    // renégociation manuelle (cf. triggerRenegotiation) — PeerJS ne réagit
+    // jamais à 'negotiationneeded' (son Negotiator interne n'écoute pas cet
+    // événement), donc une piste vidéo ajoutée après le début de l'appel
+    // (pc.addTrack) n'est jamais réellement négociée avec le correspondant
+    // par la signalisation PeerJS/serveur : on doit renégocier nous-mêmes,
+    // via ce canal déjà chiffré et authentifié.
+    dataChannel: RTCDataChannel | null;
 }
 
 interface KeyExchangeMessage {
-    type: 'KEY_EXCHANGE_REQUEST' | 'KEY_EXCHANGE_RESPONSE' | 'KEY_CONFIRMATION';
+    type: 'KEY_EXCHANGE_REQUEST' | 'KEY_EXCHANGE_RESPONSE' | 'KEY_CONFIRMATION' | 'RENEGOTIATE_OFFER' | 'RENEGOTIATE_ANSWER';
     publicKeyJWK?: string;
     timestamp?: number;
     callId?: string;
+    sdp?: RTCSessionDescriptionInit;
 }
 
 interface SecurityStatus {
@@ -69,6 +78,11 @@ const activeCalls = ref<Map<string, SecureCallSession>>(new Map());
 const isMicOn = ref<boolean>(true);
 const isCamOn = ref<boolean>(false);
 const isScreenSharing = ref<boolean>(false);
+// Caméra et partage d'écran se remplacent l'un l'autre sur l'unique piste
+// vidéo (un seul sender vidéo à la fois) : si la caméra était active au
+// moment de démarrer un partage d'écran, on le note ici pour la rallumer
+// automatiquement à l'arrêt du partage plutôt que de laisser un écran noir.
+let wasCamOnBeforeScreenShare = false;
 
 // Deafen simple (mute de l'élément média distant) : à 2 personnes, le
 // GainNode par-participant à volume réglable des vocal threads (useLiveKit.ts)
@@ -334,7 +348,9 @@ export default function useSecurePeer() {
 
         channel.onopen = async () => {
             console.log('[SECURE-PEER] Data channel open with:', peerId);
-            
+
+            session.dataChannel = channel;
+
             // Set timeout for key exchange
             session.keyExchangeTimeout = setTimeout(() => {
                 console.warn('[SECURE-PEER] Key exchange timeout for:', peerId);
@@ -495,6 +511,32 @@ export default function useSecurePeer() {
                         console.log('[SECURE-PEER] Key exchange completed and authenticated for:', peerId);
                     }
                     break;
+
+                // PeerJS ne renégocie jamais tout seul (cf. commentaire sur
+                // SecureCallSession.dataChannel) : quand l'autre côté active sa
+                // caméra/son partage d'écran pour la première fois de l'appel
+                // (pc.addTrack, pas encore de sender vidéo), il nous envoie sa
+                // propre offer via ce canal pour qu'on négocie manuellement.
+                case 'RENEGOTIATE_OFFER':
+                    if (message.sdp) {
+                        const pc = session.call.peerConnection;
+                        await pc.setRemoteDescription(message.sdp);
+                        const answer = await pc.createAnswer();
+                        await pc.setLocalDescription(answer);
+                        channel.send(JSON.stringify({
+                            type: 'RENEGOTIATE_ANSWER',
+                            sdp: answer,
+                            timestamp: Date.now(),
+                            callId: session.callId
+                        } satisfies KeyExchangeMessage));
+                    }
+                    break;
+
+                case 'RENEGOTIATE_ANSWER':
+                    if (message.sdp) {
+                        await session.call.peerConnection.setRemoteDescription(message.sdp);
+                    }
+                    break;
             }
         } catch (error) {
             console.error('[SECURE-PEER] Key exchange error:', error);
@@ -506,6 +548,37 @@ export default function useSecurePeer() {
                 fingerprint: 'ERROR'
             });
             callSecurityStatus.value = status;
+        }
+    };
+
+    /**
+     * Renégocie manuellement la connexion (nouvelle offer/answer) après un
+     * pc.addTrack() effectué en cours d'appel — PeerJS ne le fait jamais de
+     * lui-même. Échangée via le canal 'secure-control' déjà ouvert plutôt que
+     * par la signalisation PeerJS, pour ne pas avoir à toucher à son
+     * Negotiator interne. Sans ça, la piste ajoutée existe bien localement
+     * (le sender existe) mais le correspondant ne reçoit jamais le SDP décrivant
+     * cette nouvelle piste : addTrack() seul ne suffit pas à la faire circuler.
+     */
+    const triggerRenegotiation = async (peerId: string) => {
+        const session = activeCalls.value.get(peerId);
+        if (!session?.dataChannel || session.dataChannel.readyState !== 'open') {
+            console.warn('[SECURE-PEER] Impossible de renégocier : canal de signalisation indisponible pour', peerId);
+            return;
+        }
+
+        try {
+            const pc = session.call.peerConnection;
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            session.dataChannel.send(JSON.stringify({
+                type: 'RENEGOTIATE_OFFER',
+                sdp: offer,
+                timestamp: Date.now(),
+                callId: session.callId
+            } satisfies KeyExchangeMessage));
+        } catch (err) {
+            console.error('[SECURE-PEER] triggerRenegotiation a échoué:', err);
         }
     };
 
@@ -535,7 +608,8 @@ export default function useSecurePeer() {
             e2eeKeyId: Date.now(),
             keyAgreementComplete: false,
             authenticated: false,
-            keyExchangeTimeout: null
+            keyExchangeTimeout: null,
+            dataChannel: null
         };
         
         const calls = activeCalls.value;
@@ -778,6 +852,47 @@ export default function useSecurePeer() {
     };
 
     /**
+     * Ajoute/remplace la piste vidéo sortante sur chaque appel actif, en
+     * renégociant manuellement (cf. triggerRenegotiation) quand aucun sender
+     * vidéo n'existe encore — c'est TOUJOURS le cas au premier allumage de la
+     * caméra ou de l'écran d'un appel (celui-ci démarre systématiquement
+     * audio seul, cf. startCall/acceptCall), donc sans ce fallback PeerJS
+     * n'a jamais négocié la piste avec le correspondant : elle existait bien
+     * localement mais ne partait nulle part.
+     */
+    const publishVideoTrack = (track: MediaStreamTrack) => {
+        activeCalls.value.forEach(session => {
+            const sender = session.call.peerConnection.getSenders().find(s => s.track?.kind === 'video');
+            if (sender) {
+                sender.replaceTrack(track);
+            } else {
+                session.call.peerConnection.addTrack(track, localStream.value!);
+                triggerRenegotiation(session.peerId);
+            }
+        });
+    };
+
+    /**
+     * Retire la piste de partage d'écran (locale + arrête sa capture) sans
+     * se soucier de rallumer la caméra ensuite — séparé de stopScreenShare()
+     * pour que toggleCam() puisse l'appeler directement quand on bascule de
+     * l'écran vers la caméra : passer par stopScreenShare() là aurait
+     * déclenché SA propre reprise automatique de la caméra (cf. plus bas),
+     * en plus de celle que toggleCam() s'apprête à faire lui-même juste
+     * après — activant la caméra deux fois coup sur coup.
+     */
+    const clearScreenShareTrack = () => {
+        const screenTrack = localStream.value?.getVideoTracks()[0];
+        if (screenTrack) {
+            screenTrack.stop();
+            localStream.value?.removeTrack(screenTrack);
+        }
+        screenStream.value?.getTracks().forEach(t => t.stop());
+        screenStream.value = null;
+        isScreenSharing.value = false;
+    };
+
+    /**
      * Toggle camera. `captureOptions` (device/résolution/framerate) est
      * construit par la vue depuis voicePrefs à l'activation — même split de
      * responsabilité que toggleCamera() dans useLiveKit.ts.
@@ -785,6 +900,13 @@ export default function useSecurePeer() {
     const toggleCam = async (captureOptions?: { deviceId?: string; resolution?: { width: number; height: number }; frameRate?: number }) => {
         try {
             if (!isCamOn.value) {
+                // Caméra et partage d'écran se remplacent sur l'unique piste
+                // vidéo : on coupe proprement l'un avant de démarrer l'autre.
+                if (isScreenSharing.value) {
+                    wasCamOnBeforeScreenShare = false;
+                    clearScreenShareTrack();
+                }
+
                 const videoStream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         deviceId: captureOptions?.deviceId ? { exact: captureOptions.deviceId } : undefined,
@@ -798,12 +920,7 @@ export default function useSecurePeer() {
                 if (localStream.value) {
                     if (!videoTrack) return console.error('[SECURE-PEER] Video track is undefined');
                     localStream.value.addTrack(videoTrack);
-
-                    activeCalls.value.forEach(session => {
-                        const sender = session.call.peerConnection.getSenders().find(s => s.track?.kind === 'video');
-                        if (sender) sender.replaceTrack(videoTrack);
-                        else session.call.peerConnection.addTrack(videoTrack, localStream.value!);
-                    });
+                    publishVideoTrack(videoTrack);
                 }
 
                 isCamOn.value = true;
@@ -822,10 +939,24 @@ export default function useSecurePeer() {
 
     /**
      * Toggle screen sharing. Même logique de `captureOptions` que toggleCam.
+     * La piste est ajoutée à `localStream` (pas seulement `screenStream`) :
+     * l'aperçu local (PiP dans CallOverlay.vue) est lié à `localStream`, donc
+     * sans ça il continuait de montrer l'ancien contenu (caméra ou rien) au
+     * lieu de l'écran partagé.
      */
     const toggleScreenShare = async (captureOptions?: { resolution?: { width: number; height: number; frameRate?: number } }) => {
         try {
             if (!isScreenSharing.value) {
+                wasCamOnBeforeScreenShare = isCamOn.value;
+                if (isCamOn.value) {
+                    const camTrack = localStream.value?.getVideoTracks()[0];
+                    if (camTrack) {
+                        camTrack.stop();
+                        localStream.value?.removeTrack(camTrack);
+                    }
+                    isCamOn.value = false;
+                }
+
                 screenStream.value = await navigator.mediaDevices.getDisplayMedia({
                     video: captureOptions?.resolution ? { ...captureOptions.resolution } : true
                 });
@@ -833,10 +964,8 @@ export default function useSecurePeer() {
 
                 if (!screenTrack) return console.error('[SECURE-PEER] screenTrack is undefined');
 
-                activeCalls.value.forEach(session => {
-                    const sender = session.call.peerConnection.getSenders().find(s => s.track?.kind === 'video');
-                    sender?.replaceTrack(screenTrack);
-                });
+                localStream.value?.addTrack(screenTrack);
+                publishVideoTrack(screenTrack);
 
                 screenTrack.onended = () => stopScreenShare();
                 isScreenSharing.value = true;
@@ -849,18 +978,18 @@ export default function useSecurePeer() {
     };
 
     /**
-     * Stop screen sharing
+     * Stop screen sharing — rallume automatiquement la caméra si elle était
+     * active avant le partage d'écran (comme Zoom/Discord), au lieu de
+     * laisser un écran noir côté correspondant.
      */
     const stopScreenShare = async () => {
-        screenStream.value?.getTracks().forEach(t => t.stop());
-        isScreenSharing.value = false;
-        
-        if (isCamOn.value) {
-            const videoTrack = localStream.value?.getVideoTracks()[0];
-            activeCalls.value.forEach(session => {
-                const sender = session.call.peerConnection.getSenders().find(s => s.track?.kind === 'video');
-                if (videoTrack) sender?.replaceTrack(videoTrack);
-            });
+        clearScreenShareTrack();
+
+        if (wasCamOnBeforeScreenShare) {
+            wasCamOnBeforeScreenShare = false;
+            const prefs = getVoicePrefs();
+            const { resolution, frameRate } = resolveCameraCaptureOptions(prefs);
+            await toggleCam({ deviceId: prefs.camDeviceId, resolution, frameRate });
         }
     };
 
@@ -1033,6 +1162,7 @@ export default function useSecurePeer() {
         isCalling.value = false;
         isCamOn.value = false;
         isScreenSharing.value = false;
+        wasCamOnBeforeScreenShare = false;
         // Don't cleanup peer here - let the caller decide if they want to keep it
     };
 
