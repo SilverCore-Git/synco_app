@@ -150,16 +150,16 @@
 
                             <div class="flex gap-3 mt-5 w-full">
 
-                                <button 
-                                    @click="remove(notif.id)"
+                                <button
+                                    @click="remove(notif.id), notif.privateMeet && declineIncomingMeet(notif.privateMeet)"
                                     class="danger w-full gap-3"
                                 >
                                     <i class="bi bi-x-lg" />
                                     Refuser
                                 </button>
-                                
+
                                 <button
-                                    @click="remove(notif.id), router.push({ name: 'OrgThreadChatPrivateMeet', params: { userId: notif.privateMeet?.id } })"
+                                    @click="remove(notif.id), notif.privateMeet && acceptIncomingMeet(notif.privateMeet)"
                                     class="primary w-full gap-3"
                                 >
                                     <i class="bi bi-telephone-fill animate-bounce" />
@@ -169,6 +169,34 @@
                             </div>
 
                         </div>
+
+                    </template>
+
+                    <template v-else-if="notif.type == 'notif:privateMeetMsg'">
+
+                        <RouterLink
+                            :to="`/${openedOrg?.id}/chat/privateMeet/${notif.privateMeetMsg?.id}`"
+                            class="flex items-center gap-3"
+                            @click="remove(notif.id)"
+                        >
+
+                            <div class="relative shrink-0">
+                                <img
+                                    :src="notif.privateMeetMsg?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(notif.privateMeetMsg?.user?.name)}&background=128a60&color=fff`"
+                                    class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
+                                />
+                            </div>
+
+                            <div class="flex-1 overflow-hidden">
+                                <h4 class="text-(--text) text-sm font-bold truncate">
+                                    {{ $p(notif.privateMeetMsg?.user?.name) }}
+                                </h4>
+                                <p class="text-(--text2) text-sm truncate">
+                                    Nouveau message (session éphémère)
+                                </p>
+                            </div>
+
+                        </RouterLink>
 
                     </template>
 
@@ -201,6 +229,7 @@ import getSpaceIdByThreadId from '@/assets/utils/getSpaceWithThreadId';
 import { openedOrg } from '@/assets/var';
 import useNotifications, { type Notification, type NotificationType } from '@/composables/useNotifications';
 import useSecurePeer from '@/composables/useSecurePeer';
+import usePrivateMeet from '@/composables/usePrivatMeet';
 import { computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { SoundService } from '@/services/SoundService';
@@ -217,6 +246,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 const { notifications, initListener, remove } = useNotifications();
 const router = useRouter();
 const { acceptCall, rejectCall } = useSecurePeer();
+const { acceptIncomingMeet, declineIncomingMeet } = usePrivateMeet();
 const { Item: privacyMode } = useSettingsItem('privacyMode', false);
 
 
@@ -259,6 +289,7 @@ const getStyles = (type: NotificationType, toastType?: string) => {
         case 'notif:dmmsg': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
         case 'notif:call': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
         case 'notif:privateMeet': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:privateMeetMsg': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
 
     }
 
@@ -356,6 +387,15 @@ const getNativeNotificationContext = (notif: Notification): NativeNotifContext |
                 title: 'Discussion privée',
                 singleBody: name,
                 pluralBody: (count) => `${count} demandes de ${name}`
+            };
+        }
+        case 'notif:privateMeetMsg': {
+            const name = formatName(notif.privateMeetMsg?.user?.name);
+            return {
+                key: `privateMeetMsg:${notif.privateMeetMsg?.id}`,
+                title: 'Session éphémère',
+                singleBody: `${name} vous a écrit`,
+                pluralBody: (count) => `${count} nouveaux messages de ${name}`
             };
         }
         default:

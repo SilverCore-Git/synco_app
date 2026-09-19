@@ -9,6 +9,7 @@ import { isLittleScreen, openedOrg, organizations, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import useSecurePeer from '@/composables/useSecurePeer';
+import usePrivateMeet from '@/composables/usePrivatMeet';
 import type { Category, DMMessage, Message, OrgMember } from '@/types/types';
 import { useRoute } from 'vue-router';
 import { useUsersBar } from '@/composables/useUsersBar';
@@ -33,6 +34,7 @@ const props = defineProps<{
 
 const { showUsersBar, setUsersBarHiddenByRoute } = useUsersBar();
 const { initPeer } = useSecurePeer();
+const { initPeer: initPrivateMeetPeer } = usePrivateMeet();
 const { notify } = useNotifications();
 const { init: initNotifications } = useNotification();
 const { fetchRecentDMs, recordDMInteraction } = useRecentDMs();
@@ -597,10 +599,17 @@ onMounted(async () => {
         }
         openedOrg.value = await res.json(); 
     }
+    // Le peer des sessions éphémères doit être identifié par le même id
+    // (OrgMember.id) que PrivateMeetView.vue/ChatView.vue utilisent comme
+    // cible de connexion — c'est aussi ce qui permet à quelqu'un de nous
+    // appeler alors qu'on n'a encore ouvert aucune conversation.
+    const myOrgMemberId = openedOrg.value?.members?.find(m => m.userId === user.value?.id)?.id;
+
     await Promise.all([
             fetchPermissions(),
             initSocketListener(),
             initPeer(),
+            initPrivateMeetPeer(myOrgMemberId),
             initNotifications(),
             fetchRecentDMs()
     ])

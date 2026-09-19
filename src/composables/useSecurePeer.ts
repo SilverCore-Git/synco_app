@@ -6,23 +6,7 @@ import useNotifications from './useNotifications';
 import { keycloak } from '@/assets/keycloak';
 import { generateCallId } from '@/assets/utils/webhookCrypto';
 import { getVoicePrefs, resolveCameraCaptureOptions } from '@/assets/utils/voicePrefs';
-
-// ============================================================================
-// Configuration
-// ============================================================================
-
-const PEER_CONFIG = {
-    sdpSemantics: 'unified-plan' as const,
-    encodedInsertableStreams: true,
-    iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-    ],
-    iceCandidatePoolSize: 10,
-    iceTransportPolicy: 'all' as const,
-    bundlePolicy: 'max-bundle' as const,
-    rtcpMuxPolicy: 'require' as const
-};
+import { PEER_CONFIG } from '@/assets/utils/peerConfig';
 
 // ============================================================================
 // Types

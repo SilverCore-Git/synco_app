@@ -5,7 +5,7 @@ import useWSocket, { waitForSocketConnection } from "./useWSocket";
 import router from "@/router";
 
 
-type NotificationType = 'toast' | 'notif:msg' | 'notif:dmmsg' | 'notif:call' | 'notif:privateMeet';
+type NotificationType = 'toast' | 'notif:msg' | 'notif:dmmsg' | 'notif:call' | 'notif:privateMeet' | 'notif:privateMeetMsg';
 
 interface Notification {
 
@@ -26,8 +26,11 @@ interface Notification {
     // if notif:call
     call?: OrgMember;
 
-    // if notif:privateMeet
+    // if notif:privateMeet (invitation entrante) et notif:privateMeetMsg
+    // (message reçu pendant qu'on n'est pas sur la session) — jamais le
+    // contenu du message, juste qui a écrit (même règle que notif:dmmsg).
     privateMeet?: OrgMember;
+    privateMeetMsg?: OrgMember;
 
 }
 
@@ -176,6 +179,15 @@ const notify = (type: NotificationType, payload: any, timeout?: number) => {
             type,
             createdAt: new Date(),
             privateMeet: payload
+        });
+    }
+    else if (type === 'notif:privateMeetMsg')
+    {
+        notifications.value.push({
+            id,
+            type,
+            createdAt: new Date(),
+            privateMeetMsg: payload
         });
     }
 

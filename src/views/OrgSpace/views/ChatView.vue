@@ -326,7 +326,10 @@
 
         </footer>
 
-        <div v-if="isPrivateMeet" class="absolute inset-0 z-50 backdrop-blur-xs">
+        <!-- z-[150] : au-dessus du footer normal ci-dessus (z-[110], toujours
+             monté sous cet overlay), sinon sa textarea passait devant celle
+             de la session éphémère au lieu d'être masquée derrière. -->
+        <div v-if="isPrivateMeet" class="absolute inset-0 z-[150] backdrop-blur-xs">
             <PrivateMeetView />
         </div>
 
@@ -382,6 +385,7 @@ import useSecurePeer from '@/composables/useSecurePeer';
 
 import { E2EEUnloked, privateKey, encryptForPeer, decryptFromPeer } from '@/assets/utils/crypto';
 import PrivateMeetView from './PrivateMeetView.vue';
+import usePrivateMeet from '@/composables/usePrivatMeet';
 import ChatMessage from '../components/common/ChatMessage.vue';
 import { uploadFiles } from '@/assets/uploadFile';
 import useResponse from '@/composables/useResponse';
@@ -395,6 +399,7 @@ const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const { startCall } = useSecurePeer();
+const { activeMeetPeerId, startMeet } = usePrivateMeet();
 const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
 const { markDMAsRead, getUnreadCountByDMUserId } = useNotification();
 const { fetchRecentDMs, getMostRecentDMUserId } = useRecentDMs();
@@ -403,6 +408,23 @@ const socket = ref<Socket | null>(null);
 
 const TextareaRef = ref<InstanceType<typeof ThreadTextarea> | null>(null);
 const isPrivateMeet = computed(() => route.name == 'OrgThreadChatPrivateMeet');
+
+// Si on ouvre le DM normal de quelqu'un avec qui une session éphémère
+// tourne déjà (potentiellement démarrée depuis une tout autre page, la
+// session survit maintenant à la navigation), on est redirigé sur cette
+// session au lieu de voir le DM normal — "retourner sur la discussion doit
+// nous ramener sur elle", plutôt que de la laisser tourner invisible en
+// arrière-plan sans qu'on puisse y revenir autrement qu'en re-cliquant
+// "Session éphémère".
+watch(
+    [() => route.name, () => route.params.userId, activeMeetPeerId],
+    ([routeName, userId, meetPeerId]) => {
+        if (routeName === 'OrgThreadChat' && meetPeerId && meetPeerId === userId) {
+            router.replace({ name: 'OrgThreadChatPrivateMeet', params: { userId } });
+        }
+    },
+    { immediate: true }
+);
 const isE2EEEnabled = ref<boolean>(true);
 const messages = ref<any[]>([]);
 const newMessage = ref<string>("");
@@ -930,8 +952,8 @@ const sendMessage = async () => {
 };
 
 const createPrivateMeet = () => {
-    const memberId = openedOrg.value?.members?.find((m: OrgMember) => m.id === route.params.userId)?.id;
-    router.push({ name: 'OrgThreadChatPrivateMeet', params: { userId: memberId } });
+    const member = openedOrg.value?.members?.find((m: OrgMember) => m.id === route.params.userId);
+    if (member) startMeet(member);
 };
 
 const handleScroll = (e: Event) => {
