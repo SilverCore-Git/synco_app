@@ -8,6 +8,8 @@ import { keycloak } from '@/assets/keycloak';
 import { generateCallId } from '@/assets/utils/webhookCrypto';
 import { getVoicePrefs, resolveCameraCaptureOptions } from '@/assets/utils/voicePrefs';
 import { PEER_CONFIG } from '@/assets/utils/peerConfig';
+import { debugLog } from '@/assets/utils/debugLog';
+import { createPeerReconnector } from '@/assets/utils/peerReconnect';
 
 // ============================================================================
 // Types
@@ -57,6 +59,7 @@ interface SecurityStatus {
 // ============================================================================
 
 const peer = ref<Peer | null>(null);
+const peerReconnector = createPeerReconnector(() => peer.value);
 const localStream = ref<MediaStream | null>(null);
 const screenStream = ref<MediaStream | null>(null);
 const isCalling = ref<boolean>(false);
@@ -293,6 +296,10 @@ export default function useSecurePeer() {
             debug: 1
         });
 
+        peer.value.on('open', () => {
+            peerReconnector.reset();
+        });
+
         peer.value.on('call', (call) => {
             handleIncomingCall(call);
         });
@@ -304,10 +311,16 @@ export default function useSecurePeer() {
 
         peer.value.on('disconnected', () => {
             console.warn('[SECURE-PEER] Peer disconnected from server');
+            // PeerJS ne se reconnecte jamais tout seul ici (contrairement au
+            // socket.io principal) — sans cet appel explicite, un simple blip
+            // réseau rendait ce client injoignable (calls entrants ET
+            // sortants) jusqu'au rechargement complet de la page.
+            peerReconnector.schedule();
         });
 
         peer.value.on('close', () => {
             console.warn('[SECURE-PEER] Peer connection closed');
+            peerReconnector.cancel();
         });
 
         // Seul moyen fiable de savoir que l'appelant a raccroché/abandonné
@@ -327,8 +340,10 @@ export default function useSecurePeer() {
     };
 
     const cleanupPeer = () => {
+        peerReconnector.cancel();
         if (peer.value) {
             try {
+                peer.value.off('open');
                 peer.value.off('call');
                 peer.value.off('error');
                 peer.value.off('disconnected');
@@ -399,7 +414,7 @@ export default function useSecurePeer() {
         if (!session) return;
 
         channel.onopen = async () => {
-            console.log('[SECURE-PEER] Data channel open with:', peerId);
+            debugLog('[SECURE-PEER] Data channel open with:', peerId);
 
             session.dataChannel = channel;
 
@@ -445,7 +460,7 @@ export default function useSecurePeer() {
         };
 
         channel.onclose = () => {
-            console.log('[SECURE-PEER] Data channel closed for:', peerId);
+            debugLog('[SECURE-PEER] Data channel closed for:', peerId);
             // Clear timeout on channel close
             if (session.keyExchangeTimeout) {
                 clearTimeout(session.keyExchangeTimeout);
@@ -524,7 +539,7 @@ export default function useSecurePeer() {
                         });
                         callSecurityStatus.value = status;
                         
-                        console.log('[SECURE-PEER] Key exchange completed for:', peerId);
+                        debugLog('[SECURE-PEER] Key exchange completed for:', peerId);
                     }
                     break;
 
@@ -560,7 +575,7 @@ export default function useSecurePeer() {
                         });
                         callSecurityStatus.value = status;
                         
-                        console.log('[SECURE-PEER] Key exchange completed and authenticated for:', peerId);
+                        debugLog('[SECURE-PEER] Key exchange completed and authenticated for:', peerId);
                     }
                     break;
 
@@ -571,7 +586,7 @@ export default function useSecurePeer() {
                 // propre offer via ce canal pour qu'on négocie manuellement.
                 case 'RENEGOTIATE_OFFER':
                     if (message.sdp) {
-                        console.log('[SECURE-PEER] RENEGOTIATE_OFFER reçue de', peerId, '— signalingState avant:', session.call.peerConnection.signalingState);
+                        debugLog('[SECURE-PEER] RENEGOTIATE_OFFER reçue de', peerId, '— signalingState avant:', session.call.peerConnection.signalingState);
                         const pc = session.call.peerConnection;
                         await pc.setRemoteDescription(message.sdp);
                         const answer = await pc.createAnswer();
@@ -582,7 +597,7 @@ export default function useSecurePeer() {
                             timestamp: Date.now(),
                             callId: session.callId
                         } satisfies KeyExchangeMessage));
-                        console.log('[SECURE-PEER] RENEGOTIATE_ANSWER envoyée à', peerId, '— senders vidéo:', pc.getSenders().filter(s => s.track?.kind === 'video').length, 'receivers vidéo:', pc.getReceivers().filter(r => r.track?.kind === 'video').length);
+                        debugLog('[SECURE-PEER] RENEGOTIATE_ANSWER envoyée à', peerId, '— senders vidéo:', pc.getSenders().filter(s => s.track?.kind === 'video').length, 'receivers vidéo:', pc.getReceivers().filter(r => r.track?.kind === 'video').length);
                     } else {
                         console.warn('[SECURE-PEER] RENEGOTIATE_OFFER reçue sans sdp de', peerId);
                     }
@@ -591,7 +606,7 @@ export default function useSecurePeer() {
                 case 'RENEGOTIATE_ANSWER':
                     if (message.sdp) {
                         await session.call.peerConnection.setRemoteDescription(message.sdp);
-                        console.log('[SECURE-PEER] RENEGOTIATE_ANSWER appliquée pour', peerId, '— signalingState:', session.call.peerConnection.signalingState);
+                        debugLog('[SECURE-PEER] RENEGOTIATE_ANSWER appliquée pour', peerId, '— signalingState:', session.call.peerConnection.signalingState);
                     } else {
                         console.warn('[SECURE-PEER] RENEGOTIATE_ANSWER reçue sans sdp de', peerId);
                     }
@@ -608,7 +623,7 @@ export default function useSecurePeer() {
                 // le même nettoyage (removePeerFromCall) que pour un
                 // raccroché initié localement.
                 case 'HANGUP':
-                    console.log('[SECURE-PEER] HANGUP reçu de', peerId);
+                    debugLog('[SECURE-PEER] HANGUP reçu de', peerId);
                     session.call.close();
                     break;
             }
@@ -643,7 +658,7 @@ export default function useSecurePeer() {
 
         try {
             const pc = session.call.peerConnection;
-            console.log('[SECURE-PEER] triggerRenegotiation pour', peerId, '— senders vidéo avant offer:', pc.getSenders().filter(s => s.track?.kind === 'video').length, 'signalingState:', pc.signalingState);
+            debugLog('[SECURE-PEER] triggerRenegotiation pour', peerId, '— senders vidéo avant offer:', pc.getSenders().filter(s => s.track?.kind === 'video').length, 'signalingState:', pc.signalingState);
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
             session.dataChannel.send(JSON.stringify({
@@ -652,7 +667,7 @@ export default function useSecurePeer() {
                 timestamp: Date.now(),
                 callId: session.callId
             } satisfies KeyExchangeMessage));
-            console.log('[SECURE-PEER] RENEGOTIATE_OFFER envoyée à', peerId);
+            debugLog('[SECURE-PEER] RENEGOTIATE_OFFER envoyée à', peerId);
         } catch (err) {
             console.error('[SECURE-PEER] triggerRenegotiation a échoué:', err);
         }
@@ -714,7 +729,7 @@ export default function useSecurePeer() {
             session.answered = true;
             clearRingTimeout();
 
-            console.log(
+            debugLog(
                 '[SECURE-PEER] "stream" event for', peerId,
                 '— audio tracks:', incomingStream.getAudioTracks().length,
                 'video tracks:', incomingStream.getVideoTracks().length,
@@ -993,10 +1008,10 @@ export default function useSecurePeer() {
         activeCalls.value.forEach(session => {
             const sender = session.call.peerConnection.getSenders().find(s => s.track?.kind === 'video');
             if (sender) {
-                console.log('[SECURE-PEER] publishVideoTrack: sender vidéo existant, replaceTrack (pas de renégociation nécessaire) pour', session.peerId);
+                debugLog('[SECURE-PEER] publishVideoTrack: sender vidéo existant, replaceTrack (pas de renégociation nécessaire) pour', session.peerId);
                 sender.replaceTrack(track);
             } else {
-                console.log('[SECURE-PEER] publishVideoTrack: aucun sender vidéo, addTrack + renégociation pour', session.peerId);
+                debugLog('[SECURE-PEER] publishVideoTrack: aucun sender vidéo, addTrack + renégociation pour', session.peerId);
                 session.call.peerConnection.addTrack(track, localStream.value!);
                 triggerRenegotiation(session.peerId);
             }
@@ -1161,7 +1176,7 @@ export default function useSecurePeer() {
         }
 
         if (!peer.value || peer.value.destroyed) {
-            console.log('[SECURE-PEER] Initialisation de l\'instance Peer...');
+            debugLog('[SECURE-PEER] Initialisation de l\'instance Peer...');
             await initPeer();
             // Wait a bit for peer to be ready
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -1172,7 +1187,7 @@ export default function useSecurePeer() {
 
         if (peer.value.disconnected) {
             try {
-                console.log('[SECURE-PEER] Tentative de reconnexion...');
+                debugLog('[SECURE-PEER] Tentative de reconnexion...');
                 await peer.value.reconnect();
                 // Wait for reconnection
                 await new Promise(resolve => setTimeout(resolve, 1000));

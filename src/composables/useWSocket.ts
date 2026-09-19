@@ -1,6 +1,7 @@
 import { keycloak, onTokenRefresh } from "@/assets/keycloak";
 import { io, type Socket } from "socket.io-client";
 import { ref, type Ref } from "vue";
+import { debugLog, debugWarn } from "@/assets/utils/debugLog";
 
 const socket = ref<Socket | null>(null);
 const isConnecting = ref<boolean>(false);
@@ -63,7 +64,7 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
         // Wait for Keycloak token to be available (auth may still be in progress)
         let token = getToken();
         if (!token) {
-            console.log('[WS] Token not yet available, waiting for Keycloak authentication...');
+            debugLog('[WS] Token not yet available, waiting for Keycloak authentication...');
             token = await new Promise<string>((resolve, reject) => {
                 let elapsed = 0;
                 const interval = setInterval(() => {
@@ -138,7 +139,7 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
         isConnecting.value = false;
 
         socket.value.on("connect", () => {
-            console.warn("[WS] ✅ Connected with ID:", socket.value?.id);
+            debugWarn("[WS] ✅ Connected with ID:", socket.value?.id);
         });
 
         socket.value.on("connect_error", async (err) => {
@@ -204,7 +205,7 @@ const waitForSocketConnection = async (socketRef: Ref<Socket | null>, timeoutMs:
     if (socketRef.value?.connected) return true;
     if (!socketRef.value) return false;
     
-    console.log('[WS] Waiting for socket connection...');
+    debugLog('[WS] Waiting for socket connection...');
     
     return new Promise((resolve) => {
         const timeout = setTimeout(() => {
@@ -225,7 +226,7 @@ const waitForSocketConnection = async (socketRef: Ref<Socket | null>, timeoutMs:
         };
         
         const onConnect = () => {
-            console.log('[WS] Socket connected successfully');
+            debugLog('[WS] Socket connected successfully');
             cleanup();
             resolve(true);
         };

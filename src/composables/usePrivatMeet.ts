@@ -9,6 +9,8 @@ import type { OrgMember } from '@/types/types';
 import router from '@/router';
 import { openedOrg } from '@/assets/var';
 import waitFor from '@/assets/utils/waitfor';
+import { debugLog } from '@/assets/utils/debugLog';
+import { createPeerReconnector } from '@/assets/utils/peerReconnect';
 
 // ============================================================================
 // État partagé — niveau module, comme useSecurePeer.ts (pas par instance de
@@ -83,6 +85,7 @@ const stopRingtone = () => {
 };
 
 const peer = ref<Peer | null>(null);
+const peerReconnector = createPeerReconnector(() => peer.value);
 const myPeerId = ref<string>('');
 const connection = ref<DataConnection | null>(null);
 const isConnected = ref<boolean>(false);
@@ -177,14 +180,24 @@ const initPeer = async (userId?: string): Promise<void> => {
 
         peer.value.on('open', (id) => {
             myPeerId.value = id;
+            peerReconnector.reset();
         });
 
         peer.value.on('connection', (conn) => {
-            console.log('Nouvelle discussion entrante de:', conn.peer);
+            debugLog('Nouvelle discussion entrante de:', conn.peer);
             setupDataConnection(conn);
         });
 
         peer.value.on('error', (err) => console.error('Erreur PeerJS:', err));
+
+        peer.value.on('disconnected', () => {
+            console.warn('[PRIVATE-MEET] Peer disconnected from server');
+            // Comme pour useSecurePeer.ts (les appels) : PeerJS ne se
+            // reconnecte jamais tout seul — sans cet appel, une session
+            // éphémère devenait injoignable après le moindre blip réseau,
+            // jusqu'au rechargement complet de la page.
+            peerReconnector.schedule();
+        });
 
         // Écouté ici une fois pour toute la session org (pas dans
         // PrivateMeetView.vue) : un refus doit être visible même si on a
@@ -253,7 +266,7 @@ const setupDataConnection = (conn: DataConnection) => {
         isMeeting.value = true;
         clearPendingCallTimeout();
         stopRingtone();
-        console.log('Text P2P canal open');
+        debugLog('Text P2P canal open');
 
         if (sessionPublicKeyJWK.value) {
             conn.send({ type: 'E2EE_HANDSHAKE', publicKeyJWK: sessionPublicKeyJWK.value });
@@ -266,7 +279,7 @@ const setupDataConnection = (conn: DataConnection) => {
         if (data.type === 'E2EE_HANDSHAKE' && data.publicKeyJWK) {
 
             peerPublicKeyJWK.value = data.publicKeyJWK;
-            console.log('Handshake E2EE terminé.');
+            debugLog('Handshake E2EE terminé.');
 
         }
 
@@ -397,7 +410,7 @@ const setupDataConnection = (conn: DataConnection) => {
         activeMeetPeerUserId.value = null;
         clearPendingCallTimeout();
         stopRingtone();
-        console.log('Meet closed');
+        debugLog('Meet closed');
     });
 
 };
