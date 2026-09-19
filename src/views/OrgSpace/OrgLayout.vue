@@ -304,30 +304,49 @@ const initSocketListener = async () => {
     });
 
     socket.value?.on('space:updated', async ({ orgId, spaceId, data }: { orgId: string, spaceId: string, data: { logo: string, name: string, members: string[] } }) => {
-        
+
         if (orgId !== props.orgId) return;
 
-        const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
-        if (!space) return;
+        const myUserId = keycloak.userInfo?.sub || '';
+        const iAmMember = data.members.includes(myUserId);
+        const index = openedOrg.value?.spaces?.findIndex(s => s.id === spaceId) ?? -1;
 
+        // Le space ne fait pas encore partie de ma liste : soit on vient tout
+        // juste de m'y ajouter (il faut le faire apparaître), soit l'event ne
+        // me concerne pas (space auquel je n'ai jamais appartenu) — auquel cas
+        // on ignore, sans quoi on relancerait un fetch pour rien à chaque
+        // modif d'un space qu'on n'a jamais vu.
+        if (index === -1) {
+
+            if (!iAmMember) return;
+
+            socket.value?.emit('join-space', { orgId: props.orgId, spaceId });
+
+            const newSpace = await sfetch(`/api/spaces/${spaceId}`).then(res => res.json());
+            openedOrg.value?.spaces?.push(newSpace);
+
+            return;
+
+        }
+
+        const space = openedOrg.value!.spaces![index];
         space.logo = data.logo;
         space.name = data.name;
         space.membersId = data.members;
 
-        if (data.members.includes(keycloak.userInfo?.sub || '')) 
+        if (iAmMember)
         {
-            
-            socket.value?.emit('join-space', { orgId: props.orgId, spaceId });
-            
-            const space = await sfetch(`/api/spaces/${spaceId}`).then(res => res.json());
-            const index = openedOrg.value?.spaces?.findIndex(s => s.id === spaceId);
-            if (index !== undefined && index !== -1 && openedOrg.value?.spaces) openedOrg.value.spaces[index] = space;
 
-        } 
+            socket.value?.emit('join-space', { orgId: props.orgId, spaceId });
+
+            const refreshedSpace = await sfetch(`/api/spaces/${spaceId}`).then(res => res.json());
+            if (openedOrg.value?.spaces) openedOrg.value.spaces[index] = refreshedSpace;
+
+        }
         else
         {
             socket.value?.emit('leave-space', { orgId: props.orgId, spaceId });
-            openedOrg.value?.spaces?.splice(openedOrg.value.spaces.findIndex(s => s.id === spaceId), 1);
+            openedOrg.value?.spaces?.splice(index, 1);
         }
 
     });
