@@ -8,6 +8,7 @@ import init, { refetchUser } from './assets/init';
 import { isLoaded, user } from './assets/var';
 import type { User } from '@/types/types';
 import Notifications from './components/overlay/Notifications.vue';
+import ConnectionStatusBanner from './components/overlay/ConnectionStatusBanner.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
 import useSettingsItem from './composables/useSettingsItem';
 import { initKC, isTauriPlatform, loginWithSystemBrowser } from './assets/keycloak';
@@ -385,6 +386,7 @@ onMounted(async () => {
          erreurs de démarrage (health check, initKC) via un toast plutôt
          qu'un alert() natif. -->
     <Notifications />
+    <ConnectionStatusBanner />
 
     <!-- Écran de connexion Tauri (bureau) : authenticated est déjà à false
          ici, mais tant que l'utilisateur n'a pas cliqué "Se connecter" on

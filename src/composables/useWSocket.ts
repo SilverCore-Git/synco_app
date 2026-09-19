@@ -7,6 +7,15 @@ const socket = ref<Socket | null>(null);
 const isConnecting = ref<boolean>(false);
 let unsubscribeTokenRefresh: (() => void) | null = null;
 
+// État de connexion exposé pour l'UI (cf. ConnectionStatusBanner.vue) — vrai
+// dès l'événement 'connect', remis à faux sur tout 'disconnect'.
+// connectionAttempted distingue "pas encore essayé de se connecter" (avant
+// tout appel à useWSocket(), ex: pendant le login) de "en train de se
+// (re)connecter" — sans lui, la bannière "Déconnecté" flasherait au tout
+// premier chargement de l'appli avant même la première tentative.
+const isConnected = ref<boolean>(false);
+const connectionAttempted = ref<boolean>(false);
+
 const getToken = () => keycloak.token || '';
 
 // Keeps the live socket's session alive across Keycloak token refreshes.
@@ -58,6 +67,7 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
     }
 
     isConnecting.value = true;
+    connectionAttempted.value = true;
 
     try {
 
@@ -140,9 +150,11 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
 
         socket.value.on("connect", () => {
             debugWarn("[WS] ✅ Connected with ID:", socket.value?.id);
+            isConnected.value = true;
         });
 
         socket.value.on("connect_error", async (err) => {
+            isConnected.value = false;
             console.error("[WS] ❌ Connection Error:", err.message);
             console.error("[WS] Token present:", !!getToken());
             // Si l'erreur est liée à l'authentification (ex: token expiré), on force un rafraîchissement
@@ -156,6 +168,7 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
         });
 
         socket.value.on("disconnect", async (reason) => {
+            isConnected.value = false;
             console.warn("[WS] Disconnected:", reason);
             // socket.io does not auto-reconnect after "io server disconnect"
             // (server called socket.disconnect(), e.g. the token-expiry
@@ -199,6 +212,11 @@ const disconnectSocket = () => {
         unsubscribeTokenRefresh();
         unsubscribeTokenRefresh = null;
     }
+    // Déconnexion volontaire (ex: logout) — pas une coupure à signaler,
+    // la bannière ne doit pas s'afficher tant que personne n'a redemandé
+    // de connexion.
+    isConnected.value = false;
+    connectionAttempted.value = false;
 };
 
 const waitForSocketConnection = async (socketRef: Ref<Socket | null>, timeoutMs: number = 15000): Promise<boolean> => {
@@ -243,5 +261,5 @@ const waitForSocketConnection = async (socketRef: Ref<Socket | null>, timeoutMs:
     });
 };
 
-export { disconnectSocket, waitForSocketConnection };
+export { disconnectSocket, waitForSocketConnection, isConnected, connectionAttempted };
 export default useWSocket;
