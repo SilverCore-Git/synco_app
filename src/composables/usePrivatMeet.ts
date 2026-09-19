@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import Peer, { type DataConnection } from 'peerjs';
 import { encryptForPeer, decryptFromPeer, encryptBufferForPeer, decryptBufferFromPeer } from '@/assets/utils/crypto';
 import { PEER_CONFIG } from '@/assets/utils/peerConfig';
@@ -44,6 +44,11 @@ export interface MeetMessage {
     fileUrl?: string;
     status?: 'sending' | 'receiving' | 'done';
     progress?: number;
+    // Vrai une fois que LE CORRESPONDANT a confirmé avoir reçu et déchiffré
+    // le fichier avec succès (FILE_RECEIVED) — distinct de status 'done',
+    // qui côté expéditeur signifie seulement "j'ai fini d'envoyer tous les
+    // morceaux", pas "l'autre les a bien tous reçus et déchiffrés".
+    confirmedReceived?: boolean;
     timestamp: number;
 }
 
@@ -67,6 +72,20 @@ const sessionPrivateKey = ref<CryptoKey | null>(null);
 const sessionPublicKeyJWK = ref<string>('');
 const peerPublicKeyJWK = ref<string | null>(null);
 const messages = ref<MeetMessage[]>([]);
+
+// Vrai tant qu'un fichier est en cours d'envoi/réception, OU qu'on l'a fini
+// d'envoyer mais que le correspondant n'a pas encore confirmé l'avoir reçu
+// et déchiffré — utilisé pour empêcher/confirmer la fermeture de la session
+// pendant qu'un transfert n'est pas réellement terminé des deux côtés.
+const hasPendingFileTransfer = computed(() =>
+    messages.value.some(m =>
+        m.kind === 'file' && (
+            m.status === 'sending' ||
+            m.status === 'receiving' ||
+            (m.sender === 'Vous' && m.status === 'done' && !m.confirmedReceived)
+        )
+    )
+);
 
 // OrgMember.id du correspondant de la session en cours (ou en cours
 // d'établissement), et son User.id — seule source de vérité pour "y a-t-il
@@ -302,6 +321,12 @@ const setupDataConnection = (conn: DataConnection) => {
 
                 updateFileMessage(data.fileId, { status: 'done', progress: 100, fileUrl: URL.createObjectURL(blob) });
 
+                // Confirme à l'expéditeur que le fichier est bien arrivé ET
+                // déchiffré avec succès — sans ça, il n'a aucun moyen de
+                // distinguer "j'ai fini d'envoyer tous les morceaux" de
+                // "l'autre les a vraiment tous reçus et pu les déchiffrer".
+                connection.value?.send({ type: 'FILE_RECEIVED', fileId: data.fileId });
+
                 notifyIfAway(conn.peer);
 
             } catch (e) {
@@ -311,6 +336,10 @@ const setupDataConnection = (conn: DataConnection) => {
                 updateFileMessage(data.fileId, { status: 'done' });
             }
 
+        }
+
+        else if (data.type === 'FILE_RECEIVED') {
+            updateFileMessage(data.fileId, { confirmedReceived: true });
         }
 
     });
@@ -666,6 +695,7 @@ export default function usePrivateMeet() {
         myPeerId,
         isConnected,
         messages,
+        hasPendingFileTransfer,
         activeMeetPeerId,
         activeMeetPeerUserId,
         isMeetConnecting,

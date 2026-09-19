@@ -10,23 +10,14 @@
             <div class="flex items-center gap-3">
                 <MobileBackBtn />
 
-               <div
-                    class="flex items-center gap-1.5 px-3 py-2 rounded-2xl border"
-                    :class="connectionType === 'relay'
-                        ? 'bg-yellow-500/10 border-yellow-500/20'
-                        : 'bg-green-500/10 border-green-500/20'"
+                <button
+                    @click="showEncryptionInfo = true"
+                    class="p-2 rounded-lg hover:bg-white/5 transition-colors"
+                    :class="connectionType === 'relay' ? 'text-yellow-500' : 'text-green-500'"
+                    :title="connectionType === 'relay' ? 'Chiffré — connexion relayée (en savoir plus)' : 'Chiffré de bout en bout, P2P (en savoir plus)'"
                 >
-                    <i
-                        class="bi text-[12px]"
-                        :class="connectionType === 'relay' ? 'bi-exclamation-triangle-fill text-yellow-500' : 'bi-shield-lock-fill text-green-500'"
-                    />
-                    <span
-                        class="text-[12px] uppercase tracking-tighter font-bold"
-                        :class="connectionType === 'relay' ? 'text-yellow-500' : 'text-green-500'"
-                    >
-                        {{ connectionType === 'relay' ? 'Chiffré — connexion relayée' : 'Chiffré de bout en bout (P2P)' }}
-                    </span>
-                </div>
+                    <i class="bi" :class="connectionType === 'relay' ? 'bi-shield-exclamation' : 'bi-shield-lock-fill'" />
+                </button>
 
             </div>
 
@@ -34,7 +25,7 @@
 
                 <button class="hover:text-(--text) transition-colors">
                     <i
-                        @click="close"
+                        @click="requestClose"
                         class="bi bi-telephone-x-fill text-red-400 hover:text-red-500 transition-colors"
                     />
                 </button>
@@ -196,6 +187,78 @@
 
         </footer>
 
+        <ConfirmDelete
+            :show="showCloseConfirm"
+            item-name="la session éphémère"
+            title="Fermer la session ?"
+            message="Un fichier est en cours de transfert, ou n'a pas encore été confirmé reçu par votre correspondant. Fermer maintenant l'interrompra avant qu'il ne soit intégralement transmis."
+            button-text="Fermer quand même"
+            @confirm="confirmClose"
+            @cancel="showCloseConfirm = false"
+        />
+
+        <Popup :isOpen="showEncryptionInfo" @close="showEncryptionInfo = false">
+            <template #title>Chiffrement de bout en bout</template>
+
+            <div class="space-y-5 text-sm text-(--text2) leading-relaxed">
+
+                <div class="flex items-start gap-3">
+                    <i class="bi bi-router-fill text-lg text-(--primary) mt-0.5 shrink-0" />
+                    <div>
+                        <p class="text-(--text) font-semibold mb-1">Connexion directe (peer-to-peer)</p>
+                        <p>
+                            Vos messages et fichiers ne transitent jamais par les serveurs de Synco.
+                            Une fois la session établie, votre appareil communique directement avec
+                            celui de votre correspondant.
+                        </p>
+                        <p class="mt-2 flex items-center gap-1.5 text-xs font-medium" :class="connectionType === 'relay' ? 'text-yellow-500' : 'text-green-500'">
+                            <i class="bi" :class="connectionType === 'relay' ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill'" />
+                            {{ connectionType === 'relay' ? 'Connexion actuelle : relayée (réseau restrictif)' : connectionType === 'direct' ? 'Connexion actuelle : directe' : 'Connexion en cours de vérification…' }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-3">
+                    <i class="bi bi-key-fill text-lg text-(--primary) mt-0.5 shrink-0" />
+                    <div>
+                        <p class="text-(--text) font-semibold mb-1">Comment ça marche</p>
+                        <p>
+                            À l'ouverture, vos deux appareils génèrent chacun une paire de clés RSA
+                            (4096 bits) et échangent leur clé publique. Chaque message et chaque
+                            fichier est ensuite chiffré avec une clé AES-256 unique, elle-même
+                            protégée par cette clé publique — seul votre correspondant, avec sa clé
+                            privée qui ne quitte jamais son appareil, peut la déchiffrer.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-3">
+                    <i class="bi bi-hourglass-split text-lg text-(--primary) mt-0.5 shrink-0" />
+                    <div>
+                        <p class="text-(--text) font-semibold mb-1">Rien n'est conservé</p>
+                        <p>
+                            Les messages et fichiers ne sont stockés nulle part — ni sur un serveur,
+                            ni dans une base de données — seulement en mémoire le temps de la session.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-3 pt-3 border-t border-(--border-color)">
+                    <i class="bi bi-info-circle text-lg text-(--text2) mt-0.5 shrink-0" />
+                    <div>
+                        <p class="text-(--text) font-semibold mb-1">Limite connue</p>
+                        <p>
+                            Contrairement aux appels vocaux, l'échange de clé initial n'est pas
+                            encore vérifiable par un code de sécurité — un serveur de signalisation
+                            compromis pourrait en théorie s'y interposer.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+
+        </Popup>
+
     </div>
 
 </template>
@@ -211,6 +274,8 @@ import type { OrgMember } from '@/types/types';
 import usePrivateMeet from '@/composables/usePrivatMeet';
 import SpinLoader from '@/components/SpinLoader.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
+import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
+import Popup from '@/components/Popup.vue';
 
 const {
     messages,
@@ -218,6 +283,7 @@ const {
     isMeetConnecting,
     meetLoadingStatus,
     isConnected,
+    hasPendingFileTransfer,
     sendEncryptedMessage,
     sendEncryptedFile,
     endMeet,
@@ -232,6 +298,8 @@ const newMessage = ref<string>('');
 const isDragging = ref<boolean>(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 const connectionType = ref<'direct' | 'relay' | 'unknown' | null>(null);
+const showCloseConfirm = ref<boolean>(false);
+const showEncryptionInfo = ref<boolean>(false);
 
 watch(() => isConnected.value, async (connected) => {
     connectionType.value = connected ? await getConnectionType() : null;
@@ -252,6 +320,23 @@ const recipient = computed(() => {
 const close = async () => {
     endMeet();
     await router.push({ name: 'OrgThreadChat', params: { userId: route.params.userId } });
+};
+
+// Un fichier en cours d'envoi/réception (ou envoyé mais pas encore confirmé
+// reçu par le correspondant) serait interrompu net par une fermeture
+// immédiate — on demande confirmation dans ce cas plutôt que de le perdre
+// sans prévenir.
+const requestClose = () => {
+    if (hasPendingFileTransfer.value) {
+        showCloseConfirm.value = true;
+    } else {
+        close();
+    }
+};
+
+const confirmClose = () => {
+    showCloseConfirm.value = false;
+    close();
 };
 
 const formatFileSize = (bytes?: number): string => {
