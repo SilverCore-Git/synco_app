@@ -157,8 +157,8 @@
                                     Refuser
                                 </button>
                                 
-                                <button 
-                                    @click="router.push({ name: 'OrgThreadChatPrivateMeet', params: { userId: notif.privateMeet?.id } });"
+                                <button
+                                    @click="remove(notif.id), router.push({ name: 'OrgThreadChatPrivateMeet', params: { userId: notif.privateMeet?.id } })"
                                     class="primary w-full gap-3"
                                 >
                                     <i class="bi bi-telephone-fill animate-bounce" />
@@ -173,10 +173,15 @@
 
                 </div>
 
-                <button 
-                    @click="remove(notif.id)" 
+                <!-- Pas de croix générique pour un appel entrant : "Refuser" est le
+                     seul moyen de le clore proprement (raccroche le MediaConnection
+                     et arrête la sonnerie) — une simple fermeture de la carte
+                     laissait l'appel sonner indéfiniment en arrière-plan, sans
+                     aucun moyen de le reprendre en main ensuite. -->
+                <button
+                    v-if="notif.type !== 'notif:call'"
+                    @click="remove(notif.id)"
                     class="opacity-40 hover:opacity-100 transition-opacity absolute top-4 right-4"
-                    :class="notif.type == 'notif:call' ? 'absolute top-4 right-4' : ''"
                 >
                     <i class="bi bi-x-lg text-xs" />
                 </button>

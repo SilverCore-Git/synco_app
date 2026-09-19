@@ -262,6 +262,18 @@ export default function useSecurePeer() {
             return;
         }
 
+        // Le correspondant peut raccrocher avant qu'on ait répondu (appel annulé) :
+        // avant l'acceptation, aucun listener 'close' n'était posé sur cet appel,
+        // donc enteringCall/callNotif/la sonnerie restaient bloqués indéfiniment
+        // côté appelé, avec un bouton "Répondre" mort pointant vers un appel fermé.
+        call.on('close', () => {
+            if (enteringCall.value !== call) return;
+            enteringCall.value = null;
+            callNotif.value = callNotif.value.filter(m => m.user?.id !== call.peer);
+            ringtone.pause();
+            ringtone.currentTime = 0;
+        });
+
         enteringCall.value = call;
         callNotif.value.push(member);
         ringtone.play().catch(() => {});
@@ -887,6 +899,7 @@ export default function useSecurePeer() {
             callNotif.value = callNotif.value.filter(m => m.user?.id !== enteringCall.value?.peer);
             enteringCall.value = null;
             ringtone.pause();
+            ringtone.currentTime = 0;
         },
         toggleMic,
         toggleCam,

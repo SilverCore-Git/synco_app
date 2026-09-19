@@ -40,23 +40,33 @@ const removeAfter: number = 3000;
 
 watch(callNotif, (newList) => {
 
-    if (!newList || newList.length === 0) return;
-
-    const lastCall = newList[newList.length - 1];
-
-    const alreadyNotified = notifications.value.some(n => n.call?.id === lastCall?.id);
-
-    if (!alreadyNotified) 
+    if (newList && newList.length > 0)
     {
-    
-        notifications.value.push({
-            id: Date.now(), 
-            type: 'notif:call',
-            createdAt: new Date(),
-            call: lastCall
-        });
-        
+
+        const lastCall = newList[newList.length - 1];
+
+        const alreadyNotified = notifications.value.some(n => n.call?.id === lastCall?.id);
+
+        if (!alreadyNotified)
+        {
+
+            notifications.value.push({
+                id: Date.now(),
+                type: 'notif:call',
+                createdAt: new Date(),
+                call: lastCall
+            });
+
+        }
+
     }
+
+    // Un appel qui sort de callNotif (accepté, refusé, ou annulé par
+    // l'appelant avant réponse) doit aussi faire disparaître sa carte de
+    // notification : sinon elle reste affichée indéfiniment avec des
+    // boutons "Répondre"/"Refuser" pointant vers un appel déjà terminé.
+    const stillRinging = new Set((newList || []).map(m => m.id));
+    notifications.value = notifications.value.filter(n => n.type !== 'notif:call' || stillRinging.has(n.call?.id));
 
 }, { deep: true });
 
