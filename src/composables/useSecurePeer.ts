@@ -110,7 +110,12 @@ const callEncryptionKeys = ref<Map<string, CryptoKey>>(new Map());
 // Security status
 const callSecurityStatus = ref<Map<string, SecurityStatus>>(new Map());
 
-const ringtone = new Audio('/callSound.wav');
+// '/callSound.wav' n'a jamais existé dans public/ (404 silencieux — .play()
+// rejette, avalé par .catch(() => {})) : la sonnerie en boucle des appels
+// DM n'a donc jamais réellement joué de son, malgré ce code qui semblait
+// la déclencher correctement. Le seul fichier son réellement présent et
+// prévu pour cet usage est public/sounds/call_incoming.mp3.
+const ringtone = new Audio('/sounds/call_incoming.mp3');
 ringtone.loop = true;
 
 // ============================================================================

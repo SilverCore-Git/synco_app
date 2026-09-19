@@ -70,7 +70,7 @@ const incomingFileTransfers = new Map<string, IncomingFileTransfer>();
 // un appel en cours de sonnerie ne jouait que le petit "ding" générique de
 // Notifications.vue (playNotificationSound), une seule fois — pas le vrai
 // son d'appel en boucle.
-const ringtone = new Audio('/callSound.wav');
+const ringtone = new Audio('/sounds/call_incoming.mp3');
 ringtone.loop = true;
 
 const startRingtone = () => {
