@@ -20,7 +20,7 @@ import { isMeeting } from '@/composables/usePrivatMeet';
 
 import isDesktopApp from '@/assets/isDesktopApp';
 import { useToast } from '@/composables/useToast';
-import { decryptFromPeer, privateKey, decryptThreadKeyWithRsa, encryptThreadKeyForMember } from '@/assets/utils/crypto';
+import { privateKey, decryptThreadKeyWithRsa, encryptThreadKeyForMember } from '@/assets/utils/crypto';
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { usePermissions } from '@/composables/usePermissions';
 import SpinLoader from '@/components/SpinLoader.vue';
@@ -483,33 +483,15 @@ const initSocketListener = async () => {
             return;
         }
 
-        try {
+        // La notification n'affiche jamais le contenu du message (en clair ou
+        // chiffré E2EE) — seulement qui l'a envoyé et sa photo de profil — donc
+        // il n'y a plus besoin de le déchiffrer ici rien que pour un toast qui
+        // ne le montrera pas. `content` est explicitement retiré en plus de ne
+        // pas être rempli, pour qu'aucun code d'affichage futur ne puisse
+        // accidentellement s'en servir.
+        const { content: _content, ...msgWithoutContent } = newMessage;
+        notify('notif:dmmsg', msgWithoutContent);
 
-            const msg: DMMessage = { ...newMessage };
-
-            const keyToUse = isMeTheSender 
-                ? msg.selfEncryptedAesKey 
-                : msg.encryptedAesKey;
-
-
-            if (msg.isE2EE && (!keyToUse || !privateKey.value)) 
-            {
-                msg.content = "🔒 Impossible de déchiffrer : Clé manquante.";
-                notify('notif:dmmsg', msg);
-                return;
-            }
-
-            if (msg.isE2EE) {
-                msg.content = await decryptFromPeer(msg.content, keyToUse!, msg.nonce, privateKey.value!);
-            }
-
-            notify('notif:dmmsg', msg);
-
-        } catch (cryptoErr) {
-            console.error("[E2EE DM Notif] Échec du déchiffrement de la notification :", cryptoErr);
-            const fallbackMsg = { ...newMessage, content: "🔒 Nouveau message (Déchiffrement impossible)" };
-            notify('notif:dmmsg', fallbackMsg);
-        }
     });
 
     socket.value?.on('privateMeet:incomingCall', async ({ callerId }: { callerId: string }) => {

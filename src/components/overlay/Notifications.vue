@@ -39,16 +39,15 @@
                                 />
                             </div>
 
+                            <!-- Jamais le contenu du message ici (en clair ou chiffré
+                                 E2EE) : uniquement qui a écrit, et dans quel salon. -->
                             <div class="flex-1 overflow-hidden" v-if="notif.msg">
                                 <h4 class="text-(--text) text-sm font-bold truncate flex items-center gap-1">
                                     {{ (notif.msg as any)?.isWebhook ? ((notif.msg as any)?.webhookName || 'Webhook') : $p((notif.msg as any)?.sender?.name) }}
                                     <span v-if="(notif.msg as any).webhookId" class="bg-(--primary)/20 text-(--primary) text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">APP</span>
                                 </h4>
-                                <p class="text-(--text) text-sm line-clamp-2 leading-snug">
-                                    <span v-if="(notif.msg as any).embeds?.length > 0" class="font-semibold text-(--primary) block truncate">
-                                        {{ (notif.msg as any).embeds[0].title }}
-                                    </span>
-                                    <span v-else>{{ notif.msg.content }}</span>
+                                <p class="text-(--text2) text-sm truncate">
+                                    dans {{ (notif.msg as any)?.threadName || 'un salon' }}
                                 </p>
                             </div>
 
@@ -70,12 +69,14 @@
                                 />
                             </div>
 
+                            <!-- Jamais le contenu du message ici (en clair ou chiffré
+                                 E2EE) : uniquement qui a écrit. -->
                             <div class="flex-1 overflow-hidden" v-if="notif.dmmsg">
                                 <h4 class="text-(--text) text-sm font-bold truncate">
                                     {{ $p(notif.dmmsg?.sender?.name) }}
                                 </h4>
-                                <p class="text-(--text) text-sm line-clamp-2 leading-snug">
-                                    {{ notif.dmmsg?.content }}
+                                <p class="text-(--text2) text-sm truncate">
+                                    Nouveau message privé
                                 </p>
                             </div>
 

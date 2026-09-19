@@ -212,17 +212,23 @@ const initListener = async () => {
         socket.value?.off('notif:new-message', currentNewMessageHandler);
     }
 
-    currentNewMessageHandler = async ({ message, spaceId, orgId }: { message: Message, spaceId?: string, orgId?: string }) => {
+    currentNewMessageHandler = async ({ message, spaceId, orgId, threadName }: { message: Message, spaceId?: string, orgId?: string, threadName?: string }) => {
 
         if (router.currentRoute.value.params.threadId == message.threadId) return;
 
-        let decryptedMessage = message as any;
+        // Le contenu du message (en clair ou chiffré E2EE) ne doit jamais
+        // apparaître dans une notification — uniquement qui l'a envoyé, où, et
+        // sa photo de profil. On ne recopie donc jamais `content` ici ; seul
+        // notif.msg.threadName (et notif.msg.sender/id/threadId, déjà présents
+        // sur `message`) sert à construire le toast.
+        const notifPayload = message as any;
 
-        decryptedMessage.content = message.content;
-        decryptedMessage.spaceId = spaceId;
-        decryptedMessage.orgId = orgId;
+        delete notifPayload.content;
+        notifPayload.spaceId = spaceId;
+        notifPayload.orgId = orgId;
+        notifPayload.threadName = threadName;
 
-        messageNotif.value.push(decryptedMessage);
+        messageNotif.value.push(notifPayload);
 
     };
 
