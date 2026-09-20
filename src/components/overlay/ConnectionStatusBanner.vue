@@ -56,6 +56,10 @@ watch(isDown, (down) => {
 
 <style scoped>
 .connection-banner {
+    /* Masquée en CSS plutôt que dépublier le composant : la logique de
+       détection (isConnected/isApiConnected) reste active pour un futur
+       réactivation, mais l'overlay ne doit plus s'afficher pour l'instant. */
+    display: none !important;
     position: fixed;
     top: 0;
     left: 50%;
