@@ -17,7 +17,7 @@
             <img
                 :src="user?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(user?.user?.name)}&background=128a60&color=fff`"
                 :alt="$p(user?.user?.name)"
-                class="w-8 h-8 rounded-full object-cover border border-white/10 group-hover:border-(--primary)/30 transition-colors"
+                class="w-8 h-8 rounded-full object-cover border border-(--text)/10 group-hover:border-(--primary)/30 transition-colors"
                 @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(user?.user?.name)}&background=128a60&color=fff`"
             />
             

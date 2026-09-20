@@ -6,7 +6,7 @@
             v-if="show" 
             class="
                 fixed bottom-14 left-1/2 -translate-x-1/2 w-[min(90%,580px)] z-50
-                bg-zinc-900/80 backdrop-blur-md border border-white/10 
+                bg-zinc-900/80 backdrop-blur-md border border-(--text)/10 
                 p-2 pl-5 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] 
                 flex items-center justify-between
             "
@@ -17,7 +17,7 @@
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-(--primary) opacity-75" />
                     <span class="relative inline-flex rounded-full h-2 w-2 bg-(--primary)" />
                 </div>
-                <span class="text-sm font-medium text-white/90 tracking-tight">
+                <span class="text-sm font-medium text-(--text)/90 tracking-tight">
                     Modifications non enregistrées
                 </span>
             </div>

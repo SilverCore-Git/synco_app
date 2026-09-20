@@ -1,7 +1,7 @@
 <template>
     <DropDown align="left" content-iner-t-w="min-w-[280px]" @toggled="onToggled">
         <template #trigger>
-            <button type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap bg-white/5 text-white/70 hover:bg-white/10 h-full min-w-0 max-w-[140px]">
+            <button type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap bg-(--text)/5 text-(--text)/70 hover:bg-(--text)/10 h-full min-w-0 max-w-[140px]">
                 <template v-if="!modelValue">
                     <i class="bi bi-people-fill shrink-0"></i>
                     <span class="truncate">Toutes</span>
@@ -15,7 +15,7 @@
                 </template>
                 <template v-else>
                     <img v-if="selectedMember?.user?.avatarUrl" :src="selectedMember.user.avatarUrl" class="w-5 h-5 rounded-full object-cover shrink-0">
-                    <div v-else class="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px] shrink-0">
+                    <div v-else class="w-5 h-5 rounded-full bg-(--text)/10 flex items-center justify-center text-[9px] shrink-0">
                         {{ ($p(selectedMember?.user?.name) || '?').substring(0, 2).toUpperCase() }}
                     </div>
                     <span class="truncate">{{ $p(selectedMember?.user?.name) || 'Membre' }}</span>
@@ -67,7 +67,7 @@
                         :class="modelValue === member.userId ? '!bg-(--primary)/15 !text-(--primary)' : ''"
                     >
                         <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-5 h-5 rounded-full object-cover mr-2">
-                        <div v-else class="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px] mr-2 shrink-0">
+                        <div v-else class="w-5 h-5 rounded-full bg-(--text)/10 flex items-center justify-center text-[9px] mr-2 shrink-0">
                             {{ ($p(member.user?.name) || member.userId).substring(0, 2).toUpperCase() }}
                         </div>
                         <span class="truncate">{{ $p(member.user?.name) || member.userId }}</span>

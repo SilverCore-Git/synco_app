@@ -53,7 +53,7 @@
                         v-model="searchQuery"
                         type="text" 
                         placeholder="Rechercher..."
-                        class="w-full bg-white/[0.03] border border-white/10 rounded-xl py-2.5 pl-11 pr-12 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/60 focus:bg-black/40 focus:ring-4 focus:ring-(--primary)/10 transition-all duration-300 shadow-inner"
+                        class="w-full bg-(--text)/[0.03] border border-(--text)/10 rounded-xl py-2.5 pl-11 pr-12 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/60 focus:bg-black/40 focus:ring-4 focus:ring-(--primary)/10 transition-all duration-300 shadow-inner"
                     >
 
                     <button 
@@ -146,7 +146,7 @@
 
                 </nav>
 
-                <div v-if="isUploading" class="w-full bg-white/5 border border-white/10 rounded-lg p-3 mb-4 animate-in fade-in slide-in-from-top-2">
+                <div v-if="isUploading" class="w-full bg-(--text)/5 border border-(--text)/10 rounded-lg p-3 mb-4 animate-in fade-in slide-in-from-top-2">
                     <div class="flex justify-between items-center mb-2">
                         <span class="text-[10px] font-black uppercase text-(--primary) tracking-widest">
                             {{ fileSendProgress == 100 ? 'Finalisation...' : 'Envoi en cours...' }}
@@ -272,7 +272,7 @@
 
                 <button 
                     @click="selectedItems.clear()" 
-                    class="p-2 rounded-lg hover:bg-white/5 text-(--text2) hover:text-(--text) transition-colors"
+                    class="p-2 rounded-lg hover:bg-(--text)/5 text-(--text2) hover:text-(--text) transition-colors"
                 >
                     <i class="bi bi-x-lg"></i>
                 </button>
@@ -336,7 +336,7 @@
         leave-to-class="transform scale-95 opacity-0"
     >
         <div v-if="showFileInfoModal && selectedFileForInfo" class="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
-            <div class="bg-(--bg) rounded-2xl border border-white/10 shadow-2xl max-w-md w-full p-6 relative" @click.stop>
+            <div class="bg-(--bg) rounded-2xl border border-(--text)/10 shadow-2xl max-w-md w-full p-6 relative" @click.stop>
                 <button @click="showFileInfoModal = false" class="absolute top-4 right-4 text-(--text2) hover:text-(--text) transition-colors">
                     <i class="bi bi-x-lg text-xl" />
                 </button>

@@ -7,8 +7,8 @@
         @click.prevent="isCreate ? null : handleClick()"
     >
         <!-- For Create Button -->
-        <div v-if="isCreate" class="absolute inset-0 w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-white/10 hover:border-(--primary)/50 bg-white/5 group-hover:bg-(--primary)/5 transition-colors gap-3">
-            <div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white/50 group-hover:bg-(--primary) group-hover:text-white transition-all shadow-md">
+        <div v-if="isCreate" class="absolute inset-0 w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-(--text)/10 hover:border-(--primary)/50 bg-(--text)/5 group-hover:bg-(--primary)/5 transition-colors gap-3">
+            <div class="w-12 h-12 rounded-full bg-(--text)/10 flex items-center justify-center text-(--text)/50 group-hover:bg-(--primary) group-hover:text-white transition-all shadow-md">
                 <i class="bi bi-plus-lg text-2xl"></i>
             </div>
             <span class="font-bold text-sm text-(--text2) group-hover:text-(--primary) transition-colors">{{ org.name }}</span>
@@ -17,8 +17,8 @@
         <!-- Normal Card -->
         <div v-else class="w-full h-full flex flex-col">
             <!-- Banner / Logo area -->
-            <div class="h-28 w-full relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent flex items-center justify-center border-b border-(--border-color)">
-                <div v-if="loader" class="absolute inset-0 animate-pulse bg-white/10"></div>
+            <div class="h-28 w-full relative overflow-hidden bg-gradient-to-br from-(--text)/5 to-transparent flex items-center justify-center border-b border-(--border-color)">
+                <div v-if="loader" class="absolute inset-0 animate-pulse bg-(--text)/10"></div>
                 <img 
                     v-if="org.logo && org.logo.startsWith('data:') && !loader" 
                     :src="org.logo" 
@@ -26,7 +26,7 @@
                     class="absolute w-full h-full object-cover opacity-20 blur-xl group-hover:opacity-40 transition-opacity"
                 />
                 
-                <div class="z-10 w-[72px] h-[72px] rounded-xl overflow-hidden shadow-xl border border-white/10 bg-(--bg) flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+                <div class="z-10 w-[72px] h-[72px] rounded-xl overflow-hidden shadow-xl border border-(--text)/10 bg-(--bg) flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
                     <img 
                         v-if="org.logo && org.logo.startsWith('data:')" 
                         :src="org.logo" 
@@ -43,7 +43,7 @@
                 <span v-if="!loader" class="text-base font-bold text-(--text) truncate w-full text-center group-hover:text-(--primary) transition-colors">
                     {{ org.name }}
                 </span>
-                <span v-else class="h-4 w-24 bg-white/10 rounded animate-pulse mx-auto"></span>
+                <span v-else class="h-4 w-24 bg-(--text)/10 rounded animate-pulse mx-auto"></span>
             </div>
         </div>
     </a>

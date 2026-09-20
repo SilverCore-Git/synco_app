@@ -53,7 +53,7 @@
             <div class="flex flex-col pl-1">
               <span class="font-bold text-sm flex items-center gap-2" :class="selectedRoleId === role.id ? 'text-(--primary)' : 'text-(--text)'">
                 {{ role.name }}
-                <span v-if="role.name === 'OWNER'" class="text-[9px] font-black bg-white/5 px-1.5 py-0.5 rounded text-(--text2) uppercase tracking-wider border border-(--border-color)">
+                <span v-if="role.name === 'OWNER'" class="text-[9px] font-black bg-(--text)/5 px-1.5 py-0.5 rounded text-(--text2) uppercase tracking-wider border border-(--border-color)">
                   Sys
                 </span>
               </span>
@@ -205,7 +205,7 @@
           :disabled="isSaving"
           class="primary flex items-center gap-2 shadow-lg"
         >
-          <div v-if="isSaving" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          <div v-if="isSaving" class="w-4 h-4 border-2 border-(--text)/30 border-t-white rounded-full animate-spin" />
           <span>Enregistrer les modifications</span>
         </button>
       </div>
@@ -234,7 +234,7 @@
           <label class="block text-xs font-bold uppercase tracking-wider text-(--text2) mb-2">Couleur</label>
           <div class="flex items-center gap-3">
             <!-- Selecteur natif stylisé via un wrapper -->
-            <div class="relative w-10 h-10 rounded-full overflow-hidden shrink-0 cursor-pointer shadow-inner border border-white/10">
+            <div class="relative w-10 h-10 rounded-full overflow-hidden shrink-0 cursor-pointer shadow-inner border border-(--text)/10">
               <input 
                 type="color" 
                 v-model="newRole.color" 
@@ -272,7 +272,7 @@
           :disabled="!newRole.name || isSaving"
           class="primary flex items-center gap-2"
         >
-          <div v-if="isSaving" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          <div v-if="isSaving" class="w-4 h-4 border-2 border-(--text)/30 border-t-white rounded-full animate-spin" />
           Créer
         </button>
       </template>

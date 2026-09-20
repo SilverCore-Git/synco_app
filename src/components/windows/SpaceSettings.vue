@@ -39,7 +39,7 @@
 
                     <div class="flex items-center gap-8 p-6 bg-(--bg2) rounded-2xl border border-(--border-color)">
                         <div class="relative group">
-                            <div class="w-24 h-24 rounded-2xl bg-(--bg) border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden transition-all group-hover:border-(--primary)/50">
+                            <div class="w-24 h-24 rounded-2xl bg-(--bg) border-2 border-dashed border-(--text)/10 flex items-center justify-center overflow-hidden transition-all group-hover:border-(--primary)/50">
                                 <i v-if="!formData.logo.startsWith('data:')" :class="formData.logo" class="text-4xl text-(--primary)" />
                                 <img v-else :src="formData.logo" class="w-full h-full object-cover" />
                                 
@@ -56,7 +56,7 @@
                                     type="text" 
                                     v-model="formData.name" 
                                     placeholder="Nom de l'espace"
-                                    class="w-full bg-(--bg) border border-white/10 rounded-lg px-4 py-2.5 text-(--text) focus:outline-none focus:border-(--primary) transition-all"
+                                    class="w-full bg-(--bg) border border-(--text)/10 rounded-lg px-4 py-2.5 text-(--text) focus:outline-none focus:border-(--primary) transition-all"
                                 />
                             </div>
                         </div>

@@ -2,7 +2,7 @@
 
     <div 
         v-if="isOpen && filteredUsers.length" 
-        class="absolute bottom-full left-0 mb-2 w-64 bg-(--bg) border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 max-h-48 overflow-y-auto p-1 backdrop-blur-3xl"
+        class="absolute bottom-full left-0 mb-2 w-64 bg-(--bg) border border-(--text)/10 rounded-xl shadow-2xl overflow-hidden z-50 max-h-48 overflow-y-auto p-1 backdrop-blur-3xl"
     >
 
         <div class="p-2 text-[10px] uppercase font-bold tracking-wider text-(--text2) border-b border-(--border-color)">
@@ -14,8 +14,8 @@
             :key="user.id"
             @click="$emit('select', user)"
             :class="[
-                'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg text-left transition-colors text-white',
-                index === activeIndex ? 'bg-(--primary)/20 text-(--primary)' : 'hover:bg-white/5'
+                'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg text-left transition-colors text-(--text)',
+                index === activeIndex ? 'bg-(--primary)/20 text-(--primary)' : 'hover:bg-(--text)/5'
             ]"
         >
             <div
@@ -24,7 +24,7 @@
             >
                 <i class="bi" :class="user.special === 'everyone' ? 'bi-megaphone-fill' : 'bi-broadcast'" />
             </div>
-            <div v-else class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center font-bold text-xs shrink-0">
+            <div v-else class="w-6 h-6 rounded-full bg-(--text)/10 flex items-center justify-center font-bold text-xs shrink-0">
                 {{ $p(user.name).charAt(0).toUpperCase() }}
             </div>
             <div class="flex flex-col min-w-0">

@@ -6,7 +6,7 @@
         <form @submit.prevent="handleTest" class="space-y-6">
             
             <!-- Info -->
-            <div class="p-4 bg-(--white)/5 border border-(--white)/10 rounded-xl">
+            <div class="p-4 bg-(--text)/5 border border-(--text)/10 rounded-xl">
                 <div class="flex items-start gap-3">
                     <i class="bi bi-info-circle text-(--primary) text-lg flex-shrink-0 mt-0.5" />
                     <div>
@@ -27,7 +27,7 @@
                 <textarea
                     v-model="payload.content"
                     placeholder="Saisissez votre message de test..."
-                    class="w-full bg-(--white)/5 border border-(--white)/10 rounded-xl px-4 py-3 text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all resize-none"
+                    class="w-full bg-(--text)/5 border border-(--text)/10 rounded-xl px-4 py-3 text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all resize-none"
                     rows="3"
                     :maxlength="4096"
                 />
@@ -47,7 +47,7 @@
                         v-model="payload.username"
                         type="text"
                         placeholder="Test Bot"
-                        class="w-full bg-(--white)/5 border border-(--white)/10 rounded-xl px-4 py-3 text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all"
+                        class="w-full bg-(--text)/5 border border-(--text)/10 rounded-xl px-4 py-3 text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all"
                         :maxlength="100"
                     />
                 </div>
@@ -59,7 +59,7 @@
                         v-model="payload.avatar_url"
                         type="url"
                         placeholder="https://example.com/avatar.png"
-                        class="w-full bg-(--white)/5 border border-(--white)/10 rounded-xl px-4 py-3 text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all"
+                        class="w-full bg-(--text)/5 border border-(--text)/10 rounded-xl px-4 py-3 text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all"
                     />
                 </div>
             </div>
@@ -85,7 +85,7 @@
                     <div 
                         v-for="(embed, index) in payload.embeds" 
                         :key="index"
-                        class="bg-(--white)/5 border border-(--white)/10 rounded-xl p-4"
+                        class="bg-(--text)/5 border border-(--text)/10 rounded-xl p-4"
                     >
                         <div class="flex justify-between items-start mb-3">
                             <h5 class="text-sm font-medium text-(--text)">Embed {{ index + 1 }}</h5>
@@ -105,7 +105,7 @@
                                     v-model="embed.title"
                                     type="text"
                                     placeholder="Titre de l'embed"
-                                    class="w-full bg-(--white)/10 border border-(--white)/20 rounded-lg px-3 py-2 text-sm text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all"
+                                    class="w-full bg-(--text)/10 border border-(--text)/20 rounded-lg px-3 py-2 text-sm text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all"
                                     :maxlength="256"
                                 />
                             </div>
@@ -115,7 +115,7 @@
                                     v-model="embed.color"
                                     type="text"
                                     placeholder="#22c55e"
-                                    class="w-full bg-(--white)/10 border border-(--white)/20 rounded-lg px-3 py-2 text-sm text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all"
+                                    class="w-full bg-(--text)/10 border border-(--text)/20 rounded-lg px-3 py-2 text-sm text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all"
                                     :maxlength="7"
                                 />
                             </div>
@@ -126,7 +126,7 @@
                             <textarea
                                 v-model="embed.description"
                                 placeholder="Description de l'embed"
-                                class="w-full bg-(--white)/10 border border-(--white)/20 rounded-lg px-3 py-2 text-sm text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all resize-none"
+                                class="w-full bg-(--text)/10 border border-(--text)/20 rounded-lg px-3 py-2 text-sm text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all resize-none"
                                 rows="2"
                                 :maxlength="4096"
                             />
@@ -138,7 +138,7 @@
                                 v-model="embed.url"
                                 type="url"
                                 placeholder="https://example.com"
-                                class="w-full bg-(--white)/10 border border-(--white)/20 rounded-lg px-3 py-2 text-sm text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all"
+                                class="w-full bg-(--text)/10 border border-(--text)/20 rounded-lg px-3 py-2 text-sm text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all"
                             />
                         </div>
                     </div>
@@ -146,7 +146,7 @@
             </div>
 
             <!-- Actions -->
-            <div class="flex justify-end gap-3 pt-4 border-t border-(--white)/10">
+            <div class="flex justify-end gap-3 pt-4 border-t border-(--text)/10">
                 <button 
                     type="button"
                     @click="$emit('close')"

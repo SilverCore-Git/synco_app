@@ -27,7 +27,7 @@
 
         </div>
 
-        <div class="relative w-full h-2.5 bg-white/5 rounded-full overflow-hidden border border-(--border-color)">
+        <div class="relative w-full h-2.5 bg-(--text)/5 rounded-full overflow-hidden border border-(--border-color)">
             
             <div 
                 class="h-full rounded-full transition-all duration-1000 ease-out bg-gradient-to-r"

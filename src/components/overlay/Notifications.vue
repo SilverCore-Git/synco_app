@@ -35,7 +35,7 @@
                             <div class="relative shrink-0">
                                 <img
                                     :src="(notif.msg as any)?.isWebhook ? ((notif.msg as any)?.webhookAvatar || `https://ui-avatars.com/api/?name=${(notif.msg as any)?.webhookName || 'Webhook'}&background=7c3aed&color=fff`) : ((notif.msg as any)?.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${$p((notif.msg as any)?.sender?.name)}&background=128a60&color=fff`)"
-                                    class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
+                                    class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
                                 />
                             </div>
 
@@ -65,7 +65,7 @@
                             <div class="relative shrink-0">
                                 <img 
                                     :src="notif.dmmsg?.sender?.avatarUrl  || `https://ui-avatars.com/api/?name=${$p(notif.dmmsg?.sender?.name)}&background=128a60&color=fff`"
-                                    class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
+                                    class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
                                 />
                             </div>
 
@@ -93,7 +93,7 @@
                                 <div class="relative">
                                     <img
                                         :src="notif.call?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(notif.call?.user?.name)}&background=128a60&color=fff`"
-                                        class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
+                                        class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
                                     />
                                 </div>
 
@@ -137,7 +137,7 @@
                                 <div class="relative">
                                     <img
                                         :src="notif.privateMeet?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(notif.privateMeet?.user?.name)}&background=128a60&color=fff`"
-                                        class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
+                                        class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
                                     />
                                 </div>
 
@@ -183,7 +183,7 @@
                             <div class="relative shrink-0">
                                 <img
                                     :src="notif.privateMeetMsg?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(notif.privateMeetMsg?.user?.name)}&background=128a60&color=fff`"
-                                    class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
+                                    class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
                                 />
                             </div>
 
@@ -211,7 +211,7 @@
                             <div class="relative shrink-0">
                                 <img
                                     :src="notif.missedCall?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(notif.missedCall?.user?.name)}&background=ef4444&color=fff`"
-                                    class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
+                                    class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
                                 />
                                 <span class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center border-2 border-(--bg2)">
                                     <i class="bi bi-telephone-x-fill text-white text-[9px]" />
@@ -242,7 +242,7 @@
                             <div class="relative shrink-0">
                                 <img
                                     :src="notif.missedMeet?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(notif.missedMeet?.user?.name)}&background=ef4444&color=fff`"
-                                    class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
+                                    class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
                                 />
                                 <span class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center border-2 border-(--bg2)">
                                     <i class="bi bi-shield-x text-white text-[9px]" />
@@ -347,13 +347,13 @@ const getStyles = (type: NotificationType, toastType?: string) => {
             default: return 'bg-blue-500/10 border-blue-500/20 text-blue-200';
         };
 
-        case 'notif:msg': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
-        case 'notif:dmmsg': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
-        case 'notif:call': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
-        case 'notif:privateMeet': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
-        case 'notif:privateMeetMsg': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
-        case 'notif:missedCall': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
-        case 'notif:missedMeet': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:msg': return 'bg-(--bg2)/80 border border-(--text)/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:dmmsg': return 'bg-(--bg2)/80 border border-(--text)/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:call': return 'bg-(--bg2)/80 border border-(--text)/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:privateMeet': return 'bg-(--bg2)/80 border border-(--text)/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:privateMeetMsg': return 'bg-(--bg2)/80 border border-(--text)/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:missedCall': return 'bg-(--bg2)/80 border border-(--text)/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:missedMeet': return 'bg-(--bg2)/80 border border-(--text)/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
 
     }
 

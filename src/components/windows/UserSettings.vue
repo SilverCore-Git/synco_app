@@ -215,7 +215,7 @@
                                     <i class="bi bi-cpu-fill text-lg"></i>
                                     <span class="text-sm font-bold">Clé publique (RSA-OAEP 4096 bits)</span>
                                 </div>
-                                <div class="bg-(--bg) border border-white/5 p-3 rounded-lg flex items-center justify-between group">
+                                <div class="bg-(--bg) border border-(--text)/5 p-3 rounded-lg flex items-center justify-between group">
                                     <code class="text-xs text-(--text2) font-mono truncate mr-4">
                                         {{ publicKeyFingerprint }}
                                     </code>
@@ -334,11 +334,11 @@
                                     :class="
                                         theme == 'dark' 
                                             ? 'border-(--primary) bg-(--primary)/5 scale-100 shadow-[0_0_20px_var(--primary-glow)]' 
-                                            : 'border-(--border-color) bg-(--bg2) hover:border-white/20 scale-95 opacity-70 hover:opacity-100'
+                                            : 'border-(--border-color) bg-(--bg2) hover:border-(--text)/20 scale-95 opacity-70 hover:opacity-100'
                                     "
                                     @click="theme = 'dark'"
                                 >
-                                    <div class="w-full h-24 bg-(--bg) rounded-lg border border-white/10 flex items-center justify-center shadow-inner">
+                                    <div class="w-full h-24 bg-(--bg) rounded-lg border border-(--text)/10 flex items-center justify-center shadow-inner">
                                         <i class="bi bi-moon-stars-fill text-(--primary) text-3xl drop-shadow-md" />
                                     </div>
                                     <span class="font-bold text-(--text)">Sombre</span>
@@ -350,7 +350,7 @@
                                     :class="
                                         theme == 'light' 
                                             ? 'border-(--primary) bg-(--primary)/5 scale-100 shadow-[0_0_20px_var(--primary-glow)]' 
-                                            : 'border-(--border-color) bg-(--bg2) hover:border-white/20 scale-95 opacity-70 hover:opacity-100'
+                                            : 'border-(--border-color) bg-(--bg2) hover:border-(--text)/20 scale-95 opacity-70 hover:opacity-100'
                                     "
                                     @click="theme = 'light'"
                                 >
@@ -370,7 +370,7 @@
 
                             <div 
                                 @click="devMode = !devMode"
-                                class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all max-w-md"
+                                class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all max-w-md"
                             >
                                 <div>
                                     <h4 class="font-bold text-(--text)">Mode développeur</h4>
@@ -389,7 +389,7 @@
 
                             <div 
                                 @click="privacyMode = !privacyMode"
-                                class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all max-w-md mt-4"
+                                class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all max-w-md mt-4"
                             >
                                 <div>
                                     <h4 class="font-bold text-(--text)">Mode confidentialité</h4>
@@ -427,7 +427,7 @@
                         
                         <div 
                             @click="updateNotificationPrefs('push', !notifPrefs.push)"
-                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all"
+                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all"
                         >
                             <div>
                                 <h4 class="font-bold text-(--text)">Notifications Push</h4>
@@ -446,7 +446,7 @@
 
                         <div 
                             @click="updateNotificationPrefs('email', !notifPrefs.email)"
-                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all"
+                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all"
                         >
                             <div>
                                 <h4 class="font-bold text-(--text)">Notifications par Email</h4>
@@ -465,7 +465,7 @@
 
                         <div 
                             @click="updateNotificationPrefs('sound', !notifPrefs.sound)"
-                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all"
+                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all"
                         >
                             <div>
                                 <h4 class="font-bold text-(--text)">Sons des messages</h4>
@@ -484,7 +484,7 @@
 
                         <div 
                             @click="updateNotificationPrefs('mentionsOnly', !notifPrefs.mentionsOnly)"
-                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all"
+                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all"
                         >
                             <div>
                                 <h4 class="font-bold text-(--text)">Mentions @ uniquement</h4>

@@ -18,7 +18,7 @@
                     placeholder="Qu'y a-t-il à faire ?"
                     ref="titleInput"
                     class="
-                        w-full bg-(--bg2)/30 border border-white/10 rounded-xl
+                        w-full bg-(--bg2)/30 border border-(--text)/10 rounded-xl
                         px-4 py-3 text-(--text) placeholder:text-(--text2) placeholder:opacity-60
                         focus:outline-none focus:border-(--primary)/50 focus:ring-1
                         focus:ring-(--primary)/20 transition-all
@@ -44,7 +44,7 @@
                     placeholder="Plus de détails..."
                     rows="3"
                     class="
-                        w-full bg-(--bg2)/30 border border-white/10 rounded-xl
+                        w-full bg-(--bg2)/30 border border-(--text)/10 rounded-xl
                         px-4 py-3 text-(--text) placeholder:text-(--text2) placeholder:opacity-60
                         focus:outline-none focus:border-(--primary)/50 focus:ring-1
                         focus:ring-(--primary)/20 transition-all resize-none
@@ -108,20 +108,20 @@
                     </button>
                 </div>
 
-                <div v-if="activeSection" class="bg-(--bg2)/30 border border-white/10 rounded-xl p-3">
+                <div v-if="activeSection" class="bg-(--bg2)/30 border border-(--text)/10 rounded-xl p-3">
 
                     <template v-if="activeSection === 'date'">
                         <div class="flex gap-2">
                             <input
                                 v-model="form.dueDate"
                                 type="date"
-                                class="w-full bg-(--bg3) border border-white/10 rounded-lg px-3 py-2 text-sm text-(--text) focus:outline-none focus:border-(--primary)/50 transition-all"
+                                class="w-full bg-(--bg3) border border-(--text)/10 rounded-lg px-3 py-2 text-sm text-(--text) focus:outline-none focus:border-(--primary)/50 transition-all"
                                 :disabled="loading"
                             />
                             <input
                                 v-model="form.dueTime"
                                 type="time"
-                                class="w-28 bg-(--bg3) border border-white/10 rounded-lg px-3 py-2 text-sm text-(--text) focus:outline-none focus:border-(--primary)/50 transition-all"
+                                class="w-28 bg-(--bg3) border border-(--text)/10 rounded-lg px-3 py-2 text-sm text-(--text) focus:outline-none focus:border-(--primary)/50 transition-all"
                                 :disabled="loading"
                             />
                             <button v-if="form.dueDate" type="button" @click="form.dueDate = ''; form.dueTime = ''" class="text-(--text2) hover:text-red-500 transition-colors px-2" title="Retirer l'échéance">
@@ -137,7 +137,7 @@
                                 v-model="searchAssignee"
                                 @keydown.enter.prevent
                                 placeholder="Rechercher une personne..."
-                                class="w-full bg-(--bg3) border border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50 transition-all"
+                                class="w-full bg-(--bg3) border border-(--text)/10 rounded-lg pl-9 pr-4 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50 transition-all"
                                 :disabled="loading"
                             />
                         </div>
@@ -147,7 +147,7 @@
                                     type="checkbox"
                                     :value="member.userId"
                                     v-model="form.assigneeIds"
-                                    class="w-4 h-4 rounded bg-black/20 border-white/20 text-(--primary) focus:ring-(--primary) focus:ring-offset-0"
+                                    class="w-4 h-4 rounded bg-black/20 border-(--text)/20 text-(--primary) focus:ring-(--primary) focus:ring-offset-0"
                                     :disabled="loading"
                                 />
                                 <div class="flex items-center gap-2">
@@ -155,7 +155,7 @@
                                     <div v-else class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[10px] font-bold">
                                         {{ ($p(member.user?.name) || member.userId).substring(0, 2).toUpperCase() }}
                                     </div>
-                                    <span class="text-sm font-medium text-(--text) group-hover:text-white transition-colors">
+                                    <span class="text-sm font-medium text-(--text) group-hover:text-(--primary) transition-colors">
                                         {{ $p(member.user?.name) || member.userId }}
                                     </span>
                                 </div>
@@ -177,7 +177,7 @@
                     <template v-else-if="activeSection === 'space'">
                         <select
                             v-model="form.spaceId"
-                            class="w-full bg-(--bg3) border border-white/10 rounded-lg px-3 py-2 text-sm text-(--text) focus:outline-none focus:border-(--primary)/50 transition-all"
+                            class="w-full bg-(--bg3) border border-(--text)/10 rounded-lg px-3 py-2 text-sm text-(--text) focus:outline-none focus:border-(--primary)/50 transition-all"
                             :disabled="loading"
                         >
                             <option :value="null">Perso</option>
@@ -341,7 +341,7 @@ const toggleSection = (key: Section) => {
 const pillClass = (key: Section, hasValue: boolean) => {
     if (activeSection.value === key) return 'bg-(--primary) border-(--primary) text-white';
     if (hasValue) return 'bg-(--primary)/10 border-(--primary)/40 text-(--primary)';
-    return 'bg-transparent border-white/10 text-(--text2) hover:border-(--primary)/50 hover:text-(--primary)';
+    return 'bg-transparent border-(--text)/10 text-(--text2) hover:border-(--primary)/50 hover:text-(--primary)';
 };
 
 const dueDateLabel = computed(() => {

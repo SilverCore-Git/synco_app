@@ -1,6 +1,6 @@
 <template>
     <div
-         class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] group relative overflow-hidden text-left w-full"
+         class="bg-(--bg2) border border-(--text)/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] group relative overflow-hidden text-left w-full"
     >
         <div class="flex justify-between items-start gap-2">
             <div class="flex flex-col gap-1 w-full">
@@ -36,7 +36,7 @@
                         {{ assignee.name?.substring(0, 2).toUpperCase() || 'U' }}
                     </div>
                 </template>
-                <div v-if="task.assignees.length > 3" class="w-6 h-6 rounded-full bg-white/10 text-white flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10">
+                <div v-if="task.assignees.length > 3" class="w-6 h-6 rounded-full bg-(--text)/10 text-white flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10">
                     +{{ task.assignees.length - 3 }}
                 </div>
             </div>
@@ -47,7 +47,7 @@
                     <i class="bi bi-paperclip"></i>
                     {{ task._count.attachments }}
                 </div>
-                <div v-if="task.subtasks && task.subtasks.length > 0" class="flex items-center gap-1.5 text-xs bg-white/5 px-2.5 py-1 rounded-lg font-bold text-white/50">
+                <div v-if="task.subtasks && task.subtasks.length > 0" class="flex items-center gap-1.5 text-xs bg-(--text)/5 px-2.5 py-1 rounded-lg font-bold text-(--text)/50">
                     <i class="bi bi-check2-square text-(--primary)"></i>
                     {{ task.subtasks.filter((st: any) => st.status === 'DONE').length }}/{{ task.subtasks.length }}
                 </div>

@@ -55,10 +55,10 @@
                         @dragleave.prevent="dragOverMemberId = null"
                         @drop="onDropToAssign($event, member)"
                         class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0"
-                        :class="dragOverMemberId === member.userId ? 'bg-(--primary) text-white ring-2 ring-(--primary)/50 shadow-[0_4px_20px_rgba(var(--primary-rgb),0.5)]' : (filterUserId === member.userId ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10')"
+                        :class="dragOverMemberId === member.userId ? 'bg-(--primary) text-white ring-2 ring-(--primary)/50 shadow-[0_4px_20px_rgba(var(--primary-rgb),0.5)]' : (filterUserId === member.userId ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-(--text)/5 text-(--text)/50 hover:bg-(--text)/10')"
                     >
                         <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-5 h-5 rounded-full object-cover">
-                        <div v-else class="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px]">
+                        <div v-else class="w-5 h-5 rounded-full bg-(--text)/10 flex items-center justify-center text-[9px]">
                             {{ $p(member.user?.name)?.substring(0,2).toUpperCase() }}
                         </div>
                         {{ $p(member.user?.name) }}
@@ -69,7 +69,7 @@
 
                 <DropDown align="left" content-iner-t-w="min-w-[280px]">
                     <template #trigger>
-                        <button type="button" class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap h-full" :class="filterTagIds.length ? 'bg-(--primary)/15 text-(--primary)' : 'bg-white/5 text-white/70 hover:bg-white/10'">
+                        <button type="button" class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap h-full" :class="filterTagIds.length ? 'bg-(--primary)/15 text-(--primary)' : 'bg-(--text)/5 text-(--text)/70 hover:bg-(--text)/10'">
                             <i class="bi bi-tags"></i>
                             {{ filterTagIds.length ? `${filterTagIds.length} tag${filterTagIds.length > 1 ? 's' : ''}` : 'Tags' }}
                             <i class="bi bi-chevron-down text-[10px] opacity-60"></i>
@@ -98,7 +98,7 @@
                     @dragleave.prevent="dragOverArchiveBtn = false"
                     @drop="onDropToArchiveBtn"
                     class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0 ml-auto"
-                    :class="dragOverArchiveBtn ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-[0_4px_20px_rgba(245,158,11,0.5)]' : (showArchivedPanel ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10')"
+                    :class="dragOverArchiveBtn ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-[0_4px_20px_rgba(245,158,11,0.5)]' : (showArchivedPanel ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-(--text)/5 text-(--text)/50 hover:bg-(--text)/10')"
                 >
                     <i class="bi bi-archive-fill" />
                     <span class="hidden sm:inline">Tâches archivées</span>
@@ -111,19 +111,19 @@
                     <div v-for="i in 3" :key="'skel-col-'+i" class="bg-black/20 rounded-2xl p-4 flex flex-col gap-4 border border-(--border-color) h-full">
                         <div class="flex items-center justify-between mb-2 shrink-0">
                             <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-xl bg-white/10"></div>
-                                <div class="w-24 h-4 bg-white/10 rounded-full"></div>
+                                <div class="w-8 h-8 rounded-xl bg-(--text)/10"></div>
+                                <div class="w-24 h-4 bg-(--text)/10 rounded-full"></div>
                             </div>
-                            <div class="w-6 h-4 bg-white/10 rounded-full"></div>
+                            <div class="w-6 h-4 bg-(--text)/10 rounded-full"></div>
                         </div>
-                        <div v-for="j in 3" :key="'skel-card-'+j" class="bg-white/5 border border-(--border-color) p-4 rounded-xl h-28 shrink-0"></div>
+                        <div v-for="j in 3" :key="'skel-card-'+j" class="bg-(--text)/5 border border-(--border-color) p-4 rounded-xl h-28 shrink-0"></div>
                     </div>
                 </div>
             </div>
             
             <!-- Mobile : un onglet à la fois, pas de glisser-déposer (ne marche pas au toucher) -->
             <div v-if="!loading" class="flex-1 min-h-0 flex flex-col md:hidden">
-                <div class="relative flex items-center gap-1 p-1 bg-white/5 rounded-xl mb-4 shrink-0">
+                <div class="relative flex items-center gap-1 p-1 bg-(--text)/5 rounded-xl mb-4 shrink-0">
                     <div
                         class="absolute top-1 bottom-1 rounded-lg bg-(--primary) shadow-lg transition-all duration-300 ease-out"
                         :style="tabIndicatorStyle"
@@ -145,7 +145,7 @@
                     <div
                         v-for="task in filteredTasks(mobileActiveColumn)" :key="task.id"
                         @click="openTaskDetails(task)"
-                        class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
+                        class="bg-(--bg2) border border-(--text)/10 p-4 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
                     >
                         <p class="text-sm font-bold text-(--text) leading-snug">{{ task.title }}</p>
                         <span v-if="task.parentTask" class="text-[9px] font-bold text-(--primary) uppercase flex items-center gap-1 opacity-80 mt-1">
@@ -177,7 +177,7 @@
                                 <button
                                     v-if="prevStatus(task.status)"
                                     @click="changeTaskStatus(task, prevStatus(task.status)!)"
-                                    class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
+                                    class="w-8 h-8 rounded-lg bg-(--text)/5 hover:bg-(--text)/10 flex items-center justify-center transition-colors"
                                     :class="columnColor(prevStatus(task.status)!)"
                                     :title="`Repasser à « ${columnTitle(prevStatus(task.status)!)} »`"
                                 >
@@ -229,7 +229,7 @@
                             >
                                 <i class="bi bi-archive" />
                             </button>
-                            <span class="bg-white/5 text-(--text2) text-xs px-2.5 py-1 rounded-full font-bold">
+                            <span class="bg-(--text)/5 text-(--text2) text-xs px-2.5 py-1 rounded-full font-bold">
                                 {{ filteredTasks(col.id).length }}
                             </span>
                         </div>
@@ -249,7 +249,7 @@
                              @dragover.prevent="onCardDragOver($event, task)"
                              @drop.stop="onCardDrop($event, task, col.id)"
                              @click="openTaskDetails(task)"
-                             class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer active:cursor-grabbing hover:border-(--primary)/50 transition-all shadow-lg hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] group relative overflow-hidden"
+                             class="bg-(--bg2) border border-(--text)/10 p-4 rounded-xl cursor-pointer active:cursor-grabbing hover:border-(--primary)/50 transition-all shadow-lg hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] group relative overflow-hidden"
                              :class="[
                                 dragOverTaskId === task.id && dragOverPosition === 'before' ? 'border-t-2 border-t-(--primary)' : '',
                                 dragOverTaskId === task.id && dragOverPosition === 'after' ? 'border-b-2 border-b-(--primary)' : ''
@@ -285,7 +285,7 @@
                                             {{ $p(assignee.name).substring(0, 2).toUpperCase() }}
                                         </div>
                                     </template>
-                                    <div v-if="task.assignees.length > 3" class="w-6 h-6 rounded-full bg-white/10 text-white flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10">
+                                    <div v-if="task.assignees.length > 3" class="w-6 h-6 rounded-full bg-(--text)/10 text-white flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10">
                                         +{{ task.assignees.length - 3 }}
                                     </div>
                                 </div>
@@ -296,7 +296,7 @@
                                         <i class="bi bi-paperclip"></i>
                                         {{ task._count.attachments }}
                                     </div>
-                                    <div v-if="task.subtasks && task.subtasks.length > 0" class="flex items-center gap-1.5 text-xs bg-white/5 px-2.5 py-1 rounded-lg font-bold text-white/50">
+                                    <div v-if="task.subtasks && task.subtasks.length > 0" class="flex items-center gap-1.5 text-xs bg-(--text)/5 px-2.5 py-1 rounded-lg font-bold text-(--text)/50">
                                         <i class="bi bi-check2-square text-(--primary)"></i>
                                         {{ task.subtasks.filter((st: any) => st.status === 'DONE').length }}/{{ task.subtasks.length }}
                                     </div>

@@ -16,7 +16,7 @@
                     placeholder="Nom du dossier..."
                     ref="nameInput"
                     class="
-                        w-full bg-(--bg2)/30 border border-white/10 rounded-xl 
+                        w-full bg-(--bg2)/30 border border-(--text)/10 rounded-xl 
                         px-4 py-3 text-(--text) placeholder:text-(--text2) 
                         focus:outline-none focus:border-(--primary)/50 focus:ring-1
                         focus:ring-(--primary)/20 transition-all
@@ -41,7 +41,7 @@
                             color.bg,
                             form.color === color.value 
                                 ? 'scale-110 border-white ring-2 ring-(--primary)/30' 
-                                : 'border-white/10 hover:scale-105'
+                                : 'border-(--text)/10 hover:scale-105'
                         ]"
                         :title="color.name"
                     >

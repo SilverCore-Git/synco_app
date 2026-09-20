@@ -16,7 +16,7 @@
         <!-- Liste vide -->
         <div 
             v-else-if="webhooks.length === 0"
-            class="bg-(--white)/5 border border-(--white)/10 rounded-2xl p-8 text-center"
+            class="bg-(--text)/5 border border-(--text)/10 rounded-2xl p-8 text-center"
         >
             <i class="bi bi-link-45deg text-4xl text-(--text2)" />
             <h3 class="text-lg font-semibold text-(--text) mt-4">Aucun webhook configuré</h3>
@@ -30,7 +30,7 @@
             <div 
                 v-for="webhook in webhooks" 
                 :key="webhook.id"
-                class="bg-(--white)/5 border border-(--white)/10 rounded-2xl p-4 hover:bg-(--white)/8 transition-all group"
+                class="bg-(--text)/5 border border-(--text)/10 rounded-2xl p-4 hover:bg-(--text)/8 transition-all group"
             >
                 
                 <!-- En-tête du webhook -->
@@ -44,7 +44,7 @@
                                 </div>
                                 <div 
                                     v-if="!webhook.isActive" 
-                                    class="absolute -top-1 -right-1 w-4 h-4 bg-(--bg) rounded-full border border-(--white)/20 flex items-center justify-center"
+                                    class="absolute -top-1 -right-1 w-4 h-4 bg-(--bg) rounded-full border border-(--text)/20 flex items-center justify-center"
                                     title="Désactivé"
                                 >
                                     <i class="bi bi-pause-fill text-[10px] text-(--text2)" />
@@ -73,7 +73,7 @@
                     <div class="flex items-center gap-2 flex-shrink-0">
                         <button 
                             @click="$emit('test', webhook)"
-                            class="text-(--text2) hover:text-(--primary) transition-all p-2 rounded-lg hover:bg-(--white)/10"
+                            class="text-(--text2) hover:text-(--primary) transition-all p-2 rounded-lg hover:bg-(--text)/10"
                             title="Envoyer un message de test"
                         >
                             <i class="bi bi-send-fill" />
@@ -81,7 +81,7 @@
                         
                         <button 
                             @click="toggleActive(webhook)"
-                            class="text-(--text2) hover:text-(--primary) transition-all p-2 rounded-lg hover:bg-(--white)/10"
+                            class="text-(--text2) hover:text-(--primary) transition-all p-2 rounded-lg hover:bg-(--text)/10"
                             :title="webhook.isActive ? 'Désactiver' : 'Activer'"
                         >
                             <i 
@@ -92,7 +92,7 @@
                         
                         <button 
                             @click="$emit('details', webhook)"
-                            class="text-(--text2) hover:text-(--primary) transition-all p-2 rounded-lg hover:bg-(--white)/10"
+                            class="text-(--text2) hover:text-(--primary) transition-all p-2 rounded-lg hover:bg-(--text)/10"
                             title="Voir les détails"
                         >
                             <i class="bi bi-three-dots" />
@@ -135,7 +135,7 @@
 
                 <!-- URL du webhook (mini) -->
                 <div class="mt-3 pl-13">
-                    <code class="text-xs text-(--text2) bg-(--white)/5 px-2 py-1 rounded">
+                    <code class="text-xs text-(--text2) bg-(--text)/5 px-2 py-1 rounded">
                         {{ getShortUrl(webhook) }}
                     </code>
                 </div>

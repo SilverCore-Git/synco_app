@@ -32,7 +32,7 @@ const cellClass = computed(() => {
   switch (props.value) {
     case 'ALLOW':  return 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 cursor-pointer';
     case 'DENY':   return 'bg-red-500/15 text-red-400 hover:bg-red-500/25 cursor-pointer';
-    case 'INHERIT': return 'bg-white/5 text-(--text2) hover:bg-white/10 cursor-pointer';
+    case 'INHERIT': return 'bg-(--text)/5 text-(--text2) hover:bg-(--text)/10 cursor-pointer';
     default: return '';
   }
 });

@@ -1,6 +1,6 @@
 <template>
     <div class="flex-1 max-w-xs mx-4 hidden md:flex" v-if="totalTasks > 0">
-        <div class="w-full h-2.5 bg-black/40 rounded-full flex overflow-hidden border border-white/5 shadow-inner" title="Progression des tâches">
+        <div class="w-full h-2.5 bg-black/40 rounded-full flex overflow-hidden border border-(--text)/5 shadow-inner" title="Progression des tâches">
             <div class="h-full bg-gray-400 transition-all duration-1000" :style="{ width: todoPercent + '%' }" title="À faire"></div>
             <div class="h-full bg-blue-500 transition-all duration-1000" :style="{ width: inProgressPercent + '%' }" title="En cours"></div>
             <div class="h-full bg-green-500 transition-all duration-1000" :style="{ width: donePercent + '%' }" title="Terminées"></div>

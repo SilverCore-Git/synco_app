@@ -1,25 +1,25 @@
 <template>
     <div class="space-y-6">
-        <div class="flex flex-col md:flex-row gap-4 items-center justify-between bg-(--bg) p-4 rounded-2xl border border-white/5 shadow-lg">
+        <div class="flex flex-col md:flex-row gap-4 items-center justify-between bg-(--bg) p-4 rounded-2xl border border-(--text)/5 shadow-lg">
             <div class="relative w-full md:w-96">
                 <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-(--text2)"></i>
                 <input 
                     v-model="searchQuery" 
                     type="text" 
                     placeholder="Rechercher un utilisateur (nom, email, ID)..."
-                    class="w-full bg-(--bg2) border border-white/5 rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:border-(--primary)/50 focus:ring-1 focus:ring-(--primary)/50 transition-all"
+                    class="w-full bg-(--bg2) border border-(--text)/5 rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:border-(--primary)/50 focus:ring-1 focus:ring-(--primary)/50 transition-all"
                 >
             </div>
-            <div class="text-sm font-bold text-(--text2) px-4 py-2 bg-(--bg2) rounded-xl border border-white/5">
+            <div class="text-sm font-bold text-(--text2) px-4 py-2 bg-(--bg2) rounded-xl border border-(--text)/5">
                 {{ filteredUsers.length }} utilisateur(s)
             </div>
         </div>
 
-        <div class="bg-(--bg) border border-white/5 rounded-2xl overflow-hidden shadow-xl">
+        <div class="bg-(--bg) border border-(--text)/5 rounded-2xl overflow-hidden shadow-xl">
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="border-b border-white/5 bg-(--bg2)/50">
+                        <tr class="border-b border-(--text)/5 bg-(--bg2)/50">
                             <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2)">Utilisateur</th>
                             <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2)">Organisations</th>
                             <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2) text-center">Orgs Créées / Max</th>
@@ -28,7 +28,7 @@
                             <th class="p-4 text-xs font-black uppercase tracking-widest text-(--text2) text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-white/5">
+                    <tbody class="divide-y divide-(--text)/5">
                         <tr v-if="loading">
                             <td colspan="6" class="p-12 text-center">
                                 <div class="w-8 h-8 border-4 border-(--primary)/30 border-t-(--primary) rounded-full animate-spin mx-auto"></div>
@@ -39,7 +39,7 @@
                                 {{ error }}
                             </td>
                         </tr>
-                        <tr v-else v-for="user in filteredUsers" :key="user.id" class="hover:bg-white/[0.02] transition-colors group">
+                        <tr v-else v-for="user in filteredUsers" :key="user.id" class="hover:bg-(--text)/[0.02] transition-colors group">
                             <td class="p-4">
                                 <div class="flex items-center gap-3">
                                     <div class="w-10 h-10 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center font-bold text-lg shrink-0">
@@ -58,7 +58,7 @@
                                     <span
                                         v-for="org in user.organizations"
                                         :key="org.id"
-                                        class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-white/5 text-(--text2) truncate max-w-32"
+                                        class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-(--text)/5 text-(--text2) truncate max-w-32"
                                         :title="org.name"
                                     >
                                         {{ org.name }}
@@ -112,9 +112,9 @@
         <div v-if="selectedUser" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="closeModal"></div>
             
-            <div class="relative w-full max-w-md bg-(--bg) rounded-2xl shadow-2xl border border-white/10 overflow-hidden animate-fade-in-up">
+            <div class="relative w-full max-w-md bg-(--bg) rounded-2xl shadow-2xl border border-(--text)/10 overflow-hidden animate-fade-in-up">
                 
-                <div class="p-6 border-b border-white/5 bg-(--bg2)">
+                <div class="p-6 border-b border-(--text)/5 bg-(--bg2)">
                     <h3 class="text-xl font-black text-(--text)">Modifier les quotas</h3>
                     <p class="text-sm text-(--text2) mt-1">Pour l'utilisateur <span class="font-bold text-(--text)">{{ $p(selectedUser.name) }}</span></p>
                 </div>
@@ -130,7 +130,7 @@
                             v-model="editForm.maxOrgs" 
                             min="0"
                             max="2147483647"
-                            class="w-full bg-(--bg2) border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all"
+                            class="w-full bg-(--bg2) border border-(--text)/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all"
                         >
                         <p class="text-[10px] text-(--text2) mt-1">Nombre d'organisations que l'utilisateur a le droit de créer.</p>
                     </div>
@@ -144,7 +144,7 @@
                             v-model="editForm.orgMaxUsers" 
                             min="1"
                             max="2147483647"
-                            class="w-full bg-(--bg2) border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all"
+                            class="w-full bg-(--bg2) border border-(--text)/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all"
                         >
                         <p class="text-[10px] text-(--text2) mt-1">Limite du nombre de membres appliquées à ses prochaines créations.</p>
                     </div>
@@ -159,17 +159,17 @@
                             min="0"
                             max="8589934591"
                             step="0.1"
-                            class="w-full bg-(--bg2) border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all"
+                            class="w-full bg-(--bg2) border border-(--text)/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all"
                         >
                         <p class="text-[10px] text-(--text2) mt-1">Stockage maximal en Gigaoctets pour ses futures organisations.</p>
                     </div>
 
                 </div>
 
-                <div class="p-6 bg-(--bg2) border-t border-white/5 flex gap-3 justify-end">
+                <div class="p-6 bg-(--bg2) border-t border-(--text)/5 flex gap-3 justify-end">
                     <button 
                         @click="closeModal" 
-                        class="px-5 py-2.5 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 text-(--text) transition-colors"
+                        class="px-5 py-2.5 rounded-xl font-bold text-sm bg-(--text)/5 hover:bg-(--text)/10 text-(--text) transition-colors"
                     >
                         Annuler
                     </button>

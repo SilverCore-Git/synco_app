@@ -12,7 +12,7 @@
       class="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
       @click.self="$emit('close')"
     >
-      <div class="bg-(--bg) rounded-2xl border border-white/10 shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col relative overflow-hidden" @click.stop>
+      <div class="bg-(--bg) rounded-2xl border border-(--text)/10 shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col relative overflow-hidden" @click.stop>
 
         <!-- Header -->
         <header class="flex items-center justify-between px-6 py-4 border-b border-(--border-color) shrink-0">
@@ -25,7 +25,7 @@
               <p class="text-xs text-(--text2)">{{ itemName }}</p>
             </div>
           </div>
-          <button @click="$emit('close')" class="text-(--text2) hover:text-(--text) transition-colors p-2 rounded-lg hover:bg-white/5">
+          <button @click="$emit('close')" class="text-(--text2) hover:text-(--text) transition-colors p-2 rounded-lg hover:bg-(--text)/5">
             <i class="bi bi-x-lg text-xl" />
           </button>
         </header>
@@ -44,7 +44,7 @@
             >
               <!-- Info utilisateur -->
               <div class="flex items-center gap-3">
-                <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-10 h-10 rounded-full object-cover border border-white/10" />
+                <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-10 h-10 rounded-full object-cover border border-(--text)/10" />
                 <div v-else class="w-10 h-10 rounded-full bg-(--primary)/20 flex items-center justify-center text-(--primary) font-bold uppercase">
                   {{ member.user?.name?.charAt(0) || '?' }}
                 </div>

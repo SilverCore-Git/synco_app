@@ -286,7 +286,7 @@
 
         <div class="relative mb-8 group">
             <div class="absolute inset-0 bg-(--primary)/20 blur-3xl rounded-full opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <div class="relative w-24 h-24 bg-(--bg2) border border-white/10 rounded-full flex items-center justify-center shadow-2xl">
+            <div class="relative w-24 h-24 bg-(--bg2) border border-(--text)/10 rounded-full flex items-center justify-center shadow-2xl">
                 <i class="bi bi-mic-fill text-4xl text-(--primary)"></i>
             </div>
         </div>
