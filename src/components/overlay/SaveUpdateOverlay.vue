@@ -7,7 +7,7 @@
             class="
                 fixed bottom-14 left-1/2 -translate-x-1/2 w-[min(90%,580px)] z-50
                 bg-zinc-900/80 backdrop-blur-md border border-(--text)/10 
-                p-2 pl-5 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] 
+                p-2 pl-5 rounded-2xl shadow-[0_20px_50px_var(--shadow-elevated)] 
                 flex items-center justify-between
             "
         >

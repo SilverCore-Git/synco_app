@@ -66,7 +66,7 @@
 
                 <div 
                     v-if="member.user && getUnreadCountByDMUserId(member.user.id).value > 0"
-                    class="ml-auto w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]"
+                    class="ml-auto w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_var(--glow-danger-strong)]"
                 />
 
                 <button
@@ -119,7 +119,7 @@
 
                 <div 
                     v-if="member.user && getUnreadCountByDMUserId(member.user.id).value > 0"
-                    class="ml-auto w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]"
+                    class="ml-auto w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_var(--glow-danger-strong)]"
                 />
 
             </button>

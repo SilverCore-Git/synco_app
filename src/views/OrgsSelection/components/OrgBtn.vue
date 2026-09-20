@@ -2,7 +2,7 @@
 
     <a
         :key="org.id"
-        class="group relative flex flex-col w-full h-[180px] bg-(--bg) border border-(--border-color) rounded-2xl overflow-hidden transition-all duration-300 transform cursor-pointer hover:-translate-y-1 hover:border-(--primary)/50 hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] active:scale-95"
+        class="group relative flex flex-col w-full h-[180px] bg-(--bg) border border-(--border-color) rounded-2xl overflow-hidden transition-all duration-300 transform cursor-pointer hover:-translate-y-1 hover:border-(--primary)/50 hover:shadow-[0_8px_30px_var(--shadow-elevated)] active:scale-95"
         :href="isCreate ? '#' : `/${org.id}`"
         @click.prevent="isCreate ? null : handleClick()"
     >

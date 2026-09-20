@@ -94,7 +94,7 @@ const statusClasses = computed(() => {
   
   if (p >= 85) {
     return {
-      bar: 'from-red-500 to-rose-600 shadow-[0_0_12px_rgba(239,68,68,0.4)]',
+      bar: 'from-red-500 to-rose-600 shadow-[0_0_12px_var(--glow-danger-strong)]',
       badge: 'bg-red-500/10 text-red-500',
       dot: 'bg-red-500',
       message: 'Surcharge critique imminent'
@@ -103,7 +103,7 @@ const statusClasses = computed(() => {
   
   if (p >= 60) {
     return {
-      bar: 'from-amber-400 to-orange-500 shadow-[0_0_12px_rgba(245,158,11,0.3)]',
+      bar: 'from-amber-400 to-orange-500 shadow-[0_0_12px_var(--glow-warning-strong)]',
       badge: 'bg-amber-500/10 text-amber-500',
       dot: 'bg-amber-500',
       message: 'Capacité modérée'
@@ -111,7 +111,7 @@ const statusClasses = computed(() => {
   }
   
   return {
-    bar: 'from-green-400 to-(--primary) shadow-[0_0_12px_rgba(18,138,96,0.3)]',
+    bar: 'from-green-400 to-(--primary) shadow-[0_0_12px_var(--glow-primary-soft)]',
     badge: 'bg-green-500/10 text-green-400',
     dot: 'bg-green-500',
     message: 'Utilisation optimale'

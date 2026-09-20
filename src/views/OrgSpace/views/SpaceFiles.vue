@@ -410,7 +410,7 @@
              class="fixed bottom-8 right-8 w-16 h-16 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-2xl z-[100] border-4 transition-all duration-500"
              :class="[
                 isDeleting ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
-                isHoveringTrash && !isDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_rgba(239,68,68,0.8)]' : 'border-transparent'
+                isHoveringTrash && !isDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_var(--glow-danger-strong)]' : 'border-transparent'
              ]"
              @dragover.prevent="isHoveringTrash = true"
              @dragleave.prevent="isHoveringTrash = false"
@@ -1154,7 +1154,7 @@ const handleRouteQuery = () => {
                 
                 el.style.transition = 'all 0.3s ease';
                 el.style.transform = 'scale(1.05)';
-                el.style.boxShadow = '0 0 0 4px var(--primary), 0 10px 30px rgba(0,0,0,0.5)';
+                el.style.boxShadow = '0 0 0 4px var(--primary), 0 10px 30px var(--shadow-elevated)';
                 el.style.zIndex = '10';
                 
                 setTimeout(() => {
