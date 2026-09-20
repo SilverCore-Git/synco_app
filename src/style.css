@@ -44,6 +44,14 @@ body.dark {
 
   --scrollbar-thumb: var(--primary-dark);
 
+  --surface-sunken: rgba(0, 0, 0, 0.3);
+  --shadow-elevated: rgba(0, 0, 0, 0.5);
+  --glow-primary-strong: rgba(var(--primary-rgb), 0.5);
+  --glow-primary-soft: rgba(var(--primary-rgb), 0.2);
+  --glow-primary-faint: rgba(var(--primary-rgb), 0.1);
+  --glow-warning-strong: rgba(245, 158, 11, 0.5);
+  --glow-danger-strong: rgba(239, 68, 68, 0.8);
+
 }
 
 /* Thème clair : les surfaces (--bg*) montent en clarté au lieu de descendre
@@ -59,7 +67,15 @@ body.dark {
      dédiée ici.
    - --text2 et --primary-rgb n'existaient pas du tout côté clair : toutes les
      utilisations (texte secondaire, halos box-shadow) tombaient sur une
-     variable non définie et perdaient leur effet silencieusement. */
+     variable non définie et perdaient leur effet silencieusement.
+   - --surface-sunken / --shadow-elevated / --glow-* : les halos colorés et
+     ombres fortes (drag & drop, hover de carte, bouton de suppression...)
+     étaient câblés en dur avec des opacités pensées pour un fond quasi noir
+     (ex. rgba(0,0,0,0.5), rgba(var(--primary-rgb),0.5)). Sur fond clair, la
+     même opacité donne un halo beaucoup plus saturé et voyant (« flashy »,
+     « éblouissant ») au lieu d'un dégradé discret — ces jetons portent donc
+     des intensités nettement réduites côté clair, à valeur d'usage identique
+     côté sombre (comportement inchangé). */
 body.light {
 
   --primary: #108e62;
@@ -79,6 +95,14 @@ body.light {
 
   --border-color: rgba(0, 0, 0, 0.1);
   --scrollbar-thumb: rgba(16, 142, 98, 0.35);
+
+  --surface-sunken: var(--bg3);
+  --shadow-elevated: rgba(0, 0, 0, 0.12);
+  --glow-primary-strong: rgba(var(--primary-rgb), 0.22);
+  --glow-primary-soft: rgba(var(--primary-rgb), 0.12);
+  --glow-primary-faint: rgba(var(--primary-rgb), 0.08);
+  --glow-warning-strong: rgba(245, 158, 11, 0.25);
+  --glow-danger-strong: rgba(239, 68, 68, 0.35);
 
 }
 

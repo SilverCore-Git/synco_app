@@ -147,7 +147,7 @@
                                     type="checkbox"
                                     :value="member.userId"
                                     v-model="form.assigneeIds"
-                                    class="w-4 h-4 rounded bg-black/20 border-(--text)/20 text-(--primary) focus:ring-(--primary) focus:ring-offset-0"
+                                    class="w-4 h-4 rounded bg-(--surface-sunken) border-(--text)/20 text-(--primary) focus:ring-(--primary) focus:ring-offset-0"
                                     :disabled="loading"
                                 />
                                 <div class="flex items-center gap-2">

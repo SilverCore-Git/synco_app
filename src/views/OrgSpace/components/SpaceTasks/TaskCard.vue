@@ -1,6 +1,6 @@
 <template>
     <div
-         class="bg-(--bg2) border border-(--text)/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] group relative overflow-hidden text-left w-full"
+         class="bg-(--bg2) border border-(--text)/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg hover:shadow-[0_8px_30px_var(--shadow-elevated)] group relative overflow-hidden text-left w-full"
     >
         <div class="flex justify-between items-start gap-2">
             <div class="flex flex-col gap-1 w-full">
@@ -36,7 +36,7 @@
                         {{ assignee.name?.substring(0, 2).toUpperCase() || 'U' }}
                     </div>
                 </template>
-                <div v-if="task.assignees.length > 3" class="w-6 h-6 rounded-full bg-(--text)/10 text-white flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10">
+                <div v-if="task.assignees.length > 3" class="w-6 h-6 rounded-full bg-(--text)/10 text-(--text) flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10">
                     +{{ task.assignees.length - 3 }}
                 </div>
             </div>
@@ -63,7 +63,7 @@
                     {{ getProgress(task).text }}
                 </span>
             </div>
-            <div class="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
+            <div class="w-full h-1.5 bg-(--surface-sunken) rounded-full overflow-hidden">
                 <div class="h-full rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(currentColor,0.5)]" 
                      :class="getProgress(task).color" 
                      :style="{ width: getProgress(task).percent + '%' }"></div>

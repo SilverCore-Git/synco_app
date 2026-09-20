@@ -25,7 +25,7 @@
                     @blur="commitEditTitle"
                     @keydown.enter="commitEditTitle"
                     @keydown.escape="cancelEditTitle"
-                    class="w-full bg-black/40 border border-(--primary)/50 rounded-lg px-3 py-2 text-(--text) mb-2 font-bold focus:outline-none"
+                    class="w-full bg-(--surface-sunken) border border-(--primary)/50 rounded-lg px-3 py-2 text-(--text) mb-2 font-bold focus:outline-none"
                 />
 
                 <p class="text-xs font-bold uppercase tracking-wide mb-3" :class="statusInfo.color">
@@ -128,7 +128,7 @@
                     @dragleave.prevent="onAttachmentsDragLeave"
                     @drop.prevent="onAttachmentsDrop"
                     rows="3"
-                    class="w-full bg-black/40 border border-(--primary)/50 rounded-lg px-3 py-2 text-(--text)/80 placeholder:opacity-60 resize-none focus:outline-none"
+                    class="w-full bg-(--surface-sunken) border border-(--primary)/50 rounded-lg px-3 py-2 text-(--text)/80 placeholder:opacity-60 resize-none focus:outline-none"
                     placeholder="Plus de détails..."
                 ></textarea>
 
@@ -182,13 +182,13 @@
                             <input
                                 v-model="editForm.dueDate"
                                 type="date"
-                                class="w-full bg-black/40 border border-(--text)/20 rounded-lg px-3 py-2 text-sm text-(--text) focus:outline-none focus:border-(--primary)/50"
+                                class="w-full bg-(--surface-sunken) border border-(--text)/20 rounded-lg px-3 py-2 text-sm text-(--text) focus:outline-none focus:border-(--primary)/50"
                                 :disabled="loading"
                             />
                             <input
                                 v-model="editForm.dueTime"
                                 type="time"
-                                class="w-28 bg-black/40 border border-(--text)/20 rounded-lg px-3 py-2 text-sm text-(--text) focus:outline-none focus:border-(--primary)/50"
+                                class="w-28 bg-(--surface-sunken) border border-(--text)/20 rounded-lg px-3 py-2 text-sm text-(--text) focus:outline-none focus:border-(--primary)/50"
                                 :disabled="loading"
                             />
                             <button v-if="editForm.dueDate" type="button" @click="editForm.dueDate = ''; editForm.dueTime = ''" class="text-(--text2) hover:text-red-500 transition-colors px-2" title="Retirer l'échéance">
@@ -203,7 +203,7 @@
                             <input
                                 v-model="searchAssignee"
                                 placeholder="Rechercher une personne..."
-                                class="w-full bg-black/40 border border-(--text)/20 rounded-xl pl-9 pr-4 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
+                                class="w-full bg-(--surface-sunken) border border-(--text)/20 rounded-xl pl-9 pr-4 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
                                 :disabled="loading"
                             />
                         </div>
@@ -213,7 +213,7 @@
                                     type="checkbox"
                                     :value="member.userId"
                                     v-model="editForm.assigneeIds"
-                                    class="w-4 h-4 rounded bg-black/20 border-(--text)/20 text-(--primary) focus:ring-(--primary) focus:ring-offset-0"
+                                    class="w-4 h-4 rounded bg-(--surface-sunken) border-(--text)/20 text-(--primary) focus:ring-(--primary) focus:ring-offset-0"
                                     :disabled="loading"
                                 />
                                 <div class="flex items-center gap-2">
@@ -305,7 +305,7 @@
                 <div class="space-y-2 max-h-[200px] overflow-y-auto pr-2">
                     <div v-for="subtask in task.subtasks" :key="subtask.id" 
                          @click="emit('open-task', subtask)"
-                         class="bg-black/20 border border-(--border-color) rounded-xl p-3 flex flex-col gap-2 group cursor-pointer hover:border-(--primary)/50 transition-colors">
+                         class="bg-(--surface-sunken) border border-(--border-color) rounded-xl p-3 flex flex-col gap-2 group cursor-pointer hover:border-(--primary)/50 transition-colors">
                         <div class="flex items-start justify-between">
                             <div class="flex items-center gap-3">
                                 <button @click.stop="toggleSubtaskStatus(subtask)" class="text-xl transition-colors mt-0.5" :class="subtask.status === 'DONE' ? 'text-green-500' : 'text-(--text2) hover:text-(--primary)'">

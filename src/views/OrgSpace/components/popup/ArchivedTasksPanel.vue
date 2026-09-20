@@ -94,7 +94,7 @@
                   type="text"
                   autofocus
                   placeholder="Nom du dossier..."
-                  class="text-xs bg-black/20 border border-(--text)/10 rounded-lg px-3 py-1.5 text-(--text) focus:border-(--primary)/50 outline-none transition-all w-40"
+                  class="text-xs bg-(--surface-sunken) border border-(--text)/10 rounded-lg px-3 py-1.5 text-(--text) focus:border-(--primary)/50 outline-none transition-all w-40"
                   @keydown.esc="showNewFolder = false; newFolderTitle = ''"
                 />
                 <button
