@@ -3,6 +3,9 @@
         <div class="calendars-header">
             <span class="calendars-title">Mes agendas</span>
             <div class="flex items-center gap-1">
+                <button type="button" class="icon-btn" title="Partager mon agenda par lien iCal" @click="openIcalModal">
+                    <i class="bi bi-rss"></i>
+                </button>
                 <button type="button" class="icon-btn" title="Partager mon agenda" @click="openShareModal">
                     <i class="bi bi-share"></i>
                 </button>
@@ -149,6 +152,33 @@
             <button type="button" class="primary" :disabled="!pickedUserId" @click="submitShare">Envoyer l'invitation</button>
         </template>
     </Popup>
+
+    <Popup :isOpen="showIcalModal" @close="showIcalModal = false">
+        <template #title>Partager mon agenda par lien iCal</template>
+
+        <p class="text-xs text-(--text2) mb-3 leading-relaxed">
+            Ce lien donne un accès en lecture seule à vos propres événements (créés par vous ou où vous êtes invité·e)
+            — jamais aux agendas de collègues que vous consultez via un partage. N'importe quel client calendrier
+            (Apple Calendar, Outlook, Google...) peut s'y abonner en l'ajoutant comme "calendrier par URL".
+        </p>
+
+        <div v-if="icalStatus.active && icalStatus.url" class="ical-link-box">
+            <code class="ical-link-text">{{ icalStatus.url }}</code>
+            <button type="button" class="icon-btn shrink-0" title="Copier le lien" @click="copyIcalLink(icalStatus.url)">
+                <i class="bi bi-copy"></i>
+            </button>
+        </div>
+        <div v-else class="text-[11px] text-(--text2) py-2">
+            Aucun lien actif pour le moment.
+        </div>
+
+        <template #footer>
+            <button v-if="icalStatus.active" type="button" class="default" @click="handleDisableIcal">Désactiver</button>
+            <button type="button" class="primary" :disabled="icalLoading" @click="handleRegenerateIcal">
+                {{ icalStatus.active ? 'Régénérer le lien' : 'Générer un lien' }}
+            </button>
+        </template>
+    </Popup>
 </template>
 
 <script setup lang="ts">
@@ -157,6 +187,8 @@ import DropDown from '@/components/DropDown.vue';
 import Popup from '@/components/Popup.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
 import { useCalendarAccess } from '@/composables/useCalendarAccess';
+import { useAgendaFeed } from '@/composables/useAgendaFeed';
+import { useToast } from '@/composables/useToast';
 import { openedOrg, user } from '@/assets/var';
 import type { OrgMember } from '@/types/types';
 import type { CalendarAccessLevel } from '@/types/agenda';
@@ -241,6 +273,32 @@ async function submitShare() {
     if (!pickedUserId.value) return;
     const ok = await inviteAccess(props.orgId, pickedUserId.value, pickedLevel.value);
     if (ok) showShareModal.value = false;
+}
+
+// ── Partage par lien iCal ───────────────────────────────────────────────
+const { status: icalStatus, loading: icalLoading, fetchStatus: fetchIcalStatus, regenerate: regenerateIcal, disable: disableIcal } = useAgendaFeed();
+const showIcalModal = ref(false);
+
+async function openIcalModal() {
+    showIcalModal.value = true;
+    await fetchIcalStatus(props.orgId);
+}
+
+async function handleRegenerateIcal() {
+    await regenerateIcal(props.orgId);
+}
+
+async function handleDisableIcal() {
+    await disableIcal(props.orgId);
+}
+
+async function copyIcalLink(url: string) {
+    try {
+        await navigator.clipboard.writeText(url);
+        useToast().show('Lien copié dans le presse-papier !', 'success');
+    } catch {
+        useToast().show('Impossible de copier le lien automatiquement.', 'error');
+    }
 }
 </script>
 
@@ -408,5 +466,24 @@ async function submitShare() {
     color: var(--text);
     border-color: var(--primary);
     background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.ical-link-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: color-mix(in srgb, var(--bg2) 30%, transparent);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.6rem;
+    padding: 8px 10px;
+}
+
+.ical-link-text {
+    flex: 1;
+    font-size: 11px;
+    color: var(--text2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 </style>

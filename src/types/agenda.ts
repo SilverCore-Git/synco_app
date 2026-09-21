@@ -312,3 +312,46 @@ export interface MergedOccurrence extends OccurrenceInstance {
   sourceOwnerId: string;
   sourceColor: string;
 }
+
+// ============================================
+// Calendriers externes connectés (Google Calendar, sync bidirectionnelle
+// OAuth — voir synco_api/vibe/features/GOOGLE_CALENDAR_SYNC_FEATURE.md).
+// Les événements importés apparaissent comme des CalendarEvent normaux
+// (source EXTERNAL_GOOGLE côté API) : aucun type dédié n'est nécessaire pour
+// les afficher, ils sortent déjà de GET /events comme n'importe quel event.
+// ============================================
+export type ExternalCalendarProvider = 'GOOGLE';
+export type ExternalConnectionStatus = 'ACTIVE' | 'ERROR' | 'REVOKED';
+
+export interface ExternalCalendarConnectionSummary {
+  id: string;
+  provider: ExternalCalendarProvider;
+  externalAccountEmail: string;
+  label: string | null;
+  color: string | null;
+  status: ExternalConnectionStatus;
+  lastError: string | null;
+  lastSyncedAt: string | null;
+  createdAt: string;
+}
+
+export type ListExternalConnectionsResponse = ExternalCalendarConnectionSummary[];
+
+export interface GoogleAuthUrlResponse {
+  url: string;
+}
+
+export interface ExternalConnectionActionResponse {
+  connectionId: string;
+}
+
+// ============================================
+// Lien d'abonnement iCal en lecture seule pour partager SON PROPRE agenda
+// (jamais les calendriers de collègues consultés via CalendarAccessGrant —
+// voir icsFeedService.ts côté API pour la raison).
+// ============================================
+export interface AgendaFeedTokenStatus {
+  active: boolean;
+  url: string | null;
+  lastAccessedAt: string | null;
+}

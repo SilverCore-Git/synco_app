@@ -44,6 +44,7 @@
                     @navigate-month="navigateMiniMonth"
                 />
                 <CalendarAccessPanel :org-id="orgId" @changed="refetch" />
+                <ExternalCalendarsPanel :org-id="orgId" @changed="refetch" />
             </aside>
 
             <main class="flex-1 overflow-hidden w-full h-full">
@@ -116,6 +117,7 @@ import MiniCalendar from './components/MiniCalendar.vue';
 import EventQuickCreate from './components/EventQuickCreate.vue';
 import EventPanel from './components/EventPanel.vue';
 import CalendarAccessPanel from './components/CalendarAccessPanel.vue';
+import ExternalCalendarsPanel from './components/ExternalCalendarsPanel.vue';
 import { useAgenda } from '@/composables/useAgenda';
 import { useCalendarAccess } from '@/composables/useCalendarAccess';
 import { useAgendaViewMode, type AgendaViewMode } from '@/composables/useAgendaViewMode';
