@@ -33,7 +33,13 @@
             <span class="level-badge">{{ grant.level === 'WRITE' ? 'Modif.' : 'Lecture' }}</span>
             <DropDown align="right" content-iner-t-w="z-100 sdropdown min-w-[160px]">
                 <template #trigger>
-                    <button type="button" class="icon-btn shrink-0" @click.stop title="Options">
+                    <!-- .prevent (pas .stop) : la ligne est un <label> associé à la
+                         checkbox de visibilité ci-dessus — .stop empêcherait le clic de
+                         remonter jusqu'au @click du DropDown lui-même (son propre
+                         déclencheur d'ouverture), donc le menu ne s'ouvrirait jamais ;
+                         .prevent bloque uniquement l'activation par défaut de la
+                         checkbox associée au <label>. -->
+                    <button type="button" class="icon-btn shrink-0" @click.prevent title="Options">
                         <i class="bi bi-three-dots"></i>
                     </button>
                 </template>
