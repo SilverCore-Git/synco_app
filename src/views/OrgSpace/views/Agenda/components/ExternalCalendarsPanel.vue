@@ -2,7 +2,7 @@
     <div class="calendars-section">
         <div class="calendars-header">
             <span class="calendars-title">Calendriers externes</span>
-            <button type="button" class="icon-btn" title="Connecter Google Calendar" @click="connectGoogle(props.orgId)">
+            <button type="button" class="icon-btn" title="Ajouter un calendrier externe" @click="isAddModalOpen = true">
                 <i class="bi bi-plus-lg"></i>
             </button>
         </div>
@@ -12,8 +12,8 @@
         </div>
 
         <div v-for="conn in connections" :key="conn.id" class="calendar-row">
-            <i class="bi bi-google shrink-0 text-[11px]" :class="statusColorClass(conn.status)"></i>
-            <span class="calendar-name" :title="conn.externalAccountEmail">{{ conn.label || conn.externalAccountEmail }}</span>
+            <i class="bi shrink-0 text-[11px]" :class="[providerIcon(conn.provider), statusColorClass(conn.status)]"></i>
+            <span class="calendar-name" :title="conn.externalAccountEmail || undefined">{{ displayName(conn) }}</span>
             <span
                 v-if="conn.status !== 'ACTIVE'"
                 class="level-badge"
@@ -27,40 +27,79 @@
                         <i class="bi bi-three-dots"></i>
                     </button>
                 </template>
-                <button v-if="conn.status === 'ACTIVE'" type="button" class="dropdown-item-style" @click="handleSync(conn.id)">
+
+                <template v-if="conn.provider === 'GOOGLE'">
+                    <button v-if="conn.status === 'ACTIVE'" type="button" class="dropdown-item-style" @click="handleSync(conn.id)">
+                        <i class="bi bi-arrow-repeat"></i> Synchroniser maintenant
+                    </button>
+                    <button v-else type="button" class="dropdown-item-style" @click="connectGoogle(props.orgId)">
+                        <i class="bi bi-arrow-clockwise"></i> Reconnecter
+                    </button>
+                </template>
+
+                <button v-else-if="conn.provider === 'ICS_URL'" type="button" class="dropdown-item-style" @click="handleSync(conn.id)">
                     <i class="bi bi-arrow-repeat"></i> Synchroniser maintenant
                 </button>
-                <button v-else type="button" class="dropdown-item-style" @click="connectGoogle(props.orgId)">
-                    <i class="bi bi-arrow-clockwise"></i> Reconnecter
+
+                <button v-else type="button" class="dropdown-item-style" @click="triggerReplaceFile(conn.id)">
+                    <i class="bi bi-upload"></i> Remplacer le fichier
                 </button>
+
                 <button type="button" class="dropdown-item-style" @click="handleDisconnect(conn.id)">
                     <i class="bi bi-x-circle"></i> Déconnecter
                 </button>
             </DropDown>
         </div>
+
+        <input
+            ref="replaceFileInputEl"
+            type="file"
+            accept=".ics,text/calendar"
+            class="hidden"
+            @change="onReplaceFileChange"
+        />
+
+        <AddExternalCalendarModal :is-open="isAddModalOpen" :org-id="props.orgId" @close="isAddModalOpen = false" />
     </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import DropDown from '@/components/DropDown.vue';
+import AddExternalCalendarModal from './AddExternalCalendarModal.vue';
 import { useExternalCalendars } from '@/composables/useExternalCalendars';
 import { useToast } from '@/composables/useToast';
-import type { ExternalConnectionStatus } from '@/types/agenda';
+import type { ExternalCalendarProvider, ExternalConnectionStatus } from '@/types/agenda';
 
 const props = defineProps<{ orgId: string }>();
 const emit = defineEmits<{ changed: [] }>();
 
-const { connections, fetchConnections, connectGoogle, syncNow, disconnect } = useExternalCalendars();
+const { connections, fetchConnections, connectGoogle, syncNow, disconnect, replaceIcsFile } = useExternalCalendars();
 
 const route = useRoute();
 const router = useRouter();
+
+const isAddModalOpen = ref(false);
+const replaceFileInputEl = ref<HTMLInputElement | null>(null);
+const replaceTargetConnectionId = ref<string | null>(null);
 
 function statusColorClass(status: ExternalConnectionStatus): string {
     if (status === 'ACTIVE') return 'text-(--text2)';
     if (status === 'ERROR') return 'text-amber-500';
     return 'text-red-500';
+}
+
+function providerIcon(provider: ExternalCalendarProvider): string {
+    if (provider === 'GOOGLE') return 'bi-google';
+    if (provider === 'ICS_URL') return 'bi-link-45deg';
+    return 'bi-file-earmark-text';
+}
+
+function displayName(conn: { label: string | null; externalAccountEmail: string | null; provider: ExternalCalendarProvider }): string {
+    if (conn.label) return conn.label;
+    if (conn.externalAccountEmail) return conn.externalAccountEmail;
+    return conn.provider === 'GOOGLE' ? 'Compte Google' : 'Calendrier ICS';
 }
 
 async function handleSync(connectionId: string) {
@@ -70,6 +109,23 @@ async function handleSync(connectionId: string) {
 
 async function handleDisconnect(connectionId: string) {
     const ok = await disconnect(props.orgId, connectionId);
+    if (ok) emit('changed');
+}
+
+function triggerReplaceFile(connectionId: string) {
+    replaceTargetConnectionId.value = connectionId;
+    replaceFileInputEl.value?.click();
+}
+
+async function onReplaceFileChange(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    const connectionId = replaceTargetConnectionId.value;
+    input.value = '';
+    replaceTargetConnectionId.value = null;
+    if (!file || !connectionId) return;
+
+    const ok = await replaceIcsFile(props.orgId, connectionId, file);
     if (ok) emit('changed');
 }
 
