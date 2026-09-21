@@ -23,6 +23,34 @@ function formFields(label?: string | null, color?: string | null): Record<string
   return fields;
 }
 
+// Masquage d'un calendrier externe — préférence d'affichage purement locale
+// (jamais envoyée au serveur), même mécanisme que
+// useCalendarAccess.ts::isVisible/toggleVisibility pour les agendas partagés,
+// mais sous une clé distincte (id de connexion, pas id de grant).
+function hiddenKey(orgId: string): string {
+  return `agenda-hidden-external-calendars:${orgId}`;
+}
+
+function getHiddenIds(orgId: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(hiddenKey(orgId));
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function isExternalCalendarVisible(orgId: string, connectionId: string): boolean {
+  return !getHiddenIds(orgId).has(connectionId);
+}
+
+function toggleExternalCalendarVisibility(orgId: string, connectionId: string): void {
+  const hidden = getHiddenIds(orgId);
+  if (hidden.has(connectionId)) hidden.delete(connectionId);
+  else hidden.add(connectionId);
+  localStorage.setItem(hiddenKey(orgId), JSON.stringify([...hidden]));
+}
+
 const connections = ref<ExternalCalendarConnectionSummary[]>([]);
 const loading = ref(false);
 
@@ -89,6 +117,26 @@ async function addIcsUrl(orgId: string, url: string, label?: string | null, colo
     const connection: ExternalCalendarConnectionSummary = await res.json();
     connections.value = [...connections.value, connection];
     useToast().show('Calendrier ajouté', 'success');
+    return true;
+  } catch (err: any) {
+    useToast().show(err.message || 'Erreur inconnue', 'error');
+    return false;
+  }
+}
+
+async function updateIcsUrl(orgId: string, connectionId: string, url: string, label?: string | null, color?: string | null): Promise<boolean> {
+  try {
+    const res = await sfetch(`/api/orgs/${orgId}/agenda/external/connections/${connectionId}/ics-url`, {
+      method: 'PATCH',
+      body: JSON.stringify({ url, label: label || undefined, color: color || undefined })
+    });
+    if (!res.ok) {
+      const err: ApiErrorResponse = await res.json();
+      throw new Error(err.error || 'Erreur lors de la mise à jour du lien');
+    }
+    const connection: ExternalCalendarConnectionSummary = await res.json();
+    connections.value = connections.value.map(c => c.id === connectionId ? connection : c);
+    useToast().show('Lien mis à jour', 'success');
     return true;
   } catch (err: any) {
     useToast().show(err.message || 'Erreur inconnue', 'error');
@@ -166,9 +214,13 @@ export function useExternalCalendars() {
     connectGoogle,
     addIcsUrl,
     addIcsFile,
+    updateIcsUrl,
     replaceIcsFile,
     syncNow,
     disconnect,
+
+    isExternalCalendarVisible,
+    toggleExternalCalendarVisibility,
 
     resetState
   };

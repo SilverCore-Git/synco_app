@@ -120,6 +120,11 @@ export interface OccurrenceInstance {
   isException: boolean;
   creatorId: string;
   attendees: OccurrenceAttendeeSummary[];
+  // Id de l'ExternalCalendarConnection dont cet événement a été importé
+  // (Google ou ICS), null pour un événement natif — sert au masquage d'un
+  // calendrier externe (voir ExternalCalendarsPanel.vue), jamais à une
+  // logique de permission.
+  externalConnectionId: string | null;
 }
 
 // ============================================
