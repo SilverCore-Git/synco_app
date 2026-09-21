@@ -529,7 +529,7 @@ const RINGING_NOTIF_TYPES: NotificationType[] = ['notif:call', 'notif:privateMee
 watch(() => notifications.value.length, (newLength, oldLength) => {
     if (newLength > oldLength) {
         const latestNotif = notifications.value[notifications.value.length - 1];
-        if (latestNotif && latestNotif.type !== 'toast') {
+        if (latestNotif && (latestNotif.type !== 'toast' || latestNotif.playSound)) {
             if (!RINGING_NOTIF_TYPES.includes(latestNotif.type)) {
                 playNotificationSound();
             }
