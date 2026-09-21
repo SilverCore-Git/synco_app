@@ -120,6 +120,7 @@ import CalendarAccessPanel from './components/CalendarAccessPanel.vue';
 import ExternalCalendarsPanel from './components/ExternalCalendarsPanel.vue';
 import { useAgenda } from '@/composables/useAgenda';
 import { useCalendarAccess } from '@/composables/useCalendarAccess';
+import { useExternalCalendars } from '@/composables/useExternalCalendars';
 import { useAgendaViewMode, type AgendaViewMode } from '@/composables/useAgendaViewMode';
 import useWSocket from '@/composables/useWSocket';
 import sfetch from '@/assets/utils/sfetch';
@@ -133,6 +134,7 @@ const orgId = computed(() => route.params.orgId as string);
 
 const { occurrences, loading, fetchRange, updateEvent, updateOccurrence } = useAgenda();
 const { sharedOccurrences, fetchGrants, fetchSharedOccurrences } = useCalendarAccess();
+const { isExternalCalendarVisible } = useExternalCalendars();
 
 // ── Échéances de tâches affichées comme événements dans l'agenda ──────
 // Pseudo-occurrences synthétisées côté front à partir des tâches qui me
@@ -179,14 +181,23 @@ const taskDeadlineOccurrences = computed<OccurrenceInstance[]>(() => {
             isRecurring: false,
             isException: false,
             creatorId: task.creatorId,
-            attendees: []
+            attendees: [],
+            externalConnectionId: null
         };
     });
 });
 
+// Occurrences de mon agenda dont le calendrier externe d'origine a été masqué
+// (voir ExternalCalendarsPanel.vue) — filtrées avant fusion, jamais envoyées
+// au serveur : c'est une préférence d'affichage purement locale, comme le
+// masquage d'un agenda partagé (useCalendarAccess.ts::isVisible).
+const visibleOwnOccurrences = computed(() => occurrences.value.filter(occ =>
+    !occ.externalConnectionId || isExternalCalendarVisible(orgId.value, occ.externalConnectionId)
+));
+
 // Fusion événements réels (mon agenda + agendas partagés visibles, voir
 // useCalendarAccess.ts) + échéances de tâches pour l'affichage dans les grilles.
-const displayOccurrences = computed(() => [...occurrences.value, ...sharedOccurrences.value, ...taskDeadlineOccurrences.value]);
+const displayOccurrences = computed(() => [...visibleOwnOccurrences.value, ...sharedOccurrences.value, ...taskDeadlineOccurrences.value]);
 
 const { viewMode } = useAgendaViewMode();
 const cursorDate = ref<Date>(new Date());

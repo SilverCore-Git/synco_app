@@ -2,7 +2,7 @@
     <div class="calendars-section">
         <div class="calendars-header">
             <span class="calendars-title">Calendriers externes</span>
-            <button type="button" class="icon-btn" title="Ajouter un calendrier externe" @click="isAddModalOpen = true">
+            <button type="button" class="icon-btn" title="Ajouter un calendrier externe" @click="openAddModal">
                 <i class="bi bi-plus-lg"></i>
             </button>
         </div>
@@ -11,7 +11,13 @@
             Aucun calendrier externe connecté.
         </div>
 
-        <div v-for="conn in connections" :key="conn.id" class="calendar-row">
+        <label v-for="conn in connections" :key="conn.id" class="calendar-row">
+            <input
+                type="checkbox"
+                :checked="isExternalCalendarVisible(props.orgId, conn.id)"
+                @change="toggleExternalCalendarVisibility(props.orgId, conn.id); emit('changed')"
+                class="w-3.5 h-3.5 rounded accent-(--primary) shrink-0"
+            />
             <i class="bi shrink-0 text-[11px]" :class="[providerIcon(conn.provider), statusColorClass(conn.status)]"></i>
             <span class="calendar-name" :title="conn.externalAccountEmail || undefined">{{ displayName(conn) }}</span>
             <span
@@ -37,9 +43,14 @@
                     </button>
                 </template>
 
-                <button v-else-if="conn.provider === 'ICS_URL'" type="button" class="dropdown-item-style" @click="handleSync(conn.id)">
-                    <i class="bi bi-arrow-repeat"></i> Synchroniser maintenant
-                </button>
+                <template v-else-if="conn.provider === 'ICS_URL'">
+                    <button type="button" class="dropdown-item-style" @click="handleSync(conn.id)">
+                        <i class="bi bi-arrow-repeat"></i> Synchroniser maintenant
+                    </button>
+                    <button type="button" class="dropdown-item-style" @click="openEditLink(conn)">
+                        <i class="bi bi-pencil"></i> Modifier le lien
+                    </button>
+                </template>
 
                 <button v-else type="button" class="dropdown-item-style" @click="triggerReplaceFile(conn.id)">
                     <i class="bi bi-upload"></i> Remplacer le fichier
@@ -49,7 +60,7 @@
                     <i class="bi bi-x-circle"></i> Déconnecter
                 </button>
             </DropDown>
-        </div>
+        </label>
 
         <input
             ref="replaceFileInputEl"
@@ -59,7 +70,12 @@
             @change="onReplaceFileChange"
         />
 
-        <AddExternalCalendarModal :is-open="isAddModalOpen" :org-id="props.orgId" @close="isAddModalOpen = false" />
+        <AddExternalCalendarModal
+            :is-open="isAddModalOpen"
+            :org-id="props.orgId"
+            :edit-connection="editingConnection"
+            @close="closeAddModal"
+        />
     </div>
 </template>
 
@@ -70,19 +86,38 @@ import DropDown from '@/components/DropDown.vue';
 import AddExternalCalendarModal from './AddExternalCalendarModal.vue';
 import { useExternalCalendars } from '@/composables/useExternalCalendars';
 import { useToast } from '@/composables/useToast';
-import type { ExternalCalendarProvider, ExternalConnectionStatus } from '@/types/agenda';
+import type { ExternalCalendarConnectionSummary, ExternalCalendarProvider, ExternalConnectionStatus } from '@/types/agenda';
 
 const props = defineProps<{ orgId: string }>();
 const emit = defineEmits<{ changed: [] }>();
 
-const { connections, fetchConnections, connectGoogle, syncNow, disconnect, replaceIcsFile } = useExternalCalendars();
+const {
+    connections, fetchConnections, connectGoogle, syncNow, disconnect, replaceIcsFile,
+    isExternalCalendarVisible, toggleExternalCalendarVisibility
+} = useExternalCalendars();
 
 const route = useRoute();
 const router = useRouter();
 
 const isAddModalOpen = ref(false);
+const editingConnection = ref<ExternalCalendarConnectionSummary | null>(null);
 const replaceFileInputEl = ref<HTMLInputElement | null>(null);
 const replaceTargetConnectionId = ref<string | null>(null);
+
+function openAddModal() {
+    editingConnection.value = null;
+    isAddModalOpen.value = true;
+}
+
+function openEditLink(conn: ExternalCalendarConnectionSummary) {
+    editingConnection.value = conn;
+    isAddModalOpen.value = true;
+}
+
+function closeAddModal() {
+    isAddModalOpen.value = false;
+    editingConnection.value = null;
+}
 
 function statusColorClass(status: ExternalConnectionStatus): string {
     if (status === 'ACTIVE') return 'text-(--text2)';
@@ -200,6 +235,7 @@ onMounted(async () => {
     align-items: center;
     gap: 8px;
     padding: 5px 2px;
+    cursor: pointer;
 }
 
 .calendar-name {

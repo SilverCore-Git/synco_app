@@ -1,9 +1,9 @@
 <template>
     <Popup :is-open="isOpen" @close="close">
-        <template #title>Ajouter un calendrier externe</template>
+        <template #title>{{ isEditing ? 'Modifier le lien du calendrier' : 'Ajouter un calendrier externe' }}</template>
 
         <div class="space-y-4">
-            <div class="tab-row">
+            <div v-if="!isEditing" class="tab-row">
                 <button type="button" class="tab" :class="{ 'is-active': tab === 'url' }" @click="tab = 'url'">
                     <i class="bi bi-link-45deg"></i> Lien (URL)
                 </button>
@@ -18,12 +18,18 @@
             <!-- Lien ICS/webcal -->
             <div v-if="tab === 'url'" class="space-y-3">
                 <p class="hint">
-                    Colle le lien ICS (ou webcal) de n'importe quel agenda — Google, Outlook, Apple,
-                    ou tout autre service qui en propose un. Il sera resynchronisé automatiquement
-                    (environ une fois par heure).
+                    <template v-if="isEditing">
+                        Remplace le lien suivi par ce calendrier. Les événements de l'ancien lien qui
+                        n'existent pas dans le nouveau seront retirés de ton agenda.
+                    </template>
+                    <template v-else>
+                        Colle le lien ICS (ou webcal) de n'importe quel agenda — Google, Outlook, Apple,
+                        ou tout autre service qui en propose un. Il sera resynchronisé automatiquement
+                        (environ une fois par heure).
+                    </template>
                 </p>
                 <div class="field">
-                    <label class="field-label">Lien du calendrier</label>
+                    <label class="field-label">{{ isEditing ? 'Nouveau lien' : 'Lien du calendrier' }}</label>
                     <input v-model.trim="urlValue" type="url" placeholder="https://…/calendar.ics" class="field-input" :disabled="submitting" />
                 </div>
                 <div class="field">
@@ -47,8 +53,8 @@
                 </div>
                 <button type="button" class="primary w-full justify-center" :disabled="!urlValue || submitting" @click="submitUrl">
                     <i v-if="submitting" class="bi bi-arrow-repeat animate-spin"></i>
-                    <i v-else class="bi bi-plus-lg"></i>
-                    Ajouter ce calendrier
+                    <i v-else :class="isEditing ? 'bi bi-check-lg' : 'bi bi-plus-lg'"></i>
+                    {{ isEditing ? 'Mettre à jour le lien' : 'Ajouter ce calendrier' }}
                 </button>
             </div>
 
@@ -104,14 +110,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import Popup from '@/components/Popup.vue';
 import { useExternalCalendars } from '@/composables/useExternalCalendars';
+import type { ExternalCalendarConnectionSummary } from '@/types/agenda';
 
-const props = defineProps<{ isOpen: boolean; orgId: string }>();
+const props = defineProps<{ isOpen: boolean; orgId: string; editConnection?: ExternalCalendarConnectionSummary | null }>();
 const emit = defineEmits<{ close: [] }>();
 
-const { addIcsUrl, addIcsFile, connectGoogle } = useExternalCalendars();
+const { addIcsUrl, addIcsFile, updateIcsUrl, connectGoogle } = useExternalCalendars();
+
+const isEditing = computed(() => !!props.editConnection);
 
 // Mêmes teintes que EventPanel.vue::colorPresets — cohérence visuelle entre
 // la couleur d'un événement et celle d'un calendrier superposé.
@@ -127,9 +136,12 @@ const submitting = ref(false);
 
 function resetForm() {
     tab.value = 'url';
+    // En édition, le lien lui-même n'est jamais renvoyé au client (traité
+    // comme un secret côté API) — seuls nom/couleur peuvent être pré-remplis,
+    // l'utilisateur doit retaper le nouveau lien.
     urlValue.value = '';
-    labelValue.value = '';
-    colorValue.value = null;
+    labelValue.value = props.editConnection?.label || '';
+    colorValue.value = props.editConnection?.color || null;
     fileValue.value = null;
     if (fileInputEl.value) fileInputEl.value.value = '';
 }
@@ -150,7 +162,9 @@ function onFileChange(e: Event) {
 async function submitUrl() {
     if (!urlValue.value || submitting.value) return;
     submitting.value = true;
-    const okResult = await addIcsUrl(props.orgId, urlValue.value, labelValue.value || null, colorValue.value);
+    const okResult = isEditing.value && props.editConnection
+        ? await updateIcsUrl(props.orgId, props.editConnection.id, urlValue.value, labelValue.value || null, colorValue.value)
+        : await addIcsUrl(props.orgId, urlValue.value, labelValue.value || null, colorValue.value);
     submitting.value = false;
     if (okResult) close();
 }
