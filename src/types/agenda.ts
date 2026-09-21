@@ -314,19 +314,24 @@ export interface MergedOccurrence extends OccurrenceInstance {
 }
 
 // ============================================
-// Calendriers externes connectés (Google Calendar, sync bidirectionnelle
-// OAuth — voir synco_api/vibe/features/GOOGLE_CALENDAR_SYNC_FEATURE.md).
-// Les événements importés apparaissent comme des CalendarEvent normaux
-// (source EXTERNAL_GOOGLE côté API) : aucun type dédié n'est nécessaire pour
-// les afficher, ils sortent déjà de GET /events comme n'importe quel event.
+// Calendriers externes connectés — Google Calendar (sync bidirectionnelle
+// OAuth), ou un flux ICS en lecture seule par lien (ICS_URL, resync horaire
+// auto) ou par fichier uploadé (ICS_FILE, import ponctuel, rafraîchi en
+// ré-uploadant) — voir synco_api/vibe/features/GOOGLE_CALENDAR_SYNC_FEATURE.md
+// et ICS_CALENDAR_IMPORT_FEATURE.md. Les événements importés apparaissent
+// comme des CalendarEvent normaux (source EXTERNAL_GOOGLE/EXTERNAL_ICS côté
+// API) : aucun type dédié n'est nécessaire pour les afficher, ils sortent
+// déjà de GET /events comme n'importe quel event.
 // ============================================
-export type ExternalCalendarProvider = 'GOOGLE';
+export type ExternalCalendarProvider = 'GOOGLE' | 'ICS_URL' | 'ICS_FILE';
 export type ExternalConnectionStatus = 'ACTIVE' | 'ERROR' | 'REVOKED';
 
 export interface ExternalCalendarConnectionSummary {
   id: string;
   provider: ExternalCalendarProvider;
-  externalAccountEmail: string;
+  // Null pour ICS_URL/ICS_FILE (pas de compte tiers identifié par email) —
+  // `label` est alors le seul nom affiché.
+  externalAccountEmail: string | null;
   label: string | null;
   color: string | null;
   status: ExternalConnectionStatus;
@@ -343,6 +348,12 @@ export interface GoogleAuthUrlResponse {
 
 export interface ExternalConnectionActionResponse {
   connectionId: string;
+}
+
+export interface AddIcsUrlRequest {
+  url: string;
+  label?: string | null;
+  color?: string | null;
 }
 
 // ============================================

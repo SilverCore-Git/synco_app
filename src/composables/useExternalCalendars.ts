@@ -1,7 +1,8 @@
 // ============================================
-// Composable pour les calendriers externes connectés (Google Calendar, sync
-// bidirectionnelle OAuth) — strictement personnel, même principe que
-// useCalendarAccess.ts mais pour un compte tiers plutôt qu'un collègue.
+// Composable pour les calendriers externes connectés — Google Calendar (sync
+// bidirectionnelle OAuth), ou un flux ICS en lecture seule par lien ou par
+// fichier uploadé — strictement personnel, même principe que
+// useCalendarAccess.ts mais pour un compte/flux tiers plutôt qu'un collègue.
 // ============================================
 
 import { ref } from 'vue';
@@ -14,6 +15,13 @@ import type {
   ExternalConnectionActionResponse,
   ApiErrorResponse
 } from '@/types/agenda';
+
+function formFields(label?: string | null, color?: string | null): Record<string, string> {
+  const fields: Record<string, string> = {};
+  if (label) fields.label = label;
+  if (color) fields.color = color;
+  return fields;
+}
 
 const connections = ref<ExternalCalendarConnectionSummary[]>([]);
 const loading = ref(false);
@@ -68,6 +76,67 @@ async function syncNow(orgId: string, connectionId: string): Promise<boolean> {
   }
 }
 
+async function addIcsUrl(orgId: string, url: string, label?: string | null, color?: string | null): Promise<boolean> {
+  try {
+    const res = await sfetch(`/api/orgs/${orgId}/agenda/external/ics/url`, {
+      method: 'POST',
+      body: JSON.stringify({ url, label: label || undefined, color: color || undefined })
+    });
+    if (!res.ok) {
+      const err: ApiErrorResponse = await res.json();
+      throw new Error(err.error || "Erreur lors de l'ajout du calendrier");
+    }
+    const connection: ExternalCalendarConnectionSummary = await res.json();
+    connections.value = [...connections.value, connection];
+    useToast().show('Calendrier ajouté', 'success');
+    return true;
+  } catch (err: any) {
+    useToast().show(err.message || 'Erreur inconnue', 'error');
+    return false;
+  }
+}
+
+async function addIcsFile(orgId: string, file: File, label?: string | null, color?: string | null): Promise<boolean> {
+  try {
+    const body = new FormData();
+    body.append('icsFile', file);
+    for (const [k, v] of Object.entries(formFields(label, color))) body.append(k, v);
+
+    const res = await sfetch(`/api/orgs/${orgId}/agenda/external/ics/upload`, { method: 'POST', body });
+    if (!res.ok) {
+      const err: ApiErrorResponse = await res.json();
+      throw new Error(err.error || "Erreur lors de l'import du fichier");
+    }
+    const connection: ExternalCalendarConnectionSummary = await res.json();
+    connections.value = [...connections.value, connection];
+    useToast().show('Calendrier importé', 'success');
+    return true;
+  } catch (err: any) {
+    useToast().show(err.message || 'Erreur inconnue', 'error');
+    return false;
+  }
+}
+
+async function replaceIcsFile(orgId: string, connectionId: string, file: File): Promise<boolean> {
+  try {
+    const body = new FormData();
+    body.append('icsFile', file);
+
+    const res = await sfetch(`/api/orgs/${orgId}/agenda/external/connections/${connectionId}/replace-file`, { method: 'POST', body });
+    if (!res.ok) {
+      const err: ApiErrorResponse = await res.json();
+      throw new Error(err.error || 'Erreur lors du remplacement du fichier');
+    }
+    const connection: ExternalCalendarConnectionSummary = await res.json();
+    connections.value = connections.value.map(c => c.id === connectionId ? connection : c);
+    useToast().show('Fichier remplacé', 'success');
+    return true;
+  } catch (err: any) {
+    useToast().show(err.message || 'Erreur inconnue', 'error');
+    return false;
+  }
+}
+
 async function disconnect(orgId: string, connectionId: string): Promise<boolean> {
   try {
     const res = await sfetch(`/api/orgs/${orgId}/agenda/external/connections/${connectionId}`, { method: 'DELETE' });
@@ -95,6 +164,9 @@ export function useExternalCalendars() {
 
     fetchConnections,
     connectGoogle,
+    addIcsUrl,
+    addIcsFile,
+    replaceIcsFile,
     syncNow,
     disconnect,
 
