@@ -43,9 +43,15 @@
                         <i class="bi bi-three-dots"></i>
                     </button>
                 </template>
-                <button type="button" class="dropdown-item-style" @click="leaveShared(grant.id)">
-                    <i class="bi bi-box-arrow-left"></i> Quitter le partage
-                </button>
+                <!-- #content, pas le slot par défaut : DropDown.vue ne rend que
+                     <slot name="trigger"> et <slot name="content"> (voir DropDown.vue)
+                     — du contenu passé sans template #content atterrit dans le slot
+                     par défaut, que DropDown ne rend jamais nulle part. -->
+                <template #content>
+                    <button type="button" class="dropdown-item-style" @click="leaveShared(grant.id)">
+                        <i class="bi bi-box-arrow-left"></i> Quitter le partage
+                    </button>
+                </template>
             </DropDown>
         </label>
 

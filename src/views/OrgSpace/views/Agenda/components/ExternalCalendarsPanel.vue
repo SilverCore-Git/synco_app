@@ -40,31 +40,37 @@
                     </button>
                 </template>
 
-                <template v-if="conn.provider === 'GOOGLE'">
-                    <button v-if="conn.status === 'ACTIVE'" type="button" class="dropdown-item-style" @click="handleSync(conn.id)">
-                        <i class="bi bi-arrow-repeat"></i> Synchroniser maintenant
+                <!-- #content, pas le slot par défaut : DropDown.vue ne rend que
+                     <slot name="trigger"> et <slot name="content"> (voir DropDown.vue)
+                     — du contenu passé sans template #content atterrit dans le slot
+                     par défaut, que DropDown ne rend jamais nulle part. -->
+                <template #content>
+                    <template v-if="conn.provider === 'GOOGLE'">
+                        <button v-if="conn.status === 'ACTIVE'" type="button" class="dropdown-item-style" @click="handleSync(conn.id)">
+                            <i class="bi bi-arrow-repeat"></i> Synchroniser maintenant
+                        </button>
+                        <button v-else type="button" class="dropdown-item-style" @click="connectGoogle(props.orgId)">
+                            <i class="bi bi-arrow-clockwise"></i> Reconnecter
+                        </button>
+                    </template>
+
+                    <template v-else-if="conn.provider === 'ICS_URL'">
+                        <button type="button" class="dropdown-item-style" @click="handleSync(conn.id)">
+                            <i class="bi bi-arrow-repeat"></i> Synchroniser maintenant
+                        </button>
+                        <button type="button" class="dropdown-item-style" @click="openEditLink(conn)">
+                            <i class="bi bi-pencil"></i> Modifier le lien
+                        </button>
+                    </template>
+
+                    <button v-else type="button" class="dropdown-item-style" @click="triggerReplaceFile(conn.id)">
+                        <i class="bi bi-upload"></i> Remplacer le fichier
                     </button>
-                    <button v-else type="button" class="dropdown-item-style" @click="connectGoogle(props.orgId)">
-                        <i class="bi bi-arrow-clockwise"></i> Reconnecter
+
+                    <button type="button" class="dropdown-item-style" @click="handleDisconnect(conn.id)">
+                        <i class="bi bi-x-circle"></i> Déconnecter
                     </button>
                 </template>
-
-                <template v-else-if="conn.provider === 'ICS_URL'">
-                    <button type="button" class="dropdown-item-style" @click="handleSync(conn.id)">
-                        <i class="bi bi-arrow-repeat"></i> Synchroniser maintenant
-                    </button>
-                    <button type="button" class="dropdown-item-style" @click="openEditLink(conn)">
-                        <i class="bi bi-pencil"></i> Modifier le lien
-                    </button>
-                </template>
-
-                <button v-else type="button" class="dropdown-item-style" @click="triggerReplaceFile(conn.id)">
-                    <i class="bi bi-upload"></i> Remplacer le fichier
-                </button>
-
-                <button type="button" class="dropdown-item-style" @click="handleDisconnect(conn.id)">
-                    <i class="bi bi-x-circle"></i> Déconnecter
-                </button>
             </DropDown>
         </label>
 
