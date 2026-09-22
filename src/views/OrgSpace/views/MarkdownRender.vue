@@ -15,7 +15,7 @@ import DOMPurify from 'dompurify';
 import { openedOrg } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import { buildMentionLookup, renderMentions, handleMentionClick } from '@/composables/useMentions';
-import { renderReferences, buildLocalUserResolutions, seedResolveCache, handleReferenceChipClick, type ExtractedReference, type ResolvedReference, type ResolveBatchFn } from '@/composables/useReferences';
+import { renderReferences, buildLocalUserResolutions, seedResolveCache, handleReferenceChipClick, escapeReferenceTokensForMarkdown, type ExtractedReference, type ResolvedReference, type ResolveBatchFn } from '@/composables/useReferences';
 import { renderTimestampTokens } from '@/composables/useTimestampTokens';
 import type { User } from '@/types/types';
 
@@ -93,7 +93,8 @@ const renderedHtml = computed(() => {
     const cached = htmlCache.get(cacheKey);
     if (cached) return cached;
 
-    const rawHtml = marked.parse(props.content) as string;
+    const sourceContent = props.enableReferences ? escapeReferenceTokensForMarkdown(props.content) : props.content;
+    const rawHtml = marked.parse(sourceContent) as string;
     const sanitized = DOMPurify.sanitize(rawHtml, sanitizeOptions.value);
 
     // Evict oldest entries if cache grows too large

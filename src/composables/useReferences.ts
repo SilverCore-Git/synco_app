@@ -61,6 +61,20 @@ export const extractReferenceTokens = (content: string | undefined | null): Extr
   return refs;
 };
 
+// `marked` (CommonMark) reconnaît `<scheme:...>` comme un "autolink" dès que
+// le scheme fait ≥2 caractères et commence par une lettre — c'est le cas de
+// "task"/"file" (pas de "@"/"#", premier caractère invalide pour un scheme).
+// Sans ce pré-échappement, <task:id>/<file:id> partent en
+// <a href="task:id">...</a> avant même d'atteindre renderReferences, qui ne
+// voit alors plus de `<`/`>` littéraux à matcher dans les noeuds texte — la
+// carte ne s'affiche jamais, le lien brut reste visible. `&lt;`/`&gt;` dans
+// le markdown source ressortent en `<`/`>` réels une fois le HTML injecté
+// dans le DOM (v-html), donc renderReferences les retrouve normalement.
+export const escapeReferenceTokensForMarkdown = (content: string): string =>
+  content.replace(REFERENCE_TOKEN_REGEX, (full, prefix: string, id: string) =>
+    (prefix === 'task' || prefix === 'file') ? `&lt;${prefix}:${id}&gt;` : full
+  );
+
 export const buildReferenceToken = (kind: ReferenceKind, id: string): string => {
   const config = Object.values(TRIGGERS).find(t => t.kind === kind)!;
   return `<${config.tokenPrefix}:${id}>`;
