@@ -70,6 +70,12 @@ export interface ResolvedReference {
   label: string;
   ok: boolean;
   spaceId?: string | null;
+  // task uniquement
+  status?: string;
+  dueDate?: string | null;
+  // file uniquement
+  mimeType?: string;
+  size?: number;
 }
 
 export type ResolveBatchFn = (items: ExtractedReference[]) => Promise<Map<string, ResolvedReference>>;
@@ -89,6 +95,72 @@ const chipHtml = (kind: ReferenceKind, id: string, label: string, ok: boolean, s
   return `<span class="${cls}" data-ref-kind="${kind}" data-ref-id="${id}"${spaceAttr}><i class="bi ${config.icon}"></i>${prefixChar}${escapeHtml(label)}</span>`;
 };
 
+const TASK_STATUS_LABEL: Record<string, string> = { TODO: 'À faire', IN_PROGRESS: 'En cours', DONE: 'Terminé' };
+const TASK_STATUS_COLOR: Record<string, string> = { TODO: '#8b8b96', IN_PROGRESS: '#eab308', DONE: '#22c55e' };
+
+const formatDueDate = (dueDate?: string | null): string => {
+  if (!dueDate) return '';
+  const d = new Date(dueDate);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+};
+
+const formatFileSize = (bytes?: number): string => {
+  if (bytes === undefined || bytes === null) return '';
+  if (bytes < 1024) return `${bytes} o`;
+  const units = ['Ko', 'Mo', 'Go', 'To'];
+  let value = bytes / 1024;
+  let i = 0;
+  while (value >= 1024 && i < units.length - 1) { value /= 1024; i++; }
+  return `${value.toFixed(value < 10 ? 1 : 0)} ${units[i]}`;
+};
+
+const fileIconFor = (mimeType?: string): string => {
+  if (!mimeType) return 'bi-file-earmark-fill';
+  if (mimeType.startsWith('image/')) return 'bi-file-earmark-image-fill';
+  if (mimeType.startsWith('video/')) return 'bi-file-earmark-play-fill';
+  if (mimeType.startsWith('audio/')) return 'bi-file-earmark-music-fill';
+  if (mimeType === 'application/pdf') return 'bi-file-earmark-pdf-fill';
+  if (mimeType.includes('zip') || mimeType.includes('compressed')) return 'bi-file-earmark-zip-fill';
+  if (mimeType.startsWith('text/')) return 'bi-file-earmark-text-fill';
+  return 'bi-file-earmark-fill';
+};
+
+// Carte bloc pour task/file (contrairement au chip inline user/thread) — même
+// principe que chipHtml mais avec les métadonnées renvoyées par
+// POST /mentions/resolve (status/dueDate ou mimeType/size).
+const cardHtml = (kind: 'task' | 'file', id: string, label: string, resolved?: ResolvedReference): string => {
+  const spaceAttr = resolved?.spaceId ? ` data-ref-space="${escapeHtml(resolved.spaceId)}"` : '';
+
+  if (kind === 'task') {
+    const status = resolved?.status;
+    const statusText = status ? (TASK_STATUS_LABEL[status] ?? status) : '';
+    const color = status ? (TASK_STATUS_COLOR[status] ?? '#8b8b96') : '#8b8b96';
+    const due = formatDueDate(resolved?.dueDate);
+    const metaHtml = (statusText || due)
+      ? `<span class="reference-card__meta">${statusText ? `<span class="reference-card__badge" style="background:${color}">${escapeHtml(statusText)}</span>` : ''}${due ? `<span class="reference-card__due"><i class="bi bi-calendar-event"></i>${escapeHtml(due)}</span>` : ''}</span>`
+      : '';
+    return `<span class="reference-card" data-ref-kind="task" data-ref-id="${id}"${spaceAttr}><i class="bi bi-check2-square reference-card__icon"></i><span class="reference-card__body"><span class="reference-card__title">${escapeHtml(label)}</span>${metaHtml}</span></span>`;
+  }
+
+  const size = formatFileSize(resolved?.size);
+  const metaHtml = size ? `<span class="reference-card__meta"><span class="reference-card__due">${escapeHtml(size)}</span></span>` : '';
+  return `<span class="reference-card" data-ref-kind="file" data-ref-id="${id}"${spaceAttr}><i class="bi ${fileIconFor(resolved?.mimeType)} reference-card__icon"></i><span class="reference-card__body"><span class="reference-card__title">${escapeHtml(label)}</span>${metaHtml}</span></span>`;
+};
+
+// Point d'entrée unique pour les deux passes de renderReferences : chip
+// compact pour user/thread (et pour tout accès restreint, quel que soit le
+// kind — pas de métadonnées à montrer dans ce cas), carte bloc pour
+// task/file quand l'accès est ok.
+const renderReferenceNode = (kind: ReferenceKind, id: string, resolved: ResolvedReference | undefined): string => {
+  const ok = resolved?.ok ?? true;
+  const label = resolved?.label ?? '…';
+  if (ok && (kind === 'task' || kind === 'file')) {
+    return cardHtml(kind, id, label, resolved);
+  }
+  return chipHtml(kind, id, label, ok, resolved?.spaceId);
+};
+
 /**
  * Parcourt les noeuds texte sous `root` et remplace les tokens <kind:id> par
  * un chip. Deux passes : (1) synchrone avec le label déjà en cache ou un
@@ -98,7 +170,7 @@ const chipHtml = (kind: ReferenceKind, id: string, label: string, ok: boolean, s
 export const renderReferences = async (root: HTMLElement, resolveBatch: ResolveBatchFn): Promise<void> => {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode: (node) => {
-      if (node.parentElement?.closest('.reference-chip, .mention-tag')) return NodeFilter.FILTER_REJECT;
+      if (node.parentElement?.closest('.reference-chip, .reference-card, .mention-tag')) return NodeFilter.FILTER_REJECT;
       return NodeFilter.FILTER_ACCEPT;
     },
   });
@@ -126,7 +198,7 @@ export const renderReferences = async (root: HTMLElement, resolveBatch: ResolveB
       html += escapeHtml(text.slice(lastIndex, match.index));
       const cached = resolveCache.get(`${kind}:${id}`);
       if (!cached) pending.push({ type: kind, id });
-      html += chipHtml(kind, id, cached?.label ?? '…', cached?.ok ?? true, cached?.spaceId);
+      html += renderReferenceNode(kind, id, cached);
       lastIndex = match.index! + full.length;
     }
     html += escapeHtml(text.slice(lastIndex));
@@ -147,13 +219,13 @@ export const renderReferences = async (root: HTMLElement, resolveBatch: ResolveB
   const resolved = await resolveBatch(pending);
   resolved.forEach((value, key) => resolveCache.set(key, value));
 
-  root.querySelectorAll<HTMLElement>('.reference-chip').forEach((chip) => {
+  root.querySelectorAll<HTMLElement>('.reference-chip, .reference-card').forEach((chip) => {
     const kind = chip.dataset.refKind as ReferenceKind | undefined;
     const id = chip.dataset.refId;
     if (!kind || !id) return;
     const result = resolved.get(`${kind}:${id}`);
     if (!result) return;
-    chip.outerHTML = chipHtml(kind, id, result.label, result.ok, result.spaceId);
+    chip.outerHTML = renderReferenceNode(kind, id, result);
   });
 };
 
@@ -173,7 +245,7 @@ export const seedResolveCache = (entries: Map<string, ResolvedReference>): void 
 };
 
 export const handleReferenceChipClick = (event: MouseEvent): { kind: ReferenceKind; id: string; spaceId?: string } | null => {
-  const el = (event.target as HTMLElement)?.closest?.('.reference-chip') as HTMLElement | null;
+  const el = (event.target as HTMLElement)?.closest?.('.reference-chip, .reference-card') as HTMLElement | null;
   if (!el) return null;
   const kind = el.dataset.refKind as ReferenceKind | undefined;
   const id = el.dataset.refId;

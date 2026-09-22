@@ -122,7 +122,15 @@ const resolveBatch: ResolveBatchFn = async (items: ExtractedReference[]) => {
     if (!res.ok) return map;
     const data = await res.json();
     for (const item of data.items || []) {
-      map.set(`${item.type}:${item.id}`, { label: item.label ?? item.id, ok: !!item.ok, spaceId: item.spaceId });
+      map.set(`${item.type}:${item.id}`, {
+        label: item.label ?? item.id,
+        ok: !!item.ok,
+        spaceId: item.spaceId,
+        status: item.status,
+        dueDate: item.dueDate,
+        mimeType: item.mimeType,
+        size: item.size,
+      });
     }
   } catch (err) {
     console.error('[MarkdownRender] Failed to resolve references:', err);
@@ -332,6 +340,69 @@ onMounted(() => {
 
 .markdown-body :deep(.reference-chip--restricted:hover) {
   filter: none;
+}
+
+.markdown-body :deep(.reference-card) {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.35rem 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.6rem;
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+  max-width: 22rem;
+}
+
+.markdown-body :deep(.reference-card:hover) {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.markdown-body :deep(.reference-card__icon) {
+  font-size: 1.25rem;
+  color: var(--primary, #3b82f6);
+  flex-shrink: 0;
+}
+
+.markdown-body :deep(.reference-card__body) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.markdown-body :deep(.reference-card__title) {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text, white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.markdown-body :deep(.reference-card__meta) {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  color: var(--text2, rgba(255, 255, 255, 0.6));
+}
+
+.markdown-body :deep(.reference-card__badge) {
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-weight: 600;
+  color: #0b0b0e;
+  font-size: 0.68rem;
+}
+
+.markdown-body :deep(.reference-card__due) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
 }
 
 .markdown-body :deep(.timestamp-token) {
