@@ -449,11 +449,20 @@ export function useNotification() {
     });
   };
 
+  // Types traités comme des demandes/réponses actionnables (comme un appel
+  // manqué) plutôt que de simples toasts d'information — on veut le même
+  // "ding" que pour les autres notifications importantes, contrairement aux
+  // toasts génériques (validation, erreur réseau...) qui ne doivent pas sonner.
+  const SOUND_NOTIF_TYPES: NotificationType[] = [
+    'CALENDAR_ACCESS_REQUEST', 'CALENDAR_ACCESS_INVITE',
+    'CALENDAR_ACCESS_GRANTED', 'CALENDAR_ACCESS_DECLINED', 'CALENDAR_ACCESS_REVOKED'
+  ];
+
   /**
    * Afficher une notification toast
    */
   const showToastNotification = (notification: AppNotification): void => {
-    toast.show(notification.body, getToastType(notification.type), 8000);
+    toast.show(notification.body, getToastType(notification.type), 8000, SOUND_NOTIF_TYPES.includes(notification.type));
   };
 
   /**

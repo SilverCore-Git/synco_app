@@ -16,6 +16,7 @@ interface Notification {
     // if toast
     message?: string;
     toastType?: 'success' | 'error' | 'warning' | 'info';
+    playSound?: boolean;
 
     // if notif:msg
     msg?: Message;
@@ -129,7 +130,8 @@ watch(() => toasts.value, () => {
             type: 'toast',
             createdAt: new Date(),
             message: toasts.value[toasts.value.length - 1]?.message,
-            toastType: toasts.value[toasts.value.length - 1]?.type
+            toastType: toasts.value[toasts.value.length - 1]?.type,
+            playSound: toasts.value[toasts.value.length - 1]?.playSound
         });
 
         setTimeout(() => {

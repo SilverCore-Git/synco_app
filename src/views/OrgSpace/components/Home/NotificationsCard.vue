@@ -35,6 +35,9 @@
                         <span v-else-if="item.kind === 'workspaceAdded'" class="dash-row-badge bg-(--primary)">
                             <i class="bi bi-plus-lg" />
                         </span>
+                        <span v-else-if="item.kind === 'calendarAccess'" class="dash-row-badge bg-(--primary)">
+                            <i class="bi bi-calendar2-week" />
+                        </span>
                     </div>
                     <div class="flex-1 min-w-0 text-left">
                         <p class="text-sm font-medium text-(--text) truncate">{{ item.title }}</p>
@@ -69,7 +72,7 @@ onMounted(async () => {
 
 interface DashItem {
     key: string;
-    kind: 'dm' | 'thread' | 'missedCall' | 'missedMeet' | 'workspaceAdded';
+    kind: 'dm' | 'thread' | 'missedCall' | 'missedMeet' | 'workspaceAdded' | 'calendarAccess';
     title: string;
     subtitle: string;
     avatar?: string | null;
@@ -151,10 +154,27 @@ const unreadThreads = computed<DashItem[]>(() => {
     return [...groups.values()];
 });
 
-// Appels manqués, sessions éphémères manquées, ajouts à un workspace — pas
-// groupées comme les DM/threads (ce sont des événements ponctuels, pas des
-// conversations qui s'accumulent), une ligne par notification.
-const OTHER_TYPES: NotificationType[] = ['MISSED_CALL', 'MISSED_MEET', 'WORKSPACE_ADDED'];
+// Appels manqués, sessions éphémères manquées, ajouts à un workspace, accès
+// agenda — pas groupées comme les DM/threads (ce sont des événements
+// ponctuels, pas des conversations qui s'accumulent), une ligne par
+// notification.
+const OTHER_TYPES: NotificationType[] = [
+    'MISSED_CALL', 'MISSED_MEET', 'WORKSPACE_ADDED',
+    'CALENDAR_ACCESS_REQUEST', 'CALENDAR_ACCESS_INVITE',
+    'CALENDAR_ACCESS_GRANTED', 'CALENDAR_ACCESS_DECLINED', 'CALENDAR_ACCESS_REVOKED'
+];
+
+const CALENDAR_ACCESS_TYPES: NotificationType[] = [
+    'CALENDAR_ACCESS_REQUEST', 'CALENDAR_ACCESS_INVITE',
+    'CALENDAR_ACCESS_GRANTED', 'CALENDAR_ACCESS_DECLINED', 'CALENDAR_ACCESS_REVOKED'
+];
+
+function kindForOtherType(type: NotificationType): DashItem['kind'] {
+    if (type === 'MISSED_CALL') return 'missedCall';
+    if (type === 'MISSED_MEET') return 'missedMeet';
+    if (CALENDAR_ACCESS_TYPES.includes(type)) return 'calendarAccess';
+    return 'workspaceAdded';
+}
 
 const otherNotifs = computed<DashItem[]>(() => {
     const orgId = openedOrg.value?.id;
@@ -163,7 +183,7 @@ const otherNotifs = computed<DashItem[]>(() => {
         .filter(n => !n.isRead && OTHER_TYPES.includes(n.type) && (!n.data?.orgId || n.data.orgId === orgId))
         .map((n): DashItem => ({
             key: `notif-${n.id}`,
-            kind: n.type === 'MISSED_CALL' ? 'missedCall' : n.type === 'MISSED_MEET' ? 'missedMeet' : 'workspaceAdded',
+            kind: kindForOtherType(n.type),
             title: n.metadata?.senderName || 'Quelqu\'un',
             subtitle: n.body,
             avatar: n.metadata?.senderAvatar || null,
