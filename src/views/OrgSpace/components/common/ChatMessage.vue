@@ -35,7 +35,7 @@
                         </span>
 
                         <div class="max-w-md opacity-70 pointer-events-none text-[11px] line-clamp-1 [&_p]:inline [&_h1]:inline [&_h2]:inline [&_h3]:inline">
-                            <MarkdownRender :content="msg.replyMessage?.content || ''" />
+                            <MarkdownRender :content="msg.replyMessage?.content || ''" :show-reference-cards="false" />
                         </div>
 
                     </div>
