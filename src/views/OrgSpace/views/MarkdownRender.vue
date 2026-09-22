@@ -1,21 +1,41 @@
 <template>
-    <div class="markdown-body text-sm leading-relaxed wrap-break-word" v-html="renderedHtml" />
+    <div
+        ref="rootRef"
+        class="markdown-body text-sm leading-relaxed wrap-break-word"
+        v-html="renderedHtml"
+        @click="onClick"
+    />
 </template>
 
 <script setup lang="ts">
 
-import { computed } from 'vue';
+import { computed, ref, watch, nextTick, onMounted } from 'vue';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import { openedOrg } from '@/assets/var';
+import sfetch from '@/assets/utils/sfetch';
+import { buildMentionLookup, renderMentions, handleMentionClick } from '@/composables/useMentions';
+import { renderReferences, buildLocalUserResolutions, seedResolveCache, handleReferenceChipClick, type ExtractedReference, type ResolvedReference, type ResolveBatchFn } from '@/composables/useReferences';
+import { renderTimestampTokens } from '@/composables/useTimestampTokens';
+import type { User } from '@/types/types';
 
 const props = withDefaults(defineProps<{
   content: string;
   // 'chat': bulles de message (compact, pas d'images/tableaux). 'document':
   // fichier markdown du file manager (moins restrictif).
   mode?: 'chat' | 'document';
+  // Désactive le rendu des chips @/#/!/& et des timestamps <t:...> — utile
+  // pour un contenu qui n'en contiendra jamais par construction.
+  enableReferences?: boolean;
 }>(), {
-  mode: 'chat'
+  mode: 'chat',
+  enableReferences: true
 });
+
+const emit = defineEmits<{
+  (e: 'user-click', user: User, event: MouseEvent): void;
+  (e: 'reference-click', ref: { kind: 'thread' | 'task' | 'file'; id: string; spaceId?: string }, event: MouseEvent): void;
+}>();
 
 marked.setOptions({
   breaks: true,
@@ -84,6 +104,71 @@ const renderedHtml = computed(() => {
     htmlCache.set(cacheKey, sanitized);
 
     return sanitized;
+});
+
+const rootRef = ref<HTMLElement | null>(null);
+const mentionLookup = computed(() => buildMentionLookup(openedOrg.value?.members));
+
+const resolveBatch: ResolveBatchFn = async (items: ExtractedReference[]) => {
+  const orgId = openedOrg.value?.id;
+  const map = new Map<string, ResolvedReference>();
+  if (!orgId || items.length === 0) return map;
+
+  try {
+    const res = await sfetch('/api/mentions/resolve', {
+      method: 'POST',
+      body: JSON.stringify({ orgId, items }),
+    });
+    if (!res.ok) return map;
+    const data = await res.json();
+    for (const item of data.items || []) {
+      map.set(`${item.type}:${item.id}`, { label: item.label ?? item.id, ok: !!item.ok, spaceId: item.spaceId });
+    }
+  } catch (err) {
+    console.error('[MarkdownRender] Failed to resolve references:', err);
+  }
+
+  return map;
+};
+
+// Deux passes indépendantes : l'ancien format @pseudo texte brut (compat
+// historique, jamais bloquant) puis les nouveaux tokens <@:id>/<#:id>/
+// <task:id>/<file:id> + <t:...>. Les tokens du nouveau format n'ont jamais la
+// forme "@mot" seule donc les deux passes ne peuvent pas se marcher dessus.
+const applyPostProcessing = async () => {
+  const root = rootRef.value;
+  if (!root) return;
+
+  renderMentions(root, mentionLookup.value);
+
+  if (!props.enableReferences) return;
+
+  seedResolveCache(buildLocalUserResolutions(openedOrg.value?.members));
+  await renderReferences(root, resolveBatch);
+  renderTimestampTokens(root);
+};
+
+const onClick = (event: MouseEvent) => {
+  handleMentionClick(event, mentionLookup.value, (user, e) => emit('user-click', user, e));
+
+  const chip = handleReferenceChipClick(event);
+  if (!chip) return;
+
+  if (chip.kind === 'user') {
+    const user = mentionLookup.value.usersById.get(chip.id);
+    if (user) emit('user-click', user, event);
+    return;
+  }
+
+  emit('reference-click', chip, event);
+};
+
+watch(() => renderedHtml.value, () => {
+  nextTick(() => applyPostProcessing());
+});
+
+onMounted(() => {
+  nextTick(() => applyPostProcessing());
 });
 
 </script>
@@ -219,6 +304,41 @@ const renderedHtml = computed(() => {
 .markdown-body :deep(th) {
   background-color: rgba(255, 255, 255, 0.05);
   font-weight: 700;
+}
+
+.markdown-body :deep(.reference-chip) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.4rem;
+  margin: 0 0.1rem;
+  border-radius: 0.375rem;
+  font-weight: 600;
+  background-color: var(--primary-dark);
+  color: white;
+  cursor: pointer;
+  transition: filter 0.2s;
+}
+
+.markdown-body :deep(.reference-chip:hover) {
+  filter: brightness(1.2);
+}
+
+.markdown-body :deep(.reference-chip--restricted) {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text2, rgba(255, 255, 255, 0.6));
+  cursor: default;
+}
+
+.markdown-body :deep(.reference-chip--restricted:hover) {
+  filter: none;
+}
+
+.markdown-body :deep(.timestamp-token) {
+  font-weight: 600;
+  color: var(--primary, #3b82f6);
+  border-bottom: 1px dotted currentColor;
+  cursor: default;
 }
 
 </style>

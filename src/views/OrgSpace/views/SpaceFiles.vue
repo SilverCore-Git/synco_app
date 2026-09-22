@@ -461,6 +461,14 @@
         @close="showFilePermissions = false"
     />
 
+    <FileViewer
+        v-if="selectedFileForViewer"
+        :file="selectedFileForViewer"
+        :isOpen="true"
+        @close="selectedFileForViewer = null"
+        @deleted="selectedFileForViewer = null"
+    />
+
 </template>
 
 <script lang="ts" setup>
@@ -482,6 +490,7 @@ import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import { uploadFiles } from '@/assets/uploadFile';
 import FolderCard from '../components/SpaceFiles/FolderCard.vue';
 import FileCard from '../components/SpaceFiles/FileCard.vue';
+import FileViewer from '../components/popup/FileViewer.vue';
 import type { StoredFile, Folder } from '@/types/types';
 import { extractTextFromPDF } from '@/assets/utils/pdfExtractor';
 import VectorWorker from '@/workers/semantic.worker?worker';
@@ -1130,6 +1139,15 @@ const handleRouteQuery = () => {
     const urlPath = route.query.path as string;
     const folderId = route.query.folderId as string;
     const highlightFileId = route.query.highlightFileId as string;
+    const selectFileId = route.query.select as string | undefined;
+
+    if (selectFileId) {
+        const found = allFiles.value.find(f => f.id === selectFileId);
+        if (found) {
+            selectedFileForViewer.value = found;
+            router.replace({ query: { ...route.query, select: undefined } });
+        }
+    }
 
     if (urlPath) 
     {
@@ -1175,6 +1193,10 @@ watch(() => route.query, () => {
 // File actions handlers
 const selectedFileForInfo = ref<StoredFile | null>(null);
 const showFileInfoModal = ref<boolean>(false);
+// Ouvert via un chip <file:id> (référence inline dans un message/tâche) ou
+// tout lien profond ?select=<fileId> — distinct de showViewer, local à
+// chaque FileCard.vue.
+const selectedFileForViewer = ref<StoredFile | null>(null);
 
 const handleFileDeleted = (fileId: string) => {
     allFiles.value = allFiles.value.filter(f => f.id !== fileId);

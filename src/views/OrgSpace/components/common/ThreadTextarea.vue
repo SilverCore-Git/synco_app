@@ -5,8 +5,9 @@
         <MentionsList
             :is-open="showMentions"
             :search-query="mentionQuery"
-            :users="mentionableUsers"
+            :users="activeList"
             :active-index="activeMentionIndex"
+            :kind="activeTriggerKind ?? 'user'"
             @select="insertMention"
         />
 
@@ -36,15 +37,28 @@
 
 import { openedOrg } from '@/assets/var';
 import MentionsList from '@/components/common/MentionsList.vue';
-import { buildMentionableList, MENTION_QUERY_REGEX, type MentionEntry } from '@/composables/useMentions';
-import { ref, watch, nextTick, onMounted } from 'vue';
+import { buildMentionableList, type MentionEntry } from '@/composables/useMentions';
+import { TRIGGERS, TRIGGER_QUERY_REGEX, buildReferenceToken, type ReferenceKind } from '@/composables/useReferences';
+import sfetch from '@/assets/utils/sfetch';
+import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     modelValue: string;
     placeholder?: string;
     disabled?: boolean;
-}>();
+    // true (chat) : Entrée seule envoie. false (ex. description de tâche,
+    // formulaire multi-ligne) : Entrée insère un saut de ligne normal, seul
+    // Ctrl/Cmd+Entrée envoie.
+    submitOnEnter?: boolean;
+    // false quand un autre champ du même formulaire doit garder le focus
+    // initial (ex. le titre dans CreateTaskModal) — sans quoi ce composant
+    // volerait le focus à l'ouverture, comme le fait le composer de chat.
+    autoFocus?: boolean;
+}>(), {
+    submitOnEnter: true,
+    autoFocus: true
+});
 
 const emit = defineEmits<{
     (e: 'update:modelValue', value: string): void;
@@ -61,12 +75,45 @@ const showMentions = ref<boolean>(false);
 const mentionQuery = ref<string>('');
 const activeMentionIndex = ref<number>(0);
 const startMentionIndex = ref<number>(-1);
+const activeTriggerKind = ref<ReferenceKind | null>(null);
 
 const mentionableUsers = ref<MentionEntry[]>(buildMentionableList(openedOrg.value?.members));
+const searchResults = ref<MentionEntry[]>([]);
 
 watch(() => openedOrg.value?.members, (members) => {
     mentionableUsers.value = buildMentionableList(members);
 });
+
+const activeList = computed<MentionEntry[]>(() =>
+    activeTriggerKind.value === 'user' || !activeTriggerKind.value ? mentionableUsers.value : searchResults.value
+);
+
+let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+
+// #/!/& n'ont pas de liste locale équivalente aux membres du salon — les
+// noms sont chiffrés côté serveur (voir mentions.ts), impossible de filtrer
+// sans un aller-retour réseau.
+const searchRemote = (kind: ReferenceKind, query: string) => {
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(async () => {
+        const orgId = route.params.orgId as string | undefined;
+        const spaceId = route.params.spaceId as string | undefined;
+        if (!orgId) { searchResults.value = []; return; }
+
+        try {
+            const params = new URLSearchParams({ q: query, types: kind, orgId });
+            if (spaceId) params.set('spaceId', spaceId);
+            const res = await sfetch(`/api/mentions/search?${params.toString()}`);
+            if (!res.ok) { searchResults.value = []; return; }
+            const data = await res.json();
+            const entries: { id: string; label: string; subtitle?: string }[] = data[kind] || [];
+            searchResults.value = entries.map(e => ({ id: e.id, name: e.label, pseudo: e.subtitle }));
+        } catch (err) {
+            console.error('[ThreadTextarea] mentions/search failed:', err);
+            searchResults.value = [];
+        }
+    }, 200);
+};
 
 const updateMentionState = (text: string, selectionStart: number) => {
 
@@ -76,13 +123,18 @@ const updateMentionState = (text: string, selectionStart: number) => {
     }
 
     const textBeforeCursor = text.slice(0, selectionStart);
-    const mentionMatch = textBeforeCursor.match(MENTION_QUERY_REGEX);
+    const mentionMatch = textBeforeCursor.match(TRIGGER_QUERY_REGEX);
 
     if (mentionMatch)
     {
+        const triggerChar = mentionMatch[1]!;
+        const kind = TRIGGERS[triggerChar]?.kind ?? 'user';
         showMentions.value = true;
-        mentionQuery.value = mentionMatch[1] || '';
-        startMentionIndex.value = textBeforeCursor.lastIndexOf('@');
+        activeTriggerKind.value = kind;
+        mentionQuery.value = mentionMatch[2] || '';
+        startMentionIndex.value = textBeforeCursor.lastIndexOf(triggerChar);
+
+        if (kind !== 'user') searchRemote(kind, mentionQuery.value);
     }
     else
     {
@@ -91,7 +143,7 @@ const updateMentionState = (text: string, selectionStart: number) => {
 
 };
 
-const insertMention = (user: MentionEntry) => {
+const insertMention = (entry: MentionEntry) => {
 
     if (startMentionIndex.value === -1) return;
 
@@ -99,13 +151,19 @@ const insertMention = (user: MentionEntry) => {
     const beforeMention = text.slice(0, startMentionIndex.value);
     const afterMention = text.slice(textareaRef.value?.selectionStart || 0);
 
-    const mentionText = user.pseudo ? user.pseudo : user.name.replace(/\s+/g, '');
-    const updatedValue = `${beforeMention}@${mentionText} ${afterMention}`;
+    // @everyone/@here n'ont pas d'id réel derrière (pas une entité, un mot-clé
+    // de diffusion) — on garde le texte littéral que l'ancien renderMentions
+    // sait déjà résoudre, plutôt qu'un faux token <@:__everyone__>.
+    const insertText = entry.special
+        ? `@${entry.pseudo}`
+        : buildReferenceToken(activeTriggerKind.value ?? 'user', entry.id);
+
+    const updatedValue = `${beforeMention}${insertText} ${afterMention}`;
     emit('update:modelValue', updatedValue);
-    
+
     showMentions.value = false;
     activeMentionIndex.value = 0;
-    
+
     nextTick(() => {
         textareaRef.value?.focus();
         adjustHeight();
@@ -123,9 +181,11 @@ const handleKeydown = (e: KeyboardEvent) => {
     if (!showMentions.value) return;
 
     const query = mentionQuery.value?.toLowerCase() || '';
-    const filtered = mentionableUsers.value.filter(u =>
-        u.name.toLowerCase().includes(query) || (u.pseudo && u.pseudo.toLowerCase().includes(query))
-    );
+    // searchResults est déjà filtré côté serveur pour #/!/& — un second
+    // filtre client sur un `label` déchiffré serait redondant.
+    const filtered = activeTriggerKind.value === 'user' || !activeTriggerKind.value
+        ? mentionableUsers.value.filter(u => u.name.toLowerCase().includes(query) || (u.pseudo && u.pseudo.toLowerCase().includes(query)))
+        : searchResults.value;
 
     if (!filtered.length) return;
 
@@ -178,9 +238,12 @@ const handleEnter = (event: KeyboardEvent) => {
 
     if (showMentions.value) return;
     if (event.shiftKey) return;
-    
+    // submitOnEnter=false : seule Ctrl/Cmd+Entrée envoie, Entrée seule doit
+    // pouvoir insérer un saut de ligne normalement (pas de preventDefault).
+    if (!props.submitOnEnter && !event.ctrlKey && !event.metaKey) return;
+
     event.preventDefault();
-    if (props.modelValue.trim() !== '') 
+    if (props.modelValue.trim() !== '')
     {
         emit('send', props.modelValue);
     }
@@ -207,6 +270,7 @@ watch(() => route.params.threadId, async () => {
 });
 
 onMounted(async () => {
+    if (!props.autoFocus) return;
     await nextTick();
     textareaRef.value?.focus();
 });

@@ -32,25 +32,25 @@
                 <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                     Description (optionnel)
                 </label>
-                <textarea
+                <ThreadTextarea
                     v-model="form.description"
-                    @keydown.ctrl.enter="handleSubmit"
-                    @keydown.meta.enter="handleSubmit"
+                    :submit-on-enter="false"
+                    :auto-focus="false"
+                    @send="handleSubmit"
                     @paste="handlePaste"
                     @dragenter.prevent="onImagesDragEnter"
                     @dragover.prevent
                     @dragleave.prevent="onImagesDragLeave"
                     @drop.prevent="onImagesDrop"
-                    placeholder="Plus de détails..."
-                    rows="3"
+                    placeholder="Plus de détails... (@, #, !, & pour référencer)"
+                    :disabled="loading"
                     class="
                         w-full bg-(--bg2)/30 border border-white/10 rounded-xl
-                        px-4 py-3 text-(--text) placeholder:text-(--text2) placeholder:opacity-60
-                        focus:outline-none focus:border-(--primary)/50 focus:ring-1
-                        focus:ring-(--primary)/20 transition-all resize-none
+                        px-4 text-(--text) placeholder:text-(--text2) placeholder:opacity-60
+                        focus-within:border-(--primary)/50 focus-within:ring-1
+                        focus-within:ring-(--primary)/20 transition-all
                     "
-                    :disabled="loading"
-                ></textarea>
+                />
 
                 <!-- Barre d'images : toute la zone est cliquable, Ctrl+V/glisser-déposer marchent ici aussi -->
                 <div
@@ -215,11 +215,13 @@
 import { ref, reactive, nextTick, computed } from 'vue';
 import Popup from '@/components/Popup.vue';
 import TaskTagPicker from './TaskTagPicker.vue';
+import ThreadTextarea from '../common/ThreadTextarea.vue';
 import { useRoute } from 'vue-router';
 import { openedOrg, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import { uploadFiles } from '@/assets/uploadFile';
 import { useToast } from '@/composables/useToast';
+import { extractReferenceTokens } from '@/composables/useReferences';
 import type { OrgMember } from '@/types/types';
 
 const props = defineProps<{
@@ -408,7 +410,8 @@ const handleSubmit = async () => {
             assigneeIds: form.assigneeIds,
             tagIds: form.tagIds,
             parentTaskId: props.parentTaskId || null,
-            status: 'TODO'
+            status: 'TODO',
+            references: extractReferenceTokens(form.description)
         };
 
         const res = await sfetch(endpoint, {

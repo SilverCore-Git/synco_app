@@ -282,6 +282,7 @@ import { openedOrg, user } from '@/assets/var';
 import SpinLoader from '@/components/SpinLoader.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import useResponse from '@/composables/useResponse';
+import { extractReferenceTokens } from '@/composables/useReferences';
 import { uploadFiles } from '@/assets/uploadFile';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { waitForSocketConnection } from '@/composables/useWSocket';
@@ -966,11 +967,12 @@ const sendMessage = async () => {
 
         const payload = {
             threadId: thread.value?.id,
-            content: ciphertext, 
-            iv: iv,              
+            content: ciphertext,
+            iv: iv,
             replyToId: messageWillBeResponded.value?.id,
             nonce: "n_" + Date.now(),
-            context: route.params.spaceId ? 'workspace' : 'home'
+            context: route.params.spaceId ? 'workspace' : 'home',
+            references: extractReferenceTokens(newMessage.value)
         };
 
         const confirmedMessage: any = await new Promise((resolve, reject) => {

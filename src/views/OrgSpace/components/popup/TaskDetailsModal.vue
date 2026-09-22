@@ -109,28 +109,37 @@
             <!-- Description -->
             <div class="bg-white/5 rounded-xl p-4 border border-white/10">
                 <h4 class="text-xs font-bold text-(--text2) uppercase mb-2">Description</h4>
-                <p
+                <div
                     v-if="!isEditingDescription"
                     @click="startEditDescription"
-                    class="text-sm whitespace-pre-wrap cursor-text rounded-lg -mx-2 px-2 py-1 hover:bg-white/5 transition-colors"
+                    class="text-sm cursor-text rounded-lg -mx-2 px-2 py-1 hover:bg-white/5 transition-colors"
                     :class="editForm.description ? 'text-white/80' : 'text-(--text2) italic'"
                     title="Cliquer pour modifier"
-                >{{ editForm.description || 'Aucune description fournie. Cliquez pour en ajouter une.' }}</p>
-                <textarea
+                >
+                    <MarkdownRender
+                        v-if="editForm.description"
+                        :content="editForm.description"
+                        mode="chat"
+                        @user-click="(u, e) => { e.stopPropagation(); openProfile(u, e); }"
+                        @reference-click="(ref, e) => { e.stopPropagation(); navigateToReference(router, ref); }"
+                    />
+                    <template v-else>Aucune description fournie. Cliquez pour en ajouter une.</template>
+                </div>
+                <ThreadTextarea
                     v-else
                     ref="descriptionInputEl"
                     v-model="editForm.description"
-                    @blur="isEditingDescription = false"
+                    :submit-on-enter="false"
+                    @focusout="isEditingDescription = false"
                     @keydown.escape="cancelEditDescription"
                     @paste="handlePaste"
                     @dragenter.prevent="onAttachmentsDragEnter"
                     @dragover.prevent
                     @dragleave.prevent="onAttachmentsDragLeave"
                     @drop.prevent="onAttachmentsDrop"
-                    rows="3"
-                    class="w-full bg-black/40 border border-(--primary)/50 rounded-lg px-3 py-2 text-white/80 placeholder:opacity-60 resize-none focus:outline-none"
-                    placeholder="Plus de détails..."
-                ></textarea>
+                    placeholder="Plus de détails... (@, #, !, & pour référencer)"
+                    class="w-full bg-black/40 border border-(--primary)/50 rounded-lg px-3 text-white/80 placeholder:opacity-60"
+                />
 
                 <!-- Barre d'images : toute la zone est cliquable ; Ctrl+V et glisser-déposer marchent aussi ici -->
                 <div
@@ -393,9 +402,11 @@ import CreateTaskModal from './CreateTaskModal.vue';
 import TaskTagPicker from './TaskTagPicker.vue';
 import FileViewer from './FileViewer.vue';
 import FilePickerModal from './FilePickerModal.vue';
+import ThreadTextarea from '../common/ThreadTextarea.vue';
+import MarkdownRender from '../../views/MarkdownRender.vue';
 import type { Task, OrgMember, TaskAttachment, TaskLinkedFile, StoredFile } from '@/types/types';
 import sfetch from '@/assets/utils/sfetch';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useToast } from '@/composables/useToast';
 import confetti from 'canvas-confetti';
 import { openedOrg } from '@/assets/var';
@@ -403,6 +414,8 @@ import { openProfile } from '@/composables/useProfile';
 import uploadFile from '@/assets/uploadFile';
 import { getFilePreviewUrl } from '@/assets/utils/downloadFile';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
+import { extractReferenceTokens } from '@/composables/useReferences';
+import { navigateToReference } from '@/composables/useReferenceNavigation';
 
 const props = defineProps<{
     task: Task | null;
@@ -412,6 +425,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['close', 'update', 'delete', 'open-task']);
 const route = useRoute();
+const router = useRouter();
 const toast = useToast();
 
 const loading = ref(false);
@@ -420,7 +434,7 @@ const loading = ref(false);
 const isEditingTitle = ref(false);
 const isEditingDescription = ref(false);
 const titleInputEl = ref<HTMLInputElement | null>(null);
-const descriptionInputEl = ref<HTMLTextAreaElement | null>(null);
+const descriptionInputEl = ref<InstanceType<typeof ThreadTextarea> | null>(null);
 
 const startEditTitle = () => {
     isEditingTitle.value = true;
@@ -441,7 +455,7 @@ const cancelEditTitle = () => {
 
 const startEditDescription = () => {
     isEditingDescription.value = true;
-    nextTick(() => descriptionInputEl.value?.focus());
+    nextTick(() => descriptionInputEl.value?.textarea?.focus());
 };
 
 const cancelEditDescription = () => {
@@ -801,7 +815,8 @@ const performAutosave = async () => {
                 description: editForm.description,
                 dueDate,
                 assigneeIds: editForm.assigneeIds,
-                tagIds: editForm.tagIds
+                tagIds: editForm.tagIds,
+                references: extractReferenceTokens(editForm.description)
             })
         });
         if (res.ok) {

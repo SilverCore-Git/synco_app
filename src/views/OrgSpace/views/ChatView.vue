@@ -384,6 +384,7 @@ import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import useSecurePeer from '@/composables/useSecurePeer';
 
 import { E2EEUnloked, privateKey, encryptForPeer, decryptFromPeer } from '@/assets/utils/crypto';
+import { extractReferenceTokens } from '@/composables/useReferences';
 import PrivateMeetView from './PrivateMeetView.vue';
 import usePrivateMeet from '@/composables/usePrivatMeet';
 import ChatMessage from '../components/common/ChatMessage.vue';
@@ -965,6 +966,7 @@ const sendMessage = async () => {
             nonce: finalIv,
             isE2EE: useEncryption,
             replyToId: tempMessage.replyToId,
+            references: extractReferenceTokens(clearContent),
         }, (response: any) => resolve(response));
     });
 
