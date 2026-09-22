@@ -137,7 +137,7 @@
                     @dragover.prevent
                     @dragleave.prevent="onAttachmentsDragLeave"
                     @drop.prevent="onAttachmentsDrop"
-                    placeholder="Plus de détails... (@, #, !, & pour référencer)"
+                    placeholder="Plus de détails..."
                     class="w-full bg-black/40 border border-(--primary)/50 rounded-lg px-3 text-white/80 placeholder:opacity-60"
                 />
 

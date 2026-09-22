@@ -42,7 +42,7 @@
                     @dragover.prevent
                     @dragleave.prevent="onImagesDragLeave"
                     @drop.prevent="onImagesDrop"
-                    placeholder="Plus de détails... (@, #, !, & pour référencer)"
+                    placeholder="Plus de détails..."
                     :disabled="loading"
                     class="
                         w-full bg-(--bg2)/30 border border-white/10 rounded-xl
