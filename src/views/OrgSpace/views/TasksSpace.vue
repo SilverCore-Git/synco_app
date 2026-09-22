@@ -93,12 +93,12 @@
 
                 <button
                     v-if="archivedCount > 0 || isDraggingTask"
-                    @click="showArchivedPanel = true"
+                    @click="router.push({ name: 'TasksSpaceArchived', params: { orgId: route.params.orgId, spaceId: route.params.spaceId } })"
                     @dragover.prevent="dragOverArchiveBtn = true"
                     @dragleave.prevent="dragOverArchiveBtn = false"
                     @drop="onDropToArchiveBtn"
                     class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0 ml-auto"
-                    :class="dragOverArchiveBtn ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-[0_4px_20px_var(--glow-warning-strong)]' : (showArchivedPanel ? 'bg-(--primary) text-white shadow-[0_4px_15px_var(--glow-primary-soft)]' : 'bg-(--text)/5 text-(--text)/50 hover:bg-(--text)/10')"
+                    :class="dragOverArchiveBtn ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-[0_4px_20px_var(--glow-warning-strong)]' : 'bg-(--text)/5 text-(--text)/50 hover:bg-(--text)/10'"
                 >
                     <i class="bi bi-archive-fill" />
                     <span class="hidden sm:inline">Tâches archivées</span>
@@ -406,15 +406,6 @@
             </div>
         </Transition>
 
-        <ArchivedTasksPanel
-            :isOpen="showArchivedPanel"
-            :orgId="route.params.orgId as string"
-            :spaceId="route.params.spaceId as string"
-            @close="showArchivedPanel = false"
-            @restored="onTaskRestored"
-            @count="archivedCount = $event"
-        />
-
         <ConfirmDelete
             :show="showArchiveAllConfirm"
             item-type="les tâches terminées"
@@ -455,7 +446,6 @@ import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import DropDown from '@/components/DropDown.vue';
 import TaskTagPicker from '../components/popup/TaskTagPicker.vue';
-import ArchivedTasksPanel from '../components/popup/ArchivedTasksPanel.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import confetti from 'canvas-confetti';
 import { useNotification } from '@/composables/useNotification';
@@ -479,7 +469,6 @@ const isHoveringTrash = ref(false);
 const isDeleting = ref(false);
 const archivingAll = ref(false);
 const showArchiveAllConfirm = ref(false);
-const showArchivedPanel = ref(false);
 const archivedCount = ref(0);
 const dragOverArchiveBtn = ref(false);
 const dragOverMemberId = ref<string | null>(null);
@@ -751,14 +740,31 @@ const onDragEnd = () => {
     }
 };
 
+// Le serveur émet 'todo-updated' (io.to(room).emit, tasksService.ts) avant
+// même de répondre à la requête HTTP, et diffuse à tout le salon org y
+// compris à l'auteur de l'action : selon la latence relative du websocket et
+// du fetch, l'écho peut arriver avant OU après que archiveTaskById() traite
+// sa propre réponse. countedArchiveIds coordonne les deux chemins pour que le
+// premier des deux à traiter un taskId incrémente le compteur, et l'autre
+// (que ce soit notre propre écho ou celui d'un archivage par quelqu'un
+// d'autre) soit un no-op.
+const countedArchiveIds = new Set<string>();
+
+const registerArchivedTask = (taskId: string) => {
+    onTaskDeleted(taskId);
+    if (!countedArchiveIds.has(taskId)) {
+        countedArchiveIds.add(taskId);
+        archivedCount.value++;
+    }
+};
+
 const archiveTaskById = async (taskId: string) => {
     const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskId}`, {
         method: 'PUT',
         body: JSON.stringify({ archived: true })
     });
     if (!res.ok) throw new Error("API Error");
-    onTaskDeleted(taskId);
-    archivedCount.value++;
+    registerArchivedTask(taskId);
 };
 
 const onDropToArchiveBtn = async (e: DragEvent) => {
@@ -831,9 +837,15 @@ const confirmArchiveAll = async () => {
     }
 };
 
-const onTaskRestored = (task: Task) => {
-    if (task.spaceId === route.params.spaceId && !tasks.value.some(t => t.id === task.id)) {
-        tasks.value.unshift(task);
+const loadArchivedCount = async () => {
+    try {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/spaces/${route.params.spaceId}/archived`);
+        if (res.ok) {
+            const data = await res.json();
+            archivedCount.value = data.archivedTasks.length;
+        }
+    } catch (e) {
+        // Le badge d'archives est secondaire : pas d'erreur bloquante ici.
     }
 };
 
@@ -941,6 +953,7 @@ const onCardDrop = async (e: DragEvent, targetTask: Task, newStatus: string) => 
 onMounted(async () => {
     fetchOrder();
     loadTasks();
+    loadArchivedCount();
 
     const socket = await useWSocket();
     socket.value?.on('todo-added', ({ task }: { task: Task }) => {
@@ -962,8 +975,16 @@ onMounted(async () => {
     socket.value?.on('todo-updated', ({ task }: { task: Task }) => {
         if (task.spaceId === route.params.spaceId) {
             if (task.archived) {
-                onTaskDeleted(task.id);
-                archivedCount.value++;
+                registerArchivedTask(task.id);
+            } else if (!tasks.value.some(t => t.id === task.id)) {
+                // Absente de la liste alors qu'elle n'est pas archivée : elle
+                // vient d'être restaurée (par nous ou quelqu'un d'autre) et
+                // ne s'était pas réaffichée depuis — l'ancien panneau popup
+                // rattrapait ce cas en recomptant à chaque ouverture, ce qui
+                // n'existe plus, donc on la réinsère et on corrige le badge.
+                tasks.value.unshift(task);
+                countedArchiveIds.delete(task.id);
+                if (archivedCount.value > 0) archivedCount.value--;
             } else {
                 onTaskUpdated(task);
             }

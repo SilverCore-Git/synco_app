@@ -190,6 +190,12 @@ const routes = [
         props: true,
       },
       {
+        path: 'tasks/archived',
+        name: 'TasksGlobalArchived',
+        component: () => import('./views/OrgSpace/views/TasksArchive.vue'),
+        props: true,
+      },
+      {
         path: 'agenda',
         name: 'AgendaGlobal',
         component: () => import('./views/OrgSpace/views/Agenda/AgendaView.vue'),
@@ -199,6 +205,12 @@ const routes = [
         path: ':spaceId/tasks',
         name: 'TasksSpace',
         component: () => import('./views/OrgSpace/views/TasksSpace.vue'),
+        props: true,
+      },
+      {
+        path: ':spaceId/tasks/archived',
+        name: 'TasksSpaceArchived',
+        component: () => import('./views/OrgSpace/views/TasksArchive.vue'),
         props: true,
       }
 

@@ -125,7 +125,7 @@ const onSpaceOrderChange = async () => {
                 <SpaceBarBTN
                     icon="bi-list-check"
                     label="Mes Tâches"
-                    :active="route.name === 'TasksGlobal'"
+                    :active="route.name === 'TasksGlobal' || route.name === 'TasksGlobalArchived'"
                     :hasUnread="getUnreadCountForTasks > 0"
                 />
             </RouterLink>

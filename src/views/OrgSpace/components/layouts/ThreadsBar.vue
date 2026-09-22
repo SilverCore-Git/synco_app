@@ -314,7 +314,7 @@
                                 v-if="!isHome && todoEnabled"
                                 name="Tâches"
                                 icon="bi-check2-square"
-                                :active="route.name == 'TasksSpace'"
+                                :active="route.name == 'TasksSpace' || route.name == 'TasksSpaceArchived'"
                                 @click="router.push({ name: 'TasksSpace', query: { showView: '1' } })"
                             />
 
