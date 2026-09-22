@@ -12,6 +12,7 @@
         <button
             v-for="(user, index) in filteredUsers"
             :key="user.id"
+            :ref="(el) => setItemRef(el, index)"
             @mousedown.prevent
             @click="$emit('select', user)"
             :class="[
@@ -46,7 +47,7 @@
 
 <script setup lang="ts">
 
-import { computed } from 'vue';
+import { computed, watch, nextTick } from 'vue';
 import type { MentionEntry } from '@/composables/useMentions';
 import { TRIGGERS, type ReferenceKind } from '@/composables/useReferences';
 
@@ -81,6 +82,20 @@ const filteredUsers = computed(() => {
         u.name.toLowerCase().includes(query) ||
         (u.pseudo && u.pseudo.toLowerCase().includes(query))
     );
+});
+
+const itemRefs: (HTMLElement | null)[] = [];
+const setItemRef = (el: Element | { $el: HTMLElement } | null, index: number) => {
+    itemRefs[index] = (el as HTMLElement) ?? null;
+};
+
+// La navigation clavier (ArrowUp/ArrowDown) dans ThreadTextarea ne fait que
+// changer activeIndex — sans ça l'item actif pouvait sortir de la zone
+// visible (max-h-48 overflow-y-auto) sans jamais scroller vers lui.
+watch(() => props.activeIndex, (index) => {
+    nextTick(() => {
+        itemRefs[index]?.scrollIntoView({ block: 'nearest' });
+    });
 });
 
 </script>
