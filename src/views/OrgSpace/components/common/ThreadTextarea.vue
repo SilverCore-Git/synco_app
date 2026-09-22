@@ -83,6 +83,26 @@ const activeTriggerKind = ref<ReferenceKind | null>(null);
 const mentionableUsers = ref<MentionEntry[]>(buildMentionableList(openedOrg.value?.members));
 const searchResults = ref<MentionEntry[]>([]);
 
+// @ ouvre un picker mixte membres+rôles (comme Discord) — Role.name n'étant
+// pas chiffré (contrairement à Thread/Task/File), on peut se permettre la
+// même liste-locale-filtrée-côté-client que les membres, pas besoin du
+// aller-retour /mentions/search débouncé utilisé pour #/!/&.
+const orgRoles = ref<MentionEntry[]>([]);
+
+const fetchOrgRoles = async () => {
+    const orgId = openedOrg.value?.id;
+    if (!orgId) { orgRoles.value = []; return; }
+    try {
+        const res = await sfetch(`/api/orgs/${orgId}/roles`);
+        if (!res.ok) { orgRoles.value = []; return; }
+        const data: { id: string; name: string }[] = await res.json();
+        orgRoles.value = data.map(r => ({ id: r.id, name: r.name, kind: 'role' as const }));
+    } catch (err) {
+        console.error('[ThreadTextarea] Failed to fetch org roles:', err);
+        orgRoles.value = [];
+    }
+};
+
 // --- Affichage lisible dans le <textarea> -----------------------------
 // modelValue reste TOUJOURS le contenu brut avec tokens <kind:id> (c'est le
 // contrat existant : les consumers — CreateTaskModal.handleSubmit,
@@ -143,8 +163,12 @@ watch(() => openedOrg.value?.members, (members) => {
     mentionableUsers.value = buildMentionableList(members);
 });
 
+watch(() => openedOrg.value?.id, fetchOrgRoles, { immediate: true });
+
 const activeList = computed<MentionEntry[]>(() =>
-    activeTriggerKind.value === 'user' || !activeTriggerKind.value ? mentionableUsers.value : searchResults.value
+    activeTriggerKind.value === 'user' || !activeTriggerKind.value
+        ? [...mentionableUsers.value, ...orgRoles.value]
+        : searchResults.value
 );
 
 let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
@@ -214,7 +238,10 @@ const insertMention = (entry: MentionEntry) => {
     const beforeMention = pretty.slice(0, startMentionIndex.value);
     const afterMention = pretty.slice(textareaRef.value?.selectionStart || 0);
 
-    const kind = activeTriggerKind.value ?? 'user';
+    // entry.kind : présent uniquement pour les entrées "rôle" du picker mixte
+    // ouvert par '@' (voir orgRoles plus haut) — sinon le kind vient du
+    // trigger lui-même (activeTriggerKind), identique pour toute la liste.
+    const kind = entry.kind ?? activeTriggerKind.value ?? 'user';
 
     // @everyone/@here n'ont pas d'id réel derrière (pas une entité, un mot-clé
     // de diffusion) — on garde le texte littéral que l'ancien renderMentions
@@ -254,7 +281,7 @@ const handleKeydown = (e: KeyboardEvent) => {
     // searchResults est déjà filtré côté serveur pour #/!/& — un second
     // filtre client sur un `label` déchiffré serait redondant.
     const filtered = activeTriggerKind.value === 'user' || !activeTriggerKind.value
-        ? mentionableUsers.value.filter(u => u.name.toLowerCase().includes(query) || (u.pseudo && u.pseudo.toLowerCase().includes(query)))
+        ? [...mentionableUsers.value, ...orgRoles.value].filter(u => u.name.toLowerCase().includes(query) || (u.pseudo && u.pseudo.toLowerCase().includes(query)))
         : searchResults.value;
 
     if (!filtered.length) return;

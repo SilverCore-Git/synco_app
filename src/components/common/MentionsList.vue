@@ -27,10 +27,10 @@
                 <i class="bi" :class="user.special === 'everyone' ? 'bi-megaphone-fill' : 'bi-broadcast'" />
             </div>
             <div
-                v-else-if="kind !== 'user'"
+                v-else-if="user.kind === 'role' || kind !== 'user'"
                 class="w-6 h-6 rounded-full bg-(--primary)/15 text-(--primary) flex items-center justify-center text-xs shrink-0"
             >
-                <i class="bi" :class="kindIcon" />
+                <i class="bi" :class="user.kind === 'role' ? 'bi-shield-fill' : kindIcon" />
             </div>
             <div v-else class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center font-bold text-xs shrink-0">
                 {{ $p(user.name).charAt(0).toUpperCase() }}
@@ -68,7 +68,7 @@ const props = withDefaults(defineProps<{
 defineEmits(['select']);
 
 const headerLabel = computed(() => {
-    if (props.kind === 'user') return 'Membres du salon';
+    if (props.kind === 'user') return 'Membres & rôles';
     return Object.values(TRIGGERS).find(t => t.kind === props.kind)?.label ?? '';
 });
 

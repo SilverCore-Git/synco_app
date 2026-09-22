@@ -1,12 +1,12 @@
 import type { OrgMember } from '@/types/types';
 
-export type ReferenceKind = 'user' | 'thread' | 'task' | 'file';
+export type ReferenceKind = 'user' | 'role' | 'thread' | 'task' | 'file';
 
 export interface TriggerConfig {
   kind: ReferenceKind;
   // Préfixe du token stocké : <@:id> et <#:id> gardent le symbole du trigger,
-  // <task:id>/<file:id> utilisent un mot car ! et & n'ont pas de sens une
-  // fois sortis du contexte de saisie.
+  // <task:id>/<file:id>/<role:id> utilisent un mot car ! et & n'ont pas de
+  // sens une fois sortis du contexte de saisie.
   tokenPrefix: string;
   label: string;
   icon: string;
@@ -23,14 +23,26 @@ export const TRIGGERS: Record<string, TriggerConfig> = {
   '&': { kind: 'file', tokenPrefix: 'file', label: 'Fichiers', icon: 'bi-file-earmark-fill' },
 };
 
+// 'role' n'a pas son propre caractère : @ ouvre un picker mixte
+// membres+rôles (comme Discord), donc 'role' n'est pas dans TRIGGERS (une
+// config par caractère) mais a besoin des mêmes infos pour construire son
+// token/chip — d'où cette config à part, fusionnée dans PREFIX_TO_KIND/
+// KIND_TO_TRIGGER_CHAR ci-dessous.
+export const ROLE_TRIGGER_CONFIG: TriggerConfig = { kind: 'role', tokenPrefix: 'role', label: 'Rôles', icon: 'bi-shield-fill' };
+
 const PREFIX_TO_KIND: Record<string, ReferenceKind> = {};
 for (const t of Object.values(TRIGGERS)) PREFIX_TO_KIND[t.tokenPrefix] = t.kind;
+PREFIX_TO_KIND[ROLE_TRIGGER_CONFIG.tokenPrefix] = ROLE_TRIGGER_CONFIG.kind;
 
 // kind -> caractère de trigger (l'inverse de TRIGGERS) — utilisé pour
 // afficher un texte lisible ("!Titre de tâche") à la place du token brut
-// dans l'éditeur (voir ThreadTextarea.vue).
+// dans l'éditeur (voir ThreadTextarea.vue). 'role' partage le '@' de 'user'.
 export const KIND_TO_TRIGGER_CHAR: Record<ReferenceKind, string> = {} as Record<ReferenceKind, string>;
 for (const [char, t] of Object.entries(TRIGGERS)) KIND_TO_TRIGGER_CHAR[t.kind] = char;
+KIND_TO_TRIGGER_CHAR.role = '@';
+
+const configForKind = (kind: ReferenceKind): TriggerConfig =>
+  kind === 'role' ? ROLE_TRIGGER_CONFIG : Object.values(TRIGGERS).find(t => t.kind === kind)!;
 
 // Charset partagé avec l'ancien MENTION_CHAR_CLASS (useMentions.ts) — lettres/
 // chiffres unicode + quelques signes usuels dans un nom.
@@ -39,8 +51,8 @@ const QUERY_CHAR_CLASS = "\\p{L}\\p{N}_.'’-";
 // Détecte un trigger "en cours de frappe" juste avant le curseur, ex. "voir #gen" -> ['#', 'gen'].
 export const TRIGGER_QUERY_REGEX = new RegExp(`(?:^|\\s)([@#!&])([${QUERY_CHAR_CLASS}]*)$`, 'u');
 
-// Matches <@:id> / <#:id> / <task:id> / <file:id>.
-export const REFERENCE_TOKEN_REGEX = /<(@|#|task|file):([a-zA-Z0-9_-]+)>/g;
+// Matches <@:id> / <#:id> / <task:id> / <file:id> / <role:id>.
+export const REFERENCE_TOKEN_REGEX = /<(@|#|task|file|role):([a-zA-Z0-9_-]+)>/g;
 
 export interface ExtractedReference {
   type: ReferenceKind;
@@ -76,13 +88,16 @@ export const extractReferenceTokens = (content: string | undefined | null): Extr
 // carte ne s'affiche jamais, le lien brut reste visible. `&lt;`/`&gt;` dans
 // le markdown source ressortent en `<`/`>` réels une fois le HTML injecté
 // dans le DOM (v-html), donc renderReferences les retrouve normalement.
+// 'role' a le même souci que task/file (mot ≥2 lettres = scheme valide pour
+// marked), même si son chip reste inline (pas de carte bloc) — toujours
+// échappé, jamais retiré par stripBlockReferenceTokens.
 export const escapeReferenceTokensForMarkdown = (content: string): string =>
   content.replace(REFERENCE_TOKEN_REGEX, (full, prefix: string, id: string) =>
-    (prefix === 'task' || prefix === 'file') ? `&lt;${prefix}:${id}&gt;` : full
+    (prefix === 'task' || prefix === 'file' || prefix === 'role') ? `&lt;${prefix}:${id}&gt;` : full
   );
 
 export const buildReferenceToken = (kind: ReferenceKind, id: string): string => {
-  const config = Object.values(TRIGGERS).find(t => t.kind === kind)!;
+  const config = configForKind(kind);
   return `<${config.tokenPrefix}:${id}>`;
 };
 
@@ -111,12 +126,12 @@ const escapeHtml = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 const chipHtml = (kind: ReferenceKind, id: string, label: string, ok: boolean, spaceId?: string | null): string => {
-  const config = Object.values(TRIGGERS).find(t => t.kind === kind)!;
+  const config = configForKind(kind);
   // Un seul symbole affiché par chip : pour 'thread', l'icône bi-hash EST
   // déjà le "#" (sinon on se retrouvait avec icône # + texte "#nom" = "##nom").
-  // Pour 'user', l'icône est une silhouette, pas un "@" — le préfixe texte
-  // reste donc nécessaire là.
-  const prefixChar = kind === 'user' ? '@' : '';
+  // Pour 'user'/'role', l'icône n'est pas un "@" (silhouette / bouclier) — le
+  // préfixe texte reste donc nécessaire pour ces deux-là.
+  const prefixChar = (kind === 'user' || kind === 'role') ? '@' : '';
   const cls = ok ? 'reference-chip' : 'reference-chip reference-chip--restricted';
   const spaceAttr = spaceId ? ` data-ref-space="${escapeHtml(spaceId)}"` : '';
   return `<span class="${cls}" data-ref-kind="${kind}" data-ref-id="${id}"${spaceAttr}><i class="bi ${config.icon}"></i>${prefixChar}${escapeHtml(label)}</span>`;
