@@ -60,7 +60,9 @@
 
           <!-- User message: light bubble, right-aligned -->
           <div v-if="msg.role === 'user'" class="max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed bg-(--primary)/15 border border-(--primary)/20">
-            <div v-html="formatMessage(msg.content)" @click="handleLinks" class="prose prose-invert max-w-none prose-sm"></div>
+            <div @click="handleLinks" class="prose prose-invert max-w-none prose-sm">
+              <MarkdownRender :content="cleanAiContent(msg.content)" mode="chat" />
+            </div>
           </div>
 
           <!-- Assistant turn: new agent loop (OpenAI/Mistral/Gemini) — structured parts, Claude-like -->
@@ -81,8 +83,9 @@
 
           <!-- Assistant turn: legacy path (local/custom, migration pending) -->
           <div v-else class="w-full text-sm leading-relaxed text-(--text)">
-            <div v-if="msg.content" v-html="formatMessage(msg.content)" @click="handleLinks"
-              class="prose prose-invert max-w-none prose-sm"></div>
+            <div v-if="msg.content" @click="handleLinks" class="prose prose-invert max-w-none prose-sm">
+              <MarkdownRender :content="cleanAiContent(msg.content)" mode="chat" />
+            </div>
             <div v-else-if="isGenerating && !msg.tool_call" class="flex gap-1 py-2">
               <div class="w-1.5 h-1.5 bg-(--text2)/60 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
               <div class="w-1.5 h-1.5 bg-(--text2)/60 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
@@ -400,6 +403,7 @@ import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import IconSelector from '@/components/common/IconSelector.vue';
 import AgentTurn from '../components/ai/AgentTurn.vue';
+import MarkdownRender from './MarkdownRender.vue';
 import type { TurnPart, ToolStep } from '../components/ai/agentTypes';
 import { useUsersBar } from '@/composables/useUsersBar';
 import useSettingsItem from '@/composables/useSettingsItem';
@@ -419,15 +423,10 @@ import { getSystemPrompt } from '@/services/AITools';
 const { showUsersBar } = useUsersBar();
 const { Item: savedModelId, isLoaded: savedModelLoaded } = useSettingsItem('ai_selected_model', '');
 
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
-
-// On utilise marked pour le formatage avec DOMPurify pour la sécurité
-const formatMessage = (text: string) => {
-  let cleanText = text.replace(/<tool_call>[\s\S]*?(?:<\/tool_call>|$)/g, '');
-  const html = marked.parse(cleanText) as string;
-  return DOMPurify.sanitize(html);
-};
+// Le rendu markdown passe par MarkdownRender.vue (partagé avec le chat/les
+// tâches) — il ne reste ici que le nettoyage spécifique à l'IA : les blocs
+// <tool_call> internes ne doivent jamais apparaître dans le texte affiché.
+const cleanAiContent = (text: string) => text.replace(/<tool_call>[\s\S]*?(?:<\/tool_call>|$)/g, '');
 
 const handleLinks = (e: MouseEvent) => {
   const target = (e.target as HTMLElement).closest('a');

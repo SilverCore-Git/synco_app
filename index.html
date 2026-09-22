@@ -105,16 +105,6 @@
 
     <div id="app"></div>
 
-    <!--
-      Écran de démarrage statique, indépendant du montage de Vue : #app est
-      remplacé dès que Vue se monte, sans garantie que le CSS (Tailwind,
-      injecté par Vite) soit déjà appliqué à ce moment précis. Si ce logo
-      vivait dans #app, le contenu de remplacement pouvait s'afficher un
-      instant sans ses classes de centrage (donc en haut à gauche) avant de
-      se repositionner. Ici, il reste affiché par-dessus tout jusqu'à ce
-      qu'App.vue le retire explicitement une fois son premier rendu stylé
-      confirmé (voir onMounted dans src/App.vue).
-    -->
     <div id="boot-loader" style="
         position: fixed;
         inset: 0;
