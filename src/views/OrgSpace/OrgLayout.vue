@@ -62,7 +62,7 @@ import { watch, toRaw } from 'vue';
 // Dans Tâches/Fichiers, la barre des membres se masque par défaut, sans
 // toucher à la préférence enregistrée : on la restaure dès qu'on revient
 // sur un salon ou toute autre page (ex: ThreadLayout, OrgAI, Settings).
-const USERSBAR_AUTOHIDE_ROUTES = new Set(['TasksSpace', 'TasksGlobal', 'SpaceFiles', 'AgendaGlobal']);
+const USERSBAR_AUTOHIDE_ROUTES = new Set(['TasksSpace', 'TasksGlobal', 'TasksSpaceArchived', 'TasksGlobalArchived', 'SpaceFiles', 'AgendaGlobal']);
 
 watch(() => route.name, (name) => {
     setUsersBarHiddenByRoute(USERSBAR_AUTOHIDE_ROUTES.has(name as string));
@@ -686,7 +686,7 @@ onBeforeUnmount(async () => {
 
             <SpaceBar class="h-full" />
             <ThreadsBar
-                v-if="route.name !== 'TasksGlobal' && route.name !== 'AgendaGlobal' && route.name !== 'OrgHome'"
+                v-if="route.name !== 'TasksGlobal' && route.name !== 'TasksGlobalArchived' && route.name !== 'AgendaGlobal' && route.name !== 'OrgHome'"
                 class="h-full " 
                 :class="[
                     isDesktopApp() ? 'rounded-tl-2xl' : '',
