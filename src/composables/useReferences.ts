@@ -111,15 +111,25 @@ export const renderReferences = async (root: HTMLElement, resolveBatch: ResolveB
     const text = node.textContent || '';
     if (!text.includes('<')) continue;
 
+    // Le regex matche des délimiteurs `<`/`>` littéraux : il faut le faire
+    // tourner sur `text` brut avant escapeHtml, sinon `<`/`>` sont déjà
+    // devenus `&lt;`/`&gt;` et REFERENCE_TOKEN_REGEX ne matche plus jamais
+    // (c'était le bug : le token restait affiché tel quel).
     let hasMatch = false;
-    const html = escapeHtml(text).replace(REFERENCE_TOKEN_REGEX, (full, prefix: string, id: string) => {
+    let html = '';
+    let lastIndex = 0;
+    for (const match of text.matchAll(REFERENCE_TOKEN_REGEX)) {
+      const [full, prefix, id] = match as unknown as [string, string, string];
       const kind = PREFIX_TO_KIND[prefix];
-      if (!kind) return full;
+      if (!kind) continue;
       hasMatch = true;
+      html += escapeHtml(text.slice(lastIndex, match.index));
       const cached = resolveCache.get(`${kind}:${id}`);
       if (!cached) pending.push({ type: kind, id });
-      return chipHtml(kind, id, cached?.label ?? '…', cached?.ok ?? true, cached?.spaceId);
-    });
+      html += chipHtml(kind, id, cached?.label ?? '…', cached?.ok ?? true, cached?.spaceId);
+      lastIndex = match.index! + full.length;
+    }
+    html += escapeHtml(text.slice(lastIndex));
 
     if (hasMatch) {
       const span = document.createElement('span');
