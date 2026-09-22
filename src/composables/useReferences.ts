@@ -26,6 +26,12 @@ export const TRIGGERS: Record<string, TriggerConfig> = {
 const PREFIX_TO_KIND: Record<string, ReferenceKind> = {};
 for (const t of Object.values(TRIGGERS)) PREFIX_TO_KIND[t.tokenPrefix] = t.kind;
 
+// kind -> caractère de trigger (l'inverse de TRIGGERS) — utilisé pour
+// afficher un texte lisible ("!Titre de tâche") à la place du token brut
+// dans l'éditeur (voir ThreadTextarea.vue).
+export const KIND_TO_TRIGGER_CHAR: Record<ReferenceKind, string> = {} as Record<ReferenceKind, string>;
+for (const [char, t] of Object.entries(TRIGGERS)) KIND_TO_TRIGGER_CHAR[t.kind] = char;
+
 // Charset partagé avec l'ancien MENTION_CHAR_CLASS (useMentions.ts) — lettres/
 // chiffres unicode + quelques signes usuels dans un nom.
 const QUERY_CHAR_CLASS = "\\p{L}\\p{N}_.'’-";

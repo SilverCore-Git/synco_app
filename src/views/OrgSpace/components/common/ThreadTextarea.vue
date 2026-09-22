@@ -11,9 +11,9 @@
             @select="insertMention"
         />
 
-        <textarea 
+        <textarea
             ref="textareaRef"
-            :value="modelValue"
+            :value="displayValue"
             @input="onInput"
             :placeholder="placeholder"
             rows="1"
@@ -38,7 +38,10 @@
 import { openedOrg } from '@/assets/var';
 import MentionsList from '@/components/common/MentionsList.vue';
 import { buildMentionableList, type MentionEntry } from '@/composables/useMentions';
-import { TRIGGERS, TRIGGER_QUERY_REGEX, buildReferenceToken, type ReferenceKind } from '@/composables/useReferences';
+import {
+    TRIGGERS, TRIGGER_QUERY_REGEX, KIND_TO_TRIGGER_CHAR, buildReferenceToken,
+    extractReferenceTokens, type ReferenceKind,
+} from '@/composables/useReferences';
 import sfetch from '@/assets/utils/sfetch';
 import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
@@ -79,6 +82,62 @@ const activeTriggerKind = ref<ReferenceKind | null>(null);
 
 const mentionableUsers = ref<MentionEntry[]>(buildMentionableList(openedOrg.value?.members));
 const searchResults = ref<MentionEntry[]>([]);
+
+// --- Affichage lisible dans le <textarea> -----------------------------
+// modelValue reste TOUJOURS le contenu brut avec tokens <kind:id> (c'est le
+// contrat existant : les consumers — CreateTaskModal.handleSubmit,
+// extractReferenceTokens, l'envoi du message... — lisent modelValue
+// directement, pas l'event 'send'). Seul ce que montre le <textarea> change :
+// pendingSubs mémorise les paires {display, token} des références insérées
+// (ou déjà présentes au montage), et displayValue/toRaw font l'aller-retour.
+// Round-trip idempotent (toPretty(toRaw(x)) === x tant que le texte affiché
+// n'a pas été modifié À L'INTÉRIEUR d'un display existant) donc pas de
+// conflit avec le curseur natif du textarea — si l'utilisateur édite un
+// display en place, la sub ne matche plus et ce fragment redevient simple
+// texte au lieu de rester lié (dégradation silencieuse, pas de corruption).
+const pendingSubs = ref<{ display: string; token: string }[]>([]);
+
+const toRaw = (pretty: string): string => {
+    let raw = pretty;
+    for (const sub of pendingSubs.value) raw = raw.split(sub.display).join(sub.token);
+    return raw;
+};
+
+const toPretty = (raw: string): string => {
+    let pretty = raw;
+    for (const sub of pendingSubs.value) pretty = pretty.split(sub.token).join(sub.display);
+    return pretty;
+};
+
+const displayValue = computed(() => toPretty(props.modelValue));
+
+// Résout les labels des tokens déjà présents dans modelValue (édition d'un
+// message/description existant) pour peupler pendingSubs — sans ça
+// displayValue afficherait les tokens bruts jusqu'à la prochaine insertion.
+const primePendingSubsFromContent = async (raw: string) => {
+    const refs = extractReferenceTokens(raw);
+    if (!refs.length) return;
+
+    const orgId = openedOrg.value?.id;
+    if (!orgId) return;
+
+    try {
+        const res = await sfetch('/api/mentions/resolve', {
+            method: 'POST',
+            body: JSON.stringify({ orgId, items: refs }),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        for (const item of data.items || []) {
+            if (!item.ok) continue; // pas de label sans accès — reste en token brut, pas de perte silencieuse
+            const token = buildReferenceToken(item.type, item.id);
+            if (pendingSubs.value.some(s => s.token === token)) continue;
+            pendingSubs.value.push({ display: `${KIND_TO_TRIGGER_CHAR[item.type as ReferenceKind]}${item.label}`, token });
+        }
+    } catch (err) {
+        console.error('[ThreadTextarea] Failed to prime reference display text:', err);
+    }
+};
 
 watch(() => openedOrg.value?.members, (members) => {
     mentionableUsers.value = buildMentionableList(members);
@@ -147,19 +206,30 @@ const insertMention = (entry: MentionEntry) => {
 
     if (startMentionIndex.value === -1) return;
 
-    const text = props.modelValue;
-    const beforeMention = text.slice(0, startMentionIndex.value);
-    const afterMention = text.slice(textareaRef.value?.selectionStart || 0);
+    // startMentionIndex/selectionStart sont mesurés sur le texte AFFICHÉ
+    // (updateMentionState tourne sur target.value dans onInput) — il faut
+    // donc découper displayValue ici, pas modelValue (brut, longueur
+    // différente dès qu'une référence précède le point d'insertion).
+    const pretty = displayValue.value;
+    const beforeMention = pretty.slice(0, startMentionIndex.value);
+    const afterMention = pretty.slice(textareaRef.value?.selectionStart || 0);
+
+    const kind = activeTriggerKind.value ?? 'user';
 
     // @everyone/@here n'ont pas d'id réel derrière (pas une entité, un mot-clé
     // de diffusion) — on garde le texte littéral que l'ancien renderMentions
     // sait déjà résoudre, plutôt qu'un faux token <@:__everyone__>.
-    const insertText = entry.special
-        ? `@${entry.pseudo}`
-        : buildReferenceToken(activeTriggerKind.value ?? 'user', entry.id);
+    let insertText: string;
+    if (entry.special) {
+        insertText = `@${entry.pseudo}`;
+    } else {
+        const token = buildReferenceToken(kind, entry.id);
+        insertText = `${KIND_TO_TRIGGER_CHAR[kind]}${entry.name}`;
+        pendingSubs.value.push({ display: insertText, token });
+    }
 
-    const updatedValue = `${beforeMention}${insertText} ${afterMention}`;
-    emit('update:modelValue', updatedValue);
+    const updatedPretty = `${beforeMention}${insertText} ${afterMention}`;
+    emit('update:modelValue', toRaw(updatedPretty));
 
     showMentions.value = false;
     activeMentionIndex.value = 0;
@@ -228,7 +298,10 @@ const adjustHeight = () => {
 
 const onInput = (event: Event) => {
     const target = event.target as HTMLTextAreaElement;
-    emit('update:modelValue', target.value);
+    // Détection du trigger (@/#/!/&) et découpage insertMention opèrent sur
+    // le texte affiché (target.value) — seul ce qui remonte au parent est
+    // converti en brut.
+    emit('update:modelValue', toRaw(target.value));
     emit('input');
     adjustHeight();
     updateMentionState(target.value, target.selectionStart ?? target.value.length);
@@ -254,6 +327,7 @@ watch(() => props.modelValue, (newVal) => {
     if (newVal === '')
     {
         showMentions.value = false;
+        pendingSubs.value = [];
         nextTick(() => {
             if (textareaRef.value) {
                 textareaRef.value.style.height = 'auto';
@@ -270,6 +344,7 @@ watch(() => route.params.threadId, async () => {
 });
 
 onMounted(async () => {
+    primePendingSubsFromContent(props.modelValue);
     if (!props.autoFocus) return;
     await nextTick();
     textareaRef.value?.focus();
