@@ -197,7 +197,15 @@ const resolveBatch: ResolveBatchFn = async (items: ExtractedReference[]) => {
     if (!res.ok) return map;
     const data = await res.json();
     for (const item of data.items || []) {
-      map.set(`${item.type}:${item.id}`, { label: item.label ?? item.id, ok: !!item.ok, spaceId: item.spaceId });
+      // Le backend n'envoie jamais `label` quand ok=false (anti-fuite : rien
+      // sur la ressource à un lecteur sans accès) — retomber sur `item.id`
+      // affichait l'UUID brut dans le chip restreint au lieu d'un message
+      // clair signalant l'absence d'accès.
+      map.set(`${item.type}:${item.id}`, {
+        label: item.ok ? (item.label ?? item.id) : 'Accès refusé',
+        ok: !!item.ok,
+        spaceId: item.spaceId,
+      });
     }
   } catch (err) {
     console.error('[MarkdownRender] Failed to resolve references:', err);
