@@ -103,7 +103,11 @@ const escapeHtml = (s: string): string =>
 
 const chipHtml = (kind: ReferenceKind, id: string, label: string, ok: boolean, spaceId?: string | null): string => {
   const config = Object.values(TRIGGERS).find(t => t.kind === kind)!;
-  const prefixChar = kind === 'user' ? '@' : kind === 'thread' ? '#' : '';
+  // Un seul symbole affiché par chip : pour 'thread', l'icône bi-hash EST
+  // déjà le "#" (sinon on se retrouvait avec icône # + texte "#nom" = "##nom").
+  // Pour 'user', l'icône est une silhouette, pas un "@" — le préfixe texte
+  // reste donc nécessaire là.
+  const prefixChar = kind === 'user' ? '@' : '';
   const cls = ok ? 'reference-chip' : 'reference-chip reference-chip--restricted';
   const spaceAttr = spaceId ? ` data-ref-space="${escapeHtml(spaceId)}"` : '';
   return `<span class="${cls}" data-ref-kind="${kind}" data-ref-id="${id}"${spaceAttr}><i class="bi ${config.icon}"></i>${prefixChar}${escapeHtml(label)}</span>`;
