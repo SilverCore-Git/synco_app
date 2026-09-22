@@ -2,17 +2,18 @@
 
 :root {
 
-  --primary: #16ac77; 
+  --primary: #16ac77;
   --primary-dark: #062d1f;
   --primary-hover: #128a60;
+  --primary-rgb: 22, 172, 119;
 
   --bg: #121214;
   --bg2: #09090a;
   --bg3: #000000;
-  
+
   --black: #000;
   --white: #fff;
-  
+
 
   --text: #fff;
   /* --text: #BFC3C7; */
@@ -20,43 +21,88 @@
   --rounded-2xl: 1rem;
 
   --border-color: rgba(255, 255, 255, 0.1);
+  --scrollbar-thumb: var(--primary-dark);
 
 }
 
 body.dark {
 
-  --primary: #16ac77; 
+  --primary: #16ac77;
   --primary-dark: #062d1f;
   --primary-hover: #128a60;
+  --primary-rgb: 22, 172, 119;
 
   --bg: #121214;
   --bg2: #09090a;
   --bg3: #000000;
-  
+
   --black: #000;
   --white: #fff;
 
   --text: #fff;
   --text2: rgba(255, 255, 255, 0.6);
 
+  --scrollbar-thumb: var(--primary-dark);
+
+  --surface-sunken: rgba(0, 0, 0, 0.3);
+  --shadow-elevated: rgba(0, 0, 0, 0.5);
+  --glow-primary-strong: rgba(var(--primary-rgb), 0.5);
+  --glow-primary-soft: rgba(var(--primary-rgb), 0.2);
+  --glow-primary-faint: rgba(var(--primary-rgb), 0.1);
+  --glow-warning-strong: rgba(245, 158, 11, 0.5);
+  --glow-danger-strong: rgba(239, 68, 68, 0.8);
+
 }
 
+/* Thème clair : les surfaces (--bg*) montent en clarté au lieu de descendre
+   vers le noir, donc les jetons qui dépendent de la direction du contraste ne
+   peuvent pas juste reprendre les valeurs du thème sombre :
+   - --primary-dark reste un vert TRÈS clair : ailleurs dans l'app il sert de
+     teinte de surbrillance (bg-(--primary-dark)/30, ring, bordure de citation)
+     et doit rester pâle pour donner un lavis doux sur fond clair, comme son
+     équivalent sombre (vert profond) donne un lavis doux sur fond sombre.
+   - --scrollbar-thumb est donc une variable séparée : elle réutilise ce même
+     vert profond en thème sombre (subtil sur fond noir), mais un thumb aussi
+     pâle serait quasi invisible sur fond blanc, d'où une teinte plus soutenue
+     dédiée ici.
+   - --text2 et --primary-rgb n'existaient pas du tout côté clair : toutes les
+     utilisations (texte secondaire, halos box-shadow) tombaient sur une
+     variable non définie et perdaient leur effet silencieusement.
+   - --surface-sunken / --shadow-elevated / --glow-* : les halos colorés et
+     ombres fortes (drag & drop, hover de carte, bouton de suppression...)
+     étaient câblés en dur avec des opacités pensées pour un fond quasi noir
+     (ex. rgba(0,0,0,0.5), rgba(var(--primary-rgb),0.5)). Sur fond clair, la
+     même opacité donne un halo beaucoup plus saturé et voyant (« flashy »,
+     « éblouissant ») au lieu d'un dégradé discret — ces jetons portent donc
+     des intensités nettement réduites côté clair, à valeur d'usage identique
+     côté sombre (comportement inchangé). */
 body.light {
-  
+
   --primary: #108e62;
   --primary-dark: #a7f3d0;
   --primary-hover: #0d7551;
+  --primary-rgb: 16, 142, 98;
 
   --bg: #fafafa;
   --bg2: #f4f4f5;
   --bg3: #e4e4e7;
-  
+
   --black: #000;
   --white: #fff;
 
   --text: #27272a;
+  --text2: rgba(39, 39, 42, 0.62);
 
   --border-color: rgba(0, 0, 0, 0.1);
+  --scrollbar-thumb: rgba(16, 142, 98, 0.35);
+
+  --surface-sunken: var(--bg3);
+  --shadow-elevated: rgba(0, 0, 0, 0.12);
+  --glow-primary-strong: rgba(var(--primary-rgb), 0.22);
+  --glow-primary-soft: rgba(var(--primary-rgb), 0.12);
+  --glow-primary-faint: rgba(var(--primary-rgb), 0.08);
+  --glow-warning-strong: rgba(245, 158, 11, 0.25);
+  --glow-danger-strong: rgba(239, 68, 68, 0.35);
 
 }
 
@@ -276,7 +322,7 @@ select {
 
 
 button.glass {
-  @apply p-2 bg-white/10 hover:bg-(--primary) rounded-full backdrop-blur-md text-(--text) border border-white/10 transition-colors;
+  @apply p-2 bg-(--text)/10 hover:bg-(--primary) rounded-full backdrop-blur-md text-(--text) border border-(--text)/10 transition-colors;
 }
 
 button.primary,
@@ -542,13 +588,13 @@ button.tab.active {
 }
 
 button.tab:not(.active) {
-  @apply hover:bg-white/5 hover:text-(--text);
+  @apply hover:bg-(--text)/5 hover:text-(--text);
 }
 
 
 * {
   scrollbar-width: 6px;
-  scrollbar-color: var(--primary-dark) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 *::-webkit-scrollbar {
@@ -561,7 +607,7 @@ button.tab:not(.active) {
 }
 
 *::-webkit-scrollbar-thumb {
-  background: var(--primary-dark);
+  background: var(--scrollbar-thumb);
   border-radius: 10px;
 }
 

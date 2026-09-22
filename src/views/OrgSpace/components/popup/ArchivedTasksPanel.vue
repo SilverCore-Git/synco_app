@@ -12,7 +12,7 @@
       class="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
       @click.self="$emit('close')"
     >
-      <div class="bg-(--bg) rounded-2xl border border-white/10 shadow-2xl max-w-xl w-full max-h-[80vh] flex flex-col relative overflow-hidden" @click.stop>
+      <div class="bg-(--bg) rounded-2xl border border-(--text)/10 shadow-2xl max-w-xl w-full max-h-[80vh] flex flex-col relative overflow-hidden" @click.stop>
 
         <!-- Header -->
         <header class="flex items-center justify-between px-6 py-4 border-b border-(--border-color) shrink-0">
@@ -25,7 +25,7 @@
               <p class="text-xs text-(--text2)">{{ archivedTasks.length }} tâche(s) archivée(s)</p>
             </div>
           </div>
-          <button @click="$emit('close')" class="text-(--text2) hover:text-(--text) transition-colors p-2 rounded-lg hover:bg-white/5">
+          <button @click="$emit('close')" class="text-(--text2) hover:text-(--text) transition-colors p-2 rounded-lg hover:bg-(--text)/5">
             <i class="bi bi-x-lg text-xl" />
           </button>
         </header>
@@ -47,14 +47,14 @@
               <button
                 @click="sortMode = 'date'"
                 class="text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
-                :class="sortMode === 'date' ? 'bg-(--primary) text-white' : 'bg-white/5 text-(--text2) hover:bg-white/10'"
+                :class="sortMode === 'date' ? 'bg-(--primary) text-white' : 'bg-(--text)/5 text-(--text2) hover:bg-(--text)/10'"
               >
                 <i class="bi bi-calendar3" /> Date
               </button>
               <button
                 @click="sortMode = 'folder'"
                 class="text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
-                :class="sortMode === 'folder' ? 'bg-(--primary) text-white' : 'bg-white/5 text-(--text2) hover:bg-white/10'"
+                :class="sortMode === 'folder' ? 'bg-(--primary) text-white' : 'bg-(--text)/5 text-(--text2) hover:bg-(--text)/10'"
               >
                 <i class="bi bi-folder2" /> Dossier
               </button>
@@ -64,7 +64,7 @@
               <span class="text-[11px] font-bold text-(--text2) uppercase tracking-wider mr-1">Dossiers</span>
               <span
                 class="text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors"
-                :class="dragOverFolderId === '__none__' ? 'bg-amber-500 text-white ring-2 ring-amber-300' : 'bg-white/5 text-(--text2)'"
+                :class="dragOverFolderId === '__none__' ? 'bg-amber-500 text-white ring-2 ring-amber-300' : 'bg-(--text)/5 text-(--text2)'"
                 @dragover.prevent="draggedTaskId && (dragOverFolderId = '__none__')"
                 @dragleave.prevent="dragOverFolderId = null"
                 @drop.prevent="onDropOnFolder($event, null)"
@@ -74,7 +74,7 @@
               <span
                 v-for="folder in folders" :key="folder.id"
                 class="text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors"
-                :class="dragOverFolderId === folder.id ? 'bg-amber-500 text-white ring-2 ring-amber-300' : 'bg-white/5 text-(--text2)'"
+                :class="dragOverFolderId === folder.id ? 'bg-amber-500 text-white ring-2 ring-amber-300' : 'bg-(--text)/5 text-(--text2)'"
                 @dragover.prevent="draggedTaskId && (dragOverFolderId = folder.id)"
                 @dragleave.prevent="dragOverFolderId = null"
                 @drop.prevent="onDropOnFolder($event, folder.id)"
@@ -84,7 +84,7 @@
               <button
                 v-if="!showNewFolder"
                 @click="showNewFolder = true"
-                class="text-xs font-bold px-3 py-1.5 rounded-lg bg-white/5 text-(--text2) hover:bg-white/10 transition-colors flex items-center gap-1.5"
+                class="text-xs font-bold px-3 py-1.5 rounded-lg bg-(--text)/5 text-(--text2) hover:bg-(--text)/10 transition-colors flex items-center gap-1.5"
               >
                 <i class="bi bi-plus-lg" /> Nouveau dossier
               </button>
@@ -94,7 +94,7 @@
                   type="text"
                   autofocus
                   placeholder="Nom du dossier..."
-                  class="text-xs bg-black/20 border border-(--text)/10 rounded-lg px-3 py-1.5 text-(--text) focus:border-(--primary)/50 outline-none transition-all w-40"
+                  class="text-xs bg-(--surface-sunken) border border-(--text)/10 rounded-lg px-3 py-1.5 text-(--text) focus:border-(--primary)/50 outline-none transition-all w-40"
                   @keydown.esc="showNewFolder = false; newFolderTitle = ''"
                 />
                 <button
@@ -107,7 +107,7 @@
                 <button
                   type="button"
                   @click="showNewFolder = false; newFolderTitle = ''"
-                  class="text-xs font-bold p-1.5 rounded-lg text-(--text2) hover:bg-white/5 transition-colors"
+                  class="text-xs font-bold p-1.5 rounded-lg text-(--text2) hover:bg-(--text)/5 transition-colors"
                 >
                   <i class="bi bi-x-lg" />
                 </button>
@@ -119,7 +119,7 @@
                 <div class="flex items-center gap-2 mb-3">
                   <span class="text-[11px] font-black uppercase tracking-widest text-(--text2)">{{ group.label }}</span>
                   <span class="text-[10px] text-(--text2)/60">({{ group.tasks.length }})</span>
-                  <div class="flex-1 h-px bg-white/10"></div>
+                  <div class="flex-1 h-px bg-(--text)/10"></div>
                 </div>
 
                 <div class="space-y-3">

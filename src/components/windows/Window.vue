@@ -16,7 +16,7 @@
                     <div 
                         v-if="isOpen"
                         class="
-                            w-full h-full bg-(--bg) border border-white/10 
+                            w-full h-full bg-(--bg) border border-(--text)/10 
                             rounded-2xl shadow-2xl overflow-hidden relative
                         "
                     >
@@ -26,7 +26,7 @@
                             <button 
                                 @click="emit('close')"
                                 class="
-                                    absolute right-2.5 top-2.5 p-2 rounded-lg hover:bg-white/10 
+                                    absolute right-2.5 top-2.5 p-2 rounded-lg hover:bg-(--text)/10 
                                     bg-(--bg)/60 backdrop-blur-md
                                     text-(--text2) hover:text-(--text) z-100
                                     active:scale-90 transition-all duration-200

@@ -12,7 +12,7 @@
       class="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
       @click.self="$emit('close')"
     >
-      <div class="bg-(--bg) rounded-2xl border border-white/10 shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col relative overflow-hidden" @click.stop>
+      <div class="bg-(--bg) rounded-2xl border border-(--text)/10 shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col relative overflow-hidden" @click.stop>
 
         <!-- Header -->
         <header class="flex items-center justify-between px-6 py-4 border-b border-(--border-color) shrink-0">
@@ -25,7 +25,7 @@
               <p class="text-xs text-(--text2)">{{ spaceName }}</p>
             </div>
           </div>
-          <button @click="$emit('close')" class="text-(--text2) hover:text-(--text) transition-colors p-2 rounded-lg hover:bg-white/5">
+          <button @click="$emit('close')" class="text-(--text2) hover:text-(--text) transition-colors p-2 rounded-lg hover:bg-(--text)/5">
             <i class="bi bi-x-lg text-xl" />
           </button>
         </header>
@@ -60,7 +60,7 @@
           <div class="flex items-center gap-3">
             <button 
               @click="$emit('close')" 
-              class="px-4 py-2 rounded-xl text-sm font-semibold text-(--text2) hover:text-(--text) hover:bg-white/5 transition-all"
+              class="px-4 py-2 rounded-xl text-sm font-semibold text-(--text2) hover:text-(--text) hover:bg-(--text)/5 transition-all"
             >
               Annuler
             </button>
@@ -69,7 +69,7 @@
               :disabled="!hasChanges || isSaving"
               class="primary flex items-center gap-2"
             >
-              <div v-if="isSaving" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <div v-if="isSaving" class="w-4 h-4 border-2 border-(--text)/30 border-t-white rounded-full animate-spin" />
               <span>{{ isSaving ? 'Sauvegarde...' : 'Sauvegarder' }}</span>
             </button>
           </div>

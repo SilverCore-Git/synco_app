@@ -15,7 +15,7 @@
 
           <div
             v-if="isOpen"
-            class="w-full sm:max-w-md bg-(--bg) border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col sm:!h-auto sm:!max-h-[90vh]"
+            class="w-full sm:max-w-md bg-(--bg) border border-(--text)/10 rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col sm:!h-auto sm:!max-h-[90vh]"
             :class="[
               isExpanded ? 'h-[100dvh] max-h-none' : 'max-h-[90vh]',
               isDragging ? '' : 'transition-[height,max-height] duration-300 ease-out'
@@ -32,7 +32,7 @@
               @pointerup="onHandlePointerUp"
               @pointercancel="onHandlePointerUp"
             >
-              <div class="w-10 h-1.5 rounded-full bg-white/15"></div>
+              <div class="w-10 h-1.5 rounded-full bg-(--text)/15"></div>
             </div>
 
             <div class="px-6 py-4 border-b border-(--bg2)/5 flex items-center justify-between shrink-0">
@@ -44,7 +44,7 @@
               <button
                 @click="emit('close')"
                 class="
-                  p-2 rounded-lg hover:bg-white/5
+                  p-2 rounded-lg hover:bg-(--text)/5
                   text-(--text2) hover:text-(--text)
                   active:scale-90 transition-all duration-200
                 "

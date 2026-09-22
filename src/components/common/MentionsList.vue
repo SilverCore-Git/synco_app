@@ -16,8 +16,8 @@
             @mousedown.prevent
             @click="$emit('select', user)"
             :class="[
-                'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg text-left transition-colors text-white',
-                index === activeIndex ? 'bg-(--primary)/20 text-(--primary)' : 'hover:bg-white/5'
+                'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg text-left transition-colors text-(--text)',
+                index === activeIndex ? 'bg-(--primary)/20 text-(--primary)' : 'hover:bg-(--text)/5'
             ]"
         >
             <div

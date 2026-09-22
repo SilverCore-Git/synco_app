@@ -22,7 +22,7 @@
                      ce salon plutôt que d'afficher un badge texte en continu. -->
                 <button
                     @click="showEncryptionInfo = true"
-                    class="p-1.5 rounded-lg text-green-500 hover:bg-white/5 transition-colors shrink-0"
+                    class="p-1.5 rounded-lg text-green-500 hover:bg-(--text)/5 transition-colors shrink-0"
                     title="Chiffré de bout en bout (en savoir plus)"
                 >
                     <i class="bi bi-shield-lock-fill text-sm" />

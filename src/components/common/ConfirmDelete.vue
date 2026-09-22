@@ -100,7 +100,7 @@
                             class="danger flex items-center justify-center gap-2"
                             :class="submitDisabled || loading ? 'opacity-30 cursor-not-allowed! grayscale active:scale-100!' : ''"
                         >
-                            <span v-if="loading" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                            <span v-if="loading" class="w-4 h-4 border-2 border-(--text)/30 border-t-white rounded-full animate-spin"></span>
                             <span v-else>{{ props.buttonText || "Supprimer définitivement" }}</span>
                         </button>
 

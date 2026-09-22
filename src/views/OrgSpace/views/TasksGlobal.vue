@@ -110,7 +110,7 @@
                     @dragleave.prevent="dragOverArchiveBtn = false"
                     @drop="onDropToArchiveBtn"
                     class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0 ml-auto"
-                    :class="dragOverArchiveBtn ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-[0_4px_20px_rgba(245,158,11,0.5)]' : (showArchivedPanel ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-(--text)/5 text-(--text2) hover:bg-(--text)/10')"
+                    :class="dragOverArchiveBtn ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-[0_4px_20px_var(--glow-warning-strong)]' : (showArchivedPanel ? 'bg-(--primary) text-white shadow-[0_4px_15px_var(--glow-primary-soft)]' : 'bg-(--text)/5 text-(--text2) hover:bg-(--text)/10')"
                 >
                     <i class="bi bi-archive-fill" />
                     <span class="hidden sm:inline">Tâches archivées</span>
@@ -119,7 +119,7 @@
 
             <div v-if="loading" class="flex-1 min-h-0 w-full flex flex-col gap-4 animate-pulse pb-10">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 items-start h-full">
-                    <div v-for="i in 3" :key="'skel-col-'+i" class="bg-black/20 rounded-2xl p-4 flex flex-col gap-4 border border-(--border-color) h-full">
+                    <div v-for="i in 3" :key="'skel-col-'+i" class="bg-(--surface-sunken) rounded-2xl p-4 flex flex-col gap-4 border border-(--border-color) h-full">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center gap-2">
                                 <div class="w-6 h-6 rounded-lg bg-(--text)/10"></div>
@@ -202,8 +202,8 @@
                 <div class="hidden md:grid flex-1 min-h-0 md:grid-cols-3 gap-4 lg:gap-6 pb-2">
 
                     <div v-for="col in columns" :key="col.id"
-                         class="bg-black/20 border rounded-2xl p-4 min-h-[400px] h-full flex flex-col transition-all"
-                         :class="draggedOverCol === col.id ? 'border-(--primary) bg-(--text)/5 shadow-[0_0_15px_rgba(var(--primary-rgb),0.2)]' : 'border-(--border-color)'"
+                         class="bg-(--bg2)/40 border rounded-2xl p-4 min-h-[400px] h-full flex flex-col transition-all"
+                         :class="draggedOverCol === col.id ? 'border-(--primary) bg-(--text)/5 shadow-[0_0_15px_var(--glow-primary-soft)]' : 'border-(--border-color)'"
                          @dragover.prevent
                          @dragenter.prevent="draggedOverCol = col.id"
                          @dragleave.prevent="draggedOverCol = null"
@@ -317,7 +317,7 @@
                 <div class="w-16 h-16 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-2xl border-4 transition-all duration-500"
                      :class="[
                         isDeleting ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
-                        isHoveringTrash && !isDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_rgba(239,68,68,0.8)]' : 'border-transparent'
+                        isHoveringTrash && !isDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_var(--glow-danger-strong)]' : 'border-transparent'
                      ]"
                      @dragover.prevent="isHoveringTrash = true"
                      @dragleave.prevent="isHoveringTrash = false"
@@ -565,7 +565,7 @@ const loadLists = async () => {
 
                             el.style.transition = 'all 0.3s ease';
                             el.style.transform = 'scale(1.05)';
-                            el.style.boxShadow = '0 0 0 4px var(--primary), 0 10px 30px rgba(0,0,0,0.5)';
+                            el.style.boxShadow = '0 0 0 4px var(--primary), 0 10px 30px var(--shadow-elevated)';
                             el.style.zIndex = '10';
 
                             setTimeout(() => {

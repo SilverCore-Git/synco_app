@@ -41,7 +41,7 @@
               />
               <button 
                 @click="copyLink(getInviteUrl(invite.code))"
-                class="bg-white/10 hover:bg-white/20 text-(--text) p-1.5 rounded-lg transition-colors flex items-center justify-center"
+                class="bg-(--text)/10 hover:bg-(--text)/20 text-(--text) p-1.5 rounded-lg transition-colors flex items-center justify-center"
                 title="Copier le lien"
               >
                 <i class="bi bi-copy"></i>

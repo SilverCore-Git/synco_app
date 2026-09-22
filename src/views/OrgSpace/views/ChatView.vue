@@ -16,7 +16,7 @@
                     :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`" 
                     :alt="$p(recipient.name)"
                     @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`"
-                    class="w-9 h-9 rounded-full border border-white/10"
+                    class="w-9 h-9 rounded-full border border-(--text)/10"
                 />
 
                 <div class="flex flex-col">
@@ -84,9 +84,9 @@
                 
             <div v-if="recipient" class="flex flex-col justify-end min-h-full w-full">
                     
-                <div class="mb-8 p-6 border-b border-(--border-color) bg-white/1 rounded-2xl mx-4">
+                <div class="mb-8 p-6 border-b border-(--border-color) bg-(--text)/1 rounded-2xl mx-4">
                    
-                    <div class="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4 overflow-hidden border-2 border-white/10">
+                    <div class="w-20 h-20 rounded-full bg-(--text)/5 flex items-center justify-center mb-4 overflow-hidden border-2 border-(--text)/10">
                         <img 
                             :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`" 
                             class="w-full h-full object-cover" 
@@ -105,10 +105,10 @@
                     <template v-if="loading">
 
                         <div v-for="n in 10" :key="n" class="px-4 py-2 animate-pulse flex gap-3">
-                            <div class="bg-white/5 rounded-full w-9 h-9 shrink-0" />
+                            <div class="bg-(--text)/5 rounded-full w-9 h-9 shrink-0" />
                             <div class="flex-1 space-y-2">
-                                <div class="bg-white/5 w-24 h-3 rounded-full" />
-                                <div class="bg-white/5 w-3/4 h-4 rounded-lg" />
+                                <div class="bg-(--text)/5 w-24 h-3 rounded-full" />
+                                <div class="bg-(--text)/5 w-3/4 h-4 rounded-lg" />
                             </div>
                         </div>
 
@@ -146,7 +146,7 @@
             </div>
 
             <div v-else class="h-full flex flex-col items-center justify-center gap-4">
-                <div class="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center text-4xl opacity-20">
+                <div class="w-20 h-20 rounded-full bg-(--text)/5 flex items-center justify-center text-4xl opacity-20">
                     <i class="bi bi-person-x" />
                 </div>
                 <p class="text-(--text2) italic font-medium">Sélectionnez une discussion.</p>
@@ -213,7 +213,7 @@
                     <div
                         v-for="(file, index) in selectedFiles"
                         :key="index"
-                        class="relative group bg-(--bg) border border-white/10 rounded-md px-3 py-1 flex items-center gap-2 overflow-hidden max-w-full min-w-0"
+                        class="relative group bg-(--bg) border border-(--text)/10 rounded-md px-3 py-1 flex items-center gap-2 overflow-hidden max-w-full min-w-0"
                     >
                     
                         <div 
@@ -265,7 +265,7 @@
                     </span>
                 </div>
 
-                <div class="relative flex items-center bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
+                <div class="relative flex items-center bg-(--bg) border border-(--text)/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
 
                     <input
                         type="file"

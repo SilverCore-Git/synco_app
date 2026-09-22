@@ -146,7 +146,7 @@ const handleSubmit = async () => {
           type="text" 
           ref="nameInput"
           placeholder="Ex: Marketing, Dev..."
-          class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-(--primary)/50 transition-all"
+          class="w-full bg-(--text)/5 border border-(--text)/10 rounded-xl px-4 py-3 text-(--text) focus:outline-none focus:border-(--primary)/50 transition-all"
           @keyup.enter="form.name.trim() && (state = 2)"
         />
       </div>
@@ -161,9 +161,9 @@ const handleSubmit = async () => {
         <div class="flex flex-col gap-3 overflow-hidden">
           <label class="text-[10px] font-black text-(--text2) uppercase tracking-widest">Disponibles</label>
           <div class="flex-1 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
-            <div v-for="m in availableMembers" :key="m.id" class="flex items-center justify-between p-2 bg-white/5 rounded-lg group">
+            <div v-for="m in availableMembers" :key="m.id" class="flex items-center justify-between p-2 bg-(--text)/5 rounded-lg group">
               <div class="flex items-center gap-2">
-                <img :src="m.user?.avatarUrl" class="w-6 h-6 rounded-full border border-white/10" />
+                <img :src="m.user?.avatarUrl" class="w-6 h-6 rounded-full border border-(--text)/10" />
                 <span class="text-xs font-bold text-(--text) truncate w-24 sm:w-auto">{{ m.user?.name }}</span>
               </div>
               <button @click="form.members.push(m)" class="text-(--primary) text-[10px] font-black opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all">AJOUTER</button>

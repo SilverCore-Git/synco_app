@@ -9,7 +9,7 @@
         </header>
 
         <div v-if="loading" class="dash-card-body space-y-2 animate-pulse">
-            <div v-for="i in 3" :key="i" class="h-12 bg-white/5 rounded-xl"></div>
+            <div v-for="i in 3" :key="i" class="h-12 bg-(--text)/5 rounded-xl"></div>
         </div>
 
         <div v-else-if="items.length === 0" class="dash-card-empty animate-app-reveal">

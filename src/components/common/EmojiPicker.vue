@@ -1,6 +1,6 @@
 <template>
   <div 
-    class=" w-72 sm:w-80 h-96 bg-(--bg) border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden font-['Outfit',sans-serif] text-white select-none relative z-50"
+    class=" w-72 sm:w-80 h-96 bg-(--bg) border border-(--text)/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden font-['Outfit',sans-serif] text-(--text) select-none relative z-50"
     @click.stop
     style="background-color: var(--bg);"
   >
@@ -10,12 +10,12 @@
         v-model="searchQuery"
         type="text" 
         placeholder="Rechercher un emoji..." 
-        class="w-full bg-transparent border-none text-sm text-white/90 placeholder-white/30 focus:outline-none"
+        class="w-full bg-transparent border-none text-sm text-(--text)/90 placeholder-(--text)/30 focus:outline-none"
       />
       <button 
         v-if="searchQuery" 
         @click="searchQuery = ''"
-        class="text-white/40 hover:text-white/70 transition-colors"
+        class="text-(--text)/40 hover:text-(--text)/70 transition-colors"
       >
         <i class="bi bi-x-circle-fill text-xs" />
       </button>
@@ -30,7 +30,7 @@
         :key="category.id"
         @click="scrollToCategory(category.id)"
         class="p-1 rounded-lg transition-colors text-xl"
-        :class="activeCategory === category.id ? 'text-[#6356e5] bg-[#6356e5]/10' : 'text-white/40 hover:text-white/80'"
+        :class="activeCategory === category.id ? 'text-[#6356e5] bg-[#6356e5]/10' : 'text-(--text)/40 hover:text-(--text)/80'"
         :title="category.name"
       >
         {{ category.icon }}
@@ -48,12 +48,12 @@
             v-for="emoji in filteredEmojis"
             :key="emoji"
             @click="selectEmoji(emoji)"
-            class="text-2xl p-1.5 rounded-xl hover:bg-white/10 transition-transform active:scale-90 duration-100"
+            class="text-2xl p-1.5 rounded-xl hover:bg-(--text)/10 transition-transform active:scale-90 duration-100"
           >
             {{ emoji }}
           </button>
         </div>
-        <div v-else class="text-center py-12 text-white/30 text-sm">
+        <div v-else class="text-center py-12 text-(--text)/30 text-sm">
           Aucun emoji trouvé 😢
         </div>
       </div>
@@ -73,7 +73,7 @@
               v-for="emoji in category.emojis"
               :key="emoji"
               @click="selectEmoji(emoji)"
-              class="text-2xl p-1.5 rounded-xl hover:bg-white/10 transition-transform active:scale-90 duration-100"
+              class="text-2xl p-1.5 rounded-xl hover:bg-(--text)/10 transition-transform active:scale-90 duration-100"
             >
               {{ emoji }}
             </button>

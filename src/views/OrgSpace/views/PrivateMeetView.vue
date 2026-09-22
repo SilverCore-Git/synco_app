@@ -12,7 +12,7 @@
 
                 <button
                     @click="showEncryptionInfo = true"
-                    class="p-2 rounded-lg hover:bg-white/5 transition-colors"
+                    class="p-2 rounded-lg hover:bg-(--text)/5 transition-colors"
                     :class="connectionType === 'relay' ? 'text-yellow-500' : 'text-green-500'"
                     :title="connectionType === 'relay' ? 'Chiffré — connexion relayée (en savoir plus)' : 'Chiffré de bout en bout, P2P (en savoir plus)'"
                 >
@@ -40,7 +40,7 @@
         <button
             v-if="!recipient && !isMeetConnecting"
             @click="leaveEmptyMeet"
-            class="absolute top-4 right-4 z-20 p-2 rounded-lg text-(--text2) hover:text-(--text) hover:bg-white/5 transition-colors"
+            class="absolute top-4 right-4 z-20 p-2 rounded-lg text-(--text2) hover:text-(--text) hover:bg-(--text)/5 transition-colors"
             title="Fermer"
         >
             <i class="bi bi-x-lg text-lg" />
@@ -75,7 +75,7 @@
                     <div
                         v-for="(msg, index) in messages"
                         :key="index"
-                        class="group px-4 py-1.5 flex flex-raw justify-start items-start gap-3 hover:bg-white/2 rounded-lg transition-colors"
+                        class="group px-4 py-1.5 flex flex-raw justify-start items-start gap-3 hover:bg-(--text)/2 rounded-lg transition-colors"
                     >
 
                         <img
@@ -156,7 +156,7 @@
             </div>
 
             <div v-else class="h-full flex flex-col items-center justify-center gap-4">
-                <div class="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center text-4xl opacity-20">
+                <div class="w-20 h-20 rounded-full bg-(--text)/5 flex items-center justify-center text-4xl opacity-20">
                     <i class="bi bi-person-x" />
                 </div>
                 <p class="text-(--text2) italic font-medium">Aucune session éphémère active avec cette personne.</p>
@@ -166,7 +166,7 @@
 
         <footer v-if="recipient" class="p-4 bg-transparent mt-auto">
 
-            <div class="relative flex items-center bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
+            <div class="relative flex items-center bg-(--bg) border border-(--text)/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
 
                 <input ref="fileInput" type="file" class="hidden" @change="(e) => handleFilePicked((e.target as HTMLInputElement).files)" />
 

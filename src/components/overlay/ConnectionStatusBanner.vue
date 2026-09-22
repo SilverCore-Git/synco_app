@@ -12,6 +12,7 @@
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue';
 import { isConnected, connectionAttempted } from '@/composables/useWSocket';
+import { isApiConnected } from '@/composables/useApiHealth';
 
 // Le simple fait d'être `!isConnected` pendant quelques centaines de ms (le
 // temps normal d'un handshake) ne mérite pas d'alerter l'utilisateur : la
@@ -25,7 +26,12 @@ const SHOW_DELAY_MS = 1500;
 // "reconnecté" (isConnected repasse à true) fait immédiatement retomber
 // isDown à false, sans dépendre de la façon dont les deux refs sources ont
 // changé l'une par rapport à l'autre.
-const isDown = computed(() => connectionAttempted.value && !isConnected.value);
+// PeerJS n'entre volontairement pas dans ce calcul : sa reconnexion est gérée
+// indépendamment par useSecurePeer.ts (peerReconnector), et une coupure d'appel
+// vidéo/audio ne justifie pas une bannière "connexion au serveur perdue".
+const isDown = computed(() =>
+    (connectionAttempted.value && !isConnected.value) || !isApiConnected.value
+);
 
 const showBanner = ref(false);
 let showTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -50,6 +56,10 @@ watch(isDown, (down) => {
 
 <style scoped>
 .connection-banner {
+    /* Masquée en CSS plutôt que dépublier le composant : la logique de
+       détection (isConnected/isApiConnected) reste active pour un futur
+       réactivation, mais l'overlay ne doit plus s'afficher pour l'instant. */
+    display: none !important;
     position: fixed;
     top: 0;
     left: 50%;

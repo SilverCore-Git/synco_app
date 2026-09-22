@@ -11,7 +11,7 @@
                     <i class="bi bi-link-45deg" />
                     URL du Webhook
                 </h3>
-                <div class="bg-(--white)/5 border border-(--white)/10 rounded-xl p-3 flex items-center justify-between">
+                <div class="bg-(--text)/5 border border-(--text)/10 rounded-xl p-3 flex items-center justify-between">
                     <code class="text-sm text-(--text2) overflow-x-auto">{{ webhook.url || webhook.urlPreview || 'URL masquée' }}</code>
                     <button 
                         @click="copyUrl"
@@ -32,7 +32,7 @@
                     <i class="bi bi-key" />
                     Secret HMAC
                 </h3>
-                <div class="bg-(--white)/5 border border-(--white)/10 rounded-xl p-3 flex items-center justify-between">
+                <div class="bg-(--text)/5 border border-(--text)/10 rounded-xl p-3 flex items-center justify-between">
                     <code class="text-sm text-(--text2) overflow-x-auto">{{ webhook.secret }}</code>
                     <button 
                         @click="copySecret"
@@ -54,7 +54,7 @@
                     Clé Publique E2EE
                 </h3>
                 <textarea 
-                    class="w-full bg-(--white)/5 border border-(--white)/10 rounded-xl p-3 text-xs font-mono text-(--text2) resize-none"
+                    class="w-full bg-(--text)/5 border border-(--text)/10 rounded-xl p-3 text-xs font-mono text-(--text2) resize-none"
                     readonly
                     :value="webhook.publicKey"
                     rows="4"
@@ -80,21 +80,21 @@
                     Statistiques d'Utilisation
                 </h3>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div class="bg-(--white)/5 border border-(--white)/10 rounded-xl p-4">
+                    <div class="bg-(--text)/5 border border-(--text)/10 rounded-xl p-4">
                         <div class="text-2xl font-bold text-(--text)">{{ webhook.usageCount }}</div>
                         <div class="text-xs text-(--text2)">Messages reçus</div>
                     </div>
-                    <div class="bg-(--white)/5 border border-(--white)/10 rounded-xl p-4">
+                    <div class="bg-(--text)/5 border border-(--text)/10 rounded-xl p-4">
                         <div class="text-2xl font-bold text-(--text)">{{ webhook.errorCount }}</div>
                         <div class="text-xs text-(--text2)">Erreurs</div>
                     </div>
-                    <div class="bg-(--white)/5 border border-(--white)/10 rounded-xl p-4">
+                    <div class="bg-(--text)/5 border border-(--text)/10 rounded-xl p-4">
                         <div class="text-xl font-bold text-(--text)" :class="webhook.isActive ? 'text-green-500' : 'text-red-500'">
                             {{ webhook.isActive ? 'Actif' : 'Inactif' }}
                         </div>
                         <div class="text-xs text-(--text2)">Statut</div>
                     </div>
-                    <div class="bg-(--white)/5 border border-(--white)/10 rounded-xl p-4">
+                    <div class="bg-(--text)/5 border border-(--text)/10 rounded-xl p-4">
                         <div class="text-lg font-bold text-(--text)">
                             {{ webhook.e2eeEnabled ? 'Oui' : 'Non' }}
                         </div>
@@ -109,7 +109,7 @@
                     <i class="bi bi-clock-history" />
                     Dernière utilisation
                 </h3>
-                <div class="bg-(--white)/5 border border-(--white)/10 rounded-xl p-3">
+                <div class="bg-(--text)/5 border border-(--text)/10 rounded-xl p-3">
                     <div class="text-sm text-(--text)">{{ formatDateTime(webhook.lastUsedAt) }}</div>
                 </div>
             </div>
@@ -120,7 +120,7 @@
                     <i class="bi bi-calendar" />
                     Créé le
                 </h3>
-                <div class="bg-(--white)/5 border border-(--white)/10 rounded-xl p-3">
+                <div class="bg-(--text)/5 border border-(--text)/10 rounded-xl p-3">
                     <div class="text-sm text-(--text)">{{ formatDateTime(webhook.createdAt) }}</div>
                 </div>
             </div>
@@ -131,12 +131,12 @@
                     <i class="bi bi-shield-check" />
                     Permissions
                 </h3>
-                <div class="bg-(--white)/5 border border-(--white)/10 rounded-xl p-4">
+                <div class="bg-(--text)/5 border border-(--text)/10 rounded-xl p-4">
                     <div class="flex flex-wrap gap-2">
                         <span 
                             v-for="permission in webhook.permissions" 
                             :key="permission"
-                            class="text-xs bg-(--white)/10 text-(--text) px-3 py-1 rounded-full"
+                            class="text-xs bg-(--text)/10 text-(--text) px-3 py-1 rounded-full"
                         >
                             {{ formatPermission(permission) }}
                         </span>
@@ -145,7 +145,7 @@
             </div>
 
             <!-- Actions -->
-            <div class="flex justify-end gap-3 pt-4 border-t border-(--white)/10">
+            <div class="flex justify-end gap-3 pt-4 border-t border-(--text)/10">
                 <button 
                     @click="$emit('test', webhook)"
                     class="default px-4 py-2 flex items-center gap-2"

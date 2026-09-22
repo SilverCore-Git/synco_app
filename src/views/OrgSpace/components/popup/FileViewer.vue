@@ -39,7 +39,7 @@
                 </button>
                 <button
                   @click="downloadFile(file.id)"
-                  class="p-2 rounded-lg hover:bg-white/5 text-(--text2) hover:text-(--text) active:scale-90 transition-all duration-200 ml-2"
+                  class="p-2 rounded-lg hover:bg-(--text)/5 text-(--text2) hover:text-(--text) active:scale-90 transition-all duration-200 ml-2"
                   title="Télécharger"
                 >
                   <i class="bi bi-download text-lg" />
@@ -55,7 +55,7 @@
 
                 <button 
                   @click="closeViewer"
-                  class="p-2 rounded-lg hover:bg-white/5 text-(--text2) hover:text-(--text) active:scale-90 transition-all duration-200 ml-2"
+                  class="p-2 rounded-lg hover:bg-(--text)/5 text-(--text2) hover:text-(--text) active:scale-90 transition-all duration-200 ml-2"
                 >
                   <i class="bi bi-x-lg text-xl" />
                 </button>

@@ -190,7 +190,7 @@
                                         <div v-else class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[10px] font-bold">
                                             {{ ($p(member.user?.name) || member.userId).substring(0, 2).toUpperCase() }}
                                         </div>
-                                        <span class="text-xs font-medium text-(--text) group-hover:text-white transition-colors">
+                                        <span class="text-xs font-medium text-(--text) group-hover:text-(--primary) transition-colors">
                                             {{ $p(member.user?.name) || member.userId }}
                                         </span>
                                     </label>

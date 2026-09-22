@@ -140,7 +140,20 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             reconnectionAttempts: Infinity,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
-            transports: ['websocket', 'polling'], // Try websocket first, fallback to polling
+            // 'websocket' en premier ne "tente puis retombe sur polling" que
+            // si tryAllTransports:true est aussi activé (vérifié dans
+            // engine.io-client : _onError ne fait shift()+réessaie sur le
+            // transport suivant que sous cette condition, jamais par défaut).
+            // Sans ce flag — absent ici avant ce fix — un réseau qui bloque
+            // purement le handshake WebSocket (proxy d'entreprise, certains
+            // réseaux publics/mobiles) fait échouer identiquement CHAQUE
+            // tentative de reconnexion, indéfiniment, même serveur up et
+            // atteignable en HTTP classique. 'polling' en premier est le
+            // comportement par défaut de socket.io (le plus éprouvé,
+            // compatible partout) — le passage à 'websocket' se fait ensuite
+            // automatiquement dès que la connexion est stable, au prix d'un
+            // aller-retour de négociation en plus au tout premier connect.
+            transports: ['polling', 'websocket'],
             withCredentials: false, // Not needed — we use token auth, not cookies
             timeout: 20000,
         });
@@ -158,25 +171,6 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             console.error("[WS] ❌ Connection Error:", err.message);
             console.error("[WS] Token present:", !!getToken());
 
-            // Cause confirmée du "ça reste bloqué sur déconnecté même après
-            // reconnexion" : quand cette erreur vient d'un paquet
-            // CONNECT_ERROR renvoyé par le serveur (ex: notre middleware
-            // io.use() a rejeté le token au moment précis de la tentative —
-            // le genre de course qu'on essaie déjà de limiter côté serveur,
-            // mais qui reste possible dans un cas limite comme un onglet
-            // resté en veille très longtemps), socket.io-client appelle en
-            // interne destroy() sur CE Socket avant même d'émettre cet
-            // événement (cf. onpacket() dans node_modules/socket.io-client/
-            // build/cjs/socket.js) — destroy() désabonne définitivement ce
-            // Socket des événements du Manager pour "éviter les
-            // reconnexions". Le Manager, lui, continue bien de rouvrir le
-            // transport en arrière-plan (reconnection:true), mais plus
-            // personne n'écoute plus ce succès pour NOTRE namespace : sans
-            // rappeler connect() nous-mêmes, la connexion reste cassée pour
-            // de bon après la moindre authentification refusée, même une
-            // fois le token corrigé. C'est la vraie raison pour laquelle
-            // isConnected ne repassait jamais à true après ce genre
-            // d'échec — pas un bug d'affichage dans la bannière.
             if (keycloak.authenticated) {
                 try {
                     await keycloak.updateToken(-1);
@@ -184,7 +178,32 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
                     console.error("[WS] Failed to force refresh token after connection error", e);
                 }
             }
-            setTimeout(() => socket.value?.connect(), 1000);
+
+            // `active` (propriété publique documentée de socket.io-client)
+            // dit si CE Socket écoute toujours les tentatives de reconnexion
+            // du Manager. Un connect_error "ordinaire" (timeout réseau,
+            // websocket temporairement injoignable) laisse active à true :
+            // reconnection:true fait déjà tout le travail tout seul, l'appel
+            // à connect() ci-dessous ferait juste doublon avec sa propre
+            // boucle de retry en cours — voire pire, la perturberait.
+            // En revanche, un connect_error causé par un paquet CONNECT_ERROR
+            // renvoyé par le serveur (ex: notre middleware io.use() a rejeté
+            // le token au moment précis de la tentative — le genre de course
+            // qu'on limite déjà côté serveur, mais qui reste possible dans un
+            // cas limite comme un onglet resté en veille très longtemps) fait
+            // passer active à false : socket.io-client appelle destroy() en
+            // interne AVANT même d'émettre cet événement (cf. onpacket() dans
+            // node_modules/socket.io-client/build/cjs/socket.js), désabonnant
+            // définitivement ce Socket du Manager "pour éviter les
+            // reconnexions". Le Manager continue bien de rouvrir le transport
+            // en arrière-plan, mais plus personne n'écoute ce succès pour
+            // notre namespace — dans CE cas précis seulement, il faut
+            // explicitement rappeler connect() nous-mêmes, sans quoi la
+            // connexion reste cassée pour de bon même une fois le token
+            // corrigé.
+            if (socket.value && !socket.value.active) {
+                setTimeout(() => socket.value?.connect(), 1000);
+            }
         });
 
         socket.value.on("disconnect", async (reason) => {

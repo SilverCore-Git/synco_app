@@ -22,7 +22,7 @@
                 resize-none w-full text-sm text-(--text) 
                 placeholder:text-(--text2)
                 py-2 pr-8 overflow-hidden
-                disabled:cursor-not-allowed disabled:text-white/40
+                disabled:cursor-not-allowed disabled:text-(--text)/40
             "
             :disabled="disabled"
             @keydown.enter="handleEnter"
