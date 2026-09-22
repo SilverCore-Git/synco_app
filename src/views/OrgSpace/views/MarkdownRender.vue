@@ -129,16 +129,18 @@ const sanitizeOptions = computed(() => props.mode === 'document' ? {
 // task/file sont affichés à part, via les vrais TaskCard.vue/FileCard.vue
 // (v-for plus bas), pas inline dans le texte — trop riches pour tenir dans
 // un flux de paragraphe. On les retire donc du markdown source avant de le
-// passer à `marked`. Quand showReferenceCards est false (aperçus compacts),
-// on les laisse en place et on pré-échappe juste leurs délimiteurs, sinon
-// `marked` (CommonMark) les prend pour des autolinks <scheme:...> (vrai pour
-// "task"/"file", pas pour "@"/"#") et les transforme en <a href="task:id">
-// avant même que renderReferences ait pu les voir.
+// passer à `marked` (uniquement quand showReferenceCards, sinon — aperçus
+// compacts — ils restent en place pour finir en chip). Puis, dans tous les
+// cas, on échappe ce qui reste (@/#/role, + task/file quand ils n'ont pas
+// été retirés) : `marked` (CommonMark) prend <scheme:...> pour un autolink
+// dès que le "scheme" fait ≥2 lettres — vrai pour "task"/"file"/"role", pas
+// pour "@"/"#" — et le transforme en <a href="task:id"> avant même que
+// renderReferences ait pu voir le token. Oublier cette 2e passe après le
+// strip est exactement le bug qui faisait ressortir <role:id> en lien brut.
 const textSourceContent = computed(() => {
   if (!props.enableReferences) return props.content;
-  return props.showReferenceCards
-    ? stripBlockReferenceTokens(props.content)
-    : escapeReferenceTokensForMarkdown(props.content);
+  const withoutBlocks = props.showReferenceCards ? stripBlockReferenceTokens(props.content) : props.content;
+  return escapeReferenceTokensForMarkdown(withoutBlocks);
 });
 
 const blockRefs = computed(() => {
