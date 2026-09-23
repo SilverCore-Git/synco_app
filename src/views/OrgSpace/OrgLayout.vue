@@ -714,7 +714,19 @@ onBeforeUnmount(async () => {
                     ]"
                     @animationend="orgContentRevealed = true"
                 >
-                    <RouterView />
+                    <!-- La Transition du panneau ci-dessus ne réagit qu'à l'ouverture/
+                         fermeture (v-show showRouterView) : elle ne joue pas quand on
+                         navigue d'une sous-page à une autre sans que le panneau se
+                         cache (ex: tâches -> tâches archivées, qui pousse une route
+                         sans toucher showView). Cette seconde Transition, gardée par
+                         le nom de route, couvre ce cas — key sur route.name plutôt
+                         que route.fullPath pour ignorer les changements de query seuls
+                         (sélection d'un item, etc.) qui ne doivent pas rejouer le slide. -->
+                    <RouterView v-slot="{ Component }">
+                        <Transition :name="isLittleScreen && orgContentRevealed ? 'mobile-page-slide' : ''">
+                            <component :is="Component" :key="route.name" />
+                        </Transition>
+                    </RouterView>
                 </div>
             </Transition>
 

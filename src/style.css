@@ -314,6 +314,28 @@ select {
   transform: translateX(0);
 }
 
+/* Navigation entre sous-pages à l'intérieur du panneau déjà ouvert (ex: tâches
+   -> tâches archivées) : contrairement au cas ci-dessus, l'ancienne et la
+   nouvelle page sont montées en même temps pendant la transition — sans
+   position absolute elles s'empileraient dans le flux et doubleraient la
+   hauteur le temps de l'animation. */
+.mobile-page-slide-enter-active,
+.mobile-page-slide-leave-active {
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  position: absolute !important;
+  inset: 0;
+}
+
+.mobile-page-slide-enter-from,
+.mobile-page-slide-leave-to {
+  transform: translateX(100%);
+}
+
+.mobile-page-slide-enter-to,
+.mobile-page-slide-leave-from {
+  transform: translateX(0);
+}
+
 
 .slide-in-right-enter-active,
 .slide-in-right-leave-active {
