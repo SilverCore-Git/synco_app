@@ -388,17 +388,17 @@ const probeServerHealth = async (): Promise<boolean> => {
   }
 };
 
-const attemptSilentReconnect = async () => {
-  if (!(await probeServerHealth())) return;
-
+// Partagée entre le polling silencieux et le clic manuel sur "Réessayer" :
+// dans les deux cas, on veut d'abord voir tourner la roue (reconnecting),
+// puis soit le check de succès (avant de repasser, en fondu, sur le loader),
+// soit — en cas d'échec — laisser le watch(bootError) ci-dessous montrer
+// que ça n'a pas marché (transition "disconnecting" -> retour à "offline").
+const runReconnectAttempt = async (silent: boolean) => {
   stopAutoRetry();
   reconnectStatus.value = 'reconnecting';
-  await bootstrap({ silent: true });
+  await bootstrap({ silent });
 
   if (bootError.value) {
-    // Retombé en panne entre la sonde et le vrai bootstrap : le watch
-    // ci-dessous réagit au flip de bootError et rejoue la transition
-    // "disconnecting" avant de relancer le polling.
     return;
   }
 
@@ -406,6 +406,16 @@ const attemptSilentReconnect = async () => {
   await new Promise((resolve) => setTimeout(resolve, RECONNECT_TRANSITION_MS));
   reconnectStatus.value = 'offline';
 };
+
+const attemptSilentReconnect = async () => {
+  if (!(await probeServerHealth())) return;
+  await runReconnectAttempt(true);
+};
+
+// Le clic manuel passe par le même va-et-vient "reconnecting -> succès/échec"
+// que le polling automatique, plutôt que de juste faire tourner le bouton
+// sans que le reste de l'écran ne bouge.
+const manualRetry = () => runReconnectAttempt(false);
 
 // Passe par un état "disconnecting" transitoire avant de s'installer dans
 // l'état "offline" stable — évite que l'écran d'erreur apparaisse d'un
@@ -521,7 +531,7 @@ onMounted(async () => {
           key="boot-error"
           :status="reconnectStatus"
           :loading="bootLoading"
-          @retry="bootstrap()"
+          @retry="manualRetry"
         />
         <div
           v-else
