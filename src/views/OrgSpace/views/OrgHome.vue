@@ -60,6 +60,6 @@ const greeting = computed(() => {
 }
 
 .dash-grid > * {
-    max-height: min(38rem, calc(100vh - 260px));
+    max-height: min(41rem, calc(100vh - 230px));
 }
 </style>
