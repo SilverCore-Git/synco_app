@@ -499,8 +499,20 @@ const saveEdit = async () => {
     }
 
     const myPubKey = user.value?.publicKey;
+    // Editing is only ever offered on your own messages (see dropdownBtns'
+    // `show` guard above), so props.msg.sender is always the current user —
+    // using it here as the "peer" key would re-wrap encryptedAesKey with our
+    // own public key instead of the recipient's, leaving them unable to
+    // decrypt the edited message (RSA-OAEP DOMException on their side).
+    const peerPubKey = props.msg.recipient?.publicKey;
 
-    const { ciphertext, encryptedAesKey, iv, selfEncryptedAesKey } = await encryptForPeer(content, props.msg.sender?.publicKey!, myPubKey);
+    if (!peerPubKey) {
+        toast.show("Clé du destinataire introuvable.", "error");
+        emit('edit-end');
+        return;
+    }
+
+    const { ciphertext, encryptedAesKey, iv, selfEncryptedAesKey } = await encryptForPeer(content, peerPubKey, myPubKey);
 
     const socket = await useWSocket();
 
