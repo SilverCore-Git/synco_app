@@ -92,6 +92,16 @@
                 </DropDown>
 
                 <button
+                    v-if="filterUserId || filterTagIds.length"
+                    type="button"
+                    @click="filterUserId = null; filterTagIds = []"
+                    class="text-[11px] font-bold text-(--text2) hover:text-(--text) flex items-center gap-1 ml-1 shrink-0"
+                >
+                    <i class="bi bi-x-circle"></i>
+                    Réinitialiser les filtres
+                </button>
+
+                <button
                     v-if="archivedCount > 0 || isDraggingTask"
                     @click="router.push({ name: 'TasksSpaceArchived', params: { orgId: route.params.orgId, spaceId: route.params.spaceId } })"
                     @dragover.prevent="dragOverArchiveBtn = true"
