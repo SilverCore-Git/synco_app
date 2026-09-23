@@ -161,6 +161,7 @@ const emit = defineEmits<{
 const { tags, loading, loadTags, createTag, updateTag, deleteTag } = useTaskTags(props.orgId);
 
 const presetColors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6', '#64748b'];
+const DEFAULT_TAG_COLOR: string = presetColors[0] ?? '#6366f1';
 
 const currentUserId = localStorage.getItem('userId') || '';
 
@@ -173,13 +174,13 @@ const filteredTags = computed(() => {
 
 const showCreateForm = ref(false);
 const newTagName = ref('');
-const newTagColor = ref(presetColors[0]);
+const newTagColor = ref(DEFAULT_TAG_COLOR);
 const creating = ref(false);
 const newTagInput = ref<HTMLInputElement | null>(null);
 
 const editingTagId = ref<string | null>(null);
 const editName = ref('');
-const editColor = ref(presetColors[0]);
+const editColor = ref(DEFAULT_TAG_COLOR);
 const savingEdit = ref(false);
 
 const confirmDeleteTag = ref<Tag | null>(null);
@@ -204,7 +205,7 @@ const handleCreateTag = async () => {
     if (!newTagName.value.trim() || creating.value) return;
     creating.value = true;
     try {
-        const tag = await createTag(newTagName.value.trim(), newTagColor.value!);
+        const tag = await createTag(newTagName.value.trim(), newTagColor.value);
         if (tag) {
             emit('update:modelValue', [...props.modelValue, tag.id]);
             newTagName.value = '';

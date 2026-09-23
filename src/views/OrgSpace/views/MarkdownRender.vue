@@ -246,6 +246,12 @@ const onClick = (event: MouseEvent) => {
     return;
   }
 
+  // Une référence de rôle (<role:id>) n'a pas de destination de navigation
+  // (pas une entité comme thread/task/file, cf. useReferenceNavigation.ts) —
+  // rien à faire au clic. Check positif (plutôt qu'exclure 'user'/'role')
+  // pour que TS narrowe chip.kind exactement à la forme attendue par l'event.
+  if (chip.kind !== 'thread' && chip.kind !== 'task' && chip.kind !== 'file') return;
+
   emit('reference-click', chip, event);
 };
 
