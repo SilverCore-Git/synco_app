@@ -24,17 +24,7 @@
                 placeholder="Nom du tag"
                 class="w-full bg-(--bg3) border border-(--border-color) rounded-lg px-3 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
             />
-            <div class="flex items-center gap-2 flex-wrap">
-                <!-- Roue chromatique + pipette (voir ColorWheelPicker.vue) pour une
-                     couleur entièrement personnalisable, en plus des préréglages. -->
-                <ColorWheelPicker v-model="newTagColor" />
-                <input
-                    v-model="newTagColor"
-                    type="text"
-                    maxlength="7"
-                    class="w-20 bg-(--bg3) border border-(--border-color) rounded-lg px-2 py-1 text-xs text-(--text) uppercase font-mono focus:outline-none focus:border-(--primary)/50"
-                    placeholder="#3b82f6"
-                />
+            <div class="flex items-center gap-1.5 flex-wrap">
                 <button
                     v-for="color in presetColors" :key="color"
                     type="button"
@@ -43,6 +33,12 @@
                     :style="{ backgroundColor: color, borderColor: newTagColor === color ? '#fff' : 'transparent' }"
                 ></button>
             </div>
+
+            <!-- Roue chromatique + pipette + code hex (voir ColorWheelPicker.vue),
+                 sur sa propre ligne : au clic sur les presets ci-dessus la couleur
+                 change tout de suite, la personnalisation complète reste repliée. -->
+            <ColorWheelPicker v-model="newTagColor" />
+
             <button
                 type="button"
                 @click="handleCreateTag"
@@ -77,15 +73,7 @@
                         placeholder="Nom du tag"
                         class="w-full bg-(--bg3) border border-(--border-color) rounded-lg px-3 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
                     />
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <ColorWheelPicker v-model="editColor" />
-                        <input
-                            v-model="editColor"
-                            type="text"
-                            maxlength="7"
-                            class="w-20 bg-(--bg3) border border-(--border-color) rounded-lg px-2 py-1 text-xs text-(--text) uppercase font-mono focus:outline-none focus:border-(--primary)/50"
-                            placeholder="#3b82f6"
-                        />
+                    <div class="flex items-center gap-1.5 flex-wrap">
                         <button
                             v-for="color in presetColors" :key="color"
                             type="button"
@@ -94,6 +82,7 @@
                             :style="{ backgroundColor: color, borderColor: editColor === color ? '#fff' : 'transparent' }"
                         ></button>
                     </div>
+                    <ColorWheelPicker v-model="editColor" />
                     <div class="flex items-center justify-end gap-2">
                         <button type="button" @click="cancelEdit" class="default !text-xs !px-3 !py-1.5">
                             Annuler

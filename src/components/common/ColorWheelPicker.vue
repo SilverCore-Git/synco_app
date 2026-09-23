@@ -10,14 +10,24 @@
        En root fragment, le panneau (w-full) est un flex-item de la même
        rangée : flex-wrap le pousse tout seul sur sa propre ligne au lieu de
        flotter, sans jamais sortir du flux normal. -->
+  <!-- Le rond montre la couleur actuelle (comme un preset), mais le badge
+       en mini-roue arc-en-ciel le distingue au premier coup d'oeil : lui
+       seul ouvre le picker complet, les ronds pleins juste à côté ne sont
+       que des raccourcis. -->
   <button
     ref="triggerRef"
     type="button"
     @click="open = !open"
-    class="w-6 h-6 rounded-full overflow-hidden shrink-0 border border-(--text)/10 shadow-inner"
-    :style="{ backgroundColor: modelValue }"
-    title="Choisir une couleur personnalisée"
-  />
+    class="flex items-center gap-1.5 pl-0.5 pr-2 py-0.5 rounded-full border transition-colors shrink-0"
+    :class="open ? 'border-(--primary)/60 bg-(--primary)/10' : 'border-(--border-color) hover:border-(--text)/20'"
+    title="Couleur personnalisée : roue chromatique, pipette, code hex"
+  >
+    <span class="relative w-5 h-5 rounded-full shrink-0 border border-(--text)/10 shadow-inner" :style="{ backgroundColor: modelValue }">
+      <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-(--bg2)" :style="miniWheelStyle" />
+    </span>
+    <span class="text-[11px] font-semibold text-(--text2)">Personnalisée</span>
+    <i class="bi bi-chevron-down text-[8px] text-(--text2) transition-transform" :class="{ 'rotate-180': open }" />
+  </button>
 
   <Transition name="wheel-pop">
     <div
@@ -71,6 +81,15 @@
         title="Luminosité"
       />
 
+      <input
+        :value="modelValue"
+        @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+        type="text"
+        maxlength="7"
+        class="w-full bg-(--bg3) border border-(--border-color) rounded-lg px-2 py-1.5 text-xs text-center text-(--text) uppercase font-mono focus:outline-none focus:border-(--primary)/50"
+        placeholder="#3b82f6"
+      />
+
     </div>
   </Transition>
 
@@ -105,13 +124,19 @@ onUnmounted(() => document.removeEventListener('mousedown', handleClickOutside))
 const WHEEL_SIZE = 160;
 const RADIUS = WHEEL_SIZE / 2;
 
+const WHEEL_GRADIENT =
+  'radial-gradient(circle, #fff 0%, rgba(255,255,255,0) 100%), ' +
+  'conic-gradient(red 0deg, yellow 60deg, lime 120deg, cyan 180deg, blue 240deg, magenta 300deg, red 360deg)';
+
 const wheelStyle = {
   width: `${WHEEL_SIZE}px`,
   height: `${WHEEL_SIZE}px`,
-  background:
-    'radial-gradient(circle, #fff 0%, rgba(255,255,255,0) 100%), ' +
-    'conic-gradient(red 0deg, yellow 60deg, lime 120deg, cyan 180deg, blue 240deg, magenta 300deg, red 360deg)',
+  background: WHEEL_GRADIENT,
 };
+
+// Badge miniature (même dégradé que la roue) sur le rond de couleur du
+// bouton déclencheur — signale "picker complet" plutôt qu'un simple preset.
+const miniWheelStyle = { background: WHEEL_GRADIENT };
 
 const hsl = ref<Hsl>(hexToHsl(props.modelValue || '#16ac77'));
 const currentHex = computed(() => hslToHex(hsl.value));
