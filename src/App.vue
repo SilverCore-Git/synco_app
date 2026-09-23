@@ -568,34 +568,34 @@ onMounted(async () => {
             <SpinLoader />
           </div>
 
-          <div v-else key="pin-form" class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none animate-app-reveal">
+          <div v-else key="pin-form" class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none">
 
             <div class="mb-8 text-center max-w-lg">
 
-              <div class="flex flex-col items-center gap-4 mb-3">
+              <div class="flex flex-col items-center gap-4 mb-3 pin-step pin-step-0">
 
                 <img :src="theme === 'light' ? '/assets/logo/synco/light_banner_synco.svg' : '/banner.svg'" alt="Logo" class=" h-16" />
 
               </div>
 
-              <h2 class="text-xl font-bold text-(--text)">
+              <h2 class="text-xl font-bold text-(--text) pin-step pin-step-1">
                 {{ isResettingPIN ? 'Définissez un nouveau code PIN' : pinSetup ? 'Déverrouillez votre session' :
                   'Configurez votre accès sécurisé' }}
               </h2>
 
-              <p v-if="!pinSetup || isResettingPIN" class="text-sm text-(--text2) mt-2 leading-relaxed">
+              <p v-if="!pinSetup || isResettingPIN" class="text-sm text-(--text2) mt-2 leading-relaxed pin-step pin-step-2">
                 Ce code PIN est la clé de vos conversations. <br />
                 <span class="text-amber-500/80 font-medium">S'il est perdu, elles resteront illisibles.</span>
                 <br />
                 <span class="text-(--text2)">Code à 4 chiffres.</span>
               </p>
-              <p v-if="isResettingPIN" class="text-sm text-amber-500/80 mt-2 font-medium">
+              <p v-if="isResettingPIN" class="text-sm text-amber-500/80 mt-2 font-medium pin-step pin-step-2">
                 Attention : vos anciens messages deviendront indéchiffrables.
               </p>
 
             </div>
 
-            <div v-if="pinMaxLength === 4" class="flex gap-4 mb-10 transition-transform duration-300">
+            <div v-if="pinMaxLength === 4" class="flex gap-4 mb-10 transition-transform duration-300 pin-step pin-step-3">
 
               <div v-for="i in 4" :key="i"
                 class="w-14 h-18 border-2 rounded-2xl flex items-center justify-center text-2xl transition-all duration-150"
@@ -610,7 +610,7 @@ onMounted(async () => {
 
             </div>
 
-            <div v-else class="flex flex-wrap justify-center gap-2 mb-10 max-w-xs">
+            <div v-else class="flex flex-wrap justify-center gap-2 mb-10 max-w-xs pin-step pin-step-3">
 
               <div v-for="i in MAX_PIN_LENGTH" :key="i"
                 class="w-6 h-8 border-b-2 flex items-center justify-center text-xl transition-all duration-150"
@@ -624,12 +624,12 @@ onMounted(async () => {
 
             </div>
 
-            <div v-if="lockoutCountdown > 0" class="text-center mb-10">
+            <div v-if="lockoutCountdown > 0" class="text-center mb-10 pin-step pin-step-4">
               <p class="text-amber-500 font-medium">Trop de tentatives incorrectes.</p>
               <p class="text-(--text2) text-sm mt-1">Réessayez dans {{ formatDuration(lockoutCountdown) }}</p>
             </div>
 
-            <div v-else class="grid grid-cols-3 gap-4 max-w-xs w-full">
+            <div v-else class="grid grid-cols-3 gap-4 max-w-xs w-full pin-step pin-step-4">
 
               <button v-for="num in [1, 2, 3, 4, 5, 6, 7, 8, 9]" :key="num" @click="press(num.toString())"
                 class="h-16 default-primary border-none">
@@ -651,7 +651,7 @@ onMounted(async () => {
             </div>
 
             <button v-if="pinSetup && !isResettingPIN" @click="pinForgot"
-              class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text2) hover:text-(--primary) transition-colors">
+              class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text2) hover:text-(--primary) transition-colors pin-step pin-step-5">
               Code PIN oublié ?
             </button>
 
@@ -684,6 +684,26 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+
+/* Écran PIN : au lieu d'un seul bloc qui apparaît d'un coup, chaque groupe
+   (logo, titre, texte, pastilles, clavier, lien "oublié") entre en cascade
+   — réutilise le keyframe app-reveal-in (global, style.css) avec un délai
+   croissant par étape plutôt qu'une nouvelle animation par groupe. */
+.pin-step {
+  animation: app-reveal-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.pin-step-0 { animation-delay: 0ms; }
+.pin-step-1 { animation-delay: 90ms; }
+.pin-step-2 { animation-delay: 150ms; }
+.pin-step-3 { animation-delay: 220ms; }
+.pin-step-4 { animation-delay: 300ms; }
+.pin-step-5 { animation-delay: 380ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pin-step {
+    animation: none;
+  }
+}
 
 .boot-fade-enter-active,
 .boot-fade-leave-active {
