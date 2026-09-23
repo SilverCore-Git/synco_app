@@ -296,6 +296,25 @@ select {
   transform: translateX(0);
 }
 
+/* Panneau plein écran mobile (OrgLayout "org-content") : contrairement aux
+   variantes ci-dessus, cet élément est déjà en position fixed/pleine largeur
+   — un simple translateX suffit, pas besoin de jouer sur la largeur. */
+.mobile-view-slide-enter-active,
+.mobile-view-slide-leave-active {
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.mobile-view-slide-enter-from,
+.mobile-view-slide-leave-to {
+  transform: translateX(100%);
+}
+
+.mobile-view-slide-enter-to,
+.mobile-view-slide-leave-from {
+  transform: translateX(0);
+}
+
+
 .slide-in-right-enter-active,
 .slide-in-right-leave-active {
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);

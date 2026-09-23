@@ -702,20 +702,21 @@ onBeforeUnmount(async () => {
             >
                 <SpinLoader />
             </div>
-            <div
-                v-else
-                key="org-content"
-                v-show="showRouterView"
-                class="overflow-hidden bg-(--bg3)"
-                :class="[
-                    isDesktopApp() ? 'border-t border-(--text)/10' : '',
-                    isLittleScreen ? 'fixed top-0 right-0 h-full w-full z-50 bg-(--bg) shadow-lg' : 'relative flex-1 h-full min-w-0',
-                    orgContentRevealed ? '' : 'animate-app-reveal'
-                ]"
-                @animationend="orgContentRevealed = true"
-            >
-                <RouterView />
-            </div>
+            <Transition v-else :name="isLittleScreen && orgContentRevealed ? 'mobile-view-slide' : ''">
+                <div
+                    key="org-content"
+                    v-show="showRouterView"
+                    class="overflow-hidden bg-(--bg3)"
+                    :class="[
+                        isDesktopApp() ? 'border-t border-(--text)/10' : '',
+                        isLittleScreen ? 'fixed top-0 right-0 h-full w-full z-50 bg-(--bg) shadow-lg' : 'relative flex-1 h-full min-w-0',
+                        orgContentRevealed ? '' : 'animate-app-reveal'
+                    ]"
+                    @animationend="orgContentRevealed = true"
+                >
+                    <RouterView />
+                </div>
+            </Transition>
 
             <Transition name="fade">
                 <div 
