@@ -8,7 +8,7 @@
     leave-to-class="transform scale-95 opacity-0"
   >
     <div v-if="show" class="fixed inset-0 z-[100] flex items-start justify-center pt-[10vh] bg-black/60 backdrop-blur-md p-4" @click="emit('close')">
-      <div class="bg-(--bg) rounded-2xl border border-white/10 shadow-2xl max-w-2xl w-full flex flex-col overflow-hidden" @click.stop>
+      <div class="bg-(--bg) rounded-2xl border border-(--text)/10 shadow-2xl max-w-2xl w-full flex flex-col overflow-hidden" @click.stop>
         
         <div class="flex items-center px-4 py-3 border-b border-(--border-color)">
             <i class="bi bi-search text-xl text-(--primary) mr-3" />
@@ -30,28 +30,28 @@
             <button 
                 @click="toggleFilter('FILE')"
                 class="px-3 py-1 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5"
-                :class="activeFilters['FILE'] ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-white/5 text-white/40 hover:bg-white/10 border border-transparent'"
+                :class="activeFilters['FILE'] ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-(--text)/5 text-(--text)/40 hover:bg-(--text)/10 border border-transparent'"
             >
                 <i class="bi bi-file-earmark-text"></i> Fichiers
             </button>
             <button 
                 @click="toggleFilter('TODO')"
                 class="px-3 py-1 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5"
-                :class="activeFilters['TODO'] ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'bg-white/5 text-white/40 hover:bg-white/10 border border-transparent'"
+                :class="activeFilters['TODO'] ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'bg-(--text)/5 text-(--text)/40 hover:bg-(--text)/10 border border-transparent'"
             >
                 <i class="bi bi-check2-square"></i> Tâches
             </button>
             <button 
                 @click="toggleFilter('MESSAGE')"
                 class="px-3 py-1 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5"
-                :class="activeFilters['MESSAGE'] ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-white/5 text-white/40 hover:bg-white/10 border border-transparent'"
+                :class="activeFilters['MESSAGE'] ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-(--text)/5 text-(--text)/40 hover:bg-(--text)/10 border border-transparent'"
             >
                 <i class="bi bi-chat-dots"></i> Messages
             </button>
             <button 
                 @click="toggleFilter('THREAD')"
                 class="px-3 py-1 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5"
-                :class="activeFilters['THREAD'] ? 'bg-(--primary)/20 text-(--primary) border border-(--primary)/30' : 'bg-white/5 text-white/40 hover:bg-white/10 border border-transparent'"
+                :class="activeFilters['THREAD'] ? 'bg-(--primary)/20 text-(--primary) border border-(--primary)/30' : 'bg-(--text)/5 text-(--text)/40 hover:bg-(--text)/10 border border-transparent'"
             >
                 <i class="bi bi-hash"></i> Salons
             </button>

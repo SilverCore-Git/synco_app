@@ -62,7 +62,7 @@ import { watch, toRaw } from 'vue';
 // Dans Tâches/Fichiers, la barre des membres se masque par défaut, sans
 // toucher à la préférence enregistrée : on la restaure dès qu'on revient
 // sur un salon ou toute autre page (ex: ThreadLayout, OrgAI, Settings).
-const USERSBAR_AUTOHIDE_ROUTES = new Set(['TasksSpace', 'TasksGlobal', 'SpaceFiles', 'AgendaGlobal']);
+const USERSBAR_AUTOHIDE_ROUTES = new Set(['TasksSpace', 'TasksGlobal', 'TasksSpaceArchived', 'TasksGlobalArchived', 'SpaceFiles', 'AgendaGlobal']);
 
 watch(() => route.name, (name) => {
     setUsersBarHiddenByRoute(USERSBAR_AUTOHIDE_ROUTES.has(name as string));
@@ -686,7 +686,7 @@ onBeforeUnmount(async () => {
 
             <SpaceBar class="h-full" />
             <ThreadsBar
-                v-if="route.name !== 'TasksGlobal' && route.name !== 'AgendaGlobal' && route.name !== 'OrgHome'"
+                v-if="route.name !== 'TasksGlobal' && route.name !== 'TasksGlobalArchived' && route.name !== 'AgendaGlobal' && route.name !== 'OrgHome'"
                 class="h-full " 
                 :class="[
                     isDesktopApp() ? 'rounded-tl-2xl' : '',
@@ -698,24 +698,37 @@ onBeforeUnmount(async () => {
                 v-if="!orgReady"
                 key="org-loading"
                 class="flex-1 h-full min-w-0 flex items-center justify-center bg-(--bg3) animate-app-reveal"
-                :class="isDesktopApp() ? 'border-t border-white/10' : ''"
+                :class="isDesktopApp() ? 'border-t border-(--text)/10' : ''"
             >
                 <SpinLoader />
             </div>
-            <div
-                v-else
-                key="org-content"
-                v-show="showRouterView"
-                class="overflow-hidden bg-(--bg3)"
-                :class="[
-                    isDesktopApp() ? 'border-t border-white/10' : '',
-                    isLittleScreen ? 'fixed top-0 right-0 h-full w-full z-50 bg-(--bg) shadow-lg' : 'relative flex-1 h-full min-w-0',
-                    orgContentRevealed ? '' : 'animate-app-reveal'
-                ]"
-                @animationend="orgContentRevealed = true"
-            >
-                <RouterView />
-            </div>
+            <Transition v-else :name="isLittleScreen && orgContentRevealed ? 'mobile-view-slide' : ''">
+                <div
+                    key="org-content"
+                    v-show="showRouterView"
+                    class="overflow-hidden bg-(--bg3)"
+                    :class="[
+                        isDesktopApp() ? 'border-t border-(--text)/10' : '',
+                        isLittleScreen ? 'fixed top-0 right-0 h-full w-full z-50 bg-(--bg) shadow-lg' : 'relative flex-1 h-full min-w-0',
+                        orgContentRevealed ? '' : 'animate-app-reveal'
+                    ]"
+                    @animationend="orgContentRevealed = true"
+                >
+                    <!-- La Transition du panneau ci-dessus ne réagit qu'à l'ouverture/
+                         fermeture (v-show showRouterView) : elle ne joue pas quand on
+                         navigue d'une sous-page à une autre sans que le panneau se
+                         cache (ex: tâches -> tâches archivées, qui pousse une route
+                         sans toucher showView). Cette seconde Transition, gardée par
+                         le nom de route, couvre ce cas — key sur route.name plutôt
+                         que route.fullPath pour ignorer les changements de query seuls
+                         (sélection d'un item, etc.) qui ne doivent pas rejouer le slide. -->
+                    <RouterView v-slot="{ Component }">
+                        <Transition :name="isLittleScreen && orgContentRevealed ? 'mobile-page-slide' : ''">
+                            <component :is="Component" :key="route.name" />
+                        </Transition>
+                    </RouterView>
+                </div>
+            </Transition>
 
             <Transition name="fade">
                 <div 

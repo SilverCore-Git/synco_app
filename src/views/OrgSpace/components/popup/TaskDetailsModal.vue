@@ -16,7 +16,7 @@
         <div v-if="task" class="space-y-6 w-full max-w-full sm:w-[500px]">
             <!-- Header : chaque champ se modifie en cliquant directement dessus -->
             <div>
-                <h3 v-if="!isEditingTitle" @click="startEditTitle" class="text-xl font-bold text-(--text) mb-2 break-words cursor-text rounded-lg px-2 -mx-2 py-0.5 hover:bg-white/5 transition-colors" title="Cliquer pour modifier">{{ editForm.title }}</h3>
+                <h3 v-if="!isEditingTitle" @click="startEditTitle" class="text-xl font-bold text-(--text) mb-2 break-words cursor-text rounded-lg px-2 -mx-2 py-0.5 hover:bg-(--text)/5 transition-colors" title="Cliquer pour modifier">{{ editForm.title }}</h3>
                 <input
                     v-else
                     ref="titleInputEl"
@@ -25,7 +25,7 @@
                     @blur="commitEditTitle"
                     @keydown.enter="commitEditTitle"
                     @keydown.escape="cancelEditTitle"
-                    class="w-full bg-black/40 border border-(--primary)/50 rounded-lg px-3 py-2 text-white mb-2 font-bold focus:outline-none"
+                    class="w-full bg-(--surface-sunken) border border-(--primary)/50 rounded-lg px-3 py-2 text-(--text) mb-2 font-bold focus:outline-none"
                 />
 
                 <p class="text-xs font-bold uppercase tracking-wide mb-3" :class="statusInfo.color">
@@ -39,7 +39,7 @@
                     </span>
                     <span v-if="task?.creator" class="flex items-center gap-1.5 whitespace-nowrap">
                         <span class="text-(--text2)">Créée par</span>
-                        <button @click.stop="(e) => task?.creator && openProfile(task.creator, e)" class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold transition-all shadow-sm" :title="'Profil de ' + $p(task.creator.name)">
+                        <button @click.stop="(e) => task?.creator && openProfile(task.creator, e)" class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-(--text)/5 hover:bg-(--text)/10 border border-(--text)/10 text-(--text) font-bold transition-all shadow-sm" :title="'Profil de ' + $p(task.creator.name)">
                             <img v-if="task.creator.avatarUrl" :src="task.creator.avatarUrl" class="w-4 h-4 rounded-full object-cover border border-black/20">
                             <div v-else class="w-4 h-4 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[8px] font-black border border-black/20">
                                 {{ $p(task.creator.name).substring(0, 2).toUpperCase() }}
@@ -51,7 +51,7 @@
                         type="button"
                         @click="toggleSection('assignees')"
                         class="flex items-center gap-2 break-words rounded-md px-1.5 py-1 -mx-1.5 transition-colors"
-                        :class="activeSection === 'assignees' ? 'bg-(--primary)/15 text-(--primary)' : 'hover:bg-white/5'"
+                        :class="activeSection === 'assignees' ? 'bg-(--primary)/15 text-(--primary)' : 'hover:bg-(--text)/5'"
                         title="Cliquer pour modifier les assignés"
                     >
                         <i class="bi bi-people-fill" :class="activeSection === 'assignees' ? 'text-(--primary)' : 'text-(--primary)/80'"></i>
@@ -63,7 +63,7 @@
                                     {{ $p(assignee.name).substring(0, 2).toUpperCase() }}
                                 </div>
                             </template>
-                            <div v-if="task.assignees.length > 5" class="w-5 h-5 rounded-full bg-white/10 text-white flex items-center justify-center text-[8px] font-black border border-(--bg2) z-10">
+                            <div v-if="task.assignees.length > 5" class="w-5 h-5 rounded-full bg-(--text)/10 text-(--text) flex items-center justify-center text-[8px] font-black border border-(--bg2) z-10">
                                 +{{ task.assignees.length - 5 }}
                             </div>
                         </div>
@@ -72,7 +72,7 @@
                         type="button"
                         @click="toggleSection('date')"
                         class="flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-1 -mx-1.5 transition-colors"
-                        :class="activeSection === 'date' ? 'bg-(--primary)/15 text-(--primary)' : (editForm.dueDate ? 'text-(--primary) hover:bg-white/5' : 'hover:bg-white/5')"
+                        :class="activeSection === 'date' ? 'bg-(--primary)/15 text-(--primary)' : (editForm.dueDate ? 'text-(--primary) hover:bg-(--text)/5' : 'hover:bg-(--text)/5')"
                         title="Cliquer pour modifier l'échéance"
                     >
                         <i class="bi bi-calendar-event"></i>
@@ -83,7 +83,7 @@
                         type="button"
                         @click="toggleSection('linkedFiles')"
                         class="flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-1 -mx-1.5 transition-colors"
-                        :class="activeSection === 'linkedFiles' ? 'bg-(--primary)/15 text-(--primary)' : 'hover:bg-white/5'"
+                        :class="activeSection === 'linkedFiles' ? 'bg-(--primary)/15 text-(--primary)' : 'hover:bg-(--text)/5'"
                         title="Cliquer pour lier/voir des fichiers"
                     >
                         <i class="bi bi-link-45deg"></i>
@@ -91,7 +91,7 @@
                     </button>
                 </div>
 
-                <button type="button" @click="toggleSection('tags')" class="flex flex-wrap items-center gap-1.5 mt-3 rounded-lg -mx-1.5 px-1.5 py-1 transition-colors" :class="activeSection === 'tags' ? 'bg-(--primary)/10' : 'hover:bg-white/5'" title="Cliquer pour modifier les tags">
+                <button type="button" @click="toggleSection('tags')" class="flex flex-wrap items-center gap-1.5 mt-3 rounded-lg -mx-1.5 px-1.5 py-1 transition-colors" :class="activeSection === 'tags' ? 'bg-(--primary)/10' : 'hover:bg-(--text)/5'" title="Cliquer pour modifier les tags">
                     <span
                         v-for="tag in task.tags" :key="tag.id"
                         class="px-2.5 py-1 rounded-full text-[10px] font-bold border"
@@ -107,30 +107,39 @@
             </div>
 
             <!-- Description -->
-            <div class="bg-white/5 rounded-xl p-4 border border-white/10">
+            <div class="bg-(--text)/5 rounded-xl p-4 border border-(--text)/10">
                 <h4 class="text-xs font-bold text-(--text2) uppercase mb-2">Description</h4>
-                <p
+                <div
                     v-if="!isEditingDescription"
                     @click="startEditDescription"
-                    class="text-sm whitespace-pre-wrap cursor-text rounded-lg -mx-2 px-2 py-1 hover:bg-white/5 transition-colors"
+                    class="text-sm cursor-text rounded-lg -mx-2 px-2 py-1 hover:bg-white/5 transition-colors"
                     :class="editForm.description ? 'text-white/80' : 'text-(--text2) italic'"
                     title="Cliquer pour modifier"
-                >{{ editForm.description || 'Aucune description fournie. Cliquez pour en ajouter une.' }}</p>
-                <textarea
+                >
+                    <MarkdownRender
+                        v-if="editForm.description"
+                        :content="editForm.description"
+                        mode="chat"
+                        @user-click="(u, e) => { e.stopPropagation(); openProfile(u, e); }"
+                        @reference-click="(ref, e) => { e.stopPropagation(); navigateToReference(router, ref); }"
+                    />
+                    <template v-else>Aucune description fournie. Cliquez pour en ajouter une.</template>
+                </div>
+                <ThreadTextarea
                     v-else
                     ref="descriptionInputEl"
                     v-model="editForm.description"
-                    @blur="isEditingDescription = false"
+                    :submit-on-enter="false"
+                    @focusout="isEditingDescription = false"
                     @keydown.escape="cancelEditDescription"
                     @paste="handlePaste"
                     @dragenter.prevent="onAttachmentsDragEnter"
                     @dragover.prevent
                     @dragleave.prevent="onAttachmentsDragLeave"
                     @drop.prevent="onAttachmentsDrop"
-                    rows="3"
-                    class="w-full bg-black/40 border border-(--primary)/50 rounded-lg px-3 py-2 text-white/80 placeholder:opacity-60 resize-none focus:outline-none"
                     placeholder="Plus de détails..."
-                ></textarea>
+                    class="w-full bg-black/40 border border-(--primary)/50 rounded-lg px-3 text-white/80 placeholder:opacity-60"
+                />
 
                 <!-- Barre d'images : toute la zone est cliquable ; Ctrl+V et glisser-déposer marchent aussi ici -->
                 <div
@@ -175,20 +184,20 @@
 
             <!-- Volet d'édition : ouvert en cliquant sur le champ correspondant dans l'en-tête ci-dessus -->
             <div v-if="activeSection">
-                <div class="bg-white/5 rounded-xl p-4 border border-white/10">
+                <div class="bg-(--text)/5 rounded-xl p-4 border border-(--text)/10">
 
                     <template v-if="activeSection === 'date'">
                         <div class="flex gap-2">
                             <input
                                 v-model="editForm.dueDate"
                                 type="date"
-                                class="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-(--primary)/50"
+                                class="w-full bg-(--surface-sunken) border border-(--text)/20 rounded-lg px-3 py-2 text-sm text-(--text) focus:outline-none focus:border-(--primary)/50"
                                 :disabled="loading"
                             />
                             <input
                                 v-model="editForm.dueTime"
                                 type="time"
-                                class="w-28 bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-(--primary)/50"
+                                class="w-28 bg-(--surface-sunken) border border-(--text)/20 rounded-lg px-3 py-2 text-sm text-(--text) focus:outline-none focus:border-(--primary)/50"
                                 :disabled="loading"
                             />
                             <button v-if="editForm.dueDate" type="button" @click="editForm.dueDate = ''; editForm.dueTime = ''" class="text-(--text2) hover:text-red-500 transition-colors px-2" title="Retirer l'échéance">
@@ -203,7 +212,7 @@
                             <input
                                 v-model="searchAssignee"
                                 placeholder="Rechercher une personne..."
-                                class="w-full bg-black/40 border border-white/20 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
+                                class="w-full bg-(--surface-sunken) border border-(--text)/20 rounded-xl pl-9 pr-4 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
                                 :disabled="loading"
                             />
                         </div>
@@ -213,7 +222,7 @@
                                     type="checkbox"
                                     :value="member.userId"
                                     v-model="editForm.assigneeIds"
-                                    class="w-4 h-4 rounded bg-black/20 border-white/20 text-(--primary) focus:ring-(--primary) focus:ring-offset-0"
+                                    class="w-4 h-4 rounded bg-(--surface-sunken) border-(--text)/20 text-(--primary) focus:ring-(--primary) focus:ring-offset-0"
                                     :disabled="loading"
                                 />
                                 <div class="flex items-center gap-2">
@@ -221,7 +230,7 @@
                                     <div v-else class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[10px] font-bold">
                                         {{ ($p(member.user?.name) || member.userId).substring(0, 2).toUpperCase() }}
                                     </div>
-                                    <span class="text-sm font-medium text-(--text) group-hover:text-white transition-colors">
+                                    <span class="text-sm font-medium text-(--text) group-hover:text-(--primary) transition-colors">
                                         {{ $p(member.user?.name) || member.userId }}
                                     </span>
                                 </div>
@@ -280,11 +289,11 @@
 
             <!-- Subtasks -->
             <div class="space-y-3">
-                <div class="flex items-center justify-between border-b border-white/10 pb-2">
+                <div class="flex items-center justify-between border-b border-(--text)/10 pb-2">
                     <h4 class="text-sm font-bold text-(--text) flex items-center gap-2">
                         <i class="bi bi-list-nested text-(--primary)"></i>
                         Sous-tâches
-                        <span class="bg-white/10 text-xs px-2 py-0.5 rounded-full font-normal">
+                        <span class="bg-(--text)/10 text-xs px-2 py-0.5 rounded-full font-normal">
                             {{ task.subtasks?.length || 0 }}
                         </span>
                     </h4>
@@ -305,13 +314,13 @@
                 <div class="space-y-2 max-h-[200px] overflow-y-auto pr-2">
                     <div v-for="subtask in task.subtasks" :key="subtask.id" 
                          @click="emit('open-task', subtask)"
-                         class="bg-black/20 border border-(--border-color) rounded-xl p-3 flex flex-col gap-2 group cursor-pointer hover:border-(--primary)/50 transition-colors">
+                         class="bg-(--surface-sunken) border border-(--border-color) rounded-xl p-3 flex flex-col gap-2 group cursor-pointer hover:border-(--primary)/50 transition-colors">
                         <div class="flex items-start justify-between">
                             <div class="flex items-center gap-3">
                                 <button @click.stop="toggleSubtaskStatus(subtask)" class="text-xl transition-colors mt-0.5" :class="subtask.status === 'DONE' ? 'text-green-500' : 'text-(--text2) hover:text-(--primary)'">
                                     <i class="bi" :class="subtask.status === 'DONE' ? 'bi-check-circle-fill' : 'bi-circle'"></i>
                                 </button>
-                                <span class="text-sm font-bold" :class="subtask.status === 'DONE' ? 'text-(--text2) line-through' : 'text-white'">{{ subtask.title }}</span>
+                                <span class="text-sm font-bold" :class="subtask.status === 'DONE' ? 'text-(--text2) line-through' : 'text-(--text)'">{{ subtask.title }}</span>
                             </div>
                             <button @click.stop="deleteSubtask(subtask.id)" class="text-red-500/50 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <i class="bi bi-trash-fill"></i>
@@ -352,7 +361,7 @@
                         Supprimer la tâche
                     </button>
                 </div>
-                <button @click="closeModal" class="default bg-white/10 text-white hover:bg-white/20">
+                <button @click="closeModal" class="default bg-(--text)/10 text-(--text) hover:bg-(--text)/20">
                     Fermer
                 </button>
             </div>
@@ -393,9 +402,11 @@ import CreateTaskModal from './CreateTaskModal.vue';
 import TaskTagPicker from './TaskTagPicker.vue';
 import FileViewer from './FileViewer.vue';
 import FilePickerModal from './FilePickerModal.vue';
+import ThreadTextarea from '../common/ThreadTextarea.vue';
+import MarkdownRender from '../../views/MarkdownRender.vue';
 import type { Task, OrgMember, TaskAttachment, TaskLinkedFile, StoredFile } from '@/types/types';
 import sfetch from '@/assets/utils/sfetch';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useToast } from '@/composables/useToast';
 import confetti from 'canvas-confetti';
 import { openedOrg } from '@/assets/var';
@@ -403,6 +414,8 @@ import { openProfile } from '@/composables/useProfile';
 import uploadFile from '@/assets/uploadFile';
 import { getFilePreviewUrl } from '@/assets/utils/downloadFile';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
+import { extractReferenceTokens } from '@/composables/useReferences';
+import { navigateToReference } from '@/composables/useReferenceNavigation';
 
 const props = defineProps<{
     task: Task | null;
@@ -412,6 +425,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['close', 'update', 'delete', 'open-task']);
 const route = useRoute();
+const router = useRouter();
 const toast = useToast();
 
 const loading = ref(false);
@@ -420,7 +434,7 @@ const loading = ref(false);
 const isEditingTitle = ref(false);
 const isEditingDescription = ref(false);
 const titleInputEl = ref<HTMLInputElement | null>(null);
-const descriptionInputEl = ref<HTMLTextAreaElement | null>(null);
+const descriptionInputEl = ref<InstanceType<typeof ThreadTextarea> | null>(null);
 
 const startEditTitle = () => {
     isEditingTitle.value = true;
@@ -441,7 +455,7 @@ const cancelEditTitle = () => {
 
 const startEditDescription = () => {
     isEditingDescription.value = true;
-    nextTick(() => descriptionInputEl.value?.focus());
+    nextTick(() => descriptionInputEl.value?.textarea?.focus());
 };
 
 const cancelEditDescription = () => {
@@ -801,7 +815,8 @@ const performAutosave = async () => {
                 description: editForm.description,
                 dueDate,
                 assigneeIds: editForm.assigneeIds,
-                tagIds: editForm.tagIds
+                tagIds: editForm.tagIds,
+                references: extractReferenceTokens(editForm.description)
             })
         });
         if (res.ok) {

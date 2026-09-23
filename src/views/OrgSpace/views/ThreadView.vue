@@ -14,7 +14,7 @@
 
             <div class="mb-8 p-4">
 
-                <div class="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4">
+                <div class="w-16 h-16 rounded-2xl bg-(--text)/5 flex items-center justify-center mb-4">
                     <i class="bi bi-hash text-4xl text-(--text2)" />
                 </div>
 
@@ -40,11 +40,11 @@
                         class="flex gap-3 px-4 py-1 animate-pulse"
                     >
 
-                        <div class="bg-white/5 rounded-full w-9 h-9 shrink-0" />
+                        <div class="bg-(--text)/5 rounded-full w-9 h-9 shrink-0" />
 
                         <div class="space-y-2 flex-1">
-                            <div class="bg-white/5 w-24 h-3 rounded" />
-                            <div class="bg-white/5 w-full h-4 rounded" />
+                            <div class="bg-(--text)/5 w-24 h-3 rounded" />
+                            <div class="bg-(--text)/5 w-full h-4 rounded" />
                         </div>
 
                     </div>
@@ -90,7 +90,7 @@
                 -m-4 translate-y-8 overflow-hidden
             "
         >
-            <div class="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4 border border-(--primary)/10">
+            <div class="w-16 h-16 rounded-2xl bg-(--text)/5 flex items-center justify-center mb-4 border border-(--primary)/10">
                 <i class="bi bi-hash text-4xl text-(--text2)" />
             </div>
             <p class="text-(--text) italic font-medium">Thread introuvable ou accès refusé.</p>
@@ -140,7 +140,7 @@
                 <div
                     v-for="(file, index) in selectedFiles"
                     :key="index"
-                    class="relative group bg-(--bg) border border-white/10 rounded-md px-3 py-1 flex items-center gap-2 overflow-hidden max-w-full min-w-0"
+                    class="relative group bg-(--bg) border border-(--text)/10 rounded-md px-3 py-1 flex items-center gap-2 overflow-hidden max-w-full min-w-0"
                 >
                 
                     <div 
@@ -193,7 +193,7 @@
                 </span>
             </div>
 
-            <div class="relative flex items-center bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
+            <div class="relative flex items-center bg-(--bg) border border-(--text)/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
                 
                 <input 
                     type="file" 
@@ -255,7 +255,7 @@
     </footer>
 
     <div v-else-if="thread && !canSpeak" class="absolute bottom-0 inset-x-0 p-4 bg-transparent mt-auto pointer-events-none">
-        <div class="bg-(--bg)/80 backdrop-blur-3xl border border-white/10 rounded-xl px-4 py-3 flex items-center justify-center gap-3 shadow-2xl">
+        <div class="bg-(--bg)/80 backdrop-blur-3xl border border-(--text)/10 rounded-xl px-4 py-3 flex items-center justify-center gap-3 shadow-2xl">
             <i class="bi bi-megaphone-fill text-(--primary) text-lg" />
             <span class="text-(--text) text-sm font-medium">Vous ne pouvez pas parler dans ce salon.</span>
         </div>
@@ -282,6 +282,7 @@ import { openedOrg, user } from '@/assets/var';
 import SpinLoader from '@/components/SpinLoader.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import useResponse from '@/composables/useResponse';
+import { extractReferenceTokens } from '@/composables/useReferences';
 import { uploadFiles } from '@/assets/uploadFile';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { waitForSocketConnection } from '@/composables/useWSocket';
@@ -966,11 +967,12 @@ const sendMessage = async () => {
 
         const payload = {
             threadId: thread.value?.id,
-            content: ciphertext, 
-            iv: iv,              
+            content: ciphertext,
+            iv: iv,
             replyToId: messageWillBeResponded.value?.id,
             nonce: "n_" + Date.now(),
-            context: route.params.spaceId ? 'workspace' : 'home'
+            context: route.params.spaceId ? 'workspace' : 'home',
+            references: extractReferenceTokens(newMessage.value)
         };
 
         const confirmedMessage: any = await new Promise((resolve, reject) => {

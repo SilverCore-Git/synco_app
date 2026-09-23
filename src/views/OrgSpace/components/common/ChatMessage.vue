@@ -10,7 +10,7 @@
                         selectedMessage == msg.id ? ' border border-(--primary) border-dashed animate-pulse' : '',
                         user?.id == msg.replyMessage?.senderId || isTagMe
                             ? 'border-l-2 border-(--primary-dark) bg-(--primary-dark)/30 hover:bg-(--primary-dark)/50' 
-                            : 'hover:bg-white/5',
+                            : 'hover:bg-(--text)/5',
                         showReactionPicker ? 'z-100' : 'z-10'
                     ]"
                 >
@@ -21,7 +21,7 @@
                         class="group/reply reply-context flex items-center gap-2 mb-1 text-xs text-(--text2) relative pl-13 cursor-pointer"
                     >
                         
-                        <div class="z-10 absolute left-4 top-2.5 w-7 h-13 border-l-2 border-t-2 border-white/20 group-hover/reply:border-white/40 rounded-tl-md" />
+                        <div class="z-10 absolute left-4 top-2.5 w-7 h-13 border-l-2 border-t-2 border-(--text)/20 group-hover/reply:border-(--text)/40 rounded-tl-md" />
 
                         <img 
                             :src="msg.replyMessage?.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(msg.replyMessage?.sender?.name)}&background=128a60&color=fff`"
@@ -35,7 +35,7 @@
                         </span>
 
                         <div class="max-w-md opacity-70 pointer-events-none text-[11px] line-clamp-1 [&_p]:inline [&_h1]:inline [&_h2]:inline [&_h3]:inline">
-                            <MarkdownRender :content="msg.replyMessage?.content || ''" />
+                            <MarkdownRender :content="msg.replyMessage?.content || ''" :show-reference-cards="false" />
                         </div>
 
                     </div>
@@ -45,7 +45,7 @@
                             absolute -top-5 right-3 sdropdown 
                             flex-raw items-start z-80
                             rounded-xl border border-(--text)/10
-                            bg-(--bg) shadow-xl ring-1 ring-white/5 focus:outline-none
+                            bg-(--bg) shadow-xl ring-1 ring-(--text)/5 focus:outline-none
                         "
                         :class="showPlusDropdown ? 'flex' : 'hidden group-hover:flex'"
                     >
@@ -71,7 +71,7 @@
                             class="
                                 flex flex-col items-start absolute top-full mt-2 right-0
                                 rounded-xl border border-(--text)/10 sdropdown w-56 z-90
-                                bg-(--bg) shadow-xl ring-1 ring-white/5 focus:outline-none
+                                bg-(--bg) shadow-xl ring-1 ring-(--text)/5 focus:outline-none
                             "
                         >
 
@@ -122,27 +122,29 @@
                             </div>
 
                             <template v-if="msg.type !== 'voice_invite'">
-                                <div v-if="isEditing" class="w-full">
-                                    <textarea
+                                <div v-if="isEditing" class="w-full" @keydown.esc.prevent="cancelEdit">
+                                    <ThreadTextarea
                                         ref="editTextareaRef"
-                                        v-model="editContent"
-                                        rows="1"
-                                        class="w-full bg-(--bg) border border-(--primary)/60 rounded-lg px-2 py-1.5 text-sm text-(--text) outline-none resize-none focus:border-(--primary)"
-                                        @keydown.enter.exact.prevent="saveEdit"
-                                        @keydown.esc.prevent="cancelEdit"
-                                        @input="autoResizeEdit"
+                                        :model-value="editContent"
+                                        @update:model-value="editContent = $event"
+                                        @send="saveEdit"
+                                        class="w-full bg-(--bg) border border-(--primary)/60 rounded-lg px-2 outline-none focus-within:border-(--primary)"
                                     />
                                     <p class="text-[10px] text-(--text2) mt-1">
                                         échap pour annuler • entrée pour enregistrer
                                     </p>
                                 </div>
-                                <div v-else ref="messageContentRef" @click="onMessageContentClick" class="text-(--text) text-sm leading-relaxed wrap-break-word">
-                                    <MarkdownRender :content="msg.content" />
+                                <div v-else class="text-(--text) text-sm leading-relaxed wrap-break-word">
+                                    <MarkdownRender
+                                        :content="msg.content"
+                                        @user-click="(u: User, e: MouseEvent) => openProfile(u, e)"
+                                        @reference-click="onReferenceClick"
+                                    />
                                     <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
                                 </div>
                             </template>
 
-                            <div v-else class="mt-1 flex items-center gap-3 p-3 rounded-lg border border-(--text)/10 bg-white/3 max-w-sm">
+                            <div v-else class="mt-1 flex items-center gap-3 p-3 rounded-lg border border-(--text)/10 bg-(--text)/3 max-w-sm">
                                 <div class="w-9 h-9 shrink-0 flex items-center justify-center rounded-full bg-(--primary)/15 text-(--primary)">
                                     <i class="bi bi-volume-up-fill text-lg" />
                                 </div>
@@ -182,7 +184,7 @@
                                     class="
                                         group/file relative flex items-center gap-3 p-2
                                         rounded-lg border border-(--text)/10
-                                        bg-white/3 hover:bg-white/5 transition-all
+                                        bg-(--text)/3 hover:bg-(--text)/5 transition-all
                                         max-w-full sm:max-w-sm min-w-0 overflow-hidden
                                     "
                                     :title="file.originalName"
@@ -250,6 +252,7 @@ import MessageReactions from '@/components/common/MessageReactions.vue';
 import type { DMMessage, DMMessageReaction, ReactionUser } from '@/types/types';
 import { downloadFile } from '@/assets/utils/downloadFile';
 import MarkdownRender from '../../views/MarkdownRender.vue';
+import ThreadTextarea from './ThreadTextarea.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { user, openedOrg } from '@/assets/var';
 import { encryptForPeer } from '@/assets/utils/crypto';
@@ -257,7 +260,10 @@ import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useToast } from '@/composables/useToast';
 import { openProfile } from '@/composables/useProfile';
 import useSettingsItem from '@/composables/useSettingsItem';
-import { buildMentionLookup, renderMentions, handleMentionClick, isUserMentioned } from '@/composables/useMentions';
+import { buildMentionLookup, isUserMentioned } from '@/composables/useMentions';
+import { extractReferenceTokens } from '@/composables/useReferences';
+import { navigateToReference } from '@/composables/useReferenceNavigation';
+import type { User } from '@/types/types';
 
 const toast = useToast();
 const showReactionPicker = ref<boolean>(false);
@@ -374,30 +380,27 @@ const { setMessageWillBeResponded } = useResponse();
 
 const showPlusDropdown = ref<boolean>(false);
 const showDeleteConfirm = ref<boolean>(false);
-const messageContentRef = ref<HTMLElement | null>(null);
 const editContent = ref<string>('');
-const editTextareaRef = ref<HTMLTextAreaElement | null>(null);
-
-const autoResizeEdit = () => {
-    const el = editTextareaRef.value;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 300)}px`;
-};
+const editTextareaRef = ref<InstanceType<typeof ThreadTextarea> | null>(null);
 
 watch(() => props.isEditing, (editing) => {
     if (!editing) return;
     editContent.value = props.msg.content;
     nextTick(() => {
-        editTextareaRef.value?.focus();
-        editTextareaRef.value?.select();
-        autoResizeEdit();
+        editTextareaRef.value?.textarea?.focus();
+        editTextareaRef.value?.textarea?.select();
     });
 });
 
 const mentionLookup = computed(() => buildMentionLookup(openedOrg.value?.members));
 
-const isTagMe = computed(() => isUserMentioned(props.msg.content, user.value, mentionLookup.value));
+// Couvre l'ancien format @pseudo (isUserMentioned) ET le nouveau <@:id> — un
+// message envoyé après cette feature ne matchera jamais le premier.
+const isTagMe = computed(() => {
+    if (isUserMentioned(props.msg.content, user.value, mentionLookup.value)) return true;
+    if (!user.value) return false;
+    return extractReferenceTokens(props.msg.content).some(r => r.type === 'user' && r.id === user.value!.id);
+});
 
 const handleAddReaction = async (payload: { messageId: string; emoji: string; isDM: boolean }) => {
    
@@ -422,19 +425,9 @@ const handleAddReaction = async (payload: { messageId: string; emoji: string; is
 
 // Reaction updates are handled centrally in ChatView.vue — no per-instance socket listener needed
 
-const applyMentions = () => {
-    if (!messageContentRef.value) return;
-    renderMentions(messageContentRef.value, mentionLookup.value);
+const onReferenceClick = (ref: { kind: 'thread' | 'task' | 'file'; id: string; spaceId?: string }) => {
+    navigateToReference(router, ref);
 };
-
-const onMessageContentClick = (event: MouseEvent) => {
-    handleMentionClick(event, mentionLookup.value, (mentionedUser, e) => openProfile(mentionedUser, e));
-};
-
-watch(() => props.msg.content, async () => {
-    await nextTick();
-    applyMentions();
-}, { immediate: true });
 
 const formatTime = (d: string) => {
   return new Date(d).toLocaleString('fr-FR', {
@@ -506,8 +499,20 @@ const saveEdit = async () => {
     }
 
     const myPubKey = user.value?.publicKey;
+    // Editing is only ever offered on your own messages (see dropdownBtns'
+    // `show` guard above), so props.msg.sender is always the current user —
+    // using it here as the "peer" key would re-wrap encryptedAesKey with our
+    // own public key instead of the recipient's, leaving them unable to
+    // decrypt the edited message (RSA-OAEP DOMException on their side).
+    const peerPubKey = props.msg.recipient?.publicKey;
 
-    const { ciphertext, encryptedAesKey, iv, selfEncryptedAesKey } = await encryptForPeer(content, props.msg.sender?.publicKey!, myPubKey);
+    if (!peerPubKey) {
+        toast.show("Clé du destinataire introuvable.", "error");
+        emit('edit-end');
+        return;
+    }
+
+    const { ciphertext, encryptedAesKey, iv, selfEncryptedAesKey } = await encryptForPeer(content, peerPubKey, myPubKey);
 
     const socket = await useWSocket();
 
@@ -517,6 +522,7 @@ const saveEdit = async () => {
         encryptedAesKey,
         selfEncryptedAesKey: selfEncryptedAesKey,
         nonce: iv,
+        references: extractReferenceTokens(content),
     });
 
     emit('edit-end');

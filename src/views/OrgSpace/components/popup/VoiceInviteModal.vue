@@ -21,7 +21,7 @@
           :key="member.userId"
           type="button"
           @click="toggleMember(member.userId)"
-          class="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-colors text-left"
+          class="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-(--text)/5 transition-colors text-left"
         >
           <img
             :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}`"

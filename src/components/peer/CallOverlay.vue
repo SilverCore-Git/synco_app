@@ -12,7 +12,7 @@
                         class="
                             relative w-full max-w-6xl aspect-video
                             bg-(--bg2) rounded-3xl overflow-hidden
-                            shadow-2xl border border-(--white)/10
+                            shadow-2xl border border-(--text)/10
                         "
                     >
                         <!-- Header with controls -->
@@ -114,7 +114,7 @@
                             <div
                                 class="
                                     absolute bottom-6 right-6 w-48 aspect-video
-                                    overflow-hidden border-2 border-(--white)/20
+                                    overflow-hidden border-2 border-(--text)/20
                                     shadow-xl bg-(--bg2) rounded-xl
                                 "
                             >
@@ -173,7 +173,7 @@
                 class="fixed inset-0 z-[1100] bg-(--black)/70 flex items-center justify-center p-4"
                 @click.self="showVerifyPanel = false"
             >
-                <div class="w-full max-w-sm bg-(--bg2) rounded-2xl p-6 shadow-2xl border border-(--white)/10">
+                <div class="w-full max-w-sm bg-(--bg2) rounded-2xl p-6 shadow-2xl border border-(--text)/10">
 
                     <div class="flex items-center gap-3 text-blue-400 mb-3">
                         <i class="bi bi-shield-lock text-2xl" />
@@ -185,7 +185,7 @@
                         S'ils correspondent, l'appel n'est pas intercepté.
                     </p>
 
-                    <div class="mb-4 px-4 py-3 rounded-xl bg-(--bg)/60 border border-(--white)/10 text-center">
+                    <div class="mb-4 px-4 py-3 rounded-xl bg-(--bg)/60 border border-(--text)/10 text-center">
                         <span class="text-xl font-mono tracking-[0.2em] text-(--text)">{{ localFingerprint }}</span>
                     </div>
 
@@ -319,7 +319,7 @@
                     <div
                         class="
                             relative w-full h-full bg-(--bg2) rounded-2xl
-                            overflow-hidden shadow-2xl border border-(--white)/10
+                            overflow-hidden shadow-2xl border border-(--text)/10
                             group
                         "
                     >

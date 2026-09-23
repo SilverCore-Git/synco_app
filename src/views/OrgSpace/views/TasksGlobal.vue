@@ -105,12 +105,12 @@
 
                 <button
                     v-if="archivedCount > 0 || isDraggingTask"
-                    @click="showArchivedPanel = true"
+                    @click="router.push({ name: 'TasksGlobalArchived', params: { orgId: route.params.orgId } })"
                     @dragover.prevent="dragOverArchiveBtn = true"
                     @dragleave.prevent="dragOverArchiveBtn = false"
                     @drop="onDropToArchiveBtn"
                     class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0 ml-auto"
-                    :class="dragOverArchiveBtn ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-[0_4px_20px_rgba(245,158,11,0.5)]' : (showArchivedPanel ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-(--text)/5 text-(--text2) hover:bg-(--text)/10')"
+                    :class="dragOverArchiveBtn ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-[0_4px_20px_var(--glow-warning-strong)]' : 'bg-(--text)/5 text-(--text2) hover:bg-(--text)/10'"
                 >
                     <i class="bi bi-archive-fill" />
                     <span class="hidden sm:inline">Tâches archivées</span>
@@ -119,7 +119,7 @@
 
             <div v-if="loading" class="flex-1 min-h-0 w-full flex flex-col gap-4 animate-pulse pb-10">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 items-start h-full">
-                    <div v-for="i in 3" :key="'skel-col-'+i" class="bg-black/20 rounded-2xl p-4 flex flex-col gap-4 border border-(--border-color) h-full">
+                    <div v-for="i in 3" :key="'skel-col-'+i" class="bg-(--surface-sunken) rounded-2xl p-4 flex flex-col gap-4 border border-(--border-color) h-full">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center gap-2">
                                 <div class="w-6 h-6 rounded-lg bg-(--text)/10"></div>
@@ -202,8 +202,8 @@
                 <div class="hidden md:grid flex-1 min-h-0 md:grid-cols-3 gap-4 lg:gap-6 pb-2">
 
                     <div v-for="col in columns" :key="col.id"
-                         class="bg-black/20 border rounded-2xl p-4 min-h-[400px] h-full flex flex-col transition-all"
-                         :class="draggedOverCol === col.id ? 'border-(--primary) bg-(--text)/5 shadow-[0_0_15px_rgba(var(--primary-rgb),0.2)]' : 'border-(--border-color)'"
+                         class="bg-(--bg2)/40 border rounded-2xl p-4 min-h-[400px] h-full flex flex-col transition-all"
+                         :class="draggedOverCol === col.id ? 'border-(--primary) bg-(--text)/5 shadow-[0_0_15px_var(--glow-primary-soft)]' : 'border-(--border-color)'"
                          @dragover.prevent
                          @dragenter.prevent="draggedOverCol = col.id"
                          @dragleave.prevent="draggedOverCol = null"
@@ -317,7 +317,7 @@
                 <div class="w-16 h-16 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-2xl border-4 transition-all duration-500"
                      :class="[
                         isDeleting ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
-                        isHoveringTrash && !isDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_rgba(239,68,68,0.8)]' : 'border-transparent'
+                        isHoveringTrash && !isDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_var(--glow-danger-strong)]' : 'border-transparent'
                      ]"
                      @dragover.prevent="isHoveringTrash = true"
                      @dragleave.prevent="isHoveringTrash = false"
@@ -337,14 +337,6 @@
 
             </div>
         </Transition>
-
-        <ArchivedTasksPanel
-            :isOpen="showArchivedPanel"
-            :orgId="route.params.orgId as string"
-            @close="showArchivedPanel = false"
-            @restored="onTaskRestored"
-            @count="archivedCount = $event"
-        />
 
         <ConfirmDelete
             :show="showArchiveAllConfirm"
@@ -382,7 +374,6 @@ import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import DropDown from '@/components/DropDown.vue';
 import TaskTagPicker from '../components/popup/TaskTagPicker.vue';
-import ArchivedTasksPanel from '../components/popup/ArchivedTasksPanel.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { user, openedOrg } from '@/assets/var';
 import confetti from 'canvas-confetti';
@@ -410,7 +401,6 @@ const isHoveringTrash = ref(false);
 const isDeleting = ref(false);
 const archivingAll = ref(false);
 const showArchiveAllConfirm = ref(false);
-const showArchivedPanel = ref(false);
 const archivedCount = ref(0);
 const dragOverArchiveBtn = ref(false);
 
@@ -565,7 +555,7 @@ const loadLists = async () => {
 
                             el.style.transition = 'all 0.3s ease';
                             el.style.transform = 'scale(1.05)';
-                            el.style.boxShadow = '0 0 0 4px var(--primary), 0 10px 30px rgba(0,0,0,0.5)';
+                            el.style.boxShadow = '0 0 0 4px var(--primary), 0 10px 30px var(--shadow-elevated)';
                             el.style.zIndex = '10';
 
                             setTimeout(() => {
@@ -607,14 +597,31 @@ const onDragEnd = () => {
     }
 };
 
+// Le serveur émet 'todo-updated' (io.to(room).emit, tasksService.ts) avant
+// même de répondre à la requête HTTP, et diffuse à tout le salon org y
+// compris à l'auteur de l'action : selon la latence relative du websocket et
+// du fetch, l'écho peut arriver avant OU après que archiveTaskById() traite
+// sa propre réponse. countedArchiveIds coordonne les deux chemins pour que le
+// premier des deux à traiter un taskId incrémente le compteur, et l'autre
+// (que ce soit notre propre écho ou celui d'un archivage par quelqu'un
+// d'autre) soit un no-op.
+const countedArchiveIds = new Set<string>();
+
+const registerArchivedTask = (taskId: string) => {
+    onTaskDeleted(taskId);
+    if (!countedArchiveIds.has(taskId)) {
+        countedArchiveIds.add(taskId);
+        archivedCount.value++;
+    }
+};
+
 const archiveTaskById = async (taskId: string) => {
     const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskId}`, {
         method: 'PUT',
         body: JSON.stringify({ archived: true })
     });
     if (!res.ok) throw new Error("API Error");
-    onTaskDeleted(taskId);
-    archivedCount.value++;
+    registerArchivedTask(taskId);
 };
 
 const onDropToArchiveBtn = async (e: DragEvent) => {
@@ -658,9 +665,15 @@ const confirmArchiveAll = async () => {
     }
 };
 
-const onTaskRestored = (task: Task) => {
-    if (!rawTasks.value.some(t => t.id === task.id)) {
-        rawTasks.value.push(task);
+const loadArchivedCount = async () => {
+    try {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/archived/me`);
+        if (res.ok) {
+            const data = await res.json();
+            archivedCount.value = data.archivedTasks.length;
+        }
+    } catch (e) {
+        // Le badge d'archives est secondaire : pas d'erreur bloquante ici.
     }
 };
 
@@ -850,6 +863,7 @@ const onTaskDeleted = (taskId: string) => {
 onMounted(async () => {
     fetchOrder();
     loadLists();
+    loadArchivedCount();
 
     const socket = await useWSocket();
     socket.value?.on('todo-added', ({ task }: { task: Task }) => {
@@ -867,9 +881,26 @@ onMounted(async () => {
         }
     });
     socket.value?.on('todo-updated', ({ task }: { task: Task }) => {
+        // Contrairement à TasksSpace.vue (scopé à un espace), ce socket
+        // reçoit les mises à jour de tout l'org : 'archived/me' ne compte que
+        // les tâches qui me sont assignées ou que j'ai créées (hors espace),
+        // donc sans ce filtre une tâche archivée/restaurée par quelqu'un
+        // d'autre et sans rapport avec moi fausserait quand même le badge.
+        const isMine = task.assignees?.some(a => a.id === user.value?.id) || task.creatorId === user.value?.id;
+
         if (task.archived) {
-            onTaskDeleted(task.id);
-            archivedCount.value++;
+            if (isMine) registerArchivedTask(task.id);
+        } else if (!rawTasks.value.some(t => t.id === task.id)) {
+            // Absente de la liste alors qu'elle n'est pas archivée : elle
+            // vient d'être restaurée (par nous ou quelqu'un d'autre) et ne
+            // s'était pas réaffichée depuis — l'ancien panneau popup
+            // rattrapait ce cas en recomptant à chaque ouverture, ce qui
+            // n'existe plus, donc on la réinsère et on corrige le badge.
+            if (isMine) {
+                rawTasks.value.unshift(task);
+                countedArchiveIds.delete(task.id);
+                if (archivedCount.value > 0) archivedCount.value--;
+            }
         } else {
             onTaskUpdated(task);
         }

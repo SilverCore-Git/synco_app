@@ -10,7 +10,7 @@
             <div 
                 class="w-full h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all duration-300"
                 :class="[
-                    isDragging ? 'border-(--primary) bg-(--primary)/10' : 'border-white/10 bg-(--bg2)/30 hover:border-(--primary)/50',
+                    isDragging ? 'border-(--primary) bg-(--primary)/10' : 'border-(--text)/10 bg-(--bg2)/30 hover:border-(--primary)/50',
                     loading ? 'opacity-50 pointer-events-none' : ''
                 ]"
                 @dragover.prevent="isDragging = true"

@@ -28,14 +28,14 @@
         <tr 
           v-for="subject in subjects" 
           :key="subject.id"
-          class="border-b border-(--border-color)/30 hover:bg-white/[0.02] transition-colors"
+          class="border-b border-(--border-color)/30 hover:bg-(--text)/[0.02] transition-colors"
         >
           <!-- Nom du sujet -->
           <td class="py-2 px-3 sticky left-0 bg-(--bg) z-10">
             <div class="flex items-center gap-2.5">
               <div 
                 v-if="subject.color" 
-                class="w-3 h-3 rounded-full shrink-0 ring-2 ring-white/10"
+                class="w-3 h-3 rounded-full shrink-0 ring-2 ring-(--text)/10"
                 :style="{ backgroundColor: subject.color }"
               />
               <i v-else-if="subject.icon" :class="'bi ' + subject.icon" class="text-sm text-(--text2)" />
@@ -47,7 +47,7 @@
               </div>
               <span 
                 v-if="subject.isSystem" 
-                class="ml-auto text-[8px] font-bold uppercase tracking-widest text-(--text2) bg-white/5 rounded px-1.5 py-0.5"
+                class="ml-auto text-[8px] font-bold uppercase tracking-widest text-(--text2) bg-(--text)/5 rounded px-1.5 py-0.5"
               >
                 Système
               </span>

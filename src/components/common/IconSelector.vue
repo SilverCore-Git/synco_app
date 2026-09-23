@@ -1,6 +1,6 @@
 <template>
 
-  <div class="relative p-2 bg-(--bg2) rounded-2xl z-110 w-full flex flex-col gap-2 border border-white/5" v-if="!loading">
+  <div class="relative p-2 bg-(--bg2) rounded-2xl z-110 w-full flex flex-col gap-2 border border-(--text)/5" v-if="!loading">
 
         <input 
             type="file" 

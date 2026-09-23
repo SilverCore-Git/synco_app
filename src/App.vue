@@ -2,8 +2,9 @@
 
 import Loader from './components/LogoLoader.vue';
 import SpinLoader from './components/SpinLoader.vue';
+import ConnectionErrorScreen from './components/ConnectionErrorScreen.vue';
 //import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import init, { refetchUser } from './assets/init';
 import { isLoaded, user } from './assets/var';
 import type { User } from '@/types/types';
@@ -310,7 +311,13 @@ const handleTauriLogin = async () => {
 const bootError = ref<boolean>(false);
 const bootLoading = ref<boolean>(false);
 
-const bootstrap = async () => {
+// `silent`: utilisé par le polling automatique en arrière-plan (voir plus
+// bas) pour retenter le vrai bootstrap sans spammer un toast d'erreur à
+// chaque tentative infructueuse — seul le clic manuel sur "Réessayer" doit
+// notifier l'échec.
+const bootstrap = async (options?: { silent?: boolean }) => {
+  const silent = options?.silent ?? false;
+
   bootError.value = false;
   bootLoading.value = true;
   bootProgress.value = 5;
@@ -320,7 +327,8 @@ const bootstrap = async () => {
     debugLog('[boot] health check status:', res.status);
     if (!res.ok) {
       bootError.value = true;
-      return toast.show('Api error', 'error', 10000);
+      if (!silent) toast.show('Api error', 'error', 10000);
+      return;
     }
     bootProgress.value = 25;
 
@@ -347,11 +355,79 @@ const bootstrap = async () => {
   } catch (error) {
     console.error('Error in bootstrap:', error);
     bootError.value = true;
-    toast.show('Une erreur est survenue lors de l’initialisation.', 'error', 10000);
+    if (!silent) toast.show('Une erreur est survenue lors de l’initialisation.', 'error', 10000);
   } finally {
     bootLoading.value = false;
   }
 };
+
+// Polling silencieux pendant que l'écran d'erreur est affiché : toutes les
+// 4s, on sonde /health sans notification. Dès que le serveur répond, on
+// relance le vrai bootstrap() avec une transition (roue qui tourne, puis
+// check) au lieu de faire disparaître l'écran d'erreur d'un coup sec.
+const AUTO_RETRY_INTERVAL_MS = 4000;
+const RECONNECT_TRANSITION_MS = 700;
+let autoRetryTimer: ReturnType<typeof setInterval> | null = null;
+const reconnectStatus = ref<'offline' | 'reconnecting' | 'success'>('offline');
+
+const stopAutoRetry = () => {
+  if (autoRetryTimer) {
+    clearInterval(autoRetryTimer);
+    autoRetryTimer = null;
+  }
+};
+
+const probeServerHealth = async (): Promise<boolean> => {
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/health`);
+    return res.ok;
+  } catch {
+    return false;
+  }
+};
+
+// Partagée entre le polling silencieux et le clic manuel sur "Réessayer" :
+// dans les deux cas, on veut d'abord voir tourner la roue (reconnecting),
+// puis soit le check de succès (avant de repasser, en fondu, sur le loader),
+// soit — en cas d'échec — revenir direct à "offline" (le watch(bootError)
+// ci-dessous s'en charge).
+const runReconnectAttempt = async (silent: boolean) => {
+  stopAutoRetry();
+  reconnectStatus.value = 'reconnecting';
+  await bootstrap({ silent });
+
+  if (bootError.value) {
+    return;
+  }
+
+  reconnectStatus.value = 'success';
+  await new Promise((resolve) => setTimeout(resolve, RECONNECT_TRANSITION_MS));
+  reconnectStatus.value = 'offline';
+};
+
+const attemptSilentReconnect = async () => {
+  if (!(await probeServerHealth())) return;
+  await runReconnectAttempt(true);
+};
+
+// Le clic manuel passe par le même va-et-vient "reconnecting -> succès/échec"
+// que le polling automatique, plutôt que de juste faire tourner le bouton
+// sans que le reste de l'écran ne bouge.
+const manualRetry = () => runReconnectAttempt(false);
+
+// bootError passe à true : l'écran d'erreur est directement dans son état
+// stable "offline" (déjà tout en place, pas d'anim d'entrée à part le fondu
+// logo <-> écran d'erreur porté par le <Transition name="boot-fade"> du
+// template) et le polling silencieux démarre.
+watch(bootError, (isError) => {
+  stopAutoRetry();
+  if (!isError) return;
+
+  reconnectStatus.value = 'offline';
+  autoRetryTimer = setInterval(attemptSilentReconnect, AUTO_RETRY_INTERVAL_MS);
+});
+
+onUnmounted(stopAutoRetry);
 
 onMounted(async () => {
   debugLog('[boot] onMounted start');
@@ -433,27 +509,29 @@ onMounted(async () => {
 
     </div>
 
-    <div v-else-if="bootError" class="h-full w-full">
-      <div class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none text-center">
-        <p class="text-sm text-(--text2) mb-4 max-w-sm">
-          Impossible de contacter le serveur. Vérifiez votre connexion et réessayez.
-        </p>
-        <button @click="bootstrap" class="primary" :class="{ loader: bootLoading }" :disabled="bootLoading">
-          Réessayer
-        </button>
-      </div>
-    </div>
-
-    <!-- Un seul loader persistant pour toute la fenêtre de démarrage : que
-         ce soit "en attente de Keycloak" (!authenticated) ou "authentifié
-         mais données pas encore chargées" (!user), c'est le MÊME élément —
-         pas de remount au moment où authenticated bascule, donc l'icône ne
-         refait plus son fade-in au milieu du chargement. -->
-    <div
-      v-else-if="!authenticated || !user"
-      class="h-full w-full flex flex-col items-center justify-center bg-(--bg3) p-6 select-none animate-app-reveal"
-    >
-      <Loader :progress="bootProgress" />
+    <!-- Fenêtre de démarrage : soit le loader (logo + barre de progression),
+         soit l'écran "connexion impossible" — un seul <Transition> partagé
+         entre les deux pour un fondu fluide au lieu du coup sec d'un
+         v-if/v-else-if séparé. Même garde qu'avant (!authenticated || !user) :
+         bootError ne peut redevenir true qu'avant d'atteindre l'app (cf.
+         bootstrap()/attemptSilentReconnect), jamais une fois dedans. -->
+    <div v-else-if="!authenticated || !user" class="h-full w-full bg-(--bg3)">
+      <Transition name="boot-fade" mode="out-in">
+        <ConnectionErrorScreen
+          v-if="bootError || reconnectStatus !== 'offline'"
+          key="boot-error"
+          :status="reconnectStatus"
+          :loading="bootLoading"
+          @retry="manualRetry"
+        />
+        <div
+          v-else
+          key="boot-loading"
+          class="h-full w-full flex flex-col items-center justify-center p-6 select-none animate-app-reveal"
+        >
+          <Loader :progress="bootProgress" />
+        </div>
+      </Transition>
     </div>
 
     <div v-else class="h-full w-full">
@@ -490,34 +568,34 @@ onMounted(async () => {
             <SpinLoader />
           </div>
 
-          <div v-else key="pin-form" class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none animate-app-reveal">
+          <div v-else key="pin-form" class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none">
 
             <div class="mb-8 text-center max-w-lg">
 
-              <div class="flex flex-col items-center gap-4 mb-3">
+              <div class="flex flex-col items-center gap-4 mb-3 pin-step pin-step-0">
 
                 <img :src="theme === 'light' ? '/assets/logo/synco/light_banner_synco.svg' : '/banner.svg'" alt="Logo" class=" h-16" />
 
               </div>
 
-              <h2 class="text-xl font-bold text-(--text)">
+              <h2 class="text-xl font-bold text-(--text) pin-step pin-step-1">
                 {{ isResettingPIN ? 'Définissez un nouveau code PIN' : pinSetup ? 'Déverrouillez votre session' :
                   'Configurez votre accès sécurisé' }}
               </h2>
 
-              <p v-if="!pinSetup || isResettingPIN" class="text-sm text-(--text2) mt-2 leading-relaxed">
+              <p v-if="!pinSetup || isResettingPIN" class="text-sm text-(--text2) mt-2 leading-relaxed pin-step pin-step-2">
                 Ce code PIN est la clé de vos conversations. <br />
                 <span class="text-amber-500/80 font-medium">S'il est perdu, elles resteront illisibles.</span>
                 <br />
                 <span class="text-(--text2)">Code à 4 chiffres.</span>
               </p>
-              <p v-if="isResettingPIN" class="text-sm text-amber-500/80 mt-2 font-medium">
+              <p v-if="isResettingPIN" class="text-sm text-amber-500/80 mt-2 font-medium pin-step pin-step-2">
                 Attention : vos anciens messages deviendront indéchiffrables.
               </p>
 
             </div>
 
-            <div v-if="pinMaxLength === 4" class="flex gap-4 mb-10 transition-transform duration-300">
+            <div v-if="pinMaxLength === 4" class="flex gap-4 mb-10 transition-transform duration-300 pin-step pin-step-3">
 
               <div v-for="i in 4" :key="i"
                 class="w-14 h-18 border-2 rounded-2xl flex items-center justify-center text-2xl transition-all duration-150"
@@ -532,7 +610,7 @@ onMounted(async () => {
 
             </div>
 
-            <div v-else class="flex flex-wrap justify-center gap-2 mb-10 max-w-xs">
+            <div v-else class="flex flex-wrap justify-center gap-2 mb-10 max-w-xs pin-step pin-step-3">
 
               <div v-for="i in MAX_PIN_LENGTH" :key="i"
                 class="w-6 h-8 border-b-2 flex items-center justify-center text-xl transition-all duration-150"
@@ -546,12 +624,12 @@ onMounted(async () => {
 
             </div>
 
-            <div v-if="lockoutCountdown > 0" class="text-center mb-10">
+            <div v-if="lockoutCountdown > 0" class="text-center mb-10 pin-step pin-step-4">
               <p class="text-amber-500 font-medium">Trop de tentatives incorrectes.</p>
               <p class="text-(--text2) text-sm mt-1">Réessayez dans {{ formatDuration(lockoutCountdown) }}</p>
             </div>
 
-            <div v-else class="grid grid-cols-3 gap-4 max-w-xs w-full">
+            <div v-else class="grid grid-cols-3 gap-4 max-w-xs w-full pin-step pin-step-4">
 
               <button v-for="num in [1, 2, 3, 4, 5, 6, 7, 8, 9]" :key="num" @click="press(num.toString())"
                 class="h-16 default-primary border-none">
@@ -573,7 +651,7 @@ onMounted(async () => {
             </div>
 
             <button v-if="pinSetup && !isResettingPIN" @click="pinForgot"
-              class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text2) hover:text-(--primary) transition-colors">
+              class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text2) hover:text-(--primary) transition-colors pin-step pin-step-5">
               Code PIN oublié ?
             </button>
 
@@ -604,3 +682,48 @@ onMounted(async () => {
   </div>
 
 </template>
+
+<style scoped>
+
+/* Écran PIN : au lieu d'un seul bloc qui apparaît d'un coup, chaque groupe
+   (logo, titre, texte, pastilles, clavier, lien "oublié") entre en cascade
+   — réutilise le keyframe app-reveal-in (global, style.css) avec un délai
+   croissant par étape plutôt qu'une nouvelle animation par groupe. */
+.pin-step {
+  animation: app-reveal-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.pin-step-0 { animation-delay: 0ms; }
+.pin-step-1 { animation-delay: 90ms; }
+.pin-step-2 { animation-delay: 150ms; }
+.pin-step-3 { animation-delay: 220ms; }
+.pin-step-4 { animation-delay: 300ms; }
+.pin-step-5 { animation-delay: 380ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pin-step {
+    animation: none;
+  }
+}
+
+.boot-fade-enter-active,
+.boot-fade-leave-active {
+  transition: opacity 0.35s ease, filter 0.35s ease;
+}
+.boot-fade-enter-from,
+.boot-fade-leave-to {
+  opacity: 0;
+  filter: blur(6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-fade-enter-active,
+  .boot-fade-leave-active {
+    transition: opacity 0.2s ease;
+  }
+  .boot-fade-enter-from,
+  .boot-fade-leave-to {
+    filter: none;
+  }
+}
+
+</style>

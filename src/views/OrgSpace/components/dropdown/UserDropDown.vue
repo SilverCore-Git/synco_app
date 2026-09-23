@@ -132,12 +132,12 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
                         <p class="text-xs text-(--text2) mb-2">{{ user?.email }}</p>
                         
                         <div v-if="user?.description">
-                            <div class="w-full h-px bg-white/5 my-2"></div>
+                            <div class="w-full h-px bg-(--text)/5 my-2"></div>
                             <h3 class="text-[10px] font-bold text-(--text2) uppercase tracking-wide mb-1.5">À propos</h3>
                             <p class="text-xs text-(--text) leading-relaxed line-clamp-3">{{ user?.description }}</p>
                         </div>
                         
-                        <div class="w-full h-px bg-white/5 my-2"></div>
+                        <div class="w-full h-px bg-(--text)/5 my-2"></div>
 
                         <!-- Rôles -->
                         <div class="mb-2">
@@ -153,7 +153,7 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
                             </div>
                         </div>
 
-                        <div class="w-full h-px bg-white/5 my-2"></div>
+                        <div class="w-full h-px bg-(--text)/5 my-2"></div>
 
                         <!-- Membre depuis -->
                         <div>
@@ -191,7 +191,7 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
 
             </div>
 
-            <div class="h-px bg-white/5 my-1" />
+            <div class="h-px bg-(--text)/5 my-1" />
 
             <div class="p-1 pb-8">
                 <button @click="disconnectSocket(); keycloak.logout()" class="text-red-500! hover:bg-red-500! hover:text-(--white)! dropdown-item-style dropdown-item-annimate">

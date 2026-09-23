@@ -28,8 +28,8 @@
                         >
 
                             <div class="flex justify-center items-center flex-row gap-3 ">
-                                <div class=" rounded-lg bg-(--white)/6 h-6 w-6 animate-pulse" />
-                                <div class=" rounded-lg bg-(--white)/6 h-5 w-40 animate-pulse" />
+                                <div class=" rounded-lg bg-(--text)/6 h-6 w-6 animate-pulse" />
+                                <div class=" rounded-lg bg-(--text)/6 h-5 w-40 animate-pulse" />
                             </div>
                         
                         </div>
@@ -45,7 +45,7 @@
                             <div
                                 v-for="i in 13"
                                 :key="i"
-                                class=" rounded-lg bg-(--white)/4 h-6 w-full animate-pulse"
+                                class=" rounded-lg bg-(--text)/4 h-6 w-full animate-pulse"
                             />
 
                         </ul>
@@ -146,7 +146,7 @@
                             v-model="searchDMQuery"
                             type="text" 
                             placeholder="Rechercher..." 
-                            class="w-full bg-black/20 border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-xs text-(--text) outline-none focus:border-(--primary) transition-colors placeholder-(--text2)"
+                            class="w-full bg-black/20 border border-(--text)/10 rounded-lg pl-8 pr-3 py-1.5 text-xs text-(--text) outline-none focus:border-(--primary) transition-colors placeholder-(--text2)"
                         />
                     </div>
                 </div>
@@ -194,7 +194,7 @@
                         <p class="text-[10px] uppercase font-bold text-(--text2) mb-1">Modèle Local</p>
                         <select 
                             v-model="selectedModelId"
-                            class="w-full bg-black/20 border border-white/10 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-(--primary) transition-colors"
+                            class="w-full bg-black/20 border border-(--text)/10 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-(--primary) transition-colors"
                         >
                             <option v-for="model in availableModels" :key="model.id" :value="model.id">
                             Tier {{ model.tier }} - {{ model.name }}
@@ -233,7 +233,7 @@
                             </div>
                             <div 
                                 @click.stop="handleDeleteClick(session)" 
-                                class="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity p-1 rounded hover:bg-white/10"
+                                class="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity p-1 rounded hover:bg-(--text)/10"
                                 title="Supprimer"
                             >
                                 <i class="bi bi-trash"></i>
@@ -314,7 +314,7 @@
                                 v-if="!isHome && todoEnabled"
                                 name="Tâches"
                                 icon="bi-check2-square"
-                                :active="route.name == 'TasksSpace'"
+                                :active="route.name == 'TasksSpace' || route.name == 'TasksSpaceArchived'"
                                 @click="router.push({ name: 'TasksSpace', query: { showView: '1' } })"
                             />
 

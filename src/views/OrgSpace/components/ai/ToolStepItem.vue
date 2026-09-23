@@ -39,7 +39,7 @@
                 >Refuser</button>
             </div>
 
-            <div v-if="expanded" class="mt-2 pl-3 border-l border-white/10">
+            <div v-if="expanded" class="mt-2 pl-3 border-l border-(--text)/10">
                 <ToolResultBody :tool="tool" @open-task="(t) => $emit('open-task', t)" />
             </div>
 
@@ -76,7 +76,7 @@ const dotClass = computed(() => {
     }
 });
 
-const lineClass = computed(() => (props.tool.status === 'done' ? 'bg-(--primary)/25' : 'bg-white/10'));
+const lineClass = computed(() => (props.tool.status === 'done' ? 'bg-(--primary)/25' : 'bg-(--text)/10'));
 
 const searchQuery = computed(() => {
     try {

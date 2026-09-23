@@ -53,7 +53,7 @@
                         v-model="searchQuery"
                         type="text" 
                         placeholder="Rechercher..."
-                        class="w-full bg-white/[0.03] border border-white/10 rounded-xl py-2.5 pl-11 pr-12 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/60 focus:bg-black/40 focus:ring-4 focus:ring-(--primary)/10 transition-all duration-300 shadow-inner"
+                        class="w-full bg-(--text)/[0.03] border border-(--text)/10 rounded-xl py-2.5 pl-11 pr-12 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/60 focus:bg-black/40 focus:ring-4 focus:ring-(--primary)/10 transition-all duration-300 shadow-inner"
                     >
 
                     <button 
@@ -146,7 +146,7 @@
 
                 </nav>
 
-                <div v-if="isUploading" class="w-full bg-white/5 border border-white/10 rounded-lg p-3 mb-4 animate-in fade-in slide-in-from-top-2">
+                <div v-if="isUploading" class="w-full bg-(--text)/5 border border-(--text)/10 rounded-lg p-3 mb-4 animate-in fade-in slide-in-from-top-2">
                     <div class="flex justify-between items-center mb-2">
                         <span class="text-[10px] font-black uppercase text-(--primary) tracking-widest">
                             {{ fileSendProgress == 100 ? 'Finalisation...' : 'Envoi en cours...' }}
@@ -272,7 +272,7 @@
 
                 <button 
                     @click="selectedItems.clear()" 
-                    class="p-2 rounded-lg hover:bg-white/5 text-(--text2) hover:text-(--text) transition-colors"
+                    class="p-2 rounded-lg hover:bg-(--text)/5 text-(--text2) hover:text-(--text) transition-colors"
                 >
                     <i class="bi bi-x-lg"></i>
                 </button>
@@ -336,7 +336,7 @@
         leave-to-class="transform scale-95 opacity-0"
     >
         <div v-if="showFileInfoModal && selectedFileForInfo" class="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
-            <div class="bg-(--bg) rounded-2xl border border-white/10 shadow-2xl max-w-md w-full p-6 relative" @click.stop>
+            <div class="bg-(--bg) rounded-2xl border border-(--text)/10 shadow-2xl max-w-md w-full p-6 relative" @click.stop>
                 <button @click="showFileInfoModal = false" class="absolute top-4 right-4 text-(--text2) hover:text-(--text) transition-colors">
                     <i class="bi bi-x-lg text-xl" />
                 </button>
@@ -410,7 +410,7 @@
              class="fixed bottom-8 right-8 w-16 h-16 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-2xl z-[100] border-4 transition-all duration-500"
              :class="[
                 isDeleting ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
-                isHoveringTrash && !isDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_rgba(239,68,68,0.8)]' : 'border-transparent'
+                isHoveringTrash && !isDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_var(--glow-danger-strong)]' : 'border-transparent'
              ]"
              @dragover.prevent="isHoveringTrash = true"
              @dragleave.prevent="isHoveringTrash = false"
@@ -461,6 +461,14 @@
         @close="showFilePermissions = false"
     />
 
+    <FileViewer
+        v-if="selectedFileForViewer"
+        :file="selectedFileForViewer"
+        :isOpen="true"
+        @close="selectedFileForViewer = null"
+        @deleted="selectedFileForViewer = null"
+    />
+
 </template>
 
 <script lang="ts" setup>
@@ -482,6 +490,7 @@ import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import { uploadFiles } from '@/assets/uploadFile';
 import FolderCard from '../components/SpaceFiles/FolderCard.vue';
 import FileCard from '../components/SpaceFiles/FileCard.vue';
+import FileViewer from '../components/popup/FileViewer.vue';
 import type { StoredFile, Folder } from '@/types/types';
 import { extractTextFromPDF } from '@/assets/utils/pdfExtractor';
 import VectorWorker from '@/workers/semantic.worker?worker';
@@ -1130,6 +1139,15 @@ const handleRouteQuery = () => {
     const urlPath = route.query.path as string;
     const folderId = route.query.folderId as string;
     const highlightFileId = route.query.highlightFileId as string;
+    const selectFileId = route.query.select as string | undefined;
+
+    if (selectFileId) {
+        const found = allFiles.value.find(f => f.id === selectFileId);
+        if (found) {
+            selectedFileForViewer.value = found;
+            router.replace({ query: { ...route.query, select: undefined } });
+        }
+    }
 
     if (urlPath) 
     {
@@ -1154,7 +1172,7 @@ const handleRouteQuery = () => {
                 
                 el.style.transition = 'all 0.3s ease';
                 el.style.transform = 'scale(1.05)';
-                el.style.boxShadow = '0 0 0 4px var(--primary), 0 10px 30px rgba(0,0,0,0.5)';
+                el.style.boxShadow = '0 0 0 4px var(--primary), 0 10px 30px var(--shadow-elevated)';
                 el.style.zIndex = '10';
                 
                 setTimeout(() => {
@@ -1175,6 +1193,10 @@ watch(() => route.query, () => {
 // File actions handlers
 const selectedFileForInfo = ref<StoredFile | null>(null);
 const showFileInfoModal = ref<boolean>(false);
+// Ouvert via un chip <file:id> (référence inline dans un message/tâche) ou
+// tout lien profond ?select=<fileId> — distinct de showViewer, local à
+// chaque FileCard.vue.
+const selectedFileForViewer = ref<StoredFile | null>(null);
 
 const handleFileDeleted = (fileId: string) => {
     allFiles.value = allFiles.value.filter(f => f.id !== fileId);

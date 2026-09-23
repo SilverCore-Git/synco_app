@@ -26,7 +26,7 @@
                     ref="dropdownContentRef"
                     class="
                         fixed z-[1000] mt-2 w-56 rounded-xl border border-(--border-color)
-                        bg-(--bg) shadow-xl ring-1 ring-white/5 focus:outline-none
+                        bg-(--bg) shadow-xl ring-1 ring-(--text)/5 focus:outline-none
                     "
                     :class="props.contentInerTW || ''"
                     :style="getDropdownPosition()"

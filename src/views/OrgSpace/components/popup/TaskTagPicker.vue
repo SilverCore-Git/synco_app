@@ -24,24 +24,30 @@
                 placeholder="Nom du tag"
                 class="w-full bg-(--bg3) border border-(--border-color) rounded-lg px-3 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
             />
-            <div class="flex items-center gap-2 flex-wrap">
+            <div class="flex items-center gap-1.5 flex-wrap">
                 <button
                     v-for="color in presetColors" :key="color"
                     type="button"
                     @click="newTagColor = color"
-                    class="w-6 h-6 rounded-full border-2 transition-all"
+                    class="w-6 h-6 rounded-full border-2 transition-all shrink-0"
                     :style="{ backgroundColor: color, borderColor: newTagColor === color ? '#fff' : 'transparent' }"
                 ></button>
-                <button
-                    type="button"
-                    @click="handleCreateTag"
-                    :disabled="!newTagName.trim() || creating"
-                    class="ml-auto primary !text-xs !px-3 !py-1.5"
-                    :class="creating ? 'loader' : ''"
-                >
-                    Créer
-                </button>
             </div>
+
+            <!-- Roue chromatique + pipette + code hex (voir ColorWheelPicker.vue),
+                 sur sa propre ligne : au clic sur les presets ci-dessus la couleur
+                 change tout de suite, la personnalisation complète reste repliée. -->
+            <ColorWheelPicker v-model="newTagColor" />
+
+            <button
+                type="button"
+                @click="handleCreateTag"
+                :disabled="!newTagName.trim() || creating"
+                class="self-end primary !text-xs !px-3 !py-1.5"
+                :class="creating ? 'loader' : ''"
+            >
+                Créer
+            </button>
         </div>
 
         <div v-if="tags.length > 0" class="relative">
@@ -67,15 +73,18 @@
                         placeholder="Nom du tag"
                         class="w-full bg-(--bg3) border border-(--border-color) rounded-lg px-3 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
                     />
-                    <div class="flex items-center gap-2 flex-wrap">
+                    <div class="flex items-center gap-1.5 flex-wrap">
                         <button
                             v-for="color in presetColors" :key="color"
                             type="button"
                             @click="editColor = color"
-                            class="w-6 h-6 rounded-full border-2 transition-all"
+                            class="w-6 h-6 rounded-full border-2 transition-all shrink-0"
                             :style="{ backgroundColor: color, borderColor: editColor === color ? '#fff' : 'transparent' }"
                         ></button>
-                        <button type="button" @click="cancelEdit" class="ml-auto default !text-xs !px-3 !py-1.5">
+                    </div>
+                    <ColorWheelPicker v-model="editColor" />
+                    <div class="flex items-center justify-end gap-2">
+                        <button type="button" @click="cancelEdit" class="default !text-xs !px-3 !py-1.5">
                             Annuler
                         </button>
                         <button
@@ -138,6 +147,7 @@ import { ref, computed, onMounted, nextTick } from 'vue';
 import { useTaskTags } from '@/composables/useTaskTags';
 import type { Tag } from '@/types/types';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
+import ColorWheelPicker from '@/components/common/ColorWheelPicker.vue';
 
 const props = defineProps<{
     orgId: string;
@@ -151,6 +161,7 @@ const emit = defineEmits<{
 const { tags, loading, loadTags, createTag, updateTag, deleteTag } = useTaskTags(props.orgId);
 
 const presetColors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6', '#64748b'];
+const DEFAULT_TAG_COLOR: string = presetColors[0] ?? '#6366f1';
 
 const currentUserId = localStorage.getItem('userId') || '';
 
@@ -163,13 +174,13 @@ const filteredTags = computed(() => {
 
 const showCreateForm = ref(false);
 const newTagName = ref('');
-const newTagColor = ref(presetColors[0]);
+const newTagColor = ref(DEFAULT_TAG_COLOR);
 const creating = ref(false);
 const newTagInput = ref<HTMLInputElement | null>(null);
 
 const editingTagId = ref<string | null>(null);
 const editName = ref('');
-const editColor = ref(presetColors[0]);
+const editColor = ref(DEFAULT_TAG_COLOR);
 const savingEdit = ref(false);
 
 const confirmDeleteTag = ref<Tag | null>(null);
@@ -194,7 +205,7 @@ const handleCreateTag = async () => {
     if (!newTagName.value.trim() || creating.value) return;
     creating.value = true;
     try {
-        const tag = await createTag(newTagName.value.trim(), newTagColor.value!);
+        const tag = await createTag(newTagName.value.trim(), newTagColor.value);
         if (tag) {
             emit('update:modelValue', [...props.modelValue, tag.id]);
             newTagName.value = '';

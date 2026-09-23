@@ -3,7 +3,7 @@
     <!-- search_messages : vrais composants de message, cliquables pour se téléporter -->
     <div v-if="tool.name === 'search_messages' && searchResults.length" class="flex flex-col gap-3">
         <div v-for="res in searchResults" :key="res.id" class="bg-black/20 border border-(--border-color) rounded-xl overflow-hidden">
-            <div class="px-3 py-1.5 bg-white/5 border-b border-(--border-color) flex justify-between items-center text-[10px] text-white/50 uppercase font-bold tracking-wider">
+            <div class="px-3 py-1.5 bg-(--text)/5 border-b border-(--border-color) flex justify-between items-center text-[10px] text-(--text)/50 uppercase font-bold tracking-wider">
                 <div class="flex items-center gap-1.5 truncate pr-2">
                     <i class="bi bi-folder2-open"></i>
                     <span class="truncate">{{ spaceAndThreadName(res.workspaceId, res.metadata?.threadId).spaceName }}</span>
@@ -13,7 +13,7 @@
                 </div>
                 <button
                     @click="teleportTo(res)"
-                    class="text-(--primary) hover:text-white transition-colors flex items-center shrink-0"
+                    class="text-(--primary) hover:text-(--primary-hover) transition-colors flex items-center shrink-0"
                 >
                     <i class="bi bi-box-arrow-up-right mr-1"></i> Se téléporter
                 </button>

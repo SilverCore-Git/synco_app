@@ -14,7 +14,7 @@
                     v-model="name"
                     type="text"
                     placeholder="GitHub CI/CD, Discord Bot, etc."
-                    class="w-full bg-(--white)/5 border border-(--white)/10 rounded-xl px-4 py-3 text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all"
+                    class="w-full bg-(--text)/5 border border-(--text)/10 rounded-xl px-4 py-3 text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all"
                     required
                     :maxlength="100"
                 />
@@ -31,7 +31,7 @@
                 <textarea
                     v-model="description"
                     placeholder="Notifications de déploiement, Alertes Discord, etc."
-                    class="w-full bg-(--white)/5 border border-(--white)/10 rounded-xl px-4 py-3 text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all resize-none"
+                    class="w-full bg-(--text)/5 border border-(--text)/10 rounded-xl px-4 py-3 text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all resize-none"
                     rows="3"
                     :maxlength="500"
                 />
@@ -47,7 +47,7 @@
                 </label>
                 <select
                     v-model="targetChannelId"
-                    class="w-full bg-(--white)/5 border border-(--white)/10 rounded-xl px-4 py-3 text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all"
+                    class="w-full bg-(--text)/5 border border-(--text)/10 rounded-xl px-4 py-3 text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all"
                     required
                     :disabled="loadingChannels"
                 >
@@ -72,18 +72,18 @@
                 <label class="block text-sm font-medium text-(--text) mb-2">
                     Permissions <span class="text-red-500">*</span>
                 </label>
-                <div class="bg-(--white)/5 border border-(--white)/10 rounded-xl p-4">
+                <div class="bg-(--text)/5 border border-(--text)/10 rounded-xl p-4">
                     <div 
                         v-for="permission in allPermissions" 
                         :key="permission"
-                        class="flex items-center gap-3 p-2 rounded-lg hover:bg-(--white)/10"
+                        class="flex items-center gap-3 p-2 rounded-lg hover:bg-(--text)/10"
                     >
                         <input
                             type="checkbox"
                             :id="`perm-${permission}`"
                             v-model="permissions"
                             :value="permission"
-                            class="w-4 h-4 rounded border-(--white)/20 text-(--primary) focus:ring-(--primary)/40"
+                            class="w-4 h-4 rounded border-(--text)/20 text-(--primary) focus:ring-(--primary)/40"
                         />
                         <label :for="`perm-${permission}`" class="flex-1 text-sm cursor-pointer">
                             {{ formatPermission(permission) }}
@@ -96,19 +96,19 @@
             </div>
 
             <!-- Chiffrement E2EE -->
-            <div class="border-t border-(--white)/10 pt-4">
+            <div class="border-t border-(--text)/10 pt-4">
                 <label class="flex items-center gap-3 cursor-pointer" @click="e2eeEnabled = !e2eeEnabled">
                     <input
                         type="checkbox"
                         v-model="e2eeEnabled"
-                        class="w-5 h-5 rounded border-(--white)/20 text-(--primary) focus:ring-(--primary)/40"
+                        class="w-5 h-5 rounded border-(--text)/20 text-(--primary) focus:ring-(--primary)/40"
                     />
                     <span class="text-sm font-medium text-(--text)">
                         Activer le chiffrement E2EE
                     </span>
                 </label>
                 
-                <div class="mt-4 p-4 bg-(--white)/5 border border-(--white)/10 rounded-xl" v-if="e2eeEnabled">
+                <div class="mt-4 p-4 bg-(--text)/5 border border-(--text)/10 rounded-xl" v-if="e2eeEnabled">
                     <div class="flex items-start gap-3">
                         <i class="bi bi-info-circle text-(--primary) text-lg flex-shrink-0 mt-0.5" />
                         <div>
@@ -122,12 +122,12 @@
             </div>
 
             <!-- Statut -->
-            <div class="border-t border-(--white)/10 pt-4">
+            <div class="border-t border-(--text)/10 pt-4">
                 <label class="flex items-center gap-3 cursor-pointer">
                     <input
                         type="checkbox"
                         v-model="isActive"
-                        class="w-5 h-5 rounded border-(--white)/20 text-(--primary) focus:ring-(--primary)/40"
+                        class="w-5 h-5 rounded border-(--text)/20 text-(--primary) focus:ring-(--primary)/40"
                     />
                     <span class="text-sm font-medium text-(--text)">
                         Webhook actif
@@ -139,7 +139,7 @@
             </div>
 
             <!-- Actions -->
-            <div class="flex justify-end gap-3 pt-4 border-t border-(--white)/10">
+            <div class="flex justify-end gap-3 pt-4 border-t border-(--text)/10">
                 <button 
                     type="button"
                     @click="$emit('close')"
