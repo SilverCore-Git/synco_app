@@ -367,10 +367,8 @@ const bootstrap = async (options?: { silent?: boolean }) => {
 // check) au lieu de faire disparaître l'écran d'erreur d'un coup sec.
 const AUTO_RETRY_INTERVAL_MS = 4000;
 const RECONNECT_TRANSITION_MS = 700;
-const DISCONNECT_TRANSITION_MS = 550;
 let autoRetryTimer: ReturnType<typeof setInterval> | null = null;
-let disconnectToken = 0;
-const reconnectStatus = ref<'disconnecting' | 'offline' | 'reconnecting' | 'success'>('offline');
+const reconnectStatus = ref<'offline' | 'reconnecting' | 'success'>('offline');
 
 const stopAutoRetry = () => {
   if (autoRetryTimer) {
@@ -391,8 +389,8 @@ const probeServerHealth = async (): Promise<boolean> => {
 // Partagée entre le polling silencieux et le clic manuel sur "Réessayer" :
 // dans les deux cas, on veut d'abord voir tourner la roue (reconnecting),
 // puis soit le check de succès (avant de repasser, en fondu, sur le loader),
-// soit — en cas d'échec — laisser le watch(bootError) ci-dessous montrer
-// que ça n'a pas marché (transition "disconnecting" -> retour à "offline").
+// soit — en cas d'échec — revenir direct à "offline" (le watch(bootError)
+// ci-dessous s'en charge).
 const runReconnectAttempt = async (silent: boolean) => {
   stopAutoRetry();
   reconnectStatus.value = 'reconnecting';
@@ -417,20 +415,13 @@ const attemptSilentReconnect = async () => {
 // sans que le reste de l'écran ne bouge.
 const manualRetry = () => runReconnectAttempt(false);
 
-// Passe par un état "disconnecting" transitoire avant de s'installer dans
-// l'état "offline" stable — évite que l'écran d'erreur apparaisse d'un
-// coup sec dès que bootError bascule à true.
-watch(bootError, async (isError) => {
+// bootError passe à true : l'écran d'erreur est directement dans son état
+// stable "offline" (déjà tout en place, pas d'anim d'entrée à part le fondu
+// logo <-> écran d'erreur porté par le <Transition name="boot-fade"> du
+// template) et le polling silencieux démarre.
+watch(bootError, (isError) => {
   stopAutoRetry();
   if (!isError) return;
-
-  const token = ++disconnectToken;
-  reconnectStatus.value = 'disconnecting';
-  await new Promise((resolve) => setTimeout(resolve, DISCONNECT_TRANSITION_MS));
-
-  // Un nouveau cycle a pu démarrer entre-temps (retry relancé, ou déjà
-  // reconnecté) : on laisse la main à l'exécution la plus récente.
-  if (token !== disconnectToken || !bootError.value) return;
 
   reconnectStatus.value = 'offline';
   autoRetryTimer = setInterval(attemptSilentReconnect, AUTO_RETRY_INTERVAL_MS);
