@@ -22,7 +22,17 @@ const route = useRoute();
 
 const handleClick = () => {
     if (props.to) {
-        router.push(props.to);
+        // Vrai `router.back()` plutôt qu'un `push` vers `to` : c'est ce qui
+        // déclenche le geste natif "swipe-back" (glissement vers la droite)
+        // de la WKWebView sur iOS/Capacitor. `history.state.back` (posé par
+        // Vue Router) vaut null si on est arrivé directement sur cette route
+        // (lien direct/refresh, pas de page précédente dans l'historique de
+        // l'app) — dans ce cas, `to` sert de repli.
+        if (window.history.state?.back) {
+            router.back();
+        } else {
+            router.push(props.to);
+        }
     } else {
         router.push({ query: { ...route.query, showView: '0' } });
     }
