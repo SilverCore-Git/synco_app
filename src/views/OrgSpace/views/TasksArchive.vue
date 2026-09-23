@@ -1,9 +1,9 @@
 <template>
     <div class="flex flex-col h-full relative overflow-hidden w-full">
 
-        <header class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-(--border-color) bg-(--bg2) z-10 shrink-0">
+        <header class="min-h-14 pl-5 px-3 flex items-center border-b border-(--border-color) bg-(--bg2) z-10 shrink-0">
             <div class="flex items-center gap-3 min-w-0">
-                <MobileBackBtn />
+                <MobileBackBtn :to="backTarget" always-visible />
                 <div class="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
                     <i class="bi bi-archive-fill text-amber-500" />
                 </div>
@@ -12,11 +12,6 @@
                     <p class="text-xs text-(--text2)">{{ archivedTasks.length }} tâche(s) archivée(s)</p>
                 </div>
             </div>
-
-            <button @click="goBack" class="default !text-sm shrink-0 ml-3">
-                <i class="bi bi-arrow-left" />
-                <span class="hidden sm:inline">Retour au tableau</span>
-            </button>
         </header>
 
         <main class="flex-1 overflow-hidden flex flex-col p-4 md:p-6 gap-4 w-full h-full relative">
@@ -294,7 +289,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import type { Task, TodoList } from '@/types/types';
 import { useToast } from '@/composables/useToast';
@@ -303,7 +298,6 @@ import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import DropDown from '@/components/DropDown.vue';
 
 const route = useRoute();
-const router = useRouter();
 const toast = useToast();
 
 const orgId = computed(() => route.params.orgId as string);
@@ -329,13 +323,10 @@ const folderFilterOptions = computed(() => [
     ...folders.value.map(f => ({ key: f.id as string | null, label: f.title, icon: 'bi-folder2' }))
 ]);
 
-const goBack = () => {
-    if (spaceId.value) {
-        router.push({ name: 'TasksSpace', params: { orgId: orgId.value, spaceId: spaceId.value } });
-    } else {
-        router.push({ name: 'TasksGlobal', params: { orgId: orgId.value } });
-    }
-};
+const backTarget = computed(() => spaceId.value
+    ? { name: 'TasksSpace', params: { orgId: orgId.value, spaceId: spaceId.value } }
+    : { name: 'TasksGlobal', params: { orgId: orgId.value } }
+);
 
 const formatDate = (date?: string | Date | null) => {
     if (!date) return '';
