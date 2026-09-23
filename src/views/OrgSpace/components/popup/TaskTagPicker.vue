@@ -25,15 +25,9 @@
                 class="w-full bg-(--bg3) border border-(--border-color) rounded-lg px-3 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
             />
             <div class="flex items-center gap-2 flex-wrap">
-                <!-- Sélecteur natif stylisé via un wrapper (même motif que RolesSettings.vue) :
-                     ouvre le picker couleur du système (pipette incluse sur Chromium/Tauri). -->
-                <div class="relative w-6 h-6 rounded-full overflow-hidden shrink-0 cursor-pointer shadow-inner border border-(--text)/10" title="Couleur personnalisée">
-                    <input
-                        type="color"
-                        v-model="newTagColor"
-                        class="absolute -top-2 -left-2 w-12 h-12 cursor-pointer"
-                    />
-                </div>
+                <!-- Roue chromatique + pipette (voir ColorWheelPicker.vue) pour une
+                     couleur entièrement personnalisable, en plus des préréglages. -->
+                <ColorWheelPicker v-model="newTagColor" />
                 <input
                     v-model="newTagColor"
                     type="text"
@@ -84,13 +78,7 @@
                         class="w-full bg-(--bg3) border border-(--border-color) rounded-lg px-3 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
                     />
                     <div class="flex items-center gap-2 flex-wrap">
-                        <div class="relative w-6 h-6 rounded-full overflow-hidden shrink-0 cursor-pointer shadow-inner border border-(--text)/10" title="Couleur personnalisée">
-                            <input
-                                type="color"
-                                v-model="editColor"
-                                class="absolute -top-2 -left-2 w-12 h-12 cursor-pointer"
-                            />
-                        </div>
+                        <ColorWheelPicker v-model="editColor" />
                         <input
                             v-model="editColor"
                             type="text"
@@ -170,6 +158,7 @@ import { ref, computed, onMounted, nextTick } from 'vue';
 import { useTaskTags } from '@/composables/useTaskTags';
 import type { Tag } from '@/types/types';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
+import ColorWheelPicker from '@/components/common/ColorWheelPicker.vue';
 
 const props = defineProps<{
     orgId: string;
