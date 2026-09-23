@@ -20,21 +20,22 @@ const props = defineProps<{
 const router = useRouter();
 const route = useRoute();
 
+// Entrer dans une vue mobile (thread, tâche, fichier, réglages...) se fait
+// toujours par un `push` (showView=1 ou changement de route) qui empile une
+// entrée d'historique. Revenir en arrière doit donc dépiler avec un vrai
+// `router.back()` : c'est ce qui déclenche le geste natif "swipe-back"
+// (glissement vers la droite) de la WKWebView sur iOS/Capacitor — un `push`
+// vers une destination fixe ne le déclenche jamais, quelle que soit la
+// destination. `history.state.back` (posé par Vue Router) vaut null si on
+// est arrivé directement sur cette route (lien direct/refresh, pas de page
+// précédente dans l'historique de l'app) : dans ce cas seulement, on retombe
+// sur un `push` explicite.
 const handleClick = () => {
-    if (props.to) {
-        // Vrai `router.back()` plutôt qu'un `push` vers `to` : c'est ce qui
-        // déclenche le geste natif "swipe-back" (glissement vers la droite)
-        // de la WKWebView sur iOS/Capacitor. `history.state.back` (posé par
-        // Vue Router) vaut null si on est arrivé directement sur cette route
-        // (lien direct/refresh, pas de page précédente dans l'historique de
-        // l'app) — dans ce cas, `to` sert de repli.
-        if (window.history.state?.back) {
-            router.back();
-        } else {
-            router.push(props.to);
-        }
+    const fallback = props.to ?? { query: { ...route.query, showView: '0' } };
+    if (window.history.state?.back) {
+        router.back();
     } else {
-        router.push({ query: { ...route.query, showView: '0' } });
+        router.push(fallback);
     }
 };
 </script>
