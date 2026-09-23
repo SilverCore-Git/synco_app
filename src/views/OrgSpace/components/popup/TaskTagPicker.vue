@@ -25,23 +25,39 @@
                 class="w-full bg-(--bg3) border border-(--border-color) rounded-lg px-3 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
             />
             <div class="flex items-center gap-2 flex-wrap">
+                <!-- Sélecteur natif stylisé via un wrapper (même motif que RolesSettings.vue) :
+                     ouvre le picker couleur du système (pipette incluse sur Chromium/Tauri). -->
+                <div class="relative w-6 h-6 rounded-full overflow-hidden shrink-0 cursor-pointer shadow-inner border border-(--text)/10" title="Couleur personnalisée">
+                    <input
+                        type="color"
+                        v-model="newTagColor"
+                        class="absolute -top-2 -left-2 w-12 h-12 cursor-pointer"
+                    />
+                </div>
+                <input
+                    v-model="newTagColor"
+                    type="text"
+                    maxlength="7"
+                    class="w-20 bg-(--bg3) border border-(--border-color) rounded-lg px-2 py-1 text-xs text-(--text) uppercase font-mono focus:outline-none focus:border-(--primary)/50"
+                    placeholder="#3b82f6"
+                />
                 <button
                     v-for="color in presetColors" :key="color"
                     type="button"
                     @click="newTagColor = color"
-                    class="w-6 h-6 rounded-full border-2 transition-all"
+                    class="w-6 h-6 rounded-full border-2 transition-all shrink-0"
                     :style="{ backgroundColor: color, borderColor: newTagColor === color ? '#fff' : 'transparent' }"
                 ></button>
-                <button
-                    type="button"
-                    @click="handleCreateTag"
-                    :disabled="!newTagName.trim() || creating"
-                    class="ml-auto primary !text-xs !px-3 !py-1.5"
-                    :class="creating ? 'loader' : ''"
-                >
-                    Créer
-                </button>
             </div>
+            <button
+                type="button"
+                @click="handleCreateTag"
+                :disabled="!newTagName.trim() || creating"
+                class="self-end primary !text-xs !px-3 !py-1.5"
+                :class="creating ? 'loader' : ''"
+            >
+                Créer
+            </button>
         </div>
 
         <div v-if="tags.length > 0" class="relative">
@@ -68,14 +84,30 @@
                         class="w-full bg-(--bg3) border border-(--border-color) rounded-lg px-3 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
                     />
                     <div class="flex items-center gap-2 flex-wrap">
+                        <div class="relative w-6 h-6 rounded-full overflow-hidden shrink-0 cursor-pointer shadow-inner border border-(--text)/10" title="Couleur personnalisée">
+                            <input
+                                type="color"
+                                v-model="editColor"
+                                class="absolute -top-2 -left-2 w-12 h-12 cursor-pointer"
+                            />
+                        </div>
+                        <input
+                            v-model="editColor"
+                            type="text"
+                            maxlength="7"
+                            class="w-20 bg-(--bg3) border border-(--border-color) rounded-lg px-2 py-1 text-xs text-(--text) uppercase font-mono focus:outline-none focus:border-(--primary)/50"
+                            placeholder="#3b82f6"
+                        />
                         <button
                             v-for="color in presetColors" :key="color"
                             type="button"
                             @click="editColor = color"
-                            class="w-6 h-6 rounded-full border-2 transition-all"
+                            class="w-6 h-6 rounded-full border-2 transition-all shrink-0"
                             :style="{ backgroundColor: color, borderColor: editColor === color ? '#fff' : 'transparent' }"
                         ></button>
-                        <button type="button" @click="cancelEdit" class="ml-auto default !text-xs !px-3 !py-1.5">
+                    </div>
+                    <div class="flex items-center justify-end gap-2">
+                        <button type="button" @click="cancelEdit" class="default !text-xs !px-3 !py-1.5">
                             Annuler
                         </button>
                         <button
