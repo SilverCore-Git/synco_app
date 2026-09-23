@@ -66,7 +66,25 @@
                 </p>
                 <div class="field">
                     <label class="field-label">Fichier .ics</label>
-                    <input ref="fileInputEl" type="file" accept=".ics,text/calendar" class="field-input-file" :disabled="submitting" @change="onFileChange" />
+                    <div
+                        :tabindex="submitting ? -1 : 0"
+                        role="button"
+                        aria-label="Choisir un fichier .ics"
+                        class="file-dropzone"
+                        :class="{ 'is-dragover': isFileDragOver, 'is-disabled': submitting }"
+                        @click="!submitting && fileInputEl?.click()"
+                        @keydown.enter.prevent="!submitting && fileInputEl?.click()"
+                        @keydown.space.prevent="!submitting && fileInputEl?.click()"
+                        @dragenter.prevent="!submitting && (isFileDragOver = true)"
+                        @dragover.prevent
+                        @dragleave.prevent="isFileDragOver = false"
+                        @drop.prevent="onFileDrop"
+                    >
+                        <i class="bi" :class="fileValue ? 'bi-file-earmark-check' : 'bi-cloud-arrow-up'"></i>
+                        <span v-if="fileValue" class="file-dropzone-name">{{ fileValue.name }}</span>
+                        <span v-else>Cliquez ou glissez un fichier .ics ici</span>
+                    </div>
+                    <input ref="fileInputEl" type="file" accept=".ics,text/calendar" hidden :disabled="submitting" @change="onFileChange" />
                 </div>
                 <div class="field">
                     <label class="field-label">Nom affiché (optionnel)</label>
@@ -132,6 +150,7 @@ const labelValue = ref('');
 const colorValue = ref<string | null>(null);
 const fileValue = ref<File | null>(null);
 const fileInputEl = ref<HTMLInputElement | null>(null);
+const isFileDragOver = ref(false);
 const submitting = ref(false);
 
 function resetForm() {
@@ -157,6 +176,13 @@ function close() {
 function onFileChange(e: Event) {
     const input = e.target as HTMLInputElement;
     fileValue.value = input.files?.[0] || null;
+}
+
+function onFileDrop(e: DragEvent) {
+    isFileDragOver.value = false;
+    if (submitting.value) return;
+    const file = e.dataTransfer?.files?.[0];
+    if (file) fileValue.value = file;
 }
 
 async function submitUrl() {
@@ -249,9 +275,42 @@ async function submitGoogle() {
     border-color: var(--primary);
 }
 
-.field-input-file {
+.file-dropzone {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px dashed var(--border-color);
+    border-radius: 10px;
+    padding: 10px 12px;
     font-size: 12px;
     color: var(--text2);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.file-dropzone:hover,
+.file-dropzone:focus-visible {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.06);
+    outline: none;
+}
+
+.file-dropzone.is-dragover {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.file-dropzone.is-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.file-dropzone-name {
+    color: var(--text);
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .color-swatch-panel {
