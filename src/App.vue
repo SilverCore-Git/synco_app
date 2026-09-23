@@ -508,20 +508,29 @@ onMounted(async () => {
 
     </div>
 
-    <div v-else-if="bootError || reconnectStatus !== 'offline'" class="h-full w-full">
-      <ConnectionErrorScreen :status="reconnectStatus" :loading="bootLoading" @retry="bootstrap()" />
-    </div>
-
-    <!-- Un seul loader persistant pour toute la fenêtre de démarrage : que
-         ce soit "en attente de Keycloak" (!authenticated) ou "authentifié
-         mais données pas encore chargées" (!user), c'est le MÊME élément —
-         pas de remount au moment où authenticated bascule, donc l'icône ne
-         refait plus son fade-in au milieu du chargement. -->
-    <div
-      v-else-if="!authenticated || !user"
-      class="h-full w-full flex flex-col items-center justify-center bg-(--bg3) p-6 select-none animate-app-reveal"
-    >
-      <Loader :progress="bootProgress" />
+    <!-- Fenêtre de démarrage : soit le loader (logo + barre de progression),
+         soit l'écran "connexion impossible" — un seul <Transition> partagé
+         entre les deux pour un fondu fluide au lieu du coup sec d'un
+         v-if/v-else-if séparé. Même garde qu'avant (!authenticated || !user) :
+         bootError ne peut redevenir true qu'avant d'atteindre l'app (cf.
+         bootstrap()/attemptSilentReconnect), jamais une fois dedans. -->
+    <div v-else-if="!authenticated || !user" class="h-full w-full bg-(--bg3)">
+      <Transition name="boot-fade" mode="out-in">
+        <ConnectionErrorScreen
+          v-if="bootError || reconnectStatus !== 'offline'"
+          key="boot-error"
+          :status="reconnectStatus"
+          :loading="bootLoading"
+          @retry="bootstrap()"
+        />
+        <div
+          v-else
+          key="boot-loading"
+          class="h-full w-full flex flex-col items-center justify-center p-6 select-none animate-app-reveal"
+        >
+          <Loader :progress="bootProgress" />
+        </div>
+      </Transition>
     </div>
 
     <div v-else class="h-full w-full">
@@ -672,3 +681,28 @@ onMounted(async () => {
   </div>
 
 </template>
+
+<style scoped>
+
+.boot-fade-enter-active,
+.boot-fade-leave-active {
+  transition: opacity 0.35s ease, filter 0.35s ease;
+}
+.boot-fade-enter-from,
+.boot-fade-leave-to {
+  opacity: 0;
+  filter: blur(6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-fade-enter-active,
+  .boot-fade-leave-active {
+    transition: opacity 0.2s ease;
+  }
+  .boot-fade-enter-from,
+  .boot-fade-leave-to {
+    filter: none;
+  }
+}
+
+</style>
