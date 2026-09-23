@@ -4,7 +4,7 @@ import Loader from './components/LogoLoader.vue';
 import SpinLoader from './components/SpinLoader.vue';
 import ConnectionErrorScreen from './components/ConnectionErrorScreen.vue';
 //import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import init, { refetchUser } from './assets/init';
 import { isLoaded, user } from './assets/var';
 import type { User } from '@/types/types';
@@ -311,7 +311,13 @@ const handleTauriLogin = async () => {
 const bootError = ref<boolean>(false);
 const bootLoading = ref<boolean>(false);
 
-const bootstrap = async () => {
+// `silent`: utilisé par le polling automatique en arrière-plan (voir plus
+// bas) pour retenter le vrai bootstrap sans spammer un toast d'erreur à
+// chaque tentative infructueuse — seul le clic manuel sur "Réessayer" doit
+// notifier l'échec.
+const bootstrap = async (options?: { silent?: boolean }) => {
+  const silent = options?.silent ?? false;
+
   bootError.value = false;
   bootLoading.value = true;
   bootProgress.value = 5;
@@ -321,7 +327,8 @@ const bootstrap = async () => {
     debugLog('[boot] health check status:', res.status);
     if (!res.ok) {
       bootError.value = true;
-      return toast.show('Api error', 'error', 10000);
+      if (!silent) toast.show('Api error', 'error', 10000);
+      return;
     }
     bootProgress.value = 25;
 
@@ -348,11 +355,65 @@ const bootstrap = async () => {
   } catch (error) {
     console.error('Error in bootstrap:', error);
     bootError.value = true;
-    toast.show('Une erreur est survenue lors de l’initialisation.', 'error', 10000);
+    if (!silent) toast.show('Une erreur est survenue lors de l’initialisation.', 'error', 10000);
   } finally {
     bootLoading.value = false;
   }
 };
+
+// Polling silencieux pendant que l'écran d'erreur est affiché : toutes les
+// 4s, on sonde /health sans notification. Dès que le serveur répond, on
+// relance le vrai bootstrap() avec une transition (roue qui tourne, puis
+// check) au lieu de faire disparaître l'écran d'erreur d'un coup sec.
+const AUTO_RETRY_INTERVAL_MS = 4000;
+const RECONNECT_TRANSITION_MS = 700;
+let autoRetryTimer: ReturnType<typeof setInterval> | null = null;
+const reconnectStatus = ref<'offline' | 'reconnecting' | 'success'>('offline');
+
+const stopAutoRetry = () => {
+  if (autoRetryTimer) {
+    clearInterval(autoRetryTimer);
+    autoRetryTimer = null;
+  }
+};
+
+const probeServerHealth = async (): Promise<boolean> => {
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/health`);
+    return res.ok;
+  } catch {
+    return false;
+  }
+};
+
+const attemptSilentReconnect = async () => {
+  if (!(await probeServerHealth())) return;
+
+  stopAutoRetry();
+  reconnectStatus.value = 'reconnecting';
+  await bootstrap({ silent: true });
+
+  if (bootError.value) {
+    // Retombé en panne entre la sonde et le vrai bootstrap : retour à
+    // l'écran d'erreur, le watch ci-dessous relance le polling.
+    reconnectStatus.value = 'offline';
+    return;
+  }
+
+  reconnectStatus.value = 'success';
+  await new Promise((resolve) => setTimeout(resolve, RECONNECT_TRANSITION_MS));
+  reconnectStatus.value = 'offline';
+};
+
+watch(bootError, (isError) => {
+  stopAutoRetry();
+  if (isError) {
+    reconnectStatus.value = 'offline';
+    autoRetryTimer = setInterval(attemptSilentReconnect, AUTO_RETRY_INTERVAL_MS);
+  }
+});
+
+onUnmounted(stopAutoRetry);
 
 onMounted(async () => {
   debugLog('[boot] onMounted start');
@@ -434,8 +495,8 @@ onMounted(async () => {
 
     </div>
 
-    <div v-else-if="bootError" class="h-full w-full">
-      <ConnectionErrorScreen :loading="bootLoading" @retry="bootstrap" />
+    <div v-else-if="bootError || reconnectStatus !== 'offline'" class="h-full w-full">
+      <ConnectionErrorScreen :status="reconnectStatus" :loading="bootLoading" @retry="bootstrap()" />
     </div>
 
     <!-- Un seul loader persistant pour toute la fenêtre de démarrage : que
