@@ -252,7 +252,12 @@ const onClick = (event: MouseEvent) => {
   // pour que TS narrowe chip.kind exactement à la forme attendue par l'event.
   if (chip.kind !== 'thread' && chip.kind !== 'task' && chip.kind !== 'file') return;
 
-  emit('reference-click', chip, event);
+  // Reconstruire l'objet plutôt que de passer `chip` tel quel : narrower
+  // `chip.kind` sur les lectures ci-dessus ne narrowe pas le type de `chip`
+  // dans son ensemble (kind n'est pas le discriminant d'une union de formes,
+  // juste une propriété union sur une forme unique) — TS le voit donc encore
+  // comme `ReferenceKind` complet si on lui passe `chip` directement.
+  emit('reference-click', { kind: chip.kind, id: chip.id, spaceId: chip.spaceId }, event);
 };
 
 watch(() => renderedHtml.value, () => {
