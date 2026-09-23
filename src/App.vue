@@ -367,8 +367,10 @@ const bootstrap = async (options?: { silent?: boolean }) => {
 // check) au lieu de faire disparaître l'écran d'erreur d'un coup sec.
 const AUTO_RETRY_INTERVAL_MS = 4000;
 const RECONNECT_TRANSITION_MS = 700;
+const DISCONNECT_TRANSITION_MS = 550;
 let autoRetryTimer: ReturnType<typeof setInterval> | null = null;
-const reconnectStatus = ref<'offline' | 'reconnecting' | 'success'>('offline');
+let disconnectToken = 0;
+const reconnectStatus = ref<'disconnecting' | 'offline' | 'reconnecting' | 'success'>('offline');
 
 const stopAutoRetry = () => {
   if (autoRetryTimer) {
@@ -394,9 +396,9 @@ const attemptSilentReconnect = async () => {
   await bootstrap({ silent: true });
 
   if (bootError.value) {
-    // Retombé en panne entre la sonde et le vrai bootstrap : retour à
-    // l'écran d'erreur, le watch ci-dessous relance le polling.
-    reconnectStatus.value = 'offline';
+    // Retombé en panne entre la sonde et le vrai bootstrap : le watch
+    // ci-dessous réagit au flip de bootError et rejoue la transition
+    // "disconnecting" avant de relancer le polling.
     return;
   }
 
@@ -405,12 +407,23 @@ const attemptSilentReconnect = async () => {
   reconnectStatus.value = 'offline';
 };
 
-watch(bootError, (isError) => {
+// Passe par un état "disconnecting" transitoire avant de s'installer dans
+// l'état "offline" stable — évite que l'écran d'erreur apparaisse d'un
+// coup sec dès que bootError bascule à true.
+watch(bootError, async (isError) => {
   stopAutoRetry();
-  if (isError) {
-    reconnectStatus.value = 'offline';
-    autoRetryTimer = setInterval(attemptSilentReconnect, AUTO_RETRY_INTERVAL_MS);
-  }
+  if (!isError) return;
+
+  const token = ++disconnectToken;
+  reconnectStatus.value = 'disconnecting';
+  await new Promise((resolve) => setTimeout(resolve, DISCONNECT_TRANSITION_MS));
+
+  // Un nouveau cycle a pu démarrer entre-temps (retry relancé, ou déjà
+  // reconnecté) : on laisse la main à l'exécution la plus récente.
+  if (token !== disconnectToken || !bootError.value) return;
+
+  reconnectStatus.value = 'offline';
+  autoRetryTimer = setInterval(attemptSilentReconnect, AUTO_RETRY_INTERVAL_MS);
 });
 
 onUnmounted(stopAutoRetry);

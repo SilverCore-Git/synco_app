@@ -9,7 +9,7 @@
         <span v-if="status === 'offline'" class="error-icon-ring error-icon-ring--delay" />
         <div class="error-icon-badge">
           <Transition name="icon-swap" mode="out-in">
-            <i v-if="status === 'offline'" key="offline" class="bi bi-wifi-off" />
+            <i v-if="status === 'disconnecting' || status === 'offline'" key="wifi-off" class="bi bi-wifi-off" />
             <span v-else-if="status === 'reconnecting'" key="reconnecting" class="error-spinner" />
             <i v-else key="success" class="bi bi-check-lg" />
           </Transition>
@@ -52,14 +52,19 @@
 </template>
 
 <script setup lang="ts">
-// Trois temps de l'écran, pilotés par App.vue :
+// Quatre temps de l'écran, pilotés par App.vue :
+// - disconnecting : bref instant juste après la perte de connexion, avant de
+//   s'installer dans l'état "offline" stable — évite le flash brutal d'un
+//   overlay complet qui apparaît d'un coup
 // - offline : le health check échoue, retry manuel + polling silencieux en fond
 // - reconnecting : le polling silencieux vient de détecter un serveur qui
 //   répond de nouveau, le vrai bootstrap() est en cours
 // - success : bootstrap() a réussi, bref instant avant que le parent bascule
 //   bootError à false et révèle l'écran de chargement habituel
+type Status = 'disconnecting' | 'offline' | 'reconnecting' | 'success';
+
 withDefaults(defineProps<{
-  status?: 'offline' | 'reconnecting' | 'success';
+  status?: Status;
   loading?: boolean;
 }>(), {
   status: 'offline',
@@ -69,13 +74,15 @@ defineEmits<{
   retry: [];
 }>();
 
-const titles: Record<'offline' | 'reconnecting' | 'success', string> = {
+const titles: Record<Status, string> = {
+  disconnecting: 'Connexion interrompue',
   offline: 'Connexion impossible',
   reconnecting: 'Reconnexion...',
   success: 'Connecté',
 };
 
-const messages: Record<'offline' | 'reconnecting' | 'success', string> = {
+const messages: Record<Status, string> = {
+  disconnecting: 'On dirait que ça vient de couper...',
   offline: 'Impossible de contacter le serveur. Vérifiez votre connexion internet, puis réessayez.',
   reconnecting: 'Le serveur répond de nouveau, reconnexion en cours.',
   success: 'C’est reparti !',
@@ -137,6 +144,21 @@ const messages: Record<'offline' | 'reconnecting' | 'success', string> = {
 
 .error-icon--reconnecting .error-icon-badge {
   color: var(--primary);
+}
+
+.error-icon--disconnecting .error-icon-badge {
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+  border-color: color-mix(in srgb, #ef4444 40%, transparent);
+  color: #ef4444;
+  animation: error-icon-shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes error-icon-shake {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  20% { transform: translateX(-4px) rotate(-4deg); }
+  40% { transform: translateX(3px) rotate(3deg); }
+  60% { transform: translateX(-3px) rotate(-2deg); }
+  80% { transform: translateX(2px) rotate(1deg); }
 }
 
 .error-spinner {
@@ -208,7 +230,8 @@ const messages: Record<'offline' | 'reconnecting' | 'success', string> = {
 @media (prefers-reduced-motion: reduce) {
   .error-card,
   .error-icon-ring,
-  .error-spinner {
+  .error-spinner,
+  .error-icon--disconnecting .error-icon-badge {
     animation: none;
   }
 }
