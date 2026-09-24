@@ -604,6 +604,14 @@ async function copyWebhookUrl(webhook: Webhook): Promise<boolean> {
  * Copie le secret HMAC dans le clipboard
  */
 async function copyWebhookSecret(webhook: Webhook): Promise<boolean> {
+  // Le backend renvoie `'***'` dès qu'on relit un webhook existant : seule la
+  // réponse de création contient le secret en clair.
+  if (!webhook.secret || webhook.secret === '***') {
+    const toast = useToast();
+    toast.show("Le secret n'est affiché qu'à la création du webhook", 'warning');
+    return false;
+  }
+
   try {
     await navigator.clipboard.writeText(webhook.secret);
     const toast = useToast();
