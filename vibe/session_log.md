@@ -686,3 +686,88 @@ git commit -m "feat(tasks): link a file-manager file to a task"
 1. Pas de synchronisation WebSocket pour les tags/pièces jointes/fichiers liés (simplification assumée) — envisager un événement socket dédié si la latence de rafraîchissement devient gênante en usage collaboratif intense.
 2. Vérification manuelle en navigateur non effectuée dans cette session (pas de Node.js disponible dans le sandbox d'exécution) — à tester : coller une image dans les deux modales, filtrer par tag, lier/délier un fichier, avant de considérer la branche prête à review.
 ---
+
+## 📅 **24 Septembre 2026 - Favicon réactive au nombre de notifications**
+
+**Durée** : Session courte  
+**Priorité** : ⭐⭐⭐ (Moyenne)  
+**Complexité** : Basse (frontend uniquement, 1 composable)  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Faire refléter le nombre de notifications non lues directement dans l'icône de l'onglet, pour qu'un message reçu reste visible quand Synco est en arrière-plan (le badge du centre de notifications, lui, n'est visible que si l'onglet est au premier plan). Le jeu d'icônes existait déjà dans `public/ico` mais n'était branché nulle part.
+
+### **Fichiers Créés**
+| Fichier | Description |
+|---------|-------------|
+| `src/composables/useFavicon.ts` | Observe `unreadCount` et remplace le `<link rel="icon">` du document : 0 → `favicon.ico`, 1..9 → `Synco_notif_N.ico`, 10 et plus → `Synco_notif_9+.ico`. Préchargement du jeu complet pendant un temps mort (`requestIdleCallback`, repli `setTimeout`) pour éviter une icône vide au premier changement de compteur. |
+
+### **Fichiers Modifiés**
+| Fichier | Modification |
+|---------|--------------|
+| `src/composables/useNotification.ts` | `unreadCount` exporté au niveau module (il y vivait déjà, il n'était exposé que via le retour de `useNotification()`) — permet à `useFavicon.ts` de l'observer sans contexte de composant, donc sans déclencher `useRouter()`/`useToast()` hors `setup()`. |
+| `src/App.vue` | Appel de `initFavicon()` en tête de `onMounted`, avant `bootstrap()`, pour que l'icône soit correcte dès le premier chargement des notifications. |
+
+### **Fonctionnalités Implémentées**
+✅ **Favicon réactive** : l'icône suit `unreadCount` en temps réel (réception WebSocket, lecture, « tout marquer comme lu »), sans rechargement.  
+✅ **Remplacement du nœud `<link>`** plutôt que mutation de `href` : certains navigateurs ignorent la mutation d'attribut et gardent l'ancienne icône en cache. Le nouveau nœud est inséré avant le retrait de l'ancien, donc jamais d'onglet sans icône entre les deux.  
+✅ **Pas d'écriture DOM inutile** : `applyIcon()` sort tôt si l'icône cible est déjà celle appliquée (au-dessus de 9, `unreadCount` bouge sans changer l'image).
+
+### **Commit**
+```bash
+3f39669 feat(notifications): reflect unread count in the tab favicon
+```
+Inclut aussi les assets : ajout de `public/ico/` (jeu complet) et remplacement de `public/favicon.ico`.
+**Date** : 24 Septembre 2026  
+
+### **Prochaines Étapes**
+1. Vérification manuelle en navigateur non effectuée (Node.js absent du sandbox — build validé via `bun vite build`, mais pas de rendu réel) : à tester avec plusieurs notifications non lues, puis « tout marquer comme lu ».
+2. `unreadCount` ne compte que les notifications chargées en mémoire (`loadNotifications` pagine par 20) — suffisant pour le palier « 9+ », mais si le centre de notifications passe un jour à une page plus petite, le compteur plafonnerait en dessous du seuil.
+3. Équivalent natif non traité : badge d'icône applicative Tauri (bureau) et Capacitor (mobile), où la favicon n'a pas d'effet.
+
+---
+
+## 📅 **24 Septembre 2026 - Sélection multiple des archives + refonte de la carte Agenda**
+
+**Durée** : Session moyenne  
+**Priorité** : ⭐⭐⭐ (Moyenne)  
+**Complexité** : Moyenne (frontend uniquement, aucun changement d'API)  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Deux demandes d'UX sans changement backend :
+1. Dans les tâches archivées, pouvoir tout sélectionner d'un coup au lieu de cocher chaque tâche une par une.
+2. Refondre l'affichage des évènements d'agenda sur l'accueil : nouveaux composants, regroupement par jour avec séparateur, et défilement infini sur les jours suivants.
+
+### **Fichiers Créés**
+
+| Fichier | Description |
+|---------|-------------|
+| `src/composables/useUpcomingAgenda.ts` | Flux « agenda à venir » paginé par fenêtres de 30 jours (horizon 1 an), état **local** à chaque appel — contrairement à `useAgenda.ts` dont l'état est partagé au niveau module, donc la carte d'accueil n'écrase plus les occurrences de la vue Agenda. Déduplication par clé composite `eventId\|occurrenceKey` (une `occurrenceKey` de série ne vaut que l'ISO du début : elle n'est unique qu'au sein d'un même évènement), filtrage des calendriers externes masqués, regroupement par jour local. Nom choisi pour ne pas entrer en collision avec `useAgendaFeed.ts`, qui gère le lien d'abonnement iCal. |
+| `src/views/OrgSpace/components/Home/AgendaDayDivider.vue` | Séparateur de jour collant (`position: sticky`) : pastille jour/abréviation du jour de semaine (accentuée pour aujourd'hui), libellé « Aujourd'hui / Demain / lundi 29 septembre », nombre d'évènements, filet. |
+| `src/views/OrgSpace/components/Home/AgendaEventItem.vue` | Ligne d'évènement : liseré vertical à la couleur de l'évènement, colonne horaire début/fin (ou « Journée »), titre, méta (lieu, participants, récurrence), badge « En cours » pulsé, estompage des évènements terminés. L'horloge est passée en prop par la carte (un seul `setInterval` pour toute la liste). |
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/views/OrgSpace/views/TasksArchive.vue` | Case « Tout sélectionner » (état indéterminé si sélection partielle) en tête de liste + une case par en-tête de groupe (jour ou dossier). Les deux ne portent que sur `filteredTasks` : tout cocher puis restreindre le filtre ne doit pas permettre de supprimer des tâches jamais affichées. |
+| `src/views/OrgSpace/components/Home/AgendaCard.vue` | Réécrite : liste groupée par jour, `IntersectionObserver` sur une sentinelle en pied de carte pour le défilement infini, repli sur un bouton « Charger les jours suivants » après 3 fenêtres enchaînées (une période creuse ne produit aucun scroll, donc l'observer ne se redéclencherait jamais), état d'erreur avec « Réessayer », `padding-top: 0` sur le corps pour que les séparateurs collants n'aient pas d'espace mort au-dessus d'eux. |
+
+### **Fonctionnalités Implémentées**
+✅ **Sélection multiple des archives** : globale (liste filtrée) et par groupe, compatibles avec la barre d'actions groupées existante (Restaurer / Supprimer définitivement).  
+✅ **Agenda d'accueil jour par jour** : un séparateur collant par jour, les évènements du jour en dessous, les jours vides sont sautés (vue « planning », pas calendrier).  
+✅ **Défilement infini** : fenêtres de 30 jours chargées à l'approche du bas, jusqu'à un an ; les évènements multi-jours déjà commencés sont rattachés au premier jour du flux au lieu de disparaître dans le passé.
+
+### **Commits**
+```bash
+fe2855d feat(tasks): select-all checkboxes in the archive list
+3a4e2d2 feat(agenda): day-by-day infinite feed for the home agenda card
+```
+**Date** : 24 Septembre 2026
+
+### **Prochaines Étapes**
+1. Vérification manuelle en navigateur non effectuée (Node.js absent du sandbox — `vite build` validé via Bun, mais `vue-tsc` ne résout pas les `.vue` sous Bun : les blocs `<script setup>` ne sont donc pas passés au vérificateur de types).
+2. Piège rencontré, à garder en tête : `useAgendaFeed.ts` (lien iCal) et le nouveau flux portent des noms proches — un fichier écrasé par erreur ne fait **pas** échouer `vite build` tant que le nom d'export est identique. Vérifier `git status` avant de créer un composable.
+3. La carte n'écoute pas les évènements WebSocket agenda : un évènement créé ailleurs n'apparaît qu'au prochain montage de l'accueil.
+4. Clic sur un évènement → renvoie vers `/agenda` sans ouvrir le jour ni l'évènement (la vue Agenda n'a pas de deep-link par date) — candidat à une amélioration ultérieure.

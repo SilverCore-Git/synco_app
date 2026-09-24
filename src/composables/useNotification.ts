@@ -87,7 +87,9 @@ const permission = ref<NotificationPermission>('default');
 const isGranted = computed(() => permission.value === 'granted');
 
 // Compteur de notifications non lues
-const unreadCount = computed(() => {
+// Exporté au niveau module (en plus du retour de useNotification()) pour les
+// consommateurs hors contexte de composant, ex. useFavicon.ts.
+export const unreadCount = computed(() => {
   return notifications.value.filter(n => !n.isRead).length;
 });
 
