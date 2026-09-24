@@ -188,6 +188,11 @@ const filteredWebhooks = computed<Webhook[]>(() => {
 
 // ── Chargement ────────────────────────────────────────────────────────
 
+// Sur mobile le panneau recouvre la liste (cf. les classes `hidden md:flex`
+// ci-dessus) : y ouvrir d'office un webhook ferait atterrir l'utilisateur
+// dans une fiche sans jamais lui avoir montré ce qu'il y a d'autre.
+const isSplitView = (): boolean => window.matchMedia('(min-width: 768px)').matches;
+
 const loadSpace = async (spaceId: string) => {
 
     selectedWebhookId.value = null;
@@ -199,6 +204,13 @@ const loadSpace = async (spaceId: string) => {
     loadingChannels.value = false;
 
     await listWebhooks(spaceId);
+
+    // Ouvrir le premier de la liste plutôt que l'écran d'accueil : quand il y
+    // a des webhooks, le clic supplémentaire n'apprend rien.
+    const first = filteredWebhooks.value[0];
+    if (first && !selectedWebhookId.value && isSplitView()) {
+        await selectWebhook(first);
+    }
 
 };
 
