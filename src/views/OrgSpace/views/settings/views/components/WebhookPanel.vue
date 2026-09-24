@@ -305,15 +305,9 @@
                             <WebhookToggle
                                 v-model="form.e2eeEnabled"
                                 label="Chiffrement de bout en bout"
-                                description="Le service externe chiffre ses messages avec la clé publique du webhook."
+                                description="Le service externe chiffre ses messages avec la clé publique du webhook. À n'activer que si l'intégration sait le faire."
                                 icon="bi-lock-fill"
-                                :disabled="!canToggleE2ee"
                             />
-
-                            <p v-if="!canToggleE2ee" class="text-xs text-(--text2) leading-snug px-1">
-                                La paire de clés d'un webhook est générée à sa création :
-                                pour activer le chiffrement, créez un nouveau webhook.
-                            </p>
                         </div>
 
                         <div v-if="webhook.e2eeEnabled && webhook.publicKey" class="flex flex-col gap-2">
@@ -512,14 +506,6 @@ const togglePermission = (permission: WebhookPermission) => {
     else permissions.splice(index, 1);
 };
 
-// Le backend ne génère la paire de clés ECDH qu'à la création : activer le
-// chiffrement après coup produirait un webhook marqué E2EE mais sans clé
-// publique à donner au service externe. On ne propose donc la bascule que
-// lorsqu'une paire existe déjà.
-const canToggleE2ee = computed<boolean>(() =>
-    props.webhook.e2eeEnabled || !!props.webhook.publicKey
-);
-
 const currentChannelName = computed<string>(() =>
     props.channels.find(c => c.id === form.value.targetChannelId)?.name || ''
 );
@@ -537,12 +523,18 @@ const save = async () => {
     const dto: UpdateWebhookDTO = {
         name: form.value.name.trim(),
         description: form.value.description.trim(),
-        avatarUrl: form.value.avatarUrl,
         targetChannelId: form.value.targetChannelId,
         permissions: form.value.permissions,
         requireSignature: form.value.requireSignature,
         e2eeEnabled: form.value.e2eeEnabled
     };
+
+    // La photo ne repart que si elle a changé : une data URL pèse une
+    // trentaine de kilo-octets, inutile de la renvoyer à chaque renommage.
+    // `null` la retire explicitement, `undefined` la laisse en place.
+    if (form.value.avatarUrl !== (props.webhook.avatarUrl || null)) {
+        dto.avatarUrl = form.value.avatarUrl;
+    }
 
     try {
         const result = await updateWebhook(props.webhook.id, dto);
