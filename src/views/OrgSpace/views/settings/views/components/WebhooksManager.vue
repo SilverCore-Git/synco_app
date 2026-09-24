@@ -82,9 +82,9 @@
                     {{ webhooks.length === 0 ? 'Aucun webhook pour l\'instant' : 'Sélectionnez un webhook' }}
                 </h3>
                 <p class="text-sm text-(--text2) mt-2 max-w-sm relative z-10 leading-relaxed">
-                    Un webhook donne à un service externe — CI, monitoring,
-                    automatisation — une identité et une adresse privée pour poster
-                    dans un salon de ce workspace.
+                    Un webhook est une adresse que vous donnez à un outil extérieur.
+                    Ce qu'il envoie dessus s'affiche dans le salon choisi, sous le nom
+                    et la photo du webhook.
                 </p>
                 <button
                     v-if="webhooks.length === 0"

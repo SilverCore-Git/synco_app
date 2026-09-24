@@ -12,9 +12,9 @@
         <form id="webhook-create-form" class="flex flex-col gap-6" @submit.prevent="handleCreate">
 
             <p class="text-sm text-(--text2) leading-relaxed -mt-1">
-                Un webhook est une adresse privée à donner à un service externe
-                (CI, monitoring, automatisation) pour qu'il poste dans un salon
-                sous une identité à lui.
+                Vous obtiendrez une adresse à coller dans l'outil de votre choix.
+                Ce qu'il enverra dessus s'affichera ici, sous le nom et la photo
+                que vous choisissez maintenant.
             </p>
 
             <WebhookAvatarInput v-model="avatarUrl" :name="name" />

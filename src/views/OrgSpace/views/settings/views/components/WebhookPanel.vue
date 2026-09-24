@@ -604,7 +604,10 @@ const sendTest = async () => {
         await testWebhook(props.webhook.id, {
             content,
             username: props.webhook.name,
-            avatar_url: props.webhook.avatarUrl
+            // `?? undefined` et pas `avatarUrl` brut : le backend renvoie
+            // `null` pour un webhook sans photo, et le champ est déclaré
+            // optionnel — pas nullable — dans le schéma du payload.
+            avatar_url: props.webhook.avatarUrl ?? undefined
         });
     } finally {
         testing.value = false;
