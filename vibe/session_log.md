@@ -762,7 +762,7 @@ Deux demandes d'UX sans changement backend :
 ### **Commits**
 ```bash
 fe2855d feat(tasks): select-all checkboxes in the archive list
-<hash>   feat(agenda): day-by-day infinite feed for the home agenda card
+3a4e2d2 feat(agenda): day-by-day infinite feed for the home agenda card
 ```
 **Date** : 24 Septembre 2026
 
