@@ -24,6 +24,7 @@ import waitFor from './assets/utils/waitfor';
 import { debugLog } from './assets/utils/debugLog';
 import Popup from './components/Popup.vue';
 import { isProfileOpen, profileUser, closeProfile } from './composables/useProfile';
+import useFavicon from './composables/useFavicon';
 
 const toast = useToast();
 const { Item: theme } = useSettingsItem('theme', 'dark');
@@ -429,8 +430,14 @@ watch(bootError, (isError) => {
 
 onUnmounted(stopAutoRetry);
 
+const { initFavicon } = useFavicon();
+
 onMounted(async () => {
   debugLog('[boot] onMounted start');
+
+  // Favicon réactive : branchée avant bootstrap() pour que l'icône reflète
+  // le compteur de non-lus dès le premier chargement des notifications.
+  initFavicon();
 
   // Le premier rendu réel de l'app a été commité au DOM (on est dans
   // onMounted), mais on attend un vrai cycle de peinture (nextTick + rAF)

@@ -686,3 +686,41 @@ git commit -m "feat(tasks): link a file-manager file to a task"
 1. Pas de synchronisation WebSocket pour les tags/pièces jointes/fichiers liés (simplification assumée) — envisager un événement socket dédié si la latence de rafraîchissement devient gênante en usage collaboratif intense.
 2. Vérification manuelle en navigateur non effectuée dans cette session (pas de Node.js disponible dans le sandbox d'exécution) — à tester : coller une image dans les deux modales, filtrer par tag, lier/délier un fichier, avant de considérer la branche prête à review.
 ---
+
+## 📅 **24 Septembre 2026 - Favicon réactive au nombre de notifications**
+
+**Durée** : Session courte  
+**Priorité** : ⭐⭐⭐ (Moyenne)  
+**Complexité** : Basse (frontend uniquement, 1 composable)  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Faire refléter le nombre de notifications non lues directement dans l'icône de l'onglet, pour qu'un message reçu reste visible quand Synco est en arrière-plan (le badge du centre de notifications, lui, n'est visible que si l'onglet est au premier plan). Le jeu d'icônes existait déjà dans `public/ico` mais n'était branché nulle part.
+
+### **Fichiers Créés**
+| Fichier | Description |
+|---------|-------------|
+| `src/composables/useFavicon.ts` | Observe `unreadCount` et remplace le `<link rel="icon">` du document : 0 → `favicon.ico`, 1..9 → `Synco_notif_N.ico`, 10 et plus → `Synco_notif_9+.ico`. Préchargement du jeu complet pendant un temps mort (`requestIdleCallback`, repli `setTimeout`) pour éviter une icône vide au premier changement de compteur. |
+
+### **Fichiers Modifiés**
+| Fichier | Modification |
+|---------|--------------|
+| `src/composables/useNotification.ts` | `unreadCount` exporté au niveau module (il y vivait déjà, il n'était exposé que via le retour de `useNotification()`) — permet à `useFavicon.ts` de l'observer sans contexte de composant, donc sans déclencher `useRouter()`/`useToast()` hors `setup()`. |
+| `src/App.vue` | Appel de `initFavicon()` en tête de `onMounted`, avant `bootstrap()`, pour que l'icône soit correcte dès le premier chargement des notifications. |
+
+### **Fonctionnalités Implémentées**
+✅ **Favicon réactive** : l'icône suit `unreadCount` en temps réel (réception WebSocket, lecture, « tout marquer comme lu »), sans rechargement.  
+✅ **Remplacement du nœud `<link>`** plutôt que mutation de `href` : certains navigateurs ignorent la mutation d'attribut et gardent l'ancienne icône en cache. Le nouveau nœud est inséré avant le retrait de l'ancien, donc jamais d'onglet sans icône entre les deux.  
+✅ **Pas d'écriture DOM inutile** : `applyIcon()` sort tôt si l'icône cible est déjà celle appliquée (au-dessus de 9, `unreadCount` bouge sans changer l'image).
+
+### **Commit**
+```bash
+53eb906 feat(notifications): reflect unread count in the tab favicon
+```
+Inclut aussi les assets : ajout de `public/ico/` (jeu complet) et remplacement de `public/favicon.ico`.
+**Date** : 24 Septembre 2026  
+
+### **Prochaines Étapes**
+1. Vérification manuelle en navigateur non effectuée (Node.js absent du sandbox — build validé via `bun vite build`, mais pas de rendu réel) : à tester avec plusieurs notifications non lues, puis « tout marquer comme lu ».
+2. `unreadCount` ne compte que les notifications chargées en mémoire (`loadNotifications` pagine par 20) — suffisant pour le palier « 9+ », mais si le centre de notifications passe un jour à une page plus petite, le compteur plafonnerait en dessous du seuil.
+3. Équivalent natif non traité : badge d'icône applicative Tauri (bureau) et Capacitor (mobile), où la favicon n'a pas d'effet.
