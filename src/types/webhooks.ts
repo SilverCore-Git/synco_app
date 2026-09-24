@@ -20,6 +20,42 @@ export const ALL_WEBHOOK_PERMISSIONS: WebhookPermission[] = [
   'view_stats'
 ];
 
+// Libellé, description et icône de chaque permission. Regroupés ici pour que
+// l'UI n'ait plus à inventer un intitulé à partir du nom technique : la
+// question posée à l'utilisateur n'est pas « veux-tu send_embeds ? » mais
+// « ce webhook a-t-il le droit d'envoyer des cartes enrichies ? ».
+export const WEBHOOK_PERMISSION_META: Record<WebhookPermission, {
+  label: string;
+  description: string;
+  icon: string;
+}> = {
+  send_messages: {
+    label: 'Envoyer des messages',
+    description: 'Poster du texte dans le salon de destination.',
+    icon: 'bi-chat-text'
+  },
+  send_embeds: {
+    label: 'Envoyer des cartes enrichies',
+    description: 'Poster des encarts avec titre, couleur et champs (embeds).',
+    icon: 'bi-card-heading'
+  },
+  send_attachments: {
+    label: 'Joindre des fichiers',
+    description: 'Attacher des fichiers aux messages postés.',
+    icon: 'bi-paperclip'
+  },
+  manage_webhook: {
+    label: 'Se gérer lui-même',
+    description: 'Autoriser l\'intégration à modifier ce webhook via l\'API.',
+    icon: 'bi-sliders'
+  },
+  view_stats: {
+    label: 'Lire ses statistiques',
+    description: 'Autoriser l\'intégration à consulter son compteur d\'appels.',
+    icon: 'bi-graph-up'
+  }
+};
+
 // ============================================
 // Statut des Messages Webhook
 // ============================================
@@ -133,10 +169,23 @@ export interface Webhook {
   // Métadonnées
   name: string;
   description?: string;
+  // Photo de profil du webhook, sous forme de data URL (même convention que
+  // `User.avatarUrl` et `Organization.logo`). Reprise comme avatar par défaut
+  // des messages qu'il poste, sauf `avatar_url` explicite dans le payload.
+  avatarUrl?: string;
+  
+  // Salon de destination par défaut. Le backend le stocke sous le nom
+  // `defaultThreadId` et le renvoie tel quel ; `targetChannelId` est le nom
+  // employé côté DTO — on expose les deux pour que les formulaires puissent
+  // se pré-remplir sans connaître la convention du serveur.
+  defaultThreadId?: string;
+  targetChannelId?: string;
   
   // Sécurité
   token: string;
   secret: string;
+  // Signature HMAC obligatoire sur les requêtes entrantes.
+  requireSignature?: boolean;
   
   // Chiffrement E2EE
   e2eeEnabled: boolean;
@@ -249,8 +298,10 @@ export interface WebhookAuditLog {
 export interface CreateWebhookDTO {
   name: string;
   description?: string;
+  avatarUrl?: string; // Data URL de la photo de profil
   permissions: WebhookPermission[];
   e2eeEnabled: boolean;
+  requireSignature?: boolean;
   targetChannelId?: string; // Optionnel: channel cible par défaut
 }
 
@@ -260,8 +311,10 @@ export interface CreateWebhookDTO {
 export interface UpdateWebhookDTO {
   name?: string;
   description?: string;
+  avatarUrl?: string | null; // `null` pour retirer la photo de profil
   permissions?: WebhookPermission[];
   e2eeEnabled?: boolean;
+  requireSignature?: boolean;
   isActive?: boolean;
   targetChannelId?: string;
 }

@@ -54,14 +54,23 @@ const e2eeEnabledWebhooks = computed(() => webhooks.value.filter(wh => wh.e2eeEn
 // ============================================
 
 /**
- * Patche l'URL du webhook pour s'assurer qu'elle utilise VITE_API_URL
- * au lieu de l'URL générée par le backend qui peut être incorrecte.
+ * Normalise un webhook renvoyé par l'API avant de le poser dans le state :
+ *
+ * - l'URL est reconstruite sur VITE_API_URL (celle générée par le backend
+ *   dépend de son propre API_URL, qui peut différer de l'hôte appelé) ;
+ * - `defaultThreadId` (nom du champ en base) est recopié dans
+ *   `targetChannelId` (nom employé par les DTO), sans quoi les formulaires
+ *   d'édition ouvraient toujours un sélecteur de salon vide alors que le
+ *   webhook en avait bien un.
  */
-function patchWebhookUrl(webhook: Webhook): Webhook {
+function normalizeWebhook(webhook: Webhook): Webhook {
   if (webhook && webhook.id && webhook.token) {
     // Nettoyer les éventuels slash de fin sur VITE_API_URL
     const baseUrl = import.meta.env.VITE_API_URL.replace(/\/+$/, '');
     webhook.url = `${baseUrl}/api/webhooks/${webhook.id}/${webhook.token}`;
+  }
+  if (webhook && !webhook.targetChannelId && webhook.defaultThreadId) {
+    webhook.targetChannelId = webhook.defaultThreadId;
   }
   return webhook;
 }
@@ -104,7 +113,7 @@ async function createWebhook(
     
     // Ajouter le webhook à la liste locale
     if (data.success && data.webhook) {
-      webhooks.value.push(patchWebhookUrl(data.webhook));
+      webhooks.value.push(normalizeWebhook(data.webhook));
     }
     
     return data;
@@ -139,7 +148,7 @@ async function listWebhooks(spaceId: string): Promise<ListWebhooksResponse | nul
     const data: ListWebhooksResponse = await response.json();
     
     if (data.success) {
-      webhooks.value = data.webhooks.map(patchWebhookUrl);
+      webhooks.value = data.webhooks.map(wh => normalizeWebhook(wh));
     }
     
     return data;
@@ -174,7 +183,7 @@ async function getWebhook(webhookId: string): Promise<GetWebhookResponse | null>
     const data: GetWebhookResponse = await response.json();
     
     if (data.success && data.webhook) {
-      currentWebhook.value = patchWebhookUrl(data.webhook);
+      currentWebhook.value = normalizeWebhook(data.webhook);
     }
     
     return data;
@@ -213,7 +222,7 @@ async function updateWebhook(
     const data: GetWebhookResponse = await response.json();
     
     if (data.success && data.webhook) {
-      patchWebhookUrl(data.webhook);
+      normalizeWebhook(data.webhook);
       // Mettre à jour dans la liste locale
       const index = webhooks.value.findIndex(wh => wh.id === webhookId);
       if (index !== -1) {
@@ -302,7 +311,7 @@ async function regenerateWebhookToken(webhookId: string): Promise<RegenerateToke
     const data: RegenerateTokenResponse = await response.json();
     
     if (data.success && data.webhook) {
-      patchWebhookUrl(data.webhook);
+      normalizeWebhook(data.webhook);
       // Mettre à jour dans la liste locale
       const index = webhooks.value.findIndex(wh => wh.id === webhookId);
       if (index !== -1) {
@@ -347,7 +356,7 @@ async function toggleWebhookActive(webhookId: string, isActive: boolean): Promis
     const data: GetWebhookResponse = await response.json();
     
     if (data.success && data.webhook) {
-      patchWebhookUrl(data.webhook);
+      normalizeWebhook(data.webhook);
       // Mettre à jour dans la liste locale
       const index = webhooks.value.findIndex(wh => wh.id === webhookId);
       if (index !== -1) {
@@ -550,12 +559,16 @@ async function getSpaceChannels(spaceId: string): Promise<WebhookTargetChannel[]
       return [];
     }
     
-    // Mapper les threads vers le format attendu par les webhooks
-    return space.threads.map(thread => ({
-      id: thread.id,
-      name: thread.name,
-      type: thread.type
-    }));
+    // Mapper les threads vers le format attendu par les webhooks. Les salons
+    // vocaux sont écartés : un webhook y poster un message n'aurait nulle part
+    // où l'afficher.
+    return space.threads
+      .filter(thread => thread.type === 'text')
+      .map(thread => ({
+        id: thread.id,
+        name: thread.name,
+        type: thread.type
+      }));
   } catch (err: any) {
     console.error('[Webhooks] Erreur lors de la récupération des channels:', err);
     return null;
@@ -566,6 +579,14 @@ async function getSpaceChannels(spaceId: string): Promise<WebhookTargetChannel[]
  * Copie l'URL du webhook dans le clipboard
  */
 async function copyWebhookUrl(webhook: Webhook): Promise<boolean> {
+  // Le listing ne renvoie jamais le jeton (cf. audit H3) : sans ce garde-fou
+  // on copiait littéralement la chaîne "undefined" dans le presse-papier.
+  if (!webhook.url) {
+    const toast = useToast();
+    toast.show("L'URL complète n'est visible que par le créateur du webhook", 'warning');
+    return false;
+  }
+
   try {
     await navigator.clipboard.writeText(webhook.url);
     const toast = useToast();
@@ -638,6 +659,16 @@ function canManageWebhook(webhook: Webhook): boolean {
  */
 function hasPermission(webhook: Webhook, permission: WebhookPermission): boolean {
   return webhook.permissions.includes(permission);
+}
+
+/**
+ * Avatar de repli d'un webhook sans photo de profil. Même service et mêmes
+ * couleurs que le rendu des messages webhook dans ThreadMessage.vue, pour
+ * qu'un webhook ait exactement la même tête dans les réglages et dans le fil.
+ */
+function webhookAvatarFallback(name?: string): string {
+  const label = encodeURIComponent(name?.trim() || 'Webhook');
+  return `https://ui-avatars.com/api/?name=${label}&background=7c3aed&color=fff`;
 }
 
 /**
@@ -738,6 +769,7 @@ export function useWebhooks() {
     canManageWebhook,
     hasPermission,
     formatPermission,
+    webhookAvatarFallback,
     generateDefaultTestPayload,
     refreshWebhooks,
     resetState
