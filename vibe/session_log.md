@@ -724,3 +724,50 @@ Inclut aussi les assets : ajout de `public/ico/` (jeu complet) et remplacement d
 1. Vérification manuelle en navigateur non effectuée (Node.js absent du sandbox — build validé via `bun vite build`, mais pas de rendu réel) : à tester avec plusieurs notifications non lues, puis « tout marquer comme lu ».
 2. `unreadCount` ne compte que les notifications chargées en mémoire (`loadNotifications` pagine par 20) — suffisant pour le palier « 9+ », mais si le centre de notifications passe un jour à une page plus petite, le compteur plafonnerait en dessous du seuil.
 3. Équivalent natif non traité : badge d'icône applicative Tauri (bureau) et Capacitor (mobile), où la favicon n'a pas d'effet.
+
+---
+
+## 📅 **24 Septembre 2026 - Sélection multiple des archives + refonte de la carte Agenda**
+
+**Durée** : Session moyenne  
+**Priorité** : ⭐⭐⭐ (Moyenne)  
+**Complexité** : Moyenne (frontend uniquement, aucun changement d'API)  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Deux demandes d'UX sans changement backend :
+1. Dans les tâches archivées, pouvoir tout sélectionner d'un coup au lieu de cocher chaque tâche une par une.
+2. Refondre l'affichage des évènements d'agenda sur l'accueil : nouveaux composants, regroupement par jour avec séparateur, et défilement infini sur les jours suivants.
+
+### **Fichiers Créés**
+
+| Fichier | Description |
+|---------|-------------|
+| `src/composables/useUpcomingAgenda.ts` | Flux « agenda à venir » paginé par fenêtres de 30 jours (horizon 1 an), état **local** à chaque appel — contrairement à `useAgenda.ts` dont l'état est partagé au niveau module, donc la carte d'accueil n'écrase plus les occurrences de la vue Agenda. Déduplication par clé composite `eventId\|occurrenceKey` (une `occurrenceKey` de série ne vaut que l'ISO du début : elle n'est unique qu'au sein d'un même évènement), filtrage des calendriers externes masqués, regroupement par jour local. Nom choisi pour ne pas entrer en collision avec `useAgendaFeed.ts`, qui gère le lien d'abonnement iCal. |
+| `src/views/OrgSpace/components/Home/AgendaDayDivider.vue` | Séparateur de jour collant (`position: sticky`) : pastille jour/abréviation du jour de semaine (accentuée pour aujourd'hui), libellé « Aujourd'hui / Demain / lundi 29 septembre », nombre d'évènements, filet. |
+| `src/views/OrgSpace/components/Home/AgendaEventItem.vue` | Ligne d'évènement : liseré vertical à la couleur de l'évènement, colonne horaire début/fin (ou « Journée »), titre, méta (lieu, participants, récurrence), badge « En cours » pulsé, estompage des évènements terminés. L'horloge est passée en prop par la carte (un seul `setInterval` pour toute la liste). |
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/views/OrgSpace/views/TasksArchive.vue` | Case « Tout sélectionner » (état indéterminé si sélection partielle) en tête de liste + une case par en-tête de groupe (jour ou dossier). Les deux ne portent que sur `filteredTasks` : tout cocher puis restreindre le filtre ne doit pas permettre de supprimer des tâches jamais affichées. |
+| `src/views/OrgSpace/components/Home/AgendaCard.vue` | Réécrite : liste groupée par jour, `IntersectionObserver` sur une sentinelle en pied de carte pour le défilement infini, repli sur un bouton « Charger les jours suivants » après 3 fenêtres enchaînées (une période creuse ne produit aucun scroll, donc l'observer ne se redéclencherait jamais), état d'erreur avec « Réessayer », `padding-top: 0` sur le corps pour que les séparateurs collants n'aient pas d'espace mort au-dessus d'eux. |
+
+### **Fonctionnalités Implémentées**
+✅ **Sélection multiple des archives** : globale (liste filtrée) et par groupe, compatibles avec la barre d'actions groupées existante (Restaurer / Supprimer définitivement).  
+✅ **Agenda d'accueil jour par jour** : un séparateur collant par jour, les évènements du jour en dessous, les jours vides sont sautés (vue « planning », pas calendrier).  
+✅ **Défilement infini** : fenêtres de 30 jours chargées à l'approche du bas, jusqu'à un an ; les évènements multi-jours déjà commencés sont rattachés au premier jour du flux au lieu de disparaître dans le passé.
+
+### **Commits**
+```bash
+fe2855d feat(tasks): select-all checkboxes in the archive list
+<hash>   feat(agenda): day-by-day infinite feed for the home agenda card
+```
+**Date** : 24 Septembre 2026
+
+### **Prochaines Étapes**
+1. Vérification manuelle en navigateur non effectuée (Node.js absent du sandbox — `vite build` validé via Bun, mais `vue-tsc` ne résout pas les `.vue` sous Bun : les blocs `<script setup>` ne sont donc pas passés au vérificateur de types).
+2. Piège rencontré, à garder en tête : `useAgendaFeed.ts` (lien iCal) et le nouveau flux portent des noms proches — un fichier écrasé par erreur ne fait **pas** échouer `vite build` tant que le nom d'export est identique. Vérifier `git status` avant de créer un composable.
+3. La carte n'écoute pas les évènements WebSocket agenda : un évènement créé ailleurs n'apparaît qu'au prochain montage de l'accueil.
+4. Clic sur un évènement → renvoie vers `/agenda` sans ouvrir le jour ni l'évènement (la vue Agenda n'a pas de deep-link par date) — candidat à une amélioration ultérieure.
