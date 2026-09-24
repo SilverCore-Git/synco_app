@@ -715,7 +715,7 @@ Faire refléter le nombre de notifications non lues directement dans l'icône de
 
 ### **Commit**
 ```bash
-53eb906 feat(notifications): reflect unread count in the tab favicon
+3f39669 feat(notifications): reflect unread count in the tab favicon
 ```
 Inclut aussi les assets : ajout de `public/ico/` (jeu complet) et remplacement de `public/favicon.ico`.
 **Date** : 24 Septembre 2026  
