@@ -140,8 +140,30 @@
                     </div>
 
                     <div v-else class="space-y-6 pb-24">
+                        <label class="flex items-center gap-2 pb-2 mb-1 border-b border-(--text)/10 cursor-pointer select-none w-fit">
+                            <input
+                                type="checkbox"
+                                :checked="allVisibleSelected"
+                                :indeterminate="someVisibleSelected"
+                                @change="toggleSelectAllVisible"
+                                class="accent-(--primary) w-4 h-4 shrink-0"
+                            />
+                            <span class="text-xs font-bold text-(--text2)">
+                                {{ allVisibleSelected ? 'Tout désélectionner' : 'Tout sélectionner' }}
+                            </span>
+                            <span class="text-[11px] text-(--text2)/60">({{ filteredTasks.length }})</span>
+                        </label>
+
                         <div v-for="group in groupedTasks" :key="group.key">
                             <div class="flex items-center gap-2 mb-3">
+                                <input
+                                    type="checkbox"
+                                    :checked="isGroupSelected(group)"
+                                    :indeterminate="isGroupPartiallySelected(group)"
+                                    @change="toggleGroupSelection(group)"
+                                    :title="isGroupSelected(group) ? 'Désélectionner ce groupe' : 'Sélectionner ce groupe'"
+                                    class="accent-(--primary) w-4 h-4 shrink-0 cursor-pointer"
+                                />
                                 <span class="text-[11px] font-black uppercase tracking-widest text-(--text2)">{{ group.label }}</span>
                                 <span class="text-[10px] text-(--text2)/60">({{ group.tasks.length }})</span>
                                 <div class="flex-1 h-px bg-(--text)/10"></div>
@@ -512,6 +534,40 @@ const toggleTaskSelection = (taskId: string) => {
     if (next.has(taskId)) next.delete(taskId);
     else next.add(taskId);
     selectedTaskIds.value = next;
+};
+
+// Les cases "tout sélectionner" ne portent que sur ce qui est affiché
+// (recherche + filtre dossier) : cocher tout puis restreindre le filtre ne doit
+// pas supprimer en masse des tâches que l'utilisateur n'a jamais vues.
+const allVisibleSelected = computed(() =>
+    filteredTasks.value.length > 0 && filteredTasks.value.every(t => selectedTaskIds.value.has(t.id))
+);
+
+const someVisibleSelected = computed(() =>
+    !allVisibleSelected.value && filteredTasks.value.some(t => selectedTaskIds.value.has(t.id))
+);
+
+const setSelection = (ids: string[], selected: boolean) => {
+    const next = new Set(selectedTaskIds.value);
+    for (const id of ids) {
+        if (selected) next.add(id);
+        else next.delete(id);
+    }
+    selectedTaskIds.value = next;
+};
+
+const toggleSelectAllVisible = () => {
+    setSelection(filteredTasks.value.map(t => t.id), !allVisibleSelected.value);
+};
+
+const isGroupSelected = (group: TaskGroup) =>
+    group.tasks.length > 0 && group.tasks.every(t => selectedTaskIds.value.has(t.id));
+
+const isGroupPartiallySelected = (group: TaskGroup) =>
+    !isGroupSelected(group) && group.tasks.some(t => selectedTaskIds.value.has(t.id));
+
+const toggleGroupSelection = (group: TaskGroup) => {
+    setSelection(group.tasks.map(t => t.id), !isGroupSelected(group));
 };
 
 // Sort de la sélection dès qu'une tâche quitte la liste, quel que soit le
