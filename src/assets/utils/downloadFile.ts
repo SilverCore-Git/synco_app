@@ -57,6 +57,71 @@ export const getFilePreviewUrl = async (fileId: string): Promise<FilePreview> =>
     return { url: URL.createObjectURL(blob), isBlob: true };
 };
 
+export interface DecryptedFile {
+    blob: Blob;
+    name: string;
+    mimeType: string;
+}
+
+// Récupère le contenu en clair d'un fichier stocké, déchiffrement E2EE compris.
+// Utilisé par downloadFile() ci-dessous et par la construction d'archives ZIP
+// (téléchargement de dossier), qui a besoin des octets et pas d'un lien.
+export const fetchDecryptedFile = async (fileId: string): Promise<DecryptedFile> => {
+
+    const metaRes = await sfetch(`/api/cdn/meta/${fileId}`, { method: 'GET' });
+    if (!metaRes.ok) throw new Error("Failed to fetch file metadata");
+    const metadata = await metaRes.json();
+
+    const fileRes = await sfetch(`/api/cdn/download/${fileId}`, { method: 'GET' });
+    if (!fileRes.ok) throw new Error("Failed to fetch file");
+
+    const buffer = await fileRes.arrayBuffer();
+
+    if (!metadata.isE2EE) {
+        return {
+            blob: new Blob([buffer], { type: metadata.mimeType }),
+            name: metadata.originalName,
+            mimeType: metadata.mimeType
+        };
+    }
+
+    const { key: kek } = await resolveFileKey(metadata);
+
+    if (!metadata.encryptedFileKey || !metadata.iv) {
+        throw new Error("Missing E2EE metadata (key or iv) for file decryption");
+    }
+
+    const decryptedBuffer = await decryptFileLocal(
+        buffer,
+        metadata.encryptedFileKey,
+        metadata.iv,
+        kek
+    );
+
+    return {
+        blob: new Blob([decryptedBuffer], { type: metadata.mimeType }),
+        name: metadata.originalName,
+        mimeType: metadata.mimeType
+    };
+
+};
+
+// Déclenche l'enregistrement d'un Blob sous un nom donné.
+export const saveBlob = (blob: Blob, fileName: string) => {
+
+    const objectUrl = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+
+};
+
 export const downloadFile = async (fileId: string) => {
     
     try {
@@ -101,18 +166,7 @@ export const downloadFile = async (fileId: string) => {
         );
 
         // 5. Trigger download of decrypted file
-        const blob = new Blob([decryptedBuffer], { type: metadata.mimeType });
-        const objectUrl = URL.createObjectURL(blob);
-        
-        const link = document.createElement('a');
-        link.href = objectUrl;
-        link.download = metadata.originalName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Clean up memory
-        setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+        saveBlob(new Blob([decryptedBuffer], { type: metadata.mimeType }), metadata.originalName);
 
     } catch (e) {
         console.error("Download Error:", e);

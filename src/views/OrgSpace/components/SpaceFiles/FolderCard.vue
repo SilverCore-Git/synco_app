@@ -68,6 +68,14 @@
             class="flex items-center gap-1 transition-opacity pr-1"
             :class="isDropdownOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
         >
+            <button 
+                class="w-8 h-8 rounded-lg hover:bg-(--primary)/10 flex items-center justify-center transition-colors hover:text-(--primary)" 
+                title="Télécharger le dossier (.zip)"
+                @click.stop="$emit('download')"
+            >
+                <i class="bi bi-download text-lg" />
+            </button>
+
             <DropDown ref="dropdownRef" align="mouse" @click.stop @toggled="val => isDropdownOpen = val">
                 <template #trigger>
                     <button class="w-8 h-8 rounded-lg hover:bg-(--primary)/10 flex items-center justify-center transition-colors hover:text-(--primary)">
@@ -82,6 +90,13 @@
                     >
                         <i class="bi bi-check2-square" />
                         Sélectionner
+                    </button>
+                    <button 
+                        @click="$emit('download')"
+                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                    >
+                        <i class="bi bi-download" />
+                        Télécharger (.zip)
                     </button>
                     <button 
                         @click="showEditFolder = true"
@@ -136,7 +151,7 @@ const props = defineProps<{
     isSelectionMode?: boolean
 }>();
 
-const emit = defineEmits(['toggle-select', 'range-select', 'click', 'show-permissions', 'request-delete']);
+const emit = defineEmits(['toggle-select', 'range-select', 'click', 'download', 'show-permissions', 'request-delete']);
 
 let longPressTimer: any = null;
 

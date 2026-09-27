@@ -167,6 +167,21 @@
                     </div>
                 </div>
 
+                <div v-if="isZipping" class="w-full bg-(--text)/5 border border-(--text)/10 rounded-lg p-3 mb-4 animate-in fade-in slide-in-from-top-2">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-[10px] font-black uppercase text-(--primary) tracking-widest">
+                            {{ zipProgress >= 95 ? 'Compression...' : 'Préparation de l\'archive...' }}
+                        </span>
+                        <span class="text-[10px] font-bold text-(--text2)">{{ zipProgress }}%</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-black/20 rounded-full overflow-hidden">
+                        <div 
+                            class="h-full bg-(--primary) transition-all duration-300 ease-out shadow-[0_0_10px_var(--primary)]"
+                            :style="{ width: `${zipProgress}%` }"
+                        ></div>
+                    </div>
+                </div>
+
                 <div
                     v-if="filteredFolders.length > 0 || filteredFiles.length > 0"
                     class="grid grid-cols-1 gap-3"
@@ -193,6 +208,7 @@
                         :isSelectionMode="selectedItems.size > 0"
                         @toggle-select="toggleSelection(folder.id)"
                         @range-select="selectRangeTo(folder.id)"
+                        @download="downloadFolder(folder)"
                         @show-permissions="openFolderPermissions(folder)"
                         @request-delete="requestDeleteFolder"
                     />
@@ -255,32 +271,49 @@
             leave-from-class="transform translate-y-0 opacity-100"
             leave-to-class="transform translate-y-full opacity-0"
         >
-            <div v-if="selectedItems.size > 0" class="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 bg-(--bg2) border border-(--border-color) rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-4">
-                <span class="text-sm font-bold text-(--text) whitespace-nowrap">{{ selectedItems.size }} sélectionné(s)</span>
+            <!-- Mobile : barre pleine largeur posée au-dessus du bouton retour.
+                 sm+ : pilule centrée. -->
+            <div 
+                v-if="selectedItems.size > 0" 
+                class="
+                    absolute z-30 bg-(--bg2) border border-(--border-color) rounded-2xl shadow-2xl
+                    bottom-20 left-3 right-3 px-3 py-2
+                    sm:bottom-5 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:px-4 sm:py-3
+                    flex items-center gap-1 sm:gap-4 max-w-[calc(100%-1.5rem)]
+                "
+            >
+                <span class="text-sm font-bold text-(--text) whitespace-nowrap shrink-0 pl-1 flex items-center gap-1.5">
+                    <i class="bi bi-check2-square sm:hidden" />
+                    {{ selectedItems.size }}<span class="hidden sm:inline"> sélectionné(s)</span>
+                </span>
                 
-                <div class="h-6 w-px bg-(--border-color)"></div>
+                <div class="h-6 w-px bg-(--border-color) shrink-0"></div>
                 
                 <button 
                     @click="downloadSelected" 
-                    class="p-2 rounded-lg hover:bg-(--primary)/10 text-(--text) hover:text-(--primary) transition-colors flex items-center gap-2 text-sm font-semibold"
+                    :disabled="isZipping"
+                    class="p-2 rounded-lg hover:bg-(--primary)/10 text-(--text) hover:text-(--primary) transition-colors flex items-center justify-center gap-2 text-sm font-semibold flex-1 sm:flex-none min-w-0 disabled:opacity-40"
+                    title="Télécharger"
                 >
-                    <i class="bi bi-download"></i>
-                    <span>Télécharger</span>
+                    <i class="bi bi-download shrink-0"></i>
+                    <span class="hidden sm:inline">Télécharger</span>
                 </button>
 
                 <button 
                     @click="requestDeleteSelection" 
-                    class="p-2 rounded-lg hover:bg-red-500/10 text-(--text) hover:text-red-500 transition-colors flex items-center gap-2 text-sm font-semibold"
+                    class="p-2 rounded-lg hover:bg-red-500/10 text-(--text) hover:text-red-500 transition-colors flex items-center justify-center gap-2 text-sm font-semibold flex-1 sm:flex-none min-w-0"
+                    title="Supprimer"
                 >
-                    <i class="bi bi-trash"></i>
-                    <span>Supprimer</span>
+                    <i class="bi bi-trash shrink-0"></i>
+                    <span class="hidden sm:inline">Supprimer</span>
                 </button>
 
-                <div class="h-6 w-px bg-(--border-color)"></div>
+                <div class="h-6 w-px bg-(--border-color) shrink-0"></div>
 
                 <button 
                     @click="clearSelection" 
-                    class="p-2 rounded-lg hover:bg-(--text)/5 text-(--text2) hover:text-(--text) transition-colors"
+                    class="p-2 rounded-lg hover:bg-(--text)/5 text-(--text2) hover:text-(--text) transition-colors shrink-0"
+                    title="Tout désélectionner"
                 >
                     <i class="bi bi-x-lg"></i>
                 </button>
@@ -346,9 +379,11 @@
 
     <ConfirmDelete
         :show="showDeletePopup"
-        :itemName="deleteTarget?.type === 'selection' ? selectedItems.size + ' élément(s)' : 'cet élément'"
-        :itemType="deleteTarget?.type === 'selection' ? 'ces éléments' : 'cet élément'"
-        :checkbox="false"
+        :itemName="deleteTargetName"
+        :itemType="deleteTargetType"
+        :checkbox="deleteCount > 1"
+        :checkboxLabel="`Je comprends que ces ${deleteCount} éléments seront supprimés définitivement.`"
+        :extraWarning="deleteExtraWarning"
         :checktext="false"
         :loading="isDeleting"
         @confirm="executeDeletion"
@@ -513,6 +548,7 @@ import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { useToast } from '@/composables/useToast';
 import useWSocket from '@/composables/useWSocket';
 import { downloadFile } from '@/assets/utils/downloadFile';
+import { downloadItemsAsZip, sanitizeZipName, type ZipItem } from '@/assets/utils/downloadZip';
 import DropDown from '@/components/DropDown.vue';
 
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
@@ -603,14 +639,117 @@ const onFolderCardClick = (event: MouseEvent, folderId: string) => {
     currentFolderId.value = folderId;
 };
 
-const downloadSelected = async () => {
-    const filesToDownload = allFiles.value.filter(f => selectedItems.value.has(f.id));
-    if (filesToDownload.length === 0) {
-        toast.show("Aucun fichier sélectionné (les dossiers ne peuvent être téléchargés groupés pour le moment).", "info");
+const isZipping = ref<boolean>(false);
+const zipProgress = ref<number>(0);
+
+// Aplatit un dossier et tout son contenu (sous-dossiers compris) en chemins
+// relatifs destinés à l'archive.
+const collectFolderItems = (folderId: string, prefix: string, visited = new Set<string>()): ZipItem[] => {
+
+    // Un dossier déplacé dans l'un de ses propres descendants créerait un cycle :
+    // sans ce garde-fou la récursion ne s'arrêterait jamais.
+    if (visited.has(folderId)) return [];
+    visited.add(folderId);
+
+    const items: ZipItem[] = [];
+    const childFolders = allFolders.value.filter(f => f.parentId === folderId);
+    const childFiles = allFiles.value.filter(f => f.folderId === folderId);
+
+    // Entrée de répertoire : préserve les dossiers vides dans le zip.
+    items.push({ path: prefix });
+
+    for (const file of childFiles) {
+        items.push({
+            path: `${prefix}/${sanitizeZipName(file.originalName)}`,
+            fileId: file.id,
+            size: file.size
+        });
+    }
+
+    for (const child of childFolders) {
+        items.push(...collectFolderItems(child.id, `${prefix}/${sanitizeZipName(child.name)}`, visited));
+    }
+
+    return items;
+
+};
+
+const runZipDownload = async (items: ZipItem[], zipName: string) => {
+
+    if (isZipping.value) {
+        toast.show("Une archive est déjà en cours de préparation", "info");
         return;
     }
-    
-    for (const file of filesToDownload) {
+
+    const fileCount = items.filter(i => i.fileId).length;
+
+    isZipping.value = true;
+    zipProgress.value = 0;
+
+    try {
+
+        const { failed } = await downloadItemsAsZip(items, zipName, (percent) => {
+            zipProgress.value = percent;
+        });
+
+        if (failed.length > 0) {
+            toast.show(`${failed.length} fichier(s) n'ont pas pu être ajoutés à l'archive`, "error");
+        } else {
+            toast.show(`Archive prête (${fileCount} fichier(s))`, "success");
+        }
+
+    } catch (e) {
+
+        if ((e as Error).message === 'ARCHIVE_TOO_LARGE') {
+            toast.show("Ce dossier est trop volumineux pour être compressé (limite 4 Go)", "error");
+        } else {
+            console.error("Zip Error:", e);
+            toast.show("Erreur lors de la création de l'archive", "error");
+        }
+
+    } finally {
+        isZipping.value = false;
+        zipProgress.value = 0;
+    }
+
+};
+
+const downloadFolder = async (folder: Folder) => {
+    const name = sanitizeZipName(folder.name);
+    await runZipDownload(collectFolderItems(folder.id, name), name);
+};
+
+const downloadSelected = async () => {
+
+    const selectedFolders = allFolders.value.filter(f => selectedItems.value.has(f.id));
+    const selectedFiles = allFiles.value.filter(f => selectedItems.value.has(f.id));
+
+    if (selectedFolders.length === 0 && selectedFiles.length === 0) return;
+
+    // Dès qu'un dossier est sélectionné, tout part dans une seule archive :
+    // c'est le seul moyen de conserver l'arborescence.
+    if (selectedFolders.length > 0)
+    {
+        const items: ZipItem[] = [];
+
+        for (const file of selectedFiles) {
+            items.push({ path: sanitizeZipName(file.originalName), fileId: file.id, size: file.size });
+        }
+
+        for (const folder of selectedFolders) {
+            items.push(...collectFolderItems(folder.id, sanitizeZipName(folder.name)));
+        }
+
+        const zipName = (selectedFolders.length === 1 && selectedFiles.length === 0)
+            ? sanitizeZipName(selectedFolders[0]!.name)
+            : sanitizeZipName(currentFolderName.value);
+
+        clearSelection();
+        await runZipDownload(items, zipName);
+        return;
+    }
+
+    for (const file of selectedFiles) {
         try {
             await downloadFile(file.id);
             await new Promise(r => setTimeout(r, 500));
@@ -618,11 +757,13 @@ const downloadSelected = async () => {
             console.error(`Error downloading ${file.originalName}`, err);
         }
     }
+
     clearSelection();
+
 };
 
 const showDeletePopup = ref<boolean>(false);
-const deleteTarget = ref<{id?: string, type: 'file' | 'folder' | 'selection'} | null>(null);
+const deleteTarget = ref<{id?: string, name?: string, type: 'file' | 'folder' | 'selection'} | null>(null);
 
 const requestDeleteSelection = () => {
     deleteTarget.value = { type: 'selection' };
@@ -630,14 +771,75 @@ const requestDeleteSelection = () => {
 };
 
 const requestDeleteFile = (file: StoredFile) => {
-    deleteTarget.value = { id: file.id, type: 'file' };
+    deleteTarget.value = { id: file.id, name: file.originalName, type: 'file' };
     showDeletePopup.value = true;
 };
 
 const requestDeleteFolder = (id: string) => {
-    deleteTarget.value = { id, type: 'folder' };
+    const folder = allFolders.value.find(f => f.id === id);
+    deleteTarget.value = { id, name: folder?.name, type: 'folder' };
     showDeletePopup.value = true;
 };
+
+// Confirmation à deux niveaux : un seul élément -> confirmation simple ;
+// plusieurs -> case à cocher obligatoire avant de pouvoir valider.
+const deleteCount = computed<number>(() => {
+    if (!deleteTarget.value) return 0;
+    return deleteTarget.value.type === 'selection' ? selectedItems.value.size : 1;
+});
+
+const isFolderId = (id: string) => allFolders.value.some(f => f.id === id);
+
+const resolveItemName = (id: string) => {
+    return allFolders.value.find(f => f.id === id)?.name
+        || allFiles.value.find(f => f.id === id)?.originalName
+        || 'cet élément';
+};
+
+const deleteTargetName = computed<string>(() => {
+
+    if (!deleteTarget.value) return '';
+
+    if (deleteTarget.value.type !== 'selection') return deleteTarget.value.name || 'cet élément';
+
+    const ids = Array.from(selectedItems.value);
+    if (ids.length === 1) return resolveItemName(ids[0]!);
+
+    return `${ids.length} éléments`;
+
+});
+
+const deleteTargetType = computed<string>(() => {
+
+    if (!deleteTarget.value) return 'cet élément';
+
+    if (deleteTarget.value.type === 'selection')
+    {
+        const ids = Array.from(selectedItems.value);
+        if (ids.length === 1) return isFolderId(ids[0]!) ? 'ce dossier' : 'ce fichier';
+        return 'ces éléments';
+    }
+
+    return deleteTarget.value.type === 'folder' ? 'ce dossier' : 'ce fichier';
+
+});
+
+// Supprimer un dossier supprime aussi son contenu côté API : on le dit.
+const deleteExtraWarning = computed<string | undefined>(() => {
+
+    if (!deleteTarget.value) return undefined;
+
+    if (deleteTarget.value.type === 'folder') {
+        return "Les fichiers et sous-dossiers de ce dossier seront également supprimés.";
+    }
+
+    if (deleteTarget.value.type === 'selection' && Array.from(selectedItems.value).some(isFolderId)) {
+        return "Les fichiers et sous-dossiers contenus dans les dossiers sélectionnés seront également supprimés.";
+    }
+
+    return undefined;
+
+});
 
 const executeDeletion = async () => {
     isDeleting.value = true;
