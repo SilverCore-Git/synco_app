@@ -53,7 +53,6 @@
 <script lang="ts" setup>
 
 import { useRouter } from 'vue-router';
-import { isLittleScreen } from '@/assets/var';
 
 const props = defineProps<{
     org: any;
@@ -66,15 +65,12 @@ const router = useRouter();
 const handleClick = () => {
     if (props.isCreate) return;
 
-    // `isLittleScreen` et non un seuil en dur : c'est lui qui décide si
-    // OrgLayout affiche les deux panneaux côte à côte ou les fait alterner.
-    // Avec 768 px, les largeurs intermédiaires ouvraient l'organisation sur
-    // le contenu alors que la mise en page, elle, était déjà en mode alterné.
-    if (isLittleScreen.value) {
-        router.push(`/${props.org.id}?showView=0`);
-    } else {
-        router.push(`/${props.org.id}`);
-    }
+    // On ouvre sur le contenu de l'accueil, pas sur les barres ; la flèche de
+    // retour les révèle ensuite (showView=0). `showView=1` est écrit
+    // explicitement plutôt que laissé au défaut de OrgLayout — même raison
+    // qu'au démarrage à froid dans init.ts : la destination ne dépend alors
+    // plus de la valeur par défaut choisie ailleurs.
+    router.push(`/${props.org.id}?showView=1`);
 };
 
 </script>
