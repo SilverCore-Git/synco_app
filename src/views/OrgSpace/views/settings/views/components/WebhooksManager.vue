@@ -4,15 +4,21 @@
          reste visible pendant qu'on configure, et la configuration se fait à
          plat dans la page au lieu d'empiler des pop-ups les unes sur les
          autres. Seule la création — trois champs — reste une pop-up. -->
-    <div class="flex h-full w-full bg-(--bg) overflow-hidden relative">
+    <div ref="rootRef" class="flex h-full w-full bg-(--bg) overflow-hidden relative">
 
         <!-- ── Colonne gauche : liste ───────────────────────────────────── -->
+        <!-- Deux colonnes ou une seule : la bascule dépend de la largeur
+             RÉELLEMENT disponible, pas de celle de la fenêtre. Cet écran est
+             aussi monté dans la fenêtre Paramètres du space, derrière une
+             barre latérale de 256 px : un point de rupture en `md:` y
+             afficherait deux colonnes dans 660 px. -->
         <aside
-            class="w-full md:w-[340px] md:max-w-[340px] bg-(--bg2)/50 border-r border-(--border-color) flex flex-col h-full shrink-0"
-            :class="selectedWebhook ? 'hidden md:flex' : 'flex'"
+            v-show="isSplitView || !selectedWebhook"
+            class="bg-(--bg2)/50 border-r border-(--border-color) flex flex-col h-full shrink-0"
+            :class="isSplitView ? 'w-[320px]' : 'w-full'"
         >
 
-            <div class="p-5 border-b border-(--border-color) flex items-center justify-between gap-3 shrink-0">
+            <div class="p-4 border-b border-(--border-color) flex items-center justify-between gap-3 shrink-0">
                 <div class="min-w-0">
                     <h1 class="text-xl font-bold text-(--text)">Webhooks</h1>
                     <p class="text-xs text-(--text2) mt-1 leading-snug">
@@ -55,7 +61,7 @@
         </aside>
 
         <!-- ── Colonne droite : configuration ───────────────────────────── -->
-        <div class="flex-1 min-w-0 h-full" :class="selectedWebhook ? 'block' : 'hidden md:block'">
+        <div v-show="isSplitView || selectedWebhook" class="flex-1 min-w-0 h-full">
 
             <WebhookPanel
                 v-if="selectedWebhook"
@@ -64,6 +70,7 @@
                 :channels="channels"
                 :loading-channels="loadingChannels"
                 :just-created="justCreatedId === selectedWebhook.id"
+                :split-view="isSplitView"
                 @updated="onWebhookUpdated"
                 @delete="askDelete"
                 @toggle-active="toggleWebhook"
@@ -124,7 +131,7 @@
 
 <script lang="ts" setup>
 
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import WebhookList from './WebhookList.vue';
 import WebhookCreate from './WebhookCreate.vue';
@@ -166,6 +173,35 @@ const deleting = ref<boolean>(false);
 const channels = ref<WebhookTargetChannel[]>([]);
 const loadingChannels = ref<boolean>(false);
 
+// ── Largeur disponible ────────────────────────────────────────────────
+
+// Mesurée sur le conteneur et non sur la fenêtre : cet écran sert à la fois
+// la page de réglages du workspace (pleine largeur) et l'onglet Webhooks de
+// la fenêtre Paramètres du space, où une barre latérale mange 256 px.
+// En dessous de ce seuil, liste et fiche se relaient au lieu de cohabiter.
+const SPLIT_VIEW_MIN_WIDTH = 700;
+
+const rootRef = ref<HTMLElement | null>(null);
+const containerWidth = ref<number>(0);
+
+const isSplitView = computed<boolean>(() => containerWidth.value >= SPLIT_VIEW_MIN_WIDTH);
+
+let resizeObserver: ResizeObserver | null = null;
+
+onMounted(() => {
+    if (!rootRef.value) return;
+    containerWidth.value = rootRef.value.clientWidth;
+    resizeObserver = new ResizeObserver(([entry]) => {
+        if (entry) containerWidth.value = entry.contentRect.width;
+    });
+    resizeObserver.observe(rootRef.value);
+});
+
+onUnmounted(() => {
+    resizeObserver?.disconnect();
+    resizeObserver = null;
+});
+
 const selectedWebhook = computed<Webhook | null>(() =>
     webhooks.value.find(wh => wh.id === selectedWebhookId.value) || null
 );
@@ -188,11 +224,6 @@ const filteredWebhooks = computed<Webhook[]>(() => {
 
 // ── Chargement ────────────────────────────────────────────────────────
 
-// Sur mobile le panneau recouvre la liste (cf. les classes `hidden md:flex`
-// ci-dessus) : y ouvrir d'office un webhook ferait atterrir l'utilisateur
-// dans une fiche sans jamais lui avoir montré ce qu'il y a d'autre.
-const isSplitView = (): boolean => window.matchMedia('(min-width: 768px)').matches;
-
 const loadSpace = async (spaceId: string) => {
 
     selectedWebhookId.value = null;
@@ -206,9 +237,13 @@ const loadSpace = async (spaceId: string) => {
     await listWebhooks(spaceId);
 
     // Ouvrir le premier de la liste plutôt que l'écran d'accueil : quand il y
-    // a des webhooks, le clic supplémentaire n'apprend rien.
+    // a des webhooks, le clic supplémentaire n'apprend rien. En colonne unique
+    // en revanche, la fiche recouvre la liste — l'utilisateur atterrirait dans
+    // un webhook sans avoir vu ce qu'il y a d'autre ni le bouton de création.
+    await nextTick();
+
     const first = filteredWebhooks.value[0];
-    if (first && !selectedWebhookId.value && isSplitView()) {
+    if (first && !selectedWebhookId.value && isSplitView.value) {
         await selectWebhook(first);
     }
 

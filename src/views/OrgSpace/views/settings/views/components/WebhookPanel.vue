@@ -1,12 +1,15 @@
 <template>
 
-    <div class="flex flex-col h-full bg-(--bg) relative overflow-hidden">
+    <div class="@container flex flex-col h-full bg-(--bg) relative overflow-hidden">
 
         <!-- ── En-tête : identité du webhook + actions ─────────────────── -->
-        <header class="px-5 sm:px-8 py-5 border-b border-(--border-color) shrink-0 flex items-center gap-4 bg-(--bg)/95 backdrop-blur-sm z-10">
+        <header class="px-5 @2xl:px-8 py-5 border-b border-(--border-color) shrink-0 flex items-center gap-4 bg-(--bg)/95 backdrop-blur-sm z-10">
 
+            <!-- En colonne unique, la fiche recouvre la liste : sans ce
+                 retour, plus aucun moyen de revenir aux autres webhooks. -->
             <button
-                class="md:hidden text-(--text2) hover:text-(--text) transition-colors shrink-0"
+                v-if="!splitView"
+                class="text-(--text2) hover:text-(--text) transition-colors shrink-0"
                 title="Retour à la liste"
                 @click="emit('back')"
             >
@@ -21,7 +24,7 @@
             />
 
             <div class="min-w-0 flex-1">
-                <h2 class="text-lg sm:text-xl font-black text-(--text) truncate">
+                <h2 class="text-lg @2xl:text-xl font-black text-(--text) truncate">
                     {{ form.name || 'Webhook sans nom' }}
                 </h2>
                 <p class="text-xs text-(--text2) truncate">
@@ -38,7 +41,7 @@
                     @click="emit('toggle-active', webhook, !webhook.isActive)"
                 >
                     <i class="bi" :class="webhook.isActive ? 'bi-pause-fill' : 'bi-play-fill'" />
-                    <span class="hidden sm:inline">{{ webhook.isActive ? 'Pause' : 'Activer' }}</span>
+                    <span class="hidden @lg:inline">{{ webhook.isActive ? 'Pause' : 'Activer' }}</span>
                 </button>
 
                 <button
@@ -54,7 +57,7 @@
         </header>
 
         <!-- ── Contenu ──────────────────────────────────────────────────── -->
-        <div class="flex-1 overflow-y-auto px-5 sm:px-8 py-6">
+        <div class="flex-1 overflow-y-auto px-5 @2xl:px-8 py-6">
 
             <div class="max-w-2xl mx-auto flex flex-col gap-8 pb-28">
 
@@ -210,7 +213,7 @@
                             Poste un vrai message dans le salon de destination, sous
                             l'identité du webhook.
                         </p>
-                        <div class="flex flex-col sm:flex-row gap-2">
+                        <div class="flex flex-col @lg:flex-row gap-2">
                             <input
                                 v-model="testMessage"
                                 type="text"
@@ -241,7 +244,7 @@
                         Activité
                     </h3>
 
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div class="grid grid-cols-2 @2xl:grid-cols-4 gap-3">
                         <div class="rounded-xl border border-(--border-color) bg-(--bg2) p-4">
                             <div class="text-2xl font-black text-(--text)">{{ webhook.usageCount }}</div>
                             <div class="text-[11px] text-(--text2) mt-0.5">Messages reçus</div>
@@ -358,7 +361,7 @@
 
         <!-- ── Barre de sauvegarde ──────────────────────────────────────── -->
         <div
-            class="absolute bottom-0 left-0 right-0 border-t border-(--border-color) bg-(--bg)/95 backdrop-blur-md px-5 sm:px-8 py-3 flex items-center justify-between gap-4 transition-transform duration-300 z-20 shadow-2xl"
+            class="absolute bottom-0 left-0 right-0 border-t border-(--border-color) bg-(--bg)/95 backdrop-blur-md px-5 @2xl:px-8 py-3 flex items-center justify-between gap-4 transition-transform duration-300 z-20 shadow-2xl"
             :class="isDirty ? 'translate-y-0' : 'translate-y-full opacity-0 pointer-events-none'"
         >
             <span class="text-sm font-semibold text-yellow-500 flex items-center gap-2 min-w-0">
@@ -424,6 +427,9 @@ const props = defineProps<{
     webhook: Webhook;
     channels: WebhookTargetChannel[];
     loadingChannels?: boolean;
+    // Faux quand la liste et la fiche se relaient faute de largeur : la fiche
+    // doit alors offrir un retour vers la liste.
+    splitView?: boolean;
     // Vrai juste après une création : l'adresse complète n'est renvoyée qu'à
     // ce moment-là par le backend, donc on la dévoile d'emblée au lieu
     // d'obliger l'utilisateur à deviner qu'il doit cliquer sur l'œil.
