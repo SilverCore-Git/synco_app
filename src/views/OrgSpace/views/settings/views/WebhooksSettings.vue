@@ -2,8 +2,8 @@
 
     <!-- Enveloppe de route : l'écran lui-même vit dans WebhooksManager, qui
          est aussi monté dans l'onglet « Webhooks » de la fenêtre Paramètres
-         du space. -->
-    <WebhooksManager v-if="spaceId" :space-id="spaceId" />
+         d'un space. Ici le périmètre est l'organisation entière. -->
+    <WebhooksManager v-if="orgId" :org-id="orgId" />
 
 </template>
 
@@ -15,6 +15,6 @@ import WebhooksManager from './components/WebhooksManager.vue';
 
 const route = useRoute();
 
-const spaceId = computed<string>(() => route.params.spaceId as string);
+const orgId = computed<string>(() => route.params.orgId as string);
 
 </script>

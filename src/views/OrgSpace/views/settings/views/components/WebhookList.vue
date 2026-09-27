@@ -54,6 +54,11 @@
                     {{ webhook.name }}
                 </p>
                 <p class="text-xs text-(--text2) truncate mt-0.5">
+                    <!-- L'espace passe avant le salon : à l'échelle de
+                         l'organisation, c'est lui qui situe le webhook. -->
+                    <template v-if="showSpace && spaceNames[webhook.spaceId || '']">
+                        {{ spaceNames[webhook.spaceId || ''] }} ·
+                    </template>
                     <template v-if="channelName(webhook)">#{{ channelName(webhook) }}</template>
                     <template v-else>Aucun salon</template>
                     · {{ webhook.usageCount }} message{{ webhook.usageCount === 1 ? '' : 's' }}
@@ -78,7 +83,11 @@ import type { Webhook, WebhookTargetChannel } from '@/types/webhooks';
 
 const props = defineProps<{
     webhooks: Webhook[];
-    channels: WebhookTargetChannel[];
+    // Salons indexés par espace : à l'échelle de l'organisation, deux lignes
+    // voisines ne visent pas les mêmes.
+    channelsBySpace: Record<string, WebhookTargetChannel[]>;
+    spaceNames: Record<string, string>;
+    showSpace: boolean;
     selectedId: string | null;
     loading: boolean;
     error: string | null;
@@ -91,8 +100,8 @@ const emit = defineEmits<{
 
 const channelName = (webhook: Webhook): string => {
     const id = webhook.targetChannelId || webhook.defaultThreadId;
-    if (!id) return '';
-    return props.channels.find(c => c.id === id)?.name || '';
+    if (!id || !webhook.spaceId) return '';
+    return props.channelsBySpace[webhook.spaceId]?.find(c => c.id === id)?.name || '';
 };
 
 </script>

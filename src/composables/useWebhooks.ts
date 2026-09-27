@@ -72,6 +72,12 @@ function normalizeWebhook(webhook: Webhook): Webhook {
   if (webhook && !webhook.targetChannelId && webhook.defaultThreadId) {
     webhook.targetChannelId = webhook.defaultThreadId;
   }
+  // Le backend nomme l'espace `workspaceId`, le frontend `spaceId`. Le champ
+  // n'était donc jamais renseigné — ce qui passait inaperçu tant qu'un écran
+  // ne montrait que les webhooks d'un seul espace.
+  if (webhook && !webhook.spaceId && (webhook as any).workspaceId) {
+    webhook.spaceId = (webhook as any).workspaceId;
+  }
   return webhook;
 }
 
@@ -151,6 +157,46 @@ async function listWebhooks(spaceId: string): Promise<ListWebhooksResponse | nul
       webhooks.value = data.webhooks.map(wh => normalizeWebhook(wh));
     }
     
+    return data;
+  } catch (err: any) {
+    error.value = err.message || 'Erreur inconnue';
+    const toast = useToast();
+    toast.show(`Échec du chargement: ${error.value}`, 'error');
+    return null;
+  } finally {
+    loading.value = false;
+  }
+}
+
+/**
+ * Liste les webhooks de tous les workspaces d'une organisation.
+ *
+ * Le backend filtre lui-même sur ORG_WEBHOOKS espace par espace : inutile
+ * d'interroger chaque workspace depuis le client, ce qui multiplierait les
+ * aller-retours et ferait remonter un toast d'erreur pour chacun de ceux que
+ * l'utilisateur n'a pas le droit de voir.
+ */
+async function listOrgWebhooks(orgId: string): Promise<ListWebhooksResponse | null> {
+  loading.value = true;
+  error.value = null;
+
+  try {
+    const response = await sfetch(`/api/orgs/${orgId}/webhooks`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.message || 'Erreur lors de la récupération des webhooks');
+    }
+
+    const data: ListWebhooksResponse = await response.json();
+
+    if (data.success) {
+      webhooks.value = data.webhooks.map(wh => normalizeWebhook(wh));
+    }
+
     return data;
   } catch (err: any) {
     error.value = err.message || 'Erreur inconnue';
@@ -759,6 +805,7 @@ export function useWebhooks() {
     // Fonctions API
     createWebhook,
     listWebhooks,
+    listOrgWebhooks,
     getWebhook,
     updateWebhook,
     deleteWebhook,

@@ -34,6 +34,23 @@
                 />
             </div>
 
+            <!-- À l'échelle de l'organisation, le salon ne suffit pas à dire
+                 où poster : il faut d'abord savoir dans quel espace chercher. -->
+            <div v-if="spaces.length > 1" class="flex flex-col gap-2">
+                <label for="webhook-space" class="text-xs font-bold uppercase tracking-wider text-(--text2)">
+                    Espace de travail
+                </label>
+                <select
+                    id="webhook-space"
+                    v-model="spaceId"
+                    class="w-full bg-(--bg) border border-(--border-color) rounded-xl px-4 py-2.5 text-sm text-(--text) font-semibold outline-none focus:border-(--primary) transition-colors"
+                >
+                    <option v-for="space in spaces" :key="space.id" :value="space.id">
+                        {{ space.name }}
+                    </option>
+                </select>
+            </div>
+
             <div class="flex flex-col gap-2">
                 <label class="text-xs font-bold uppercase tracking-wider text-(--text2)">
                     Salon de destination
@@ -69,15 +86,19 @@
 
 <script lang="ts" setup>
 
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import Popup from '@/components/Popup.vue';
 import WebhookAvatarInput from './WebhookAvatarInput.vue';
 import WebhookChannelPicker from './WebhookChannelPicker.vue';
 import { useWebhooks } from '@/composables/useWebhooks';
-import type { Webhook, WebhookTargetChannel } from '@/types/webhooks';
+import type { Webhook, WebhookScopeSpace, WebhookTargetChannel } from '@/types/webhooks';
 
 const props = defineProps<{
-    spaceId: string;
+    // Un seul espace en périmètre workspace, tous ceux de l'organisation
+    // depuis ses réglages.
+    spaces: WebhookScopeSpace[];
+    channelsBySpace: Record<string, WebhookTargetChannel[]>;
+    loadingChannels?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -85,38 +106,34 @@ const emit = defineEmits<{
     (e: 'created', webhook: Webhook): void;
 }>();
 
-const { createWebhook, getSpaceChannels } = useWebhooks();
+const { createWebhook } = useWebhooks();
 
 const name = ref<string>('');
 const avatarUrl = ref<string | null>(null);
+const spaceId = ref<string>(props.spaces[0]?.id || '');
 const targetChannelId = ref<string>('');
 
 const nameInput = ref<HTMLInputElement | null>(null);
-const channels = ref<WebhookTargetChannel[]>([]);
-const loadingChannels = ref<boolean>(false);
 const loading = ref<boolean>(false);
 
-const isFormValid = computed<boolean>(() =>
-    name.value.trim().length > 0 && targetChannelId.value.length > 0
+const channels = computed<WebhookTargetChannel[]>(() =>
+    props.channelsBySpace[spaceId.value] || []
 );
 
-onMounted(async () => {
+const isFormValid = computed<boolean>(() =>
+    name.value.trim().length > 0
+    && spaceId.value.length > 0
+    && targetChannelId.value.length > 0
+);
 
-    nextTick(() => nameInput.value?.focus());
+// Un salon appartient à un espace : changer d'espace invalide le choix
+// précédent, qu'il faut donc oublier plutôt que d'envoyer un identifiant que
+// le backend rejettera.
+watch(spaceId, () => {
+    targetChannelId.value = channels.value.length === 1 ? channels.value[0]!.id : '';
+}, { immediate: true });
 
-    if (!props.spaceId) return;
-
-    loadingChannels.value = true;
-    const result = await getSpaceChannels(props.spaceId);
-    loadingChannels.value = false;
-
-    if (!result) return;
-    channels.value = result;
-
-    // Un seul salon possible : le choix n'en est pas un, on le présélectionne.
-    if (result.length === 1) targetChannelId.value = result[0].id;
-
-});
+onMounted(() => nextTick(() => nameInput.value?.focus()));
 
 const handleCreate = async () => {
 
@@ -125,7 +142,7 @@ const handleCreate = async () => {
     loading.value = true;
 
     try {
-        const result = await createWebhook(props.spaceId, {
+        const result = await createWebhook(spaceId.value, {
             name: name.value.trim(),
             avatarUrl: avatarUrl.value || undefined,
             targetChannelId: targetChannelId.value,

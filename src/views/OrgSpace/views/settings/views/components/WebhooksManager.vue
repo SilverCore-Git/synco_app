@@ -22,7 +22,9 @@
                 <div class="min-w-0">
                     <h1 class="text-xl font-bold text-(--text)">Webhooks</h1>
                     <p class="text-xs text-(--text2) mt-1 leading-snug">
-                        Laissez un service externe poster dans vos salons.
+                        {{ isMultiSpace
+                            ? 'Tous les espaces de l\'organisation.'
+                            : 'Laissez un outil extérieur poster dans vos salons.' }}
                     </p>
                 </div>
                 <button
@@ -49,7 +51,9 @@
             <div class="flex-1 overflow-y-auto">
                 <WebhookList
                     :webhooks="filteredWebhooks"
-                    :channels="channels"
+                    :channels-by-space="channelsBySpace"
+                    :space-names="spaceNames"
+                    :show-space="isMultiSpace"
                     :selected-id="selectedWebhookId"
                     :loading="loading"
                     :error="error"
@@ -75,8 +79,9 @@
                 v-if="selectedWebhook"
                 :key="selectedWebhook.id"
                 :webhook="selectedWebhook"
-                :channels="channels"
+                :channels="channelsOf(selectedWebhook.spaceId)"
                 :loading-channels="loadingChannels"
+                :space-name="isMultiSpace ? spaceName(selectedWebhook.spaceId) : ''"
                 :just-created="justCreatedId === selectedWebhook.id"
                 :split-view="isSplitView"
                 @updated="onWebhookUpdated"
@@ -118,7 +123,9 @@
         <!-- ── Création ─────────────────────────────────────────────────── -->
         <WebhookCreate
             v-if="showCreateModal"
-            :space-id="currentSpaceId"
+            :spaces="scopeSpaces"
+            :channels-by-space="channelsBySpace"
+            :loading-channels="loadingChannels"
             @close="showCreateModal = false"
             @created="onWebhookCreated"
         />
@@ -147,13 +154,16 @@ import WebhookList from './WebhookList.vue';
 import WebhookCreate from './WebhookCreate.vue';
 import WebhookPanel from './WebhookPanel.vue';
 import { useWebhooks } from '@/composables/useWebhooks';
-import type { Webhook, WebhookTargetChannel } from '@/types/webhooks';
+import { openedOrg } from '@/assets/var';
+import type { Webhook, WebhookScopeSpace, WebhookTargetChannel } from '@/types/webhooks';
 
-// Le même écran sert la page de réglages du workspace et l'onglet
-// « Webhooks » de la fenêtre Paramètres du space : l'espace est donc passé
-// en propriété plutôt que lu dans la route.
+// Le même écran sert deux points d'entrée, qui ne diffèrent que par leur
+// périmètre : l'onglet Webhooks de la fenêtre Paramètres d'un space
+// (`spaceId`, un seul espace) et les réglages de l'organisation (`orgId`,
+// tous ses espaces).
 const props = defineProps<{
-    spaceId: string;
+    spaceId?: string;
+    orgId?: string;
 }>();
 
 const {
@@ -161,13 +171,39 @@ const {
     loading,
     error,
     listWebhooks,
+    listOrgWebhooks,
     getWebhook,
     deleteWebhook,
     toggleWebhookActive,
     getSpaceChannels
 } = useWebhooks();
 
-const currentSpaceId = computed<string>(() => props.spaceId);
+// Espaces couverts par cet écran. En périmètre organisation, `openedOrg` ne
+// contient que ceux auxquels l'utilisateur a accès — le backend refiltre de
+// toute façon sur ORG_WEBHOOKS espace par espace.
+const scopeSpaces = computed<WebhookScopeSpace[]>(() => {
+
+    const spaces = openedOrg.value?.spaces || [];
+
+    if (props.spaceId) {
+        const space = spaces.find(s => s.id === props.spaceId);
+        return [{ id: props.spaceId, name: space?.name || 'Cet espace' }];
+    }
+
+    return spaces.map(space => ({ id: space.id, name: space.name }));
+
+});
+
+// Un seul espace : inutile d'afficher partout à quel espace appartient un
+// webhook, ni de demander lequel choisir à la création.
+const isMultiSpace = computed<boolean>(() => scopeSpaces.value.length > 1);
+
+const spaceNames = computed<Record<string, string>>(() =>
+    Object.fromEntries(scopeSpaces.value.map(space => [space.id, space.name]))
+);
+
+const spaceName = (spaceId?: string): string =>
+    (spaceId && spaceNames.value[spaceId]) || '';
 
 const searchQuery = ref<string>('');
 const selectedWebhookId = ref<string | null>(null);
@@ -180,8 +216,13 @@ const showDeleteConfirm = ref<boolean>(false);
 const deletingWebhook = ref<Webhook | null>(null);
 const deleting = ref<boolean>(false);
 
-const channels = ref<WebhookTargetChannel[]>([]);
+// Salons par espace : en périmètre organisation, deux webhooks voisins dans
+// la liste ne visent pas les mêmes salons.
+const channelsBySpace = ref<Record<string, WebhookTargetChannel[]>>({});
 const loadingChannels = ref<boolean>(false);
+
+const channelsOf = (spaceId?: string): WebhookTargetChannel[] =>
+    (spaceId && channelsBySpace.value[spaceId]) || [];
 
 // ── Largeur disponible ────────────────────────────────────────────────
 
@@ -223,7 +264,8 @@ const filteredWebhooks = computed<Webhook[]>(() => {
     const result = query
         ? webhooks.value.filter(wh =>
             wh.name.toLowerCase().includes(query)
-            || wh.description?.toLowerCase().includes(query))
+            || wh.description?.toLowerCase().includes(query)
+            || spaceName(wh.spaceId).toLowerCase().includes(query))
         : [...webhooks.value];
 
     return result.sort((a, b) =>
@@ -234,17 +276,41 @@ const filteredWebhooks = computed<Webhook[]>(() => {
 
 // ── Chargement ────────────────────────────────────────────────────────
 
-const loadSpace = async (spaceId: string) => {
+const refreshWebhookList = async (): Promise<void> => {
+    if (props.spaceId) await listWebhooks(props.spaceId);
+    else if (props.orgId) await listOrgWebhooks(props.orgId);
+};
+
+// Les salons viennent du store local, pas du réseau : les charger pour tous
+// les espaces du périmètre ne coûte rien, et la fiche d'un webhook a besoin
+// de ceux de SON espace, pas de ceux de l'espace courant.
+const loadChannels = async () => {
+
+    loadingChannels.value = true;
+
+    const entries = await Promise.all(
+        scopeSpaces.value.map(async space =>
+            [space.id, (await getSpaceChannels(space.id)) || []] as const
+        )
+    );
+
+    channelsBySpace.value = Object.fromEntries(entries);
+    loadingChannels.value = false;
+
+};
+
+// `openedOrg` est alimenté par le WebSocket : au premier rendu la liste des
+// espaces peut être vide, et arriver ensuite. Sans ce suivi, les salons
+// resteraient introuvables pour toute la durée de la session.
+watch(() => scopeSpaces.value.map(space => space.id).join(','), loadChannels);
+
+const loadScope = async () => {
 
     selectedWebhookId.value = null;
     justCreatedId.value = null;
 
-    loadingChannels.value = true;
-    const result = await getSpaceChannels(spaceId);
-    channels.value = result || [];
-    loadingChannels.value = false;
-
-    await listWebhooks(spaceId);
+    await loadChannels();
+    await refreshWebhookList();
 
     // Ouvrir le premier de la liste plutôt que l'écran d'accueil : quand il y
     // a des webhooks, le clic supplémentaire n'apprend rien. En colonne unique
@@ -259,13 +325,9 @@ const loadSpace = async (spaceId: string) => {
 
 };
 
-onMounted(() => {
-    if (currentSpaceId.value) loadSpace(currentSpaceId.value);
-});
+onMounted(loadScope);
 
-watch(currentSpaceId, (spaceId) => {
-    if (spaceId) loadSpace(spaceId);
-});
+watch(() => [props.spaceId, props.orgId], loadScope);
 
 // ── Sélection ─────────────────────────────────────────────────────────
 
@@ -301,7 +363,7 @@ const onWebhookCreated = async (webhook: Webhook) => {
     // `createWebhook` a déjà poussé le webhook dans le state : on rafraîchit
     // la liste en arrière-plan sans repasser par selectWebhook(), qui
     // écraserait l'URL complète par sa version masquée.
-    if (currentSpaceId.value) await listWebhooks(currentSpaceId.value);
+    await refreshWebhookList();
 
     const created = webhooks.value.find(wh => wh.id === webhook.id);
     if (created) Object.assign(created, webhook);

@@ -405,6 +405,17 @@ export interface TestWebhookResponse {
 }
 
 // ============================================
+// Espace couvert par l'écran de gestion
+// ============================================
+// L'écran sert aussi bien un seul workspace que toute une organisation : son
+// périmètre est décrit par cette liste, et c'est sa longueur qui décide si
+// l'appartenance d'un webhook à un espace mérite d'être affichée.
+export interface WebhookScopeSpace {
+  id: string;
+  name: string;
+}
+
+// ============================================
 // Channel (pour la sélection de la cible)
 // ============================================
 export interface WebhookTargetChannel {

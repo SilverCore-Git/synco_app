@@ -29,6 +29,7 @@
                 </h2>
                 <p class="text-xs text-(--text2) truncate">
                     {{ webhook.isActive ? 'Actif' : 'En pause' }}
+                    <template v-if="spaceName"> · {{ spaceName }}</template>
                     <template v-if="currentChannelName"> · poste dans #{{ currentChannelName }}</template>
                 </p>
             </div>
@@ -126,8 +127,12 @@
 
                     <div class="rounded-2xl border border-(--border-color) bg-(--bg2) p-5 flex flex-col gap-3">
                         <p class="text-xs text-(--text2) leading-relaxed">
-                            Salon dans lequel les messages arrivent quand le service
-                            externe n'en précise aucun.
+                            Salon dans lequel les messages arrivent quand l'outil
+                            extérieur n'en précise aucun.
+                            <template v-if="spaceName">
+                                Un webhook ne peut poster que dans son propre espace,
+                                <span class="font-semibold text-(--text)">{{ spaceName }}</span>.
+                            </template>
                         </p>
                         <WebhookChannelPicker
                             v-model="form.targetChannelId"
@@ -430,6 +435,9 @@ const props = defineProps<{
     // Faux quand la liste et la fiche se relaient faute de largeur : la fiche
     // doit alors offrir un retour vers la liste.
     splitView?: boolean;
+    // Renseigné uniquement à l'échelle de l'organisation, où l'espace
+    // d'appartenance ne va pas de soi.
+    spaceName?: string;
     // Vrai juste après une création : l'adresse complète n'est renvoyée qu'à
     // ce moment-là par le backend, donc on la dévoile d'emblée au lieu
     // d'obliger l'utilisateur à deviner qu'il doit cliquer sur l'œil.
