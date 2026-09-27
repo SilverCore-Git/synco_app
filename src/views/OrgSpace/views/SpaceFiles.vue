@@ -72,16 +72,19 @@
 
                 </div>
 
-                <div class="gap-3 w-full grid grid-cols-2">
+                <div class="gap-3 w-full grid grid-cols-2 sm:grid-cols-3">
 
                     <button @click="showFolderNamePrompt = true" class="default gap-2">
                         <i class="bi bi-folder-plus" />
                         <span>Nouveau dossier</span>
                     </button>
 
+                    <button @click="showFileNamePrompt = true" class="default gap-2">
+                        <i class="bi bi-file-earmark-plus" />
+                        <span>Nouveau fichier</span>
+                    </button>
 
-
-                    <button @click="triggerFileSearch" class="primary gap-2">
+                    <button @click="triggerFileSearch" class="primary gap-2 col-span-2 sm:col-span-1">
                         <i class="bi bi-plus-circle" />
                         <span>Ajouter des fichiers</span>
                     </button>
@@ -288,6 +291,16 @@
                 </span>
                 
                 <div class="h-6 w-px bg-(--border-color) shrink-0"></div>
+
+                <button 
+                    @click="selectAllVisible" 
+                    :disabled="allVisibleSelected"
+                    class="p-2 rounded-lg hover:bg-(--primary)/10 text-(--text) hover:text-(--primary) transition-colors flex items-center justify-center gap-2 text-sm font-semibold flex-1 sm:flex-none min-w-0 disabled:opacity-40 disabled:hover:bg-transparent"
+                    title="Tout sélectionner (Ctrl+A)"
+                >
+                    <i class="bi bi-check-all shrink-0"></i>
+                    <span class="hidden sm:inline">Tout</span>
+                </button>
                 
                 <button 
                     @click="downloadSelected" 
@@ -354,10 +367,17 @@
                 Nouveau dossier
             </button>
             <button 
-                @click.stop.prevent="openFileSearchPrompt"
+                @click.stop.prevent="openCreateFilePrompt"
                 class="dropdown-item-annimate dropdown-item-style gap-2"
             >
                 <i class="bi bi-file-earmark-plus" />
+                Nouveau fichier
+            </button>
+            <button 
+                @click.stop.prevent="openFileSearchPrompt"
+                class="dropdown-item-annimate dropdown-item-style gap-2"
+            >
+                <i class="bi bi-plus-circle" />
                 Ajouter des fichiers
             </button>
         </template>
@@ -375,6 +395,12 @@
         :show="showFolderNamePrompt"
         @close="showFolderNamePrompt = false"
         @save="createFolder"
+    />
+
+    <CreateNewFile
+        :show="showFileNamePrompt"
+        @close="showFileNamePrompt = false"
+        @save="createFile"
     />
 
     <ConfirmDelete
@@ -543,6 +569,8 @@ import sfetch from '@/assets/utils/sfetch';
 import { useUsersBar } from '@/composables/useUsersBar';
 import { openedOrg } from '@/assets/var';
 import CreateNewFolder from '../components/popup/CreateNewFolder.vue';
+import CreateNewFile from '../components/popup/CreateNewFile.vue';
+import { createFolderRequest, createTextFile } from '@/services/fileActions';
 import VerifyWatermark from '../components/popup/VerifyWatermark.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { useToast } from '@/composables/useToast';
@@ -631,6 +659,37 @@ const clearSelection = () => {
     selectedItems.value = new Set();
     selectionAnchorId.value = null;
     selectionBeforeRange = null;
+};
+
+const allVisibleSelected = computed<boolean>(() => {
+    const ids = visibleItemIds.value;
+    return ids.length > 0 && ids.every(id => selectedItems.value.has(id));
+});
+
+// Tout le contenu affiché (recherche en cours comprise), pas toute la base :
+// c'est ce que l'utilisateur a sous les yeux.
+const selectAllVisible = () => {
+    const ids = visibleItemIds.value;
+    if (ids.length === 0) return;
+    selectedItems.value = new Set(ids);
+    selectionAnchorId.value = ids[0]!;
+    selectionBeforeRange = null;
+};
+
+// Ctrl+A : raccourci habituel, mais seulement une fois une sélection commencée,
+// pour ne pas voler le "tout sélectionner" du texte au reste de la vue.
+const handleSelectAllShortcut = (e: KeyboardEvent) => {
+
+    if (e.key !== 'a' && e.key !== 'A') return;
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
+    if (selectedItems.value.size === 0) return;
+
+    const target = e.target as HTMLElement | null;
+    if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
+
+    e.preventDefault();
+    selectAllVisible();
+
 };
 
 // CTRL/MAJ+clic sur un dossier sélectionne au lieu d'entrer dedans.
@@ -907,6 +966,13 @@ const openCreateFolderPrompt = () => {
     }, 10);
 };
 
+const openCreateFilePrompt = () => {
+    emptySpaceDropdown.value?.closeDropdown();
+    setTimeout(() => {
+        showFileNamePrompt.value = true;
+    }, 10);
+};
+
 const openFileSearchPrompt = () => {
     emptySpaceDropdown.value?.closeDropdown();
     setTimeout(() => {
@@ -1087,27 +1153,58 @@ const createFolder = async (name: string) => {
 
     try {
 
-        const res = await sfetch(`/api/spaces/${route.params.spaceId}/folders`, {
-            method: 'POST',
-            body: JSON.stringify({
-                orgId: openedOrg.value?.id,
-                name: name,
-                parentId: currentFolderId.value === 'root' ? null : currentFolderId.value
-            })
-        });
+        const newFolder = await createFolderRequest(
+            String(route.params.spaceId),
+            String(openedOrg.value?.id),
+            name,
+            currentFolderId.value
+        );
 
-        if (res.ok)
-        {
-            const newFolder = await res.json();
-            if (!allFolders.value.some(f => f.id === newFolder.id)) {
-                allFolders.value.push(newFolder);
-            }
+        if (!allFolders.value.some(f => f.id === newFolder.id)) {
+            allFolders.value.push(newFolder);
         }
 
     } catch (e) {
         console.error("Erreur lors de la création du dossier:", e);
+        toast.show((e as Error).message || "Erreur lors de la création du dossier", "error");
     } finally {
         showFolderNamePrompt.value = false;
+    }
+
+};
+
+const showFileNamePrompt = ref<boolean>(false);
+
+const createFile = async (payload: { name: string, ext: string, content: string }) => {
+
+    showFileNamePrompt.value = false;
+
+    try {
+
+        isUploading.value = true;
+        fileSendProgress.value = 0;
+
+        const newFile = await createTextFile({
+            spaceId: String(route.params.spaceId),
+            name: payload.name,
+            ext: payload.ext,
+            content: payload.content,
+            folderId: currentFolderId.value,
+            onProgress: (percent) => { fileSendProgress.value = percent; }
+        });
+
+        if (!allFiles.value.some(f => f.id === newFile.id)) {
+            allFiles.value.push(newFile);
+        }
+
+        toast.show(`Fichier « ${newFile.originalName} » créé`, "success");
+
+    } catch (e) {
+        console.error("Erreur lors de la création du fichier:", e);
+        toast.show((e as Error).message || "Erreur lors de la création du fichier", "error");
+    } finally {
+        isUploading.value = false;
+        fileSendProgress.value = 0;
     }
 
 };
@@ -1457,7 +1554,9 @@ const handleFiles = async (files: FileList | File[], targetFolderId: string = cu
 
 
 onMounted(async() => {
-    
+
+    window.addEventListener('keydown', handleSelectAllShortcut);
+
     try {
 
         const res = await sfetch(`/api/spaces/${route.params.spaceId}/files`);
@@ -1522,6 +1621,7 @@ onMounted(async() => {
 });
 
 onUnmounted(async () => {
+    window.removeEventListener('keydown', handleSelectAllShortcut);
     const socket = await useWSocket();
     socket.value?.off('file-added');
     socket.value?.off('file-updated');
