@@ -61,7 +61,15 @@
         </aside>
 
         <!-- ── Colonne droite : configuration ───────────────────────────── -->
-        <div v-show="isSplitView || selectedWebhook" class="flex-1 min-w-0 h-full">
+        <div v-show="isSplitView || selectedWebhook" class="flex-1 min-w-0 h-full overflow-hidden">
+
+            <!-- La fiche entre par la droite et ressort par la droite : le
+                 geste dit d'où vient ce qu'on ouvre et où ça repart, ce qui
+                 compte surtout en colonne unique, où elle recouvre la liste.
+                 `out-in` plutôt qu'un croisement : les deux fiches occupent la
+                 même place dans le flux, les superposer imposerait de les en
+                 sortir et de figer la hauteur. -->
+            <Transition name="webhook-panel" mode="out-in">
 
             <WebhookPanel
                 v-if="selectedWebhook"
@@ -102,6 +110,8 @@
                     Créer un webhook
                 </button>
             </div>
+
+            </Transition>
 
         </div>
 
@@ -337,3 +347,43 @@ const confirmDelete = async () => {
 };
 
 </script>
+
+<style scoped>
+
+/* Même courbe que la feuille mobile de Popup.vue : décélération franche à
+   l'arrivée, sortie plus courte et plus sèche. */
+.webhook-panel-enter-active {
+    transition: transform 0.24s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.24s ease;
+}
+
+.webhook-panel-leave-active {
+    transition: transform 0.16s cubic-bezier(0.32, 0, 0.67, 0), opacity 0.16s ease;
+}
+
+.webhook-panel-enter-from,
+.webhook-panel-leave-to {
+    transform: translateX(100%);
+    opacity: 0;
+}
+
+.webhook-panel-enter-to,
+.webhook-panel-leave-from {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+/* Le glissement est décoratif : on garde le fondu, qui suffit à signaler le
+   changement, et on retire le déplacement. */
+@media (prefers-reduced-motion: reduce) {
+    .webhook-panel-enter-active,
+    .webhook-panel-leave-active {
+        transition: opacity 0.12s ease;
+    }
+
+    .webhook-panel-enter-from,
+    .webhook-panel-leave-to {
+        transform: none;
+    }
+}
+
+</style>
