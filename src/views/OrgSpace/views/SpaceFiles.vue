@@ -1,6 +1,12 @@
 <template>
 
-    <div class="flex flex-col h-full relative overflow-hidden w-full">
+    <div 
+        class="flex flex-col h-full relative overflow-hidden w-full"
+        @dragenter="handleExternalDragEnter"
+        @dragover="handleExternalDragOver"
+        @dragleave="handleExternalDragLeave"
+        @drop="handleExternalDrop"
+    >
 
         <header
             class="h-14 flex items-center px-4 border-b border-(--border-color) bg-(--bg2) backdrop-blur-md z-10 w-full shrink-0"
@@ -278,6 +284,27 @@
                 </button>
             </div>
         </transition>
+
+        <!-- Overlay de dépôt : fichiers glissés depuis l'ordinateur.
+             pointer-events-none pour que les dossiers/fil d'Ariane situés
+             dessous restent des cibles de dépôt valides. -->
+        <div 
+            v-if="isExternalDrag"
+            class="
+                absolute inset-0 z-40 bg-(--primary)/10 backdrop-blur-[2px]
+                border-2 border-dashed border-(--primary) rounded-xl 
+                flex flex-col items-center justify-center gap-2 
+                pointer-events-none
+            "
+        >
+            <i class="bi bi-cloud-arrow-up text-5xl text-(--primary)" />
+            <span class="text-(--primary) font-bold">
+                Relâchez pour envoyer dans
+            </span>
+            <span class="text-[10px] font-black uppercase tracking-widest text-(--text2) max-w-xs truncate">
+                {{ currentFolderName }}
+            </span>
+        </div>
 
     </div>
 
@@ -876,6 +903,99 @@ const handleDragStart = (event: DragEvent, fileId: string) => {
     }
 };
 
+// --- Drag & drop de fichiers depuis l'ordinateur -----------------------------
+
+const isExternalDrag = ref<boolean>(false);
+// dragenter/dragleave remontent aussi depuis chaque enfant survolé : on compte
+// les entrées/sorties pour ne masquer l'overlay qu'en quittant vraiment la vue.
+let externalDragDepth = 0;
+
+const currentFolderName = computed(() => {
+    if (currentFolderId.value === 'root') return 'Racine';
+    return allFolders.value.find(f => f.id === currentFolderId.value)?.name || 'Racine';
+});
+
+// Un drag interne (fichier/dossier déjà stocké) n'expose pas de type 'Files'.
+const isExternalFileDrag = (event: DragEvent) => {
+    const types = event.dataTransfer?.types;
+    if (!types) return false;
+    return Array.from(types).includes('Files');
+};
+
+const resetExternalDrag = () => {
+    externalDragDepth = 0;
+    isExternalDrag.value = false;
+};
+
+const handleExternalDragEnter = (event: DragEvent) => {
+    if (!isExternalFileDrag(event)) return;
+    externalDragDepth++;
+    isExternalDrag.value = true;
+};
+
+const handleExternalDragOver = (event: DragEvent) => {
+    if (!isExternalFileDrag(event)) return;
+    // Sans preventDefault le navigateur ouvre le fichier au lieu de le déposer.
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    isExternalDrag.value = true;
+};
+
+const handleExternalDragLeave = (event: DragEvent) => {
+    if (!isExternalFileDrag(event)) return;
+    externalDragDepth = Math.max(0, externalDragDepth - 1);
+    if (externalDragDepth === 0) isExternalDrag.value = false;
+};
+
+const handleExternalDrop = async (event: DragEvent) => {
+    if (!isExternalFileDrag(event)) return;
+    event.preventDefault();
+    await uploadDroppedItems(event.dataTransfer, currentFolderId.value);
+};
+
+const uploadDroppedItems = async (dataTransfer: DataTransfer | null, targetFolderId: string) => {
+
+    resetExternalDrag();
+    if (!dataTransfer) return;
+
+    // L'extraction doit rester synchrone : le DataTransfer est vidé dès que le
+    // handler de drop rend la main.
+    const files: File[] = [];
+    let droppedFolders = 0;
+
+    if (dataTransfer.items && dataTransfer.items.length > 0)
+    {
+        for (const item of Array.from(dataTransfer.items))
+        {
+            if (item.kind !== 'file') continue;
+
+            const entry = item.webkitGetAsEntry?.();
+            if (entry?.isDirectory)
+            {
+                droppedFolders++;
+                continue;
+            }
+
+            const file = item.getAsFile();
+            if (file) files.push(file);
+        }
+    }
+    else
+    {
+        files.push(...Array.from(dataTransfer.files));
+    }
+
+    if (droppedFolders > 0)
+    {
+        toast.show("Les dossiers ne peuvent pas être déposés, seulement des fichiers", "info");
+    }
+
+    if (files.length === 0) return;
+
+    await handleFiles(files, targetFolderId);
+
+};
+
 const handleDragEnd = () => {
     if (!isDeleting.value) {
         isDragging.value = false;
@@ -937,7 +1057,17 @@ const handleDrop = async (event: DragEvent, targetFolderId: string) => {
 
     event.preventDefault();
     draggedIntoFolderId.value = null;
-    
+
+    // Fichiers glissés depuis l'ordinateur et lâchés sur un dossier (carte,
+    // fil d'Ariane ou bouton retour) : upload directement dedans. stopPropagation
+    // pour que le handler global du root ne les réenvoie pas dans le dossier courant.
+    if (isExternalFileDrag(event))
+    {
+        event.stopPropagation();
+        await uploadDroppedItems(event.dataTransfer, targetFolderId);
+        return;
+    }
+
     const type = event.dataTransfer?.getData('type');
     const sourceId = type === 'file' 
         ? event.dataTransfer?.getData('fileId') 
@@ -993,10 +1123,18 @@ const moveFolder = async (folderId: string, parentId: string) => {
 };
 
 
-const handleFiles = async (files: FileList | File[]) => {
+const handleFiles = async (files: FileList | File[], targetFolderId: string = currentFolderId.value) => {
 
     const selectedFiles = Array.from(files);
     if (selectedFiles.length === 0) return;
+
+    // Un seul envoi à la fois : la barre de progression est partagée et un
+    // dépôt est très facile à répéter pendant qu'un upload tourne déjà.
+    if (isUploading.value)
+    {
+        toast.show("Un envoi est déjà en cours, patientez", "info");
+        return;
+    }
 
     const MAX_SIZE = 10 * 1024 * 1024 * 1024;
     const oversized = selectedFiles.some(f => f.size > MAX_SIZE);
@@ -1015,7 +1153,7 @@ const handleFiles = async (files: FileList | File[]) => {
             selectedFiles,
             {
                 workspaceId: String(route.params.spaceId),
-                folderId: currentFolderId.value === 'root' ? undefined : currentFolderId.value,
+                folderId: targetFolderId === 'root' ? undefined : targetFolderId,
             },
             (percent: number) => {
                 fileSendProgress.value = percent;
@@ -1039,7 +1177,7 @@ const handleFiles = async (files: FileList | File[]) => {
                                 id: uploadedFile.id,
                                 text,
                                 type: 'FILE',
-                                metadata: { folderId: currentFolderId.value }
+                                metadata: { folderId: targetFolderId }
                             });
                         }
                     }).catch(err => console.error("PDF Extraction failed:", err));
