@@ -4,7 +4,8 @@ import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useToast } from '@/composables/useToast';
-import { openedOrg } from '@/assets/var';
+import useWSocket from '@/composables/useWSocket';
+import { openedOrg, user } from '@/assets/var';
 import type { WorkSpace } from '@/types/types';
 import sfetch from '@/assets/utils/sfetch';
 
@@ -19,6 +20,8 @@ const route = useRoute();
 const router = useRouter();
 const isModalOpen = ref<boolean>(false);
 const isDeleting = ref<boolean>(false);
+const isExitModalOpen = ref<boolean>(false);
+const isExiting = ref<boolean>(false);
 const showUpdateSpace = ref<boolean>(false);
 const deleteFilesToo = ref<boolean>(false);
 const isHome = computed(()=> route.name == 'OrgHome' || route.name == 'OrgThreadHome');
@@ -33,6 +36,64 @@ const openConfirmModal = () => {
     deleteFilesToo.value = false;
     isModalOpen.value = true;
 }
+
+const handleExit = async () => {
+
+    const workspace = currentWorkspace.value;
+    const userId = user.value?.id;
+
+    if (!workspace || !userId) return;
+
+    isExiting.value = true;
+
+    const membersId = workspace.membersId.filter(id => id !== userId);
+
+    const res = await sfetch(`/api/spaces/${workspace.id}/members`, {
+        method: 'PATCH',
+        body: JSON.stringify({ membersId })
+    });
+
+    if (res.ok)
+    {
+
+        // Prévenir les autres membres comme le fait l'enregistrement des
+        // paramètres du space : sans cet événement, leur liste de membres
+        // reste figée jusqu'au prochain rechargement.
+        const socket = await useWSocket();
+        socket.value?.emit('space:update', {
+            orgId: openedOrg.value?.id,
+            spaceId: workspace.id,
+            data: {
+                name: workspace.name,
+                logo: workspace.logo,
+                members: membersId
+            }
+        });
+
+        if (openedOrg.value)
+        {
+            openedOrg.value.spaces = openedOrg.value.spaces?.filter(
+                (space: WorkSpace) => space.id !== workspace.id
+            );
+        }
+
+        router.push({
+            name: 'OrgHome',
+            params: { orgId: route.params.orgId }
+        });
+
+        toast.show("Vous avez quitté l'espace de travail.", 'success');
+
+    }
+    else
+    {
+        toast.show('Une erreur est survenue en quittant l\'espace.', 'error');
+    }
+
+    isExitModalOpen.value = false;
+    isExiting.value = false;
+
+};
 
 const handleDelete = async () => {
 
@@ -99,6 +160,10 @@ const handleDelete = async () => {
                 <i class="bi bi-gear mr-2" /> Paramètres
             </button>
 
+            <button v-if="!isHome" @click="isExitModalOpen = true" class="dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!">
+                <i class="bi bi-door-open mr-2" /> Quitter
+            </button>
+
             <button v-if="!isHome" @click="openConfirmModal" class=" dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!" >
                 <i class="bi bi-trash mr-2" /> Supprimer
             </button>
@@ -113,6 +178,19 @@ const handleDelete = async () => {
         :isOpen="showUpdateSpace" 
         :space="currentWorkspace"
         @close="showUpdateSpace = false"
+    />
+
+    <ConfirmDelete
+        v-if="currentWorkspace"
+        :show="isExitModalOpen"
+        item-type="le workspace"
+        :item-name="currentWorkspace.name"
+        :loading="isExiting"
+        title="Quitter cet espace de travail ?"
+        :message="`Vous n'aurez plus accès à ${currentWorkspace.name} ni à ses salons. Un membre devra vous y réinviter.`"
+        button-text="Quitter l'espace"
+        @cancel="isExitModalOpen = false"
+        @confirm="handleExit"
     />
 
     <ConfirmDelete

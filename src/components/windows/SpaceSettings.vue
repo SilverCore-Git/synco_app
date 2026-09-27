@@ -23,14 +23,6 @@
                     {{ tab.label }}
                 </button>
 
-                <div class="shrink-0 sm:mt-auto sm:pt-4 sm:border-t sm:border-(--border-color)">
-                    <button class="danger h-full sm:h-auto w-full whitespace-nowrap flex items-center justify-center gap-2" @click="showExitConfirm = true">
-                        <i class="bi bi-door-open-fill text-lg" />
-                        <span class="hidden sm:inline">Quitter le Space</span>
-                        <span class="sm:hidden">Quitter</span>
-                    </button>
-                </div>
-                
             </aside>
 
             <!-- L'onglet Webhooks gère son propre défilement, colonne par
@@ -141,14 +133,6 @@
 
     </Window>
 
-    <ConfirmDelete
-        :show="showExitConfirm" 
-        @confirm="exitSpace" 
-        @cancel="showExitConfirm = false"
-        :itemName="space.name"
-        buttonText="Quitter l'espace"
-    />
-
     <Popup :is-open="showLogoPicker" @close="showLogoPicker = false">
         <template #title>Modifier l'icône du Space</template>
         <div class="min-h-[250px]">
@@ -166,11 +150,10 @@ import type { OrgMember, WorkSpace } from '@/types/types';
 import SaveUpdateOverlay from '../overlay/SaveUpdateOverlay.vue';
 import { useToast } from '@/composables/useToast';
 import MembersManager from '../settings/MembersManager.vue';
-import { openedOrg, user } from '@/assets/var';
+import { openedOrg } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import { encryptThreadKeyForMember, decryptThreadKeyWithRsa, privateKey } from '@/assets/utils/crypto';
-import ConfirmDelete from '../common/ConfirmDelete.vue';
 import Popup from '@/components/Popup.vue';
 import WebhooksManager from '@/views/OrgSpace/views/settings/views/components/WebhooksManager.vue';
 import IconSelector from '@/components/common/IconSelector.vue';
@@ -183,7 +166,6 @@ const props = defineProps<{
 const toast = useToast();
 const emit = defineEmits(['close']);
 
-const showExitConfirm = ref<boolean>(false);
 const activeTab = ref<string>('general');
 
 const formData = reactive({
@@ -371,20 +353,6 @@ const removeMember = async (id: string) => {
         }
         
     }
-
-};
-
-const exitSpace = async () => {
-
-    await removeMember(openedOrg.value?.members?.find(m => m.userId === user.value?.id)?.userId || '');
-
-    openedOrg.value?.spaces?.splice(
-        openedOrg.value.spaces?.findIndex(s => s.id === props.space.id) || 0, 
-        1
-    );
-
-    showExitConfirm.value = false;
-    emit('close');
 
 };
 
