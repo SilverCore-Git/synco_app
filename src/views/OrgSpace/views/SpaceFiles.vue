@@ -181,7 +181,7 @@
                     @dragover.prevent="draggedIntoFolderId = folder.id"
                     @dragleave="draggedIntoFolderId = null"
                     @drop="handleDrop($event, folder.id)"
-                    @click="currentFolderId = folder.id"
+                    @click="onFolderCardClick($event, folder.id)"
                 >
 
                     <FolderCard
@@ -192,6 +192,7 @@
                         :isSelected="selectedItems.has(folder.id)"
                         :isSelectionMode="selectedItems.size > 0"
                         @toggle-select="toggleSelection(folder.id)"
+                        @range-select="selectRangeTo(folder.id)"
                         @show-permissions="openFolderPermissions(folder)"
                         @request-delete="requestDeleteFolder"
                     />
@@ -208,6 +209,7 @@
                     :isSelected="selectedItems.has(file.id)"
                     :isSelectionMode="selectedItems.size > 0"
                     @toggle-select="toggleSelection(file.id)"
+                    @range-select="selectRangeTo(file.id)"
                     @dragstart="handleDragStart($event, file.id)"
                     @dragend="handleDragEnd"
                     @file-deleted="handleFileDeleted"
@@ -277,7 +279,7 @@
                 <div class="h-6 w-px bg-(--border-color)"></div>
 
                 <button 
-                    @click="selectedItems.clear()" 
+                    @click="clearSelection" 
                     class="p-2 rounded-lg hover:bg-(--text)/5 text-(--text2) hover:text-(--text) transition-colors"
                 >
                     <i class="bi bi-x-lg"></i>
@@ -535,6 +537,13 @@ const searchQuery = ref<string>('');
 
 const selectedItems = ref<Set<string>>(new Set());
 
+// Dernier élément cliqué : point de départ des sélections par plage (MAJ+clic).
+const selectionAnchorId = ref<string | null>(null);
+// Sélection telle qu'elle était avant la plage en cours, pour qu'un second
+// MAJ+clic remplace la plage précédente au lieu de s'y ajouter (comme un
+// explorateur de fichiers classique).
+let selectionBeforeRange: Set<string> | null = null;
+
 const toggleSelection = (id: string) => {
     const newSet = new Set(selectedItems.value);
     if (newSet.has(id)) {
@@ -543,6 +552,55 @@ const toggleSelection = (id: string) => {
         newSet.add(id);
     }
     selectedItems.value = newSet;
+    selectionAnchorId.value = id;
+    selectionBeforeRange = null;
+};
+
+// Ordre d'affichage de la grille : dossiers puis fichiers. C'est lui qui définit
+// ce que "tous ceux entre les deux" veut dire pour MAJ+clic.
+const visibleItemIds = computed<string[]>(() => [
+    ...filteredFolders.value.map(f => f.id),
+    ...filteredFiles.value.map(f => f.id),
+]);
+
+const selectRangeTo = (id: string) => {
+
+    const ids = visibleItemIds.value;
+    const toIndex = ids.indexOf(id);
+    if (toIndex === -1) return;
+
+    const fromIndex = selectionAnchorId.value ? ids.indexOf(selectionAnchorId.value) : -1;
+
+    // Pas d'ancre (rien de sélectionné, ou ancre plus visible) : MAJ+clic se
+    // comporte comme un simple clic de sélection et pose l'ancre.
+    if (fromIndex === -1) {
+        toggleSelection(id);
+        return;
+    }
+
+    if (!selectionBeforeRange) selectionBeforeRange = new Set(selectedItems.value);
+
+    const start = Math.min(fromIndex, toIndex);
+    const end = Math.max(fromIndex, toIndex);
+
+    const newSet = new Set(selectionBeforeRange);
+    for (let i = start; i <= end; i++) newSet.add(ids[i]!);
+    selectedItems.value = newSet;
+
+    // L'ancre ne bouge pas : les MAJ+clic suivants réétendent depuis le même point.
+
+};
+
+const clearSelection = () => {
+    selectedItems.value = new Set();
+    selectionAnchorId.value = null;
+    selectionBeforeRange = null;
+};
+
+// CTRL/MAJ+clic sur un dossier sélectionne au lieu d'entrer dedans.
+const onFolderCardClick = (event: MouseEvent, folderId: string) => {
+    if (event.ctrlKey || event.metaKey || event.shiftKey) return;
+    currentFolderId.value = folderId;
 };
 
 const downloadSelected = async () => {
@@ -560,7 +618,7 @@ const downloadSelected = async () => {
             console.error(`Error downloading ${file.originalName}`, err);
         }
     }
-    selectedItems.value.clear();
+    clearSelection();
 };
 
 const showDeletePopup = ref<boolean>(false);
@@ -605,7 +663,7 @@ const executeDeletion = async () => {
                 }
             } catch (err) { console.error(`Error deleting ${id}`, err); }
         }
-        selectedItems.value.clear();
+        clearSelection();
         toast.show(`${successCount} élément(s) supprimé(s)`, 'success');
     } else {
         const id = deleteTarget.value.id!;
@@ -756,7 +814,7 @@ const filteredFolders = computed(() => {
 
 watch(currentFolderId, () => {
     // Clear selection when navigating folders
-    selectedItems.value.clear();
+    clearSelection();
 });
 
 const openFolderPermissions = (folder: Folder) => {
@@ -1085,7 +1143,7 @@ const handleDrop = async (event: DragEvent, targetFolderId: string) => {
         for (const foldId of foldersToMove) {
             if (foldId !== targetFolderId) await moveFolder(foldId, targetFolderId);
         }
-        selectedItems.value.clear();
+        clearSelection();
     } else {
         if (type === 'file') {
             await moveFile(sourceId, targetFolderId);

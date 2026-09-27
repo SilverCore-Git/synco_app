@@ -7,7 +7,7 @@
         @pointerleave="onPointerUp"
         @click="handleClick"
         @contextmenu.prevent.stop="handleContextMenu"
-        class="max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border rounded-xl transition-all cursor-pointer shadow-sm"
+        class="max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border rounded-xl transition-all cursor-pointer shadow-sm select-none"
         :class="[
             draggedIntoFolderId === folder.id 
                 ? 'ring-2 ring-(--primary) bg-(--primary)/10 border-(--primary)/50'
@@ -33,7 +33,7 @@
         </button>
 
             <div 
-                @click.stop="showEditFolder = true"
+                @click.stop="onIconClick"
                 class="
                     group/icon w-10 h-10 flex items-center justify-center 
                     rounded-lg group-hover:scale-110 transition-transform cursor-pointer
@@ -136,12 +136,14 @@ const props = defineProps<{
     isSelectionMode?: boolean
 }>();
 
-const emit = defineEmits(['toggle-select', 'click', 'show-permissions', 'request-delete']);
+const emit = defineEmits(['toggle-select', 'range-select', 'click', 'show-permissions', 'request-delete']);
 
 let longPressTimer: any = null;
 
 const onPointerDown = (e: PointerEvent) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
+    // CTRL/CMD/MAJ : c'est un clic de sélection, pas un appui long.
+    if (selectionModifier(e)) return;
     longPressTimer = setTimeout(() => {
         emit('toggle-select');
         if (navigator.vibrate) navigator.vibrate(50);
@@ -155,11 +157,38 @@ const onPointerUp = () => {
     }
 };
 
-const handleClick = (e: Event) => {
+// CTRL/CMD → (dé)sélectionne l'élément cliqué. MAJ → sélectionne toute la
+// plage entre le dernier élément sélectionné et celui-ci.
+const selectionModifier = (e: MouseEvent | PointerEvent): 'toggle' | 'range' | null => {
+    if (e.ctrlKey || e.metaKey) return 'toggle';
+    if (e.shiftKey) return 'range';
+    return null;
+};
+
+const handleClick = (e: MouseEvent) => {
+    const modifier = selectionModifier(e);
+
+    if (modifier) {
+        // Empêche l'ouverture du dossier portée par le parent
+        e.stopPropagation();
+        e.preventDefault();
+        emit(modifier === 'range' ? 'range-select' : 'toggle-select');
+        return;
+    }
+
     if (props.isSelectionMode) {
         e.stopPropagation();
         emit('toggle-select');
     }
+};
+
+// L'icône ouvre le panneau de renommage, sauf avec CTRL/MAJ où le clic sert à sélectionner.
+const onIconClick = (e: MouseEvent) => {
+    if (selectionModifier(e)) {
+        handleClick(e);
+        return;
+    }
+    showEditFolder.value = true;
 };
 
 const colorTextMap: Record<string, string> = {
