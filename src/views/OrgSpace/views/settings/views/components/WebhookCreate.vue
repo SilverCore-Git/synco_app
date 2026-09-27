@@ -1,151 +1,84 @@
 <template>
 
-    <Popup :is-open="true" @close="$emit('close')" class="max-w-lg">
-        <template #title>Créer un Nouveau Webhook</template>
+    <!-- Création volontairement réduite à trois décisions : qui est ce
+         webhook (photo + nom) et où il poste. Tout le reste — permissions,
+         signature, chiffrement, URL — a un défaut sûr et se règle après coup
+         dans le panneau de configuration, où l'utilisateur a le contexte pour
+         comprendre de quoi il s'agit. -->
+    <Popup :is-open="true" @close="$emit('close')">
 
-        <form @submit.prevent="handleCreate" class="space-y-6">
-            
-            <!-- Nom -->
-            <div>
-                <label class="block text-sm font-medium text-(--text) mb-2">
-                    Nom du Webhook <span class="text-red-500">*</span>
+        <template #title>Nouveau webhook</template>
+
+        <form id="webhook-create-form" class="flex flex-col gap-6" @submit.prevent="handleCreate">
+
+            <p class="text-sm text-(--text2) leading-relaxed -mt-1">
+                Vous obtiendrez une adresse à coller dans l'outil de votre choix.
+                Ce qu'il enverra dessus s'affichera ici, sous le nom et la photo
+                que vous choisissez maintenant.
+            </p>
+
+            <WebhookAvatarInput v-model="avatarUrl" :name="name" />
+
+            <div class="flex flex-col gap-2">
+                <label for="webhook-name" class="text-xs font-bold uppercase tracking-wider text-(--text2)">
+                    Nom affiché
                 </label>
                 <input
+                    id="webhook-name"
+                    ref="nameInput"
                     v-model="name"
                     type="text"
-                    placeholder="GitHub CI/CD, Discord Bot, etc."
-                    class="w-full bg-(--text)/5 border border-(--text)/10 rounded-xl px-4 py-3 text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all"
-                    required
+                    placeholder="Ex: Déploiements, Alertes Grafana..."
                     :maxlength="100"
+                    class="w-full bg-(--bg) border border-(--border-color) rounded-xl px-4 py-2.5 text-sm text-(--text) font-semibold outline-none focus:border-(--primary) transition-colors placeholder-(--text2)/60"
                 />
-                <p class="text-xs text-(--text2) mt-1">
-                    Donnez un nom descriptif à votre webhook (max 100 caractères)
-                </p>
             </div>
 
-            <!-- Description -->
-            <div>
-                <label class="block text-sm font-medium text-(--text) mb-2">
-                    Description
-                </label>
-                <textarea
-                    v-model="description"
-                    placeholder="Notifications de déploiement, Alertes Discord, etc."
-                    class="w-full bg-(--text)/5 border border-(--text)/10 rounded-xl px-4 py-3 text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all resize-none"
-                    rows="3"
-                    :maxlength="500"
-                />
-                <p class="text-xs text-(--text2) mt-1">
-                    Description optionnelle pour identifier l'usage du webhook
-                </p>
-            </div>
-
-            <!-- Channel Cible -->
-            <div>
-                <label class="block text-sm font-medium text-(--text) mb-2">
-                    Channel Cible <span class="text-red-500">*</span>
+            <!-- À l'échelle de l'organisation, le salon ne suffit pas à dire
+                 où poster : il faut d'abord savoir dans quel espace chercher. -->
+            <div v-if="spaces.length > 1" class="flex flex-col gap-2">
+                <label for="webhook-space" class="text-xs font-bold uppercase tracking-wider text-(--text2)">
+                    Espace de travail
                 </label>
                 <select
-                    v-model="targetChannelId"
-                    class="w-full bg-(--text)/5 border border-(--text)/10 rounded-xl px-4 py-3 text-(--text) placeholder-(--text)/40 focus:outline-none focus:border-(--primary)/40 transition-all"
-                    required
-                    :disabled="loadingChannels"
+                    id="webhook-space"
+                    v-model="spaceId"
+                    class="w-full bg-(--bg) border border-(--border-color) rounded-xl px-4 py-2.5 text-sm text-(--text) font-semibold outline-none focus:border-(--primary) transition-colors"
                 >
-                    <option value="" disabled>
-                        {{ loadingChannels ? 'Chargement...' : 'Sélectionnez un channel' }}
-                    </option>
-                    <option 
-                        v-for="channel in channels" 
-                        :key="channel.id"
-                        :value="channel.id"
-                    >
-                        #{{ channel.name }}
+                    <option v-for="space in spaces" :key="space.id" :value="space.id">
+                        {{ space.name }}
                     </option>
                 </select>
-                <p class="text-xs text-(--text2) mt-1">
-                    Les messages de ce webhook seront envoyés dans ce channel
-                </p>
             </div>
 
-            <!-- Permissions -->
-            <div>
-                <label class="block text-sm font-medium text-(--text) mb-2">
-                    Permissions <span class="text-red-500">*</span>
+            <div class="flex flex-col gap-2">
+                <label class="text-xs font-bold uppercase tracking-wider text-(--text2)">
+                    Salon de destination
                 </label>
-                <div class="bg-(--text)/5 border border-(--text)/10 rounded-xl p-4">
-                    <div 
-                        v-for="permission in allPermissions" 
-                        :key="permission"
-                        class="flex items-center gap-3 p-2 rounded-lg hover:bg-(--text)/10"
-                    >
-                        <input
-                            type="checkbox"
-                            :id="`perm-${permission}`"
-                            v-model="permissions"
-                            :value="permission"
-                            class="w-4 h-4 rounded border-(--text)/20 text-(--primary) focus:ring-(--primary)/40"
-                        />
-                        <label :for="`perm-${permission}`" class="flex-1 text-sm cursor-pointer">
-                            {{ formatPermission(permission) }}
-                        </label>
-                    </div>
-                </div>
-                <p class="text-xs text-(--text2) mt-1">
-                    Sélectionnez les permissions que ce webhook pourra utiliser
-                </p>
-            </div>
-
-            <!-- Chiffrement E2EE -->
-            <div class="border-t border-(--text)/10 pt-4">
-                <label class="flex items-center gap-3 cursor-pointer" @click="e2eeEnabled = !e2eeEnabled">
-                    <input
-                        type="checkbox"
-                        v-model="e2eeEnabled"
-                        class="w-5 h-5 rounded border-(--text)/20 text-(--primary) focus:ring-(--primary)/40"
-                    />
-                    <span class="text-sm font-medium text-(--text)">
-                        Activer le chiffrement E2EE
-                    </span>
-                </label>
-                
-                <div class="mt-4 p-4 bg-(--text)/5 border border-(--text)/10 rounded-xl" v-if="e2eeEnabled">
-                    <div class="flex items-start gap-3">
-                        <i class="bi bi-info-circle text-(--primary) text-lg flex-shrink-0 mt-0.5" />
-                        <div>
-                            <h4 class="text-sm font-semibold text-(--text) mb-1">Chiffrement de bout en bout</h4>
-                            <p class="text-xs text-(--text2)">
-                                Les messages reçus via ce webhook seront chiffrés avec une paire de clés ECDH P-256.
-                                Seul le serveur Synco pourra les déchiffrer avec sa clé privée.
-                            </p>
-                            <p class="text-xs text-amber-500 mt-2">
-                                ⚠️ Assurez-vous que le client envoie des messages chiffrés avec la clé publique du webhook.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Actions -->
-            <div class="flex justify-end gap-3 pt-4 border-t border-(--text)/10">
-                <button 
-                    type="button"
-                    @click="$emit('close')"
-                    class="default px-6 py-2"
-                    :disabled="loading"
-                >
-                    Annuler
-                </button>
-                <button 
-                    type="submit"
-                    class="primary px-6 py-2 flex items-center gap-2"
-                    :disabled="loading || !isFormValid"
-                >
-                    <SpinLoader v-if="loading" class="!h-4 !w-4" />
-                    <span v-else>Créer le Webhook</span>
-                </button>
+                <WebhookChannelPicker
+                    v-model="targetChannelId"
+                    :channels="channels"
+                    :loading="loadingChannels"
+                />
             </div>
 
         </form>
+
+        <template #footer>
+            <button type="button" class="default" :disabled="loading" @click="$emit('close')">
+                Annuler
+            </button>
+            <button
+                type="submit"
+                form="webhook-create-form"
+                class="primary flex items-center gap-2"
+                :disabled="loading || !isFormValid"
+                :class="loading || !isFormValid ? 'opacity-40 cursor-not-allowed' : ''"
+            >
+                <span v-if="loading" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Créer le webhook
+            </button>
+        </template>
 
     </Popup>
 
@@ -153,15 +86,19 @@
 
 <script lang="ts" setup>
 
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import Popup from '@/components/Popup.vue';
-import SpinLoader from '@/components/SpinLoader.vue';
+import WebhookAvatarInput from './WebhookAvatarInput.vue';
+import WebhookChannelPicker from './WebhookChannelPicker.vue';
 import { useWebhooks } from '@/composables/useWebhooks';
-import { ALL_WEBHOOK_PERMISSIONS, type WebhookPermission } from '@/types/webhooks';
-import type { Webhook, WebhookTargetChannel } from '@/types/webhooks';
+import type { Webhook, WebhookScopeSpace, WebhookTargetChannel } from '@/types/webhooks';
 
 const props = defineProps<{
-    spaceId: string;
+    // Un seul espace en périmètre workspace, tous ceux de l'organisation
+    // depuis ses réglages.
+    spaces: WebhookScopeSpace[];
+    channelsBySpace: Record<string, WebhookTargetChannel[]>;
+    loadingChannels?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -169,76 +106,63 @@ const emit = defineEmits<{
     (e: 'created', webhook: Webhook): void;
 }>();
 
-const { 
-    createWebhook, 
-    getSpaceChannels,
-    formatPermission
-} = useWebhooks();
+const { createWebhook } = useWebhooks();
 
-// State du formulaire
 const name = ref<string>('');
-const description = ref<string>('');
+const avatarUrl = ref<string | null>(null);
+const spaceId = ref<string>(props.spaces[0]?.id || '');
 const targetChannelId = ref<string>('');
-const permissions = ref<WebhookPermission[]>(['send_messages']);
-const e2eeEnabled = ref<boolean>(false);
 
-// State des channels
-const channels = ref<WebhookTargetChannel[]>([]);
-const loadingChannels = ref<boolean>(false);
-
-// State de chargement
+const nameInput = ref<HTMLInputElement | null>(null);
 const loading = ref<boolean>(false);
 
-// Toutes les permissions disponibles
-const allPermissions = ALL_WEBHOOK_PERMISSIONS;
+const channels = computed<WebhookTargetChannel[]>(() =>
+    props.channelsBySpace[spaceId.value] || []
+);
 
-// Validation du formulaire
-const isFormValid = computed(() => {
-    return name.value.trim().length > 0 && 
-           name.value.length <= 100 &&
-           targetChannelId.value.length > 0 &&
-           permissions.value.length > 0;
-});
+const isFormValid = computed<boolean>(() =>
+    name.value.trim().length > 0
+    && spaceId.value.length > 0
+    && targetChannelId.value.length > 0
+);
 
-// Charger les channels au montage
-onMounted(async () => {
-    if (props.spaceId) {
-        loadingChannels.value = true;
-        const result = await getSpaceChannels(props.spaceId);
-        if (result) {
-            channels.value = result;
-        }
-        loadingChannels.value = false;
-    }
-});
+// Un salon appartient à un espace : changer d'espace invalide le choix
+// précédent, qu'il faut donc oublier plutôt que d'envoyer un identifiant que
+// le backend rejettera.
+watch(spaceId, () => {
+    targetChannelId.value = channels.value.length === 1 ? channels.value[0]!.id : '';
+}, { immediate: true });
 
-// Création du webhook
+onMounted(() => nextTick(() => nameInput.value?.focus()));
+
 const handleCreate = async () => {
-    if (!isFormValid.value) return;
-    
+
+    if (!isFormValid.value || loading.value) return;
+
     loading.value = true;
-    
+
     try {
-        const result = await createWebhook(props.spaceId, {
+        const result = await createWebhook(spaceId.value, {
             name: name.value.trim(),
-            description: description.value.trim() || undefined,
-            permissions: permissions.value,
-            e2eeEnabled: e2eeEnabled.value,
-            targetChannelId: targetChannelId.value
+            avatarUrl: avatarUrl.value || undefined,
+            targetChannelId: targetChannelId.value,
+            // Défauts sûrs, modifiables ensuite : de quoi poster du texte et
+            // des cartes enrichies, signature HMAC exigée, pas de E2EE (qui
+            // impose au service externe de chiffrer ses payloads).
+            permissions: ['send_messages', 'send_embeds'],
+            requireSignature: true,
+            e2eeEnabled: false
         });
-        
+
         if (result?.success && result.webhook) {
             emit('created', result.webhook);
         }
     } catch (err) {
-        console.error('Erreur lors de la création:', err);
+        console.error('[Webhooks] Erreur lors de la création:', err);
     } finally {
         loading.value = false;
     }
+
 };
 
 </script>
-
-<style scoped>
-
-</style>

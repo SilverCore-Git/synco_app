@@ -54,14 +54,29 @@ const e2eeEnabledWebhooks = computed(() => webhooks.value.filter(wh => wh.e2eeEn
 // ============================================
 
 /**
- * Patche l'URL du webhook pour s'assurer qu'elle utilise VITE_API_URL
- * au lieu de l'URL générée par le backend qui peut être incorrecte.
+ * Normalise un webhook renvoyé par l'API avant de le poser dans le state :
+ *
+ * - l'URL est reconstruite sur VITE_API_URL (celle générée par le backend
+ *   dépend de son propre API_URL, qui peut différer de l'hôte appelé) ;
+ * - `defaultThreadId` (nom du champ en base) est recopié dans
+ *   `targetChannelId` (nom employé par les DTO), sans quoi les formulaires
+ *   d'édition ouvraient toujours un sélecteur de salon vide alors que le
+ *   webhook en avait bien un.
  */
-function patchWebhookUrl(webhook: Webhook): Webhook {
+function normalizeWebhook(webhook: Webhook): Webhook {
   if (webhook && webhook.id && webhook.token) {
     // Nettoyer les éventuels slash de fin sur VITE_API_URL
     const baseUrl = import.meta.env.VITE_API_URL.replace(/\/+$/, '');
     webhook.url = `${baseUrl}/api/webhooks/${webhook.id}/${webhook.token}`;
+  }
+  if (webhook && !webhook.targetChannelId && webhook.defaultThreadId) {
+    webhook.targetChannelId = webhook.defaultThreadId;
+  }
+  // Le backend nomme l'espace `workspaceId`, le frontend `spaceId`. Le champ
+  // n'était donc jamais renseigné — ce qui passait inaperçu tant qu'un écran
+  // ne montrait que les webhooks d'un seul espace.
+  if (webhook && !webhook.spaceId && (webhook as any).workspaceId) {
+    webhook.spaceId = (webhook as any).workspaceId;
   }
   return webhook;
 }
@@ -104,7 +119,7 @@ async function createWebhook(
     
     // Ajouter le webhook à la liste locale
     if (data.success && data.webhook) {
-      webhooks.value.push(patchWebhookUrl(data.webhook));
+      webhooks.value.push(normalizeWebhook(data.webhook));
     }
     
     return data;
@@ -139,9 +154,49 @@ async function listWebhooks(spaceId: string): Promise<ListWebhooksResponse | nul
     const data: ListWebhooksResponse = await response.json();
     
     if (data.success) {
-      webhooks.value = data.webhooks.map(patchWebhookUrl);
+      webhooks.value = data.webhooks.map(wh => normalizeWebhook(wh));
     }
     
+    return data;
+  } catch (err: any) {
+    error.value = err.message || 'Erreur inconnue';
+    const toast = useToast();
+    toast.show(`Échec du chargement: ${error.value}`, 'error');
+    return null;
+  } finally {
+    loading.value = false;
+  }
+}
+
+/**
+ * Liste les webhooks de tous les workspaces d'une organisation.
+ *
+ * Le backend filtre lui-même sur ORG_WEBHOOKS espace par espace : inutile
+ * d'interroger chaque workspace depuis le client, ce qui multiplierait les
+ * aller-retours et ferait remonter un toast d'erreur pour chacun de ceux que
+ * l'utilisateur n'a pas le droit de voir.
+ */
+async function listOrgWebhooks(orgId: string): Promise<ListWebhooksResponse | null> {
+  loading.value = true;
+  error.value = null;
+
+  try {
+    const response = await sfetch(`/api/orgs/${orgId}/webhooks`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.message || 'Erreur lors de la récupération des webhooks');
+    }
+
+    const data: ListWebhooksResponse = await response.json();
+
+    if (data.success) {
+      webhooks.value = data.webhooks.map(wh => normalizeWebhook(wh));
+    }
+
     return data;
   } catch (err: any) {
     error.value = err.message || 'Erreur inconnue';
@@ -174,7 +229,7 @@ async function getWebhook(webhookId: string): Promise<GetWebhookResponse | null>
     const data: GetWebhookResponse = await response.json();
     
     if (data.success && data.webhook) {
-      currentWebhook.value = patchWebhookUrl(data.webhook);
+      currentWebhook.value = normalizeWebhook(data.webhook);
     }
     
     return data;
@@ -213,7 +268,7 @@ async function updateWebhook(
     const data: GetWebhookResponse = await response.json();
     
     if (data.success && data.webhook) {
-      patchWebhookUrl(data.webhook);
+      normalizeWebhook(data.webhook);
       // Mettre à jour dans la liste locale
       const index = webhooks.value.findIndex(wh => wh.id === webhookId);
       if (index !== -1) {
@@ -302,7 +357,7 @@ async function regenerateWebhookToken(webhookId: string): Promise<RegenerateToke
     const data: RegenerateTokenResponse = await response.json();
     
     if (data.success && data.webhook) {
-      patchWebhookUrl(data.webhook);
+      normalizeWebhook(data.webhook);
       // Mettre à jour dans la liste locale
       const index = webhooks.value.findIndex(wh => wh.id === webhookId);
       if (index !== -1) {
@@ -347,7 +402,7 @@ async function toggleWebhookActive(webhookId: string, isActive: boolean): Promis
     const data: GetWebhookResponse = await response.json();
     
     if (data.success && data.webhook) {
-      patchWebhookUrl(data.webhook);
+      normalizeWebhook(data.webhook);
       // Mettre à jour dans la liste locale
       const index = webhooks.value.findIndex(wh => wh.id === webhookId);
       if (index !== -1) {
@@ -550,12 +605,16 @@ async function getSpaceChannels(spaceId: string): Promise<WebhookTargetChannel[]
       return [];
     }
     
-    // Mapper les threads vers le format attendu par les webhooks
-    return space.threads.map(thread => ({
-      id: thread.id,
-      name: thread.name,
-      type: thread.type
-    }));
+    // Mapper les threads vers le format attendu par les webhooks. Les salons
+    // vocaux sont écartés : un webhook y poster un message n'aurait nulle part
+    // où l'afficher.
+    return space.threads
+      .filter(thread => thread.type === 'text')
+      .map(thread => ({
+        id: thread.id,
+        name: thread.name,
+        type: thread.type
+      }));
   } catch (err: any) {
     console.error('[Webhooks] Erreur lors de la récupération des channels:', err);
     return null;
@@ -566,6 +625,14 @@ async function getSpaceChannels(spaceId: string): Promise<WebhookTargetChannel[]
  * Copie l'URL du webhook dans le clipboard
  */
 async function copyWebhookUrl(webhook: Webhook): Promise<boolean> {
+  // Le listing ne renvoie jamais le jeton (cf. audit H3) : sans ce garde-fou
+  // on copiait littéralement la chaîne "undefined" dans le presse-papier.
+  if (!webhook.url) {
+    const toast = useToast();
+    toast.show("L'URL complète n'est visible que par le créateur du webhook", 'warning');
+    return false;
+  }
+
   try {
     await navigator.clipboard.writeText(webhook.url);
     const toast = useToast();
@@ -583,6 +650,14 @@ async function copyWebhookUrl(webhook: Webhook): Promise<boolean> {
  * Copie le secret HMAC dans le clipboard
  */
 async function copyWebhookSecret(webhook: Webhook): Promise<boolean> {
+  // Le backend renvoie `'***'` dès qu'on relit un webhook existant : seule la
+  // réponse de création contient le secret en clair.
+  if (!webhook.secret || webhook.secret === '***') {
+    const toast = useToast();
+    toast.show("Le secret n'est affiché qu'à la création du webhook", 'warning');
+    return false;
+  }
+
   try {
     await navigator.clipboard.writeText(webhook.secret);
     const toast = useToast();
@@ -638,6 +713,16 @@ function canManageWebhook(webhook: Webhook): boolean {
  */
 function hasPermission(webhook: Webhook, permission: WebhookPermission): boolean {
   return webhook.permissions.includes(permission);
+}
+
+/**
+ * Avatar de repli d'un webhook sans photo de profil. Même service et mêmes
+ * couleurs que le rendu des messages webhook dans ThreadMessage.vue, pour
+ * qu'un webhook ait exactement la même tête dans les réglages et dans le fil.
+ */
+function webhookAvatarFallback(name?: string): string {
+  const label = encodeURIComponent(name?.trim() || 'Webhook');
+  return `https://ui-avatars.com/api/?name=${label}&background=7c3aed&color=fff`;
 }
 
 /**
@@ -720,6 +805,7 @@ export function useWebhooks() {
     // Fonctions API
     createWebhook,
     listWebhooks,
+    listOrgWebhooks,
     getWebhook,
     updateWebhook,
     deleteWebhook,
@@ -738,6 +824,7 @@ export function useWebhooks() {
     canManageWebhook,
     hasPermission,
     formatPermission,
+    webhookAvatarFallback,
     generateDefaultTestPayload,
     refreshWebhooks,
     resetState

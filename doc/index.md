@@ -19,4 +19,6 @@ Synco vous offre une alternative sécurisée pour communiquer, gérer vos projet
 6. [Assistant IA et Recherche Sémantique](./06-assistant-ia.md)
    * Profiter de l'intelligence artificielle locale pour retrouver vos informations.
 7. [Paramètres d'Organisation](./07-parametres-organisation.md)
-   * Administrer votre espace, gérer les membres et configurer les webhooks.
+   * Administrer votre espace et gérer les membres.
+8. [Webhooks](./08-webhooks.md)
+   * Laisser un outil extérieur poster dans vos salons, en toute sécurité.

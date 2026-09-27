@@ -64,12 +64,13 @@ const router = useRouter();
 
 const handleClick = () => {
     if (props.isCreate) return;
-    
-    if (window.innerWidth <= 768) {
-        router.push(`/${props.org.id}?showView=0`);
-    } else {
-        router.push(`/${props.org.id}`);
-    }
+
+    // On ouvre sur le contenu de l'accueil, pas sur les barres ; la flèche de
+    // retour les révèle ensuite (showView=0). `showView=1` est écrit
+    // explicitement plutôt que laissé au défaut de OrgLayout — même raison
+    // qu'au démarrage à froid dans init.ts : la destination ne dépend alors
+    // plus de la valeur par défaut choisie ailleurs.
+    router.push(`/${props.org.id}?showView=1`);
 };
 
 </script>

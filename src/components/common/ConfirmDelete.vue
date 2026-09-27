@@ -47,7 +47,7 @@
                             class="mt-1 accent-red-500 h-4 w-4"
                         />
                         <span class="text-xs text-(--text) leading-snug select-none">
-                            Je comprends que cette action supprimera définitivement toutes les données liées à ce contenu.
+                            {{ checkboxLabel || 'Je comprends que cette action supprimera définitivement toutes les données liées à ce contenu.' }}
                         </span>
                     </label>
 
@@ -117,7 +117,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 
 const props = defineProps<{
@@ -125,6 +125,7 @@ const props = defineProps<{
   itemName: string;
   buttonText?: string;
   checkbox?: boolean;
+  checkboxLabel?: string; // surcharge le libellé de la case, qui parle sinon de suppression définitive
   checktext?: boolean;
   itemType?: string; // ex: "le salon", "le workspace"
   title?: string; // surcharge le titre par défaut "Supprimer {itemType} ?"
@@ -150,6 +151,14 @@ const submitDisabled = computed<boolean>(() => {
 
     return disabled;
 
+});
+
+// Les garde-fous sont portés par des refs qui survivaient à la fermeture :
+// annuler après avoir coché, puis rouvrir, rendait le bouton immédiatement
+// actif — la confirmation ne confirmait plus rien.
+watch(() => props.show, () => {
+    acknowledge.value = false;
+    confirmText.value = '';
 });
 
 const emit = defineEmits(['confirm', 'cancel', 'update:extraOptionValue']);

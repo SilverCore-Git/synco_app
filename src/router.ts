@@ -73,7 +73,17 @@ const routes = [
 
   {
     path: '/:orgId',
-    redirect: (to: any) => ({ name: 'OrgHome', params: { orgId: to.params.orgId } })
+    // La query est reconduite : sur mobile on entre dans une organisation par
+    // `/<orgId>?showView=0`, qui demande d'afficher les barres plutôt que le
+    // contenu. La perdre ici faisait atterrir sur l'accueil en plein écran,
+    // barres masquées — et la flèche de retour n'avait alors plus d'autre
+    // choix que de ressortir de l'organisation.
+    redirect: (to: any) => ({
+      name: 'OrgHome',
+      params: { orgId: to.params.orgId },
+      query: to.query,
+      hash: to.hash
+    })
   },
 
   {
