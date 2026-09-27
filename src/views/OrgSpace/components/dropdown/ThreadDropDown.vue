@@ -188,6 +188,8 @@ const handleDelete = async () => {
         :loading="isExiting"
         title="Quitter cet espace de travail ?"
         :message="`Vous n'aurez plus accès à ${currentWorkspace.name} ni à ses salons. Un membre devra vous y réinviter.`"
+        checkbox
+        checkbox-label="Je comprends que je perdrai l'accès à cet espace et à ses salons."
         button-text="Quitter l'espace"
         @cancel="isExitModalOpen = false"
         @confirm="handleExit"
@@ -199,6 +201,8 @@ const handleDelete = async () => {
         item-type="le workspace"
         :item-name="currentWorkspace.name"
         :loading="isDeleting"
+        checkbox
+        checktext
         extra-option-label="Supprimer aussi les fichiers et dossiers liés dans le gestionnaire de fichiers"
         :extra-option-value="deleteFilesToo"
         @update:extra-option-value="deleteFilesToo = $event"
