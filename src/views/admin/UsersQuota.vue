@@ -39,14 +39,33 @@
                                 {{ error }}
                             </td>
                         </tr>
-                        <tr v-else v-for="user in filteredUsers" :key="user.id" class="hover:bg-(--text)/[0.02] transition-colors group">
+                        <tr v-else v-for="user in filteredUsers" :key="user.id"
+                            class="hover:bg-(--text)/[0.02] transition-colors group"
+                            :class="{ 'bg-red-500/[0.04]': user.isBanned }">
                             <td class="p-4">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center font-bold text-lg shrink-0">
+                                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shrink-0"
+                                        :class="user.isBanned ? 'bg-red-500/15 text-red-500' : 'bg-(--primary)/20 text-(--primary)'">
                                         {{ $p(user.name) ? $p(user.name).charAt(0).toUpperCase() : '?' }}
                                     </div>
-                                    <div>
-                                        <p class="font-bold text-sm text-(--text)">{{ $p(user.name) || 'Sans nom' }}</p>
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <p class="font-bold text-sm text-(--text)">{{ $p(user.name) || 'Sans nom' }}</p>
+                                            <span v-if="user.isSuperAdmin"
+                                                class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500"
+                                                title="Administrateur principal">
+                                                <i class="bi bi-shield-fill-check mr-1"></i>Principal
+                                            </span>
+                                            <span v-else-if="user.isAdmin"
+                                                class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-(--primary)/15 text-(--primary)">
+                                                <i class="bi bi-shield-fill mr-1"></i>Admin
+                                            </span>
+                                            <span v-if="user.isBanned"
+                                                class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-500/15 text-red-500"
+                                                :title="user.bannedReason || 'Aucun motif renseigné'">
+                                                <i class="bi bi-slash-circle mr-1"></i>Banni
+                                            </span>
+                                        </div>
                                         <p class="text-xs text-(--text2) font-mono mt-0.5">{{ user.email }}</p>
                                     </div>
                                 </div>
@@ -81,13 +100,41 @@
                                 <span class="text-sm font-medium text-(--text)">{{ formatBytes(user.orgMaxStorage) }}</span>
                             </td>
 
-                            <td class="p-4 text-right">
+                            <td class="p-4 text-right whitespace-nowrap">
                                 <button
                                     @click="openEditModal(user)"
                                     class="p-2 text-(--text2) hover:text-(--primary) hover:bg-(--primary)/10 rounded-lg transition-colors"
                                     title="Modifier les quotas"
                                 >
                                     <i class="bi bi-pencil-square text-lg"></i>
+                                </button>
+                                <!-- Donner/retirer le rôle administrateur : réservé à
+                                     l'administrateur principal (l'API applique la même règle). -->
+                                <button
+                                    v-if="isSuperAdmin && !user.isSuperAdmin"
+                                    @click="openAdminModal(user)"
+                                    class="p-2 rounded-lg transition-colors"
+                                    :class="user.isAdmin
+                                        ? 'text-(--primary) hover:bg-(--primary)/10'
+                                        : 'text-(--text2) hover:text-(--primary) hover:bg-(--primary)/10'"
+                                    :title="user.isAdmin ? 'Retirer le rôle administrateur' : 'Passer administrateur'"
+                                >
+                                    <i class="text-lg" :class="user.isAdmin ? 'bi bi-shield-fill-check' : 'bi bi-shield-plus'"></i>
+                                </button>
+                                <button
+                                    v-if="canModerate(user)"
+                                    @click="user.isBanned ? unbanUser(user) : openBanModal(user)"
+                                    class="p-2 rounded-lg transition-colors"
+                                    :class="user.isBanned
+                                        ? 'text-amber-500 hover:bg-amber-500/10'
+                                        : 'text-(--text2) hover:text-red-500 hover:bg-red-500/10'"
+                                    :title="user.isBanned ? 'Lever le bannissement' : 'Bannir l\'utilisateur'"
+                                    :disabled="banActionUserId === user.id"
+                                >
+                                    <i class="text-lg"
+                                        :class="banActionUserId === user.id
+                                            ? 'bi bi-arrow-repeat animate-spin'
+                                            : user.isBanned ? 'bi bi-arrow-counterclockwise' : 'bi bi-slash-circle'"></i>
                                 </button>
                                 <button
                                     @click="openDeleteModal(user)"
@@ -186,6 +233,75 @@
             </div>
         </div>
 
+        <!-- Bannissement : Popup maison (jamais de confirm() natif) avec saisie
+             du motif, qui sera affiché tel quel à l'utilisateur banni au
+             lancement de Synco. -->
+        <Popup :isOpen="!!userToBan" @close="closeBanModal">
+            <template #title>Bannir un utilisateur</template>
+
+            <p class="text-sm text-(--text)">
+                <span class="font-bold">{{ $p(userToBan?.name) || userToBan?.email }}</span>
+                n'aura plus accès à Synco : la connexion lui sera refusée et ses sessions
+                en cours seront coupées immédiatement.
+            </p>
+            <p class="text-xs text-(--text2) mt-2">
+                Ses données et ses organisations sont conservées — le bannissement peut être levé à tout moment.
+            </p>
+
+            <label class="block text-xs font-bold uppercase tracking-widest text-(--text2) mt-5 mb-1.5">
+                Motif (facultatif)
+            </label>
+            <textarea
+                v-model="banReason"
+                rows="3"
+                :maxlength="MAX_BAN_REASON_LENGTH"
+                placeholder="Ce motif sera affiché à l'utilisateur."
+                class="w-full bg-(--bg2) border border-(--text)/10 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all"
+            ></textarea>
+            <p class="text-[10px] text-(--text2) mt-1 text-right">{{ banReason.length }} / {{ MAX_BAN_REASON_LENGTH }}</p>
+
+            <template #footer>
+                <button @click="closeBanModal" class="default">Annuler</button>
+                <button @click="confirmBan" class="danger" :class="{ loader: isBanning }" :disabled="isBanning">
+                    Bannir
+                </button>
+            </template>
+        </Popup>
+
+        <!-- Rôle administrateur : réservé à l'administrateur principal. -->
+        <Popup :isOpen="!!userToToggleAdmin" @close="userToToggleAdmin = null">
+            <template #title>
+                {{ userToToggleAdmin?.isAdmin ? 'Retirer le rôle administrateur' : 'Passer administrateur' }}
+            </template>
+
+            <p class="text-sm text-(--text)">
+                <template v-if="userToToggleAdmin?.isAdmin">
+                    <span class="font-bold">{{ $p(userToToggleAdmin?.name) || userToToggleAdmin?.email }}</span>
+                    perdra l'accès au panel admin.
+                </template>
+                <template v-else>
+                    <span class="font-bold">{{ $p(userToToggleAdmin?.name) || userToToggleAdmin?.email }}</span>
+                    aura accès au panel admin : quotas de tous les comptes et de toutes les
+                    organisations, suppression de comptes, bannissement d'utilisateurs.
+                </template>
+            </p>
+            <p v-if="!userToToggleAdmin?.isAdmin" class="text-xs text-amber-500/90 mt-3 font-medium">
+                Un administrateur ne peut ni bannir, ni se voir retirer son rôle par un autre
+                administrateur : vous seul, en tant qu'administrateur principal, pouvez le faire.
+            </p>
+
+            <template #footer>
+                <button @click="userToToggleAdmin = null" class="default">Annuler</button>
+                <button
+                    @click="confirmAdminToggle"
+                    :class="[userToToggleAdmin?.isAdmin ? 'danger' : 'primary', { loader: isTogglingAdmin }]"
+                    :disabled="isTogglingAdmin"
+                >
+                    {{ userToToggleAdmin?.isAdmin ? 'Retirer' : 'Confirmer' }}
+                </button>
+            </template>
+        </Popup>
+
         <ConfirmDelete
             :show="!!userToDelete"
             :itemName="userToDelete?.name || userToDelete?.email || 'cet utilisateur'"
@@ -206,8 +322,13 @@ import { ref, computed, onMounted } from 'vue';
 import sfetch from '@/assets/utils/sfetch';
 import { useToast } from '@/composables/useToast';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
+import Popup from '@/components/Popup.vue';
 
 const toast = useToast();
+
+// Doit rester aligné avec MAX_BAN_REASON_LENGTH côté synco_api
+// (routes/admin.ts), qui tronque au-delà.
+const MAX_BAN_REASON_LENGTH = 500;
 
 interface AdminUser {
     id: string;
@@ -218,6 +339,11 @@ interface AdminUser {
     orgMaxStorage: string | number; // BigInt as string
     ownedOrgsCount: number;
     organizations: { id: string; name: string; logo: string | null }[];
+    isAdmin: boolean;
+    isSuperAdmin: boolean;
+    isBanned: boolean;
+    bannedAt: string | null;
+    bannedReason: string | null;
 }
 
 const users = ref<AdminUser[]>([]);
@@ -229,6 +355,31 @@ const selectedUser = ref<AdminUser | null>(null);
 const isSaving = ref(false);
 const userToDelete = ref<AdminUser | null>(null);
 const isDeleting = ref(false);
+
+// Qui consulte le panel : seul l'administrateur principal peut donner ou
+// retirer le rôle administrateur (l'API refuse de toute façon les autres).
+const isSuperAdmin = ref(false);
+const currentUserId = ref<string | null>(null);
+
+const userToBan = ref<AdminUser | null>(null);
+const banReason = ref('');
+const isBanning = ref(false);
+const banActionUserId = ref<string | null>(null);
+
+const userToToggleAdmin = ref<AdminUser | null>(null);
+const isTogglingAdmin = ref(false);
+
+/**
+ * Mêmes règles que côté API : on ne se bannit pas soi-même, l'administrateur
+ * principal n'est jamais bannissable, et un admin n'est sanctionnable que par
+ * l'administrateur principal.
+ */
+const canModerate = (user: AdminUser): boolean => {
+    if (user.isSuperAdmin) return false;
+    if (user.id === currentUserId.value) return false;
+    if (user.isAdmin && !isSuperAdmin.value) return false;
+    return true;
+};
 const editForm = ref({
     maxOrgs: 0,
     orgMaxUsers: 0,
@@ -271,7 +422,12 @@ const fetchData = async () => {
                 orgMaxUsers: u.orgMaxUsers ?? 0,
                 orgMaxStorage: u.orgMaxStorage ?? 0,
                 ownedOrgsCount: u.ownedOrgsCount ?? 0,
-                organizations: u.organizations ?? []
+                organizations: u.organizations ?? [],
+                isAdmin: u.isAdmin ?? false,
+                isSuperAdmin: u.isSuperAdmin ?? false,
+                isBanned: u.isBanned ?? false,
+                bannedAt: u.bannedAt ?? null,
+                bannedReason: u.bannedReason ?? null
             }));
         }
         else error.value = (await res.json()).error || 'Accès refusé.';
@@ -355,7 +511,111 @@ const confirmDeleteUser = async () => {
     }
 };
 
+const openBanModal = (user: AdminUser) => {
+    userToBan.value = user;
+    banReason.value = '';
+};
+
+const closeBanModal = () => {
+    userToBan.value = null;
+    banReason.value = '';
+};
+
+const patchUser = (userId: string, patch: Partial<AdminUser>) => {
+    const target = users.value.find(u => u.id === userId);
+    if (target) Object.assign(target, patch);
+};
+
+const confirmBan = async () => {
+    if (!userToBan.value) return;
+    const target = userToBan.value;
+    isBanning.value = true;
+    try {
+        const res = await sfetch(`/api/admin/users/${target.id}/ban`, {
+            method: 'POST',
+            body: JSON.stringify({ reason: banReason.value.trim() })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            patchUser(target.id, {
+                isBanned: true,
+                bannedAt: data.bannedAt ?? new Date().toISOString(),
+                bannedReason: data.bannedReason ?? null
+            });
+            toast.show('Utilisateur banni', 'success');
+            closeBanModal();
+        } else {
+            toast.show((await res.json()).error || 'Erreur lors du bannissement', 'error');
+        }
+    } catch (e) {
+        toast.show('Erreur de connexion', 'error');
+    } finally {
+        isBanning.value = false;
+    }
+};
+
+// Lever un bannissement est immédiatement réversible et sans perte : pas de
+// confirmation, l'action est directe.
+const unbanUser = async (user: AdminUser) => {
+    banActionUserId.value = user.id;
+    try {
+        const res = await sfetch(`/api/admin/users/${user.id}/ban`, { method: 'DELETE' });
+        if (res.ok) {
+            patchUser(user.id, { isBanned: false, bannedAt: null, bannedReason: null });
+            toast.show('Bannissement levé', 'success');
+        } else {
+            toast.show((await res.json()).error || 'Erreur lors du débannissement', 'error');
+        }
+    } catch (e) {
+        toast.show('Erreur de connexion', 'error');
+    } finally {
+        banActionUserId.value = null;
+    }
+};
+
+const openAdminModal = (user: AdminUser) => {
+    userToToggleAdmin.value = user;
+};
+
+const confirmAdminToggle = async () => {
+    if (!userToToggleAdmin.value) return;
+    const target = userToToggleAdmin.value;
+    const revoking = target.isAdmin;
+    isTogglingAdmin.value = true;
+    try {
+        const res = await sfetch(`/api/admin/admins/${target.id}`, {
+            method: revoking ? 'DELETE' : 'POST'
+        });
+        if (res.ok) {
+            patchUser(target.id, { isAdmin: !revoking });
+            toast.show(revoking ? 'Rôle administrateur retiré' : 'Utilisateur passé administrateur', 'success');
+            userToToggleAdmin.value = null;
+        } else {
+            toast.show((await res.json()).error || 'Erreur lors de la modification du rôle', 'error');
+        }
+    } catch (e) {
+        toast.show('Erreur de connexion', 'error');
+    } finally {
+        isTogglingAdmin.value = false;
+    }
+};
+
+const fetchAdminIdentity = async () => {
+    try {
+        const res = await sfetch('/api/admin/me');
+        if (!res.ok) return;
+        const data = await res.json();
+        isSuperAdmin.value = data.isSuperAdmin === true;
+        currentUserId.value = data.userId ?? null;
+    } catch (e) {
+        // Sans cette information on reste sur les valeurs par défaut : les
+        // actions réservées à l'administrateur principal restent masquées.
+        console.error('[AdminPanel] Identité admin indisponible', e);
+    }
+};
+
 onMounted(() => {
+    fetchAdminIdentity();
     fetchData();
 });
 </script>

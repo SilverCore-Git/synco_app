@@ -23,8 +23,10 @@ import CallOverlay from './components/peer/CallOverlay.vue';
 import waitFor from './assets/utils/waitfor';
 import { debugLog } from './assets/utils/debugLog';
 import Popup from './components/Popup.vue';
+import BannedScreen from './components/BannedScreen.vue';
 import { isProfileOpen, profileUser, closeProfile } from './composables/useProfile';
 import useFavicon from './composables/useFavicon';
+import { banned } from './composables/useBanStatus';
 
 const toast = useToast();
 const { Item: theme } = useSettingsItem('theme', 'dark');
@@ -275,6 +277,14 @@ const finishAuthInit = async () => {
     completedInitSteps++;
     bootProgress.value = 50 + (completedInitSteps / 3) * 35;
   });
+  // Compte banni : l'API a refusé chaque requête d'init, il n'y a ni
+  // utilisateur ni organisation à attendre. Ouvrir le pair P2P et la présence
+  // pour un compte qui n'a plus le droit d'être joint n'aurait aucun sens.
+  if (banned.value) {
+    bootProgress.value = 100;
+    return;
+  }
+
   await waitFor(() => user.value !== null);
   bootProgress.value = 90;
   await initPeer();
@@ -471,10 +481,20 @@ onMounted(async () => {
     <Notifications />
     <ConnectionStatusBanner />
 
+    <!-- Compte banni : prioritaire sur tout le reste. Un compte banni ne
+         charge jamais `user` (l'API refuse chaque requête, cf. banMiddleware
+         côté synco_api), donc sans cette branche en premier l'utilisateur
+         resterait bloqué sur l'écran de chargement sans explication — et s'il
+         est banni en cours de session, cet écran remplace immédiatement
+         l'app. Il arrive donc bien avant l'écran de code PIN. -->
+    <div v-if="banned" class="h-full w-full">
+      <BannedScreen />
+    </div>
+
     <!-- Écran de connexion Tauri (bureau) : authenticated est déjà à false
          ici, mais tant que l'utilisateur n'a pas cliqué "Se connecter" on
          reste sur ce bouton plutôt que le loader ci-dessous. -->
-    <div v-if="isTauri && !authenticated" class="h-full w-full">
+    <div v-else-if="isTauri && !authenticated" class="h-full w-full">
 
       <div class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none">
 
