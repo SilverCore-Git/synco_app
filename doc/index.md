@@ -22,3 +22,20 @@ Synco vous offre une alternative sécurisée pour communiquer, gérer vos projet
    * Administrer votre espace et gérer les membres.
 8. [Webhooks](./08-webhooks.md)
    * Laisser un outil extérieur poster dans vos salons, en toute sécurité.
+
+---
+
+## 🔐 Documentation de sécurité
+
+Documentation technique détaillée du chiffrement de Synco — destinée aux
+administrateurs, aux équipes sécurité et à toute personne devant comprendre
+précisément ce qui est protégé, et comment.
+
+* [Synthèse et index](./securite/README.md) — **commencez ici** : tableau
+  récapitulatif de ce qui est chiffré de bout en bout (E2EE) et de ce qui est
+  chiffré uniquement côté base de données.
+
+Les chapitres détaillés couvrent les fondations cryptographiques, la messagerie,
+les fichiers, les appels, les sessions éphémères, les tâches et l'agenda,
+l'assistant IA, les webhooks, ainsi que le périmètre et les limites du modèle de
+sécurité.
