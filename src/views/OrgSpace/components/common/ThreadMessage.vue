@@ -4,7 +4,7 @@
                     :key="msg.id" 
                     class="group relative px-4 flex flex-col justify-start items-start rounded-lg transition-colors w-full"
                     :class="[
-                        isStacked ? 'py-0 mt-0' : 'py-2 mt-2',
+                        isStacked ? 'mt-1' : 'mt-6',
                         selectedMessage == msg.id ? ' border border-(--primary) border-dashed animate-pulse' : '',
                         user?.id == msg.replyMessage?.senderId || isTagMe
                             ? 'border-l-2 border-(--primary-dark) bg-(--primary-dark)/30 hover:bg-(--primary-dark)/50' 
@@ -12,6 +12,15 @@
                         showReactionPicker ? 'z-100' : 'z-10'
                     ]"
                 >
+
+                    <!-- Espacement entre messages : en marge (`mt-*`), jamais
+                         en padding. Ce conteneur porte le fond coloré d'une
+                         mention, d'une réponse ou du survol : un écart mis en
+                         padding serait peint avec, et le bloc coloré traînerait
+                         sous son propre texte. En marge il reste dehors — le
+                         fond épouse le message, l'air le sépare des voisins.
+                         `mt-1` entre messages empilés (même auteur à moins
+                         d'une minute), `mt-6` entre deux blocs d'auteurs. -->
 
                     <div 
                         v-if="msg.replyToId && msg.replyMessage" 
