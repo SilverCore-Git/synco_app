@@ -1175,7 +1175,7 @@ const createFolder = async (name: string) => {
 
 const showFileNamePrompt = ref<boolean>(false);
 
-const createFile = async (payload: { name: string, ext: string, content: string }) => {
+const createFile = async (payload: { name: string, ext: string }) => {
 
     showFileNamePrompt.value = false;
 
@@ -1188,7 +1188,6 @@ const createFile = async (payload: { name: string, ext: string, content: string 
             spaceId: String(route.params.spaceId),
             name: payload.name,
             ext: payload.ext,
-            content: payload.content,
             folderId: currentFolderId.value,
             onProgress: (percent) => { fileSendProgress.value = percent; }
         });

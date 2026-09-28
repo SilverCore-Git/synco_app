@@ -47,30 +47,9 @@
 
         <p class="text-[11px] text-(--text2)">
           <i class="bi bi-info-circle mr-1" />
-          Fichiers texte UTF-8 uniquement, modifiables ensuite dans l'aperçu.
-          Sera créé sous le nom <span class="font-mono text-(--text)">{{ previewName }}</span>.
+          Fichiers texte UTF-8 uniquement, le fichier est créé vide et se modifie
+          ensuite dans l'aperçu. Sera créé sous le nom <span class="font-mono text-(--text)">{{ previewName }}</span>.
         </p>
-
-      </div>
-
-      <div class="flex gap-2 flex-col">
-
-        <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
-          Contenu initial <span class="normal-case font-medium">(optionnel)</span>
-        </label>
-
-        <textarea
-          v-model="form.content"
-          rows="7"
-          spellcheck="false"
-          placeholder="Laisser vide pour créer un fichier vierge..."
-          class="
-            w-full bg-(--bg2)/30 border border-(--text)/10 rounded-xl 
-            px-4 py-3 text-sm font-mono text-(--text) placeholder:text-(--text2) 
-            focus:outline-none focus:border-(--primary)/50 focus:ring-1
-            focus:ring-(--primary)/20 transition-all resize-y
-          "
-        ></textarea>
 
       </div>
 
@@ -113,8 +92,7 @@ const emit = defineEmits(['close', 'save']);
 
 const form = reactive({
   name: '',
-  ext: 'txt',
-  content: ''
+  ext: 'txt'
 });
 
 const canSubmit = computed<boolean>(() => form.name.trim().length > 0);
@@ -123,7 +101,7 @@ const previewName = computed<string>(() => buildFileName(form.name.trim() || 'sa
 
 const submit = () => {
   if (!canSubmit.value) return;
-  emit('save', { name: form.name.trim(), ext: form.ext, content: form.content });
+  emit('save', { name: form.name.trim(), ext: form.ext });
 };
 
 watch(() => props.show, async (isOpened) => {
@@ -133,7 +111,6 @@ watch(() => props.show, async (isOpened) => {
   } else {
     form.name = '';
     form.ext = 'txt';
-    form.content = '';
   }
 });
 
