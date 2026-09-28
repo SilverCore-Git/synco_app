@@ -114,10 +114,18 @@
                                 </div>
                                 <input 
                                     type="email" 
-                                    v-model="formData.email" 
-                                    class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                    :value="user?.email" 
+                                    readonly
+                                    tabindex="-1"
+                                    class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text2) opacity-60 cursor-not-allowed focus:outline-none transition-all shadow-inner"
                                 />
                             </div>
+                            <p class="text-sm text-(--text2)">
+                                Ton adresse vient de ton compte Synco : la changer ici
+                                n'aurait aucun effet. Passe par les paramètres de ton
+                                compte, qui envoie un email de confirmation à la nouvelle
+                                adresse.
+                            </p>
                         </div>
                         
                         <div class="space-y-1.5">
@@ -577,7 +585,6 @@ watch(() => props.isOpen, (open) => {
 const formData = reactive({
     firstName: '',
     lastName: '',
-    email: '',
     job: '',
     description: ''
 });
@@ -594,7 +601,6 @@ watch(user, (newVal) => {
     if (newVal) {
         formData.firstName = newVal.firstName || '';
         formData.lastName = newVal.lastName || '';
-        formData.email = newVal.email || '';
         formData.job = newVal.job || '';
         formData.description = newVal.description || '';
         
@@ -649,7 +655,6 @@ const updateNotificationPrefs = async (key: keyof typeof notifPrefs, value: bool
 const isModified = computed(() => {
     return formData.firstName !== (user.value?.firstName || '') ||
            formData.lastName !== (user.value?.lastName || '') ||
-           formData.email !== user.value?.email ||
            formData.job !== (user.value?.job || '') ||
            formData.description !== (user.value?.description || '');
 });
@@ -721,7 +726,6 @@ const updateProfile = async () => {
         const response = await sfetch('/api/users/me', {
             method: 'PATCH',
             body: JSON.stringify({
-                email: formData.email,
                 job: formData.job,
                 description: formData.description
             })
