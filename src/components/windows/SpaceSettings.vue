@@ -29,7 +29,7 @@
                  colonne : `overflow-y-auto` ici ferait défiler les deux d'un
                  bloc. Les deux règles sont exclusives plutôt que superposées,
                  leur ordre dans la feuille générée n'étant pas garanti. -->
-            <main class="flex-1 min-h-0 bg-(--bg) relative" :class="activeTab === 'webhooks' ? 'overflow-hidden' : 'overflow-y-auto p-4 sm:p-8'">
+            <main class="flex-1 min-h-0 bg-(--bg) relative" :class="activeTab === 'webhooks' || activeTab === 'permissions' ? 'overflow-hidden' : 'overflow-y-auto p-4 sm:p-8'">
                 
                 <section v-if="activeTab === 'general'" class="animate-fade-in space-y-8">
 
@@ -90,19 +90,16 @@
 
                 </section>
 
-                <!-- Une fois ouvert, l'onglet reste monté (`v-show`) : changer
-                     d'onglet ne doit pas jeter silencieusement une matrice de
-                     permissions à moitié modifiée. -->
+                <!-- Comme Webhooks, l'onglet gère sa propre mise en page en deux
+                     colonnes (rôles à gauche, permissions à droite), d'où le
+                     retrait du padding de <main>. Une fois ouvert il reste monté
+                     (`v-show`) : changer d'onglet ne doit pas jeter
+                     silencieusement des permissions à moitié modifiées. -->
                 <section 
                     v-if="hasOpenedPermissions" 
                     v-show="activeTab === 'permissions'" 
-                    class="animate-fade-in space-y-6"
+                    class="animate-fade-in absolute inset-0"
                 >
-                    <div>
-                        <h3 class="text-xl sm:text-2xl font-black text-(--text) mb-1">Permissions</h3>
-                        <p class="text-sm text-(--text2)">Choisissez ce que chaque rôle peut faire dans ce space.</p>
-                    </div>
-
                     <SpacePermissionsPanel 
                         ref="permissionsPanel"
                         :space-id="space.id"
