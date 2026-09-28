@@ -809,3 +809,37 @@ ef626c6 fix(files): réserver OnlyOffice aux formats Word, Excel et PowerPoint
 1. Vérification manuelle en navigateur non effectuée (Node.js absent du sandbox ; `vue-tsc` sous Bun ne résout pas les `.vue`, donc les `<script setup>` ne sont pas typés par le vérificateur).
 2. Le `.rtf` n'a plus d'éditeur du tout (ni Monaco, ni OnlyOffice) : il retombe sur l'écran « pas d'aperçu » avec téléchargement. À arbitrer si le format doit rester éditable.
 3. Voir `synco_api` : garde-fou serveur correspondant sur `POST /api/cdn/onlyoffice-config`.
+
+---
+
+## 📅 **28 Septembre 2026 - Barre d'outils du gestionnaire de fichiers**
+
+**Durée** : Session courte  
+**Priorité** : ⭐⭐⭐ (Moyenne)  
+**Complexité** : Basse (frontend uniquement)  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Remplacer la ligne « recherche + 3 boutons » et les icônes de l'en-tête par une vraie barre d'outils : navigation précédent/suivant, rechargement du dossier, et rapatriement des outils filigranes/permissions.
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/views/OrgSpace/views/SpaceFiles.vue` | Barre d'outils unique (navigation · création · recherche · outils). Ajout de l'historique de navigation (`folderHistory`, `historyIndex`, `goHistoryBack/Forward`) alimenté par un watcher `flush: 'sync'` sur `currentFolderId`. Extraction de `fetchSpaceContent({ silent })` depuis `onMounted` + `refreshFolder()`. Les boutons filigranes et permissions quittent l'en-tête (seul « Membres » y reste). |
+
+### **Fonctionnalités Implémentées**
+✅ **Flèches précédent / suivant** : l'empilement se fait dans un watcher, pas dans chaque appelant — le dossier courant change depuis le fil d'Ariane, le double-clic, la remontée d'un niveau et les liens profonds. Une nouvelle navigation tronque les entrées « suivant ».  
+✅ **Recharger le dossier** : rechargement sans squelette (icône en rotation, toast d'erreur), avec contrôle `res.ok` qui n'existait pas sur le chargement initial.  
+✅ **Outils regroupés** : filigranes + permissions de l'espace dans la barre, à droite.
+
+### **Commits**
+```bash
+49a3777 feat(files): barre d'outils du gestionnaire de fichiers
+```
+**Date** : 28 Septembre 2026
+
+### **Prochaines Étapes**
+1. `vite build` OK, mais aucune vérification visuelle en navigateur (Node.js absent du sandbox) : le comportement de repli de la barre entre `sm`, `lg` et `xl` reste à contrôler à l'œil.
+2. L'historique est local au montage de la vue : quitter puis revenir sur l'espace le réinitialise. À relier à l'historique du routeur si le besoin se confirme.
+3. Le bouton flottant en bas à gauche (`goBack`, remontée d'un niveau) fait doublon visuel avec la flèche « précédent » de la barre, qui elle est chronologique. À arbitrer.
