@@ -771,3 +771,41 @@ fe2855d feat(tasks): select-all checkboxes in the archive list
 2. Piège rencontré, à garder en tête : `useAgendaFeed.ts` (lien iCal) et le nouveau flux portent des noms proches — un fichier écrasé par erreur ne fait **pas** échouer `vite build` tant que le nom d'export est identique. Vérifier `git status` avant de créer un composable.
 3. La carte n'écoute pas les évènements WebSocket agenda : un évènement créé ailleurs n'apparaît qu'au prochain montage de l'accueil.
 4. Clic sur un évènement → renvoie vers `/agenda` sans ouvrir le jour ni l'évènement (la vue Agenda n'a pas de deep-link par date) — candidat à une amélioration ultérieure.
+
+---
+
+## 📅 **28 Septembre 2026 - Gestionnaire de fichiers : création vide et périmètre OnlyOffice**
+
+**Durée** : Session courte  
+**Priorité** : ⭐⭐⭐ (Moyenne)  
+**Complexité** : Basse (frontend + un garde-fou backend)  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Deux demandes d'UX sur le gestionnaire de fichiers :
+1. Un nouveau fichier doit être créé vide — plus de champ « Contenu initial ».
+2. L'ouverture avec OnlyOffice ne doit être proposée que pour les formats Word, Excel et PowerPoint, pas pour les fichiers texte.
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/views/OrgSpace/components/popup/CreateNewFile.vue` | Suppression du `<textarea>` « Contenu initial » et du champ `content` du formulaire ; `save` n'émet plus que `{ name, ext }`. Texte d'aide reformulé (« le fichier est créé vide et se modifie ensuite dans l'aperçu »). |
+| `src/views/OrgSpace/views/SpaceFiles.vue` | `createFile` reçoit `{ name, ext }` et n'envoie plus `content` à `createTextFile`, qui retombe sur sa valeur par défaut `''`. |
+| `src/views/OrgSpace/components/popup/FileViewer.vue` | `isOfficeFile` réduit à `doc/docx`, `xls/xlsx`, `ppt/pptx` via trois constantes (`WORD_/CELL_/SLIDE_EXTENSIONS`) que `getDocumentType` réutilise. `csv`, `txt` et `rtf` en sortent. |
+
+### **Fonctionnalités Implémentées**
+✅ **Création de fichier vide** : `content` reste optionnel dans `createTextFile` — Synco AI (`OrgAI.vue`) continue de créer des fichiers pré-remplis par ce chemin.  
+✅ **OnlyOffice réservé au bureautique** : un `.txt` ou un `.csv` repasse par la branche `isTextFile` → éditeur Monaco avec bouton « Enregistrer ».
+
+### **Commits**
+```bash
+289f395 fix(files): créer les nouveaux fichiers vides par défaut
+ef626c6 fix(files): réserver OnlyOffice aux formats Word, Excel et PowerPoint
+```
+**Date** : 28 Septembre 2026
+
+### **Prochaines Étapes**
+1. Vérification manuelle en navigateur non effectuée (Node.js absent du sandbox ; `vue-tsc` sous Bun ne résout pas les `.vue`, donc les `<script setup>` ne sont pas typés par le vérificateur).
+2. Le `.rtf` n'a plus d'éditeur du tout (ni Monaco, ni OnlyOffice) : il retombe sur l'écran « pas d'aperçu » avec téléchargement. À arbitrer si le format doit rester éditable.
+3. Voir `synco_api` : garde-fou serveur correspondant sur `POST /api/cdn/onlyoffice-config`.
