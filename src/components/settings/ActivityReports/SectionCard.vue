@@ -184,6 +184,7 @@ const filterSummary = computed(() => {
 </script>
 
 <style scoped>
+@reference "@/style.css";
 
 .field {
     @apply flex flex-col gap-1.5;

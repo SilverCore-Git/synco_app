@@ -238,6 +238,7 @@ const confirmDelete = async () => {
 </script>
 
 <style scoped>
+@reference "@/style.css";
 
 .menu-item {
     @apply w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-(--text) text-left hover:bg-(--text)/10 transition-colors;

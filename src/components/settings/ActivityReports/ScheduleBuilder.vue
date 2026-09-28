@@ -195,7 +195,15 @@ import { ref, computed } from 'vue';
 import { describeScheduleFull, formatMinutes } from '@/assets/utils/describeSchedule';
 import type { ActivityReport, ReportRhythm } from '@/types/activityReports';
 
-/** Sous-ensemble planification, modifié en place par l'éditeur parent. */
+/**
+ * Sous-ensemble planification, modifié EN PLACE.
+ *
+ * `draft` côté parent est un objet reactive() : muter `model.value.rhythm`
+ * agit sur le même proxy et le parent le voit, sans qu'aucun
+ * `update:modelValue` ne soit émis. Ne jamais remplacer l'objet entier
+ * (`model.value = {...}`) — le v-model du parent compile vers une
+ * réaffectation de const, qui échouerait à l'exécution.
+ */
 type ScheduleModel = Pick<
     ActivityReport,
     'rhythm' | 'sendTimes' | 'activeWeekdays' | 'intervalHours'
@@ -294,6 +302,7 @@ const removeSendTime = (minutes: number) => {
 </script>
 
 <style scoped>
+@reference "@/style.css";
 
 .field {
     @apply flex flex-col gap-1.5;
