@@ -15,6 +15,16 @@
             </div>
         </div>
 
+        <!-- Sans ça, l'absence du bouton « passer administrateur » n'a aucune
+             explication visible : ni pour un admin ordinaire, ni — bien pire —
+             quand l'API n'a pas de SUPER_ADMIN_ID configuré et que personne ne
+             peut donc attribuer le rôle. -->
+        <div v-if="adminRoleNotice"
+            class="flex items-start gap-3 bg-(--bg) border border-amber-500/20 rounded-2xl p-4 text-sm">
+            <i class="bi bi-info-circle text-amber-500 mt-0.5"></i>
+            <p class="text-(--text2) leading-relaxed">{{ adminRoleNotice }}</p>
+        </div>
+
         <div class="bg-(--bg) border border-(--text)/5 rounded-2xl overflow-hidden shadow-xl">
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
@@ -360,6 +370,18 @@ const isDeleting = ref(false);
 // retirer le rôle administrateur (l'API refuse de toute façon les autres).
 const isSuperAdmin = ref(false);
 const currentUserId = ref<string | null>(null);
+const superAdminConfigured = ref(true);
+
+const adminRoleNotice = computed(() => {
+    if (isSuperAdmin.value) return '';
+    if (!superAdminConfigured.value) {
+        return "Aucun administrateur principal n'est configuré côté API (SUPER_ADMIN_ID) : "
+            + "personne ne peut attribuer le rôle administrateur ni bannir un administrateur "
+            + "tant que cette variable n'est pas renseignée puis l'API redémarrée.";
+    }
+    return "Seul l'administrateur principal peut attribuer ou retirer le rôle administrateur. "
+        + "Vous pouvez en revanche bannir un utilisateur qui n'est pas administrateur.";
+});
 
 const userToBan = ref<AdminUser | null>(null);
 const banReason = ref('');
@@ -607,6 +629,9 @@ const fetchAdminIdentity = async () => {
         const data = await res.json();
         isSuperAdmin.value = data.isSuperAdmin === true;
         currentUserId.value = data.userId ?? null;
+        // Une API antérieure à cette route ne renvoie rien : on ne prétend pas
+        // alors que la configuration est manquante.
+        superAdminConfigured.value = data.superAdminConfigured !== false;
     } catch (e) {
         // Sans cette information on reste sur les valeurs par défaut : les
         // actions réservées à l'administrateur principal restent masquées.
