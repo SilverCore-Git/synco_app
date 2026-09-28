@@ -843,3 +843,37 @@ Remplacer la ligne « recherche + 3 boutons » et les icônes de l'en-tête par 
 1. `vite build` OK, mais aucune vérification visuelle en navigateur (Node.js absent du sandbox) : le comportement de repli de la barre entre `sm`, `lg` et `xl` reste à contrôler à l'œil.
 2. L'historique est local au montage de la vue : quitter puis revenir sur l'espace le réinitialise. À relier à l'historique du routeur si le besoin se confirme.
 3. Le bouton flottant en bas à gauche (`goBack`, remontée d'un niveau) fait doublon visuel avec la flèche « précédent » de la barre, qui elle est chronologique. À arbitrer.
+
+---
+
+## 📅 **28 Septembre 2026 - Refonte de la barre d'outils (façon explorateur)**
+
+**Durée** : Session courte  
+**Priorité** : ⭐⭐⭐ (Moyenne)  
+**Complexité** : Basse (frontend uniquement, template)  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Reprendre la barre d'outils à zéro : recherche au-dessus sur sa propre ligne, puis une barre unique où les actions sont ordonnées par importance, dans l'esprit d'un explorateur de fichiers.
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/views/OrgSpace/views/SpaceFiles.vue` | Recherche sortie de la barre et placée en tête de `<main>` (placeholder explicite « Rechercher un fichier ou un dossier… », bouton d'effacement conservé). Barre d'outils réordonnée : groupe navigation (précédent · suivant · remonter d'un niveau · recharger), filet, action principale `Ajouter des fichiers` en `primary` avec icône `bi-upload`, les deux créations en `default`, filet poussé par `ml-auto`, puis filigranes et permissions. `overflow-x-auto no-scrollbar` sur la barre au lieu d'un `flex-wrap`. |
+
+### **Fonctionnalités Implémentées**
+✅ **Hiérarchie visuelle** : un seul bouton plein (upload), deux boutons secondaires, les utilitaires en icône seule aux deux extrémités.  
+✅ **Remonter d'un niveau** : `goBack()` obtient enfin une entrée dans la barre — il n'était atteignable que par le bouton flottant en bas à gauche.  
+✅ **Repli progressif** : libellés des créations masqués sous `md`, libellé de l'upload sous `sm` ; la barre défile horizontalement plutôt que de passer à la ligne.
+
+### **Commits**
+```bash
+b0191cc refactor(files): barre d'outils façon explorateur, recherche au-dessus
+```
+**Date** : 28 Septembre 2026
+
+### **Prochaines Étapes**
+1. Toujours aucune vérification visuelle en navigateur (Node.js absent du sandbox) — `vue-tsc` et `vite build` passent, mais le rendu de la barre aux points de rupture `sm` / `md` reste à contrôler.
+2. Le bouton flottant en bas à gauche est conservé : il est aussi la **cible de dépôt** « déplacer vers le dossier parent ». Il fait maintenant doublon avec la flèche ↑ de la barre — à arbitrer (le réduire à une cible de dépôt visible seulement pendant un glisser ?).
+3. Le fil d'Ariane reste sous la barre, dans la branche `v-else` du squelette de chargement : le remonter dans la barre (style barre d'adresse) impliquerait de le sortir de cette branche.
