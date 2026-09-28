@@ -455,7 +455,7 @@
                         >
                             <div>
                                 <h4 class="font-bold text-(--text)">Notifications par Email</h4>
-                                <p class="text-sm text-(--text2) mt-0.5">Recevoir un résumé des messages non lus</p>
+                                <p class="text-sm text-(--text2) mt-0.5">Recevoir un e-mail quand on me mentionne, m'invite à un événement ou m'assigne une tâche</p>
                             </div>
                             <div 
                                 class="w-12 h-6 rounded-full relative transition-colors duration-300"
