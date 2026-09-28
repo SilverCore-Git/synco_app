@@ -941,3 +941,50 @@ Le menu contextuel « dans le vide » ne répondait que sur une partie de la hau
 
 ### **Prochaines Étapes**
 1. `<main>` étant devenu un conteneur flex, tout futur enfant direct doit être ajouté en connaissance de cause (l'espacement vient de `gap-4`, plus de `space-y-4`).
+
+---
+
+## 📅 **28 Septembre 2026 - Permissions du space : de la popup Fichiers aux paramètres**
+
+**Durée** : Session courte  
+**Priorité** : ⭐⭐⭐⭐ (Haute — emplacement d'un écran de sécurité)  
+**Complexité** : Moyenne  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+La gestion des permissions du space était une popup ouverte depuis la barre d'outils du gestionnaire de fichiers, alors qu'elle porte sur le space entier. La déplacer dans la fenêtre de paramètres du space, en reprenant la mise en page des onglets existants.
+
+### **Fichiers Créés**
+
+| Fichier | Description |
+|---------|-------------|
+| `src/components/permissions/SpacePermissionsPanel.vue` | Reprise de la logique de `SpacePermissionsModal` (chargement rôles + overrides, état local, construction des overrides, sauvegarde) sans le chrome de modale. Expose `save()` / `reset()` via `defineExpose` et émet `dirty` ; `applyOverrides()` est extrait pour servir au chargement **et** au bouton Réinitialiser. Le conteneur de la matrice garde `bg-(--bg)` : `PermissionMatrix` peint sa colonne collante dans cette couleur, une carte en `--bg2` l'aurait détachée au défilement horizontal. |
+
+### **Fichiers Supprimés**
+
+| Fichier | Raison |
+|---------|--------|
+| `src/components/permissions/SpacePermissionsModal.vue` | Plus aucun appelant après le déplacement. |
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/components/windows/SpaceSettings.vue` | Nouvel onglet « Permissions » (entre Membres et Webhooks) qui monte `SpacePermissionsPanel`. `SaveUpdateOverlay` passe sur `isModified || isPermissionsModified`, avec `resetAll()` / `saveAll()` qui n'agissent que sur les onglets réellement modifiés. La section morte « Sécurité & Permissions » (présente dans le template mais absente de `tabs`, donc inatteignable) est remplacée. |
+| `src/views/OrgSpace/views/SpaceFiles.vue` | Entrée « Permissions de l'espace » retirée du menu « … », modale et import supprimés. Le menu ne garde que « Vérifier un filigrane ». |
+
+### **Fonctionnalités Implémentées**
+✅ **Permissions dans les paramètres du space** : même fenêtre que Général / Membres / Webhooks, ouverte depuis `ThreadDropDown` — qui passe déjà le `currentWorkspace`, c'est-à-dire le space dont le gestionnaire de fichiers utilisait l'id.  
+✅ **Barre d'enregistrement unique** : le pied de page Annuler/Sauvegarder de la popup disparaît au profit de `SaveUpdateOverlay`, déjà utilisé par l'onglet Général.  
+✅ **Pas de perte silencieuse** : l'onglet reste monté (`v-if` d'ouverture + `v-show`) une fois visité, donc une matrice à moitié modifiée survit à un changement d'onglet.
+
+### **Commits**
+```bash
+a4a299a refactor(permissions): déplacer les permissions du space dans ses paramètres
+```
+**Date** : 28 Septembre 2026
+
+### **Prochaines Étapes**
+1. Vérification visuelle toujours impossible dans ce sandbox (`vue-tsc` + `vite build` passent) : à contrôler surtout le débordement horizontal de la matrice dans le `<main>` des paramètres (`p-4 sm:p-8`).
+2. Le panneau ne vérifie pas côté client que l'utilisateur a le droit de modifier les permissions : l'onglet est visible pour tout membre pouvant ouvrir les paramètres. Le refus vient du serveur à l'enregistrement — à afficher plus tôt (griser la matrice) si le besoin se confirme.
+3. `ManageAccessModal` (permissions par fichier et par dossier, menu contextuel du gestionnaire) reste une modale à part : c'est volontaire, la portée est différente.
