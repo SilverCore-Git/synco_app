@@ -149,11 +149,6 @@
 
                     <template #content>
 
-                        <button @click="showPermissions = true" class="dropdown-item-annimate dropdown-item-style gap-2">
-                            <i class="bi bi-shield-lock" />
-                            Permissions de l'espace
-                        </button>
-
                         <button @click="showVerifyWatermark = true" class="dropdown-item-annimate dropdown-item-style gap-2">
                             <i class="bi bi-file-earmark-binary" />
                             Vérifier un filigrane
@@ -600,13 +595,6 @@
         @close="showVerifyWatermark = false" 
     />
 
-    <SpacePermissionsModal
-        :show="showPermissions"
-        :space-id="String(route.params.spaceId)"
-        :space-name="'Fichiers'"
-        @close="showPermissions = false"
-    />
-
     <ManageAccessModal
         v-if="selectedFolderForPerms"
         :show="showFolderPermissions"
@@ -664,7 +652,6 @@ import type { StoredFile, Folder } from '@/types/types';
 import { extractTextFromPDF } from '@/assets/utils/pdfExtractor';
 import VectorWorker from '@/workers/semantic.worker?worker';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
-import SpacePermissionsModal from '@/components/permissions/SpacePermissionsModal.vue';
 import ManageAccessModal from '@/components/permissions/ManageAccessModal.vue';
 
 
@@ -1057,7 +1044,6 @@ const openFileSearchPrompt = () => {
 };
 
 const showVerifyWatermark = ref<boolean>(false);
-const showPermissions = ref<boolean>(false);
 const showFolderPermissions = ref<boolean>(false);
 const showFilePermissions = ref<boolean>(false);
 

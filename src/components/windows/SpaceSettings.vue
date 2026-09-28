@@ -90,28 +90,24 @@
 
                 </section>
 
-                <section v-if="activeTab === 'security'" class="animate-fade-in space-y-6">
+                <!-- Une fois ouvert, l'onglet reste monté (`v-show`) : changer
+                     d'onglet ne doit pas jeter silencieusement une matrice de
+                     permissions à moitié modifiée. -->
+                <section 
+                    v-if="hasOpenedPermissions" 
+                    v-show="activeTab === 'permissions'" 
+                    class="animate-fade-in space-y-6"
+                >
                     <div>
-                        <h3 class="text-xl sm:text-2xl font-black text-(--text) mb-1">Sécurité & Permissions</h3>
-                        <p class="text-sm text-(--text2)">Contrôlez qui peut voir et modifier ce salon.</p>
+                        <h3 class="text-xl sm:text-2xl font-black text-(--text) mb-1">Permissions</h3>
+                        <p class="text-sm text-(--text2)">Choisissez ce que chaque rôle peut faire dans ce space.</p>
                     </div>
 
-                    <div class="space-y-4">
-                        <div class="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl flex gap-4">
-                            <i class="bi bi-exclamation-triangle-fill text-orange-500 text-xl" />
-                            <p class="text-sm text-orange-200/80">Seuls le propriétaire et les administrateurs de l'organisation peuvent modifier ces réglages.</p>
-                        </div>
-
-                        <div class="flex items-center justify-between p-4 bg-(--bg2) rounded-xl border border-(--border-color)">
-                            <div>
-                                <h4 class="font-bold text-(--text)">Espace Privé</h4>
-                                <p class="text-sm text-(--text2)">Seuls les membres invités peuvent voir ce space</p>
-                            </div>
-                            <div class="w-12 h-6 bg-(--primary) rounded-full relative cursor-pointer">
-                                <div class="w-5 h-5 bg-white rounded-full absolute right-0.5 top-0.5"></div>
-                            </div>
-                        </div>
-                    </div>
+                    <SpacePermissionsPanel 
+                        ref="permissionsPanel"
+                        :space-id="space.id"
+                        @dirty="isPermissionsModified = $event"
+                    />
                 </section>
 
                 <!-- L'onglet reprend exactement l'écran de la page de réglages du
@@ -124,9 +120,9 @@
             </main>
 
             <SaveUpdateOverlay 
-                :show="isModified" 
-                @close="resetForm" 
-                @save="saveChanges"
+                :show="isModified || isPermissionsModified" 
+                @close="resetAll" 
+                @save="saveAll"
             />
             
         </div>
@@ -157,6 +153,7 @@ import { encryptThreadKeyForMember, decryptThreadKeyWithRsa, privateKey } from '
 import Popup from '@/components/Popup.vue';
 import WebhooksManager from '@/views/OrgSpace/views/settings/views/components/WebhooksManager.vue';
 import IconSelector from '@/components/common/IconSelector.vue';
+import SpacePermissionsPanel from '@/components/permissions/SpacePermissionsPanel.vue';
 
 const props = defineProps<{
     space: WorkSpace;
@@ -206,12 +203,36 @@ const isModified = computed(() => {
 const tabs = [
     { id: 'general', label: 'Général', icon: 'bi bi-grid-fill' },
     { id: 'members', label: 'Membres', icon: 'bi bi-people-fill' },
+    { id: 'permissions', label: 'Permissions', icon: 'bi bi-shield-lock-fill' },
     { id: 'webhooks', label: 'Webhooks', icon: 'bi bi-link-45deg' }
 ];
+
+const permissionsPanel = ref<InstanceType<typeof SpacePermissionsPanel> | null>(null);
+const isPermissionsModified = ref<boolean>(false);
+const hasOpenedPermissions = ref<boolean>(false);
+
+watch(activeTab, (tab) => {
+    if (tab === 'permissions') hasOpenedPermissions.value = true;
+});
 
 const resetForm = () => {
     formData.name = props.space.name;
     formData.logo = props.space.logo!;
+};
+
+// La barre d'enregistrement est commune aux onglets : elle n'agit que sur ceux
+// qui portent réellement des modifications.
+const resetAll = () => {
+    if (isModified.value) resetForm();
+    if (isPermissionsModified.value) permissionsPanel.value?.reset();
+};
+
+const saveAll = async () => {
+    if (isModified.value) await saveChanges();
+    if (isPermissionsModified.value) {
+        const ok = await permissionsPanel.value?.save();
+        if (ok) toast.show('Permissions enregistrées.', 'success');
+    }
 };
 
 const saveChanges = async () => {
