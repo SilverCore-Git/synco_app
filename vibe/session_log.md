@@ -877,3 +877,37 @@ b0191cc refactor(files): barre d'outils façon explorateur, recherche au-dessus
 1. Toujours aucune vérification visuelle en navigateur (Node.js absent du sandbox) — `vue-tsc` et `vite build` passent, mais le rendu de la barre aux points de rupture `sm` / `md` reste à contrôler.
 2. Le bouton flottant en bas à gauche est conservé : il est aussi la **cible de dépôt** « déplacer vers le dossier parent ». Il fait maintenant doublon avec la flèche ↑ de la barre — à arbitrer (le réduire à une cible de dépôt visible seulement pendant un glisser ?).
 3. Le fil d'Ariane reste sous la barre, dans la branche `v-else` du squelette de chargement : le remonter dans la barre (style barre d'adresse) impliquerait de le sortir de cette branche.
+
+---
+
+## 📅 **28 Septembre 2026 - Barre d'outils : reprise à zéro (trois contrôles)**
+
+**Durée** : Session courte  
+**Priorité** : ⭐⭐⭐ (Moyenne)  
+**Complexité** : Basse (frontend uniquement, template)  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Retour utilisateur sur la version précédente : « plein de boutons différents en bordel, on comprend rien ». La rangée alignait neuf contrôles de trois styles (plein, contour, icône nue) sans hiérarchie lisible. Reprise de la partie boutons à zéro.
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/views/OrgSpace/views/SpaceFiles.vue` | Barre ramenée à trois contrôles : bloc de navigation segmenté (`divide-x` + `overflow-hidden`, chevrons plutôt que flèches pour l'historique), `DropDown` « Nouveau » (Importer / Dossier / Fichier) en unique bouton plein, `DropDown` « … » aligné à droite pour les outils de l'espace (permissions, filigrane) avec libellés. Le bouton flottant « remonter d'un niveau » passe en `v-if="… && isDragging"`. |
+
+### **Fonctionnalités Implémentées**
+✅ **Trois contrôles au lieu de neuf** : un bloc, un bouton, un menu — chacun avec un rôle distinct.  
+✅ **Libellés pour les outils** : `bi-shield-lock` et `bi-shield-check` côte à côte étaient indistinguables ; le filigrane prend l'icône `bi-file-earmark-binary` et les deux entrées sont nommées dans le menu.  
+✅ **Plus de doublon de navigation** : le bouton flottant en bas à gauche n'est plus qu'une cible de dépôt, affichée pendant un glisser comme la corbeille.
+
+### **Commits**
+```bash
+f230365 refactor(files): réduire la barre d'outils à trois contrôles
+```
+**Date** : 28 Septembre 2026
+
+### **Prochaines Étapes**
+1. Vérification visuelle en navigateur toujours pas faite (Node.js absent du sandbox) : `vite build` passe et la classe `h-9.5` est bien générée, mais l'alignement du bloc segmenté avec le bouton `primary` (padding `0.7em 1.6em` hérité de `style.css`) est à contrôler à l'œil.
+2. `DropDown.vue` positionne son contenu sur un `getDropdownPosition()` appelé au rendu, sans repositionnement au scroll : à surveiller si la barre finit dans une zone défilante.
+3. L'import de fichiers passe maintenant par un menu (un clic de plus). Si l'usage montre que c'est l'action dominante, envisager un bouton scindé « Importer ▾ » plutôt qu'un menu unique.
