@@ -114,17 +114,14 @@
                                 </div>
                                 <input 
                                     type="email" 
-                                    :value="user?.email" 
-                                    readonly
-                                    tabindex="-1"
-                                    class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text2) opacity-60 cursor-not-allowed focus:outline-none transition-all shadow-inner"
+                                    v-model="formData.email" 
+                                    class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
                                 />
                             </div>
-                            <p class="text-sm text-(--text2)">
-                                Ton adresse vient de ton compte Synco : la changer ici
-                                n'aurait aucun effet. Passe par les paramètres de ton
-                                compte, qui envoie un email de confirmation à la nouvelle
-                                adresse.
+                            <p v-if="emailChanged" class="text-sm text-(--text2)">
+                                Cette adresse devient aussi ton identifiant de connexion.
+                                Le changement est immédiat, et une alerte est envoyée à
+                                ton ancienne adresse.
                             </p>
                         </div>
                         
@@ -585,6 +582,7 @@ watch(() => props.isOpen, (open) => {
 const formData = reactive({
     firstName: '',
     lastName: '',
+    email: '',
     job: '',
     description: ''
 });
@@ -601,6 +599,7 @@ watch(user, (newVal) => {
     if (newVal) {
         formData.firstName = newVal.firstName || '';
         formData.lastName = newVal.lastName || '';
+        formData.email = newVal.email || '';
         formData.job = newVal.job || '';
         formData.description = newVal.description || '';
         
@@ -652,9 +651,17 @@ const updateNotificationPrefs = async (key: keyof typeof notifPrefs, value: bool
     }
 };
 
+// L'API normalise l'adresse en minuscules (updateUserEmailSchema) : comparer
+// sans casse évite d'envoyer un PATCH pour une saisie équivalente, que le
+// serveur traiterait de toute façon en non-opération.
+const emailChanged = computed(() => {
+    return formData.email.trim().toLowerCase() !== (user.value?.email || '').toLowerCase();
+});
+
 const isModified = computed(() => {
     return formData.firstName !== (user.value?.firstName || '') ||
            formData.lastName !== (user.value?.lastName || '') ||
+           emailChanged.value ||
            formData.job !== (user.value?.job || '') ||
            formData.description !== (user.value?.description || '');
 });
@@ -719,6 +726,26 @@ const updateProfile = async () => {
                 user.value = { ...user.value, ...updatedUser, firstName: formData.firstName, lastName: formData.lastName };
             } else {
                 toast.show('Erreur lors de la mise à jour du nom', 'error');
+                return;
+            }
+        }
+
+        if (emailChanged.value) {
+            const emailResponse = await sfetch('/api/users/me/email', {
+                method: 'PATCH',
+                body: JSON.stringify({ email: formData.email.trim() })
+            });
+
+            if (emailResponse.ok) {
+                const updatedUser = await emailResponse.json();
+                user.value = { ...user.value, ...updatedUser };
+            } else {
+                // L'API renvoie un motif exploitable (409 adresse déjà prise,
+                // 400 refus du realm) — l'afficher plutôt qu'un message
+                // générique, sinon l'utilisateur ne sait pas quoi corriger.
+                const body = await emailResponse.json().catch(() => ({}));
+                toast.show(body.error || "Erreur lors de la mise à jour de l'email", 'error');
+                formData.email = user.value?.email || '';
                 return;
             }
         }
