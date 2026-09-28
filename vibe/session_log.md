@@ -988,3 +988,41 @@ a4a299a refactor(permissions): déplacer les permissions du space dans ses param
 1. Vérification visuelle toujours impossible dans ce sandbox (`vue-tsc` + `vite build` passent) : à contrôler surtout le débordement horizontal de la matrice dans le `<main>` des paramètres (`p-4 sm:p-8`).
 2. Le panneau ne vérifie pas côté client que l'utilisateur a le droit de modifier les permissions : l'onglet est visible pour tout membre pouvant ouvrir les paramètres. Le refus vient du serveur à l'enregistrement — à afficher plus tôt (griser la matrice) si le besoin se confirme.
 3. `ManageAccessModal` (permissions par fichier et par dossier, menu contextuel du gestionnaire) reste une modale à part : c'est volontaire, la portée est différente.
+
+---
+
+## 📅 **28 Septembre 2026 - Permissions du space : UI alignée sur l'écran Rôles de l'org**
+
+**Durée** : Session courte  
+**Priorité** : ⭐⭐⭐⭐ (Haute — écran de sécurité + correction de sémantique)  
+**Complexité** : Moyenne  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Reprendre l'UI du nouvel onglet Permissions du space en s'inspirant de `RolesSettings.vue` (permissions de l'organisation), au lieu de la matrice rôles × permissions héritée de la popup.
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/components/permissions/SpacePermissionsPanel.vue` | Réécrit : liste des rôles à gauche (pastille, nom, badge Sys, nombre de membres, **compteur de dérogations**), détail à droite avec recherche, groupes de permissions repris de `RolesSettings.vue`, lignes icône + libellé + description. Contrôle à trois états `Hériter / Autoriser / Refuser` à la place du commutateur binaire de l'org — le space pose des **dérogations**, pas des valeurs. Mention « Hérité de l'organisation : autorisé/refusé » sous chaque permission laissée en héritage. Bouton « Tout hériter » par rôle, rôle `OWNER` en lecture seule. |
+| `src/components/windows/SpaceSettings.vue` | L'onglet passe en `absolute inset-0` et `<main>` retire son padding pour lui, comme pour Webhooks : le panneau gère sa propre mise en page en deux colonnes. L'en-tête `h3` + description de l'onglet disparaît, le panneau porte le sien. |
+
+### **Correction de sémantique (importante)**
+L'ancienne popup initialisait l'état local avec les **valeurs du rôle** quand aucune dérogation n'existait, puis reversait en dérogations tout ce qui n'était pas `INHERIT`. Conséquences :
+1. l'écran s'ouvrait systématiquement en « modifications non enregistrées » ;
+2. un simple enregistrement figeait dans le space l'intégralité des droits du rôle — un changement ultérieur au niveau de l'organisation n'aurait plus été suivi.
+
+`INHERIT` signifie désormais « aucune dérogation » : l'état local ne contient que les dérogations réellement enregistrées, et la valeur d'origine est affichée à titre indicatif.
+
+### **Commits**
+```bash
+484142b refactor(permissions): aligner l'UI des permissions du space sur celle de l'org
+```
+**Date** : 28 Septembre 2026
+
+### **Prochaines Étapes**
+1. `PermissionMatrix.vue` et `PermissionCell.vue` n'ont plus aucun appelant (ils ne se référencent plus qu'entre eux) — à supprimer ou à réutiliser dans `ManageAccessModal.vue`, qui a sa propre UI.
+2. `permissionGroups` est maintenant dupliqué entre `RolesSettings.vue` et `SpacePermissionsPanel.vue` : à remonter dans `src/config/permissions.config.ts`. Le panneau ajoute le groupe « Salons vocaux », absent de l'écran org — les deux listes ont déjà divergé.
+3. Toujours aucune vérification visuelle en navigateur (Node.js absent du sandbox) : `vue-tsc` et `vite build` passent.
+4. La colonne des rôles est limitée à `max-h-56` sous `md` : à contrôler sur mobile avec beaucoup de rôles.
