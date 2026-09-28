@@ -22,20 +22,6 @@
             
             <div class="ml-auto flex items-center gap-4 text-(--text2)">
                 <button 
-                    @click="showVerifyWatermark = true"
-                    class="hover:text-(--primary) transition-colors"
-                    title="Inspecter un fichier"
-                >
-                    <i class="bi bi-shield-check" />
-                </button>
-                <button 
-                    @click="showPermissions = true"
-                    class="hover:text-(--primary) transition-colors"
-                    title="Permissions"
-                >
-                    <i class="bi bi-shield-lock" />
-                </button>
-                <button 
                     @click="showUsersBar = !showUsersBar"
                     class="hover:text-(--text) transition-colors"
                     :class="showUsersBar ? 'text-(--text)' : ''"
@@ -49,17 +35,70 @@
 
         <main class="flex-1 overflow-y-auto p-4 w-full h-full space-y-4">
 
-            <div class="w-full grid grid-cols-1 2xl:grid-cols-2 gap-3">
+            <!-- Barre d'outils : navigation, création, recherche, outils de l'espace -->
+            <div class="w-full flex flex-wrap items-center gap-2 rounded-xl border border-(--text)/10 bg-(--text)/[0.03] p-2">
 
-                <div class="relative group w-full">
-                    
+                <div class="flex items-center gap-0.5 shrink-0">
+
+                    <button
+                        @click="goHistoryBack"
+                        :disabled="!canGoHistoryBack"
+                        class="w-9 h-9 flex items-center justify-center rounded-lg text-(--text2) hover:text-(--text) hover:bg-(--text)/5 disabled:opacity-30 disabled:pointer-events-none active:scale-90 transition-all"
+                        title="Dossier précédent"
+                    >
+                        <i class="bi bi-arrow-left text-base" />
+                    </button>
+
+                    <button
+                        @click="goHistoryForward"
+                        :disabled="!canGoHistoryForward"
+                        class="w-9 h-9 flex items-center justify-center rounded-lg text-(--text2) hover:text-(--text) hover:bg-(--text)/5 disabled:opacity-30 disabled:pointer-events-none active:scale-90 transition-all"
+                        title="Dossier suivant"
+                    >
+                        <i class="bi bi-arrow-right text-base" />
+                    </button>
+
+                    <button
+                        @click="refreshFolder"
+                        :disabled="isRefreshing"
+                        class="w-9 h-9 flex items-center justify-center rounded-lg text-(--text2) hover:text-(--text) hover:bg-(--text)/5 disabled:pointer-events-none active:scale-90 transition-all"
+                        title="Recharger le dossier"
+                    >
+                        <i class="bi bi-arrow-clockwise text-base" :class="isRefreshing ? 'inline-block animate-spin' : ''" />
+                    </button>
+
+                </div>
+
+                <div class="w-px h-6 bg-(--text)/10 shrink-0" />
+
+                <div class="flex items-center gap-1 shrink-0">
+
+                    <button @click="showFolderNamePrompt = true" class="default gap-2 !text-sm !py-2 !px-3" title="Nouveau dossier">
+                        <i class="bi bi-folder-plus" />
+                        <span class="hidden xl:inline">Nouveau dossier</span>
+                    </button>
+
+                    <button @click="showFileNamePrompt = true" class="default gap-2 !text-sm !py-2 !px-3" title="Nouveau fichier">
+                        <i class="bi bi-file-earmark-plus" />
+                        <span class="hidden xl:inline">Nouveau fichier</span>
+                    </button>
+
+                    <button @click="triggerFileSearch" class="primary gap-2 !text-sm !py-2 !px-3" title="Ajouter des fichiers">
+                        <i class="bi bi-plus-circle" />
+                        <span class="hidden sm:inline">Ajouter des fichiers</span>
+                    </button>
+
+                </div>
+
+                <div class="relative group flex-1 min-w-50 order-last lg:order-none">
+
                     <i class="bi bi-search absolute left-3.5 top-1/2 -translate-y-1/2 text-(--text2) group-focus-within:text-(--primary) group-focus-within:scale-110 transition-all duration-300" />
 
                     <input 
                         v-model="searchQuery"
                         type="text" 
                         placeholder="Rechercher..."
-                        class="w-full bg-(--text)/[0.03] border border-(--text)/10 rounded-xl py-2.5 pl-11 pr-12 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/60 focus:bg-black/40 focus:ring-4 focus:ring-(--primary)/10 transition-all duration-300 shadow-inner"
+                        class="w-full bg-(--text)/[0.03] border border-(--text)/10 rounded-xl py-2 pl-11 pr-12 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/60 focus:ring-4 focus:ring-(--primary)/10 transition-all duration-300 shadow-inner"
                     >
 
                     <button 
@@ -72,21 +111,24 @@
 
                 </div>
 
-                <div class="gap-3 w-full grid grid-cols-2 sm:grid-cols-3">
+                <div class="w-px h-6 bg-(--text)/10 shrink-0 hidden lg:block" />
 
-                    <button @click="showFolderNamePrompt = true" class="default gap-2">
-                        <i class="bi bi-folder-plus" />
-                        <span>Nouveau dossier</span>
+                <div class="flex items-center gap-0.5 shrink-0 ml-auto lg:ml-0">
+
+                    <button
+                        @click="showVerifyWatermark = true"
+                        class="w-9 h-9 flex items-center justify-center rounded-lg text-(--text2) hover:text-(--primary) hover:bg-(--text)/5 active:scale-90 transition-all"
+                        title="Filigranes — inspecter un fichier"
+                    >
+                        <i class="bi bi-shield-check text-base" />
                     </button>
 
-                    <button @click="showFileNamePrompt = true" class="default gap-2">
-                        <i class="bi bi-file-earmark-plus" />
-                        <span>Nouveau fichier</span>
-                    </button>
-
-                    <button @click="triggerFileSearch" class="primary gap-2 col-span-2 sm:col-span-1">
-                        <i class="bi bi-plus-circle" />
-                        <span>Ajouter des fichiers</span>
+                    <button
+                        @click="showPermissions = true"
+                        class="w-9 h-9 flex items-center justify-center rounded-lg text-(--text2) hover:text-(--primary) hover:bg-(--text)/5 active:scale-90 transition-all"
+                        title="Permissions de l'espace"
+                    >
+                        <i class="bi bi-shield-lock text-base" />
                     </button>
 
                 </div>
@@ -1085,6 +1127,48 @@ watch(currentFolderId, () => {
     clearSelection();
 });
 
+// Historique de navigation des flèches « précédent / suivant » de la barre
+// d'outils. Le dossier courant est changé depuis une dizaine d'endroits
+// (fil d'Ariane, double-clic, remontée d'un niveau, lien profond) : on empile
+// donc depuis un watcher plutôt que dans chaque appelant. `flush: 'sync'`
+// garantit que le drapeau posé juste avant l'affectation est bien consommé
+// par ce watcher-ci, et pas par la navigation suivante.
+const folderHistory = ref<string[]>(['root']);
+const historyIndex = ref<number>(0);
+const isHistoryNavigating = ref<boolean>(false);
+
+const canGoHistoryBack = computed<boolean>(() => historyIndex.value > 0);
+const canGoHistoryForward = computed<boolean>(() => historyIndex.value < folderHistory.value.length - 1);
+
+watch(currentFolderId, (folderId, previousFolderId) => {
+
+    if (folderId === previousFolderId) return;
+
+    if (isHistoryNavigating.value) {
+        isHistoryNavigating.value = false;
+        return;
+    }
+
+    // Une nouvelle navigation efface les entrées « suivant » restantes.
+    folderHistory.value = [...folderHistory.value.slice(0, historyIndex.value + 1), folderId];
+    historyIndex.value = folderHistory.value.length - 1;
+
+}, { flush: 'sync' });
+
+const goHistoryBack = () => {
+    if (!canGoHistoryBack.value) return;
+    isHistoryNavigating.value = true;
+    historyIndex.value -= 1;
+    currentFolderId.value = folderHistory.value[historyIndex.value] || 'root';
+};
+
+const goHistoryForward = () => {
+    if (!canGoHistoryForward.value) return;
+    isHistoryNavigating.value = true;
+    historyIndex.value += 1;
+    currentFolderId.value = folderHistory.value[historyIndex.value] || 'root';
+};
+
 const openFolderPermissions = (folder: Folder) => {
     selectedFolderForPerms.value = folder;
     showFolderPermissions.value = true;
@@ -1552,13 +1636,21 @@ const handleFiles = async (files: FileList | File[], targetFolderId: string = cu
 };
 
 
-onMounted(async() => {
+const isRefreshing = ref<boolean>(false);
 
-    window.addEventListener('keydown', handleSelectAllShortcut);
+// Chargement de l'espace (fichiers + dossiers). En mode `silent` — le bouton
+// « Recharger le dossier » de la barre d'outils — la vue reste affichée au
+// lieu de repasser par le squelette de chargement.
+const fetchSpaceContent = async (options: { silent?: boolean } = {}) => {
+
+    if (options.silent) isRefreshing.value = true;
+    else loading.value = true;
 
     try {
 
         const res = await sfetch(`/api/spaces/${route.params.spaceId}/files`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
         const data = await res.json();
         allFiles.value = data.files || [];
         allFolders.value = data.folders || [];
@@ -1567,9 +1659,21 @@ onMounted(async() => {
 
     } catch (e) {
         console.error("Erreur:", e);
+        if (options.silent) toast.show("Impossible de recharger le dossier", "error");
     } finally {
         loading.value = false;
+        isRefreshing.value = false;
     }
+
+};
+
+const refreshFolder = () => fetchSpaceContent({ silent: true });
+
+onMounted(async() => {
+
+    window.addEventListener('keydown', handleSelectAllShortcut);
+
+    await fetchSpaceContent();
     
     const socket = await useWSocket();
     socket.value?.on('file-added', ({ file }: { file: StoredFile }) => {
