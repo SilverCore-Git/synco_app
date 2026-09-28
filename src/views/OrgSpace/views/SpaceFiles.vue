@@ -35,8 +35,32 @@
 
         <main class="flex-1 overflow-y-auto p-4 w-full h-full space-y-4">
 
-            <!-- Barre d'outils : navigation, création, recherche, outils de l'espace -->
-            <div class="w-full flex flex-wrap items-center gap-2 rounded-xl border border-(--text)/10 bg-(--text)/[0.03] p-2">
+            <!-- Recherche : en tête de vue, elle porte sur tout l'espace -->
+            <div class="relative group w-full">
+
+                <i class="bi bi-search absolute left-3.5 top-1/2 -translate-y-1/2 text-(--text2) group-focus-within:text-(--primary) group-focus-within:scale-110 transition-all duration-300" />
+
+                <input 
+                    v-model="searchQuery"
+                    type="text" 
+                    placeholder="Rechercher un fichier ou un dossier..."
+                    class="w-full bg-(--text)/[0.03] border border-(--text)/10 rounded-xl py-2.5 pl-11 pr-12 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/60 focus:ring-4 focus:ring-(--primary)/10 transition-all duration-300 shadow-inner"
+                >
+
+                <button 
+                    v-if="searchQuery"
+                    @click="searchQuery = ''"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-(--text2) hover:text-red-400 active:scale-90 transition-all"
+                    title="Effacer la recherche"
+                >
+                    <i class="bi bi-x-circle-fill text-base" />
+                </button>
+
+            </div>
+
+            <!-- Barre d'outils, de gauche à droite : navigation, actions sur le
+                 dossier courant, puis outils de l'espace. -->
+            <div class="w-full flex items-center gap-1.5 rounded-xl border border-(--border-color) bg-(--text)/[0.03] p-1.5 overflow-x-auto no-scrollbar">
 
                 <div class="flex items-center gap-0.5 shrink-0">
 
@@ -44,7 +68,7 @@
                         @click="goHistoryBack"
                         :disabled="!canGoHistoryBack"
                         class="w-9 h-9 flex items-center justify-center rounded-lg text-(--text2) hover:text-(--text) hover:bg-(--text)/5 disabled:opacity-30 disabled:pointer-events-none active:scale-90 transition-all"
-                        title="Dossier précédent"
+                        title="Précédent"
                     >
                         <i class="bi bi-arrow-left text-base" />
                     </button>
@@ -53,9 +77,18 @@
                         @click="goHistoryForward"
                         :disabled="!canGoHistoryForward"
                         class="w-9 h-9 flex items-center justify-center rounded-lg text-(--text2) hover:text-(--text) hover:bg-(--text)/5 disabled:opacity-30 disabled:pointer-events-none active:scale-90 transition-all"
-                        title="Dossier suivant"
+                        title="Suivant"
                     >
                         <i class="bi bi-arrow-right text-base" />
+                    </button>
+
+                    <button
+                        @click="goBack"
+                        :disabled="currentFolderId === 'root'"
+                        class="w-9 h-9 flex items-center justify-center rounded-lg text-(--text2) hover:text-(--text) hover:bg-(--text)/5 disabled:opacity-30 disabled:pointer-events-none active:scale-90 transition-all"
+                        title="Remonter d'un niveau"
+                    >
+                        <i class="bi bi-arrow-up text-base" />
                     </button>
 
                     <button
@@ -69,51 +102,38 @@
 
                 </div>
 
-                <div class="w-px h-6 bg-(--text)/10 shrink-0" />
+                <div class="w-px h-7 bg-(--text)/10 shrink-0 mx-1" />
 
-                <div class="flex items-center gap-1 shrink-0">
+                <button 
+                    @click="triggerFileSearch" 
+                    class="primary gap-2 !text-sm !py-2 !px-3 shrink-0" 
+                    title="Ajouter des fichiers depuis l'ordinateur"
+                >
+                    <i class="bi bi-upload" />
+                    <span class="hidden sm:inline">Ajouter des fichiers</span>
+                </button>
 
-                    <button @click="showFolderNamePrompt = true" class="default gap-2 !text-sm !py-2 !px-3" title="Nouveau dossier">
-                        <i class="bi bi-folder-plus" />
-                        <span class="hidden xl:inline">Nouveau dossier</span>
-                    </button>
+                <button 
+                    @click="showFolderNamePrompt = true" 
+                    class="default gap-2 !text-sm !py-2 !px-3 shrink-0" 
+                    title="Nouveau dossier"
+                >
+                    <i class="bi bi-folder-plus" />
+                    <span class="hidden md:inline">Nouveau dossier</span>
+                </button>
 
-                    <button @click="showFileNamePrompt = true" class="default gap-2 !text-sm !py-2 !px-3" title="Nouveau fichier">
-                        <i class="bi bi-file-earmark-plus" />
-                        <span class="hidden xl:inline">Nouveau fichier</span>
-                    </button>
+                <button 
+                    @click="showFileNamePrompt = true" 
+                    class="default gap-2 !text-sm !py-2 !px-3 shrink-0" 
+                    title="Nouveau fichier"
+                >
+                    <i class="bi bi-file-earmark-plus" />
+                    <span class="hidden md:inline">Nouveau fichier</span>
+                </button>
 
-                    <button @click="triggerFileSearch" class="primary gap-2 !text-sm !py-2 !px-3" title="Ajouter des fichiers">
-                        <i class="bi bi-plus-circle" />
-                        <span class="hidden sm:inline">Ajouter des fichiers</span>
-                    </button>
+                <div class="w-px h-7 bg-(--text)/10 shrink-0 mx-1 ml-auto" />
 
-                </div>
-
-                <div class="relative group flex-1 min-w-50 order-last lg:order-none">
-
-                    <i class="bi bi-search absolute left-3.5 top-1/2 -translate-y-1/2 text-(--text2) group-focus-within:text-(--primary) group-focus-within:scale-110 transition-all duration-300" />
-
-                    <input 
-                        v-model="searchQuery"
-                        type="text" 
-                        placeholder="Rechercher..."
-                        class="w-full bg-(--text)/[0.03] border border-(--text)/10 rounded-xl py-2 pl-11 pr-12 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/60 focus:ring-4 focus:ring-(--primary)/10 transition-all duration-300 shadow-inner"
-                    >
-
-                    <button 
-                        v-if="searchQuery"
-                        @click="searchQuery = ''"
-                        class="absolute right-3 top-1/2 -translate-y-1/2 text-(--text2) hover:text-red-400 active:scale-90 transition-all"
-                    >
-                        <i class="bi bi-x-circle-fill text-base" />
-                    </button>
-
-                </div>
-
-                <div class="w-px h-6 bg-(--text)/10 shrink-0 hidden lg:block" />
-
-                <div class="flex items-center gap-0.5 shrink-0 ml-auto lg:ml-0">
+                <div class="flex items-center gap-0.5 shrink-0">
 
                     <button
                         @click="showVerifyWatermark = true"
