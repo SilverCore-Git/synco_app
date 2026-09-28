@@ -911,3 +911,33 @@ f230365 refactor(files): réduire la barre d'outils à trois contrôles
 1. Vérification visuelle en navigateur toujours pas faite (Node.js absent du sandbox) : `vite build` passe et la classe `h-9.5` est bien générée, mais l'alignement du bloc segmenté avec le bouton `primary` (padding `0.7em 1.6em` hérité de `style.css`) est à contrôler à l'œil.
 2. `DropDown.vue` positionne son contenu sur un `getDropdownPosition()` appelé au rendu, sans repositionnement au scroll : à surveiller si la barre finit dans une zone défilante.
 3. L'import de fichiers passe maintenant par un menu (un clic de plus). Si l'usage montre que c'est l'action dominante, envisager un bouton scindé « Importer ▾ » plutôt qu'un menu unique.
+
+---
+
+## 📅 **28 Septembre 2026 - Clic droit sur toute la zone vide du gestionnaire**
+
+**Durée** : Correctif court  
+**Priorité** : ⭐⭐⭐ (Moyenne)  
+**Complexité** : Basse  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Le menu contextuel « dans le vide » ne répondait que sur une partie de la hauteur : `@contextmenu` est porté par la `<section>`, qui s'arrêtait à la hauteur de son contenu (`min-h-[50vh]`).
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/views/OrgSpace/views/SpaceFiles.vue` | `<main>` passe de `space-y-4` à `flex flex-col gap-4`, et la `<section>` gagne `flex-1` : elle occupe la hauteur restante sous la barre d'outils. `min-h-[50vh]` conservé pour le cas où `<main>` serait plus court que prévu. |
+
+### **Fonctionnalités Implémentées**
+✅ **Zone de clic droit pleine hauteur** : le menu « Nouveau dossier / Nouveau fichier / Ajouter des fichiers » s'ouvre partout sous la barre d'outils, y compris loin sous la dernière ligne de fichiers.
+
+### **Commits**
+```bash
+5f808e2 fix(files): clic droit sur toute la hauteur de la zone de fichiers
+```
+**Date** : 28 Septembre 2026
+
+### **Prochaines Étapes**
+1. `<main>` étant devenu un conteneur flex, tout futur enfant direct doit être ajouté en connaissance de cause (l'espacement vient de `gap-4`, plus de `space-y-4`).
