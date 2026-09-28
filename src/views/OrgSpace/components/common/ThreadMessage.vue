@@ -118,8 +118,16 @@
                         />
                         <div 
                             v-else-if="isStacked"
-                            class="w-9 h-9 shrink-0 flex items-start justify-center opacity-0 group-hover:opacity-100 transition-opacity select-none"
+                            class="w-9 shrink-0 flex items-start justify-center opacity-0 group-hover:opacity-100 transition-opacity select-none"
                         >
+                            <!-- Pas de `h-9` ici : cette gouttière ne fait que
+                                 réserver la colonne de l'avatar (w-9) et
+                                 montrer l'heure au survol. Lui fixer 36px de
+                                 haut imposait cette hauteur à toute la ligne
+                                 flex, alors qu'un message empilé d'une seule
+                                 ligne en fait ~23 — d'où un vide sous le
+                                 texte, bien visible dans le fond coloré d'une
+                                 mention. La hauteur vient du contenu. -->
                             <span class="text-[10px] text-(--text2) font-medium text-center mt-1.5">{{ formatTimeOnly(msg.createdAt as any) }}</span>
                         </div>
 
