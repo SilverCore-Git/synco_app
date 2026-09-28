@@ -509,6 +509,15 @@
 
                 </section>
 
+                <!-- RAPPORTS D'ACTIVITÉ -->
+                <section
+                    v-if="activeTab === 'reports'"
+                    class="animate-fade-in"
+                >
+                    <ActivityReports />
+                </section>
+
+
             </main>
 
         </div>
@@ -536,6 +545,7 @@ import Window from './Window.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
 import ProfileUploader from '../common/ProfileUploader.vue';
 import ConfirmDelete from '../common/ConfirmDelete.vue';
+import ActivityReports from '../settings/ActivityReports/index.vue';
 import { user } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
@@ -829,7 +839,8 @@ const tabs = [
     { id: 'account', label: 'Mon Compte', icon: 'bi bi-person-fill' },
     { id: 'security', label: 'Sécurité', icon: 'bi bi-shield-lock-fill' },
     { id: 'appearance', label: 'Apparence', icon: 'bi bi-palette-fill' },
-    { id: 'notifications', label: 'Notifications', icon: 'bi bi-bell-fill' }
+    { id: 'notifications', label: 'Notifications', icon: 'bi bi-bell-fill' },
+    { id: 'reports', label: "Rapports", icon: 'bi bi-envelope-paper-fill' }
 ];
 
 </script>
