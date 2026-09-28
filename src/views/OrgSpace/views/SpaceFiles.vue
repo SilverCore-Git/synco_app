@@ -58,100 +58,110 @@
 
             </div>
 
-            <!-- Barre d'outils, de gauche à droite : navigation, actions sur le
-                 dossier courant, puis outils de l'espace. -->
-            <div class="w-full flex items-center gap-1.5 rounded-xl border border-(--border-color) bg-(--text)/[0.03] p-1.5 overflow-x-auto no-scrollbar">
+            <!-- Barre d'outils : trois contrôles, pas dix boutons. À gauche la
+                 navigation (un seul bloc segmenté), au centre l'unique action
+                 d'écriture, à droite les outils de l'espace. -->
+            <div class="w-full flex items-center gap-3 overflow-x-auto no-scrollbar">
 
-                <div class="flex items-center gap-0.5 shrink-0">
+                <div class="flex items-center shrink-0 rounded-xl border border-(--border-color) bg-(--text)/[0.03] overflow-hidden divide-x divide-(--border-color)">
 
                     <button
                         @click="goHistoryBack"
                         :disabled="!canGoHistoryBack"
-                        class="w-9 h-9 flex items-center justify-center rounded-lg text-(--text2) hover:text-(--text) hover:bg-(--text)/5 disabled:opacity-30 disabled:pointer-events-none active:scale-90 transition-all"
+                        class="w-10 h-9.5 flex items-center justify-center text-(--text2) hover:text-(--text) hover:bg-(--text)/5 disabled:opacity-25 disabled:pointer-events-none transition-colors"
                         title="Précédent"
                     >
-                        <i class="bi bi-arrow-left text-base" />
+                        <i class="bi bi-chevron-left text-sm" />
                     </button>
 
                     <button
                         @click="goHistoryForward"
                         :disabled="!canGoHistoryForward"
-                        class="w-9 h-9 flex items-center justify-center rounded-lg text-(--text2) hover:text-(--text) hover:bg-(--text)/5 disabled:opacity-30 disabled:pointer-events-none active:scale-90 transition-all"
+                        class="w-10 h-9.5 flex items-center justify-center text-(--text2) hover:text-(--text) hover:bg-(--text)/5 disabled:opacity-25 disabled:pointer-events-none transition-colors"
                         title="Suivant"
                     >
-                        <i class="bi bi-arrow-right text-base" />
+                        <i class="bi bi-chevron-right text-sm" />
                     </button>
 
                     <button
                         @click="goBack"
                         :disabled="currentFolderId === 'root'"
-                        class="w-9 h-9 flex items-center justify-center rounded-lg text-(--text2) hover:text-(--text) hover:bg-(--text)/5 disabled:opacity-30 disabled:pointer-events-none active:scale-90 transition-all"
+                        class="w-10 h-9.5 flex items-center justify-center text-(--text2) hover:text-(--text) hover:bg-(--text)/5 disabled:opacity-25 disabled:pointer-events-none transition-colors"
                         title="Remonter d'un niveau"
                     >
-                        <i class="bi bi-arrow-up text-base" />
+                        <i class="bi bi-arrow-up text-sm" />
                     </button>
 
                     <button
                         @click="refreshFolder"
                         :disabled="isRefreshing"
-                        class="w-9 h-9 flex items-center justify-center rounded-lg text-(--text2) hover:text-(--text) hover:bg-(--text)/5 disabled:pointer-events-none active:scale-90 transition-all"
+                        class="w-10 h-9.5 flex items-center justify-center text-(--text2) hover:text-(--text) hover:bg-(--text)/5 disabled:pointer-events-none transition-colors"
                         title="Recharger le dossier"
                     >
-                        <i class="bi bi-arrow-clockwise text-base" :class="isRefreshing ? 'inline-block animate-spin' : ''" />
+                        <i class="bi bi-arrow-clockwise text-sm" :class="isRefreshing ? 'inline-block animate-spin' : ''" />
                     </button>
 
                 </div>
 
-                <div class="w-px h-7 bg-(--text)/10 shrink-0 mx-1" />
+                <DropDown align="left" class="shrink-0">
 
-                <button 
-                    @click="triggerFileSearch" 
-                    class="primary gap-2 !text-sm !py-2 !px-3 shrink-0" 
-                    title="Ajouter des fichiers depuis l'ordinateur"
-                >
-                    <i class="bi bi-upload" />
-                    <span class="hidden sm:inline">Ajouter des fichiers</span>
-                </button>
+                    <template #trigger>
+                        <button class="primary gap-2 !text-sm !py-2 !px-4" title="Créer ou importer">
+                            <i class="bi bi-plus-lg" />
+                            <span>Nouveau</span>
+                            <i class="bi bi-chevron-down text-[10px] opacity-70" />
+                        </button>
+                    </template>
 
-                <button 
-                    @click="showFolderNamePrompt = true" 
-                    class="default gap-2 !text-sm !py-2 !px-3 shrink-0" 
-                    title="Nouveau dossier"
-                >
-                    <i class="bi bi-folder-plus" />
-                    <span class="hidden md:inline">Nouveau dossier</span>
-                </button>
+                    <template #content>
 
-                <button 
-                    @click="showFileNamePrompt = true" 
-                    class="default gap-2 !text-sm !py-2 !px-3 shrink-0" 
-                    title="Nouveau fichier"
-                >
-                    <i class="bi bi-file-earmark-plus" />
-                    <span class="hidden md:inline">Nouveau fichier</span>
-                </button>
+                        <button @click="triggerFileSearch" class="dropdown-item-annimate dropdown-item-style gap-2">
+                            <i class="bi bi-upload" />
+                            Importer des fichiers
+                        </button>
 
-                <div class="w-px h-7 bg-(--text)/10 shrink-0 mx-1 ml-auto" />
+                        <div class="h-px my-1 bg-(--border-color)" />
 
-                <div class="flex items-center gap-0.5 shrink-0">
+                        <button @click="showFolderNamePrompt = true" class="dropdown-item-annimate dropdown-item-style gap-2">
+                            <i class="bi bi-folder-plus" />
+                            Nouveau dossier
+                        </button>
 
-                    <button
-                        @click="showVerifyWatermark = true"
-                        class="w-9 h-9 flex items-center justify-center rounded-lg text-(--text2) hover:text-(--primary) hover:bg-(--text)/5 active:scale-90 transition-all"
-                        title="Filigranes — inspecter un fichier"
-                    >
-                        <i class="bi bi-shield-check text-base" />
-                    </button>
+                        <button @click="showFileNamePrompt = true" class="dropdown-item-annimate dropdown-item-style gap-2">
+                            <i class="bi bi-file-earmark-plus" />
+                            Nouveau fichier
+                        </button>
 
-                    <button
-                        @click="showPermissions = true"
-                        class="w-9 h-9 flex items-center justify-center rounded-lg text-(--text2) hover:text-(--primary) hover:bg-(--text)/5 active:scale-90 transition-all"
-                        title="Permissions de l'espace"
-                    >
-                        <i class="bi bi-shield-lock text-base" />
-                    </button>
+                    </template>
 
-                </div>
+                </DropDown>
+
+                <DropDown align="right" class="shrink-0 ml-auto">
+
+                    <template #trigger>
+                        <button
+                            class="w-10 h-9.5 flex items-center justify-center rounded-xl border border-(--border-color) bg-(--text)/[0.03] text-(--text2) hover:text-(--text) hover:bg-(--text)/5 transition-colors"
+                            title="Outils de l'espace"
+                        >
+                            <i class="bi bi-three-dots text-base" />
+                        </button>
+                    </template>
+
+                    <template #content>
+
+                        <button @click="showPermissions = true" class="dropdown-item-annimate dropdown-item-style gap-2">
+                            <i class="bi bi-shield-lock" />
+                            Permissions de l'espace
+                        </button>
+
+                        <button @click="showVerifyWatermark = true" class="dropdown-item-annimate dropdown-item-style gap-2">
+                            <i class="bi bi-file-earmark-binary" />
+                            Vérifier un filigrane
+                        </button>
+
+                    </template>
+
+                </DropDown>
 
             </div>
 
@@ -313,9 +323,13 @@
 
         </main>
 
+        <!-- Cible de dépôt « remonter d'un niveau » : elle n'apparaît que pendant
+             un glisser, la navigation vers le parent étant désormais dans la
+             barre d'outils. -->
         <div class="absolute left-5 bottom-5 z-20">
             <button 
-                v-if="currentFolderId !== 'root'"
+                v-if="currentFolderId !== 'root' && isDragging"
+                title="Déposer ici pour remonter d'un niveau"
                 class=" bg-(--primary-hover) transition-all duration-200 p-2 w-12 h-12 rounded-full" 
                 :class="draggedIntoFolderId === 'parent' ? 'scale-125 bg-(--primary) ring-4 ring-green-500/50' : 'hover:scale-110 active:scale-90'"
                 @click="goBack"
