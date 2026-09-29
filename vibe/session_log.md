@@ -829,3 +829,27 @@ fed01b7 feat(messages): aperçu image/audio/vidéo des pièces jointes
 ### **Correctifs du même jour (retours de test)**
 1. **429 « Too many uploads »** : le quota d'upload de l'API (30/15 min) comptait aussi les lectures `/api/cdn/meta` et `/download` — corrigé côté `synco_api` (`fix(cdn): ne plus compter les lectures dans le quota d'upload`).
 2. **Un seul média sur trois s'affichait** : la vérification de signature exigeait le format *déclaré* (l'extension). « Gemini_Generated_Image_….gif » est en réalité un JPEG → refusé. Le format est désormais détecté dans les octets (`detectMediaMime`, liste blanche inchangée) et c'est lui qui choisit `<img>/<audio>/<video>` (`a903a86 fix(messages): afficher un média selon son format réel, pas son extension`).
+
+---
+
+## 📅 **29 Septembre 2026 - Ctrl+F ouvre la recherche de l'espace**
+
+**Durée** : Courte  
+**Priorité** : ⭐⭐ (Basse)  
+**Complexité** : Basse  
+**Statut** : ✅ **TERMINÉ** (vérification navigateur à faire)
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/views/OrgSpace/components/layouts/ThreadsBar.vue` | Listener `keydown` global : Ctrl+F / Cmd+F → `showSearchModal = true`, uniquement quand le bouton « Rechercher » est affiché (`canSearchSpace` : espace ouvert, hors accueil / DM / IA / paramètres). Ignoré si `defaultPrevented` (Monaco garde son propre Ctrl+F). Condition des paramètres extraite en `showSettingsNav` pour être partagée avec le template. |
+
+### **Commit**
+```bash
+1849b21 feat(search): Ctrl+F ouvre la recherche de l'espace
+```
+**Date** : 29 Septembre 2026
+
+### **Prochaines Étapes**
+1. `SpaceSearchModal` est en `z-[100]`, sous `FileViewer` (`z-2500`) : Ctrl+F avec un aperçu de fichier ouvert (hors éditeur Monaco) ouvre la recherche derrière la visionneuse.
