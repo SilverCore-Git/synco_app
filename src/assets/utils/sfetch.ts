@@ -1,6 +1,24 @@
 import { keycloak } from "../keycloak";
 import { Capacitor } from "@capacitor/core";
 import { reportApiFailure, reportApiSuccess } from "@/composables/useApiHealth";
+import { setBanned } from "@/composables/useBanStatus";
+
+// Un compte banni reçoit un 403 portant ce code sur CHAQUE route de l'API
+// (banMiddleware côté synco_api). On le détecte ici, au seul endroit par
+// lequel passent toutes les requêtes, plutôt que dans chaque appelant.
+const detectBan = async (response: Response): Promise<boolean> => {
+    if (response.status !== 403) return false;
+    try {
+        // clone() : le corps doit rester intact pour l'appelant, qui fera
+        // presque toujours son propre .json() sur cette même réponse.
+        const body = await response.clone().json();
+        if (body?.code !== 'ACCOUNT_BANNED') return false;
+        setBanned({ reason: body.reason ?? null, bannedAt: body.bannedAt ?? null });
+        return true;
+    } catch {
+        return false;
+    }
+};
 
 export default async function sfetch(url: string, arg?: any, retryCount = 0): Promise<Response> {
     const headers: Record<string, string> = { ...arg?.headers };
@@ -54,6 +72,15 @@ export default async function sfetch(url: string, arg?: any, retryCount = 0): Pr
         reportApiFailure();
     } else {
         reportApiSuccess();
+    }
+
+    // Vérifié avant le rafraîchissement de jeton ci-dessous : un 403 de
+    // bannissement n'est pas un problème de jeton, le rejouer ne ferait que
+    // doubler les requêtes — et un échec de refresh renverrait l'utilisateur
+    // en boucle sur l'écran de connexion Keycloak au lieu de l'écran de
+    // bannissement.
+    if (await detectBan(response)) {
+        return response;
     }
 
     if ((response.status === 401 || response.status === 403) && retryCount < 1 && keycloak.authenticated) {

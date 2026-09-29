@@ -99,12 +99,46 @@ export const availableTools = [
     {
         type: "function",
         function: {
-            name: "read_documentation",
-            description: "Lire la documentation officielle de Synco pour répondre aux questions sur le fonctionnement de l'application (espaces, threads, appels, stockage, tâches, IA, paramètres, etc.).",
+            name: "list_documentation",
+            description: "Lister les chapitres de documentation Synco disponibles (guide utilisateur et documentation de sécurité), avec leur identifiant et un résumé. À appeler EN PREMIER quand tu ne sais pas quel chapitre lire, puis utiliser 'read_documentation' avec l'identifiant choisi.",
             parameters: {
                 type: "object",
                 properties: {},
                 required: []
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "read_documentation",
+            description: "Lire UN chapitre précis de la documentation officielle de Synco (fonctionnement de l'application, sécurité, chiffrement). Fournis l'identifiant du chapitre obtenu via 'list_documentation' (ex: '02-espaces-et-threads', 'securite/05-fichiers-et-stockage'). Sans identifiant, l'outil renvoie la liste des chapitres disponibles.",
+            parameters: {
+                type: "object",
+                properties: {
+                    docId: {
+                        type: "string",
+                        description: "Identifiant du chapitre à lire, ex: '01-demarrage', 'securite/README', 'securite/03-messages-salons-threads'."
+                    }
+                },
+                required: []
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "search_documentation",
+            description: "Rechercher un mot ou une expression dans TOUTE la documentation Synco (guide + sécurité) et obtenir les extraits correspondants avec leur chapitre d'origine. Utile quand tu ne sais pas dans quel chapitre se trouve l'information (ex: 'rotation de clé', 'code PIN', 'LiveKit', 'webhook').",
+            parameters: {
+                type: "object",
+                properties: {
+                    query: {
+                        type: "string",
+                        description: "Le mot ou l'expression à rechercher dans la documentation."
+                    }
+                },
+                required: ["query"]
             }
         }
     },

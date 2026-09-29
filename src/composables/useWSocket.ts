@@ -2,6 +2,7 @@ import { keycloak, onTokenRefresh } from "@/assets/keycloak";
 import { io, type Socket } from "socket.io-client";
 import { ref, type Ref } from "vue";
 import { debugLog, debugWarn } from "@/assets/utils/debugLog";
+import { banned, setBanned } from "./useBanStatus";
 
 const socket = ref<Socket | null>(null);
 const isConnecting = ref<boolean>(false);
@@ -166,6 +167,15 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             isConnected.value = true;
         });
 
+        // Émis par le serveur au moment exact où un administrateur bannit le
+        // compte, juste avant de couper la connexion. Sans lui, l'utilisateur
+        // ne verrait le bannissement qu'à sa prochaine requête HTTP.
+        socket.value.on("auth:banned", (payload: { bannedAt?: string; reason?: string | null }) => {
+            console.warn("[WS] Compte banni, fermeture de la session");
+            setBanned({ reason: payload?.reason ?? null, bannedAt: payload?.bannedAt ?? null });
+            disconnectSocket();
+        });
+
         socket.value.on("connect_error", async (err) => {
             isConnected.value = false;
             console.error("[WS] ❌ Connection Error:", err.message);
@@ -217,6 +227,10 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             // until some unrelated component happens to call useWSocket()
             // again. Refresh the token first so we don't immediately hit the
             // same expired-token wall on the next attempt.
+            // Compte banni : le serveur refuse désormais le handshake, toute
+            // tentative de reconnexion est une boucle d'échecs inutile.
+            if (banned.value) return;
+
             if (reason === "io server disconnect" || reason === "io client disconnect") {
                 if (keycloak.authenticated) {
                     try {

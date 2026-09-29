@@ -118,6 +118,11 @@
                                     class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
                                 />
                             </div>
+                            <p v-if="emailChanged" class="text-sm text-(--text2)">
+                                Cette adresse devient aussi ton identifiant de connexion.
+                                Le changement est immédiat, et une alerte est envoyée à
+                                ton ancienne adresse.
+                            </p>
                         </div>
                         
                         <div class="space-y-1.5">
@@ -450,7 +455,7 @@
                         >
                             <div>
                                 <h4 class="font-bold text-(--text)">Notifications par Email</h4>
-                                <p class="text-sm text-(--text2) mt-0.5">Recevoir un résumé des messages non lus</p>
+                                <p class="text-sm text-(--text2) mt-0.5">Recevoir un e-mail quand on me mentionne, m'invite à un événement ou m'assigne une tâche</p>
                             </div>
                             <div 
                                 class="w-12 h-6 rounded-full relative transition-colors duration-300"
@@ -504,6 +509,15 @@
 
                 </section>
 
+                <!-- RAPPORTS D'ACTIVITÉ -->
+                <section
+                    v-if="activeTab === 'reports'"
+                    class="animate-fade-in"
+                >
+                    <ActivityReports />
+                </section>
+
+
             </main>
 
         </div>
@@ -531,6 +545,7 @@ import Window from './Window.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
 import ProfileUploader from '../common/ProfileUploader.vue';
 import ConfirmDelete from '../common/ConfirmDelete.vue';
+import ActivityReports from '../settings/ActivityReports/index.vue';
 import { user } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
@@ -646,10 +661,17 @@ const updateNotificationPrefs = async (key: keyof typeof notifPrefs, value: bool
     }
 };
 
+// L'API normalise l'adresse en minuscules (updateUserEmailSchema) : comparer
+// sans casse évite d'envoyer un PATCH pour une saisie équivalente, que le
+// serveur traiterait de toute façon en non-opération.
+const emailChanged = computed(() => {
+    return formData.email.trim().toLowerCase() !== (user.value?.email || '').toLowerCase();
+});
+
 const isModified = computed(() => {
     return formData.firstName !== (user.value?.firstName || '') ||
            formData.lastName !== (user.value?.lastName || '') ||
-           formData.email !== user.value?.email ||
+           emailChanged.value ||
            formData.job !== (user.value?.job || '') ||
            formData.description !== (user.value?.description || '');
 });
@@ -718,10 +740,29 @@ const updateProfile = async () => {
             }
         }
 
+        if (emailChanged.value) {
+            const emailResponse = await sfetch('/api/users/me/email', {
+                method: 'PATCH',
+                body: JSON.stringify({ email: formData.email.trim() })
+            });
+
+            if (emailResponse.ok) {
+                const updatedUser = await emailResponse.json();
+                user.value = { ...user.value, ...updatedUser };
+            } else {
+                // L'API renvoie un motif exploitable (409 adresse déjà prise,
+                // 400 refus du realm) — l'afficher plutôt qu'un message
+                // générique, sinon l'utilisateur ne sait pas quoi corriger.
+                const body = await emailResponse.json().catch(() => ({}));
+                toast.show(body.error || "Erreur lors de la mise à jour de l'email", 'error');
+                formData.email = user.value?.email || '';
+                return;
+            }
+        }
+
         const response = await sfetch('/api/users/me', {
             method: 'PATCH',
             body: JSON.stringify({
-                email: formData.email,
                 job: formData.job,
                 description: formData.description
             })
@@ -798,7 +839,8 @@ const tabs = [
     { id: 'account', label: 'Mon Compte', icon: 'bi bi-person-fill' },
     { id: 'security', label: 'Sécurité', icon: 'bi bi-shield-lock-fill' },
     { id: 'appearance', label: 'Apparence', icon: 'bi bi-palette-fill' },
-    { id: 'notifications', label: 'Notifications', icon: 'bi bi-bell-fill' }
+    { id: 'notifications', label: 'Notifications', icon: 'bi bi-bell-fill' },
+    { id: 'reports', label: "Rapports", icon: 'bi bi-envelope-paper-fill' }
 ];
 
 </script>

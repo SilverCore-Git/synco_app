@@ -117,7 +117,16 @@ const toggleReaction = async (emoji: string) => {
 </script>
 
 <template>
-  <div class="flex items-center gap-2 mt-1">
+  <div class="flex items-center gap-2" :class="formattedReactions.length > 0 ? 'mt-1' : ''">
+    <!-- Le composant reste monté même sans réaction : le sélecteur d'emoji vit
+         ici (téléporté vers body), le démonter empêcherait d'ajouter une
+         première réaction. Mais la racine est alors vide, et son `mt-1`
+         ajoutait 4px sous chaque message — y compris en `isStacked`, qui ne
+         neutralise que le padding du conteneur parent, pas la marge d'un
+         enfant. D'où la marge conditionnée à la présence de réactions.
+         Le commentaire est volontairement DANS la racine : au-dessus, il
+         ferait un root fragment et les attributs d'un parent ne seraient
+         plus transmis. -->
     <!-- Display existing reactions -->
     <div v-if="formattedReactions.length > 0" class="flex flex-wrap items-center gap-2">
       <button
