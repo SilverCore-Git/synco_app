@@ -285,15 +285,21 @@ const fileExtension = computed(() => {
 // fix peuvent avoir un mimeType incorrect (application/octet-stream) — on ne
 // veut pas dépendre de ça pour les reconnaître.
 const isMarkdown = computed(() => ['md', 'markdown'].includes(fileExtension.value));
+// Uniquement les formats bureautiques Word / Excel / PowerPoint : le reste
+// (.txt, .csv, .md, code...) reste édité dans Monaco, qui n'impose pas de
+// déchiffrer le fichier côté serveur pour OnlyOffice.
+const WORD_EXTENSIONS = ['doc', 'docx'];
+const CELL_EXTENSIONS = ['xls', 'xlsx'];
+const SLIDE_EXTENSIONS = ['ppt', 'pptx'];
+
 const isOfficeFile = computed(() => {
     const ext = fileExtension.value;
-    return ['docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 'csv', 'txt', 'rtf'].includes(ext);
+    return WORD_EXTENSIONS.includes(ext) || CELL_EXTENSIONS.includes(ext) || SLIDE_EXTENSIONS.includes(ext);
 });
 
 const getDocumentType = (ext: string) => {
-    if (['docx', 'doc', 'txt', 'rtf'].includes(ext)) return 'word';
-    if (['xlsx', 'xls', 'csv'].includes(ext)) return 'cell';
-    if (['pptx', 'ppt'].includes(ext)) return 'slide';
+    if (CELL_EXTENSIONS.includes(ext)) return 'cell';
+    if (SLIDE_EXTENSIONS.includes(ext)) return 'slide';
     return 'word';
 };
 

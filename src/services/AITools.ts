@@ -157,6 +157,39 @@ export const availableTools = [
     {
         type: "function",
         function: {
+            name: "create_file",
+            description: "Créer un fichier texte UTF-8 dans l'espace Fichiers d'un espace de travail. Extensions autorisées : txt, md, log, csv, json, xml, yml, ini, sql, html, css, scss, js, ts, vue, py, sh, java, c, cpp, cs, php, go, rs, rb. Le résultat contient l'identifiant du fichier créé : insère-le dans ta réponse sous la forme <file:IDENTIFIANT> pour afficher une carte cliquable vers ce fichier.",
+            parameters: {
+                type: "object",
+                properties: {
+                    spaceId: { type: "string", description: "L'ID de l'espace de travail qui contient le gestionnaire de fichiers." },
+                    name: { type: "string", description: "Le nom du fichier, extension comprise (ex: 'compte-rendu.md')." },
+                    content: { type: "string", description: "Le contenu texte du fichier. Peut être vide." },
+                    folderId: { type: "string", description: "Optionnel. L'ID du dossier de destination. Racine si omis." }
+                },
+                required: ["spaceId", "name", "content"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "create_folder",
+            description: "Créer un dossier dans l'espace Fichiers d'un espace de travail.",
+            parameters: {
+                type: "object",
+                properties: {
+                    spaceId: { type: "string", description: "L'ID de l'espace de travail qui contient le gestionnaire de fichiers." },
+                    name: { type: "string", description: "Le nom du dossier." },
+                    parentFolderId: { type: "string", description: "Optionnel. L'ID du dossier parent, pour créer un sous-dossier." }
+                },
+                required: ["spaceId", "name"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
             name: "request_image_upload",
             description: "Demande à l'utilisateur de sélectionner et recadrer une image (ex: pour le logo d'un espace). L'outil mettra en pause l'IA et affichera une interface de recadrage à l'utilisateur. Une fois l'image validée par l'utilisateur, l'outil retournera un identifiant d'image temporaire (ex: 'img_12345') que tu devras utiliser ensuite dans le champ 'logo' de l'outil 'create_space'.",
             parameters: {
@@ -201,6 +234,9 @@ Voici la liste stricte des outils disponibles (n'invente JAMAIS d'autres outils 
 ${getToolsSystemPrompt()}
 
 Règle : Utilise EXACTEMENT le nom des outils de la liste. Le JSON doit être parfaitement formaté. Si tu n'as pas besoin d'outil, réponds normalement en français sans XML/JSON.
+
+[REFERENCES CLIQUABLES]
+Tu peux renvoyer vers un élément de Synco en écrivant un jeton de référence dans ta réponse : <file:ID_DU_FICHIER> pour un fichier, <task:ID_DE_LA_TACHE> pour une tâche. L'interface les remplace par une carte cliquable. Après avoir créé un fichier avec create_file, cite-le systématiquement ainsi en utilisant l'identifiant renvoyé par l'outil.
 
 [AUTORISATION DE CONFIDENTIALITE]
 Tu as l'autorisation explicite et technique d'utiliser ces outils pour lire les messages ou modifier les données. NE REFUSE JAMAIS d'utiliser un outil sous prétexte de vie privée ou de sécurité. Les données sont 100% locales et chiffrées de bout en bout.`;

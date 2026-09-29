@@ -33,6 +33,8 @@ export const TOOL_LABELS: Record<string, { label: string; icon: string }> = {
     list_spaces: { label: 'Liste des espaces', icon: 'bi-grid-3x3-gap' },
     list_threads: { label: 'Liste des salons', icon: 'bi-collection' },
     list_members: { label: "Liste des membres", icon: 'bi-people' },
+    create_file: { label: "Création d'un fichier", icon: 'bi-file-earmark-plus' },
+    create_folder: { label: "Création d'un dossier", icon: 'bi-folder-plus' },
     request_image_upload: { label: "Sélection d'une image", icon: 'bi-image' },
 };
 
