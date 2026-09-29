@@ -58,6 +58,17 @@ export const fetchDecryptedFile = async (fileId: string): Promise<{ buffer: Arra
     return { buffer, metadata };
 };
 
+// Saves an already-decrypted blob: URL to disk (e.g. a media preview on
+// screen) instead of fetching + decrypting the file a second time.
+export const saveObjectUrl = (objectUrl: string, fileName: string) => {
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
 export interface FilePreview {
     url: string;
     // true when `url` is a blob: URL the caller must URL.revokeObjectURL() when done with it

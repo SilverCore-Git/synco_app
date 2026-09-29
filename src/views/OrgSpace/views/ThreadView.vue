@@ -3,6 +3,7 @@
     <main 
         ref="messagesContainer"
         @scroll="handleScroll"
+        @media-loaded="onMediaLoaded"
         class="flex-1 overflow-y-auto px-4 w-full h-full"
         :class="messageWillBeResponded || selectedFiles.length ? 'mb-32' : 'mb-14'"
     >
@@ -625,11 +626,22 @@ const procesMessages = async (msgs: Message[]) => {
 
 };
 
+// Vrai tant que l'utilisateur est (presque) en bas du fil. Une pièce jointe
+// média qui finit de se charger agrandit son message (MessageMedia émet
+// l'événement DOM `media-loaded`) : on se recolle alors en bas au lieu de
+// laisser le dernier message glisser hors de l'écran.
+let stickToBottom = true;
+
+const onMediaLoaded = () => {
+    if (stickToBottom) scrollToBottom(true);
+};
+
 const handleScroll = (e: Event) => {
     const el = e.target as HTMLElement;
     if (el.scrollTop < 200 && !isFetchingMore.value && hasMore.value) loadMore();
     
     const isAtBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 10;
+    stickToBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 120;
     if (isAtBottom) saveLastRead();
 };
 
