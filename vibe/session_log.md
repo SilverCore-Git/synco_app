@@ -853,3 +853,4 @@ fed01b7 feat(messages): aperçu image/audio/vidéo des pièces jointes
 
 ### **Prochaines Étapes**
 1. `SpaceSearchModal` est en `z-[100]`, sous `FileViewer` (`z-2500`) : Ctrl+F avec un aperçu de fichier ouvert (hors éditeur Monaco) ouvre la recherche derrière la visionneuse.
+2. Échap ferme `SpaceSearchModal` (listener `keydown` sur window, actif seulement pendant l'ouverture) — `feat(search): Échap ferme la recherche de l'espace`.
