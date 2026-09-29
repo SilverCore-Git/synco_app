@@ -683,7 +683,7 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
   let result = "";
   let toolData: any = null;
   try {
-    const args = typeof toolCall.arguments === 'string' ? JSON.parse(toolCall.arguments) : toolCall.arguments;
+    const args = typeof toolCall.arguments === 'string' ? JSON.parse(toolCall.arguments || '{}') : toolCall.arguments;
     const orgId = route.params.orgId as string;
 
     if (toolCall.name === 'create_space') {
@@ -790,7 +790,6 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
       result = `${created.length} salon(s) créé(s) avec succès. Les clés E2EE ont été générées et distribuées.`;
 
     } else if (isDocumentationTool(toolCall.name)) {
-      const args = typeof toolCall.args === 'string' ? JSON.parse(toolCall.args || '{}') : (toolCall.args || {});
       const docResult = await runDocumentationTool(toolCall.name, args);
 
       toolData = docResult;

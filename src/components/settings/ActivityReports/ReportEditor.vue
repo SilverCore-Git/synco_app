@@ -109,7 +109,8 @@
                         @drop="dropOn(index)"
                     >
                         <SectionCard
-                            v-model="draft.sections[index]"
+                            :model-value="section"
+                            @update:model-value="draft.sections[index] = $event"
                             @remove="removeSection(index)"
                         />
                     </div>
