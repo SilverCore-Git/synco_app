@@ -15,7 +15,7 @@ Les images, fichiers audio et vidéos joints à un message (DM via `ChatMessage.
 
 | Fichier | Rôle |
 |---|---|
-| `src/assets/utils/mediaTypes.ts` | Liste blanche MIME → `image` / `audio` / `video`, vérification des octets magiques après déchiffrement. Pur, testé. |
+| `src/assets/utils/mediaTypes.ts` | Liste blanche MIME → `image` / `audio` / `video`, détection du format réel par octets magiques après déchiffrement. Pur, testé. |
 | `src/assets/utils/mediaCache.ts` | Cache d'URL `blob:` : dédoublonnage des chargements en cours, compteur de références, éviction LRU au-delà d'un budget mémoire (révocation des URL), 3 chargements simultanés max. Pur (loader injecté), testé. |
 | `src/assets/utils/mediaPreview.ts` | Instance unique du cache branchée sur `fetchDecryptedFile()`. |
 | `src/assets/utils/downloadFile.ts` | `fetchDecryptedFile()` extrait : métadonnées → octets → déchiffrement E2EE éventuel. Mutualisé avec `downloadFile` / `getFilePreviewUrl`. |
@@ -27,8 +27,8 @@ Aucun changement backend.
 
 ## Sécurité
 
-- Le type MIME d'un fichier E2EE est **déclaré par l'expéditeur** (le serveur ne voit que du chiffré). Un pair malveillant peut annoncer `image/svg+xml` ou `text/html` : d'où une liste blanche stricte (pas de SVG, pas d'HTML) et une vérification de signature binaire sur le clair avant tout rendu.
-- Le `Blob` est reconstruit avec le type normalisé de la liste blanche ; les URL `blob:` ne sont rendues que dans `<img>` / `<audio>` / `<video>`, jamais ouvertes dans un onglet ou une iframe (même origine que l'app).
+- Le type MIME d'un fichier E2EE est **déclaré par l'expéditeur** (le serveur ne voit que du chiffré) et n'est en pratique que l'extension du fichier — souvent fausse (un « .gif » Gemini est un JPEG). Il ne décide que de la *tentative* d'aperçu (liste blanche stricte, ni SVG ni HTML) ; ce qui est rendu est le format **détecté dans les octets du clair** (`detectMediaMime`), lui aussi restreint à la liste blanche. Le type déclaré ne sert qu'à départager les conteneurs ambigus (MP4/WebM/Ogg : audio ou vidéo).
+- Le `Blob` est reconstruit avec le type détecté ; les URL `blob:` ne sont rendues que dans `<img>` / `<audio>` / `<video>`, jamais ouvertes dans un onglet ou une iframe (même origine que l'app).
 - L'aperçu passe toujours par `sfetch` (en-tête `Authorization`) — pas de jeton dans l'URL, même pour un fichier non E2EE.
 - CSP : ajout de `media-src 'self' blob:` (`index.html`, `src-tauri/tauri.conf.json`), sans quoi `default-src 'self'` bloque l'audio/vidéo en `blob:`.
 

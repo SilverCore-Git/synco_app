@@ -825,3 +825,7 @@ fed01b7 feat(messages): aperçu image/audio/vidéo des pièces jointes
 2. Vidéo E2EE lourde : le chiffrement monobloc impose un téléchargement + déchiffrement complet en mémoire avant lecture. Un chiffrement par blocs (streaming) serait un chantier protocolaire séparé.
 3. Pas de miniature ni de dimensions stockées à l'upload : une vignette télécharge l'image entière, et le cadre de chargement (256×160) ne correspond pas au ratio réel.
 4. Le recollage en bas repose sur la dernière position de défilement connue : un média qui se charge pendant un `scrollTo` animé peut être manqué.
+
+### **Correctifs du même jour (retours de test)**
+1. **429 « Too many uploads »** : le quota d'upload de l'API (30/15 min) comptait aussi les lectures `/api/cdn/meta` et `/download` — corrigé côté `synco_api` (`fix(cdn): ne plus compter les lectures dans le quota d'upload`).
+2. **Un seul média sur trois s'affichait** : la vérification de signature exigeait le format *déclaré* (l'extension). « Gemini_Generated_Image_….gif » est en réalité un JPEG → refusé. Le format est désormais détecté dans les octets (`detectMediaMime`, liste blanche inchangée) et c'est lui qui choisit `<img>/<audio>/<video>` (`a903a86 fix(messages): afficher un média selon son format réel, pas son extension`).
