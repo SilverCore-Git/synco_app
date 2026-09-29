@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getMediaKind, matchesMediaSignature, normalizeMediaMime } from "./mediaTypes";
+import { detectMediaMime, getMediaKind, normalizeMediaMime } from "./mediaTypes";
 
 const bytes = (...parts: (string | number[])[]): Uint8Array =>
     new Uint8Array(parts.flatMap(p => typeof p === "string" ? [...p].map(c => c.charCodeAt(0)) : p));
@@ -28,36 +28,54 @@ describe("getMediaKind", () => {
 
 });
 
-describe("matchesMediaSignature", () => {
+describe("detectMediaMime", () => {
 
-    test("accepts genuine headers", () => {
-        expect(matchesMediaSignature("image/png", bytes([0x89], "PNG", [0x0D, 0x0A]))).toBe(true);
-        expect(matchesMediaSignature("image/jpeg", bytes([0xFF, 0xD8, 0xFF, 0xE0]))).toBe(true);
-        expect(matchesMediaSignature("image/gif", bytes("GIF89a"))).toBe(true);
-        expect(matchesMediaSignature("image/webp", bytes("RIFF", [0, 0, 0, 0], "WEBP"))).toBe(true);
-        expect(matchesMediaSignature("audio/wav", bytes("RIFF", [0, 0, 0, 0], "WAVE"))).toBe(true);
-        expect(matchesMediaSignature("audio/mpeg", bytes("ID3", [4, 0]))).toBe(true);
-        expect(matchesMediaSignature("audio/mpeg", bytes([0xFF, 0xFB, 0x90]))).toBe(true);
-        expect(matchesMediaSignature("audio/flac", bytes("fLaC"))).toBe(true);
-        expect(matchesMediaSignature("audio/ogg", bytes("OggS"))).toBe(true);
-        expect(matchesMediaSignature("video/mp4", bytes([0, 0, 0, 0x20], "ftypisom"))).toBe(true);
-        expect(matchesMediaSignature("video/webm", bytes([0x1A, 0x45, 0xDF, 0xA3]))).toBe(true);
+    test("identifies genuine headers", () => {
+        expect(detectMediaMime(bytes([0x89], "PNG", [0x0D, 0x0A]))).toBe("image/png");
+        expect(detectMediaMime(bytes([0xFF, 0xD8, 0xFF, 0xE0]))).toBe("image/jpeg");
+        expect(detectMediaMime(bytes("GIF89a"))).toBe("image/gif");
+        expect(detectMediaMime(bytes("RIFF", [0, 0, 0, 0], "WEBP"))).toBe("image/webp");
+        expect(detectMediaMime(bytes([0, 0, 0, 0x1C], "ftypavif"))).toBe("image/avif");
+        expect(detectMediaMime(bytes("RIFF", [0, 0, 0, 0], "WAVE"))).toBe("audio/wav");
+        expect(detectMediaMime(bytes("ID3", [4, 0]))).toBe("audio/mpeg");
+        expect(detectMediaMime(bytes("fLaC"))).toBe("audio/flac");
+        expect(detectMediaMime(bytes([0, 0, 0, 0x20], "ftypM4A "))).toBe("audio/mp4");
+        expect(detectMediaMime(bytes([0, 0, 0, 0x14], "ftypqt  "))).toBe("video/quicktime");
+        expect(detectMediaMime(bytes([0, 0, 0, 0x20], "ftypisom"))).toBe("video/mp4");
+        expect(detectMediaMime(bytes([0x1A, 0x45, 0xDF, 0xA3]))).toBe("video/webm");
     });
 
-    test("rejects markup disguised as media", () => {
-        expect(matchesMediaSignature("image/png", bytes("<html><script>"))).toBe(false);
-        expect(matchesMediaSignature("video/mp4", bytes("<svg xmlns="))).toBe(false);
+    // Régression : « Gemini_Generated_Image_….gif » est en réalité un JPEG.
+    // L'ancienne vérification exigeait la signature du type déclaré
+    // (GIF8) et refusait l'aperçu d'une image parfaitement affichable.
+    test("the real format wins over a wrong extension", () => {
+        const jfif = bytes([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10], "JFIF");
+        expect(detectMediaMime(jfif, "image/gif")).toBe("image/jpeg");
+        expect(detectMediaMime(bytes([0, 0, 0, 0x20], "ftypisom"), "image/gif")).toBe("video/mp4");
     });
 
-    test("rejects a real header under the wrong type", () => {
-        expect(matchesMediaSignature("image/jpeg", bytes([0x89], "PNG"))).toBe(false);
-        expect(matchesMediaSignature("audio/wav", bytes("RIFF", [0, 0, 0, 0], "WEBP"))).toBe(false);
+    test("ambiguous containers follow the declared kind", () => {
+        const mp4 = bytes([0, 0, 0, 0x20], "ftypisom");
+        expect(detectMediaMime(mp4, "audio/mp4")).toBe("audio/mp4");
+        expect(detectMediaMime(mp4, "video/mp4")).toBe("video/mp4");
+        const webm = bytes([0x1A, 0x45, 0xDF, 0xA3]);
+        expect(detectMediaMime(webm, "audio/webm")).toBe("audio/webm");
+        expect(detectMediaMime(bytes("OggS"), "audio/ogg")).toBe("audio/ogg");
+        expect(detectMediaMime(bytes("OggS"), "video/ogg")).toBe("video/ogg");
     });
 
-    test("rejects empty or truncated content and non-media types", () => {
-        expect(matchesMediaSignature("image/png", new Uint8Array())).toBe(false);
-        expect(matchesMediaSignature("video/mp4", bytes([0, 0]))).toBe(false);
-        expect(matchesMediaSignature("image/svg+xml", bytes("<svg"))).toBe(false);
+    test("bare MPEG frame sync is only trusted for a declared audio type", () => {
+        expect(detectMediaMime(bytes([0xFF, 0xFB, 0x90]), "audio/mpeg")).toBe("audio/mpeg");
+        expect(detectMediaMime(bytes([0xFF, 0xF1, 0x50]), "audio/aac")).toBe("audio/aac");
+        expect(detectMediaMime(bytes([0xFF, 0xFB, 0x90]), "image/png")).toBeNull();
+    });
+
+    test("rejects markup and unknown content, whatever the declared type", () => {
+        expect(detectMediaMime(bytes("<html><script>"), "image/png")).toBeNull();
+        expect(detectMediaMime(bytes("<svg xmlns="), "image/svg+xml")).toBeNull();
+        expect(detectMediaMime(bytes("<svg xmlns="), "video/mp4")).toBeNull();
+        expect(detectMediaMime(new Uint8Array(), "image/png")).toBeNull();
+        expect(detectMediaMime(bytes([0, 0]), "video/mp4")).toBeNull();
     });
 
 });

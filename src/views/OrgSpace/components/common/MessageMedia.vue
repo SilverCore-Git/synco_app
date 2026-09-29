@@ -138,10 +138,14 @@ type PreviewState = 'idle' | 'loading' | 'ready' | 'error';
 const rootEl = ref<HTMLElement | null>(null);
 const state = ref<PreviewState>('idle');
 const url = ref<string | null>(null);
+// Format réellement détecté dans les octets déchiffrés (cf. mediaTypes.ts) :
+// il prime sur le type déclaré, qui n'est que l'extension choisie par
+// l'expéditeur — un « .gif » peut être un JPEG, voire une vidéo MP4.
+const detectedMime = ref<string | null>(null);
 const errorMessage = ref<string>('');
 
 // MessageAttachments ne rend ce composant que pour un type de la liste blanche.
-const kind = computed<MediaKind>(() => getMediaKind(props.file.mimeType) ?? 'image');
+const kind = computed<MediaKind>(() => getMediaKind(detectedMime.value ?? props.file.mimeType) ?? 'image');
 const fileInfo = computed(() => getFileInfo(props.file));
 const sizeLabel = computed(() => `${(props.file.size / 1024 / 1024).toFixed(2)} MB`);
 
@@ -154,6 +158,7 @@ const releaseReference = () => {
         holdsReference = false;
     }
     url.value = null;
+    detectedMime.value = null;
 };
 
 const load = async () => {
@@ -161,13 +166,14 @@ const load = async () => {
     state.value = 'loading';
 
     try {
-        const objectUrl = await mediaCache.acquire(props.file.id);
+        const media = await mediaCache.acquire(props.file.id);
         if (disposed) {
             mediaCache.release(props.file.id);
             return;
         }
         holdsReference = true;
-        url.value = objectUrl;
+        url.value = media.url;
+        detectedMime.value = media.mimeType;
         state.value = 'ready';
     } catch (e) {
         if (disposed) return;

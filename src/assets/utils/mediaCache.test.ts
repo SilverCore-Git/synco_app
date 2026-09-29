@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createMediaCache } from "./mediaCache";
 
-const blobOf = (size: number) => new Blob([new Uint8Array(size)]);
+const blobOf = (size: number) => new Blob([new Uint8Array(size)], { type: "image/png" });
 
 // Loader whose calls resolve only when the test says so.
 const deferredLoader = () => {
@@ -34,10 +34,10 @@ describe("createMediaCache", () => {
         await flush();
         expect(calls.length).toBe(1);
         calls[0]!.resolve(blobOf(10));
-        expect(await a).toBe("blob:1");
-        expect(await b).toBe("blob:1");
+        expect(await a).toEqual({ url: "blob:1", mimeType: "image/png" });
+        expect(await b).toEqual({ url: "blob:1", mimeType: "image/png" });
         // cached afterwards: no new load
-        expect(await cache.acquire("f1")).toBe("blob:1");
+        expect(await cache.acquire("f1")).toEqual({ url: "blob:1", mimeType: "image/png" });
         expect(calls.length).toBe(1);
     });
 
@@ -95,7 +95,7 @@ describe("createMediaCache", () => {
         await flush();
         expect(calls.length).toBe(2);
         calls[1]!.resolve(blobOf(1));
-        expect(await b).toBe("blob:1");
+        expect((await b).url).toBe("blob:1");
     });
 
     test("caps the number of loads running at once", async () => {

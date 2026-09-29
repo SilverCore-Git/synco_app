@@ -19,20 +19,25 @@ export interface MediaCacheOptions {
     revokeUrl?: (url: string) => void;
 }
 
+// `mimeType` is the Blob's type, i.e. what the loader decided the bytes are.
+export interface MediaHandle {
+    url: string;
+    mimeType: string;
+}
+
 export interface MediaCache {
-    acquire: (fileId: string) => Promise<string>;
+    acquire: (fileId: string) => Promise<MediaHandle>;
     release: (fileId: string) => void;
 }
 
-interface Entry {
-    url: string;
+interface Entry extends MediaHandle {
     size: number;
     refs: number;
     lastUsed: number;
 }
 
 interface Pending {
-    promise: Promise<string>;
+    promise: Promise<MediaHandle>;
     waiters: number;
 }
 
@@ -79,12 +84,12 @@ export const createMediaCache = ({
         }
     };
 
-    const acquire = (fileId: string): Promise<string> => {
+    const acquire = (fileId: string): Promise<MediaHandle> => {
         const cached = entries.get(fileId);
         if (cached) {
             cached.refs++;
             cached.lastUsed = ++clock;
-            return Promise.resolve(cached.url);
+            return Promise.resolve({ url: cached.url, mimeType: cached.mimeType });
         }
 
         const inFlight = pending.get(fileId);
@@ -93,16 +98,16 @@ export const createMediaCache = ({
             return inFlight.promise;
         }
 
-        const job: Pending = { waiters: 1, promise: Promise.resolve('') };
+        const job: Pending = { waiters: 1, promise: Promise.resolve({ url: '', mimeType: '' }) };
         job.promise = (async () => {
             await takeSlot();
             try {
                 const blob = await load(fileId);
-                const entry: Entry = { url: createUrl(blob), size: blob.size, refs: job.waiters, lastUsed: ++clock };
+                const entry: Entry = { url: createUrl(blob), mimeType: blob.type, size: blob.size, refs: job.waiters, lastUsed: ++clock };
                 entries.set(fileId, entry);
                 totalBytes += entry.size;
                 evict();
-                return entry.url;
+                return { url: entry.url, mimeType: entry.mimeType };
             } finally {
                 pending.delete(fileId);
                 giveSlot();
