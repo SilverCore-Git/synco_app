@@ -419,6 +419,7 @@ import { SearchSyncService } from '@/services/SearchSyncService';
 import { generateThreadKey, encryptThreadKeyForMember, privateKey } from '@/assets/utils/crypto';
 import { openedOrg, user } from '@/assets/var';
 import { getSystemPrompt } from '@/services/AITools';
+import { createFolderRequest, createTextFile } from '@/services/fileActions';
 import { isDocumentationTool, runDocumentationTool } from '@/services/DocumentationService';
 
 const { showUsersBar } = useUsersBar();
@@ -799,6 +800,21 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
       toolData = { id: imageId };
       result = `L'utilisateur a fourni une image. Identifiant de l'image : '${imageId}'. Utilise EXACTEMENT cette valeur '${imageId}' pour le paramètre 'logo' de 'create_space'.`;
 
+    } else if (toolCall.name === 'create_folder') {
+      const folder = await createFolderRequest(args.spaceId, orgId, args.name, args.parentFolderId);
+      toolData = folder;
+      result = `Dossier '${folder.name}' créé avec succès.`;
+
+    } else if (toolCall.name === 'create_file') {
+      const file = await createTextFile({
+        spaceId: args.spaceId,
+        name: args.name,
+        content: args.content ?? '',
+        folderId: args.folderId,
+      });
+      toolData = file;
+      result = `Fichier '${file.originalName}' créé avec succès. Cite-le dans ta réponse en écrivant <file:${file.id}>.`;
+
     } else if (toolCall.name === 'read_tasks') {
       const res = await sfetch(`/api/tasks/${orgId}/lists/me`);
       const data = await res.json();
@@ -824,7 +840,9 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
     }
   });
 
-  if (['create_task', 'create_space', 'create_thread'].includes(toolCall.name)) {
+  if (toolCall.name === 'create_file') {
+    sendMessage("Le fichier a été créé. Confirme-le en une seule phrase et termine par le jeton de référence du fichier indiqué dans le résultat.");
+  } else if (['create_task', 'create_space', 'create_thread', 'create_folder'].includes(toolCall.name)) {
     sendMessage("L'action a été effectuée avec succès. Réponds très brièvement en une seule phrase pour confirmer à l'utilisateur.");
   } else if (['search_messages', 'read_tasks'].includes(toolCall.name) || isDocumentationTool(toolCall.name)) {
     sendMessage("Voici les informations demandées. Réponds à la question de l'utilisateur en te basant sur ces résultats.");
@@ -952,6 +970,29 @@ const executeClientTool = async (name: string, args: any, imageId?: string): Pro
 
   if (isDocumentationTool(name)) {
     return await runDocumentationTool(name, args);
+  }
+
+  if (name === 'create_folder') {
+    const folder = await createFolderRequest(args.spaceId, orgId, args.name, args.parentFolderId);
+    return { id: folder.id, name: folder.name, spaceId: args.spaceId };
+  }
+
+  if (name === 'create_file') {
+    const file = await createTextFile({
+      spaceId: args.spaceId,
+      name: args.name,
+      content: args.content ?? '',
+      folderId: args.folderId,
+    });
+    return {
+      id: file.id,
+      name: file.originalName,
+      spaceId: args.spaceId,
+      // Le jeton est renvoyé tel quel pour que le modèle n'ait qu'à le recopier :
+      // MarkdownRender.vue le transforme en carte fichier cliquable.
+      reference: `<file:${file.id}>`,
+      note: `Cite ce fichier dans ta réponse en écrivant <file:${file.id}>.`,
+    };
   }
 
   if (name === 'request_image_upload') {
