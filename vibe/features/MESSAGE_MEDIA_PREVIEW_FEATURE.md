@@ -23,7 +23,7 @@ Les images, fichiers audio et vidéos joints à un message (DM via `ChatMessage.
 | `components/common/MessageMedia.vue` | Un média : états `idle` / `loading` / `ready` / `error`. |
 | `components/common/MediaLightbox.vue` | Visionneuse d'image (Échap, téléchargement). |
 
-Aucun changement backend.
+Backend : seul changement, le quota de débit de `/api/cdn` — les lectures (`GET /meta`, `/download`) ont leur propre quota au lieu de consommer celui des uploads (`synco_api`, `src/index.ts`).
 
 ## Sécurité
 
