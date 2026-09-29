@@ -74,11 +74,11 @@ export const downloadItemsAsZip = async (
     for (const item of files)
     {
         try {
-            const { blob, mimeType } = await fetchDecryptedFile(item.fileId!);
+            const { buffer, metadata } = await fetchDecryptedFile(item.fileId!);
             entries.push({
                 path: dedupePath(item.path, used),
-                data: blob,
-                compress: !ALREADY_COMPRESSED.test(mimeType || '')
+                data: new Blob([buffer], { type: metadata.mimeType }),
+                compress: !ALREADY_COMPRESSED.test(metadata.mimeType || '')
             });
         } catch (e) {
             console.error(`Zip: échec de récupération du fichier ${item.path}`, e);

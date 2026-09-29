@@ -50,7 +50,8 @@ const decryptE2EEFile = async (encryptedBuffer: ArrayBuffer, metadata: FileMetad
 
 // Plaintext bytes of a stored file, decrypted client-side when E2EE. Always
 // goes through sfetch (Authorization header), never a ?token= URL — used by
-// in-chat media previews, where the bytes end up in a blob: URL anyway.
+// in-chat media previews (bytes end up in a blob: URL anyway) and folder ZIP
+// archives, which need the bytes rather than a link.
 export const fetchDecryptedFile = async (fileId: string): Promise<{ buffer: ArrayBuffer; metadata: FileMetadata }> => {
     const metadata = await fetchMetadata(fileId);
     const raw = await fetchRawFile(fileId);
@@ -92,55 +93,6 @@ export const getFilePreviewUrl = async (fileId: string): Promise<FilePreview> =>
     const decryptedBuffer = await decryptE2EEFile(await fetchRawFile(fileId), metadata);
     const blob = new Blob([decryptedBuffer], { type: metadata.mimeType });
     return { url: URL.createObjectURL(blob), isBlob: true };
-};
-
-export interface DecryptedFile {
-    blob: Blob;
-    name: string;
-    mimeType: string;
-}
-
-// Récupère le contenu en clair d'un fichier stocké, déchiffrement E2EE compris.
-// Utilisé par downloadFile() ci-dessous et par la construction d'archives ZIP
-// (téléchargement de dossier), qui a besoin des octets et pas d'un lien.
-export const fetchDecryptedFile = async (fileId: string): Promise<DecryptedFile> => {
-
-    const metaRes = await sfetch(`/api/cdn/meta/${fileId}`, { method: 'GET' });
-    if (!metaRes.ok) throw new Error("Failed to fetch file metadata");
-    const metadata = await metaRes.json();
-
-    const fileRes = await sfetch(`/api/cdn/download/${fileId}`, { method: 'GET' });
-    if (!fileRes.ok) throw new Error("Failed to fetch file");
-
-    const buffer = await fileRes.arrayBuffer();
-
-    if (!metadata.isE2EE) {
-        return {
-            blob: new Blob([buffer], { type: metadata.mimeType }),
-            name: metadata.originalName,
-            mimeType: metadata.mimeType
-        };
-    }
-
-    const { key: kek } = await resolveFileKey(metadata);
-
-    if (!metadata.encryptedFileKey || !metadata.iv) {
-        throw new Error("Missing E2EE metadata (key or iv) for file decryption");
-    }
-
-    const decryptedBuffer = await decryptFileLocal(
-        buffer,
-        metadata.encryptedFileKey,
-        metadata.iv,
-        kek
-    );
-
-    return {
-        blob: new Blob([decryptedBuffer], { type: metadata.mimeType }),
-        name: metadata.originalName,
-        mimeType: metadata.mimeType
-    };
-
 };
 
 // Déclenche l'enregistrement d'un Blob sous un nom donné.
