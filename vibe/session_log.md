@@ -771,3 +771,57 @@ fe2855d feat(tasks): select-all checkboxes in the archive list
 2. Piège rencontré, à garder en tête : `useAgendaFeed.ts` (lien iCal) et le nouveau flux portent des noms proches — un fichier écrasé par erreur ne fait **pas** échouer `vite build` tant que le nom d'export est identique. Vérifier `git status` avant de créer un composable.
 3. La carte n'écoute pas les évènements WebSocket agenda : un évènement créé ailleurs n'apparaît qu'au prochain montage de l'accueil.
 4. Clic sur un évènement → renvoie vers `/agenda` sans ouvrir le jour ni l'évènement (la vue Agenda n'a pas de deep-link par date) — candidat à une amélioration ultérieure.
+
+---
+
+## 📅 **29 Septembre 2026 - Aperçu des médias joints aux messages**
+
+**Durée** : Session moyenne  
+**Priorité** : ⭐⭐⭐⭐ (Haute)  
+**Complexité** : Moyenne (frontend uniquement, aucun changement d'API)  
+**Statut** : ✅ **TERMINÉ** (vérification navigateur à faire)
+
+### **Objectif**
+Afficher les images, audios et vidéos joints aux messages (DM et salons) au lieu d'une simple carte de téléchargement, après déchiffrement E2EE côté client. Spec : `vibe/features/MESSAGE_MEDIA_PREVIEW_FEATURE.md`. Règle demandée : ≤ 15 Mo chargé dans `onMounted` (après le rendu), > 15 Mo derrière un bouton « Déchiffrer / Charger ».
+
+### **Fichiers Créés**
+
+| Fichier | Description |
+|---------|-------------|
+| `src/assets/utils/mediaTypes.ts` (+ test) | Liste blanche MIME image/audio/vidéo (ni SVG ni HTML), alias (`audio/x-m4a`, `image/jpg`…), vérification des octets magiques du clair. |
+| `src/assets/utils/mediaCache.ts` (+ test) | Cache d'URL `blob:` : dédoublonnage, compteur de références, éviction LRU au-delà de 150 Mo (révocation), 3 chargements simultanés max. Loader injecté. |
+| `src/assets/utils/mediaPreview.ts` | Instance du cache branchée sur `fetchDecryptedFile` ; `Blob` reconstruit avec le type canonique. |
+| `src/views/OrgSpace/components/common/MessageAttachments.vue` | Remplace le bloc de pièces jointes dupliqué de `ChatMessage` / `ThreadMessage`. |
+| `src/views/OrgSpace/components/common/MessageMedia.vue` | Un média, états idle / loading / ready / error ; émet l'événement DOM `media-loaded` (bubbling). |
+| `src/views/OrgSpace/components/common/MediaLightbox.vue` | Visionneuse d'image plein écran (Échap, téléchargement). |
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/assets/utils/downloadFile.ts` | Extraction de `fetchDecryptedFile` (toujours via `sfetch`, jamais de jeton en URL) + `saveObjectUrl`. Comportement de `downloadFile` / `getFilePreviewUrl` inchangé. |
+| `index.html`, `src-tauri/tauri.conf.json` | CSP : `media-src 'self' blob:` — sans elle `default-src 'self'` bloquait `<audio>/<video>` en `blob:`. |
+| `ChatMessage.vue`, `ThreadMessage.vue` | Utilisent `MessageAttachments`. |
+| `ChatView.vue`, `ThreadView.vue` | `stickToBottom` + `@media-loaded` : recollage en bas quand un média chargé agrandit un message. |
+
+### **Fonctionnalités Implémentées**
+✅ **Aperçu en ligne** : vignette d'image (clic → visionneuse), lecteur audio, lecteur vidéo.  
+✅ **Chargement conditionnel** : ≤ 15 Mo au montage, au-delà sur clic.  
+✅ **Sécurité** : le type d'un fichier E2EE est déclaré par l'expéditeur → liste blanche + signature binaire avant rendu ; blobs rendus uniquement dans `<img>/<audio>/<video>`.  
+✅ **Repli** : erreur de déchiffrement / type / codec → carte fichier avec « Réessayer » et téléchargement.
+
+### **Commits**
+```bash
+d2f81ff docs(vibe): spec de l'aperçu des médias joints aux messages
+a388f8f refactor(files): extraire fetchDecryptedFile de downloadFile
+e6da30f security(csp): autoriser media-src blob: pour les médias déchiffrés
+7c04114 feat(files): liste blanche et cache des médias déchiffrés
+fed01b7 feat(messages): aperçu image/audio/vidéo des pièces jointes
+```
+**Date** : 29 Septembre 2026
+
+### **Prochaines Étapes**
+1. Vérification manuelle en navigateur non effectuée (Node.js absent du sandbox — `vite build` validé via Bun, 13 tests unitaires `bun test src/assets/utils/media` verts ; `vue-tsc` sous Bun ne résout pas les `.vue`, donc les `<script setup>` n'ont pas été vérifiés par le compilateur). À tester : DM + salon, E2EE et non chiffré, PNG/GIF/MP3/MP4, fichier > 15 Mo, `.html` renommé en `.png` (doit retomber sur la carte), Tauri (CSP), thème clair.
+2. Vidéo E2EE lourde : le chiffrement monobloc impose un téléchargement + déchiffrement complet en mémoire avant lecture. Un chiffrement par blocs (streaming) serait un chantier protocolaire séparé.
+3. Pas de miniature ni de dimensions stockées à l'upload : une vignette télécharge l'image entière, et le cadre de chargement (256×160) ne correspond pas au ratio réel.
+4. Le recollage en bas repose sur la dernière position de défilement connue : un média qui se charge pendant un `scrollTo` animé peut être manqué.
