@@ -58,7 +58,7 @@
 
         </template>
 
-        <template v-else-if="isSettings && canAny(['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI'])" class="h-full w-full">
+        <template v-else-if="showSettingsNav" class="h-full w-full">
 
             <div
                 class="
@@ -359,7 +359,7 @@
 
 <script lang="ts" setup>
 
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { Thread, WorkSpace, Category as CategoryType } from '@/types/types';
 import { openedOrg, todoEnabled, filesEnabled, userCardHeight } from '@/assets/var';
@@ -402,6 +402,29 @@ const startAiSession = () => {
 
 const showDropDown = ref<boolean>(false);
 const showSearchModal = ref<boolean>(false);
+
+const showSettingsNav = computed(() => isSettings.value && canAny(['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI']));
+
+// Mêmes conditions que l'affichage du bouton « Rechercher » : branche
+// « espace » du template (ni paramètres, ni DM, ni IA) et hors accueil.
+const canSearchSpace = computed(() =>
+    openedOrg.value != null && !showSettingsNav.value && !isChat.value && !isAI.value && !isHome.value
+);
+
+// Ctrl+F (Cmd+F sur macOS) dans un espace ouvre la recherche de l'espace au
+// lieu de la recherche native du navigateur, qui ne voit que les messages
+// déjà chargés — et jamais leur contenu déchiffré hors écran. Un composant
+// qui gère déjà le raccourci (ex. l'éditeur Monaco de FileViewer) appelle
+// preventDefault() : on le laisse faire.
+const onSearchShortcut = (e: KeyboardEvent) => {
+    if (e.defaultPrevented || !canSearchSpace.value) return;
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'f') return;
+    e.preventDefault();
+    showSearchModal.value = true;
+};
+
+onMounted(() => window.addEventListener('keydown', onSearchShortcut));
+onBeforeUnmount(() => window.removeEventListener('keydown', onSearchShortcut));
 
 const searchDMQuery = ref('');
 
