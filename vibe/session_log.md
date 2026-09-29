@@ -614,7 +614,7 @@ Ajouter un état "archivé" aux tâches (voir `synco_app/vibe/features/TODO_MODU
 | Fichier | Modification |
 |---------|--------------|
 | `src/types/types.ts` | Ajout de `archived?: boolean` et `archivedAt?: string \| Date \| null` sur `Task`. |
-| `src/views/OrgSpace/views/TasksSpace.vue` | Bouton "Archiver" à côté de la corbeille en drag & drop, action groupée "Archiver tout" sur la colonne Terminé, entrée "Archiver" au menu contextuel, bouton "Archives" dans la topbar (masqué si `archivedCount === 0`), intégration `ArchivedTasksPanel`. |
+| `src/views/OrgSpace/views/TasksSpace.vue` | Bouton "Archiver" à côté de la corbeille en drag & drop, action groupée "Archiver tout" sur la colonne Terminé, entrée "Archiver" au menu contextuel, bouton "Archives" dans la topbar (masqué si `archivedCount 0`), intégration `ArchivedTasksPanel`. |
 | `src/views/OrgSpace/views/TasksGlobal.vue` | Mêmes ajouts que `TasksSpace.vue`, adaptés à la structure en swimlanes par espace (archivage groupé par colonne DONE de chaque groupe). |
 | `src/views/OrgSpace/components/popup/TaskDetailsModal.vue` | Bouton "Archiver la tâche" à côté de "Supprimer la tâche" dans le footer. |
 | `vibe/features/TODO_MODULE_FEATURE.md` | Ajout de la section 6 documentant l'extension "Archivage". |
@@ -958,18 +958,58 @@ La gestion des permissions du space était une popup ouverte depuis la barre d'o
 
 | Fichier | Description |
 |---------|-------------|
-| `src/components/permissions/SpacePermissionsPanel.vue` | Reprise de la logique de `SpacePermissionsModal` (chargement rôles + overrides, état local, construction des overrides, sauvegarde) sans le chrome de modale. Expose `save()` / `reset()` via `defineExpose` et émet `dirty` ; `applyOverrides()` est extrait pour servir au chargement **et** au bouton Réinitialiser. Le conteneur de la matrice garde `bg-(--bg)` : `PermissionMatrix` peint sa colonne collante dans cette couleur, une carte en `--bg2` l'aurait détachée au défilement horizontal. |
-
-### **Fichiers Supprimés**
-
-| Fichier | Raison |
-|---------|--------|
-| `src/components/permissions/SpacePermissionsModal.vue` | Plus aucun appelant après le déplacement. |
+| `src/assets/utils/mediaTypes.ts` (+ test) | Liste blanche MIME image/audio/vidéo (ni SVG ni HTML), alias (`audio/x-m4a`, `image/jpg`…), vérification des octets magiques du clair. |
+| `src/assets/utils/mediaCache.ts` (+ test) | Cache d'URL `blob:` : dédoublonnage, compteur de références, éviction LRU au-delà de 150 Mo (révocation), 3 chargements simultanés max. Loader injecté. |
+| `src/assets/utils/mediaPreview.ts` | Instance du cache branchée sur `fetchDecryptedFile` ; `Blob` reconstruit avec le type canonique. |
+| `src/views/OrgSpace/components/common/MessageAttachments.vue` | Remplace le bloc de pièces jointes dupliqué de `ChatMessage` / `ThreadMessage`. |
+| `src/views/OrgSpace/components/common/MessageMedia.vue` | Un média, états idle / loading / ready / error ; émet l'événement DOM `media-loaded` (bubbling). |
+| `src/views/OrgSpace/components/common/MediaLightbox.vue` | Visionneuse d'image plein écran (Échap, téléchargement). |
 
 ### **Fichiers Modifiés**
 
 | Fichier | Modification |
 |---------|--------------|
+
+| `src/assets/utils/downloadFile.ts` | Extraction de `fetchDecryptedFile` (toujours via `sfetch`, jamais de jeton en URL) + `saveObjectUrl`. Comportement de `downloadFile` / `getFilePreviewUrl` inchangé. |
+| `index.html`, `src-tauri/tauri.conf.json` | CSP : `media-src 'self' blob:` — sans elle `default-src 'self'` bloquait `<audio>/<video>` en `blob:`. |
+| `ChatMessage.vue`, `ThreadMessage.vue` | Utilisent `MessageAttachments`. |
+| `ChatView.vue`, `ThreadView.vue` | `stickToBottom` + `@media-loaded` : recollage en bas quand un média chargé agrandit un message. |
+
+### **Fonctionnalités Implémentées**
+✅ **Aperçu en ligne** : vignette d'image (clic → visionneuse), lecteur audio, lecteur vidéo.  
+✅ **Chargement conditionnel** : ≤ 15 Mo au montage, au-delà sur clic.  
+✅ **Sécurité** : le type d'un fichier E2EE est déclaré par l'expéditeur → liste blanche + signature binaire avant rendu ; blobs rendus uniquement dans `<img>/<audio>/<video>`.  
+✅ **Repli** : erreur de déchiffrement / type / codec → carte fichier avec « Réessayer » et téléchargement.
+
+### **Commits**
+```bash
+d2f81ff docs(vibe): spec de l'aperçu des médias joints aux messages
+a388f8f refactor(files): extraire fetchDecryptedFile de downloadFile
+e6da30f security(csp): autoriser media-src blob: pour les médias déchiffrés
+7c04114 feat(files): liste blanche et cache des médias déchiffrés
+fed01b7 feat(messages): aperçu image/audio/vidéo des pièces jointes
+```
+**Date** : 29 Septembre 2026
+
+### **Prochaines Étapes**
+1. Vérification manuelle en navigateur non effectuée (Node.js absent du sandbox — `vite build` validé via Bun, 13 tests unitaires `bun test src/assets/utils/media` verts ; `vue-tsc` sous Bun ne résout pas les `.vue`, donc les `<script setup>` n'ont pas été vérifiés par le compilateur). À tester : DM + salon, E2EE et non chiffré, PNG/GIF/MP3/MP4, fichier > 15 Mo, `.html` renommé en `.png` (doit retomber sur la carte), Tauri (CSP), thème clair.
+2. Vidéo E2EE lourde : le chiffrement monobloc impose un téléchargement + déchiffrement complet en mémoire avant lecture. Un chiffrement par blocs (streaming) serait un chantier protocolaire séparé.
+3. Pas de miniature ni de dimensions stockées à l'upload : une vignette télécharge l'image entière, et le cadre de chargement (256×160) ne correspond pas au ratio réel.
+4. Le recollage en bas repose sur la dernière position de défilement connue : un média qui se charge pendant un `scrollTo` animé peut être manqué.
+
+### **Correctifs du même jour (retours de test)**
+1. **429 « Too many uploads »** : le quota d'upload de l'API (30/15 min) comptait aussi les lectures `/api/cdn/meta` et `/download` — corrigé côté `synco_api` (`fix(cdn): ne plus compter les lectures dans le quota d'upload`).
+2. **Un seul média sur trois s'affichait** : la vérification de signature exigeait le format *déclaré* (l'extension). « Gemini_Generated_Image_….gif » est en réalité un JPEG → refusé. Le format est désormais détecté dans les octets (`detectMediaMime`, liste blanche inchangée) et c'est lui qui choisit `<img>/<audio>/<video>` (`a903a86 fix(messages): afficher un média selon son format réel, pas son extension`).
+
+---
+
+## 📅 **29 Septembre 2026 - Ctrl+F ouvre la recherche de l'espace**
+
+**Durée** : Courte  
+**Priorité** : ⭐⭐ (Basse)  
+**Complexité** : Basse  
+**Statut** : ✅ **TERMINÉ** (vérification navigateur à faire)
+
 | `src/components/windows/SpaceSettings.vue` | Nouvel onglet « Permissions » (entre Membres et Webhooks) qui monte `SpacePermissionsPanel`. `SaveUpdateOverlay` passe sur `isModified || isPermissionsModified`, avec `resetAll()` / `saveAll()` qui n'agissent que sur les onglets réellement modifiés. La section morte « Sécurité & Permissions » (présente dans le template mais absente de `tabs`, donc inatteignable) est remplacée. |
 | `src/views/OrgSpace/views/SpaceFiles.vue` | Entrée « Permissions de l'espace » retirée du menu « … », modale et import supprimés. Le menu ne garde que « Vérifier un filigrane ». |
 
@@ -1001,10 +1041,24 @@ a4a299a refactor(permissions): déplacer les permissions du space dans ses param
 ### **Objectif**
 Reprendre l'UI du nouvel onglet Permissions du space en s'inspirant de `RolesSettings.vue` (permissions de l'organisation), au lieu de la matrice rôles × permissions héritée de la popup.
 
+
 ### **Fichiers Modifiés**
 
 | Fichier | Modification |
 |---------|--------------|
+
+| `src/views/OrgSpace/components/layouts/ThreadsBar.vue` | Listener `keydown` global : Ctrl+F / Cmd+F → `showSearchModal = true`, uniquement quand le bouton « Rechercher » est affiché (`canSearchSpace` : espace ouvert, hors accueil / DM / IA / paramètres). Ignoré si `defaultPrevented` (Monaco garde son propre Ctrl+F). Condition des paramètres extraite en `showSettingsNav` pour être partagée avec le template. |
+
+### **Commit**
+```bash
+1849b21 feat(search): Ctrl+F ouvre la recherche de l'espace
+```
+**Date** : 29 Septembre 2026
+
+### **Prochaines Étapes**
+1. `SpaceSearchModal` est en `z-[100]`, sous `FileViewer` (`z-2500`) : Ctrl+F avec un aperçu de fichier ouvert (hors éditeur Monaco) ouvre la recherche derrière la visionneuse.
+2. Échap ferme `SpaceSearchModal` (listener `keydown` sur window, actif seulement pendant l'ouverture) — `feat(search): Échap ferme la recherche de l'espace`.
+
 | `src/components/permissions/SpacePermissionsPanel.vue` | Réécrit : liste des rôles à gauche (pastille, nom, badge Sys, nombre de membres, **compteur de dérogations**), détail à droite avec recherche, groupes de permissions repris de `RolesSettings.vue`, lignes icône + libellé + description. Contrôle à trois états `Hériter / Autoriser / Refuser` à la place du commutateur binaire de l'org — le space pose des **dérogations**, pas des valeurs. Mention « Hérité de l'organisation : autorisé/refusé » sous chaque permission laissée en héritage. Bouton « Tout hériter » par rôle, rôle `OWNER` en lecture seule. |
 | `src/components/windows/SpaceSettings.vue` | L'onglet passe en `absolute inset-0` et `<main>` retire son padding pour lui, comme pour Webhooks : le panneau gère sa propre mise en page en deux colonnes. L'en-tête `h3` + description de l'onglet disparaît, le panneau porte le sien. |
 
@@ -1026,3 +1080,4 @@ L'ancienne popup initialisait l'état local avec les **valeurs du rôle** quand 
 2. `permissionGroups` est maintenant dupliqué entre `RolesSettings.vue` et `SpacePermissionsPanel.vue` : à remonter dans `src/config/permissions.config.ts`. Le panneau ajoute le groupe « Salons vocaux », absent de l'écran org — les deux listes ont déjà divergé.
 3. Toujours aucune vérification visuelle en navigateur (Node.js absent du sandbox) : `vue-tsc` et `vite build` passent.
 4. La colonne des rôles est limitée à `max-h-56` sous `md` : à contrôler sur mobile avec beaucoup de rôles.
+

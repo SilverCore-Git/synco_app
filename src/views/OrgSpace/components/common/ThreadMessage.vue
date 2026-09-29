@@ -205,49 +205,7 @@
                                 :isReadOnly="isReadOnly"
                             />
 
-                            <div 
-                                v-if="msg.files && msg.files.length > 0" 
-                                class="mt-3 flex flex-wrap gap-2"
-                            >
-
-                                <div 
-                                    v-for="file in msg.files" 
-                                    :key="file.id"
-                                    class="
-                                        group/file relative flex items-center gap-3 p-2
-                                        rounded-lg border border-(--text)/10
-                                        bg-(--text)/3 hover:bg-(--text)/5 transition-all
-                                        max-w-full sm:max-w-sm min-w-0 overflow-hidden
-                                    "
-                                    :title="file.originalName"
-                                >
-
-                                    <div class="w-10 h-10 shrink-0 flex items-center justify-center rounded bg-(--bg) border border-(--text)/5">
-
-                                        <i class="bi text-xl" :class="[ getFileInfo(file as any).color, getFileInfo(file as any).icon ]" />
-
-                                    </div>
-
-                                    <div class="flex flex-col min-w-0 flex-1 pr-2">
-                                        <span class="text-xs font-medium text-(--text) truncate min-w-0">
-                                            {{ file.originalName }}
-                                        </span>
-                                        <span class="text-[10px] text-(--text2) uppercase tracking-wider">
-                                            {{ (file.size / 1024 / 1024).toFixed(2) }} MB
-                                        </span>
-                                    </div>
-
-                                    <button 
-                                        @click="downloadFile(file.id)"
-                                        class="ml-auto p-1.5 rounded-md hover:bg-(--primary)/20 text-(--text2) hover:text-(--primary) transition-colors"
-                                        title="Télécharger"
-                                    >
-                                        <i class="bi bi-download" />
-                                    </button>
-
-                                </div>
-                                
-                            </div>
+                            <MessageAttachments v-if="msg.files && msg.files.length > 0" :files="msg.files" />
 
                         </div>
 
@@ -274,13 +232,12 @@ import useResponse from '@/composables/useResponse';
 import useWSocket from '@/composables/useWSocket';
 import MessageReactions from '@/components/common/MessageReactions.vue';
 import type { Message } from '@/types/types';
-import { downloadFile } from '@/assets/utils/downloadFile';
+import MessageAttachments from './MessageAttachments.vue';
 import { encryptMessageWithContentKey } from '@/assets/utils/crypto';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import ThreadTextarea from './ThreadTextarea.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { user, member, openedOrg } from '@/assets/var';
-import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useToast } from '@/composables/useToast';
 import { openProfile } from '@/composables/useProfile';
 import WebhookEmbed from './WebhookEmbed.vue';

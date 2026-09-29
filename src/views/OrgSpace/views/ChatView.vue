@@ -79,6 +79,7 @@
         <main 
             ref="messagesContainer"
             @scroll="handleScroll"
+            @media-loaded="onMediaLoaded"
             class="flex-1 overflow-y-auto p-4 custom-scrollbar w-full mb-18"
         >
                 
@@ -987,6 +988,16 @@ const createPrivateMeet = () => {
     if (member) startMeet(member);
 };
 
+// Vrai tant que l'utilisateur est (presque) en bas du fil. Une pièce jointe
+// média qui finit de se charger agrandit son message (MessageMedia émet
+// l'événement DOM `media-loaded`) : on se recolle alors en bas au lieu de
+// laisser le dernier message glisser hors de l'écran.
+let stickToBottom = true;
+
+const onMediaLoaded = () => {
+    if (stickToBottom) scrollToBottom(true);
+};
+
 const handleScroll = (e: Event) => {
     const container = e.target as HTMLElement;
     if (container.scrollTop < 100 && !isFetchingMore.value && hasMore.value) {
@@ -994,6 +1005,7 @@ const handleScroll = (e: Event) => {
     }
 
     const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 10;
+    stickToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 120;
     if (isAtBottom) saveLastRead();
 };
 
