@@ -1,6 +1,6 @@
 <template>
 
-    <div class="fixed bottom-4 left-4 z-1000 flex flex-col-reverse gap-2 w-80 pointer-events-none">
+    <div class="fixed bottom-4 right-4 z-1000 flex flex-col-reverse gap-2 w-80 pointer-events-none">
 
         <TransitionGroup name="list">
 
