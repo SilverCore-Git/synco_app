@@ -1,6 +1,6 @@
 <template>
 
-    <div class="fixed bottom-4 right-4 z-1000 flex flex-col-reverse gap-2 w-80 pointer-events-none">
+    <div class="fixed top-[max(1rem,env(safe-area-inset-top))] left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-80 flex-col sm:top-auto sm:bottom-4 sm:left-auto sm:right-4 sm:translate-x-0 sm:w-80 sm:flex-col-reverse z-1000 flex gap-2 pointer-events-none">
 
         <TransitionGroup name="list">
 
