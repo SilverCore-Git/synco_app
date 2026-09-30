@@ -364,6 +364,12 @@ watch(() => props.modelValue, (newVal) => {
     }
 });
 
+// Contenu pré-rempli (édition d'une description/d'un message existant) ou
+// modifié de l'extérieur : sans ça le textarea reste à rows="1" tant que
+// l'utilisateur n'a pas tapé. Couvre aussi la résolution async des labels
+// de références (primePendingSubsFromContent) qui change la longueur affichée.
+watch(displayValue, () => nextTick(adjustHeight));
+
 watch(() => route.params.threadId, async () => {
     showMentions.value = false;
     await nextTick();
@@ -372,6 +378,8 @@ watch(() => route.params.threadId, async () => {
 
 onMounted(async () => {
     primePendingSubsFromContent(props.modelValue);
+    await nextTick();
+    adjustHeight();
     if (!props.autoFocus) return;
     await nextTick();
     textareaRef.value?.focus();
