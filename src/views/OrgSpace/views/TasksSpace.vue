@@ -596,7 +596,7 @@ const loadTasks = async () => {
             tasks.value = data.unlistedTasks;
             
             // Clear unread notifications
-            markTasksAsRead();
+            markTasksAsRead(route.params.spaceId as string);
 
             // Handle deep linking from search
             if (route.query.select) {
