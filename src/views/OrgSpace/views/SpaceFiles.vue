@@ -645,6 +645,7 @@ import DropDown from '@/components/DropDown.vue';
 
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import { uploadFiles } from '@/assets/uploadFile';
+import { isAbortError } from '@/services/transfers/transferManager';
 import FolderCard from '../components/SpaceFiles/FolderCard.vue';
 import FileCard from '../components/SpaceFiles/FileCard.vue';
 import FileViewer from '../components/popup/FileViewer.vue';
@@ -1588,35 +1589,26 @@ const handleFiles = async (files: FileList | File[], targetFolderId: string = cu
     const selectedFiles = Array.from(files);
     if (selectedFiles.length === 0) return;
 
-    // Un seul envoi à la fois : la barre de progression est partagée et un
-    // dépôt est très facile à répéter pendant qu'un upload tourne déjà.
-    if (isUploading.value)
-    {
-        toast.show("Un envoi est déjà en cours, patientez", "info");
-        return;
-    }
-
+    // Même limite par défaut que synco_api (CDN_MAX_CHUNKED_UPLOAD_BYTES),
+    // vérifiée ici pour prévenir avant d'envoyer quoi que ce soit.
     const MAX_SIZE = 10 * 1024 * 1024 * 1024;
     const oversized = selectedFiles.some(f => f.size > MAX_SIZE);
     if (oversized) 
     {
-        toast.show("Un ou plusieurs fichiers dépassent la limite de 2Go", "error");
+        toast.show("Un ou plusieurs fichiers dépassent la limite de 10 Go", "error");
         return;
     }
 
+    // Plusieurs dépôts peuvent se succéder sans attendre : le gestionnaire de
+    // transferts met les fichiers en file et affiche leur progression dans
+    // son panneau (plus de barre partagée ici).
     try {
-
-        isUploading.value = true;
-        fileSendProgress.value = 0;
 
         const uploadedFiles = await uploadFiles(
             selectedFiles,
             {
                 workspaceId: String(route.params.spaceId),
                 folderId: targetFolderId === 'root' ? undefined : targetFolderId,
-            },
-            (percent: number) => {
-                fileSendProgress.value = percent;
             }
         );
 
@@ -1646,11 +1638,10 @@ const handleFiles = async (files: FileList | File[], targetFolderId: string = cu
         }
 
     } catch (e) {
+        if (isAbortError(e)) return;
         console.error("Upload Error:", e);
         toast.show("Erreur lors de l'envoi des fichiers", "error");
     } finally {
-        isUploading.value = false;
-        fileSendProgress.value = 0;
         if (fileInputRef.value) fileInputRef.value.value = '';
     }
 };
