@@ -637,35 +637,43 @@ const loadMore = () => {
     socket.value?.emit("load-more", { threadId: thread.value?.id, before: sortedMessages.value[0]?.id });
 };
 
+// "connect" et "thread:deleted" sont aussi écoutés ailleurs (useWSocket.ts
+// remet isConnected à true sur connect, OrgLayout.vue retire le salon de la
+// barre latérale sur thread:deleted) : on ne retire que NOS handlers, jamais
+// l'événement entier, sinon le bandeau "Déconnecté" restait affiché après la
+// première reconnexion et la barre latérale ne voyait plus les suppressions.
+const onReconnect = () => {
+    if (thread.value?.id) {
+        // Un simple aller-retour de connexion (coupure réseau, mise en
+        // veille, redémarrage serveur...) alors qu'on regarde déjà ce
+        // salon ne doit pas se voir : rejoin silencieux plutôt qu'un
+        // rechargement complet (skeleton + liste vidée + saut de scroll).
+        joinThread(thread.value.id, joinedThreadId === thread.value.id);
+    }
+};
+
+// The sidebar (OrgLayout.vue) already removes the thread from the list
+// on this event — here we also need to move a user actively viewing it
+// elsewhere, since otherwise they're left on a dead route.
+const onThreadDeleted = ({ threadId }: { threadId: string }) => {
+    if (threadId !== thread.value?.id) return;
+    toast.show('Ce salon a été supprimé.', 'warning');
+    router.push({
+        name: 'OrgHome',
+        params: { orgId: route.params.orgId },
+        query: { noRedirect: 'true' }
+    });
+};
+
 const initListener = () => {
 
     if (!socket.value) return;
 
     socket.value.off("thread-history").off("more-messages").off("new-message").off("keys-distributed")
-        .off("delete-message").off("edit-message").off("connect").off("thread:deleted");
+        .off("delete-message").off("edit-message").off("connect", onReconnect).off("thread:deleted", onThreadDeleted);
 
-    socket.value.on("connect", () => {
-        if (thread.value?.id) {
-            // Un simple aller-retour de connexion (coupure réseau, mise en
-            // veille, redémarrage serveur...) alors qu'on regarde déjà ce
-            // salon ne doit pas se voir : rejoin silencieux plutôt qu'un
-            // rechargement complet (skeleton + liste vidée + saut de scroll).
-            joinThread(thread.value.id, joinedThreadId === thread.value.id);
-        }
-    });
-
-    // The sidebar (OrgLayout.vue) already removes the thread from the list
-    // on this event — here we also need to move a user actively viewing it
-    // elsewhere, since otherwise they're left on a dead route.
-    socket.value.on("thread:deleted", ({ threadId }: { threadId: string }) => {
-        if (threadId !== thread.value?.id) return;
-        toast.show('Ce salon a été supprimé.', 'warning');
-        router.push({
-            name: 'OrgHome',
-            params: { orgId: route.params.orgId },
-            query: { noRedirect: 'true' }
-        });
-    });
+    socket.value.on("connect", onReconnect);
+    socket.value.on("thread:deleted", onThreadDeleted);
 
     socket.value.on("keys-distributed", async ({ threadId }: { threadId: string }) => {
         if (threadId === thread.value?.id) {
@@ -1110,7 +1118,7 @@ onUnmounted(() => {
     {
         socket.value.emit("leave-thread", thread.value?.id);
         socket.value.off("thread-history").off("more-messages").off("new-message")
-            .off("keys-distributed").off("delete-message").off("edit-message").off("connect").off("thread:deleted");
+            .off("keys-distributed").off("delete-message").off("edit-message").off("connect", onReconnect).off("thread:deleted", onThreadDeleted);
     }
     window.removeEventListener('paste', handlePaste);
     document.removeEventListener('click', closeEmojiPickerOnOutsideClick);
