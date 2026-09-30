@@ -788,7 +788,17 @@ const initListener = () => {
         const formattedReactions = editedMsg.reactions 
             ? (Array.isArray(editedMsg.reactions) ? formatReactions(editedMsg.reactions as any) : editedMsg.reactions)
             : {};
-        const updatedMsg = { ...editedMsg, content: decryptedContent, reactions: formattedReactions };
+        // The edit payload carries no replyMessage/transferMessage — keep the
+        // already-decrypted ones (an edit never changes what a message quotes),
+        // otherwise the quote box vanishes after an edit or attachment upload.
+        const previous = sortedMessages.value.find(m => m.id === editedMsg.id);
+        const updatedMsg = {
+            ...editedMsg,
+            content: decryptedContent,
+            reactions: formattedReactions,
+            replyMessage: previous?.replyMessage ?? editedMsg.replyMessage,
+            transferMessage: previous?.transferMessage ?? editedMsg.transferMessage,
+        };
         rawMessages.value.set(editedMsg.id, updatedMsg);
         sortedMessages.value = sortedMessages.value.map(m => m.id === editedMsg.id ? updatedMsg : m);
     });

@@ -729,8 +729,11 @@ const initListener = () => {
     });
 
     socket.value.on("dm:new-message", async (msg: any) => {
-        const decryptedMsg = await decryptSingleMessage(msg);
-        
+        // procesMessages() rather than decryptSingleMessage() so the quoted
+        // replyMessage gets decrypted too — otherwise a just-sent reply shows
+        // its quote as ciphertext until the DM is reloaded.
+        const decryptedMsg = (await procesMessages([msg]))[0] ?? msg;
+
         if (msg.senderId === user.value?.id) {
             const tempIndex = messages.value.findIndex(m => String(m.id).startsWith('temp-') && m.content === decryptedMsg?.content);
             if (tempIndex !== -1) {
@@ -753,22 +756,16 @@ const initListener = () => {
 
     socket.value.on('dm:edit-message', async (editedMsg: DMMessage) => {
 
-        let decryptedContent = editedMsg.content;
+        let updatedMsg: DMMessage;
 
-        if (editedMsg.content && editedMsg.content.trim() !== "") 
-        {
-            try {
-                // Use decryptSingleMessage for consistent decryption handling
-                const decrypted = await decryptSingleMessage(editedMsg);
-                if (decrypted) {
-                    decryptedContent = decrypted.content;
-                }
-            } catch (err) {
-                decryptedContent = "🔒 Échec du déchiffrement lors de l'édition.";
-            }
+        try {
+            // procesMessages() also decrypts the quoted replyMessage, which the
+            // backend sends back encrypted with every edit (file attach included).
+            updatedMsg = (await procesMessages([editedMsg]))[0] ?? editedMsg;
+        } catch (err) {
+            updatedMsg = { ...editedMsg, content: "🔒 Échec du déchiffrement lors de l'édition." };
         }
-        
-        const updatedMsg = { ...editedMsg, content: decryptedContent };
+
         messages.value = messages.value.map(m => m.id === editedMsg.id ? updatedMsg : m);
 
     });
