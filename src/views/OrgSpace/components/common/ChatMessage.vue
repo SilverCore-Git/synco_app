@@ -165,6 +165,13 @@
                                     />
                                     <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
                                 </div>
+                                <div v-if="(msg as any).sendFailed" class="mt-1 flex items-center gap-2 text-[11px] text-red-400">
+                                    <i class="bi bi-exclamation-circle-fill" />
+                                    <span>Non envoyé</span>
+                                    <button @click="emit('retry-send')" class="font-semibold hover:underline">Réessayer</button>
+                                    <span class="text-(--text2)">·</span>
+                                    <button @click="emit('discard-send')" class="text-(--text2) hover:underline">Supprimer</button>
+                                </div>
                             </template>
 
                             <div v-else class="mt-1 flex items-center gap-3 p-3 rounded-lg border border-(--text)/10 bg-(--text)/3 max-w-sm">
@@ -305,6 +312,8 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'edit-start'): void;
     (e: 'edit-end'): void;
+    (e: 'retry-send'): void;
+    (e: 'discard-send'): void;
 }>();
 
 interface DropdownBtn {

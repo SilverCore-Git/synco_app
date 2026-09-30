@@ -138,6 +138,8 @@
                             :is-editing="editingMessageId === msg.id"
                             @edit-start="editingMessageId = msg.id"
                             @edit-end="endEdit"
+                            @retry-send="retrySend(msg.id)"
+                            @discard-send="discardFailed(msg.id)"
                         />
                         </template>
 
@@ -938,29 +940,65 @@ const sendMessage = async () => {
     selectedFiles.value = [];
     fileSendProgress.value = null;
 
-    const confirmedMessage: any = await new Promise((resolve) => {
-        socket.value?.emit("dm:send-message", {
-            recipientId: recipient.value!.id,
-            content: finalContent,
-            encryptedAesKey: finalEncryptedAesKey,
-            selfEncryptedAesKey: selfEncryptedAesKey,
-            nonce: finalIv,
-            isE2EE: useEncryption,
-            replyToId: tempMessage.replyToId,
-            references: extractReferenceTokens(clearContent),
-        }, (response: any) => resolve(response));
+    const payload = {
+        recipientId: recipient.value!.id,
+        content: finalContent,
+        encryptedAesKey: finalEncryptedAesKey,
+        selfEncryptedAesKey: selfEncryptedAesKey,
+        nonce: finalIv,
+        isE2EE: useEncryption,
+        replyToId: tempMessage.replyToId,
+        references: extractReferenceTokens(clearContent),
+    };
+
+    await emitDM(tempId, payload, uploadedFiles);
+
+};
+
+// Délai au-delà duquel un envoi sans réponse du serveur est considéré comme
+// perdu. Sans lui, un événement jeté côté serveur (limite de débit,
+// coupure réseau pendant l'envoi...) laissait le message "en cours d'envoi"
+// indéfiniment, puis il disparaissait au rechargement.
+const SEND_TIMEOUT_MS = 10000;
+
+// Le payload déjà chiffré (et les fichiers déjà uploadés) sont gardés sur le
+// message temporaire : "Réessayer" renvoie exactement la même chose, sans
+// rechiffrer ni ré-uploader.
+const emitDM = async (tempId: string, payload: Record<string, any>, uploadedFiles: any[]) => {
+
+    const response: any = await new Promise((resolve) => {
+        if (!socket.value) return resolve({ error: "Non connecté au serveur." });
+        socket.value.timeout(SEND_TIMEOUT_MS).emit("dm:send-message", payload, (err: Error | null, res: any) => {
+            resolve(err ? { error: "Le serveur n'a pas répondu." } : res);
+        });
     });
 
-    if (confirmedMessage?.error) {
-        toast.show(confirmedMessage.error, "error");
-        messages.value = messages.value.filter(m => m.id !== tempId);
+    if (!response?.error) {
+        if (uploadedFiles.length && response?.id) {
+            socket.value?.emit('edit-dm-message-files', { id: response.id, files: uploadedFiles });
+        }
         return;
     }
 
-    if (uploadedFiles.length && confirmedMessage?.id) {
-        socket.value?.emit('edit-dm-message-files', { id: confirmedMessage.id, files: uploadedFiles });
-    }
+    const temp = messages.value.find(m => m.id === tempId);
+    if (!temp) return; // déjà remplacé par le dm:new-message du serveur
+    temp.isSending = false;
+    temp.sendFailed = true;
+    temp.retry = { payload, uploadedFiles };
+    toast.show(`Message non envoyé : ${response.error}`, "error");
 
+};
+
+const retrySend = async (tempId: string) => {
+    const temp = messages.value.find(m => m.id === tempId);
+    if (!temp?.retry) return;
+    temp.sendFailed = false;
+    temp.isSending = true;
+    await emitDM(tempId, temp.retry.payload, temp.retry.uploadedFiles);
+};
+
+const discardFailed = (tempId: string) => {
+    messages.value = messages.value.filter(m => m.id !== tempId);
 };
 
 const createPrivateMeet = () => {
@@ -1004,16 +1042,28 @@ const loadMoreDM = async () => {
     }
 };
 
+// Un "isTyping: true" par frappe épuisait à lui seul la limite de débit du
+// serveur — on ne le renvoie qu'une fois par TYPING_EMIT_INTERVAL_MS tant que
+// l'utilisateur tape, et "false" une seule fois quand il s'arrête.
+const TYPING_EMIT_INTERVAL_MS = 2500;
+let lastTypingEmit = 0;
+
 const handleTyping = () => {
     if (!socket.value || !recipient.value) return;
-    socket.value?.emit("dm:typing", { recipientId: recipient.value.id, isTyping: true });
+    const now = Date.now();
+    if (now - lastTypingEmit >= TYPING_EMIT_INTERVAL_MS) {
+        lastTypingEmit = now;
+        socket.value.emit("dm:typing", { recipientId: recipient.value.id, isTyping: true });
+    }
     clearTimeout(typingTimeout);
     typingTimeout = setTimeout(stopTyping, 3000);
 };
 
 const stopTyping = () => {
-    if (!socket.value || !recipient.value) return;
-    socket.value?.emit("dm:typing", { recipientId: recipient.value.id, isTyping: false });
+    clearTimeout(typingTimeout);
+    if (!lastTypingEmit || !socket.value || !recipient.value) return;
+    lastTypingEmit = 0;
+    socket.value.emit("dm:typing", { recipientId: recipient.value.id, isTyping: false });
 };
 
 const scrollToBottom = async (instant = false) => {
