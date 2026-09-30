@@ -29,6 +29,15 @@
             {{ name }}
         </span>
 
+        <div 
+            v-if="hasUnread" 
+            class="
+                ml-auto w-2 h-2 mr-1.5 self-center bg-(--primary)
+                animate-pulse rounded-full 
+                shadow-[0_0_8px_var(--primary)]
+            "
+        />
+
     </button>
 
 </template>
@@ -39,6 +48,7 @@ defineProps<{
   icon: string;
   name: string;
   active?: boolean;
+  hasUnread?: boolean;
 }>();
 
 const emit = defineEmits(['click']);

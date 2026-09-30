@@ -380,6 +380,7 @@ import confetti from 'canvas-confetti';
 import useWSocket from '@/composables/useWSocket';
 import { useNotification } from '@/composables/useNotification';
 import { useTaskOrder } from '@/composables/useTaskOrder';
+import { usePersistedTaskFilters } from '@/composables/usePersistedTaskFilters';
 
 const route = useRoute();
 const router = useRouter();
@@ -390,8 +391,10 @@ const { fetchOrder, sortByOrder, persistOrder } = useTaskOrder(route.params.orgI
 const rawTasks = ref<Task[]>([]);
 const loading = ref(true);
 const draggedOverCol = ref<string | null>(null);
-const filterTagIds = ref<string[]>([]);
-const filterSpaceId = ref<string | null>(null); // null = tous, 'personal' = hors espace, sinon spaceId
+// filterSpaceId : null = tous, 'personal' = hors espace, sinon spaceId
+const { filterTagIds, filterSpaceId } = usePersistedTaskFilters(
+    () => `task-filters:${user.value?.id}:${route.params.orgId}:global`
+);
 
 const selectedTask = ref<Task | null>(null);
 const openTaskInEditMode = ref(false);

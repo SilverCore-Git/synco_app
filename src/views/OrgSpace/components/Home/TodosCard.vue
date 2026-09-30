@@ -6,9 +6,19 @@
                 <h3 class="font-semibold text-(--text)">Tâches</h3>
                 <span v-if="unreadTaskCount > 0" class="dash-badge">{{ unreadTaskCount }}</span>
             </div>
-            <RouterLink :to="`/${orgId}/tasks`" class="text-xs text-(--text2) hover:text-(--text)">
-                Voir tout <i class="bi bi-arrow-right"></i>
-            </RouterLink>
+            <div class="flex items-center gap-3">
+                <button
+                    v-if="hasUnread"
+                    @click="markAllRead"
+                    class="text-xs text-(--text2) hover:text-(--text)"
+                    title="Tout marquer comme lu"
+                >
+                    <i class="bi bi-check2-all"></i> Tout lu
+                </button>
+                <RouterLink :to="`/${orgId}/tasks`" class="text-xs text-(--text2) hover:text-(--text)">
+                    Voir tout <i class="bi bi-arrow-right"></i>
+                </RouterLink>
+            </div>
         </header>
 
         <div v-if="loading" class="dash-card-body space-y-2 animate-pulse">
@@ -53,21 +63,24 @@ const orgId = computed(() => openedOrg.value?.id);
 const rawTasks = ref<Task[]>([]);
 const loading = ref(true);
 
-const { notifications, init: initNotifications } = useNotification();
+const { notifications, init: initNotifications, markAsRead } = useNotification();
 
-const unreadTaskCount = computed(() =>
-    notifications.value.filter(n => n.type === 'TASK_ASSIGNED' && !n.isRead).length
+// Limité à l'organisation ouverte (data.orgId, cf. tasksService.ts /
+// tasks.ts côté API) pour que « Tout lu » ici ne touche pas aux autres orgs.
+const unreadTaskNotifs = computed(() =>
+    notifications.value.filter(n =>
+        n.type === 'TASK_ASSIGNED' && !n.isRead && (!n.data?.orgId || n.data.orgId === orgId.value)
+    )
 );
+
+const unreadTaskCount = computed(() => unreadTaskNotifs.value.length);
 
 // Tâches nouvellement assignées : id de tâche porté par les notifications
 // TASK_ASSIGNED non lues (voir tasksService.ts notifyTaskAssignment côté API).
 const newlyAssignedTaskIds = computed(() => {
     const ids = new Set<string>();
-    notifications.value.forEach(n => {
-        const taskId = n.data?.taskId;
-        if (n.type === 'TASK_ASSIGNED' && !n.isRead && taskId) {
-            ids.add(taskId);
-        }
+    unreadTaskNotifs.value.forEach(n => {
+        if (n.data?.taskId) ids.add(n.data.taskId);
     });
     return ids;
 });
@@ -117,6 +130,19 @@ onMounted(async () => {
 onUnmounted(() => {
     localStorage.setItem(LAST_SEEN_KEY, String(Date.now()));
 });
+
+const hasUnread = computed(() => myTasks.value.some(t => isNewOrUpdated(t)));
+
+// Acquitte à la fois les assignations (notifications TASK_ASSIGNED) et les
+// simples mises à jour (lastSeenAt avancé tout de suite plutôt qu'au
+// démontage) — exposé aussi pour le « Tout marquer comme lu » d'OrgHome.
+async function markAllRead() {
+    lastSeenAt.value = Date.now();
+    localStorage.setItem(LAST_SEEN_KEY, String(lastSeenAt.value));
+    await Promise.all(unreadTaskNotifs.value.map(n => markAsRead(n.id)));
+}
+
+defineExpose({ markAllRead });
 
 // Une tâche assignée en temps réel (utilisateur déjà connecté) doit
 // apparaître ici sans recharger la page — notifications.value est un

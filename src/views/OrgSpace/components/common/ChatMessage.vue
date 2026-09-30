@@ -11,8 +11,14 @@
                         user?.id == msg.replyMessage?.senderId || isTagMe
                             ? 'border-l-2 border-(--primary-dark) bg-(--primary-dark)/30 hover:bg-(--primary-dark)/50' 
                             : 'hover:bg-(--text)/5',
-                        showReactionPicker ? 'z-100' : 'z-10'
+                        showReactionPicker ? 'z-100' : 'z-10',
+                        showActionSheet ? 'bg-(--text)/10' : ''
                     ]"
+                    @touchstart.passive="longPress.onTouchstart"
+                    @touchmove.passive="longPress.onTouchmove"
+                    @touchend="longPress.onTouchend"
+                    @touchcancel="longPress.onTouchend"
+                    @contextmenu="longPress.onContextmenu"
                 >
 
                     <!-- Espacement entre messages : en marge (`mt-*`), jamais
@@ -68,7 +74,7 @@
                             :class="btn.class"
                             @click="btn.func(msg, $event)"
                         >
-                            <i class="bi text-lg" :class="btn.icon" />
+                            <i :key="btn.icon" class="bi text-lg" :class="btn.icon" />
                         </button>
 
                         <!-- <button @click="showPlusDropdown = !showPlusDropdown" class="dropdown-item-annimate dropdown-item-style">
@@ -179,6 +185,7 @@
 
                             <!-- Message reactions -->
                             <MessageReactions
+                                ref="reactionsRef"
                                 :message-id="msg.id"
                                 :reactions="formatDMReactions(msg.reactions)"
                                 :is-dm="true"
@@ -206,6 +213,17 @@
             @cancel="showDeleteConfirm = false"
         />
 
+        <MessageActionSheet
+            :show="showActionSheet"
+            :actions="sheetActions"
+            :preview-name="$p(msg.sender?.name) || 'Anonyme'"
+            :preview-content="msg.content.substring(0, 120)"
+            :quick-reactions="QUICK_REACTIONS"
+            @close="showActionSheet = false"
+            @react="reactFromSheet"
+            @more-reactions="openPickerFromSheet"
+        />
+
 
 </template>
 
@@ -224,6 +242,8 @@ import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
 import useWSocket from '@/composables/useWSocket';
 import MessageReactions from '@/components/common/MessageReactions.vue';
+import MessageActionSheet, { type SheetAction } from '@/components/common/MessageActionSheet.vue';
+import { useLongPress } from '@/composables/useLongPress';
 import type { DMMessage, DMMessageReaction, ReactionUser } from '@/types/types';
 import MessageAttachments from './MessageAttachments.vue';
 import MarkdownRender from '../../views/MarkdownRender.vue';
@@ -290,21 +310,45 @@ const emit = defineEmits<{
 interface DropdownBtn {
     icon: string,
     tooltip: string,
+    label: string,
+    inSheet?: boolean,
+    danger?: boolean,
     func: (msg: DMMessage, e?: Event) => void,
     class?: string;
     show: (msg: DMMessage) => boolean;
 }
 
+const copied = ref<boolean>(false);
+let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+
+const copyMessage = async (msg: DMMessage) => {
+    try {
+        await navigator.clipboard.writeText(msg.content);
+        copied.value = true;
+        clearTimeout(copiedTimer);
+        copiedTimer = setTimeout(() => copied.value = false, 1500);
+        // Sans survol (tactile), la coche de la barre d'actions n'est jamais
+        // visible — la copie part du sheet mobile, qui se ferme aussitôt.
+        if (!window.matchMedia('(hover: hover)').matches) toast.show("Message copié", "success");
+    } catch {
+        toast.show("Échec de la copie", "error");
+    }
+};
+
 const dropdownBtns: DropdownBtn[] = [
     {
-        icon: "bi-clipboard-fill",
+        // Getter : l'icône bascule sur une coche le temps du feedback, et la
+        // `:key` sur l'<i> relance l'animation `copy-pop` à chaque bascule.
+        get icon() { return copied.value ? "bi-check-lg copy-pop text-(--primary)" : "bi-clipboard-fill"; },
         tooltip: "copier",
-        func: () => {},
+        label: "Copier le texte",
+        func: (msg: DMMessage) => copyMessage(msg),
         show: () => true
     },
     {
         icon: "bi-hash",
         tooltip: "copier l'id",
+        label: "Copier l'ID",
         func: (msg: DMMessage) => {
             navigator.clipboard.writeText(msg.id);
             toast.show("ID copié", "success");
@@ -315,18 +359,23 @@ const dropdownBtns: DropdownBtn[] = [
     {
         icon: "bi-pencil-fill",
         tooltip: "modifier",
+        label: "Modifier",
         func: () => startEdit(),
         show: (msg: DMMessage) => msg.senderId == user.value?.id && msg.type !== 'voice_invite'
     },
     {
         icon: "bi-arrow-90deg-left",
         tooltip: "répondre",
+        label: "Répondre",
         func: (msg: DMMessage) => setMessageWillBeResponded(msg),
         show: () => true
     },
     {
         icon: "bi-emoji-grin-fill",
         tooltip: "réagir",
+        label: "Réagir",
+        // Remplacé dans le sheet mobile par la rangée de réactions rapides.
+        inSheet: false,
         func: (_msg: DMMessage, e?: Event) => {
             showReactionPicker.value = !showReactionPicker.value;
             if (showReactionPicker.value && e) {
@@ -342,11 +391,52 @@ const dropdownBtns: DropdownBtn[] = [
     {
         icon: "bi-trash-fill",
         tooltip: "supprimer",
+        label: "Supprimer",
         func: () => openDeleteConfirm(),
         class: "text-red-400! hover:bg-red-500/10!",
+        danger: true,
         show: (msg: DMMessage) => msg.senderId == user.value?.id
     }
 ];
+
+// ── Sheet d'actions mobile ──────────────────────────────────────────────
+// Sur écran tactile il n'y a pas de survol, donc pas de barre d'actions :
+// un appui long ouvre à la place un sheet qui glisse du bas, avec les mêmes
+// actions (mêmes `show`) en liste libellée.
+const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
+const showActionSheet = ref<boolean>(false);
+const reactionsRef = ref<InstanceType<typeof MessageReactions> | null>(null);
+
+const longPress = useLongPress(() => {
+    if (props.isEditing) return;
+    showActionSheet.value = true;
+});
+
+const sheetActions = computed<SheetAction[]>(() => dropdownBtns
+    .filter(btn => btn.inSheet !== false && btn.show(props.msg))
+    .map(btn => ({
+        icon: btn.icon,
+        label: btn.label,
+        danger: btn.danger,
+        onClick: () => {
+            showActionSheet.value = false;
+            btn.func(props.msg);
+        },
+    }))
+);
+
+const reactFromSheet = (emoji: string) => {
+    showActionSheet.value = false;
+    reactionsRef.value?.toggleReaction(emoji);
+};
+
+const openPickerFromSheet = () => {
+    showActionSheet.value = false;
+    // Sans coordonnées, MessageReactions centre le sélecteur à l'écran.
+    pickerCoords.value = null;
+    showReactionPicker.value = true;
+};
 
 const router = useRouter();
 const route = useRoute();
@@ -506,6 +596,17 @@ const saveEdit = async () => {
 </script>
 
 <style scoped>
+
+.copy-pop {
+    display: inline-block;
+    animation: copy-pop 0.35s ease-out;
+}
+
+@keyframes copy-pop {
+    0%   { transform: scale(0.4) rotate(-20deg); opacity: 0; }
+    60%  { transform: scale(1.25) rotate(5deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0); }
+}
 
 :deep(.mention-tag) {
     display: inline-flex;

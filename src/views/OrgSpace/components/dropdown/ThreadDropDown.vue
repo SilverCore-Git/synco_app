@@ -4,7 +4,6 @@ import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useToast } from '@/composables/useToast';
-import useWSocket from '@/composables/useWSocket';
 import { openedOrg, user } from '@/assets/var';
 import type { WorkSpace } from '@/types/types';
 import sfetch from '@/assets/utils/sfetch';
@@ -46,29 +45,12 @@ const handleExit = async () => {
 
     isExiting.value = true;
 
-    const membersId = workspace.membersId.filter(id => id !== userId);
-
-    const res = await sfetch(`/api/spaces/${workspace.id}/members`, {
-        method: 'PATCH',
-        body: JSON.stringify({ membersId })
-    });
+    // Route dédiée : PATCH /members est réservé au propriétaire. Le serveur
+    // retire l'utilisateur en base et diffuse lui-même space:updated à l'org.
+    const res = await sfetch(`/api/spaces/${workspace.id}/leave`, { method: 'POST' });
 
     if (res.ok)
     {
-
-        // Prévenir les autres membres comme le fait l'enregistrement des
-        // paramètres du space : sans cet événement, leur liste de membres
-        // reste figée jusqu'au prochain rechargement.
-        const socket = await useWSocket();
-        socket.value?.emit('space:update', {
-            orgId: openedOrg.value?.id,
-            spaceId: workspace.id,
-            data: {
-                name: workspace.name,
-                logo: workspace.logo,
-                members: membersId
-            }
-        });
 
         if (openedOrg.value)
         {
@@ -87,7 +69,8 @@ const handleExit = async () => {
     }
     else
     {
-        toast.show('Une erreur est survenue en quittant l\'espace.', 'error');
+        const body = await res.json().catch(() => null);
+        toast.show(body?.error || 'Une erreur est survenue en quittant l\'espace.', 'error');
     }
 
     isExitModalOpen.value = false;
@@ -160,7 +143,7 @@ const handleDelete = async () => {
                 <i class="bi bi-gear mr-2" /> Paramètres
             </button>
 
-            <button v-if="!isHome" @click="isExitModalOpen = true" class="dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!">
+            <button v-if="!isHome && currentWorkspace?.ownerId !== user?.id" @click="isExitModalOpen = true" class="dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!">
                 <i class="bi bi-door-open mr-2" /> Quitter
             </button>
 
