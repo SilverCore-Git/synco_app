@@ -455,7 +455,7 @@
                         >
                             <div>
                                 <h4 class="font-bold text-(--text)">Notifications par Email</h4>
-                                <p class="text-sm text-(--text2) mt-0.5">Recevoir un e-mail quand on me mentionne, m'invite à un événement ou m'assigne une tâche</p>
+                                <p class="text-sm text-(--text2) mt-0.5">Recevoir aussi mes notifications par e-mail</p>
                             </div>
                             <div 
                                 class="w-12 h-6 rounded-full relative transition-colors duration-300"
@@ -466,6 +466,21 @@
                                     :class="notifPrefs.email ? 'right-0.5' : 'left-0.5 opacity-50'"
                                 ></div>
                             </div>
+                        </div>
+
+                        <div v-if="notifPrefs.email" class="grid grid-cols-2 gap-2 -mt-2">
+                            <button
+                                v-for="mode in emailModes"
+                                :key="mode.value"
+                                @click="updateNotificationPrefs('emailMode', mode.value)"
+                                class="p-4 rounded-xl border text-left cursor-pointer transition-all"
+                                :class="notifPrefs.emailMode === mode.value
+                                    ? 'border-(--primary) bg-(--primary)/10'
+                                    : 'border-(--border-color) bg-(--bg2) hover:bg-(--text)/5'"
+                            >
+                                <h5 class="font-bold text-sm text-(--text)">{{ mode.label }}</h5>
+                                <p class="text-xs text-(--text2) mt-0.5">{{ mode.description }}</p>
+                            </button>
                         </div>
 
                         <div 
@@ -601,8 +616,14 @@ const notifPrefs = reactive({
     push: true,
     email: true,
     sound: true,
-    mentionsOnly: false
+    mentionsOnly: false,
+    emailMode: 'mentions' as 'all' | 'mentions'
 });
+
+const emailModes = [
+    { value: 'mentions', label: 'Seulement les tags', description: 'Mentions, tâches assignées et invitations' },
+    { value: 'all', label: 'Toutes', description: 'Chaque notification, messages compris' },
+] as const;
 
 // Sync user data to form
 watch(user, (newVal) => {
@@ -625,6 +646,7 @@ watch(user, (newVal) => {
                 notifPrefs.email = prefs.email ?? true;
                 notifPrefs.sound = prefs.sound ?? true;
                 notifPrefs.mentionsOnly = prefs.mentionsOnly ?? false;
+                notifPrefs.emailMode = prefs.emailMode === 'all' ? 'all' : 'mentions';
             }
         }
     }
@@ -637,7 +659,8 @@ watch(() => [user.value?.avatarUrl, user.value?.name], async () => {
     }
 }, { immediate: true });
 
-const updateNotificationPrefs = async (key: keyof typeof notifPrefs, value: boolean) => {
+const updateNotificationPrefs = async <K extends keyof typeof notifPrefs>(key: K, value: typeof notifPrefs[K]) => {
+    const previous = notifPrefs[key];
     notifPrefs[key] = value;
     try {
         const response = await sfetch('/api/users/me', {
@@ -652,12 +675,12 @@ const updateNotificationPrefs = async (key: keyof typeof notifPrefs, value: bool
             user.value = { ...user.value, ...updatedUser };
         } else {
             toast.show('Erreur lors de la sauvegarde', 'error');
-            notifPrefs[key] = !value;
+            notifPrefs[key] = previous;
         }
     } catch (e) {
         console.error(e);
         toast.show('Erreur de connexion', 'error');
-        notifPrefs[key] = !value;
+        notifPrefs[key] = previous;
     }
 };
 

@@ -3,6 +3,7 @@ import type { DMMessage, Message, OrgMember } from "@/types/types";
 import { ref, watch } from "vue";
 import useWSocket, { waitForSocketConnection } from "./useWSocket";
 import router from "@/router";
+import { useNotificationMutes } from "./useNotificationMutes";
 
 
 type NotificationType = 'toast' | 'notif:msg' | 'notif:dmmsg' | 'notif:call' | 'notif:privateMeet' | 'notif:privateMeetMsg' | 'notif:missedCall' | 'notif:missedMeet';
@@ -268,6 +269,10 @@ const initListener = async () => {
     currentNewMessageHandler = async ({ message, spaceId, orgId, threadName }: { message: Message, spaceId?: string, orgId?: string, threadName?: string }) => {
 
         if (router.currentRoute.value.params.threadId == message.threadId) return;
+
+        // Salon ou espace muet : pas de toast. Une éventuelle mention arrive
+        // à part (notification:push de type MENTION) et s'affiche quand même.
+        if (useNotificationMutes().isMessageMuted(message.threadId, spaceId)) return;
 
         // Le contenu du message (en clair ou chiffré E2EE) ne doit jamais
         // apparaître dans une notification — uniquement qui l'a envoyé, où, et

@@ -34,6 +34,13 @@
                     {{ thread.name }}
                 </span>
 
+                <i
+                    v-if="muted"
+                    class="bi bi-bell-slash text-xs opacity-50 shrink-0"
+                    :class="hasUnread ? '' : 'ml-auto mr-1'"
+                    title="Notifications désactivées"
+                />
+
                 <div 
                     v-if="hasUnread" 
                     class="
@@ -52,6 +59,11 @@
             <button v-if="devMode" @click="copyThreadId" class="dropdown-item-annimate dropdown-item-style text-(--primary)! hover:bg-(--primary)/10!">
                 <i class="bi bi-hash mr-2" />
                 Copier l'ID
+            </button>
+
+            <button @click="toggleThreadMute(thread.id)" class="dropdown-item-annimate dropdown-item-style">
+                <i class="bi mr-2" :class="muted ? 'bi-bell-fill' : 'bi-bell-slash-fill'" />
+                {{ muted ? 'Réactiver les notifications' : 'Désactiver les notifications' }}
             </button>
 
             <button @click="showEditThread = !showEditThread" class="dropdown-item-annimate dropdown-item-style">
@@ -98,6 +110,7 @@ import useSettingsItem from '@/composables/useSettingsItem';
 import { useToast } from '@/composables/useToast';
 import { usePermissions } from '@/composables/usePermissions';
 import { computed } from 'vue';
+import { useNotificationMutes } from '@/composables/useNotificationMutes';
 const props = defineProps<{
   thread: Thread;
   active?: boolean;
@@ -117,6 +130,8 @@ const toast = useToast();
 const orgId = computed(() => openedOrg.value?.id);
 const { can } = usePermissions(orgId);
 const { Item: devMode } = useSettingsItem('devMode', false);
+const { isThreadMuted, toggleThreadMute } = useNotificationMutes();
+const muted = computed(() => isThreadMuted(props.thread.id));
 
 const copyThreadId = () => {
     navigator.clipboard.writeText(props.thread.id);

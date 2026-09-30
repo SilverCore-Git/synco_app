@@ -1,6 +1,8 @@
 <script setup lang="ts">
 
 import SpaceBarBTN from '../common/SpaceBarBTN.vue';
+import DropDown from '@/components/DropDown.vue';
+import { useNotificationMutes } from '@/composables/useNotificationMutes';
 import { useRoute, useRouter } from 'vue-router';
 import CreateNewSpace from '../popup/CreateNewSpace.vue';
 import { openedOrg, todoEnabled, aiEnabled, agendaEnabled, user, userCardHeight } from '@/assets/var';
@@ -19,6 +21,7 @@ const orgId = computed(() => openedOrg.value?.id);
 const { canAny } = usePermissions(orgId);
 const { getUnreadCountBySpaceId, getUnreadCountForTasks, getUnreadCountForDMs } = useNotification();
 const { refreshForOrg, spaceHasVoiceActivity } = useVoicePresence();
+const { isSpaceMuted, toggleSpaceMute } = useNotificationMutes();
 
 const localSpaces = ref<WorkSpace[]>([]);
 
@@ -162,14 +165,25 @@ const onSpaceOrderChange = async () => {
                         :to="`/${openedOrg.id}/${space.id}?showView=0`"
                         class="w-full shrink-0 flex justify-center cursor-grab active:cursor-grabbing"
                     >
-                        <SpaceBarBTN
-                            :key="'space-' + space.id + '-btn'"
-                            :icon="space.logo!"
-                            :label="space.name"
-                            :active="route.path.includes(space.id)"
-                            :hasUnread="getUnreadCountBySpaceId(space.id).value > 0 || space.threads?.some((t: any) => t.hasUnread)"
-                            :inVoice="spaceHasVoiceActivity(space.id)"
-                        />
+                        <DropDown click="right" align="left">
+                            <template #trigger>
+                                <SpaceBarBTN
+                                    :key="'space-' + space.id + '-btn'"
+                                    :icon="space.logo!"
+                                    :label="space.name"
+                                    :active="route.path.includes(space.id)"
+                                    :hasUnread="getUnreadCountBySpaceId(space.id).value > 0 || space.threads?.some((t: any) => t.hasUnread)"
+                                    :inVoice="spaceHasVoiceActivity(space.id)"
+                                    :muted="isSpaceMuted(space.id)"
+                                />
+                            </template>
+                            <template #content>
+                                <button @click="toggleSpaceMute(space.id)" class="dropdown-item-annimate dropdown-item-style">
+                                    <i class="bi mr-2" :class="isSpaceMuted(space.id) ? 'bi-bell-fill' : 'bi-bell-slash-fill'" />
+                                    {{ isSpaceMuted(space.id) ? 'Réactiver les notifications' : 'Désactiver les notifications' }}
+                                </button>
+                            </template>
+                        </DropDown>
                     </RouterLink>
                 </template>
             </draggable>
