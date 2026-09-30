@@ -462,16 +462,30 @@ export async function encryptFileLocal(
     );
     const encryptedBlob = new Blob([ciphertext]);
 
-    // 3. Encrypt the FileKey with the SpaceKey (KEK), using its own IV.
-    // Never reuse an IV across two AES-GCM operations, even under different
-    // keys — a dedicated random IV per operation removes any risk tied to a
-    // future key-reuse bug. It's prepended to the ciphertext below so no
-    // extra wire field / backend column is needed for it.
+    // 3. Encrypt the FileKey with the SpaceKey (KEK)
     const rawFileKey = await crypto.subtle.exportKey("raw", fileKey);
+
+    return {
+        encryptedBlob,
+        encryptedFileKey: await wrapFileKey(rawFileKey, spaceKey),
+        iv: btoa(String.fromCharCode(...iv))
+    };
+}
+
+/**
+ * Wraps a raw FileKey (DEK) with the SpaceKey / DM key (KEK), using its own
+ * IV. Never reuse an IV across two AES-GCM operations, even under different
+ * keys — a dedicated random IV per operation removes any risk tied to a
+ * future key-reuse bug. It's prepended to the ciphertext so no extra wire
+ * field / backend column is needed for it. Shared by the single-shot (v1)
+ * and chunked (v2, chunkedCrypto.ts) file formats.
+ */
+export async function wrapFileKey(rawFileKey: ArrayBuffer, kek: CryptoKey): Promise<string>
+{
     const keyIv = crypto.getRandomValues(new Uint8Array(12));
     const encryptedFileKeyBuffer = await crypto.subtle.encrypt(
         { name: "AES-GCM", iv: keyIv },
-        spaceKey,
+        kek,
         rawFileKey
     );
 
@@ -479,11 +493,18 @@ export async function encryptFileLocal(
     combinedFileKey.set(keyIv, 0);
     combinedFileKey.set(new Uint8Array(encryptedFileKeyBuffer), keyIv.length);
 
-    return {
-        encryptedBlob,
-        encryptedFileKey: btoa(String.fromCharCode(...combinedFileKey)),
-        iv: btoa(String.fromCharCode(...iv))
-    };
+    return btoa(String.fromCharCode(...combinedFileKey));
+}
+
+/** Inverse of wrapFileKey() (current layout: key-wrap IV prepended). */
+export async function unwrapFileKey(encryptedFileKeyBase64: string, kek: CryptoKey): Promise<ArrayBuffer>
+{
+    const encryptedFileKeyBytes = Uint8Array.from(atob(encryptedFileKeyBase64), c => c.charCodeAt(0));
+    return crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: encryptedFileKeyBytes.slice(0, 12) },
+        kek,
+        encryptedFileKeyBytes.slice(12)
+    );
 }
 
 export async function decryptFileLocal(
@@ -504,13 +525,7 @@ export async function decryptFileLocal(
     // keep decrypting correctly.
     let rawFileKey: ArrayBuffer;
     try {
-        const keyIv = encryptedFileKeyBytes.slice(0, 12);
-        const wrappedFileKey = encryptedFileKeyBytes.slice(12);
-        rawFileKey = await crypto.subtle.decrypt(
-            { name: "AES-GCM", iv: keyIv },
-            spaceKey,
-            wrappedFileKey
-        );
+        rawFileKey = await unwrapFileKey(encryptedFileKeyBase64, spaceKey);
     } catch {
         rawFileKey = await crypto.subtle.decrypt(
             { name: "AES-GCM", iv },
