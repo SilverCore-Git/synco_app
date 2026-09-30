@@ -614,7 +614,7 @@ Ajouter un état "archivé" aux tâches (voir `synco_app/vibe/features/TODO_MODU
 | Fichier | Modification |
 |---------|--------------|
 | `src/types/types.ts` | Ajout de `archived?: boolean` et `archivedAt?: string \| Date \| null` sur `Task`. |
-| `src/views/OrgSpace/views/TasksSpace.vue` | Bouton "Archiver" à côté de la corbeille en drag & drop, action groupée "Archiver tout" sur la colonne Terminé, entrée "Archiver" au menu contextuel, bouton "Archives" dans la topbar (masqué si `archivedCount === 0`), intégration `ArchivedTasksPanel`. |
+| `src/views/OrgSpace/views/TasksSpace.vue` | Bouton "Archiver" à côté de la corbeille en drag & drop, action groupée "Archiver tout" sur la colonne Terminé, entrée "Archiver" au menu contextuel, bouton "Archives" dans la topbar (masqué si `archivedCount 0`), intégration `ArchivedTasksPanel`. |
 | `src/views/OrgSpace/views/TasksGlobal.vue` | Mêmes ajouts que `TasksSpace.vue`, adaptés à la structure en swimlanes par espace (archivage groupé par colonne DONE de chaque groupe). |
 | `src/views/OrgSpace/components/popup/TaskDetailsModal.vue` | Bouton "Archiver la tâche" à côté de "Supprimer la tâche" dans le footer. |
 | `vibe/features/TODO_MODULE_FEATURE.md` | Ajout de la section 6 documentant l'extension "Archivage". |
@@ -771,3 +771,313 @@ fe2855d feat(tasks): select-all checkboxes in the archive list
 2. Piège rencontré, à garder en tête : `useAgendaFeed.ts` (lien iCal) et le nouveau flux portent des noms proches — un fichier écrasé par erreur ne fait **pas** échouer `vite build` tant que le nom d'export est identique. Vérifier `git status` avant de créer un composable.
 3. La carte n'écoute pas les évènements WebSocket agenda : un évènement créé ailleurs n'apparaît qu'au prochain montage de l'accueil.
 4. Clic sur un évènement → renvoie vers `/agenda` sans ouvrir le jour ni l'évènement (la vue Agenda n'a pas de deep-link par date) — candidat à une amélioration ultérieure.
+
+---
+
+## 📅 **28 Septembre 2026 - Gestionnaire de fichiers : création vide et périmètre OnlyOffice**
+
+**Durée** : Session courte  
+**Priorité** : ⭐⭐⭐ (Moyenne)  
+**Complexité** : Basse (frontend + un garde-fou backend)  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Deux demandes d'UX sur le gestionnaire de fichiers :
+1. Un nouveau fichier doit être créé vide — plus de champ « Contenu initial ».
+2. L'ouverture avec OnlyOffice ne doit être proposée que pour les formats Word, Excel et PowerPoint, pas pour les fichiers texte.
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/views/OrgSpace/components/popup/CreateNewFile.vue` | Suppression du `<textarea>` « Contenu initial » et du champ `content` du formulaire ; `save` n'émet plus que `{ name, ext }`. Texte d'aide reformulé (« le fichier est créé vide et se modifie ensuite dans l'aperçu »). |
+| `src/views/OrgSpace/views/SpaceFiles.vue` | `createFile` reçoit `{ name, ext }` et n'envoie plus `content` à `createTextFile`, qui retombe sur sa valeur par défaut `''`. |
+| `src/views/OrgSpace/components/popup/FileViewer.vue` | `isOfficeFile` réduit à `doc/docx`, `xls/xlsx`, `ppt/pptx` via trois constantes (`WORD_/CELL_/SLIDE_EXTENSIONS`) que `getDocumentType` réutilise. `csv`, `txt` et `rtf` en sortent. |
+
+### **Fonctionnalités Implémentées**
+✅ **Création de fichier vide** : `content` reste optionnel dans `createTextFile` — Synco AI (`OrgAI.vue`) continue de créer des fichiers pré-remplis par ce chemin.  
+✅ **OnlyOffice réservé au bureautique** : un `.txt` ou un `.csv` repasse par la branche `isTextFile` → éditeur Monaco avec bouton « Enregistrer ».
+
+### **Commits**
+```bash
+289f395 fix(files): créer les nouveaux fichiers vides par défaut
+ef626c6 fix(files): réserver OnlyOffice aux formats Word, Excel et PowerPoint
+```
+**Date** : 28 Septembre 2026
+
+### **Prochaines Étapes**
+1. Vérification manuelle en navigateur non effectuée (Node.js absent du sandbox ; `vue-tsc` sous Bun ne résout pas les `.vue`, donc les `<script setup>` ne sont pas typés par le vérificateur).
+2. Le `.rtf` n'a plus d'éditeur du tout (ni Monaco, ni OnlyOffice) : il retombe sur l'écran « pas d'aperçu » avec téléchargement. À arbitrer si le format doit rester éditable.
+3. Voir `synco_api` : garde-fou serveur correspondant sur `POST /api/cdn/onlyoffice-config`.
+
+---
+
+## 📅 **28 Septembre 2026 - Barre d'outils du gestionnaire de fichiers**
+
+**Durée** : Session courte  
+**Priorité** : ⭐⭐⭐ (Moyenne)  
+**Complexité** : Basse (frontend uniquement)  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Remplacer la ligne « recherche + 3 boutons » et les icônes de l'en-tête par une vraie barre d'outils : navigation précédent/suivant, rechargement du dossier, et rapatriement des outils filigranes/permissions.
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/views/OrgSpace/views/SpaceFiles.vue` | Barre d'outils unique (navigation · création · recherche · outils). Ajout de l'historique de navigation (`folderHistory`, `historyIndex`, `goHistoryBack/Forward`) alimenté par un watcher `flush: 'sync'` sur `currentFolderId`. Extraction de `fetchSpaceContent({ silent })` depuis `onMounted` + `refreshFolder()`. Les boutons filigranes et permissions quittent l'en-tête (seul « Membres » y reste). |
+
+### **Fonctionnalités Implémentées**
+✅ **Flèches précédent / suivant** : l'empilement se fait dans un watcher, pas dans chaque appelant — le dossier courant change depuis le fil d'Ariane, le double-clic, la remontée d'un niveau et les liens profonds. Une nouvelle navigation tronque les entrées « suivant ».  
+✅ **Recharger le dossier** : rechargement sans squelette (icône en rotation, toast d'erreur), avec contrôle `res.ok` qui n'existait pas sur le chargement initial.  
+✅ **Outils regroupés** : filigranes + permissions de l'espace dans la barre, à droite.
+
+### **Commits**
+```bash
+49a3777 feat(files): barre d'outils du gestionnaire de fichiers
+```
+**Date** : 28 Septembre 2026
+
+### **Prochaines Étapes**
+1. `vite build` OK, mais aucune vérification visuelle en navigateur (Node.js absent du sandbox) : le comportement de repli de la barre entre `sm`, `lg` et `xl` reste à contrôler à l'œil.
+2. L'historique est local au montage de la vue : quitter puis revenir sur l'espace le réinitialise. À relier à l'historique du routeur si le besoin se confirme.
+3. Le bouton flottant en bas à gauche (`goBack`, remontée d'un niveau) fait doublon visuel avec la flèche « précédent » de la barre, qui elle est chronologique. À arbitrer.
+
+---
+
+## 📅 **28 Septembre 2026 - Refonte de la barre d'outils (façon explorateur)**
+
+**Durée** : Session courte  
+**Priorité** : ⭐⭐⭐ (Moyenne)  
+**Complexité** : Basse (frontend uniquement, template)  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Reprendre la barre d'outils à zéro : recherche au-dessus sur sa propre ligne, puis une barre unique où les actions sont ordonnées par importance, dans l'esprit d'un explorateur de fichiers.
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/views/OrgSpace/views/SpaceFiles.vue` | Recherche sortie de la barre et placée en tête de `<main>` (placeholder explicite « Rechercher un fichier ou un dossier… », bouton d'effacement conservé). Barre d'outils réordonnée : groupe navigation (précédent · suivant · remonter d'un niveau · recharger), filet, action principale `Ajouter des fichiers` en `primary` avec icône `bi-upload`, les deux créations en `default`, filet poussé par `ml-auto`, puis filigranes et permissions. `overflow-x-auto no-scrollbar` sur la barre au lieu d'un `flex-wrap`. |
+
+### **Fonctionnalités Implémentées**
+✅ **Hiérarchie visuelle** : un seul bouton plein (upload), deux boutons secondaires, les utilitaires en icône seule aux deux extrémités.  
+✅ **Remonter d'un niveau** : `goBack()` obtient enfin une entrée dans la barre — il n'était atteignable que par le bouton flottant en bas à gauche.  
+✅ **Repli progressif** : libellés des créations masqués sous `md`, libellé de l'upload sous `sm` ; la barre défile horizontalement plutôt que de passer à la ligne.
+
+### **Commits**
+```bash
+b0191cc refactor(files): barre d'outils façon explorateur, recherche au-dessus
+```
+**Date** : 28 Septembre 2026
+
+### **Prochaines Étapes**
+1. Toujours aucune vérification visuelle en navigateur (Node.js absent du sandbox) — `vue-tsc` et `vite build` passent, mais le rendu de la barre aux points de rupture `sm` / `md` reste à contrôler.
+2. Le bouton flottant en bas à gauche est conservé : il est aussi la **cible de dépôt** « déplacer vers le dossier parent ». Il fait maintenant doublon avec la flèche ↑ de la barre — à arbitrer (le réduire à une cible de dépôt visible seulement pendant un glisser ?).
+3. Le fil d'Ariane reste sous la barre, dans la branche `v-else` du squelette de chargement : le remonter dans la barre (style barre d'adresse) impliquerait de le sortir de cette branche.
+
+---
+
+## 📅 **28 Septembre 2026 - Barre d'outils : reprise à zéro (trois contrôles)**
+
+**Durée** : Session courte  
+**Priorité** : ⭐⭐⭐ (Moyenne)  
+**Complexité** : Basse (frontend uniquement, template)  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Retour utilisateur sur la version précédente : « plein de boutons différents en bordel, on comprend rien ». La rangée alignait neuf contrôles de trois styles (plein, contour, icône nue) sans hiérarchie lisible. Reprise de la partie boutons à zéro.
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/views/OrgSpace/views/SpaceFiles.vue` | Barre ramenée à trois contrôles : bloc de navigation segmenté (`divide-x` + `overflow-hidden`, chevrons plutôt que flèches pour l'historique), `DropDown` « Nouveau » (Importer / Dossier / Fichier) en unique bouton plein, `DropDown` « … » aligné à droite pour les outils de l'espace (permissions, filigrane) avec libellés. Le bouton flottant « remonter d'un niveau » passe en `v-if="… && isDragging"`. |
+
+### **Fonctionnalités Implémentées**
+✅ **Trois contrôles au lieu de neuf** : un bloc, un bouton, un menu — chacun avec un rôle distinct.  
+✅ **Libellés pour les outils** : `bi-shield-lock` et `bi-shield-check` côte à côte étaient indistinguables ; le filigrane prend l'icône `bi-file-earmark-binary` et les deux entrées sont nommées dans le menu.  
+✅ **Plus de doublon de navigation** : le bouton flottant en bas à gauche n'est plus qu'une cible de dépôt, affichée pendant un glisser comme la corbeille.
+
+### **Commits**
+```bash
+f230365 refactor(files): réduire la barre d'outils à trois contrôles
+```
+**Date** : 28 Septembre 2026
+
+### **Prochaines Étapes**
+1. Vérification visuelle en navigateur toujours pas faite (Node.js absent du sandbox) : `vite build` passe et la classe `h-9.5` est bien générée, mais l'alignement du bloc segmenté avec le bouton `primary` (padding `0.7em 1.6em` hérité de `style.css`) est à contrôler à l'œil.
+2. `DropDown.vue` positionne son contenu sur un `getDropdownPosition()` appelé au rendu, sans repositionnement au scroll : à surveiller si la barre finit dans une zone défilante.
+3. L'import de fichiers passe maintenant par un menu (un clic de plus). Si l'usage montre que c'est l'action dominante, envisager un bouton scindé « Importer ▾ » plutôt qu'un menu unique.
+
+---
+
+## 📅 **28 Septembre 2026 - Clic droit sur toute la zone vide du gestionnaire**
+
+**Durée** : Correctif court  
+**Priorité** : ⭐⭐⭐ (Moyenne)  
+**Complexité** : Basse  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Le menu contextuel « dans le vide » ne répondait que sur une partie de la hauteur : `@contextmenu` est porté par la `<section>`, qui s'arrêtait à la hauteur de son contenu (`min-h-[50vh]`).
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/views/OrgSpace/views/SpaceFiles.vue` | `<main>` passe de `space-y-4` à `flex flex-col gap-4`, et la `<section>` gagne `flex-1` : elle occupe la hauteur restante sous la barre d'outils. `min-h-[50vh]` conservé pour le cas où `<main>` serait plus court que prévu. |
+
+### **Fonctionnalités Implémentées**
+✅ **Zone de clic droit pleine hauteur** : le menu « Nouveau dossier / Nouveau fichier / Ajouter des fichiers » s'ouvre partout sous la barre d'outils, y compris loin sous la dernière ligne de fichiers.
+
+### **Commits**
+```bash
+5f808e2 fix(files): clic droit sur toute la hauteur de la zone de fichiers
+```
+**Date** : 28 Septembre 2026
+
+### **Prochaines Étapes**
+1. `<main>` étant devenu un conteneur flex, tout futur enfant direct doit être ajouté en connaissance de cause (l'espacement vient de `gap-4`, plus de `space-y-4`).
+
+---
+
+## 📅 **28 Septembre 2026 - Permissions du space : de la popup Fichiers aux paramètres**
+
+**Durée** : Session courte  
+**Priorité** : ⭐⭐⭐⭐ (Haute — emplacement d'un écran de sécurité)  
+**Complexité** : Moyenne  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+La gestion des permissions du space était une popup ouverte depuis la barre d'outils du gestionnaire de fichiers, alors qu'elle porte sur le space entier. La déplacer dans la fenêtre de paramètres du space, en reprenant la mise en page des onglets existants.
+
+### **Fichiers Créés**
+
+| Fichier | Description |
+|---------|-------------|
+| `src/assets/utils/mediaTypes.ts` (+ test) | Liste blanche MIME image/audio/vidéo (ni SVG ni HTML), alias (`audio/x-m4a`, `image/jpg`…), vérification des octets magiques du clair. |
+| `src/assets/utils/mediaCache.ts` (+ test) | Cache d'URL `blob:` : dédoublonnage, compteur de références, éviction LRU au-delà de 150 Mo (révocation), 3 chargements simultanés max. Loader injecté. |
+| `src/assets/utils/mediaPreview.ts` | Instance du cache branchée sur `fetchDecryptedFile` ; `Blob` reconstruit avec le type canonique. |
+| `src/views/OrgSpace/components/common/MessageAttachments.vue` | Remplace le bloc de pièces jointes dupliqué de `ChatMessage` / `ThreadMessage`. |
+| `src/views/OrgSpace/components/common/MessageMedia.vue` | Un média, états idle / loading / ready / error ; émet l'événement DOM `media-loaded` (bubbling). |
+| `src/views/OrgSpace/components/common/MediaLightbox.vue` | Visionneuse d'image plein écran (Échap, téléchargement). |
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+
+| `src/assets/utils/downloadFile.ts` | Extraction de `fetchDecryptedFile` (toujours via `sfetch`, jamais de jeton en URL) + `saveObjectUrl`. Comportement de `downloadFile` / `getFilePreviewUrl` inchangé. |
+| `index.html`, `src-tauri/tauri.conf.json` | CSP : `media-src 'self' blob:` — sans elle `default-src 'self'` bloquait `<audio>/<video>` en `blob:`. |
+| `ChatMessage.vue`, `ThreadMessage.vue` | Utilisent `MessageAttachments`. |
+| `ChatView.vue`, `ThreadView.vue` | `stickToBottom` + `@media-loaded` : recollage en bas quand un média chargé agrandit un message. |
+
+### **Fonctionnalités Implémentées**
+✅ **Aperçu en ligne** : vignette d'image (clic → visionneuse), lecteur audio, lecteur vidéo.  
+✅ **Chargement conditionnel** : ≤ 15 Mo au montage, au-delà sur clic.  
+✅ **Sécurité** : le type d'un fichier E2EE est déclaré par l'expéditeur → liste blanche + signature binaire avant rendu ; blobs rendus uniquement dans `<img>/<audio>/<video>`.  
+✅ **Repli** : erreur de déchiffrement / type / codec → carte fichier avec « Réessayer » et téléchargement.
+
+### **Commits**
+```bash
+d2f81ff docs(vibe): spec de l'aperçu des médias joints aux messages
+a388f8f refactor(files): extraire fetchDecryptedFile de downloadFile
+e6da30f security(csp): autoriser media-src blob: pour les médias déchiffrés
+7c04114 feat(files): liste blanche et cache des médias déchiffrés
+fed01b7 feat(messages): aperçu image/audio/vidéo des pièces jointes
+```
+**Date** : 29 Septembre 2026
+
+### **Prochaines Étapes**
+1. Vérification manuelle en navigateur non effectuée (Node.js absent du sandbox — `vite build` validé via Bun, 13 tests unitaires `bun test src/assets/utils/media` verts ; `vue-tsc` sous Bun ne résout pas les `.vue`, donc les `<script setup>` n'ont pas été vérifiés par le compilateur). À tester : DM + salon, E2EE et non chiffré, PNG/GIF/MP3/MP4, fichier > 15 Mo, `.html` renommé en `.png` (doit retomber sur la carte), Tauri (CSP), thème clair.
+2. Vidéo E2EE lourde : le chiffrement monobloc impose un téléchargement + déchiffrement complet en mémoire avant lecture. Un chiffrement par blocs (streaming) serait un chantier protocolaire séparé.
+3. Pas de miniature ni de dimensions stockées à l'upload : une vignette télécharge l'image entière, et le cadre de chargement (256×160) ne correspond pas au ratio réel.
+4. Le recollage en bas repose sur la dernière position de défilement connue : un média qui se charge pendant un `scrollTo` animé peut être manqué.
+
+### **Correctifs du même jour (retours de test)**
+1. **429 « Too many uploads »** : le quota d'upload de l'API (30/15 min) comptait aussi les lectures `/api/cdn/meta` et `/download` — corrigé côté `synco_api` (`fix(cdn): ne plus compter les lectures dans le quota d'upload`).
+2. **Un seul média sur trois s'affichait** : la vérification de signature exigeait le format *déclaré* (l'extension). « Gemini_Generated_Image_….gif » est en réalité un JPEG → refusé. Le format est désormais détecté dans les octets (`detectMediaMime`, liste blanche inchangée) et c'est lui qui choisit `<img>/<audio>/<video>` (`a903a86 fix(messages): afficher un média selon son format réel, pas son extension`).
+
+---
+
+## 📅 **29 Septembre 2026 - Ctrl+F ouvre la recherche de l'espace**
+
+**Durée** : Courte  
+**Priorité** : ⭐⭐ (Basse)  
+**Complexité** : Basse  
+**Statut** : ✅ **TERMINÉ** (vérification navigateur à faire)
+
+| `src/components/windows/SpaceSettings.vue` | Nouvel onglet « Permissions » (entre Membres et Webhooks) qui monte `SpacePermissionsPanel`. `SaveUpdateOverlay` passe sur `isModified || isPermissionsModified`, avec `resetAll()` / `saveAll()` qui n'agissent que sur les onglets réellement modifiés. La section morte « Sécurité & Permissions » (présente dans le template mais absente de `tabs`, donc inatteignable) est remplacée. |
+| `src/views/OrgSpace/views/SpaceFiles.vue` | Entrée « Permissions de l'espace » retirée du menu « … », modale et import supprimés. Le menu ne garde que « Vérifier un filigrane ». |
+
+### **Fonctionnalités Implémentées**
+✅ **Permissions dans les paramètres du space** : même fenêtre que Général / Membres / Webhooks, ouverte depuis `ThreadDropDown` — qui passe déjà le `currentWorkspace`, c'est-à-dire le space dont le gestionnaire de fichiers utilisait l'id.  
+✅ **Barre d'enregistrement unique** : le pied de page Annuler/Sauvegarder de la popup disparaît au profit de `SaveUpdateOverlay`, déjà utilisé par l'onglet Général.  
+✅ **Pas de perte silencieuse** : l'onglet reste monté (`v-if` d'ouverture + `v-show`) une fois visité, donc une matrice à moitié modifiée survit à un changement d'onglet.
+
+### **Commits**
+```bash
+a4a299a refactor(permissions): déplacer les permissions du space dans ses paramètres
+```
+**Date** : 28 Septembre 2026
+
+### **Prochaines Étapes**
+1. Vérification visuelle toujours impossible dans ce sandbox (`vue-tsc` + `vite build` passent) : à contrôler surtout le débordement horizontal de la matrice dans le `<main>` des paramètres (`p-4 sm:p-8`).
+2. Le panneau ne vérifie pas côté client que l'utilisateur a le droit de modifier les permissions : l'onglet est visible pour tout membre pouvant ouvrir les paramètres. Le refus vient du serveur à l'enregistrement — à afficher plus tôt (griser la matrice) si le besoin se confirme.
+3. `ManageAccessModal` (permissions par fichier et par dossier, menu contextuel du gestionnaire) reste une modale à part : c'est volontaire, la portée est différente.
+
+---
+
+## 📅 **28 Septembre 2026 - Permissions du space : UI alignée sur l'écran Rôles de l'org**
+
+**Durée** : Session courte  
+**Priorité** : ⭐⭐⭐⭐ (Haute — écran de sécurité + correction de sémantique)  
+**Complexité** : Moyenne  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Reprendre l'UI du nouvel onglet Permissions du space en s'inspirant de `RolesSettings.vue` (permissions de l'organisation), au lieu de la matrice rôles × permissions héritée de la popup.
+
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+
+| `src/views/OrgSpace/components/layouts/ThreadsBar.vue` | Listener `keydown` global : Ctrl+F / Cmd+F → `showSearchModal = true`, uniquement quand le bouton « Rechercher » est affiché (`canSearchSpace` : espace ouvert, hors accueil / DM / IA / paramètres). Ignoré si `defaultPrevented` (Monaco garde son propre Ctrl+F). Condition des paramètres extraite en `showSettingsNav` pour être partagée avec le template. |
+
+### **Commit**
+```bash
+1849b21 feat(search): Ctrl+F ouvre la recherche de l'espace
+```
+**Date** : 29 Septembre 2026
+
+### **Prochaines Étapes**
+1. `SpaceSearchModal` est en `z-[100]`, sous `FileViewer` (`z-2500`) : Ctrl+F avec un aperçu de fichier ouvert (hors éditeur Monaco) ouvre la recherche derrière la visionneuse.
+2. Échap ferme `SpaceSearchModal` (listener `keydown` sur window, actif seulement pendant l'ouverture) — `feat(search): Échap ferme la recherche de l'espace`.
+
+| `src/components/permissions/SpacePermissionsPanel.vue` | Réécrit : liste des rôles à gauche (pastille, nom, badge Sys, nombre de membres, **compteur de dérogations**), détail à droite avec recherche, groupes de permissions repris de `RolesSettings.vue`, lignes icône + libellé + description. Contrôle à trois états `Hériter / Autoriser / Refuser` à la place du commutateur binaire de l'org — le space pose des **dérogations**, pas des valeurs. Mention « Hérité de l'organisation : autorisé/refusé » sous chaque permission laissée en héritage. Bouton « Tout hériter » par rôle, rôle `OWNER` en lecture seule. |
+| `src/components/windows/SpaceSettings.vue` | L'onglet passe en `absolute inset-0` et `<main>` retire son padding pour lui, comme pour Webhooks : le panneau gère sa propre mise en page en deux colonnes. L'en-tête `h3` + description de l'onglet disparaît, le panneau porte le sien. |
+
+### **Correction de sémantique (importante)**
+L'ancienne popup initialisait l'état local avec les **valeurs du rôle** quand aucune dérogation n'existait, puis reversait en dérogations tout ce qui n'était pas `INHERIT`. Conséquences :
+1. l'écran s'ouvrait systématiquement en « modifications non enregistrées » ;
+2. un simple enregistrement figeait dans le space l'intégralité des droits du rôle — un changement ultérieur au niveau de l'organisation n'aurait plus été suivi.
+
+`INHERIT` signifie désormais « aucune dérogation » : l'état local ne contient que les dérogations réellement enregistrées, et la valeur d'origine est affichée à titre indicatif.
+
+### **Commits**
+```bash
+484142b refactor(permissions): aligner l'UI des permissions du space sur celle de l'org
+```
+**Date** : 28 Septembre 2026
+
+### **Prochaines Étapes**
+1. `PermissionMatrix.vue` et `PermissionCell.vue` n'ont plus aucun appelant (ils ne se référencent plus qu'entre eux) — à supprimer ou à réutiliser dans `ManageAccessModal.vue`, qui a sa propre UI.
+2. `permissionGroups` est maintenant dupliqué entre `RolesSettings.vue` et `SpacePermissionsPanel.vue` : à remonter dans `src/config/permissions.config.ts`. Le panneau ajoute le groupe « Salons vocaux », absent de l'écran org — les deux listes ont déjà divergé.
+3. Toujours aucune vérification visuelle en navigateur (Node.js absent du sandbox) : `vue-tsc` et `vite build` passent.
+4. La colonne des rôles est limitée à `max-h-56` sous `md` : à contrôler sur mobile avec beaucoup de rôles.
+

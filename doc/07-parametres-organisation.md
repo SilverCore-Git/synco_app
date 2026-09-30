@@ -7,14 +7,16 @@ Les gestionnaires et administrateurs d'une organisation ont accès à un panneau
 Accessible via l'icône de paramètres de l'organisation, il est divisé en plusieurs catégories clés :
 - **Général** : Pour gérer les informations de base de l'organisation (nom, logo) et sa visibilité.
 - **Membres** : Pour visualiser la liste des membres, inviter de nouveaux collaborateurs et ajuster leurs rôles et permissions respectifs.
+- **Rôles & Permissions** : Pour définir ce que chaque rôle a le droit de faire dans l'organisation.
+- **Webhooks** : Pour connecter des outils extérieurs à vos salons (voir le chapitre dédié).
 - **IA** : Pour configurer l'intégration de l'intelligence artificielle (choix des modèles autorisés, activation de la vectorisation).
 - **Stockage** : Pour avoir une vue d'ensemble sur l'espace de stockage utilisé par les fichiers de l'organisation et gérer l'allocation.
 
 ## Les Webhooks
 
-Synco supporte les **Webhooks**, ce qui vous permet d'interfacer votre organisation avec d'autres outils externes (par exemple pour notifier votre équipe d'un déploiement technique ou d'un incident via une API).
-- Les Webhooks se gèrent via la sous-section dédiée des paramètres (`WebhooksSettings`).
-- (Une documentation technique orientée développeurs sur le format et la gestion des Webhooks est disponible dans les ressources dédiées de SyncoAPI).
+La section **Webhooks** des paramètres de l'organisation rassemble les webhooks de tous les espaces : des adresses privées que vous donnez à un outil extérieur (intégration continue, supervision, automatisation) pour qu'il poste dans un salon.
+
+Le sujet a son propre chapitre : [Webhooks](./08-webhooks.md).
 
 ## Panneau d'Administration Global
 

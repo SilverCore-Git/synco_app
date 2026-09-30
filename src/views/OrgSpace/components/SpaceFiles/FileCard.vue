@@ -9,7 +9,7 @@
         @contextmenu.prevent.stop="handleContextMenu"
         :class="[
             draggedFileId === file.id ? 'opacity-40 grayscale-50' : '',
-            'max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border rounded-xl transition-all cursor-pointer shadow-sm',
+            'max-w-full group flex items-center gap-3 p-3 bg-(--bg2)/40 border rounded-xl transition-all cursor-pointer shadow-sm select-none',
             isSelected 
                 ? 'border-(--primary) bg-(--primary)/10'
                 : 'border-(--border-color) hover:border-(--primary)/50 hover:bg-(--primary)/5',
@@ -31,7 +31,7 @@
         </button>
 
         <div 
-            @click.stop="showViewer = true"
+            @click.stop="onOpenClick"
             class="
                 w-10 h-10 flex items-center justify-center 
                 rounded-lg bg-black/20 border border-(--border-color) shrink-0 hover:bg-black/30 transition-colors
@@ -43,7 +43,7 @@
             />
         </div>
 
-        <div class="flex-1 min-w-0" @click.stop="showViewer = true">
+        <div class="flex-1 min-w-0" @click.stop="onOpenClick">
             <div class="flex items-center gap-1.5">
                 <p class="text-sm font-semibold text-(--text) truncate hover:text-(--primary) transition-colors">{{ file.originalName }}</p>
                 <i v-if="file._count?.filePermissions" class="bi bi-shield-lock-fill text-xs text-(--primary)" title="Permissions spécifiques" />
@@ -193,13 +193,15 @@ const props = defineProps<{
     isSelectionMode?: boolean
 }>();
 
-const emit = defineEmits(['file-deleted', 'show-file-info', 'file-watermarked', 'toggle-select', 'request-delete', 'show-permissions']);
+const emit = defineEmits(['file-deleted', 'show-file-info', 'file-watermarked', 'toggle-select', 'range-select', 'request-delete', 'show-permissions']);
 
 let longPressTimer: any = null;
 
 const onPointerDown = (e: PointerEvent) => {
     // Only left click or touch
     if (e.button !== 0 && e.pointerType === 'mouse') return;
+    // CTRL/CMD/MAJ : c'est un clic de sélection, pas un appui long.
+    if (selectionModifier(e)) return;
     longPressTimer = setTimeout(() => {
         if (!props.isSelected) {
             emit('toggle-select');
@@ -216,10 +218,37 @@ const onPointerUp = () => {
     }
 };
 
-const handleClick = () => {
+// CTRL/CMD → (dé)sélectionne l'élément cliqué. MAJ → sélectionne toute la
+// plage entre le dernier élément sélectionné et celui-ci.
+const selectionModifier = (e: MouseEvent | PointerEvent): 'toggle' | 'range' | null => {
+    if (e.ctrlKey || e.metaKey) return 'toggle';
+    if (e.shiftKey) return 'range';
+    return null;
+};
+
+const handleClick = (e: MouseEvent) => {
+    const modifier = selectionModifier(e);
+
+    if (modifier) {
+        // Empêche la navigation/l'ouverture portée par les parents
+        e.stopPropagation();
+        e.preventDefault();
+        emit(modifier === 'range' ? 'range-select' : 'toggle-select');
+        return;
+    }
+
     if (props.isSelectionMode) {
         emit('toggle-select');
     }
+};
+
+// Nom et icône ouvrent l'aperçu, sauf avec CTRL/MAJ où le clic sert à sélectionner.
+const onOpenClick = (e: MouseEvent) => {
+    if (selectionModifier(e)) {
+        handleClick(e);
+        return;
+    }
+    showViewer.value = true;
 };
 
 const formatSize = (bytes: number) => {

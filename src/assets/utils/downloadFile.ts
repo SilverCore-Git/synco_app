@@ -5,13 +5,69 @@ import { getDMConversationKey } from "./dmCrypto";
 import { decryptFileLocal } from "./crypto";
 import { useToast } from "@/composables/useToast";
 
+// Subset of GET /api/cdn/meta/:id this module relies on.
+export interface FileMetadata {
+    originalName: string;
+    mimeType: string;
+    size: number;
+    isE2EE?: boolean;
+    encryptedFileKey?: string | null;
+    iv?: string | null;
+    workspaceId?: string;
+    dmPeerId?: string;
+}
+
 // GET /api/cdn/meta/:id resolves `dmPeerId` server-side (the other DM
 // participant) when the file is attached to a DMMessage, so callers never
 // need to know/pass it themselves — see cdnRoutes.ts's /meta/:id handler.
-const resolveFileKey = async (metadata: { workspaceId?: string; dmPeerId?: string }) => {
+const resolveFileKey = async (metadata: FileMetadata) => {
     if (metadata.workspaceId) return getWorkspaceKey(metadata.workspaceId);
     if (metadata.dmPeerId) return getDMConversationKey(metadata.dmPeerId);
     throw new Error("Cannot decrypt E2EE file: no workspace or DM conversation associated");
+};
+
+const fetchMetadata = async (fileId: string): Promise<FileMetadata> => {
+    const metaRes = await sfetch(`/api/cdn/meta/${fileId}`, { method: 'GET' });
+    if (!metaRes.ok) throw new Error("Failed to fetch file metadata");
+    return metaRes.json();
+};
+
+const fetchRawFile = async (fileId: string): Promise<ArrayBuffer> => {
+    const fileRes = await sfetch(`/api/cdn/download/${fileId}`, { method: 'GET' });
+    if (!fileRes.ok) throw new Error("Failed to fetch file");
+    return fileRes.arrayBuffer();
+};
+
+const decryptE2EEFile = async (encryptedBuffer: ArrayBuffer, metadata: FileMetadata): Promise<ArrayBuffer> => {
+    const { key: kek } = await resolveFileKey(metadata);
+
+    if (!metadata.encryptedFileKey || !metadata.iv) {
+        throw new Error("Missing E2EE metadata (key or iv) for file decryption");
+    }
+
+    return decryptFileLocal(encryptedBuffer, metadata.encryptedFileKey, metadata.iv, kek);
+};
+
+// Plaintext bytes of a stored file, decrypted client-side when E2EE. Always
+// goes through sfetch (Authorization header), never a ?token= URL — used by
+// in-chat media previews (bytes end up in a blob: URL anyway) and folder ZIP
+// archives, which need the bytes rather than a link.
+export const fetchDecryptedFile = async (fileId: string): Promise<{ buffer: ArrayBuffer; metadata: FileMetadata }> => {
+    const metadata = await fetchMetadata(fileId);
+    const raw = await fetchRawFile(fileId);
+    const buffer = metadata.isE2EE ? await decryptE2EEFile(raw, metadata) : raw;
+    return { buffer, metadata };
+};
+
+// Saves an already-decrypted blob: URL to disk (e.g. a media preview on
+// screen) instead of fetching + decrypting the file a second time.
+export const saveObjectUrl = (objectUrl: string, fileName: string) => {
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 };
 
 export interface FilePreview {
@@ -25,9 +81,7 @@ export interface FilePreview {
 // file needs to be *shown* rather than saved to disk (task attachment
 // thumbnails, linked-file previews).
 export const getFilePreviewUrl = async (fileId: string): Promise<FilePreview> => {
-    const metaRes = await sfetch(`/api/cdn/meta/${fileId}`, { method: 'GET' });
-    if (!metaRes.ok) throw new Error("Failed to fetch file metadata");
-    const metadata = await metaRes.json();
+    const metadata = await fetchMetadata(fileId);
 
     if (!metadata.isE2EE) {
         return {
@@ -36,35 +90,32 @@ export const getFilePreviewUrl = async (fileId: string): Promise<FilePreview> =>
         };
     }
 
-    const fileRes = await sfetch(`/api/cdn/download/${fileId}`, { method: 'GET' });
-    if (!fileRes.ok) throw new Error("Failed to fetch encrypted file");
-    const encryptedBuffer = await fileRes.arrayBuffer();
-
-    const { key: kek } = await resolveFileKey(metadata);
-
-    if (!metadata.encryptedFileKey || !metadata.iv) {
-        throw new Error("Missing E2EE metadata (key or iv) for file decryption");
-    }
-
-    const decryptedBuffer = await decryptFileLocal(
-        encryptedBuffer,
-        metadata.encryptedFileKey,
-        metadata.iv,
-        kek
-    );
-
+    const decryptedBuffer = await decryptE2EEFile(await fetchRawFile(fileId), metadata);
     const blob = new Blob([decryptedBuffer], { type: metadata.mimeType });
     return { url: URL.createObjectURL(blob), isBlob: true };
+};
+
+// Déclenche l'enregistrement d'un Blob sous un nom donné.
+export const saveBlob = (blob: Blob, fileName: string) => {
+
+    const objectUrl = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+
 };
 
 export const downloadFile = async (fileId: string) => {
     
     try {
         // 1. Fetch metadata to check if it's E2EE
-        const metaRes = await sfetch(`/api/cdn/meta/${fileId}`, { method: 'GET' });
-        if (!metaRes.ok) throw new Error("Failed to fetch file metadata");
-        
-        const metadata = await metaRes.json();
+        const metadata = await fetchMetadata(fileId);
         
         if (!metadata.isE2EE) {
             // Legacy / SSE download
@@ -77,42 +128,12 @@ export const downloadFile = async (fileId: string) => {
             return;
         }
 
-        // E2EE Download Flow
-
-        // 2. Fetch the raw encrypted file content
-        const fileRes = await sfetch(`/api/cdn/download/${fileId}`, { method: 'GET' });
-        if (!fileRes.ok) throw new Error("Failed to fetch encrypted file");
-
-        const encryptedBuffer = await fileRes.arrayBuffer();
-
-        // 3. Fetch the KEK (workspace key or DM conversation key)
-        const { key: kek } = await resolveFileKey(metadata);
-
-        // 4. Decrypt the file
-        if (!metadata.encryptedFileKey || !metadata.iv) {
-            throw new Error("Missing E2EE metadata (key or iv) for file decryption");
-        }
-
-        const decryptedBuffer = await decryptFileLocal(
-            encryptedBuffer,
-            metadata.encryptedFileKey,
-            metadata.iv,
-            kek
-        );
+        // 2. E2EE: fetch the raw encrypted content and decrypt it with the
+        // workspace / DM conversation key
+        const decryptedBuffer = await decryptE2EEFile(await fetchRawFile(fileId), metadata);
 
         // 5. Trigger download of decrypted file
-        const blob = new Blob([decryptedBuffer], { type: metadata.mimeType });
-        const objectUrl = URL.createObjectURL(blob);
-        
-        const link = document.createElement('a');
-        link.href = objectUrl;
-        link.download = metadata.originalName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Clean up memory
-        setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+        saveBlob(new Blob([decryptedBuffer], { type: metadata.mimeType }), metadata.originalName);
 
     } catch (e) {
         console.error("Download Error:", e);

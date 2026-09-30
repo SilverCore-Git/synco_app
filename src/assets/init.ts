@@ -33,7 +33,12 @@ class Init
 
     private async InitUser()
     {
-        user.value = await sfetch('/api/users/me').then(res => res.json());
+        const res = await sfetch('/api/users/me');
+        // Une réponse d'erreur (compte banni, jeton rejeté...) reste un JSON
+        // parfaitement valide : l'affecter à `user` ferait passer l'app pour
+        // chargée avec un utilisateur fantôme, sans id ni clés E2EE.
+        if (!res.ok) return;
+        user.value = await res.json();
     }
 
 
@@ -82,7 +87,9 @@ class Init
 
 
 export const refetchUser = async () => {
-    user.value = await sfetch('/api/users/me').then(res => res.json());
+    const res = await sfetch('/api/users/me');
+    if (!res.ok) return;
+    user.value = await res.json();
 }
 
 export default new Init();

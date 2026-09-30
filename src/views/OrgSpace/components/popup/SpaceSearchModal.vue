@@ -317,12 +317,23 @@ onMounted(() => {
     globalVectorWorker.addEventListener('message', handleWorkerMessage);
 });
 
+// Échap ferme la recherche, où que soit le focus (champ, filtres, résultats).
+// Écouté sur window seulement pendant que la modale est ouverte.
+const onEscape = (e: KeyboardEvent) => {
+    if (e.key !== 'Escape' || e.defaultPrevented) return;
+    e.preventDefault();
+    emit('close');
+};
+
 onUnmounted(() => {
     globalVectorWorker.removeEventListener('message', handleWorkerMessage);
+    window.removeEventListener('keydown', onEscape);
 });
 
 watch(() => props.show, async (isOpened) => {
+    window.removeEventListener('keydown', onEscape);
     if (isOpened) {
+        window.addEventListener('keydown', onEscape);
         query.value = '';
         results.value = [];
         error.value = null;

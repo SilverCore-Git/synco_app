@@ -96,12 +96,12 @@
             <div v-if="msg.tool_call" class="mt-3 bg-(--bg2)/60 border border-(--text)/10 rounded-xl p-4">
               <div class="flex items-center gap-2 mb-2 text-(--primary) font-bold text-xs uppercase">
                 <i class="bi bi-search" v-if="msg.tool_call.name === 'search_messages'"></i>
-                <i class="bi bi-book" v-else-if="msg.tool_call.name === 'read_documentation'"></i>
+                <i class="bi bi-book" v-else-if="isDocumentationTool(msg.tool_call.name)"></i>
                 <i class="bi bi-check2-square" v-else-if="msg.tool_call.name === 'read_tasks'"></i>
                 <i class="bi bi-wrench-adjustable-circle" v-else></i>
-                {{ msg.tool_call.name === 'search_messages' ? 'Recherche Globale' : msg.tool_call.name ===
-                  'read_documentation' ? 'Consultation de la documentation' : msg.tool_call.name === 'read_tasks' ?
-                'Lecture des tâches' : "Demande d'action" }}
+                {{ msg.tool_call.name === 'search_messages' ? 'Recherche Globale' :
+                  isDocumentationTool(msg.tool_call.name) ? 'Consultation de la documentation' :
+                  msg.tool_call.name === 'read_tasks' ? 'Lecture des tâches' : "Demande d'action" }}
               </div>
 
               <p class="text-sm" v-if="msg.tool_call.name === 'search_messages'">
@@ -110,7 +110,7 @@
                   "{{ getSearchQuery(msg.tool_call.arguments) }}"
                 </span>
               </p>
-              <p class="text-sm" v-else-if="msg.tool_call.name === 'read_documentation'">
+              <p class="text-sm" v-else-if="isDocumentationTool(msg.tool_call.name)">
                 Je consulte la documentation officielle de Synco pour vous répondre avec précision.
               </p>
               <p class="text-sm" v-else-if="msg.tool_call.name === 'read_tasks'">
@@ -419,6 +419,8 @@ import { SearchSyncService } from '@/services/SearchSyncService';
 import { generateThreadKey, encryptThreadKeyForMember, privateKey } from '@/assets/utils/crypto';
 import { openedOrg, user } from '@/assets/var';
 import { getSystemPrompt } from '@/services/AITools';
+import { createFolderRequest, createTextFile } from '@/services/fileActions';
+import { isDocumentationTool, runDocumentationTool } from '@/services/DocumentationService';
 
 const { showUsersBar } = useUsersBar();
 const { Item: savedModelId, isLoaded: savedModelLoaded } = useSettingsItem('ai_selected_model', '');
@@ -681,7 +683,7 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
   let result = "";
   let toolData: any = null;
   try {
-    const args = typeof toolCall.arguments === 'string' ? JSON.parse(toolCall.arguments) : toolCall.arguments;
+    const args = typeof toolCall.arguments === 'string' ? JSON.parse(toolCall.arguments || '{}') : toolCall.arguments;
     const orgId = route.params.orgId as string;
 
     if (toolCall.name === 'create_space') {
@@ -787,21 +789,30 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
       toolData = created;
       result = `${created.length} salon(s) créé(s) avec succès. Les clés E2EE ont été générées et distribuées.`;
 
-    } else if (toolCall.name === 'read_documentation') {
-      const docFiles = import.meta.glob('../../../../doc/*.md', { query: '?raw', import: 'default', eager: true });
+    } else if (isDocumentationTool(toolCall.name)) {
+      const docResult = await runDocumentationTool(toolCall.name, args);
 
-      let fullDoc = "# Documentation de Synco\n\n";
-      for (const [path, content] of Object.entries(docFiles)) {
-        const fileName = path.split('/').pop()?.replace('.md', '') || path;
-        fullDoc += `## Chapitre : ${fileName}\n\n${content}\n\n---\n\n`;
-      }
-
-      toolData = { length: fullDoc.length };
-      result = fullDoc;
+      toolData = docResult;
+      result = JSON.stringify(docResult, null, 2);
 
     } else if (toolCall.name === 'request_image_upload') {
       toolData = { id: imageId };
       result = `L'utilisateur a fourni une image. Identifiant de l'image : '${imageId}'. Utilise EXACTEMENT cette valeur '${imageId}' pour le paramètre 'logo' de 'create_space'.`;
+
+    } else if (toolCall.name === 'create_folder') {
+      const folder = await createFolderRequest(args.spaceId, orgId, args.name, args.parentFolderId);
+      toolData = folder;
+      result = `Dossier '${folder.name}' créé avec succès.`;
+
+    } else if (toolCall.name === 'create_file') {
+      const file = await createTextFile({
+        spaceId: args.spaceId,
+        name: args.name,
+        content: args.content ?? '',
+        folderId: args.folderId,
+      });
+      toolData = file;
+      result = `Fichier '${file.originalName}' créé avec succès. Cite-le dans ta réponse en écrivant <file:${file.id}>.`;
 
     } else if (toolCall.name === 'read_tasks') {
       const res = await sfetch(`/api/tasks/${orgId}/lists/me`);
@@ -828,9 +839,11 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
     }
   });
 
-  if (['create_task', 'create_space', 'create_thread'].includes(toolCall.name)) {
+  if (toolCall.name === 'create_file') {
+    sendMessage("Le fichier a été créé. Confirme-le en une seule phrase et termine par le jeton de référence du fichier indiqué dans le résultat.");
+  } else if (['create_task', 'create_space', 'create_thread', 'create_folder'].includes(toolCall.name)) {
     sendMessage("L'action a été effectuée avec succès. Réponds très brièvement en une seule phrase pour confirmer à l'utilisateur.");
-  } else if (['search_messages', 'read_documentation', 'read_tasks'].includes(toolCall.name)) {
+  } else if (['search_messages', 'read_tasks'].includes(toolCall.name) || isDocumentationTool(toolCall.name)) {
     sendMessage("Voici les informations demandées. Réponds à la question de l'utilisateur en te basant sur ces résultats.");
   }
 };
@@ -954,14 +967,31 @@ const executeClientTool = async (name: string, args: any, imageId?: string): Pro
     return { threads: created };
   }
 
-  if (name === 'read_documentation') {
-    const docFiles = import.meta.glob('../../../../doc/*.md', { query: '?raw', import: 'default', eager: true });
-    let fullDoc = '# Documentation de Synco\n\n';
-    for (const [path, content] of Object.entries(docFiles)) {
-      const fileName = path.split('/').pop()?.replace('.md', '') || path;
-      fullDoc += `## Chapitre : ${fileName}\n\n${content}\n\n---\n\n`;
-    }
-    return { content: fullDoc };
+  if (isDocumentationTool(name)) {
+    return await runDocumentationTool(name, args);
+  }
+
+  if (name === 'create_folder') {
+    const folder = await createFolderRequest(args.spaceId, orgId, args.name, args.parentFolderId);
+    return { id: folder.id, name: folder.name, spaceId: args.spaceId };
+  }
+
+  if (name === 'create_file') {
+    const file = await createTextFile({
+      spaceId: args.spaceId,
+      name: args.name,
+      content: args.content ?? '',
+      folderId: args.folderId,
+    });
+    return {
+      id: file.id,
+      name: file.originalName,
+      spaceId: args.spaceId,
+      // Le jeton est renvoyé tel quel pour que le modèle n'ait qu'à le recopier :
+      // MarkdownRender.vue le transforme en carte fichier cliquable.
+      reference: `<file:${file.id}>`,
+      note: `Cite ce fichier dans ta réponse en écrivant <file:${file.id}>.`,
+    };
   }
 
   if (name === 'request_image_upload') {
@@ -1089,7 +1119,7 @@ const sendMessage = async (hiddenPrompt?: string) => {
     }
 
     const tCall = messages.value[assistantMsgIndex]?.tool_call;
-    if (tCall?.status === 'pending' && ['read_documentation'].includes(tCall.name)) {
+    if (tCall?.status === 'pending' && isDocumentationTool(tCall.name)) {
       setTimeout(() => {
         handleToolCall(tCall, true, assistantMsgIndex);
       }, 50);

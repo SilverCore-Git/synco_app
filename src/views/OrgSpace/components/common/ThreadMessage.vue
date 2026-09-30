@@ -4,7 +4,7 @@
                     :key="msg.id" 
                     class="group relative px-4 flex flex-col justify-start items-start rounded-lg transition-colors w-full"
                     :class="[
-                        isStacked ? 'py-0 mt-0' : 'py-2 mt-2',
+                        isStacked ? 'mt-1' : 'mt-6',
                         selectedMessage == msg.id ? ' border border-(--primary) border-dashed animate-pulse' : '',
                         user?.id == msg.replyMessage?.senderId || isTagMe
                             ? 'border-l-2 border-(--primary-dark) bg-(--primary-dark)/30 hover:bg-(--primary-dark)/50' 
@@ -12,6 +12,15 @@
                         showReactionPicker ? 'z-100' : 'z-10'
                     ]"
                 >
+
+                    <!-- Espacement entre messages : en marge (`mt-*`), jamais
+                         en padding. Ce conteneur porte le fond coloré d'une
+                         mention, d'une réponse ou du survol : un écart mis en
+                         padding serait peint avec, et le bloc coloré traînerait
+                         sous son propre texte. En marge il reste dehors — le
+                         fond épouse le message, l'air le sépare des voisins.
+                         `mt-1` entre messages empilés (même auteur à moins
+                         d'une minute), `mt-6` entre deux blocs d'auteurs. -->
 
                     <div 
                         v-if="msg.replyToId && msg.replyMessage" 
@@ -118,8 +127,16 @@
                         />
                         <div 
                             v-else-if="isStacked"
-                            class="w-9 h-9 shrink-0 flex items-start justify-center opacity-0 group-hover:opacity-100 transition-opacity select-none"
+                            class="w-9 shrink-0 flex items-start justify-center opacity-0 group-hover:opacity-100 transition-opacity select-none"
                         >
+                            <!-- Pas de `h-9` ici : cette gouttière ne fait que
+                                 réserver la colonne de l'avatar (w-9) et
+                                 montrer l'heure au survol. Lui fixer 36px de
+                                 haut imposait cette hauteur à toute la ligne
+                                 flex, alors qu'un message empilé d'une seule
+                                 ligne en fait ~23 — d'où un vide sous le
+                                 texte, bien visible dans le fond coloré d'une
+                                 mention. La hauteur vient du contenu. -->
                             <span class="text-[10px] text-(--text2) font-medium text-center mt-1.5">{{ formatTimeOnly(msg.createdAt as any) }}</span>
                         </div>
 
@@ -188,49 +205,7 @@
                                 :isReadOnly="isReadOnly"
                             />
 
-                            <div 
-                                v-if="msg.files && msg.files.length > 0" 
-                                class="mt-3 flex flex-wrap gap-2"
-                            >
-
-                                <div 
-                                    v-for="file in msg.files" 
-                                    :key="file.id"
-                                    class="
-                                        group/file relative flex items-center gap-3 p-2
-                                        rounded-lg border border-(--text)/10
-                                        bg-(--text)/3 hover:bg-(--text)/5 transition-all
-                                        max-w-full sm:max-w-sm min-w-0 overflow-hidden
-                                    "
-                                    :title="file.originalName"
-                                >
-
-                                    <div class="w-10 h-10 shrink-0 flex items-center justify-center rounded bg-(--bg) border border-(--text)/5">
-
-                                        <i class="bi text-xl" :class="[ getFileInfo(file as any).color, getFileInfo(file as any).icon ]" />
-
-                                    </div>
-
-                                    <div class="flex flex-col min-w-0 flex-1 pr-2">
-                                        <span class="text-xs font-medium text-(--text) truncate min-w-0">
-                                            {{ file.originalName }}
-                                        </span>
-                                        <span class="text-[10px] text-(--text2) uppercase tracking-wider">
-                                            {{ (file.size / 1024 / 1024).toFixed(2) }} MB
-                                        </span>
-                                    </div>
-
-                                    <button 
-                                        @click="downloadFile(file.id)"
-                                        class="ml-auto p-1.5 rounded-md hover:bg-(--primary)/20 text-(--text2) hover:text-(--primary) transition-colors"
-                                        title="Télécharger"
-                                    >
-                                        <i class="bi bi-download" />
-                                    </button>
-
-                                </div>
-                                
-                            </div>
+                            <MessageAttachments v-if="msg.files && msg.files.length > 0" :files="msg.files" />
 
                         </div>
 
@@ -257,13 +232,12 @@ import useResponse from '@/composables/useResponse';
 import useWSocket from '@/composables/useWSocket';
 import MessageReactions from '@/components/common/MessageReactions.vue';
 import type { Message } from '@/types/types';
-import { downloadFile } from '@/assets/utils/downloadFile';
+import MessageAttachments from './MessageAttachments.vue';
 import { encryptMessageWithContentKey } from '@/assets/utils/crypto';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import ThreadTextarea from './ThreadTextarea.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { user, member, openedOrg } from '@/assets/var';
-import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useToast } from '@/composables/useToast';
 import { openProfile } from '@/composables/useProfile';
 import WebhookEmbed from './WebhookEmbed.vue';
