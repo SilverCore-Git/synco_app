@@ -460,6 +460,7 @@ import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import confetti from 'canvas-confetti';
 import { useNotification } from '@/composables/useNotification';
 import { useTaskOrder } from '@/composables/useTaskOrder';
+import { usePersistedTaskFilters } from '@/composables/usePersistedTaskFilters';
 
 const route = useRoute();
 const router = useRouter();
@@ -471,8 +472,9 @@ const { markTasksAsRead } = useNotification();
 const tasks = ref<Task[]>([]);
 const loading = ref(true);
 const draggedOverCol = ref<string | null>(null);
-const filterUserId = ref<string | null>(null);
-const filterTagIds = ref<string[]>([]);
+const { filterUserId, filterTagIds } = usePersistedTaskFilters(
+    () => `task-filters:${user.value?.id}:${route.params.orgId}:space:${route.params.spaceId}`
+);
 
 const isDraggingTask = ref(false);
 const isHoveringTrash = ref(false);
