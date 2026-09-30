@@ -183,7 +183,8 @@ import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import Popup from '@/components/Popup.vue';
 import MarkdownDocumentPreview from './MarkdownDocumentPreview.vue';
 import { getWorkspaceKey } from '@/assets/utils/workspaceCrypto';
-import { decryptFileLocal, encryptFileLocal } from '@/assets/utils/crypto';
+import { encryptFileLocal } from '@/assets/utils/crypto';
+import { decryptStoredFile } from '@/assets/utils/chunkedCrypto';
 import { VueMonacoEditor, loader } from '@guolao/vue-monaco-editor';
 
 import * as monaco from 'monaco-editor';
@@ -365,12 +366,7 @@ const disableE2EE = async () => {
         
         const buffer = await res.arrayBuffer();
         const { key: spaceKey } = await getWorkspaceKey(props.file.workspaceId!);
-        const decryptedBuffer = await decryptFileLocal(
-            buffer, 
-            props.file.encryptedFileKey!, 
-            props.file.iv!, 
-            spaceKey
-        );
+        const decryptedBuffer = await decryptStoredFile(buffer, { encryptedFileKey: props.file.encryptedFileKey!, iv: props.file.iv! }, spaceKey);
         
         const blob = new Blob([decryptedBuffer], { type: props.file.mimeType });
         const formData = new FormData();
@@ -425,7 +421,7 @@ const fetchTextContent = async () => {
       if (props.file.isE2EE && props.file.workspaceId && props.file.encryptedFileKey && props.file.iv) {
         const buffer = await res.arrayBuffer();
         const { key: spaceKey } = await getWorkspaceKey(props.file.workspaceId);
-        const decryptedBuffer = await decryptFileLocal(buffer, props.file.encryptedFileKey, props.file.iv, spaceKey);
+        const decryptedBuffer = await decryptStoredFile(buffer, { encryptedFileKey: props.file.encryptedFileKey!, iv: props.file.iv! }, spaceKey);
         const text = new TextDecoder().decode(decryptedBuffer);
         fileContent.value = text;
         originalFileContent.value = text;
@@ -452,12 +448,7 @@ const loadE2EEPreview = async () => {
     if (res.ok) {
       const buffer = await res.arrayBuffer();
       const { key: spaceKey } = await getWorkspaceKey(props.file.workspaceId);
-      const decryptedBuffer = await decryptFileLocal(
-        buffer, 
-        props.file.encryptedFileKey!, 
-        props.file.iv!, 
-        spaceKey
-      );
+      const decryptedBuffer = await decryptStoredFile(buffer, { encryptedFileKey: props.file.encryptedFileKey!, iv: props.file.iv! }, spaceKey);
       const blob = new Blob([decryptedBuffer], { type: props.file.mimeType });
       e2eeObjectUrl.value = URL.createObjectURL(blob);
     }

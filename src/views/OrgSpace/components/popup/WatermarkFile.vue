@@ -58,7 +58,7 @@ import { keycloak } from '@/assets/keycloak';
 import { watermarkImageLocal, watermarkPDFLocal } from '@/assets/utils/watermark';
 import { uploadFiles } from '@/assets/uploadFile';
 import { getWorkspaceKey } from '@/assets/utils/workspaceCrypto';
-import { decryptFileLocal } from '@/assets/utils/crypto';
+import { decryptStoredFile } from '@/assets/utils/chunkedCrypto';
 
 const emit = defineEmits([ 'close', 'created' ]);
 
@@ -103,12 +103,7 @@ const handleSubmit = async () => {
         
         if (props.file.isE2EE && props.file.workspaceId) {
             const { key: spaceKey } = await getWorkspaceKey(props.file.workspaceId);
-            buffer = await decryptFileLocal(
-                buffer,
-                props.file.encryptedFileKey!,
-                props.file.iv!,
-                spaceKey
-            );
+            buffer = await decryptStoredFile(buffer, { encryptedFileKey: props.file.encryptedFileKey!, iv: props.file.iv! }, spaceKey);
         }
         
         const blob = new Blob([buffer], { type: props.file.mimeType });
