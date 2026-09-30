@@ -4,13 +4,35 @@ import { privateKey, decryptSpaceKeyWithRsa, generateSpaceKey, encryptSpaceKeyFo
 // Cache for Workspace keys
 const workspaceKeyCache = new Map<string, CryptoKey>();
 const workspaceKeyVersionCache = new Map<string, number>();
+// Appels en cours : N uploads lancés en même temps dans un espace partagent
+// la même résolution de clé au lieu de faire N GET (et, si la clé n'existe
+// pas encore, N générations concurrentes de clés différentes).
+const workspaceKeyInflight = new Map<string, Promise<{ key: CryptoKey, version: number }>>();
 
 /**
  * Gets the WorkspaceKey for the given workspaceId.
  * If the key doesn't exist yet, it fetches all members' public keys,
  * generates a new WorkspaceKey (v1), encrypts it for everyone, and saves it.
  */
-export async function getWorkspaceKey(workspaceId: string): Promise<{ key: CryptoKey, version: number }> {
+export function getWorkspaceKey(workspaceId: string): Promise<{ key: CryptoKey, version: number }> {
+    const inflight = workspaceKeyInflight.get(workspaceId);
+    if (inflight) return inflight;
+    const promise = resolveWorkspaceKey(workspaceId).finally(() => workspaceKeyInflight.delete(workspaceId));
+    workspaceKeyInflight.set(workspaceId, promise);
+    return promise;
+}
+
+async function fetchWorkspaceKey(workspaceId: string, response?: Response): Promise<{ key: CryptoKey, version: number } | null> {
+    const res = response ?? await sfetch(`/api/spaces/${workspaceId}/key`, { method: 'GET' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const decryptedKey = await decryptSpaceKeyWithRsa(data.encryptedKey, privateKey.value!);
+    workspaceKeyCache.set(workspaceId, decryptedKey);
+    workspaceKeyVersionCache.set(workspaceId, data.version);
+    return { key: decryptedKey, version: data.version };
+}
+
+async function resolveWorkspaceKey(workspaceId: string): Promise<{ key: CryptoKey, version: number }> {
     
     // 1. Check cache
     if (workspaceKeyCache.has(workspaceId)) {
@@ -29,13 +51,7 @@ export async function getWorkspaceKey(workspaceId: string): Promise<{ key: Crypt
         const response = await sfetch(`/api/spaces/${workspaceId}/key`, { method: 'GET' });
         
         if (response.ok) {
-            const data = await response.json();
-            const decryptedKey = await decryptSpaceKeyWithRsa(data.encryptedKey, privateKey.value);
-            
-            workspaceKeyCache.set(workspaceId, decryptedKey);
-            workspaceKeyVersionCache.set(workspaceId, data.version);
-            
-            return { key: decryptedKey, version: data.version };
+            return (await fetchWorkspaceKey(workspaceId, response))!;
         }
         else if (response.status === 404) 
         {
@@ -85,6 +101,12 @@ export async function getWorkspaceKey(workspaceId: string): Promise<{ key: Crypt
                     workspaceKeyCache.set(workspaceId, newSpaceKey);
                     workspaceKeyVersionCache.set(workspaceId, version);
                     return { key: newSpaceKey, version };
+                } else if (saveResponse.status === 409) {
+                    // Un autre client a persisté sa clé avant nous : c'est
+                    // elle qui fait foi, la nôtre est jetée.
+                    const persisted = await fetchWorkspaceKey(workspaceId);
+                    if (!persisted) throw new Error("Failed to fetch concurrently created WorkspaceKey");
+                    return persisted;
                 } else {
                     throw new Error("Failed to save new WorkspaceKey");
                 }
