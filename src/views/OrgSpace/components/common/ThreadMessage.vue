@@ -77,7 +77,7 @@
                             :class="btn.class"
                             @click="btn.func(msg, $event)"
                         >
-                            <i class="bi text-lg" :class="btn.icon" />
+                            <i :key="btn.icon" class="bi text-lg" :class="btn.icon" />
                         </button>
 
                         <!-- <button @click="showPlusDropdown = !showPlusDropdown" class="dropdown-item-annimate dropdown-item-style">
@@ -281,11 +281,27 @@ function isMessageOwner(msg: Message): boolean {
     return msg.senderId === user.value?.id;
 }
 
+const copied = ref<boolean>(false);
+let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+
+const copyMessage = async (msg: Message) => {
+    try {
+        await navigator.clipboard.writeText(msg.content);
+        copied.value = true;
+        clearTimeout(copiedTimer);
+        copiedTimer = setTimeout(() => copied.value = false, 1500);
+    } catch {
+        toast.show("Échec de la copie", "error");
+    }
+};
+
 const dropdownBtns: DropdownBtn[] = [
     {
-        icon: "bi-clipboard-fill",
+        // Getter : l'icône bascule sur une coche le temps du feedback, et la
+        // `:key` sur l'<i> relance l'animation `copy-pop` à chaque bascule.
+        get icon() { return copied.value ? "bi-check-lg copy-pop text-(--primary)" : "bi-clipboard-fill"; },
         tooltip: "copier",
-        func: () => {},
+        func: (msg: Message) => copyMessage(msg),
         show: () => true
     },
     {
@@ -465,6 +481,17 @@ const saveEdit = async () => {
 </script>
 
 <style scoped>
+
+.copy-pop {
+    display: inline-block;
+    animation: copy-pop 0.35s ease-out;
+}
+
+@keyframes copy-pop {
+    0%   { transform: scale(0.4) rotate(-20deg); opacity: 0; }
+    60%  { transform: scale(1.25) rotate(5deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0); }
+}
 
 :deep(.mention-tag) {
     display: inline-flex;
