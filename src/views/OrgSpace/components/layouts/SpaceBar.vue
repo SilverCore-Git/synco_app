@@ -3,6 +3,7 @@
 import SpaceBarBTN from '../common/SpaceBarBTN.vue';
 import DropDown from '@/components/DropDown.vue';
 import { useNotificationMutes } from '@/composables/useNotificationMutes';
+import MuteMenuItems from '@/components/common/MuteMenuItems.vue';
 import { useRoute, useRouter } from 'vue-router';
 import CreateNewSpace from '../popup/CreateNewSpace.vue';
 import { openedOrg, todoEnabled, aiEnabled, agendaEnabled, user, userCardHeight } from '@/assets/var';
@@ -21,7 +22,7 @@ const orgId = computed(() => openedOrg.value?.id);
 const { canAny } = usePermissions(orgId);
 const { getUnreadCountBySpaceId, getUnreadCountForTasks, getUnreadCountForDMs } = useNotification();
 const { refreshForOrg, spaceHasVoiceActivity } = useVoicePresence();
-const { isSpaceMuted, toggleSpaceMute } = useNotificationMutes();
+const { isSpaceMuted } = useNotificationMutes();
 
 const localSpaces = ref<WorkSpace[]>([]);
 
@@ -178,10 +179,7 @@ const onSpaceOrderChange = async () => {
                                 />
                             </template>
                             <template #content>
-                                <button @click="toggleSpaceMute(space.id)" class="dropdown-item-annimate dropdown-item-style">
-                                    <i class="bi mr-2" :class="isSpaceMuted(space.id) ? 'bi-bell-fill' : 'bi-bell-slash-fill'" />
-                                    {{ isSpaceMuted(space.id) ? 'Réactiver les notifications' : 'Désactiver les notifications' }}
-                                </button>
+                                <MuteMenuItems kind="space" :id="space.id" />
                             </template>
                         </DropDown>
                     </RouterLink>

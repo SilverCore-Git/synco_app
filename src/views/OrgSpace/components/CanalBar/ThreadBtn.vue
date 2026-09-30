@@ -61,10 +61,7 @@
                 Copier l'ID
             </button>
 
-            <button @click="toggleThreadMute(thread.id)" class="dropdown-item-annimate dropdown-item-style">
-                <i class="bi mr-2" :class="muted ? 'bi-bell-fill' : 'bi-bell-slash-fill'" />
-                {{ muted ? 'Réactiver les notifications' : 'Désactiver les notifications' }}
-            </button>
+            <MuteMenuItems kind="thread" :id="thread.id" separator />
 
             <button @click="showEditThread = !showEditThread" class="dropdown-item-annimate dropdown-item-style">
                 <i class="bi bi-pencil-fill mr-2" />
@@ -111,6 +108,7 @@ import { useToast } from '@/composables/useToast';
 import { usePermissions } from '@/composables/usePermissions';
 import { computed } from 'vue';
 import { useNotificationMutes } from '@/composables/useNotificationMutes';
+import MuteMenuItems from '@/components/common/MuteMenuItems.vue';
 const props = defineProps<{
   thread: Thread;
   active?: boolean;
@@ -130,7 +128,7 @@ const toast = useToast();
 const orgId = computed(() => openedOrg.value?.id);
 const { can } = usePermissions(orgId);
 const { Item: devMode } = useSettingsItem('devMode', false);
-const { isThreadMuted, toggleThreadMute } = useNotificationMutes();
+const { isThreadMuted } = useNotificationMutes();
 const muted = computed(() => isThreadMuted(props.thread.id));
 
 const copyThreadId = () => {
