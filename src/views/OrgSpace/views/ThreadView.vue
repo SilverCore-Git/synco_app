@@ -5,7 +5,7 @@
         @scroll="handleScroll"
         @media-loaded="onMediaLoaded"
         class="flex-1 overflow-y-auto px-4 w-full h-full"
-        :class="messageWillBeResponded || selectedFiles.length ? 'mb-32' : 'mb-14'"
+        :style="{ marginBottom: footerHeight + 'px' }"
     >
 
         <div 
@@ -99,33 +99,15 @@
 
     </main>
 
-    <footer v-if="thread" class="absolute bottom-0 inset-x-0 z-[110] p-1 bg-transparent mt-auto">
+    <footer v-if="thread" ref="footerRef" class="absolute bottom-0 inset-x-0 z-[110] p-1 bg-transparent mt-auto">
 
         <transition name="fade-bottom">
 
-            <div 
-                v-if="messageWillBeResponded" 
-                class="
-                    z-50 mb-2 flex items-center gap-3 bg-(--bg)/80 backdrop-blur-3xl
-                    border border-(--primary)/30 rounded-lg px-4 py-3
-                "
-            >
-                
-                <div class="flex-1 min-w-0">
-                    <p class="text-md text-(--primary) font-semibold mb-1">
-                        Répondre à {{ getMessageSenderName(messageWillBeResponded as Message) }}
-                    </p>
-                </div>
-
-                <button 
-                    @click="cancelReply"
-                    class="shrink-0 text-(--text2) hover:text-(--text) transition-colors"
-                    title="Annuler la réponse"
-                >
-                    <i class="bi bi-x-lg text-lg" />
-                </button>
-
-            </div>
+            <ReplyBanner
+                v-if="messageWillBeResponded"
+                :msg="messageWillBeResponded"
+                @cancel="cancelReply"
+            />
 
         </transition>
 
@@ -282,6 +264,8 @@ import { useToast } from '@/composables/useToast';
 import { openedOrg, user } from '@/assets/var';
 import SpinLoader from '@/components/SpinLoader.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
+import ReplyBanner from '../components/common/ReplyBanner.vue';
+import useFooterInset from '@/composables/useFooterInset';
 import useResponse from '@/composables/useResponse';
 import { extractReferenceTokens } from '@/composables/useReferences';
 import { uploadFiles } from '@/assets/uploadFile';
@@ -346,6 +330,8 @@ const socket = ref<any>(null);
 const rawMessages = ref<Map<string, Message>>(new Map());
 const newMessage = ref<string>("");
 const messagesContainer = ref<HTMLElement | null>(null);
+const footerRef = ref<HTMLElement | null>(null);
+const { footerHeight } = useFooterInset(footerRef, messagesContainer, 56);
 const loading = ref<boolean>(true);
 const debugMsg = ref<string>('');
 const hasMore = ref<boolean>(true);
@@ -1044,10 +1030,6 @@ const scrollToBottom = async (instant = false) => {
     {
         messagesContainer.value.scrollTo({ top: messagesContainer.value.scrollHeight, behavior: instant ? 'auto' : 'smooth' });
     }
-};
-
-const getMessageSenderName = (msg: Message): string => {
-    return msg.sender?.name || 'Anonyme';
 };
 
 const cancelReply = () => {

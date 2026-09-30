@@ -80,7 +80,8 @@
             ref="messagesContainer"
             @scroll="handleScroll"
             @media-loaded="onMediaLoaded"
-            class="flex-1 overflow-y-auto p-4 custom-scrollbar w-full mb-18"
+            class="flex-1 overflow-y-auto p-4 custom-scrollbar w-full"
+            :style="{ marginBottom: footerHeight + 'px' }"
         >
                 
             <div v-if="recipient" class="flex flex-col justify-end min-h-full w-full">
@@ -155,7 +156,7 @@
 
         </main>
 
-        <footer v-if="recipient" class="absolute bottom-0 inset-x-0 z-[110] p-1 bg-transparent mt-auto">
+        <footer v-if="recipient" ref="footerRef" class="absolute bottom-0 inset-x-0 z-[110] p-1 bg-transparent mt-auto">
 
             <div v-if="isSomeoneTyping" class="h-5 flex justify-start items-center px-4 gap-2 select-none">
             
@@ -176,29 +177,11 @@
 
             <transition name="fade-bottom">
 
-                <div 
-                    v-if="messageWillBeResponded" 
-                    class="
-                        z-50 mb-2 flex items-center gap-3 bg-(--bg)/80 backdrop-blur-3xl
-                        border border-(--primary)/30 rounded-lg px-4 py-3
-                    "
-                >
-                    
-                    <div class="flex-1 min-w-0">
-                        <p class="text-md text-(--primary) font-semibold mb-1">
-                            Répondre à {{ getMessageSenderName(messageWillBeResponded as any) }}
-                        </p>
-                    </div>
-
-                    <button 
-                        @click="cancelReply"
-                        class="shrink-0 text-(--text2) hover:text-(--text) transition-colors"
-                        title="Annuler la réponse"
-                    >
-                        <i class="bi bi-x-lg text-lg" />
-                    </button>
-
-                </div>
+                <ReplyBanner
+                    v-if="messageWillBeResponded"
+                    :msg="messageWillBeResponded"
+                    @cancel="cancelReply"
+                />
 
             </transition>
 
@@ -389,6 +372,8 @@ import { extractReferenceTokens } from '@/composables/useReferences';
 import PrivateMeetView from './PrivateMeetView.vue';
 import usePrivateMeet from '@/composables/usePrivatMeet';
 import ChatMessage from '../components/common/ChatMessage.vue';
+import ReplyBanner from '../components/common/ReplyBanner.vue';
+import useFooterInset from '@/composables/useFooterInset';
 import { uploadFiles } from '@/assets/uploadFile';
 import useResponse from '@/composables/useResponse';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
@@ -431,6 +416,8 @@ const isE2EEEnabled = ref<boolean>(true);
 const messages = ref<any[]>([]);
 const newMessage = ref<string>("");
 const messagesContainer = ref<HTMLElement | null>(null);
+const footerRef = ref<HTMLElement | null>(null);
+const { footerHeight } = useFooterInset(footerRef, messagesContainer, 72);
 const loading = ref<boolean>(true);
 const isFetchingMore = ref<boolean>(false);
 const hasMore = ref<boolean>(true);
@@ -832,10 +819,6 @@ const scrollToSelectedMessage = async () => {
     const targetEl = document.getElementById(`msg-${selectedMessage.value}`);
     if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-};
-
-const getMessageSenderName = (msg: DMMessage): string => {
-    return msg.sender?.name || 'Anonyme';
 };
 
 // TOFU pinning for the recipient's E2EE public key (audit finding #3): the
