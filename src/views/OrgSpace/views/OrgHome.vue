@@ -9,6 +9,13 @@
 
             <div class="ml-auto flex items-center gap-4 text-(--text2)">
                 <button
+                    @click="markAllRead"
+                    class="hover:text-(--text) transition-colors"
+                    title="Tout marquer comme lu"
+                >
+                    <i class="bi bi-check2-all" />
+                </button>
+                <button
                     @click="showUsersBar = !showUsersBar"
                     class="hover:text-(--text) transition-colors"
                     :class="showUsersBar ? 'text-(--text)' : ''"
@@ -24,16 +31,16 @@
             </h2>
 
             <div class="dash-grid">
-                <NotificationsCard class="animate-app-reveal" style="animation-delay: 0.06s" />
+                <NotificationsCard ref="notificationsCard" class="animate-app-reveal" style="animation-delay: 0.06s" />
                 <AgendaCard v-if="agendaEnabled" class="animate-app-reveal" style="animation-delay: 0.12s" />
-                <TodosCard v-if="todoEnabled" class="animate-app-reveal" style="animation-delay: 0.18s" />
+                <TodosCard v-if="todoEnabled" ref="todosCard" class="animate-app-reveal" style="animation-delay: 0.18s" />
             </div>
         </main>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue';
+import { computed, useTemplateRef } from 'vue';
 import { user, todoEnabled, agendaEnabled } from '@/assets/var';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import NotificationsCard from '../components/Home/NotificationsCard.vue';
@@ -42,6 +49,16 @@ import TodosCard from '../components/Home/TodosCard.vue';
 import { useUsersBar } from '@/composables/useUsersBar';
 
 const { showUsersBar } = useUsersBar();
+
+const notificationsCard = useTemplateRef<InstanceType<typeof NotificationsCard>>('notificationsCard');
+const todosCard = useTemplateRef<InstanceType<typeof TodosCard>>('todosCard');
+
+async function markAllRead() {
+    await Promise.all([
+        notificationsCard.value?.markAllRead(),
+        todosCard.value?.markAllRead()
+    ]);
+}
 
 const greeting = computed(() => {
     const hour = new Date().getHours();
