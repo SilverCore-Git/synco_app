@@ -155,11 +155,15 @@
                     <div
                         v-for="task in filteredTasks(mobileActiveColumn)" :key="task.id"
                         @click="openTaskDetails(task)"
-                        class="bg-(--bg2) border border-(--text)/10 p-4 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
+                        class="border p-4 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
+                        :class="isTaskOverdue(task) ? TASK_CARD_OVERDUE_CLASS : 'bg-(--bg2) border-(--text)/10'"
                     >
                         <p class="text-sm font-bold text-(--text) leading-snug">{{ task.title }}</p>
                         <span v-if="task.parentTask" class="text-[9px] font-bold text-(--primary) uppercase flex items-center gap-1 opacity-80 mt-1">
                             <i class="bi bi-arrow-return-right"></i> {{ task.parentTask.title }}
+                        </span>
+                        <span v-if="isTaskOverdue(task)" class="self-start mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500 text-white text-[9px] font-black uppercase tracking-wider">
+                            <i class="bi bi-exclamation-triangle-fill"></i> {{ overdueLabel(task.dueDate!) }}
                         </span>
 
                         <div v-if="task.tags?.length" class="flex flex-wrap gap-1 mt-2">
@@ -259,8 +263,9 @@
                              @dragover.prevent="onCardDragOver($event, task)"
                              @drop.stop="onCardDrop($event, task, col.id)"
                              @click="openTaskDetails(task)"
-                             class="bg-(--bg2) border border-(--text)/10 p-4 rounded-xl cursor-pointer active:cursor-grabbing hover:border-(--primary)/50 transition-all shadow-lg hover:shadow-[0_8px_30px_var(--shadow-elevated)] group relative overflow-hidden"
+                             class="border p-4 rounded-xl cursor-pointer active:cursor-grabbing transition-all group relative overflow-hidden"
                              :class="[
+                                isTaskOverdue(task) ? TASK_CARD_OVERDUE_CLASS : TASK_CARD_NORMAL_CLASS,
                                 dragOverTaskId === task.id && dragOverPosition === 'before' ? 'border-t-2 border-t-(--primary)' : '',
                                 dragOverTaskId === task.id && dragOverPosition === 'after' ? 'border-b-2 border-b-(--primary)' : ''
                              ]"
@@ -270,6 +275,9 @@
                                     <p class="text-sm font-bold text-(--text) leading-snug">{{ task.title }}</p>
                                     <span v-if="task.parentTask" class="text-[9px] font-bold text-(--primary) uppercase flex items-center gap-1 opacity-80">
                                         <i class="bi bi-arrow-return-right"></i> {{ task.parentTask.title }}
+                                    </span>
+                                    <span v-if="isTaskOverdue(task)" class="self-start mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500 text-white text-[9px] font-black uppercase tracking-wider">
+                                        <i class="bi bi-exclamation-triangle-fill"></i> {{ overdueLabel(task.dueDate!) }}
                                     </span>
                                 </div>
                             </div>
@@ -461,6 +469,7 @@ import confetti from 'canvas-confetti';
 import { useNotification } from '@/composables/useNotification';
 import { useTaskOrder } from '@/composables/useTaskOrder';
 import { usePersistedTaskFilters } from '@/composables/usePersistedTaskFilters';
+import { isTaskOverdue, overdueLabel, TASK_CARD_NORMAL_CLASS, TASK_CARD_OVERDUE_CLASS } from '@/assets/utils/taskOverdue';
 
 const route = useRoute();
 const router = useRouter();
@@ -568,7 +577,7 @@ const getProgress = (task: Task) => {
     const end = new Date(task.dueDate).getTime();
     const now = new Date().getTime();
     
-    if (now > end) return { percent: 100, text: 'En retard', color: 'bg-red-500' };
+    if (now > end) return { percent: 100, text: overdueLabel(task.dueDate), color: 'bg-red-500' };
     
     const total = end - start;
     const passed = now - start;

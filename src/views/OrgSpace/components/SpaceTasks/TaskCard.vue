@@ -1,6 +1,7 @@
 <template>
     <div
-         class="bg-(--bg2) border border-(--text)/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg hover:shadow-[0_8px_30px_var(--shadow-elevated)] group relative overflow-hidden text-left w-full"
+         class="border p-4 rounded-xl cursor-pointer transition-all group relative overflow-hidden text-left w-full"
+         :class="isTaskOverdue(task) ? TASK_CARD_OVERDUE_CLASS : TASK_CARD_NORMAL_CLASS"
     >
         <div class="flex justify-between items-start gap-2">
             <div class="flex flex-col gap-1 w-full">
@@ -10,6 +11,9 @@
                 </p>
                 <span v-if="task.parentTask" class="text-[9px] font-bold text-(--primary) uppercase flex items-center gap-1 opacity-80">
                     <i class="bi bi-arrow-return-right"></i> {{ task.parentTask.title }}
+                </span>
+                <span v-if="isTaskOverdue(task)" class="self-start mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500 text-white text-[9px] font-black uppercase tracking-wider">
+                    <i class="bi bi-exclamation-triangle-fill"></i> {{ overdueLabel(task.dueDate!) }}
                 </span>
             </div>
             <slot name="header-right"></slot>
@@ -82,6 +86,7 @@
 
 <script setup lang="ts">
 import type { Task } from '@/types/types';
+import { isTaskOverdue, overdueLabel, TASK_CARD_NORMAL_CLASS, TASK_CARD_OVERDUE_CLASS } from '@/assets/utils/taskOverdue';
 
 defineProps<{ task: Task }>();
 
@@ -91,7 +96,7 @@ const getProgress = (task: Task) => {
     const end = new Date(task.dueDate).getTime();
     const now = new Date().getTime();
     
-    if (now > end) return { percent: 100, text: 'En retard', color: 'bg-red-500' };
+    if (now > end) return { percent: 100, text: overdueLabel(task.dueDate), color: 'bg-red-500' };
     
     const total = end - start;
     const passed = now - start;
