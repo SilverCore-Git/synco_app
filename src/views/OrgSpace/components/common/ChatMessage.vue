@@ -49,13 +49,19 @@
                             @{{ $p(msg.replyMessage?.sender?.name) || 'Anonyme' }}
                         </span>
 
-                        <div class="max-w-md opacity-70 pointer-events-none text-[11px] line-clamp-1 [&_p]:inline [&_h1]:inline [&_h2]:inline [&_h3]:inline">
+                        <!-- Citation encore chiffrée : déchiffrée en dernier (palier 3, cf. ChatView.vue). -->
+                        <div v-if="msg.replyMessage.decrypting" class="flex items-center gap-1.5 opacity-60" title="Déchiffrement…">
+                            <i class="bi bi-lock-fill text-[10px]" />
+                            <div class="h-2.5 w-32 rounded-full bg-(--text)/10 animate-pulse" />
+                        </div>
+                        <div v-else class="max-w-md opacity-70 pointer-events-none text-[11px] line-clamp-1 [&_p]:inline [&_h1]:inline [&_h2]:inline [&_h3]:inline">
                             <MarkdownRender :content="msg.replyMessage?.content || ''" :show-reference-cards="false" />
                         </div>
 
                     </div>
 
                     <div 
+                        v-if="!msg.decrypting"
                         class="
                             absolute -top-5 right-3 sdropdown 
                             flex-raw items-start z-80
@@ -156,6 +162,10 @@
                                     <p class="text-[10px] text-(--text2) mt-1">
                                         échap pour annuler • entrée pour enregistrer
                                     </p>
+                                </div>
+                                <!-- Contenu encore chiffré (palier 2, cf. ChatView.vue) : jamais afficher msg.content ici. -->
+                                <div v-else-if="msg.decrypting" class="py-1 space-y-1.5" title="Déchiffrement…">
+                                    <div class="h-3.5 w-3/4 max-w-md rounded-lg bg-(--text)/5 animate-pulse" />
                                 </div>
                                 <div v-else class="text-(--text) text-sm leading-relaxed wrap-break-word">
                                     <MarkdownRender
@@ -418,7 +428,7 @@ const showActionSheet = ref<boolean>(false);
 const reactionsRef = ref<InstanceType<typeof MessageReactions> | null>(null);
 
 const longPress = useLongPress(() => {
-    if (props.isEditing) return;
+    if (props.isEditing || props.msg.decrypting) return;
     showActionSheet.value = true;
 });
 
