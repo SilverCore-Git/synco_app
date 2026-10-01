@@ -63,7 +63,7 @@ Elles suivent le régime des fichiers (fiche [05](./05-fichiers-et-stockage.md))
 | Cas | E2EE |
 |---|---|
 | Tâche rattachée à un espace (`spaceId` renseigné) | ✅ Oui (`WorkspaceKey`) |
-| Tâche **hors espace** (`spaceId` nul) | ❌ **Non** — SSE serveur uniquement |
+| Tâche **hors espace** (`spaceId` nul) | Pas d'images : aucune clé partagée, l'interface demande de rattacher la tâche à un projet |
 
 Elles sont rangées dans `<espace>/Tâches/<titre de la tâche>` via `ensureTaskAttachmentsFolder`. ⚠️ **Le titre de la tâche apparaît donc comme nom de dossier** dans le gestionnaire de fichiers — `Folder.name` est chiffré en base, mais c'est une duplication de la donnée à connaître.
 

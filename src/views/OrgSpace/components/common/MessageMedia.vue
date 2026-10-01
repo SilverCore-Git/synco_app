@@ -12,6 +12,9 @@
                         {{ file.originalName }}
                     </span>
                     <span class="text-[10px] text-(--text2) uppercase tracking-wider shrink-0">{{ sizeLabel }}</span>
+                    <button v-if="file.workspaceId" @click="reveal" class="p-1.5 rounded-md hover:bg-(--primary)/20 text-(--text2) hover:text-(--primary) transition-colors shrink-0" title="Afficher dans les fichiers">
+                        <i class="bi bi-folder2-open" />
+                    </button>
                     <button @click="download" class="p-1.5 rounded-md hover:bg-(--primary)/20 text-(--text2) hover:text-(--primary) transition-colors shrink-0" title="Télécharger">
                         <i class="bi bi-download" />
                     </button>
@@ -36,13 +39,23 @@
                     @error="onMediaError"
                 />
 
-                <button
-                    @click="download"
-                    class="absolute top-2 right-2 p-1.5 rounded-md bg-(--bg)/80 text-(--text2) hover:text-(--primary) opacity-0 group-hover/media:opacity-100 focus:opacity-100 transition-opacity"
-                    title="Télécharger"
-                >
-                    <i class="bi bi-download" />
-                </button>
+                <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover/media:opacity-100 focus-within:opacity-100 transition-opacity">
+                    <button
+                        v-if="file.workspaceId"
+                        @click="reveal"
+                        class="p-1.5 rounded-md bg-(--bg)/80 text-(--text2) hover:text-(--primary)"
+                        title="Afficher dans les fichiers"
+                    >
+                        <i class="bi bi-folder2-open" />
+                    </button>
+                    <button
+                        @click="download"
+                        class="p-1.5 rounded-md bg-(--bg)/80 text-(--text2) hover:text-(--primary)"
+                        title="Télécharger"
+                    >
+                        <i class="bi bi-download" />
+                    </button>
+                </div>
 
             </div>
 
@@ -56,7 +69,7 @@
             :title="file.originalName"
         >
             <div class="w-6 h-6 rounded-full border-2 border-(--primary) border-t-transparent animate-spin" />
-            <span class="text-[10px] px-3 truncate max-w-full">{{ file.isE2EE ? 'Déchiffrement…' : 'Chargement…' }}</span>
+            <span class="text-[10px] px-3 truncate max-w-full">Déchiffrement…</span>
         </div>
 
         <!-- Au repos (> 15 Mo), chargement d'un audio, ou échec : carte fichier -->
@@ -83,8 +96,8 @@
                 @click="load"
                 class="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-(--primary)/15 text-(--primary) hover:bg-(--primary)/25 text-xs font-medium transition-colors"
             >
-                <i class="bi" :class="file.isE2EE ? 'bi-shield-lock' : 'bi-play-circle'" />
-                {{ file.isE2EE ? 'Déchiffrer' : 'Charger' }}
+                <i class="bi bi-shield-lock" />
+                Déchiffrer
             </button>
 
             <button
@@ -94,6 +107,15 @@
                 title="Réessayer"
             >
                 <i class="bi bi-arrow-clockwise" />
+            </button>
+
+            <button
+                v-if="file.workspaceId"
+                @click="reveal"
+                class="shrink-0 p-1.5 rounded-md hover:bg-(--primary)/20 text-(--text2) hover:text-(--primary) transition-colors"
+                title="Afficher dans les fichiers"
+            >
+                <i class="bi bi-folder2-open" />
             </button>
 
             <button
@@ -122,6 +144,8 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import type { StoredFile } from '@/types/types';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { downloadFile, saveObjectUrl } from '@/assets/utils/downloadFile';
+import { revealFileInFiles } from '@/composables/useReferenceNavigation';
+import { useRouter } from 'vue-router';
 import { AUTO_LOAD_MAX_BYTES, getMediaKind, type MediaKind } from '@/assets/utils/mediaTypes';
 import { mediaCache, MediaPreviewError } from '@/assets/utils/mediaPreview';
 
@@ -200,6 +224,12 @@ const notifyLoaded = () => {
 const download = () => {
     if (url.value) saveObjectUrl(url.value, props.file.originalName);
     else downloadFile(props.file.id);
+};
+
+// Emplacement du fichier dans le gestionnaire de fichiers de son espace.
+const router = useRouter();
+const reveal = () => {
+    if (props.file.workspaceId) revealFileInFiles(router, { id: props.file.id, spaceId: props.file.workspaceId });
 };
 
 onMounted(() => {

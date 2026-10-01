@@ -2,207 +2,130 @@
 
 | | |
 |---|---|
-| **Date** | 2026-09-28 |
-| **Fichiers clés** | [`src/cdn/FileCrypto.ts`](../../../synco_api/src/cdn/FileCrypto.ts), [`src/cdn/FileManager.ts`](../../../synco_api/src/cdn/FileManager.ts), [`src/cdn/cdnRoutes.ts`](../../../synco_api/src/cdn/cdnRoutes.ts), [`synco_app/src/assets/uploadFile.ts`](../../src/assets/uploadFile.ts), [`synco_app/src/assets/utils/downloadFile.ts`](../../src/assets/utils/downloadFile.ts), [`synco_app/src/assets/utils/workspaceCrypto.ts`](../../src/assets/utils/workspaceCrypto.ts) |
-| **Modèles Prisma** | `StoredFile`, `WorkspaceKey`, `DMConversationKey`, `Folder`, `FilePermission` |
-| **Statut** | ⚠️ **E2EE conditionnel** — dépend du contexte de dépôt |
+| **Date** | 2026-10-01 |
+| **Fichiers clés** | [`synco_app/src/services/transfers/`](../../src/services/transfers/) (`chunkedUpload.ts`, `chunkedDownload.ts`, `cdn.ts`), [`synco_app/src/assets/utils/chunkedCryptoCore.ts`](../../src/assets/utils/chunkedCryptoCore.ts), [`synco_app/src/assets/utils/fileKeys.ts`](../../src/assets/utils/fileKeys.ts), [`synco_api/src/cdn/`](../../../synco_api/src/cdn/) (`cdnTransfers.ts`, `cdnTickets.ts`, `cdnInternalServer.ts`), dépôt `synco_cdn` |
+| **Modèles Prisma** | `StoredFile`, `CdnTransfer`, `WorkspaceKey`, `DMConversationKey`, `ThreadKey`, `Folder`, `FilePermission` |
+| **Statut** | ✅ **Tout fichier est chiffré de bout en bout** |
 
 ---
 
-## 1. Les deux couches, toujours cumulées
+## 1. Principe
 
-Un fichier E2EE déposé dans un espace de travail est chiffré **deux fois** :
+Le contenu d'un fichier est chiffré **sur l'appareil**, avant tout envoi, et
+déchiffré **sur l'appareil** après téléchargement. Aucun serveur ne voit
+jamais le clair ni ne détient de quoi le déchiffrer :
 
-```
-Fichier original
-   │
-   ├─ [CLIENT]  AES-GCM(FileKey aléatoire)          ← E2EE
-   │            FileKey scellée par la WorkspaceKey
-   │
-   └─ [SERVEUR] AES-256-GCM(FM_ENCRYPT_KEY) + HMAC-SHA512   ← SSE (chiffrement au repos)
-                                                     │
-                                               sur le disque
-```
+- **synco_api** décide : droits, quota, métadonnées. Le contenu ne passe
+  jamais par elle.
+- **synco_cdn** (`cdn.synco.one`, service Rust) stocke et sert des octets
+  chiffrés, sans rien savoir des utilisateurs ni des clés.
 
-Un fichier **non** E2EE ne traverse que la seconde couche. **Aucun fichier n'est jamais stocké en clair sur disque.**
+Il n'existe plus de chiffrement côté serveur ni de fichier « non E2EE » : un
+contexte sans clé partagée refuse l'envoi plutôt que de stocker en clair.
 
-## 2. Couche serveur (SSE) — `FileCrypto.ts`
-
-S'applique **systématiquement**, à tout fichier, E2EE ou non.
-
-| Élément | Valeur |
-|---|---|
-| Algorithme | AES-256-GCM |
-| Clé | `FM_ENCRYPT_KEY` (32 octets, exigés en 64 caractères hexadécimaux) |
-| Dérivation | HKDF via HMAC-SHA512 avec l'étiquette `file-encryption-key-derivation` → **deux sous-clés distinctes** (chiffrement / HMAC) |
-| IV | 12 octets aléatoires par fichier |
-| Tag d'authentification GCM | 16 octets |
-| Intégrité additionnelle | **HMAC-SHA512** (64 octets) sur `version ‖ iv ‖ authTag ‖ données` |
-| Comparaison HMAC | `crypto.timingSafeEqual` (résistante aux attaques temporelles) |
-| Traitement | Par flux (`stream`), morceaux de 1 Mo |
-
-**Format sur disque :**
+## 2. Format de fichier (v2, par morceaux) — `chunkedCryptoCore.ts`
 
 ```
-[version:1][iv:12][authTag:16][hmac:64][données chiffrées…]
+DEK         = AES-GCM 256 aléatoire, unique au fichier
+chiffré     = C_0 ‖ C_1 ‖ … ‖ C_{n-1}
+C_i         = AES-GCM(DEK, nonce_i, M_i, aad_i)      M_i : 4 Mio de clair
+nonce_i     = préfixe aléatoire (8 octets) ‖ i (uint32 BE)
+aad_i       = "synco-e2ee-v2" ‖ i ‖ dernier ? 1 : 0
+encryptedFileKey = keyIv ‖ AES-GCM(KEK, keyIv, DEK)
+iv (métadonnée)  = "v2:<taille des morceaux>:<préfixe de nonce>"
 ```
 
-Le champ `version` (valeur `1`) prépare une évolution de format ; un fichier d'une version inconnue est refusé au lieu d'être interprété.
+- Chaque morceau est authentifié séparément : un morceau modifié, déplacé,
+  dupliqué ou une troncature à une frontière de morceau sont détectés
+  (index et marqueur « dernier » dans l'AAD).
+- Morceaux (dé)chiffrés en parallèle dans un pool de Web Workers : la
+  mémoire utilisée est bornée, quelle que soit la taille du fichier.
+- Hiérarchie DEK/KEK : une clé par fichier, scellée par la clé du contexte.
+  Modifier un fichier (éditeur texte) génère une **nouvelle** DEK.
 
-Le HMAC est vérifié **avant** tout déchiffrement (`decryptFile`, `createDecryptStream`, `verifyFileIntegrity`), ce qui permet de détecter une altération sans jamais exposer d'octet déchiffré.
+## 3. Les KEK : quelle clé pour quel contexte — `fileKeys.ts`
 
-Au démarrage, `validateEncryptionKey()` **refuse de démarrer** si `FM_ENCRYPT_KEY` est absente ou ne fait pas exactement 32 octets.
-
-> Choix de conception : le double emploi AES-GCM (déjà authentifié) + HMAC-SHA512 est redondant sur le plan cryptographique. Il apporte en pratique une vérification d'intégrité **sans déchiffrement** (utile pour `verifyFileIntegrity` et pour les téléchargements en flux) ; ce n'est donc pas une erreur, mais un compromis coût/robustesse assumé.
-
-## 3. Couche E2EE client — `encryptFileLocal()`
-
-```
-1. FileKey  = AES-GCM 256 générée aléatoirement, unique à ce fichier (DEK)
-2. iv       = 12 octets aléatoires
-3. ciphertext = AES-GCM(FileKey, iv, contenu du fichier)
-4. keyIv    = 12 octets aléatoires, DISTINCTS de iv
-5. encryptedFileKey = keyIv ‖ AES-GCM(KEK, keyIv, FileKey)
-```
-
-Deux points notables :
-
-- **Hiérarchie DEK/KEK classique** : une clé par fichier (DEK), scellée par la clé de l'espace ou de la conversation (KEK). Partager un fichier ne révèle jamais la KEK.
-- **IV dédié pour le scellement de clé.** Le commentaire du code est explicite : ne jamais réutiliser un IV entre deux opérations AES-GCM, même sous des clés différentes. Le `keyIv` est préfixé au ciphertext de la clé, ce qui évite une colonne supplémentaire en base.
-
-### Compatibilité ascendante
-
-`decryptFileLocal()` tente d'abord le format actuel (`keyIv` en préfixe), et **se replie sur l'ancien format** (où la `FileKey` était scellée avec l'IV du fichier lui-même) en cas d'échec. La détection se fait **par le tag d'authentification AES-GCM**, pas par un marqueur de version explicite — les fichiers antérieurs au correctif restent donc lisibles.
-
-## 4. Les KEK : quelle clé pour quel contexte
-
-| Contexte de dépôt | KEK utilisée | Provenance |
+| Contexte | KEK | Qui peut déchiffrer |
 |---|---|---|
-| Espace de travail (`workspaceId`) | `WorkspaceKey` | [`workspaceCrypto.ts`](../../src/assets/utils/workspaceCrypto.ts) |
-| Pièce jointe de DM (`dmPeerId`) | `DMConversationKey` | [`dmCrypto.ts`](../../src/assets/utils/dmCrypto.ts) |
-| **Tout le reste** | **aucune** | ❌ **pas d'E2EE** |
+| Espace (fichiers, salons d'espace, tâches d'un projet) | `WorkspaceKey` | Membres de l'espace |
+| Pièce jointe de DM | `DMConversationKey` | Les 2 participants |
+| Salon d'accueil d'organisation | `ThreadKey` (la clé des messages du salon) | Membres du salon |
+| Tâche sans projet | — | **Images refusées** (« rattachez la tâche à un projet ») |
 
-### `WorkspaceKey` — bootstrap et distribution
+`GET /api/cdn/meta/:id` renvoie de quoi retrouver la KEK : `workspaceId`,
+`dmPeerId` (l'autre participant, résolu par l'API) ou `threadId` (salon
+d'une pièce jointe hors espace).
+
+## 4. Transferts : tickets signés
 
 ```
-GET /api/spaces/:id/key
-  ├─ 200 → { encryptedKey, version } → RSA-OAEP → CryptoKey AES-GCM (mise en cache mémoire)
-  └─ 404 → GET /api/spaces/:id/members-keys   (clés publiques de tous les membres)
-           génération d'une nouvelle WorkspaceKey (v1)
-           scellement RSA-OAEP pour CHAQUE membre possédant une publicKey
-           POST /api/spaces/:id/key { keys: [...], version: 1 }   ← réservé aux admins
+Envoi
+  app ──POST /api/cdn/transfers/uploads──▶ API : droits, quota, CdnTransfer
+      ◀── ticket « up » (Ed25519, 1 h, lié au transfert, au fichier, à la taille)
+  app ──parts chiffrées + ticket──▶ CDN (en parallèle, reprise par part)
+  app ──complete──▶ CDN ──rappel signé HMAC──▶ API : droits revérifiés, StoredFile créé
+
+Téléchargement
+  app ──GET /api/cdn/meta/:id──▶ API : droits ; ticket « down » (15 min,
+                                     lié à la taille et à la date du contenu)
+  app ──requêtes Range + ticket──▶ CDN ──▶ morceaux chiffrés ──▶ déchiffrés localement
 ```
 
-Un membre sans `publicKey` est ignoré (avec un `console.warn`). Si **aucun** membre n'a de clé publique, le bootstrap échoue explicitement.
+- **Ticket** (`sct1.<kid>.<contenu>.<signature>`) : signé par l'API avec une
+  clé Ed25519 que seule l'API détient ; le CDN ne vérifie qu'avec la clé
+  publique, sans appeler l'API. Portée étroite (une opération, un fichier),
+  durée courte, révocable (bannissement, suppression de compte, expulsion
+  d'une organisation).
+- **Le ticket autorise à écrire des octets, pas à publier un fichier** : à
+  la fin de l'envoi, l'API revérifie les droits avant d'enregistrer le
+  fichier ; refusé, le CDN supprime les octets.
+- **Plus aucun jeton Keycloak dans une URL** : aperçus et téléchargements
+  passent par des URL `blob:` locales.
+- Contenu remplacé pendant un téléchargement (édition par un autre membre) :
+  le CDN répond `409`, le client recommence avec le nouveau contenu au lieu
+  de mélanger deux versions.
 
-> Un bug corrigé et documenté dans le code : `encryptSpaceKeyForMember()` importe lui-même le JWK ; lui passer un `CryptoKey` déjà importé faisait échouer le scellement silencieusement (exception avalée), si bien qu'**aucun membre ne recevait jamais de copie** et que la génération de clé échouait toujours.
+## 5. Quota
 
-## 5. ❌ Les cas où les fichiers ne sont PAS chiffrés de bout en bout
+`utilisé = Σ tailles des fichiers + Σ tailles des envois en cours`. Un envoi
+réserve sa taille dès l'ouverture, dans une transaction PostgreSQL
+`Serializable` : des envois simultanés ne dépassent jamais la limite
+ensemble. Au plus 16 envois ouverts par utilisateur.
 
-C'est le point le plus important de cette fiche.
+## 6. Ce que voient les serveurs
 
-`uploadFile()` ne chiffre que si `context.workspaceId` **ou** `context.dmPeerId` est renseigné. Sinon, le fichier part **en clair** vers le serveur, qui applique uniquement le SSE.
-
-| Cas réel | `workspaceId` | E2EE ? |
+| Donnée | API (base) | CDN |
 |---|---|---|
-| Message dans un salon d'un **espace de travail** | ✅ `route.params.spaceId` | ✅ **Oui** |
-| Message dans un salon **d'accueil d'organisation** | ❌ `undefined` | ❌ **Non** |
-| Pièce jointe de DM | — (`dmPeerId`) | ✅ **Oui** |
-| Gestionnaire de fichiers d'un espace | ✅ | ✅ **Oui** |
-| Pièce jointe de tâche **dans un espace** | ✅ `task.spaceId` | ✅ **Oui** |
-| Pièce jointe de tâche **hors espace** (`spaceId` nul) | ❌ `undefined` | ❌ **Non** |
-| Fichier filigrané (`WatermarkFile.vue`) | selon contexte | selon contexte |
+| Contenu | ❌ jamais | Chiffré uniquement |
+| `originalName` | Chiffré en base (déchiffrable par l'API) | ❌ |
+| `encryptedFileKey`, `iv` | Chiffrés en base, inexploitables sans la KEK | ❌ |
+| `mimeType` (déclaré par le client), `size` | ✅ | Taille seulement |
+| Propriétaire, organisation, espace, dossier, message | ✅ | Identifiant de l'utilisateur dans le ticket |
 
-➡️ **Un fichier envoyé dans un salon d'accueil d'organisation n'est pas chiffré de bout en bout**, alors que le message texte qui l'accompagne, lui, l'est (il utilise la `ThreadKey`). C'est une asymétrie que rien ne signale à l'utilisateur dans l'interface.
+Comme tout service de stockage chiffré, les serveurs savent **qui a déposé
+quoi, où, quand et de quelle taille**, pas le contenu.
 
-### Repli silencieux à l'upload
+## 7. Fonctionnalités retirées
 
-```ts
-} catch (e) {
-    console.error("Failed to encrypt file for upload:", e);
-    // Fallback SSE for now if key generation fails
-}
-```
+- **OnlyOffice** : l'édition collaborative de documents bureautiques exigeait
+  le document en clair sur le serveur, incompatible avec le chiffrement de
+  bout en bout de tous les fichiers. Les documents Word, Excel et PowerPoint
+  se téléchargent et s'éditent localement.
+- **Désactivation du chiffrement d'un fichier** (`disable-e2ee`) : supprimée
+  avec OnlyOffice.
 
-Si le chiffrement échoue (KEK indisponible, membre sans clé publique, erreur WebCrypto), **le fichier est envoyé en clair** avec `isE2EE = false`, sans que l'utilisateur en soit averti. Le commentaire du code reconnaît le problème (« on pourrait décider de fail si E2EE est requis »).
+## 8. Filigrane
 
-➡️ **Recommandation : faire échouer l'upload plutôt que de dégrader silencieusement**, ou au minimum afficher un avertissement explicite.
+Appliqué **côté client** (Canvas pour les images, `pdf-lib` pour les PDF)
+sur le fichier déchiffré, puis la copie filigranée est chiffrée et envoyée
+comme un nouveau fichier. Mesure de traçabilité, pas de confidentialité.
 
-## 6. ⚠️ OnlyOffice — désactivation explicite de l'E2EE
+## 9. Permissions
 
-L'édition collaborative de documents bureautiques exige que le serveur OnlyOffice lise le contenu en clair. L'E2EE est donc **incompatible par construction** avec cette fonctionnalité.
-
-Le flux ([`FileViewer.vue`](../../src/views/OrgSpace/components/popup/FileViewer.vue)) :
-
-1. le client télécharge le fichier chiffré ;
-2. il le déchiffre localement avec la `WorkspaceKey` ;
-3. il **ré-upload le contenu en clair** via `POST /api/cdn/disable-e2ee/:id` ;
-4. le serveur remplace le contenu, met `isE2EE = false`, `encryptedFileKey = null`, `iv = null` ;
-5. l'éditeur OnlyOffice est chargé.
-
-**Cette opération est irréversible sans action manuelle.** Il n'existe pas de « ré-activation » automatique de l'E2EE après fermeture de l'éditeur ; seul un ré-upload complet du fichier le rechiffrerait. À partir de là, le document est protégé uniquement par le SSE serveur.
-
-La route `POST /api/cdn/update-e2ee-content/:id` existe pour réenregistrer un fichier **déjà** E2EE (édition Markdown, par exemple) sans dégradation — elle refuse explicitement un fichier non-E2EE.
-
-Les deux routes exigent `WRITE` **et** `UPLOAD` (durcissement de l'audit `P8`).
-
-### Durcissements OnlyOffice
-
-- Le secret JWT (`ONLYOFFICE_JWT_SECRET`) est obligatoire au démarrage (audit `C4-oracle-signature-jwt-onlyoffice`).
-- `StoredFile.onlyOfficeKey` est émis à l'ouverture d'une session d'édition et comparé au `body.key` du rappel — empêche le rejeu d'un jeton de configuration signé contre un autre fichier.
-- L'URL de téléchargement du rappel est validée contre une **liste blanche d'hôtes** (`isAllowedOnlyOfficeDownloadUrl`) — protection SSRF, audit `CRIT-D`.
-
-## 7. Validation du type MIME — deux chemins
-
-| Cas | Traitement |
-|---|---|
-| Upload **non** E2EE | Détection par **signature binaire** (`file-type`). Si indétectable et hors liste blanche texte (`text/plain`, `text/csv`, `application/json`, `text/markdown`) → forcé en `application/octet-stream` + `forceDownload = true`. Bloque le XSS stocké via SVG/HTML rendus en ligne (audit `L5`). |
-| Upload **E2EE** | La détection est **désactivée** : les octets sur disque sont du ciphertext, la signature n'a aucun sens. Le type déclaré par le client est accepté tel quel. Le risque XSS ne s'applique pas — le serveur ne sert que des octets aléatoires opaques, jamais du balisage interprétable. |
-
-## 8. Téléchargement
-
-```
-GET /api/cdn/meta/:id   → métadonnées (dont isE2EE, encryptedFileKey, iv, workspaceId, dmPeerId)
-   │
-   ├─ isE2EE = false → lien direct GET /api/cdn/download/:id?token=… (le serveur déchiffre le SSE)
-   │
-   └─ isE2EE = true  → GET /api/cdn/download/:id → ArrayBuffer chiffré
-                       résolution de la KEK (workspaceId ou dmPeerId)
-                       decryptFileLocal() → Blob → URL.createObjectURL
-```
-
-`GET /meta/:id` résout `dmPeerId` **côté serveur** (l'autre participant de la conversation) pour que l'appelant n'ait pas à le connaître.
-
-`getFilePreviewUrl()` applique exactement le même chemin pour l'affichage en ligne (vignettes de pièces jointes de tâches, aperçus).
-
-> Note : le mode non-E2EE passe le jeton Keycloak **dans l'URL** (`?token=Bearer …`), ce qui l'expose aux journaux de serveur, à l'historique du navigateur et au `Referer`. Pratique courante pour les téléchargements directs, mais à surveiller.
-
-## 9. Métadonnées de fichier
-
-| Champ `StoredFile` | Chiffré en base ? | Visible par le serveur ? |
-|---|---|---|
-| `originalName` | ✅ | ❌ (mais déchiffrable par l'API) |
-| `hash` | ✅ | ❌ |
-| `encryptedFileKey`, `iv` | ✅ | — (inexploitable sans la KEK) |
-| `mimeType` | ❌ **Non** | ✅ **Oui** |
-| `size` | ❌ **Non** | ✅ **Oui** |
-| `isE2EE`, `isEncrypted`, `keyVersion` | ❌ Non | ✅ Oui |
-| `ownerId`, `orgId`, `workspaceId`, `messageId`, `folderId`, `taskId` | ❌ Non | ✅ **Oui** |
-| `onlyOfficeKey` | ❌ Non | ✅ Oui |
-
-Le serveur connaît donc **qui a déposé quoi, où, quand, de quelle taille et de quel type** — même pour un fichier parfaitement E2EE.
-
-Les noms de dossiers (`Folder.name`, `Folder.color`) sont chiffrés en base mais **pas E2EE**.
-
-## 10. Filigrane (watermark)
-
-[`synco_app/src/assets/utils/watermark.ts`](../../src/assets/utils/watermark.ts) applique un filigrane **entièrement côté client** (Canvas pour les images, `pdf-lib` pour les PDF) **avant** l'upload et donc avant le chiffrement. Le serveur ne voit jamais la version non filigranée.
-
-C'est une mesure de **traçabilité/dissuasion**, pas de confidentialité : elle ne protège en rien contre une capture d'écran ou un recadrage.
-
-## 11. Mass assignment et permissions
-
-- Une **liste blanche stricte** encadre les métadonnées modifiables par le client (`orgId`, `ownerId`, `isE2EE`, `hash`, `size` ne sont jamais mass-assignables) — audit `M9-mass-assignment-metadata-fichier`.
-- Le conteneur d'upload (`folderId`, `workspaceId`) est validé côté serveur — audit `H8-bola-conteneur-upload-non-valide`.
-- Le déplacement de fichier entre dossiers vérifie l'appartenance du dossier cible à l'espace — audits `M10` et `P18-dossier-parent-hors-espace`.
-- L'écrasement de fichier exige la permission, plus seulement le statut de membre — audit `H7-bfla-ecrasement-fichier-simple-membre`.
+- Lecture : `READ` et appartenance à l'espace du fichier (audit `P7`).
+- Dépôt : `UPLOAD`, module Fichiers de l'abonnement, conteneur de
+  destination validé (audits `P8`, `H8`), rejoués à la fin de l'envoi.
+- Modification du contenu : propriétaire, ou `WRITE` + `UPLOAD`.
+- Suppression : `CONTENT_DELETE`.
+- Métadonnées modifiables par le client : nom et dossier seulement, dossier
+  de la même organisation (audit `M9`).

@@ -205,7 +205,7 @@
                         <div 
                             v-if="fileSendProgress !== null"
                             class="absolute bottom-0 left-0 h-0.5 bg-(--primary) transition-all duration-300"
-                            :style="{ width: fileSendProgress + '%' }"
+                            :style="{ width: (fileProgress[index] ?? 0) + '%' }"
                         />
 
                         <div class="w-10 h-10 shrink-0 flex items-center justify-center rounded bg-(--bg) border border-(--text)/5">
@@ -215,6 +215,10 @@
                         </div>
 
                         <span class="text-xs truncate max-w-50">{{ file.name }}</span>
+                        <span v-if="fileSendProgress !== null" class="text-[10px] tabular-nums text-(--text2) shrink-0 w-8 text-right">
+                            <i v-if="(fileProgress[index] ?? 0) >= 100" class="bi bi-check-lg text-(--primary)" />
+                            <template v-else>{{ fileProgress[index] ?? 0 }}%</template>
+                        </span>
 
                         <button 
                             v-if="fileSendProgress === null"
@@ -466,6 +470,8 @@ const endEdit = () => {
 
 const selectedFiles = ref<File[]>([]);
 const fileSendProgress = ref<null | number>(null);
+// Progression de chaque fichier en cours d'envoi (même index que selectedFiles).
+const fileProgress = ref<number[]>([]);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
 const selectedMessage = computed<string>(() => String(route.query.select));
@@ -598,7 +604,7 @@ const removeFile = (index: number) => {
 // getFileInfo expects a StoredFile (originalName/mimeType) — the preview
 // chips render raw File objects (name/type) before upload, so adapt here
 // rather than changing the shared util every other caller relies on.
-const getSelectedFileInfo = (file: File) => getFileInfo({ originalName: file.name, mimeType: file.type } as any);
+const getSelectedFileInfo = (file: File) => getFileInfo({ originalName: file.name, mimeType: file.type });
 
 // Les deux seuls utilisateurs d'un DM sont moi et le destinataire, tous deux
 // déjà chargés côté client : l'historique allégé du serveur (dmHistorySelect,
@@ -1106,11 +1112,13 @@ const sendMessage = async () => {
     let uploadedFiles: any[] = [];
     if (selectedFiles.value.length) {
         fileSendProgress.value = 0;
+        fileProgress.value = selectedFiles.value.map(() => 0);
         try {
             uploadedFiles = await uploadFiles(
                 selectedFiles.value,
                 { dmPeerId: recipient.value!.id },
-                (percent: number) => { fileSendProgress.value = percent; }
+                (percent: number) => { fileSendProgress.value = percent; },
+                (index: number, percent: number) => { fileProgress.value[index] = percent; }
             );
         } catch (e) {
             console.error('Erreur upload fichiers:', e);

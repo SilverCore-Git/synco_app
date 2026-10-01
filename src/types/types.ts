@@ -11,14 +11,16 @@ export interface StoredFile {
   id: string;
   originalName: string;
   mimeType: string;
+  /** Taille stockée (chiffrée). */
   size: number;
-  encoding?: string;
   hash?: string;
-  isEncrypted: boolean;
-  isE2EE?: boolean;
-  encryptedFileKey?: string | null;
-  keyVersion?: number | null;
-  iv?: string | null;
+  // Tout fichier est chiffré de bout en bout (format v2), servi par
+  // synco_cdn : blobId désigne son contenu, la DEK est emballée par la clé
+  // d'espace, de DM ou de salon.
+  blobId?: string;
+  encryptedFileKey?: string;
+  keyVersion?: number;
+  iv?: string;
   
   ownerId: string;
   orgId: string;

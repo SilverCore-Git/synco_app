@@ -136,6 +136,7 @@
 </template>
 
 <script setup lang="ts">
+import { getWorkspaceKey, shareWorkspaceKeyWithMissingMembers } from '@/assets/utils/workspaceCrypto';
 
 import { ref, reactive, computed, watch } from 'vue';
 import Window from './Window.vue';
@@ -337,6 +338,11 @@ const addMember = async (member: OrgMember) => {
 
     if (res.ok) 
     {
+        // Clé de l'espace transmise tout de suite au nouveau membre (sinon il
+        // ne pourrait déchiffrer aucun fichier de l'espace).
+        getWorkspaceKey(props.space.id)
+            .then(({ key, version }) => shareWorkspaceKeyWithMissingMembers(props.space.id, key, version, true))
+            .catch((e) => console.warn("[E2EE] Clé d'espace non transmise au nouveau membre :", e));
         await WSpubSave();
         toast.show(`${member.user?.name} a été ajouté au space.`, 'success');
     }

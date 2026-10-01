@@ -9,6 +9,7 @@ import init, { refetchUser } from './assets/init';
 import { isLoaded, user } from './assets/var';
 import type { User } from '@/types/types';
 import Notifications from './components/overlay/Notifications.vue';
+import TransfersPanel from './components/overlay/TransfersPanel.vue';
 import ConnectionStatusBanner from './components/overlay/ConnectionStatusBanner.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
 import useSettingsItem from './composables/useSettingsItem';
@@ -479,6 +480,7 @@ onMounted(async () => {
          erreurs de démarrage (health check, initKC) via un toast plutôt
          qu'un alert() natif. -->
     <Notifications />
+    <TransfersPanel />
     <ConnectionStatusBanner />
 
     <!-- Compte banni : prioritaire sur tout le reste. Un compte banni ne

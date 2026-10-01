@@ -52,8 +52,13 @@
                     "
                 />
 
+                <p v-if="!form.spaceId" class="flex items-center gap-2 text-xs text-(--text2) px-1">
+                    <i class="bi bi-shield-lock"></i>
+                    Rattachez la tâche à un projet pour y joindre des images : elles sont chiffrées avec sa clé.
+                </p>
                 <!-- Barre d'images : toute la zone est cliquable, Ctrl+V/glisser-déposer marchent ici aussi -->
                 <div
+                    v-else
                     :tabindex="loading ? -1 : 0"
                     role="button"
                     aria-label="Ajouter une image"
@@ -422,7 +427,8 @@ const handleSubmit = async () => {
         if (res.ok) {
             const task = await res.json();
 
-            if (stagedImages.value.length) {
+            // Images chiffrées avec la clé du projet : sans projet, pas d'images.
+            if (stagedImages.value.length && task.spaceId) {
                 try {
                     task.attachments = await uploadFiles(
                         stagedImages.value.map(img => img.file),

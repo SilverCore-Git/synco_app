@@ -98,7 +98,7 @@ const DOC_META: Record<string, { title: string; summary: string }> = {
     'securite/05-fichiers-et-stockage': {
         title: 'Sécurité — fichiers et stockage',
         summary:
-            "Double couche de chiffrement des fichiers (serveur + E2EE), WorkspaceKey et FileKey, cas où les fichiers ne sont PAS chiffrés de bout en bout, édition OnlyOffice, filigrane.",
+            "Tous les fichiers chiffrés de bout en bout (format v2 par morceaux), clé selon le contexte (espace, DM, salon), transferts par synco_cdn avec tickets signés, quota, filigrane.",
     },
     'securite/06-appels-prives-p2p': {
         title: 'Sécurité — appels privés P2P',
