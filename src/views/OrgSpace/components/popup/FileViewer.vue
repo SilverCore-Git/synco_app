@@ -77,34 +77,6 @@
                 <iframe :src="fileUrl" class="w-full h-full border-none bg-white" @load="isLoading = false" @error="handleError"></iframe>
               </template>
 
-              <template v-else-if="isOfficeFile && onlyOfficeEnabled">
-                <div v-if="file.isE2EE" class="flex flex-col items-center justify-center h-full gap-4 text-center p-8">
-                    <i class="bi bi-shield-lock text-6xl text-warning"></i>
-                    <h3 class="text-xl font-bold text-slate-200">Fichier chiffré de bout en bout</h3>
-                    <p class="text-slate-400 max-w-md">
-                        OnlyOffice ne peut pas éditer des fichiers chiffrés de bout en bout car il nécessite un accès en clair au document sur le serveur.
-                    </p>
-                    <p class="text-slate-400 max-w-md mb-4">
-                        Voulez-vous désactiver le chiffrement de bout en bout pour ce fichier afin de pouvoir l'éditer en collaboration ?
-                    </p>
-                    <button @click="disableE2EE" :disabled="isDisablingE2EE" class="btn btn-primary w-64 mb-2">
-                        <span v-if="isDisablingE2EE" class="loading loading-spinner"></span>
-                        Oui, désactiver le chiffrement
-                    </button>
-                    <button @click="downloadFile(file.id)" class="btn btn-outline w-64">
-                        Garder chiffré et Télécharger
-                    </button>
-                </div>
-                <div v-else class="w-full h-full relative">
-                    <DocumentEditor 
-                        v-if="onlyOfficeConfig"
-                        id="docxEditor" 
-                        documentServerUrl="http://localhost:8080"
-                        :config="onlyOfficeConfig"
-                    />
-                </div>
-              </template>
-
               <template v-else-if="isMarkdown && viewMode === 'preview'">
                 <MarkdownDocumentPreview :content="fileContent" />
               </template>
@@ -170,21 +142,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, shallowRef, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import type { StoredFile } from '@/types/types';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
-import { downloadFile } from '@/assets/utils/downloadFile';
-import { kcToken, onlyOfficeEnabled, user } from '@/assets/var';
-import { DocumentEditor } from '@onlyoffice/document-editor-vue';
+import { downloadFile, fetchDecryptedFile, type FileMetadata } from '@/assets/utils/downloadFile';
+import { replaceFileContent } from '@/assets/uploadFile';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import Window from '@/components/windows/Window.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import Popup from '@/components/Popup.vue';
 import MarkdownDocumentPreview from './MarkdownDocumentPreview.vue';
-import { getWorkspaceKey } from '@/assets/utils/workspaceCrypto';
-import { encryptFileLocal } from '@/assets/utils/crypto';
-import { decryptStoredFile } from '@/assets/utils/chunkedCrypto';
 import { VueMonacoEditor, loader } from '@guolao/vue-monaco-editor';
 
 import * as monaco from 'monaco-editor';
@@ -257,14 +225,12 @@ const fileContent = ref('');
 const originalFileContent = ref('');
 const viewMode = ref<'edit' | 'preview'>('preview');
 
-const e2eeObjectUrl = ref<string | null>(null);
-
-const fileUrl = computed(() => {
-  if (props.file.isE2EE && e2eeObjectUrl.value) {
-    return e2eeObjectUrl.value;
-  }
-  return `${import.meta.env.VITE_API_URL}/api/cdn/download/${props.file.id}?token=Bearer ${kcToken.value}&inline=true`;
-});
+// Aperçu (image, PDF) : contenu déchiffré localement, exposé en URL blob:.
+const previewUrl = ref<string | null>(null);
+const fileUrl = computed(() => previewUrl.value ?? '');
+// Métadonnées complètes (clé, contexte de chiffrement) lues au chargement :
+// la sauvegarde rechiffre avec la même clé d'espace / de DM / de salon.
+const loadedMeta = ref<FileMetadata | null>(null);
 
 const isImage = computed(() => props.file.mimeType.startsWith('image/'));
 const isPdf = computed(() => props.file.mimeType === 'application/pdf');
@@ -286,118 +252,6 @@ const fileExtension = computed(() => {
 // fix peuvent avoir un mimeType incorrect (application/octet-stream) — on ne
 // veut pas dépendre de ça pour les reconnaître.
 const isMarkdown = computed(() => ['md', 'markdown'].includes(fileExtension.value));
-// Uniquement les formats bureautiques Word / Excel / PowerPoint : le reste
-// (.txt, .csv, .md, code...) reste édité dans Monaco, qui n'impose pas de
-// déchiffrer le fichier côté serveur pour OnlyOffice.
-const WORD_EXTENSIONS = ['doc', 'docx'];
-const CELL_EXTENSIONS = ['xls', 'xlsx'];
-const SLIDE_EXTENSIONS = ['ppt', 'pptx'];
-
-const isOfficeFile = computed(() => {
-    const ext = fileExtension.value;
-    return WORD_EXTENSIONS.includes(ext) || CELL_EXTENSIONS.includes(ext) || SLIDE_EXTENSIONS.includes(ext);
-});
-
-const getDocumentType = (ext: string) => {
-    if (CELL_EXTENSIONS.includes(ext)) return 'cell';
-    if (SLIDE_EXTENSIONS.includes(ext)) return 'slide';
-    return 'word';
-};
-
-const documentUrlForOnlyOffice = computed(() => {
-    return `${(import.meta.env.VITE_API_URL || 'https://localhost:9000').replace('localhost', 'host.docker.internal')}/api/cdn/download/${props.file.id}?kc_token=Bearer ${kcToken.value}`;
-});
-
-const callbackUrlForOnlyOffice = computed(() => {
-    return `${(import.meta.env.VITE_API_URL || 'https://localhost:9000').replace('localhost', 'host.docker.internal')}/api/cdn/onlyoffice-callback/${props.file.id}`;
-});
-
-const onlyOfficeConfig = shallowRef<any>(null);
-
-const loadOnlyOfficeConfig = async () => {
-    const configObj = {
-        document: {
-            fileType: fileExtension.value,
-            key: props.file.id.substring(0, 20) + '_' + new Date(props.file.updatedAt).getTime(),
-            title: props.file.originalName,
-            url: documentUrlForOnlyOffice.value
-        },
-        documentType: getDocumentType(fileExtension.value),
-        editorConfig: {
-            user: {
-                id: user.value?.id || 'unknown',
-                name: user.value?.name || 'Utilisateur inconnu'
-            },
-            callbackUrl: callbackUrlForOnlyOffice.value,
-            lang: 'fr',
-            mode: 'edit'
-        }
-    };
-
-    try {
-        const res = await sfetch(`/api/cdn/onlyoffice-config`, {
-            method: 'POST',
-            body: JSON.stringify(configObj)
-        });
-        if (res.ok) {
-            const data = await res.json();
-            onlyOfficeConfig.value = {
-                ...configObj,
-                token: data.token
-            };
-        } else {
-            hasError.value = true;
-            toast.show("Erreur token OnlyOffice", "error");
-        }
-    } catch (err) {
-        hasError.value = true;
-    } finally {
-        isLoading.value = false;
-    }
-};
-
-const isDisablingE2EE = ref(false);
-
-const disableE2EE = async () => {
-    isDisablingE2EE.value = true;
-    try {
-        const res = await sfetch(`/api/cdn/download/${props.file.id}`);
-        if (!res.ok) throw new Error("Erreur de téléchargement");
-        
-        const buffer = await res.arrayBuffer();
-        const { key: spaceKey } = await getWorkspaceKey(props.file.workspaceId!);
-        const decryptedBuffer = await decryptStoredFile(buffer, { encryptedFileKey: props.file.encryptedFileKey!, iv: props.file.iv! }, spaceKey);
-        
-        const blob = new Blob([decryptedBuffer], { type: props.file.mimeType });
-        const formData = new FormData();
-        formData.append('file', blob, props.file.originalName);
-
-        const updateRes = await sfetch(`/api/cdn/disable-e2ee/${props.file.id}`, {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (updateRes.ok) {
-            const newMeta = await updateRes.json();
-            toast.show('Chiffrement désactivé, chargement de l\'éditeur...', 'success');
-            props.file.isE2EE = false;
-            emit('updated', newMeta);
-            if (isMarkdown.value) {
-                await fetchTextContent();
-            } else {
-                await loadOnlyOfficeConfig();
-            }
-        } else {
-            const err = await updateRes.json();
-            toast.show(err.error || 'Erreur lors de la désactivation.', 'error');
-        }
-    } catch (err) {
-        toast.show('Erreur lors de l\'opération.', 'error');
-    } finally {
-        isDisablingE2EE.value = false;
-    }
-};
-
 const formatSize = (bytes: number | bigint) => {
     if (bytes === 0 || bytes === 0n) return '0 B';
     const k = 1024;
@@ -416,43 +270,28 @@ const fetchTextContent = async () => {
   if (!isTextFile.value && !isMarkdown.value) return;
   isLoading.value = true;
   try {
-    const res = await sfetch(`/api/cdn/download/${props.file.id}`);
-    if (res.ok) {
-      if (props.file.isE2EE && props.file.workspaceId && props.file.encryptedFileKey && props.file.iv) {
-        const buffer = await res.arrayBuffer();
-        const { key: spaceKey } = await getWorkspaceKey(props.file.workspaceId);
-        const decryptedBuffer = await decryptStoredFile(buffer, { encryptedFileKey: props.file.encryptedFileKey!, iv: props.file.iv! }, spaceKey);
-        const text = new TextDecoder().decode(decryptedBuffer);
-        fileContent.value = text;
-        originalFileContent.value = text;
-      } else {
-        const text = await res.text();
-        fileContent.value = text;
-        originalFileContent.value = text;
-      }
-    } else {
-      toast.show('Erreur lors du chargement du fichier texte.', 'error');
-    }
+    const { buffer, metadata } = await fetchDecryptedFile(props.file.id);
+    loadedMeta.value = metadata;
+    const text = new TextDecoder().decode(buffer);
+    fileContent.value = text;
+    originalFileContent.value = text;
   } catch (err) {
-    toast.show('Erreur de connexion.', 'error');
+    console.error('[FileViewer] lecture du fichier texte', err);
+    hasError.value = true;
+    toast.show('Erreur lors du chargement du fichier texte.', 'error');
   } finally {
     isLoading.value = false;
   }
 };
 
-const loadE2EEPreview = async () => {
-  if (!props.file.isE2EE || !props.file.workspaceId) return;
+const loadPreview = async () => {
   isLoading.value = true;
   try {
-    const res = await sfetch(`/api/cdn/download/${props.file.id}`);
-    if (res.ok) {
-      const buffer = await res.arrayBuffer();
-      const { key: spaceKey } = await getWorkspaceKey(props.file.workspaceId);
-      const decryptedBuffer = await decryptStoredFile(buffer, { encryptedFileKey: props.file.encryptedFileKey!, iv: props.file.iv! }, spaceKey);
-      const blob = new Blob([decryptedBuffer], { type: props.file.mimeType });
-      e2eeObjectUrl.value = URL.createObjectURL(blob);
-    }
+    const { buffer, metadata } = await fetchDecryptedFile(props.file.id);
+    loadedMeta.value = metadata;
+    previewUrl.value = URL.createObjectURL(new Blob([buffer], { type: props.file.mimeType }));
   } catch (err) {
+    console.error('[FileViewer] aperçu', err);
     hasError.value = true;
     toast.show('Erreur de déchiffrement de l\'aperçu.', 'error');
   } finally {
@@ -461,54 +300,28 @@ const loadE2EEPreview = async () => {
 };
 
 const saveContent = async () => {
-  if (fileContent.value === originalFileContent.value) return;
+  if (fileContent.value === originalFileContent.value || isSaving.value) return;
+  const meta = loadedMeta.value;
+  if (!meta) return;
 
   isSaving.value = true;
+  const saved = fileContent.value;
   try {
-    let res: Response;
-
-    if (props.file.isE2EE) {
-      // Le contenu ne doit jamais transiter en clair vers le serveur : on le
-      // rechiffre côté client (nouvelle DEK + IV, comme à l'upload) avant
-      // envoi, via la route binaire dédiée aux fichiers déjà E2EE.
-      if (!props.file.workspaceId) {
-        throw new Error("Fichier E2EE sans espace de travail associé : sauvegarde impossible.");
-      }
-      const { key: spaceKey, version } = await getWorkspaceKey(props.file.workspaceId);
-      const plainBuffer = await new Blob([fileContent.value]).arrayBuffer();
-      const { encryptedBlob, encryptedFileKey, iv } = await encryptFileLocal(plainBuffer, spaceKey);
-
-      const formData = new FormData();
-      formData.append('file', encryptedBlob, props.file.originalName);
-      formData.append('iv', iv);
-      formData.append('encryptedFileKey', encryptedFileKey);
-      formData.append('keyVersion', String(version));
-
-      res = await sfetch(`/api/cdn/content-e2ee/${props.file.id}`, {
-        method: 'PUT',
-        body: formData
-      });
-    } else {
-      res = await sfetch(`/api/cdn/content/${props.file.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'text/plain'
-        },
-        body: fileContent.value
-      });
-    }
-
-    if (res.ok) {
-      const updatedMetadata = await res.json();
-      originalFileContent.value = fileContent.value;
-      toast.show('Fichier enregistré avec succès', 'success');
-      emit('updated', updatedMetadata);
-    } else {
-      const errorData = await res.json();
-      toast.show(errorData.error || 'Erreur lors de la sauvegarde.', 'error');
-    }
+    // Rechiffré côté client (nouvelle DEK) et envoyé au CDN : le clair ne
+    // quitte jamais l'appareil. Le fichier garde son identifiant.
+    const updatedMetadata = await replaceFileContent(
+      props.file.id,
+      new Blob([saved], { type: props.file.mimeType }),
+      props.file.originalName,
+      { workspaceId: meta.workspaceId, dmPeerId: meta.dmPeerId, threadId: meta.threadId },
+    );
+    loadedMeta.value = { ...meta, ...updatedMetadata };
+    originalFileContent.value = saved;
+    toast.show('Fichier enregistré avec succès', 'success');
+    emit('updated', updatedMetadata);
   } catch (err) {
-    toast.show('Erreur de connexion.', 'error');
+    console.error('[FileViewer] sauvegarde', err);
+    toast.show(err instanceof Error && err.message ? err.message : 'Erreur lors de la sauvegarde.', 'error');
   } finally {
     isSaving.value = false;
   }
@@ -531,50 +344,33 @@ const confirmDeleteFile = async () => {
   }
 };
 
-watch(() => props.isOpen, async (isOpen) => {
-  if (isOpen) {
-    isLoading.value = true;
-    hasError.value = false;
-    e2eeObjectUrl.value = null;
-    onlyOfficeConfig.value = null;
-    
-    if (isMarkdown.value) {
-      fetchTextContent();
-    } else if (props.file.isE2EE && !isTextFile.value && (isImage.value || isPdf.value)) {
-        loadE2EEPreview();
-    } else if (isOfficeFile.value && onlyOfficeEnabled.value && !props.file.isE2EE) {
-        await loadOnlyOfficeConfig();
-    } else if (isTextFile.value) {
-      fetchTextContent();
-    } else if (!isImage.value && !isPdf.value) {
-      isLoading.value = false; // no preview
-    } else {
-        isLoading.value = false;
-    }
+const load = () => {
+  isLoading.value = true;
+  hasError.value = false;
+  if (isTextFile.value || isMarkdown.value) {
+    fetchTextContent();
+  } else if (isImage.value || isPdf.value) {
+    loadPreview();
   } else {
-    if (e2eeObjectUrl.value) {
-        URL.revokeObjectURL(e2eeObjectUrl.value);
-        e2eeObjectUrl.value = null;
-    }
+    isLoading.value = false; // pas d'aperçu
   }
+};
+
+const releasePreview = () => {
+  if (previewUrl.value) {
+    URL.revokeObjectURL(previewUrl.value);
+    previewUrl.value = null;
+  }
+};
+
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen) load();
+  else releasePreview();
 });
 
-onMounted(async () => {
-    if (props.isOpen) {
-        isLoading.value = true;
-        if (isMarkdown.value) {
-            fetchTextContent();
-        } else if (props.file.isE2EE && !isTextFile.value && (isImage.value || isPdf.value)) {
-            loadE2EEPreview();
-        } else if (isOfficeFile.value && onlyOfficeEnabled.value && !props.file.isE2EE) {
-            await loadOnlyOfficeConfig();
-        } else if (isTextFile.value) {
-            fetchTextContent();
-        } else {
-            isLoading.value = false;
-        }
-    }
-    window.addEventListener('keydown', handleKeydown);
+onMounted(() => {
+  if (props.isOpen) load();
+  window.addEventListener('keydown', handleKeydown);
 });
 
 const closeViewer = () => {
@@ -598,5 +394,8 @@ const handleKeydown = (e: KeyboardEvent) => {
   }
 };
 
-onUnmounted(() => window.removeEventListener('keydown', handleKeydown));
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown);
+  releasePreview();
+});
 </script>

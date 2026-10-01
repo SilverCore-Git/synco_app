@@ -7,14 +7,15 @@ import {
     plainSizeForEncrypted,
 } from '@/assets/utils/chunkedCryptoCore';
 import { decryptChunkInPool } from '@/assets/utils/cryptoPool';
-import { fetchFileRange } from './http';
+import { CdnDownload, type DownloadTicket } from './cdn';
 import { linkedAbortController, partSlots, runPool, withRetry } from './transferManager';
 
 /**
- * Téléchargement d'un fichier E2EE v2 : les morceaux chiffrés sont
- * récupérés en parallèle (requêtes Range), déchiffrés dans le pool de
- * workers et écrits à leur position dans une destination (`DownloadSink`).
- * Aucune étape ne manipule le fichier entier.
+ * Téléchargement d'un fichier depuis synco_cdn : les morceaux chiffrés
+ * (format v2) sont récupérés en parallèle (requêtes Range, avec le ticket de
+ * GET /api/cdn/meta/:id), déchiffrés dans le pool de workers et écrits à
+ * leur position dans une destination (`DownloadSink`). Aucune étape ne
+ * manipule le fichier entier.
  */
 
 /** Morceaux d'un même fichier téléchargés en parallèle (dans la limite globale de partSlots). */
@@ -83,10 +84,15 @@ export async function pickFileSystemSink(suggestedName: string): Promise<FileSys
     }
 }
 
+/** Champs de GET /api/cdn/meta/:id utilisés pour télécharger. */
 export interface ChunkedFileMeta {
+    id: string;
+    blobId: string;
     size: number;
     iv: string;
     encryptedFileKey: string;
+    /** Absent si le contenu est introuvable sur le serveur. */
+    download?: DownloadTicket;
 }
 
 /** Taille en clair d'un fichier E2EE v2 à partir de sa taille stockée. */
@@ -97,7 +103,6 @@ export function chunkedPlainSize(meta: Pick<ChunkedFileMeta, 'size' | 'iv'>): nu
 }
 
 export async function runChunkedDownload(
-    fileId: string,
     meta: ChunkedFileMeta,
     kek: CryptoKey,
     sink: DownloadSink,
@@ -107,6 +112,8 @@ export async function runChunkedDownload(
     const format = parseFileIv(meta.iv);
     if (!format) throw new Error('Not an E2EE v2 file');
 
+    if (!meta.download) throw new Error('Contenu du fichier introuvable sur le serveur');
+    const cdn = new CdnDownload(meta.id, meta.download, meta.blobId);
     const fileKey = await openChunkedFileKey(meta.encryptedFileKey, kek);
     const encryptedSize = Number(meta.size);
     const count = chunkCountForEncrypted(encryptedSize, format.chunkSize);
@@ -120,7 +127,7 @@ export async function runChunkedDownload(
             const release = await partSlots.acquire(parts.signal);
             try {
                 const { start, end } = encryptedChunkRange(index, encryptedSize, format.chunkSize);
-                const encrypted = await withRetry(() => fetchFileRange(fileId, start, end, parts.signal), parts.signal);
+                const encrypted = await withRetry(() => cdn.fetchRange(start, end, parts.signal), parts.signal);
 
                 let plain: ArrayBuffer;
                 try {

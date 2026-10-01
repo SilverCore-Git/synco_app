@@ -54,11 +54,9 @@ import Popup from '@/components/Popup.vue';
 import type { StoredFile } from '@/types/types';
 import { useToast } from '@/composables/useToast';
 import { openedOrg } from '@/assets/var';
-import { keycloak } from '@/assets/keycloak';
 import { watermarkImageLocal, watermarkPDFLocal } from '@/assets/utils/watermark';
 import { uploadFiles } from '@/assets/uploadFile';
-import { getWorkspaceKey } from '@/assets/utils/workspaceCrypto';
-import { decryptStoredFile } from '@/assets/utils/chunkedCrypto';
+import { fetchDecryptedFile } from '@/assets/utils/downloadFile';
 
 const emit = defineEmits([ 'close', 'created' ]);
 
@@ -94,18 +92,10 @@ const handleSubmit = async () => {
     loading.value = true;
 
     try {
-        // 1. Download original file
-        const url = `${import.meta.env.VITE_API_URL}/api/cdn/download/${props.file.id}?token=Bearer ${keycloak.token}`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Impossible de télécharger le fichier original.');
-        
-        let buffer = await response.arrayBuffer();
-        
-        if (props.file.isE2EE && props.file.workspaceId) {
-            const { key: spaceKey } = await getWorkspaceKey(props.file.workspaceId);
-            buffer = await decryptStoredFile(buffer, { encryptedFileKey: props.file.encryptedFileKey!, iv: props.file.iv! }, spaceKey);
-        }
-        
+        // 1. Original, déchiffré localement
+        if (!props.file.workspaceId) throw new Error('Le filigrane ne s\'applique qu\'aux fichiers d\'un espace.');
+        const { buffer } = await fetchDecryptedFile(props.file.id);
+
         const blob = new Blob([buffer], { type: props.file.mimeType });
         const originalFile = new File([blob], props.file.originalName, { type: props.file.mimeType });
 
@@ -121,7 +111,7 @@ const handleSubmit = async () => {
 
         // 3. Upload new file
         const uploaded = await uploadFiles([watermarkedFile], {
-            workspaceId: String(props.file.workspaceId) || openedOrg.value!.id, // fallback si besoin
+            workspaceId: props.file.workspaceId,
             folderId: props.file.folderId || undefined
         });
 

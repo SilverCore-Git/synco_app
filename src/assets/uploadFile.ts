@@ -1,13 +1,16 @@
 import { enqueueTransfer } from "@/services/transfers/transferManager";
 import { runChunkedUpload, type UploadContext } from "@/services/transfers/chunkedUpload";
+import type { FileKeyContext } from "@/assets/utils/fileKeys";
 
 export type { UploadContext };
 
 /**
  * Envoie un fichier via le gestionnaire de transferts : il est mis en file,
- * envoyé par morceaux (chiffrés de bout en bout quand un espace ou un DM
- * est fourni) et apparaît dans le panneau des transferts. Résout avec les
- * métadonnées du fichier stocké.
+ * chiffré de bout en bout par morceaux, envoyé au CDN et apparaît dans le
+ * panneau des transferts. Résout avec les métadonnées du fichier stocké.
+ *
+ * Le contexte doit fournir une clé (espace, DM ou salon), sinon l'envoi
+ * échoue (NoFileKeyError) : aucun fichier n'est stocké en clair.
  */
 export default function uploadFile(
     file: File,
@@ -16,7 +19,7 @@ export default function uploadFile(
 ): Promise<any>
 {
     return enqueueTransfer('upload', file.name, file.size, (handle) =>
-        runChunkedUpload(file, context, {
+        runChunkedUpload(file, file.name, { kind: 'create', context }, {
             ...handle,
             setLoaded(loaded) {
                 handle.setLoaded(loaded);
@@ -53,4 +56,22 @@ export async function uploadFiles(
             report();
         })
     ));
+}
+
+
+/**
+ * Remplace le contenu d'un fichier existant (éditeur texte) : nouvelle DEK,
+ * envoi au CDN, puis l'API bascule le fichier sur le nouveau contenu sans
+ * changer son identifiant. Résout avec les métadonnées à jour.
+ */
+export function replaceFileContent(
+    fileId: string,
+    content: Blob,
+    name: string,
+    keyContext: FileKeyContext
+): Promise<any>
+{
+    return enqueueTransfer('upload', name, content.size, (handle) =>
+        runChunkedUpload(content, name, { kind: 'replace', fileId, keyContext }, handle)
+    ).promise;
 }

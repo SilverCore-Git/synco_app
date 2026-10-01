@@ -1,10 +1,9 @@
 /**
  * Format de fichier E2EE v2 : chiffrement par morceaux indépendants.
  *
- * Le format v1 (encryptFileLocal) chiffre le fichier en une seule opération
- * AES-GCM : le fichier entier doit tenir en mémoire (plusieurs fois), rien
- * ne se parallélise, et un envoi ou un téléchargement interrompu repart de
- * zéro. En v2, le clair est découpé en morceaux de `chunkSize` octets
+ * Seul format de fichier de Synco (l'ancien v1, chiffré d'un seul bloc,
+ * imposait de tout tenir en mémoire et ne se parallélisait pas). Le clair
+ * est découpé en morceaux de `chunkSize` octets
  * (4 Mio), chacun chiffré séparément avec la même clé de fichier (DEK) :
  *
  *   chiffré = C_0 || C_1 || … || C_{n-1},   C_i = AES-GCM(DEK, nonce_i, M_i, aad_i)
@@ -21,7 +20,7 @@
  *
  * Le champ `iv` des métadonnées (opaque pour le serveur) décrit le format :
  * "v2:<chunkSize>:<préfixe de nonce en base64>". Un iv sans ce préfixe est
- * un fichier v1.
+ * refusé (ancien format v1, plus pris en charge).
  *
  * Ce module n'a aucune dépendance : il est importé par le Web Worker de
  * chiffrement (workers/crypto.worker.ts) comme par le thread principal.

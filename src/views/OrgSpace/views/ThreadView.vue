@@ -1028,7 +1028,11 @@ const sendMessage = async () => {
             fileSendProgress.value = 0;
             uploadedFiles = await uploadFiles(
                 selectedFiles.value,
-                { workspaceId: (route.params.spaceId as string) || undefined },
+                // Salon d'espace : clé de l'espace ; salon d'organisation :
+                // clé du salon (mêmes destinataires que ses messages).
+                route.params.spaceId
+                    ? { workspaceId: route.params.spaceId as string }
+                    : { threadId: thread.value!.id },
                 (percent: number) => { fileSendProgress.value = percent; }
             );
         }

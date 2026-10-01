@@ -56,7 +56,7 @@
             :title="file.originalName"
         >
             <div class="w-6 h-6 rounded-full border-2 border-(--primary) border-t-transparent animate-spin" />
-            <span class="text-[10px] px-3 truncate max-w-full">{{ file.isE2EE ? 'Déchiffrement…' : 'Chargement…' }}</span>
+            <span class="text-[10px] px-3 truncate max-w-full">Déchiffrement…</span>
         </div>
 
         <!-- Au repos (> 15 Mo), chargement d'un audio, ou échec : carte fichier -->
@@ -83,8 +83,8 @@
                 @click="load"
                 class="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-(--primary)/15 text-(--primary) hover:bg-(--primary)/25 text-xs font-medium transition-colors"
             >
-                <i class="bi" :class="file.isE2EE ? 'bi-shield-lock' : 'bi-play-circle'" />
-                {{ file.isE2EE ? 'Déchiffrer' : 'Charger' }}
+                <i class="bi bi-shield-lock" />
+                Déchiffrer
             </button>
 
             <button

@@ -285,10 +285,13 @@ export const sleep = (ms: number, signal?: AbortSignal) => new Promise<void>((re
 /** Erreur HTTP d'un morceau : `retryable` si une nouvelle tentative a du sens. */
 export class TransferHttpError extends Error {
     readonly status: number;
-    constructor(status: number, message: string) {
+    /** Code machine renvoyé par le serveur (synco_cdn : `ticket_expired`, `file_changed`…). */
+    readonly code?: string;
+    constructor(status: number, message: string, code?: string) {
         super(message);
         this.name = 'TransferHttpError';
         this.status = status;
+        this.code = code;
     }
     get retryable(): boolean {
         return this.status === 0 || this.status === 408 || this.status === 429 || this.status >= 500;

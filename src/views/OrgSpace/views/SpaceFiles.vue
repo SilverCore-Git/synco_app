@@ -550,7 +550,7 @@
                         <i class="bi bi-shield-check text-(--text2) text-lg" />
                         <div>
                             <p class="text-[10px] font-black uppercase tracking-widest text-(--text2)">Chiffrement</p>
-                            <p class="font-semibold text-(--text)">{{ selectedFileForInfo.isEncrypted ? 'Oui' : 'Non' }}</p>
+                            <p class="font-semibold text-(--text)">De bout en bout</p>
                         </div>
                     </div>
                     

@@ -1,20 +1,10 @@
-import { decryptFileLocal, unwrapFileKey, wrapFileKey } from './crypto';
-import {
-    E2EE_V2_CHUNK_SIZE,
-    NONCE_PREFIX_LENGTH,
-    type ChunkedFormat,
-    chunkCountForEncrypted,
-    encryptedChunkRange,
-    formatFileIv,
-    parseFileIv,
-    plainChunkRange,
-    plainSizeForEncrypted,
-} from './chunkedCryptoCore';
-import { decryptChunkInPool } from './cryptoPool';
+import { unwrapFileKey, wrapFileKey } from './crypto';
+import { E2EE_V2_CHUNK_SIZE, NONCE_PREFIX_LENGTH, type ChunkedFormat, formatFileIv } from './chunkedCryptoCore';
 
 /**
- * Gestion des clés du format E2EE v2 (cf. chunkedCryptoCore.ts) et
- * déchiffrement en mémoire d'un fichier stocké, quel que soit son format.
+ * Gestion des clés du format E2EE v2 (cf. chunkedCryptoCore.ts). Le
+ * contenu est (dé)chiffré morceau par morceau par les transferts
+ * (services/transfers/), dans le pool de workers.
  */
 
 export interface ChunkedFileKey extends ChunkedFormat {
@@ -44,41 +34,4 @@ export async function openChunkedFileKey(encryptedFileKey: string, kek: CryptoKe
     const key = await crypto.subtle.importKey('raw', raw, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
     new Uint8Array(raw).fill(0);
     return key;
-}
-
-/**
- * Déchiffre en mémoire le contenu complet d'un fichier E2EE, v1 ou v2.
- * Pour les usages qui ont besoin des octets entiers (aperçus, éditeur
- * texte, filigrane, archive ZIP) ; les téléchargements vers le disque
- * passent par transfers.ts, qui ne garde que quelques morceaux en mémoire.
- */
-export async function decryptStoredFile(
-    encrypted: ArrayBuffer,
-    meta: { encryptedFileKey: string; iv: string },
-    kek: CryptoKey
-): Promise<ArrayBuffer> {
-    const format = parseFileIv(meta.iv);
-    if (!format) {
-        return decryptFileLocal(encrypted, meta.encryptedFileKey, meta.iv, kek);
-    }
-
-    const fileKey = await openChunkedFileKey(meta.encryptedFileKey, kek);
-    const count = chunkCountForEncrypted(encrypted.byteLength, format.chunkSize);
-    const plainSize = plainSizeForEncrypted(encrypted.byteLength, format.chunkSize);
-    const out = new Uint8Array(plainSize);
-
-    // Quelques morceaux à la fois, répartis sur le pool de workers.
-    const CONCURRENCY = 4;
-    let next = 0;
-    const worker = async () => {
-        while (next < count) {
-            const index = next++;
-            const { start, end } = encryptedChunkRange(index, encrypted.byteLength, format.chunkSize);
-            const plain = await decryptChunkInPool(fileKey, format.noncePrefix, index, index === count - 1, encrypted.slice(start, end));
-            out.set(new Uint8Array(plain), plainChunkRange(index, plainSize, format.chunkSize).start);
-        }
-    };
-    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, count) }, worker));
-
-    return out.buffer;
 }
