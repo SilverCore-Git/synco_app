@@ -62,6 +62,14 @@
         <div v-if="hasUnread" class="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-(--bg) z-20"></div>
 
         <div
+            v-if="muted"
+            class="absolute bottom-0 left-0 w-5 h-5 bg-(--bg2) rounded-full border-2 border-(--bg) z-20 flex items-center justify-center"
+            title="Notifications désactivées"
+        >
+            <i class="bi bi-bell-slash-fill text-(--text2) text-[9px]" />
+        </div>
+
+        <div
             v-if="inVoice"
             class="absolute bottom-0 right-0 w-5 h-5 bg-green-500 rounded-full border-2 border-(--bg) z-20 flex items-center justify-center"
             title="En vocal"
@@ -115,6 +123,7 @@ const props = defineProps<{
     redhover?: boolean;
     inVoice?: boolean;
     hasUnread?: boolean;
+    muted?: boolean;
 }>();
 
 defineEmits<{

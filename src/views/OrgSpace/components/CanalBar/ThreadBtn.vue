@@ -34,6 +34,13 @@
                     {{ thread.name }}
                 </span>
 
+                <i
+                    v-if="muted"
+                    class="bi bi-bell-slash text-xs opacity-50 shrink-0"
+                    :class="hasUnread ? '' : 'ml-auto mr-1'"
+                    title="Notifications désactivées"
+                />
+
                 <div 
                     v-if="hasUnread" 
                     class="
@@ -53,6 +60,8 @@
                 <i class="bi bi-hash mr-2" />
                 Copier l'ID
             </button>
+
+            <MuteMenuItems kind="thread" :id="thread.id" separator />
 
             <button @click="showEditThread = !showEditThread" class="dropdown-item-annimate dropdown-item-style">
                 <i class="bi bi-pencil-fill mr-2" />
@@ -98,6 +107,8 @@ import useSettingsItem from '@/composables/useSettingsItem';
 import { useToast } from '@/composables/useToast';
 import { usePermissions } from '@/composables/usePermissions';
 import { computed } from 'vue';
+import { useNotificationMutes } from '@/composables/useNotificationMutes';
+import MuteMenuItems from '@/components/common/MuteMenuItems.vue';
 const props = defineProps<{
   thread: Thread;
   active?: boolean;
@@ -117,6 +128,8 @@ const toast = useToast();
 const orgId = computed(() => openedOrg.value?.id);
 const { can } = usePermissions(orgId);
 const { Item: devMode } = useSettingsItem('devMode', false);
+const { isThreadMuted } = useNotificationMutes();
+const muted = computed(() => isThreadMuted(props.thread.id));
 
 const copyThreadId = () => {
     navigator.clipboard.writeText(props.thread.id);

@@ -138,6 +138,8 @@
                             :is-editing="editingMessageId === msg.id"
                             @edit-start="editingMessageId = msg.id"
                             @edit-end="endEdit"
+                            @retry-send="retrySend(msg.id)"
+                            @discard-send="discardFailed(msg.id)"
                         />
                         </template>
 
@@ -354,7 +356,7 @@
 
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import type { DMMessage, OrgMember } from '@/types/types';
+import type { DMMessage, OrgMember, User } from '@/types/types';
 import { openedOrg, user, isLittleScreen } from '@/assets/var';
 import useWSocket, { waitForSocketConnection } from '@/composables/useWSocket';
 import type { Socket } from 'socket.io-client';
@@ -379,6 +381,7 @@ import useResponse from '@/composables/useResponse';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useNotification } from '@/composables/useNotification';
 import { useRecentDMs } from '@/composables/useRecentDMs';
+import { getCachedPlaintext, setCachedPlaintext } from '@/assets/utils/dmPlaintextCache';
 import { checkKeyTrust, trustKey, computeKeyFingerprint, type KeyTrustResult } from '@/assets/utils/keyTrust';
 import Popup from '@/components/Popup.vue';
 
@@ -441,7 +444,8 @@ let typingTimeout: any = null;
 // visuellement la conversation puis la rechargeait avec un saut de scroll
 // forcé, alors que rien n'avait réellement changé.
 let joinedDMUserId: string | null = null;
-let pendingSilentRejoin = false;
+// Conversation pour laquelle le dernier "charger plus" a été demandé.
+let loadMoreFor: string | null = null;
 const editingMessageId = ref<string | null>(null);
 
 const editLastOwnMessage = () => {
@@ -596,6 +600,36 @@ const removeFile = (index: number) => {
 // rather than changing the shared util every other caller relies on.
 const getSelectedFileInfo = (file: File) => getFileInfo({ originalName: file.name, mimeType: file.type } as any);
 
+// Les deux seuls utilisateurs d'un DM sont moi et le destinataire, tous deux
+// déjà chargés côté client : l'historique allégé du serveur (dmHistorySelect,
+// synco_api/src/websocket/routes/dm.ts) n'envoie plus que leurs ids, on
+// rattache ici les objets User correspondants.
+const participantById = (id: string | null | undefined): User | undefined => {
+    if (!id) return undefined;
+    if (id === user.value?.id) return user.value ?? undefined;
+    if (id === recipient.value?.id) return recipient.value;
+    return openedOrg.value?.members?.find((m: OrgMember) => m.user?.id === id)?.user;
+};
+
+const hydrateParticipants = (msg: DMMessage): DMMessage => {
+    const hydrated: DMMessage = {
+        ...msg,
+        sender: msg.sender ?? participantById(msg.senderId),
+        recipient: msg.recipient ?? participantById(msg.recipientId),
+    };
+    if (msg.replyMessage && !msg.replyMessage.sender) {
+        hydrated.replyMessage = { ...msg.replyMessage, sender: participantById(msg.replyMessage.senderId) };
+    }
+    if (Array.isArray(msg.reactions)) {
+        hydrated.reactions = msg.reactions.map((r: any) => {
+            if (r.user) return r;
+            const u = participantById(r.userId);
+            return { ...r, user: u ? { id: u.id, name: u.name, avatarUrl: u.avatarUrl } : { id: r.userId } };
+        });
+    }
+    return hydrated;
+};
+
 const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<DMMessage | null> => {
 
         if (!msg) return null;
@@ -617,9 +651,13 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<
             return { ...msg, content: msg.content };
         }
 
+        const cached = getCachedPlaintext(msg.id, msg.nonce);
+        if (cached !== undefined) return { ...msg, content: cached };
+
         try {
 
             const clearText = await decryptFromPeer(msg.content, keyToUse, msg.nonce, privateKey.value);
+            setCachedPlaintext(msg.id, msg.nonce, clearText);
             return { ...msg, content: clearText };
 
         } 
@@ -630,96 +668,206 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<
 
 };
 
+// Contenu principal uniquement (pas la citation), tous les messages en même
+// temps : WebCrypto parallélise lui-même les déchiffrements RSA.
+const decryptMain = (list: DMMessage[]): Promise<DMMessage[]> =>
+    Promise.all(list.map(async m => (await decryptSingleMessage(m)) ?? m));
 
+// Texte clair des messages déjà déchiffrés, par id : une citation dont le
+// message d'origine est dans la liste se résout sans aucun déchiffrement.
+const knownPlaintexts = (list: DMMessage[]): Map<string, string> =>
+    new Map(list.filter(m => !m.decrypting).map(m => [m.id, m.content]));
 
-const procesMessages = async (msgs: DMMessage[]) => {
+// Une citation déjà résolue porte `decrypting: false` ; une citation encore
+// chiffrée porte `decrypting: true` jusqu'au palier 3 (ChatMessage.vue affiche
+// alors un chargement à la place du texte).
+const resolveReplyLocally = (reply: DMMessage, known: Map<string, string>): DMMessage => {
+    if (reply.decrypting === false) return reply;
+    const local = known.get(reply.id) ?? (reply.nonce ? getCachedPlaintext(reply.id, reply.nonce) : undefined);
+    if (local !== undefined) return { ...reply, content: local, decrypting: false };
+    if (!reply.isE2EE || !reply.content) return { ...reply, decrypting: false };
+    return { ...reply, decrypting: true };
+};
 
-    const BATCH_SIZE = 10;
-    const results: (DMMessage | null)[] = [];
+const attachReplies = (list: DMMessage[], known: Map<string, string>): DMMessage[] =>
+    list.map(m => m.replyMessage && m.replyMessage.decrypting !== false
+        ? { ...m, replyMessage: resolveReplyLocally(m.replyMessage, known) }
+        : m);
 
-    for (let i = 0; i < msgs.length; i += BATCH_SIZE) {
-        const batch = msgs.slice(i, i + BATCH_SIZE);
+const decryptReply = async (reply: DMMessage): Promise<DMMessage> =>
+    ({ ...((await decryptSingleMessage(reply)) ?? reply), decrypting: false });
 
-        const decryptedBatch = await Promise.all(batch.map(async m => {
-            let decryptedMain = await decryptSingleMessage(m);
-            if (!decryptedMain) return m;
+// Déchiffrement complet, sans paliers — pour les messages qui arrivent un par
+// un ou par petits paquets (nouveau message, édition, "charger plus").
+const procesMessages = async (msgs: DMMessage[]): Promise<DMMessage[]> => {
+    const main = await decryptMain(msgs.map(hydrateParticipants));
+    const withReplies = attachReplies(main, knownPlaintexts([...messages.value, ...main]));
+    return Promise.all(withReplies.map(async m =>
+        m.replyMessage?.decrypting ? { ...m, replyMessage: await decryptReply(m.replyMessage) } : m
+    ));
+};
 
-            if (decryptedMain.replyMessage) {
-                const decryptedReply = await decryptSingleMessage(decryptedMain.replyMessage);
-                if (decryptedReply) {
-                    decryptedMain.replyMessage = decryptedReply;
-                }
-            }
+// Applique une mise à jour de la liste sans faire sauter l'écran : quand des
+// messages au-dessus du viewport changent de hauteur (texte déchiffré à la
+// place du chargement), on reste collé en bas si on y était, sinon on garde
+// la même distance au bas du fil.
+const updateKeepingScroll = async (update: () => void) => {
+    const el = messagesContainer.value;
+    const fromBottom = el ? el.scrollHeight - el.scrollTop : 0;
+    update();
+    await nextTick();
+    if (!el) return;
+    el.scrollTop = stickToBottom ? el.scrollHeight : el.scrollHeight - fromBottom;
+};
 
-            return decryptedMain;
-        }));
+// Paliers de déchiffrement d'un historique (RSA-4096 par message : quelques
+// ms chacun, bien plus sur certains moteurs) :
+//   1. les FIRST_TIER_SIZE messages les plus récents — ceux à l'écran —
+//      puis affichage immédiat, les plus anciens en chargement ;
+//   2. le reste de l'historique ;
+//   3. les citations dont le message d'origine n'est pas dans la liste.
+// Chaque palier vérifie que son join est toujours le plus récent : changer de
+// conversation en plein déchiffrement l'abandonne au lieu d'afficher les
+// messages de l'ancienne conversation dans la nouvelle.
+const FIRST_TIER_SIZE = 10;
 
-        results.push(...decryptedBatch);
+const applyHistory = async (seq: number, data: { messages: DMMessage[]; hasMore: boolean }, silent: boolean) => {
 
-        // Yield to main thread after each batch so the UI can paint
-        if (i + BATCH_SIZE < msgs.length) {
-            await new Promise(r => setTimeout(r, 0));
-        }
+    const isCurrent = () => seq === joinSeq;
+    const history = (data.messages || []).map(hydrateParticipants);
+
+    // Messages reçus ou envoyés pendant le join (dm:new-message, envoi en
+    // cours) : plus récents que l'historique, on les garde à la suite.
+    const historyIds = new Set(history.map(m => m.id));
+    const lastTs = history.length ? new Date(history[history.length - 1]!.createdAt).getTime() : 0;
+    const extras = () => messages.value.filter(m =>
+        !historyIds.has(m.id) && (String(m.id).startsWith('temp-') || new Date(m.createdAt).getTime() > lastTs)
+    );
+
+    // Rejoin silencieux (reconnexion) : la conversation est déjà affichée,
+    // pas de paliers ni de chargement visibles — tout d'un coup, le cache
+    // rend de toute façon l'opération quasi instantanée.
+    const split = silent ? 0 : Math.max(0, history.length - FIRST_TIER_SIZE);
+    const older = history.slice(0, split);
+    const recent = history.slice(split);
+
+    // Palier 1
+    const recentDone = await decryptMain(recent);
+    if (!isCurrent()) return;
+
+    messages.value = [
+        ...older.map(m => ({
+            ...m,
+            decrypting: true,
+            replyMessage: m.replyMessage ? { ...m.replyMessage, decrypting: true } : m.replyMessage,
+        })),
+        ...attachReplies(recentDone, knownPlaintexts(recentDone)),
+        ...extras(),
+    ];
+    hasMore.value = data.hasMore;
+    loading.value = false;
+
+    // Rejoin silencieux : forcer le scroll jetterait l'utilisateur en bas
+    // alors qu'il relisait peut-être plus haut.
+    if (!silent) {
+        scrollToBottom(true);
+        setTimeout(() => { saveLastRead(); }, 500); // Après la fin du scroll
     }
 
-    // Backend sends messages pre-sorted — no need to re-sort
-    return results as DMMessage[];
+    // Palier 2
+    if (older.length) {
+        const olderDone = await decryptMain(older);
+        if (!isCurrent()) return;
+        const known = knownPlaintexts([...olderDone, ...recentDone]);
+        const byId = new Map(olderDone.map(m => [m.id, m]));
+        // Repasse aussi les citations du palier 1 : leur message d'origine
+        // vient peut-être d'être déchiffré.
+        await updateKeepingScroll(() => {
+            messages.value = attachReplies(messages.value.map(m => byId.get(m.id) ?? m), known);
+        });
+    }
 
+    // Palier 3
+    const pending = messages.value.filter(m => m.replyMessage?.decrypting);
+    if (!pending.length) return;
+    const replies = new Map(await Promise.all(
+        pending.map(async m => [m.id, await decryptReply(m.replyMessage!)] as const)
+    ));
+    if (!isCurrent()) return;
+    await updateKeepingScroll(() => {
+        messages.value = messages.value.map(m => replies.has(m.id) ? { ...m, replyMessage: replies.get(m.id) } : m);
+    });
+
+};
+
+const isFromCurrentDM = (msg: DMMessage) => {
+    const peerId = msg.senderId === user.value?.id ? msg.recipientId : msg.senderId;
+    return peerId === recipient.value?.id;
+};
+
+// Handlers nommés : "connect" / "disconnect" sont aussi écoutés par
+// useWSocket.ts (isConnected, reconnexion) — un off() sans handler les
+// retirait aussi, laissant le bandeau "Déconnecté" affiché après la première
+// reconnexion.
+const onReconnect = () => {
+    const id = recipient.value?.id;
+    // Join émis hors ligne : socket.io l'a mis en file et l'envoie à la
+    // connexion, sa réponse arrivera — pas de doublon.
+    if (!id || joinInFlight === id) return;
+    // Une reconnexion sur le DM déjà affiché ne doit rien changer
+    // visuellement — rejoin silencieux plutôt qu'un rechargement
+    // complet (skeleton + liste vidée + saut de scroll).
+    joinDM(id, joinedDMUserId === id);
+};
+
+const onDisconnect = () => {
+    // Un join-dm parti avant la coupure n'aura jamais de réponse : on
+    // l'abandonne pour que onReconnect puisse le relancer.
+    if (joinInFlight) {
+        joinInFlight = null;
+        joinSeq++;
+    }
+};
+
+const DM_EVENTS = ["dm:new-message", "dm:user-typing", "dm:delete-message", "dm:edit-message", "dm-more-messages", "dm-reaction-updated"];
+
+const removeListeners = () => {
+    const sock = socket.value;
+    if (!sock) return;
+    DM_EVENTS.forEach(ev => sock.off(ev));
+    sock.off("connect", onReconnect);
+    sock.off("disconnect", onDisconnect);
 };
 
 const initListener = () => {
 
     if (!socket.value) return;
     
-    const events = ["dm:history", "dm:new-message", "dm:user-typing", "dm:delete-message", "dm:edit-message", "dm-more-messages", "dm-reaction-updated", "connect"];
-    events.forEach(ev => socket.value?.off(ev));
+    removeListeners();
 
-    socket.value.on("connect", () => {
-        if (recipient.value?.id) {
-            // Une reconnexion sur le DM déjà affiché ne doit rien changer
-            // visuellement — rejoin silencieux plutôt qu'un rechargement
-            // complet (skeleton + liste vidée + saut de scroll).
-            joinDM(recipient.value.id, joinedDMUserId === recipient.value.id);
-        }
-    });
-
-    socket.value.on('dm:history', async (data: { recipientId?: string; messages: any[]; hasMore: boolean } | any[]) => {
-        // Handle both old format (array) and new format (object with messages and hasMore)
-        const history = Array.isArray(data) ? data : data.messages;
-        const receivedHasMore = Array.isArray(data) ? true : data.hasMore;
-        const receivedRecipientId = Array.isArray(data) ? undefined : data.recipientId;
-
-        if (receivedRecipientId && recipient.value?.id && receivedRecipientId !== recipient.value.id) {
-            return; // Ignore history from another DM (race condition)
-        }
-
-        messages.value = await procesMessages(history);
-        hasMore.value = receivedHasMore;
-        loading.value = false;
-        if (recipient.value?.id) joinedDMUserId = recipient.value.id;
-
-        // Rejoin silencieux : la liste vient d'être rafraîchie en place
-        // (sans skeleton, cf. joinDM), mais forcer le scroll ici jetterait
-        // quand même l'utilisateur en bas s'il relisait plus haut.
-        if (pendingSilentRejoin) {
-            pendingSilentRejoin = false;
-        } else {
-            scrollToBottom(true);
-            setTimeout(() => { saveLastRead(); }, 500); // Après la fin du scroll
-        }
-    });
+    socket.value.on("connect", onReconnect);
+    socket.value.on("disconnect", onDisconnect);
 
     socket.value.on('dm-more-messages', async (data: { messages: any[]; hasMore: boolean }) => {
+        // Réponse à un "charger plus" d'une conversation qu'on a quittée depuis.
+        if (loadMoreFor !== recipient.value?.id) {
+            isFetchingMore.value = false;
+            return;
+        }
+
         if (!data.messages || data.messages.length === 0) {
             hasMore.value = false;
             isFetchingMore.value = false;
             return;
         }
 
+        const seq = joinSeq;
+        const decryptedMore = await procesMessages(data.messages);
+        if (seq !== joinSeq) return;
+
         const container = messagesContainer.value;
         const scrollOffset = container ? container.scrollHeight - container.scrollTop : 0;
 
-        const decryptedMore = await procesMessages(data.messages);
         messages.value = [...decryptedMore, ...messages.value];
         hasMore.value = data.hasMore;
 
@@ -729,10 +877,15 @@ const initListener = () => {
     });
 
     socket.value.on("dm:new-message", async (msg: any) => {
+        // Pendant un changement de conversation, le socket reste dans le salon
+        // de l'ancienne jusqu'à la réponse du nouveau join.
+        if (!isFromCurrentDM(msg)) return;
+
         // procesMessages() rather than decryptSingleMessage() so the quoted
         // replyMessage gets decrypted too — otherwise a just-sent reply shows
         // its quote as ciphertext until the DM is reloaded.
         const decryptedMsg = (await procesMessages([msg]))[0] ?? msg;
+        if (!isFromCurrentDM(msg)) return;
 
         if (msg.senderId === user.value?.id) {
             const tempIndex = messages.value.findIndex(m => String(m.id).startsWith('temp-') && m.content === decryptedMsg?.content);
@@ -782,19 +935,28 @@ const initListener = () => {
 
 };
 
+// Numéro du join-dm le plus récent : une réponse (ou un palier de
+// déchiffrement) portant un numéro plus ancien appartient à un join annulé
+// par une navigation vers une autre conversation, et est ignorée.
+let joinSeq = 0;
+// DM dont le join attend encore sa réponse : un second join vers ce même DM
+// est refusé (ex. watcher de route + onMounted qui appelaient tous deux
+// mount() à l'ouverture de /chat, doublant chargement et déchiffrement).
+let joinInFlight: string | null = null;
+const JOIN_TIMEOUT_MS = 15000;
+
 const joinDM = async (userId: string, silent = false) => {
 
-    if (silent) {
-        pendingSilentRejoin = true;
-    } else {
-        // Repli défensif : une navigation franche vers CE DM efface tout
-        // rejoin silencieux resté en suspens (ex: une reconnexion visant un
-        // autre DM entre-temps abandonné par le garde de dm:history
-        // ci-dessus, sans jamais consommer le flag) — sinon le prochain
-        // dm:history sauterait son scroll par erreur.
-        pendingSilentRejoin = false;
+    if (!socket.value || joinInFlight === userId) return;
+
+    const seq = ++joinSeq;
+    joinInFlight = userId;
+
+    if (!silent) {
+        joinedDMUserId = null;
         loading.value = true;
         messages.value = [];
+        stickToBottom = true;
 
         // Capturé avant markDMAsRead() qui remet le compteur à zéro juste après.
         const savedLastRead = localStorage.getItem(`lastRead_dm_${userId}`);
@@ -802,8 +964,28 @@ const joinDM = async (userId: string, silent = false) => {
         showUnreadDelimiterAfterId.value = (hadUnread && savedLastRead) ? savedLastRead : null;
     }
 
-    socket.value?.emit("join-dm", { recipientId: userId });
     markDMAsRead(userId);
+
+    const res: any = await new Promise((resolve) => {
+        socket.value!.timeout(JOIN_TIMEOUT_MS).emit(
+            "join-dm",
+            { recipientId: userId, orgId: openedOrg.value?.id, joinId: seq },
+            (err: Error | null, r: any) => resolve(err ? { error: "Le serveur n'a pas répondu." } : r)
+        );
+    });
+
+    if (seq !== joinSeq) return; // annulé par un join plus récent
+    joinInFlight = null;
+
+    if (!res || res.stale) return;
+    if (res.error) {
+        loading.value = false;
+        toast.show(res.error, 'error');
+        return;
+    }
+
+    joinedDMUserId = userId;
+    await applyHistory(seq, res, silent);
 
 };
 
@@ -938,29 +1120,65 @@ const sendMessage = async () => {
     selectedFiles.value = [];
     fileSendProgress.value = null;
 
-    const confirmedMessage: any = await new Promise((resolve) => {
-        socket.value?.emit("dm:send-message", {
-            recipientId: recipient.value!.id,
-            content: finalContent,
-            encryptedAesKey: finalEncryptedAesKey,
-            selfEncryptedAesKey: selfEncryptedAesKey,
-            nonce: finalIv,
-            isE2EE: useEncryption,
-            replyToId: tempMessage.replyToId,
-            references: extractReferenceTokens(clearContent),
-        }, (response: any) => resolve(response));
+    const payload = {
+        recipientId: recipient.value!.id,
+        content: finalContent,
+        encryptedAesKey: finalEncryptedAesKey,
+        selfEncryptedAesKey: selfEncryptedAesKey,
+        nonce: finalIv,
+        isE2EE: useEncryption,
+        replyToId: tempMessage.replyToId,
+        references: extractReferenceTokens(clearContent),
+    };
+
+    await emitDM(tempId, payload, uploadedFiles);
+
+};
+
+// Délai au-delà duquel un envoi sans réponse du serveur est considéré comme
+// perdu. Sans lui, un événement jeté côté serveur (limite de débit,
+// coupure réseau pendant l'envoi...) laissait le message "en cours d'envoi"
+// indéfiniment, puis il disparaissait au rechargement.
+const SEND_TIMEOUT_MS = 10000;
+
+// Le payload déjà chiffré (et les fichiers déjà uploadés) sont gardés sur le
+// message temporaire : "Réessayer" renvoie exactement la même chose, sans
+// rechiffrer ni ré-uploader.
+const emitDM = async (tempId: string, payload: Record<string, any>, uploadedFiles: any[]) => {
+
+    const response: any = await new Promise((resolve) => {
+        if (!socket.value) return resolve({ error: "Non connecté au serveur." });
+        socket.value.timeout(SEND_TIMEOUT_MS).emit("dm:send-message", payload, (err: Error | null, res: any) => {
+            resolve(err ? { error: "Le serveur n'a pas répondu." } : res);
+        });
     });
 
-    if (confirmedMessage?.error) {
-        toast.show(confirmedMessage.error, "error");
-        messages.value = messages.value.filter(m => m.id !== tempId);
+    if (!response?.error) {
+        if (uploadedFiles.length && response?.id) {
+            socket.value?.emit('edit-dm-message-files', { id: response.id, files: uploadedFiles });
+        }
         return;
     }
 
-    if (uploadedFiles.length && confirmedMessage?.id) {
-        socket.value?.emit('edit-dm-message-files', { id: confirmedMessage.id, files: uploadedFiles });
-    }
+    const temp = messages.value.find(m => m.id === tempId);
+    if (!temp) return; // déjà remplacé par le dm:new-message du serveur
+    temp.isSending = false;
+    temp.sendFailed = true;
+    temp.retry = { payload, uploadedFiles };
+    toast.show(`Message non envoyé : ${response.error}`, "error");
 
+};
+
+const retrySend = async (tempId: string) => {
+    const temp = messages.value.find(m => m.id === tempId);
+    if (!temp?.retry) return;
+    temp.sendFailed = false;
+    temp.isSending = true;
+    await emitDM(tempId, temp.retry.payload, temp.retry.uploadedFiles);
+};
+
+const discardFailed = (tempId: string) => {
+    messages.value = messages.value.filter(m => m.id !== tempId);
 };
 
 const createPrivateMeet = () => {
@@ -996,24 +1214,38 @@ const loadMoreDM = async () => {
     const firstMessageId = messages.value[0]?.id;
     
     if (firstMessageId) {
+        loadMoreFor = recipient.value.id;
         socket.value?.emit("load-more-dm", { 
             recipientId: recipient.value.id, 
             before: firstMessageId,
-            limit: 20
+            limit: 20,
+            lite: true
         });
     }
 };
 
+// Un "isTyping: true" par frappe épuisait à lui seul la limite de débit du
+// serveur — on ne le renvoie qu'une fois par TYPING_EMIT_INTERVAL_MS tant que
+// l'utilisateur tape, et "false" une seule fois quand il s'arrête.
+const TYPING_EMIT_INTERVAL_MS = 2500;
+let lastTypingEmit = 0;
+
 const handleTyping = () => {
     if (!socket.value || !recipient.value) return;
-    socket.value?.emit("dm:typing", { recipientId: recipient.value.id, isTyping: true });
+    const now = Date.now();
+    if (now - lastTypingEmit >= TYPING_EMIT_INTERVAL_MS) {
+        lastTypingEmit = now;
+        socket.value.emit("dm:typing", { recipientId: recipient.value.id, isTyping: true });
+    }
     clearTimeout(typingTimeout);
     typingTimeout = setTimeout(stopTyping, 3000);
 };
 
 const stopTyping = () => {
-    if (!socket.value || !recipient.value) return;
-    socket.value?.emit("dm:typing", { recipientId: recipient.value.id, isTyping: false });
+    clearTimeout(typingTimeout);
+    if (!lastTypingEmit || !socket.value || !recipient.value) return;
+    lastTypingEmit = 0;
+    socket.value.emit("dm:typing", { recipientId: recipient.value.id, isTyping: false });
 };
 
 const scrollToBottom = async (instant = false) => {
@@ -1029,9 +1261,13 @@ const scrollToBottom = async (instant = false) => {
 
 const mount = async () => {
     initListener();
-    if (recipient.value && E2EEUnloked.value) 
+    const id = recipient.value?.id;
+    // Déjà chargé ou en cours de chargement : pas de second join (cf. joinInFlight).
+    // Non attendu : joinDM ne rend la main qu'après tous les paliers de
+    // déchiffrement, le focus de la zone de saisie n'a pas à patienter.
+    if (id && E2EEUnloked.value && id !== joinedDMUserId && id !== joinInFlight) 
     {
-        await joinDM(recipient.value.id);
+        joinDM(id);
     }
     if (E2EEUnloked.value) 
     {
@@ -1100,11 +1336,10 @@ onUnmounted(() => {
     stopTyping();
     document.removeEventListener('click', closeEmojiPickerOnOutsideClick);
     window.removeEventListener('paste', handlePaste);
-    const sock = socket.value;
-    if (sock) {
-        const events = ["dm:history", "dm:new-message", "dm:user-typing", "dm:delete-message", "dm:edit-message", "dm-more-messages", "dm-reaction-updated", "connect"];
-        events.forEach(ev => sock.off(ev));
-    }
+    // Abandonne un join ou un déchiffrement encore en cours pour ce composant.
+    joinSeq++;
+    joinInFlight = null;
+    removeListeners();
 });
 </script>
 

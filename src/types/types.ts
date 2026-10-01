@@ -208,6 +208,11 @@ export interface DMMessage {
     voiceInviteOrgId?: string | null;
     voiceInviteSpaceId?: string | null;
     voiceInviteThreadName?: string | null;
+
+    // Côté client uniquement : contenu pas encore déchiffré (paliers de
+    // chargement d'un historique, cf. ChatView.vue) — `content` contient
+    // encore le chiffré et ne doit pas être affiché.
+    decrypting?: boolean;
 }
 
 export interface OrgMember {
