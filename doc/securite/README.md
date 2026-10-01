@@ -28,7 +28,7 @@ Synco applique **deux couches de chiffrement distinctes et cumulatives**, qu'il 
 
 | | Couche 1 — **Chiffrement au repos (côté serveur)** | Couche 2 — **Chiffrement de bout en bout (E2EE)** |
 |---|---|---|
-| Qui détient la clé | Le serveur (`PRISMA_FIELD_ENCRYPTION_KEY`, `FM_ENCRYPT_KEY`) | L'utilisateur seul (clé privée RSA-4096 déverrouillée par code PIN) |
+| Qui détient la clé | Le serveur (`PRISMA_FIELD_ENCRYPTION_KEY`) | L'utilisateur seul (clé privée RSA-4096 déverrouillée par code PIN) |
 | Contre quoi ça protège | Vol de dump SQL, vol de disque, sauvegarde exfiltrée, accès direct à PostgreSQL | Administrateur Synco malveillant, compromission applicative du serveur, réquisition |
 | Portée | **Absolument tout contenu utilisateur** (voir §2) | Un sous-ensemble : messages, appels, une partie des fichiers, sessions IA, index de recherche |
 | Si le serveur est compromis au niveau applicatif | ❌ Contourné (l'API possède la clé) | ✅ Tient (le serveur ne voit que du chiffré) |
@@ -46,11 +46,10 @@ Synco applique **deux couches de chiffrement distinctes et cumulatives**, qu'il 
 | | réactions emoji | ❌ Non | ❌ **Non — en clair** | [03](./03-messages-salons-threads.md) |
 | **Messages privés (DM)** | corps du message | ✅ **Oui** — enveloppe RSA-OAEP + AES-GCM par message | ✅ (par-dessus) | [04](./04-messages-prives-dm.md) |
 | | invitations vocales (nom du salon) | ❌ Non | ✅ | [04](./04-messages-prives-dm.md) |
-| **Fichiers — dans un espace de travail** | contenu | ✅ **Oui** — AES-GCM, `FileKey` scellée par `WorkspaceKey` | ✅ + SSE serveur | [05](./05-fichiers-et-stockage.md) |
-| **Fichiers — pièce jointe de DM** | contenu | ✅ **Oui** — `DMConversationKey` | ✅ + SSE serveur | [05](./05-fichiers-et-stockage.md) |
-| **Fichiers — salon « accueil » d'organisation** | contenu | ❌ **Non** — SSE serveur uniquement | ✅ | [05](./05-fichiers-et-stockage.md) |
-| **Fichiers — pièce jointe de tâche hors espace** | contenu | ❌ **Non** — SSE serveur uniquement | ✅ | [05](./05-fichiers-et-stockage.md) |
-| **Fichiers — édition OnlyOffice** | contenu | ⚠️ **E2EE explicitement désactivé** pendant/après l'édition | ✅ + SSE serveur | [05](./05-fichiers-et-stockage.md) |
+| **Fichiers — dans un espace de travail** | contenu | ✅ **Oui** — format v2 par morceaux, DEK scellée par `WorkspaceKey` | chiffré uniquement | [05](./05-fichiers-et-stockage.md) |
+| **Fichiers — pièce jointe de DM** | contenu | ✅ **Oui** — `DMConversationKey` | chiffré uniquement | [05](./05-fichiers-et-stockage.md) |
+| **Fichiers — salon « accueil » d'organisation** | contenu | ✅ **Oui** — `ThreadKey` du salon | chiffré uniquement | [05](./05-fichiers-et-stockage.md) |
+| **Fichiers — pièce jointe de tâche hors espace** | contenu | n/a — refusé (rattacher la tâche à un projet) | n/a | [05](./05-fichiers-et-stockage.md) |
 | | nom du fichier, hash, taille, type MIME | ❌ Non | ✅ (sauf taille/MIME) | [05](./05-fichiers-et-stockage.md) |
 | **Appels privés 1-à-1 (P2P)** | audio/vidéo | ✅ **Oui, double** — DTLS-SRTP + surchiffrement AES-GCM par trame (ECDH P-256 éphémère) | n/a (rien stocké) | [06](./06-appels-prives-p2p.md) |
 | | signalisation (SDP, ICE) | ⚠️ Chiffrée uniquement après ouverture du canal sécurisé | n/a | [06](./06-appels-prives-p2p.md) |
@@ -80,7 +79,7 @@ Synco applique **deux couches de chiffrement distinctes et cumulatives**, qu'il 
 | 02 | [Chiffrement côté base de données](./02-chiffrement-base-de-donnees.md) | `prisma-field-encryption`, inventaire exhaustif des champs chiffrés et **non** chiffrés |
 | 03 | [Messages de salons (Threads)](./03-messages-salons-threads.md) | `ThreadKey`, distribution, envoi/réception, métadonnées exposées |
 | 04 | [Messages privés (DM)](./04-messages-prives-dm.md) | Enveloppe hybride par message, double scellement expéditeur/destinataire, `DMConversationKey` |
-| 05 | [Fichiers et stockage](./05-fichiers-et-stockage.md) | Double couche SSE + E2EE, `WorkspaceKey`, `FileKey`, OnlyOffice, filigrane, les cas **non** E2EE |
+| 05 | [Fichiers et stockage](./05-fichiers-et-stockage.md) | Tout E2EE (format v2), clés par contexte, synco_cdn et tickets signés, quota, filigrane |
 | 06 | [Appels privés P2P](./06-appels-prives-p2p.md) | WebRTC, ECDH P-256 + HKDF, surchiffrement par trame (Insertable Streams), empreinte SAS |
 | 07 | [Salons vocaux LiveKit](./07-salons-vocaux-livekit.md) | SFU, E2EE natif LiveKit adossée à la `ThreadKey`, cas de dégradation |
 | 08 | [Sessions éphémères](./08-sessions-ephemeres.md) | Canal PeerJS direct, clés de session jetables, transfert de fichiers chiffré par morceaux, zéro persistance |
@@ -103,7 +102,8 @@ Synco applique **deux couches de chiffrement distinctes et cumulatives**, qu'il 
 | Dérivation depuis le PIN (v3) | PBKDF2-HMAC-SHA256 + HKDF-SHA256 | 210 000 itérations, puis HKDF avec secret serveur |
 | Preuve de PIN côté serveur (v3) | HMAC-SHA256 | étiquette `synco-pin-verifier-v3` |
 | Accord de clé d'appel P2P | ECDH P-256 → HKDF-SHA256 | sel = SHA-256(callId), info = `SilverTeams-Call-E2EE-Key` |
-| Chiffrement fichier au repos (serveur) | AES-256-GCM + HMAC-SHA512 | clés dérivées par HKDF depuis `FM_ENCRYPT_KEY` |
+| Fichiers (client, format v2) | AES-256-GCM par morceaux de 4 Mio | nonce = préfixe 8 octets ‖ index, AAD = index ‖ dernier |
+| Tickets de transfert synco_cdn | Ed25519 | signés par l'API, vérifiés par le CDN (clé publique) |
 | Chiffrement de champ en base | AES-256-GCM | `prisma-field-encryption`, clé `PRISMA_FIELD_ENCRYPTION_KEY` |
 | Clés de webhook | ECDH P-256 | secp256r1, SPKI/PEM + DER |
 | Jetons OAuth agenda externe | AES-256-GCM | clé maître dédiée `SYNCO_GOOGLE_OAUTH_MASTER_KEY` |
