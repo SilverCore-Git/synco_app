@@ -550,7 +550,7 @@
                         <i class="bi bi-shield-check text-(--text2) text-lg" />
                         <div>
                             <p class="text-[10px] font-black uppercase tracking-widest text-(--text2)">Chiffrement</p>
-                            <p class="font-semibold text-(--text)">{{ selectedFileForInfo.isEncrypted ? 'Oui' : 'Non' }}</p>
+                            <p class="font-semibold text-(--text)">De bout en bout</p>
                         </div>
                     </div>
                     
@@ -645,6 +645,7 @@ import DropDown from '@/components/DropDown.vue';
 
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import { uploadFiles } from '@/assets/uploadFile';
+import { isAbortError } from '@/services/transfers/transferManager';
 import FolderCard from '../components/SpaceFiles/FolderCard.vue';
 import FileCard from '../components/SpaceFiles/FileCard.vue';
 import FileViewer from '../components/popup/FileViewer.vue';
@@ -1230,7 +1231,8 @@ watch(() => currentFolderId.value, () => {
             ...route.query, 
             path: '/' + breadcrumbs.value.map(b => b.id).join('/'),
             folderId: undefined, // Clear folderId since we now use path
-            highlightFileId: undefined // Don't persist highlight on normal navigation
+            highlightFileId: undefined, // Don't persist highlight on normal navigation
+            reveal: undefined,
         } 
     });
 });
@@ -1588,35 +1590,26 @@ const handleFiles = async (files: FileList | File[], targetFolderId: string = cu
     const selectedFiles = Array.from(files);
     if (selectedFiles.length === 0) return;
 
-    // Un seul envoi à la fois : la barre de progression est partagée et un
-    // dépôt est très facile à répéter pendant qu'un upload tourne déjà.
-    if (isUploading.value)
-    {
-        toast.show("Un envoi est déjà en cours, patientez", "info");
-        return;
-    }
-
+    // Même limite par défaut que synco_api (CDN_MAX_CHUNKED_UPLOAD_BYTES),
+    // vérifiée ici pour prévenir avant d'envoyer quoi que ce soit.
     const MAX_SIZE = 10 * 1024 * 1024 * 1024;
     const oversized = selectedFiles.some(f => f.size > MAX_SIZE);
     if (oversized) 
     {
-        toast.show("Un ou plusieurs fichiers dépassent la limite de 2Go", "error");
+        toast.show("Un ou plusieurs fichiers dépassent la limite de 10 Go", "error");
         return;
     }
 
+    // Plusieurs dépôts peuvent se succéder sans attendre : le gestionnaire de
+    // transferts met les fichiers en file et affiche leur progression dans
+    // son panneau (plus de barre partagée ici).
     try {
-
-        isUploading.value = true;
-        fileSendProgress.value = 0;
 
         const uploadedFiles = await uploadFiles(
             selectedFiles,
             {
                 workspaceId: String(route.params.spaceId),
                 folderId: targetFolderId === 'root' ? undefined : targetFolderId,
-            },
-            (percent: number) => {
-                fileSendProgress.value = percent;
             }
         );
 
@@ -1646,11 +1639,10 @@ const handleFiles = async (files: FileList | File[], targetFolderId: string = cu
         }
 
     } catch (e) {
+        if (isAbortError(e)) return;
         console.error("Upload Error:", e);
         toast.show("Erreur lors de l'envoi des fichiers", "error");
     } finally {
-        isUploading.value = false;
-        fileSendProgress.value = 0;
         if (fileInputRef.value) fileInputRef.value.value = '';
     }
 };
@@ -1674,6 +1666,7 @@ const fetchSpaceContent = async (options: { silent?: boolean } = {}) => {
         const data = await res.json();
         allFiles.value = data.files || [];
         allFolders.value = data.folders || [];
+        loadedSpaceId = String(route.params.spaceId);
 
         handleRouteQuery();
 
@@ -1756,11 +1749,58 @@ onUnmounted(async () => {
     socket.value?.off('folder-deleted');
 });
 
+// Fait défiler jusqu'à un fichier et le met en surbrillance quelques
+// secondes (styles en ligne : indépendants des classes de la carte).
+const highlightFile = (fileId: string) => {
+    // Laisse le temps au dossier ouvert de s'afficher.
+    setTimeout(() => {
+        const el = document.getElementById('file-' + fileId);
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const originalTransition = el.style.transition;
+        const originalTransform = el.style.transform;
+        const originalBoxShadow = el.style.boxShadow;
+
+        el.style.transition = 'all 0.3s ease';
+        el.style.transform = 'scale(1.05)';
+        el.style.boxShadow = '0 0 0 4px var(--primary), 0 10px 30px var(--shadow-elevated)';
+        el.style.zIndex = '10';
+
+        setTimeout(() => {
+            el.style.transform = originalTransform;
+            el.style.boxShadow = originalBoxShadow;
+            el.style.zIndex = '';
+            setTimeout(() => el.style.transition = originalTransition, 300);
+        }, 4000);
+    }, 600);
+};
+
+// Espace dont allFiles reflète le contenu : un ?reveal arrivé avant son
+// chargement attend fetchSpaceContent (qui rappelle handleRouteQuery).
+let loadedSpaceId: string | null = null;
+
 const handleRouteQuery = () => {
     const urlPath = route.query.path as string;
     const folderId = route.query.folderId as string;
     const highlightFileId = route.query.highlightFileId as string;
     const selectFileId = route.query.select as string | undefined;
+    // ?reveal=<fileId> : « Afficher dans les fichiers » depuis une pièce
+    // jointe ou une référence <file:id> — ouvre le dossier du fichier, quel
+    // qu'il soit, et le met en surbrillance.
+    const revealFileId = route.query.reveal as string | undefined;
+
+    if (revealFileId) {
+        if (loadedSpaceId !== String(route.params.spaceId)) return;
+        const found = allFiles.value.find(f => f.id === revealFileId);
+        router.replace({ query: { ...route.query, reveal: undefined } });
+        if (!found) {
+            toast.show('Ce fichier n\'est plus dans cet espace (déplacé ou supprimé).', 'warning');
+            return;
+        }
+        currentFolderId.value = found.folderId || 'root';
+        highlightFile(found.id);
+        return;
+    }
 
     if (selectFileId) {
         const found = allFiles.value.find(f => f.id === selectFileId);
@@ -1780,31 +1820,7 @@ const handleRouteQuery = () => {
         currentFolderId.value = folderId;
     }
 
-    if (highlightFileId) 
-    {
-        setTimeout(() => {
-            const el = document.getElementById('file-' + highlightFileId);
-            if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                // Add highlight animation via guaranteed inline styles
-                const originalTransition = el.style.transition;
-                const originalTransform = el.style.transform;
-                const originalBoxShadow = el.style.boxShadow;
-                
-                el.style.transition = 'all 0.3s ease';
-                el.style.transform = 'scale(1.05)';
-                el.style.boxShadow = '0 0 0 4px var(--primary), 0 10px 30px var(--shadow-elevated)';
-                el.style.zIndex = '10';
-                
-                setTimeout(() => {
-                    el.style.transform = originalTransform;
-                    el.style.boxShadow = originalBoxShadow;
-                    el.style.zIndex = '';
-                    setTimeout(() => el.style.transition = originalTransition, 300);
-                }, 3000);
-            }
-        }, 600); // 600ms to ensure DOM is ready
-    }
+    if (highlightFileId) highlightFile(highlightFileId);
 };
 
 watch(() => route.query, () => {

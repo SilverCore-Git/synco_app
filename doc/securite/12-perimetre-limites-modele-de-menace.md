@@ -46,7 +46,7 @@ C'est la limite fondamentale, commune à tout E2EE web (Proton, Tutanota, WhatsA
 | `DMConversationKey` | ✅ | ❌ Non (toujours v1) |
 | `AiSessionKey` | ✅ | ❌ Non (toujours v1) |
 | `OrgKey` | ✅ | ❌ Non (modèle quasi inutilisé côté client) |
-| Clés serveur (`FM_ENCRYPT_KEY`, `PRISMA_FIELD_ENCRYPTION_KEY`…) | — | ❌ Non |
+| Clés serveur (`PRISMA_FIELD_ENCRYPTION_KEY`…) | — | ❌ Non |
 
 **Conséquences concrètes :**
 
@@ -94,11 +94,11 @@ Ce sont les points où le code **annonce** ou **laisse croire** à un chiffremen
 | # | Dégradation | Où | Signalé à l'utilisateur ? | Gravité |
 |---|---|---|---|---|
 | 1 | Salon vocal LiveKit **sans `ThreadKey`** → salle non E2EE | [`useLiveKit.ts`](../../src/composables/useLiveKit.ts) `unwrapRoomKey` | ❌ **Non** | 🔴 Élevée |
-| 2 | Upload de fichier : **repli SSE** si le chiffrement échoue | [`uploadFile.ts`](../../src/assets/uploadFile.ts) | ❌ **Non** | 🔴 Élevée |
-| 3 | Fichiers en **salon d'accueil d'organisation** : jamais E2EE | `uploadFile.ts` (pas de `workspaceId`) | ❌ **Non** | 🟠 Moyenne |
+| 2 | ~~Upload de fichier : repli SSE si le chiffrement échoue~~ — **corrigé (01/10/2026)** : sans clé, l'envoi échoue, aucun fichier n'est stocké en clair | [`chunkedUpload.ts`](../../src/services/transfers/chunkedUpload.ts) | — | — |
+| 3 | ~~Fichiers en salon d'accueil d'organisation jamais E2EE~~ — **corrigé (01/10/2026)** : chiffrés avec la `ThreadKey` du salon | [`fileKeys.ts`](../../src/assets/utils/fileKeys.ts) | — | — |
 | 4 | Appels P2P **sans Insertable Streams** (Safari, Firefox) → surchiffrement désactivé | [`useSecurePeer.ts`](../../src/composables/useSecurePeer.ts) `setupMediaEncryption` | ❌ Non (`console.warn` seul) | 🟠 Moyenne |
 | 5 | `DMMessage.isE2EE = false` → contenu affiché en clair | [`ChatView.vue`](../../src/views/OrgSpace/views/ChatView.vue) | ❌ **Non** | 🟠 Moyenne |
-| 6 | **OnlyOffice** désactive définitivement l'E2EE du fichier | [`FileViewer.vue`](../../src/views/OrgSpace/components/popup/FileViewer.vue) | ✅ Oui (action explicite) | 🟡 Faible |
+| 6 | ~~OnlyOffice désactive définitivement l'E2EE du fichier~~ — **supprimé (01/10/2026)** avec OnlyOffice | — | — | — |
 | 7 | Session IA `local`/`custom` : `catch` laissant le payload en clair | [`AIService.ts`](../../src/services/AIService.ts) `syncSession` | ❌ Non | 🟡 Faible |
 | 8 | Webhook actif sur un salon → messages lisibles par le serveur | `Message.isWebhook` | ❌ Non | 🟡 Faible |
 
@@ -132,7 +132,6 @@ Ce sont les points où le code **annonce** ou **laisse croire** à un chiffremen
 | **STUN Google** (`stun.l.google.com`) | Adresses IP des participants aux appels | ✅ Oui — STUN auto-hébergé |
 | **OpenAI / Mistral / Google** (si ces fournisseurs sont choisis) | **Tout le contenu des conversations IA** | ✅ Oui — mode `gateway` ou `local` |
 | **Google Calendar** (si connecté) | Titres, descriptions, lieux, participants des événements synchronisés | ✅ Oui — ne pas connecter |
-| **Serveur OnlyOffice** | Contenu en clair des documents édités | ❌ Non (inhérent) |
 | **Keycloak** | Identités, authentification | ❌ Non (composant d'infrastructure) |
 
 Les deux premières lignes sont des corrections rapides et à fort rapport bénéfice/coût pour une plateforme se présentant comme souveraine.
@@ -198,7 +197,6 @@ Sur la base de l'état du code au 28 septembre 2026 :
 
 ⚠️ **Affirmations à nuancer**
 - « Vos appels de groupe sont chiffrés de bout en bout » → **seulement si tous les participants possèdent la clé du salon** ; un invité par lien dégrade l'appel.
-- « Vos fichiers sont chiffrés de bout en bout » → **seulement dans les espaces de travail et les DM**, pas dans les salons d'accueil d'organisation, pas pendant une édition OnlyOffice.
 - « Synco est chiffré de bout en bout » (affirmation globale, telle qu'elle figure dans `synco_app/doc/index.md`) → **les tâches et l'agenda ne le sont pas.**
 
 ❌ **Affirmations à éviter**

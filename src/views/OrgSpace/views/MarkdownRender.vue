@@ -39,57 +39,25 @@
     </div>
 </template>
 
-<script setup lang="ts">
+<script lang="ts">
 
-import { computed, ref, reactive, watch, nextTick, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+// Bloc exécuté une seule fois au chargement du module — contrairement à
+// <script setup>, qui tourne à chaque instance du composant. Le hook DOMPurify
+// était auparavant enregistré dans <script setup> : un hook de plus à chaque
+// message affiché, jamais retiré, que chaque sanitize() exécutait ensuite sur
+// chaque nœud. Le rendu ralentissait donc au fil de la session. Les caches
+// ci-dessous, eux, étaient recréés vides à chaque instance et ne servaient à
+// rien.
+
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-import { openedOrg } from '@/assets/var';
-import sfetch from '@/assets/utils/sfetch';
-import { buildMentionLookup, renderMentions, handleMentionClick } from '@/composables/useMentions';
-import {
-  renderReferences, buildLocalUserResolutions, seedResolveCache, handleReferenceChipClick,
-  escapeReferenceTokensForMarkdown, stripBlockReferenceTokens, extractReferenceTokens,
-  type ExtractedReference, type ResolvedReference, type ResolveBatchFn,
-} from '@/composables/useReferences';
-import { navigateToReference } from '@/composables/useReferenceNavigation';
-import { renderTimestampTokens } from '@/composables/useTimestampTokens';
-import TaskCard from '@/views/OrgSpace/components/SpaceTasks/TaskCard.vue';
-import FileCard from '@/views/OrgSpace/components/SpaceFiles/FileCard.vue';
-import type { User, Task, StoredFile } from '@/types/types';
-
-const props = withDefaults(defineProps<{
-  content: string;
-  // 'chat': bulles de message (compact, pas d'images/tableaux). 'document':
-  // fichier markdown du file manager (moins restrictif).
-  mode?: 'chat' | 'document';
-  // Désactive le rendu des chips @/#/!/& et des timestamps <t:...> — utile
-  // pour un contenu qui n'en contiendra jamais par construction.
-  enableReferences?: boolean;
-  // false pour les rendus compacts (aperçu de réponse en line-clamp-1) : les
-  // références tâche/fichier restent en chip inline au lieu de la vraie
-  // TaskCard/FileCard, bien trop grande pour tenir dans un aperçu.
-  showReferenceCards?: boolean;
-}>(), {
-  mode: 'chat',
-  enableReferences: true,
-  showReferenceCards: true,
-});
-
-const emit = defineEmits<{
-  (e: 'user-click', user: User, event: MouseEvent): void;
-  (e: 'reference-click', ref: { kind: 'thread' | 'task' | 'file'; id: string; spaceId?: string }, event: MouseEvent): void;
-}>();
-
-const router = useRouter();
+import type { Task, StoredFile } from '@/types/types';
 
 marked.setOptions({
   breaks: true,
   gfm: true,
 });
 
-// Register DOMPurify hook once at module level (not per computed evaluation)
 DOMPurify.addHook('afterSanitizeAttributes', function(node) {
     if ('target' in node) {
         node.setAttribute('target', '_blank');
@@ -115,6 +83,67 @@ const DOCUMENT_ALLOWED_TAGS = [
 ];
 
 const ALLOWED_URI_REGEXP = /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i;
+
+// Cache partagé entre toutes les instances pour ne pas re-parser un markdown
+// identique, namespacé par mode : un rendu 'chat' d'un texte ne peut pas être
+// réutilisé pour 'document' (et inversement) même si le texte brut est égal.
+const htmlCache = new Map<string, string>();
+const MAX_CACHE_SIZE = 200;
+
+// Cartes tâche/fichier déjà chargées, partagées entre instances pour ne pas
+// refetcher la même tâche/fichier à chaque message qui la référence.
+const taskCardCache = new Map<string, Task>();
+const fileCardCache = new Map<string, StoredFile>();
+
+// Membres pour lesquels le cache de résolution des mentions @user a déjà été
+// pré-rempli : inutile de le refaire pour chaque message tant que la liste
+// des membres n'a pas changé.
+let seededMembers: unknown = null;
+
+</script>
+
+<script setup lang="ts">
+
+import { computed, ref, reactive, watch, nextTick, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { openedOrg } from '@/assets/var';
+import sfetch from '@/assets/utils/sfetch';
+import { orgMentionLookup, renderMentions, handleMentionClick } from '@/composables/useMentions';
+import {
+  renderReferences, buildLocalUserResolutions, seedResolveCache, handleReferenceChipClick,
+  escapeReferenceTokensForMarkdown, stripBlockReferenceTokens, extractReferenceTokens,
+  type ExtractedReference, type ResolvedReference, type ResolveBatchFn,
+} from '@/composables/useReferences';
+import { navigateToReference } from '@/composables/useReferenceNavigation';
+import { renderTimestampTokens } from '@/composables/useTimestampTokens';
+import TaskCard from '@/views/OrgSpace/components/SpaceTasks/TaskCard.vue';
+import FileCard from '@/views/OrgSpace/components/SpaceFiles/FileCard.vue';
+import type { User } from '@/types/types';
+
+const props = withDefaults(defineProps<{
+  content: string;
+  // 'chat': bulles de message (compact, pas d'images/tableaux). 'document':
+  // fichier markdown du file manager (moins restrictif).
+  mode?: 'chat' | 'document';
+  // Désactive le rendu des chips @/#/!/& et des timestamps <t:...> — utile
+  // pour un contenu qui n'en contiendra jamais par construction.
+  enableReferences?: boolean;
+  // false pour les rendus compacts (aperçu de réponse en line-clamp-1) : les
+  // références tâche/fichier restent en chip inline au lieu de la vraie
+  // TaskCard/FileCard, bien trop grande pour tenir dans un aperçu.
+  showReferenceCards?: boolean;
+}>(), {
+  mode: 'chat',
+  enableReferences: true,
+  showReferenceCards: true,
+});
+
+const emit = defineEmits<{
+  (e: 'user-click', user: User, event: MouseEvent): void;
+  (e: 'reference-click', ref: { kind: 'thread' | 'task' | 'file'; id: string; spaceId?: string }, event: MouseEvent): void;
+}>();
+
+const router = useRouter();
 
 const sanitizeOptions = computed(() => props.mode === 'document' ? {
     ALLOWED_TAGS: DOCUMENT_ALLOWED_TAGS,
@@ -155,12 +184,6 @@ const blockRefs = computed(() => {
   return { taskIds, fileIds };
 });
 
-// Simple cache to avoid re-parsing identical markdown content, namespaced by
-// mode so a 'chat' render of some text can't be reused for 'document' (and
-// vice versa) even if the raw content string happens to match.
-const htmlCache = new Map<string, string>();
-const MAX_CACHE_SIZE = 200;
-
 const renderedHtml = computed(() => {
 
     const source = textSourceContent.value;
@@ -184,7 +207,7 @@ const renderedHtml = computed(() => {
 });
 
 const rootRef = ref<HTMLElement | null>(null);
-const mentionLookup = computed(() => buildMentionLookup(openedOrg.value?.members));
+const mentionLookup = orgMentionLookup;
 
 const resolveBatch: ResolveBatchFn = async (items: ExtractedReference[]) => {
   const orgId = openedOrg.value?.id;
@@ -229,7 +252,11 @@ const applyPostProcessing = async () => {
 
   if (!props.enableReferences) return;
 
-  seedResolveCache(buildLocalUserResolutions(openedOrg.value?.members));
+  const members = openedOrg.value?.members;
+  if (members !== seededMembers) {
+    seedResolveCache(buildLocalUserResolutions(members));
+    seededMembers = members;
+  }
   await renderReferences(root, resolveBatch);
   renderTimestampTokens(root);
 };
@@ -272,12 +299,9 @@ onMounted(() => {
 // reconstruction en HTML/CSS. Il leur faut l'objet complet (tags, assignees,
 // _count... pour Task ; _count.filePermissions... pour StoredFile), pas le
 // {label, spaceId} léger de /mentions/resolve — d'où les fetchs dédiés
-// ci-dessous plutôt que resolveBatch. Cache mémoire partagé entre instances
-// (même principe que resolveCache dans useReferences.ts) pour ne pas
-// refetcher la même tâche/fichier à chaque message qui la référence.
+// ci-dessous plutôt que resolveBatch, avec les caches taskCardCache /
+// fileCardCache partagés du bloc <script> ci-dessus.
 type CardStatus = 'loading' | 'ok' | 'error';
-const taskCardCache = new Map<string, Task>();
-const fileCardCache = new Map<string, StoredFile>();
 const taskStates = reactive(new Map<string, { status: CardStatus; task?: Task }>());
 const fileStates = reactive(new Map<string, { status: CardStatus; file?: StoredFile }>());
 

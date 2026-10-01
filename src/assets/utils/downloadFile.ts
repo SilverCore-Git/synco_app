@@ -1,62 +1,87 @@
-import { keycloak } from "../keycloak";
 import sfetch from "./sfetch";
-import { getWorkspaceKey } from "./workspaceCrypto";
-import { getDMConversationKey } from "./dmCrypto";
-import { decryptFileLocal } from "./crypto";
+import { NoFileKeyError, resolveFileKek } from "./fileKeys";
+import { WorkspaceKeyNotSharedError } from "./workspaceCrypto";
 import { useToast } from "@/composables/useToast";
+import { enqueueTransfer, isAbortError } from "@/services/transfers/transferManager";
+import { FileChangedError, type DownloadTicket } from "@/services/transfers/cdn";
+import {
+    BlobSink,
+    MemorySink,
+    chunkedPlainSize,
+    pickFileSystemSink,
+    runChunkedDownload,
+    type DownloadSink,
+} from "@/services/transfers/chunkedDownload";
+
+/**
+ * Lecture des fichiers stockés. Tout fichier est chiffré de bout en bout
+ * (format v2) et servi par synco_cdn : GET /api/cdn/meta/:id fournit les
+ * métadonnées, la clé emballée et un ticket de téléchargement ; le contenu
+ * est récupéré par morceaux et déchiffré ici.
+ */
 
 // Subset of GET /api/cdn/meta/:id this module relies on.
 export interface FileMetadata {
+    id: string;
+    blobId: string;
     originalName: string;
     mimeType: string;
+    /** Taille stockée (chiffrée). */
     size: number;
-    isE2EE?: boolean;
-    encryptedFileKey?: string | null;
-    iv?: string | null;
-    workspaceId?: string;
+    encryptedFileKey: string;
+    keyVersion: number;
+    iv: string;
+    workspaceId?: string | null;
+    // Résolus par l'API : l'autre participant d'une conversation DM, le
+    // salon d'une pièce jointe hors espace (cf. synco_api cdnRoutes.ts).
     dmPeerId?: string;
+    threadId?: string;
+    download?: DownloadTicket;
 }
 
-// GET /api/cdn/meta/:id resolves `dmPeerId` server-side (the other DM
-// participant) when the file is attached to a DMMessage, so callers never
-// need to know/pass it themselves — see cdnRoutes.ts's /meta/:id handler.
-const resolveFileKey = async (metadata: FileMetadata) => {
-    if (metadata.workspaceId) return getWorkspaceKey(metadata.workspaceId);
-    if (metadata.dmPeerId) return getDMConversationKey(metadata.dmPeerId);
-    throw new Error("Cannot decrypt E2EE file: no workspace or DM conversation associated");
-};
+/** Message à montrer à l'utilisateur pour une erreur de lecture/envoi. */
+export const fileErrorMessage = (error: unknown, fallback: string) =>
+    error instanceof WorkspaceKeyNotSharedError || error instanceof NoFileKeyError ? error.message : fallback;
 
-const fetchMetadata = async (fileId: string): Promise<FileMetadata> => {
+// Au-delà, un fichier est écrit directement sur le disque (si le navigateur
+// le permet) plutôt qu'assemblé en mémoire.
+const STREAM_TO_DISK_THRESHOLD = 256 * 1024 * 1024;
+
+export const fetchFileMetadata = async (fileId: string): Promise<FileMetadata> => {
     const metaRes = await sfetch(`/api/cdn/meta/${fileId}`, { method: 'GET' });
     if (!metaRes.ok) throw new Error("Failed to fetch file metadata");
     return metaRes.json();
 };
 
-const fetchRawFile = async (fileId: string): Promise<ArrayBuffer> => {
-    const fileRes = await sfetch(`/api/cdn/download/${fileId}`, { method: 'GET' });
-    if (!fileRes.ok) throw new Error("Failed to fetch file");
-    return fileRes.arrayBuffer();
-};
+/** Taille en clair, à partir des métadonnées. */
+export const plainSizeOf = (metadata: Pick<FileMetadata, 'size' | 'iv'>) => chunkedPlainSize(metadata);
 
-const decryptE2EEFile = async (encryptedBuffer: ArrayBuffer, metadata: FileMetadata): Promise<ArrayBuffer> => {
-    const { key: kek } = await resolveFileKey(metadata);
+/** KEK du fichier, selon son contexte (espace, DM, salon). */
+export const fileKekOf = async (metadata: FileMetadata) =>
+    (await resolveFileKek({ workspaceId: metadata.workspaceId, dmPeerId: metadata.dmPeerId, threadId: metadata.threadId })).key;
 
-    if (!metadata.encryptedFileKey || !metadata.iv) {
-        throw new Error("Missing E2EE metadata (key or iv) for file decryption");
+/**
+ * Exécute `run` ; si le fichier a été remplacé pendant la lecture (édition
+ * par un autre membre), recommence une fois avec les nouvelles métadonnées.
+ */
+async function withFreshContent<T>(fileId: string, first: FileMetadata, run: (metadata: FileMetadata) => Promise<T>): Promise<T> {
+    try {
+        return await run(first);
+    } catch (error) {
+        if (!(error instanceof FileChangedError)) throw error;
+        return run(await fetchFileMetadata(fileId));
     }
+}
 
-    return decryptFileLocal(encryptedBuffer, metadata.encryptedFileKey, metadata.iv, kek);
-};
-
-// Plaintext bytes of a stored file, decrypted client-side when E2EE. Always
-// goes through sfetch (Authorization header), never a ?token= URL — used by
-// in-chat media previews (bytes end up in a blob: URL anyway) and folder ZIP
-// archives, which need the bytes rather than a link.
-export const fetchDecryptedFile = async (fileId: string): Promise<{ buffer: ArrayBuffer; metadata: FileMetadata }> => {
-    const metadata = await fetchMetadata(fileId);
-    const raw = await fetchRawFile(fileId);
-    const buffer = metadata.isE2EE ? await decryptE2EEFile(raw, metadata) : raw;
-    return { buffer, metadata };
+// Contenu en clair d'un fichier stocké, en mémoire — pour les aperçus (les
+// octets finissent dans une URL blob:), l'éditeur texte, le filigrane et les
+// archives ZIP. Récupéré par morceaux en parallèle.
+export const fetchDecryptedFile = async (fileId: string, signal?: AbortSignal): Promise<{ buffer: ArrayBuffer; metadata: FileMetadata }> => {
+    return withFreshContent(fileId, await fetchFileMetadata(fileId), async (metadata) => {
+        const sink = new MemorySink(plainSizeOf(metadata));
+        await runChunkedDownload(metadata, await fileKekOf(metadata), sink, signal ?? new AbortController().signal);
+        return { buffer: sink.bytes.buffer as ArrayBuffer, metadata };
+    });
 };
 
 // Saves an already-decrypted blob: URL to disk (e.g. a media preview on
@@ -72,27 +97,15 @@ export const saveObjectUrl = (objectUrl: string, fileName: string) => {
 
 export interface FilePreview {
     url: string;
-    // true when `url` is a blob: URL the caller must URL.revokeObjectURL() when done with it
-    isBlob: boolean;
+    // Toujours une URL blob: (contenu déchiffré localement) : l'appelant doit
+    // la libérer par URL.revokeObjectURL() quand il n'en a plus besoin.
+    isBlob: true;
 }
 
-// Resolves a displayable URL for a stored file (e.g. an <img> src), handling
-// E2EE decryption the same way downloadFile() does below — reused wherever a
-// file needs to be *shown* rather than saved to disk (task attachment
-// thumbnails, linked-file previews).
+// URL affichable d'un fichier stocké (src d'une <img>, d'une <iframe>…).
 export const getFilePreviewUrl = async (fileId: string): Promise<FilePreview> => {
-    const metadata = await fetchMetadata(fileId);
-
-    if (!metadata.isE2EE) {
-        return {
-            url: `${import.meta.env.VITE_API_URL}/api/cdn/download/${fileId}?token=Bearer ${keycloak.token}&inline=true`,
-            isBlob: false
-        };
-    }
-
-    const decryptedBuffer = await decryptE2EEFile(await fetchRawFile(fileId), metadata);
-    const blob = new Blob([decryptedBuffer], { type: metadata.mimeType });
-    return { url: URL.createObjectURL(blob), isBlob: true };
+    const { buffer, metadata } = await fetchDecryptedFile(fileId);
+    return { url: URL.createObjectURL(new Blob([buffer], { type: metadata.mimeType })), isBlob: true };
 };
 
 // Déclenche l'enregistrement d'un Blob sous un nom donné.
@@ -111,33 +124,58 @@ export const saveBlob = (blob: Blob, fileName: string) => {
 
 };
 
+/**
+ * Télécharge un fichier sur le disque de l'utilisateur.
+ *
+ * Rend la main dès que le téléchargement est en file (il apparaît dans le
+ * panneau des transferts) : plusieurs fichiers se téléchargent en
+ * parallèle. Les erreurs sont signalées par un toast.
+ */
 export const downloadFile = async (fileId: string) => {
-    
+
+    const toast = useToast();
+
     try {
-        // 1. Fetch metadata to check if it's E2EE
-        const metadata = await fetchMetadata(fileId);
-        
-        if (!metadata.isE2EE) {
-            // Legacy / SSE download
-            const link = document.createElement('a');
-            link.href = `${import.meta.env.VITE_API_URL}/api/cdn/download/${fileId}?token=Bearer ${keycloak.token}`;
-            link.target = '_blank'; 
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            return;
+        const metadata = await fetchFileMetadata(fileId);
+        const plainSize = plainSizeOf(metadata);
+
+        // Choix de la destination tout de suite : la boîte « Enregistrer
+        // sous » exige un geste utilisateur récent (le clic), qui expire
+        // pendant un long téléchargement.
+        let fsSink: DownloadSink | null = null;
+        if (plainSize >= STREAM_TO_DISK_THRESHOLD) {
+            const picked = await pickFileSystemSink(metadata.originalName);
+            if (picked === 'cancelled') return;
+            fsSink = picked;
         }
 
-        // 2. E2EE: fetch the raw encrypted content and decrypt it with the
-        // workspace / DM conversation key
-        const decryptedBuffer = await decryptE2EEFile(await fetchRawFile(fileId), metadata);
+        const { promise } = enqueueTransfer('download', metadata.originalName, plainSize, (handle) =>
+            withFreshContent(fileId, metadata, async (current) => {
+                // Une nouvelle tentative repart d'une destination neuve.
+                const sink = fsSink && current === metadata ? fsSink : new BlobSink();
+                try {
+                    await runChunkedDownload(current, await fileKekOf(current), sink, handle.signal, (loaded) => handle.setLoaded(loaded));
+                    handle.setFinalizing();
+                    await sink.close();
+                } catch (error) {
+                    await sink.abort();
+                    throw error;
+                }
+                if (sink instanceof BlobSink) {
+                    saveBlob(sink.toBlob(current.mimeType), current.originalName);
+                }
+            })
+        );
 
-        // 5. Trigger download of decrypted file
-        saveBlob(new Blob([decryptedBuffer], { type: metadata.mimeType }), metadata.originalName);
+        promise.catch((e) => {
+            if (isAbortError(e)) return;
+            console.error("Download Error:", e);
+            toast.show(fileErrorMessage(e, `Erreur lors du téléchargement de « ${metadata.originalName} ».`), "error");
+        });
 
     } catch (e) {
         console.error("Download Error:", e);
-        useToast().show("Erreur lors du téléchargement du fichier.", "error");
+        toast.show(fileErrorMessage(e, "Erreur lors du téléchargement du fichier."), "error");
     }
 
 };

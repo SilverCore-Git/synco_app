@@ -41,8 +41,18 @@
                 </div>
 
                 <button
-                    @click="downloadFile(file.id)"
+                    v-if="file.workspaceId"
+                    @click="reveal(file)"
                     class="ml-auto p-1.5 rounded-md hover:bg-(--primary)/20 text-(--text2) hover:text-(--primary) transition-colors"
+                    title="Afficher dans les fichiers"
+                >
+                    <i class="bi bi-folder2-open" />
+                </button>
+
+                <button
+                    @click="downloadFile(file.id)"
+                    :class="file.workspaceId ? '' : 'ml-auto'"
+                    class="p-1.5 rounded-md hover:bg-(--primary)/20 text-(--text2) hover:text-(--primary) transition-colors"
                     title="Télécharger"
                 >
                     <i class="bi bi-download" />
@@ -74,6 +84,8 @@ import { computed, ref } from 'vue';
 import type { StoredFile } from '@/types/types';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { downloadFile } from '@/assets/utils/downloadFile';
+import { revealFileInFiles } from '@/composables/useReferenceNavigation';
+import { useRouter } from 'vue-router';
 import { getMediaKind } from '@/assets/utils/mediaTypes';
 import MessageMedia from './MessageMedia.vue';
 import MediaLightbox from './MediaLightbox.vue';
@@ -83,6 +95,14 @@ const props = defineProps<{
 }>();
 
 const lightbox = ref<{ url: string; fileName: string } | null>(null);
+
+// « Afficher dans les fichiers » : seuls les fichiers d'un espace figurent
+// dans un gestionnaire de fichiers (pas ceux des DM ni des salons
+// d'organisation).
+const router = useRouter();
+const reveal = (file: StoredFile) => {
+    if (file.workspaceId) revealFileInFiles(router, { id: file.id, spaceId: file.workspaceId });
+};
 
 const mediaFiles = computed(() => props.files.filter(f => getMediaKind(f.mimeType) !== null));
 const otherFiles = computed(() => props.files.filter(f => getMediaKind(f.mimeType) === null));

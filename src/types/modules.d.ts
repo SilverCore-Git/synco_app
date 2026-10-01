@@ -4,6 +4,5 @@ declare module '@tauri-apps/api/event';
 declare module '@tauri-apps/plugin-notification';
 declare module '@tauri-apps/api/window';
 declare module 'drag-drop-touch';
-declare module '@onlyoffice/document-editor-vue';
 declare module '@guolao/vue-monaco-editor';
 declare module 'monaco-editor';

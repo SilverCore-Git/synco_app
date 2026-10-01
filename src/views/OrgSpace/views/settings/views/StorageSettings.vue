@@ -267,7 +267,7 @@ const askDelete = (file: StoredFile) => {
 const deleteFile = async () => {
     if (!fileToDelete.value) return;
     try {
-        const res = await sfetch(`/cdn/${fileToDelete.value.id}`, { method: 'DELETE' });
+        const res = await sfetch(`/api/cdn/${fileToDelete.value.id}`, { method: 'DELETE' });
         if (res.ok) {
             toast.show("Fichier supprimé avec succès.", "success");
             files.value = files.value.filter(f => f.id !== fileToDelete.value!.id);

@@ -141,8 +141,13 @@
                     class="w-full bg-black/40 border border-(--primary)/50 rounded-lg px-3 text-white/80 placeholder:opacity-60"
                 />
 
+                <p v-if="!task.spaceId" class="mt-3 flex items-center gap-2 text-xs text-(--text2) px-1">
+                    <i class="bi bi-shield-lock"></i>
+                    Rattachez la tâche à un projet pour y joindre des images : elles sont chiffrées avec sa clé.
+                </p>
                 <!-- Barre d'images : toute la zone est cliquable ; Ctrl+V et glisser-déposer marchent aussi ici -->
                 <div
+                    v-else
                     :tabindex="uploadingImage ? -1 : 0"
                     role="button"
                     aria-label="Ajouter une image"
@@ -506,10 +511,15 @@ const refreshTaskAttachments = async () => {
 
 const uploadAttachments = async (files: File[]) => {
     if (!props.task) return;
+    // Images chiffrées avec la clé du projet (espace) de la tâche.
+    if (!props.task.spaceId) {
+        toast.show('Rattachez la tâche à un projet pour y joindre des images.', 'warning');
+        return;
+    }
     uploadingImage.value = true;
     try {
         for (const file of files) {
-            const uploaded = await uploadFile(file, { taskId: props.task.id, workspaceId: props.task.spaceId || undefined });
+            const uploaded = await uploadFile(file, { taskId: props.task.id, workspaceId: props.task.spaceId });
             if (!props.task.attachments) props.task.attachments = [];
             props.task.attachments.unshift(uploaded);
             resolveAttachmentPreview(uploaded);
