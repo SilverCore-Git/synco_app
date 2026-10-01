@@ -166,34 +166,6 @@
                             <p class="text-xs text-(--text2) mt-2 pointer-events-none">Assistant IA local (WebGPU) ou Cloud externe.</p>
                         </div>
                         
-                        <!-- Module OnlyOffice -->
-                        <div 
-                            @click="toggleModule('onlyoffice')"
-                            class="bg-(--bg2) border rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden transition-all duration-300"
-                            :class="[
-                                !openedOrg?.features?.includes('onlyoffice') ? 'border-(--border-color) opacity-60 grayscale cursor-not-allowed' : 
-                                orgData.onlyofficeEnabled ? 'border-(--primary) shadow-sm hover:shadow-md cursor-pointer' : 'border-(--border-color) hover:border-(--text)/20 cursor-pointer'
-                            ]"
-                        >
-                            <div v-if="!openedOrg?.features?.includes('onlyoffice')" class="absolute top-3 right-3">
-                                <i class="bi bi-lock-fill text-(--text2)" title="Non inclus"></i>
-                            </div>
-                            <div class="flex items-center gap-4">
-                                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-colors"
-                                    :class="orgData.onlyofficeEnabled ? 'bg-(--primary)/10 text-(--primary)' : 'bg-(--bg) text-(--text2)'">
-                                    <i class="bi bi-file-word"></i>
-                                </div>
-                                <div class="flex-1 pointer-events-none">
-                                    <h4 class="font-bold text-sm text-(--text)">Édition Bureautique (OnlyOffice)</h4>
-                                </div>
-                                <label class="relative inline-flex items-center pointer-events-none" :class="{'cursor-not-allowed': !openedOrg?.features?.includes('onlyoffice'), 'cursor-pointer': openedOrg?.features?.includes('onlyoffice')}">
-                                    <input type="checkbox" v-model="orgData.onlyofficeEnabled" :disabled="!openedOrg?.features?.includes('onlyoffice')" class="sr-only peer">
-                                    <div class="w-11 h-6 bg-black/20 border border-(--border-color) peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--primary) peer-checked:border-(--primary)"></div>
-                                </label>
-                            </div>
-                            <p class="text-xs text-(--text2) mt-2 pointer-events-none">Édition collaborative de documents Word, Excel et PowerPoint.</p>
-                        </div>
-
                         <!-- Module Agenda -->
                         <div
                             @click="toggleModule('agenda')"
@@ -317,7 +289,6 @@ const orgData = ref({
     todoEnabled: openedOrg.value?.features?.includes('todo') ? (openedOrg.value?.activeModules?.todo || false) : false,
     filesEnabled: openedOrg.value?.features?.includes('files') ? (openedOrg.value?.activeModules?.files !== false) : false,
     aiEnabled: openedOrg.value?.features?.includes('ai') ? (openedOrg.value?.activeModules?.ai === true) : false,
-    onlyofficeEnabled: openedOrg.value?.features?.includes('onlyoffice') ? (openedOrg.value?.activeModules?.onlyoffice === true) : false,
     agendaEnabled: openedOrg.value?.features?.includes('agenda') ? (openedOrg.value?.activeModules?.agenda || false) : false
 });
 
@@ -329,12 +300,11 @@ watch(() => orgData.value.logo, async (newLogo) => {
     }
 }, { immediate: true });
 
-const toggleModule = (module: 'todo' | 'files' | 'ai' | 'onlyoffice' | 'agenda') => {
+const toggleModule = (module: 'todo' | 'files' | 'ai' | 'agenda') => {
     if (!openedOrg.value?.features?.includes(module)) return;
     if (module === 'todo') orgData.value.todoEnabled = !orgData.value.todoEnabled;
     if (module === 'files') orgData.value.filesEnabled = !orgData.value.filesEnabled;
     if (module === 'ai') orgData.value.aiEnabled = !orgData.value.aiEnabled;
-    if (module === 'onlyoffice') orgData.value.onlyofficeEnabled = !orgData.value.onlyofficeEnabled;
     if (module === 'agenda') orgData.value.agendaEnabled = !orgData.value.agendaEnabled;
 };
 
@@ -345,7 +315,6 @@ const hasChanges = computed(() => {
         || orgData.value.todoEnabled !== (openedOrg.value?.activeModules?.todo || false)
         || orgData.value.filesEnabled !== (openedOrg.value?.activeModules?.files !== false)
         || orgData.value.aiEnabled !== (openedOrg.value?.activeModules?.ai === true)
-        || orgData.value.onlyofficeEnabled !== (openedOrg.value?.activeModules?.onlyoffice === true)
         || orgData.value.agendaEnabled !== (openedOrg.value?.activeModules?.agenda || false)
     )
 });
@@ -356,7 +325,6 @@ const resetChanges = () => {
     orgData.value.todoEnabled = openedOrg.value?.features?.includes('todo') ? (openedOrg.value?.activeModules?.todo || false) : false;
     orgData.value.filesEnabled = openedOrg.value?.features?.includes('files') ? (openedOrg.value?.activeModules?.files !== false) : false;
     orgData.value.aiEnabled = openedOrg.value?.features?.includes('ai') ? (openedOrg.value?.activeModules?.ai === true) : false;
-    orgData.value.onlyofficeEnabled = openedOrg.value?.features?.includes('onlyoffice') ? (openedOrg.value?.activeModules?.onlyoffice === true) : false;
     orgData.value.agendaEnabled = openedOrg.value?.features?.includes('agenda') ? (openedOrg.value?.activeModules?.agenda || false) : false;
 };
 
@@ -380,7 +348,6 @@ const saveSettings = async () => {
                     todo: orgData.value.todoEnabled,
                     files: orgData.value.filesEnabled,
                     ai: orgData.value.aiEnabled,
-                    onlyoffice: orgData.value.onlyofficeEnabled,
                     agenda: orgData.value.agendaEnabled
                 }
             })
@@ -402,7 +369,6 @@ const saveSettings = async () => {
                 todo: orgData.value.todoEnabled,
                 files: orgData.value.filesEnabled,
                 ai: orgData.value.aiEnabled,
-                onlyoffice: orgData.value.onlyofficeEnabled,
                 agenda: orgData.value.agendaEnabled
             };
 
@@ -470,7 +436,6 @@ watch(() => openedOrg.value, (newOrg) => {
         orgData.value.todoEnabled = newOrg.features?.includes('todo') ? (newOrg.activeModules?.todo || false) : false;
         orgData.value.filesEnabled = newOrg.features?.includes('files') ? (newOrg.activeModules?.files !== false) : false;
         orgData.value.aiEnabled = newOrg.features?.includes('ai') ? (newOrg.activeModules?.ai === true) : false;
-        orgData.value.onlyofficeEnabled = newOrg.features?.includes('onlyoffice') ? (newOrg.activeModules?.onlyoffice === true) : false;
         orgData.value.agendaEnabled = newOrg.features?.includes('agenda') ? (newOrg.activeModules?.agenda || false) : false;
     }
 }, { deep: true });
