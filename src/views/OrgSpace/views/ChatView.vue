@@ -604,7 +604,7 @@ const removeFile = (index: number) => {
 // getFileInfo expects a StoredFile (originalName/mimeType) — the preview
 // chips render raw File objects (name/type) before upload, so adapt here
 // rather than changing the shared util every other caller relies on.
-const getSelectedFileInfo = (file: File) => getFileInfo({ originalName: file.name, mimeType: file.type } as any);
+const getSelectedFileInfo = (file: File) => getFileInfo({ originalName: file.name, mimeType: file.type });
 
 // Les deux seuls utilisateurs d'un DM sont moi et le destinataire, tous deux
 // déjà chargés côté client : l'historique allégé du serveur (dmHistorySelect,
