@@ -271,6 +271,7 @@ import { extractReferenceTokens } from '@/composables/useReferences';
 import { uploadFiles } from '@/assets/uploadFile';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { waitForSocketConnection } from '@/composables/useWSocket';
+import { getCachedThreadKey, setCachedThreadKey, invalidateThreadKey } from '@/assets/utils/threadKeyCache';
 
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
@@ -304,30 +305,11 @@ watch(() => selectedMessage.value, async (newId) => {
 
 const currentThreadKey = ref<CryptoKey | null>(null);
 
-// join-thread est maintenant émis en parallèle de get-thread-access (voir
-// joinThread) : "thread-history" peut donc arriver avant que la clé E2EE
-// n'ait fini d'être déchiffrée. procesMessages() sans clé renverrait les
-// messages en clair chiffré tel quel, sans jamais les redéchiffrer — on
-// attend donc explicitement que la clé soit prête avant de traiter l'historique.
-const waitForThreadKey = (): Promise<void> => {
-    if (currentThreadKey.value) return Promise.resolve();
-    return new Promise(resolve => {
-        const stop = watch(currentThreadKey, (val) => {
-            if (val) {
-                stop();
-                resolve();
-            }
-        });
-        setTimeout(() => { stop(); resolve(); }, 10000);
-    });
-};
-
 const selectedFiles = ref<File[]>([]);
 const fileSendProgress = ref<null | number>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const TextareaRef = ref<InstanceType<typeof ThreadTextarea> | null>(null);
 const socket = ref<any>(null);
-const rawMessages = ref<Map<string, Message>>(new Map());
 const newMessage = ref<string>("");
 const messagesContainer = ref<HTMLElement | null>(null);
 const footerRef = ref<HTMLElement | null>(null);
@@ -503,8 +485,6 @@ const scrollToSelectedMessage = async () => {
     const targetEl = document.getElementById(`msg-${selectedMessage.value}`);
     if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    console.log(targetEl)
-
 };
 
 // Un message webhook n'a pas de senderId (jamais d'expéditeur humain) : deux
@@ -536,9 +516,9 @@ const formatReactions = (reactions: any[]) => {
     }, {});
 };
 
-const procesMessages = async (msgs: Message[]) => {
+const procesMessages = async (msgs: Message[], key: CryptoKey | null = currentThreadKey.value) => {
 
-    if (!currentThreadKey.value) return msgs;
+    if (!key) return msgs;
 
     const decryptSingleMessage = async (msg: Message | null | undefined): Promise<Message | null> => {
 
@@ -556,7 +536,7 @@ const procesMessages = async (msgs: Message[]) => {
                 return { ...msg, content: "[⚠️ Impossible de déchiffrer ce message.]" };
             }
 
-            const clearText = await decryptMessageWithContentKey(msg.content, vectorInit, currentThreadKey.value!);
+            const clearText = await decryptMessageWithContentKey(msg.content, vectorInit, key);
             
             // Format reactions if they exist (from Prisma array to grouped object)
             // reactions can be either an array (from Prisma) or already grouped (from WebSocket updates)
@@ -587,6 +567,9 @@ const procesMessages = async (msgs: Message[]) => {
             }
         }
 
+        // Le transfert de message est une fonctionnalité en attente : le
+        // serveur ne l'envoie plus dans l'historique allégé, mais les anciens
+        // formats (et la future fonctionnalité) peuvent encore le porter.
         if (decryptedMain.transferMessage)
         {
             const decryptedTransfer = await decryptSingleMessage(decryptedMain.transferMessage);
@@ -631,24 +614,37 @@ const handleScroll = (e: Event) => {
     if (isAtBottom) saveLastRead();
 };
 
+// Salon pour lequel le dernier "charger plus" a été demandé.
+let loadMoreFor: string | null = null;
+
 const loadMore = () => {
-    if (sortedMessages.value.length === 0 || isFetchingMore.value) return;
+    if (sortedMessages.value.length === 0 || isFetchingMore.value || !thread.value) return;
     isFetchingMore.value = true;
-    socket.value?.emit("load-more", { threadId: thread.value?.id, before: sortedMessages.value[0]?.id });
+    loadMoreFor = thread.value.id;
+    socket.value?.emit("load-more", { threadId: thread.value.id, before: sortedMessages.value[0]?.id, lite: true });
 };
 
-// "connect" et "thread:deleted" sont aussi écoutés ailleurs (useWSocket.ts
-// remet isConnected à true sur connect, OrgLayout.vue retire le salon de la
-// barre latérale sur thread:deleted) : on ne retire que NOS handlers, jamais
-// l'événement entier, sinon le bandeau "Déconnecté" restait affiché après la
-// première reconnexion et la barre latérale ne voyait plus les suppressions.
+// "connect", "disconnect" et "thread:deleted" sont aussi écoutés ailleurs
+// (useWSocket.ts, OrgLayout.vue) : on ne retire que NOS handlers, jamais
+// l'événement entier.
 const onReconnect = () => {
-    if (thread.value?.id) {
-        // Un simple aller-retour de connexion (coupure réseau, mise en
-        // veille, redémarrage serveur...) alors qu'on regarde déjà ce
-        // salon ne doit pas se voir : rejoin silencieux plutôt qu'un
-        // rechargement complet (skeleton + liste vidée + saut de scroll).
-        joinThread(thread.value.id, joinedThreadId === thread.value.id);
+    const id = thread.value?.id;
+    // Join émis hors ligne : socket.io l'a mis en file et l'envoie à la
+    // connexion, sa réponse arrivera — pas de doublon.
+    if (!id || joinInFlight === id) return;
+    // Un simple aller-retour de connexion (coupure réseau, mise en veille,
+    // redémarrage serveur...) alors qu'on regarde déjà ce salon ne doit pas
+    // se voir : rejoin silencieux plutôt qu'un rechargement complet
+    // (skeleton + liste vidée + saut de scroll).
+    joinThread(id, joinedThreadId === id);
+};
+
+const onDisconnect = () => {
+    // Un join-thread parti avant la coupure n'aura jamais de réponse : on
+    // l'abandonne pour que onReconnect puisse le relancer.
+    if (joinInFlight) {
+        joinInFlight = null;
+        joinSeq++;
     }
 };
 
@@ -665,63 +661,49 @@ const onThreadDeleted = ({ threadId }: { threadId: string }) => {
     });
 };
 
+const THREAD_EVENTS = ["more-messages", "new-message", "keys-distributed", "delete-message", "edit-message", "message-reaction-updated"];
+
+const removeListeners = () => {
+    const sock = socket.value;
+    if (!sock) return;
+    THREAD_EVENTS.forEach(ev => sock.off(ev));
+    sock.off("connect", onReconnect);
+    sock.off("disconnect", onDisconnect);
+    sock.off("thread:deleted", onThreadDeleted);
+};
+
 const initListener = () => {
 
     if (!socket.value) return;
 
-    socket.value.off("thread-history").off("more-messages").off("new-message").off("keys-distributed")
-        .off("delete-message").off("edit-message").off("connect", onReconnect).off("thread:deleted", onThreadDeleted);
+    removeListeners();
 
     socket.value.on("connect", onReconnect);
+    socket.value.on("disconnect", onDisconnect);
     socket.value.on("thread:deleted", onThreadDeleted);
 
     socket.value.on("keys-distributed", async ({ threadId }: { threadId: string }) => {
         if (threadId === thread.value?.id) {
+            // Nouvelle clé distribuée : celle en cache (s'il y en a une) est périmée.
+            invalidateThreadKey(threadId);
             joinThread(threadId);
         }
     });
 
-    socket.value.on("thread-history", async (data: { threadId?: string; messages: Message[] } | Message[]) => {
-        const history = Array.isArray(data) ? data : data.messages;
-        const receivedThreadId = Array.isArray(data) ? undefined : data.threadId;
-
-        if (receivedThreadId && thread.value?.id && receivedThreadId !== thread.value.id) {
-            return; // Ignore history from another thread
-        }
-
-        await waitForThreadKey();
-
-        rawMessages.value.clear();
-        history.forEach(m => rawMessages.value.set(m.id, m));
-        sortedMessages.value = await procesMessages(history);
-
-        loading.value = false;
-        hasMore.value = history.length >= 20;
-
-        // Rejoin silencieux (reconnexion sur le salon déjà affiché) : la
-        // liste vient d'être rafraîchie en place (sans skeleton, cf.
-        // joinThread), mais forcer le scroll ici jetterait quand même
-        // l'utilisateur en bas de la conversation s'il était en train de
-        // relire plus haut — exactement le "ça se recharge tout seul" dont
-        // il se plaint, juste déplacé du skeleton au saut de scroll.
-        if (pendingSilentRejoin) {
-            pendingSilentRejoin = false;
-        } else if (selectedMessage.value && selectedMessage.value !== 'undefined') {
-            await scrollToSelectedMessage();
-        } else {
-            scrollToBottom(true);
-            setTimeout(() => { saveLastRead(); }, 500); // Save after scroll completes
-        }
-    });
-
     socket.value.on("more-messages", async (more: Message[]) => {
+        // Réponse à un "charger plus" d'un salon qu'on a quitté depuis.
+        if (loadMoreFor !== thread.value?.id) { isFetchingMore.value = false; return; }
+
         if (more.length === 0) { hasMore.value = false; isFetchingMore.value = false; return; }
         if (more.length < 20) hasMore.value = false;
+
+        const seq = joinSeq;
+        const decryptedMore = await procesMessages(more);
+        if (seq !== joinSeq) return;
 
         const container = messagesContainer.value;
         const scrollOffset = container ? container.scrollHeight - container.scrollTop : 0;
         
-        const decryptedMore = await procesMessages(more);
         sortedMessages.value = [...decryptedMore, ...sortedMessages.value];
 
         await nextTick();
@@ -737,6 +719,7 @@ const initListener = () => {
         // as history load does — the two used to disagree, leaving a just-sent reply's quote
         // box showing raw ciphertext until the next full reload.
         const decrypted = (await procesMessages([msg]))[0] ?? msg;
+        if (msg.threadId !== thread.value?.id) return;
         const clearContent = decrypted.content;
         sortedMessages.value.push(decrypted);
         
@@ -775,7 +758,6 @@ const initListener = () => {
     });
 
     socket.value.on('delete-message', (msgId: string) => {
-        rawMessages.value.delete(msgId);
         sortedMessages.value = sortedMessages.value.filter(m => m.id !== msgId);
     });
 
@@ -807,13 +789,18 @@ const initListener = () => {
             replyMessage: previous?.replyMessage ?? editedMsg.replyMessage,
             transferMessage: previous?.transferMessage ?? editedMsg.transferMessage,
         };
-        rawMessages.value.set(editedMsg.id, updatedMsg);
         sortedMessages.value = sortedMessages.value.map(m => m.id === editedMsg.id ? updatedMsg : m);
     });
 
-};
+    // Un seul écouteur pour tout le salon, au lieu d'un par ThreadMessage
+    // (20 à 60 écouteurs ajoutés puis retirés à chaque ouverture, tous
+    // appelés à chaque réaction).
+    socket.value.on('message-reaction-updated', (data: { messageId: string; reactions: Record<string, { count: number; users: any[] }> }) => {
+        const msg = sortedMessages.value.find(m => m.id === data.messageId);
+        if (msg) msg.reactions = data.reactions;
+    });
 
-let isJoiningThread = false;
+};
 
 // Id du salon pour lequel on a déjà chargé l'historique avec succès. Sert à
 // distinguer "on ouvre/change réellement de salon" (où un état de
@@ -827,36 +814,143 @@ let isJoiningThread = false;
 // template).
 let joinedThreadId: string | null = null;
 
-// Mis à true juste avant un rejoin silencieux (reconnexion sur le même
-// salon) — lu par le handler "thread-history" ci-dessous pour savoir s'il
-// doit sauter le saut de scroll forcé qui accompagne normalement un
-// (re)chargement visible.
-let pendingSilentRejoin = false;
+// Numéro du join le plus récent : une réponse (clé, historique) portant un
+// numéro plus ancien appartient à un join annulé par l'ouverture d'un autre
+// salon, et est ignorée. Remplace l'ancien verrou isJoiningThread, qui
+// refusait purement et simplement l'ouverture d'un autre salon tant que le
+// précédent n'avait pas reçu sa clé (le nouveau salon restait alors sur le
+// squelette de chargement), et restait bloqué pour de bon si cette réponse
+// n'arrivait jamais.
+let joinSeq = 0;
+// Salon dont le join attend encore sa réponse : un second join vers ce même
+// salon est refusé.
+let joinInFlight: string | null = null;
+const JOIN_TIMEOUT_MS = 15000;
+
+const emitWithAck = (event: string, payload: Record<string, any>): Promise<any> => new Promise((resolve) => {
+    if (!socket.value) return resolve({ error: "Non connecté au serveur." });
+    socket.value.timeout(JOIN_TIMEOUT_MS).emit(event, payload, (err: Error | null, res: any) => {
+        resolve(err ? { error: "Le serveur n'a pas répondu." } : res);
+    });
+});
+
+// Clé E2EE du salon telle que le serveur la détient pour nous : celle du
+// cache si elle n'a pas changé, sinon déchiffrée (RSA) puis mise en cache.
+// null si elle n'est pas disponible (erreurs déjà signalées à l'utilisateur).
+// `background` : revalidation d'une clé en cache alors que l'historique est
+// déjà affiché — une erreur invalide le cache sans toucher à l'écran.
+const fetchThreadKey = async (id: string, seq: number, background = false): Promise<CryptoKey | null> => {
+
+    const response: { encryptedKey?: string, error?: string, needsReadd?: boolean } = await emitWithAck("get-thread-access", { threadId: id });
+    if (seq !== joinSeq) return null;
+
+    if (response.error || !response.encryptedKey) 
+    {
+        invalidateThreadKey(id);
+        if (background) return null;
+
+        // Special case: user needs to be re-added to thread (after E2EE reset)
+        if (response.error && response.needsReadd) {
+            if (user.value?.publicKey) {
+                socket.value.emit("request-thread-keys", {
+                    threadId: id,
+                    publicKey: user.value.publicKey
+                });
+                debugMsg.value = 'Récupération de la clé E2EE en cours... (en attente des autres membres)';
+                loading.value = true;
+                return null;
+            } else {
+                debugMsg.value = 'Erreur : Clé publique introuvable. ' + response.error;
+                loading.value = false;
+                router.push({ 
+                    name: 'OrgHome', 
+                    params: { orgId: route.params.orgId }, 
+                    query: { noRedirect: 'true' } 
+                });
+                toast.show(response.error, 'warning', 10000);
+                return null;
+            }
+        }
+        
+        debugMsg.value = 'Erreur serveur : ' + (response.error || 'Clé non retournée');
+        loading.value = false;
+        console.error('[E2EE] erreur serveur : ', response)
+        toast.show(response.error || '[E2EE] Accès refusé ou impossible de récupérer la clé du salon.', 'error');
+        return null;
+    }
+
+    const cached = getCachedThreadKey(id);
+    if (cached && cached.encryptedKey === response.encryptedKey) return cached.key;
+
+    try {
+        const key = await decryptThreadKeyWithRsa(response.encryptedKey, privateKey.value!);
+        setCachedThreadKey(id, response.encryptedKey, key);
+        return key;
+    } catch (cryptoErr) {
+        invalidateThreadKey(id);
+        if (background) return null;
+        debugMsg.value = 'Erreur : Déchiffrement RSA échoué.';
+        console.error("[E2EE] Échec Déchiffrement Salon:", cryptoErr);
+        toast.show('[E2EE] Échec du déchiffrement de la clé de session du salon.', 'error');
+        loading.value = false;
+        return null;
+    }
+
+};
+
+const applyHistory = async (seq: number, data: { messages: Message[]; hasMore?: boolean }, key: CryptoKey, silent: boolean) => {
+
+    const history = data.messages || [];
+    const decrypted = await procesMessages(history, key);
+    // Changement de salon pendant le déchiffrement : ces messages ne sont
+    // plus ceux du salon affiché.
+    if (seq !== joinSeq) return;
+
+    sortedMessages.value = decrypted;
+    loading.value = false;
+    hasMore.value = data.hasMore ?? history.length >= 20;
+
+    // Rejoin silencieux (reconnexion sur le salon déjà affiché) : la liste
+    // vient d'être rafraîchie en place, mais forcer le scroll ici jetterait
+    // l'utilisateur en bas de la conversation s'il était en train de relire
+    // plus haut.
+    if (silent) return;
+    if (selectedMessage.value && selectedMessage.value !== 'undefined') {
+        await scrollToSelectedMessage();
+    } else {
+        scrollToBottom(true);
+        setTimeout(() => { saveLastRead(); }, 500); // Save after scroll completes
+    }
+
+};
 
 const joinThread = async (id: string, silent = false) => {
-
-    if (isJoiningThread) return;
-    isJoiningThread = true;
 
     if (!socket.value) {
         debugMsg.value = 'Erreur : Pas de connexion Socket active.';
         loading.value = false;
-        isJoiningThread = false;
         return;
     }
 
-    if (silent) {
-        pendingSilentRejoin = true;
-    } else {
-        // Repli défensif : une navigation franche vers CE salon efface tout
-        // rejoin silencieux resté en suspens (ex: une reconnexion visant un
-        // autre salon entre-temps abandonné par le garde de thread-history
-        // ci-dessous, sans jamais consommer le flag) — sinon le prochain
-        // thread-history sauterait son scroll par erreur.
-        pendingSilentRejoin = false;
+    if (joinInFlight === id) return;
+
+    if (!privateKey.value) 
+    {
+        debugMsg.value = 'Erreur : Clé privée introuvable (verrouillé).';
+        loading.value = false;
+        toast.show('[E2EE] Votre clé privée est introuvable. Veuillez déverrouiller votre espace sécurisé (PIN).', 'error');
+        return;
+    }
+
+    const seq = ++joinSeq;
+    joinInFlight = id;
+
+    if (!silent) {
+        joinedThreadId = null;
         loading.value = true;
         currentThreadKey.value = null;
         sortedMessages.value = [];
+        stickToBottom = true;
 
         const savedLastRead = localStorage.getItem(`lastRead_${id}`);
         if (thread.value?.hasUnread && savedLastRead) {
@@ -866,99 +960,59 @@ const joinThread = async (id: string, silent = false) => {
         }
     }
 
-    if (!privateKey.value) 
-    {
-        debugMsg.value = 'Erreur : Clé privée introuvable (verrouillé).';
+    // Clé et historique en parallèle. Avec une clé en cache, l'historique
+    // s'affiche dès son arrivée ; la clé est revalidée ensuite auprès du
+    // serveur.
+    const cached = getCachedThreadKey(id);
+    const historyPromise = emitWithAck("join-thread", { threadId: id, joinId: seq });
+    const keyPromise = fetchThreadKey(id, seq, !!cached);
+
+    let key = cached?.key ?? null;
+    if (!key) {
+        key = await keyPromise;
+        if (seq !== joinSeq) return;
+        if (!key) { joinInFlight = null; return; }
+    }
+    currentThreadKey.value = key;
+
+    const res = await historyPromise;
+    if (seq !== joinSeq) return;
+    joinInFlight = null;
+
+    if (!res || res.stale) return;
+    if (res.error) {
+        debugMsg.value = 'Erreur : ' + res.error;
         loading.value = false;
-        toast.show('[E2EE] Votre clé privée est introuvable. Veuillez déverrouiller votre espace sécurisé (PIN).', 'error');
-        isJoiningThread = false;
+        toast.show(res.error, 'error');
         return;
     }
 
-    // Timeout pour éviter de rester bloqué
-    const timeoutId = setTimeout(() => {
-        debugMsg.value = 'Erreur : Timeout API (10s) de get-thread-access.';
-        loading.value = false;
-        toast.show('[E2EE] Timeout lors de la récupération de la clé du salon.', 'error');
-    }, 10000);
+    joinedThreadId = id;
 
-    // join-thread ne dépend pas de la clé E2EE déchiffrée (il fait sa propre
-    // vérification de permission côté serveur et renvoie l'historique via un
-    // listener "thread-history" déjà en place) : on l'émet en parallèle de
-    // get-thread-access plutôt que d'attendre son aller-retour complet avant
-    // de démarrer le second, pour ne pas payer deux latences réseau en série.
-    socket.value.emit("join-thread", { threadId: id });
+    let _thread;
+    if (route.params.spaceId == 'home')  _thread = openedOrg.value?.home.threads.find(__thread => __thread.id == thread.value?.id);
+    else _thread = (openedOrg.value?.spaces?.find(space => space.id == route.params.spaceId))?.threads.find(__thread => __thread.id == thread.value?.id);
+    if (_thread) _thread.hasUnread = false;
+    markThreadAsRead(id);
 
-    socket.value.emit("get-thread-access", { threadId: id }, async (response: { encryptedKey?: string, error?: string, needsReadd?: boolean }) => {
-        clearTimeout(timeoutId);
+    await applyHistory(seq, res, key, silent);
 
-        if (response.error || !response.encryptedKey) 
-        {
-            // Special case: user needs to be re-added to thread (after E2EE reset)
-            if (response.error && response.needsReadd) {
-                if (user.value?.publicKey) {
-                    socket.value.emit("request-thread-keys", {
-                        threadId: id,
-                        publicKey: user.value.publicKey
-                    });
-                    debugMsg.value = 'Récupération de la clé E2EE en cours... (en attente des autres membres)';
-                    loading.value = true;
-                    isJoiningThread = false;
-                    return;
-                } else {
-                    debugMsg.value = 'Erreur : Clé publique introuvable. ' + response.error;
-                    loading.value = false;
-                    router.push({ 
-                        name: 'OrgHome', 
-                        params: { orgId: route.params.orgId }, 
-                        query: { noRedirect: 'true' } 
-                    });
-                    toast.show(response.error, 'warning', 10000);
-                    isJoiningThread = false;
-                    return;
-                }
-            }
-            
-            debugMsg.value = 'Erreur serveur : ' + (response.error || 'Clé non retournée');
-            loading.value = false;
-            console.error('[E2EE] erreur serveur : ', response)
-            toast.show(response.error || '[E2EE] Accès refusé ou impossible de récupérer la clé du salon.', 'error');
-            isJoiningThread = false;
-            return;
-        }
+    // Ne vole le focus du textarea qu'au véritable chargement — sur un
+    // rejoin silencieux (reconnexion), l'utilisateur peut être en train de
+    // taper ou d'interagir ailleurs sur la page.
+    if (!silent && seq === joinSeq) {
+        await nextTick();
+        TextareaRef.value?.textarea?.focus();
+    }
 
-        try {
-
-            const decryptedKey = await decryptThreadKeyWithRsa(response.encryptedKey, privateKey.value!);
-            currentThreadKey.value = decryptedKey;
-            joinedThreadId = id;
-
-            let _thread;
-            if (route.params.spaceId == 'home')  _thread = openedOrg.value?.home.threads.find(__thread => __thread.id == thread.value?.id);
-            else _thread = (openedOrg.value?.spaces?.find(space => space.id == route.params.spaceId))?.threads.find(__thread => __thread.id == thread.value?.id);
-
-            if (_thread) _thread.hasUnread = false;
-
-            markThreadAsRead(id);
-
-            // Ne vole le focus du textarea qu'au véritable chargement — sur
-            // un rejoin silencieux (reconnexion), l'utilisateur peut être en
-            // train de taper ou d'interagir ailleurs sur la page.
-            if (!silent) {
-                await nextTick();
-                TextareaRef.value?.textarea?.focus();
-            }
-
-        } catch (cryptoErr) {
-            debugMsg.value = 'Erreur : Déchiffrement RSA échoué.';
-            console.error("[E2EE] Échec Déchiffrement Salon:", cryptoErr);
-            toast.show('[E2EE] Échec du déchiffrement de la clé de session du salon.', 'error');
-            loading.value = false;
-        }
-
-        isJoiningThread = false;
-
-    });
+    // Clé prise dans le cache : si le serveur en a une autre (réinitialisation
+    // E2EE, redistribution), on bascule dessus et on redéchiffre l'historique.
+    if (cached) {
+        const fresh = await keyPromise;
+        if (seq !== joinSeq || !fresh || fresh === key) return;
+        currentThreadKey.value = fresh;
+        await applyHistory(seq, res, fresh, true);
+    }
 
 };
 
@@ -1114,11 +1168,13 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+    // Abandonne un join ou un déchiffrement encore en cours pour ce composant.
+    joinSeq++;
+    joinInFlight = null;
     if (socket.value) 
     {
         socket.value.emit("leave-thread", thread.value?.id);
-        socket.value.off("thread-history").off("more-messages").off("new-message")
-            .off("keys-distributed").off("delete-message").off("edit-message").off("connect", onReconnect).off("thread:deleted", onThreadDeleted);
+        removeListeners();
     }
     window.removeEventListener('paste', handlePaste);
     document.removeEventListener('click', closeEmojiPickerOnOutsideClick);
