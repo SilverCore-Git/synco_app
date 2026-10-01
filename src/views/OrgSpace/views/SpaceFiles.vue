@@ -1231,7 +1231,8 @@ watch(() => currentFolderId.value, () => {
             ...route.query, 
             path: '/' + breadcrumbs.value.map(b => b.id).join('/'),
             folderId: undefined, // Clear folderId since we now use path
-            highlightFileId: undefined // Don't persist highlight on normal navigation
+            highlightFileId: undefined, // Don't persist highlight on normal navigation
+            reveal: undefined,
         } 
     });
 });
@@ -1665,6 +1666,7 @@ const fetchSpaceContent = async (options: { silent?: boolean } = {}) => {
         const data = await res.json();
         allFiles.value = data.files || [];
         allFolders.value = data.folders || [];
+        loadedSpaceId = String(route.params.spaceId);
 
         handleRouteQuery();
 
@@ -1747,11 +1749,58 @@ onUnmounted(async () => {
     socket.value?.off('folder-deleted');
 });
 
+// Fait défiler jusqu'à un fichier et le met en surbrillance quelques
+// secondes (styles en ligne : indépendants des classes de la carte).
+const highlightFile = (fileId: string) => {
+    // Laisse le temps au dossier ouvert de s'afficher.
+    setTimeout(() => {
+        const el = document.getElementById('file-' + fileId);
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const originalTransition = el.style.transition;
+        const originalTransform = el.style.transform;
+        const originalBoxShadow = el.style.boxShadow;
+
+        el.style.transition = 'all 0.3s ease';
+        el.style.transform = 'scale(1.05)';
+        el.style.boxShadow = '0 0 0 4px var(--primary), 0 10px 30px var(--shadow-elevated)';
+        el.style.zIndex = '10';
+
+        setTimeout(() => {
+            el.style.transform = originalTransform;
+            el.style.boxShadow = originalBoxShadow;
+            el.style.zIndex = '';
+            setTimeout(() => el.style.transition = originalTransition, 300);
+        }, 4000);
+    }, 600);
+};
+
+// Espace dont allFiles reflète le contenu : un ?reveal arrivé avant son
+// chargement attend fetchSpaceContent (qui rappelle handleRouteQuery).
+let loadedSpaceId: string | null = null;
+
 const handleRouteQuery = () => {
     const urlPath = route.query.path as string;
     const folderId = route.query.folderId as string;
     const highlightFileId = route.query.highlightFileId as string;
     const selectFileId = route.query.select as string | undefined;
+    // ?reveal=<fileId> : « Afficher dans les fichiers » depuis une pièce
+    // jointe ou une référence <file:id> — ouvre le dossier du fichier, quel
+    // qu'il soit, et le met en surbrillance.
+    const revealFileId = route.query.reveal as string | undefined;
+
+    if (revealFileId) {
+        if (loadedSpaceId !== String(route.params.spaceId)) return;
+        const found = allFiles.value.find(f => f.id === revealFileId);
+        router.replace({ query: { ...route.query, reveal: undefined } });
+        if (!found) {
+            toast.show('Ce fichier n\'est plus dans cet espace (déplacé ou supprimé).', 'warning');
+            return;
+        }
+        currentFolderId.value = found.folderId || 'root';
+        highlightFile(found.id);
+        return;
+    }
 
     if (selectFileId) {
         const found = allFiles.value.find(f => f.id === selectFileId);
@@ -1771,31 +1820,7 @@ const handleRouteQuery = () => {
         currentFolderId.value = folderId;
     }
 
-    if (highlightFileId) 
-    {
-        setTimeout(() => {
-            const el = document.getElementById('file-' + highlightFileId);
-            if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                // Add highlight animation via guaranteed inline styles
-                const originalTransition = el.style.transition;
-                const originalTransform = el.style.transform;
-                const originalBoxShadow = el.style.boxShadow;
-                
-                el.style.transition = 'all 0.3s ease';
-                el.style.transform = 'scale(1.05)';
-                el.style.boxShadow = '0 0 0 4px var(--primary), 0 10px 30px var(--shadow-elevated)';
-                el.style.zIndex = '10';
-                
-                setTimeout(() => {
-                    el.style.transform = originalTransform;
-                    el.style.boxShadow = originalBoxShadow;
-                    el.style.zIndex = '';
-                    setTimeout(() => el.style.transition = originalTransition, 300);
-                }, 3000);
-            }
-        }, 600); // 600ms to ensure DOM is ready
-    }
+    if (highlightFileId) highlightFile(highlightFileId);
 };
 
 watch(() => route.query, () => {
