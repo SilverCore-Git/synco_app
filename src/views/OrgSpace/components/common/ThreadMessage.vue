@@ -257,11 +257,11 @@ import { encryptMessageWithContentKey } from '@/assets/utils/crypto';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import ThreadTextarea from './ThreadTextarea.vue';
 import { useRoute, useRouter } from 'vue-router';
-import { user, member, openedOrg } from '@/assets/var';
+import { user, member } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import { openProfile } from '@/composables/useProfile';
 import WebhookEmbed from './WebhookEmbed.vue';
-import { buildMentionLookup, isUserMentioned } from '@/composables/useMentions';
+import { orgMentionLookup, isUserMentioned } from '@/composables/useMentions';
 import { extractReferenceTokens } from '@/composables/useReferences';
 import { navigateToReference } from '@/composables/useReferenceNavigation';
 import type { User } from '@/types/types';
@@ -455,7 +455,7 @@ watch(() => props.isEditing, (editing) => {
 });
 
 
-const mentionLookup = computed(() => buildMentionLookup(openedOrg.value?.members));
+const mentionLookup = orgMentionLookup;
 
 // Couvre l'ancien format @pseudo (isUserMentioned) ET le nouveau <@:id> — un
 // message envoyé après cette feature ne matchera jamais le premier.

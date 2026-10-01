@@ -95,6 +95,11 @@ const MAX_CACHE_SIZE = 200;
 const taskCardCache = new Map<string, Task>();
 const fileCardCache = new Map<string, StoredFile>();
 
+// Membres pour lesquels le cache de résolution des mentions @user a déjà été
+// pré-rempli : inutile de le refaire pour chaque message tant que la liste
+// des membres n'a pas changé.
+let seededMembers: unknown = null;
+
 </script>
 
 <script setup lang="ts">
@@ -103,7 +108,7 @@ import { computed, ref, reactive, watch, nextTick, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { openedOrg } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
-import { buildMentionLookup, renderMentions, handleMentionClick } from '@/composables/useMentions';
+import { orgMentionLookup, renderMentions, handleMentionClick } from '@/composables/useMentions';
 import {
   renderReferences, buildLocalUserResolutions, seedResolveCache, handleReferenceChipClick,
   escapeReferenceTokensForMarkdown, stripBlockReferenceTokens, extractReferenceTokens,
@@ -202,7 +207,7 @@ const renderedHtml = computed(() => {
 });
 
 const rootRef = ref<HTMLElement | null>(null);
-const mentionLookup = computed(() => buildMentionLookup(openedOrg.value?.members));
+const mentionLookup = orgMentionLookup;
 
 const resolveBatch: ResolveBatchFn = async (items: ExtractedReference[]) => {
   const orgId = openedOrg.value?.id;
@@ -247,7 +252,11 @@ const applyPostProcessing = async () => {
 
   if (!props.enableReferences) return;
 
-  seedResolveCache(buildLocalUserResolutions(openedOrg.value?.members));
+  const members = openedOrg.value?.members;
+  if (members !== seededMembers) {
+    seedResolveCache(buildLocalUserResolutions(members));
+    seededMembers = members;
+  }
   await renderReferences(root, resolveBatch);
   renderTimestampTokens(root);
 };

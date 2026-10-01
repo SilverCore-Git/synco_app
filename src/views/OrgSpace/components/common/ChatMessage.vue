@@ -19,6 +19,8 @@
                     @touchend="longPress.onTouchend"
                     @touchcancel="longPress.onTouchend"
                     @contextmenu="longPress.onContextmenu"
+                    @mouseenter="hovered = true"
+                    @mouseleave="hovered = false"
                 >
 
                     <!-- Espacement entre messages : en marge (`mt-*`), jamais
@@ -60,8 +62,13 @@
 
                     </div>
 
+                    <!-- Montée seulement au survol : chaque bouton porte un
+                         v-tooltip, et floating-vue monte un composant Popper
+                         complet par tooltip dès le montage du bouton. 6 par
+                         message × 40 messages coûtaient ~100 ms de gel à
+                         l'ouverture d'une conversation (~50 ms à la fermeture). -->
                     <div 
-                        v-if="!msg.decrypting"
+                        v-if="!msg.decrypting && (hovered || showPlusDropdown)"
                         class="
                             absolute -top-5 right-3 sdropdown 
                             flex-raw items-start z-80
@@ -266,12 +273,12 @@ import MessageAttachments from './MessageAttachments.vue';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import ThreadTextarea from './ThreadTextarea.vue';
 import { useRoute, useRouter } from 'vue-router';
-import { user, openedOrg } from '@/assets/var';
+import { user } from '@/assets/var';
 import { encryptForPeer } from '@/assets/utils/crypto';
 import { useToast } from '@/composables/useToast';
 import { openProfile } from '@/composables/useProfile';
 import useSettingsItem from '@/composables/useSettingsItem';
-import { buildMentionLookup, isUserMentioned } from '@/composables/useMentions';
+import { orgMentionLookup, isUserMentioned } from '@/composables/useMentions';
 import { extractReferenceTokens } from '@/composables/useReferences';
 import { navigateToReference } from '@/composables/useReferenceNavigation';
 import type { User } from '@/types/types';
@@ -462,6 +469,7 @@ const route = useRoute();
 const { setMessageWillBeResponded } = useResponse();
 
 const showPlusDropdown = ref<boolean>(false);
+const hovered = ref<boolean>(false);
 const showDeleteConfirm = ref<boolean>(false);
 const editContent = ref<string>('');
 const editTextareaRef = ref<InstanceType<typeof ThreadTextarea> | null>(null);
@@ -475,11 +483,13 @@ watch(() => props.isEditing, (editing) => {
     });
 });
 
-const mentionLookup = computed(() => buildMentionLookup(openedOrg.value?.members));
+const mentionLookup = orgMentionLookup;
 
 // Couvre l'ancien format @pseudo (isUserMentioned) ET le nouveau <@:id> — un
 // message envoyé après cette feature ne matchera jamais le premier.
 const isTagMe = computed(() => {
+    // Contenu encore chiffré : rien à y chercher.
+    if (props.msg.decrypting) return false;
     if (isUserMentioned(props.msg.content, user.value, mentionLookup.value)) return true;
     if (!user.value) return false;
     return extractReferenceTokens(props.msg.content).some(r => r.type === 'user' && r.id === user.value!.id);
