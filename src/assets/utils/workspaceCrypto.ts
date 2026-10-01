@@ -19,7 +19,61 @@ export function getWorkspaceKey(workspaceId: string): Promise<{ key: CryptoKey, 
     if (inflight) return inflight;
     const promise = resolveWorkspaceKey(workspaceId).finally(() => workspaceKeyInflight.delete(workspaceId));
     workspaceKeyInflight.set(workspaceId, promise);
+    // Qui détient la clé la transmet aux membres qui ne l'ont pas encore.
+    promise.then(({ key, version }) => { void shareWorkspaceKeyWithMissingMembers(workspaceId, key, version); }, () => {});
     return promise;
+}
+
+/**
+ * La clé de l'espace existe, mais aucune copie n'a encore été scellée pour
+ * ce membre (ajouté après sa création). Elle lui sera transmise dès qu'un
+ * membre qui la détient utilisera l'espace.
+ */
+export class WorkspaceKeyNotSharedError extends Error {
+    constructor() {
+        super("La clé de chiffrement de cet espace ne vous a pas encore été transmise. Elle le sera dès qu'un membre qui la possède ouvrira l'espace ; réessayez ensuite.");
+        this.name = 'WorkspaceKeyNotSharedError';
+    }
+}
+
+// Au plus un partage par espace et par intervalle : appelé à chaque usage
+// de la clé, il ne coûte qu'une requête quand tout le monde l'a déjà.
+const SHARE_INTERVAL_MS = 2 * 60 * 1000;
+const lastShareAttempt = new Map<string, number>();
+
+/**
+ * Scelle la clé de l'espace pour chaque membre qui ne l'a pas encore (clé
+ * publique RSA) et dépose ces copies via l'API. Au mieux : un échec est
+ * seulement journalisé. `force` ignore l'intervalle (ajout d'un membre).
+ */
+export async function shareWorkspaceKeyWithMissingMembers(workspaceId: string, key: CryptoKey, version: number, force = false): Promise<void> {
+    const now = Date.now();
+    if (!force && now - (lastShareAttempt.get(workspaceId) ?? 0) < SHARE_INTERVAL_MS) return;
+    lastShareAttempt.set(workspaceId, now);
+
+    try {
+        const res = await sfetch(`/api/spaces/${workspaceId}/key/missing`, { method: 'GET' });
+        if (!res.ok) return;
+        const missing: { version: number; members: { id: string; publicKey: string }[] } = await res.json();
+        if (missing.version !== version || missing.members.length === 0) return;
+
+        const keys = [];
+        for (const member of missing.members) {
+            try {
+                keys.push({ userId: member.id, encryptedKey: await encryptSpaceKeyForMember(key, member.publicKey) });
+            } catch {
+                console.warn(`[E2EE] Clé publique inutilisable pour ${member.id} : clé d'espace non transmise.`);
+            }
+        }
+        if (keys.length === 0) return;
+
+        await sfetch(`/api/spaces/${workspaceId}/key/share`, {
+            method: 'POST',
+            body: JSON.stringify({ version, keys }),
+        });
+    } catch (e) {
+        console.warn("[E2EE] Partage de la clé d'espace impossible :", e);
+    }
 }
 
 async function fetchWorkspaceKey(workspaceId: string, response?: Response): Promise<{ key: CryptoKey, version: number } | null> {
@@ -52,6 +106,12 @@ async function resolveWorkspaceKey(workspaceId: string): Promise<{ key: CryptoKe
         
         if (response.ok) {
             return (await fetchWorkspaceKey(workspaceId, response))!;
+        }
+        else if (response.status === 404 && (await response.clone().json().catch(() => null))?.keyExists)
+        {
+            // Une clé existe déjà : en générer une autre la rendrait
+            // illisible pour tous les autres membres.
+            throw new WorkspaceKeyNotSharedError();
         }
         else if (response.status === 404) 
         {

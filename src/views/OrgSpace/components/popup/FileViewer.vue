@@ -145,7 +145,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import type { StoredFile } from '@/types/types';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
-import { downloadFile, fetchDecryptedFile, type FileMetadata } from '@/assets/utils/downloadFile';
+import { downloadFile, fetchDecryptedFile, fileErrorMessage, type FileMetadata } from '@/assets/utils/downloadFile';
 import { replaceFileContent } from '@/assets/uploadFile';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
@@ -278,7 +278,7 @@ const fetchTextContent = async () => {
   } catch (err) {
     console.error('[FileViewer] lecture du fichier texte', err);
     hasError.value = true;
-    toast.show('Erreur lors du chargement du fichier texte.', 'error');
+    toast.show(fileErrorMessage(err, 'Erreur lors du chargement du fichier texte.'), 'error');
   } finally {
     isLoading.value = false;
   }
@@ -293,7 +293,7 @@ const loadPreview = async () => {
   } catch (err) {
     console.error('[FileViewer] aperçu', err);
     hasError.value = true;
-    toast.show('Erreur de déchiffrement de l\'aperçu.', 'error');
+    toast.show(fileErrorMessage(err, 'Erreur de déchiffrement de l\'aperçu.'), 'error');
   } finally {
     isLoading.value = false;
   }

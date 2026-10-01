@@ -1,5 +1,6 @@
 import sfetch from "./sfetch";
-import { resolveFileKek } from "./fileKeys";
+import { NoFileKeyError, resolveFileKek } from "./fileKeys";
+import { WorkspaceKeyNotSharedError } from "./workspaceCrypto";
 import { useToast } from "@/composables/useToast";
 import { enqueueTransfer, isAbortError } from "@/services/transfers/transferManager";
 import { FileChangedError, type DownloadTicket } from "@/services/transfers/cdn";
@@ -37,6 +38,10 @@ export interface FileMetadata {
     threadId?: string;
     download?: DownloadTicket;
 }
+
+/** Message à montrer à l'utilisateur pour une erreur de lecture/envoi. */
+export const fileErrorMessage = (error: unknown, fallback: string) =>
+    error instanceof WorkspaceKeyNotSharedError || error instanceof NoFileKeyError ? error.message : fallback;
 
 // Au-delà, un fichier est écrit directement sur le disque (si le navigateur
 // le permet) plutôt qu'assemblé en mémoire.
@@ -165,12 +170,12 @@ export const downloadFile = async (fileId: string) => {
         promise.catch((e) => {
             if (isAbortError(e)) return;
             console.error("Download Error:", e);
-            toast.show(`Erreur lors du téléchargement de « ${metadata.originalName} ».`, "error");
+            toast.show(fileErrorMessage(e, `Erreur lors du téléchargement de « ${metadata.originalName} ».`), "error");
         });
 
     } catch (e) {
         console.error("Download Error:", e);
-        toast.show("Erreur lors du téléchargement du fichier.", "error");
+        toast.show(fileErrorMessage(e, "Erreur lors du téléchargement du fichier."), "error");
     }
 
 };
