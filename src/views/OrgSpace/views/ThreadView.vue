@@ -129,7 +129,7 @@
                     <div 
                         v-if="fileSendProgress !== null"
                         class="absolute bottom-0 left-0 h-0.5 bg-(--primary) transition-all duration-300"
-                        :style="{ width: fileSendProgress + '%' }"
+                        :style="{ width: (fileProgress[index] ?? 0) + '%' }"
                     />
 
                     <div class="w-10 h-10 shrink-0 flex items-center justify-center rounded bg-(--bg) border border-(--text)/5">
@@ -139,6 +139,10 @@
                     </div>
 
                     <span class="text-xs truncate max-w-50">{{ file.name }}</span>
+                    <span v-if="fileSendProgress !== null" class="text-[10px] tabular-nums text-(--text2) shrink-0 w-8 text-right">
+                        <i v-if="(fileProgress[index] ?? 0) >= 100" class="bi bi-check-lg text-(--primary)" />
+                        <template v-else>{{ fileProgress[index] ?? 0 }}%</template>
+                    </span>
 
                     <button 
                         v-if="fileSendProgress === null"
@@ -307,6 +311,8 @@ const currentThreadKey = ref<CryptoKey | null>(null);
 
 const selectedFiles = ref<File[]>([]);
 const fileSendProgress = ref<null | number>(null);
+// Progression de chaque fichier en cours d'envoi (même index que selectedFiles).
+const fileProgress = ref<number[]>([]);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const TextareaRef = ref<InstanceType<typeof ThreadTextarea> | null>(null);
 const socket = ref<any>(null);
@@ -1026,6 +1032,7 @@ const sendMessage = async () => {
 
         if (selectedFiles.value.length) {
             fileSendProgress.value = 0;
+            fileProgress.value = selectedFiles.value.map(() => 0);
             uploadedFiles = await uploadFiles(
                 selectedFiles.value,
                 // Salon d'espace : clé de l'espace ; salon d'organisation :
@@ -1033,7 +1040,8 @@ const sendMessage = async () => {
                 route.params.spaceId
                     ? { workspaceId: route.params.spaceId as string }
                     : { threadId: thread.value!.id },
-                (percent: number) => { fileSendProgress.value = percent; }
+                (percent: number) => { fileSendProgress.value = percent; },
+                (index: number, percent: number) => { fileProgress.value[index] = percent; }
             );
         }
 

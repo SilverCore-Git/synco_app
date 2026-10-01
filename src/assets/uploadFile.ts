@@ -33,12 +33,14 @@ export default function uploadFile(
 /**
  * Envoie plusieurs fichiers. Ils sont tous mis en file d'un coup : le
  * gestionnaire en envoie quelques-uns en parallèle et fait attendre les
- * autres. La progression totale est pondérée par la taille des fichiers.
+ * autres. La progression totale est pondérée par la taille des fichiers ;
+ * `onFileProgress` reçoit celle de chaque fichier (index dans `files`).
  */
 export async function uploadFiles(
     files: File[],
     context: UploadContext,
-    onTotalProgress?: (percent: number) => void
+    onTotalProgress?: (percent: number) => void,
+    onFileProgress?: (index: number, percent: number) => void
 ): Promise<any[]>
 {
     const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
@@ -53,6 +55,7 @@ export async function uploadFiles(
     return Promise.all(files.map((file, index) =>
         uploadFile(file, context, (percent) => {
             loadedPerFile[index] = (percent / 100) * file.size;
+            onFileProgress?.(index, percent);
             report();
         })
     ));
