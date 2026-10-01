@@ -5,7 +5,6 @@ import { computed, ref } from "vue";
 const organizations = ref<any[]>([]);
 const openedOrg = ref<Org | null>(null);
 const user = ref<User | null>(null);
-const kcToken = ref<string>('');
 const isLoaded = ref<boolean>(false);
 // Initialisé synchronement sur la vraie media query plutôt que sur `false` :
 // OrgLayout.vue ne corrige cette valeur que dans son onMounted, après une
@@ -42,15 +41,10 @@ const aiEnabled = computed(() => {
     return openedOrg.value.activeModules?.ai === true;
 });
 
-const onlyOfficeEnabled = computed(() => {
-    if (!openedOrg.value) return false;
-    return openedOrg.value.activeModules?.onlyoffice === true;
-});
-
 const agendaEnabled = computed(() => {
     if (!openedOrg.value) return false;
     return openedOrg.value.activeModules?.agenda || false;
 });
 
 
-export { organizations, openedOrg, isLoaded, user, member, isLittleScreen, kcToken, todoEnabled, filesEnabled, aiEnabled, onlyOfficeEnabled, agendaEnabled, userCardHeight };
+export { organizations, openedOrg, isLoaded, user, member, isLittleScreen, todoEnabled, filesEnabled, aiEnabled, agendaEnabled, userCardHeight };

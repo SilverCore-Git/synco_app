@@ -5,6 +5,8 @@ import { openedOrg, user } from '@/assets/var';
 // Cache for DM conversation keys, keyed by peerId
 const dmKeyCache = new Map<string, CryptoKey>();
 const dmKeyVersionCache = new Map<string, number>();
+// Appels en cours, cf. workspaceKeyInflight dans workspaceCrypto.ts.
+const dmKeyInflight = new Map<string, Promise<{ key: CryptoKey, version: number }>>();
 
 /**
  * Gets the persistent DMConversationKey shared with peerId.
@@ -15,7 +17,25 @@ const dmKeyVersionCache = new Map<string, number>();
  * only ever has 2 participants — no "admin distributes to everyone" step,
  * whoever gets there first (sender or recipient) can mint version 1.
  */
-export async function getDMConversationKey(peerId: string): Promise<{ key: CryptoKey, version: number }> {
+export function getDMConversationKey(peerId: string): Promise<{ key: CryptoKey, version: number }> {
+    const inflight = dmKeyInflight.get(peerId);
+    if (inflight) return inflight;
+    const promise = resolveDMConversationKey(peerId).finally(() => dmKeyInflight.delete(peerId));
+    dmKeyInflight.set(peerId, promise);
+    return promise;
+}
+
+async function fetchDMConversationKey(peerId: string, response?: Response): Promise<{ key: CryptoKey, version: number } | null> {
+    const res = response ?? await sfetch(`/api/dm/${peerId}/key`, { method: 'GET' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const decryptedKey = await decryptSpaceKeyWithRsa(data.encryptedKey, privateKey.value!);
+    dmKeyCache.set(peerId, decryptedKey);
+    dmKeyVersionCache.set(peerId, data.version);
+    return { key: decryptedKey, version: data.version };
+}
+
+async function resolveDMConversationKey(peerId: string): Promise<{ key: CryptoKey, version: number }> {
 
     // 1. Check cache
     if (dmKeyCache.has(peerId)) {
@@ -34,13 +54,7 @@ export async function getDMConversationKey(peerId: string): Promise<{ key: Crypt
         const response = await sfetch(`/api/dm/${peerId}/key`, { method: 'GET' });
 
         if (response.ok) {
-            const data = await response.json();
-            const decryptedKey = await decryptSpaceKeyWithRsa(data.encryptedKey, privateKey.value);
-
-            dmKeyCache.set(peerId, decryptedKey);
-            dmKeyVersionCache.set(peerId, data.version);
-
-            return { key: decryptedKey, version: data.version };
+            return (await fetchDMConversationKey(peerId, response))!;
         }
         else if (response.status === 404)
         {
@@ -63,6 +77,14 @@ export async function getDMConversationKey(peerId: string): Promise<{ key: Crypt
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ encryptedKeyForMe, encryptedKeyForPeer })
             });
+
+            if (saveResponse.status === 409) {
+                // Le pair a créé la clé en même temps que nous : la sienne
+                // fait foi, la nôtre est jetée.
+                const persisted = await fetchDMConversationKey(peerId);
+                if (!persisted) throw new Error("Failed to fetch concurrently created DMConversationKey");
+                return persisted;
+            }
 
             if (!saveResponse.ok) {
                 throw new Error("Failed to save new DMConversationKey");

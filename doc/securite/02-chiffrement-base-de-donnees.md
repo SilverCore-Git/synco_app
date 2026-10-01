@@ -163,31 +163,27 @@ Le schéma documente ses propres exceptions. Ce sont des choix, pas des oublis.
 
 ➡️ **Toute nouvelle colonne `Json` portant du contenu utilisateur sensible échappe à la couche de chiffrement au repos.** À vérifier systématiquement lors de l'ajout d'un modèle.
 
-## 5. Chiffrement des fichiers sur disque (SSE)
+## 5. Fichiers sur disque
 
-Distinct de la couche Prisma, mais de même nature (clé côté serveur) : voir fiche [05](./05-fichiers-et-stockage.md), §2. Résumé :
-
-- clé unique `FM_ENCRYPT_KEY` (32 octets, exigée en hexadécimal de 64 caractères, **refus de démarrage** si absente ou mal dimensionnée) ;
-- dérivée par HKDF en deux sous-clés (chiffrement + HMAC) ;
-- format sur disque : `[version:1][iv:12][authTag:16][hmac:64][données chiffrées]` ;
-- AES-256-GCM + HMAC-SHA512 vérifié en temps constant (`crypto.timingSafeEqual`) avant tout déchiffrement.
-
-**Tout fichier déposé sur Synco est chiffré sur disque, sans exception** — y compris ceux qui sont déjà E2EE côté client (double chiffrement).
+Il n'y a plus de chiffrement des fichiers côté serveur : **tout fichier est
+chiffré de bout en bout par le client** avant l'envoi, et le serveur ne
+stocke que ce chiffré (fiche [05](./05-fichiers-et-stockage.md)). Aucune clé
+serveur ne permet de lire le contenu d'un fichier.
 
 ## 6. Gestion des clés serveur
 
 | Variable | Rôle | Comportement si absente/invalide |
 |---|---|---|
 | `PRISMA_FIELD_ENCRYPTION_KEY` | Chiffrement de champ en base | Erreur de l'extension |
-| `FM_ENCRYPT_KEY` | Chiffrement des fichiers sur disque | **Refus de démarrage** (`CryptoError`) |
+| `CDN_TICKET_PRIVATE_KEY` | Signature Ed25519 des tickets de transfert synco_cdn | **Refus de démarrage** |
+| `CDN_INTERNAL_SECRET` | HMAC des appels internes API ↔ synco_cdn | **Refus de démarrage** si < 32 octets |
 | `SYNCO_WEBHOOK_MASTER_KEY` | Chiffrement des clés privées de webhook | **Refus de démarrage** si ≠ 32 octets décodés |
 | `SYNCO_GOOGLE_OAUTH_MASTER_KEY` | Chiffrement des jetons OAuth agenda | **Refus de démarrage** si < 32 octets |
-| `ONLYOFFICE_JWT_SECRET` | Signature des configurations OnlyOffice | **Refus de démarrage** |
 
 Le principe « échouer au démarrage plutôt que dégrader silencieusement » est appliqué partout ; il a été généralisé à la suite de l'audit `L2-cle-maitre-webhook-warn-au-lieu-fail` (11/09/2026), qui avait relevé la dernière exception.
 
 ### ⚠️ Pas de rotation de clé serveur implémentée
 
-Aucun mécanisme de rotation ni de versionnement des clés maîtres serveur n'existe dans le code. Changer `PRISMA_FIELD_ENCRYPTION_KEY` ou `FM_ENCRYPT_KEY` rendrait illisibles toutes les données existantes. `prisma-field-encryption` supporte nativement une clé de déchiffrement héritée (`PRISMA_FIELD_DECRYPTION_KEYS`) — elle n'est pas utilisée ici.
+Aucun mécanisme de rotation ni de versionnement des clés maîtres serveur n'existe dans le code. Changer `PRISMA_FIELD_ENCRYPTION_KEY` rendrait illisibles toutes les données existantes. `prisma-field-encryption` supporte nativement une clé de déchiffrement héritée (`PRISMA_FIELD_DECRYPTION_KEYS`) — elle n'est pas utilisée ici.
 
 > ⚠️ Point historique important, relevé par l'audit du 10/09/2026 : un nettoyage d'historique Git ne protège que les clones **futurs**. Si le dépôt a été cloné, forké ou consulté avant ce nettoyage, les secrets qui figuraient dans l'historique (mot de passe base, `PRISMA_FIELD_ENCRYPTION_KEY`, `SYNCO_WEBHOOK_MASTER_KEY`, clés LiveKit) doivent être considérés comme potentiellement compromis. Voir [`audits/fix_audit_pentest_full_2026-09-10.md`](../../../synco_api/audits/fix_audit_pentest_full_2026-09-10.md).

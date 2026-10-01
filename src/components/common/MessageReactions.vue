@@ -114,6 +114,10 @@ const toggleReaction = async (emoji: string) => {
 };
 
 // No socket handling here - parent component handles it
+
+// Le sheet mobile (MessageActionSheet) propose des réactions rapides : il
+// passe par ici pour garder la même mise à jour optimiste et le même toggle.
+defineExpose({ toggleReaction });
 </script>
 
 <template>

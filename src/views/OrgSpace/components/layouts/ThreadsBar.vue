@@ -315,6 +315,7 @@
                                 name="Tâches"
                                 icon="bi-check2-square"
                                 :active="route.name == 'TasksSpace' || route.name == 'TasksSpaceArchived'"
+                                :hasUnread="unreadSpaceTasks > 0"
                                 @click="router.push({ name: 'TasksSpace', query: { showView: '1' } })"
                             />
 
@@ -378,6 +379,7 @@ import { chatSessions, activeSessionId, newSession, deleteSession, loadSession, 
 import { availableModels } from '@/services/LocalLLMService';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { useRecentDMs } from '@/composables/useRecentDMs';
+import { useNotification } from '@/composables/useNotification';
 
 const orgId = computed(() => openedOrg.value?.id);
 const { canAny, can } = usePermissions(orgId);
@@ -399,6 +401,11 @@ const startAiSession = () => {
     newSession();
     router.push({ query: { ...route.query, showView: '1' } });
 };
+
+// Point « non lu » sur le bouton Tâches : tâches assignées / modifiées
+// (notifications TASK_ASSIGNED) dans l'espace ouvert.
+const { getUnreadCountForSpaceTasks } = useNotification();
+const unreadSpaceTasks = computed(() => getUnreadCountForSpaceTasks(String(route.params.spaceId ?? '')).value);
 
 const showDropDown = ref<boolean>(false);
 const showSearchModal = ref<boolean>(false);

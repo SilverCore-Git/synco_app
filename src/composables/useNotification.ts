@@ -334,16 +334,25 @@ export function useNotification() {
   };
 
   /**
-   * Marquer toutes les notifications de tâches comme lues
+   * Notification liée aux tâches : TASK_ASSIGNED est ce qu'émet réellement
+   * l'API (tasksService.ts notifyTaskAssignment, création/mise à jour) ;
+   * CUSTOM/TASK_UPDATE est l'ancien format, gardé pour les notifs en base.
    */
-  const markTasksAsRead = async (): Promise<void> => {
+  const isTaskNotification = (n: AppNotification): boolean =>
+    n.type === 'TASK_ASSIGNED' || (n.type === 'CUSTOM' && n.data?.type === 'TASK_UPDATE');
+
+  /**
+   * Marquer les notifications de tâches comme lues — limité à un espace si
+   * spaceId est fourni (vue Tâches d'un espace), sinon toutes.
+   */
+  const markTasksAsRead = async (spaceId?: string): Promise<void> => {
     try {
       let markedCount = 0;
       const promises: Promise<void>[] = [];
 
       // Optimistic update
       notifications.value.forEach(n => {
-        if (!n.isRead && n.type === 'CUSTOM' && n.data?.type === 'TASK_UPDATE') {
+        if (!n.isRead && isTaskNotification(n) && (!spaceId || n.data?.spaceId === spaceId)) {
           n.isRead = true;
           markedCount++;
           // We can use the existing read API per notification
@@ -665,8 +674,17 @@ export function useNotification() {
    * Obtenir le nombre de notifications non lues pour les tâches
    */
   const getUnreadCountForTasks = computed(() => {
-    return notifications.value.filter(n => !n.isRead && n.type === 'CUSTOM' && n.data?.type === 'TASK_UPDATE').length;
+    return notifications.value.filter(n => !n.isRead && isTaskNotification(n)).length;
   });
+
+  /**
+   * Obtenir le nombre de notifications de tâches non lues pour un espace
+   */
+  const getUnreadCountForSpaceTasks = (spaceId: string): Ref<number> => {
+    return computed(() => {
+      return notifications.value.filter(n => !n.isRead && isTaskNotification(n) && n.data?.spaceId === spaceId).length;
+    });
+  };
 
   /**
    * Obtenir le nombre de notifications non lues pour tous les messages privés
@@ -692,6 +710,7 @@ export function useNotification() {
     getUnreadCountByThreadId,
     getUnreadCountByDMUserId,
     getUnreadCountForTasks,
+    getUnreadCountForSpaceTasks,
     getUnreadCountForDMs,
 
     // Méthodes

@@ -1,5 +1,9 @@
 import { fetchDecryptedFile, saveBlob } from './downloadFile';
 import { createZipBlob, ZIP_MAX_BYTES, type ZipEntry } from './zip';
+import { runPool } from '@/services/transfers/transferManager';
+
+// Fichiers de l'archive récupérés en parallèle.
+const ZIP_PARALLEL_FETCHES = 3;
 
 export interface ZipItem {
     // Chemin voulu dans l'archive, sans slash de fin (ex: "Rapports/bilan.pdf").
@@ -71,15 +75,20 @@ export const downloadItemsAsZip = async (
     let done = 0;
     if (files.length === 0) onProgress?.(95);
 
-    for (const item of files)
-    {
+    // Chemins attribués dans l'ordre des items (déterministe), puis fichiers
+    // récupérés quelques-uns à la fois plutôt qu'un par un.
+    const paths = files.map(item => dedupePath(item.path, used));
+    const fileEntries: (ZipEntry | null)[] = new Array(files.length).fill(null);
+
+    await runPool(files.length, ZIP_PARALLEL_FETCHES, async (index) => {
+        const item = files[index]!;
         try {
             const { buffer, metadata } = await fetchDecryptedFile(item.fileId!);
-            entries.push({
-                path: dedupePath(item.path, used),
+            fileEntries[index] = {
+                path: paths[index]!,
                 data: new Blob([buffer], { type: metadata.mimeType }),
                 compress: !ALREADY_COMPRESSED.test(metadata.mimeType || '')
-            });
+            };
         } catch (e) {
             console.error(`Zip: échec de récupération du fichier ${item.path}`, e);
             failed.push(item.path);
@@ -88,7 +97,10 @@ export const downloadItemsAsZip = async (
         done++;
         // 95% pour les téléchargements, les 5% restants pour l'assemblage.
         onProgress?.(Math.round((done / files.length) * 95));
+    });
 
+    for (const entry of fileEntries) {
+        if (entry) entries.push(entry);
     }
 
     const blob = await createZipBlob(entries);

@@ -768,7 +768,7 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
       if (searchResults.length === 0) {
         result = `Aucun résultat trouvé dans la base sémantique pour "${query}".`;
       } else {
-        result = `Résultats de recherche pour "${query}" :\n\n` + searchResults.map((r: any, i) => `[Résultat ${i + 1}]\nType: ${r.type}\nContenu: ${r.textContent}`).join('\n\n');
+        result = `Résultats de recherche pour "${query}" :\n\n` + searchResults.map((r: any, i) => `[Résultat ${i + 1}]\n${JSON.stringify(toLlmSearchHit(r))}`).join('\n\n');
         toolData = searchResults;
       }
 
@@ -928,6 +928,27 @@ const consumeAgentStream = async (
 };
 
 /** Exécute côté client les tools de catégorie 'client' (contenu E2EE réel ou cérémonie de clé). */
+// Un hit brut de l'index contient l'embedding (384 flottants) et, pour un PDF,
+// tout le texte extrait : envoyé tel quel au LLM, on dépasse le million de
+// tokens. On ne transmet que le strict nécessaire, texte tronqué.
+const SEARCH_HIT_MAX_CHARS = 1000;
+const SEARCH_HIT_METADATA_KEYS = ['threadId', 'senderName', 'createdAt', 'originalName', 'folderId', 'status', 'dueDate'];
+
+const toLlmSearchHit = (hit: any) => {
+  const text: string = hit.textContent || '';
+  const meta: Record<string, any> = {};
+  for (const key of SEARCH_HIT_METADATA_KEYS) {
+    if (hit.metadata?.[key] != null) meta[key] = hit.metadata[key];
+  }
+  return {
+    id: hit.id,
+    type: hit.type,
+    spaceId: hit.workspaceId,
+    excerpt: text.length > SEARCH_HIT_MAX_CHARS ? text.slice(0, SEARCH_HIT_MAX_CHARS) + '…[tronqué]' : text,
+    ...meta,
+  };
+};
+
 const executeClientTool = async (name: string, args: any, imageId?: string): Promise<any> => {
   const orgId = route.params.orgId as string;
 
@@ -954,7 +975,7 @@ const executeClientTool = async (name: string, args: any, imageId?: string): Pro
       globalVectorWorker.postMessage({ id: workerId, text: query, type: 'SEARCH' });
     });
     const searchResults = await localSearchDB.searchByVector(vector, query, undefined, 5);
-    return { query, results: searchResults };
+    return { query, results: searchResults.map(toLlmSearchHit) };
   }
 
   if (name === 'create_thread') {

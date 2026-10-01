@@ -6,6 +6,14 @@
                 <h3 class="font-semibold text-(--text)">Notifications</h3>
                 <span v-if="totalUnread > 0" class="dash-badge">{{ totalUnread }}</span>
             </div>
+            <button
+                v-if="totalUnread > 0"
+                @click="markAllRead"
+                class="text-xs text-(--text2) hover:text-(--text)"
+                title="Tout marquer comme lu"
+            >
+                <i class="bi bi-check2-all"></i> Tout lu
+            </button>
         </header>
 
         <div v-if="loading" class="dash-card-body space-y-2 animate-pulse">
@@ -62,7 +70,7 @@ import { formatRelativeTime } from '@/assets/utils/relativeTime';
 import type { NotificationType } from '@/types/types';
 
 const router = useRouter();
-const { notifications, init, markAsRead } = useNotification();
+const { notifications, init, markAsRead, markDMAsRead, markThreadAsRead } = useNotification();
 const loading = ref(true);
 
 onMounted(async () => {
@@ -201,6 +209,20 @@ const items = computed(() =>
 );
 
 const totalUnread = computed(() => unreadDMs.value.length + unreadThreads.value.length + otherNotifs.value.length);
+
+// Uniquement ce que la carte affiche (org ouverte) — pas markAllAsRead(),
+// qui viderait aussi les notifications des autres organisations. DM/threads
+// via les variantes « by-dm/by-thread » : le serveur recalcule depuis la BDD,
+// y compris les notifications absentes du cache local.
+async function markAllRead() {
+    await Promise.all([
+        ...unreadDMs.value.map(i => markDMAsRead(i.dmUserId!)),
+        ...unreadThreads.value.map(i => markThreadAsRead(i.threadId!)),
+        ...otherNotifs.value.map(i => markAsRead(i.notifId))
+    ]);
+}
+
+defineExpose({ markAllRead });
 
 function openItem(item: DashItem) {
     const orgId = openedOrg.value?.id;

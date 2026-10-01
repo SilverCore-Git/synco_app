@@ -2,10 +2,21 @@ import type { Router } from 'vue-router';
 import { openedOrg } from '@/assets/var';
 
 /**
+ * Ouvre le gestionnaire de fichiers de l'espace à l'emplacement exact du
+ * fichier (son dossier), et le met en surbrillance (?reveal=, cf.
+ * SpaceFiles.vue).
+ */
+export const revealFileInFiles = (router: Router, file: { id: string; spaceId: string }): void => {
+  const orgId = openedOrg.value?.id;
+  if (!orgId) return;
+  router.push({ name: 'SpaceFiles', params: { orgId, spaceId: file.spaceId }, query: { showView: '1', reveal: file.id } });
+};
+
+/**
  * Navigue vers l'entité visée par un chip <#:id>/<task:id>/<file:id>.
  * Réutilise les routes existantes (SpaceThreadView/OrgThreadHome pour les
- * salons, ?select= déjà géré par TasksSpace/TasksGlobal/SpaceFiles pour les
- * tâches et fichiers) — aucune nouvelle route pour les salons/tâches.
+ * salons, ?select= de TasksSpace/TasksGlobal pour les tâches) ; un fichier
+ * ouvre son emplacement dans le gestionnaire de fichiers.
  */
 export const navigateToReference = (
   router: Router,
@@ -30,9 +41,7 @@ export const navigateToReference = (
       }
       break;
     case 'file':
-      if (ref.spaceId) {
-        router.push({ name: 'SpaceFiles', params: { orgId, spaceId: ref.spaceId }, query: { select: ref.id } });
-      }
+      if (ref.spaceId) revealFileInFiles(router, { id: ref.id, spaceId: ref.spaceId });
       break;
   }
 };

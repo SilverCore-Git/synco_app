@@ -1,5 +1,4 @@
 import Keycloak from "keycloak-js";
-import { kcToken } from "./var";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
 import { App as CapApp, type URLOpenListenerEvent } from "@capacitor/app";
@@ -25,7 +24,6 @@ const doTokenRefresh = (minValiditySeconds: number) => {
   keycloak.updateToken(minValiditySeconds)
     .then((refreshed) => {
       if (refreshed) {
-        kcToken.value = keycloak.token || '';
         if (Capacitor.isNativePlatform() || isTauriPlatform()) {
           if (keycloak.token) localStorage.setItem('kc_token', keycloak.token);
           if (keycloak.refreshToken) localStorage.setItem('kc_refreshToken', keycloak.refreshToken);
@@ -240,7 +238,6 @@ async function loginWithSystemBrowser(): Promise<boolean> {
       if (keycloak.refreshToken) localStorage.setItem('kc_refreshToken', keycloak.refreshToken);
       const userInfo: any = await keycloak.loadUserInfo();
       localStorage.setItem('userId', userInfo.sub);
-      kcToken.value = keycloak.token || '';
       setupTokenRefresh();
     }
     return authenticated;
@@ -277,7 +274,6 @@ const initKC = async () => {
         if (keycloak.refreshToken) localStorage.setItem('kc_refreshToken', keycloak.refreshToken);
         const userInfo: any = await keycloak.loadUserInfo();
         localStorage.setItem('userId', userInfo.sub);
-        kcToken.value = keycloak.token || '';
         setupTokenRefresh();
       }
       return authenticated;
@@ -307,7 +303,6 @@ const initKC = async () => {
         if (keycloak.refreshToken) localStorage.setItem('kc_refreshToken', keycloak.refreshToken);
         const userInfo: any = await keycloak.loadUserInfo();
         localStorage.setItem('userId', userInfo.sub);
-        kcToken.value = keycloak.token || '';
         setupTokenRefresh();
       }
       return authenticated;
@@ -324,7 +319,6 @@ const initKC = async () => {
     if (authenticated) {
       const userInfo: any = await keycloak.loadUserInfo();
       window.localStorage.setItem('userId', userInfo.sub);
-      kcToken.value = keycloak.token || '';
       setupTokenRefresh();
     }
     return authenticated;
