@@ -27,6 +27,14 @@ if ('serviceWorker' in navigator) {
 
 const app = createApp(App);
 
+// Un message malformé (ex. un embed webhook au type inattendu, cf. audit
+// FX6) ne doit jamais faire planter tout le rendu du salon où il apparaît —
+// sans ce filet, une erreur de rendu Vue remonte et peut casser l'arbre de
+// composants parent.
+app.config.errorHandler = (err, _instance, info) => {
+    console.error('[Vue] Erreur de rendu non interceptée:', err, info);
+};
+
 import useSettingsItem from './composables/useSettingsItem';
 const { Item: privacyMode } = useSettingsItem('privacyMode', false);
 app.config.globalProperties.$p = ((name: any) => {
