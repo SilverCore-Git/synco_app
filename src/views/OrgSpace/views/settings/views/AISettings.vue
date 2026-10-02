@@ -122,6 +122,7 @@
                                         type="text"
                                         class="w-full bg-(--bg) border border-(--border-color) pl-11 pr-4 py-3 text-sm focus:outline-none rounded-xl focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner text-(--text)"
                                         placeholder="https://ia-gateway.mon-organisation.fr"
+                                        @blur="fetchOllamaModels"
                                     />
                                 </div>
                                 <p class="text-[10px] text-(--text2) leading-relaxed">Le navigateur appelle cette passerelle directement (pas notre serveur), avec votre compte Synco pour vous authentifier. Ollama vit à côté (ou dans le même conteneur) de cette passerelle — elle sait déjà où le trouver.</p>
@@ -328,14 +329,14 @@ const modelsError = ref('');
 let modelsFetchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const fetchOllamaModels = async () => {
-    if (orgData.value.provider !== 'gateway' || !orgData.value.gatewayUrl) {
+    if (orgData.value.provider !== 'gateway' || !orgData.value.gatewayUrl || !openedOrg.value?.id) {
         ollamaModels.value = [];
         return;
     }
     loadingModels.value = true;
     modelsError.value = '';
     try {
-        ollamaModels.value = await listGatewayModels(orgData.value.gatewayUrl);
+        ollamaModels.value = await listGatewayModels(orgData.value.gatewayUrl, openedOrg.value.id);
         if (ollamaModels.value.length === 0) {
             modelsError.value = "Aucun modèle trouvé sur cet Ollama — pensez à en télécharger un (ollama pull).";
         }
@@ -347,9 +348,14 @@ const fetchOllamaModels = async () => {
     }
 };
 
-watch([() => orgData.value.provider, () => orgData.value.gatewayUrl], () => {
+// Ne récupère les modèles qu'au chargement (valeur déjà enregistrée) et
+// quand l'utilisateur quitte le champ (@blur sur l'input), jamais à chaque
+// frappe : sinon chaque caractère tapé envoyait le jeton Keycloak à
+// l'origine en cours de saisie, et aurait maintenant déclenché le panneau
+// de consentement à répétition pendant la frappe (audit FC5).
+watch(() => orgData.value.provider, () => {
     if (modelsFetchTimeout) clearTimeout(modelsFetchTimeout);
-    modelsFetchTimeout = setTimeout(fetchOllamaModels, 500);
+    modelsFetchTimeout = setTimeout(fetchOllamaModels, 0);
 }, { immediate: true });
 
 const availableModelOptions = computed(() => {
