@@ -1,12 +1,21 @@
 import sfetch from './sfetch';
 import { privateKey, decryptSpaceKeyWithRsa, generateSpaceKey, encryptSpaceKeyForMember } from './crypto';
 import { openedOrg, user } from '@/assets/var';
+import { registerKeyCache } from './keyCaches';
 
 // Cache for DM conversation keys, keyed by peerId
 const dmKeyCache = new Map<string, CryptoKey>();
 const dmKeyVersionCache = new Map<string, number>();
 // Appels en cours, cf. workspaceKeyInflight dans workspaceCrypto.ts.
 const dmKeyInflight = new Map<string, Promise<{ key: CryptoKey, version: number }>>();
+
+// Cf. workspaceCrypto.ts : restait utilisable après un verrouillage manuel
+// de l'E2EE avant ce registre (audit FC10).
+registerKeyCache(() => {
+    dmKeyCache.clear();
+    dmKeyVersionCache.clear();
+    dmKeyInflight.clear();
+});
 
 /**
  * Gets the persistent DMConversationKey shared with peerId.

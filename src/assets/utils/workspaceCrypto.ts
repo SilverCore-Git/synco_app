@@ -1,5 +1,6 @@
 import sfetch from './sfetch';
 import { privateKey, decryptSpaceKeyWithRsa, generateSpaceKey, encryptSpaceKeyForMember } from './crypto';
+import { registerKeyCache } from './keyCaches';
 
 // Cache for Workspace keys
 const workspaceKeyCache = new Map<string, CryptoKey>();
@@ -8,6 +9,15 @@ const workspaceKeyVersionCache = new Map<string, number>();
 // la même résolution de clé au lieu de faire N GET (et, si la clé n'existe
 // pas encore, N générations concurrentes de clés différentes).
 const workspaceKeyInflight = new Map<string, Promise<{ key: CryptoKey, version: number }>>();
+
+// Ces clés déchiffrées restaient utilisables après un verrouillage manuel de
+// l'E2EE, contrairement à threadKeyCache (audit FC10).
+registerKeyCache(() => {
+    workspaceKeyCache.clear();
+    workspaceKeyVersionCache.clear();
+    workspaceKeyInflight.clear();
+    lastShareAttempt.clear();
+});
 
 /**
  * Gets the WorkspaceKey for the given workspaceId.

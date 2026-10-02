@@ -1,4 +1,5 @@
 import { computed, ref } from "vue";
+import { clearAllKeyCaches } from "./keyCaches";
 
 export const privateKey = ref<CryptoKey | null>(null);
 export const E2EEUnloked = computed(() => {
@@ -53,7 +54,9 @@ export async function deriveMasterKey (pin: string, salt: string): Promise<Crypt
         },
         baseKey,
         { name: "AES-GCM", length: 256 },
-        true,
+        // Jamais exportée (audit FC10) — mêmes deux appelants que
+        // deriveMasterKeyV3, tous deux internes à ce fichier.
+        false,
         ["encrypt", "decrypt"]
     );
 
@@ -543,6 +546,11 @@ export async function unlockSecurity(pin: string, salt: string, encryptedKey: st
 export function lockSecurity()
 {
     privateKey.value = null;
+    // Sans cet appel, workspaceKeyCache/dmKeyCache/le cache de clé de
+    // session IA restaient utilisables après un verrouillage manuel — seul
+    // threadKeyCache réagissait déjà (watch(E2EEUnloked, ...) local) à ce
+    // que privateKey devienne null (audit FC10).
+    clearAllKeyCaches();
 }
 
 // ---------------------------------------------------------------------------
@@ -598,7 +606,9 @@ async function deriveMasterKeyV3(unlockKeyBytes: ArrayBuffer, wrapSecretBytes: A
         },
         ikm,
         { name: "AES-GCM", length: 256 },
-        true,
+        // Jamais exportée nulle part (seulement encrypt/decrypt ci-dessous) :
+        // non-extractable (audit FC10).
+        false,
         ["encrypt", "decrypt"]
     );
 }
