@@ -1,18 +1,36 @@
 <template>
 
                 <div
-                    :key="msg.id" 
+                    v-bind="$attrs"
+                    :key="msg.id"
                     class="group relative px-4 flex flex-col justify-start items-start rounded-lg transition-colors w-full"
                     :class="[
-                        isStacked ? 'py-0 mt-0' : 'py-2 mt-2',
+                        isStacked ? 'mt-1' : 'mt-6',
                         (msg as any).isSending ? 'opacity-50' : '',
                         selectedMessage == msg.id ? ' border border-(--primary) border-dashed animate-pulse' : '',
                         user?.id == msg.replyMessage?.senderId || isTagMe
                             ? 'border-l-2 border-(--primary-dark) bg-(--primary-dark)/30 hover:bg-(--primary-dark)/50' 
-                            : 'hover:bg-white/5',
-                        showReactionPicker ? 'z-100' : 'z-10'
+                            : 'hover:bg-(--text)/5',
+                        showReactionPicker ? 'z-100' : 'z-10',
+                        showActionSheet ? 'bg-(--text)/10' : ''
                     ]"
+                    @touchstart.passive="longPress.onTouchstart"
+                    @touchmove.passive="longPress.onTouchmove"
+                    @touchend="longPress.onTouchend"
+                    @touchcancel="longPress.onTouchend"
+                    @contextmenu="longPress.onContextmenu"
+                    @mouseenter="hovered = true"
+                    @mouseleave="hovered = false"
                 >
+
+                    <!-- Espacement entre messages : en marge (`mt-*`), jamais
+                         en padding. Ce conteneur porte le fond coloré d'une
+                         mention, d'une réponse ou du survol : un écart mis en
+                         padding serait peint avec, et le bloc coloré traînerait
+                         sous son propre texte. En marge il reste dehors — le
+                         fond épouse le message, l'air le sépare des voisins.
+                         `mt-1` entre messages empilés (même auteur à moins
+                         d'une minute), `mt-6` entre deux blocs d'auteurs. -->
 
                     <div 
                         v-if="msg.replyToId && msg.replyMessage" 
@@ -20,7 +38,7 @@
                         class="group/reply reply-context flex items-center gap-2 mb-1 text-xs text-(--text2) relative pl-13 cursor-pointer"
                     >
                         
-                        <div class="z-10 absolute left-4 top-2.5 w-7 h-13 border-l-2 border-t-2 border-white/20 group-hover/reply:border-white/40 rounded-tl-md" />
+                        <div class="z-10 absolute left-4 top-2.5 w-7 h-13 border-l-2 border-t-2 border-(--text)/20 group-hover/reply:border-(--text)/40 rounded-tl-md" />
 
                         <img 
                             :src="msg.replyMessage?.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(msg.replyMessage?.sender?.name)}&background=128a60&color=fff`"
@@ -33,18 +51,29 @@
                             @{{ $p(msg.replyMessage?.sender?.name) || 'Anonyme' }}
                         </span>
 
-                        <div class="max-w-md opacity-70 pointer-events-none text-[11px] line-clamp-1 [&_p]:inline [&_h1]:inline [&_h2]:inline [&_h3]:inline">
-                            <MarkdownRender :content="msg.replyMessage?.content || ''" />
+                        <!-- Citation encore chiffrée : déchiffrée en dernier (palier 3, cf. ChatView.vue). -->
+                        <div v-if="msg.replyMessage.decrypting" class="flex items-center gap-1.5 opacity-60" title="Déchiffrement…">
+                            <i class="bi bi-lock-fill text-[10px]" />
+                            <div class="h-2.5 w-32 rounded-full bg-(--text)/10 animate-pulse" />
+                        </div>
+                        <div v-else class="max-w-md opacity-70 pointer-events-none text-[11px] line-clamp-1 [&_p]:inline [&_h1]:inline [&_h2]:inline [&_h3]:inline">
+                            <MarkdownRender :content="msg.replyMessage?.content || ''" :show-reference-cards="false" />
                         </div>
 
                     </div>
 
+                    <!-- Montée seulement au survol : chaque bouton porte un
+                         v-tooltip, et floating-vue monte un composant Popper
+                         complet par tooltip dès le montage du bouton. 6 par
+                         message × 40 messages coûtaient ~100 ms de gel à
+                         l'ouverture d'une conversation (~50 ms à la fermeture). -->
                     <div 
+                        v-if="!msg.decrypting && (hovered || showPlusDropdown)"
                         class="
                             absolute -top-5 right-3 sdropdown 
                             flex-raw items-start z-80
                             rounded-xl border border-(--text)/10
-                            bg-(--bg) shadow-xl ring-1 ring-white/5 focus:outline-none
+                            bg-(--bg) shadow-xl ring-1 ring-(--text)/5 focus:outline-none
                         "
                         :class="showPlusDropdown ? 'flex' : 'hidden group-hover:flex'"
                     >
@@ -58,7 +87,7 @@
                             :class="btn.class"
                             @click="btn.func(msg, $event)"
                         >
-                            <i class="bi text-lg" :class="btn.icon" />
+                            <i :key="btn.icon" class="bi text-lg" :class="btn.icon" />
                         </button>
 
                         <!-- <button @click="showPlusDropdown = !showPlusDropdown" class="dropdown-item-annimate dropdown-item-style">
@@ -70,7 +99,7 @@
                             class="
                                 flex flex-col items-start absolute top-full mt-2 right-0
                                 rounded-xl border border-(--text)/10 sdropdown w-56 z-90
-                                bg-(--bg) shadow-xl ring-1 ring-white/5 focus:outline-none
+                                bg-(--bg) shadow-xl ring-1 ring-(--text)/5 focus:outline-none
                             "
                         >
 
@@ -98,8 +127,16 @@
                         />
                         <div 
                             v-else-if="isStacked"
-                            class="w-9 h-9 shrink-0 flex items-start justify-center opacity-0 group-hover:opacity-100 transition-opacity select-none"
+                            class="w-9 shrink-0 flex items-start justify-center opacity-0 group-hover:opacity-100 transition-opacity select-none"
                         >
+                            <!-- Pas de `h-9` ici : cette gouttière ne fait que
+                                 réserver la colonne de l'avatar (w-9) et
+                                 montrer l'heure au survol. Lui fixer 36px de
+                                 haut imposait cette hauteur à toute la ligne
+                                 flex, alors qu'un message empilé d'une seule
+                                 ligne en fait ~23 — d'où un vide sous le
+                                 texte, bien visible dans le fond coloré d'une
+                                 mention. La hauteur vient du contenu. -->
                             <span class="text-[10px] text-(--text2) font-medium text-center mt-1.5">{{ formatTimeOnly(msg.createdAt as any) }}</span>
                         </div>
 
@@ -121,27 +158,40 @@
                             </div>
 
                             <template v-if="msg.type !== 'voice_invite'">
-                                <div v-if="isEditing" class="w-full">
-                                    <textarea
+                                <div v-if="isEditing" class="w-full" @keydown.esc.prevent="cancelEdit">
+                                    <ThreadTextarea
                                         ref="editTextareaRef"
-                                        v-model="editContent"
-                                        rows="1"
-                                        class="w-full bg-(--bg) border border-(--primary)/60 rounded-lg px-2 py-1.5 text-sm text-(--text) outline-none resize-none focus:border-(--primary)"
-                                        @keydown.enter.exact.prevent="saveEdit"
-                                        @keydown.esc.prevent="cancelEdit"
-                                        @input="autoResizeEdit"
+                                        :model-value="editContent"
+                                        @update:model-value="editContent = $event"
+                                        @send="saveEdit"
+                                        class="w-full bg-(--bg) border border-(--primary)/60 rounded-lg px-2 outline-none focus-within:border-(--primary)"
                                     />
                                     <p class="text-[10px] text-(--text2) mt-1">
                                         échap pour annuler • entrée pour enregistrer
                                     </p>
                                 </div>
-                                <div v-else ref="messageContentRef" @click="onMessageContentClick" class="text-(--text) text-sm leading-relaxed wrap-break-word">
-                                    <MarkdownRender :content="msg.content" />
+                                <!-- Contenu encore chiffré (palier 2, cf. ChatView.vue) : jamais afficher msg.content ici. -->
+                                <div v-else-if="msg.decrypting" class="py-1 space-y-1.5" title="Déchiffrement…">
+                                    <div class="h-3.5 w-3/4 max-w-md rounded-lg bg-(--text)/5 animate-pulse" />
+                                </div>
+                                <div v-else class="text-(--text) text-sm leading-relaxed wrap-break-word">
+                                    <MarkdownRender
+                                        :content="msg.content"
+                                        @user-click="(u: User, e: MouseEvent) => openProfile(u, e)"
+                                        @reference-click="onReferenceClick"
+                                    />
                                     <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
+                                </div>
+                                <div v-if="(msg as any).sendFailed" class="mt-1 flex items-center gap-2 text-[11px] text-red-400">
+                                    <i class="bi bi-exclamation-circle-fill" />
+                                    <span>Non envoyé</span>
+                                    <button @click="emit('retry-send')" class="font-semibold hover:underline">Réessayer</button>
+                                    <span class="text-(--text2)">·</span>
+                                    <button @click="emit('discard-send')" class="text-(--text2) hover:underline">Supprimer</button>
                                 </div>
                             </template>
 
-                            <div v-else class="mt-1 flex items-center gap-3 p-3 rounded-lg border border-(--text)/10 bg-white/3 max-w-sm">
+                            <div v-else class="mt-1 flex items-center gap-3 p-3 rounded-lg border border-(--text)/10 bg-(--text)/3 max-w-sm">
                                 <div class="w-9 h-9 shrink-0 flex items-center justify-center rounded-full bg-(--primary)/15 text-(--primary)">
                                     <i class="bi bi-volume-up-fill text-lg" />
                                 </div>
@@ -159,6 +209,7 @@
 
                             <!-- Message reactions -->
                             <MessageReactions
+                                ref="reactionsRef"
                                 :message-id="msg.id"
                                 :reactions="formatDMReactions(msg.reactions)"
                                 :is-dm="true"
@@ -170,49 +221,7 @@
                                 :alignRight="msg.senderId === user?.id"
                             />
 
-                            <div 
-                                v-if="msg.files && msg.files.length > 0" 
-                                class="mt-3 flex flex-wrap gap-2"
-                            >
-
-                                <div 
-                                    v-for="file in msg.files" 
-                                    :key="file.id"
-                                    class="
-                                        group/file relative flex items-center gap-3 p-2
-                                        rounded-lg border border-(--text)/10
-                                        bg-white/3 hover:bg-white/5 transition-all
-                                        max-w-full sm:max-w-sm min-w-0 overflow-hidden
-                                    "
-                                    :title="file.originalName"
-                                >
-
-                                    <div class="w-10 h-10 shrink-0 flex items-center justify-center rounded bg-(--bg) border border-(--text)/5">
-
-                                        <i class="bi text-xl" :class="[ getFileInfo(file).color, getFileInfo(file).icon ]" />
-
-                                    </div>
-
-                                    <div class="flex flex-col min-w-0 flex-1 pr-2">
-                                        <span class="text-xs font-medium text-(--text) truncate min-w-0">
-                                            {{ file.originalName }}
-                                        </span>
-                                        <span class="text-[10px] text-(--text2) uppercase tracking-wider">
-                                            {{ (file.size / 1024 / 1024).toFixed(2) }} MB
-                                        </span>
-                                    </div>
-
-                                    <button 
-                                        @click="downloadFile(file.id)"
-                                        class="ml-auto p-1.5 rounded-md hover:bg-(--primary)/20 text-(--text2) hover:text-(--primary) transition-colors"
-                                        title="Télécharger"
-                                    >
-                                        <i class="bi bi-download" />
-                                    </button>
-
-                                </div>
-                                
-                            </div>
+                            <MessageAttachments v-if="msg.files && msg.files.length > 0" :files="msg.files" />
 
                         </div>
 
@@ -228,27 +237,51 @@
             @cancel="showDeleteConfirm = false"
         />
 
+        <MessageActionSheet
+            :show="showActionSheet"
+            :actions="sheetActions"
+            :preview-name="$p(msg.sender?.name) || 'Anonyme'"
+            :preview-content="msg.content.substring(0, 120)"
+            :quick-reactions="QUICK_REACTIONS"
+            @close="showActionSheet = false"
+            @react="reactFromSheet"
+            @more-reactions="openPickerFromSheet"
+        />
+
 
 </template>
 
 <script setup lang="ts">
+
+// Le composant a 2 racines (la bulle de message + ConfirmDelete, tout en
+// bas) : Vue ne peut pas reporter automatiquement les attrs "orphelins"
+// (ex. l'`id="msg-..."` passé par ChatView.vue) sur un composant multi-racine
+// — d'où l'avertissement "Extraneous non-props attributes". On désactive
+// l'héritage auto et on le reporte nous-mêmes sur la bulle, seule racine
+// pour laquelle un id a du sens.
+defineOptions({ inheritAttrs: false });
 
 import { computed, nextTick, ref, watch } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
 import useWSocket from '@/composables/useWSocket';
 import MessageReactions from '@/components/common/MessageReactions.vue';
+import MessageActionSheet, { type SheetAction } from '@/components/common/MessageActionSheet.vue';
+import { useLongPress } from '@/composables/useLongPress';
 import type { DMMessage, DMMessageReaction, ReactionUser } from '@/types/types';
-import { downloadFile } from '@/assets/utils/downloadFile';
+import MessageAttachments from './MessageAttachments.vue';
 import MarkdownRender from '../../views/MarkdownRender.vue';
+import ThreadTextarea from './ThreadTextarea.vue';
 import { useRoute, useRouter } from 'vue-router';
-import { user, openedOrg } from '@/assets/var';
+import { user } from '@/assets/var';
 import { encryptForPeer } from '@/assets/utils/crypto';
-import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useToast } from '@/composables/useToast';
 import { openProfile } from '@/composables/useProfile';
 import useSettingsItem from '@/composables/useSettingsItem';
-import { buildMentionLookup, renderMentions, handleMentionClick, isUserMentioned } from '@/composables/useMentions';
+import { orgMentionLookup, isUserMentioned } from '@/composables/useMentions';
+import { extractReferenceTokens } from '@/composables/useReferences';
+import { navigateToReference } from '@/composables/useReferenceNavigation';
+import type { User } from '@/types/types';
 
 const toast = useToast();
 const showReactionPicker = ref<boolean>(false);
@@ -296,26 +329,52 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'edit-start'): void;
     (e: 'edit-end'): void;
+    (e: 'retry-send'): void;
+    (e: 'discard-send'): void;
 }>();
 
 interface DropdownBtn {
     icon: string,
     tooltip: string,
+    label: string,
+    inSheet?: boolean,
+    danger?: boolean,
     func: (msg: DMMessage, e?: Event) => void,
     class?: string;
     show: (msg: DMMessage) => boolean;
 }
 
+const copied = ref<boolean>(false);
+let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+
+const copyMessage = async (msg: DMMessage) => {
+    try {
+        await navigator.clipboard.writeText(msg.content);
+        copied.value = true;
+        clearTimeout(copiedTimer);
+        copiedTimer = setTimeout(() => copied.value = false, 1500);
+        // Sans survol (tactile), la coche de la barre d'actions n'est jamais
+        // visible — la copie part du sheet mobile, qui se ferme aussitôt.
+        if (!window.matchMedia('(hover: hover)').matches) toast.show("Message copié", "success");
+    } catch {
+        toast.show("Échec de la copie", "error");
+    }
+};
+
 const dropdownBtns: DropdownBtn[] = [
     {
-        icon: "bi-clipboard-fill",
+        // Getter : l'icône bascule sur une coche le temps du feedback, et la
+        // `:key` sur l'<i> relance l'animation `copy-pop` à chaque bascule.
+        get icon() { return copied.value ? "bi-check-lg copy-pop text-(--primary)" : "bi-clipboard-fill"; },
         tooltip: "copier",
-        func: () => {},
+        label: "Copier le texte",
+        func: (msg: DMMessage) => copyMessage(msg),
         show: () => true
     },
     {
         icon: "bi-hash",
         tooltip: "copier l'id",
+        label: "Copier l'ID",
         func: (msg: DMMessage) => {
             navigator.clipboard.writeText(msg.id);
             toast.show("ID copié", "success");
@@ -326,18 +385,23 @@ const dropdownBtns: DropdownBtn[] = [
     {
         icon: "bi-pencil-fill",
         tooltip: "modifier",
+        label: "Modifier",
         func: () => startEdit(),
         show: (msg: DMMessage) => msg.senderId == user.value?.id && msg.type !== 'voice_invite'
     },
     {
         icon: "bi-arrow-90deg-left",
         tooltip: "répondre",
+        label: "Répondre",
         func: (msg: DMMessage) => setMessageWillBeResponded(msg),
         show: () => true
     },
     {
         icon: "bi-emoji-grin-fill",
         tooltip: "réagir",
+        label: "Réagir",
+        // Remplacé dans le sheet mobile par la rangée de réactions rapides.
+        inSheet: false,
         func: (_msg: DMMessage, e?: Event) => {
             showReactionPicker.value = !showReactionPicker.value;
             if (showReactionPicker.value && e) {
@@ -353,42 +417,83 @@ const dropdownBtns: DropdownBtn[] = [
     {
         icon: "bi-trash-fill",
         tooltip: "supprimer",
+        label: "Supprimer",
         func: () => openDeleteConfirm(),
         class: "text-red-400! hover:bg-red-500/10!",
+        danger: true,
         show: (msg: DMMessage) => msg.senderId == user.value?.id
     }
 ];
+
+// ── Sheet d'actions mobile ──────────────────────────────────────────────
+// Sur écran tactile il n'y a pas de survol, donc pas de barre d'actions :
+// un appui long ouvre à la place un sheet qui glisse du bas, avec les mêmes
+// actions (mêmes `show`) en liste libellée.
+const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
+const showActionSheet = ref<boolean>(false);
+const reactionsRef = ref<InstanceType<typeof MessageReactions> | null>(null);
+
+const longPress = useLongPress(() => {
+    if (props.isEditing || props.msg.decrypting) return;
+    showActionSheet.value = true;
+});
+
+const sheetActions = computed<SheetAction[]>(() => dropdownBtns
+    .filter(btn => btn.inSheet !== false && btn.show(props.msg))
+    .map(btn => ({
+        icon: btn.icon,
+        label: btn.label,
+        danger: btn.danger,
+        onClick: () => {
+            showActionSheet.value = false;
+            btn.func(props.msg);
+        },
+    }))
+);
+
+const reactFromSheet = (emoji: string) => {
+    showActionSheet.value = false;
+    reactionsRef.value?.toggleReaction(emoji);
+};
+
+const openPickerFromSheet = () => {
+    showActionSheet.value = false;
+    // Sans coordonnées, MessageReactions centre le sélecteur à l'écran.
+    pickerCoords.value = null;
+    showReactionPicker.value = true;
+};
 
 const router = useRouter();
 const route = useRoute();
 const { setMessageWillBeResponded } = useResponse();
 
 const showPlusDropdown = ref<boolean>(false);
+const hovered = ref<boolean>(false);
 const showDeleteConfirm = ref<boolean>(false);
-const messageContentRef = ref<HTMLElement | null>(null);
 const editContent = ref<string>('');
-const editTextareaRef = ref<HTMLTextAreaElement | null>(null);
-
-const autoResizeEdit = () => {
-    const el = editTextareaRef.value;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 300)}px`;
-};
+const editTextareaRef = ref<InstanceType<typeof ThreadTextarea> | null>(null);
 
 watch(() => props.isEditing, (editing) => {
     if (!editing) return;
     editContent.value = props.msg.content;
     nextTick(() => {
-        editTextareaRef.value?.focus();
-        editTextareaRef.value?.select();
-        autoResizeEdit();
+        editTextareaRef.value?.textarea?.focus();
+        editTextareaRef.value?.textarea?.select();
     });
 });
 
-const mentionLookup = computed(() => buildMentionLookup(openedOrg.value?.members));
+const mentionLookup = orgMentionLookup;
 
-const isTagMe = computed(() => isUserMentioned(props.msg.content, user.value, mentionLookup.value));
+// Couvre l'ancien format @pseudo (isUserMentioned) ET le nouveau <@:id> — un
+// message envoyé après cette feature ne matchera jamais le premier.
+const isTagMe = computed(() => {
+    // Contenu encore chiffré : rien à y chercher.
+    if (props.msg.decrypting) return false;
+    if (isUserMentioned(props.msg.content, user.value, mentionLookup.value)) return true;
+    if (!user.value) return false;
+    return extractReferenceTokens(props.msg.content).some(r => r.type === 'user' && r.id === user.value!.id);
+});
 
 const handleAddReaction = async (payload: { messageId: string; emoji: string; isDM: boolean }) => {
    
@@ -413,19 +518,9 @@ const handleAddReaction = async (payload: { messageId: string; emoji: string; is
 
 // Reaction updates are handled centrally in ChatView.vue — no per-instance socket listener needed
 
-const applyMentions = () => {
-    if (!messageContentRef.value) return;
-    renderMentions(messageContentRef.value, mentionLookup.value);
+const onReferenceClick = (ref: { kind: 'thread' | 'task' | 'file'; id: string; spaceId?: string }) => {
+    navigateToReference(router, ref);
 };
-
-const onMessageContentClick = (event: MouseEvent) => {
-    handleMentionClick(event, mentionLookup.value, (mentionedUser, e) => openProfile(mentionedUser, e));
-};
-
-watch(() => props.msg.content, async () => {
-    await nextTick();
-    applyMentions();
-}, { immediate: true });
 
 const formatTime = (d: string) => {
   return new Date(d).toLocaleString('fr-FR', {
@@ -497,8 +592,20 @@ const saveEdit = async () => {
     }
 
     const myPubKey = user.value?.publicKey;
+    // Editing is only ever offered on your own messages (see dropdownBtns'
+    // `show` guard above), so props.msg.sender is always the current user —
+    // using it here as the "peer" key would re-wrap encryptedAesKey with our
+    // own public key instead of the recipient's, leaving them unable to
+    // decrypt the edited message (RSA-OAEP DOMException on their side).
+    const peerPubKey = props.msg.recipient?.publicKey;
 
-    const { ciphertext, encryptedAesKey, iv, selfEncryptedAesKey } = await encryptForPeer(content, props.msg.sender?.publicKey!, myPubKey);
+    if (!peerPubKey) {
+        toast.show("Clé du destinataire introuvable.", "error");
+        emit('edit-end');
+        return;
+    }
+
+    const { ciphertext, encryptedAesKey, iv, selfEncryptedAesKey } = await encryptForPeer(content, peerPubKey, myPubKey);
 
     const socket = await useWSocket();
 
@@ -508,6 +615,7 @@ const saveEdit = async () => {
         encryptedAesKey,
         selfEncryptedAesKey: selfEncryptedAesKey,
         nonce: iv,
+        references: extractReferenceTokens(content),
     });
 
     emit('edit-end');
@@ -517,6 +625,17 @@ const saveEdit = async () => {
 </script>
 
 <style scoped>
+
+.copy-pop {
+    display: inline-block;
+    animation: copy-pop 0.35s ease-out;
+}
+
+@keyframes copy-pop {
+    0%   { transform: scale(0.4) rotate(-20deg); opacity: 0; }
+    60%  { transform: scale(1.25) rotate(5deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0); }
+}
 
 :deep(.mention-tag) {
     display: inline-flex;

@@ -114,16 +114,30 @@ const toggleReaction = async (emoji: string) => {
 };
 
 // No socket handling here - parent component handles it
+
+// Le sheet mobile (MessageActionSheet) propose des réactions rapides : il
+// passe par ici pour garder la même mise à jour optimiste et le même toggle.
+defineExpose({ toggleReaction });
 </script>
 
 <template>
-  <div class="flex items-center gap-2 mt-1">
+  <div class="flex items-center gap-2" :class="formattedReactions.length > 0 ? 'mt-1' : ''">
+    <!-- Le composant reste monté même sans réaction : le sélecteur d'emoji vit
+         ici (téléporté vers body), le démonter empêcherait d'ajouter une
+         première réaction. Mais la racine est alors vide, et son `mt-1`
+         ajoutait 4px sous chaque message — y compris en `isStacked`, qui ne
+         neutralise que le padding du conteneur parent, pas la marge d'un
+         enfant. D'où la marge conditionnée à la présence de réactions.
+         Le commentaire est volontairement DANS la racine : au-dessus, il
+         ferait un root fragment et les attributs d'un parent ne seraient
+         plus transmis. -->
     <!-- Display existing reactions -->
     <div v-if="formattedReactions.length > 0" class="flex flex-wrap items-center gap-2">
       <button
         v-for="reaction in formattedReactions"
         :key="reaction.emoji"
         @click="!isReadOnly && toggleReaction(reaction.emoji)"
+        :title="reaction.users.map(u => u.name || 'Anonyme').join(', ')"
         class="flex items-center gap-1 px-2 py-1 rounded-xl text-sm transition-colors"
         :class="[
           reaction.hasReacted ? 'ring-1 ring-(--primary-dark)' : '',

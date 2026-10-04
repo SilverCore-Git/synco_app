@@ -6,18 +6,10 @@
                 <i class="bi bi-check2-square text-(--text)"></i>
                 <h3 class="font-semibold text-(--text)">Mes Tâches</h3>
             </div>
-            
-            <TaskProgressGauge :tasks="rawTasks" class="mx-auto" />
-            
+
+            <TaskProgressGauge :tasks="visibleTasks" class="mx-auto" />
+
             <div class="ml-auto flex items-center gap-4">
-                <button
-                    v-if="archivedCount > 0"
-                    @click="showArchivedPanel = true"
-                    class="text-(--text2) hover:text-(--text) transition-colors"
-                    title="Tâches archivées"
-                >
-                    <i class="bi bi-archive-fill" />
-                </button>
                 <CreateTaskModal @created="onTaskCreated">
                     <button class="primary-glow !text-sm">
                         <i class="bi bi-plus-lg"></i>
@@ -27,11 +19,59 @@
             </div>
         </div>
 
-        <main class="flex-1 overflow-y-auto p-6 w-full h-full space-y-8">
-            <div v-if="tags.length > 0" class="flex items-center gap-2 w-full shrink-0">
+        <main class="flex-1 overflow-y-auto md:overflow-hidden flex flex-col p-6 w-full h-full gap-6">
+            <!-- Filtres : espace (perso + tous les projets où j'ai des tâches) et tags -->
+            <div class="flex items-center gap-2 w-full shrink-0 flex-wrap">
+                <DropDown align="left" content-iner-t-w="min-w-[240px]">
+                    <template #trigger>
+                        <button type="button" class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap h-full" :class="filterSpaceId ? 'bg-(--primary)/15 text-(--primary)' : 'bg-(--text)/5 text-(--text2) hover:bg-(--text)/10'">
+                            <i class="bi bi-folder2"></i>
+                            {{ filterSpaceLabel }}
+                            <i class="bi bi-chevron-down text-[10px] opacity-60"></i>
+                        </button>
+                    </template>
+                    <template #content>
+                        <div @click.stop class="flex flex-col gap-0.5 min-w-[220px]">
+                            <button
+                                type="button"
+                                @click="filterSpaceId = null"
+                                class="text-left px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-2"
+                                :class="!filterSpaceId ? 'bg-(--primary)/15 text-(--primary)' : 'hover:bg-(--text)/5 text-(--text)'"
+                            >
+                                <i class="bi bi-collection"></i>
+                                Tous mes espaces
+                            </button>
+                            <button
+                                type="button"
+                                @click="filterSpaceId = 'personal'"
+                                class="text-left px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-2"
+                                :class="filterSpaceId === 'personal' ? 'bg-(--primary)/15 text-(--primary)' : 'hover:bg-(--text)/5 text-(--text)'"
+                            >
+                                <i class="bi bi-person"></i>
+                                Personnel
+                            </button>
+                            <div v-if="spaceOptions.length" class="h-px bg-(--border-color) my-1"></div>
+                            <button
+                                v-for="space in spaceOptions" :key="space.id"
+                                type="button"
+                                @click="filterSpaceId = space.id"
+                                class="text-left px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-2 truncate"
+                                :class="filterSpaceId === space.id ? 'bg-(--primary)/15 text-(--primary)' : 'hover:bg-(--text)/5 text-(--text)'"
+                            >
+                                <img v-if="space.logo && space.logo.includes('data:')" :src="space.logo" class="w-4 h-4 rounded object-cover shrink-0" />
+                                <i v-else-if="space.logo" class="bi shrink-0" :class="space.logo"></i>
+                                <span v-else class="w-4 h-4 rounded bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[8px] font-black shrink-0">
+                                    {{ space.name.substring(0, 2).toUpperCase() }}
+                                </span>
+                                <span class="truncate">{{ $p(space.name) }}</span>
+                            </button>
+                        </div>
+                    </template>
+                </DropDown>
+
                 <DropDown align="left" content-iner-t-w="min-w-[280px]">
                     <template #trigger>
-                        <button type="button" class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap h-full" :class="filterTagIds.length ? 'bg-(--primary)/15 text-(--primary)' : 'bg-white/5 text-white/70 hover:bg-white/10'">
+                        <button type="button" class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap h-full" :class="filterTagIds.length ? 'bg-(--primary)/15 text-(--primary)' : 'bg-(--text)/5 text-(--text2) hover:bg-(--text)/10'">
                             <i class="bi bi-tags"></i>
                             {{ filterTagIds.length ? `${filterTagIds.length} tag${filterTagIds.length > 1 ? 's' : ''}` : 'Tags' }}
                             <i class="bi bi-chevron-down text-[10px] opacity-60"></i>
@@ -52,36 +92,55 @@
                         </div>
                     </template>
                 </DropDown>
+
+                <button
+                    v-if="filterSpaceId || filterTagIds.length"
+                    type="button"
+                    @click="filterSpaceId = null; filterTagIds = []"
+                    class="text-[11px] font-bold text-(--text2) hover:text-(--text) flex items-center gap-1 ml-1"
+                >
+                    <i class="bi bi-x-circle"></i>
+                    Réinitialiser les filtres
+                </button>
+
+                <button
+                    v-if="archivedCount > 0 || isDraggingTask"
+                    @click="router.push({ name: 'TasksGlobalArchived', params: { orgId: route.params.orgId } })"
+                    @dragover.prevent="dragOverArchiveBtn = true"
+                    @dragleave.prevent="dragOverArchiveBtn = false"
+                    @drop="onDropToArchiveBtn"
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0 ml-auto"
+                    :class="dragOverArchiveBtn ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-[0_4px_20px_var(--glow-warning-strong)]' : 'bg-(--text)/5 text-(--text2) hover:bg-(--text)/10'"
+                >
+                    <i class="bi bi-archive-fill" />
+                    <span class="hidden sm:inline">Tâches archivées</span>
+                </button>
             </div>
 
-            <div v-if="loading" class="w-full flex flex-col gap-12 animate-pulse pb-10">
-                <div v-for="s in 2" :key="'skel-space-'+s" class="space-y-4">
-                    <div class="flex items-center justify-between border-b border-white/10 pb-2">
-                        <div class="flex items-center gap-3">
-                            <div class="w-6 h-6 bg-white/10 rounded-md"></div>
-                            <div class="w-32 h-5 bg-white/10 rounded-full"></div>
-                            <div class="w-16 h-4 bg-white/5 rounded-full ml-2"></div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 items-start">
-                        <div v-for="i in 3" :key="'skel-col-'+i" class="bg-black/20 rounded-2xl p-4 flex flex-col gap-4 border border-(--border-color) min-h-[40vh]">
-                            <div class="flex items-center justify-between mb-2">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-6 h-6 rounded-lg bg-white/10"></div>
-                                    <div class="w-20 h-3 bg-white/10 rounded-full"></div>
-                                </div>
-                                <div class="w-5 h-3 bg-white/10 rounded-full"></div>
+            <div v-if="loading" class="flex-1 min-h-0 w-full flex flex-col gap-4 animate-pulse pb-10">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 items-start h-full">
+                    <div v-for="i in 3" :key="'skel-col-'+i" class="bg-(--surface-sunken) rounded-2xl p-4 flex flex-col gap-4 border border-(--border-color) h-full">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-2">
+                                <div class="w-6 h-6 rounded-lg bg-(--text)/10"></div>
+                                <div class="w-20 h-3 bg-(--text)/10 rounded-full"></div>
                             </div>
-                            <div v-for="j in 2" :key="'skel-card-'+j" class="bg-white/5 border border-(--border-color) p-4 rounded-xl h-28"></div>
+                            <div class="w-5 h-3 bg-(--text)/10 rounded-full"></div>
                         </div>
+                        <div v-for="j in 2" :key="'skel-card-'+j" class="bg-(--text)/5 border border-(--border-color) p-4 rounded-xl h-28"></div>
                     </div>
                 </div>
             </div>
-            
-            <div v-else class="space-y-12 pb-10">
 
-                <!-- Onglets de statut (mobile) : partagés par tous les projets -->
-                <div class="relative flex items-center gap-1 p-1 bg-white/5 rounded-xl md:hidden">
+            <div v-else-if="myTasks.length === 0" class="flex-1 min-h-0 flex flex-col items-center justify-center text-(--text2)">
+                <i class="bi bi-emoji-smile text-6xl mb-4" />
+                <p class="text-base font-medium">Vous n'avez aucune tâche assignée.</p>
+            </div>
+
+            <template v-else>
+
+                <!-- Onglets de statut (mobile) -->
+                <div class="relative flex items-center gap-1 p-1 bg-(--text)/5 rounded-xl md:hidden shrink-0">
                     <div
                         class="absolute top-1 bottom-1 rounded-lg bg-(--primary) shadow-lg transition-all duration-300 ease-out"
                         :style="tabIndicatorStyle"
@@ -98,260 +157,149 @@
                     </button>
                 </div>
 
-                <!-- Swimlanes (Rows by Project) -->
-                <div v-for="spaceGroup in spacesGroups" :key="spaceGroup.id" class="space-y-4">
-
-                    <div class="flex items-center justify-between border-b border-white/10 pb-2">
-                        <div class="flex items-center gap-3">
-                            <i class="bi bi-folder-fill text-(--primary) text-xl"></i>
-                            <h3 class="text-xl font-black text-(--text) tracking-wide">
-                                {{ $p(spaceGroup.name) }}
-                            </h3>
-                            <span class="bg-white/10 text-xs px-2 py-0.5 rounded-full font-bold">
-                                {{ spaceGroup.tasks.length }} tâche(s)
+                <!-- Mobile : liste simple filtrée par l'onglet actif, pas de glisser-déposer -->
+                <div class="flex-1 min-h-0 overflow-y-auto md:hidden space-y-3">
+                    <TaskCard
+                        v-for="task in filteredTasks(mobileActiveColumn)" :key="task.id"
+                        :task="task"
+                        @click="openTaskDetails(task)"
+                    >
+                        <template #header-right>
+                            <span class="text-[9px] font-bold text-(--text2) uppercase truncate max-w-20 shrink-0">
+                                {{ task.space?.name ? $p(task.space.name) : 'Perso' }}
                             </span>
-                        </div>
-
-                        <CreateTaskModal :defaultSpaceId="spaceGroup.id === 'personal' ? null : spaceGroup.id" @created="onTaskCreated">
-                            <button class="text-xs bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg font-bold transition-colors flex items-center gap-2">
-                                <i class="bi bi-plus"></i> Ajouter ici
-                            </button>
-                        </CreateTaskModal>
-                    </div>
-
-                    <!-- Mobile : liste simple filtrée par l'onglet actif, pas de glisser-déposer -->
-                    <div class="md:hidden space-y-3">
-                        <div
-                            v-for="task in getTasks(spaceGroup.tasks, mobileActiveColumn)" :key="task.id"
-                            @click="openTaskDetails(task)"
-                            class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
-                        >
-                            <p class="text-sm font-bold text-(--text) leading-snug">{{ task.title }}</p>
-                            <span v-if="task.parentTask" class="text-[9px] font-bold text-(--primary) uppercase flex items-center gap-1 opacity-80 mt-1">
-                                <i class="bi bi-arrow-return-right"></i> {{ task.parentTask.title }}
-                            </span>
-
-                            <div v-if="task.tags?.length" class="flex flex-wrap gap-1 mt-2">
-                                <span
-                                    v-for="tag in task.tags.slice(0, 3)" :key="tag.id"
-                                    class="px-2 py-0.5 rounded-full text-[9px] font-bold border"
-                                    :style="{ borderColor: tag.color, color: tag.color }"
+                        </template>
+                        <template #footer>
+                            <div class="flex items-center gap-1.5 mt-3 pt-3 border-t border-(--border-color)" @click.stop>
+                                <button
+                                    v-if="prevStatus(task.status)"
+                                    @click="changeTaskStatus(task, prevStatus(task.status)!)"
+                                    class="w-8 h-8 rounded-lg bg-(--text)/5 hover:bg-(--text)/10 flex items-center justify-center transition-colors"
+                                    :class="columnColor(prevStatus(task.status)!)"
+                                    :title="`Repasser à « ${columnTitle(prevStatus(task.status)!)} »`"
                                 >
-                                    {{ tag.name }}
+                                    <i :class="columnIcon(prevStatus(task.status)!)"></i>
+                                </button>
+                                <button
+                                    v-if="nextStatus(task.status)"
+                                    @click="changeTaskStatus(task, nextStatus(task.status)!)"
+                                    class="flex items-center gap-1.5 px-3 h-8 rounded-lg bg-(--primary)/10 hover:bg-(--primary)/20 text-(--primary) font-bold text-[11px] transition-colors"
+                                    :title="`Passer à « ${columnTitle(nextStatus(task.status)!)} »`"
+                                >
+                                    <i :class="columnIcon(nextStatus(task.status)!)"></i>
+                                    {{ columnTitle(nextStatus(task.status)!) }}
+                                </button>
+                            </div>
+                        </template>
+                    </TaskCard>
+
+                    <p v-if="filteredTasks(mobileActiveColumn).length === 0" class="text-xs text-(--text2) italic text-center py-8">
+                        Aucune tâche ici.
+                    </p>
+                </div>
+
+                <!-- Desktop : un seul tableau Kanban regroupant tous les espaces + le personnel -->
+                <div class="hidden md:grid flex-1 min-h-0 md:grid-cols-3 gap-4 lg:gap-6 pb-2">
+
+                    <div v-for="col in columns" :key="col.id"
+                         class="bg-(--bg2)/40 border rounded-2xl p-4 min-h-[400px] h-full flex flex-col transition-all"
+                         :class="draggedOverCol === col.id ? 'border-(--primary) bg-(--text)/5 shadow-[0_0_15px_var(--glow-primary-soft)]' : 'border-(--border-color)'"
+                         @dragover.prevent
+                         @dragenter.prevent="draggedOverCol = col.id"
+                         @dragleave.prevent="draggedOverCol = null"
+                         @drop="onDrop($event, col.id); draggedOverCol = null"
+                    >
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="font-bold text-sm tracking-wider uppercase flex items-center gap-2" :class="col.color">
+                                <i :class="col.icon"></i>
+                                {{ col.title }}
+                            </h4>
+                            <div class="flex items-center gap-2">
+                                <button
+                                    v-if="col.id === 'DONE' && filteredTasks(col.id).length > 0"
+                                    @click="showArchiveAllConfirm = true"
+                                    :disabled="archivingAll"
+                                    class="text-amber-500/80 hover:text-amber-500 transition-colors disabled:opacity-50"
+                                    title="Archiver toutes les tâches terminées"
+                                >
+                                    <i class="bi bi-archive" />
+                                </button>
+                                <span class="bg-(--text)/5 text-(--text2) text-xs px-2 py-0.5 rounded-full font-bold">
+                                    {{ filteredTasks(col.id).length }}
                                 </span>
                             </div>
-
-                            <div class="flex items-center justify-between mt-3">
-                                <div class="flex items-center -space-x-1.5" v-if="task.assignees?.length">
-                                    <template v-for="assignee in task.assignees.slice(0,3)" :key="assignee.id">
-                                        <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="$p(assignee.name)" class="w-6 h-6 rounded-full object-cover border-2 border-(--bg2)">
-                                        <div v-else :title="$p(assignee.name)" class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[9px] font-black border-2 border-(--bg2)">
-                                            {{ $p(assignee.name).substring(0, 2).toUpperCase() }}
-                                        </div>
-                                    </template>
-                                </div>
-                                <div v-else></div>
-
-                                <div class="flex items-center gap-1.5" @click.stop>
-                                    <button
-                                        v-if="prevStatus(task.status)"
-                                        @click="changeTaskStatus(task, prevStatus(task.status)!)"
-                                        class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
-                                        :class="columnColor(prevStatus(task.status)!)"
-                                        :title="`Repasser à « ${columnTitle(prevStatus(task.status)!)} »`"
-                                    >
-                                        <i :class="columnIcon(prevStatus(task.status)!)"></i>
-                                    </button>
-                                    <button
-                                        v-if="nextStatus(task.status)"
-                                        @click="changeTaskStatus(task, nextStatus(task.status)!)"
-                                        class="flex items-center gap-1.5 px-3 h-8 rounded-lg bg-(--primary)/10 hover:bg-(--primary)/20 text-(--primary) font-bold text-[11px] transition-colors"
-                                        :title="`Passer à « ${columnTitle(nextStatus(task.status)!)} »`"
-                                    >
-                                        <i :class="columnIcon(nextStatus(task.status)!)"></i>
-                                        {{ columnTitle(nextStatus(task.status)!) }}
-                                    </button>
-                                </div>
-                            </div>
                         </div>
 
-                        <p v-if="getTasks(spaceGroup.tasks, mobileActiveColumn).length === 0" class="text-xs text-(--text2) italic text-center py-4">
-                            Aucune tâche ici.
-                        </p>
-                    </div>
-
-                    <!-- Desktop : Kanban Board inside the row -->
-                    <div class="hidden md:grid md:grid-cols-3 gap-4 lg:gap-6 items-start">
-
-                        <div v-for="col in columns" :key="col.id"
-                             class="bg-black/20 border rounded-2xl p-4 min-h-[200px] flex flex-col transition-all"
-                             :class="draggedOverCol === `${spaceGroup.id}-${col.id}` ? 'border-(--primary) bg-white/5 shadow-[0_0_15px_rgba(var(--primary-rgb),0.2)]' : 'border-(--border-color)'"
-                             @dragover.prevent
-                             @dragenter.prevent="draggedOverCol = `${spaceGroup.id}-${col.id}`"
-                             @dragleave.prevent="draggedOverCol = null"
-                             @drop="onDrop($event, col.id, spaceGroup.id); draggedOverCol = null"
-                        >
-                            <div class="flex items-center justify-between mb-4">
-                                <h4 class="font-bold text-sm tracking-wider uppercase flex items-center gap-2" :class="col.color">
-                                    <i :class="col.icon"></i>
-                                    {{ col.title }}
-                                </h4>
-                                <div class="flex items-center gap-2">
-                                    <button
-                                        v-if="col.id === 'DONE' && getTasks(spaceGroup.tasks, col.id).length > 0"
-                                        @click="archiveAllDone(spaceGroup)"
-                                        :disabled="archivingAll"
-                                        class="text-amber-500/80 hover:text-amber-500 transition-colors disabled:opacity-50"
-                                        title="Archiver toutes les tâches terminées"
-                                    >
-                                        <i class="bi bi-archive" />
-                                    </button>
-                                    <span class="bg-white/5 text-(--text2) text-xs px-2 py-0.5 rounded-full font-bold">
-                                        {{ getTasks(spaceGroup.tasks, col.id).length }}
+                        <div class="flex-1 overflow-y-auto space-y-3 min-h-0 pr-1 custom-scrollbar">
+                            <DropDown
+                                v-for="task in filteredTasks(col.id)" :key="task.id"
+                                align="mouse" click="right" class="w-full"
+                            >
+                            <template #trigger>
+                            <TaskCard
+                                :task="task"
+                                :id="'task-' + task.id"
+                                draggable="true"
+                                @dragstart="onDragStart($event, task)"
+                                @dragend="onDragEnd"
+                                @dragover.prevent="onCardDragOver($event, task)"
+                                @drop.stop="onCardDrop($event, task, col.id)"
+                                @click="openTaskDetails(task)"
+                                :class="[
+                                    'active:cursor-grabbing',
+                                    dragOverTaskId === task.id && dragOverPosition === 'before' ? 'border-t-2 border-t-(--primary)' : '',
+                                    dragOverTaskId === task.id && dragOverPosition === 'after' ? 'border-b-2 border-b-(--primary)' : ''
+                                ]"
+                            >
+                                <template #header-right>
+                                    <span class="text-[9px] font-bold text-(--text2) uppercase truncate max-w-20 shrink-0">
+                                        {{ task.space?.name ? $p(task.space.name) : 'Perso' }}
                                     </span>
-                                </div>
-                            </div>
-
-                            <div class="flex-1 space-y-3">
-                                <DropDown
-                                    v-for="task in getTasks(spaceGroup.tasks, col.id)" :key="task.id"
-                                    align="mouse" click="right" class="w-full"
-                                >
-                                <template #trigger>
-                                <div
-                                     draggable="true"
-                                     @dragstart="onDragStart($event, task, spaceGroup.id)"
-                                     @dragend="onDragEnd"
-                                     @dragover.prevent="onCardDragOver($event, task)"
-                                     @drop.stop="onCardDrop($event, task, col.id, spaceGroup.id)"
-                                     @click="openTaskDetails(task)"
-                                     class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer active:cursor-grabbing hover:border-(--primary)/50 transition-all shadow-lg hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] group relative overflow-hidden"
-                                     :class="[
-                                        dragOverTaskId === task.id && dragOverPosition === 'before' ? 'border-t-2 border-t-(--primary)' : '',
-                                        dragOverTaskId === task.id && dragOverPosition === 'after' ? 'border-b-2 border-b-(--primary)' : ''
-                                     ]"
-                                >
-                                    <div class="flex justify-between items-start gap-2">
-                                        <div class="flex flex-col gap-1">
-                                            <p class="text-sm font-bold text-(--text) leading-snug">{{ task.title }}</p>
-                                            <span v-if="task.parentTask" class="text-[9px] font-bold text-(--primary) uppercase flex items-center gap-1 opacity-80">
-                                                <i class="bi bi-arrow-return-right"></i> {{ task.parentTask.title }}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div v-if="task.tags?.length" class="flex flex-wrap gap-1 mt-2">
-                                        <span
-                                            v-for="tag in task.tags.slice(0, 3)" :key="tag.id"
-                                            class="px-2 py-0.5 rounded-full text-[9px] font-bold border"
-                                            :style="{ borderColor: tag.color, color: tag.color }"
-                                        >
-                                            {{ tag.name }}
-                                        </span>
-                                        <span v-if="task.tags.length > 3" class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-(--text)/5 text-(--text2)">
-                                            +{{ task.tags.length - 3 }}
-                                        </span>
-                                    </div>
-
-                                    <div class="flex items-center justify-between mt-4">
-                                        <div class="flex items-center -space-x-1.5" v-if="task.assignees?.length">
-                                            <template v-for="assignee in task.assignees.slice(0,3)" :key="assignee.id">
-                                                <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="$p(assignee.name)" class="w-6 h-6 rounded-full object-cover border-2 border-(--bg2) z-10 hover:z-20">
-                                                <div v-else :title="$p(assignee.name)" class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10 hover:z-20">
-                                                    {{ $p(assignee.name).substring(0, 2).toUpperCase() }}
-                                                </div>
-                                            </template>
-                                            <div v-if="task.assignees.length > 3" class="w-6 h-6 rounded-full bg-white/10 text-white flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10">
-                                                +{{ task.assignees.length - 3 }}
-                                            </div>
-                                        </div>
-                                        <div v-else></div>
-                                        
-                                        <div class="flex items-center gap-1.5">
-                                            <div v-if="task._count?.attachments" class="flex items-center gap-1 text-xs bg-(--text)/5 px-2 py-1 rounded-lg font-bold text-(--text2)">
-                                                <i class="bi bi-paperclip"></i>
-                                                {{ task._count.attachments }}
-                                            </div>
-                                            <div v-if="task.subtasks && task.subtasks.length > 0" class="flex items-center gap-1.5 text-xs bg-white/5 px-2.5 py-1 rounded-lg font-bold text-white/50">
-                                                <i class="bi bi-check2-square text-(--primary)"></i>
-                                                {{ task.subtasks.filter((st: any) => st.status === 'DONE').length }}/{{ task.subtasks.length }}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Progress Bar (Gauge) -->
-                                    <div class="mt-4 pt-3 border-t border-(--border-color)" v-if="task.dueDate && task.status !== 'DONE'">
-                                        <div class="flex justify-between items-end mb-1.5">
-                                            <span class="text-[9px] font-black uppercase tracking-widest text-(--text2)">
-                                                Échéance
-                                            </span>
-                                            <span class="text-[10px] font-black" :class="getProgress(task).color.replace('bg-', 'text-')">
-                                                {{ getProgress(task).text }}
-                                            </span>
-                                        </div>
-                                        <div class="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
-                                            <div class="h-full rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(currentColor,0.5)]" 
-                                                 :class="getProgress(task).color" 
-                                                 :style="{ width: getProgress(task).percent + '%' }"></div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="mt-4 pt-3 border-t border-(--border-color) flex items-center justify-center" v-else-if="task.status === 'DONE'">
-                                        <span class="text-[10px] font-black uppercase tracking-widest text-green-500">
-                                            <i class="bi bi-check-lg mr-1"></i> Terminée
-                                        </span>
-                                    </div>
-
-                                </div>
                                 </template>
-                                <template #content>
-                                    <button
-                                        @click="startRenameTask(task)"
-                                        class="dropdown-item-annimate dropdown-item-style gap-2"
-                                    >
-                                        <i class="bi bi-pencil" />
-                                        Modifier la tâche
+                            </TaskCard>
+                            </template>
+                            <template #content>
+                                <button
+                                    @click="startRenameTask(task)"
+                                    class="dropdown-item-annimate dropdown-item-style gap-2"
+                                >
+                                    <i class="bi bi-pencil" />
+                                    Modifier la tâche
+                                </button>
+                                <CreateTaskModal
+                                    :parentTaskId="task.id"
+                                    :hideSpaceSelect="true"
+                                    :defaultSpaceId="task.spaceId"
+                                    @created="(newTask: Task) => onSubtaskCreatedFromMenu(task, newTask)"
+                                >
+                                    <button class="dropdown-item-annimate dropdown-item-style gap-2 w-full">
+                                        <i class="bi bi-list-nested" />
+                                        Ajouter une sous-tâche
                                     </button>
-                                    <CreateTaskModal
-                                        :parentTaskId="task.id"
-                                        :hideSpaceSelect="true"
-                                        :defaultSpaceId="task.spaceId"
-                                        @created="(newTask: Task) => onSubtaskCreatedFromMenu(task, newTask)"
-                                    >
-                                        <button class="dropdown-item-annimate dropdown-item-style gap-2 w-full">
-                                            <i class="bi bi-list-nested" />
-                                            Ajouter une sous-tâche
-                                        </button>
-                                    </CreateTaskModal>
-                                    <button
-                                        @click="archiveTask(task)"
-                                        class="dropdown-item-annimate dropdown-item-style gap-2"
-                                    >
-                                        <i class="bi bi-archive" />
-                                        Archiver
-                                    </button>
-                                    <button
-                                        @click="handleContextDeleteTask(task)"
-                                        class="dropdown-item-annimate dropdown-item-style gap-2 text-red-500! hover:bg-red-500/5!"
-                                    >
-                                        <i class="bi bi-trash" />
-                                        Supprimer
-                                    </button>
-                                </template>
-                                </DropDown>
-                            </div>
+                                </CreateTaskModal>
+                                <button
+                                    @click="archiveTask(task)"
+                                    class="dropdown-item-annimate dropdown-item-style gap-2"
+                                >
+                                    <i class="bi bi-archive" />
+                                    Archiver
+                                </button>
+                                <button
+                                    @click="handleContextDeleteTask(task)"
+                                    class="dropdown-item-annimate dropdown-item-style gap-2 text-red-500! hover:bg-red-500/5!"
+                                >
+                                    <i class="bi bi-trash" />
+                                    Supprimer
+                                </button>
+                            </template>
+                            </DropDown>
                         </div>
                     </div>
                 </div>
 
-                <div v-if="spacesGroups.length === 0" class="py-20 flex flex-col items-center justify-center text-(--text2)">
-                    <i class="bi bi-emoji-smile text-6xl mb-4" />
-                    <p class="text-base font-medium">Vous n'avez aucune tâche assignée.</p>
-                </div>
-
-            </div>
+            </template>
         </main>
-        
+
         <TaskDetailsModal
             :task="selectedTask"
             :isOpen="!!selectedTask"
@@ -366,22 +314,10 @@
             <div v-if="isDraggingTask"
                  class="fixed bottom-8 right-8 flex items-center gap-4 z-[100]">
 
-                <div class="w-16 h-16 bg-amber-500/90 text-white rounded-full flex items-center justify-center shadow-2xl border-4 transition-all duration-500"
-                     :class="[
-                        isArchiving ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
-                        isHoveringArchive && !isArchiving ? 'border-amber-300 scale-125 shadow-[0_0_40px_rgba(245,158,11,0.8)]' : 'border-transparent'
-                     ]"
-                     @dragover.prevent="isHoveringArchive = true"
-                     @dragleave.prevent="isHoveringArchive = false"
-                     @drop="onDropToArchive"
-                     title="Archiver">
-                    <i class="bi bi-archive-fill text-2xl transition-transform" :class="[isArchiving ? 'scale-50' : '', isHoveringArchive && !isArchiving ? 'scale-110' : '']"></i>
-                </div>
-
                 <div class="w-16 h-16 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-2xl border-4 transition-all duration-500"
                      :class="[
                         isDeleting ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
-                        isHoveringTrash && !isDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_rgba(239,68,68,0.8)]' : 'border-transparent'
+                        isHoveringTrash && !isDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_var(--glow-danger-strong)]' : 'border-transparent'
                      ]"
                      @dragover.prevent="isHoveringTrash = true"
                      @dragleave.prevent="isHoveringTrash = false"
@@ -402,46 +338,63 @@
             </div>
         </Transition>
 
-        <ArchivedTasksPanel
-            :isOpen="showArchivedPanel"
-            :orgId="route.params.orgId as string"
-            @close="showArchivedPanel = false"
-            @restored="onTaskRestored"
-            @count="archivedCount = $event"
+        <ConfirmDelete
+            :show="showArchiveAllConfirm"
+            item-type="les tâches terminées"
+            :item-name="`${filteredTasks('DONE').length} tâche(s)`"
+            title="Archiver toutes les tâches terminées ?"
+            :message="`Êtes-vous sûr de vouloir archiver les ${filteredTasks('DONE').length} tâche(s) terminée(s) ? Vous pourrez les restaurer plus tard depuis les tâches archivées.`"
+            button-text="Archiver"
+            :loading="archivingAll"
+            @cancel="showArchiveAllConfirm = false"
+            @confirm="confirmArchiveAll"
+        />
+
+        <ConfirmDelete
+            :show="!!showDeleteTaskConfirm"
+            item-type="la tâche"
+            :item-name="showDeleteTaskConfirm?.title || 'cette tâche'"
+            :loading="deletingTask"
+            @cancel="showDeleteTaskConfirm = null"
+            @confirm="confirmDeleteTask"
         />
     </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import type { Task, TodoList } from '@/types/types';
 import { useToast } from '@/composables/useToast';
 import TaskProgressGauge from '../components/SpaceTasks/TaskProgressGauge.vue';
+import TaskCard from '../components/SpaceTasks/TaskCard.vue';
 import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import DropDown from '@/components/DropDown.vue';
 import TaskTagPicker from '../components/popup/TaskTagPicker.vue';
-import ArchivedTasksPanel from '../components/popup/ArchivedTasksPanel.vue';
-import { user } from '@/assets/var';
+import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
+import { user, openedOrg } from '@/assets/var';
 import confetti from 'canvas-confetti';
 import useWSocket from '@/composables/useWSocket';
 import { useNotification } from '@/composables/useNotification';
 import { useTaskOrder } from '@/composables/useTaskOrder';
-import { useTaskTags } from '@/composables/useTaskTags';
+import { usePersistedTaskFilters } from '@/composables/usePersistedTaskFilters';
 
 const route = useRoute();
+const router = useRouter();
 const toast = useToast();
 const { markTasksAsRead } = useNotification();
 const { fetchOrder, sortByOrder, persistOrder } = useTaskOrder(route.params.orgId as string);
-const { tags, loadTags } = useTaskTags(route.params.orgId as string);
 
 const rawTasks = ref<Task[]>([]);
 const loading = ref(true);
 const draggedOverCol = ref<string | null>(null);
-const filterTagIds = ref<string[]>([]);
+// filterSpaceId : null = tous, 'personal' = hors espace, sinon spaceId
+const { filterTagIds, filterSpaceId } = usePersistedTaskFilters(
+    () => `task-filters:${user.value?.id}:${route.params.orgId}:global`
+);
 
 const selectedTask = ref<Task | null>(null);
 const openTaskInEditMode = ref(false);
@@ -449,11 +402,10 @@ const openTaskInEditMode = ref(false);
 const isDraggingTask = ref(false);
 const isHoveringTrash = ref(false);
 const isDeleting = ref(false);
-const isHoveringArchive = ref(false);
-const isArchiving = ref(false);
 const archivingAll = ref(false);
-const showArchivedPanel = ref(false);
+const showArchiveAllConfirm = ref(false);
 const archivedCount = ref(0);
+const dragOverArchiveBtn = ref(false);
 
 const dragOverTaskId = ref<string | null>(null);
 const dragOverPosition = ref<'before' | 'after' | null>(null);
@@ -465,9 +417,8 @@ const columns = [
 ];
 
 // ── Vue mobile : le glisser-déposer natif ne fonctionne pas au toucher,
-// donc pas de 3 colonnes côte à côte — un onglet à la fois (partagé par
-// tous les projets), et de petites flèches sur chaque carte pour changer
-// de statut sans glisser.
+// donc pas de 3 colonnes côte à côte — un onglet à la fois, et de petites
+// flèches sur chaque carte pour changer de statut sans glisser.
 const mobileActiveColumn = ref<string>('TODO');
 
 const prevStatus = (status: string): string | null => {
@@ -484,9 +435,7 @@ const columnTitle = (status: string) => columns.find(c => c.id === status)?.titl
 const columnIcon = (status: string) => columns.find(c => c.id === status)?.icon || 'bi-circle';
 const columnColor = (status: string) => columns.find(c => c.id === status)?.color || 'text-(--text2)';
 
-// Indicateur qui glisse d'un onglet à l'autre au lieu de sauter instantanément
-// (mesuré en pixels sur le DOM plutôt que calculé en % : plus fiable que de
-// recalculer des marges/gaps Tailwind à la main).
+// Indicateur qui glisse d'un onglet à l'autre au lieu de sauter instantanément.
 const tabRefs = ref<(HTMLElement | null)[]>([]);
 const tabIndicatorStyle = ref({ left: '0px', width: '0px' });
 
@@ -507,76 +456,59 @@ onMounted(() => nextTick(updateTabIndicator));
 window.addEventListener('resize', updateTabIndicator);
 onUnmounted(() => window.removeEventListener('resize', updateTabIndicator));
 
-const spacesGroups = computed(() => {
-    const groups: Record<string, { id: string, name: string, tasks: Task[] }> = {};
-    
-    // Group "Tâches personnelles"
-    groups['personal'] = {
-        id: 'personal',
-        name: 'Tâches personnelles',
-        tasks: []
-    };
-
-    rawTasks.value.forEach(task => {
-
-        // Une tâche m'appartient si elle m'est assignée, ou si je l'ai créée
-        // (dans un espace ou non) — même règle que listMyTasks() côté backend
-        // (tasksService.ts).
+// Unique source de vérité pour "mes tâches" : même règle que listMyTasks()
+// côté backend (tasksService.ts). Nécessaire même si l'API ne renvoie déjà
+// que des listes/tâches où j'apparais — une TodoList qui m'est assignée peut
+// contenir des tâches assignées à d'autres membres (liste partagée), donc
+// sans ce filtre des tâches qui ne sont pas les miennes remontaient jusque
+// dans la jauge de progression et le tableau.
+const myTasks = computed(() => {
+    return rawTasks.value.filter(task => {
         const isAssignedToMe = task.assignees?.some(a => a.id === user.value?.id);
         const isCreatedByMe = task.creatorId === user.value?.id;
-        if (!isAssignedToMe && !isCreatedByMe) return;
-
-        if (!task.spaceId) {
-            groups['personal']!.tasks.push(task);
-        } else {
-            if (!groups[task.spaceId]) {
-                groups[task.spaceId] = {
-                    id: task.spaceId,
-                    name: task.space?.name || 'Projet inconnu',
-                    tasks: []
-                };
-            }
-            groups[task.spaceId]!.tasks.push(task);
-        }
+        return isAssignedToMe || isCreatedByMe;
     });
-
-    // Remove empty groups, except maybe personal if you want it always there
-    return Object.values(groups).filter(g => g.tasks.length > 0 || g.id === 'personal');
 });
 
-const getTasks = (tasks: Task[], status: string) => {
-    return sortByOrder(tasks.filter((t: Task) => {
-        if (t.status !== status) return false;
+const spaceOptions = computed(() => {
+    const map = new Map<string, string>();
+    myTasks.value.forEach(t => {
+        if (t.spaceId && !map.has(t.spaceId)) {
+            map.set(t.spaceId, t.space?.name || 'Projet');
+        }
+    });
+    // task.space (GET /lists/me) n'expose que {id, name} — le logo vient de
+    // openedOrg.spaces, déjà chargé en mémoire (assets/init.ts).
+    return Array.from(map, ([id, name]) => ({
+        id,
+        name,
+        logo: openedOrg.value?.spaces?.find(s => s.id === id)?.logo || null
+    })).sort((a, b) => a.name.localeCompare(b.name));
+});
+
+const filterSpaceLabel = computed(() => {
+    if (!filterSpaceId.value) return 'Tous mes espaces';
+    if (filterSpaceId.value === 'personal') return 'Personnel';
+    return spaceOptions.value.find(s => s.id === filterSpaceId.value)?.name || 'Espace';
+});
+
+// Base commune à la jauge de progression (TaskProgressGauge) ET aux
+// colonnes du tableau (filteredTasks ci-dessous) — sans ça, la jauge lisait
+// myTasks brut (tout, tous espaces/tags confondus) pendant que le tableau
+// appliquait déjà les filtres, donc sélectionner un espace ou un tag
+// changeait ce qui s'affichait sans jamais faire bouger la jauge.
+const visibleTasks = computed(() => {
+    return myTasks.value.filter(t => {
+        if (t.archived) return false;
         if (filterTagIds.value.length && !t.tags?.some(tag => filterTagIds.value.includes(tag.id))) return false;
+        if (filterSpaceId.value === 'personal' && t.spaceId) return false;
+        if (filterSpaceId.value && filterSpaceId.value !== 'personal' && t.spaceId !== filterSpaceId.value) return false;
         return true;
-    }));
-};
+    });
+});
 
-const getProgress = (task: Task) => {
-    if (!task.dueDate) return { percent: 0, text: '', color: 'bg-green-500' };
-    const start = new Date(task.createdAt).getTime();
-    const end = new Date(task.dueDate).getTime();
-    const now = new Date().getTime();
-    
-    if (now > end) return { percent: 100, text: 'En retard', color: 'bg-red-500' };
-    
-    const total = end - start;
-    const passed = now - start;
-    let percent = (passed / total) * 100;
-    if (percent < 0) percent = 0;
-    
-    const remainingMs = end - now;
-    const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
-    const remainingDays = Math.floor(remainingHours / 24);
-    
-    let text = remainingHours < 24 ? `${remainingHours}h restantes` : `${remainingDays}j restants`;
-    
-    let color = 'bg-green-500'; // Safe
-    if (percent > 60) color = 'bg-orange-400'; // Warning
-    if (percent > 85) color = 'bg-red-500'; // Danger
-    if (percent > 95) color = 'bg-red-600 animate-pulse'; // Critical
-
-    return { percent, text, color };
+const filteredTasks = (status: string) => {
+    return sortByOrder(visibleTasks.value.filter(t => t.status === status));
 };
 
 const loadLists = async () => {
@@ -584,10 +516,10 @@ const loadLists = async () => {
         const res = await sfetch(`/api/tasks/${route.params.orgId}/lists/me`);
         if (res.ok) {
             const data = await res.json();
-            
+
             // Flatten all tasks
             let allTasks: Task[] = [];
-            
+
             data.lists.forEach((list: TodoList) => {
                 if (list.tasks) {
                     list.tasks.forEach(t => {
@@ -597,15 +529,50 @@ const loadLists = async () => {
                     });
                 }
             });
-            
+
             data.unlistedTasks.forEach((t: Task) => {
                 allTasks.push(t);
             });
-            
+
             rawTasks.value = allTasks;
-            
+
             // Clear unread notifications
             markTasksAsRead();
+
+            // Deep-link depuis Home/recherche : ouvre la tâche et la met en
+            // surbrillance dans le Kanban (même mécanisme que TasksSpace.vue).
+            if (route.query.select) {
+                const searchId = route.query.select as string;
+                const foundTask = allTasks.find(t => t.id === searchId);
+
+                if (foundTask) {
+                    selectedTask.value = foundTask;
+
+                    setTimeout(() => {
+                        const el = document.getElementById('task-' + searchId);
+                        if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            const originalTransition = el.style.transition;
+                            const originalTransform = el.style.transform;
+                            const originalBoxShadow = el.style.boxShadow;
+
+                            el.style.transition = 'all 0.3s ease';
+                            el.style.transform = 'scale(1.05)';
+                            el.style.boxShadow = '0 0 0 4px var(--primary), 0 10px 30px var(--shadow-elevated)';
+                            el.style.zIndex = '10';
+
+                            setTimeout(() => {
+                                el.style.transform = originalTransform;
+                                el.style.boxShadow = originalBoxShadow;
+                                el.style.zIndex = '';
+                                setTimeout(() => el.style.transition = originalTransition, 300);
+                            }, 3000);
+                        }
+                    }, 500);
+
+                    router.replace({ query: { ...route.query, select: undefined } });
+                }
+            }
         }
     } catch (e) {
         toast.show("Erreur chargement des tâches", "error");
@@ -614,23 +581,40 @@ const loadLists = async () => {
     }
 };
 
-const onDragStart = (e: DragEvent, task: Task, spaceGroupId: string) => {
+const onDragStart = (e: DragEvent, task: Task) => {
     isDraggingTask.value = true;
     isDeleting.value = false;
     if (e.dataTransfer) {
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('taskId', task.id);
-        e.dataTransfer.setData('sourceGroupId', spaceGroupId);
     }
 };
 
 const onDragEnd = () => {
     dragOverTaskId.value = null;
     dragOverPosition.value = null;
-    if (!isDeleting.value && !isArchiving.value) {
+    dragOverArchiveBtn.value = false;
+    if (!isDeleting.value) {
         isDraggingTask.value = false;
         isHoveringTrash.value = false;
-        isHoveringArchive.value = false;
+    }
+};
+
+// Le serveur émet 'todo-updated' (io.to(room).emit, tasksService.ts) avant
+// même de répondre à la requête HTTP, et diffuse à tout le salon org y
+// compris à l'auteur de l'action : selon la latence relative du websocket et
+// du fetch, l'écho peut arriver avant OU après que archiveTaskById() traite
+// sa propre réponse. countedArchiveIds coordonne les deux chemins pour que le
+// premier des deux à traiter un taskId incrémente le compteur, et l'autre
+// (que ce soit notre propre écho ou celui d'un archivage par quelqu'un
+// d'autre) soit un no-op.
+const countedArchiveIds = new Set<string>();
+
+const registerArchivedTask = (taskId: string) => {
+    onTaskDeleted(taskId);
+    if (!countedArchiveIds.has(taskId)) {
+        countedArchiveIds.add(taskId);
+        archivedCount.value++;
     }
 };
 
@@ -640,21 +624,13 @@ const archiveTaskById = async (taskId: string) => {
         body: JSON.stringify({ archived: true })
     });
     if (!res.ok) throw new Error("API Error");
-    onTaskDeleted(taskId);
-    archivedCount.value++;
+    registerArchivedTask(taskId);
 };
 
-const onDropToArchive = async (e: DragEvent) => {
+const onDropToArchiveBtn = async (e: DragEvent) => {
     const taskId = e.dataTransfer?.getData('taskId');
+    dragOverArchiveBtn.value = false;
     if (!taskId) return;
-
-    isArchiving.value = true;
-    isHoveringArchive.value = false;
-
-    setTimeout(() => {
-        isDraggingTask.value = false;
-        isArchiving.value = false;
-    }, 600);
 
     try {
         await archiveTaskById(taskId);
@@ -673,14 +649,18 @@ const archiveTask = async (task: Task) => {
     }
 };
 
-const archiveAllDone = async (spaceGroup: { id: string, tasks: Task[] }) => {
-    const doneTasks = getTasks(spaceGroup.tasks, 'DONE');
-    if (doneTasks.length === 0) return;
+const confirmArchiveAll = async () => {
+    const doneTasks = filteredTasks('DONE');
+    if (doneTasks.length === 0) {
+        showArchiveAllConfirm.value = false;
+        return;
+    }
 
     archivingAll.value = true;
     try {
         await Promise.all(doneTasks.map(t => archiveTaskById(t.id)));
         toast.show("Tâches archivées", "success");
+        showArchiveAllConfirm.value = false;
     } catch (e) {
         toast.show("Erreur lors de l'archivage groupé", "error");
     } finally {
@@ -688,9 +668,15 @@ const archiveAllDone = async (spaceGroup: { id: string, tasks: Task[] }) => {
     }
 };
 
-const onTaskRestored = (task: Task) => {
-    if (!rawTasks.value.some(t => t.id === task.id)) {
-        rawTasks.value.push(task);
+const loadArchivedCount = async () => {
+    try {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/archived/me`);
+        if (res.ok) {
+            const data = await res.json();
+            archivedCount.value = data.archivedTasks.length;
+        }
+    } catch (e) {
+        // Le badge d'archives est secondaire : pas d'erreur bloquante ici.
     }
 };
 
@@ -710,9 +696,9 @@ const onDropToTrash = async (e: DragEvent) => {
         const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskId}`, {
             method: 'DELETE'
         });
-        
+
         if (!res.ok) throw new Error("API Error");
-        
+
         onTaskDeleted(taskId);
         toast.show("Tâche supprimée", "success");
     } catch (err) {
@@ -751,27 +737,18 @@ const changeTaskStatus = async (taskToMove: Task, newStatus: string) => {
     }
 };
 
-const onDrop = async (e: DragEvent, newStatus: string, targetGroupId: string) => {
+const onDrop = async (e: DragEvent, newStatus: string) => {
     const taskId = e.dataTransfer?.getData('taskId');
-    const sourceGroupId = e.dataTransfer?.getData('sourceGroupId');
-    if (!taskId || !sourceGroupId) return;
-
-    if (sourceGroupId !== targetGroupId) {
-        toast.show("Déplacement entre projets non supporté depuis cette vue", "info");
-        return;
-    }
+    if (!taskId) return;
 
     const taskToMove = rawTasks.value.find(t => t.id === taskId);
     if (!taskToMove) return;
 
-    const spaceGroup = spacesGroups.value.find(g => g.id === targetGroupId);
-    if (spaceGroup) {
-        const columnTaskIds = getTasks(spaceGroup.tasks, newStatus)
-            .filter(t => t.id !== taskId)
-            .map(t => t.id);
-        columnTaskIds.push(taskId);
-        await persistOrder(columnTaskIds);
-    }
+    const columnTaskIds = filteredTasks(newStatus)
+        .filter(t => t.id !== taskId)
+        .map(t => t.id);
+    columnTaskIds.push(taskId);
+    await persistOrder(columnTaskIds);
 
     await changeTaskStatus(taskToMove, newStatus);
 };
@@ -783,27 +760,18 @@ const onCardDragOver = (e: DragEvent, task: Task) => {
     dragOverPosition.value = e.clientY < midpoint ? 'before' : 'after';
 };
 
-const onCardDrop = async (e: DragEvent, targetTask: Task, newStatus: string, targetGroupId: string) => {
+const onCardDrop = async (e: DragEvent, targetTask: Task, newStatus: string) => {
     const taskId = e.dataTransfer?.getData('taskId');
-    const sourceGroupId = e.dataTransfer?.getData('sourceGroupId');
     const position = dragOverPosition.value;
     dragOverTaskId.value = null;
     dragOverPosition.value = null;
 
-    if (!taskId || !sourceGroupId || taskId === targetTask.id) return;
-
-    if (sourceGroupId !== targetGroupId) {
-        toast.show("Déplacement entre projets non supporté depuis cette vue", "info");
-        return;
-    }
+    if (!taskId || taskId === targetTask.id) return;
 
     const taskToMove = rawTasks.value.find(t => t.id === taskId);
     if (!taskToMove) return;
 
-    const spaceGroup = spacesGroups.value.find(g => g.id === targetGroupId);
-    if (!spaceGroup) return;
-
-    const columnTasks = getTasks(spaceGroup.tasks, newStatus).filter(t => t.id !== taskId);
+    const columnTasks = filteredTasks(newStatus).filter(t => t.id !== taskId);
     const targetIndex = columnTasks.findIndex(t => t.id === targetTask.id);
     const insertIndex = position === 'after' ? targetIndex + 1 : targetIndex;
     columnTasks.splice(insertIndex, 0, taskToMove);
@@ -822,7 +790,17 @@ const startRenameTask = (task: Task) => {
     selectedTask.value = task;
 };
 
-const handleContextDeleteTask = async (task: Task) => {
+const showDeleteTaskConfirm = ref<Task | null>(null);
+const deletingTask = ref(false);
+
+const handleContextDeleteTask = (task: Task) => {
+    showDeleteTaskConfirm.value = task;
+};
+
+const confirmDeleteTask = async () => {
+    const task = showDeleteTaskConfirm.value;
+    if (!task) return;
+    deletingTask.value = true;
     try {
         const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${task.id}`, {
             method: 'DELETE'
@@ -830,8 +808,11 @@ const handleContextDeleteTask = async (task: Task) => {
         if (!res.ok) throw new Error();
         onTaskDeleted(task.id);
         toast.show('Tâche supprimée', 'success');
+        showDeleteTaskConfirm.value = null;
     } catch (e) {
         toast.show('Erreur lors de la suppression', 'error');
+    } finally {
+        deletingTask.value = false;
     }
 };
 
@@ -884,8 +865,8 @@ const onTaskDeleted = (taskId: string) => {
 
 onMounted(async () => {
     fetchOrder();
-    loadTags();
     loadLists();
+    loadArchivedCount();
 
     const socket = await useWSocket();
     socket.value?.on('todo-added', ({ task }: { task: Task }) => {
@@ -903,9 +884,26 @@ onMounted(async () => {
         }
     });
     socket.value?.on('todo-updated', ({ task }: { task: Task }) => {
+        // Contrairement à TasksSpace.vue (scopé à un espace), ce socket
+        // reçoit les mises à jour de tout l'org : 'archived/me' ne compte que
+        // les tâches qui me sont assignées ou que j'ai créées (hors espace),
+        // donc sans ce filtre une tâche archivée/restaurée par quelqu'un
+        // d'autre et sans rapport avec moi fausserait quand même le badge.
+        const isMine = task.assignees?.some(a => a.id === user.value?.id) || task.creatorId === user.value?.id;
+
         if (task.archived) {
-            onTaskDeleted(task.id);
-            archivedCount.value++;
+            if (isMine) registerArchivedTask(task.id);
+        } else if (!rawTasks.value.some(t => t.id === task.id)) {
+            // Absente de la liste alors qu'elle n'est pas archivée : elle
+            // vient d'être restaurée (par nous ou quelqu'un d'autre) et ne
+            // s'était pas réaffichée depuis — l'ancien panneau popup
+            // rattrapait ce cas en recomptant à chaque ouverture, ce qui
+            // n'existe plus, donc on la réinsère et on corrige le badge.
+            if (isMine) {
+                rawTasks.value.unshift(task);
+                countedArchiveIds.delete(task.id);
+                if (archivedCount.value > 0) archivedCount.value--;
+            }
         } else {
             onTaskUpdated(task);
         }

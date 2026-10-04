@@ -3,21 +3,24 @@ export type NotificationType =
   | 'MESSAGE' | 'CALL' | 'MENTION' | 'INVITATION' | 'CUSTOM' | 'TASK_ASSIGNED'
   | 'EVENT_INVITE' | 'EVENT_RSVP' | 'EVENT_REMINDER'
   | 'CALENDAR_ACCESS_REQUEST' | 'CALENDAR_ACCESS_INVITE'
-  | 'CALENDAR_ACCESS_GRANTED' | 'CALENDAR_ACCESS_DECLINED' | 'CALENDAR_ACCESS_REVOKED';
+  | 'CALENDAR_ACCESS_GRANTED' | 'CALENDAR_ACCESS_DECLINED' | 'CALENDAR_ACCESS_REVOKED'
+  | 'MISSED_CALL' | 'MISSED_MEET' | 'WORKSPACE_ADDED';
 // export type UserStatus = 'online' | 'dnd' | 'idle' | 'offline';
 
 export interface StoredFile {
   id: string;
   originalName: string;
   mimeType: string;
+  /** Taille stockée (chiffrée). */
   size: number;
-  encoding?: string;
   hash?: string;
-  isEncrypted: boolean;
-  isE2EE?: boolean;
-  encryptedFileKey?: string | null;
-  keyVersion?: number | null;
-  iv?: string | null;
+  // Tout fichier est chiffré de bout en bout (format v2), servi par
+  // synco_cdn : blobId désigne son contenu, la DEK est emballée par la clé
+  // d'espace, de DM ou de salon.
+  blobId?: string;
+  encryptedFileKey?: string;
+  keyVersion?: number;
+  iv?: string;
   
   ownerId: string;
   orgId: string;
@@ -144,7 +147,7 @@ export interface MessageReaction {
 export interface Message {
     id: string;
     threadId: string;
-    senderId: string;
+    senderId: string | null;
     replyToId: string | null;
     transferId: string | null;
     content: string;
@@ -157,14 +160,15 @@ export interface Message {
 
     sender?: User;
     files?: StoredFile[];
-    
+
     replyMessage?: Message | null;
     replies?: Message[];
     transferMessage?: Message | null;
     transferredIn?: Message[];
-    
+
     isWebhook?: boolean;
     webhookId?: string | null;
+    webhookCreatorId?: string | null;
     webhookName?: string | null;
     webhookAvatar?: string | null;
     embeds?: any[];
@@ -206,6 +210,11 @@ export interface DMMessage {
     voiceInviteOrgId?: string | null;
     voiceInviteSpaceId?: string | null;
     voiceInviteThreadName?: string | null;
+
+    // Côté client uniquement : contenu pas encore déchiffré (paliers de
+    // chargement d'un historique, cf. ChatView.vue) — `content` contient
+    // encore le chiffré et ne doit pas être affiché.
+    decrypting?: boolean;
 }
 
 export interface OrgMember {

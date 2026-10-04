@@ -60,7 +60,9 @@
 
           <!-- User message: light bubble, right-aligned -->
           <div v-if="msg.role === 'user'" class="max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed bg-(--primary)/15 border border-(--primary)/20">
-            <div v-html="formatMessage(msg.content)" @click="handleLinks" class="prose prose-invert max-w-none prose-sm"></div>
+            <div @click="handleLinks" class="prose prose-invert max-w-none prose-sm">
+              <MarkdownRender :content="cleanAiContent(msg.content)" mode="chat" />
+            </div>
           </div>
 
           <!-- Assistant turn: new agent loop (OpenAI/Mistral/Gemini) — structured parts, Claude-like -->
@@ -81,8 +83,9 @@
 
           <!-- Assistant turn: legacy path (local/custom, migration pending) -->
           <div v-else class="w-full text-sm leading-relaxed text-(--text)">
-            <div v-if="msg.content" v-html="formatMessage(msg.content)" @click="handleLinks"
-              class="prose prose-invert max-w-none prose-sm"></div>
+            <div v-if="msg.content" @click="handleLinks" class="prose prose-invert max-w-none prose-sm">
+              <MarkdownRender :content="cleanAiContent(msg.content)" mode="chat" />
+            </div>
             <div v-else-if="isGenerating && !msg.tool_call" class="flex gap-1 py-2">
               <div class="w-1.5 h-1.5 bg-(--text2)/60 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
               <div class="w-1.5 h-1.5 bg-(--text2)/60 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
@@ -90,24 +93,24 @@
             </div>
 
             <!-- Tool Call Widget (legacy) -->
-            <div v-if="msg.tool_call" class="mt-3 bg-(--bg2)/60 border border-white/10 rounded-xl p-4">
+            <div v-if="msg.tool_call" class="mt-3 bg-(--bg2)/60 border border-(--text)/10 rounded-xl p-4">
               <div class="flex items-center gap-2 mb-2 text-(--primary) font-bold text-xs uppercase">
                 <i class="bi bi-search" v-if="msg.tool_call.name === 'search_messages'"></i>
-                <i class="bi bi-book" v-else-if="msg.tool_call.name === 'read_documentation'"></i>
+                <i class="bi bi-book" v-else-if="isDocumentationTool(msg.tool_call.name)"></i>
                 <i class="bi bi-check2-square" v-else-if="msg.tool_call.name === 'read_tasks'"></i>
                 <i class="bi bi-wrench-adjustable-circle" v-else></i>
-                {{ msg.tool_call.name === 'search_messages' ? 'Recherche Globale' : msg.tool_call.name ===
-                  'read_documentation' ? 'Consultation de la documentation' : msg.tool_call.name === 'read_tasks' ?
-                'Lecture des tâches' : "Demande d'action" }}
+                {{ msg.tool_call.name === 'search_messages' ? 'Recherche Globale' :
+                  isDocumentationTool(msg.tool_call.name) ? 'Consultation de la documentation' :
+                  msg.tool_call.name === 'read_tasks' ? 'Lecture des tâches' : "Demande d'action" }}
               </div>
 
               <p class="text-sm" v-if="msg.tool_call.name === 'search_messages'">
                 Je fouille dans tous vos espaces pour trouver :
-                <span class="text-white font-bold inline-block bg-white/10 px-2 py-0.5 rounded ml-1">
+                <span class="text-(--text) font-bold inline-block bg-(--text)/10 px-2 py-0.5 rounded ml-1">
                   "{{ getSearchQuery(msg.tool_call.arguments) }}"
                 </span>
               </p>
-              <p class="text-sm" v-else-if="msg.tool_call.name === 'read_documentation'">
+              <p class="text-sm" v-else-if="isDocumentationTool(msg.tool_call.name)">
                 Je consulte la documentation officielle de Synco pour vous répondre avec précision.
               </p>
               <p class="text-sm" v-else-if="msg.tool_call.name === 'read_tasks'">
@@ -148,12 +151,12 @@
               <!-- Tool Results UI Rendering -->
               <div
                 v-if="msg.tool_call.status === 'accepted' && messages[index + 1]?.tool_data?.name === 'search_messages' && messages[index + 1]?.tool_data?.results?.length > 0"
-                class="mt-4 flex flex-col gap-4 pt-4 border-t border-white/10">
-                <div class="text-xs text-white/50 uppercase font-bold tracking-wider">Résultats trouvés :</div>
+                class="mt-4 flex flex-col gap-4 pt-4 border-t border-(--text)/10">
+                <div class="text-xs text-(--text)/50 uppercase font-bold tracking-wider">Résultats trouvés :</div>
                 <div v-for="res in messages[index + 1]?.tool_data?.results" :key="res.id"
                   class="bg-black/30 border border-(--border-color) rounded-xl overflow-hidden">
                   <div
-                    class="px-3 py-2 bg-white/5 border-b border-(--border-color) flex justify-between items-center text-[10px] text-white/50 uppercase font-bold tracking-wider">
+                    class="px-3 py-2 bg-(--text)/5 border-b border-(--border-color) flex justify-between items-center text-[10px] text-(--text)/50 uppercase font-bold tracking-wider">
                     <div class="flex items-center gap-1.5 truncate pr-2">
                       <i class="bi bi-folder2-open"></i>
                       <span class="truncate">{{ getSpaceAndThreadName(res.workspaceId, res.metadata?.threadId).spaceName
@@ -165,7 +168,7 @@
                     </div>
                     <button
                       @click="router.push(`/${openedOrg?.id}/${res.workspaceId}/${res.metadata?.threadId}?select=${res.id}`)"
-                      class="text-(--primary) hover:text-white transition-colors flex items-center shrink-0">
+                      class="text-(--primary) hover:text-(--primary-hover) transition-colors flex items-center shrink-0">
                       <i class="bi bi-box-arrow-up-right mr-1"></i> Se téléporter
                     </button>
                   </div>
@@ -184,22 +187,22 @@
               <!-- Created Task Snippet -->
               <div
                 v-if="msg.tool_call.status === 'accepted' && messages[index + 1]?.tool_data?.name === 'create_task' && messages[index + 1]?.tool_data?.results"
-                class="mt-4 pt-4 border-t border-white/10">
+                class="mt-4 pt-4 border-t border-(--text)/10">
                 <div
-                  class="w-full bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center"
+                  class="w-full bg-black/30 border border-(--text)/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center"
                   @click="selectedTask = messages[index + 1]?.tool_data?.results">
                   <div class="flex items-center gap-3">
                     <i class="bi bi-circle text-gray-400 text-xl"></i>
                     <div>
                       <p class="text-sm font-bold text-(--text) leading-snug">{{
                         messages[index + 1]?.tool_data?.results.title }}</p>
-                      <p class="text-xs text-white/40 mt-0.5" v-if="messages[index + 1]?.tool_data?.results.description">
+                      <p class="text-xs text-(--text)/40 mt-0.5" v-if="messages[index + 1]?.tool_data?.results.description">
                         {{ messages[index + 1]?.tool_data?.results.description.substring(0, 50) }}{{
                           messages[index + 1]?.tool_data?.results.description.length > 50 ? '...' : '' }}</p>
                     </div>
                   </div>
                   <button
-                    class="text-xs bg-white/5 hover:bg-white/10 text-white font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
+                    class="text-xs bg-(--text)/5 hover:bg-(--text)/10 text-(--text) font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
                     Ouvrir
                     <i class="bi bi-box-arrow-up-right"></i>
                   </button>
@@ -209,9 +212,9 @@
               <!-- Created Space Snippet -->
               <div
                 v-if="msg.tool_call.status === 'accepted' && messages[index + 1]?.tool_data?.name === 'create_space' && messages[index + 1]?.tool_data?.results"
-                class="mt-4 pt-4 border-t border-white/10">
+                class="mt-4 pt-4 border-t border-(--text)/10">
                 <div
-                  class="w-full bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center"
+                  class="w-full bg-black/30 border border-(--text)/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center"
                   @click="router.push(`/${openedOrg?.id}/${messages[index + 1]?.tool_data?.results.id}/`)">
                   <div class="flex items-center gap-3">
                     <img v-if="messages[index + 1]?.tool_data?.results.logo?.startsWith('data:image')"
@@ -221,11 +224,11 @@
                     <div>
                       <p class="text-sm font-bold text-(--text) leading-snug">{{
                         messages[index + 1]?.tool_data?.results.name }}</p>
-                      <p class="text-xs text-white/40 mt-0.5">Espace de travail</p>
+                      <p class="text-xs text-(--text)/40 mt-0.5">Espace de travail</p>
                     </div>
                   </div>
                   <button
-                    class="text-xs bg-white/5 hover:bg-white/10 text-white font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
+                    class="text-xs bg-(--text)/5 hover:bg-(--text)/10 text-(--text) font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
                     Ouvrir
                     <i class="bi bi-box-arrow-up-right"></i>
                   </button>
@@ -235,20 +238,20 @@
               <!-- Created Thread Snippet -->
               <div
                 v-if="msg.tool_call.status === 'accepted' && messages[index + 1]?.tool_data?.name === 'create_thread' && messages[index + 1]?.tool_data?.results"
-                class="mt-4 pt-4 border-t border-white/10 flex flex-col gap-2">
+                class="mt-4 pt-4 border-t border-(--text)/10 flex flex-col gap-2">
                 <div v-for="th in messages[index + 1]?.tool_data?.results" :key="th.id"
-                  class="w-full bg-black/30 border border-white/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center"
+                  class="w-full bg-black/30 border border-(--text)/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center"
                   @click="router.push(`/${openedOrg?.id}/${th.workspaceId || 'home'}/${th.id}`)">
                   <div class="flex items-center gap-3">
                     <i class="bi text-xl text-(--primary)"
                       :class="th.type === 'vocal' ? 'bi-volume-up-fill' : 'bi-hash'"></i>
                     <div>
                       <p class="text-sm font-bold text-(--text) leading-snug">{{ th.name }}</p>
-                      <p class="text-xs text-white/40 mt-0.5">Salon {{ th.type === 'vocal' ? 'vocal' : 'textuel' }}</p>
+                      <p class="text-xs text-(--text)/40 mt-0.5">Salon {{ th.type === 'vocal' ? 'vocal' : 'textuel' }}</p>
                     </div>
                   </div>
                   <button
-                    class="text-xs bg-white/5 hover:bg-white/10 text-white font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
+                    class="text-xs bg-(--text)/5 hover:bg-(--text)/10 text-(--text) font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-2 shrink-0">
                     Rejoindre
                     <i class="bi bi-box-arrow-up-right"></i>
                   </button>
@@ -284,13 +287,13 @@
           </div>
           <div class="flex-1">
             <h4 class="text-red-400 font-black text-base uppercase tracking-wider mb-2">Matériel non compatible</h4>
-            <p class="text-sm text-white/90 leading-relaxed mb-4">
+            <p class="text-sm text-(--text)/90 leading-relaxed mb-4">
               L'agent IA nécessite l'accélération matérielle <strong>WebGPU</strong> pour fonctionner.
               Aucune carte graphique compatible n'a été détectée dans votre navigateur. L'exécution en local est donc
               désactivée.
             </p>
 
-            <div class="bg-black/40 p-4 rounded-lg border border-(--border-color) text-sm text-white/80">
+            <div class="bg-black/40 p-4 rounded-lg border border-(--border-color) text-sm text-(--text)/80">
               <p class="font-bold text-red-300 mb-2 flex items-center gap-2"><i class="bi bi-wrench-adjustable"></i>
                 Pistes de résolution :</p>
               <ul class="list-disc ml-5 space-y-2">
@@ -313,7 +316,7 @@
             <p class="text-xs text-red-500/80 mt-1 mb-2">{{ initError }}</p>
 
             <div v-if="initError.includes('f16')"
-              class="bg-black/20 p-3 rounded-lg border border-(--border-color) text-xs text-white/70">
+              class="bg-black/20 p-3 rounded-lg border border-(--border-color) text-xs text-(--text)/70">
               <strong>Astuce Chrome/Edge :</strong> Il est impossible d'activer cette fonctionnalité automatiquement.
               Cependant, vous pouvez forcer son activation manuellement :
               <ol class="list-decimal ml-4 mt-1 space-y-1">
@@ -321,7 +324,7 @@
                     class="bg-black/50 px-1 py-0.5 rounded text-white select-all">chrome://flags/#enable-webgpu-developer-features</code>
                   et collez-la dans la barre d'adresse de votre navigateur.</li>
                 <li>Passez l'option <strong>WebGPU Developer Features</strong> de <span
-                    class="text-white">Default</span> à <span class="text-green-400 font-bold">Enabled</span>.</li>
+                    class="text-(--text)">Default</span> à <span class="text-green-400 font-bold">Enabled</span>.</li>
                 <li>Redémarrez le navigateur et réessayez.</li>
               </ol>
             </div>
@@ -331,8 +334,8 @@
         <!-- Installation classique -->
         <div v-if="!hasStartedInit" class="flex flex-col md:flex-row items-center justify-between gap-4">
           <div class="text-sm">
-            <p class="font-bold text-white/80">Téléchargement initial de Synco AI requis</p>
-            <p class="text-white/50 text-xs">Modèle sélectionné : <span
+            <p class="font-bold text-(--text)/80">Téléchargement initial de Synco AI requis</p>
+            <p class="text-(--text)/50 text-xs">Modèle sélectionné : <span
                 class="font-mono text-(--primary)">{{availableModels.find(m => m.id === selectedModelId)?.name ||
                 'Aucun' }}</span></p>
           </div>
@@ -347,7 +350,7 @@
         </div>
 
         <div v-else class="flex flex-col gap-2">
-          <div class="flex items-center justify-between text-xs text-white/50">
+          <div class="flex items-center justify-between text-xs text-(--text)/50">
             <span class="flex items-center gap-2">
               <i class="bi"
                 :class="[aiDownloadProgress >= 100 ? 'bi-cpu animate-pulse' : 'bi-cloud-arrow-down animate-bounce', 'text-(--primary)']"></i>
@@ -356,18 +359,18 @@
             </span>
             <span class="font-mono">{{ aiDownloadProgress }}%</span>
           </div>
-          <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+          <div class="w-full h-1.5 bg-(--text)/10 rounded-full overflow-hidden">
             <div class="h-full transition-all duration-300 bg-(--primary)" :style="{ width: aiDownloadProgress + '%' }">
             </div>
           </div>
-          <p class="text-[10px] text-white/30 text-center mt-1 font-mono truncate">{{ aiDownloadText }}</p>
+          <p class="text-[10px] text-(--text)/30 text-center mt-1 font-mono truncate">{{ aiDownloadText }}</p>
         </div>
 
       </div>
 
       <div class="p-1 border-t border-(--border-color) shrink-0 relative">
         <form @submit.prevent="() => sendMessage()"
-          class="relative w-full max-w-5xl mx-auto flex items-end gap-3 border border-white/10 rounded-xl px-4 py-2 transition-all shadow-2xl"
+          class="relative w-full max-w-5xl mx-auto flex items-end gap-3 border border-(--text)/10 rounded-xl px-4 py-2 transition-all shadow-2xl"
           :class="(!aiIsInitialized || isGenerating) ? 'bg-black/50 opacity-50 cursor-not-allowed' : 'bg-(--bg) focus-within:border-(--primary)/50'">
 
           <ThreadTextarea ref="chatInputRef" v-model="inputMsg" placeholder="Demandez-moi n'importe quoi..."
@@ -400,6 +403,7 @@ import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import IconSelector from '@/components/common/IconSelector.vue';
 import AgentTurn from '../components/ai/AgentTurn.vue';
+import MarkdownRender from './MarkdownRender.vue';
 import type { TurnPart, ToolStep } from '../components/ai/agentTypes';
 import { useUsersBar } from '@/composables/useUsersBar';
 import useSettingsItem from '@/composables/useSettingsItem';
@@ -415,19 +419,16 @@ import { SearchSyncService } from '@/services/SearchSyncService';
 import { generateThreadKey, encryptThreadKeyForMember, privateKey } from '@/assets/utils/crypto';
 import { openedOrg, user } from '@/assets/var';
 import { getSystemPrompt } from '@/services/AITools';
+import { createFolderRequest, createTextFile } from '@/services/fileActions';
+import { isDocumentationTool, runDocumentationTool } from '@/services/DocumentationService';
 
 const { showUsersBar } = useUsersBar();
 const { Item: savedModelId, isLoaded: savedModelLoaded } = useSettingsItem('ai_selected_model', '');
 
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
-
-// On utilise marked pour le formatage avec DOMPurify pour la sécurité
-const formatMessage = (text: string) => {
-  let cleanText = text.replace(/<tool_call>[\s\S]*?(?:<\/tool_call>|$)/g, '');
-  const html = marked.parse(cleanText) as string;
-  return DOMPurify.sanitize(html);
-};
+// Le rendu markdown passe par MarkdownRender.vue (partagé avec le chat/les
+// tâches) — il ne reste ici que le nettoyage spécifique à l'IA : les blocs
+// <tool_call> internes ne doivent jamais apparaître dans le texte affiché.
+const cleanAiContent = (text: string) => text.replace(/<tool_call>[\s\S]*?(?:<\/tool_call>|$)/g, '');
 
 const handleLinks = (e: MouseEvent) => {
   const target = (e.target as HTMLElement).closest('a');
@@ -682,7 +683,7 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
   let result = "";
   let toolData: any = null;
   try {
-    const args = typeof toolCall.arguments === 'string' ? JSON.parse(toolCall.arguments) : toolCall.arguments;
+    const args = typeof toolCall.arguments === 'string' ? JSON.parse(toolCall.arguments || '{}') : toolCall.arguments;
     const orgId = route.params.orgId as string;
 
     if (toolCall.name === 'create_space') {
@@ -767,7 +768,7 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
       if (searchResults.length === 0) {
         result = `Aucun résultat trouvé dans la base sémantique pour "${query}".`;
       } else {
-        result = `Résultats de recherche pour "${query}" :\n\n` + searchResults.map((r: any, i) => `[Résultat ${i + 1}]\nType: ${r.type}\nContenu: ${r.textContent}`).join('\n\n');
+        result = `Résultats de recherche pour "${query}" :\n\n` + searchResults.map((r: any, i) => `[Résultat ${i + 1}]\n${JSON.stringify(toLlmSearchHit(r))}`).join('\n\n');
         toolData = searchResults;
       }
 
@@ -788,21 +789,30 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
       toolData = created;
       result = `${created.length} salon(s) créé(s) avec succès. Les clés E2EE ont été générées et distribuées.`;
 
-    } else if (toolCall.name === 'read_documentation') {
-      const docFiles = import.meta.glob('../../../../doc/*.md', { query: '?raw', import: 'default', eager: true });
+    } else if (isDocumentationTool(toolCall.name)) {
+      const docResult = await runDocumentationTool(toolCall.name, args);
 
-      let fullDoc = "# Documentation de Synco\n\n";
-      for (const [path, content] of Object.entries(docFiles)) {
-        const fileName = path.split('/').pop()?.replace('.md', '') || path;
-        fullDoc += `## Chapitre : ${fileName}\n\n${content}\n\n---\n\n`;
-      }
-
-      toolData = { length: fullDoc.length };
-      result = fullDoc;
+      toolData = docResult;
+      result = JSON.stringify(docResult, null, 2);
 
     } else if (toolCall.name === 'request_image_upload') {
       toolData = { id: imageId };
       result = `L'utilisateur a fourni une image. Identifiant de l'image : '${imageId}'. Utilise EXACTEMENT cette valeur '${imageId}' pour le paramètre 'logo' de 'create_space'.`;
+
+    } else if (toolCall.name === 'create_folder') {
+      const folder = await createFolderRequest(args.spaceId, orgId, args.name, args.parentFolderId);
+      toolData = folder;
+      result = `Dossier '${folder.name}' créé avec succès.`;
+
+    } else if (toolCall.name === 'create_file') {
+      const file = await createTextFile({
+        spaceId: args.spaceId,
+        name: args.name,
+        content: args.content ?? '',
+        folderId: args.folderId,
+      });
+      toolData = file;
+      result = `Fichier '${file.originalName}' créé avec succès. Cite-le dans ta réponse en écrivant <file:${file.id}>.`;
 
     } else if (toolCall.name === 'read_tasks') {
       const res = await sfetch(`/api/tasks/${orgId}/lists/me`);
@@ -829,9 +839,11 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
     }
   });
 
-  if (['create_task', 'create_space', 'create_thread'].includes(toolCall.name)) {
+  if (toolCall.name === 'create_file') {
+    sendMessage("Le fichier a été créé. Confirme-le en une seule phrase et termine par le jeton de référence du fichier indiqué dans le résultat.");
+  } else if (['create_task', 'create_space', 'create_thread', 'create_folder'].includes(toolCall.name)) {
     sendMessage("L'action a été effectuée avec succès. Réponds très brièvement en une seule phrase pour confirmer à l'utilisateur.");
-  } else if (['search_messages', 'read_documentation', 'read_tasks'].includes(toolCall.name)) {
+  } else if (['search_messages', 'read_tasks'].includes(toolCall.name) || isDocumentationTool(toolCall.name)) {
     sendMessage("Voici les informations demandées. Réponds à la question de l'utilisateur en te basant sur ces résultats.");
   }
 };
@@ -916,6 +928,27 @@ const consumeAgentStream = async (
 };
 
 /** Exécute côté client les tools de catégorie 'client' (contenu E2EE réel ou cérémonie de clé). */
+// Un hit brut de l'index contient l'embedding (384 flottants) et, pour un PDF,
+// tout le texte extrait : envoyé tel quel au LLM, on dépasse le million de
+// tokens. On ne transmet que le strict nécessaire, texte tronqué.
+const SEARCH_HIT_MAX_CHARS = 1000;
+const SEARCH_HIT_METADATA_KEYS = ['threadId', 'senderName', 'createdAt', 'originalName', 'folderId', 'status', 'dueDate'];
+
+const toLlmSearchHit = (hit: any) => {
+  const text: string = hit.textContent || '';
+  const meta: Record<string, any> = {};
+  for (const key of SEARCH_HIT_METADATA_KEYS) {
+    if (hit.metadata?.[key] != null) meta[key] = hit.metadata[key];
+  }
+  return {
+    id: hit.id,
+    type: hit.type,
+    spaceId: hit.workspaceId,
+    excerpt: text.length > SEARCH_HIT_MAX_CHARS ? text.slice(0, SEARCH_HIT_MAX_CHARS) + '…[tronqué]' : text,
+    ...meta,
+  };
+};
+
 const executeClientTool = async (name: string, args: any, imageId?: string): Promise<any> => {
   const orgId = route.params.orgId as string;
 
@@ -942,7 +975,7 @@ const executeClientTool = async (name: string, args: any, imageId?: string): Pro
       globalVectorWorker.postMessage({ id: workerId, text: query, type: 'SEARCH' });
     });
     const searchResults = await localSearchDB.searchByVector(vector, query, undefined, 5);
-    return { query, results: searchResults };
+    return { query, results: searchResults.map(toLlmSearchHit) };
   }
 
   if (name === 'create_thread') {
@@ -955,14 +988,31 @@ const executeClientTool = async (name: string, args: any, imageId?: string): Pro
     return { threads: created };
   }
 
-  if (name === 'read_documentation') {
-    const docFiles = import.meta.glob('../../../../doc/*.md', { query: '?raw', import: 'default', eager: true });
-    let fullDoc = '# Documentation de Synco\n\n';
-    for (const [path, content] of Object.entries(docFiles)) {
-      const fileName = path.split('/').pop()?.replace('.md', '') || path;
-      fullDoc += `## Chapitre : ${fileName}\n\n${content}\n\n---\n\n`;
-    }
-    return { content: fullDoc };
+  if (isDocumentationTool(name)) {
+    return await runDocumentationTool(name, args);
+  }
+
+  if (name === 'create_folder') {
+    const folder = await createFolderRequest(args.spaceId, orgId, args.name, args.parentFolderId);
+    return { id: folder.id, name: folder.name, spaceId: args.spaceId };
+  }
+
+  if (name === 'create_file') {
+    const file = await createTextFile({
+      spaceId: args.spaceId,
+      name: args.name,
+      content: args.content ?? '',
+      folderId: args.folderId,
+    });
+    return {
+      id: file.id,
+      name: file.originalName,
+      spaceId: args.spaceId,
+      // Le jeton est renvoyé tel quel pour que le modèle n'ait qu'à le recopier :
+      // MarkdownRender.vue le transforme en carte fichier cliquable.
+      reference: `<file:${file.id}>`,
+      note: `Cite ce fichier dans ta réponse en écrivant <file:${file.id}>.`,
+    };
   }
 
   if (name === 'request_image_upload') {
@@ -1090,7 +1140,7 @@ const sendMessage = async (hiddenPrompt?: string) => {
     }
 
     const tCall = messages.value[assistantMsgIndex]?.tool_call;
-    if (tCall?.status === 'pending' && ['read_documentation'].includes(tCall.name)) {
+    if (tCall?.status === 'pending' && isDocumentationTool(tCall.name)) {
       setTimeout(() => {
         handleToolCall(tCall, true, assistantMsgIndex);
       }, 50);

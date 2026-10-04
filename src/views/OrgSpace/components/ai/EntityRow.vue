@@ -2,7 +2,7 @@
 
     <button
         type="button"
-        class="w-full flex items-center gap-3 bg-black/20 border border-white/10 hover:border-(--primary)/40 hover:bg-black/30 rounded-xl px-3 py-2.5 text-left transition-colors group"
+        class="w-full flex items-center gap-3 bg-black/20 border border-(--text)/10 hover:border-(--primary)/40 hover:bg-black/30 rounded-xl px-3 py-2.5 text-left transition-colors group"
     >
         <img v-if="avatarUrl" :src="avatarUrl" class="w-8 h-8 rounded-full object-cover shrink-0" />
         <div v-else-if="logoImage" class="w-8 h-8 rounded-lg overflow-hidden shrink-0 bg-black/30">

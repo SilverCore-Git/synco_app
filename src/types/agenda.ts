@@ -120,6 +120,11 @@ export interface OccurrenceInstance {
   isException: boolean;
   creatorId: string;
   attendees: OccurrenceAttendeeSummary[];
+  // Id de l'ExternalCalendarConnection dont cet événement a été importé
+  // (Google ou ICS), null pour un événement natif — sert au masquage d'un
+  // calendrier externe (voir ExternalCalendarsPanel.vue), jamais à une
+  // logique de permission.
+  externalConnectionId: string | null;
 }
 
 // ============================================
@@ -311,4 +316,58 @@ export interface AgendaAccessUpdatedEvent {
 export interface MergedOccurrence extends OccurrenceInstance {
   sourceOwnerId: string;
   sourceColor: string;
+}
+
+// ============================================
+// Calendriers externes connectés — Google Calendar (sync bidirectionnelle
+// OAuth), ou un flux ICS en lecture seule par lien (ICS_URL, resync horaire
+// auto) ou par fichier uploadé (ICS_FILE, import ponctuel, rafraîchi en
+// ré-uploadant) — voir synco_api/vibe/features/GOOGLE_CALENDAR_SYNC_FEATURE.md
+// et ICS_CALENDAR_IMPORT_FEATURE.md. Les événements importés apparaissent
+// comme des CalendarEvent normaux (source EXTERNAL_GOOGLE/EXTERNAL_ICS côté
+// API) : aucun type dédié n'est nécessaire pour les afficher, ils sortent
+// déjà de GET /events comme n'importe quel event.
+// ============================================
+export type ExternalCalendarProvider = 'GOOGLE' | 'ICS_URL' | 'ICS_FILE';
+export type ExternalConnectionStatus = 'ACTIVE' | 'ERROR' | 'REVOKED';
+
+export interface ExternalCalendarConnectionSummary {
+  id: string;
+  provider: ExternalCalendarProvider;
+  // Null pour ICS_URL/ICS_FILE (pas de compte tiers identifié par email) —
+  // `label` est alors le seul nom affiché.
+  externalAccountEmail: string | null;
+  label: string | null;
+  color: string | null;
+  status: ExternalConnectionStatus;
+  lastError: string | null;
+  lastSyncedAt: string | null;
+  createdAt: string;
+}
+
+export type ListExternalConnectionsResponse = ExternalCalendarConnectionSummary[];
+
+export interface GoogleAuthUrlResponse {
+  url: string;
+}
+
+export interface ExternalConnectionActionResponse {
+  connectionId: string;
+}
+
+export interface AddIcsUrlRequest {
+  url: string;
+  label?: string | null;
+  color?: string | null;
+}
+
+// ============================================
+// Lien d'abonnement iCal en lecture seule pour partager SON PROPRE agenda
+// (jamais les calendriers de collègues consultés via CalendarAccessGrant —
+// voir icsFeedService.ts côté API pour la raison).
+// ============================================
+export interface AgendaFeedTokenStatus {
+  active: boolean;
+  url: string | null;
+  lastAccessedAt: string | null;
 }

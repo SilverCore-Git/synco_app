@@ -3,8 +3,9 @@
     <main 
         ref="messagesContainer"
         @scroll="handleScroll"
+        @media-loaded="onMediaLoaded"
         class="flex-1 overflow-y-auto px-4 w-full h-full"
-        :class="messageWillBeResponded || selectedFiles.length ? 'mb-32' : 'mb-14'"
+        :style="{ marginBottom: footerHeight + 'px' }"
     >
 
         <div 
@@ -14,7 +15,7 @@
 
             <div class="mb-8 p-4">
 
-                <div class="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4">
+                <div class="w-16 h-16 rounded-2xl bg-(--text)/5 flex items-center justify-center mb-4">
                     <i class="bi bi-hash text-4xl text-(--text2)" />
                 </div>
 
@@ -40,11 +41,11 @@
                         class="flex gap-3 px-4 py-1 animate-pulse"
                     >
 
-                        <div class="bg-white/5 rounded-full w-9 h-9 shrink-0" />
+                        <div class="bg-(--text)/5 rounded-full w-9 h-9 shrink-0" />
 
                         <div class="space-y-2 flex-1">
-                            <div class="bg-white/5 w-24 h-3 rounded" />
-                            <div class="bg-white/5 w-full h-4 rounded" />
+                            <div class="bg-(--text)/5 w-24 h-3 rounded" />
+                            <div class="bg-(--text)/5 w-full h-4 rounded" />
                         </div>
 
                     </div>
@@ -68,7 +69,7 @@
                             :selectedMessage="selectedMessage"
                             :messages="sortedMessages"
                             :currentThreadKey="currentThreadKey"
-                            :is-stacked="index > 0 && sortedMessages[index-1]?.senderId === msg.senderId && sortedMessages[index-1]?.isWebhook === msg.isWebhook && !msg.replyToId && (new Date(msg.createdAt).getTime() - new Date(sortedMessages[index-1]!.createdAt).getTime() < 60000)"
+                            :is-stacked="index > 0 && sameAuthor(sortedMessages[index-1]!, msg) && !msg.replyToId && (new Date(msg.createdAt).getTime() - new Date(sortedMessages[index-1]!.createdAt).getTime() < 60000)"
                             :is-editing="editingMessageId === msg.id"
                             @edit-start="editingMessageId = msg.id"
                             @edit-end="endEdit"
@@ -90,7 +91,7 @@
                 -m-4 translate-y-8 overflow-hidden
             "
         >
-            <div class="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4 border border-(--primary)/10">
+            <div class="w-16 h-16 rounded-2xl bg-(--text)/5 flex items-center justify-center mb-4 border border-(--primary)/10">
                 <i class="bi bi-hash text-4xl text-(--text2)" />
             </div>
             <p class="text-(--text) italic font-medium">Thread introuvable ou accès refusé.</p>
@@ -98,33 +99,15 @@
 
     </main>
 
-    <footer v-if="thread" class="absolute bottom-0 inset-x-0 z-[110] p-1 bg-transparent mt-auto">
+    <footer v-if="thread" ref="footerRef" class="absolute bottom-0 inset-x-0 z-[110] p-1 bg-transparent mt-auto">
 
         <transition name="fade-bottom">
 
-            <div 
-                v-if="messageWillBeResponded" 
-                class="
-                    z-50 mb-2 flex items-center gap-3 bg-(--bg)/80 backdrop-blur-3xl
-                    border border-(--primary)/30 rounded-lg px-4 py-3
-                "
-            >
-                
-                <div class="flex-1 min-w-0">
-                    <p class="text-md text-(--primary) font-semibold mb-1">
-                        Répondre à {{ getMessageSenderName(messageWillBeResponded as Message) }}
-                    </p>
-                </div>
-
-                <button 
-                    @click="cancelReply"
-                    class="shrink-0 text-(--text2) hover:text-(--text) transition-colors"
-                    title="Annuler la réponse"
-                >
-                    <i class="bi bi-x-lg text-lg" />
-                </button>
-
-            </div>
+            <ReplyBanner
+                v-if="messageWillBeResponded"
+                :msg="messageWillBeResponded"
+                @cancel="cancelReply"
+            />
 
         </transition>
 
@@ -140,13 +123,13 @@
                 <div
                     v-for="(file, index) in selectedFiles"
                     :key="index"
-                    class="relative group bg-(--bg) border border-white/10 rounded-md px-3 py-1 flex items-center gap-2 overflow-hidden max-w-full min-w-0"
+                    class="relative group bg-(--bg) border border-(--text)/10 rounded-md px-3 py-1 flex items-center gap-2 overflow-hidden max-w-full min-w-0"
                 >
                 
                     <div 
                         v-if="fileSendProgress !== null"
                         class="absolute bottom-0 left-0 h-0.5 bg-(--primary) transition-all duration-300"
-                        :style="{ width: fileSendProgress + '%' }"
+                        :style="{ width: (fileProgress[index] ?? 0) + '%' }"
                     />
 
                     <div class="w-10 h-10 shrink-0 flex items-center justify-center rounded bg-(--bg) border border-(--text)/5">
@@ -156,6 +139,10 @@
                     </div>
 
                     <span class="text-xs truncate max-w-50">{{ file.name }}</span>
+                    <span v-if="fileSendProgress !== null" class="text-[10px] tabular-nums text-(--text2) shrink-0 w-8 text-right">
+                        <i v-if="(fileProgress[index] ?? 0) >= 100" class="bi bi-check-lg text-(--primary)" />
+                        <template v-else>{{ fileProgress[index] ?? 0 }}%</template>
+                    </span>
 
                     <button 
                         v-if="fileSendProgress === null"
@@ -193,7 +180,7 @@
                 </span>
             </div>
 
-            <div class="relative flex items-center bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
+            <div class="relative flex items-center bg-(--bg) border border-(--text)/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
                 
                 <input 
                     type="file" 
@@ -255,7 +242,7 @@
     </footer>
 
     <div v-else-if="thread && !canSpeak" class="absolute bottom-0 inset-x-0 p-4 bg-transparent mt-auto pointer-events-none">
-        <div class="bg-(--bg)/80 backdrop-blur-3xl border border-white/10 rounded-xl px-4 py-3 flex items-center justify-center gap-3 shadow-2xl">
+        <div class="bg-(--bg)/80 backdrop-blur-3xl border border-(--text)/10 rounded-xl px-4 py-3 flex items-center justify-center gap-3 shadow-2xl">
             <i class="bi bi-megaphone-fill text-(--primary) text-lg" />
             <span class="text-(--text) text-sm font-medium">Vous ne pouvez pas parler dans ce salon.</span>
         </div>
@@ -281,10 +268,14 @@ import { useToast } from '@/composables/useToast';
 import { openedOrg, user } from '@/assets/var';
 import SpinLoader from '@/components/SpinLoader.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
+import ReplyBanner from '../components/common/ReplyBanner.vue';
+import useFooterInset from '@/composables/useFooterInset';
 import useResponse from '@/composables/useResponse';
+import { extractReferenceTokens } from '@/composables/useReferences';
 import { uploadFiles } from '@/assets/uploadFile';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { waitForSocketConnection } from '@/composables/useWSocket';
+import { getCachedThreadKey, setCachedThreadKey, invalidateThreadKey } from '@/assets/utils/threadKeyCache';
 
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
@@ -318,32 +309,17 @@ watch(() => selectedMessage.value, async (newId) => {
 
 const currentThreadKey = ref<CryptoKey | null>(null);
 
-// join-thread est maintenant émis en parallèle de get-thread-access (voir
-// joinThread) : "thread-history" peut donc arriver avant que la clé E2EE
-// n'ait fini d'être déchiffrée. procesMessages() sans clé renverrait les
-// messages en clair chiffré tel quel, sans jamais les redéchiffrer — on
-// attend donc explicitement que la clé soit prête avant de traiter l'historique.
-const waitForThreadKey = (): Promise<void> => {
-    if (currentThreadKey.value) return Promise.resolve();
-    return new Promise(resolve => {
-        const stop = watch(currentThreadKey, (val) => {
-            if (val) {
-                stop();
-                resolve();
-            }
-        });
-        setTimeout(() => { stop(); resolve(); }, 10000);
-    });
-};
-
 const selectedFiles = ref<File[]>([]);
 const fileSendProgress = ref<null | number>(null);
+// Progression de chaque fichier en cours d'envoi (même index que selectedFiles).
+const fileProgress = ref<number[]>([]);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const TextareaRef = ref<InstanceType<typeof ThreadTextarea> | null>(null);
 const socket = ref<any>(null);
-const rawMessages = ref<Map<string, Message>>(new Map());
 const newMessage = ref<string>("");
 const messagesContainer = ref<HTMLElement | null>(null);
+const footerRef = ref<HTMLElement | null>(null);
+const { footerHeight } = useFooterInset(footerRef, messagesContainer, 56);
 const loading = ref<boolean>(true);
 const debugMsg = ref<string>('');
 const hasMore = ref<boolean>(true);
@@ -504,7 +480,7 @@ const removeFile = (index: number) => {
 // getFileInfo expects a StoredFile (originalName/mimeType) — the preview
 // chips render raw File objects (name/type) before upload, so adapt here
 // rather than changing the shared util every other caller relies on.
-const getSelectedFileInfo = (file: File) => getFileInfo({ originalName: file.name, mimeType: file.type } as any);
+const getSelectedFileInfo = (file: File) => getFileInfo({ originalName: file.name, mimeType: file.type });
 
 const scrollToSelectedMessage = async () => {
 
@@ -515,8 +491,15 @@ const scrollToSelectedMessage = async () => {
     const targetEl = document.getElementById(`msg-${selectedMessage.value}`);
     if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    console.log(targetEl)
+};
 
+// Un message webhook n'a pas de senderId (jamais d'expéditeur humain) : deux
+// messages webhook consécutifs comparent donc toujours senderId=null à
+// senderId=null. On compare webhookId dans ce cas pour ne pas regrouper deux
+// bots différents comme s'ils étaient le même expéditeur.
+const sameAuthor = (a: Message, b: Message): boolean => {
+    if (a.isWebhook || b.isWebhook) return a.isWebhook === b.isWebhook && a.webhookId === b.webhookId;
+    return a.senderId === b.senderId;
 };
 
 // Utility function to transform Prisma reaction array to grouped object
@@ -539,9 +522,9 @@ const formatReactions = (reactions: any[]) => {
     }, {});
 };
 
-const procesMessages = async (msgs: Message[]) => {
+const procesMessages = async (msgs: Message[], key: CryptoKey | null = currentThreadKey.value) => {
 
-    if (!currentThreadKey.value) return msgs;
+    if (!key) return msgs;
 
     const decryptSingleMessage = async (msg: Message | null | undefined): Promise<Message | null> => {
 
@@ -559,7 +542,7 @@ const procesMessages = async (msgs: Message[]) => {
                 return { ...msg, content: "[⚠️ Impossible de déchiffrer ce message.]" };
             }
 
-            const clearText = await decryptMessageWithContentKey(msg.content, vectorInit, currentThreadKey.value!);
+            const clearText = await decryptMessageWithContentKey(msg.content, vectorInit, key);
             
             // Format reactions if they exist (from Prisma array to grouped object)
             // reactions can be either an array (from Prisma) or already grouped (from WebSocket updates)
@@ -590,6 +573,9 @@ const procesMessages = async (msgs: Message[]) => {
             }
         }
 
+        // Le transfert de message est une fonctionnalité en attente : le
+        // serveur ne l'envoie plus dans l'historique allégé, mais les anciens
+        // formats (et la future fonctionnalité) peuvent encore le porter.
         if (decryptedMain.transferMessage)
         {
             const decryptedTransfer = await decryptSingleMessage(decryptedMain.transferMessage);
@@ -615,88 +601,115 @@ const procesMessages = async (msgs: Message[]) => {
 
 };
 
+// Vrai tant que l'utilisateur est (presque) en bas du fil. Une pièce jointe
+// média qui finit de se charger agrandit son message (MessageMedia émet
+// l'événement DOM `media-loaded`) : on se recolle alors en bas au lieu de
+// laisser le dernier message glisser hors de l'écran.
+let stickToBottom = true;
+
+const onMediaLoaded = () => {
+    if (stickToBottom) scrollToBottom(true);
+};
+
 const handleScroll = (e: Event) => {
     const el = e.target as HTMLElement;
     if (el.scrollTop < 200 && !isFetchingMore.value && hasMore.value) loadMore();
     
     const isAtBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 10;
+    stickToBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 120;
     if (isAtBottom) saveLastRead();
 };
 
+// Salon pour lequel le dernier "charger plus" a été demandé.
+let loadMoreFor: string | null = null;
+
 const loadMore = () => {
-    if (sortedMessages.value.length === 0 || isFetchingMore.value) return;
+    if (sortedMessages.value.length === 0 || isFetchingMore.value || !thread.value) return;
     isFetchingMore.value = true;
-    socket.value?.emit("load-more", { threadId: thread.value?.id, before: sortedMessages.value[0]?.id });
+    loadMoreFor = thread.value.id;
+    socket.value?.emit("load-more", { threadId: thread.value.id, before: sortedMessages.value[0]?.id, lite: true });
+};
+
+// "connect", "disconnect" et "thread:deleted" sont aussi écoutés ailleurs
+// (useWSocket.ts, OrgLayout.vue) : on ne retire que NOS handlers, jamais
+// l'événement entier.
+const onReconnect = () => {
+    const id = thread.value?.id;
+    // Join émis hors ligne : socket.io l'a mis en file et l'envoie à la
+    // connexion, sa réponse arrivera — pas de doublon.
+    if (!id || joinInFlight === id) return;
+    // Un simple aller-retour de connexion (coupure réseau, mise en veille,
+    // redémarrage serveur...) alors qu'on regarde déjà ce salon ne doit pas
+    // se voir : rejoin silencieux plutôt qu'un rechargement complet
+    // (skeleton + liste vidée + saut de scroll).
+    joinThread(id, joinedThreadId === id);
+};
+
+const onDisconnect = () => {
+    // Un join-thread parti avant la coupure n'aura jamais de réponse : on
+    // l'abandonne pour que onReconnect puisse le relancer.
+    if (joinInFlight) {
+        joinInFlight = null;
+        joinSeq++;
+    }
+};
+
+// The sidebar (OrgLayout.vue) already removes the thread from the list
+// on this event — here we also need to move a user actively viewing it
+// elsewhere, since otherwise they're left on a dead route.
+const onThreadDeleted = ({ threadId }: { threadId: string }) => {
+    if (threadId !== thread.value?.id) return;
+    toast.show('Ce salon a été supprimé.', 'warning');
+    router.push({
+        name: 'OrgHome',
+        params: { orgId: route.params.orgId },
+        query: { noRedirect: 'true' }
+    });
+};
+
+const THREAD_EVENTS = ["more-messages", "new-message", "keys-distributed", "delete-message", "edit-message", "message-reaction-updated"];
+
+const removeListeners = () => {
+    const sock = socket.value;
+    if (!sock) return;
+    THREAD_EVENTS.forEach(ev => sock.off(ev));
+    sock.off("connect", onReconnect);
+    sock.off("disconnect", onDisconnect);
+    sock.off("thread:deleted", onThreadDeleted);
 };
 
 const initListener = () => {
 
     if (!socket.value) return;
 
-    socket.value.off("thread-history").off("more-messages").off("new-message").off("keys-distributed")
-        .off("delete-message").off("edit-message").off("connect").off("thread:deleted");
+    removeListeners();
 
-    socket.value.on("connect", () => {
-        if (thread.value?.id) {
-            joinThread(thread.value.id);
-        }
-    });
-
-    // The sidebar (OrgLayout.vue) already removes the thread from the list
-    // on this event — here we also need to move a user actively viewing it
-    // elsewhere, since otherwise they're left on a dead route.
-    socket.value.on("thread:deleted", ({ threadId }: { threadId: string }) => {
-        if (threadId !== thread.value?.id) return;
-        toast.show('Ce salon a été supprimé.', 'warning');
-        router.push({
-            name: 'OrgHome',
-            params: { orgId: route.params.orgId },
-            query: { noRedirect: 'true' }
-        });
-    });
+    socket.value.on("connect", onReconnect);
+    socket.value.on("disconnect", onDisconnect);
+    socket.value.on("thread:deleted", onThreadDeleted);
 
     socket.value.on("keys-distributed", async ({ threadId }: { threadId: string }) => {
         if (threadId === thread.value?.id) {
+            // Nouvelle clé distribuée : celle en cache (s'il y en a une) est périmée.
+            invalidateThreadKey(threadId);
             joinThread(threadId);
         }
     });
 
-    socket.value.on("thread-history", async (data: { threadId?: string; messages: Message[] } | Message[]) => {
-        const history = Array.isArray(data) ? data : data.messages;
-        const receivedThreadId = Array.isArray(data) ? undefined : data.threadId;
-
-        if (receivedThreadId && thread.value?.id && receivedThreadId !== thread.value.id) {
-            return; // Ignore history from another thread
-        }
-
-        await waitForThreadKey();
-
-        rawMessages.value.clear();
-        history.forEach(m => rawMessages.value.set(m.id, m));
-        sortedMessages.value = await procesMessages(history);
-
-        loading.value = false;
-        hasMore.value = history.length >= 20;
-        
-        if (selectedMessage.value && selectedMessage.value !== 'undefined') 
-        {
-            await scrollToSelectedMessage();
-        } 
-        else 
-        {
-            scrollToBottom(true);
-            setTimeout(() => { saveLastRead(); }, 500); // Save after scroll completes
-        }
-    });
-
     socket.value.on("more-messages", async (more: Message[]) => {
+        // Réponse à un "charger plus" d'un salon qu'on a quitté depuis.
+        if (loadMoreFor !== thread.value?.id) { isFetchingMore.value = false; return; }
+
         if (more.length === 0) { hasMore.value = false; isFetchingMore.value = false; return; }
         if (more.length < 20) hasMore.value = false;
+
+        const seq = joinSeq;
+        const decryptedMore = await procesMessages(more);
+        if (seq !== joinSeq) return;
 
         const container = messagesContainer.value;
         const scrollOffset = container ? container.scrollHeight - container.scrollTop : 0;
         
-        const decryptedMore = await procesMessages(more);
         sortedMessages.value = [...decryptedMore, ...sortedMessages.value];
 
         await nextTick();
@@ -712,6 +725,7 @@ const initListener = () => {
         // as history load does — the two used to disagree, leaving a just-sent reply's quote
         // box showing raw ciphertext until the next full reload.
         const decrypted = (await procesMessages([msg]))[0] ?? msg;
+        if (msg.threadId !== thread.value?.id) return;
         const clearContent = decrypted.content;
         sortedMessages.value.push(decrypted);
         
@@ -750,7 +764,6 @@ const initListener = () => {
     });
 
     socket.value.on('delete-message', (msgId: string) => {
-        rawMessages.value.delete(msgId);
         sortedMessages.value = sortedMessages.value.filter(m => m.id !== msgId);
     });
 
@@ -771,125 +784,241 @@ const initListener = () => {
         const formattedReactions = editedMsg.reactions 
             ? (Array.isArray(editedMsg.reactions) ? formatReactions(editedMsg.reactions as any) : editedMsg.reactions)
             : {};
-        const updatedMsg = { ...editedMsg, content: decryptedContent, reactions: formattedReactions };
-        rawMessages.value.set(editedMsg.id, updatedMsg);
+        // The edit payload carries no replyMessage/transferMessage — keep the
+        // already-decrypted ones (an edit never changes what a message quotes),
+        // otherwise the quote box vanishes after an edit or attachment upload.
+        const previous = sortedMessages.value.find(m => m.id === editedMsg.id);
+        const updatedMsg = {
+            ...editedMsg,
+            content: decryptedContent,
+            reactions: formattedReactions,
+            replyMessage: previous?.replyMessage ?? editedMsg.replyMessage,
+            transferMessage: previous?.transferMessage ?? editedMsg.transferMessage,
+        };
         sortedMessages.value = sortedMessages.value.map(m => m.id === editedMsg.id ? updatedMsg : m);
+    });
+
+    // Un seul écouteur pour tout le salon, au lieu d'un par ThreadMessage
+    // (20 à 60 écouteurs ajoutés puis retirés à chaque ouverture, tous
+    // appelés à chaque réaction).
+    socket.value.on('message-reaction-updated', (data: { messageId: string; reactions: Record<string, { count: number; users: any[] }> }) => {
+        const msg = sortedMessages.value.find(m => m.id === data.messageId);
+        if (msg) msg.reactions = data.reactions;
     });
 
 };
 
-let isJoiningThread = false;
+// Id du salon pour lequel on a déjà chargé l'historique avec succès. Sert à
+// distinguer "on ouvre/change réellement de salon" (où un état de
+// chargement visible est normal) de "le socket vient de se reconnecter
+// alors qu'on regarde toujours le même salon" (où un rechargement visuel
+// complet — skeleton + liste vidée + saut de scroll forcé — n'a aucune
+// raison d'être : socket.io se reconnecte tout seul en continu, y compris
+// sur une simple coupure réseau, la mise en veille du téléphone/PC, ou un
+// redémarrage serveur, cf. reconnection:true/reconnectionAttempts:Infinity
+// dans useWSocket.ts). Non réactif exprès (ref inutile, jamais lu par le
+// template).
+let joinedThreadId: string | null = null;
 
-const joinThread = async (id: string) => {
+// Numéro du join le plus récent : une réponse (clé, historique) portant un
+// numéro plus ancien appartient à un join annulé par l'ouverture d'un autre
+// salon, et est ignorée. Remplace l'ancien verrou isJoiningThread, qui
+// refusait purement et simplement l'ouverture d'un autre salon tant que le
+// précédent n'avait pas reçu sa clé (le nouveau salon restait alors sur le
+// squelette de chargement), et restait bloqué pour de bon si cette réponse
+// n'arrivait jamais.
+let joinSeq = 0;
+// Salon dont le join attend encore sa réponse : un second join vers ce même
+// salon est refusé.
+let joinInFlight: string | null = null;
+const JOIN_TIMEOUT_MS = 15000;
 
-    if (isJoiningThread) return;
-    isJoiningThread = true;
+const emitWithAck = (event: string, payload: Record<string, any>): Promise<any> => new Promise((resolve) => {
+    if (!socket.value) return resolve({ error: "Non connecté au serveur." });
+    socket.value.timeout(JOIN_TIMEOUT_MS).emit(event, payload, (err: Error | null, res: any) => {
+        resolve(err ? { error: "Le serveur n'a pas répondu." } : res);
+    });
+});
+
+// Clé E2EE du salon telle que le serveur la détient pour nous : celle du
+// cache si elle n'a pas changé, sinon déchiffrée (RSA) puis mise en cache.
+// null si elle n'est pas disponible (erreurs déjà signalées à l'utilisateur).
+// `background` : revalidation d'une clé en cache alors que l'historique est
+// déjà affiché — une erreur invalide le cache sans toucher à l'écran.
+const fetchThreadKey = async (id: string, seq: number, background = false): Promise<CryptoKey | null> => {
+
+    const response: { encryptedKey?: string, error?: string, needsReadd?: boolean } = await emitWithAck("get-thread-access", { threadId: id });
+    if (seq !== joinSeq) return null;
+
+    if (response.error || !response.encryptedKey) 
+    {
+        invalidateThreadKey(id);
+        if (background) return null;
+
+        // Special case: user needs to be re-added to thread (after E2EE reset)
+        if (response.error && response.needsReadd) {
+            if (user.value?.publicKey) {
+                socket.value.emit("request-thread-keys", {
+                    threadId: id,
+                    publicKey: user.value.publicKey
+                });
+                debugMsg.value = 'Récupération de la clé E2EE en cours... (en attente des autres membres)';
+                loading.value = true;
+                return null;
+            } else {
+                debugMsg.value = 'Erreur : Clé publique introuvable. ' + response.error;
+                loading.value = false;
+                router.push({ 
+                    name: 'OrgHome', 
+                    params: { orgId: route.params.orgId }, 
+                    query: { noRedirect: 'true' } 
+                });
+                toast.show(response.error, 'warning', 10000);
+                return null;
+            }
+        }
+        
+        debugMsg.value = 'Erreur serveur : ' + (response.error || 'Clé non retournée');
+        loading.value = false;
+        console.error('[E2EE] erreur serveur : ', response)
+        toast.show(response.error || '[E2EE] Accès refusé ou impossible de récupérer la clé du salon.', 'error');
+        return null;
+    }
+
+    const cached = getCachedThreadKey(id);
+    if (cached && cached.encryptedKey === response.encryptedKey) return cached.key;
+
+    try {
+        const key = await decryptThreadKeyWithRsa(response.encryptedKey, privateKey.value!);
+        setCachedThreadKey(id, response.encryptedKey, key);
+        return key;
+    } catch (cryptoErr) {
+        invalidateThreadKey(id);
+        if (background) return null;
+        debugMsg.value = 'Erreur : Déchiffrement RSA échoué.';
+        console.error("[E2EE] Échec Déchiffrement Salon:", cryptoErr);
+        toast.show('[E2EE] Échec du déchiffrement de la clé de session du salon.', 'error');
+        loading.value = false;
+        return null;
+    }
+
+};
+
+const applyHistory = async (seq: number, data: { messages: Message[]; hasMore?: boolean }, key: CryptoKey, silent: boolean) => {
+
+    const history = data.messages || [];
+    const decrypted = await procesMessages(history, key);
+    // Changement de salon pendant le déchiffrement : ces messages ne sont
+    // plus ceux du salon affiché.
+    if (seq !== joinSeq) return;
+
+    sortedMessages.value = decrypted;
+    loading.value = false;
+    hasMore.value = data.hasMore ?? history.length >= 20;
+
+    // Rejoin silencieux (reconnexion sur le salon déjà affiché) : la liste
+    // vient d'être rafraîchie en place, mais forcer le scroll ici jetterait
+    // l'utilisateur en bas de la conversation s'il était en train de relire
+    // plus haut.
+    if (silent) return;
+    if (selectedMessage.value && selectedMessage.value !== 'undefined') {
+        await scrollToSelectedMessage();
+    } else {
+        scrollToBottom(true);
+        setTimeout(() => { saveLastRead(); }, 500); // Save after scroll completes
+    }
+
+};
+
+const joinThread = async (id: string, silent = false) => {
 
     if (!socket.value) {
         debugMsg.value = 'Erreur : Pas de connexion Socket active.';
         loading.value = false;
-        isJoiningThread = false;
         return;
     }
-    
-    loading.value = true;
-    currentThreadKey.value = null;
-    sortedMessages.value = [];
-    
-    const savedLastRead = localStorage.getItem(`lastRead_${id}`);
-    if (thread.value?.hasUnread && savedLastRead) {
-        showUnreadDelimiterAfterId.value = savedLastRead;
-    } else {
-        showUnreadDelimiterAfterId.value = null;
-    }
+
+    if (joinInFlight === id) return;
 
     if (!privateKey.value) 
     {
         debugMsg.value = 'Erreur : Clé privée introuvable (verrouillé).';
         loading.value = false;
         toast.show('[E2EE] Votre clé privée est introuvable. Veuillez déverrouiller votre espace sécurisé (PIN).', 'error');
-        isJoiningThread = false;
         return;
     }
 
-    // Timeout pour éviter de rester bloqué
-    const timeoutId = setTimeout(() => {
-        debugMsg.value = 'Erreur : Timeout API (10s) de get-thread-access.';
+    const seq = ++joinSeq;
+    joinInFlight = id;
+
+    if (!silent) {
+        joinedThreadId = null;
+        loading.value = true;
+        currentThreadKey.value = null;
+        sortedMessages.value = [];
+        stickToBottom = true;
+
+        const savedLastRead = localStorage.getItem(`lastRead_${id}`);
+        if (thread.value?.hasUnread && savedLastRead) {
+            showUnreadDelimiterAfterId.value = savedLastRead;
+        } else {
+            showUnreadDelimiterAfterId.value = null;
+        }
+    }
+
+    // Clé et historique en parallèle. Avec une clé en cache, l'historique
+    // s'affiche dès son arrivée ; la clé est revalidée ensuite auprès du
+    // serveur.
+    const cached = getCachedThreadKey(id);
+    const historyPromise = emitWithAck("join-thread", { threadId: id, joinId: seq });
+    const keyPromise = fetchThreadKey(id, seq, !!cached);
+
+    let key = cached?.key ?? null;
+    if (!key) {
+        key = await keyPromise;
+        if (seq !== joinSeq) return;
+        if (!key) { joinInFlight = null; return; }
+    }
+    currentThreadKey.value = key;
+
+    const res = await historyPromise;
+    if (seq !== joinSeq) return;
+    joinInFlight = null;
+
+    if (!res || res.stale) return;
+    if (res.error) {
+        debugMsg.value = 'Erreur : ' + res.error;
         loading.value = false;
-        toast.show('[E2EE] Timeout lors de la récupération de la clé du salon.', 'error');
-    }, 10000);
+        toast.show(res.error, 'error');
+        return;
+    }
 
-    // join-thread ne dépend pas de la clé E2EE déchiffrée (il fait sa propre
-    // vérification de permission côté serveur et renvoie l'historique via un
-    // listener "thread-history" déjà en place) : on l'émet en parallèle de
-    // get-thread-access plutôt que d'attendre son aller-retour complet avant
-    // de démarrer le second, pour ne pas payer deux latences réseau en série.
-    socket.value.emit("join-thread", { threadId: id });
+    joinedThreadId = id;
 
-    socket.value.emit("get-thread-access", { threadId: id }, async (response: { encryptedKey?: string, error?: string, needsReadd?: boolean }) => {
-        clearTimeout(timeoutId);
+    let _thread;
+    if (route.params.spaceId == 'home')  _thread = openedOrg.value?.home.threads.find(__thread => __thread.id == thread.value?.id);
+    else _thread = (openedOrg.value?.spaces?.find(space => space.id == route.params.spaceId))?.threads.find(__thread => __thread.id == thread.value?.id);
+    if (_thread) _thread.hasUnread = false;
+    markThreadAsRead(id);
 
-        if (response.error || !response.encryptedKey) 
-        {
-            // Special case: user needs to be re-added to thread (after E2EE reset)
-            if (response.error && response.needsReadd) {
-                if (user.value?.publicKey) {
-                    socket.value.emit("request-thread-keys", {
-                        threadId: id,
-                        publicKey: user.value.publicKey
-                    });
-                    debugMsg.value = 'Récupération de la clé E2EE en cours... (en attente des autres membres)';
-                    loading.value = true;
-                    isJoiningThread = false;
-                    return;
-                } else {
-                    debugMsg.value = 'Erreur : Clé publique introuvable. ' + response.error;
-                    loading.value = false;
-                    router.push({ 
-                        name: 'OrgHome', 
-                        params: { orgId: route.params.orgId }, 
-                        query: { noRedirect: 'true' } 
-                    });
-                    toast.show(response.error, 'warning', 10000);
-                    isJoiningThread = false;
-                    return;
-                }
-            }
-            
-            debugMsg.value = 'Erreur serveur : ' + (response.error || 'Clé non retournée');
-            loading.value = false;
-            console.error('[E2EE] erreur serveur : ', response)
-            toast.show(response.error || '[E2EE] Accès refusé ou impossible de récupérer la clé du salon.', 'error');
-            isJoiningThread = false;
-            return;
-        }
+    await applyHistory(seq, res, key, silent);
 
-        try {
+    // Ne vole le focus du textarea qu'au véritable chargement — sur un
+    // rejoin silencieux (reconnexion), l'utilisateur peut être en train de
+    // taper ou d'interagir ailleurs sur la page.
+    if (!silent && seq === joinSeq) {
+        await nextTick();
+        TextareaRef.value?.textarea?.focus();
+    }
 
-            const decryptedKey = await decryptThreadKeyWithRsa(response.encryptedKey, privateKey.value!);
-            currentThreadKey.value = decryptedKey;
-
-            let _thread;
-            if (route.params.spaceId == 'home')  _thread = openedOrg.value?.home.threads.find(__thread => __thread.id == thread.value?.id);
-            else _thread = (openedOrg.value?.spaces?.find(space => space.id == route.params.spaceId))?.threads.find(__thread => __thread.id == thread.value?.id);
-
-            if (_thread) _thread.hasUnread = false;
-            
-            markThreadAsRead(id);
-
-            await nextTick();
-            TextareaRef.value?.textarea?.focus();
-
-        } catch (cryptoErr) {
-            debugMsg.value = 'Erreur : Déchiffrement RSA échoué.';
-            console.error("[E2EE] Échec Déchiffrement Salon:", cryptoErr);
-            toast.show('[E2EE] Échec du déchiffrement de la clé de session du salon.', 'error');
-            loading.value = false;
-        }
-
-        isJoiningThread = false;
-
-    });
+    // Clé prise dans le cache : si le serveur en a une autre (réinitialisation
+    // E2EE, redistribution), on bascule dessus et on redéchiffre l'historique.
+    if (cached) {
+        const fresh = await keyPromise;
+        if (seq !== joinSeq || !fresh || fresh === key) return;
+        currentThreadKey.value = fresh;
+        await applyHistory(seq, res, fresh, true);
+    }
 
 };
 
@@ -903,10 +1032,16 @@ const sendMessage = async () => {
 
         if (selectedFiles.value.length) {
             fileSendProgress.value = 0;
+            fileProgress.value = selectedFiles.value.map(() => 0);
             uploadedFiles = await uploadFiles(
                 selectedFiles.value,
-                { workspaceId: (route.params.spaceId as string) || undefined },
-                (percent: number) => { fileSendProgress.value = percent; }
+                // Salon d'espace : clé de l'espace ; salon d'organisation :
+                // clé du salon (mêmes destinataires que ses messages).
+                route.params.spaceId
+                    ? { workspaceId: route.params.spaceId as string }
+                    : { threadId: thread.value!.id },
+                (percent: number) => { fileSendProgress.value = percent; },
+                (index: number, percent: number) => { fileProgress.value[index] = percent; }
             );
         }
 
@@ -914,11 +1049,12 @@ const sendMessage = async () => {
 
         const payload = {
             threadId: thread.value?.id,
-            content: ciphertext, 
-            iv: iv,              
+            content: ciphertext,
+            iv: iv,
             replyToId: messageWillBeResponded.value?.id,
             nonce: "n_" + Date.now(),
-            context: route.params.spaceId ? 'workspace' : 'home'
+            context: route.params.spaceId ? 'workspace' : 'home',
+            references: extractReferenceTokens(newMessage.value)
         };
 
         const confirmedMessage: any = await new Promise((resolve, reject) => {
@@ -978,10 +1114,6 @@ const scrollToBottom = async (instant = false) => {
     {
         messagesContainer.value.scrollTo({ top: messagesContainer.value.scrollHeight, behavior: instant ? 'auto' : 'smooth' });
     }
-};
-
-const getMessageSenderName = (msg: Message): string => {
-    return msg.sender?.name || 'Anonyme';
 };
 
 const cancelReply = () => {
@@ -1048,11 +1180,13 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+    // Abandonne un join ou un déchiffrement encore en cours pour ce composant.
+    joinSeq++;
+    joinInFlight = null;
     if (socket.value) 
     {
         socket.value.emit("leave-thread", thread.value?.id);
-        socket.value.off("thread-history").off("more-messages").off("new-message")
-            .off("keys-distributed").off("delete-message").off("edit-message").off("connect").off("thread:deleted");
+        removeListeners();
     }
     window.removeEventListener('paste', handlePaste);
     document.removeEventListener('click', closeEmojiPickerOnOutsideClick);

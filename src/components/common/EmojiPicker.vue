@@ -1,6 +1,6 @@
 <template>
   <div 
-    class=" w-72 sm:w-80 h-96 bg-(--bg) border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden font-['Outfit',sans-serif] text-white select-none relative z-50"
+    class=" w-72 sm:w-80 h-96 bg-(--bg) border border-(--text)/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden font-['Outfit',sans-serif] text-(--text) select-none relative z-50"
     @click.stop
     style="background-color: var(--bg);"
   >
@@ -10,12 +10,12 @@
         v-model="searchQuery"
         type="text" 
         placeholder="Rechercher un emoji..." 
-        class="w-full bg-transparent border-none text-sm text-white/90 placeholder-white/30 focus:outline-none"
+        class="w-full bg-transparent border-none text-sm text-(--text)/90 placeholder-(--text)/30 focus:outline-none"
       />
       <button 
         v-if="searchQuery" 
         @click="searchQuery = ''"
-        class="text-white/40 hover:text-white/70 transition-colors"
+        class="text-(--text)/40 hover:text-(--text)/70 transition-colors"
       >
         <i class="bi bi-x-circle-fill text-xs" />
       </button>
@@ -25,12 +25,12 @@
       v-if="!searchQuery"
       class="flex justify-between items-center px-3 py-2 bg-(--bg2) border-b border-(--border-color) text-sm overflow-x-auto no-scrollbar scroll-smooth"
     >
-      <button 
-        v-for="category in emojiCategories" 
+      <button
+        v-for="category in displayedCategories"
         :key="category.id"
         @click="scrollToCategory(category.id)"
         class="p-1 rounded-lg transition-colors text-xl"
-        :class="activeCategory === category.id ? 'text-[#6356e5] bg-[#6356e5]/10' : 'text-white/40 hover:text-white/80'"
+        :class="activeCategory === category.id ? 'text-[#6356e5] bg-[#6356e5]/10' : 'text-(--text)/40 hover:text-(--text)/80'"
         :title="category.name"
       >
         {{ category.icon }}
@@ -48,19 +48,19 @@
             v-for="emoji in filteredEmojis"
             :key="emoji"
             @click="selectEmoji(emoji)"
-            class="text-2xl p-1.5 rounded-xl hover:bg-white/10 transition-transform active:scale-90 duration-100"
+            class="text-2xl p-1.5 rounded-xl hover:bg-(--text)/10 transition-transform active:scale-90 duration-100"
           >
             {{ emoji }}
           </button>
         </div>
-        <div v-else class="text-center py-12 text-white/30 text-sm">
+        <div v-else class="text-center py-12 text-(--text)/30 text-sm">
           Aucun emoji trouvé 😢
         </div>
       </div>
 
       <div v-else>
-        <div 
-          v-for="category in emojiCategories" 
+        <div
+          v-for="category in displayedCategories"
           :key="category.id"
           :id="'cat-' + category.id"
           class="space-y-2 category-section"
@@ -73,7 +73,7 @@
               v-for="emoji in category.emojis"
               :key="emoji"
               @click="selectEmoji(emoji)"
-              class="text-2xl p-1.5 rounded-xl hover:bg-white/10 transition-transform active:scale-90 duration-100"
+              class="text-2xl p-1.5 rounded-xl hover:bg-(--text)/10 transition-transform active:scale-90 duration-100"
             >
               {{ emoji }}
             </button>
@@ -92,8 +92,35 @@ const emit = defineEmits<{
 }>();
 
 const searchQuery = ref('');
-const activeCategory = ref('recent');
 const scrollContainer = ref<HTMLElement | null>(null);
+
+// Emojis récemment utilisés, persistés par appareil (localStorage) — partagés
+// par les 3 usages du picker (réactions + composeur de message dans
+// ThreadView/ChatView), puisque le suivi se fait ici, au point d'émission
+// unique de 'select'.
+const RECENT_EMOJIS_KEY = 'synco:recentEmojis';
+const MAX_RECENT_EMOJIS = 32;
+
+const loadRecentEmojis = (): string[] => {
+  try {
+    const raw = localStorage.getItem(RECENT_EMOJIS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((e): e is string => typeof e === 'string') : [];
+  } catch {
+    return [];
+  }
+};
+
+const recentEmojis = ref<string[]>(loadRecentEmojis());
+
+const recordEmojiUsage = (emoji: string) => {
+  recentEmojis.value = [emoji, ...recentEmojis.value.filter(e => e !== emoji)].slice(0, MAX_RECENT_EMOJIS);
+  try {
+    localStorage.setItem(RECENT_EMOJIS_KEY, JSON.stringify(recentEmojis.value));
+  } catch {
+    // stockage indisponible (navigation privée, quota) : tant pis, non persisté
+  }
+};
 
 // Base de données d'emojis classifiée
 const emojiCategories = [
@@ -204,6 +231,18 @@ const emojiCategories = [
   }
 ];
 
+const activeCategory = ref(recentEmojis.value.length > 0 ? 'recent' : emojiCategories[0]!.id);
+
+// Catégorie "Récents" ajoutée en tête, seulement si l'utilisateur a déjà
+// choisi au moins un emoji — sinon on ne montre pas un onglet vide.
+const displayedCategories = computed(() => {
+  if (recentEmojis.value.length === 0) return emojiCategories;
+  return [
+    { id: 'recent', name: 'Récemment utilisés', icon: '🕒', emojis: recentEmojis.value },
+    ...emojiCategories
+  ];
+});
+
 // Combine tous les emojis dans une liste plate pour la recherche
 const allEmojisFlat = emojiCategories.flatMap(c => c.emojis);
 
@@ -214,8 +253,9 @@ const filteredEmojis = computed(() => {
   return allEmojisFlat.filter(emoji => emoji.includes(q) || q === '');
 });
 
-// Émet l'emoji et ferme/réinitialise si nécessaire
+// Émet l'emoji, l'enregistre comme récent, et ferme/réinitialise si nécessaire
 const selectEmoji = (emoji: string) => {
+  recordEmojiUsage(emoji);
   emit('select', emoji);
 };
 

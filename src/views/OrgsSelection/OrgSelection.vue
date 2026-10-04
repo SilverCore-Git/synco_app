@@ -90,7 +90,7 @@ onMounted(async () => {
 
             <DropDown align="right" content-iner-t-w="w-64">
                 <template #trigger>
-                    <button class="w-10 h-10 rounded-full overflow-hidden border-2 border-white/10 hover:border-(--primary)/50 transition-all shadow-sm focus:outline-none">
+                    <button class="w-10 h-10 rounded-full overflow-hidden border-2 border-(--text)/10 hover:border-(--primary)/50 transition-all shadow-sm focus:outline-none">
                         <img
                             :src="user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=128a60&color=fff`"
                             alt="Profile"
@@ -99,18 +99,18 @@ onMounted(async () => {
                     </button>
                 </template>
                 <template #content>
-                    <div class="p-3 border-b border-white/5 bg-(--bg2) rounded-t-xl">
+                    <div class="p-3 border-b border-(--text)/5 bg-(--bg2) rounded-t-xl">
                         <p class="text-sm font-bold text-(--text) truncate">{{ user?.name || 'Utilisateur' }}</p>
                         <p class="text-xs text-(--text2) truncate">{{ user?.email || '' }}</p>
                     </div>
                     <div class="p-1">
-                        <button @click="openUserSettings('account')" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--text) hover:text-(--text) hover:bg-white/5 rounded-lg transition-colors">
+                        <button @click="openUserSettings('account')" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--text) hover:text-(--text) hover:bg-(--text)/5 rounded-lg transition-colors">
                             <i class="bi bi-person-fill"></i> Mon Profil
                         </button>
                     </div>
                     
                     <template v-if="isSuperAdmin">
-                        <div class="h-px bg-white/5 my-1" />
+                        <div class="h-px bg-(--text)/5 my-1" />
                         <div class="p-1">
                             <router-link to="/root" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--primary) hover:bg-(--primary)/20 rounded-lg transition-colors font-bold">
                                 <i class="bi bi-shield-lock-fill"></i> Panel admin
@@ -118,13 +118,13 @@ onMounted(async () => {
                         </div>
                     </template>
 
-                    <div class="h-px bg-white/5 my-1" />
+                    <div class="h-px bg-(--text)/5 my-1" />
                     <div class="p-1">
                         <button @click="openUserSettings('security')" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors">
                             <i class="bi bi-trash-fill"></i> Supprimer mon compte
                         </button>
                     </div>
-                    <div class="h-px bg-white/5 my-1" />
+                    <div class="h-px bg-(--text)/5 my-1" />
                     <div class="p-1">
                         <button @click="disconnectSocket(); keycloak.logout()" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-500 font-bold hover:bg-red-500 hover:text-white rounded-lg transition-colors">
                             <i class="bi bi-box-arrow-right"></i> Déconnexion
@@ -148,7 +148,7 @@ onMounted(async () => {
                     v-model="searchQuery"
                     type="text" 
                     placeholder="Rechercher une organisation..."
-                    class="w-full bg-(--bg) border border-white/10 rounded-2xl pl-11 pr-4 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary)/50 focus:ring-1 focus:ring-(--primary)/50 transition-all shadow-lg"
+                    class="w-full bg-(--bg) border border-(--text)/10 rounded-2xl pl-11 pr-4 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary)/50 focus:ring-1 focus:ring-(--primary)/50 transition-all shadow-lg"
                 />
             </div>
         </header>
@@ -173,13 +173,13 @@ onMounted(async () => {
                     />
                 </div>
 
-                <div v-else-if="canCreateOrg === null" class="w-full h-[180px] rounded-2xl bg-white/5 animate-pulse" />
+                <div v-else-if="canCreateOrg === null" class="w-full h-[180px] rounded-2xl bg-(--text)/5 animate-pulse" />
 
             </div>
             
             <div v-else class="text-center py-20 flex flex-col items-center gap-4">
-                <div class="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center border border-white/10">
-                    <i class="bi bi-search text-3xl text-white/30"></i>
+                <div class="w-20 h-20 bg-(--text)/5 rounded-full flex items-center justify-center border border-(--text)/10">
+                    <i class="bi bi-search text-3xl text-(--text)/30"></i>
                 </div>
                 <h3 class="text-xl font-bold text-(--text)">Aucune organisation trouvée</h3>
                 <p class="text-(--text2) text-sm">Vérifiez l'orthographe ou essayez un autre nom.</p>
@@ -206,7 +206,7 @@ onMounted(async () => {
                     placeholder="Ex: Silvercore, silverteams..."
                     ref="nameInput"
                     class="
-                        w-full bg-(--bg2)/30 border border-white/10 rounded-xl 
+                        w-full bg-(--bg2)/30 border border-(--text)/10 rounded-xl 
                         px-4 py-3 text-(--text) placeholder:text-(--text2) 
                         focus:outline-none focus:border-(--primary)/50 focus:ring-1
                         focus:ring-(--primary)/20 transition-all

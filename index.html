@@ -10,8 +10,13 @@
 
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
 
+    <!-- Précharge la bannière du formulaire PIN (App.vue) : sans ça elle ne
+         commence à charger qu'au montage de ce formulaire, bien après le
+         premier rendu, et apparaît visiblement après coup. -->
+    <link rel="preload" as="image" href="/banner.svg" />
+
     <meta http-equiv="Content-Security-Policy" 
-      content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' http://localhost:* https://localhost:* __DEV_LAN_ORIGIN__; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; connect-src 'self' blob: tauri: tauri://localhost http://tauri.localhost http://localhost:5174 http://127.0.0.1:5174 http://ipc.localhost https://api.synco.one ws://api.synco.one wss://api.synco.one ws://api.synco.one:9001 wss://api.synco.one:9001 https://auth.silvercore.fr https://livekit.silvercore.fr wss://livekit.silvercore.fr http://localhost:* https://localhost:* ws://localhost:* wss://localhost:* __DEV_LAN_ORIGIN__ https://huggingface.co https://*.huggingface.co https://cdn.jsdelivr.net https://raw.githubusercontent.com https://cas-bridge.xethub.hf.co https://*.cdn.hf.co; img-src 'self' data: blob: https://ui-avatars.com https://avatars.githubusercontent.com http://localhost:* https://localhost:* __DEV_LAN_ORIGIN__ https://api.synco.one; frame-src 'self' blob: http://localhost:* https://localhost:* __DEV_LAN_ORIGIN__ https://api.synco.one https://auth.silvercore.fr;">
+      content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' http://localhost:* https://localhost:* __DEV_LAN_ORIGIN__; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; connect-src 'self' blob: tauri: tauri://localhost http://tauri.localhost http://localhost:5174 http://127.0.0.1:5174 http://ipc.localhost https://api.synco.one https://cdn.synco.one ws://api.synco.one wss://api.synco.one ws://api.synco.one:9001 wss://api.synco.one:9001 https://auth.silvercore.fr https://livekit.silvercore.fr wss://livekit.silvercore.fr http://localhost:* https://localhost:* ws://localhost:* wss://localhost:* __DEV_LAN_ORIGIN__ https://huggingface.co https://*.huggingface.co https://cdn.jsdelivr.net https://raw.githubusercontent.com https://cas-bridge.xethub.hf.co https://*.cdn.hf.co; media-src 'self' blob:; img-src 'self' data: blob: https://ui-avatars.com https://avatars.githubusercontent.com http://localhost:* https://localhost:* __DEV_LAN_ORIGIN__ https://api.synco.one; frame-src 'self' blob: http://localhost:* https://localhost:* __DEV_LAN_ORIGIN__ https://api.synco.one https://auth.silvercore.fr;">
     <title>Synco.</title>
     <meta name="description" content="Synco, la plateforme de collaboration sécurisée : messagerie chiffrée, salons, appels vocaux et vidéo pour votre équipe." />
 
@@ -61,9 +66,37 @@
     @keyframes shine {
       0% { transform: translateX(-150%) skewX(-20deg); }
       30% { transform: translateX(150%) skewX(-20deg); }
-      
+
       31% { transform: translateX(-150%) skewX(-20deg); }
       100% { transform: translateX(-150%) skewX(-20deg); }
+    }
+
+    /* Barre indéterminée : ce loader statique disparaît avant que
+       App.vue connaisse une vraie progression (health check, Keycloak...),
+       donc pas de largeur pilotée ici — juste de quoi rester visuellement
+       cohérent avec la barre déterminée du LogoLoader.vue qui prend le
+       relais (même dimensions/couleur). */
+    #boot-progress-track {
+      width: 10rem;
+      height: 0.25rem;
+      border-radius: 999px;
+      background-color: rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+      margin-top: 1.5rem;
+    }
+
+    #boot-progress-bar {
+      height: 100%;
+      width: 33%;
+      border-radius: 999px;
+      background-color: #16ac77;
+      animation: boot-progress-indeterminate 1.4s ease-in-out infinite;
+    }
+
+    @keyframes boot-progress-indeterminate {
+      0% { transform: translateX(-100%); }
+      50% { transform: translateX(300%); }
+      100% { transform: translateX(300%); }
     }
 
   </style>
@@ -72,16 +105,6 @@
 
     <div id="app"></div>
 
-    <!--
-      Écran de démarrage statique, indépendant du montage de Vue : #app est
-      remplacé dès que Vue se monte, sans garantie que le CSS (Tailwind,
-      injecté par Vite) soit déjà appliqué à ce moment précis. Si ce logo
-      vivait dans #app, le contenu de remplacement pouvait s'afficher un
-      instant sans ses classes de centrage (donc en haut à gauche) avant de
-      se repositionner. Ici, il reste affiché par-dessus tout jusqu'à ce
-      qu'App.vue le retire explicitement une fois son premier rendu stylé
-      confirmé (voir onMounted dans src/App.vue).
-    -->
     <div id="boot-loader" style="
         position: fixed;
         inset: 0;
@@ -104,12 +127,16 @@
       ">
 
         <img
-          src="/favicon.ico"
+          src="/assets/logo/synco/favicon_synco.svg"
           alt="Logo"
           style="height: 80px; z-index: 10; position: relative;"
         />
-        <div class="shimmer" />
+        <div class="shimmer"></div>
 
+      </div>
+
+      <div id="boot-progress-track">
+        <div id="boot-progress-bar"></div>
       </div>
 
     </div>

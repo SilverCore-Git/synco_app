@@ -25,7 +25,7 @@
 
         </div>
 
-        <div v-if="openedOrg?.members" class="flex-1 overflow-y-auto p-2 space-y-1 ">
+        <div v-if="openedOrg?.members" class="flex-1 overflow-y-auto p-2 space-y-1 animate-app-reveal">
 
             <p v-if="members.filter(member => member.user?.data.status !== 'offline').length > 0" class=" py-1 text-xs text-(--text2)">
                 En ligne — {{ members.filter(member => member.user?.data.status !== 'offline').length }}
@@ -37,7 +37,7 @@
                 @click="openProfile(member.user!, $event)"
                 class="
                     w-full flex items-center gap-3 px-3 py-2 rounded-lg
-                    hover:bg-white/3 transition-colors
+                    hover:bg-(--text)/3 transition-colors
                     group text-left
                 "
             >
@@ -66,7 +66,7 @@
 
                 <div 
                     v-if="member.user && getUnreadCountByDMUserId(member.user.id).value > 0"
-                    class="ml-auto w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]"
+                    class="ml-auto w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_var(--glow-danger-strong)]"
                 />
 
                 <button
@@ -90,7 +90,7 @@
                 @click="openProfile(member.user!, $event)"
                 class="
                     w-full flex items-center gap-3 px-3 py-2 rounded-lg
-                    hover:bg-white/3 transition-colors 
+                    hover:bg-(--text)/3 transition-colors 
                     group opacity-50 text-left
                 "
             >
@@ -119,7 +119,7 @@
 
                 <div 
                     v-if="member.user && getUnreadCountByDMUserId(member.user.id).value > 0"
-                    class="ml-auto w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]"
+                    class="ml-auto w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_var(--glow-danger-strong)]"
                 />
 
             </button>
@@ -129,48 +129,48 @@
         <!-- Loader -->
         <div v-else class="flex-1 overflow-y-auto p-2 space-y-1 ">
 
-            <div class=" rounded-lg bg-(--white)/15 h-4 w-20 animate-pulse" />
+            <div class=" rounded-lg bg-(--text)/15 h-4 w-20 animate-pulse" />
             
             <div
                 v-for="i in 3"
                 :key="i"
                 class="
                     flex items-center gap-3 px-3 py-2 rounded-lg
-                    hover:bg-white/3 transition-colors 
+                    hover:bg-(--text)/3 transition-colors 
                     group opacity-50 
                 "
             >
 
                 <div class="relative">
-                    <div class=" rounded-full bg-(--white)/12 h-9 w-9 animate-pulse" />
+                    <div class=" rounded-full bg-(--text)/12 h-9 w-9 animate-pulse" />
                 </div>
 
                 <div class="flex flex-col gap-1">
-                    <div class=" rounded-lg bg-(--white)/12 h-4 w-24 animate-pulse" />
-                    <div class=" rounded-lg bg-(--white)/12 h-3 w-22 animate-pulse" />
+                    <div class=" rounded-lg bg-(--text)/12 h-4 w-24 animate-pulse" />
+                    <div class=" rounded-lg bg-(--text)/12 h-3 w-22 animate-pulse" />
                 </div>
 
             </div>
 
-            <div class=" rounded-lg bg-(--white)/15 h-4 w-20 animate-pulse" />
+            <div class=" rounded-lg bg-(--text)/15 h-4 w-20 animate-pulse" />
 
             <div
                 v-for="i in 5"
                 :key="i"
                 class="
                     flex items-center gap-3 px-3 py-2 rounded-lg
-                    hover:bg-white/3 transition-colors 
+                    hover:bg-(--text)/3 transition-colors 
                     group opacity-50 
                 "
             >
 
                 <div class="relative">
-                    <div class=" rounded-full bg-(--white)/12 h-9 w-9 animate-pulse" />
+                    <div class=" rounded-full bg-(--text)/12 h-9 w-9 animate-pulse" />
                 </div>
 
                 <div class="flex flex-col gap-1">
-                    <div class=" rounded-lg bg-(--white)/12 h-4 w-24 animate-pulse" />
-                    <div class=" rounded-lg bg-(--white)/12 h-3 w-22 animate-pulse" />
+                    <div class=" rounded-lg bg-(--text)/12 h-4 w-24 animate-pulse" />
+                    <div class=" rounded-lg bg-(--text)/12 h-3 w-22 animate-pulse" />
                 </div>
 
             </div>

@@ -118,6 +118,11 @@
                                     class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
                                 />
                             </div>
+                            <p v-if="emailChanged" class="text-sm text-(--text2)">
+                                Cette adresse devient aussi ton identifiant de connexion.
+                                Le changement est immédiat, et une alerte est envoyée à
+                                ton ancienne adresse.
+                            </p>
                         </div>
                         
                         <div class="space-y-1.5">
@@ -215,7 +220,7 @@
                                     <i class="bi bi-cpu-fill text-lg"></i>
                                     <span class="text-sm font-bold">Clé publique (RSA-OAEP 4096 bits)</span>
                                 </div>
-                                <div class="bg-(--bg) border border-white/5 p-3 rounded-lg flex items-center justify-between group">
+                                <div class="bg-(--bg) border border-(--text)/5 p-3 rounded-lg flex items-center justify-between group">
                                     <code class="text-xs text-(--text2) font-mono truncate mr-4">
                                         {{ publicKeyFingerprint }}
                                     </code>
@@ -334,11 +339,11 @@
                                     :class="
                                         theme == 'dark' 
                                             ? 'border-(--primary) bg-(--primary)/5 scale-100 shadow-[0_0_20px_var(--primary-glow)]' 
-                                            : 'border-(--border-color) bg-(--bg2) hover:border-white/20 scale-95 opacity-70 hover:opacity-100'
+                                            : 'border-(--border-color) bg-(--bg2) hover:border-(--text)/20 scale-95 opacity-70 hover:opacity-100'
                                     "
                                     @click="theme = 'dark'"
                                 >
-                                    <div class="w-full h-24 bg-(--bg) rounded-lg border border-white/10 flex items-center justify-center shadow-inner">
+                                    <div class="w-full h-24 bg-(--bg) rounded-lg border border-(--text)/10 flex items-center justify-center shadow-inner">
                                         <i class="bi bi-moon-stars-fill text-(--primary) text-3xl drop-shadow-md" />
                                     </div>
                                     <span class="font-bold text-(--text)">Sombre</span>
@@ -350,7 +355,7 @@
                                     :class="
                                         theme == 'light' 
                                             ? 'border-(--primary) bg-(--primary)/5 scale-100 shadow-[0_0_20px_var(--primary-glow)]' 
-                                            : 'border-(--border-color) bg-(--bg2) hover:border-white/20 scale-95 opacity-70 hover:opacity-100'
+                                            : 'border-(--border-color) bg-(--bg2) hover:border-(--text)/20 scale-95 opacity-70 hover:opacity-100'
                                     "
                                     @click="theme = 'light'"
                                 >
@@ -370,7 +375,7 @@
 
                             <div 
                                 @click="devMode = !devMode"
-                                class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all max-w-md"
+                                class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all max-w-md"
                             >
                                 <div>
                                     <h4 class="font-bold text-(--text)">Mode développeur</h4>
@@ -389,7 +394,7 @@
 
                             <div 
                                 @click="privacyMode = !privacyMode"
-                                class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all max-w-md mt-4"
+                                class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all max-w-md mt-4"
                             >
                                 <div>
                                     <h4 class="font-bold text-(--text)">Mode confidentialité</h4>
@@ -427,7 +432,7 @@
                         
                         <div 
                             @click="updateNotificationPrefs('push', !notifPrefs.push)"
-                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all"
+                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all"
                         >
                             <div>
                                 <h4 class="font-bold text-(--text)">Notifications Push</h4>
@@ -446,11 +451,11 @@
 
                         <div 
                             @click="updateNotificationPrefs('email', !notifPrefs.email)"
-                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all"
+                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all"
                         >
                             <div>
                                 <h4 class="font-bold text-(--text)">Notifications par Email</h4>
-                                <p class="text-sm text-(--text2) mt-0.5">Recevoir un résumé des messages non lus</p>
+                                <p class="text-sm text-(--text2) mt-0.5">Recevoir aussi mes notifications par e-mail</p>
                             </div>
                             <div 
                                 class="w-12 h-6 rounded-full relative transition-colors duration-300"
@@ -463,9 +468,24 @@
                             </div>
                         </div>
 
+                        <div v-if="notifPrefs.email" class="grid grid-cols-2 gap-2 -mt-2">
+                            <button
+                                v-for="mode in emailModes"
+                                :key="mode.value"
+                                @click="updateNotificationPrefs('emailMode', mode.value)"
+                                class="p-4 rounded-xl border text-left cursor-pointer transition-all"
+                                :class="notifPrefs.emailMode === mode.value
+                                    ? 'border-(--primary) bg-(--primary)/10'
+                                    : 'border-(--border-color) bg-(--bg2) hover:bg-(--text)/5'"
+                            >
+                                <h5 class="font-bold text-sm text-(--text)">{{ mode.label }}</h5>
+                                <p class="text-xs text-(--text2) mt-0.5">{{ mode.description }}</p>
+                            </button>
+                        </div>
+
                         <div 
                             @click="updateNotificationPrefs('sound', !notifPrefs.sound)"
-                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all"
+                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all"
                         >
                             <div>
                                 <h4 class="font-bold text-(--text)">Sons des messages</h4>
@@ -484,7 +504,7 @@
 
                         <div 
                             @click="updateNotificationPrefs('mentionsOnly', !notifPrefs.mentionsOnly)"
-                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-white/5 transition-all"
+                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all"
                         >
                             <div>
                                 <h4 class="font-bold text-(--text)">Mentions @ uniquement</h4>
@@ -503,6 +523,15 @@
                     </div>
 
                 </section>
+
+                <!-- RAPPORTS D'ACTIVITÉ -->
+                <section
+                    v-if="activeTab === 'reports'"
+                    class="animate-fade-in"
+                >
+                    <ActivityReports />
+                </section>
+
 
             </main>
 
@@ -531,6 +560,7 @@ import Window from './Window.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
 import ProfileUploader from '../common/ProfileUploader.vue';
 import ConfirmDelete from '../common/ConfirmDelete.vue';
+import ActivityReports from '../settings/ActivityReports/index.vue';
 import { user } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
@@ -586,8 +616,14 @@ const notifPrefs = reactive({
     push: true,
     email: true,
     sound: true,
-    mentionsOnly: false
+    mentionsOnly: false,
+    emailMode: 'mentions' as 'all' | 'mentions'
 });
+
+const emailModes = [
+    { value: 'mentions', label: 'Seulement les tags', description: 'Mentions, tâches assignées et invitations' },
+    { value: 'all', label: 'Toutes', description: 'Chaque notification, messages compris' },
+] as const;
 
 // Sync user data to form
 watch(user, (newVal) => {
@@ -610,6 +646,7 @@ watch(user, (newVal) => {
                 notifPrefs.email = prefs.email ?? true;
                 notifPrefs.sound = prefs.sound ?? true;
                 notifPrefs.mentionsOnly = prefs.mentionsOnly ?? false;
+                notifPrefs.emailMode = prefs.emailMode === 'all' ? 'all' : 'mentions';
             }
         }
     }
@@ -622,7 +659,8 @@ watch(() => [user.value?.avatarUrl, user.value?.name], async () => {
     }
 }, { immediate: true });
 
-const updateNotificationPrefs = async (key: keyof typeof notifPrefs, value: boolean) => {
+const updateNotificationPrefs = async <K extends keyof typeof notifPrefs>(key: K, value: typeof notifPrefs[K]) => {
+    const previous = notifPrefs[key];
     notifPrefs[key] = value;
     try {
         const response = await sfetch('/api/users/me', {
@@ -637,19 +675,26 @@ const updateNotificationPrefs = async (key: keyof typeof notifPrefs, value: bool
             user.value = { ...user.value, ...updatedUser };
         } else {
             toast.show('Erreur lors de la sauvegarde', 'error');
-            notifPrefs[key] = !value;
+            notifPrefs[key] = previous;
         }
     } catch (e) {
         console.error(e);
         toast.show('Erreur de connexion', 'error');
-        notifPrefs[key] = !value;
+        notifPrefs[key] = previous;
     }
 };
+
+// L'API normalise l'adresse en minuscules (updateUserEmailSchema) : comparer
+// sans casse évite d'envoyer un PATCH pour une saisie équivalente, que le
+// serveur traiterait de toute façon en non-opération.
+const emailChanged = computed(() => {
+    return formData.email.trim().toLowerCase() !== (user.value?.email || '').toLowerCase();
+});
 
 const isModified = computed(() => {
     return formData.firstName !== (user.value?.firstName || '') ||
            formData.lastName !== (user.value?.lastName || '') ||
-           formData.email !== user.value?.email ||
+           emailChanged.value ||
            formData.job !== (user.value?.job || '') ||
            formData.description !== (user.value?.description || '');
 });
@@ -718,10 +763,29 @@ const updateProfile = async () => {
             }
         }
 
+        if (emailChanged.value) {
+            const emailResponse = await sfetch('/api/users/me/email', {
+                method: 'PATCH',
+                body: JSON.stringify({ email: formData.email.trim() })
+            });
+
+            if (emailResponse.ok) {
+                const updatedUser = await emailResponse.json();
+                user.value = { ...user.value, ...updatedUser };
+            } else {
+                // L'API renvoie un motif exploitable (409 adresse déjà prise,
+                // 400 refus du realm) — l'afficher plutôt qu'un message
+                // générique, sinon l'utilisateur ne sait pas quoi corriger.
+                const body = await emailResponse.json().catch(() => ({}));
+                toast.show(body.error || "Erreur lors de la mise à jour de l'email", 'error');
+                formData.email = user.value?.email || '';
+                return;
+            }
+        }
+
         const response = await sfetch('/api/users/me', {
             method: 'PATCH',
             body: JSON.stringify({
-                email: formData.email,
                 job: formData.job,
                 description: formData.description
             })
@@ -798,7 +862,8 @@ const tabs = [
     { id: 'account', label: 'Mon Compte', icon: 'bi bi-person-fill' },
     { id: 'security', label: 'Sécurité', icon: 'bi bi-shield-lock-fill' },
     { id: 'appearance', label: 'Apparence', icon: 'bi bi-palette-fill' },
-    { id: 'notifications', label: 'Notifications', icon: 'bi bi-bell-fill' }
+    { id: 'notifications', label: 'Notifications', icon: 'bi bi-bell-fill' },
+    { id: 'reports', label: "Rapports", icon: 'bi bi-envelope-paper-fill' }
 ];
 
 </script>

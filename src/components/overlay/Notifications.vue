@@ -1,6 +1,6 @@
 <template>
 
-    <div class="fixed top-4 right-4 z-1000 flex flex-col gap-2 w-80 pointer-events-none">
+    <div class="fixed top-[max(1rem,env(safe-area-inset-top))] left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-80 flex-col sm:top-auto sm:bottom-4 sm:left-auto sm:right-4 sm:translate-x-0 sm:w-80 sm:flex-col-reverse z-1000 flex gap-2 pointer-events-none">
 
         <TransitionGroup name="list">
 
@@ -33,22 +33,21 @@
                         >
                             
                             <div class="relative shrink-0">
-                                <img 
-                                    :src="(notif.msg as any)?.sender?.avatarUrl  || ''"
-                                    class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
+                                <img
+                                    :src="(notif.msg as any)?.isWebhook ? ((notif.msg as any)?.webhookAvatar || `https://ui-avatars.com/api/?name=${(notif.msg as any)?.webhookName || 'Webhook'}&background=7c3aed&color=fff`) : ((notif.msg as any)?.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${$p((notif.msg as any)?.sender?.name)}&background=128a60&color=fff`)"
+                                    class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
                                 />
                             </div>
 
+                            <!-- Jamais le contenu du message ici (en clair ou chiffré
+                                 E2EE) : uniquement qui a écrit, et dans quel salon. -->
                             <div class="flex-1 overflow-hidden" v-if="notif.msg">
                                 <h4 class="text-(--text) text-sm font-bold truncate flex items-center gap-1">
-                                    {{ $p((notif.msg as any)?.sender?.name) }}
+                                    {{ (notif.msg as any)?.isWebhook ? ((notif.msg as any)?.webhookName || 'Webhook') : $p((notif.msg as any)?.sender?.name) }}
                                     <span v-if="(notif.msg as any).webhookId" class="bg-(--primary)/20 text-(--primary) text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">APP</span>
                                 </h4>
-                                <p class="text-(--text) text-sm line-clamp-2 leading-snug">
-                                    <span v-if="(notif.msg as any).embeds?.length > 0" class="font-semibold text-(--primary) block truncate">
-                                        {{ (notif.msg as any).embeds[0].title }}
-                                    </span>
-                                    <span v-else>{{ notif.msg.content }}</span>
+                                <p class="text-(--text2) text-sm truncate">
+                                    dans {{ (notif.msg as any)?.threadName || 'un salon' }}
                                 </p>
                             </div>
 
@@ -66,16 +65,18 @@
                             <div class="relative shrink-0">
                                 <img 
                                     :src="notif.dmmsg?.sender?.avatarUrl  || `https://ui-avatars.com/api/?name=${$p(notif.dmmsg?.sender?.name)}&background=128a60&color=fff`"
-                                    class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
+                                    class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
                                 />
                             </div>
 
+                            <!-- Jamais le contenu du message ici (en clair ou chiffré
+                                 E2EE) : uniquement qui a écrit. -->
                             <div class="flex-1 overflow-hidden" v-if="notif.dmmsg">
                                 <h4 class="text-(--text) text-sm font-bold truncate">
                                     {{ $p(notif.dmmsg?.sender?.name) }}
                                 </h4>
-                                <p class="text-(--text) text-sm line-clamp-2 leading-snug">
-                                    {{ notif.dmmsg?.content }}
+                                <p class="text-(--text2) text-sm truncate">
+                                    Nouveau message privé
                                 </p>
                             </div>
 
@@ -90,9 +91,9 @@
                             <div class="flex items-center gap-3">
 
                                 <div class="relative">
-                                    <img 
-                                        :src="notif.call?.user?.avatarUrl || ''"
-                                        class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
+                                    <img
+                                        :src="notif.call?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(notif.call?.user?.name)}&background=128a60&color=fff`"
+                                        class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
                                     />
                                 </div>
 
@@ -134,9 +135,9 @@
                             <div class="flex items-center gap-3">
 
                                 <div class="relative">
-                                    <img 
-                                        :src="notif.privateMeet?.user?.avatarUrl || ''"
-                                        class="w-11 h-11 rounded-full object-cover border border-(--white)/5"
+                                    <img
+                                        :src="notif.privateMeet?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(notif.privateMeet?.user?.name)}&background=128a60&color=fff`"
+                                        class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
                                     />
                                 </div>
 
@@ -149,16 +150,16 @@
 
                             <div class="flex gap-3 mt-5 w-full">
 
-                                <button 
-                                    @click="remove(notif.id)"
+                                <button
+                                    @click="remove(notif.id), notif.privateMeet && declineIncomingMeet(notif.privateMeet)"
                                     class="danger w-full gap-3"
                                 >
                                     <i class="bi bi-x-lg" />
                                     Refuser
                                 </button>
-                                
-                                <button 
-                                    @click="router.push({ name: 'OrgThreadChatPrivateMeet', params: { userId: notif.privateMeet?.id } });"
+
+                                <button
+                                    @click="remove(notif.id), notif.privateMeet && acceptIncomingMeet(notif.privateMeet)"
                                     class="primary w-full gap-3"
                                 >
                                     <i class="bi bi-telephone-fill animate-bounce" />
@@ -171,12 +172,107 @@
 
                     </template>
 
+                    <template v-else-if="notif.type == 'notif:privateMeetMsg'">
+
+                        <RouterLink
+                            :to="`/${openedOrg?.id}/chat/privateMeet/${notif.privateMeetMsg?.id}`"
+                            class="flex items-center gap-3"
+                            @click="remove(notif.id)"
+                        >
+
+                            <div class="relative shrink-0">
+                                <img
+                                    :src="notif.privateMeetMsg?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(notif.privateMeetMsg?.user?.name)}&background=128a60&color=fff`"
+                                    class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
+                                />
+                            </div>
+
+                            <div class="flex-1 overflow-hidden">
+                                <h4 class="text-(--text) text-sm font-bold truncate">
+                                    {{ $p(notif.privateMeetMsg?.user?.name) }}
+                                </h4>
+                                <p class="text-(--text2) text-sm truncate">
+                                    Nouveau message (session éphémère)
+                                </p>
+                            </div>
+
+                        </RouterLink>
+
+                    </template>
+
+                    <template v-else-if="notif.type == 'notif:missedCall'">
+
+                        <RouterLink
+                            :to="`/${openedOrg?.id}/chat/${notif.missedCall?.id}`"
+                            class="flex items-center gap-3"
+                            @click="remove(notif.id)"
+                        >
+
+                            <div class="relative shrink-0">
+                                <img
+                                    :src="notif.missedCall?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(notif.missedCall?.user?.name)}&background=ef4444&color=fff`"
+                                    class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
+                                />
+                                <span class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center border-2 border-(--bg2)">
+                                    <i class="bi bi-telephone-x-fill text-white text-[9px]" />
+                                </span>
+                            </div>
+
+                            <div class="flex-1 overflow-hidden">
+                                <h4 class="text-(--text) text-sm font-bold truncate">
+                                    {{ $p(notif.missedCall?.user?.name) }}
+                                </h4>
+                                <p class="text-red-400 text-sm truncate">
+                                    Appel manqué
+                                </p>
+                            </div>
+
+                        </RouterLink>
+
+                    </template>
+
+                    <template v-else-if="notif.type == 'notif:missedMeet'">
+
+                        <RouterLink
+                            :to="`/${openedOrg?.id}/chat/${notif.missedMeet?.id}`"
+                            class="flex items-center gap-3"
+                            @click="remove(notif.id)"
+                        >
+
+                            <div class="relative shrink-0">
+                                <img
+                                    :src="notif.missedMeet?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(notif.missedMeet?.user?.name)}&background=ef4444&color=fff`"
+                                    class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
+                                />
+                                <span class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center border-2 border-(--bg2)">
+                                    <i class="bi bi-shield-x text-white text-[9px]" />
+                                </span>
+                            </div>
+
+                            <div class="flex-1 overflow-hidden">
+                                <h4 class="text-(--text) text-sm font-bold truncate">
+                                    {{ $p(notif.missedMeet?.user?.name) }}
+                                </h4>
+                                <p class="text-red-400 text-sm truncate">
+                                    Session éphémère manquée
+                                </p>
+                            </div>
+
+                        </RouterLink>
+
+                    </template>
+
                 </div>
 
-                <button 
-                    @click="remove(notif.id)" 
+                <!-- Pas de croix générique pour un appel entrant : "Refuser" est le
+                     seul moyen de le clore proprement (raccroche le MediaConnection
+                     et arrête la sonnerie) — une simple fermeture de la carte
+                     laissait l'appel sonner indéfiniment en arrière-plan, sans
+                     aucun moyen de le reprendre en main ensuite. -->
+                <button
+                    v-if="notif.type !== 'notif:call'"
+                    @click="remove(notif.id)"
                     class="opacity-40 hover:opacity-100 transition-opacity absolute top-4 right-4"
-                    :class="notif.type == 'notif:call' ? 'absolute top-4 right-4' : ''"
                 >
                     <i class="bi bi-x-lg text-xs" />
                 </button>
@@ -195,6 +291,7 @@ import getSpaceIdByThreadId from '@/assets/utils/getSpaceWithThreadId';
 import { openedOrg } from '@/assets/var';
 import useNotifications, { type Notification, type NotificationType } from '@/composables/useNotifications';
 import useSecurePeer from '@/composables/useSecurePeer';
+import usePrivateMeet from '@/composables/usePrivatMeet';
 import { computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { SoundService } from '@/services/SoundService';
@@ -211,6 +308,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 const { notifications, initListener, remove } = useNotifications();
 const router = useRouter();
 const { acceptCall, rejectCall } = useSecurePeer();
+const { acceptIncomingMeet, declineIncomingMeet } = usePrivateMeet();
 const { Item: privacyMode } = useSettingsItem('privacyMode', false);
 
 
@@ -249,10 +347,13 @@ const getStyles = (type: NotificationType, toastType?: string) => {
             default: return 'bg-blue-500/10 border-blue-500/20 text-blue-200';
         };
 
-        case 'notif:msg': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
-        case 'notif:dmmsg': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
-        case 'notif:call': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
-        case 'notif:privateMeet': return 'bg-(--bg2)/80 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:msg': return 'bg-(--bg2)/80 border border-(--text)/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:dmmsg': return 'bg-(--bg2)/80 border border-(--text)/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:call': return 'bg-(--bg2)/80 border border-(--text)/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:privateMeet': return 'bg-(--bg2)/80 border border-(--text)/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:privateMeetMsg': return 'bg-(--bg2)/80 border border-(--text)/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:missedCall': return 'bg-(--bg2)/80 border border-(--text)/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:missedMeet': return 'bg-(--bg2)/80 border border-(--text)/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
 
     }
 
@@ -316,7 +417,7 @@ const getNativeNotificationContext = (notif: Notification): NativeNotifContext |
     switch (notif.type) {
         case 'notif:msg': {
             const msg = notif.msg as any;
-            const name = formatName(msg?.sender?.name);
+            const name = msg?.isWebhook ? (msg?.webhookName || 'Webhook') : formatName(msg?.sender?.name);
             const body = msg?.embeds?.length > 0 ? msg.embeds[0].title : msg?.content;
             return {
                 key: `msg:${msg?.threadId}`,
@@ -350,6 +451,33 @@ const getNativeNotificationContext = (notif: Notification): NativeNotifContext |
                 title: 'Discussion privée',
                 singleBody: name,
                 pluralBody: (count) => `${count} demandes de ${name}`
+            };
+        }
+        case 'notif:privateMeetMsg': {
+            const name = formatName(notif.privateMeetMsg?.user?.name);
+            return {
+                key: `privateMeetMsg:${notif.privateMeetMsg?.id}`,
+                title: 'Session éphémère',
+                singleBody: `${name} vous a écrit`,
+                pluralBody: (count) => `${count} nouveaux messages de ${name}`
+            };
+        }
+        case 'notif:missedCall': {
+            const name = formatName(notif.missedCall?.user?.name);
+            return {
+                key: `missedCall:${notif.missedCall?.id}`,
+                title: 'Appel manqué',
+                singleBody: name,
+                pluralBody: (count) => `${count} appels manqués de ${name}`
+            };
+        }
+        case 'notif:missedMeet': {
+            const name = formatName(notif.missedMeet?.user?.name);
+            return {
+                key: `missedMeet:${notif.missedMeet?.id}`,
+                title: 'Session éphémère manquée',
+                singleBody: name,
+                pluralBody: (count) => `${count} invitations manquées de ${name}`
             };
         }
         default:
@@ -391,11 +519,20 @@ const showNativeNotification = (notif: Notification) => {
     }, NATIVE_NOTIF_DEBOUNCE_MS));
 };
 
+// notif:call (appels DM) et notif:privateMeet (invitations éphémères) ont
+// déjà leur propre sonnerie en boucle (callSound.wav, démarrée dans
+// useSecurePeer.ts / usePrivatMeet.ts dès l'arrivée de l'appel/l'invitation)
+// — jouer en plus le "ding" générique par-dessus n'a pas de sens pour un
+// appel qui sonne en continu, contrairement à un simple message.
+const RINGING_NOTIF_TYPES: NotificationType[] = ['notif:call', 'notif:privateMeet'];
+
 watch(() => notifications.value.length, (newLength, oldLength) => {
     if (newLength > oldLength) {
         const latestNotif = notifications.value[notifications.value.length - 1];
-        if (latestNotif && latestNotif.type !== 'toast') {
-            playNotificationSound();
+        if (latestNotif && (latestNotif.type !== 'toast' || latestNotif.playSound)) {
+            if (!RINGING_NOTIF_TYPES.includes(latestNotif.type)) {
+                playNotificationSound();
+            }
             showNativeNotification(latestNotif);
         }
     }

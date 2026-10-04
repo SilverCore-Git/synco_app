@@ -2,17 +2,18 @@
 
 :root {
 
-  --primary: #16ac77; 
+  --primary: #16ac77;
   --primary-dark: #062d1f;
   --primary-hover: #128a60;
+  --primary-rgb: 22, 172, 119;
 
   --bg: #121214;
   --bg2: #09090a;
   --bg3: #000000;
-  
+
   --black: #000;
   --white: #fff;
-  
+
 
   --text: #fff;
   /* --text: #BFC3C7; */
@@ -20,43 +21,88 @@
   --rounded-2xl: 1rem;
 
   --border-color: rgba(255, 255, 255, 0.1);
+  --scrollbar-thumb: var(--primary-dark);
 
 }
 
 body.dark {
 
-  --primary: #16ac77; 
+  --primary: #16ac77;
   --primary-dark: #062d1f;
   --primary-hover: #128a60;
+  --primary-rgb: 22, 172, 119;
 
   --bg: #121214;
   --bg2: #09090a;
   --bg3: #000000;
-  
+
   --black: #000;
   --white: #fff;
 
   --text: #fff;
   --text2: rgba(255, 255, 255, 0.6);
 
+  --scrollbar-thumb: var(--primary-dark);
+
+  --surface-sunken: rgba(0, 0, 0, 0.3);
+  --shadow-elevated: rgba(0, 0, 0, 0.5);
+  --glow-primary-strong: rgba(var(--primary-rgb), 0.5);
+  --glow-primary-soft: rgba(var(--primary-rgb), 0.2);
+  --glow-primary-faint: rgba(var(--primary-rgb), 0.1);
+  --glow-warning-strong: rgba(245, 158, 11, 0.5);
+  --glow-danger-strong: rgba(239, 68, 68, 0.8);
+
 }
 
+/* Thème clair : les surfaces (--bg*) montent en clarté au lieu de descendre
+   vers le noir, donc les jetons qui dépendent de la direction du contraste ne
+   peuvent pas juste reprendre les valeurs du thème sombre :
+   - --primary-dark reste un vert TRÈS clair : ailleurs dans l'app il sert de
+     teinte de surbrillance (bg-(--primary-dark)/30, ring, bordure de citation)
+     et doit rester pâle pour donner un lavis doux sur fond clair, comme son
+     équivalent sombre (vert profond) donne un lavis doux sur fond sombre.
+   - --scrollbar-thumb est donc une variable séparée : elle réutilise ce même
+     vert profond en thème sombre (subtil sur fond noir), mais un thumb aussi
+     pâle serait quasi invisible sur fond blanc, d'où une teinte plus soutenue
+     dédiée ici.
+   - --text2 et --primary-rgb n'existaient pas du tout côté clair : toutes les
+     utilisations (texte secondaire, halos box-shadow) tombaient sur une
+     variable non définie et perdaient leur effet silencieusement.
+   - --surface-sunken / --shadow-elevated / --glow-* : les halos colorés et
+     ombres fortes (drag & drop, hover de carte, bouton de suppression...)
+     étaient câblés en dur avec des opacités pensées pour un fond quasi noir
+     (ex. rgba(0,0,0,0.5), rgba(var(--primary-rgb),0.5)). Sur fond clair, la
+     même opacité donne un halo beaucoup plus saturé et voyant (« flashy »,
+     « éblouissant ») au lieu d'un dégradé discret — ces jetons portent donc
+     des intensités nettement réduites côté clair, à valeur d'usage identique
+     côté sombre (comportement inchangé). */
 body.light {
-  
+
   --primary: #108e62;
   --primary-dark: #a7f3d0;
   --primary-hover: #0d7551;
+  --primary-rgb: 16, 142, 98;
 
   --bg: #fafafa;
   --bg2: #f4f4f5;
   --bg3: #e4e4e7;
-  
+
   --black: #000;
   --white: #fff;
 
   --text: #27272a;
+  --text2: rgba(39, 39, 42, 0.62);
 
   --border-color: rgba(0, 0, 0, 0.1);
+  --scrollbar-thumb: rgba(16, 142, 98, 0.35);
+
+  --surface-sunken: var(--bg3);
+  --shadow-elevated: rgba(0, 0, 0, 0.12);
+  --glow-primary-strong: rgba(var(--primary-rgb), 0.22);
+  --glow-primary-soft: rgba(var(--primary-rgb), 0.12);
+  --glow-primary-faint: rgba(var(--primary-rgb), 0.08);
+  --glow-warning-strong: rgba(245, 158, 11, 0.25);
+  --glow-danger-strong: rgba(239, 68, 68, 0.35);
 
 }
 
@@ -157,7 +203,13 @@ select {
 
 .list-enter-from {
   opacity: 0;
-  transform: translateX(50px) scale(0.9);
+  transform: translateY(-20px) scale(0.9);
+}
+
+@media (min-width: 40rem) {
+  .list-enter-from {
+    transform: translateX(50px) scale(0.9);
+  }
 }
 
 .list-leave-to {
@@ -250,6 +302,47 @@ select {
   transform: translateX(0);
 }
 
+/* Panneau plein écran mobile (OrgLayout "org-content") : contrairement aux
+   variantes ci-dessus, cet élément est déjà en position fixed/pleine largeur
+   — un simple translateX suffit, pas besoin de jouer sur la largeur. */
+.mobile-view-slide-enter-active,
+.mobile-view-slide-leave-active {
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.mobile-view-slide-enter-from,
+.mobile-view-slide-leave-to {
+  transform: translateX(100%);
+}
+
+.mobile-view-slide-enter-to,
+.mobile-view-slide-leave-from {
+  transform: translateX(0);
+}
+
+/* Navigation entre sous-pages à l'intérieur du panneau déjà ouvert (ex: tâches
+   -> tâches archivées) : contrairement au cas ci-dessus, l'ancienne et la
+   nouvelle page sont montées en même temps pendant la transition — sans
+   position absolute elles s'empileraient dans le flux et doubleraient la
+   hauteur le temps de l'animation. */
+.mobile-page-slide-enter-active,
+.mobile-page-slide-leave-active {
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  position: absolute !important;
+  inset: 0;
+}
+
+.mobile-page-slide-enter-from,
+.mobile-page-slide-leave-to {
+  transform: translateX(100%);
+}
+
+.mobile-page-slide-enter-to,
+.mobile-page-slide-leave-from {
+  transform: translateX(0);
+}
+
+
 .slide-in-right-enter-active,
 .slide-in-right-leave-active {
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -276,7 +369,7 @@ select {
 
 
 button.glass {
-  @apply p-2 bg-white/10 hover:bg-(--primary) rounded-full backdrop-blur-md text-(--text) border border-white/10 transition-colors;
+  @apply p-2 bg-(--text)/10 hover:bg-(--primary) rounded-full backdrop-blur-md text-(--text) border border-(--text)/10 transition-colors;
 }
 
 button.primary,
@@ -542,13 +635,13 @@ button.tab.active {
 }
 
 button.tab:not(.active) {
-  @apply hover:bg-white/5 hover:text-(--text);
+  @apply hover:bg-(--text)/5 hover:text-(--text);
 }
 
 
 * {
   scrollbar-width: 6px;
-  scrollbar-color: var(--primary-dark) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 *::-webkit-scrollbar {
@@ -561,7 +654,7 @@ button.tab:not(.active) {
 }
 
 *::-webkit-scrollbar-thumb {
-  background: var(--primary-dark);
+  background: var(--scrollbar-thumb);
   border-radius: 10px;
 }
 
@@ -647,4 +740,65 @@ button.tab:not(.active) {
 .page-lock-leave-to {
   opacity: 0;
   transform: scale(0.95);
+}
+
+
+/* Révélation de l'UI juste après le déverrouillage de la session (App.vue) :
+   application directe d'une animation CSS @keyframes plutôt que des classes
+   <Transition> de Vue — une animation se rejoue automatiquement à chaque
+   fois que le navigateur insère un nouvel élément portant cette classe
+   (v-if/v-else créent bien un nouveau nœud à chaque bascule), sans dépendre
+   du timing d'accrochage rAF de <Transition> ni de ses classes -enter-from
+   / -enter-active, qui peuvent être invisibles si l'état "avant" et l'état
+   "après" se résolvent dans le même tick. */
+@keyframes app-reveal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-app-reveal {
+  animation: app-reveal-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Barre latérale (SpaceBar) : glissement depuis la gauche plutôt qu'un
+   scale/fade générique — plus adapté à un élément qui vit sur le bord de
+   l'écran, et surtout beaucoup plus reconnaissable à l'oeil pour vérifier
+   que l'animation se déclenche bien. */
+@keyframes sidebar-reveal-in {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-sidebar-reveal {
+  animation: sidebar-reveal-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Petit signe de la main sur l'emoji 👋 du message d'accueil (OrgHome.vue) —
+   pivote depuis le poignet (transform-origin bas-droite), démarre une fois
+   le titre déjà apparu (délai) plutôt qu'en même temps que le fade-in. */
+@keyframes wave {
+  0%, 100% { transform: rotate(0deg); }
+  10% { transform: rotate(14deg); }
+  20% { transform: rotate(-8deg); }
+  30% { transform: rotate(14deg); }
+  40% { transform: rotate(-4deg); }
+  50% { transform: rotate(10deg); }
+  60% { transform: rotate(0deg); }
+}
+
+.animate-wave {
+  transform-origin: 70% 70%;
+  animation: wave 1.4s ease-in-out 0.5s 1;
 }

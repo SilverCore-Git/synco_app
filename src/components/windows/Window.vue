@@ -4,9 +4,10 @@
 
         <Transition name="fade">
 
-            <div 
-                v-if="isOpen" 
-                class="fixed inset-0 z-100 flex items-center justify-center p-2 sm:p-4 md:p-10 bg-black/60 backdrop-blur-sm"
+            <div
+                v-if="isOpen"
+                class="fixed inset-0 flex items-center justify-center p-2 sm:p-4 md:p-10 bg-black/60 backdrop-blur-sm"
+                :style="{ zIndex: props.zIndex }"
                 @click.self="emit('close')"
             >
 
@@ -15,7 +16,7 @@
                     <div 
                         v-if="isOpen"
                         class="
-                            w-full h-full bg-(--bg) border border-white/10 
+                            w-full h-full bg-(--bg) border border-(--text)/10 
                             rounded-2xl shadow-2xl overflow-hidden relative
                         "
                     >
@@ -25,7 +26,7 @@
                             <button 
                                 @click="emit('close')"
                                 class="
-                                    absolute right-2.5 top-2.5 p-2 rounded-lg hover:bg-white/10 
+                                    absolute right-2.5 top-2.5 p-2 rounded-lg hover:bg-(--text)/10 
                                     bg-(--bg)/60 backdrop-blur-md
                                     text-(--text2) hover:text-(--text) z-100
                                     active:scale-90 transition-all duration-200
@@ -56,10 +57,17 @@
 
 import { onMounted, onUnmounted } from 'vue';
 
-defineProps<{
+// Teleporté à body comme Popup.vue — sans z-index explicite de l'appelant,
+// rien ne garantit l'ordre d'empilement entre une Window et une Popup
+// ouverte depuis un contexte différent (ex: FileViewer ouvert depuis la
+// popup de détail d'une tâche a besoin de passer devant elle).
+const props = withDefaults(defineProps<{
   isOpen: boolean;
   hideCloseBtn?: boolean;
-}>();
+  zIndex?: number;
+}>(), {
+  zIndex: 100
+});
 
 const emit = defineEmits(['close']);
 

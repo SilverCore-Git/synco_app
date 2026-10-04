@@ -63,12 +63,12 @@
                     <p class="text-sm text-(--text2) mb-3">{{ u.email }}</p>
                     
                     <div v-if="u.description">
-                        <div class="w-full h-px bg-white/5 my-3"></div>
+                        <div class="w-full h-px bg-(--text)/5 my-3"></div>
                         <h3 class="text-[11px] font-bold text-(--text2) uppercase tracking-wide mb-2">À propos</h3>
                         <p class="text-sm text-(--text) leading-relaxed">{{ u.description }}</p>
                     </div>
 
-                    <div class="w-full h-px bg-white/5 my-3"></div>
+                    <div class="w-full h-px bg-(--text)/5 my-3"></div>
 
                     <!-- Role Section -->
                     <div class="mb-4">
@@ -95,7 +95,7 @@
                         </div>
                     </div>
 
-                    <div class="w-full h-px bg-white/5 my-3"></div>
+                    <div class="w-full h-px bg-(--text)/5 my-3"></div>
 
                     <!-- Membre depuis -->
                     <div>

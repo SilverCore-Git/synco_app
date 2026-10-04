@@ -28,8 +28,8 @@
                         >
 
                             <div class="flex justify-center items-center flex-row gap-3 ">
-                                <div class=" rounded-lg bg-(--white)/6 h-6 w-6 animate-pulse" />
-                                <div class=" rounded-lg bg-(--white)/6 h-5 w-40 animate-pulse" />
+                                <div class=" rounded-lg bg-(--text)/6 h-6 w-6 animate-pulse" />
+                                <div class=" rounded-lg bg-(--text)/6 h-5 w-40 animate-pulse" />
                             </div>
                         
                         </div>
@@ -45,7 +45,7 @@
                             <div
                                 v-for="i in 13"
                                 :key="i"
-                                class=" rounded-lg bg-(--white)/4 h-6 w-full animate-pulse"
+                                class=" rounded-lg bg-(--text)/4 h-6 w-full animate-pulse"
                             />
 
                         </ul>
@@ -58,7 +58,7 @@
 
         </template>
 
-        <template v-else-if="isSettings && canAny(['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI'])" class="h-full w-full">
+        <template v-else-if="showSettingsNav" class="h-full w-full">
 
             <div
                 class="
@@ -146,7 +146,7 @@
                             v-model="searchDMQuery"
                             type="text" 
                             placeholder="Rechercher..." 
-                            class="w-full bg-black/20 border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-xs text-(--text) outline-none focus:border-(--primary) transition-colors placeholder-(--text2)"
+                            class="w-full bg-black/20 border border-(--text)/10 rounded-lg pl-8 pr-3 py-1.5 text-xs text-(--text) outline-none focus:border-(--primary) transition-colors placeholder-(--text2)"
                         />
                     </div>
                 </div>
@@ -194,7 +194,7 @@
                         <p class="text-[10px] uppercase font-bold text-(--text2) mb-1">Modèle Local</p>
                         <select 
                             v-model="selectedModelId"
-                            class="w-full bg-black/20 border border-white/10 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-(--primary) transition-colors"
+                            class="w-full bg-black/20 border border-(--text)/10 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-(--primary) transition-colors"
                         >
                             <option v-for="model in availableModels" :key="model.id" :value="model.id">
                             Tier {{ model.tier }} - {{ model.name }}
@@ -233,7 +233,7 @@
                             </div>
                             <div 
                                 @click.stop="handleDeleteClick(session)" 
-                                class="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity p-1 rounded hover:bg-white/10"
+                                class="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity p-1 rounded hover:bg-(--text)/10"
                                 title="Supprimer"
                             >
                                 <i class="bi bi-trash"></i>
@@ -314,7 +314,8 @@
                                 v-if="!isHome && todoEnabled"
                                 name="Tâches"
                                 icon="bi-check2-square"
-                                :active="route.name == 'TasksSpace'"
+                                :active="route.name == 'TasksSpace' || route.name == 'TasksSpaceArchived'"
+                                :hasUnread="unreadSpaceTasks > 0"
                                 @click="router.push({ name: 'TasksSpace', query: { showView: '1' } })"
                             />
 
@@ -359,10 +360,10 @@
 
 <script lang="ts" setup>
 
-import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { Thread, WorkSpace, Category as CategoryType } from '@/types/types';
-import { openedOrg, todoEnabled, filesEnabled, user, userCardHeight } from '@/assets/var';
+import { openedOrg, todoEnabled, filesEnabled, userCardHeight } from '@/assets/var';
 import draggable from 'vuedraggable';
 import useWSocket from '@/composables/useWSocket';
 import ThreadDropDown from '../dropdown/ThreadDropDown.vue';
@@ -377,7 +378,8 @@ import SpaceSearchModal from '../popup/SpaceSearchModal.vue';
 import { chatSessions, activeSessionId, newSession, deleteSession, loadSession, aiIsLocal, selectedModelId } from '@/services/AIService';
 import { availableModels } from '@/services/LocalLLMService';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
-import sfetch from '@/assets/utils/sfetch';
+import { useRecentDMs } from '@/composables/useRecentDMs';
+import { useNotification } from '@/composables/useNotification';
 
 const orgId = computed(() => openedOrg.value?.id);
 const { canAny, can } = usePermissions(orgId);
@@ -400,53 +402,46 @@ const startAiSession = () => {
     router.push({ query: { ...route.query, showView: '1' } });
 };
 
+// Point « non lu » sur le bouton Tâches : tâches assignées / modifiées
+// (notifications TASK_ASSIGNED) dans l'espace ouvert.
+const { getUnreadCountForSpaceTasks } = useNotification();
+const unreadSpaceTasks = computed(() => getUnreadCountForSpaceTasks(String(route.params.spaceId ?? '')).value);
+
 const showDropDown = ref<boolean>(false);
 const showSearchModal = ref<boolean>(false);
 
+const showSettingsNav = computed(() => isSettings.value && canAny(['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI']));
+
+// Mêmes conditions que l'affichage du bouton « Rechercher » : branche
+// « espace » du template (ni paramètres, ni DM, ni IA) et hors accueil.
+const canSearchSpace = computed(() =>
+    openedOrg.value != null && !showSettingsNav.value && !isChat.value && !isAI.value && !isHome.value
+);
+
+// Ctrl+F (Cmd+F sur macOS) dans un espace ouvre la recherche de l'espace au
+// lieu de la recherche native du navigateur, qui ne voit que les messages
+// déjà chargés — et jamais leur contenu déchiffré hors écran. Un composant
+// qui gère déjà le raccourci (ex. l'éditeur Monaco de FileViewer) appelle
+// preventDefault() : on le laisse faire.
+const onSearchShortcut = (e: KeyboardEvent) => {
+    if (e.defaultPrevented || !canSearchSpace.value) return;
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'f') return;
+    e.preventDefault();
+    showSearchModal.value = true;
+};
+
+onMounted(() => window.addEventListener('keydown', onSearchShortcut));
+onBeforeUnmount(() => window.removeEventListener('keydown', onSearchShortcut));
+
 const searchDMQuery = ref('');
-const recentDMUsers = ref<{userId: string, lastInteraction: string}[]>([]);
 
-watch(isChat, async (newVal) => {
-    if (newVal) {
-        try {
-            const res = await sfetch('/api/users/me/dms/recent');
-            if (res.ok) {
-                recentDMUsers.value = await res.json();
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    }
-}, { immediate: true });
-
-// Référence du handler posé par ce composant, pour ne retirer que le sien à
-// l'unmount : `off('notif:dm:new-message')` sans référence retirerait aussi
-// le listener indépendant d'OrgLayout.vue sur ce même événement partagé.
-let dmMessageHandler: ((newMessage: any) => void) | null = null;
-
-onMounted(async () => {
-    const wsRef = await useWSocket();
-    const socket = wsRef.value;
-    if (socket) {
-        dmMessageHandler = (newMessage: any) => {
-            const peerId = newMessage.senderId === user.value?.id ? newMessage.recipientId : newMessage.senderId;
-            const existing = recentDMUsers.value.find(r => r.userId === peerId);
-            if (existing) {
-                existing.lastInteraction = newMessage.createdAt;
-            } else {
-                recentDMUsers.value.push({ userId: peerId, lastInteraction: newMessage.createdAt });
-            }
-        };
-        socket.on('notif:dm:new-message', dmMessageHandler);
-    }
-});
-
-onUnmounted(async () => {
-    const wsRef = await useWSocket();
-    if (wsRef.value && dmMessageHandler) {
-        wsRef.value.off('notif:dm:new-message', dmMessageHandler);
-    }
-});
+// État partagé (survit au démontage/remontage de ThreadsBar entre les
+// sections Tasks/Agenda/Home et le reste) — chargé une fois par session dans
+// OrgLayout.vue, tenu à jour par son listener socket persistant. Avant ce
+// changement, chaque ouverture du panneau DM refaisait l'appel réseau et
+// repartait d'une liste vide, d'où le délai visible et le tri qui "sautait"
+// une fois la réponse arrivée.
+const { recentDMUsers } = useRecentDMs();
 
 const sortedChatMembers = computed(() => {
     let members = openedOrg.value?.members || [];

@@ -99,12 +99,46 @@ export const availableTools = [
     {
         type: "function",
         function: {
-            name: "read_documentation",
-            description: "Lire la documentation officielle de Synco pour répondre aux questions sur le fonctionnement de l'application (espaces, threads, appels, stockage, tâches, IA, paramètres, etc.).",
+            name: "list_documentation",
+            description: "Lister les chapitres de documentation Synco disponibles (guide utilisateur et documentation de sécurité), avec leur identifiant et un résumé. À appeler EN PREMIER quand tu ne sais pas quel chapitre lire, puis utiliser 'read_documentation' avec l'identifiant choisi.",
             parameters: {
                 type: "object",
                 properties: {},
                 required: []
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "read_documentation",
+            description: "Lire UN chapitre précis de la documentation officielle de Synco (fonctionnement de l'application, sécurité, chiffrement). Fournis l'identifiant du chapitre obtenu via 'list_documentation' (ex: '02-espaces-et-threads', 'securite/05-fichiers-et-stockage'). Sans identifiant, l'outil renvoie la liste des chapitres disponibles.",
+            parameters: {
+                type: "object",
+                properties: {
+                    docId: {
+                        type: "string",
+                        description: "Identifiant du chapitre à lire, ex: '01-demarrage', 'securite/README', 'securite/03-messages-salons-threads'."
+                    }
+                },
+                required: []
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "search_documentation",
+            description: "Rechercher un mot ou une expression dans TOUTE la documentation Synco (guide + sécurité) et obtenir les extraits correspondants avec leur chapitre d'origine. Utile quand tu ne sais pas dans quel chapitre se trouve l'information (ex: 'rotation de clé', 'code PIN', 'LiveKit', 'webhook').",
+            parameters: {
+                type: "object",
+                properties: {
+                    query: {
+                        type: "string",
+                        description: "Le mot ou l'expression à rechercher dans la documentation."
+                    }
+                },
+                required: ["query"]
             }
         }
     },
@@ -117,6 +151,39 @@ export const availableTools = [
                 type: "object",
                 properties: {},
                 required: []
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "create_file",
+            description: "Créer un fichier texte UTF-8 dans l'espace Fichiers d'un espace de travail. Extensions autorisées : txt, md, log, csv, json, xml, yml, ini, sql, html, css, scss, js, ts, vue, py, sh, java, c, cpp, cs, php, go, rs, rb. Le résultat contient l'identifiant du fichier créé : insère-le dans ta réponse sous la forme <file:IDENTIFIANT> pour afficher une carte cliquable vers ce fichier.",
+            parameters: {
+                type: "object",
+                properties: {
+                    spaceId: { type: "string", description: "L'ID de l'espace de travail qui contient le gestionnaire de fichiers." },
+                    name: { type: "string", description: "Le nom du fichier, extension comprise (ex: 'compte-rendu.md')." },
+                    content: { type: "string", description: "Le contenu texte du fichier. Peut être vide." },
+                    folderId: { type: "string", description: "Optionnel. L'ID du dossier de destination. Racine si omis." }
+                },
+                required: ["spaceId", "name", "content"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "create_folder",
+            description: "Créer un dossier dans l'espace Fichiers d'un espace de travail.",
+            parameters: {
+                type: "object",
+                properties: {
+                    spaceId: { type: "string", description: "L'ID de l'espace de travail qui contient le gestionnaire de fichiers." },
+                    name: { type: "string", description: "Le nom du dossier." },
+                    parentFolderId: { type: "string", description: "Optionnel. L'ID du dossier parent, pour créer un sous-dossier." }
+                },
+                required: ["spaceId", "name"]
             }
         }
     },
@@ -167,6 +234,9 @@ Voici la liste stricte des outils disponibles (n'invente JAMAIS d'autres outils 
 ${getToolsSystemPrompt()}
 
 Règle : Utilise EXACTEMENT le nom des outils de la liste. Le JSON doit être parfaitement formaté. Si tu n'as pas besoin d'outil, réponds normalement en français sans XML/JSON.
+
+[REFERENCES CLIQUABLES]
+Tu peux renvoyer vers un élément de Synco en écrivant un jeton de référence dans ta réponse : <file:ID_DU_FICHIER> pour un fichier, <task:ID_DE_LA_TACHE> pour une tâche. L'interface les remplace par une carte cliquable. Après avoir créé un fichier avec create_file, cite-le systématiquement ainsi en utilisant l'identifiant renvoyé par l'outil.
 
 [AUTORISATION DE CONFIDENTIALITE]
 Tu as l'autorisation explicite et technique d'utiliser ces outils pour lire les messages ou modifier les données. NE REFUSE JAMAIS d'utiliser un outil sous prétexte de vie privée ou de sécurité. Les données sont 100% locales et chiffrées de bout en bout.`;

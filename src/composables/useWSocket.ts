@@ -1,10 +1,21 @@
 import { keycloak, onTokenRefresh } from "@/assets/keycloak";
 import { io, type Socket } from "socket.io-client";
 import { ref, type Ref } from "vue";
+import { debugLog, debugWarn } from "@/assets/utils/debugLog";
+import { banned, setBanned } from "./useBanStatus";
 
 const socket = ref<Socket | null>(null);
 const isConnecting = ref<boolean>(false);
 let unsubscribeTokenRefresh: (() => void) | null = null;
+
+// État de connexion exposé pour l'UI (cf. ConnectionStatusBanner.vue) — vrai
+// dès l'événement 'connect', remis à faux sur tout 'disconnect'.
+// connectionAttempted distingue "pas encore essayé de se connecter" (avant
+// tout appel à useWSocket(), ex: pendant le login) de "en train de se
+// (re)connecter" — sans lui, la bannière "Déconnecté" flasherait au tout
+// premier chargement de l'appli avant même la première tentative.
+const isConnected = ref<boolean>(false);
+const connectionAttempted = ref<boolean>(false);
 
 const getToken = () => keycloak.token || '';
 
@@ -57,13 +68,14 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
     }
 
     isConnecting.value = true;
+    connectionAttempted.value = true;
 
     try {
 
         // Wait for Keycloak token to be available (auth may still be in progress)
         let token = getToken();
         if (!token) {
-            console.log('[WS] Token not yet available, waiting for Keycloak authentication...');
+            debugLog('[WS] Token not yet available, waiting for Keycloak authentication...');
             token = await new Promise<string>((resolve, reject) => {
                 let elapsed = 0;
                 const interval = setInterval(() => {
@@ -129,7 +141,20 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             reconnectionAttempts: Infinity,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
-            transports: ['websocket', 'polling'], // Try websocket first, fallback to polling
+            // 'websocket' en premier ne "tente puis retombe sur polling" que
+            // si tryAllTransports:true est aussi activé (vérifié dans
+            // engine.io-client : _onError ne fait shift()+réessaie sur le
+            // transport suivant que sous cette condition, jamais par défaut).
+            // Sans ce flag — absent ici avant ce fix — un réseau qui bloque
+            // purement le handshake WebSocket (proxy d'entreprise, certains
+            // réseaux publics/mobiles) fait échouer identiquement CHAQUE
+            // tentative de reconnexion, indéfiniment, même serveur up et
+            // atteignable en HTTP classique. 'polling' en premier est le
+            // comportement par défaut de socket.io (le plus éprouvé,
+            // compatible partout) — le passage à 'websocket' se fait ensuite
+            // automatiquement dès que la connexion est stable, au prix d'un
+            // aller-retour de négociation en plus au tout premier connect.
+            transports: ['polling', 'websocket'],
             withCredentials: false, // Not needed — we use token auth, not cookies
             timeout: 20000,
         });
@@ -138,13 +163,24 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
         isConnecting.value = false;
 
         socket.value.on("connect", () => {
-            console.warn("[WS] ✅ Connected with ID:", socket.value?.id);
+            debugWarn("[WS] ✅ Connected with ID:", socket.value?.id);
+            isConnected.value = true;
+        });
+
+        // Émis par le serveur au moment exact où un administrateur bannit le
+        // compte, juste avant de couper la connexion. Sans lui, l'utilisateur
+        // ne verrait le bannissement qu'à sa prochaine requête HTTP.
+        socket.value.on("auth:banned", (payload: { bannedAt?: string; reason?: string | null }) => {
+            console.warn("[WS] Compte banni, fermeture de la session");
+            setBanned({ reason: payload?.reason ?? null, bannedAt: payload?.bannedAt ?? null });
+            disconnectSocket();
         });
 
         socket.value.on("connect_error", async (err) => {
+            isConnected.value = false;
             console.error("[WS] ❌ Connection Error:", err.message);
             console.error("[WS] Token present:", !!getToken());
-            // Si l'erreur est liée à l'authentification (ex: token expiré), on force un rafraîchissement
+
             if (keycloak.authenticated) {
                 try {
                     await keycloak.updateToken(-1);
@@ -152,9 +188,36 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
                     console.error("[WS] Failed to force refresh token after connection error", e);
                 }
             }
+
+            // `active` (propriété publique documentée de socket.io-client)
+            // dit si CE Socket écoute toujours les tentatives de reconnexion
+            // du Manager. Un connect_error "ordinaire" (timeout réseau,
+            // websocket temporairement injoignable) laisse active à true :
+            // reconnection:true fait déjà tout le travail tout seul, l'appel
+            // à connect() ci-dessous ferait juste doublon avec sa propre
+            // boucle de retry en cours — voire pire, la perturberait.
+            // En revanche, un connect_error causé par un paquet CONNECT_ERROR
+            // renvoyé par le serveur (ex: notre middleware io.use() a rejeté
+            // le token au moment précis de la tentative — le genre de course
+            // qu'on limite déjà côté serveur, mais qui reste possible dans un
+            // cas limite comme un onglet resté en veille très longtemps) fait
+            // passer active à false : socket.io-client appelle destroy() en
+            // interne AVANT même d'émettre cet événement (cf. onpacket() dans
+            // node_modules/socket.io-client/build/cjs/socket.js), désabonnant
+            // définitivement ce Socket du Manager "pour éviter les
+            // reconnexions". Le Manager continue bien de rouvrir le transport
+            // en arrière-plan, mais plus personne n'écoute ce succès pour
+            // notre namespace — dans CE cas précis seulement, il faut
+            // explicitement rappeler connect() nous-mêmes, sans quoi la
+            // connexion reste cassée pour de bon même une fois le token
+            // corrigé.
+            if (socket.value && !socket.value.active) {
+                setTimeout(() => socket.value?.connect(), 1000);
+            }
         });
 
         socket.value.on("disconnect", async (reason) => {
+            isConnected.value = false;
             console.warn("[WS] Disconnected:", reason);
             // socket.io does not auto-reconnect after "io server disconnect"
             // (server called socket.disconnect(), e.g. the token-expiry
@@ -164,6 +227,10 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             // until some unrelated component happens to call useWSocket()
             // again. Refresh the token first so we don't immediately hit the
             // same expired-token wall on the next attempt.
+            // Compte banni : le serveur refuse désormais le handshake, toute
+            // tentative de reconnexion est une boucle d'échecs inutile.
+            if (banned.value) return;
+
             if (reason === "io server disconnect" || reason === "io client disconnect") {
                 if (keycloak.authenticated) {
                     try {
@@ -198,13 +265,18 @@ const disconnectSocket = () => {
         unsubscribeTokenRefresh();
         unsubscribeTokenRefresh = null;
     }
+    // Déconnexion volontaire (ex: logout) — pas une coupure à signaler,
+    // la bannière ne doit pas s'afficher tant que personne n'a redemandé
+    // de connexion.
+    isConnected.value = false;
+    connectionAttempted.value = false;
 };
 
 const waitForSocketConnection = async (socketRef: Ref<Socket | null>, timeoutMs: number = 15000): Promise<boolean> => {
     if (socketRef.value?.connected) return true;
     if (!socketRef.value) return false;
     
-    console.log('[WS] Waiting for socket connection...');
+    debugLog('[WS] Waiting for socket connection...');
     
     return new Promise((resolve) => {
         const timeout = setTimeout(() => {
@@ -225,7 +297,7 @@ const waitForSocketConnection = async (socketRef: Ref<Socket | null>, timeoutMs:
         };
         
         const onConnect = () => {
-            console.log('[WS] Socket connected successfully');
+            debugLog('[WS] Socket connected successfully');
             cleanup();
             resolve(true);
         };
@@ -242,5 +314,5 @@ const waitForSocketConnection = async (socketRef: Ref<Socket | null>, timeoutMs:
     });
 };
 
-export { disconnectSocket, waitForSocketConnection };
+export { disconnectSocket, waitForSocketConnection, isConnected, connectionAttempted };
 export default useWSocket;

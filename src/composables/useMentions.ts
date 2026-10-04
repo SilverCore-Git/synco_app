@@ -1,4 +1,6 @@
+import { computed } from 'vue';
 import type { OrgMember, User } from '@/types/types';
+import { openedOrg } from '@/assets/var';
 
 // Token charset for a mention: any Unicode letter/digit (so accented names like "José" or
 // "Amélie" match, not just ASCII) plus underscore, hyphen, dot and apostrophe (for names like
@@ -18,6 +20,10 @@ export interface MentionEntry {
   name: string;
   pseudo?: string;
   special?: 'everyone' | 'here';
+  // Présent quand le trigger '@' mélange plusieurs kinds (membres + rôles) —
+  // absent pour les entrées "membre" classiques, où le kind est déjà porté
+  // par activeTriggerKind. Voir ThreadTextarea.vue insertMention.
+  kind?: 'role';
 }
 
 export type MentionTarget =
@@ -74,6 +80,14 @@ export const buildMentionLookup = (members: OrgMember[] | undefined): MentionLoo
   return { byToken, usersById };
 
 };
+
+// Table unique pour toute l'app, recalculée seulement quand les membres de
+// l'org ouverte changent. Un computed par message (ChatMessage, ThreadMessage,
+// MarkdownRender) reconstruisait la table ET s'abonnait aux propriétés de
+// chaque membre, pour chaque instance : ouvrir une conversation de 40
+// messages dans une org de 100 membres créait des dizaines de milliers
+// d'abonnements réactifs, une bonne part du gel à l'ouverture.
+export const orgMentionLookup = computed(() => buildMentionLookup(openedOrg.value?.members));
 
 export const extractMentionTokens = (content: string | undefined | null): string[] => {
 

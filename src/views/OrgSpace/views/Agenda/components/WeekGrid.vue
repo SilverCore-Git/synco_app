@@ -28,7 +28,7 @@
                     :key="occ.occurrenceKey"
                     :occurrence="occ"
                     compact
-                    @click.stop="emit('open-event', occ)"
+                    @click="emit('open-event', occ)"
                 />
             </div>
         </div>
@@ -57,9 +57,9 @@
                     :class="{ 'is-event-dragging': eventDrag?.occ.occurrenceKey === occ.occurrenceKey }"
                     :style="eventStyle(occ, day)"
                 >
-                    <div v-if="!isLocked(occ)" class="time-grid-resize-handle top" @pointerdown.stop="startEventDrag($event, occ, 'resize-top')" @click.stop></div>
-                    <EventChip :occurrence="occ" @click.stop="emit('open-event', occ)" @pointerdown.stop="isLocked(occ) ? undefined : startEventDrag($event, occ, 'move')" />
-                    <div v-if="!isLocked(occ)" class="time-grid-resize-handle bottom" @pointerdown.stop="startEventDrag($event, occ, 'resize-bottom')" @click.stop></div>
+                    <div v-if="!isLocked(occ)" class="time-grid-resize-handle top" @pointerdown.stop="startEventDrag($event, occ, 'resize-top')" @mousedown.stop @click.stop></div>
+                    <EventChip :occurrence="occ" @click="emit('open-event', occ)" @pointerdown.stop="isLocked(occ) ? undefined : startEventDrag($event, occ, 'move')" @mousedown.stop />
+                    <div v-if="!isLocked(occ)" class="time-grid-resize-handle bottom" @pointerdown.stop="startEventDrag($event, occ, 'resize-bottom')" @mousedown.stop @click.stop></div>
                 </div>
 
                 <div
@@ -559,6 +559,14 @@ interface EventDragState {
 }
 
 const eventDrag = ref<EventDragState | null>(null);
+// Glisser en attente de confirmation : tant qu'on n'a pas dépassé le seuil de
+// mouvement, on ne touche pas à `eventDrag` (donc pas de classe
+// is-event-dragging / pointer-events:none) — sinon un simple clic sans
+// déplacement fait disparaître la cible du clic natif qui suit juste après
+// (le mouseup/click est alors hit-testé sur l'élément derrière), et
+// @click="emit('open-event', occ)" ne se déclenche jamais.
+let pendingDrag: EventDragState | null = null;
+const DRAG_CONFIRM_PX = 4;
 
 function minutesOfDay(d: Date): number {
     return d.getHours() * 60 + d.getMinutes();
@@ -574,7 +582,7 @@ function startEventDrag(e: PointerEvent, occ: OccurrenceInstance, mode: EventDra
     const end = new Date(occ.endAt);
     const iso = isoDay(start);
 
-    eventDrag.value = {
+    pendingDrag = {
         occ,
         mode,
         pointerStartY: e.clientY,
@@ -590,8 +598,14 @@ function startEventDrag(e: PointerEvent, occ: OccurrenceInstance, mode: EventDra
 }
 
 function onEventDragMove(e: PointerEvent) {
-    if (!eventDrag.value) return;
-    const d = eventDrag.value;
+    if (!eventDrag.value && !pendingDrag) return;
+
+    if (!eventDrag.value) {
+        if (Math.abs(e.clientY - pendingDrag!.pointerStartY) < DRAG_CONFIRM_PX) return;
+        eventDrag.value = pendingDrag;
+    }
+
+    const d = eventDrag.value!;
     const deltaMin = snap((e.clientY - d.pointerStartY) / rowHeight * 60);
 
     if (d.mode === 'move') {
@@ -617,6 +631,7 @@ function onEventDragMove(e: PointerEvent) {
 function onEventDragEnd() {
     window.removeEventListener('pointermove', onEventDragMove);
     window.removeEventListener('pointerup', onEventDragEnd);
+    pendingDrag = null;
     if (!eventDrag.value) return;
 
     const d = eventDrag.value;

@@ -5,6 +5,7 @@ import { useToast } from './useToast';
 import { useRouter } from 'vue-router';
 import sfetch from '../assets/utils/sfetch';
 import type { NotificationType } from '../types/types';
+import { debugLog } from '../assets/utils/debugLog';
 
 // Types étendus pour le frontend
 export interface NotificationData {
@@ -86,7 +87,9 @@ const permission = ref<NotificationPermission>('default');
 const isGranted = computed(() => permission.value === 'granted');
 
 // Compteur de notifications non lues
-const unreadCount = computed(() => {
+// Exporté au niveau module (en plus du retour de useNotification()) pour les
+// consommateurs hors contexte de composant, ex. useFavicon.ts.
+export const unreadCount = computed(() => {
   return notifications.value.filter(n => !n.isRead).length;
 });
 
@@ -331,16 +334,25 @@ export function useNotification() {
   };
 
   /**
-   * Marquer toutes les notifications de tâches comme lues
+   * Notification liée aux tâches : TASK_ASSIGNED est ce qu'émet réellement
+   * l'API (tasksService.ts notifyTaskAssignment, création/mise à jour) ;
+   * CUSTOM/TASK_UPDATE est l'ancien format, gardé pour les notifs en base.
    */
-  const markTasksAsRead = async (): Promise<void> => {
+  const isTaskNotification = (n: AppNotification): boolean =>
+    n.type === 'TASK_ASSIGNED' || (n.type === 'CUSTOM' && n.data?.type === 'TASK_UPDATE');
+
+  /**
+   * Marquer les notifications de tâches comme lues — limité à un espace si
+   * spaceId est fourni (vue Tâches d'un espace), sinon toutes.
+   */
+  const markTasksAsRead = async (spaceId?: string): Promise<void> => {
     try {
       let markedCount = 0;
       const promises: Promise<void>[] = [];
 
       // Optimistic update
       notifications.value.forEach(n => {
-        if (!n.isRead && n.type === 'CUSTOM' && n.data?.type === 'TASK_UPDATE') {
+        if (!n.isRead && isTaskNotification(n) && (!spaceId || n.data?.spaceId === spaceId)) {
           n.isRead = true;
           markedCount++;
           // We can use the existing read API per notification
@@ -418,8 +430,18 @@ export function useNotification() {
         notifications.value.unshift(notification);
       }
 
-      // Afficher une toast notification
-      showToastNotification(notification);
+      // Les messages (DM ou salon) ont déjà leur propre toast riche — avatar,
+      // nom, aperçu du contenu, clic vers le message en surbrillance — posté
+      // indépendamment par useNotifications.ts (cf. OrgLayout.vue, événements
+      // notif:new-message / notif:dm:new-message). Doubler avec ce toast
+      // générique ("Vous avez reçu un nouveau message", sans avatar ni lien
+      // fonctionnel) ne faisait qu'empiler une seconde popup à chaque message,
+      // y compris pour un thread qu'on est déjà en train de regarder. On
+      // garde l'entrée dans la liste (centre de notifications, badge) mais on
+      // n'affiche pas ce toast-ci pour ce type.
+      if (notification.type !== 'MESSAGE') {
+        showToastNotification(notification);
+      }
     });
 
     // Notification marquée comme lue (synchronisation entre onglets)
@@ -438,11 +460,20 @@ export function useNotification() {
     });
   };
 
+  // Types traités comme des demandes/réponses actionnables (comme un appel
+  // manqué) plutôt que de simples toasts d'information — on veut le même
+  // "ding" que pour les autres notifications importantes, contrairement aux
+  // toasts génériques (validation, erreur réseau...) qui ne doivent pas sonner.
+  const SOUND_NOTIF_TYPES: NotificationType[] = [
+    'CALENDAR_ACCESS_REQUEST', 'CALENDAR_ACCESS_INVITE',
+    'CALENDAR_ACCESS_GRANTED', 'CALENDAR_ACCESS_DECLINED', 'CALENDAR_ACCESS_REVOKED'
+  ];
+
   /**
    * Afficher une notification toast
    */
   const showToastNotification = (notification: AppNotification): void => {
-    toast.show(notification.body, getToastType(notification.type), 8000);
+    toast.show(notification.body, getToastType(notification.type), 8000, SOUND_NOTIF_TYPES.includes(notification.type));
   };
 
   /**
@@ -460,6 +491,11 @@ export function useNotification() {
         return 'success';
       case 'TASK_ASSIGNED':
         return 'info';
+      case 'MISSED_CALL':
+      case 'MISSED_MEET':
+        return 'warning';
+      case 'WORKSPACE_ADDED':
+        return 'success';
       case 'CUSTOM':
       default:
         return 'info';
@@ -476,10 +512,12 @@ export function useNotification() {
     // Naviguer en fonction du type et des données
     switch (notification.type) {
       case 'MESSAGE':
-        if (notification.data?.threadId) {
-          router.push(`/chat/thread/${notification.data.threadId}`);
-        } else if (notification.data?.dmUserId) {
-          router.push(`/chat/dm/${notification.data.dmUserId}`);
+        // /chat/thread/:id et /chat/dm/:id n'ont jamais été des routes valides
+        // (les salons/DM vivent sous /:orgId/..., cf. router.ts) — le backend
+        // fournit maintenant directement le bon chemin, avec le message ciblé
+        // en surbrillance via ?select=.
+        if (notification.data?.route) {
+          router.push(notification.data.route);
         }
         break;
       case 'CALL':
@@ -541,7 +579,7 @@ export function useNotification() {
   const initFCMService = async (): Promise<void> => {
     try {
       // Ce sera géré par le composable useFCM.ts séparé
-      console.log('[Notifications] FCM service initialization (handled by useFCM)');
+      debugLog('[Notifications] FCM service initialization (handled by useFCM)');
     } catch (error) {
       console.error('[Notifications] FCM initialization error:', error);
     }
@@ -553,7 +591,7 @@ export function useNotification() {
   const initCapacitorService = async (): Promise<void> => {
     try {
       // À implémenter dans notifications_capacitor_mobile.md
-      console.log('[Notifications] Capacitor service initialization');
+      debugLog('[Notifications] Capacitor service initialization');
     } catch (error) {
       console.error('[Notifications] Capacitor initialization error:', error);
     }
@@ -565,7 +603,7 @@ export function useNotification() {
   const initTauriService = async (): Promise<void> => {
     try {
       // À implémenter dans notifications_tauri_desktop.md
-      console.log('[Notifications] Tauri service initialization');
+      debugLog('[Notifications] Tauri service initialization');
     } catch (error) {
       console.error('[Notifications] Tauri initialization error:', error);
     }
@@ -636,8 +674,17 @@ export function useNotification() {
    * Obtenir le nombre de notifications non lues pour les tâches
    */
   const getUnreadCountForTasks = computed(() => {
-    return notifications.value.filter(n => !n.isRead && n.type === 'CUSTOM' && n.data?.type === 'TASK_UPDATE').length;
+    return notifications.value.filter(n => !n.isRead && isTaskNotification(n)).length;
   });
+
+  /**
+   * Obtenir le nombre de notifications de tâches non lues pour un espace
+   */
+  const getUnreadCountForSpaceTasks = (spaceId: string): Ref<number> => {
+    return computed(() => {
+      return notifications.value.filter(n => !n.isRead && isTaskNotification(n) && n.data?.spaceId === spaceId).length;
+    });
+  };
 
   /**
    * Obtenir le nombre de notifications non lues pour tous les messages privés
@@ -663,6 +710,7 @@ export function useNotification() {
     getUnreadCountByThreadId,
     getUnreadCountByDMUserId,
     getUnreadCountForTasks,
+    getUnreadCountForSpaceTasks,
     getUnreadCountForDMs,
 
     // Méthodes

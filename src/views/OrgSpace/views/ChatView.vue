@@ -16,7 +16,7 @@
                     :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`" 
                     :alt="$p(recipient.name)"
                     @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`"
-                    class="w-9 h-9 rounded-full border border-white/10"
+                    class="w-9 h-9 rounded-full border border-(--text)/10"
                 />
 
                 <div class="flex flex-col">
@@ -79,14 +79,16 @@
         <main 
             ref="messagesContainer"
             @scroll="handleScroll"
-            class="flex-1 overflow-y-auto p-4 custom-scrollbar w-full mb-18"
+            @media-loaded="onMediaLoaded"
+            class="flex-1 overflow-y-auto p-4 custom-scrollbar w-full"
+            :style="{ marginBottom: footerHeight + 'px' }"
         >
                 
             <div v-if="recipient" class="flex flex-col justify-end min-h-full w-full">
                     
-                <div class="mb-8 p-6 border-b border-(--border-color) bg-white/1 rounded-2xl mx-4">
+                <div class="mb-8 p-6 border-b border-(--border-color) bg-(--text)/1 rounded-2xl mx-4">
                    
-                    <div class="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4 overflow-hidden border-2 border-white/10">
+                    <div class="w-20 h-20 rounded-full bg-(--text)/5 flex items-center justify-center mb-4 overflow-hidden border-2 border-(--text)/10">
                         <img 
                             :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`" 
                             class="w-full h-full object-cover" 
@@ -105,10 +107,10 @@
                     <template v-if="loading">
 
                         <div v-for="n in 10" :key="n" class="px-4 py-2 animate-pulse flex gap-3">
-                            <div class="bg-white/5 rounded-full w-9 h-9 shrink-0" />
+                            <div class="bg-(--text)/5 rounded-full w-9 h-9 shrink-0" />
                             <div class="flex-1 space-y-2">
-                                <div class="bg-white/5 w-24 h-3 rounded-full" />
-                                <div class="bg-white/5 w-3/4 h-4 rounded-lg" />
+                                <div class="bg-(--text)/5 w-24 h-3 rounded-full" />
+                                <div class="bg-(--text)/5 w-3/4 h-4 rounded-lg" />
                             </div>
                         </div>
 
@@ -120,9 +122,13 @@
                             <div class="animate-spin h-5 w-5 border-2 border-(--primary) border-t-transparent rounded-full" />
                         </div>
 
+                        <template v-for="(msg, index) in messages" :key="msg.id">
+                        <div v-if="showUnreadDelimiterAfterId === msg.id" class="flex items-center gap-4 my-6 px-4">
+                            <div class="h-px flex-1 bg-red-500/50"></div>
+                            <span class="text-xs font-bold text-red-500 uppercase tracking-widest">Nouveaux messages</span>
+                            <div class="h-px flex-1 bg-red-500/50"></div>
+                        </div>
                         <ChatMessage
-                            v-for="(msg, index) in messages"
-                            :key="msg.id"
                             :id="'msg-' + msg.id"
 
                             :selected-message="selectedMessage"
@@ -132,7 +138,10 @@
                             :is-editing="editingMessageId === msg.id"
                             @edit-start="editingMessageId = msg.id"
                             @edit-end="endEdit"
+                            @retry-send="retrySend(msg.id)"
+                            @discard-send="discardFailed(msg.id)"
                         />
+                        </template>
 
                     </template>
 
@@ -141,7 +150,7 @@
             </div>
 
             <div v-else class="h-full flex flex-col items-center justify-center gap-4">
-                <div class="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center text-4xl opacity-20">
+                <div class="w-20 h-20 rounded-full bg-(--text)/5 flex items-center justify-center text-4xl opacity-20">
                     <i class="bi bi-person-x" />
                 </div>
                 <p class="text-(--text2) italic font-medium">Sélectionnez une discussion.</p>
@@ -149,7 +158,7 @@
 
         </main>
 
-        <footer v-if="recipient" class="absolute bottom-0 inset-x-0 z-[110] p-1 bg-transparent mt-auto">
+        <footer v-if="recipient" ref="footerRef" class="absolute bottom-0 inset-x-0 z-[110] p-1 bg-transparent mt-auto">
 
             <div v-if="isSomeoneTyping" class="h-5 flex justify-start items-center px-4 gap-2 select-none">
             
@@ -170,29 +179,11 @@
 
             <transition name="fade-bottom">
 
-                <div 
-                    v-if="messageWillBeResponded" 
-                    class="
-                        z-50 mb-2 flex items-center gap-3 bg-(--bg)/80 backdrop-blur-3xl
-                        border border-(--primary)/30 rounded-lg px-4 py-3
-                    "
-                >
-                    
-                    <div class="flex-1 min-w-0">
-                        <p class="text-md text-(--primary) font-semibold mb-1">
-                            Répondre à {{ getMessageSenderName(messageWillBeResponded as any) }}
-                        </p>
-                    </div>
-
-                    <button 
-                        @click="cancelReply"
-                        class="shrink-0 text-(--text2) hover:text-(--text) transition-colors"
-                        title="Annuler la réponse"
-                    >
-                        <i class="bi bi-x-lg text-lg" />
-                    </button>
-
-                </div>
+                <ReplyBanner
+                    v-if="messageWillBeResponded"
+                    :msg="messageWillBeResponded"
+                    @cancel="cancelReply"
+                />
 
             </transition>
 
@@ -208,13 +199,13 @@
                     <div
                         v-for="(file, index) in selectedFiles"
                         :key="index"
-                        class="relative group bg-(--bg) border border-white/10 rounded-md px-3 py-1 flex items-center gap-2 overflow-hidden max-w-full min-w-0"
+                        class="relative group bg-(--bg) border border-(--text)/10 rounded-md px-3 py-1 flex items-center gap-2 overflow-hidden max-w-full min-w-0"
                     >
                     
                         <div 
                             v-if="fileSendProgress !== null"
                             class="absolute bottom-0 left-0 h-0.5 bg-(--primary) transition-all duration-300"
-                            :style="{ width: fileSendProgress + '%' }"
+                            :style="{ width: (fileProgress[index] ?? 0) + '%' }"
                         />
 
                         <div class="w-10 h-10 shrink-0 flex items-center justify-center rounded bg-(--bg) border border-(--text)/5">
@@ -224,6 +215,10 @@
                         </div>
 
                         <span class="text-xs truncate max-w-50">{{ file.name }}</span>
+                        <span v-if="fileSendProgress !== null" class="text-[10px] tabular-nums text-(--text2) shrink-0 w-8 text-right">
+                            <i v-if="(fileProgress[index] ?? 0) >= 100" class="bi bi-check-lg text-(--primary)" />
+                            <template v-else>{{ fileProgress[index] ?? 0 }}%</template>
+                        </span>
 
                         <button 
                             v-if="fileSendProgress === null"
@@ -260,7 +255,7 @@
                     </span>
                 </div>
 
-                <div class="relative flex items-center bg-(--bg) border border-white/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
+                <div class="relative flex items-center bg-(--bg) border border-(--text)/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
 
                     <input
                         type="file"
@@ -321,7 +316,10 @@
 
         </footer>
 
-        <div v-if="isPrivateMeet" class="absolute inset-0 z-50 backdrop-blur-xs">
+        <!-- z-[150] : au-dessus du footer normal ci-dessus (z-[110], toujours
+             monté sous cet overlay), sinon sa textarea passait devant celle
+             de la session éphémère au lieu d'être masquée derrière. -->
+        <div v-if="isPrivateMeet" class="absolute inset-0 z-[150] backdrop-blur-xs">
             <PrivateMeetView />
         </div>
 
@@ -362,9 +360,9 @@
 
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import type { DMMessage, OrgMember } from '@/types/types';
-import { openedOrg, user } from '@/assets/var';
-import useWSocket from '@/composables/useWSocket';
+import type { DMMessage, OrgMember, User } from '@/types/types';
+import { openedOrg, user, isLittleScreen } from '@/assets/var';
+import useWSocket, { waitForSocketConnection } from '@/composables/useWSocket';
 import type { Socket } from 'socket.io-client';
 import getColorByStatus from '@/assets/utils/getColorByStatus';
 import getTextByStatus from '@/assets/utils/getTextByStatus';
@@ -376,12 +374,18 @@ import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import useSecurePeer from '@/composables/useSecurePeer';
 
 import { E2EEUnloked, privateKey, encryptForPeer, decryptFromPeer } from '@/assets/utils/crypto';
+import { extractReferenceTokens } from '@/composables/useReferences';
 import PrivateMeetView from './PrivateMeetView.vue';
+import usePrivateMeet from '@/composables/usePrivatMeet';
 import ChatMessage from '../components/common/ChatMessage.vue';
+import ReplyBanner from '../components/common/ReplyBanner.vue';
+import useFooterInset from '@/composables/useFooterInset';
 import { uploadFiles } from '@/assets/uploadFile';
 import useResponse from '@/composables/useResponse';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useNotification } from '@/composables/useNotification';
+import { useRecentDMs } from '@/composables/useRecentDMs';
+import { getCachedPlaintext, setCachedPlaintext } from '@/assets/utils/dmPlaintextCache';
 import { checkKeyTrust, trustKey, computeKeyFingerprint, type KeyTrustResult } from '@/assets/utils/keyTrust';
 import Popup from '@/components/Popup.vue';
 
@@ -389,22 +393,63 @@ const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const { startCall } = useSecurePeer();
+const { activeMeetPeerId, startMeet } = usePrivateMeet();
 const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
-const { markDMAsRead } = useNotification();
+const { markDMAsRead, getUnreadCountByDMUserId } = useNotification();
+const { fetchRecentDMs, getMostRecentDMUserId } = useRecentDMs();
 
 const socket = ref<Socket | null>(null);
 
 const TextareaRef = ref<InstanceType<typeof ThreadTextarea> | null>(null);
 const isPrivateMeet = computed(() => route.name == 'OrgThreadChatPrivateMeet');
+
+// Si on ouvre le DM normal de quelqu'un avec qui une session éphémère
+// tourne déjà (potentiellement démarrée depuis une tout autre page, la
+// session survit maintenant à la navigation), on est redirigé sur cette
+// session au lieu de voir le DM normal — "retourner sur la discussion doit
+// nous ramener sur elle", plutôt que de la laisser tourner invisible en
+// arrière-plan sans qu'on puisse y revenir autrement qu'en re-cliquant
+// "Session éphémère".
+watch(
+    [() => route.name, () => route.params.userId, activeMeetPeerId],
+    ([routeName, userId, meetPeerId]) => {
+        if (routeName === 'OrgThreadChat' && meetPeerId && meetPeerId === userId) {
+            router.replace({ name: 'OrgThreadChatPrivateMeet', params: { userId } });
+        }
+    },
+    { immediate: true }
+);
 const isE2EEEnabled = ref<boolean>(true);
 const messages = ref<any[]>([]);
 const newMessage = ref<string>("");
 const messagesContainer = ref<HTMLElement | null>(null);
+const footerRef = ref<HTMLElement | null>(null);
+const { footerHeight } = useFooterInset(footerRef, messagesContainer, 72);
 const loading = ref<boolean>(true);
 const isFetchingMore = ref<boolean>(false);
 const hasMore = ref<boolean>(true);
 const isSomeoneTyping = ref<boolean>(false);
+const showUnreadDelimiterAfterId = ref<string | null>(null);
+
+// Même mécanisme que ThreadView.vue (localStorage `lastRead_...` + marqueur
+// affiché au dernier id connu) — juste scopé par destinataire plutôt que par thread.
+const saveLastRead = () => {
+    if (!recipient.value || messages.value.length === 0) return;
+    const lastMsg = messages.value[messages.value.length - 1];
+    if (!lastMsg) return;
+    localStorage.setItem(`lastRead_dm_${recipient.value.id}`, lastMsg.id);
+};
 let typingTimeout: any = null;
+
+// Même fix que ThreadView.vue (salons) : distingue "on ouvre/change
+// réellement de conversation" de "le socket vient de se reconnecter alors
+// qu'on regarde toujours le même DM" — sans ça, toute reconnexion
+// socket.io (coupure réseau, veille, redémarrage serveur...) vidait
+// visuellement la conversation puis la rechargeait avec un saut de scroll
+// forcé, alors que rien n'avait réellement changé.
+let joinedDMUserId: string | null = null;
+// Conversation pour laquelle le dernier "charger plus" a été demandé.
+let loadMoreFor: string | null = null;
 const editingMessageId = ref<string | null>(null);
 
 const editLastOwnMessage = () => {
@@ -425,6 +470,8 @@ const endEdit = () => {
 
 const selectedFiles = ref<File[]>([]);
 const fileSendProgress = ref<null | number>(null);
+// Progression de chaque fichier en cours d'envoi (même index que selectedFiles).
+const fileProgress = ref<number[]>([]);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
 const selectedMessage = computed<string>(() => String(route.query.select));
@@ -557,7 +604,37 @@ const removeFile = (index: number) => {
 // getFileInfo expects a StoredFile (originalName/mimeType) — the preview
 // chips render raw File objects (name/type) before upload, so adapt here
 // rather than changing the shared util every other caller relies on.
-const getSelectedFileInfo = (file: File) => getFileInfo({ originalName: file.name, mimeType: file.type } as any);
+const getSelectedFileInfo = (file: File) => getFileInfo({ originalName: file.name, mimeType: file.type });
+
+// Les deux seuls utilisateurs d'un DM sont moi et le destinataire, tous deux
+// déjà chargés côté client : l'historique allégé du serveur (dmHistorySelect,
+// synco_api/src/websocket/routes/dm.ts) n'envoie plus que leurs ids, on
+// rattache ici les objets User correspondants.
+const participantById = (id: string | null | undefined): User | undefined => {
+    if (!id) return undefined;
+    if (id === user.value?.id) return user.value ?? undefined;
+    if (id === recipient.value?.id) return recipient.value;
+    return openedOrg.value?.members?.find((m: OrgMember) => m.user?.id === id)?.user;
+};
+
+const hydrateParticipants = (msg: DMMessage): DMMessage => {
+    const hydrated: DMMessage = {
+        ...msg,
+        sender: msg.sender ?? participantById(msg.senderId),
+        recipient: msg.recipient ?? participantById(msg.recipientId),
+    };
+    if (msg.replyMessage && !msg.replyMessage.sender) {
+        hydrated.replyMessage = { ...msg.replyMessage, sender: participantById(msg.replyMessage.senderId) };
+    }
+    if (Array.isArray(msg.reactions)) {
+        hydrated.reactions = msg.reactions.map((r: any) => {
+            if (r.user) return r;
+            const u = participantById(r.userId);
+            return { ...r, user: u ? { id: u.id, name: u.name, avatarUrl: u.avatarUrl } : { id: r.userId } };
+        });
+    }
+    return hydrated;
+};
 
 const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<DMMessage | null> => {
 
@@ -580,9 +657,13 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<
             return { ...msg, content: msg.content };
         }
 
+        const cached = getCachedPlaintext(msg.id, msg.nonce);
+        if (cached !== undefined) return { ...msg, content: cached };
+
         try {
 
             const clearText = await decryptFromPeer(msg.content, keyToUse, msg.nonce, privateKey.value);
+            setCachedPlaintext(msg.id, msg.nonce, clearText);
             return { ...msg, content: clearText };
 
         } 
@@ -593,83 +674,206 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<
 
 };
 
+// Contenu principal uniquement (pas la citation), tous les messages en même
+// temps : WebCrypto parallélise lui-même les déchiffrements RSA.
+const decryptMain = (list: DMMessage[]): Promise<DMMessage[]> =>
+    Promise.all(list.map(async m => (await decryptSingleMessage(m)) ?? m));
 
+// Texte clair des messages déjà déchiffrés, par id : une citation dont le
+// message d'origine est dans la liste se résout sans aucun déchiffrement.
+const knownPlaintexts = (list: DMMessage[]): Map<string, string> =>
+    new Map(list.filter(m => !m.decrypting).map(m => [m.id, m.content]));
 
-const procesMessages = async (msgs: DMMessage[]) => {
+// Une citation déjà résolue porte `decrypting: false` ; une citation encore
+// chiffrée porte `decrypting: true` jusqu'au palier 3 (ChatMessage.vue affiche
+// alors un chargement à la place du texte).
+const resolveReplyLocally = (reply: DMMessage, known: Map<string, string>): DMMessage => {
+    if (reply.decrypting === false) return reply;
+    const local = known.get(reply.id) ?? (reply.nonce ? getCachedPlaintext(reply.id, reply.nonce) : undefined);
+    if (local !== undefined) return { ...reply, content: local, decrypting: false };
+    if (!reply.isE2EE || !reply.content) return { ...reply, decrypting: false };
+    return { ...reply, decrypting: true };
+};
 
-    const BATCH_SIZE = 10;
-    const results: (DMMessage | null)[] = [];
+const attachReplies = (list: DMMessage[], known: Map<string, string>): DMMessage[] =>
+    list.map(m => m.replyMessage && m.replyMessage.decrypting !== false
+        ? { ...m, replyMessage: resolveReplyLocally(m.replyMessage, known) }
+        : m);
 
-    for (let i = 0; i < msgs.length; i += BATCH_SIZE) {
-        const batch = msgs.slice(i, i + BATCH_SIZE);
+const decryptReply = async (reply: DMMessage): Promise<DMMessage> =>
+    ({ ...((await decryptSingleMessage(reply)) ?? reply), decrypting: false });
 
-        const decryptedBatch = await Promise.all(batch.map(async m => {
-            let decryptedMain = await decryptSingleMessage(m);
-            if (!decryptedMain) return m;
+// Déchiffrement complet, sans paliers — pour les messages qui arrivent un par
+// un ou par petits paquets (nouveau message, édition, "charger plus").
+const procesMessages = async (msgs: DMMessage[]): Promise<DMMessage[]> => {
+    const main = await decryptMain(msgs.map(hydrateParticipants));
+    const withReplies = attachReplies(main, knownPlaintexts([...messages.value, ...main]));
+    return Promise.all(withReplies.map(async m =>
+        m.replyMessage?.decrypting ? { ...m, replyMessage: await decryptReply(m.replyMessage) } : m
+    ));
+};
 
-            if (decryptedMain.replyMessage) {
-                const decryptedReply = await decryptSingleMessage(decryptedMain.replyMessage);
-                if (decryptedReply) {
-                    decryptedMain.replyMessage = decryptedReply;
-                }
-            }
+// Applique une mise à jour de la liste sans faire sauter l'écran : quand des
+// messages au-dessus du viewport changent de hauteur (texte déchiffré à la
+// place du chargement), on reste collé en bas si on y était, sinon on garde
+// la même distance au bas du fil.
+const updateKeepingScroll = async (update: () => void) => {
+    const el = messagesContainer.value;
+    const fromBottom = el ? el.scrollHeight - el.scrollTop : 0;
+    update();
+    await nextTick();
+    if (!el) return;
+    el.scrollTop = stickToBottom ? el.scrollHeight : el.scrollHeight - fromBottom;
+};
 
-            return decryptedMain;
-        }));
+// Paliers de déchiffrement d'un historique (RSA-4096 par message : quelques
+// ms chacun, bien plus sur certains moteurs) :
+//   1. les FIRST_TIER_SIZE messages les plus récents — ceux à l'écran —
+//      puis affichage immédiat, les plus anciens en chargement ;
+//   2. le reste de l'historique ;
+//   3. les citations dont le message d'origine n'est pas dans la liste.
+// Chaque palier vérifie que son join est toujours le plus récent : changer de
+// conversation en plein déchiffrement l'abandonne au lieu d'afficher les
+// messages de l'ancienne conversation dans la nouvelle.
+const FIRST_TIER_SIZE = 10;
 
-        results.push(...decryptedBatch);
+const applyHistory = async (seq: number, data: { messages: DMMessage[]; hasMore: boolean }, silent: boolean) => {
 
-        // Yield to main thread after each batch so the UI can paint
-        if (i + BATCH_SIZE < msgs.length) {
-            await new Promise(r => setTimeout(r, 0));
-        }
+    const isCurrent = () => seq === joinSeq;
+    const history = (data.messages || []).map(hydrateParticipants);
+
+    // Messages reçus ou envoyés pendant le join (dm:new-message, envoi en
+    // cours) : plus récents que l'historique, on les garde à la suite.
+    const historyIds = new Set(history.map(m => m.id));
+    const lastTs = history.length ? new Date(history[history.length - 1]!.createdAt).getTime() : 0;
+    const extras = () => messages.value.filter(m =>
+        !historyIds.has(m.id) && (String(m.id).startsWith('temp-') || new Date(m.createdAt).getTime() > lastTs)
+    );
+
+    // Rejoin silencieux (reconnexion) : la conversation est déjà affichée,
+    // pas de paliers ni de chargement visibles — tout d'un coup, le cache
+    // rend de toute façon l'opération quasi instantanée.
+    const split = silent ? 0 : Math.max(0, history.length - FIRST_TIER_SIZE);
+    const older = history.slice(0, split);
+    const recent = history.slice(split);
+
+    // Palier 1
+    const recentDone = await decryptMain(recent);
+    if (!isCurrent()) return;
+
+    messages.value = [
+        ...older.map(m => ({
+            ...m,
+            decrypting: true,
+            replyMessage: m.replyMessage ? { ...m.replyMessage, decrypting: true } : m.replyMessage,
+        })),
+        ...attachReplies(recentDone, knownPlaintexts(recentDone)),
+        ...extras(),
+    ];
+    hasMore.value = data.hasMore;
+    loading.value = false;
+
+    // Rejoin silencieux : forcer le scroll jetterait l'utilisateur en bas
+    // alors qu'il relisait peut-être plus haut.
+    if (!silent) {
+        scrollToBottom(true);
+        setTimeout(() => { saveLastRead(); }, 500); // Après la fin du scroll
     }
 
-    // Backend sends messages pre-sorted — no need to re-sort
-    return results as DMMessage[];
+    // Palier 2
+    if (older.length) {
+        const olderDone = await decryptMain(older);
+        if (!isCurrent()) return;
+        const known = knownPlaintexts([...olderDone, ...recentDone]);
+        const byId = new Map(olderDone.map(m => [m.id, m]));
+        // Repasse aussi les citations du palier 1 : leur message d'origine
+        // vient peut-être d'être déchiffré.
+        await updateKeepingScroll(() => {
+            messages.value = attachReplies(messages.value.map(m => byId.get(m.id) ?? m), known);
+        });
+    }
 
+    // Palier 3
+    const pending = messages.value.filter(m => m.replyMessage?.decrypting);
+    if (!pending.length) return;
+    const replies = new Map(await Promise.all(
+        pending.map(async m => [m.id, await decryptReply(m.replyMessage!)] as const)
+    ));
+    if (!isCurrent()) return;
+    await updateKeepingScroll(() => {
+        messages.value = messages.value.map(m => replies.has(m.id) ? { ...m, replyMessage: replies.get(m.id) } : m);
+    });
+
+};
+
+const isFromCurrentDM = (msg: DMMessage) => {
+    const peerId = msg.senderId === user.value?.id ? msg.recipientId : msg.senderId;
+    return peerId === recipient.value?.id;
+};
+
+// Handlers nommés : "connect" / "disconnect" sont aussi écoutés par
+// useWSocket.ts (isConnected, reconnexion) — un off() sans handler les
+// retirait aussi, laissant le bandeau "Déconnecté" affiché après la première
+// reconnexion.
+const onReconnect = () => {
+    const id = recipient.value?.id;
+    // Join émis hors ligne : socket.io l'a mis en file et l'envoie à la
+    // connexion, sa réponse arrivera — pas de doublon.
+    if (!id || joinInFlight === id) return;
+    // Une reconnexion sur le DM déjà affiché ne doit rien changer
+    // visuellement — rejoin silencieux plutôt qu'un rechargement
+    // complet (skeleton + liste vidée + saut de scroll).
+    joinDM(id, joinedDMUserId === id);
+};
+
+const onDisconnect = () => {
+    // Un join-dm parti avant la coupure n'aura jamais de réponse : on
+    // l'abandonne pour que onReconnect puisse le relancer.
+    if (joinInFlight) {
+        joinInFlight = null;
+        joinSeq++;
+    }
+};
+
+const DM_EVENTS = ["dm:new-message", "dm:user-typing", "dm:delete-message", "dm:edit-message", "dm-more-messages", "dm-reaction-updated"];
+
+const removeListeners = () => {
+    const sock = socket.value;
+    if (!sock) return;
+    DM_EVENTS.forEach(ev => sock.off(ev));
+    sock.off("connect", onReconnect);
+    sock.off("disconnect", onDisconnect);
 };
 
 const initListener = () => {
 
     if (!socket.value) return;
     
-    const events = ["dm:history", "dm:new-message", "dm:user-typing", "dm:delete-message", "dm:edit-message", "dm-more-messages", "dm-reaction-updated", "connect"];
-    events.forEach(ev => socket.value?.off(ev));
+    removeListeners();
 
-    socket.value.on("connect", () => {
-        if (recipient.value?.id) {
-            joinDM(recipient.value.id);
-        }
-    });
-
-    socket.value.on('dm:history', async (data: { recipientId?: string; messages: any[]; hasMore: boolean } | any[]) => {
-        // Handle both old format (array) and new format (object with messages and hasMore)
-        const history = Array.isArray(data) ? data : data.messages;
-        const receivedHasMore = Array.isArray(data) ? true : data.hasMore;
-        const receivedRecipientId = Array.isArray(data) ? undefined : data.recipientId;
-
-        if (receivedRecipientId && recipient.value?.id && receivedRecipientId !== recipient.value.id) {
-            return; // Ignore history from another DM (race condition)
-        }
-        
-        messages.value = await procesMessages(history);
-        hasMore.value = receivedHasMore;
-        loading.value = false;
-        scrollToBottom(true);
-    });
+    socket.value.on("connect", onReconnect);
+    socket.value.on("disconnect", onDisconnect);
 
     socket.value.on('dm-more-messages', async (data: { messages: any[]; hasMore: boolean }) => {
+        // Réponse à un "charger plus" d'une conversation qu'on a quittée depuis.
+        if (loadMoreFor !== recipient.value?.id) {
+            isFetchingMore.value = false;
+            return;
+        }
+
         if (!data.messages || data.messages.length === 0) {
             hasMore.value = false;
             isFetchingMore.value = false;
             return;
         }
 
+        const seq = joinSeq;
+        const decryptedMore = await procesMessages(data.messages);
+        if (seq !== joinSeq) return;
+
         const container = messagesContainer.value;
         const scrollOffset = container ? container.scrollHeight - container.scrollTop : 0;
 
-        const decryptedMore = await procesMessages(data.messages);
         messages.value = [...decryptedMore, ...messages.value];
         hasMore.value = data.hasMore;
 
@@ -679,8 +883,16 @@ const initListener = () => {
     });
 
     socket.value.on("dm:new-message", async (msg: any) => {
-        const decryptedMsg = await decryptSingleMessage(msg);
-        
+        // Pendant un changement de conversation, le socket reste dans le salon
+        // de l'ancienne jusqu'à la réponse du nouveau join.
+        if (!isFromCurrentDM(msg)) return;
+
+        // procesMessages() rather than decryptSingleMessage() so the quoted
+        // replyMessage gets decrypted too — otherwise a just-sent reply shows
+        // its quote as ciphertext until the DM is reloaded.
+        const decryptedMsg = (await procesMessages([msg]))[0] ?? msg;
+        if (!isFromCurrentDM(msg)) return;
+
         if (msg.senderId === user.value?.id) {
             const tempIndex = messages.value.findIndex(m => String(m.id).startsWith('temp-') && m.content === decryptedMsg?.content);
             if (tempIndex !== -1) {
@@ -694,6 +906,7 @@ const initListener = () => {
         messages.value.push(decryptedMsg);
         isSomeoneTyping.value = false;
         scrollToBottom();
+        setTimeout(() => { saveLastRead(); }, 100);
     });
 
     socket.value.on('dm:delete-message', (msgId: string) => {
@@ -702,22 +915,16 @@ const initListener = () => {
 
     socket.value.on('dm:edit-message', async (editedMsg: DMMessage) => {
 
-        let decryptedContent = editedMsg.content;
+        let updatedMsg: DMMessage;
 
-        if (editedMsg.content && editedMsg.content.trim() !== "") 
-        {
-            try {
-                // Use decryptSingleMessage for consistent decryption handling
-                const decrypted = await decryptSingleMessage(editedMsg);
-                if (decrypted) {
-                    decryptedContent = decrypted.content;
-                }
-            } catch (err) {
-                decryptedContent = "🔒 Échec du déchiffrement lors de l'édition.";
-            }
+        try {
+            // procesMessages() also decrypts the quoted replyMessage, which the
+            // backend sends back encrypted with every edit (file attach included).
+            updatedMsg = (await procesMessages([editedMsg]))[0] ?? editedMsg;
+        } catch (err) {
+            updatedMsg = { ...editedMsg, content: "🔒 Échec du déchiffrement lors de l'édition." };
         }
-        
-        const updatedMsg = { ...editedMsg, content: decryptedContent };
+
         messages.value = messages.value.map(m => m.id === editedMsg.id ? updatedMsg : m);
 
     });
@@ -734,13 +941,57 @@ const initListener = () => {
 
 };
 
-const joinDM = async (userId: string) => {
-    
-    loading.value = true;
-    messages.value = [];
-    
-    socket.value?.emit("join-dm", { recipientId: userId });
+// Numéro du join-dm le plus récent : une réponse (ou un palier de
+// déchiffrement) portant un numéro plus ancien appartient à un join annulé
+// par une navigation vers une autre conversation, et est ignorée.
+let joinSeq = 0;
+// DM dont le join attend encore sa réponse : un second join vers ce même DM
+// est refusé (ex. watcher de route + onMounted qui appelaient tous deux
+// mount() à l'ouverture de /chat, doublant chargement et déchiffrement).
+let joinInFlight: string | null = null;
+const JOIN_TIMEOUT_MS = 15000;
+
+const joinDM = async (userId: string, silent = false) => {
+
+    if (!socket.value || joinInFlight === userId) return;
+
+    const seq = ++joinSeq;
+    joinInFlight = userId;
+
+    if (!silent) {
+        joinedDMUserId = null;
+        loading.value = true;
+        messages.value = [];
+        stickToBottom = true;
+
+        // Capturé avant markDMAsRead() qui remet le compteur à zéro juste après.
+        const savedLastRead = localStorage.getItem(`lastRead_dm_${userId}`);
+        const hadUnread = getUnreadCountByDMUserId(userId).value > 0;
+        showUnreadDelimiterAfterId.value = (hadUnread && savedLastRead) ? savedLastRead : null;
+    }
+
     markDMAsRead(userId);
+
+    const res: any = await new Promise((resolve) => {
+        socket.value!.timeout(JOIN_TIMEOUT_MS).emit(
+            "join-dm",
+            { recipientId: userId, orgId: openedOrg.value?.id, joinId: seq },
+            (err: Error | null, r: any) => resolve(err ? { error: "Le serveur n'a pas répondu." } : r)
+        );
+    });
+
+    if (seq !== joinSeq) return; // annulé par un join plus récent
+    joinInFlight = null;
+
+    if (!res || res.stale) return;
+    if (res.error) {
+        loading.value = false;
+        toast.show(res.error, 'error');
+        return;
+    }
+
+    joinedDMUserId = userId;
+    await applyHistory(seq, res, silent);
 
 };
 
@@ -753,12 +1004,6 @@ const scrollToSelectedMessage = async () => {
     const targetEl = document.getElementById(`msg-${selectedMessage.value}`);
     if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    console.log(targetEl)
-
-};
-
-const getMessageSenderName = (msg: DMMessage): string => {
-    return msg.sender?.name || 'Anonyme';
 };
 
 // TOFU pinning for the recipient's E2EE public key (audit finding #3): the
@@ -867,11 +1112,13 @@ const sendMessage = async () => {
     let uploadedFiles: any[] = [];
     if (selectedFiles.value.length) {
         fileSendProgress.value = 0;
+        fileProgress.value = selectedFiles.value.map(() => 0);
         try {
             uploadedFiles = await uploadFiles(
                 selectedFiles.value,
-                {},
-                (percent: number) => { fileSendProgress.value = percent; }
+                { dmPeerId: recipient.value!.id },
+                (percent: number) => { fileSendProgress.value = percent; },
+                (index: number, percent: number) => { fileProgress.value[index] = percent; }
             );
         } catch (e) {
             console.error('Erreur upload fichiers:', e);
@@ -881,33 +1128,80 @@ const sendMessage = async () => {
     selectedFiles.value = [];
     fileSendProgress.value = null;
 
-    const confirmedMessage: any = await new Promise((resolve) => {
-        socket.value?.emit("dm:send-message", {
-            recipientId: recipient.value!.id,
-            content: finalContent,
-            encryptedAesKey: finalEncryptedAesKey,
-            selfEncryptedAesKey: selfEncryptedAesKey,
-            nonce: finalIv,
-            isE2EE: useEncryption,
-            replyToId: tempMessage.replyToId,
-        }, (response: any) => resolve(response));
-    });
+    const payload = {
+        recipientId: recipient.value!.id,
+        content: finalContent,
+        encryptedAesKey: finalEncryptedAesKey,
+        selfEncryptedAesKey: selfEncryptedAesKey,
+        nonce: finalIv,
+        isE2EE: useEncryption,
+        replyToId: tempMessage.replyToId,
+        references: extractReferenceTokens(clearContent),
+    };
 
-    if (confirmedMessage?.error) {
-        toast.show(confirmedMessage.error, "error");
-        messages.value = messages.value.filter(m => m.id !== tempId);
-        return;
-    }
-
-    if (uploadedFiles.length && confirmedMessage?.id) {
-        socket.value?.emit('edit-dm-message-files', { id: confirmedMessage.id, files: uploadedFiles });
-    }
+    await emitDM(tempId, payload, uploadedFiles);
 
 };
 
+// Délai au-delà duquel un envoi sans réponse du serveur est considéré comme
+// perdu. Sans lui, un événement jeté côté serveur (limite de débit,
+// coupure réseau pendant l'envoi...) laissait le message "en cours d'envoi"
+// indéfiniment, puis il disparaissait au rechargement.
+const SEND_TIMEOUT_MS = 10000;
+
+// Le payload déjà chiffré (et les fichiers déjà uploadés) sont gardés sur le
+// message temporaire : "Réessayer" renvoie exactement la même chose, sans
+// rechiffrer ni ré-uploader.
+const emitDM = async (tempId: string, payload: Record<string, any>, uploadedFiles: any[]) => {
+
+    const response: any = await new Promise((resolve) => {
+        if (!socket.value) return resolve({ error: "Non connecté au serveur." });
+        socket.value.timeout(SEND_TIMEOUT_MS).emit("dm:send-message", payload, (err: Error | null, res: any) => {
+            resolve(err ? { error: "Le serveur n'a pas répondu." } : res);
+        });
+    });
+
+    if (!response?.error) {
+        if (uploadedFiles.length && response?.id) {
+            socket.value?.emit('edit-dm-message-files', { id: response.id, files: uploadedFiles });
+        }
+        return;
+    }
+
+    const temp = messages.value.find(m => m.id === tempId);
+    if (!temp) return; // déjà remplacé par le dm:new-message du serveur
+    temp.isSending = false;
+    temp.sendFailed = true;
+    temp.retry = { payload, uploadedFiles };
+    toast.show(`Message non envoyé : ${response.error}`, "error");
+
+};
+
+const retrySend = async (tempId: string) => {
+    const temp = messages.value.find(m => m.id === tempId);
+    if (!temp?.retry) return;
+    temp.sendFailed = false;
+    temp.isSending = true;
+    await emitDM(tempId, temp.retry.payload, temp.retry.uploadedFiles);
+};
+
+const discardFailed = (tempId: string) => {
+    messages.value = messages.value.filter(m => m.id !== tempId);
+};
+
 const createPrivateMeet = () => {
-    const memberId = openedOrg.value?.members?.find((m: OrgMember) => m.id === route.params.userId)?.id;
-    router.push({ name: 'OrgThreadChatPrivateMeet', params: { userId: memberId } });
+    const member = openedOrg.value?.members?.find((m: OrgMember) => m.id === route.params.userId);
+    if (member) startMeet(member);
+};
+
+// Vrai tant que l'utilisateur est (presque) en bas du fil. Une pièce jointe
+// média qui finit de se charger agrandit son message (MessageMedia émet
+// l'événement DOM `media-loaded`) : on se recolle alors en bas au lieu de
+// laisser le dernier message glisser hors de l'écran.
+let stickToBottom = true;
+
+const onMediaLoaded = () => {
+    if (stickToBottom) scrollToBottom(true);
 };
 
 const handleScroll = (e: Event) => {
@@ -915,6 +1209,10 @@ const handleScroll = (e: Event) => {
     if (container.scrollTop < 100 && !isFetchingMore.value && hasMore.value) {
         loadMoreDM();
     }
+
+    const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 10;
+    stickToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 120;
+    if (isAtBottom) saveLastRead();
 };
 
 const loadMoreDM = async () => {
@@ -924,24 +1222,38 @@ const loadMoreDM = async () => {
     const firstMessageId = messages.value[0]?.id;
     
     if (firstMessageId) {
+        loadMoreFor = recipient.value.id;
         socket.value?.emit("load-more-dm", { 
             recipientId: recipient.value.id, 
             before: firstMessageId,
-            limit: 20
+            limit: 20,
+            lite: true
         });
     }
 };
 
+// Un "isTyping: true" par frappe épuisait à lui seul la limite de débit du
+// serveur — on ne le renvoie qu'une fois par TYPING_EMIT_INTERVAL_MS tant que
+// l'utilisateur tape, et "false" une seule fois quand il s'arrête.
+const TYPING_EMIT_INTERVAL_MS = 2500;
+let lastTypingEmit = 0;
+
 const handleTyping = () => {
     if (!socket.value || !recipient.value) return;
-    socket.value?.emit("dm:typing", { recipientId: recipient.value.id, isTyping: true });
+    const now = Date.now();
+    if (now - lastTypingEmit >= TYPING_EMIT_INTERVAL_MS) {
+        lastTypingEmit = now;
+        socket.value.emit("dm:typing", { recipientId: recipient.value.id, isTyping: true });
+    }
     clearTimeout(typingTimeout);
     typingTimeout = setTimeout(stopTyping, 3000);
 };
 
 const stopTyping = () => {
-    if (!socket.value || !recipient.value) return;
-    socket.value?.emit("dm:typing", { recipientId: recipient.value.id, isTyping: false });
+    clearTimeout(typingTimeout);
+    if (!lastTypingEmit || !socket.value || !recipient.value) return;
+    lastTypingEmit = 0;
+    socket.value.emit("dm:typing", { recipientId: recipient.value.id, isTyping: false });
 };
 
 const scrollToBottom = async (instant = false) => {
@@ -957,9 +1269,13 @@ const scrollToBottom = async (instant = false) => {
 
 const mount = async () => {
     initListener();
-    if (recipient.value && E2EEUnloked.value) 
+    const id = recipient.value?.id;
+    // Déjà chargé ou en cours de chargement : pas de second join (cf. joinInFlight).
+    // Non attendu : joinDM ne rend la main qu'après tous les paliers de
+    // déchiffrement, le focus de la zone de saisie n'a pas à patienter.
+    if (id && E2EEUnloked.value && id !== joinedDMUserId && id !== joinInFlight) 
     {
-        await joinDM(recipient.value.id);
+        joinDM(id);
     }
     if (E2EEUnloked.value) 
     {
@@ -972,13 +1288,21 @@ watch(() => route.params.userId, async () => {
 });
 
 onMounted(async () => {
-    if (!route.params.userId) {
-        const firstUser = openedOrg.value?.members?.[0];
-        if (firstUser) router.replace({ params: { ...route.params, userId: firstUser.id }, query: route.query });
+    // Sur petit écran, la liste des conversations EST la vue (cf. OrgLayout.vue,
+    // ThreadsBar prend toute la largeur) — y rediriger automatiquement masquerait
+    // cette liste. Sur desktop, ouvrir directement la dernière conversation
+    // évite d'atterrir sur l'écran "Sélectionnez une discussion" à chaque fois.
+    if (!route.params.userId && !isLittleScreen.value) {
+        await fetchRecentDMs();
+        const mostRecentUserId = getMostRecentDMUserId();
+        const target = mostRecentUserId
+            ? openedOrg.value?.members?.find(m => m.user?.id === mostRecentUserId)
+            : openedOrg.value?.members?.[0];
+        if (target) router.replace({ params: { ...route.params, userId: target.id }, query: route.query });
     }
 
     const wsRef = await useWSocket();
-    socket.value = wsRef.value; 
+    socket.value = wsRef.value;
 
     // Reactive wait — resolves instantly if already set, otherwise watches for change
     if (!openedOrg.value) {
@@ -988,12 +1312,25 @@ onMounted(async () => {
             }, { immediate: true });
         });
     }
-    if (!socket.value) {
-        await new Promise<void>(resolve => {
-            const stop = watch(() => socket.value, (val) => {
-                if (val) { stop(); resolve(); }
-            }, { immediate: true });
-        });
+
+    // `socket.value` existe dès que le client socket.io est construit —
+    // bien avant que la connexion WebSocket ait réellement abouti (attendre
+    // juste "non-null", comme avant, ne garantissait donc rien). join-dm
+    // finissait par partir en émettant sur un socket pas encore connecté —
+    // socket.io met l'émission en file d'attente jusqu'à la connexion, sans
+    // aucun retour ni timeout visible : l'écran restait sur le squelette de
+    // chargement, parfois de longues secondes, sans explication. Même
+    // attente explicite que ThreadView.vue pour les salons. wsRef (pas
+    // socket) : même valeur (même instance Socket sous-jacente), mais son
+    // type Ref<Socket|null> est exactement celui attendu par
+    // waitForSocketConnection puisqu'ils viennent tous deux de
+    // useWSocket.ts — évite un conflit de typage structurel entre deux
+    // imports distincts du type Socket de socket.io-client.
+    const connected = await waitForSocketConnection(wsRef, 15000);
+    if (!connected) {
+        loading.value = false;
+        toast.show('Impossible de se connecter au serveur. Vérifiez votre connexion et réessayez.', 'error');
+        return;
     }
 
     await mount();
@@ -1007,11 +1344,10 @@ onUnmounted(() => {
     stopTyping();
     document.removeEventListener('click', closeEmojiPickerOnOutsideClick);
     window.removeEventListener('paste', handlePaste);
-    const sock = socket.value;
-    if (sock) {
-        const events = ["dm:history", "dm:new-message", "dm:user-typing", "dm:delete-message", "dm:edit-message", "dm-more-messages", "dm-reaction-updated", "connect"];
-        events.forEach(ev => sock.off(ev));
-    }
+    // Abandonne un join ou un déchiffrement encore en cours pour ce composant.
+    joinSeq++;
+    joinInFlight = null;
+    removeListeners();
 });
 </script>
 

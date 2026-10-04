@@ -4,7 +4,7 @@ import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useToast } from '@/composables/useToast';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, user } from '@/assets/var';
 import type { WorkSpace } from '@/types/types';
 import sfetch from '@/assets/utils/sfetch';
 
@@ -19,6 +19,8 @@ const route = useRoute();
 const router = useRouter();
 const isModalOpen = ref<boolean>(false);
 const isDeleting = ref<boolean>(false);
+const isExitModalOpen = ref<boolean>(false);
+const isExiting = ref<boolean>(false);
 const showUpdateSpace = ref<boolean>(false);
 const deleteFilesToo = ref<boolean>(false);
 const isHome = computed(()=> route.name == 'OrgHome' || route.name == 'OrgThreadHome');
@@ -33,6 +35,48 @@ const openConfirmModal = () => {
     deleteFilesToo.value = false;
     isModalOpen.value = true;
 }
+
+const handleExit = async () => {
+
+    const workspace = currentWorkspace.value;
+    const userId = user.value?.id;
+
+    if (!workspace || !userId) return;
+
+    isExiting.value = true;
+
+    // Route dédiée : PATCH /members est réservé au propriétaire. Le serveur
+    // retire l'utilisateur en base et diffuse lui-même space:updated à l'org.
+    const res = await sfetch(`/api/spaces/${workspace.id}/leave`, { method: 'POST' });
+
+    if (res.ok)
+    {
+
+        if (openedOrg.value)
+        {
+            openedOrg.value.spaces = openedOrg.value.spaces?.filter(
+                (space: WorkSpace) => space.id !== workspace.id
+            );
+        }
+
+        router.push({
+            name: 'OrgHome',
+            params: { orgId: route.params.orgId }
+        });
+
+        toast.show("Vous avez quitté l'espace de travail.", 'success');
+
+    }
+    else
+    {
+        const body = await res.json().catch(() => null);
+        toast.show(body?.error || 'Une erreur est survenue en quittant l\'espace.', 'error');
+    }
+
+    isExitModalOpen.value = false;
+    isExiting.value = false;
+
+};
 
 const handleDelete = async () => {
 
@@ -99,6 +143,10 @@ const handleDelete = async () => {
                 <i class="bi bi-gear mr-2" /> Paramètres
             </button>
 
+            <button v-if="!isHome && currentWorkspace?.ownerId !== user?.id" @click="isExitModalOpen = true" class="dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!">
+                <i class="bi bi-door-open mr-2" /> Quitter
+            </button>
+
             <button v-if="!isHome" @click="openConfirmModal" class=" dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!" >
                 <i class="bi bi-trash mr-2" /> Supprimer
             </button>
@@ -117,10 +165,27 @@ const handleDelete = async () => {
 
     <ConfirmDelete
         v-if="currentWorkspace"
+        :show="isExitModalOpen"
+        item-type="le workspace"
+        :item-name="currentWorkspace.name"
+        :loading="isExiting"
+        title="Quitter cet espace de travail ?"
+        :message="`Vous n'aurez plus accès à ${currentWorkspace.name} ni à ses salons. Un membre devra vous y réinviter.`"
+        checkbox
+        checkbox-label="Je comprends que je perdrai l'accès à cet espace et à ses salons."
+        button-text="Quitter l'espace"
+        @cancel="isExitModalOpen = false"
+        @confirm="handleExit"
+    />
+
+    <ConfirmDelete
+        v-if="currentWorkspace"
         :show="isModalOpen"
         item-type="le workspace"
         :item-name="currentWorkspace.name"
         :loading="isDeleting"
+        checkbox
+        checktext
         extra-option-label="Supprimer aussi les fichiers et dossiers liés dans le gestionnaire de fichiers"
         :extra-option-value="deleteFilesToo"
         @update:extra-option-value="deleteFilesToo = $event"

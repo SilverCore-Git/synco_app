@@ -3,9 +3,9 @@
         <div class="absolute top-4 left-4 z-50">
             <MobileBackBtn />
         </div>
-        <i class="bi bi-chat-dots text-6xl text-white/10 mb-4"></i>
+        <i class="bi bi-chat-dots text-6xl text-(--text)/10 mb-4"></i>
         <h2 class="text-xl font-bold mb-2 text-center">Aucun salon</h2>
-        <p class="text-white/40 text-center max-w-sm">
+        <p class="text-(--text)/40 text-center max-w-sm">
             Cet espace ne contient aucun salon textuel.
         </p>
     </div>

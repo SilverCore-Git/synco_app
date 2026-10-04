@@ -7,13 +7,20 @@ class Init
 
     constructor () {}
 
-    public async run()
+    // onStep : appelé après CHAQUE sous-requête (pas juste à la toute fin),
+    // pour que App.vue puisse faire avancer sa barre de progression au fil
+    // de l'eau plutôt que de rester figée pendant tout le Promise.all.
+    public async run(onStep?: () => void)
     {
+        const step = async (p: Promise<void>) => {
+            await p;
+            onStep?.();
+        };
         try {
             await Promise.all([
-                this.InitUser(),
-                this.initOrg(),
-                this.initOpenedOrg()
+                step(this.InitUser()),
+                step(this.initOrg()),
+                step(this.initOpenedOrg())
             ]);
         }
         catch (e) {
@@ -26,7 +33,12 @@ class Init
 
     private async InitUser()
     {
-        user.value = await sfetch('/api/users/me').then(res => res.json());
+        const res = await sfetch('/api/users/me');
+        // Une réponse d'erreur (compte banni, jeton rejeté...) reste un JSON
+        // parfaitement valide : l'affecter à `user` ferait passer l'app pour
+        // chargée avec un utilisateur fantôme, sans id ni clés E2EE.
+        if (!res.ok) return;
+        user.value = await res.json();
     }
 
 
@@ -55,7 +67,11 @@ class Init
                 if (res.ok) {
                     openedOrg.value = await res.json();
                     if (isFreshLaunch) {
-                        router.replace({ name: 'OrgHome', params: { orgId } });
+                        // showView explicite : sur mobile (OrgLayout.showRouterView),
+                        // l'absence du paramètre atterrit correctement sur le contenu
+                        // par défaut, mais un lien explicite est plus robuste et évite
+                        // toute ambiguïté si cette logique change côté OrgLayout.
+                        router.replace({ name: 'OrgHome', params: { orgId }, query: { showView: '1' } });
                     }
                 } else if (isFreshLaunch) {
                     // Org no longer accessible (left, deleted...): drop the stale preference.
@@ -71,7 +87,9 @@ class Init
 
 
 export const refetchUser = async () => {
-    user.value = await sfetch('/api/users/me').then(res => res.json());
+    const res = await sfetch('/api/users/me');
+    if (!res.ok) return;
+    user.value = await res.json();
 }
 
 export default new Init();

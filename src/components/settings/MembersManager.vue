@@ -19,7 +19,7 @@
                         v-model="searchQuery"
                         type="text" 
                         placeholder="Rechercher..."
-                        class="bg-(--white)/5 border border-(--white)/10 rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-none focus:border-(--primary)/40 w-48 lg:w-64 transition-all"
+                        class="bg-(--text)/5 border border-(--text)/10 rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-none focus:border-(--primary)/40 w-48 lg:w-64 transition-all"
                     />
                 </div>
 
@@ -32,25 +32,25 @@
 
         </div>
 
-        <div class="rounded-2xl border border-(--white)/5 overflow-hidden bg-(--white)/1 shadow-xl">
+        <div class="rounded-2xl border border-(--text)/5 overflow-hidden bg-(--text)/1 shadow-xl">
 
             <div class="overflow-x-auto">
 
                 <table class="w-full text-left border-collapse">
 
                     <thead>
-                        <tr class="text-[10px] uppercase tracking-widest text-(--text2) border-b border-(--white)/5 bg-(--white)/2">
+                        <tr class="text-[10px] uppercase tracking-widest text-(--text2) border-b border-(--text)/5 bg-(--text)/2">
                             <th class="px-6 py-4 font-black">Utilisateur</th>
                             <th class="px-6 py-4 font-black text-right">Actions</th>
                         </tr>
                     </thead>
 
-                    <tbody class="divide-y divide-(--white)/5">
+                    <tbody class="divide-y divide-(--text)/5">
 
                         <tr 
                             v-for="member in filteredMembers" 
                             :key="member.userId" 
-                            class="group hover:bg-(--white)/2 transition-all"
+                            class="group hover:bg-(--text)/2 transition-all"
                         >
 
                             <td class="px-6 py-4">
@@ -61,7 +61,7 @@
 
                                         <img 
                                             :src="member.user?.avatarUrl || 'https://cdn.silvercore.fr/static/files/silverteams/avatar/default.png'" 
-                                            class="w-9 h-9 rounded-full border border-(--white)/10 object-cover" 
+                                            class="w-9 h-9 rounded-full border border-(--text)/10 object-cover" 
                                             :class="{ 'ring-2 ring-(--primary) ring-offset-2 ring-offset-(--bg)': isSelf(member.userId) }"
                                         />
 
@@ -76,7 +76,7 @@
                                     <div class="flex flex-col">
                                         <span class="text-sm font-bold text-(--text) flex items-center gap-2">
                                             {{ $p(member.user?.name) || 'Utilisateur inconnu' }}
-                                            <span v-if="isSelf(member.userId)" class="text-[9px] bg-(--white)/10 px-1.5 py-0.5 rounded text-(--text2)">VOUS</span>
+                                            <span v-if="isSelf(member.userId)" class="text-[9px] bg-(--text)/10 px-1.5 py-0.5 rounded text-(--text2)">VOUS</span>
                                         </span>
                                         <span class="text-[10px] text-(--text2)">{{ member.user?.email || 'Email non disponible' }}</span>
                                     </div>
@@ -124,7 +124,7 @@
             <div 
                 v-for="orgMember in availableToInvite" 
                 :key="orgMember.id" 
-                class="flex items-center justify-between p-3 bg-(--white)/2 border border-(--white)/5 rounded-xl hover:bg-(--white)/5 transition-colors group"
+                class="flex items-center justify-between p-3 bg-(--text)/2 border border-(--text)/5 rounded-xl hover:bg-(--text)/5 transition-colors group"
             >
 
                 <div class="flex items-center gap-3">

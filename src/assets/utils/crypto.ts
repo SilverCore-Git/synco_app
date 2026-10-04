@@ -190,6 +190,91 @@ export async function decryptFromPeer (
 };
 
 
+// Mêmes fonctions que encryptForPeer/decryptFromPeer, mais sur un ArrayBuffer
+// brut plutôt qu'une chaîne — pour le partage de fichiers en session
+// éphémère (usePrivatMeet.ts). Pas de base64 ici : les objets envoyés par
+// PeerJS DataConnection utilisent sa sérialisation binaire native (le même
+// mécanisme qui découpe déjà les gros payloads en chunks), donc encoder en
+// base64 n'apporterait que ~33% de taille en plus pour rien.
+export async function encryptBufferForPeer (buffer: ArrayBuffer, peerPublicKeyJWK: string, myPublicKeyJWK?: string | object)
+{
+
+    const publicKey = await crypto.subtle.importKey(
+        "jwk",
+        JSON.parse(peerPublicKeyJWK),
+        { name: "RSA-OAEP", hash: "SHA-256" },
+        true,
+        ["encrypt"]
+    );
+
+    const fileKey = await crypto.subtle.generateKey(
+        { name: "AES-GCM", length: 256 },
+        true,
+        ["encrypt"]
+    );
+
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        fileKey,
+        buffer
+    );
+
+    const exportedAesKey = await crypto.subtle.exportKey("raw", fileKey);
+    const encryptedAesKey = await crypto.subtle.encrypt(
+        { name: "RSA-OAEP" },
+        publicKey,
+        exportedAesKey
+    );
+
+    let selfEncryptedAesKey: ArrayBuffer | undefined = undefined;
+    if (myPublicKeyJWK) {
+        const myPubKey = await crypto.subtle.importKey(
+            "jwk",
+            typeof myPublicKeyJWK === 'string' ? JSON.parse(myPublicKeyJWK) : myPublicKeyJWK,
+            { name: "RSA-OAEP", hash: "SHA-256" },
+            false,
+            ["encrypt"]
+        );
+        selfEncryptedAesKey = await crypto.subtle.encrypt({ name: "RSA-OAEP" }, myPubKey, exportedAesKey);
+    }
+
+    return {
+        ciphertext,
+        encryptedAesKey,
+        iv: iv.buffer,
+        selfEncryptedAesKey
+    };
+
+}
+
+export async function decryptBufferFromPeer (
+    ciphertext: ArrayBuffer,
+    encryptedAesKey: ArrayBuffer,
+    iv: ArrayBuffer,
+    myPrivateKey: CryptoKey
+): Promise<ArrayBuffer>
+{
+
+    const aesKeyRaw = await crypto.subtle.decrypt(
+        { name: "RSA-OAEP" },
+        myPrivateKey,
+        encryptedAesKey
+    );
+
+    const aesKey = await crypto.subtle.importKey(
+        "raw", aesKeyRaw, "AES-GCM", false, ["decrypt"]
+    );
+
+    return await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv },
+        aesKey,
+        ciphertext
+    );
+
+}
+
+
 // For thread E2EE
 
 export async function decryptThreadKeyWithRsa(
@@ -356,37 +441,21 @@ export async function decryptSpaceKeyWithRsa(
     );
 }
 
-export async function encryptFileLocal(
-    fileBuffer: ArrayBuffer,
-    spaceKey: CryptoKey
-): Promise<{ encryptedBlob: Blob, encryptedFileKey: string, iv: string }> 
+
+/**
+ * Wraps a raw FileKey (DEK) with the SpaceKey / DM key (KEK), using its own
+ * IV. Never reuse an IV across two AES-GCM operations, even under different
+ * keys — a dedicated random IV per operation removes any risk tied to a
+ * future key-reuse bug. It's prepended to the ciphertext so no extra wire
+ * field / backend column is needed for it. Used by the chunked file format
+ * (v2, chunkedCrypto.ts).
+ */
+export async function wrapFileKey(rawFileKey: ArrayBuffer, kek: CryptoKey): Promise<string>
 {
-    // 1. Generate a unique FileKey (DEK)
-    const fileKey = await crypto.subtle.generateKey(
-        { name: "AES-GCM", length: 256 },
-        true,
-        ["encrypt"]
-    );
-
-    // 2. Encrypt the file using the FileKey
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const ciphertext = await crypto.subtle.encrypt(
-        { name: "AES-GCM", iv },
-        fileKey,
-        fileBuffer
-    );
-    const encryptedBlob = new Blob([ciphertext]);
-
-    // 3. Encrypt the FileKey with the SpaceKey (KEK), using its own IV.
-    // Never reuse an IV across two AES-GCM operations, even under different
-    // keys — a dedicated random IV per operation removes any risk tied to a
-    // future key-reuse bug. It's prepended to the ciphertext below so no
-    // extra wire field / backend column is needed for it.
-    const rawFileKey = await crypto.subtle.exportKey("raw", fileKey);
     const keyIv = crypto.getRandomValues(new Uint8Array(12));
     const encryptedFileKeyBuffer = await crypto.subtle.encrypt(
         { name: "AES-GCM", iv: keyIv },
-        spaceKey,
+        kek,
         rawFileKey
     );
 
@@ -394,63 +463,20 @@ export async function encryptFileLocal(
     combinedFileKey.set(keyIv, 0);
     combinedFileKey.set(new Uint8Array(encryptedFileKeyBuffer), keyIv.length);
 
-    return {
-        encryptedBlob,
-        encryptedFileKey: btoa(String.fromCharCode(...combinedFileKey)),
-        iv: btoa(String.fromCharCode(...iv))
-    };
+    return btoa(String.fromCharCode(...combinedFileKey));
 }
 
-export async function decryptFileLocal(
-    encryptedBuffer: ArrayBuffer,
-    encryptedFileKeyBase64: string,
-    ivBase64: string,
-    spaceKey: CryptoKey
-): Promise<ArrayBuffer> 
+/** Inverse of wrapFileKey() (current layout: key-wrap IV prepended). */
+export async function unwrapFileKey(encryptedFileKeyBase64: string, kek: CryptoKey): Promise<ArrayBuffer>
 {
     const encryptedFileKeyBytes = Uint8Array.from(atob(encryptedFileKeyBase64), c => c.charCodeAt(0));
-    const iv = Uint8Array.from(atob(ivBase64), c => c.charCodeAt(0));
-
-    // 1. Decrypt the FileKey using the SpaceKey.
-    // Current format prepends a dedicated key-wrap IV to the ciphertext.
-    // Files encrypted before that fix wrapped the FileKey with the file's
-    // own `iv` instead — fall back to that legacy layout (detected via the
-    // AES-GCM auth tag, not an explicit version marker) so old uploads
-    // keep decrypting correctly.
-    let rawFileKey: ArrayBuffer;
-    try {
-        const keyIv = encryptedFileKeyBytes.slice(0, 12);
-        const wrappedFileKey = encryptedFileKeyBytes.slice(12);
-        rawFileKey = await crypto.subtle.decrypt(
-            { name: "AES-GCM", iv: keyIv },
-            spaceKey,
-            wrappedFileKey
-        );
-    } catch {
-        rawFileKey = await crypto.subtle.decrypt(
-            { name: "AES-GCM", iv },
-            spaceKey,
-            encryptedFileKeyBytes
-        );
-    }
-
-    const fileKey = await crypto.subtle.importKey(
-        "raw",
-        rawFileKey,
-        { name: "AES-GCM", length: 256 },
-        false,
-        ["decrypt"]
+    return crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: encryptedFileKeyBytes.slice(0, 12) },
+        kek,
+        encryptedFileKeyBytes.slice(12)
     );
-
-    // 2. Decrypt the file
-    const decryptedBuffer = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv },
-        fileKey,
-        encryptedBuffer
-    );
-
-    return decryptedBuffer;
 }
+
 
 
 

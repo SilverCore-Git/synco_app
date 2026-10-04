@@ -1,6 +1,9 @@
 <script setup lang="ts">
 
 import SpaceBarBTN from '../common/SpaceBarBTN.vue';
+import DropDown from '@/components/DropDown.vue';
+import { useNotificationMutes } from '@/composables/useNotificationMutes';
+import MuteMenuItems from '@/components/common/MuteMenuItems.vue';
 import { useRoute, useRouter } from 'vue-router';
 import CreateNewSpace from '../popup/CreateNewSpace.vue';
 import { openedOrg, todoEnabled, aiEnabled, agendaEnabled, user, userCardHeight } from '@/assets/var';
@@ -19,6 +22,7 @@ const orgId = computed(() => openedOrg.value?.id);
 const { canAny } = usePermissions(orgId);
 const { getUnreadCountBySpaceId, getUnreadCountForTasks, getUnreadCountForDMs } = useNotification();
 const { refreshForOrg, spaceHasVoiceActivity } = useVoicePresence();
+const { isSpaceMuted } = useNotificationMutes();
 
 const localSpaces = ref<WorkSpace[]>([]);
 
@@ -72,6 +76,7 @@ const onSpaceOrderChange = async () => {
         class="
             h-full min-w-17 bg-(--bg)
             flex justify-start items-center flex-col pt-2.5
+            animate-sidebar-reveal
         "
     >
 
@@ -124,7 +129,7 @@ const onSpaceOrderChange = async () => {
                 <SpaceBarBTN
                     icon="bi-list-check"
                     label="Mes Tâches"
-                    :active="route.name === 'TasksGlobal'"
+                    :active="route.name === 'TasksGlobal' || route.name === 'TasksGlobalArchived'"
                     :hasUnread="getUnreadCountForTasks > 0"
                 />
             </RouterLink>
@@ -161,14 +166,22 @@ const onSpaceOrderChange = async () => {
                         :to="`/${openedOrg.id}/${space.id}?showView=0`"
                         class="w-full shrink-0 flex justify-center cursor-grab active:cursor-grabbing"
                     >
-                        <SpaceBarBTN
-                            :key="'space-' + space.id + '-btn'"
-                            :icon="space.logo!"
-                            :label="space.name"
-                            :active="route.path.includes(space.id)"
-                            :hasUnread="getUnreadCountBySpaceId(space.id).value > 0 || space.threads?.some((t: any) => t.hasUnread)"
-                            :inVoice="spaceHasVoiceActivity(space.id)"
-                        />
+                        <DropDown click="right" align="left">
+                            <template #trigger>
+                                <SpaceBarBTN
+                                    :key="'space-' + space.id + '-btn'"
+                                    :icon="space.logo!"
+                                    :label="space.name"
+                                    :active="route.path.includes(space.id)"
+                                    :hasUnread="getUnreadCountBySpaceId(space.id).value > 0 || space.threads?.some((t: any) => t.hasUnread)"
+                                    :inVoice="spaceHasVoiceActivity(space.id)"
+                                    :muted="isSpaceMuted(space.id)"
+                                />
+                            </template>
+                            <template #content>
+                                <MuteMenuItems kind="space" :id="space.id" />
+                            </template>
+                        </DropDown>
                     </RouterLink>
                 </template>
             </draggable>

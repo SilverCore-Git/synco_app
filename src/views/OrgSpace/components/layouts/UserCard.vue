@@ -43,12 +43,12 @@
 
                 </div>
 
-                <div class="grid grid-cols-4 gap-1.5 border-t border-(--white)/5 pt-2">
+                <div class="grid grid-cols-4 gap-1.5 border-t border-(--text)/5 pt-2">
 
                     <button
                         @click="toggleCamera(!isCameraEnabled)"
                         class="flex flex-col items-center justify-center gap-1 py-1.5 rounded-lg transition-all text-[9px] font-bold uppercase tracking-wider"
-                        :class="isCameraEnabled ? 'bg-(--primary)/20 text-(--primary)' : 'bg-(--white)/5 text-(--text2) hover:bg-(--white)/10'"
+                        :class="isCameraEnabled ? 'bg-(--primary)/20 text-(--primary)' : 'bg-(--text)/5 text-(--text2) hover:bg-(--text)/10'"
                         :title="isCameraEnabled ? 'Désactiver la caméra' : 'Activer la caméra'"
                     >
                         <i class="bi text-sm" :class="isCameraEnabled ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'" />
@@ -58,7 +58,7 @@
                     <button
                         @click="toggleScreenShare(!isScreenShareEnabled)"
                         class="flex flex-col items-center justify-center gap-1 py-1.5 rounded-lg transition-all text-[9px] font-bold uppercase tracking-wider"
-                        :class="isScreenShareEnabled ? 'bg-(--primary)/20 text-(--primary)' : 'bg-(--white)/5 text-(--text2) hover:bg-(--white)/10'"
+                        :class="isScreenShareEnabled ? 'bg-(--primary)/20 text-(--primary)' : 'bg-(--text)/5 text-(--text2) hover:bg-(--text)/10'"
                         :title="isScreenShareEnabled ? 'Arrêter le partage' : 'Partager l\'écran'"
                     >
                         <i class="bi bi-display text-sm" />
@@ -68,7 +68,7 @@
                     <button
                         @click="toggleMicrophone(!isMicEnabled)"
                         class="flex flex-col items-center justify-center gap-1 py-1.5 rounded-lg transition-all text-[9px] font-bold uppercase tracking-wider"
-                        :class="isMicEnabled ? 'bg-(--white)/5 text-(--text2) hover:bg-(--white)/10' : 'bg-red-500/20 text-red-500'"
+                        :class="isMicEnabled ? 'bg-(--text)/5 text-(--text2) hover:bg-(--text)/10' : 'bg-red-500/20 text-red-500'"
                         :title="isMicEnabled ? 'Couper le micro' : 'Activer le micro'"
                     >
                         <i class="bi text-sm" :class="isMicEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'" />
@@ -78,7 +78,7 @@
                     <button
                         @click="toggleDeafen(!isDeafened)"
                         class="flex flex-col items-center justify-center gap-1 py-1.5 rounded-lg transition-all text-[9px] font-bold uppercase tracking-wider"
-                        :class="isDeafened ? 'bg-red-500/20 text-red-500' : 'bg-(--white)/5 text-(--text2) hover:bg-(--white)/10'"
+                        :class="isDeafened ? 'bg-red-500/20 text-red-500' : 'bg-(--text)/5 text-(--text2) hover:bg-(--text)/10'"
                         :title="isDeafened ? 'Réactiver le son' : 'Couper le son'"
                     >
                         <i class="bi text-sm" :class="isDeafened ? 'bi-volume-mute-fill' : 'bi-volume-up-fill'" />
@@ -108,10 +108,10 @@
                         <div
                             v-if="openedOrg == null"
                         >
-                            <div class=" rounded-full bg-(--white)/6 h-9 w-9 animate-pulse" />
+                            <div class=" rounded-full bg-(--text)/6 h-9 w-9 animate-pulse" />
                         </div>
 
-                        <div v-else class="relative flex items-center justify-center">
+                        <div v-else class="relative flex items-center justify-center animate-app-reveal">
                             <img 
                                 :src="user?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(user?.user?.name)}&background=128a60&color=fff`" 
                                 :alt="$p(user?.user?.name)" 
@@ -125,9 +125,9 @@
                             />
                         </div>
 
-                        <div 
+                        <div
                             class="flex flex-col min-w-0 flex-1 leading-tight select-none"
-                            :class="openedOrg == null ? 'bg-(--white)/8 rounded-lg animate-pulse' : ''"
+                            :class="openedOrg == null ? 'bg-(--text)/8 rounded-lg animate-pulse' : 'animate-app-reveal'"
                         >
                             <span 
                                 class="text-sm font-bold truncate"

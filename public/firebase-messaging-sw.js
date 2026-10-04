@@ -51,9 +51,12 @@ self.addEventListener('notificationclick', (event) => {
   // Fermer la notification
   notification.close();
 
-  // Ouvrir l'URL correspondante
-  if (notification.data && notification.data.url) {
-    clients.openWindow(notification.data.url);
+  // Ouvrir l'URL correspondante — le reste de l'app (routes/notifications
+  // in-app) utilise la clé `route`, pas `url` : sans ce fallback, cliquer
+  // une notification desktop/web n'amenait jamais qu'à la racine de l'app.
+  const target = (notification.data && (notification.data.route || notification.data.url));
+  if (target) {
+    clients.openWindow(target);
   } else {
     // Ouvrir l'application par défaut
     clients.openWindow('/');

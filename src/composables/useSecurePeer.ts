@@ -1,27 +1,15 @@
-import { ref, shallowRef } from 'vue';
+import { ref, shallowRef, triggerRef } from 'vue';
 import { Peer, type MediaConnection } from 'peerjs';
-import type { User } from '@/types/types';
+import type { User, OrgMember } from '@/types/types';
 import { openedOrg } from '@/assets/var';
 import useNotifications from './useNotifications';
+import useWSocket from './useWSocket';
 import { keycloak } from '@/assets/keycloak';
 import { generateCallId } from '@/assets/utils/webhookCrypto';
-
-// ============================================================================
-// Configuration
-// ============================================================================
-
-const PEER_CONFIG = {
-    sdpSemantics: 'unified-plan' as const,
-    encodedInsertableStreams: true,
-    iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-    ],
-    iceCandidatePoolSize: 10,
-    iceTransportPolicy: 'all' as const,
-    bundlePolicy: 'max-bundle' as const,
-    rtcpMuxPolicy: 'require' as const
-};
+import { getVoicePrefs, resolveCameraCaptureOptions } from '@/assets/utils/voicePrefs';
+import { PEER_CONFIG } from '@/assets/utils/peerConfig';
+import { debugLog } from '@/assets/utils/debugLog';
+import { createPeerReconnector } from '@/assets/utils/peerReconnect';
 
 // ============================================================================
 // Types
@@ -36,13 +24,28 @@ interface SecureCallSession {
     keyAgreementComplete: boolean;
     authenticated: boolean;
     keyExchangeTimeout: any | null;
+    // Référence au canal 'secure-control' une fois ouvert, réutilisé pour la
+    // renégociation manuelle (cf. triggerRenegotiation) — PeerJS ne réagit
+    // jamais à 'negotiationneeded' (son Negotiator interne n'écoute pas cet
+    // événement), donc une piste vidéo ajoutée après le début de l'appel
+    // (pc.addTrack) n'est jamais réellement négociée avec le correspondant
+    // par la signalisation PeerJS/serveur : on doit renégocier nous-mêmes,
+    // via ce canal déjà chiffré et authentifié.
+    dataChannel: RTCDataChannel | null;
+    // Vrai dès que le flux distant arrive ('stream'), c-à-d dès que l'appel
+    // a réellement été décroché — sert à distinguer un appel encore en
+    // sonnerie (où ni MediaConnection.close() ni le canal HANGUP, pas encore
+    // ouvert, ne préviennent le correspondant : cf. call:cancel) d'un appel
+    // déjà établi qu'on raccroche normalement.
+    answered: boolean;
 }
 
 interface KeyExchangeMessage {
-    type: 'KEY_EXCHANGE_REQUEST' | 'KEY_EXCHANGE_RESPONSE' | 'KEY_CONFIRMATION';
+    type: 'KEY_EXCHANGE_REQUEST' | 'KEY_EXCHANGE_RESPONSE' | 'KEY_CONFIRMATION' | 'RENEGOTIATE_OFFER' | 'RENEGOTIATE_ANSWER' | 'HANGUP';
     publicKeyJWK?: string;
     timestamp?: number;
     callId?: string;
+    sdp?: RTCSessionDescriptionInit;
 }
 
 interface SecurityStatus {
@@ -56,6 +59,7 @@ interface SecurityStatus {
 // ============================================================================
 
 const peer = ref<Peer | null>(null);
+const peerReconnector = createPeerReconnector(() => peer.value);
 const localStream = ref<MediaStream | null>(null);
 const screenStream = ref<MediaStream | null>(null);
 const isCalling = ref<boolean>(false);
@@ -68,17 +72,75 @@ const activeCalls = ref<Map<string, SecureCallSession>>(new Map());
 const isMicOn = ref<boolean>(true);
 const isCamOn = ref<boolean>(false);
 const isScreenSharing = ref<boolean>(false);
+// Caméra et partage d'écran se remplacent l'un l'autre sur l'unique piste
+// vidéo (un seul sender vidéo à la fois) : si la caméra était active au
+// moment de démarrer un partage d'écran, on le note ici pour la rallumer
+// automatiquement à l'arrêt du partage plutôt que de laisser un écran noir.
+let wasCamOnBeforeScreenShare = false;
+
+// Deafen simple (mute de l'élément média distant) : à 2 personnes, le
+// GainNode par-participant à volume réglable des vocal threads (useLiveKit.ts)
+// serait de la sur-ingénierie — cf. plan.
+const isDeafened = ref<boolean>(false);
+
+// "Le correspondant parle" par peerId — équivalent P2P de ce que LiveKit
+// fournit nativement (ActiveSpeakersChanged) pour les vocal threads.
+const remoteSpeaking = ref<Map<string, boolean>>(new Map());
+
+// "Le flux distant a une piste vidéo" par peerId, en primitif booléen plutôt
+// que dérivé de remoteStreams.get(peerId).getVideoTracks() : sur une
+// renégociation, le navigateur redonne le MÊME objet MediaStream que la
+// première fois (même id), juste muté en place avec la piste ajoutée — donc
+// un computed qui lit ses tracks recalcule bien (après triggerRef), mais son
+// RÉSULTAT (cet objet, par référence) ne change pas, et Vue court-circuite
+// la propagation vers les computed qui en dépendent (hasRemoteVideo)
+// puisqu'il ne voit "rien de changé" à son niveau. Un booléen ici est comparé
+// par valeur, pas par référence, donc ne souffre pas de ce court-circuit.
+const remoteHasVideo = ref<Map<string, boolean>>(new Map());
+
+// Éléments <video>/<audio> du flux distant réellement montés, enregistrés par
+// CallOverlay.vue via :ref — nécessaire pour appliquer setSinkId (changement
+// d'enceinte) sur l'élément qui joue vraiment le son, pas sur le MediaStream
+// lui-même (qui n'a pas cette API).
+const remoteMediaEls = new Map<string, HTMLMediaElement>();
 
 // Session keys for E2EE
 const sessionPrivateKey = ref<CryptoKey | null>(null);
 const sessionPublicKeyJWK = ref<string>('');
-const callEncryptionKeys = shallowRef<Map<string, CryptoKey>>(new Map());
+// ref() et non shallowRef() : partout dans ce fichier, la mise à jour de ces
+// Maps se fait en récupérant `.value`, en appelant `.set()` dessus, puis en
+// réassignant `.value` à cette MÊME référence — un shallowRef ne déclenche
+// rien dans ce cas (Object.is voit la même référence, donc "pas de
+// changement"), ce qui laissait `securityStatus` figé sur "Chiffrement..."
+// dans CallOverlay.vue même une fois la négociation réellement terminée
+// (le chiffrement media lui-même n'est pas affecté, il lit session.e2eeKey
+// directement — seul l'affichage restait figé).
+const callEncryptionKeys = ref<Map<string, CryptoKey>>(new Map());
 
 // Security status
-const callSecurityStatus = shallowRef<Map<string, SecurityStatus>>(new Map());
+const callSecurityStatus = ref<Map<string, SecurityStatus>>(new Map());
 
-const ringtone = new Audio('/callSound.wav');
+// '/callSound.wav' n'a jamais existé dans public/ (404 silencieux — .play()
+// rejette, avalé par .catch(() => {})) : la sonnerie en boucle des appels
+// DM n'a donc jamais réellement joué de son, malgré ce code qui semblait
+// la déclencher correctement. Le seul fichier son réellement présent et
+// prévu pour cet usage est public/sounds/call_incoming.mp3.
+const ringtone = new Audio('/sounds/call_incoming.mp3');
 ringtone.loop = true;
+
+// Durée maximale de sonnerie avant abandon automatique côté appelant, si
+// personne ne décroche — sans ça, la sonnerie et la notification restaient
+// affichées indéfiniment des deux côtés (rien ne mettait fin à l'appel tant
+// que l'appelant ne raccrochait pas manuellement).
+const CALL_RING_TIMEOUT = 30000;
+let ringTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+const clearRingTimeout = () => {
+    if (ringTimeoutId) {
+        clearTimeout(ringTimeoutId);
+        ringTimeoutId = null;
+    }
+};
 
 // ============================================================================
 // Key Agreement Protocol (ECDH + HKDF)
@@ -130,18 +192,40 @@ async function deriveSharedSecret(
 
     const salt = await deriveSessionSalt(callId);
 
-    const sharedSecret = await crypto.subtle.deriveKey(
-        {
-            name: 'ECDH',
-            public: peerPublicKey
-        },
+    // deriveKey() ne peut pas enchaîner ECDH -> HKDF en un seul appel : son
+    // 3e paramètre (derivedKeyAlgorithm) décrit l'algorithme de la clé FINALE
+    // désirée, pas une seconde étape de dérivation — passer {name:'HKDF',...}
+    // là ne produit pas une clé AES-GCM utilisable et échoue (DOMException
+    // "An invalid or illegal string was specified"). Le chaînage ECDH -> HKDF
+    // -> AES-GCM demande 3 étapes explicites :
+
+    // 1. Bits bruts du secret partagé ECDH.
+    const sharedBits = await crypto.subtle.deriveBits(
+        { name: 'ECDH', public: peerPublicKey },
         privKey,
+        256
+    );
+
+    // 2. Ces bits importés comme clé de base HKDF (non extractible, ne sert
+    //    qu'à dériver — jamais utilisée directement pour chiffrer).
+    const hkdfBaseKey = await crypto.subtle.importKey(
+        'raw',
+        sharedBits,
+        'HKDF',
+        false,
+        ['deriveKey']
+    );
+
+    // 3. Clé AES-GCM finale, dérivée via HKDF (salt + info) depuis la base.
+    const sharedSecret = await crypto.subtle.deriveKey(
         {
             name: 'HKDF',
             hash: 'SHA-256',
             info: new TextEncoder().encode('SilverTeams-Call-E2EE-Key'),
             salt
         },
+        hkdfBaseKey,
+        { name: 'AES-GCM', length: 256 },
         true,
         ['encrypt', 'decrypt']
     );
@@ -165,7 +249,7 @@ async function generateFingerprint(sessionKey: CryptoKey, callId: string): Promi
 // ============================================================================
 
 export default function useSecurePeer() {
-    const { callNotif } = useNotifications();
+    const { callNotif, notify } = useNotifications();
 
     /**
      * Initialize the Peer with secure configuration
@@ -212,6 +296,10 @@ export default function useSecurePeer() {
             debug: 1
         });
 
+        peer.value.on('open', () => {
+            peerReconnector.reset();
+        });
+
         peer.value.on('call', (call) => {
             handleIncomingCall(call);
         });
@@ -223,16 +311,39 @@ export default function useSecurePeer() {
 
         peer.value.on('disconnected', () => {
             console.warn('[SECURE-PEER] Peer disconnected from server');
+            // PeerJS ne se reconnecte jamais tout seul ici (contrairement au
+            // socket.io principal) — sans cet appel explicite, un simple blip
+            // réseau rendait ce client injoignable (calls entrants ET
+            // sortants) jusqu'au rechargement complet de la page.
+            peerReconnector.schedule();
         });
 
         peer.value.on('close', () => {
             console.warn('[SECURE-PEER] Peer connection closed');
+            peerReconnector.cancel();
+        });
+
+        // Seul moyen fiable de savoir que l'appelant a raccroché/abandonné
+        // AVANT qu'on ait répondu (cf. le commentaire détaillé sur
+        // endCall()) — PeerJS ne relaie rien dans ce cas. Enregistré une
+        // seule fois pour toute la session (comme le reste de initPeer()),
+        // pas par appel.
+        const socket = await useWSocket();
+        socket.value?.off('call:cancelled');
+        socket.value?.on('call:cancelled', ({ fromUserId }: { fromUserId: string }) => {
+            const call = enteringCall.value;
+            if (!call || call.peer !== fromUserId) return;
+            const member = openedOrg.value?.members?.find(m => m.user?.id === fromUserId);
+            if (!member) return;
+            dismissMissedIncomingCall(call, member);
         });
     };
 
     const cleanupPeer = () => {
+        peerReconnector.cancel();
         if (peer.value) {
             try {
+                peer.value.off('open');
                 peer.value.off('call');
                 peer.value.off('error');
                 peer.value.off('disconnected');
@@ -245,6 +356,25 @@ export default function useSecurePeer() {
             }
             peer.value = null;
         }
+    };
+
+    // Utilisé à la fois par call.on('close') (l'appelant a fermé une
+    // MediaConnection déjà négociée avec nous) et par le listener
+    // call:cancelled ci-dessous (l'appelant a annulé via le socket, seul
+    // moyen fiable de le savoir tant qu'on n'a pas encore répondu — cf.
+    // commentaire détaillé sur endCall()). Le garde `enteringCall.value !==
+    // call` protège contre un signal tardif/dupliqué arrivant après qu'on a
+    // déjà répondu ou raccroché nous-mêmes.
+    const dismissMissedIncomingCall = (call: MediaConnection, member: OrgMember) => {
+        if (enteringCall.value !== call) return;
+        enteringCall.value = null;
+        callNotif.value = callNotif.value.filter(m => m.user?.id !== call.peer);
+        ringtone.pause();
+        ringtone.currentTime = 0;
+        // La carte "Appel entrant" disparaît (ligne au-dessus), mais sans
+        // rien d'autre il n'en reste aucune trace — comme un vrai
+        // téléphone, on laisse un "appel manqué" derrière.
+        notify('notif:missedCall', member, 8000);
     };
 
     /**
@@ -262,6 +392,15 @@ export default function useSecurePeer() {
             return;
         }
 
+        // Le correspondant peut raccrocher avant qu'on ait répondu (appel annulé) :
+        // avant l'acceptation, aucun listener 'close' n'était posé sur cet appel,
+        // donc enteringCall/callNotif/la sonnerie restaient bloqués indéfiniment
+        // côté appelé, avec un bouton "Répondre" mort pointant vers un appel fermé.
+        // Ceci ne couvre en réalité que le cas où NOUS fermons nous-mêmes cet
+        // objet (ex: rejectCall()) — cf. call:cancelled plus bas pour le cas
+        // réel rapporté (l'APPELANT raccroche), que .close() ne signale pas.
+        call.on('close', () => dismissMissedIncomingCall(call, member));
+
         enteringCall.value = call;
         callNotif.value.push(member);
         ringtone.play().catch(() => {});
@@ -275,8 +414,10 @@ export default function useSecurePeer() {
         if (!session) return;
 
         channel.onopen = async () => {
-            console.log('[SECURE-PEER] Data channel open with:', peerId);
-            
+            debugLog('[SECURE-PEER] Data channel open with:', peerId);
+
+            session.dataChannel = channel;
+
             // Set timeout for key exchange
             session.keyExchangeTimeout = setTimeout(() => {
                 console.warn('[SECURE-PEER] Key exchange timeout for:', peerId);
@@ -319,7 +460,7 @@ export default function useSecurePeer() {
         };
 
         channel.onclose = () => {
-            console.log('[SECURE-PEER] Data channel closed for:', peerId);
+            debugLog('[SECURE-PEER] Data channel closed for:', peerId);
             // Clear timeout on channel close
             if (session.keyExchangeTimeout) {
                 clearTimeout(session.keyExchangeTimeout);
@@ -398,7 +539,7 @@ export default function useSecurePeer() {
                         });
                         callSecurityStatus.value = status;
                         
-                        console.log('[SECURE-PEER] Key exchange completed for:', peerId);
+                        debugLog('[SECURE-PEER] Key exchange completed for:', peerId);
                     }
                     break;
 
@@ -434,8 +575,56 @@ export default function useSecurePeer() {
                         });
                         callSecurityStatus.value = status;
                         
-                        console.log('[SECURE-PEER] Key exchange completed and authenticated for:', peerId);
+                        debugLog('[SECURE-PEER] Key exchange completed and authenticated for:', peerId);
                     }
+                    break;
+
+                // PeerJS ne renégocie jamais tout seul (cf. commentaire sur
+                // SecureCallSession.dataChannel) : quand l'autre côté active sa
+                // caméra/son partage d'écran pour la première fois de l'appel
+                // (pc.addTrack, pas encore de sender vidéo), il nous envoie sa
+                // propre offer via ce canal pour qu'on négocie manuellement.
+                case 'RENEGOTIATE_OFFER':
+                    if (message.sdp) {
+                        debugLog('[SECURE-PEER] RENEGOTIATE_OFFER reçue de', peerId, '— signalingState avant:', session.call.peerConnection.signalingState);
+                        const pc = session.call.peerConnection;
+                        await pc.setRemoteDescription(message.sdp);
+                        const answer = await pc.createAnswer();
+                        await pc.setLocalDescription(answer);
+                        channel.send(JSON.stringify({
+                            type: 'RENEGOTIATE_ANSWER',
+                            sdp: answer,
+                            timestamp: Date.now(),
+                            callId: session.callId
+                        } satisfies KeyExchangeMessage));
+                        debugLog('[SECURE-PEER] RENEGOTIATE_ANSWER envoyée à', peerId, '— senders vidéo:', pc.getSenders().filter(s => s.track?.kind === 'video').length, 'receivers vidéo:', pc.getReceivers().filter(r => r.track?.kind === 'video').length);
+                    } else {
+                        console.warn('[SECURE-PEER] RENEGOTIATE_OFFER reçue sans sdp de', peerId);
+                    }
+                    break;
+
+                case 'RENEGOTIATE_ANSWER':
+                    if (message.sdp) {
+                        await session.call.peerConnection.setRemoteDescription(message.sdp);
+                        debugLog('[SECURE-PEER] RENEGOTIATE_ANSWER appliquée pour', peerId, '— signalingState:', session.call.peerConnection.signalingState);
+                    } else {
+                        console.warn('[SECURE-PEER] RENEGOTIATE_ANSWER reçue sans sdp de', peerId);
+                    }
+                    break;
+
+                // MediaConnection.close() de PeerJS ne prévient jamais le
+                // correspondant — il faut attendre que SON PROPRE ICE détecte
+                // la perte de transport (état 'failed', pas juste
+                // 'disconnected') pour que son propre call.on('close') se
+                // déclenche, ce qui peut prendre de longues secondes, voire
+                // ne jamais aboutir proprement selon le réseau. En fermant
+                // notre côté ici en réponse à ce message explicite, on
+                // déclenche notre 'close' local tout de suite, qui route vers
+                // le même nettoyage (removePeerFromCall) que pour un
+                // raccroché initié localement.
+                case 'HANGUP':
+                    debugLog('[SECURE-PEER] HANGUP reçu de', peerId);
+                    session.call.close();
                     break;
             }
         } catch (error) {
@@ -452,21 +641,82 @@ export default function useSecurePeer() {
     };
 
     /**
+     * Renégocie manuellement la connexion (nouvelle offer/answer) après un
+     * pc.addTrack() effectué en cours d'appel — PeerJS ne le fait jamais de
+     * lui-même. Échangée via le canal 'secure-control' déjà ouvert plutôt que
+     * par la signalisation PeerJS, pour ne pas avoir à toucher à son
+     * Negotiator interne. Sans ça, la piste ajoutée existe bien localement
+     * (le sender existe) mais le correspondant ne reçoit jamais le SDP décrivant
+     * cette nouvelle piste : addTrack() seul ne suffit pas à la faire circuler.
+     */
+    const triggerRenegotiation = async (peerId: string) => {
+        const session = activeCalls.value.get(peerId);
+        if (!session?.dataChannel || session.dataChannel.readyState !== 'open') {
+            console.warn('[SECURE-PEER] Impossible de renégocier : canal de signalisation indisponible pour', peerId, '(dataChannel:', session?.dataChannel?.readyState, ')');
+            return;
+        }
+
+        try {
+            const pc = session.call.peerConnection;
+            debugLog('[SECURE-PEER] triggerRenegotiation pour', peerId, '— senders vidéo avant offer:', pc.getSenders().filter(s => s.track?.kind === 'video').length, 'signalingState:', pc.signalingState);
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            session.dataChannel.send(JSON.stringify({
+                type: 'RENEGOTIATE_OFFER',
+                sdp: offer,
+                timestamp: Date.now(),
+                callId: session.callId
+            } satisfies KeyExchangeMessage));
+            debugLog('[SECURE-PEER] RENEGOTIATE_OFFER envoyée à', peerId);
+        } catch (err) {
+            console.error('[SECURE-PEER] triggerRenegotiation a échoué:', err);
+        }
+    };
+
+    /**
+     * Met à jour, en booléen primitif, si un peer a actuellement une piste
+     * vidéo distante active — cf. commentaire sur remoteHasVideo plus haut
+     * pour pourquoi ça ne peut pas être un computed dérivé de remoteStreams.
+     * `some(readyState !== 'ended')` plutôt que `.length > 0` : une piste
+     * coupée localement par l'autre côté (toggleCam/stopScreenShare, sans
+     * renégociation) reste présente dans le stream, juste à l'état 'ended'.
+     */
+    const updateRemoteHasVideo = (peerId: string, stream: MediaStream) => {
+        const hasVideo = stream.getVideoTracks().some(t => t.readyState !== 'ended');
+        const videoMap = remoteHasVideo.value;
+        videoMap.set(peerId, hasVideo);
+        remoteHasVideo.value = videoMap;
+    };
+
+    /**
      * Handle call events with E2EE setup
      */
     const handleCallEvents = (call: MediaConnection, isCaller: boolean) => {
         const peerId = call.peer;
-        
+
+        // Le callId DOIT être partagé entre les deux côtés : handleKeyExchangeMessage
+        // rejette tout message dont le callId ne correspond pas exactement à
+        // session.callId (protection anti session-hijacking). En générer un
+        // localement ici, indépendamment de chaque côté, produisait deux valeurs
+        // différentes qui ne pouvaient jamais correspondre — chaque échange de
+        // clé était donc rejeté, sur CHAQUE appel. L'appelant le génère et le
+        // transmet via call.metadata (cf. startCall) ; l'appelé le relit depuis
+        // ce même metadata au lieu d'en fabriquer un autre.
+        const callId = (call.metadata as { callId?: string } | undefined)?.callId
+            || `${peerId}-${generateCallId()}`;
+
         // Create secure session
         const session: SecureCallSession = {
             call,
-            callId: `${peerId}-${generateCallId()}`,
+            callId,
             peerId,
             e2eeKey: null,
             e2eeKeyId: Date.now(),
             keyAgreementComplete: false,
             authenticated: false,
-            keyExchangeTimeout: null
+            keyExchangeTimeout: null,
+            dataChannel: null,
+            answered: false
         };
         
         const calls = activeCalls.value;
@@ -476,11 +726,54 @@ export default function useSecurePeer() {
         call.on('stream', (incomingStream) => {
             ringtone.pause();
             ringtone.currentTime = 0;
-            
+            session.answered = true;
+            clearRingTimeout();
+
+            debugLog(
+                '[SECURE-PEER] "stream" event for', peerId,
+                '— audio tracks:', incomingStream.getAudioTracks().length,
+                'video tracks:', incomingStream.getVideoTracks().length,
+                'stream id:', incomingStream.id
+            );
+
             // Store remote stream (DTLS-SRTP encryption is automatic in WebRTC)
             const streams = remoteStreams.value;
             streams.set(peerId, incomingStream);
             remoteStreams.value = streams;
+
+            // Sur une renégociation (caméra/écran activé après le début de
+            // l'appel), le navigateur redonne le MÊME objet MediaStream que la
+            // première fois (même stream id), juste muté en place avec la
+            // nouvelle piste — Map.set() sur une Map réactive ne déclenche rien
+            // dans ce cas (Vue compare par référence). Forcé explicitement.
+            triggerRef(remoteStreams);
+
+            // Insuffisant à lui seul : un computed qui dérive de
+            // remoteStreams.get(peerId).getVideoTracks() (ex: un ancien
+            // hasRemoteVideo) se recalcule bien grâce au triggerRef ci-dessus,
+            // mais son RÉSULTAT (ce même objet MediaStream, par référence) est
+            // identique à avant — Vue voit alors "rien de changé" à CE niveau
+            // et court-circuite la propagation vers les computed qui en
+            // dépendent, qui ne se ré-exécutent donc jamais. D'où ce booléen
+            // primitif à part, mis à jour explicitement ici : comparé par
+            // valeur, il ne souffre pas de ce court-circuit.
+            updateRemoteHasVideo(peerId, incomingStream);
+
+            // Quand l'autre côté coupe sa caméra/son partage (toggleCam/
+            // stopScreenShare), il ne renégocie PAS la fin de la piste — elle
+            // reste dans le sender, juste arrêtée localement — donc aucun
+            // nouvel événement 'stream' ne se déclenche ici pour nous
+            // prévenir. La seule façon de le détecter côté receveur est
+            // d'écouter la fin de la piste elle-même.
+            incomingStream.getVideoTracks().forEach(track => {
+                track.onended = () => updateRemoteHasVideo(peerId, incomingStream);
+            });
+
+            monitorAudio(incomingStream, (val) => {
+                const speaking = new Map(remoteSpeaking.value);
+                speaking.set(peerId, val);
+                remoteSpeaking.value = speaking;
+            });
         });
 
         call.on('close', () => removePeerFromCall(peerId));
@@ -586,6 +879,112 @@ export default function useSecurePeer() {
     };
 
     /**
+     * Enregistre/désenregistre l'élément <video>/<audio> qui joue réellement
+     * le flux distant d'un peer — appelé via :ref depuis CallOverlay.vue.
+     * Applique tout de suite l'enceinte déjà choisie (voicePrefs), pour que
+     * changer de tuile focus/PiP (donc de <video> monté) ne perde pas le
+     * choix précédent.
+     */
+    const registerRemoteMediaElement = (peerId: string, el: HTMLMediaElement | null) => {
+        if (el) {
+            remoteMediaEls.set(peerId, el);
+            const speakerId = getVoicePrefs().speakerDeviceId;
+            if (speakerId && 'setSinkId' in el) {
+                (el as any).setSinkId(speakerId).catch(() => {});
+            }
+        }
+        // Pas de suppression ici sur démontage (el === null) : le plein écran
+        // et la fenêtre réduite ont chacun leur propre <video>, et pendant la
+        // transition entre les deux, le nouveau peut se monter (et s'enregistrer)
+        // avant que l'ancien ne se démonte — un `delete` ici effacerait alors le
+        // bon élément qui vient d'être enregistré. cleanupCall()/removePeerFromCall()
+        // nettoient déjà la map à la fin de l'appel ou du peer concerné.
+    };
+
+    /**
+     * Change de périphérique micro/caméra/enceinte en cours d'appel, comme
+     * switchDevice() dans useLiveKit.ts pour les vocal threads.
+     */
+    const switchDevice = async (kind: MediaDeviceKind, deviceId: string) => {
+        if (kind === 'audiooutput') {
+            for (const el of remoteMediaEls.values()) {
+                if ('setSinkId' in el) {
+                    await (el as any).setSinkId(deviceId).catch((e: unknown) =>
+                        console.error('[SECURE-PEER] setSinkId a échoué:', e));
+                }
+            }
+            return;
+        }
+
+        try {
+            const newStream = kind === 'audioinput'
+                ? await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } } })
+                : await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } });
+
+            const newTrack = kind === 'audioinput' ? newStream.getAudioTracks()[0] : newStream.getVideoTracks()[0];
+            if (!newTrack || !localStream.value) return;
+
+            // videoinput : rien à remplacer si la caméra n'est pas active — le
+            // device choisi sera repris à la prochaine activation via voicePrefs.
+            if (kind === 'videoinput' && !isCamOn.value) {
+                newTrack.stop();
+                return;
+            }
+
+            const trackKind = kind === 'audioinput' ? 'audio' : 'video';
+            const oldTrack = localStream.value.getTracks().find(t => t.kind === trackKind);
+            if (oldTrack) {
+                oldTrack.stop();
+                localStream.value.removeTrack(oldTrack);
+            }
+            localStream.value.addTrack(newTrack);
+
+            if (kind === 'audioinput') newTrack.enabled = isMicOn.value;
+
+            activeCalls.value.forEach(session => {
+                const sender = session.call.peerConnection.getSenders().find(s => s.track?.kind === trackKind);
+                if (sender) sender.replaceTrack(newTrack);
+                else if (kind === 'videoinput') session.call.peerConnection.addTrack(newTrack, localStream.value!);
+            });
+        } catch (err) {
+            console.error('[SECURE-PEER] switchDevice a échoué:', err);
+        }
+    };
+
+    /**
+     * Applique une nouvelle résolution/framerate à la track vidéo active
+     * (caméra ou partage d'écran) sans la republier, comme applyVideoQuality()
+     * dans useLiveKit.ts.
+     */
+    const applyVideoQuality = async (
+        source: 'camera' | 'screenshare',
+        options: { resolution: { width: number; height: number }; frameRate: number }
+    ) => {
+        const track = source === 'camera'
+            ? localStream.value?.getVideoTracks()[0]
+            : screenStream.value?.getVideoTracks()[0];
+        if (!track) return;
+
+        try {
+            await track.applyConstraints({
+                width: options.resolution.width,
+                height: options.resolution.height,
+                frameRate: options.frameRate
+            });
+        } catch (err) {
+            console.error('[SECURE-PEER] applyVideoQuality a échoué:', err);
+        }
+    };
+
+    /**
+     * Coupe/réactive le son du correspondant — mute simple de l'élément média
+     * (cf. plan : pas de GainNode/volume par-participant, sur-ingénierie à 2).
+     */
+    const toggleDeafen = () => {
+        isDeafened.value = !isDeafened.value;
+    };
+
+    /**
      * Toggle microphone
      */
     const toggleMic = () => {
@@ -597,23 +996,77 @@ export default function useSecurePeer() {
     };
 
     /**
-     * Toggle camera
+     * Ajoute/remplace la piste vidéo sortante sur chaque appel actif, en
+     * renégociant manuellement (cf. triggerRenegotiation) quand aucun sender
+     * vidéo n'existe encore — c'est TOUJOURS le cas au premier allumage de la
+     * caméra ou de l'écran d'un appel (celui-ci démarre systématiquement
+     * audio seul, cf. startCall/acceptCall), donc sans ce fallback PeerJS
+     * n'a jamais négocié la piste avec le correspondant : elle existait bien
+     * localement mais ne partait nulle part.
      */
-    const toggleCam = async () => {
+    const publishVideoTrack = (track: MediaStreamTrack) => {
+        activeCalls.value.forEach(session => {
+            const sender = session.call.peerConnection.getSenders().find(s => s.track?.kind === 'video');
+            if (sender) {
+                debugLog('[SECURE-PEER] publishVideoTrack: sender vidéo existant, replaceTrack (pas de renégociation nécessaire) pour', session.peerId);
+                sender.replaceTrack(track);
+            } else {
+                debugLog('[SECURE-PEER] publishVideoTrack: aucun sender vidéo, addTrack + renégociation pour', session.peerId);
+                session.call.peerConnection.addTrack(track, localStream.value!);
+                triggerRenegotiation(session.peerId);
+            }
+        });
+    };
+
+    /**
+     * Retire la piste de partage d'écran (locale + arrête sa capture) sans
+     * se soucier de rallumer la caméra ensuite — séparé de stopScreenShare()
+     * pour que toggleCam() puisse l'appeler directement quand on bascule de
+     * l'écran vers la caméra : passer par stopScreenShare() là aurait
+     * déclenché SA propre reprise automatique de la caméra (cf. plus bas),
+     * en plus de celle que toggleCam() s'apprête à faire lui-même juste
+     * après — activant la caméra deux fois coup sur coup.
+     */
+    const clearScreenShareTrack = () => {
+        const screenTrack = localStream.value?.getVideoTracks()[0];
+        if (screenTrack) {
+            screenTrack.stop();
+            localStream.value?.removeTrack(screenTrack);
+        }
+        screenStream.value?.getTracks().forEach(t => t.stop());
+        screenStream.value = null;
+        isScreenSharing.value = false;
+    };
+
+    /**
+     * Toggle camera. `captureOptions` (device/résolution/framerate) est
+     * construit par la vue depuis voicePrefs à l'activation — même split de
+     * responsabilité que toggleCamera() dans useLiveKit.ts.
+     */
+    const toggleCam = async (captureOptions?: { deviceId?: string; resolution?: { width: number; height: number }; frameRate?: number }) => {
         try {
             if (!isCamOn.value) {
-                const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                // Caméra et partage d'écran se remplacent sur l'unique piste
+                // vidéo : on coupe proprement l'un avant de démarrer l'autre.
+                if (isScreenSharing.value) {
+                    wasCamOnBeforeScreenShare = false;
+                    clearScreenShareTrack();
+                }
+
+                const videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        deviceId: captureOptions?.deviceId ? { exact: captureOptions.deviceId } : undefined,
+                        width: captureOptions?.resolution?.width,
+                        height: captureOptions?.resolution?.height,
+                        frameRate: captureOptions?.frameRate
+                    }
+                });
                 const videoTrack = videoStream.getVideoTracks()[0];
-                
+
                 if (localStream.value) {
                     if (!videoTrack) return console.error('[SECURE-PEER] Video track is undefined');
                     localStream.value.addTrack(videoTrack);
-
-                    activeCalls.value.forEach(session => {
-                        const sender = session.call.peerConnection.getSenders().find(s => s.track?.kind === 'video');
-                        if (sender) sender.replaceTrack(videoTrack);
-                        else session.call.peerConnection.addTrack(videoTrack, localStream.value!);
-                    });
+                    publishVideoTrack(videoTrack);
                 }
 
                 isCamOn.value = true;
@@ -631,20 +1084,34 @@ export default function useSecurePeer() {
     };
 
     /**
-     * Toggle screen sharing
+     * Toggle screen sharing. Même logique de `captureOptions` que toggleCam.
+     * La piste est ajoutée à `localStream` (pas seulement `screenStream`) :
+     * l'aperçu local (PiP dans CallOverlay.vue) est lié à `localStream`, donc
+     * sans ça il continuait de montrer l'ancien contenu (caméra ou rien) au
+     * lieu de l'écran partagé.
      */
-    const toggleScreenShare = async () => {
+    const toggleScreenShare = async (captureOptions?: { resolution?: { width: number; height: number; frameRate?: number } }) => {
         try {
             if (!isScreenSharing.value) {
-                screenStream.value = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                wasCamOnBeforeScreenShare = isCamOn.value;
+                if (isCamOn.value) {
+                    const camTrack = localStream.value?.getVideoTracks()[0];
+                    if (camTrack) {
+                        camTrack.stop();
+                        localStream.value?.removeTrack(camTrack);
+                    }
+                    isCamOn.value = false;
+                }
+
+                screenStream.value = await navigator.mediaDevices.getDisplayMedia({
+                    video: captureOptions?.resolution ? { ...captureOptions.resolution } : true
+                });
                 const screenTrack = screenStream.value.getVideoTracks()[0];
 
                 if (!screenTrack) return console.error('[SECURE-PEER] screenTrack is undefined');
 
-                activeCalls.value.forEach(session => {
-                    const sender = session.call.peerConnection.getSenders().find(s => s.track?.kind === 'video');
-                    sender?.replaceTrack(screenTrack);
-                });
+                localStream.value?.addTrack(screenTrack);
+                publishVideoTrack(screenTrack);
 
                 screenTrack.onended = () => stopScreenShare();
                 isScreenSharing.value = true;
@@ -657,18 +1124,18 @@ export default function useSecurePeer() {
     };
 
     /**
-     * Stop screen sharing
+     * Stop screen sharing — rallume automatiquement la caméra si elle était
+     * active avant le partage d'écran (comme Zoom/Discord), au lieu de
+     * laisser un écran noir côté correspondant.
      */
     const stopScreenShare = async () => {
-        screenStream.value?.getTracks().forEach(t => t.stop());
-        isScreenSharing.value = false;
-        
-        if (isCamOn.value) {
-            const videoTrack = localStream.value?.getVideoTracks()[0];
-            activeCalls.value.forEach(session => {
-                const sender = session.call.peerConnection.getSenders().find(s => s.track?.kind === 'video');
-                if (videoTrack) sender?.replaceTrack(videoTrack);
-            });
+        clearScreenShareTrack();
+
+        if (wasCamOnBeforeScreenShare) {
+            wasCamOnBeforeScreenShare = false;
+            const prefs = getVoicePrefs();
+            const { resolution, frameRate } = resolveCameraCaptureOptions(prefs);
+            await toggleCam({ deviceId: prefs.camDeviceId, resolution, frameRate });
         }
     };
 
@@ -679,9 +1146,13 @@ export default function useSecurePeer() {
         if (!enteringCall.value) return;
 
         try {
-            localStream.value = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            const micDeviceId = getVoicePrefs().micDeviceId;
+            localStream.value = await navigator.mediaDevices.getUserMedia({
+                audio: micDeviceId ? { deviceId: { exact: micDeviceId } } : true,
+                video: false
+            });
             isCamOn.value = false;
-            
+
             monitorAudio(localStream.value, (val) => isSpeaking.value = val);
             enteringCall.value.answer(localStream.value);
             handleCallEvents(enteringCall.value, false);
@@ -705,7 +1176,7 @@ export default function useSecurePeer() {
         }
 
         if (!peer.value || peer.value.destroyed) {
-            console.log('[SECURE-PEER] Initialisation de l\'instance Peer...');
+            debugLog('[SECURE-PEER] Initialisation de l\'instance Peer...');
             await initPeer();
             // Wait a bit for peer to be ready
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -716,7 +1187,7 @@ export default function useSecurePeer() {
 
         if (peer.value.disconnected) {
             try {
-                console.log('[SECURE-PEER] Tentative de reconnexion...');
+                debugLog('[SECURE-PEER] Tentative de reconnexion...');
                 await peer.value.reconnect();
                 // Wait for reconnection
                 await new Promise(resolve => setTimeout(resolve, 1000));
@@ -739,19 +1210,26 @@ export default function useSecurePeer() {
         }
 
         try {
-            localStream.value = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            const micDeviceId = getVoicePrefs().micDeviceId;
+            localStream.value = await navigator.mediaDevices.getUserMedia({
+                audio: micDeviceId ? { deviceId: { exact: micDeviceId } } : true,
+                video: false
+            });
             isCamOn.value = false;
-            
+
             monitorAudio(localStream.value, (val) => isSpeaking.value = val);
             isCalling.value = true;
             ringtone.play().catch(() => {});
 
-            // Create call with E2EE metadata
+            // Create call with E2EE metadata — callId généré ici et transmis dans
+            // les metadata pour que handleCallEvents (côté appelé) le relise au
+            // lieu d'en générer un différent (cf. commentaire dans handleCallEvents).
             const call = peer.value.call(recipient.id, localStream.value, {
                 metadata: {
                     e2ee: true,
                     version: '1.0',
-                    publicKeyJWK: sessionPublicKeyJWK.value
+                    publicKeyJWK: sessionPublicKeyJWK.value,
+                    callId: `${recipient.id}-${generateCallId()}`
                 }
             });
 
@@ -760,6 +1238,12 @@ export default function useSecurePeer() {
             }
 
             handleCallEvents(call, true);
+
+            clearRingTimeout();
+            ringTimeoutId = setTimeout(() => {
+                const session = activeCalls.value.get(recipient.id);
+                if (session && !session.answered) endCall();
+            }, CALL_RING_TIMEOUT);
 
         } catch (err) {
             console.error("[SECURE-PEER] Erreur startCall:", err);
@@ -794,6 +1278,16 @@ export default function useSecurePeer() {
         status.delete(peerId);
         callSecurityStatus.value = status;
 
+        const speaking = new Map(remoteSpeaking.value);
+        speaking.delete(peerId);
+        remoteSpeaking.value = speaking;
+
+        const videoMap = new Map(remoteHasVideo.value);
+        videoMap.delete(peerId);
+        remoteHasVideo.value = videoMap;
+
+        remoteMediaEls.delete(peerId);
+
         if (activeCalls.value.size === 0) cleanupCall();
     };
 
@@ -803,6 +1297,7 @@ export default function useSecurePeer() {
     const cleanupCall = () => {
         ringtone.pause();
         ringtone.currentTime = 0;
+        clearRingTimeout();
         localStream.value?.getTracks().forEach(track => track.stop());
         screenStream.value?.getTracks().forEach(track => track.stop());
         localStream.value = null;
@@ -819,10 +1314,14 @@ export default function useSecurePeer() {
         activeCalls.value = new Map();
         callEncryptionKeys.value = new Map();
         callSecurityStatus.value = new Map();
+        remoteSpeaking.value = new Map();
+        remoteHasVideo.value = new Map();
+        remoteMediaEls.clear();
         enteringCall.value = null;
         isCalling.value = false;
         isCamOn.value = false;
         isScreenSharing.value = false;
+        wasCamOnBeforeScreenShare = false;
         // Don't cleanup peer here - let the caller decide if they want to keep it
     };
 
@@ -830,7 +1329,37 @@ export default function useSecurePeer() {
      * End all calls
      */
     const endCall = () => {
-        activeCalls.value.forEach(session => session.call.close());
+        activeCalls.value.forEach(session => {
+            if (session.dataChannel?.readyState === 'open') {
+                // Prévient le correspondant explicitement AVANT de fermer —
+                // MediaConnection.close() de PeerJS ne signale rien de lui-même,
+                // le correspondant devrait sinon attendre que son propre ICE
+                // détecte la coupure (cf. commentaire sur le cas 'HANGUP').
+                try {
+                    session.dataChannel.send(JSON.stringify({
+                        type: 'HANGUP',
+                        timestamp: Date.now(),
+                        callId: session.callId
+                    } satisfies KeyExchangeMessage));
+                } catch (e) {
+                    // Le canal peut s'être fermé entre le check et l'envoi — sans
+                    // conséquence, le correspondant détectera la coupure via ICE.
+                }
+            } else if (!session.answered) {
+                // Ça sonne encore, personne n'a décroché : le canal HANGUP
+                // ci-dessus n'existe pas encore, et MediaConnection.close()
+                // (juste en dessous) ne relaie RIEN au correspondant côté
+                // PeerJS (vérifié dans sa source : close() n'émet 'close' que
+                // localement, aucun message n'est envoyé à l'autre pair tant
+                // qu'il n'a pas répondu — son propre canal de négociation
+                // n'existe même pas encore). Sans ce signal applicatif via le
+                // socket, sa carte "Appel entrant" et sa sonnerie restaient
+                // affichées indéfiniment après qu'on ait raccroché.
+                const targetUserId = session.peerId;
+                useWSocket().then(socket => socket.value?.emit('call:cancel', { targetUserId }));
+            }
+            session.call.close();
+        });
         cleanupCall();
     };
 
@@ -869,6 +1398,53 @@ export default function useSecurePeer() {
     };
 
     /**
+     * Vérifie, via les stats WebRTC réelles de la connexion (pas une simple
+     * supposition depuis la config), si le média circule vraiment en direct
+     * entre les deux pairs ou passe par un serveur relais TURN. PEER_CONFIG
+     * ne déclare que des serveurs STUN (pas de TURN) : quand la connexion
+     * aboutit, elle est donc nécessairement directe — mais ceci le confirme
+     * depuis la paire de candidats ICE réellement sélectionnée, plutôt que de
+     * se fier uniquement à la config statique.
+     */
+    const getConnectionType = async (peerId: string): Promise<'direct' | 'relay' | 'unknown'> => {
+        const session = activeCalls.value.get(peerId);
+        const pc = session?.call.peerConnection;
+        if (!pc) return 'unknown';
+
+        try {
+            const stats = await pc.getStats();
+            let pair: RTCIceCandidatePairStats | null = null;
+
+            stats.forEach((report) => {
+                if (report.type === 'candidate-pair' && report.state === 'succeeded' && (report as any).nominated) {
+                    pair = report as RTCIceCandidatePairStats;
+                }
+            });
+
+            // Repli si aucune paire n'est marquée "nominated" par ce navigateur
+            // (le champ est optionnel selon les implémentations).
+            if (!pair) {
+                stats.forEach((report) => {
+                    if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                        pair = report as RTCIceCandidatePairStats;
+                    }
+                });
+            }
+
+            if (!pair) return 'unknown';
+
+            const local = stats.get((pair as RTCIceCandidatePairStats).localCandidateId);
+            const remote = stats.get((pair as RTCIceCandidatePairStats).remoteCandidateId);
+            const isRelay = local?.candidateType === 'relay' || remote?.candidateType === 'relay';
+
+            return isRelay ? 'relay' : 'direct';
+        } catch (e) {
+            console.error('[SECURE-PEER] getConnectionType a échoué:', e);
+            return 'unknown';
+        }
+    };
+
+    /**
      * Get security status for a call
      */
     const getCallSecurityStatus = (peerId: string): SecurityStatus => {
@@ -883,25 +1459,44 @@ export default function useSecurePeer() {
         cleanupPeer,
         rejectCall: () => {
             if (!enteringCall.value) return;
-            enteringCall.value.close();
-            callNotif.value = callNotif.value.filter(m => m.user?.id !== enteringCall.value?.peer);
+            const call = enteringCall.value;
+            // Nullifié AVANT .close() : le listener 'close' posé dans
+            // handleIncomingCall (qui pousse la notification "Appel manqué"
+            // quand c'est l'APPELANT qui raccroche avant réponse) se base sur
+            // `enteringCall.value !== call` pour ignorer une fermeture qu'on a
+            // nous-mêmes déclenchée via "Refuser" — un refus explicite n'est
+            // pas un appel manqué. Si .close() émet 'close' de façon
+            // synchrone (comportement PeerJS), l'ancien ordre (close() avant
+            // la remise à null) aurait laissé passer la garde par erreur.
             enteringCall.value = null;
+            call.close();
+            callNotif.value = callNotif.value.filter(m => m.user?.id !== call.peer);
             ringtone.pause();
+            ringtone.currentTime = 0;
         },
         toggleMic,
         toggleCam,
         toggleScreenShare,
+        toggleDeafen,
+        switchDevice,
+        applyVideoQuality,
+        registerRemoteMediaElement,
         remoteStreams,
+        remoteSpeaking,
+        remoteHasVideo,
         localStream,
         isCalling,
         isSpeaking,
         isMicOn,
         isCamOn,
         isScreenSharing,
+        isDeafened,
         enteringCall,
+        activeCalls,
         // Security features
         getCallSecurityStatus,
         verifySecurityFingerprint,
+        getConnectionType,
         callSecurityStatus
     };
 }

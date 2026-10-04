@@ -27,7 +27,7 @@
                         Plus d'options
                     </button>
                     <button type="button" class="quick-create-save" :disabled="saving" @click="save">
-                        <span v-if="saving" class="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin"></span>
+                        <span v-if="saving" class="w-3.5 h-3.5 border-2 border-(--text)/40 border-t-white rounded-full animate-spin"></span>
                         <template v-else>Enregistrer</template>
                     </button>
                 </div>

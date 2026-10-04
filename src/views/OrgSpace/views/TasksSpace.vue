@@ -7,7 +7,7 @@
                 <h3 class="font-semibold text-(--text)">Tâches</h3>
             </div>
             
-            <TaskProgressGauge :tasks="tasks.filter(t => !filterUserId || t.assignees?.some(a => a.id === filterUserId))" class="mx-auto" />
+            <TaskProgressGauge :tasks="visibleTasks" class="mx-auto" />
             
             <div class="flex items-center gap-4">
                 <CreateTaskModal 
@@ -55,21 +55,21 @@
                         @dragleave.prevent="dragOverMemberId = null"
                         @drop="onDropToAssign($event, member)"
                         class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0"
-                        :class="dragOverMemberId === member.userId ? 'bg-(--primary) text-white ring-2 ring-(--primary)/50 shadow-[0_4px_20px_rgba(var(--primary-rgb),0.5)]' : (filterUserId === member.userId ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10')"
+                        :class="dragOverMemberId === member.userId ? 'bg-(--primary) text-white ring-2 ring-(--primary)/50 shadow-[0_4px_20px_var(--glow-primary-strong)]' : (filterUserId === member.userId ? 'bg-(--primary) text-white shadow-[0_4px_15px_var(--glow-primary-soft)]' : 'bg-(--text)/5 text-(--text)/50 hover:bg-(--text)/10')"
                     >
                         <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-5 h-5 rounded-full object-cover">
-                        <div v-else class="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px]">
+                        <div v-else class="w-5 h-5 rounded-full bg-(--text)/10 flex items-center justify-center text-[9px]">
                             {{ $p(member.user?.name)?.substring(0,2).toUpperCase() }}
                         </div>
                         {{ $p(member.user?.name) }}
                     </button>
                 </div>
 
-                <div v-if="tags.length > 0" class="hidden sm:block w-px h-6 bg-(--border-color) mx-2 shrink-0"></div>
+                <div class="hidden sm:block w-px h-6 bg-(--border-color) mx-2 shrink-0"></div>
 
-                <DropDown v-if="tags.length > 0" align="left" content-iner-t-w="min-w-[280px]">
+                <DropDown align="left" content-iner-t-w="min-w-[280px]">
                     <template #trigger>
-                        <button type="button" class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap h-full" :class="filterTagIds.length ? 'bg-(--primary)/15 text-(--primary)' : 'bg-white/5 text-white/70 hover:bg-white/10'">
+                        <button type="button" class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap h-full" :class="filterTagIds.length ? 'bg-(--primary)/15 text-(--primary)' : 'bg-(--text)/5 text-(--text)/70 hover:bg-(--text)/10'">
                             <i class="bi bi-tags"></i>
                             {{ filterTagIds.length ? `${filterTagIds.length} tag${filterTagIds.length > 1 ? 's' : ''}` : 'Tags' }}
                             <i class="bi bi-chevron-down text-[10px] opacity-60"></i>
@@ -92,13 +92,23 @@
                 </DropDown>
 
                 <button
+                    v-if="filterUserId || filterTagIds.length"
+                    type="button"
+                    @click="filterUserId = null; filterTagIds = []"
+                    class="text-[11px] font-bold text-(--text2) hover:text-(--text) flex items-center gap-1 ml-1 shrink-0"
+                >
+                    <i class="bi bi-x-circle"></i>
+                    Réinitialiser les filtres
+                </button>
+
+                <button
                     v-if="archivedCount > 0 || isDraggingTask"
-                    @click="showArchivedPanel = true"
+                    @click="router.push({ name: 'TasksSpaceArchived', params: { orgId: route.params.orgId, spaceId: route.params.spaceId } })"
                     @dragover.prevent="dragOverArchiveBtn = true"
                     @dragleave.prevent="dragOverArchiveBtn = false"
                     @drop="onDropToArchiveBtn"
                     class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0 ml-auto"
-                    :class="dragOverArchiveBtn ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-[0_4px_20px_rgba(245,158,11,0.5)]' : (showArchivedPanel ? 'bg-(--primary) text-white shadow-[0_4px_15px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 text-white/50 hover:bg-white/10')"
+                    :class="dragOverArchiveBtn ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-[0_4px_20px_var(--glow-warning-strong)]' : 'bg-(--text)/5 text-(--text)/50 hover:bg-(--text)/10'"
                 >
                     <i class="bi bi-archive-fill" />
                     <span class="hidden sm:inline">Tâches archivées</span>
@@ -108,22 +118,22 @@
 
             <div v-if="loading" class="flex-1 min-h-0 w-full flex flex-col gap-6 animate-pulse pb-10">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
-                    <div v-for="i in 3" :key="'skel-col-'+i" class="bg-black/20 rounded-2xl p-4 flex flex-col gap-4 border border-(--border-color) h-full">
+                    <div v-for="i in 3" :key="'skel-col-'+i" class="bg-(--surface-sunken) rounded-2xl p-4 flex flex-col gap-4 border border-(--border-color) h-full">
                         <div class="flex items-center justify-between mb-2 shrink-0">
                             <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-xl bg-white/10"></div>
-                                <div class="w-24 h-4 bg-white/10 rounded-full"></div>
+                                <div class="w-8 h-8 rounded-xl bg-(--text)/10"></div>
+                                <div class="w-24 h-4 bg-(--text)/10 rounded-full"></div>
                             </div>
-                            <div class="w-6 h-4 bg-white/10 rounded-full"></div>
+                            <div class="w-6 h-4 bg-(--text)/10 rounded-full"></div>
                         </div>
-                        <div v-for="j in 3" :key="'skel-card-'+j" class="bg-white/5 border border-(--border-color) p-4 rounded-xl h-28 shrink-0"></div>
+                        <div v-for="j in 3" :key="'skel-card-'+j" class="bg-(--text)/5 border border-(--border-color) p-4 rounded-xl h-28 shrink-0"></div>
                     </div>
                 </div>
             </div>
             
             <!-- Mobile : un onglet à la fois, pas de glisser-déposer (ne marche pas au toucher) -->
             <div v-if="!loading" class="flex-1 min-h-0 flex flex-col md:hidden">
-                <div class="relative flex items-center gap-1 p-1 bg-white/5 rounded-xl mb-4 shrink-0">
+                <div class="relative flex items-center gap-1 p-1 bg-(--text)/5 rounded-xl mb-4 shrink-0">
                     <div
                         class="absolute top-1 bottom-1 rounded-lg bg-(--primary) shadow-lg transition-all duration-300 ease-out"
                         :style="tabIndicatorStyle"
@@ -137,7 +147,7 @@
                     >
                         <i :class="col.icon"></i>
                         {{ col.title }}
-                        <span class="bg-black/20 px-1.5 rounded-full">{{ filteredTasks(col.id).length }}</span>
+                        <span class="bg-(--surface-sunken) px-1.5 rounded-full">{{ filteredTasks(col.id).length }}</span>
                     </button>
                 </div>
 
@@ -145,11 +155,15 @@
                     <div
                         v-for="task in filteredTasks(mobileActiveColumn)" :key="task.id"
                         @click="openTaskDetails(task)"
-                        class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
+                        class="border p-4 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
+                        :class="isTaskOverdue(task) ? TASK_CARD_OVERDUE_CLASS : 'bg-(--bg2) border-(--text)/10'"
                     >
                         <p class="text-sm font-bold text-(--text) leading-snug">{{ task.title }}</p>
                         <span v-if="task.parentTask" class="text-[9px] font-bold text-(--primary) uppercase flex items-center gap-1 opacity-80 mt-1">
                             <i class="bi bi-arrow-return-right"></i> {{ task.parentTask.title }}
+                        </span>
+                        <span v-if="isTaskOverdue(task)" class="self-start mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500 text-white text-[9px] font-black uppercase tracking-wider">
+                            <i class="bi bi-exclamation-triangle-fill"></i> {{ overdueLabel(task.dueDate!) }}
                         </span>
 
                         <div v-if="task.tags?.length" class="flex flex-wrap gap-1 mt-2">
@@ -177,7 +191,7 @@
                                 <button
                                     v-if="prevStatus(task.status)"
                                     @click="changeTaskStatus(task, prevStatus(task.status)!)"
-                                    class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
+                                    class="w-8 h-8 rounded-lg bg-(--text)/5 hover:bg-(--text)/10 flex items-center justify-center transition-colors"
                                     :class="columnColor(prevStatus(task.status)!)"
                                     :title="`Repasser à « ${columnTitle(prevStatus(task.status)!)} »`"
                                 >
@@ -208,7 +222,7 @@
                 <!-- Columns -->
                 <div v-for="col in columns" :key="col.id"
                      class="bg-(--bg2)/40 border rounded-2xl p-4 min-h-[400px] h-full flex flex-col transition-all"
-                     :class="draggedOverCol === col.id ? 'border-(--primary) bg-(--primary)/5 shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)]' : 'border-(--border-color)'"
+                     :class="draggedOverCol === col.id ? 'border-(--primary) bg-(--primary)/5 shadow-[0_0_20px_var(--glow-primary-faint)]' : 'border-(--border-color)'"
                      @dragover.prevent
                      @dragenter.prevent="draggedOverCol = col.id"
                      @dragleave.prevent="draggedOverCol = null"
@@ -229,7 +243,7 @@
                             >
                                 <i class="bi bi-archive" />
                             </button>
-                            <span class="bg-white/5 text-(--text2) text-xs px-2.5 py-1 rounded-full font-bold">
+                            <span class="bg-(--text)/5 text-(--text2) text-xs px-2.5 py-1 rounded-full font-bold">
                                 {{ filteredTasks(col.id).length }}
                             </span>
                         </div>
@@ -249,8 +263,9 @@
                              @dragover.prevent="onCardDragOver($event, task)"
                              @drop.stop="onCardDrop($event, task, col.id)"
                              @click="openTaskDetails(task)"
-                             class="bg-(--bg2) border border-white/10 p-4 rounded-xl cursor-pointer active:cursor-grabbing hover:border-(--primary)/50 transition-all shadow-lg hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] group relative overflow-hidden"
+                             class="border p-4 rounded-xl cursor-pointer active:cursor-grabbing transition-all group relative overflow-hidden"
                              :class="[
+                                isTaskOverdue(task) ? TASK_CARD_OVERDUE_CLASS : TASK_CARD_NORMAL_CLASS,
                                 dragOverTaskId === task.id && dragOverPosition === 'before' ? 'border-t-2 border-t-(--primary)' : '',
                                 dragOverTaskId === task.id && dragOverPosition === 'after' ? 'border-b-2 border-b-(--primary)' : ''
                              ]"
@@ -260,6 +275,9 @@
                                     <p class="text-sm font-bold text-(--text) leading-snug">{{ task.title }}</p>
                                     <span v-if="task.parentTask" class="text-[9px] font-bold text-(--primary) uppercase flex items-center gap-1 opacity-80">
                                         <i class="bi bi-arrow-return-right"></i> {{ task.parentTask.title }}
+                                    </span>
+                                    <span v-if="isTaskOverdue(task)" class="self-start mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500 text-white text-[9px] font-black uppercase tracking-wider">
+                                        <i class="bi bi-exclamation-triangle-fill"></i> {{ overdueLabel(task.dueDate!) }}
                                     </span>
                                 </div>
                             </div>
@@ -285,7 +303,7 @@
                                             {{ $p(assignee.name).substring(0, 2).toUpperCase() }}
                                         </div>
                                     </template>
-                                    <div v-if="task.assignees.length > 3" class="w-6 h-6 rounded-full bg-white/10 text-white flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10">
+                                    <div v-if="task.assignees.length > 3" class="w-6 h-6 rounded-full bg-(--text)/10 text-(--text) flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10">
                                         +{{ task.assignees.length - 3 }}
                                     </div>
                                 </div>
@@ -296,7 +314,7 @@
                                         <i class="bi bi-paperclip"></i>
                                         {{ task._count.attachments }}
                                     </div>
-                                    <div v-if="task.subtasks && task.subtasks.length > 0" class="flex items-center gap-1.5 text-xs bg-white/5 px-2.5 py-1 rounded-lg font-bold text-white/50">
+                                    <div v-if="task.subtasks && task.subtasks.length > 0" class="flex items-center gap-1.5 text-xs bg-(--text)/5 px-2.5 py-1 rounded-lg font-bold text-(--text)/50">
                                         <i class="bi bi-check2-square text-(--primary)"></i>
                                         {{ task.subtasks.filter((st: any) => st.status === 'DONE').length }}/{{ task.subtasks.length }}
                                     </div>
@@ -313,7 +331,7 @@
                                         {{ getProgress(task).text }}
                                     </span>
                                 </div>
-                                <div class="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
+                                <div class="w-full h-1.5 bg-(--surface-sunken) rounded-full overflow-hidden">
                                     <div class="h-full rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(currentColor,0.5)]" 
                                          :class="getProgress(task).color" 
                                          :style="{ width: getProgress(task).percent + '%' }"></div>
@@ -385,7 +403,7 @@
                 <div class="w-16 h-16 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-2xl border-4 transition-all duration-500"
                      :class="[
                         isDeleting ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
-                        isHoveringTrash && !isDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_rgba(239,68,68,0.8)]' : 'border-transparent'
+                        isHoveringTrash && !isDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_var(--glow-danger-strong)]' : 'border-transparent'
                      ]"
                      @dragover.prevent="isHoveringTrash = true"
                      @dragleave.prevent="isHoveringTrash = false"
@@ -406,15 +424,6 @@
             </div>
         </Transition>
 
-        <ArchivedTasksPanel
-            :isOpen="showArchivedPanel"
-            :orgId="route.params.orgId as string"
-            :spaceId="route.params.spaceId as string"
-            @close="showArchivedPanel = false"
-            @restored="onTaskRestored"
-            @count="archivedCount = $event"
-        />
-
         <ConfirmDelete
             :show="showArchiveAllConfirm"
             item-type="les tâches terminées"
@@ -425,6 +434,15 @@
             :loading="archivingAll"
             @cancel="showArchiveAllConfirm = false"
             @confirm="confirmArchiveAll"
+        />
+
+        <ConfirmDelete
+            :show="!!showDeleteTaskConfirm"
+            item-type="la tâche"
+            :item-name="showDeleteTaskConfirm?.title || 'cette tâche'"
+            :loading="deletingTask"
+            @cancel="showDeleteTaskConfirm = null"
+            @confirm="confirmDeleteTask"
         />
     </div>
 </template>
@@ -446,33 +464,32 @@ import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import DropDown from '@/components/DropDown.vue';
 import TaskTagPicker from '../components/popup/TaskTagPicker.vue';
-import ArchivedTasksPanel from '../components/popup/ArchivedTasksPanel.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import confetti from 'canvas-confetti';
 import { useNotification } from '@/composables/useNotification';
 import { useTaskOrder } from '@/composables/useTaskOrder';
-import { useTaskTags } from '@/composables/useTaskTags';
+import { usePersistedTaskFilters } from '@/composables/usePersistedTaskFilters';
+import { isTaskOverdue, overdueLabel, TASK_CARD_NORMAL_CLASS, TASK_CARD_OVERDUE_CLASS } from '@/assets/utils/taskOverdue';
 
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const { fetchOrder, sortByOrder, persistOrder } = useTaskOrder(route.params.orgId as string);
-const { tags, loadTags } = useTaskTags(route.params.orgId as string);
 const { showUsersBar } = useUsersBar();
 const { markTasksAsRead } = useNotification();
 
 const tasks = ref<Task[]>([]);
 const loading = ref(true);
 const draggedOverCol = ref<string | null>(null);
-const filterUserId = ref<string | null>(null);
-const filterTagIds = ref<string[]>([]);
+const { filterUserId, filterTagIds } = usePersistedTaskFilters(
+    () => `task-filters:${user.value?.id}:${route.params.orgId}:space:${route.params.spaceId}`
+);
 
 const isDraggingTask = ref(false);
 const isHoveringTrash = ref(false);
 const isDeleting = ref(false);
 const archivingAll = ref(false);
 const showArchiveAllConfirm = ref(false);
-const showArchivedPanel = ref(false);
 const archivedCount = ref(0);
 const dragOverArchiveBtn = ref(false);
 const dragOverMemberId = ref<string | null>(null);
@@ -537,13 +554,21 @@ const spaceMembers = computed<OrgMember[]>(() => {
     return openedOrg.value.members.filter(m => space.membersId.includes(m.userId));
 });
 
-const filteredTasks = (status: string) => {
-    return sortByOrder(tasks.value.filter(t => {
-        if (t.status !== status) return false;
+// Base commune à la jauge de progression (TaskProgressGauge, dans le
+// template ci-dessus) ET aux colonnes (filteredTasks ci-dessous) — avant ce
+// fix, la jauge répliquait seulement le filtre membre à la main et ignorait
+// complètement le filtre par tag, donc filtrer par tag changeait le tableau
+// sans jamais faire bouger la jauge.
+const visibleTasks = computed(() => {
+    return tasks.value.filter(t => {
         if (filterUserId.value && !t.assignees?.some(a => a.id === filterUserId.value)) return false;
         if (filterTagIds.value.length && !t.tags?.some(tag => filterTagIds.value.includes(tag.id))) return false;
         return true;
-    }));
+    });
+});
+
+const filteredTasks = (status: string) => {
+    return sortByOrder(visibleTasks.value.filter(t => t.status === status));
 };
 
 const getProgress = (task: Task) => {
@@ -552,7 +577,7 @@ const getProgress = (task: Task) => {
     const end = new Date(task.dueDate).getTime();
     const now = new Date().getTime();
     
-    if (now > end) return { percent: 100, text: 'En retard', color: 'bg-red-500' };
+    if (now > end) return { percent: 100, text: overdueLabel(task.dueDate), color: 'bg-red-500' };
     
     const total = end - start;
     const passed = now - start;
@@ -582,7 +607,7 @@ const loadTasks = async () => {
             tasks.value = data.unlistedTasks;
             
             // Clear unread notifications
-            markTasksAsRead();
+            markTasksAsRead(route.params.spaceId as string);
 
             // Handle deep linking from search
             if (route.query.select) {
@@ -612,7 +637,7 @@ const loadTasks = async () => {
                             
                             el.style.transition = 'all 0.3s ease';
                             el.style.transform = 'scale(1.05)';
-                            el.style.boxShadow = '0 0 0 4px var(--primary), 0 10px 30px rgba(0,0,0,0.5)';
+                            el.style.boxShadow = '0 0 0 4px var(--primary), 0 10px 30px var(--shadow-elevated)';
                             el.style.zIndex = '10';
                             
                             setTimeout(() => {
@@ -645,7 +670,17 @@ const startRenameTask = (task: Task) => {
     selectedTask.value = task;
 };
 
-const handleContextDeleteTask = async (task: Task) => {
+const showDeleteTaskConfirm = ref<Task | null>(null);
+const deletingTask = ref(false);
+
+const handleContextDeleteTask = (task: Task) => {
+    showDeleteTaskConfirm.value = task;
+};
+
+const confirmDeleteTask = async () => {
+    const task = showDeleteTaskConfirm.value;
+    if (!task) return;
+    deletingTask.value = true;
     try {
         const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${task.id}`, {
             method: 'DELETE'
@@ -653,8 +688,11 @@ const handleContextDeleteTask = async (task: Task) => {
         if (!res.ok) throw new Error();
         onTaskDeleted(task.id);
         toast.show('Tâche supprimée', 'success');
+        showDeleteTaskConfirm.value = null;
     } catch (e) {
         toast.show('Erreur lors de la suppression', 'error');
+    } finally {
+        deletingTask.value = false;
     }
 };
 
@@ -723,14 +761,31 @@ const onDragEnd = () => {
     }
 };
 
+// Le serveur émet 'todo-updated' (io.to(room).emit, tasksService.ts) avant
+// même de répondre à la requête HTTP, et diffuse à tout le salon org y
+// compris à l'auteur de l'action : selon la latence relative du websocket et
+// du fetch, l'écho peut arriver avant OU après que archiveTaskById() traite
+// sa propre réponse. countedArchiveIds coordonne les deux chemins pour que le
+// premier des deux à traiter un taskId incrémente le compteur, et l'autre
+// (que ce soit notre propre écho ou celui d'un archivage par quelqu'un
+// d'autre) soit un no-op.
+const countedArchiveIds = new Set<string>();
+
+const registerArchivedTask = (taskId: string) => {
+    onTaskDeleted(taskId);
+    if (!countedArchiveIds.has(taskId)) {
+        countedArchiveIds.add(taskId);
+        archivedCount.value++;
+    }
+};
+
 const archiveTaskById = async (taskId: string) => {
     const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskId}`, {
         method: 'PUT',
         body: JSON.stringify({ archived: true })
     });
     if (!res.ok) throw new Error("API Error");
-    onTaskDeleted(taskId);
-    archivedCount.value++;
+    registerArchivedTask(taskId);
 };
 
 const onDropToArchiveBtn = async (e: DragEvent) => {
@@ -803,9 +858,15 @@ const confirmArchiveAll = async () => {
     }
 };
 
-const onTaskRestored = (task: Task) => {
-    if (task.spaceId === route.params.spaceId && !tasks.value.some(t => t.id === task.id)) {
-        tasks.value.unshift(task);
+const loadArchivedCount = async () => {
+    try {
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/spaces/${route.params.spaceId}/archived`);
+        if (res.ok) {
+            const data = await res.json();
+            archivedCount.value = data.archivedTasks.length;
+        }
+    } catch (e) {
+        // Le badge d'archives est secondaire : pas d'erreur bloquante ici.
     }
 };
 
@@ -912,8 +973,8 @@ const onCardDrop = async (e: DragEvent, targetTask: Task, newStatus: string) => 
 
 onMounted(async () => {
     fetchOrder();
-    loadTags();
     loadTasks();
+    loadArchivedCount();
 
     const socket = await useWSocket();
     socket.value?.on('todo-added', ({ task }: { task: Task }) => {
@@ -935,8 +996,16 @@ onMounted(async () => {
     socket.value?.on('todo-updated', ({ task }: { task: Task }) => {
         if (task.spaceId === route.params.spaceId) {
             if (task.archived) {
-                onTaskDeleted(task.id);
-                archivedCount.value++;
+                registerArchivedTask(task.id);
+            } else if (!tasks.value.some(t => t.id === task.id)) {
+                // Absente de la liste alors qu'elle n'est pas archivée : elle
+                // vient d'être restaurée (par nous ou quelqu'un d'autre) et
+                // ne s'était pas réaffichée depuis — l'ancien panneau popup
+                // rattrapait ce cas en recomptant à chaque ouverture, ce qui
+                // n'existe plus, donc on la réinsère et on corrige le badge.
+                tasks.value.unshift(task);
+                countedArchiveIds.delete(task.id);
+                if (archivedCount.value > 0) archivedCount.value--;
             } else {
                 onTaskUpdated(task);
             }

@@ -73,7 +73,17 @@ const routes = [
 
   {
     path: '/:orgId',
-    redirect: (to: any) => ({ name: 'OrgHome', params: { orgId: to.params.orgId } })
+    // La query est reconduite : sur mobile on entre dans une organisation par
+    // `/<orgId>?showView=0`, qui demande d'afficher les barres plutôt que le
+    // contenu. La perdre ici faisait atterrir sur l'accueil en plein écran,
+    // barres masquées — et la flèche de retour n'avait alors plus d'autre
+    // choix que de ressortir de l'organisation.
+    redirect: (to: any) => ({
+      name: 'OrgHome',
+      params: { orgId: to.params.orgId },
+      query: to.query,
+      hash: to.hash
+    })
   },
 
   {
@@ -190,6 +200,12 @@ const routes = [
         props: true,
       },
       {
+        path: 'tasks/archived',
+        name: 'TasksGlobalArchived',
+        component: () => import('./views/OrgSpace/views/TasksArchive.vue'),
+        props: true,
+      },
+      {
         path: 'agenda',
         name: 'AgendaGlobal',
         component: () => import('./views/OrgSpace/views/Agenda/AgendaView.vue'),
@@ -199,6 +215,12 @@ const routes = [
         path: ':spaceId/tasks',
         name: 'TasksSpace',
         component: () => import('./views/OrgSpace/views/TasksSpace.vue'),
+        props: true,
+      },
+      {
+        path: ':spaceId/tasks/archived',
+        name: 'TasksSpaceArchived',
+        component: () => import('./views/OrgSpace/views/TasksArchive.vue'),
         props: true,
       }
 

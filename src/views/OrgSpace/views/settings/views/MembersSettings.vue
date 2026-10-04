@@ -116,7 +116,7 @@
                                                 <div class="flex items-center gap-2">
                                                     <div class="w-3 h-3 rounded-full shadow-inner shrink-0" :style="{ backgroundColor: role.color || '#6b7280' }" />
                                                     <span class="text-xs font-semibold text-(--text)">{{ role.name }}</span>
-                                                    <span v-if="role.name === 'OWNER'" class="text-[9px] font-black bg-white/5 px-1.5 py-0.5 rounded text-(--text2) uppercase tracking-wider border border-(--border-color) ml-1 shrink-0">Sys</span>
+                                                    <span v-if="role.name === 'OWNER'" class="text-[9px] font-black bg-(--text)/5 px-1.5 py-0.5 rounded text-(--text2) uppercase tracking-wider border border-(--border-color) ml-1 shrink-0">Sys</span>
                                                 </div>
                                             </label>
                                         </div>
@@ -210,7 +210,7 @@
                                                         <div class="flex items-center gap-3">
                                                             <div class="w-4 h-4 rounded-full shadow-inner shrink-0" :style="{ backgroundColor: role.color || '#6b7280' }" />
                                                             <span class="text-sm font-semibold text-(--text)">{{ role.name }}</span>
-                                                            <span v-if="role.name === 'OWNER'" class="text-[9px] font-black bg-white/5 px-2 py-0.5 rounded text-(--text2) uppercase tracking-wider border border-(--border-color) ml-1 shrink-0">Sys</span>
+                                                            <span v-if="role.name === 'OWNER'" class="text-[9px] font-black bg-(--text)/5 px-2 py-0.5 rounded text-(--text2) uppercase tracking-wider border border-(--border-color) ml-1 shrink-0">Sys</span>
                                                         </div>
                                                     </label>
                                                 </div>
@@ -458,7 +458,7 @@
 
                                         <button
                                             @click="copyInviteLink(link.code)"
-                                            class="bg-(--bg) rounded-lg border border-(--border-color) text-white rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm cursor-pointer
+                                            class="bg-(--bg) rounded-lg border border-(--border-color) text-(--text) rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm cursor-pointer
                                                 px-6 py-3 w-full "
 
 
