@@ -4,6 +4,7 @@ import { openedOrg, user } from '@/assets/var';
 import { registerKeyCache } from './keyCaches';
 import { requireTrustedKey } from './keyTrust';
 import { pinOrCheckKey } from './keyPinning';
+import { signKeyEnvelope, verifyKeyEnvelopeIfPresent } from './keyEnvelope';
 
 // Cache for DM conversation keys, keyed by peerId
 const dmKeyCache = new Map<string, CryptoKey>();
@@ -41,7 +42,8 @@ async function fetchDMConversationKey(peerId: string, response?: Response): Prom
     if (!res.ok) return null;
     const data = await res.json();
     const decryptedKey = await decryptSpaceKeyWithRsa(data.encryptedKey, privateKey.value!);
-    await pinOrCheckKey(decryptedKey, `dm:${peerId}`, data.version); // audit FC4
+    await verifyKeyEnvelopeIfPresent(decryptedKey, `dm:${peerId}`, data.version, data); // audit FC4 §2
+    await pinOrCheckKey(decryptedKey, `dm:${peerId}`, data.version); // audit FC4 §1
     dmKeyCache.set(peerId, decryptedKey);
     dmKeyVersionCache.set(peerId, data.version);
     return { key: decryptedKey, version: data.version };
@@ -85,11 +87,12 @@ async function resolveDMConversationKey(peerId: string): Promise<{ key: CryptoKe
             // chiffre toutes les pièces jointes du DM.
             const encryptedKeyForPeer = await encryptSpaceKeyForMember(newKey, await requireTrustedKey(peerId, peerPublicKey));
             const encryptedKeyForMe = await encryptSpaceKeyForMember(newKey, user.value.publicKey);
+            const envelope = await signKeyEnvelope(newKey, `dm:${peerId}`, 1).catch(() => null);
 
             const saveResponse = await sfetch(`/api/dm/${peerId}/key`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ encryptedKeyForMe, encryptedKeyForPeer })
+                body: JSON.stringify({ encryptedKeyForMe, encryptedKeyForPeer, ...envelope })
             });
 
             if (saveResponse.status === 409) {
