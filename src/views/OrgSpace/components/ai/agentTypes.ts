@@ -41,6 +41,7 @@ export const TOOL_LABELS: Record<string, { label: string; icon: string }> = {
     create_file: { label: "Création d'un fichier", icon: 'bi-file-earmark-plus' },
     create_folder: { label: "Création d'un dossier", icon: 'bi-folder-plus' },
     request_image_upload: { label: "Sélection d'une image", icon: 'bi-image' },
+    ask_question: { label: 'Question à l\'utilisateur', icon: 'bi-question-circle' },
 };
 
 export function toolLabel(name: string) {

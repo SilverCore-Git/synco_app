@@ -25,20 +25,11 @@
                 Chapitre : <span class="text-(--text)">{{ readDocId }}</span>
             </p>
 
-            <div v-if="tool.status === 'pending' && tool.interactive" class="mt-2">
-                <IconSelector model-value="" @on-base64="(base64: string) => $emit('provide-image', base64)" />
-            </div>
-
-            <div v-else-if="tool.status === 'pending' && tool.mutating" class="flex gap-2 mt-2">
-                <button
-                    @click="$emit('accept')"
-                    class="bg-green-500/15 text-green-400 border border-green-500/25 px-3 py-1 rounded-lg text-xs font-medium hover:bg-green-500/25 transition-colors"
-                >Accepter</button>
-                <button
-                    @click="$emit('reject')"
-                    class="bg-red-500/15 text-red-400 border border-red-500/25 px-3 py-1 rounded-lg text-xs font-medium hover:bg-red-500/25 transition-colors"
-                >Refuser</button>
-            </div>
+            <!-- Confirmation/réponse déplacée dans PendingActionBar, au-dessus de la zone de saisie. -->
+            <p v-if="tool.status === 'pending'" class="text-xs text-(--text2) italic mt-1 flex items-center gap-1.5">
+                <i class="bi bi-hourglass-split"></i>
+                En attente, voir en bas de la conversation...
+            </p>
 
             <div v-if="expanded" class="mt-2 pl-3 border-l border-(--text)/10">
                 <ToolResultBody :tool="tool" @open-task="(t) => $emit('open-task', t)" />
@@ -57,10 +48,9 @@ import type { ToolStep } from './agentTypes';
 import { toolLabel } from './agentTypes';
 import ToolResultBody from './ToolResultBody.vue';
 import TimelineGutter from './TimelineGutter.vue';
-import IconSelector from '@/components/common/IconSelector.vue';
 
 const props = defineProps<{ tool: ToolStep; isLast?: boolean }>();
-defineEmits(['accept', 'reject', 'open-task', 'provide-image']);
+defineEmits(['open-task']);
 
 // Replié par défaut pour tous les tools — l'utilisateur déplie lui-même ceux qui l'intéressent.
 const expanded = ref(false);

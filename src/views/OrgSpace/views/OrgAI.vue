@@ -19,15 +19,6 @@
           >
             {{ formatTokenCount(cumulativeUsage.totalTokens) }} tokens
           </span>
-          <label
-            class="flex items-center gap-1.5 text-[11px] font-medium px-2 py-1 rounded-full cursor-pointer transition-colors"
-            :class="autoAccept ? 'bg-(--primary)/15 text-(--primary)' : 'bg-(--text)/5 text-(--text2) hover:text-(--text)'"
-            title="Accepte automatiquement les actions proposées par l'IA, sans confirmation. Vaut seulement pour cette session, remis à zéro au rechargement."
-          >
-            <input type="checkbox" v-model="autoAccept" class="sr-only" />
-            <i class="bi" :class="autoAccept ? 'bi-lightning-charge-fill' : 'bi-lightning-charge'" />
-            Accepter auto
-          </label>
           <button @click="showUsersBar = !showUsersBar" class="hover:text-(--text) transition-colors ml-2"
             :class="showUsersBar ? 'text-(--text)' : 'text-(--text2)'">
             <i class="bi bi-people-fill text-lg" />
@@ -86,14 +77,7 @@
             <AgentTurn
               :parts="msg.parts || []"
               :is-generating="isGenerating && index === messages.length - 1"
-              @accept="(tool) => handleAgentToolDecision(tool, true, index)"
-              @reject="(tool) => handleAgentToolDecision(tool, false, index)"
               @open-task="(t) => selectedTask = t"
-              @provide-image="(tool, base64) => {
-                const id = 'img_' + Date.now();
-                temporaryImages[id] = base64;
-                handleAgentToolDecision(tool, true, index, id);
-              }"
             />
             <p v-if="msg.usage" class="text-[11px] text-(--text2)/70 mt-1">
               {{ formatTokenCount(msg.usage.totalTokens) }} tokens<template v-if="msg.usage.reasoningTokens"> (dont {{ formatTokenCount(msg.usage.reasoningTokens) }} de raisonnement)</template>
@@ -140,22 +124,10 @@
                   class="bg-black/50 px-2 py-1 rounded text-(--primary) font-bold">{{ msg.tool_call.name }}</code>
               </p>
 
-              <div class="mt-4" v-if="msg.tool_call.status === 'pending'">
-                <div v-if="msg.tool_call.name === 'request_image_upload'" class="w-full">
-                  <IconSelector model-value="" @on-base64="(base64) => {
-                    const id = 'img_' + Date.now();
-                    temporaryImages[id] = base64;
-                    if (msg.tool_call) handleToolCall(msg.tool_call, true, index, id);
-                  }" />
-                </div>
-                <div v-else class="flex gap-2">
-                  <button
-                    @click="handleToolCall(msg.tool_call!, true, index)"
-                    class="bg-green-500/20 text-green-500 border border-green-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-500/30 transition-colors">Accepter</button>
-                  <button
-                    @click="handleToolCall(msg.tool_call!, false, index)"
-                    class="bg-red-500/20 text-red-500 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/30 transition-colors">Refuser</button>
-                </div>
+              <!-- Confirmation/réponse déplacée dans PendingActionBar, au-dessus de la zone de saisie. -->
+              <div class="mt-4 text-(--text2) text-xs font-medium flex items-center gap-2" v-if="msg.tool_call.status === 'pending'">
+                <i class="bi bi-hourglass-split"></i>
+                En attente de ta confirmation ci-dessous...
               </div>
               <div v-else-if="msg.tool_call.status === 'executing'"
                 class="text-(--primary) text-xs font-bold mt-3 flex items-center gap-2">
@@ -392,6 +364,18 @@
       </div>
 
       <div class="p-1 border-t border-(--border-color) shrink-0 relative">
+
+        <div v-if="pendingAction" class="w-full max-w-5xl mx-auto mb-2">
+          <PendingActionBar
+            :tool="pendingAction.tool"
+            @accept="acceptPendingAction()"
+            @always-accept="acceptPendingAction(true)"
+            @reject="rejectPendingAction()"
+            @answer="(value) => acceptPendingAction(false, value)"
+            @image="(base64) => acceptPendingAction(false, base64)"
+          />
+        </div>
+
         <form @submit.prevent="() => sendMessage()"
           class="relative w-full max-w-5xl mx-auto flex items-end gap-3 border border-(--text)/10 rounded-xl px-4 py-2 transition-all shadow-2xl"
           :class="(!aiIsInitialized || isGenerating) ? 'bg-black/50 opacity-50 cursor-not-allowed' : 'bg-(--bg) focus-within:border-(--primary)/50'">
@@ -424,8 +408,8 @@ import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
-import IconSelector from '@/components/common/IconSelector.vue';
 import AgentTurn from '../components/ai/AgentTurn.vue';
+import PendingActionBar from '../components/ai/PendingActionBar.vue';
 import MarkdownRender from './MarkdownRender.vue';
 import type { TurnPart, ToolStep } from '../components/ai/agentTypes';
 import { useUsersBar } from '@/composables/useUsersBar';
@@ -518,10 +502,10 @@ interface ChatMessage {
 const recommendedModelId = ref<string>('');
 const selectedTask = ref<any>(null);
 const isGenerating = ref(false);
-// Volontairement non persisté : ne vaut que pour cette session de navigation, remis à zéro au
-// rechargement de la page — accepter en masse les actions de l'IA est une décision ponctuelle,
-// pas un réglage qu'on voudrait oublier avoir activé la fois suivante.
-const autoAccept = ref(false);
+// Par outil (façon Claude Code "don't ask again for this tool"), pas global : autoriser
+// create_task sans redemander ne doit pas dispenser de confirmation pour delete_task. Volontairement
+// non persisté — remis à zéro au rechargement, une autorisation en masse est une décision ponctuelle.
+const autoAcceptTools = ref<Set<string>>(new Set());
 const hasStartedInit = ref(false);
 const inputMsg = ref('');
 const chatInputRef = ref<any>(null);
@@ -718,7 +702,7 @@ const createThreadHelper = async (orgId: string, spaceId: string | undefined, na
   return data;
 };
 
-const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, accept: boolean, _assistantMsgIndex: number, imageId?: string) => {
+const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, accept: boolean, _assistantMsgIndex: number, clientValue?: string) => {
   if (!accept) {
     toolCall.status = 'rejected';
     messages.value.push({
@@ -847,8 +831,12 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
       result = JSON.stringify(docResult, null, 2);
 
     } else if (toolCall.name === 'request_image_upload') {
-      toolData = { id: imageId };
-      result = `L'utilisateur a fourni une image. Identifiant de l'image : '${imageId}'. Utilise EXACTEMENT cette valeur '${imageId}' pour le paramètre 'logo' de 'create_space'.`;
+      toolData = { id: clientValue };
+      result = `L'utilisateur a fourni une image. Identifiant de l'image : '${clientValue}'. Utilise EXACTEMENT cette valeur '${clientValue}' pour le paramètre 'logo' de 'create_space'.`;
+
+    } else if (toolCall.name === 'ask_question') {
+      toolData = { answer: clientValue ?? '' };
+      result = `Réponse de l'utilisateur : "${clientValue ?? ''}"`;
 
     } else if (toolCall.name === 'create_folder') {
       const folder = await createFolderRequest(args.spaceId, orgId, args.name, args.parentFolderId);
@@ -896,6 +884,8 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
     sendMessage("L'action a été effectuée avec succès. Réponds très brièvement en une seule phrase pour confirmer à l'utilisateur.");
   } else if (['search_messages', 'read_tasks'].includes(toolCall.name) || isDocumentationTool(toolCall.name)) {
     sendMessage("Voici les informations demandées. Réponds à la question de l'utilisateur en te basant sur ces résultats.");
+  } else if (toolCall.name === 'ask_question') {
+    sendMessage("L'utilisateur a répondu à ta question. Continue en te basant sur cette réponse.");
   }
 };
 
@@ -983,7 +973,7 @@ const consumeAgentStream = async (
       }
     } else if (ev.type === 'tool_call_pending') {
       upsertToolPart(idx, ev.toolCallId, { name: ev.name, args: ev.args, status: 'pending', category: 'server', mutating: true });
-      if (autoAccept.value) {
+      if (autoAcceptTools.value.has(ev.name)) {
         const parts = messages.value[idx]!.parts!;
         const tool = (parts.find((p) => p.type === 'tool' && p.tool.toolCallId === ev.toolCallId) as { type: 'tool'; tool: ToolStep }).tool;
         await handleAgentToolDecision(tool, true, idx);
@@ -996,9 +986,9 @@ const consumeAgentStream = async (
         category: 'client', mutating: ev.mutating, interactive: ev.interactive,
       });
       // Tool client non-mutant (ex: search_messages) : toujours auto-exécuté, confirmation ou pas —
-      // "interactive" (ex: upload d'image) reste exclu, même avec autoAccept : il n'y a aucune
-      // valeur à fournir automatiquement à la place de l'utilisateur.
-      if ((!ev.mutating && !ev.interactive) || (ev.mutating && !ev.interactive && autoAccept.value)) {
+      // "interactive" (ex: ask_question, upload d'image) reste exclu, même avec autoAcceptTools :
+      // il n'y a aucune valeur à fournir automatiquement à la place de l'utilisateur.
+      if ((!ev.mutating && !ev.interactive) || (ev.mutating && !ev.interactive && autoAcceptTools.value.has(ev.name))) {
         const parts = messages.value[idx]!.parts!;
         const tool = (parts.find((p) => p.type === 'tool' && p.tool.toolCallId === ev.toolCallId) as { type: 'tool'; tool: ToolStep }).tool;
         await handleAgentToolDecision(tool, true, idx);
@@ -1037,7 +1027,7 @@ const toLlmSearchHit = (hit: any) => {
   };
 };
 
-const executeClientTool = async (name: string, args: any, imageId?: string): Promise<any> => {
+const executeClientTool = async (name: string, args: any, clientValue?: string): Promise<any> => {
   const orgId = route.params.orgId as string;
 
   if (name === 'search_messages') {
@@ -1104,7 +1094,11 @@ const executeClientTool = async (name: string, args: any, imageId?: string): Pro
   }
 
   if (name === 'request_image_upload') {
-    return { id: imageId, note: `Utilise EXACTEMENT '${imageId}' pour le paramètre 'logo' de create_space.` };
+    return { id: clientValue, note: `Utilise EXACTEMENT '${clientValue}' pour le paramètre 'logo' de create_space.` };
+  }
+
+  if (name === 'ask_question') {
+    return { answer: clientValue ?? '' };
   }
 
   throw new Error(`Outil client inconnu: ${name}`);
@@ -1115,7 +1109,7 @@ const handleAgentToolDecision = async (
   toolCall: ToolStep,
   accept: boolean,
   assistantMsgIndex: number,
-  imageId?: string
+  clientValue?: string
 ) => {
   const orgId = route.params.orgId as string;
   const sessionId = activeSessionId.value;
@@ -1131,7 +1125,7 @@ const handleAgentToolDecision = async (
     } else {
       try {
         const args = typeof toolCall.args === 'string' ? JSON.parse(toolCall.args || '{}') : toolCall.args;
-        decision = { clientResult: await executeClientTool(toolCall.name, args, imageId) };
+        decision = { clientResult: await executeClientTool(toolCall.name, args, clientValue) };
       } catch (e: any) {
         decision = { clientResult: { error: e.message || 'Erreur technique.' } };
       }
@@ -1152,6 +1146,61 @@ const handleAgentToolDecision = async (
     isGenerating.value = false;
   }
 };
+
+/**
+ * L'action en attente d'une décision utilisateur — au plus une à la fois, puisque runLoop côté
+ * serveur (synco_api) s'arrête dès qu'un tool mutant/client a besoin d'être confirmé/exécuté
+ * ailleurs. Couvre les deux boucles : viaAgentLoop (parts structurées) et legacy (tool_call unique),
+ * pour que PendingActionBar s'affiche de façon identique quel que soit le provider.
+ */
+const pendingAction = computed<{ kind: 'agent' | 'legacy'; idx: number; tool: ToolStep } | null>(() => {
+  const idx = messages.value.length - 1;
+  const msg = messages.value[idx];
+  if (!msg) return null;
+
+  if (msg.viaAgentLoop) {
+    const toolPart = (msg.parts || []).find((p) => p.type === 'tool' && p.tool.status === 'pending') as { type: 'tool'; tool: ToolStep } | undefined;
+    return toolPart ? { kind: 'agent', idx, tool: toolPart.tool } : null;
+  }
+
+  if (msg.tool_call?.status === 'pending') {
+    return { kind: 'legacy', idx, tool: msg.tool_call as unknown as ToolStep };
+  }
+  return null;
+});
+
+function acceptPendingAction(always = false, value?: string) {
+  const pending = pendingAction.value;
+  if (!pending) return;
+
+  if (always) autoAcceptTools.value.add(pending.tool.name);
+
+  // PendingActionBar renvoie directement le base64 pour request_image_upload : c'est ici, au
+  // moment de la décision, qu'on lui attribue un id temporaire — comme le faisait l'ancien
+  // callback IconSelector inline, juste déplacé hors du template.
+  if (pending.tool.name === 'request_image_upload' && value) {
+    const id = 'img_' + Date.now();
+    temporaryImages.value[id] = value;
+    value = id;
+  }
+
+  if (pending.kind === 'agent') {
+    handleAgentToolDecision(pending.tool, true, pending.idx, value);
+  } else {
+    handleToolCall(pending.tool as NonNullable<ChatMessage['tool_call']>, true, pending.idx, value);
+  }
+}
+
+function rejectPendingAction() {
+  const pending = pendingAction.value;
+  if (!pending) return;
+
+  if (pending.kind === 'agent') {
+    handleAgentToolDecision(pending.tool, false, pending.idx);
+  } else {
+    handleToolCall(pending.tool as NonNullable<ChatMessage['tool_call']>, false, pending.idx);
+  }
+}
 
 /** Providers OpenAI/Mistral/Gemini : la conversation passe entièrement par la boucle d'agent serveur. */
 const sendMessageViaAgent = async (text: string) => {
@@ -1237,9 +1286,10 @@ const sendMessage = async (hiddenPrompt?: string) => {
     }
 
     const tCall = messages.value[assistantMsgIndex]?.tool_call;
-    // request_image_upload reste exclu même avec autoAccept : son widget (IconSelector) attend
-    // une vraie image de l'utilisateur, il n'y a rien à accepter automatiquement à sa place.
-    if (tCall?.status === 'pending' && (isDocumentationTool(tCall.name) || (autoAccept.value && tCall.name !== 'request_image_upload'))) {
+    // request_image_upload et ask_question restent exclus même avec autoAcceptTools : il n'y a
+    // rien à fournir automatiquement à la place d'une vraie image ou d'une vraie réponse.
+    const tCallAutoExcluded = tCall?.name === 'request_image_upload' || tCall?.name === 'ask_question';
+    if (tCall?.status === 'pending' && (isDocumentationTool(tCall.name) || (autoAcceptTools.value.has(tCall.name) && !tCallAutoExcluded))) {
       setTimeout(() => {
         handleToolCall(tCall, true, assistantMsgIndex);
       }, 50);

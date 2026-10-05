@@ -203,6 +203,28 @@ export const availableTools = [
                 required: ["prompt"]
             }
         }
+    },
+    {
+        type: "function",
+        function: {
+            name: "ask_question",
+            description: "Poser une question à l'utilisateur quand une information manque ou qu'un choix doit être tranché avant de continuer. Préfère cet outil à une supposition : la conversation s'interrompt jusqu'à la réponse. Propose 'options' pour des choix courts (boutons de réponse rapide) ; l'utilisateur peut toujours répondre en texte libre à la place.",
+            parameters: {
+                type: "object",
+                properties: {
+                    question: {
+                        type: "string",
+                        description: "La question posée à l'utilisateur."
+                    },
+                    options: {
+                        type: "array",
+                        description: "Optionnel. Jusqu'à 6 choix courts proposés comme boutons de réponse rapide.",
+                        items: { type: "string" }
+                    }
+                },
+                required: ["question"]
+            }
+        }
     }
 ];
 
