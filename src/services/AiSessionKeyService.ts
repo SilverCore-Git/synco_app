@@ -9,6 +9,7 @@ import {
 import { registerKeyCache } from '@/assets/utils/keyCaches';
 import { requireTrustedKey } from '@/assets/utils/keyTrust';
 import { pinOrCheckKey } from '@/assets/utils/keyPinning';
+import { signKeyEnvelope, verifyKeyEnvelopeIfPresent } from '@/assets/utils/keyEnvelope';
 
 /**
  * Erreur typée levée par `ensureAiSessionKey`/`getAiSessionKeyRawBase64` — l'appelant (UI) doit la
@@ -58,10 +59,11 @@ async function bootstrapAiSessionKey(orgId: string): Promise<CachedAiSessionKey>
     const sessionKey = await generateAiSessionKey();
     const rawKeyBytes = await crypto.subtle.exportKey('raw', sessionKey);
     const encryptedKey = await wrapAiSessionKeyForMember(rawKeyBytes, user.value.publicKey);
+    const envelope = await signKeyEnvelope(rawKeyBytes, `ai:${orgId}`, 1).catch(() => null);
 
     const res = await sfetch(`/api/orgs/${orgId}/ai/key`, {
         method: 'POST',
-        body: JSON.stringify({ encryptedKey }),
+        body: JSON.stringify({ encryptedKey, ...envelope }),
     });
 
     if (!res.ok) {
@@ -97,10 +99,12 @@ export async function ensureAiSessionKey(orgId: string): Promise<CryptoKey> {
             if (res.status === 404) {
                 result = await bootstrapAiSessionKey(orgId);
             } else if (res.ok) {
-                const { encryptedKey } = await res.json();
+                const data = await res.json();
+                const { encryptedKey } = data;
                 const rawKeyBytes = await unwrapAiSessionKey(encryptedKey, myPrivateKey);
-                // Version figée à 1 côté serveur (QW6) ; clé épinglée (FC4).
-                await pinOrCheckKey(rawKeyBytes, `ai:${orgId}`, 1);
+                // Version figée à 1 côté serveur (QW6).
+                await verifyKeyEnvelopeIfPresent(rawKeyBytes, `ai:${orgId}`, 1, data); // audit FC4 §2
+                await pinOrCheckKey(rawKeyBytes, `ai:${orgId}`, 1); // audit FC4 §1
                 result = await toCachedKey(rawKeyBytes, encryptedKey);
                 new Uint8Array(rawKeyBytes).fill(0);
             } else {
@@ -177,11 +181,12 @@ export async function shareAiSessionKeyWithMember(
     const trustedKey = await requireTrustedKey(targetUserId, targetPublicKeyJWK);
     const rawKeyBytes = await unwrapAiSessionKey(cached.sealedForMe, privateKey.value);
     const encryptedKey = await wrapAiSessionKeyForMember(rawKeyBytes, trustedKey);
+    const envelope = await signKeyEnvelope(rawKeyBytes, `ai:${orgId}`, 1).catch(() => null);
     new Uint8Array(rawKeyBytes).fill(0);
 
     const res = await sfetch(`/api/orgs/${orgId}/ai/key`, {
         method: 'POST',
-        body: JSON.stringify({ encryptedKey, targetUserId }),
+        body: JSON.stringify({ encryptedKey, targetUserId, ...envelope }),
     });
 
     if (!res.ok) {
