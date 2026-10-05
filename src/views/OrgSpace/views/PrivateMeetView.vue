@@ -244,6 +244,22 @@
                     </div>
                 </div>
 
+                <!-- Code de vérification de la session (audit FC6) -->
+                <div class="flex items-start gap-3 pt-3 border-t border-(--border-color)">
+                    <i class="bi bi-patch-question-fill text-lg text-(--primary) mt-0.5 shrink-0" />
+                    <div class="flex-1">
+                        <p class="text-(--text) font-semibold mb-1">Code de vérification</p>
+                        <p class="mb-3">
+                            Lisez ce code à voix haute avec votre correspondant (appel, en personne) :
+                            s'il est identique des deux côtés, personne — pas même le serveur — ne
+                            s'est interposé entre vous.
+                        </p>
+                        <div class="px-4 py-3 rounded-xl bg-(--bg2) border border-(--border-color) text-center">
+                            <span class="text-lg font-mono tracking-[0.2em] text-(--text)">{{ meetSasCode || '…' }}</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="flex items-start gap-3">
                     <i class="bi bi-hourglass-split text-lg text-(--primary) mt-0.5 shrink-0" />
                     <div>
@@ -288,7 +304,8 @@ const {
     sendEncryptedMessage,
     sendEncryptedFile,
     endMeet,
-    getConnectionType
+    getConnectionType,
+    meetSasCode
 } = usePrivateMeet();
 
 const route = useRoute();

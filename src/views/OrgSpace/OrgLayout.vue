@@ -17,7 +17,7 @@ import { keycloak } from '@/assets/keycloak';
 import useNotifications from '@/composables/useNotifications';
 import { useNotification } from '@/composables/useNotification';
 import { useRecentDMs } from '@/composables/useRecentDMs';
-import { isMeeting } from '@/composables/usePrivatMeet';
+import { isMeeting, registerIncomingMeetSecret } from '@/composables/usePrivatMeet';
 
 import isDesktopApp from '@/assets/isDesktopApp';
 import { useToast } from '@/composables/useToast';
@@ -511,7 +511,9 @@ const initSocketListener = async () => {
 
     });
 
-    socket.value?.on('privateMeet:incomingCall', async ({ callerId }: { callerId: string }) => {
+    socket.value?.on('privateMeet:incomingCall', async ({ callerId, meetSecret }: { callerId: string, meetSecret?: string }) => {
+        // Secret de session de l'invitation (audit FC6), utilisé à l'acceptation.
+        registerIncomingMeetSecret(callerId, meetSecret);
         const orgMember = openedOrg.value?.members?.find(m => m.userId === callerId);
         if (!isMeeting.value) {
             notify('notif:privateMeet', orgMember, -1);

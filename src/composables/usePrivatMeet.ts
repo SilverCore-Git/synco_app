@@ -130,6 +130,49 @@ let pendingCallTimeout: ReturnType<typeof setTimeout> | null = null;
 const MEET_PEER_SUFFIX = '-meet';
 const toMeetPeerId = (orgMemberId: string) => `${orgMemberId}${MEET_PEER_SUFFIX}`;
 
+// ── Authentification du pair (audit FC6) ─────────────────────────────────
+// Une invitation acceptée fixe le seul pair admis et un secret de session,
+// transmis par Socket.IO (authentifié) au seul destinataire. Le handshake P2P
+// est authentifié par HMAC avec ce secret : un autre membre de l'org qui
+// tente peer.connect('<id>-meet') n'est ni admis ni capable de substituer sa
+// clé. Le secret transite par le serveur : contre l'opérateur, c'est le code
+// de vérification (meetSasCode) qui protège.
+let expectedPeer: { peerId: string; secret: Uint8Array } | null = null;
+const incomingMeetSecrets = new Map<string, string>();
+let handshakeDone = false;
+export const meetSasCode = ref<string>('');
+
+const b64ToBytes = (b64: string) => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+const bytesToB64 = (b: Uint8Array) => btoa(String.fromCharCode(...b));
+
+/** Appelé par OrgLayout.vue à la réception de privateMeet:incomingCall. */
+export const registerIncomingMeetSecret = (callerUserId: string, meetSecret?: string) => {
+    if (meetSecret) incomingMeetSecrets.set(callerUserId, meetSecret);
+};
+
+async function handshakeMac(secret: Uint8Array, publicKeyJWK: string): Promise<string> {
+    const k = await crypto.subtle.importKey('raw', secret as BufferSource, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const sig = await crypto.subtle.sign('HMAC', k, new TextEncoder().encode(`synco-meet-handshake-v1|${publicKeyJWK}`));
+    return bytesToB64(new Uint8Array(sig));
+}
+
+async function verifyHandshakeMac(secret: Uint8Array, publicKeyJWK: string, mac: unknown): Promise<boolean> {
+    if (typeof mac !== 'string') return false;
+    const k = await crypto.subtle.importKey('raw', secret as BufferSource, { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+    try {
+        return await crypto.subtle.verify('HMAC', k, b64ToBytes(mac), new TextEncoder().encode(`synco-meet-handshake-v1|${publicKeyJWK}`));
+    } catch {
+        return false;
+    }
+}
+
+/** Code de vérification de la session : indépendant du rôle (clés triées). */
+export async function computeMeetSas(myJwk: string, peerJwk: string): Promise<string> {
+    const [a, b] = [myJwk, peerJwk].sort();
+    const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`synco-meet-sas-v1|${a}|${b}`)));
+    return Array.from(h.slice(0, 5)).map(x => x.toString().padStart(3, '0')).join(' ');
+}
+
 const clearPendingCallTimeout = () => {
     if (pendingCallTimeout) {
         clearTimeout(pendingCallTimeout);
@@ -185,6 +228,12 @@ const initPeer = async (userId?: string): Promise<void> => {
 
         peer.value.on('connection', (conn) => {
             debugLog('Nouvelle discussion entrante de:', conn.peer);
+            // Seul le pair d'une invitation en cours est admis, et une session
+            // ouverte n'est jamais remplacée (audit FC6).
+            if (!expectedPeer || conn.peer !== expectedPeer.peerId || connection.value?.open) {
+                conn.close();
+                return;
+            }
             setupDataConnection(conn);
         });
 
@@ -258,6 +307,8 @@ const setupDataConnection = (conn: DataConnection) => {
 
     connection.value = conn;
     isConnected.value = false;
+    handshakeDone = false;
+    meetSasCode.value = '';
 
     conn.on('open', async () => {
 
@@ -268,8 +319,12 @@ const setupDataConnection = (conn: DataConnection) => {
         stopRingtone();
         debugLog('Text P2P canal open');
 
-        if (sessionPublicKeyJWK.value) {
-            conn.send({ type: 'E2EE_HANDSHAKE', publicKeyJWK: sessionPublicKeyJWK.value });
+        if (sessionPublicKeyJWK.value && expectedPeer) {
+            conn.send({
+                type: 'E2EE_HANDSHAKE',
+                publicKeyJWK: sessionPublicKeyJWK.value,
+                mac: await handshakeMac(expectedPeer.secret, sessionPublicKeyJWK.value),
+            });
         }
 
     });
@@ -278,9 +333,27 @@ const setupDataConnection = (conn: DataConnection) => {
 
         if (data.type === 'E2EE_HANDSHAKE' && data.publicKeyJWK) {
 
+            // Clé figée pour la session ; handshake prouvé par le secret de
+            // l'invitation, sinon la connexion est fermée (audit FC6).
+            if (handshakeDone) return;
+            if (!expectedPeer || conn.peer !== expectedPeer.peerId
+                || !(await verifyHandshakeMac(expectedPeer.secret, data.publicKeyJWK, data.mac))) {
+                console.warn('[PRIVATE-MEET] Handshake non authentifié, connexion fermée.');
+                conn.close();
+                return;
+            }
             peerPublicKeyJWK.value = data.publicKeyJWK;
+            handshakeDone = true;
+            if (sessionPublicKeyJWK.value) {
+                meetSasCode.value = await computeMeetSas(sessionPublicKeyJWK.value, data.publicKeyJWK);
+            }
             debugLog('Handshake E2EE terminé.');
 
+        }
+
+        // Rien n'est traité avant un handshake authentifié.
+        else if (!handshakeDone) {
+            return;
         }
 
         else if (data.type === 'ENCRYPTED_MESSAGE' && sessionPrivateKey.value) {
@@ -612,9 +685,12 @@ const startMeet = async (recipient: OrgMember) => {
 
     const socket = await useWSocket();
 
+    const secret = crypto.getRandomValues(new Uint8Array(32));
+    expectedPeer = { peerId: toMeetPeerId(recipient.id), secret };
+
     connectToPeer(recipient.id);
 
-    socket.value?.emit('privateMeet:call', { recipientId: recipient.userId });
+    socket.value?.emit('privateMeet:call', { recipientId: recipient.userId, meetSecret: bytesToB64(secret) });
     meetLoadingStatus.value = 'En attente de la réponse...';
     startRingtone();
 
@@ -661,6 +737,19 @@ const acceptIncomingMeet = async (caller: OrgMember) => {
         }, 2000);
         return;
     }
+
+    const meetSecret = incomingMeetSecrets.get(caller.userId);
+    incomingMeetSecrets.delete(caller.userId);
+    if (!meetSecret) {
+        // Invitation sans secret (client appelant non à jour) : le pair ne
+        // pourrait pas être authentifié (audit FC6).
+        meetLoadingStatus.value = "Invitation non sécurisée : votre correspondant doit mettre à jour Synco.";
+        setTimeout(() => {
+            if (activeMeetPeerId.value === caller.id) endMeet();
+        }, 3000);
+        return;
+    }
+    expectedPeer = { peerId: toMeetPeerId(caller.id), secret: b64ToBytes(meetSecret) };
 
     const socket = await useWSocket();
 
@@ -767,6 +856,9 @@ const cleanupMeetState = () => {
     activeMeetPeerId.value = null;
     activeMeetPeerUserId.value = null;
     peerPublicKeyJWK.value = null;
+    expectedPeer = null;
+    handshakeDone = false;
+    meetSasCode.value = '';
 
     // Vider messages.value ne suffit pas à réellement libérer un fichier de
     // la mémoire : chaque bulle fichier porte un Blob URL (URL.createObjectURL,
@@ -819,6 +911,7 @@ export default function usePrivateMeet() {
         isMeetConnecting,
         meetLoadingStatus,
         isE2EEReady: () => peerPublicKeyJWK.value !== null,
+        meetSasCode,
 
         initPeer,
         connectToPeer,
