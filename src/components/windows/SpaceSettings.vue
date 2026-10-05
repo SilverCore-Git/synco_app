@@ -149,6 +149,7 @@ import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import { encryptThreadKeyForMember, decryptThreadKeyWithRsa, privateKey } from '@/assets/utils/crypto';
 import { resolveRecipientKey } from '@/assets/utils/keyTrust';
+import { signKeyEnvelope } from '@/assets/utils/keyEnvelope';
 import Popup from '@/components/Popup.vue';
 import WebhooksManager from '@/views/OrgSpace/views/settings/views/components/WebhooksManager.vue';
 import IconSelector from '@/components/common/IconSelector.vue';
@@ -286,7 +287,7 @@ const addMember = async (member: OrgMember) => {
 
     props.space.membersId.push(member.userId);
 
-    let threadKeysPayload: Array<{ threadId: string, keys: Array<{ userId: string; encryptedKey: string }> }> = [];
+    let threadKeysPayload: Array<{ threadId: string, keys: Array<{ userId: string; encryptedKey: string }>, commitment?: string, signature?: string }> = [];
 
     try {
         if (!privateKey.value) throw new Error("Clé privée introuvable. Veuillez déverrouiller votre espace sécurisé.");
@@ -303,12 +304,15 @@ const addMember = async (member: OrgMember) => {
             {
                 // Clé épinglée du nouveau membre (audit FC1).
                 const encryptedKeyForNew = await encryptThreadKeyForMember(rawThreadKey, await resolveRecipientKey(member.userId, member.user.publicKey));
+                // FC4 §2 : le salon existe déjà, son id est connu — signable.
+                const envelope = await signKeyEnvelope(rawThreadKey, `thread:${myKey.threadId}`, 1).catch(() => null);
                 threadKeysPayload.push({
                     threadId: myKey.threadId,
                     keys: [{
                         userId: member.userId,
                         encryptedKey: encryptedKeyForNew
-                    }]
+                    }],
+                    ...envelope,
                 });
             }
             else if (member.user?.publicKey) 

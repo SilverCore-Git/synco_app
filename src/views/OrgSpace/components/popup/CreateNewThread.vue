@@ -168,6 +168,12 @@ import type { Thread } from '@/types/types';
 import { useToast } from '@/composables/useToast';
 import { generateThreadKey, encryptThreadKeyForMember, E2EEUnloked, privateKey } from '@/assets/utils/crypto';
 import { resolveRecipientKey } from '@/assets/utils/keyTrust';
+// FC4 §2 : pas d'enveloppe signée ici — l'id du salon (composant du contexte
+// signé, thread:<id>) n'est attribué par le serveur qu'à la création,
+// seulement connu une fois la réponse reçue. La première copie de ThreadKey
+// reste donc non signée (creatorId seul, côté serveur) ; toute distribution
+// ultérieure à ce même salon (nouveau membre, redistribution) la signe
+// normalement, puisque l'id existe alors déjà — cf. OrgLayout.vue.
 
 const route = useRoute();
 const router = useRouter();

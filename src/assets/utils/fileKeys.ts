@@ -3,6 +3,7 @@ import { getDMConversationKey } from './dmCrypto';
 import { decryptThreadKeyWithRsa, privateKey } from './crypto';
 import { getCachedThreadKey, setCachedThreadKey } from './threadKeyCache';
 import { pinOrCheckKey } from './keyPinning';
+import { verifyKeyEnvelopeIfPresent } from './keyEnvelope';
 import useWSocket from '@/composables/useWSocket';
 
 /**
@@ -37,7 +38,7 @@ async function getThreadKey(threadId: string): Promise<CryptoKey> {
 
     const socket = (await useWSocket()).value;
     if (!socket) throw new Error('Non connecté au serveur.');
-    const response: { encryptedKey?: string; error?: string } = await new Promise((resolve) => {
+    const response: { encryptedKey?: string; error?: string; creatorId?: string; commitment?: string; signature?: string } = await new Promise((resolve) => {
         socket.timeout(THREAD_KEY_TIMEOUT_MS).emit('get-thread-access', { threadId }, (err: Error | null, res: any) => {
             resolve(err ? { error: "Le serveur n'a pas répondu." } : res);
         });
@@ -46,7 +47,8 @@ async function getThreadKey(threadId: string): Promise<CryptoKey> {
     if (!privateKey.value) throw new Error('Chiffrement de bout en bout verrouillé.');
 
     const key = await decryptThreadKeyWithRsa(response.encryptedKey, privateKey.value);
-    await pinOrCheckKey(key, `thread:${threadId}`, 1); // audit FC4
+    await verifyKeyEnvelopeIfPresent(key, `thread:${threadId}`, 1, response); // audit FC4 §2
+    await pinOrCheckKey(key, `thread:${threadId}`, 1); // audit FC4 §1
     setCachedThreadKey(threadId, response.encryptedKey, key);
     return key;
 }

@@ -3,6 +3,7 @@ import { privateKey, decryptSpaceKeyWithRsa, generateSpaceKey, encryptSpaceKeyFo
 import { registerKeyCache } from './keyCaches';
 import { resolveRecipientKey } from './keyTrust';
 import { pinOrCheckKey } from './keyPinning';
+import { signKeyEnvelope, verifyKeyEnvelopeIfPresent } from './keyEnvelope';
 
 // Cache for Workspace keys
 const workspaceKeyCache = new Map<string, CryptoKey>();
@@ -82,9 +83,15 @@ export async function shareWorkspaceKeyWithMissingMembers(workspaceId: string, k
         }
         if (keys.length === 0) return;
 
+        // FC4 §2 : signe l'enveloppe si notre propre clé d'identité est
+        // déverrouillée ; sinon, partage quand même la clé (comportement
+        // inchangé) mais sans enveloppe — le destinataire la traitera comme
+        // non vérifiable, pas comme invalide.
+        const envelope = await signKeyEnvelope(key, `space:${workspaceId}`, version).catch(() => null);
+
         await sfetch(`/api/spaces/${workspaceId}/key/share`, {
             method: 'POST',
-            body: JSON.stringify({ version, keys }),
+            body: JSON.stringify({ version, keys, ...envelope }),
         });
     } catch (e) {
         console.warn("[E2EE] Partage de la clé d'espace impossible :", e);
@@ -96,8 +103,11 @@ async function fetchWorkspaceKey(workspaceId: string, response?: Response): Prom
     if (!res.ok) return null;
     const data = await res.json();
     const decryptedKey = await decryptSpaceKeyWithRsa(data.encryptedKey, privateKey.value!);
+    // FC4 §2 : vérifie l'origine signée avant de faire confiance à la clé,
+    // si une enveloppe accompagne cette copie.
+    await verifyKeyEnvelopeIfPresent(decryptedKey, `space:${workspaceId}`, data.version, data);
     // Une clé différente de celle épinglée pour cette version est refusée
-    // (audit FC4).
+    // (audit FC4 §1).
     await pinOrCheckKey(decryptedKey, `space:${workspaceId}`, data.version);
     workspaceKeyCache.set(workspaceId, decryptedKey);
     workspaceKeyVersionCache.set(workspaceId, data.version);
@@ -169,10 +179,11 @@ async function resolveWorkspaceKey(workspaceId: string): Promise<{ key: CryptoKe
             }
             
             if (keysToDistribute.length > 0) {
+                const envelope = await signKeyEnvelope(newSpaceKey, `space:${workspaceId}`, version).catch(() => null);
                 const saveResponse = await sfetch(`/api/spaces/${workspaceId}/key`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ keys: keysToDistribute, version })
+                    body: JSON.stringify({ keys: keysToDistribute, version, ...envelope })
                 });
                 
                 if (saveResponse.ok) {

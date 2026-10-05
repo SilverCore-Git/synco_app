@@ -1,6 +1,6 @@
 import { get, set, del } from 'idb-keyval';
 import { shallowRef } from 'vue';
-import { user } from '@/assets/var';
+import { user, openedOrg } from '@/assets/var';
 
 /**
  * Épinglage des clés publiques E2EE des autres utilisateurs (TOFU).
@@ -135,4 +135,62 @@ export async function resolveRecipientKey(userId: string, publicKeyJWK: string |
         return user.value.publicKey;
     }
     return requireTrustedKey(userId, publicKeyJWK);
+}
+
+// ---------------------------------------------------------------------------
+// Clé d'identité de signature (FC4 §2) — TOFU séparé de la clé de
+// chiffrement ci-dessus : namespace, épingle et alerte distincts, pour ne
+// rien changer au comportement déjà audité de requireTrustedKey ci-dessus.
+// ---------------------------------------------------------------------------
+
+type EcJwk = { kty?: string; crv?: string; x?: string; y?: string };
+
+/** JWK EC canonique : seuls crv, kty, x, y, dans l'ordre (même esprit que canonicalRsaJwk). */
+export function canonicalEcJwk(jwk: string | object): string {
+    const k = (typeof jwk === 'string' ? JSON.parse(jwk) : jwk) as EcJwk;
+    if (k?.kty !== 'EC' || k.crv !== 'P-256' || typeof k.x !== 'string' || typeof k.y !== 'string') {
+        throw new Error('Clé de signature EC invalide');
+    }
+    return JSON.stringify({ crv: k.crv, kty: k.kty, x: k.x, y: k.y });
+}
+
+const signNs = () => `trusted-signkey:${user.value?.id ?? 'anon'}:`;
+
+async function readPinnedSignKey(userId: string): Promise<string | undefined> {
+    return await get<string>(signNs() + userId);
+}
+
+/**
+ * Point de passage avant de faire confiance à la signature d'une enveloppe
+ * de clé (keyEnvelope.ts) au nom de `userId` :
+ * - 'match'   : la clé épinglée, renvoyée telle quelle ;
+ * - 'new'     : première rencontre — épinglée (TOFU) ;
+ * - 'changed' : refus. Un créateur qui change de clé de signature sans
+ *   préavis est un signal plus sérieux qu'un simple changement de clé de
+ *   chiffrement (cf. requireTrustedKey) : pas de session de rattrapage
+ *   automatique ici, seulement un refus.
+ */
+export async function requireTrustedSignKey(userId: string, publicSignKeyJWK: string | object | null | undefined): Promise<string> {
+    if (!publicSignKeyJWK) throw new Error('Clé de signature absente');
+    const jwk = canonicalEcJwk(publicSignKeyJWK);
+    const pinned = await readPinnedSignKey(userId);
+    if (!pinned) {
+        await set(signNs() + userId, jwk);
+        return jwk;
+    }
+    if (pinned !== jwk) throw new UntrustedKeyError(userId, 'changed');
+    return jwk;
+}
+
+/**
+ * Résout la clé de signature publique de `creatorId` depuis l'annuaire des
+ * membres de l'organisation ouverte (déjà chargé pour l'affichage des noms/
+ * avatars) — pas de requête réseau dédiée. `null` si `creatorId` n'est
+ * membre d'aucun espace/salon visible localement (enveloppe non vérifiable,
+ * à traiter comme absente par l'appelant).
+ */
+export function lookupCreatorSignKey(creatorId: string): string | null {
+    if (creatorId === user.value?.id) return user.value?.publicSignKey ?? null;
+    const member = openedOrg.value?.members?.find((m: any) => m.userId === creatorId);
+    return member?.user?.publicSignKey ?? null;
 }
