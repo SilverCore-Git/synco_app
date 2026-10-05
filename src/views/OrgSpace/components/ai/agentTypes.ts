@@ -11,9 +11,14 @@ export interface ToolStep {
     result?: any;
 }
 
+/** Statuts de point affichables par TimelineGutter — ceux des tools, plus 'text'/'thinking' pour les segments sans ToolStep. */
+export type TimelineDotStatus = ToolStepStatus | 'text' | 'thinking';
+
 export type TurnPart =
     | { type: 'text'; text: string }
-    | { type: 'tool'; tool: ToolStep };
+    | { type: 'tool'; tool: ToolStep }
+    /** Raisonnement du modèle avant sa réponse — affiché replié, façon "Réflexion (Xs)". */
+    | { type: 'thinking'; text: string; durationMs?: number };
 
 /** Libellés/icônes français par tool — utilisés par ToolStepItem pour l'affichage replié. */
 export const TOOL_LABELS: Record<string, { label: string; icon: string }> = {

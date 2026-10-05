@@ -529,12 +529,15 @@ function convertStoredMessagesToChatMessages(stored: any[]): any[] {
         }
 
         if (m.role === 'assistant') {
+            // Le raisonnement précède toujours la réponse dans l'ordre réel de génération du
+            // modèle : poussé avant le texte, pour que la timeline rechargée retrouve le même
+            // ordre qu'un tour vécu en direct (consumeAgentStream pousse aussi 'thinking' avant 'text').
+            if (m.thinking) currentTurn.parts.push({ type: 'thinking', text: m.thinking });
             if (m.content) currentTurn.parts.push({ type: 'text', text: m.content });
 
             // Un tour peut enchaîner plusieurs appels provider (texte -> tool -> texte...), chacun
             // avec son propre usage : on cumule pour obtenir le total réel du tour, pas juste le
-            // dernier appel. `thinking` est accumulé en buffer brut (pas encore rendu, Phase 3).
-            if (m.thinking) currentTurn.thinkingBuffer = (currentTurn.thinkingBuffer || '') + m.thinking;
+            // dernier appel.
             if (m.usage) {
                 const acc = currentTurn.usage || { promptTokens: 0, completionTokens: 0, totalTokens: 0, reasoningTokens: 0 };
                 currentTurn.usage = {

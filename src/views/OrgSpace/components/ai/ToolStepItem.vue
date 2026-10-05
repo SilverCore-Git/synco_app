@@ -2,10 +2,7 @@
 
     <div class="flex gap-3">
 
-        <div class="flex flex-col items-center w-4 shrink-0 pt-1.5">
-            <div class="w-2 h-2 rounded-full shrink-0" :class="dotClass" />
-            <div v-if="!isLast" class="w-px flex-1 mt-1" :class="lineClass" />
-        </div>
+        <TimelineGutter :status="tool.status" :is-last="isLast" />
 
         <div class="flex-1 min-w-0 pb-4">
 
@@ -55,10 +52,11 @@
 
 <script setup lang="ts">
 
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import type { ToolStep } from './agentTypes';
 import { toolLabel } from './agentTypes';
 import ToolResultBody from './ToolResultBody.vue';
+import TimelineGutter from './TimelineGutter.vue';
 import IconSelector from '@/components/common/IconSelector.vue';
 
 const props = defineProps<{ tool: ToolStep; isLast?: boolean }>();
@@ -69,18 +67,6 @@ defineEmits(['accept', 'reject', 'open-task', 'provide-image']);
 const expanded = ref(!props.tool.mutating);
 
 const { label, icon } = toolLabel(props.tool.name);
-
-const dotClass = computed(() => {
-    switch (props.tool.status) {
-        case 'done': return 'bg-(--primary)';
-        case 'error': return 'bg-red-400';
-        case 'rejected': return 'bg-(--text2)';
-        case 'executing': return 'bg-(--primary) animate-pulse';
-        default: return 'bg-(--text2)/40 ring-1 ring-(--text2)/40';
-    }
-});
-
-const lineClass = computed(() => (props.tool.status === 'done' ? 'bg-(--primary)/25' : 'bg-(--text)/10'));
 
 function parsedArgs(): any {
     try {

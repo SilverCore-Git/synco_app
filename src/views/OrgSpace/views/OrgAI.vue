@@ -504,8 +504,6 @@ interface ChatMessage {
   parts?: TurnPart[];
   /** Cumul des tokens de ce tour (plusieurs appels provider possibles si des tools s'enchaînent). */
   usage?: { promptTokens: number; completionTokens: number; totalTokens: number; reasoningTokens: number };
-  /** Raisonnement accumulé du modèle pour ce tour — transporté, pas encore rendu (Phase 3). */
-  thinkingBuffer?: string;
 }
 
 const recommendedModelId = ref<string>('');
@@ -896,6 +894,14 @@ const appendTextPart = (idx: number, delta: string) => {
   else parts.push({ type: 'text', text: delta });
 };
 
+/** Même logique qu'appendTextPart, pour le raisonnement du modèle — rendu par ThinkingStepItem. */
+const appendThinkingPart = (idx: number, delta: string) => {
+  const parts = messages.value[idx]!.parts!;
+  const last = parts[parts.length - 1];
+  if (last && last.type === 'thinking') last.text += delta;
+  else parts.push({ type: 'thinking', text: delta });
+};
+
 /** Met à jour le tool_call déjà présent dans la turn (par id), ou en ajoute un nouveau segment. */
 const upsertToolPart = (idx: number, toolCallId: string, patch: Partial<ToolStep> & { name: string }) => {
   const parts = messages.value[idx]!.parts!;
@@ -940,8 +946,7 @@ const consumeAgentStream = async (
     } else if (ev.type === 'text') {
       appendTextPart(idx, ev.delta);
     } else if (ev.type === 'thinking') {
-      const m = messages.value[idx]!;
-      m.thinkingBuffer = (m.thinkingBuffer || '') + ev.delta;
+      appendThinkingPart(idx, ev.delta);
     } else if (ev.type === 'usage') {
       // Un tour peut enchaîner plusieurs appels provider (texte -> tool -> texte...), chacun avec
       // son propre usage : on cumule pour obtenir le total réel du tour, pas juste le dernier appel.
