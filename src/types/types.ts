@@ -189,6 +189,8 @@ export interface DMMessage {
     senderId: string;
     replyToId: string | null;
     isE2EE: boolean;
+  /** Posé côté client : reçu en clair, affiché avec un marqueur (audit FC7). */
+  securityState?: 'plaintext';
     content: string;
     nonce: string;
     encryptedAesKey: string | null;

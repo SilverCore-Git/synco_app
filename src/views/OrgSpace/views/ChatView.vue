@@ -656,7 +656,10 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<
 
         // Only attempt decryption if message is marked as E2EE and has the required keys
         if (!msg.isE2EE || !keyToUse || !msg.nonce) {
-            return { ...msg, content: msg.content };
+            // Contenu en clair (ou drapeau isE2EE posé à faux par le serveur) :
+            // affiché avec un marqueur explicite, jamais comme un message
+            // chiffré authentique (audit FC7).
+            return { ...msg, content: msg.content, securityState: 'plaintext' };
         }
 
         const cached = getCachedPlaintext(msg.id, msg.nonce);
@@ -1038,6 +1041,12 @@ const sendMessage = async () => {
 
     const clearContent = newMessage.value;
     const tempId = `temp-${Date.now()}`;
+    // Jamais d'envoi en clair implicite : chiffrement verrouillé = refus
+    // (audit FC7).
+    if (isE2EEEnabled.value && !E2EEUnloked.value) {
+        toast.show('Déverrouillez le chiffrement (code PIN) pour envoyer ce message.', 'error');
+        return;
+    }
     const useEncryption = isE2EEEnabled.value && E2EEUnloked.value;
 
     const tempMessage = {

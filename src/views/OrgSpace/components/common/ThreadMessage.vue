@@ -165,6 +165,13 @@
                                     <span class="ml-1 bg-(--primary) text-white text-[9px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider inline-flex items-center">
                                         <i class="bi bi-robot mr-1 text-[8px]"></i> BOT
                                     </span>
+                                    <!-- Contenu de webhook : en clair, non authentifié (audit FC7) -->
+                                    <span
+                                        class="ml-1 inline-flex items-center gap-1 text-[9px] font-semibold text-amber-500"
+                                        title="Message de webhook : non chiffré de bout en bout, son contenu est visible par le serveur."
+                                    >
+                                        <i class="bi bi-unlock-fill" /> Non chiffré
+                                    </span>
                                 </span>
                                 <span 
                                     v-else

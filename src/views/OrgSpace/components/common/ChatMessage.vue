@@ -181,6 +181,14 @@
                                         @reference-click="onReferenceClick"
                                     />
                                     <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
+                                    <!-- Reçu en clair : jamais rendu comme un message chiffré (audit FC7) -->
+                                    <span
+                                        v-if="(msg as any).securityState === 'plaintext'"
+                                        class="ml-1 inline-flex items-center gap-1 text-[10px] font-semibold text-amber-500"
+                                        title="Ce message n'est pas chiffré de bout en bout : son contenu a pu être lu ou fourni par le serveur."
+                                    >
+                                        <i class="bi bi-unlock-fill" /> Non chiffré
+                                    </span>
                                 </div>
                                 <div v-if="(msg as any).sendFailed" class="mt-1 flex items-center gap-2 text-[11px] text-red-400">
                                     <i class="bi bi-exclamation-circle-fill" />
