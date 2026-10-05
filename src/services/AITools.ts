@@ -100,7 +100,7 @@ export const availableTools = [
         type: "function",
         function: {
             name: "list_documentation",
-            description: "Lister les chapitres de documentation Synco disponibles (guide utilisateur et documentation de sécurité), avec leur identifiant et un résumé. À appeler EN PREMIER quand tu ne sais pas quel chapitre lire, puis utiliser 'read_documentation' avec l'identifiant choisi.",
+            description: "Lister TOUS les chapitres de documentation Synco disponibles (guide utilisateur et documentation de sécurité), avec leur identifiant et un résumé. À appeler EN PREMIER pour toute question sur une partie de l'application : repère ensuite tous les chapitres dont le titre/résumé recoupe le sujet (souvent plusieurs) et lis chacun avec 'read_documentation'.",
             parameters: {
                 type: "object",
                 properties: {},
@@ -112,7 +112,7 @@ export const availableTools = [
         type: "function",
         function: {
             name: "read_documentation",
-            description: "Lire UN chapitre précis de la documentation officielle de Synco (fonctionnement de l'application, sécurité, chiffrement). Fournis l'identifiant du chapitre obtenu via 'list_documentation' (ex: '02-espaces-et-threads', 'securite/05-fichiers-et-stockage'). Sans identifiant, l'outil renvoie la liste des chapitres disponibles.",
+            description: "Lire le contenu COMPLET d'un chapitre de la documentation officielle de Synco (fonctionnement de l'application, sécurité, chiffrement). Fournis l'identifiant du chapitre obtenu via 'list_documentation' (ex: '02-espaces-et-threads', 'securite/05-fichiers-et-stockage'). Si plusieurs chapitres sont pertinents pour la question, appelle cet outil sur chacun avant de répondre : une réponse fondée sur un chapitre complet est plus fiable que sur de simples extraits de recherche. Sans identifiant, l'outil renvoie la liste des chapitres disponibles.",
             parameters: {
                 type: "object",
                 properties: {
@@ -129,7 +129,7 @@ export const availableTools = [
         type: "function",
         function: {
             name: "search_documentation",
-            description: "Rechercher un mot ou une expression dans TOUTE la documentation Synco (guide + sécurité) et obtenir les extraits correspondants avec leur chapitre d'origine. Utile quand tu ne sais pas dans quel chapitre se trouve l'information (ex: 'rotation de clé', 'code PIN', 'LiveKit', 'webhook').",
+            description: "Rechercher un mot ou une expression dans TOUTE la documentation Synco (guide + sécurité) et obtenir des extraits tronqués, en nombre limité, avec leur chapitre d'origine. À utiliser seulement en complément de 'list_documentation', quand aucun titre de chapitre ne correspond clairement à la question (ex: 'rotation de clé', 'code PIN', 'LiveKit', 'webhook') — pas comme premier réflexe, et ne pas se contenter des extraits : lire ensuite le chapitre identifié en entier avec 'read_documentation'.",
             parameters: {
                 type: "object",
                 properties: {
