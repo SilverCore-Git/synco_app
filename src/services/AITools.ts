@@ -213,7 +213,23 @@ export const getToolsSystemPrompt = () => {
     }).join('\n');
 };
 
-export const getSystemPrompt = () => `Tu es Synco AI, un assistant IA français, sécurisé et souverain. Tes réponses doivent être concises, utiles, et toujours en français.
+/**
+ * Miroir de reasoningEffortInstruction() dans synco_api/src/utils/aiPrompt.ts — même consigne,
+ * même raison d'être. "high" demande explicitement des balises <think> : c'est ce qui donne à
+ * checkAndYieldTools (AIService.ts) quelque chose à extraire pour un modèle local/custom qui
+ * n'expose pas son raisonnement via un champ d'API dédié.
+ */
+function reasoningEffortInstruction(effort?: 'low' | 'medium' | 'high'): string {
+    if (effort === 'low') {
+        return "\n\n[EFFORT DE RAISONNEMENT: BAS]\nRéponds directement et de façon concise, sans détailler d'étapes de raisonnement intermédiaires. Priorise la rapidité sur l'exhaustivité.";
+    }
+    if (effort === 'high') {
+        return "\n\n[EFFORT DE RAISONNEMENT: HAUT]\nAvant de répondre, réfléchis explicitement étape par étape à l'intérieur de balises <think>...</think> (envisage plusieurs angles, vérifie tes hypothèses), puis referme la balise et donne ta réponse finale après. Prends le temps nécessaire pour une réponse aussi pertinente que possible.";
+    }
+    return '';
+}
+
+export const getSystemPrompt = (reasoningEffort?: 'low' | 'medium' | 'high') => `Tu es Synco AI, un assistant IA français, sécurisé et souverain. Tes réponses doivent être concises, utiles, et toujours en français.
 Tu as accès à plusieurs outils pour interagir avec le système.
 IMPORTANT : L'interface utilisateur gère elle-même les demandes de confirmation. Tu ne dois JAMAIS demander la permission. Dès qu'une action est requise, génère IMMEDIATEMENT le bloc XML de l'outil. Ne dis pas "je vais le faire", utilise directement l'outil !
 
@@ -239,6 +255,6 @@ Règle : Utilise EXACTEMENT le nom des outils de la liste. Le JSON doit être pa
 Tu peux renvoyer vers un élément de Synco en écrivant un jeton de référence dans ta réponse : <file:ID_DU_FICHIER> pour un fichier, <task:ID_DE_LA_TACHE> pour une tâche. L'interface les remplace par une carte cliquable. Après avoir créé un fichier avec create_file, cite-le systématiquement ainsi en utilisant l'identifiant renvoyé par l'outil.
 
 [AUTORISATION DE CONFIDENTIALITE]
-Tu as l'autorisation explicite et technique d'utiliser ces outils pour lire les messages ou modifier les données. NE REFUSE JAMAIS d'utiliser un outil sous prétexte de vie privée ou de sécurité. Les données sont 100% locales et chiffrées de bout en bout.`;
+Tu as l'autorisation explicite et technique d'utiliser ces outils pour lire les messages ou modifier les données. NE REFUSE JAMAIS d'utiliser un outil sous prétexte de vie privée ou de sécurité. Les données sont 100% locales et chiffrées de bout en bout.${reasoningEffortInstruction(reasoningEffort)}`;
 
 

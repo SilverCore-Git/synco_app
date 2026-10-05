@@ -14,6 +14,13 @@ export interface AIProviderConfig {
     /** URL de la Synco AI Gateway auto-hébergée (provider 'gateway' uniquement). */
     gatewayUrl?: string;
     modelId?: string;
+    /**
+     * Pour 'gateway' uniquement : la passerelle n'a aucune config par org (cf. routes/chat.rs côté
+     * Rust), donc ce réglage doit lui être envoyé à chaque appel. Les autres providers serveur
+     * (openai/mistral/gemini via synco_api) le lisent eux-mêmes depuis activeModules.aiConfig,
+     * déjà en base — rien à transmettre ici pour eux.
+     */
+    reasoningEffort?: 'low' | 'medium' | 'high';
 }
 
 export class AIService {
@@ -106,6 +113,7 @@ export class AIService {
                 message,
                 syncoApiUrl: import.meta.env.VITE_API_URL,
                 modelId: this.config.modelId,
+                reasoningEffort: this.config.reasoningEffort,
             }, this.abortController.signal);
         } else {
             response = await sfetch(`/api/orgs/${orgId}/ai/chat`, {
@@ -133,6 +141,7 @@ export class AIService {
                 orgId,
                 syncoApiUrl: import.meta.env.VITE_API_URL,
                 modelId: this.config.modelId,
+                reasoningEffort: this.config.reasoningEffort,
                 ...decision,
             }, this.abortController.signal);
         } else {

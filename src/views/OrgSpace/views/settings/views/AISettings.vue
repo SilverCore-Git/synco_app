@@ -69,6 +69,35 @@
                         </div>
                     </section>
 
+                    <!-- Profondeur de réflexion : s'applique à tous les fournisseurs, y compris local -->
+                    <section class="space-y-6">
+                        <h4 class="text-xs font-bold uppercase tracking-widest text-(--text2) mb-4">Profondeur de réflexion</h4>
+                        <p class="text-xs text-(--text2) leading-relaxed -mt-2">
+                            Contrôle combien l'IA réfléchit avant de répondre. Les fournisseurs avec un réglage natif
+                            (OpenAI o*/GPT-5, Gemini 2.5+) l'utilisent directement ; les autres suivent une consigne
+                            adaptée dans le prompt système — l'effet dépend alors aussi du modèle choisi.
+                        </p>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <label v-for="level in reasoningLevels" :key="level.id"
+                                class="relative flex flex-col p-5 border rounded-2xl cursor-pointer transition-all hover:shadow-md group"
+                                :class="orgData.reasoningEffort === level.id ? 'border-(--primary) bg-(--primary)/5 shadow-sm' : 'border-(--border-color) bg-(--bg2) hover:border-(--text)/20'">
+
+                                <input type="radio" :value="level.id" v-model="orgData.reasoningEffort" name="reasoningEffort" class="sr-only">
+
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="font-bold text-sm text-(--text)">{{ level.name }}</span>
+                                    <div class="w-5 h-5 rounded-full border flex items-center justify-center transition-colors"
+                                         :class="orgData.reasoningEffort === level.id ? 'border-(--primary) bg-(--primary)' : 'border-(--text)/30 group-hover:border-(--text)/50 bg-transparent'">
+                                        <i v-if="orgData.reasoningEffort === level.id" class="bi bi-check text-white text-xs"></i>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-(--text2) leading-relaxed">{{ level.desc }}</p>
+
+                            </label>
+                        </div>
+                    </section>
+
                     <!-- Options Spécifiques -->
                     <section v-if="orgData.provider !== 'local'" class="animate-fade-in space-y-6">
                         <h4 class="text-xs font-bold uppercase tracking-widest text-(--text2) mb-4">Configuration Spécifique</h4>
@@ -289,9 +318,16 @@ const getAiConfig = () => {
         hasApiKey: config.hasApiKey || false,
         endpointUrl: config.endpointUrl || '',
         gatewayUrl: config.gatewayUrl || '',
-        modelId: config.modelId || ''
+        modelId: config.modelId || '',
+        reasoningEffort: config.reasoningEffort || 'medium'
     };
 };
+
+const reasoningLevels: Array<{ id: 'low' | 'medium' | 'high'; name: string; desc: string }> = [
+    { id: 'low', name: 'Bas', desc: 'Réponses rapides et directes, raisonnement minimal, moins de tokens consommés.' },
+    { id: 'medium', name: 'Moyen', desc: "Comportement par défaut : bon équilibre entre rapidité et pertinence." },
+    { id: 'high', name: 'Haut', desc: "Réflexion plus poussée avant de répondre : réponses plus pertinentes, mais plus lentes et plus coûteuses en tokens." },
+];
 
 const orgData = ref({ ...getAiConfig() });
 
@@ -302,7 +338,8 @@ const hasChanges = computed(() => {
         (orgData.value.apiKey || '') !== '' ||
         orgData.value.endpointUrl !== initial.endpointUrl ||
         orgData.value.gatewayUrl !== initial.gatewayUrl ||
-        orgData.value.modelId !== initial.modelId
+        orgData.value.modelId !== initial.modelId ||
+        orgData.value.reasoningEffort !== initial.reasoningEffort
     );
 });
 
@@ -434,7 +471,8 @@ const saveSettings = async () => {
             provider: orgData.value.provider,
             endpointUrl: orgData.value.endpointUrl,
             gatewayUrl: orgData.value.gatewayUrl,
-            modelId: orgData.value.modelId
+            modelId: orgData.value.modelId,
+            reasoningEffort: orgData.value.reasoningEffort
         };
 
         if (orgData.value.apiKey) {

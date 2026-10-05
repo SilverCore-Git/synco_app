@@ -1186,7 +1186,7 @@ const sendMessage = async (hiddenPrompt?: string) => {
   try {
 
     const chatContext = [
-      { role: 'system', content: getSystemPrompt() },
+      { role: 'system', content: getSystemPrompt(aiService.config.reasoningEffort) },
       ...messages.value.slice(0, -1).map(m => ({ role: m.role, content: m.content }))
     ];
 
