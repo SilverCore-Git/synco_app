@@ -11,6 +11,7 @@ import { openedOrg } from '@/assets/var';
 import waitFor from '@/assets/utils/waitfor';
 import { debugLog } from '@/assets/utils/debugLog';
 import { createPeerReconnector } from '@/assets/utils/peerReconnect';
+import sfetch from '@/assets/utils/sfetch';
 
 // ============================================================================
 // État partagé — niveau module, comme useSecurePeer.ts (pas par instance de
@@ -209,7 +210,13 @@ const initPeer = async (userId?: string): Promise<void> => {
         const jwk = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
         sessionPublicKeyJWK.value = JSON.stringify(jwk);
 
+        // Ticket lié au compte, exigé par le serveur PeerJS (audit FC6 §4).
+        const ticketRes = await sfetch('/api/users/me/peer-ticket');
+        if (!ticketRes.ok) throw new Error('Ticket PeerJS indisponible.');
+        const { ticket } = await ticketRes.json();
+
         const peerOptions = {
+            token: ticket,
             host: import.meta.env.VITE_PEER_HOST || 'localhost',
             port: Number(import.meta.env.VITE_PEER_PORT || 9001),
             path: import.meta.env.VITE_PEER_PATH || '/webrtc',

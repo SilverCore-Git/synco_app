@@ -11,6 +11,7 @@ import { PEER_CONFIG } from '@/assets/utils/peerConfig';
 import { debugLog } from '@/assets/utils/debugLog';
 import { createPeerReconnector } from '@/assets/utils/peerReconnect';
 import { generateFingerprint, normalizeSas } from '@/assets/utils/sas';
+import sfetch from '@/assets/utils/sfetch';
 
 // ============================================================================
 // Types
@@ -278,7 +279,14 @@ export default function useSecurePeer() {
         const jwk = await crypto.subtle.exportKey('jwk', ecdhKeyPair.publicKey);
         sessionPublicKeyJWK.value = JSON.stringify(jwk);
 
+        // Ticket lié au compte, exigé par le serveur PeerJS pour enregistrer
+        // cet id (audit FC6 §4).
+        const ticketRes = await sfetch('/api/users/me/peer-ticket');
+        if (!ticketRes.ok) return console.error("[SECURE-PEER] Ticket PeerJS indisponible.");
+        const { ticket } = await ticketRes.json();
+
         peer.value = new Peer(myId, {
+            token: ticket,
             host: import.meta.env.VITE_PEER_HOST || 'localhost',
             port: Number(import.meta.env.VITE_PEER_PORT || 9001),
             path: import.meta.env.VITE_PEER_PATH || '/webrtc',
