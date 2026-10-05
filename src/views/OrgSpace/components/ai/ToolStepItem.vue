@@ -52,7 +52,7 @@
 
 <script setup lang="ts">
 
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import type { ToolStep } from './agentTypes';
 import { toolLabel } from './agentTypes';
 import ToolResultBody from './ToolResultBody.vue';
