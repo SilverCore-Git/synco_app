@@ -19,6 +19,15 @@
           >
             {{ formatTokenCount(cumulativeUsage.totalTokens) }} tokens
           </span>
+          <label
+            class="flex items-center gap-1.5 text-[11px] font-medium px-2 py-1 rounded-full cursor-pointer transition-colors"
+            :class="autoAccept ? 'bg-(--primary)/15 text-(--primary)' : 'bg-(--text)/5 text-(--text2) hover:text-(--text)'"
+            title="Accepte automatiquement les actions proposées par l'IA, sans confirmation. Vaut seulement pour cette session, remis à zéro au rechargement."
+          >
+            <input type="checkbox" v-model="autoAccept" class="sr-only" />
+            <i class="bi" :class="autoAccept ? 'bi-lightning-charge-fill' : 'bi-lightning-charge'" />
+            Accepter auto
+          </label>
           <button @click="showUsersBar = !showUsersBar" class="hover:text-(--text) transition-colors ml-2"
             :class="showUsersBar ? 'text-(--text)' : 'text-(--text2)'">
             <i class="bi bi-people-fill text-lg" />
@@ -509,6 +518,10 @@ interface ChatMessage {
 const recommendedModelId = ref<string>('');
 const selectedTask = ref<any>(null);
 const isGenerating = ref(false);
+// Volontairement non persisté : ne vaut que pour cette session de navigation, remis à zéro au
+// rechargement de la page — accepter en masse les actions de l'IA est une décision ponctuelle,
+// pas un réglage qu'on voudrait oublier avoir activé la fois suivante.
+const autoAccept = ref(false);
 const hasStartedInit = ref(false);
 const inputMsg = ref('');
 const chatInputRef = ref<any>(null);
@@ -970,14 +983,22 @@ const consumeAgentStream = async (
       }
     } else if (ev.type === 'tool_call_pending') {
       upsertToolPart(idx, ev.toolCallId, { name: ev.name, args: ev.args, status: 'pending', category: 'server', mutating: true });
+      if (autoAccept.value) {
+        const parts = messages.value[idx]!.parts!;
+        const tool = (parts.find((p) => p.type === 'tool' && p.tool.toolCallId === ev.toolCallId) as { type: 'tool'; tool: ToolStep }).tool;
+        await handleAgentToolDecision(tool, true, idx);
+        return;
+      }
     } else if (ev.type === 'tool_call_client_required') {
       upsertToolPart(idx, ev.toolCallId, {
         name: ev.name, args: ev.args,
         status: (ev.mutating || ev.interactive) ? 'pending' : 'executing',
         category: 'client', mutating: ev.mutating, interactive: ev.interactive,
       });
-      if (!ev.mutating && !ev.interactive) {
-        // Tool client non-mutant (ex: search_messages) : exécution immédiate, sans confirmation.
+      // Tool client non-mutant (ex: search_messages) : toujours auto-exécuté, confirmation ou pas —
+      // "interactive" (ex: upload d'image) reste exclu, même avec autoAccept : il n'y a aucune
+      // valeur à fournir automatiquement à la place de l'utilisateur.
+      if ((!ev.mutating && !ev.interactive) || (ev.mutating && !ev.interactive && autoAccept.value)) {
         const parts = messages.value[idx]!.parts!;
         const tool = (parts.find((p) => p.type === 'tool' && p.tool.toolCallId === ev.toolCallId) as { type: 'tool'; tool: ToolStep }).tool;
         await handleAgentToolDecision(tool, true, idx);
@@ -1216,7 +1237,9 @@ const sendMessage = async (hiddenPrompt?: string) => {
     }
 
     const tCall = messages.value[assistantMsgIndex]?.tool_call;
-    if (tCall?.status === 'pending' && isDocumentationTool(tCall.name)) {
+    // request_image_upload reste exclu même avec autoAccept : son widget (IconSelector) attend
+    // une vraie image de l'utilisateur, il n'y a rien à accepter automatiquement à sa place.
+    if (tCall?.status === 'pending' && (isDocumentationTool(tCall.name) || (autoAccept.value && tCall.name !== 'request_image_upload'))) {
       setTimeout(() => {
         handleToolCall(tCall, true, assistantMsgIndex);
       }, 50);
