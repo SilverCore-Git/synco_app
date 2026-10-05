@@ -723,6 +723,45 @@ export async function unlockSecurityV3(
 }
 
 
+/**
+ * Migration d'un compte au PIN legacy (4 chiffres, PBKDF2 100 000, entièrement
+ * côté client — testable hors ligne) vers le schéma v3 assisté par le
+ * serveur, avec verrouillage des essais (audit FC2). Même PIN, même paire de
+ * clés : seule la clé privée est ré-emballée. À appeler juste après un
+ * déverrouillage legacy réussi.
+ */
+export async function rewrapLegacyPrivateKeyV3(pin: string, legacySalt: string, encryptedKey: string, iv: string) {
+    if (legacySalt.startsWith(SALT_V2_PREFIX) || legacySalt.startsWith(SALT_V3_PREFIX)) {
+        throw new Error('Compte non legacy');
+    }
+    const legacyMaster = await deriveMasterKey(pin, legacySalt);
+    const pkcs8 = new Uint8Array(await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: Uint8Array.from(atob(iv), c => c.charCodeAt(0)) },
+        legacyMaster,
+        Uint8Array.from(atob(encryptedKey), c => c.charCodeAt(0)),
+    ));
+
+    try {
+        const rawSalt = generateSaltV3Raw();
+        const unlockKeyBytes = await deriveUnlockKeyV3(pin, rawSalt);
+        const verifier = await deriveVerifierV3(unlockKeyBytes);
+        const wrapSecretBytes = crypto.getRandomValues(new Uint8Array(32));
+        const masterKey = await deriveMasterKeyV3(unlockKeyBytes, wrapSecretBytes.buffer);
+        const newIv = crypto.getRandomValues(new Uint8Array(12));
+        const encryptedPriv = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: newIv }, masterKey, pkcs8);
+
+        return {
+            pinSalt: SALT_V3_PREFIX + rawSalt,
+            iv: btoa(String.fromCharCode(...newIv)),
+            encryptedPrivateKey: btoa(String.fromCharCode(...new Uint8Array(encryptedPriv))),
+            verifier,
+            wrapSecret: btoa(String.fromCharCode(...wrapSecretBytes)),
+        };
+    } finally {
+        pkcs8.fill(0);
+    }
+}
+
 // For AI session E2EE (provider 'gateway' — clé de session partagée par organisation)
 
 export async function generateAiSessionKey(): Promise<CryptoKey>

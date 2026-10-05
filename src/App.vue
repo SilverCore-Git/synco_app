@@ -15,7 +15,7 @@ import AiGatewayConsent from './components/common/AiGatewayConsent.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
 import useSettingsItem from './composables/useSettingsItem';
 import { initKC, isTauriPlatform, loginWithSystemBrowser } from './assets/keycloak';
-import { E2EEUnloked, setupFirstTimeSecurityV3, unlockSecurity, unlockSecurityV3, SALT_V2_PREFIX, SALT_V3_PREFIX, privateKey, lockSecurity, assertOwnPublicKeyMatches, OwnKeyMismatchError } from './assets/utils/crypto';
+import { E2EEUnloked, setupFirstTimeSecurityV3, unlockSecurity, unlockSecurityV3, SALT_V2_PREFIX, SALT_V3_PREFIX, privateKey, lockSecurity, assertOwnPublicKeyMatches, OwnKeyMismatchError, rewrapLegacyPrivateKeyV3 } from './assets/utils/crypto';
 import sfetch from './assets/utils/sfetch';
 import { useToast } from './composables/useToast';
 import TopBar from './components/layout/topBar.vue';
@@ -211,6 +211,18 @@ const submit = async () => {
           toast.show('Code PIN incorrect', 'error');
           pin.value = '';
         } else {
+          // Compte legacy : migration transparente vers le schéma v3 (audit
+          // FC2). Un échec n'empêche pas l'usage, la migration sera retentée
+          // au prochain déverrouillage.
+          if (pinScheme.value === 'legacy') {
+            try {
+              const migrated = await rewrapLegacyPrivateKeyV3(pin.value, user.value.pinSalt, user.value.encryptedPrivateKey, user.value.keyIv);
+              const res = await sfetch('/api/users/me/pin/migrate', { method: 'POST', body: JSON.stringify(migrated) });
+              if (res.ok) await refetchUser();
+            } catch (e) {
+              console.warn('[E2EE] Migration du PIN vers v3 impossible pour le moment :', e);
+            }
+          }
           pin.value = '';
         }
       }
