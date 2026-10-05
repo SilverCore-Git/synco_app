@@ -115,9 +115,12 @@ export interface User {
   description?: string;
 
   publicKey?: string; // Format JWK (string JSON)
+  publicSignKey?: string; // Format JWK (string JSON) — clé d'identité ECDSA P-256, FC4 §2
   encryptedPrivateKey?: string; // Base64
   keyIv?: string;           // Base64
   pinSalt?: string;           // String aléatoire
+  encryptedSignPrivateKey?: string; // Base64, FC4 §2
+  signKeyIv?: string;                // Base64, FC4 §2
 
   data: {
     status: string;
