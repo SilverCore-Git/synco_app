@@ -67,7 +67,8 @@ Synco applique **deux couches de chiffrement distinctes et cumulatives**, qu'il 
 | **Webhooks entrants** | contenu du message posté | ❌ **Non E2EE au sens Synco** — chiffré ECDH côté serveur | ✅ | [11](./11-webhooks-notifications-presence.md) |
 | **Notifications push (FCM/APNS)** | titre, corps | ❌ Non chiffré vers Apple/Google — **mais ne contient jamais le contenu du message** | ✅ en base | [11](./11-webhooks-notifications-presence.md) |
 | **Profil utilisateur** | email, nom, pseudo, avatar, poste, bio | ❌ Non | ✅ | [02](./02-chiffrement-base-de-donnees.md) |
-| **Clé privée de l'utilisateur** | PKCS#8 RSA-4096 | ✅ **Chiffrée par le PIN + secret serveur** — jamais en clair côté serveur | ✅ (par-dessus) | [01](./01-fondations-cryptographiques.md) |
+| **Clé privée de l'utilisateur** | PKCS#8 RSA-4096 (chiffrement) + PKCS#8 EC P-256 (signature, FC4 §2) | ✅ **Chiffrées par le PIN + secret serveur** — jamais en clair côté serveur | ✅ (par-dessus) | [01](./01-fondations-cryptographiques.md) |
+| **Origine d'une copie de clé symétrique distribuée** (`ThreadKey`/`WorkspaceKey`/`DMConversationKey`/`AiSessionKey`) | `creatorId` + enveloppe signée ECDSA | ✅ **Oui** — signée par le créateur, vérifiée avant usage (FC4 §2) | ✅ (colonnes non chiffrées, ne révèlent pas la clé) | [01](./01-fondations-cryptographiques.md) |
 
 ---
 
@@ -75,7 +76,7 @@ Synco applique **deux couches de chiffrement distinctes et cumulatives**, qu'il 
 
 | # | Fiche | Contenu |
 |---|---|---|
-| 01 | [Fondations cryptographiques](./01-fondations-cryptographiques.md) | Identité RSA-4096, code PIN v1/v2/v3, dérivation de la clé maître, verrou serveur anti-force-brute, Trust-On-First-Use |
+| 01 | [Fondations cryptographiques](./01-fondations-cryptographiques.md) | Identité RSA-4096, code PIN v1/v2/v3, dérivation de la clé maître, verrou serveur anti-force-brute, Trust-On-First-Use, identité de signature ECDSA P-256 et enveloppes signées de distribution de clé (FC4 §2) |
 | 02 | [Chiffrement côté base de données](./02-chiffrement-base-de-donnees.md) | `prisma-field-encryption`, inventaire exhaustif des champs chiffrés et **non** chiffrés |
 | 03 | [Messages de salons (Threads)](./03-messages-salons-threads.md) | `ThreadKey`, distribution, envoi/réception, métadonnées exposées |
 | 04 | [Messages privés (DM)](./04-messages-prives-dm.md) | Enveloppe hybride par message, double scellement expéditeur/destinataire, `DMConversationKey` |
@@ -94,8 +95,10 @@ Synco applique **deux couches de chiffrement distinctes et cumulatives**, qu'il 
 
 | Usage | Algorithme | Paramètres |
 |---|---|---|
-| Identité utilisateur | RSA-OAEP | 4096 bits, SHA-256, e=65537 |
+| Identité utilisateur — chiffrement | RSA-OAEP | 4096 bits, SHA-256, e=65537 |
+| Identité utilisateur — signature de clés distribuées | ECDSA | courbe P-256, SHA-256 (FC4 §2, 05/10) |
 | Scellement de clés symétriques | RSA-OAEP | SHA-256 |
+| Engagement/enveloppe d'une clé symétrique distribuée | SHA-256 / ECDSA P-256 | `keyCommitment()` lie (contexte, version, octets de la clé) ; signé par le créateur (FC4 §1/§2) |
 | Contenu (messages, fichiers, IA, index) | AES-GCM | 256 bits, IV 96 bits aléatoire, tag 128 bits |
 | Dérivation depuis le PIN (legacy) | PBKDF2-HMAC-SHA256 | 100 000 itérations |
 | Dérivation depuis le PIN (v2) | PBKDF2-HMAC-SHA256 | 600 000 itérations (recommandation OWASP 2023) |
