@@ -107,22 +107,45 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
   return base64UrlEncode(digest);
 }
 
+const LOGIN_FLOW_TIMEOUT_MS = 5 * 60 * 1000;
+
+// `state` était généré puis envoyé à Keycloak, mais jamais revérifié sur le
+// retour : un lien fr.silvercore.synco://callback?code=...&state=... arrivant
+// d'ailleurs (notification, autre app, lien ouvert par l'utilisateur) était
+// accepté dès lors qu'il contenait "code=", permettant d'injecter un code
+// d'autorisation attaquant dans la session victime (CSRF OAuth) — audit FX9.
+// L'app peut recevoir des deep links hors contexte de login (notifications)
+// à tout moment : un lien qui ne correspond pas est ignoré, pas rejeté, pour
+// laisser la vraie réponse de Keycloak arriver ensuite.
+function extractValidatedCode(url: string, expectedState: string): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  const code = parsed.searchParams.get('code');
+  const state = parsed.searchParams.get('state');
+  if (!code || !state || state !== expectedState) return null;
+  return code;
+}
+
 async function nativeLogin(): Promise<{ token?: string; refreshToken?: string }> {
   const redirectUri = 'fr.silvercore.synco://callback';
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = await generateCodeChallenge(codeVerifier);
   const state = crypto.randomUUID();
 
-  let resolveDeepLink!: (url: string) => void;
-  const deepLinkArrived = new Promise<string>((resolve) => {
+  let resolveDeepLink!: (code: string | null) => void;
+  const deepLinkArrived = new Promise<string | null>((resolve) => {
     resolveDeepLink = resolve;
   });
 
   const listenerHandle = await CapApp.addListener('appUrlOpen', async (data: URLOpenListenerEvent) => {
-    if (data.url.includes('code=')) {
-      await Browser.close().catch(() => {});
-      resolveDeepLink(data.url);
-    }
+    const code = extractValidatedCode(data.url, state);
+    if (code === null) return;
+    await Browser.close().catch(() => {});
+    resolveDeepLink(code);
   });
 
   const authUrl = `${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/auth`
@@ -132,10 +155,9 @@ async function nativeLogin(): Promise<{ token?: string; refreshToken?: string }>
     + `&code_challenge=${codeChallenge}&code_challenge_method=S256`;
 
   await Browser.open({ url: authUrl });
-  const callbackUrl = await deepLinkArrived;
+  const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), LOGIN_FLOW_TIMEOUT_MS));
+  const code = await Promise.race([deepLinkArrived, timeout]);
   await listenerHandle.remove();
-
-  const code = new URL(callbackUrl).searchParams.get('code');
   if (!code) return {};
 
   const tokenRes = await fetch(`${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/token`, {
@@ -164,20 +186,22 @@ async function tauriLogin(): Promise<{ token?: string; refreshToken?: string }> 
   const codeChallenge = await generateCodeChallenge(codeVerifier);
   const state = crypto.randomUUID();
 
-  let resolveDeepLink!: (url: string) => void;
-  const deepLinkArrived = new Promise<string>((resolve) => {
+  let resolveDeepLink!: (code: string | null) => void;
+  const deepLinkArrived = new Promise<string | null>((resolve) => {
     resolveDeepLink = resolve;
   });
 
-  onOpenUrl((urls: string[]) => {
+  const unlistenOpenUrl = await onOpenUrl((urls: string[]) => {
     const url = urls[0];
-    if (url && url.includes('code=')) resolveDeepLink(url);
+    const code = url ? extractValidatedCode(url, state) : null;
+    if (code !== null) resolveDeepLink(code);
   });
 
   const unlistenSingleInstance = await listen('single-instance', (event: any) => {
     const args = event.payload as string[];
     const urlArg = args.find((a: string) => a.startsWith(redirectUri));
-    if (urlArg) resolveDeepLink(urlArg);
+    const code = urlArg ? extractValidatedCode(urlArg, state) : null;
+    if (code !== null) resolveDeepLink(code);
   });
 
   const authUrl = `${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/auth`
@@ -187,10 +211,10 @@ async function tauriLogin(): Promise<{ token?: string; refreshToken?: string }> 
     + `&code_challenge=${codeChallenge}&code_challenge_method=S256`;
 
   await invoke('open_external_url', { url: authUrl });
-  const callbackUrl = await deepLinkArrived;
+  const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), LOGIN_FLOW_TIMEOUT_MS));
+  const code = await Promise.race([deepLinkArrived, timeout]);
   unlistenSingleInstance();
-
-  const code = new URL(callbackUrl).searchParams.get('code');
+  unlistenOpenUrl();
   if (!code) return {};
 
   // fetch natif — fonctionne car connect-src dans la CSP de tauri.conf.json autorise KC_URL
