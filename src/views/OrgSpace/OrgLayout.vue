@@ -23,6 +23,7 @@ import isDesktopApp from '@/assets/isDesktopApp';
 import { useToast } from '@/composables/useToast';
 import { privateKey, decryptThreadKeyWithRsa, encryptThreadKeyForMember } from '@/assets/utils/crypto';
 import { requireTrustedKey } from '@/assets/utils/keyTrust';
+import { signKeyEnvelope } from '@/assets/utils/keyEnvelope';
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { usePermissions } from '@/composables/usePermissions';
 import SpinLoader from '@/components/SpinLoader.vue';
@@ -301,11 +302,16 @@ const initSocketListener = async () => {
                     try {
                         const rawKey = await decryptThreadKeyWithRsa(res.encryptedKey, privateKey.value!);
                         const newEncryptedKey = await encryptThreadKeyForMember(rawKey, trustedKey);
-                        
+                        // FC4 §2 : signe la copie redistribuée — l'id du
+                        // salon est connu ici (contrairement à sa création),
+                        // donc le contexte signé est bien formé.
+                        const envelope = await signKeyEnvelope(rawKey, `thread:${threadId}`, 1).catch(() => null);
+
                         socket.value?.emit("distribute-thread-keys", {
                             threadId,
                             targetUserId: requesterId,
-                            encryptedKey: newEncryptedKey
+                            encryptedKey: newEncryptedKey,
+                            ...envelope,
                         });
                     } catch (e) {
                         console.error("[E2EE] Failed to distribute key:", e);
