@@ -2,6 +2,7 @@ import { getWorkspaceKey } from './workspaceCrypto';
 import { getDMConversationKey } from './dmCrypto';
 import { decryptThreadKeyWithRsa, privateKey } from './crypto';
 import { getCachedThreadKey, setCachedThreadKey } from './threadKeyCache';
+import { pinOrCheckKey } from './keyPinning';
 import useWSocket from '@/composables/useWSocket';
 
 /**
@@ -45,6 +46,7 @@ async function getThreadKey(threadId: string): Promise<CryptoKey> {
     if (!privateKey.value) throw new Error('Chiffrement de bout en bout verrouillé.');
 
     const key = await decryptThreadKeyWithRsa(response.encryptedKey, privateKey.value);
+    await pinOrCheckKey(key, `thread:${threadId}`, 1); // audit FC4
     setCachedThreadKey(threadId, response.encryptedKey, key);
     return key;
 }

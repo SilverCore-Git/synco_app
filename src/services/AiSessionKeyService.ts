@@ -8,6 +8,7 @@ import {
 } from '@/assets/utils/crypto';
 import { registerKeyCache } from '@/assets/utils/keyCaches';
 import { requireTrustedKey } from '@/assets/utils/keyTrust';
+import { pinOrCheckKey } from '@/assets/utils/keyPinning';
 
 /**
  * Erreur typée levée par `ensureAiSessionKey`/`getAiSessionKeyRawBase64` — l'appelant (UI) doit la
@@ -98,6 +99,8 @@ export async function ensureAiSessionKey(orgId: string): Promise<CryptoKey> {
             } else if (res.ok) {
                 const { encryptedKey } = await res.json();
                 const rawKeyBytes = await unwrapAiSessionKey(encryptedKey, myPrivateKey);
+                // Version figée à 1 côté serveur (QW6) ; clé épinglée (FC4).
+                await pinOrCheckKey(rawKeyBytes, `ai:${orgId}`, 1);
                 result = await toCachedKey(rawKeyBytes, encryptedKey);
                 new Uint8Array(rawKeyBytes).fill(0);
             } else {

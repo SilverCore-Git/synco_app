@@ -13,6 +13,7 @@ import {
 } from 'livekit-client';
 import { openedOrg } from '@/assets/var';
 import { decryptThreadKeyWithRsa, privateKey } from '@/assets/utils/crypto';
+import { pinOrCheckKey } from '@/assets/utils/keyPinning';
 import E2EEWorker from '../../node_modules/livekit-client/dist/livekit-client.e2ee.worker.js?worker&url';
 import useWSocket from './useWSocket';
 import { useToast } from './useToast';
@@ -136,10 +137,12 @@ async function deriveMediaKey(threadKeyRaw: ArrayBuffer, threadId: string): Prom
     );
 }
 
-async function unwrapRoomKey(encryptedThreadKey: string | null | undefined): Promise<ArrayBuffer | null> {
+async function unwrapRoomKey(encryptedThreadKey: string | null | undefined, threadId: string): Promise<ArrayBuffer | null> {
     if (!encryptedThreadKey || !privateKey.value) return null;
     try {
         const threadKey = await decryptThreadKeyWithRsa(encryptedThreadKey, privateKey.value);
+        // Même épinglage que les messages du salon (audit FC4).
+        await pinOrCheckKey(threadKey, `thread:${threadId}`, 1);
         return await crypto.subtle.exportKey('raw', threadKey);
     } catch (e) {
         console.error('[LiveKit E2EE] Impossible de déchiffrer la clé du salon:', e);
@@ -203,7 +206,7 @@ function useLiveKit()
         // clair, que la clé manque, soit indéchiffrable ou que l'activation
         // échoue ; un salon sans clé ne se rejoint en clair qu'après un choix
         // explicite de l'utilisateur.
-        const threadKeyRaw = await unwrapRoomKey(encryptedRoomKey);
+        const threadKeyRaw = await unwrapRoomKey(encryptedRoomKey, threadId);
         if (!threadKeyRaw && (encryptedRoomKey || opts.e2eeRequired)) {
             throw new CallEncryptionError(encryptedRoomKey
                 ? "La clé de chiffrement du salon n'a pas pu être déchiffrée (code PIN verrouillé ?)."

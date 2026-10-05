@@ -2,6 +2,7 @@ import sfetch from './sfetch';
 import { privateKey, decryptSpaceKeyWithRsa, generateSpaceKey, encryptSpaceKeyForMember } from './crypto';
 import { registerKeyCache } from './keyCaches';
 import { resolveRecipientKey } from './keyTrust';
+import { pinOrCheckKey } from './keyPinning';
 
 // Cache for Workspace keys
 const workspaceKeyCache = new Map<string, CryptoKey>();
@@ -95,6 +96,9 @@ async function fetchWorkspaceKey(workspaceId: string, response?: Response): Prom
     if (!res.ok) return null;
     const data = await res.json();
     const decryptedKey = await decryptSpaceKeyWithRsa(data.encryptedKey, privateKey.value!);
+    // Une clé différente de celle épinglée pour cette version est refusée
+    // (audit FC4).
+    await pinOrCheckKey(decryptedKey, `space:${workspaceId}`, data.version);
     workspaceKeyCache.set(workspaceId, decryptedKey);
     workspaceKeyVersionCache.set(workspaceId, data.version);
     return { key: decryptedKey, version: data.version };
