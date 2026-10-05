@@ -955,6 +955,14 @@ const consumeAgentStream = async (
       };
     } else if (ev.type === 'tool_call_result') {
       upsertToolPart(idx, ev.toolCallId, { name: ev.name, status: 'done', category: 'server', mutating: false, result: ev.result });
+      // create_space est exécuté côté serveur (category 'server') dans cette boucle, contrairement
+      // à create_thread (category 'client', exécuté par executeClientTool qui pousse déjà dans
+      // space.threads via createThreadHelper) : sans ce push, le nouvel espace ne rejoint jamais
+      // openedOrg.value.spaces, que SpaceBar.vue observe — il resterait invisible dans la barre
+      // latérale jusqu'au prochain refetch complet de l'org (ex: F5).
+      if (ev.name === 'create_space' && ev.result?.id && openedOrg.value?.spaces && !openedOrg.value.spaces.some((s: any) => s.id === ev.result.id)) {
+        openedOrg.value.spaces.push(ev.result);
+      }
     } else if (ev.type === 'tool_call_pending') {
       upsertToolPart(idx, ev.toolCallId, { name: ev.name, args: ev.args, status: 'pending', category: 'server', mutating: true });
     } else if (ev.type === 'tool_call_client_required') {
