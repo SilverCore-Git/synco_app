@@ -13,7 +13,7 @@ export const availableTools = [
                     },
                     logo: {
                         type: "string",
-                        description: "Le nom d'une icône Bootstrap Icons (ex: bi-folder, bi-star, bi-rocket, bi-briefcase) pour représenter l'espace."
+                        description: "Soit le nom d'une icône Bootstrap Icons (ex: bi-folder, bi-star, bi-rocket, bi-briefcase) en solution rapide, soit l'identifiant temporaire renvoyé par l'outil 'request_image_upload' (ex: 'img_12345') si l'utilisateur veut une image personnalisée — dans ce cas, appelle 'request_image_upload' AVANT 'create_space'."
                     },
                     threads: {
                         type: "array",
@@ -208,7 +208,7 @@ export const availableTools = [
         type: "function",
         function: {
             name: "ask_question",
-            description: "Poser une question à l'utilisateur quand une information manque ou qu'un choix doit être tranché avant de continuer. Préfère cet outil à une supposition : la conversation s'interrompt jusqu'à la réponse. Propose 'options' pour des choix courts (boutons de réponse rapide) ; l'utilisateur peut toujours répondre en texte libre à la place.",
+            description: "Poser une question à l'utilisateur quand une information manque ou qu'un choix doit être tranché avant de continuer. Appelle CET OUTIL (bloc <tool_call>) plutôt que de poser la question dans une réponse en texte libre : c'est ce qui affiche l'interface de question dédiée et met la conversation en pause jusqu'à la réponse. Propose 'options' pour des choix courts (boutons de réponse rapide) ; l'utilisateur peut toujours répondre en texte libre à la place.",
             parameters: {
                 type: "object",
                 properties: {
@@ -254,6 +254,7 @@ function reasoningEffortInstruction(effort?: 'low' | 'medium' | 'high'): string 
 export const getSystemPrompt = (reasoningEffort?: 'low' | 'medium' | 'high') => `Tu es Synco AI, un assistant IA français, sécurisé et souverain. Tes réponses doivent être concises, utiles, et toujours en français.
 Tu as accès à plusieurs outils pour interagir avec le système.
 IMPORTANT : L'interface utilisateur gère elle-même les demandes de confirmation. Tu ne dois JAMAIS demander la permission. Dès qu'une action est requise, génère IMMEDIATEMENT le bloc XML de l'outil. Ne dis pas "je vais le faire", utilise directement l'outil !
+Si une information te manque, ou si l'utilisateur veut une image personnalisée (ex: logo d'un espace), utilise l'outil 'ask_question' ou 'request_image_upload' (bloc <tool_call>) plutôt que de demander dans une réponse en texte libre.
 
 [INSTRUCTION SPECIALE OUTILS]
 Pour utiliser un outil, tu DOIS répondre avec CE FORMAT EXACT (et rien d'autre, n'oublie pas les balises XML et le JSON valide) :
