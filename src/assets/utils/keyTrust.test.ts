@@ -8,8 +8,11 @@ mock.module("idb-keyval", () => ({
     del: async (k: string) => { store.delete(k); },
 }));
 
-const { user } = await import("@/assets/var");
-const { canonicalRsaJwk, computeKeyFingerprint, requireTrustedKey, checkKeyTrust, keyTrustAlerts, UntrustedKeyError } = await import("./keyTrust");
+const { user, openedOrg } = await import("@/assets/var");
+const {
+    canonicalRsaJwk, computeKeyFingerprint, requireTrustedKey, checkKeyTrust, keyTrustAlerts, UntrustedKeyError,
+    canonicalEcJwk, requireTrustedSignKey, lookupCreatorSignKey,
+} = await import("./keyTrust");
 
 const keyA = JSON.stringify({ kty: "RSA", n: "aaaa", e: "AQAB", alg: "RSA-OAEP-256", ext: true });
 const keyAReordered = JSON.stringify({ e: "AQAB", n: "aaaa", kty: "RSA", key_ops: ["encrypt"] });
@@ -39,5 +42,36 @@ describe("keyTrust (audit FC1)", () => {
     test("magasin cloisonné par compte local", async () => {
         (user as any).value = { id: "other-account" };
         expect(await checkKeyTrust("bob", keyB)).toBe("new");
+    });
+});
+
+describe("clé de signature d'identité — TOFU séparé (audit FC4 §2)", () => {
+    const ecA = JSON.stringify({ kty: "EC", crv: "P-256", x: "aaaa", y: "bbbb" });
+    const ecAReordered = JSON.stringify({ y: "bbbb", crv: "P-256", x: "aaaa", kty: "EC" });
+    const ecB = JSON.stringify({ kty: "EC", crv: "P-256", x: "cccc", y: "dddd" });
+
+    test("JWK EC canonique : réordonnée n'est pas un changement, RSA refusée", () => {
+        expect(canonicalEcJwk(ecA)).toBe(canonicalEcJwk(ecAReordered));
+        expect(() => canonicalEcJwk(keyA)).toThrow();
+    });
+
+    test("première rencontre épinglée, clé de signature changée refusée — namespace distinct de la clé de chiffrement", async () => {
+        (user as any).value = { id: "sign-test-account" };
+        expect(await requireTrustedSignKey("carol", ecA)).toBe(canonicalEcJwk(ecA));
+        expect(await requireTrustedSignKey("carol", ecAReordered)).toBe(canonicalEcJwk(ecA));
+        await expect(requireTrustedSignKey("carol", ecB)).rejects.toBeInstanceOf(UntrustedKeyError);
+
+        // La clé de CHIFFREMENT de carol reste indépendante : aucune
+        // interférence entre les deux magasins.
+        expect(await checkKeyTrust("carol", keyA)).toBe("new");
+    });
+
+    test("lookupCreatorSignKey : soi-même, un membre de l'org ouverte, ou rien", () => {
+        (user as any).value = { id: "me", publicSignKey: ecA };
+        expect(lookupCreatorSignKey("me")).toBe(ecA);
+
+        (openedOrg as any).value = { members: [{ userId: "dave", user: { publicSignKey: ecB } }] };
+        expect(lookupCreatorSignKey("dave")).toBe(ecB);
+        expect(lookupCreatorSignKey("ghost")).toBeNull();
     });
 });
