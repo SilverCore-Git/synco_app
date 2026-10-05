@@ -75,7 +75,7 @@
                                     <div class="px-6 py-4 flex items-center gap-4 hidden sm:flex">
                                         <div class="relative">
                                             <img
-                                                :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(member.user?.name)}&background=062d1f&color=16ac77`"
+                                                :src="member.user?.avatarUrl || defaultAvatar($p(member.user?.name), '#062d1f')"
                                                 class="w-10 h-10 rounded-full object-cover bg-(--bg) border border-(--border-color)"
                                             />
                                             <div v-if="isSelf(member.user?.id!)" class="absolute -bottom-1 -right-1 bg-(--primary) w-3.5 h-3.5 rounded-full border-2 border-(--bg2)" title="Vous" />
@@ -147,7 +147,7 @@
                                             <div class="flex items-center gap-3">
                                                 <div class="relative">
                                                     <img
-                                                        :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(member.user?.name)}&background=062d1f&color=16ac77`"
+                                                        :src="member.user?.avatarUrl || defaultAvatar($p(member.user?.name), '#062d1f')"
                                                         class="w-10 h-10 rounded-full object-cover bg-(--bg) border border-(--border-color)"
                                                     />
                                                     <div v-if="isSelf(member.user?.id!)" class="absolute -bottom-1 -right-1 bg-(--primary) w-3.5 h-3.5 rounded-full border-2 border-(--bg2)" title="Vous" />
@@ -510,6 +510,7 @@
 
 <script lang="ts" setup>
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { ref, computed, onMounted } from 'vue';
 import { openedOrg, user } from '@/assets/var';
 import { useToast } from '@/composables/useToast';

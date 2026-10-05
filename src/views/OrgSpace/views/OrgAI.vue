@@ -417,6 +417,7 @@ import globalVectorWorker from '@/services/GlobalVectorWorker';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { generateThreadKey, encryptThreadKeyForMember, privateKey } from '@/assets/utils/crypto';
+import { resolveRecipientKey } from '@/assets/utils/keyTrust';
 import { openedOrg, user } from '@/assets/var';
 import { getSystemPrompt } from '@/services/AITools';
 import { createFolderRequest, createTextFile } from '@/services/fileActions';
@@ -639,7 +640,11 @@ const createThreadHelper = async (orgId: string, spaceId: string | undefined, na
   let encryptedKeysPayload = [];
   for (const member of members) {
     if (member.publicKey && typeof member.publicKey === 'string' && member.publicKey.trim().startsWith('{')) {
-      const encryptedKey = await encryptThreadKeyForMember(newThreadKey, member.publicKey);
+      // Clé épinglée (audit FC1) : un membre dont la clé a changé est écarté.
+      let trustedKey: string;
+      try { trustedKey = await resolveRecipientKey(member.id, member.publicKey); }
+      catch { continue; }
+      const encryptedKey = await encryptThreadKeyForMember(newThreadKey, trustedKey);
       encryptedKeysPayload.push({ userId: member.id, encryptedKey });
     }
   }

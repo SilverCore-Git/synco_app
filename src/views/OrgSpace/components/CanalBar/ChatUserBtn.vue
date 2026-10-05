@@ -15,10 +15,10 @@
         <div class="relative shrink-0">
 
             <img
-                :src="user?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(user?.user?.name)}&background=128a60&color=fff`"
+                :src="user?.user?.avatarUrl || defaultAvatar($p(user?.user?.name))"
                 :alt="$p(user?.user?.name)"
                 class="w-8 h-8 rounded-full object-cover border border-(--text)/10 group-hover:border-(--primary)/30 transition-colors"
-                @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(user?.user?.name)}&background=128a60&color=fff`"
+                @error="(e: any) => e.target.src = defaultAvatar($p(user?.user?.name))"
             />
             
             <div 
@@ -61,6 +61,7 @@
 
 <script lang="ts" setup>
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { computed } from 'vue';
 import getColorByStatus from '@/assets/utils/getColorByStatus';
 import type { OrgMember } from '@/types/types';

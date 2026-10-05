@@ -30,7 +30,7 @@
                 <button class="dash-row" @click="openItem(item)">
                     <div class="relative shrink-0">
                         <img
-                            :src="item.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title)}&background=128a60&color=fff`"
+                            :src="item.avatar || defaultAvatar(item.title)"
                             class="w-9 h-9 rounded-full"
                             alt=""
                         />
@@ -62,6 +62,7 @@
 </template>
 
 <script lang="ts" setup>
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { openedOrg } from '@/assets/var';

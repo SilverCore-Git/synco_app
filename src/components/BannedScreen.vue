@@ -49,7 +49,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { keycloak } from '@/assets/keycloak';
+import { logoutEverywhere } from '@/assets/keycloak';
 import { disconnectSocket } from '@/composables/useWSocket';
 import useSettingsItem from '@/composables/useSettingsItem';
 import { banInfo } from '@/composables/useBanStatus';
@@ -74,7 +74,7 @@ const formattedDate = computed(() => {
 // en boucle derrière cet écran.
 const logout = () => {
   disconnectSocket();
-  keycloak.logout();
+  logoutEverywhere();
 };
 </script>
 

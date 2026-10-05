@@ -1,5 +1,9 @@
 import sfetch from './sfetch';
 import { privateKey, decryptSpaceKeyWithRsa, generateSpaceKey, encryptSpaceKeyForMember } from './crypto';
+import { registerKeyCache } from './keyCaches';
+import { resolveRecipientKey } from './keyTrust';
+import { pinOrCheckKey } from './keyPinning';
+import { signKeyEnvelope, verifyKeyEnvelopeIfPresent } from './keyEnvelope';
 
 // Cache for Workspace keys
 const workspaceKeyCache = new Map<string, CryptoKey>();
@@ -8,6 +12,15 @@ const workspaceKeyVersionCache = new Map<string, number>();
 // la même résolution de clé au lieu de faire N GET (et, si la clé n'existe
 // pas encore, N générations concurrentes de clés différentes).
 const workspaceKeyInflight = new Map<string, Promise<{ key: CryptoKey, version: number }>>();
+
+// Ces clés déchiffrées restaient utilisables après un verrouillage manuel de
+// l'E2EE, contrairement à threadKeyCache (audit FC10).
+registerKeyCache(() => {
+    workspaceKeyCache.clear();
+    workspaceKeyVersionCache.clear();
+    workspaceKeyInflight.clear();
+    lastShareAttempt.clear();
+});
 
 /**
  * Gets the WorkspaceKey for the given workspaceId.
@@ -60,16 +73,25 @@ export async function shareWorkspaceKeyWithMissingMembers(workspaceId: string, k
         const keys = [];
         for (const member of missing.members) {
             try {
-                keys.push({ userId: member.id, encryptedKey: await encryptSpaceKeyForMember(key, member.publicKey) });
+                // Clé épinglée uniquement : une clé substituée par le serveur
+                // pour un membre connu ne reçoit rien (audit FC1).
+                const pk = await resolveRecipientKey(member.id, member.publicKey);
+                keys.push({ userId: member.id, encryptedKey: await encryptSpaceKeyForMember(key, pk) });
             } catch {
-                console.warn(`[E2EE] Clé publique inutilisable pour ${member.id} : clé d'espace non transmise.`);
+                console.warn(`[E2EE] Clé publique inutilisable ou non vérifiée pour ${member.id} : clé d'espace non transmise.`);
             }
         }
         if (keys.length === 0) return;
 
+        // FC4 §2 : signe l'enveloppe si notre propre clé d'identité est
+        // déverrouillée ; sinon, partage quand même la clé (comportement
+        // inchangé) mais sans enveloppe — le destinataire la traitera comme
+        // non vérifiable, pas comme invalide.
+        const envelope = await signKeyEnvelope(key, `space:${workspaceId}`, version).catch(() => null);
+
         await sfetch(`/api/spaces/${workspaceId}/key/share`, {
             method: 'POST',
-            body: JSON.stringify({ version, keys }),
+            body: JSON.stringify({ version, keys, ...envelope }),
         });
     } catch (e) {
         console.warn("[E2EE] Partage de la clé d'espace impossible :", e);
@@ -81,6 +103,12 @@ async function fetchWorkspaceKey(workspaceId: string, response?: Response): Prom
     if (!res.ok) return null;
     const data = await res.json();
     const decryptedKey = await decryptSpaceKeyWithRsa(data.encryptedKey, privateKey.value!);
+    // FC4 §2 : vérifie l'origine signée avant de faire confiance à la clé,
+    // si une enveloppe accompagne cette copie.
+    await verifyKeyEnvelopeIfPresent(decryptedKey, `space:${workspaceId}`, data.version, data);
+    // Une clé différente de celle épinglée pour cette version est refusée
+    // (audit FC4 §1).
+    await pinOrCheckKey(decryptedKey, `space:${workspaceId}`, data.version);
     workspaceKeyCache.set(workspaceId, decryptedKey);
     workspaceKeyVersionCache.set(workspaceId, data.version);
     return { key: decryptedKey, version: data.version };
@@ -140,7 +168,7 @@ async function resolveWorkspaceKey(workspaceId: string): Promise<{ key: CryptoKe
                     // CryptoKey object instead of a JsonWebKey, which throws and
                     // was silently swallowed below, so no member ever actually
                     // got a wrapped copy and key generation always failed.
-                    const encryptedKeyBase64 = await encryptSpaceKeyForMember(newSpaceKey, member.publicKey);
+                    const encryptedKeyBase64 = await encryptSpaceKeyForMember(newSpaceKey, await resolveRecipientKey(member.id, member.publicKey));
                     keysToDistribute.push({
                         userId: member.id,
                         encryptedKey: encryptedKeyBase64
@@ -151,10 +179,11 @@ async function resolveWorkspaceKey(workspaceId: string): Promise<{ key: CryptoKe
             }
             
             if (keysToDistribute.length > 0) {
+                const envelope = await signKeyEnvelope(newSpaceKey, `space:${workspaceId}`, version).catch(() => null);
                 const saveResponse = await sfetch(`/api/spaces/${workspaceId}/key`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ keys: keysToDistribute, version })
+                    body: JSON.stringify({ keys: keysToDistribute, version, ...envelope })
                 });
                 
                 if (saveResponse.ok) {

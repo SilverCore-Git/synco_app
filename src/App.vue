@@ -11,10 +11,11 @@ import type { User } from '@/types/types';
 import Notifications from './components/overlay/Notifications.vue';
 import TransfersPanel from './components/overlay/TransfersPanel.vue';
 import ConnectionStatusBanner from './components/overlay/ConnectionStatusBanner.vue';
+import AiGatewayConsent from './components/common/AiGatewayConsent.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
 import useSettingsItem from './composables/useSettingsItem';
 import { initKC, isTauriPlatform, loginWithSystemBrowser } from './assets/keycloak';
-import { E2EEUnloked, setupFirstTimeSecurityV3, unlockSecurity, unlockSecurityV3, SALT_V2_PREFIX, SALT_V3_PREFIX } from './assets/utils/crypto';
+import { E2EEUnloked, setupFirstTimeSecurityV3, unlockSecurity, unlockSecurityV3, SALT_V2_PREFIX, SALT_V3_PREFIX, privateKey, lockSecurity, assertOwnPublicKeyMatches, OwnKeyMismatchError, rewrapLegacyPrivateKeyV3, generateSigningKeypairForMigration } from './assets/utils/crypto';
 import sfetch from './assets/utils/sfetch';
 import { useToast } from './composables/useToast';
 import TopBar from './components/layout/topBar.vue';
@@ -120,6 +121,42 @@ const formatDuration = (seconds: number): string => {
   return `${Math.ceil(seconds / 3600)}h`;
 };
 
+// Round-trip verifier -> wrapSecret (POST /me/pin/unlock), partagé entre le
+// déverrouillage v3 normal et la migration de la clé de signature (FC4 §2) —
+// même traitement du verrouillage après trop d'essais dans les deux cas.
+const fetchWrapSecret = async (verifier: string): Promise<{ wrapSecret: string }> => {
+  const res = await sfetch('/api/users/me/pin/unlock', {
+    method: 'POST',
+    body: JSON.stringify({ verifier })
+  });
+  if (res.status === 429) {
+    const body = await res.json();
+    throw Object.assign(new Error('locked'), { locked: true, retryAfterSeconds: body.retryAfterSeconds });
+  }
+  if (!res.ok) {
+    throw Object.assign(new Error('invalid'), { locked: false });
+  }
+  return res.json();
+};
+
+// FC4 §2 : compte déverrouillé (ou tout juste migré v3) sans clé de
+// signature encore générée — génère la paire manquante et l'envoie au
+// serveur. `pin`/`salt` doivent être ceux actuellement actifs (si une
+// migration legacy → v3 vient de réussir, appeler avec le salt v3 flambant
+// neuf, pas l'ancien). Best-effort : un échec est journalisé, retenté au
+// prochain déverrouillage puisque user.value.publicSignKey reste vide.
+const migrateSigningKeyIfNeeded = async (pinValue: string, salt: string) => {
+  if (user.value?.publicSignKey) return;
+  try {
+    const doFetch = salt.startsWith(SALT_V3_PREFIX) ? fetchWrapSecret : undefined;
+    const signing = await generateSigningKeypairForMigration(pinValue, salt, doFetch);
+    const res = await sfetch('/api/users/me/signKey', { method: 'PATCH', body: JSON.stringify(signing) });
+    if (res.ok) await refetchUser();
+  } catch (e) {
+    console.warn('[E2EE] Génération de la clé de signature impossible pour le moment :', e);
+  }
+};
+
 const press = (num: string) => {
   if (pin.value.length < pinMaxLength.value) {
     pin.value += num;
@@ -154,6 +191,16 @@ const submit = async () => {
 
       if (res.ok) {
         await refetchUser();
+        // FC4 §2 : déjà générée par setupFirstTimeSecurityV3 ci-dessus
+        // (masterKey disponible sur place) — juste envoyée au serveur.
+        await sfetch('/api/users/me/signKey', {
+          method: 'PATCH',
+          body: JSON.stringify({
+            publicSignKey: E2EEThings.publicSignKey,
+            encryptedSignPrivateKey: E2EEThings.encryptedSignPrivateKey,
+            signKeyIv: E2EEThings.signKeyIv,
+          }),
+        }).catch(() => {});
         isResettingPIN.value = false;
         const response = await res.json();
         toast.show(response.message || 'PIN réinitialisé.', 'warning', 10000);
@@ -177,21 +224,12 @@ const submit = async () => {
         try {
           await unlockSecurityV3(
             pin.value, user.value.pinSalt, user.value.encryptedPrivateKey, user.value.keyIv,
-            async (verifier) => {
-              const res = await sfetch('/api/users/me/pin/unlock', {
-                method: 'POST',
-                body: JSON.stringify({ verifier })
-              });
-              if (res.status === 429) {
-                const body = await res.json();
-                throw Object.assign(new Error('locked'), { locked: true, retryAfterSeconds: body.retryAfterSeconds });
-              }
-              if (!res.ok) {
-                throw Object.assign(new Error('invalid'), { locked: false });
-              }
-              return res.json();
-            }
+            fetchWrapSecret,
+            { encryptedSignPrivateKey: user.value.encryptedSignPrivateKey, signKeyIv: user.value.signKeyIv }
           );
+          // Salt toujours v3 ici (branche pinScheme === 'v3') : pas de
+          // nouveau round-trip verifier, fetchWrapSecret suffit.
+          await migrateSigningKeyIfNeeded(pin.value, user.value.pinSalt);
           pin.value = '';
         } catch (e: any) {
           pin.value = '';
@@ -210,6 +248,24 @@ const submit = async () => {
           toast.show('Code PIN incorrect', 'error');
           pin.value = '';
         } else {
+          // Compte legacy : migration transparente vers le schéma v3 (audit
+          // FC2). Un échec n'empêche pas l'usage, la migration sera retentée
+          // au prochain déverrouillage.
+          if (pinScheme.value === 'legacy') {
+            try {
+              const migrated = await rewrapLegacyPrivateKeyV3(pin.value, user.value.pinSalt, user.value.encryptedPrivateKey, user.value.keyIv);
+              const res = await sfetch('/api/users/me/pin/migrate', { method: 'POST', body: JSON.stringify(migrated) });
+              if (res.ok) await refetchUser();
+            } catch (e) {
+              console.warn('[E2EE] Migration du PIN vers v3 impossible pour le moment :', e);
+            }
+          }
+          // FC4 §2 : utilise le salt courant, qui est déjà v3 si la
+          // migration ci-dessus vient de réussir (refetchUser), encore
+          // legacy sinon — migrateSigningKeyIfNeeded gère les deux.
+          if (user.value?.pinSalt) {
+            await migrateSigningKeyIfNeeded(pin.value, user.value.pinSalt);
+          }
           pin.value = '';
         }
       }
@@ -226,6 +282,15 @@ const submit = async () => {
 
       if (res.ok) {
         await refetchUser();
+        // FC4 §2 — voir la branche de réinitialisation ci-dessus.
+        await sfetch('/api/users/me/signKey', {
+          method: 'PATCH',
+          body: JSON.stringify({
+            publicSignKey: E2EEThings.publicSignKey,
+            encryptedSignPrivateKey: E2EEThings.encryptedSignPrivateKey,
+            signKeyIv: E2EEThings.signKeyIv,
+          }),
+        }).catch(() => {});
         pinLoading.value = false;
         pin.value = '';
       }
@@ -235,8 +300,19 @@ const submit = async () => {
 
     }
 
+    // Après tout déverrouillage : la clé publique servie doit correspondre à
+    // la clé privée, sinon on reverrouille (audit FC1 §4).
+    if (privateKey.value) {
+      await assertOwnPublicKeyMatches(user.value?.publicKey, privateKey.value);
+    }
+
   } catch (e) {
-    toast.show('Erreur de déchiffrement', 'error');
+    if (e instanceof OwnKeyMismatchError) {
+      lockSecurity();
+      toast.show("Alerte de sécurité : la clé publique fournie par le serveur ne correspond pas à votre clé privée. Le chiffrement reste verrouillé ; contactez votre administrateur.", 'error', 20000);
+    } else {
+      toast.show('Erreur de déchiffrement', 'error');
+    }
   } finally {
     pinLoading.value = false;
     window.removeEventListener('keydown', handleInput);
@@ -482,6 +558,7 @@ onMounted(async () => {
     <Notifications />
     <TransfersPanel />
     <ConnectionStatusBanner />
+    <AiGatewayConsent />
 
     <!-- Compte banni : prioritaire sur tout le reste. Un compte banni ne
          charge jamais `user` (l'API refuse chaque requête, cf. banMiddleware

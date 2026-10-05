@@ -1,5 +1,6 @@
 <script setup lang="ts">
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { organizations, user } from '@/assets/var';
 import OrgBtn from './components/OrgBtn.vue';
 import { onMounted, reactive, ref, computed } from 'vue';
@@ -7,7 +8,7 @@ import sfetch from '@/assets/utils/sfetch';
 import Popup from '@/components/Popup.vue';
 import IconSelector from '@/components/common/IconSelector.vue';
 import { useToast } from '@/composables/useToast';
-import { keycloak } from '@/assets/keycloak';
+import { logoutEverywhere } from '@/assets/keycloak';
 import { disconnectSocket } from '@/composables/useWSocket';
 import DropDown from '@/components/DropDown.vue';
 import UserSettings from '@/components/windows/UserSettings.vue';
@@ -92,7 +93,7 @@ onMounted(async () => {
                 <template #trigger>
                     <button class="w-10 h-10 rounded-full overflow-hidden border-2 border-(--text)/10 hover:border-(--primary)/50 transition-all shadow-sm focus:outline-none">
                         <img
-                            :src="user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=128a60&color=fff`"
+                            :src="user?.avatarUrl || defaultAvatar(user?.name || 'User')"
                             alt="Profile"
                             class="w-full h-full object-cover"
                         />
@@ -126,7 +127,7 @@ onMounted(async () => {
                     </div>
                     <div class="h-px bg-(--text)/5 my-1" />
                     <div class="p-1">
-                        <button @click="disconnectSocket(); keycloak.logout()" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-500 font-bold hover:bg-red-500 hover:text-white rounded-lg transition-colors">
+                        <button @click="disconnectSocket(); logoutEverywhere()" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-500 font-bold hover:bg-red-500 hover:text-white rounded-lg transition-colors">
                             <i class="bi bi-box-arrow-right"></i> Déconnexion
                         </button>
                     </div>

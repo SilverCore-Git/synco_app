@@ -5,6 +5,7 @@ import sfetch from '@/assets/utils/sfetch';
 import { keycloak } from '@/assets/keycloak';
 import { encryptForPeer, decryptFromPeer, privateKey, encryptAiField, decryptAiField } from '@/assets/utils/crypto';
 import { ensureAiSessionKey, getAiSessionKeyRawBase64, AiSessionKeyUnavailableError } from './AiSessionKeyService';
+import { assertAllowedGateway } from './aiGatewayPolicy';
 
 export interface AIProviderConfig {
     provider: 'local' | 'openai' | 'gemini' | 'mistral' | 'custom' | 'gateway';
@@ -55,8 +56,19 @@ export class AIService {
      * Porte aussi la clé de session IA de l'org (X-Session-Key) — la passerelle en a besoin pour
      * déchiffrer/chiffrer les champs sensibles avant/après son propre appel à synco_api, cf.
      * E2EE_PLAN.md §3-4. `synco_api` ne voit jamais cette clé (appel direct navigateur→gateway).
+     *
+     * `gatewayUrl` vient d'activeModules.aiConfig, lu tel quel depuis la réponse de l'API : un
+     * détenteur de ORG_AI (ou l'opérateur/un intrus côté synco_api, sans toucher la base) peut la
+     * pointer vers un serveur arbitraire, qui recevrait alors le jeton Keycloak complet de chaque
+     * membre et la clé de session IA en clair. `assertAllowedGateway` valide la forme de l'URL et,
+     * si l'origine n'est pas déjà fiable (liste blanche au build ou déjà acceptée), bloque tant que
+     * l'utilisateur n'a pas explicitement autorisé cette origine précise (audit FC5).
      */
-    private async gatewayFetch(orgId: string, url: string, body: any, signal: AbortSignal): Promise<Response> {
+    private async gatewayFetch(orgId: string, path: string, body: any, signal: AbortSignal): Promise<Response> {
+        const userId = user.value?.id;
+        if (!userId) throw new Error('Utilisateur non identifié.');
+        const base = await assertAllowedGateway(this.config.gatewayUrl, userId, orgId);
+
         // Indépendants l'un de l'autre (rafraîchir le token Keycloak / récupérer la clé de session
         // IA) — en parallèle plutôt qu'en séquence, ça évite d'empiler deux aller-retours réseau
         // quand ni l'un ni l'autre n'est déjà en cache (ex: tout premier message d'une session).
@@ -64,7 +76,7 @@ export class AIService {
             keycloak.authenticated ? keycloak.updateToken(60).catch(() => {}) : Promise.resolve(),
             getAiSessionKeyRawBase64(orgId),
         ]);
-        return fetch(url, {
+        return fetch(`${base}${path}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -88,8 +100,7 @@ export class AIService {
         let response: Response;
 
         if (this.config.provider === 'gateway') {
-            const gatewayUrl = (this.config.gatewayUrl || '').replace(/\/$/, '');
-            response = await this.gatewayFetch(orgId, `${gatewayUrl}/chat`, {
+            response = await this.gatewayFetch(orgId, '/chat', {
                 orgId,
                 sessionId: sessionId || undefined,
                 message,
@@ -118,8 +129,7 @@ export class AIService {
         let response: Response;
 
         if (this.config.provider === 'gateway') {
-            const gatewayUrl = (this.config.gatewayUrl || '').replace(/\/$/, '');
-            response = await this.gatewayFetch(orgId, `${gatewayUrl}/chat/${sessionId}/tool-result`, {
+            response = await this.gatewayFetch(orgId, `/chat/${sessionId}/tool-result`, {
                 orgId,
                 syncoApiUrl: import.meta.env.VITE_API_URL,
                 modelId: this.config.modelId,
@@ -389,12 +399,19 @@ export class AIService {
  * d'appel direct navigateur → Ollama, pour éviter une config CORS séparée sur Ollama). La
  * passerelle sait elle-même où joindre Ollama (OLLAMA_URL, config de déploiement) — on ne le lui
  * dit pas ici. Utilisé par AISettings.vue pour peupler le sélecteur de modèle du provider 'gateway'.
+ *
+ * Même contrôle que gatewayFetch (audit FC5) : avant ce correctif, chaque frappe dans le champ
+ * d'URL (débounce 500ms côté AISettings.vue) envoyait le jeton Keycloak complet à l'origine en
+ * cours de saisie, sans aucune validation.
  */
-export async function listGatewayModels(gatewayUrl: string): Promise<string[]> {
+export async function listGatewayModels(gatewayUrl: string, orgId: string): Promise<string[]> {
+    const userId = user.value?.id;
+    if (!userId) throw new Error('Utilisateur non identifié.');
+    const base = await assertAllowedGateway(gatewayUrl, userId, orgId);
+
     if (keycloak.authenticated) {
         await keycloak.updateToken(60).catch(() => {});
     }
-    const base = gatewayUrl.replace(/\/$/, '');
     const url = `${base}/models`;
 
     const res = await fetch(url, {

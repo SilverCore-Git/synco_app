@@ -180,6 +180,23 @@
                 </span>
             </div>
 
+            <!-- Clé du salon remplacée de manière inattendue (audit FC4) :
+                 ni lecture ni envoi tant que l'utilisateur n'a pas tranché. -->
+            <div
+                v-if="threadKeyChanged"
+                class="mb-2 flex items-start gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20"
+            >
+                <i class="bi bi-shield-exclamation text-red-400 text-lg mt-0.5 shrink-0" />
+                <div class="flex-1 text-xs text-red-400 leading-relaxed">
+                    La clé de chiffrement de ce salon a été remplacée depuis votre dernière visite.
+                    Vos messages ne seront pas envoyés tant que la situation n'est pas vérifiée
+                    auprès d'un administrateur du salon.
+                </div>
+                <button @click="acceptNewThreadKey" class="danger text-xs shrink-0">
+                    Accepter la nouvelle clé
+                </button>
+            </div>
+
             <div class="relative flex items-center bg-(--bg) border border-(--text)/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
                 
                 <input 
@@ -276,6 +293,7 @@ import { uploadFiles } from '@/assets/uploadFile';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { waitForSocketConnection } from '@/composables/useWSocket';
 import { getCachedThreadKey, setCachedThreadKey, invalidateThreadKey } from '@/assets/utils/threadKeyCache';
+import { pinOrCheckKey, repinKey, KeyChangedError } from '@/assets/utils/keyPinning';
 
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
@@ -845,6 +863,19 @@ const emitWithAck = (event: string, payload: Record<string, any>): Promise<any> 
 // null si elle n'est pas disponible (erreurs déjà signalées à l'utilisateur).
 // `background` : revalidation d'une clé en cache alors que l'historique est
 // déjà affiché — une erreur invalide le cache sans toucher à l'écran.
+// Clé servie qui diffère de la clé épinglée (audit FC4) : gardée de côté,
+// jamais utilisée sans décision explicite de l'utilisateur.
+const threadKeyChanged = ref<boolean>(false);
+let pendingThreadKey: { id: string; key: CryptoKey } | null = null;
+
+const acceptNewThreadKey = async () => {
+    if (!pendingThreadKey || pendingThreadKey.id !== thread.value?.id) return;
+    await repinKey(pendingThreadKey.key, `thread:${pendingThreadKey.id}`, 1);
+    pendingThreadKey = null;
+    threadKeyChanged.value = false;
+    if (thread.value?.id) joinThread(thread.value.id);
+};
+
 const fetchThreadKey = async (id: string, seq: number, background = false): Promise<CryptoKey | null> => {
 
     const response: { encryptedKey?: string, error?: string, needsReadd?: boolean } = await emitWithAck("get-thread-access", { threadId: id });
@@ -890,6 +921,20 @@ const fetchThreadKey = async (id: string, seq: number, background = false): Prom
 
     try {
         const key = await decryptThreadKeyWithRsa(response.encryptedKey, privateKey.value!);
+        try {
+            await pinOrCheckKey(key, `thread:${id}`, 1);
+        } catch (e) {
+            if (!(e instanceof KeyChangedError)) throw e;
+            // Une autre clé que celle épinglée : on ne bascule pas dessus
+            // (audit FC4 — n'importe quel membre pouvait la remplacer).
+            invalidateThreadKey(id);
+            pendingThreadKey = { id, key };
+            threadKeyChanged.value = true;
+            currentThreadKey.value = null;
+            loading.value = false;
+            return null;
+        }
+        threadKeyChanged.value = false;
         setCachedThreadKey(id, response.encryptedKey, key);
         return key;
     } catch (cryptoErr) {
@@ -1011,11 +1056,15 @@ const joinThread = async (id: string, silent = false) => {
         TextareaRef.value?.textarea?.focus();
     }
 
-    // Clé prise dans le cache : si le serveur en a une autre (réinitialisation
-    // E2EE, redistribution), on bascule dessus et on redéchiffre l'historique.
+    // Clé prise dans le cache : revalidée auprès du serveur. Une copie
+    // rescellée de la MÊME clé (épinglage OK) est adoptée ; une clé
+    // différente n'est jamais adoptée en silence — fetchThreadKey l'a
+    // refusée et affiche la bannière (audit FC4).
     if (cached) {
         const fresh = await keyPromise;
-        if (seq !== joinSeq || !fresh || fresh === key) return;
+        if (seq !== joinSeq) return;
+        if (threadKeyChanged.value) { currentThreadKey.value = null; return; }
+        if (!fresh || fresh === key) return;
         currentThreadKey.value = fresh;
         await applyHistory(seq, res, fresh, true);
     }

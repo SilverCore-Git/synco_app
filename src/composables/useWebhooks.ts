@@ -2,6 +2,7 @@
 // Composable pour la gestion des Webhooks
 // ============================================
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { ref, computed } from 'vue';
 import sfetch from '@/assets/utils/sfetch';
 import { useToast } from './useToast';
@@ -722,7 +723,7 @@ function hasPermission(webhook: Webhook, permission: WebhookPermission): boolean
  */
 function webhookAvatarFallback(name?: string): string {
   const label = encodeURIComponent(name?.trim() || 'Webhook');
-  return `https://ui-avatars.com/api/?name=${label}&background=7c3aed&color=fff`;
+  return defaultAvatar(label, '#7c3aed');
 }
 
 /**

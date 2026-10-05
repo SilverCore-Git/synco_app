@@ -121,6 +121,38 @@
         <p v-if="flattenedTasks.length === 0" class="text-xs text-(--text2)">Aucune tâche.</p>
     </div>
 
+    <!-- read_documentation (avec docId) : un seul chapitre, carte cliquable vers le rendu markdown -->
+    <EntityRow
+        v-else-if="tool.name === 'read_documentation' && readDoc"
+        icon="bi-book"
+        :title="readDoc.titre"
+        :subtitle="sectionLabel(readDoc.section)"
+        @click="openDoc(readDoc.id, readDoc.titre, readDoc.contenu)"
+    />
+
+    <!-- list_documentation, ou read_documentation sans docId : index des chapitres -->
+    <div v-else-if="docChapters.length" class="flex flex-col gap-2">
+        <EntityRow
+            v-for="chap in docChapters" :key="chap.id"
+            icon="bi-journals"
+            :title="chap.title"
+            :subtitle="chap.summary"
+            @click="openDoc(chap.id, chap.title)"
+        />
+    </div>
+
+    <!-- search_documentation : extraits cliquables vers le chapitre complet -->
+    <div v-else-if="tool.name === 'search_documentation'" class="flex flex-col gap-2">
+        <EntityRow
+            v-for="hit in docSearchHits" :key="hit.docId + hit.heading"
+            icon="bi-journal-text"
+            :title="hit.title"
+            :subtitle="hit.heading"
+            @click="openDoc(hit.docId, hit.title)"
+        />
+        <p v-if="docSearchHits.length === 0" class="text-xs text-(--text2)">Aucun extrait trouvé.</p>
+    </div>
+
     <!-- Erreur -->
     <p v-else-if="tool.status === 'error' || tool.result?.error" class="text-xs text-red-400">
         {{ tool.result?.error || 'Erreur lors de l\'exécution.' }}
@@ -129,15 +161,35 @@
     <!-- Fallback générique -->
     <pre v-else-if="tool.result" class="text-xs text-(--text2) whitespace-pre-wrap break-words max-h-64 overflow-y-auto">{{ prettyResult }}</pre>
 
+    <!-- Documentation ouverte : contenu complet rendu en markdown -->
+    <Window :is-open="!!openedDoc" :z-index="2500" @close="openedDoc = null">
+        <div class="w-full h-full bg-(--bg) overflow-hidden flex flex-col">
+            <div class="px-6 py-4 border-b border-(--bg2)/5 flex items-center gap-3 shrink-0">
+                <i class="bi bi-book text-xl text-(--primary)"></i>
+                <h3 class="text-lg font-semibold text-(--text) truncate">{{ openedDoc?.title }}</h3>
+            </div>
+            <div class="flex-1 overflow-hidden relative">
+                <div v-if="loadingDocId" class="absolute inset-0 flex items-center justify-center">
+                    <div class="w-8 h-8 rounded-full border-2 border-(--primary) border-t-transparent animate-spin"></div>
+                </div>
+                <MarkdownDocumentPreview v-else-if="openedDoc" :content="openedDoc.content" />
+            </div>
+        </div>
+    </Window>
+
 </template>
 
 <script setup lang="ts">
 
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { ToolStep } from './agentTypes';
 import ThreadMessage from '../common/ThreadMessage.vue';
 import EntityRow from './EntityRow.vue';
+import Window from '@/components/windows/Window.vue';
+import MarkdownDocumentPreview from '../popup/MarkdownDocumentPreview.vue';
+import { readDocumentation, type DocSection } from '@/services/DocumentationService';
+import { useToast } from '@/composables/useToast';
 import { openedOrg } from '@/assets/var';
 
 const props = defineProps<{ tool: ToolStep }>();
@@ -146,6 +198,7 @@ defineEmits(['open-task']);
 const route = useRoute();
 const router = useRouter();
 const orgId = route.params.orgId as string;
+const toast = useToast();
 
 const searchResults = computed<any[]>(() => props.tool.result?.results || []);
 const createdTask = computed(() => (props.tool.name === 'create_task' ? props.tool.result : null));
@@ -164,6 +217,39 @@ const flattenedTasks = computed<any[]>(() => {
     const { lists = [], unlistedTasks = [] } = props.tool.result;
     return [...unlistedTasks, ...lists.flatMap((l: any) => l.tasks || [])];
 });
+
+// read_documentation renvoie soit un chapitre complet (`contenu` présent), soit
+// l'index (`chapitres`) quand l'IA n'a pas précisé de `docId`.
+const readDoc = computed(() => (props.tool.name === 'read_documentation' && props.tool.result?.contenu ? props.tool.result : null));
+const docChapters = computed<any[]>(() => (!readDoc.value && Array.isArray(props.tool.result?.chapitres) ? props.tool.result.chapitres : []));
+const docSearchHits = computed<any[]>(() => (props.tool.name === 'search_documentation' ? props.tool.result?.resultats || [] : []));
+
+function sectionLabel(section?: DocSection) {
+    return section === 'securite' ? 'Sécurité' : 'Guide';
+}
+
+// Carte doc déjà lue par l'agent (contenu fourni) ou juste listée (contenu à
+// charger à la demande, au clic) : les deux ouvrent la même fenêtre de lecture.
+const openedDoc = ref<{ title: string; content: string } | null>(null);
+const loadingDocId = ref<string | null>(null);
+
+async function openDoc(docId: string, title: string, content?: string) {
+    if (content) {
+        openedDoc.value = { title, content };
+        return;
+    }
+    loadingDocId.value = docId;
+    openedDoc.value = { title, content: '' };
+    try {
+        const doc = await readDocumentation(docId);
+        openedDoc.value = { title: doc.title, content: doc.content };
+    } catch (err) {
+        openedDoc.value = null;
+        toast.show(err instanceof Error ? err.message : 'Erreur lors du chargement de la documentation.', 'error');
+    } finally {
+        loadingDocId.value = null;
+    }
+}
 
 const prettyResult = computed(() => {
     try {
