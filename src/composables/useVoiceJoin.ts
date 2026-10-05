@@ -30,6 +30,10 @@ export async function joinVoiceThread(threadId: string, spaceId: string): Promis
         await connectToRoom(data.url, data.token, threadId, spaceId, data.e2eeKey, {
             e2eeRequired: !!data.e2eeRequired,
             allowUnencrypted: true,
+            // FC4 §2
+            creatorId: data.creatorId,
+            commitment: data.commitment,
+            signature: data.signature,
         });
         return true;
     } catch (e) {
