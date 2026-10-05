@@ -136,7 +136,7 @@ import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import type { Thread } from '@/types/types';
 import useLiveKit from '@/composables/useLiveKit';
-import sfetch from '@/assets/utils/sfetch';
+import { joinVoiceThread } from '@/composables/useVoiceJoin';
 import { useRoute, useRouter } from 'vue-router';
 import useWSocket, { waitForSocketConnection } from '@/composables/useWSocket';
 import { openedOrg, user } from '@/assets/var';
@@ -184,7 +184,7 @@ const onParticipantContextMenu = (e: MouseEvent, p: any) => {
     menuRefs.get(p.identity)?.open(e);
 };
 
-const { room, isConnected, connectToRoom, allParticipants, getWSData } = useLiveKit();
+const { room, isConnected, allParticipants, getWSData } = useLiveKit();
 
 const socketParticipants = ref<any[]>([]);
 
@@ -237,16 +237,7 @@ const handleAction = async () => {
     else 
     {
 
-        const res = await sfetch('/api/livekit/token', {
-            method: 'POST',
-            body: JSON.stringify({ threadId: props.thread.id }),
-        });
-
-        if (res.ok)
-        {
-            const data = await res.json();
-            await connectToRoom(data.url, data.token, props.thread.id, String(route.params.spaceId), data.e2eeKey);
-        }
+        await joinVoiceThread(props.thread.id, String(route.params.spaceId));
 
     }
 

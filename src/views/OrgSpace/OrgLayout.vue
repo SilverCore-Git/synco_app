@@ -25,6 +25,7 @@ import { privateKey, decryptThreadKeyWithRsa, encryptThreadKeyForMember } from '
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { usePermissions } from '@/composables/usePermissions';
 import SpinLoader from '@/components/SpinLoader.vue';
+import UnencryptedCallConfirm from '@/components/voice/UnencryptedCallConfirm.vue';
 
 
 const props = defineProps<{
@@ -748,6 +749,8 @@ onBeforeUnmount(async () => {
             </Transition>
 
             <UserCard :isLittleScreen="isLittleScreen" />
+
+            <UnencryptedCallConfirm />
 
         </div>
 

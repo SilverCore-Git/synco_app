@@ -33,6 +33,35 @@ const isDeafened = ref<boolean>(false);
 const keyProvider = new ExternalE2EEKeyProvider();
 let intentionalDisconnect = false;
 
+/**
+ * État réel du chiffrement de bout en bout de l'appel en cours, lu sur la
+ * Room après connexion — jamais supposé (audit FC3).
+ */
+const isCallE2EE = ref<boolean>(false);
+
+/** Salon sans clé E2EE : rejoindre en clair exige un choix explicite. */
+export class CallNotEncryptedError extends Error {
+    constructor() {
+        super("Ce salon vocal n'est pas chiffré de bout en bout.");
+        this.name = 'CallNotEncryptedError';
+    }
+}
+
+/** Le salon est chiffré mais le chiffrement n'a pas pu être mis en place : on ne rejoint pas. */
+export class CallEncryptionError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'CallEncryptionError';
+    }
+}
+
+export interface ConnectOptions {
+    /** Le serveur indique que le salon est chiffré (au moins un membre a une ThreadKey). */
+    e2eeRequired?: boolean;
+    /** L'utilisateur a accepté explicitement de rejoindre un salon non chiffré. */
+    allowUnencrypted?: boolean;
+}
+
 // ── Volume local par participant (0-200%) ───────────────────────────────
 // Un <audio> natif plafonne à 100% (el.volume max = 1) : pour permettre un
 // boost au-delà, chaque flux audio distant est routé à travers un GainNode
@@ -88,6 +117,25 @@ function getAudioContext(): AudioContext {
  * e.g. a guest joining via invite link, or a non-E2EE thread) — callers
  * treat that as "this call isn't E2EE", not an error.
  */
+/**
+ * Clé média dédiée, dérivée de la ThreadKey et liée au salon : la clé de
+ * messages n'est jamais réutilisée telle quelle par un second protocole
+ * (audit FC3 §4). Déterministe : tous les membres obtiennent la même.
+ */
+async function deriveMediaKey(threadKeyRaw: ArrayBuffer, threadId: string): Promise<ArrayBuffer> {
+    const ikm = await crypto.subtle.importKey('raw', threadKeyRaw, 'HKDF', false, ['deriveBits']);
+    return crypto.subtle.deriveBits(
+        {
+            name: 'HKDF',
+            hash: 'SHA-256',
+            salt: new Uint8Array(32),
+            info: new TextEncoder().encode(`synco-livekit-media-v1:${threadId}`),
+        },
+        ikm,
+        256,
+    );
+}
+
 async function unwrapRoomKey(encryptedThreadKey: string | null | undefined): Promise<ArrayBuffer | null> {
     if (!encryptedThreadKey || !privateKey.value) return null;
     try {
@@ -142,7 +190,28 @@ function useLiveKit()
         
     };
 
-    const connectToRoom = async (url: string, token: string, threadId: string, spaceId: string, encryptedRoomKey?: string | null) => {
+    const connectToRoom = async (
+        url: string,
+        token: string,
+        threadId: string,
+        spaceId: string,
+        encryptedRoomKey?: string | null,
+        opts: ConnectOptions = {},
+    ) => {
+
+        // Échec fermé (audit FC3) : un salon chiffré ne se rejoint jamais en
+        // clair, que la clé manque, soit indéchiffrable ou que l'activation
+        // échoue ; un salon sans clé ne se rejoint en clair qu'après un choix
+        // explicite de l'utilisateur.
+        const threadKeyRaw = await unwrapRoomKey(encryptedRoomKey);
+        if (!threadKeyRaw && (encryptedRoomKey || opts.e2eeRequired)) {
+            throw new CallEncryptionError(encryptedRoomKey
+                ? "La clé de chiffrement du salon n'a pas pu être déchiffrée (code PIN verrouillé ?)."
+                : "Ce salon est chiffré de bout en bout mais vous n'en avez pas encore la clé.");
+        }
+        if (!threadKeyRaw && !opts.allowUnencrypted) {
+            throw new CallNotEncryptedError();
+        }
 
         if (room.value)
         {
@@ -150,10 +219,12 @@ function useLiveKit()
         }
 
         let e2eeOptions = undefined;
-        const roomKey = await unwrapRoomKey(encryptedRoomKey);
-        if (roomKey)
+        if (threadKeyRaw)
         {
-            await keyProvider.setKey(roomKey);
+            const mediaKey = await deriveMediaKey(threadKeyRaw, threadId);
+            new Uint8Array(threadKeyRaw).fill(0);
+            await keyProvider.setKey(mediaKey);
+            new Uint8Array(mediaKey).fill(0);
             e2eeOptions = {
                 keyProvider,
                 worker: new Worker(E2EEWorker, { type: 'module' }),
@@ -174,6 +245,27 @@ function useLiveKit()
                 videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360, VideoPresets.h720],
                 screenShareSimulcastLayers: [ScreenSharePresets.h360fps15, ScreenSharePresets.h720fps15],
             }
+        });
+
+        if (e2eeOptions)
+        {
+            // L'option `e2ee` du constructeur installe le worker sans activer
+            // le chiffrement : sans cet appel, encryptionType reste NONE et
+            // le média part en clair vers le SFU (audit FC3). Avant connect()
+            // pour que la première piste micro soit déjà publiée chiffrée.
+            await newRoom.setE2EEEnabled(true);
+        }
+
+        newRoom.on(RoomEvent.ParticipantEncryptionStatusChanged, (encrypted, participant) => {
+            if (!participant || participant.identity === newRoom.localParticipant.identity) {
+                isCallE2EE.value = encrypted;
+            } else if (e2eeOptions && !encrypted) {
+                useToast().show(`${participant.name || 'Un participant'} n'est pas chiffré de bout en bout`, 'error');
+            }
+        });
+        newRoom.on(RoomEvent.EncryptionError, (err) => {
+            console.error('[LiveKit E2EE]', err);
+            useToast().show("Erreur de chiffrement de l'appel", 'error');
         });
 
         const handleSync = () => {
@@ -221,6 +313,7 @@ function useLiveKit()
 
             room.value = null;
             isConnected.value = false;
+            isCallE2EE.value = false;
             allParticipants.value = [];
             audioTracks.value.clear();
             videoTracks.value.clear();
@@ -280,6 +373,15 @@ function useLiveKit()
 
         try {
             await newRoom.connect(url, token);
+
+            // L'état réel doit correspondre à l'intention : sinon on coupe.
+            if (e2eeOptions && !newRoom.isE2EEEnabled) {
+                intentionalDisconnect = true;
+                await newRoom.disconnect();
+                throw new CallEncryptionError("Le chiffrement de bout en bout de l'appel n'a pas pu être activé.");
+            }
+            isCallE2EE.value = newRoom.isE2EEEnabled;
+
             room.value = newRoom;
             isConnected.value = true;
 
@@ -313,6 +415,7 @@ function useLiveKit()
         catch (error) 
         {
             console.error("Erreur LiveKit:", error);
+            if (error instanceof CallEncryptionError) throw error;
         }
     };
 
@@ -328,6 +431,7 @@ function useLiveKit()
 
             room.value = null;
             isConnected.value = false;
+            isCallE2EE.value = false;
             allParticipants.value = [];
             audioTracks.value.clear();
             videoTracks.value.clear();
@@ -350,6 +454,7 @@ function useLiveKit()
         participantVolumes,
         getWSData,
         connectToRoom,
+        isCallE2EE,
         leaveRoom,
         toggleCamera: async (en: boolean, captureOptions?: VideoCaptureOptions) => {
             if (!room.value) return;

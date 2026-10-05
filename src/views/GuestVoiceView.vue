@@ -10,6 +10,8 @@
             </div>
             
             <div class="flex items-center gap-4">
+                <!-- État réel du chiffrement de l'appel (audit FC3) -->
+                <CallE2EEBadge v-if="isConnected" :encrypted="isCallE2EE" />
                 <button v-if="isConnected" @click="leaveRoomLocal" class="danger">
                     Quitter
                 </button>
@@ -132,6 +134,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
 import useLiveKit from '@/composables/useLiveKit';
+import CallE2EEBadge from '@/components/voice/CallE2EEBadge.vue';
 import { keycloak } from '@/assets/keycloak';
 import VideoTrack from '@/views/OrgSpace/components/common/VideoTrack.vue';
 import { Track } from 'livekit-client';
@@ -143,6 +146,7 @@ const {
     connectToRoom, 
     leaveRoom, 
     isConnected, 
+    isCallE2EE,
     allParticipants, 
     isMicEnabled, 
     isDeafened,
@@ -235,7 +239,13 @@ const initCall = async () => {
         // distributed to), so the call falls back to unencrypted-at-app-layer
         // rather than the previous behavior of deriving a "shared" key from
         // public orgId/threadId that any outsider could compute too.
-        await connectToRoom(data.url, data.token, data.threadId, 'home', data.e2eeKey);
+        // Un salon chiffré refuse déjà côté serveur l'invité sans clé ; un
+        // salon sans clé se rejoint en clair, signalé par le badge jaune —
+        // ouvrir un lien d'invitation vaut ici choix explicite (audit FC3).
+        await connectToRoom(data.url, data.token, data.threadId, 'home', data.e2eeKey, {
+            e2eeRequired: !!data.e2eeRequired,
+            allowUnencrypted: true,
+        });
 
     } catch (err: any) {
         error.value = err.message;

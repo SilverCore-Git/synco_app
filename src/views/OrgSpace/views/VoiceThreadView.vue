@@ -5,6 +5,9 @@
         class="relative w-full h-full flex flex-col overflow-hidden"
     >
 
+        <!-- État réel du chiffrement de l'appel (audit FC3) -->
+        <CallE2EEBadge :encrypted="isCallE2EE" class="absolute top-3 left-3 z-10" />
+
         <div class="flex-1 min-h-0 overflow-y-auto">
 
         <div
@@ -328,13 +331,14 @@ import { computed, onMounted, onUnmounted, ref, type ComponentPublicInstance } f
 import { useRoute, useRouter } from 'vue-router';
 import { Track } from 'livekit-client';
 import useLiveKit from '@/composables/useLiveKit';
+import { joinVoiceThread } from '@/composables/useVoiceJoin';
+import CallE2EEBadge from '@/components/voice/CallE2EEBadge.vue';
 import VideoTrack from '../components/common/VideoTrack.vue';
 import CallControls from '@/components/peer/CallControls.vue';
 import VoiceInviteModal from '../components/popup/VoiceInviteModal.vue';
 import VoiceParticipantMenu from '../components/dropdown/VoiceParticipantMenu.vue';
 import type { Thread } from '@/types/types';
 import { openedOrg, user } from '@/assets/var';
-import sfetch from '@/assets/utils/sfetch';
 import { useToast } from '@/composables/useToast';
 import { usePermissions } from '@/composables/usePermissions';
 import { getVoicePrefs, resolveCameraCaptureOptions } from '@/assets/utils/voicePrefs';
@@ -363,7 +367,7 @@ const {
     isCameraEnabled,
     isScreenShareEnabled,
     isDeafened,
-    connectToRoom,
+    isCallE2EE,
     leaveRoom,
     toggleMicrophone,
     toggleCamera,
@@ -489,17 +493,7 @@ const joinCall = async () => {
     try {
         fetchPermissions(spaceId.value);
 
-        const res = await sfetch('/api/livekit/token', {
-            method: 'POST',
-            body: JSON.stringify({ threadId: props.thread.id }),
-        });
-
-        if (res.ok) {
-            const data = await res.json();
-            await connectToRoom(data.url, data.token, props.thread.id, String(route.params.spaceId), data.e2eeKey);
-        } else {
-            toast.show("Impossible de se connecter au salon", "error");
-        }
+        await joinVoiceThread(props.thread.id, String(route.params.spaceId));
     } catch (e) {
         toast.show("Erreur de connexion", "error");
     } finally {
