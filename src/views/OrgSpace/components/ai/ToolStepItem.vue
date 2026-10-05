@@ -20,8 +20,12 @@
                 <i class="bi bi-chevron-down text-[10px] opacity-50 transition-transform group-hover:opacity-100" :class="expanded ? 'rotate-180' : ''" />
             </button>
 
-            <p v-if="tool.name === 'search_messages' && tool.args" class="text-xs text-(--text2) mt-1">
+            <p v-if="(tool.name === 'search_messages' || tool.name === 'search_documentation') && searchQuery" class="text-xs text-(--text2) mt-1">
                 "<span class="text-(--text)">{{ searchQuery }}</span>"
+            </p>
+
+            <p v-if="tool.name === 'read_documentation' && readDocId" class="text-xs text-(--text2) mt-1">
+                Chapitre : <span class="text-(--text)">{{ readDocId }}</span>
             </p>
 
             <div v-if="tool.status === 'pending' && tool.interactive" class="mt-2">
@@ -78,13 +82,15 @@ const dotClass = computed(() => {
 
 const lineClass = computed(() => (props.tool.status === 'done' ? 'bg-(--primary)/25' : 'bg-(--text)/10'));
 
-const searchQuery = computed(() => {
+function parsedArgs(): any {
     try {
-        const args = typeof props.tool.args === 'string' ? JSON.parse(props.tool.args) : props.tool.args;
-        return args?.query || '';
+        return typeof props.tool.args === 'string' ? JSON.parse(props.tool.args) : props.tool.args;
     } catch {
-        return '';
+        return null;
     }
-});
+}
+
+const searchQuery = computed(() => parsedArgs()?.query || '');
+const readDocId = computed(() => parsedArgs()?.docId || '');
 
 </script>
