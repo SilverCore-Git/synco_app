@@ -41,9 +41,9 @@
                         <div class="z-10 absolute left-4 top-2.5 w-7 h-13 border-l-2 border-t-2 border-(--text)/20 group-hover/reply:border-(--text)/40 rounded-tl-md" />
 
                         <img 
-                            :src="msg.replyMessage?.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(msg.replyMessage?.sender?.name)}&background=128a60&color=fff`"
+                            :src="msg.replyMessage?.sender?.avatarUrl || defaultAvatar($p(msg.replyMessage?.sender?.name))"
                             :alt="$p(msg.replyMessage?.sender?.name)"
-                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(msg.replyMessage?.sender?.name)}&background=128a60&color=fff`"
+                            @error="(e: any) => e.target.src = defaultAvatar($p(msg.replyMessage?.sender?.name))"
                             class="w-4 h-4 rounded-full opacity-80 shrink-0"
                         />
                         
@@ -119,9 +119,9 @@
 
                         <img 
                             v-if="msg.sender && !isStacked"
-                            :src="msg.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(msg.sender?.name)}&background=128a60&color=fff`"
+                            :src="msg.sender?.avatarUrl || defaultAvatar($p(msg.sender?.name))"
                             :alt="$p(msg.sender?.name)"
-                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(msg.sender?.name)}&background=128a60&color=fff`"
+                            @error="(e: any) => e.target.src = defaultAvatar($p(msg.sender?.name))"
                             @click.stop="(e) => msg.sender && openProfile(msg.sender, e)"
                             class="rounded-full w-9 h-9 object-cover shrink-0 cursor-pointer hover:ring-2 hover:ring-(--primary)/50 transition-all"
                         />
@@ -261,6 +261,7 @@
 // pour laquelle un id a du sens.
 defineOptions({ inheritAttrs: false });
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { computed, nextTick, ref, watch } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';

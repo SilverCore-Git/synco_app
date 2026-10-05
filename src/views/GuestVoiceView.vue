@@ -127,6 +127,7 @@
 </template>
 
 <script setup lang="ts">
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
@@ -178,7 +179,7 @@ const getParticipantMeta = (p: any) => {
     const finalName = meta.name || p.name || p.identity;
     return {
         name: finalName,
-        avatarUrl: meta.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(finalName)}&background=random`
+        avatarUrl: meta.avatarUrl || defaultAvatar(finalName)
     };
 };
 

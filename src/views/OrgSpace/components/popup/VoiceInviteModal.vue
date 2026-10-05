@@ -24,7 +24,7 @@
           class="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-(--text)/5 transition-colors text-left"
         >
           <img
-            :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${member.user?.name}`"
+            :src="member.user?.avatarUrl || defaultAvatar(member.user?.name)"
             class="w-8 h-8 rounded-full object-cover shrink-0"
           />
           <span class="flex-1 min-w-0 truncate text-sm text-(--text)">
@@ -50,6 +50,7 @@
 </template>
 
 <script setup lang="ts">
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { computed, ref } from 'vue';
 import Popup from '@/components/Popup.vue';
 import type { Thread } from '@/types/types';

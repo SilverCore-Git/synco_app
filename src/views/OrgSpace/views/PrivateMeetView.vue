@@ -79,7 +79,7 @@
                     >
 
                         <img
-                            :src="`https://ui-avatars.com/api/?name=${msg.sender}&background=128a60&color=fff`"
+                            :src="defaultAvatar(msg.sender)"
                             class="rounded-full w-9 h-9 border border-(--border-color) shrink-0"
                         />
 
@@ -265,6 +265,7 @@
 
 <script lang="ts" setup>
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useToast } from '@/composables/useToast';

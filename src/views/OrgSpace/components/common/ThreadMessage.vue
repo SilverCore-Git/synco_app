@@ -40,16 +40,16 @@
 
                         <img
                             v-if="msg.replyMessage?.isWebhook"
-                            :src="msg.replyMessage?.webhookAvatar || `https://ui-avatars.com/api/?name=${msg.replyMessage?.webhookName || 'Webhook'}&background=7c3aed&color=fff`"
+                            :src="msg.replyMessage?.webhookAvatar || defaultAvatar(msg.replyMessage?.webhookName || 'Webhook', '#7c3aed')"
                             :alt="msg.replyMessage?.webhookName || 'Webhook'"
-                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${msg.replyMessage?.webhookName || 'Webhook'}&background=7c3aed&color=fff`"
+                            @error="(e: any) => e.target.src = defaultAvatar(msg.replyMessage?.webhookName || 'Webhook', '#7c3aed')"
                             class="w-4 h-4 rounded-full opacity-80 shrink-0"
                         />
                         <img
                             v-else
-                            :src="msg.replyMessage?.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(msg.replyMessage?.sender?.name)}&background=128a60&color=fff`"
+                            :src="msg.replyMessage?.sender?.avatarUrl || defaultAvatar($p(msg.replyMessage?.sender?.name))"
                             :alt="$p(msg.replyMessage?.sender?.name)"
-                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(msg.replyMessage?.sender?.name)}&background=128a60&color=fff`"
+                            @error="(e: any) => e.target.src = defaultAvatar($p(msg.replyMessage?.sender?.name))"
                             class="w-4 h-4 rounded-full opacity-80 shrink-0"
                         />
 
@@ -124,16 +124,16 @@
 
                         <img 
                             v-if="msg.isWebhook && !isStacked"
-                            :src="msg.webhookAvatar || `https://ui-avatars.com/api/?name=${msg.webhookName || 'Webhook'}&background=7c3aed&color=fff`"
+                            :src="msg.webhookAvatar || defaultAvatar(msg.webhookName || 'Webhook', '#7c3aed')"
                             :alt="msg.webhookName || 'Webhook'"
-                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${msg.webhookName || 'Webhook'}&background=7c3aed&color=fff`"
+                            @error="(e: any) => e.target.src = defaultAvatar(msg.webhookName || 'Webhook', '#7c3aed')"
                             class="rounded-full w-9 h-9 object-cover shrink-0 cursor-default"
                         />
                         <img 
                             v-else-if="msg.sender && !isStacked"
-                            :src="msg.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(msg.sender?.name)}&background=128a60&color=fff`"
+                            :src="msg.sender?.avatarUrl || defaultAvatar($p(msg.sender?.name))"
                             :alt="$p(msg.sender?.name)"
-                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(msg.sender?.name)}&background=128a60&color=fff`"
+                            @error="(e: any) => e.target.src = defaultAvatar($p(msg.sender?.name))"
                             @click.stop="(e) => !isReadOnly && msg.sender && openProfile(msg.sender, e)"
                             class="rounded-full w-9 h-9 object-cover shrink-0"
                             :class="!isReadOnly ? 'cursor-pointer hover:ring-2 hover:ring-(--primary)/50 transition-all' : ''"
@@ -251,6 +251,7 @@
 
 <script setup lang="ts">
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { computed, nextTick, ref, watch } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';

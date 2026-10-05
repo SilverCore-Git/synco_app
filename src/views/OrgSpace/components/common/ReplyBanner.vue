@@ -58,6 +58,7 @@
 
 <script lang="ts" setup>
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { computed } from 'vue';
 import type { DMMessage, Message } from '@/types/types';
 import MarkdownRender from '../../views/MarkdownRender.vue';
@@ -75,7 +76,7 @@ const senderName = computed(() =>
 );
 
 const fallbackAvatar = computed(() =>
-    `https://ui-avatars.com/api/?name=${encodeURIComponent(senderName.value)}&background=128a60&color=fff`
+    defaultAvatar(senderName.value)
 );
 
 const avatarSrc = computed(() =>

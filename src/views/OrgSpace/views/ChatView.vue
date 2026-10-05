@@ -13,9 +13,9 @@
 
 
                 <img 
-                    :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`" 
+                    :src="recipient?.avatarUrl || defaultAvatar($p(recipient?.name))" 
                     :alt="$p(recipient.name)"
-                    @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`"
+                    @error="(e: any) => e.target.src = defaultAvatar($p(recipient?.name))"
                     class="w-9 h-9 rounded-full border border-(--text)/10"
                 />
 
@@ -90,7 +90,7 @@
                    
                     <div class="w-20 h-20 rounded-full bg-(--text)/5 flex items-center justify-center mb-4 overflow-hidden border-2 border-(--text)/10">
                         <img 
-                            :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`" 
+                            :src="recipient?.avatarUrl || defaultAvatar($p(recipient?.name))" 
                             class="w-full h-full object-cover" 
                         />
                     </div>
@@ -358,6 +358,7 @@
 
 <script lang="ts" setup>
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { DMMessage, OrgMember, User } from '@/types/types';

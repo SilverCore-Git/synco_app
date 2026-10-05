@@ -50,7 +50,7 @@
 
                     <div class="relative">
                         <img 
-                            :src="getMeta(userFocused).avatarUrl || `https://ui-avatars.com/api/?name=${getMeta(userFocused).name}`" 
+                            :src="getMeta(userFocused).avatarUrl || defaultAvatar(getMeta(userFocused).name)" 
                             class="w-32 h-32 rounded-full border-4 transition-all duration-300"
                             :class="userFocused.isSpeaking ? 'border-(--primary) scale-110 shadow-[0_0_30px_rgba(var(--primary-rgb),0.5)]' : 'border-transparent'"
                         />
@@ -131,7 +131,7 @@
                     <div v-else class="flex flex-col items-center gap-4">
                         <div class="relative">
                             <img 
-                                :src="getMeta(p).avatarUrl || `https://ui-avatars.com/api/?name=${getMeta(p).name}`" 
+                                :src="getMeta(p).avatarUrl || defaultAvatar(getMeta(p).name)" 
                                 class="w-12 h-12 rounded-full border-2 transition-all duration-300"
                                 :class="p.isSpeaking ? 'border-(--primary) scale-110 shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)]' : 'border-transparent'"
                             />
@@ -209,7 +209,7 @@
                 <div v-else class="flex flex-col items-center gap-4">
                     <div class="relative">
                         <img 
-                            :src="getMeta(p).avatarUrl || `https://ui-avatars.com/api/?name=${getMeta(p).name}`" 
+                            :src="getMeta(p).avatarUrl || defaultAvatar(getMeta(p).name)" 
                             class="w-24 h-24 rounded-full border-4 transition-all duration-300"
                             :class="p.isSpeaking ? 'border-(--primary) scale-110 shadow-[0_0_25px_rgba(var(--primary-rgb),0.5)]' : 'border-transparent'"
                         />
@@ -323,6 +323,7 @@
 
 <script setup lang="ts">
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { computed, onMounted, onUnmounted, ref, type ComponentPublicInstance } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Track } from 'livekit-client';

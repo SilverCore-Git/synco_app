@@ -100,7 +100,7 @@
 
                 <div class="relative">
                     <img
-                        :src="getMeta(p).avatarUrl || `https://ui-avatars.com/api/?name=${getMeta(p).name}`"
+                        :src="getMeta(p).avatarUrl || defaultAvatar(getMeta(p).name)"
                         class="w-5 h-5 rounded-full object-cover transition-transform"
                         :class="p.isSpeaking ? 'scale-110 ring-2 ring-(--primary)' : ''"
                     />
@@ -132,6 +132,7 @@
 
 <script lang="ts" setup>
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import type { Thread } from '@/types/types';
 import useLiveKit from '@/composables/useLiveKit';

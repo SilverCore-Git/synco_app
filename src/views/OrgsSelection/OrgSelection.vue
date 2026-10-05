@@ -1,5 +1,6 @@
 <script setup lang="ts">
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { organizations, user } from '@/assets/var';
 import OrgBtn from './components/OrgBtn.vue';
 import { onMounted, reactive, ref, computed } from 'vue';
@@ -92,7 +93,7 @@ onMounted(async () => {
                 <template #trigger>
                     <button class="w-10 h-10 rounded-full overflow-hidden border-2 border-(--text)/10 hover:border-(--primary)/50 transition-all shadow-sm focus:outline-none">
                         <img
-                            :src="user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=128a60&color=fff`"
+                            :src="user?.avatarUrl || defaultAvatar(user?.name || 'User')"
                             alt="Profile"
                             class="w-full h-full object-cover"
                         />

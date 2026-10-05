@@ -91,7 +91,7 @@
             <div class="max-h-32 overflow-y-auto bg-(--bg2)/20 border border-(--text)/10 rounded-xl p-2 flex flex-col gap-1 custom-scrollbar">
                 <label v-for="member in availableMembers" :key="member.user!.id" class="flex items-center gap-3 p-2 hover:bg-(--text)/5 rounded-lg cursor-pointer transition-colors">
                     <input type="checkbox" :value="member.user!.id" v-model="form.accessMembersId" class="w-4 h-4 rounded bg-black/20 border-(--text)/10 text-(--primary) focus:ring-0 focus:ring-offset-0 cursor-pointer accent-(--primary)" />
-                    <img :src="member.user!.avatarUrl || `https://ui-avatars.com/api/?name=${member.user!.name}&background=128a60&color=fff`" class="w-6 h-6 rounded-full object-cover" />
+                    <img :src="member.user!.avatarUrl || defaultAvatar(member.user!.name)" class="w-6 h-6 rounded-full object-cover" />
                     <span class="text-sm text-(--text) font-medium">{{ member.user!.name }}</span>
                 </label>
                 <div v-if="availableMembers.length === 0" class="text-xs text-(--text)/40 p-2 text-center">Aucun membre disponible</div>
@@ -117,7 +117,7 @@
                 <div class="max-h-32 overflow-y-auto bg-(--bg2)/20 border border-(--text)/10 rounded-xl p-2 flex flex-col gap-1 custom-scrollbar">
                     <label v-for="member in availableMembers" :key="member.user!.id" class="flex items-center gap-3 p-2 hover:bg-(--text)/5 rounded-lg cursor-pointer transition-colors">
                         <input type="checkbox" :value="member.user!.id" v-model="form.writersId" class="w-4 h-4 rounded bg-black/20 border-(--text)/10 text-(--primary) focus:ring-0 focus:ring-offset-0 cursor-pointer accent-(--primary)" />
-                        <img :src="member.user!.avatarUrl || `https://ui-avatars.com/api/?name=${member.user!.name}&background=128a60&color=fff`" class="w-6 h-6 rounded-full object-cover" />
+                        <img :src="member.user!.avatarUrl || defaultAvatar(member.user!.name)" class="w-6 h-6 rounded-full object-cover" />
                         <span class="text-sm text-(--text) font-medium">{{ member.user!.name }}</span>
                     </label>
                     <div v-if="availableMembers.length === 0" class="text-xs text-(--text)/40 p-2 text-center">Aucun membre disponible</div>
@@ -158,6 +158,7 @@
 
 <script setup lang="ts">
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { ref, reactive, nextTick, watch, computed } from 'vue';
 import Popup from '@/components/Popup.vue';
 import { useRoute, useRouter } from 'vue-router';

@@ -44,10 +44,10 @@
 
                 <div class="relative">
                     <img 
-                        :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(member.user?.name)}&background=128a60&color=fff`" 
+                        :src="member.user?.avatarUrl || defaultAvatar($p(member.user?.name))" 
                         :alt="$p(member.user?.name)"
                         class="w-8 h-8 rounded-full"
-                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(member.user?.name)}&background=128a60&color=fff`"
+                        @error="(e: any) => e.target.src = defaultAvatar($p(member.user?.name))"
                     />
                     <span 
                         class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg2)"
@@ -97,10 +97,10 @@
 
                 <div class="relative">
                     <img 
-                        :src="member.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(member.user?.name)}&background=128a60&color=fff`" 
+                        :src="member.user?.avatarUrl || defaultAvatar($p(member.user?.name))" 
                         :alt="$p(member.user?.name)"
                         class="w-8 h-8 rounded-full"
-                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(member.user?.name)}&background=128a60&color=fff`"
+                        @error="(e: any) => e.target.src = defaultAvatar($p(member.user?.name))"
                     />
                     <span 
                         class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg2)"
@@ -183,6 +183,7 @@
 
 <script lang="ts" setup>
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { computed } from 'vue';
 import { openedOrg } from '@/assets/var';
 import getColorByStatus from '@/assets/utils/getColorByStatus';

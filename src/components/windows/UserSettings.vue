@@ -43,9 +43,9 @@
                             <div class="absolute -top-10 sm:-top-12 left-4 sm:left-6 p-1.5 bg-(--bg2) rounded-full z-10 shadow-lg">
                                 <div class="relative w-[80px] h-[80px] sm:w-[100px] sm:h-[100px] rounded-full overflow-hidden bg-(--bg)">
                                     <img 
-                                        :src="user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(user?.name)}&background=128a60&color=fff`" 
+                                        :src="user?.avatarUrl || defaultAvatar($p(user?.name))" 
                                         :alt="$p(user?.name)" 
-                                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(user?.name)}&background=128a60&color=fff`"
+                                        @error="(e: any) => e.target.src = defaultAvatar($p(user?.name))"
                                         class="w-full h-full object-cover"
                                     />
                                 </div>
@@ -555,6 +555,7 @@
 
 <script setup lang="ts">
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { ref, reactive, watch, computed } from 'vue';
 import Window from './Window.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
@@ -654,7 +655,7 @@ watch(user, (newVal) => {
 
 watch(() => [user.value?.avatarUrl, user.value?.name], async () => {
     if (user.value) {
-        const url = user.value.avatarUrl || `https://ui-avatars.com/api/?name=${user.value.name}&background=128a60&color=fff`;
+        const url = user.value.avatarUrl || defaultAvatar(user.value.name);
         dominantColor.value = await getAverageColor(url);
     }
 }, { immediate: true });
