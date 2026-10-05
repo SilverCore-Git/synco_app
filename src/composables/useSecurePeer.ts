@@ -10,6 +10,7 @@ import { getVoicePrefs, resolveCameraCaptureOptions } from '@/assets/utils/voice
 import { PEER_CONFIG } from '@/assets/utils/peerConfig';
 import { debugLog } from '@/assets/utils/debugLog';
 import { createPeerReconnector } from '@/assets/utils/peerReconnect';
+import { generateFingerprint, normalizeSas } from '@/assets/utils/sas';
 
 // ============================================================================
 // Types
@@ -52,6 +53,8 @@ interface SecurityStatus {
     encrypted: boolean;
     authenticated: boolean;
     fingerprint: string;
+    /** Surchiffrement des trames média réellement en place (audit FC8). */
+    mediaE2EE?: boolean;
 }
 
 // ============================================================================
@@ -231,17 +234,6 @@ async function deriveSharedSecret(
     );
 
     return sharedSecret;
-}
-
-/**
- * Generate a fingerprint for authentication (for user verification)
- */
-async function generateFingerprint(sessionKey: CryptoKey, callId: string): Promise<string> {
-    const keyData = await crypto.subtle.exportKey('raw', sessionKey);
-    const data = new TextEncoder().encode(callId + String.fromCharCode(...new Uint8Array(keyData)));
-    const hash = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = new Uint8Array(hash);
-    return Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16).toUpperCase();
 }
 
 // ============================================================================
@@ -530,12 +522,14 @@ export default function useSecurePeer() {
                         channel.send(JSON.stringify(response));
 
                         // Generate authentication fingerprint
-                        const fingerprint = await generateFingerprint(sharedKey, session.callId);
+                        const pcForSas = session.call.peerConnection;
+                        const fingerprint = await generateFingerprint(sharedKey, session.callId, pcForSas?.localDescription?.sdp, pcForSas?.remoteDescription?.sdp);
                         const status = callSecurityStatus.value;
                         status.set(peerId, {
                             encrypted: true,
                             authenticated: false,
-                            fingerprint
+                            fingerprint,
+                            mediaE2EE: status.get(peerId)?.mediaE2EE,
                         });
                         callSecurityStatus.value = status;
                         
@@ -566,12 +560,17 @@ export default function useSecurePeer() {
                         session.keyAgreementComplete = true;
 
                         // Generate authentication fingerprint
-                        const fingerprint = await generateFingerprint(sharedKey, session.callId);
+                        const pcForSas = session.call.peerConnection;
+                        const fingerprint = await generateFingerprint(sharedKey, session.callId, pcForSas?.localDescription?.sdp, pcForSas?.remoteDescription?.sdp);
                         const status = callSecurityStatus.value;
+                        // « Authentifié » seulement après comparaison du code
+                        // par l'utilisateur, jamais à la seule fin de l'échange
+                        // de clés (audit FC8).
                         status.set(peerId, {
                             encrypted: true,
-                            authenticated: true,
-                            fingerprint
+                            authenticated: false,
+                            fingerprint,
+                            mediaE2EE: status.get(peerId)?.mediaE2EE,
                         });
                         callSecurityStatus.value = status;
                         
@@ -805,10 +804,20 @@ export default function useSecurePeer() {
         if (!session) return;
         
         const pc = session.call.peerConnection;
+        const setMediaE2EE = (enabled: boolean) => {
+            const status = callSecurityStatus.value;
+            const current = status.get(peerId) ?? { encrypted: false, authenticated: false, fingerprint: '' };
+            status.set(peerId, { ...current, mediaE2EE: enabled });
+            callSecurityStatus.value = new Map(status);
+        };
+
         if (!('createEncodedStreams' in RTCRtpSender.prototype)) {
             console.warn('[SECURE-PEER] Insertable Streams API non supportée. Le flux média ne sera pas doublement chiffré.');
+            // L'interface ne doit plus promettre un surchiffrement absent (audit FC8).
+            setMediaE2EE(false);
             return;
         }
+        setMediaE2EE(true);
 
         try {
             // Senders (Encrypt)
@@ -875,6 +884,7 @@ export default function useSecurePeer() {
             });
         } catch(e) {
             console.error('[SECURE-PEER] Erreur setup E2EE:', e);
+            setMediaE2EE(false);
         }
     };
 
@@ -1394,7 +1404,7 @@ export default function useSecurePeer() {
     const verifySecurityFingerprint = (peerId: string, userProvidedFingerprint: string): boolean => {
         const status = callSecurityStatus.value.get(peerId);
         if (!status) return false;
-        return status.fingerprint.toUpperCase() === userProvidedFingerprint.toUpperCase();
+        return normalizeSas(status.fingerprint) === normalizeSas(userProvidedFingerprint);
     };
 
     /**
