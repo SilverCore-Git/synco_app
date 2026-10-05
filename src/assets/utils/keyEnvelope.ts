@@ -1,5 +1,6 @@
 import { privateSignKey } from './crypto';
 import { keyCommitment, type KeyContext } from './keyPinning';
+import { requireTrustedSignKey, lookupCreatorSignKey } from './keyTrust';
 
 /**
  * Enveloppe signée d'une clé symétrique distribuée (ThreadKey/WorkspaceKey/
@@ -78,4 +79,38 @@ export async function verifyKeyEnvelope(
         envelopeBytes(envelope.ctx, envelope.version, envelope.commitment) as BufferSource
     );
     if (!ok) throw new KeyEnvelopeError('bad-signature');
+}
+
+/**
+ * Point d'appel unique côté réception, utilisé par les cinq contextes
+ * (espace, salon, DM, session IA). Tolérant par construction dans un seul
+ * cas : aucune enveloppe du tout (compte émetteur pas encore migré, ou
+ * ancienne donnée) — se comporte alors exactement comme avant FC4 §2
+ * (TOFU simple sur la clé symétrique, via keyPinning.ts). Dans tous les
+ * autres cas d'échec (signature invalide, commitment incohérent, identité
+ * du créateur changée), l'erreur remonte : une enveloppe présente mais
+ * invalide est un signal plus sérieux qu'une enveloppe absente.
+ */
+export async function verifyKeyEnvelopeIfPresent(
+    rawKey: CryptoKey | ArrayBuffer,
+    ctx: KeyContext,
+    version: number,
+    data: { creatorId?: string | null; commitment?: string | null; signature?: string | null }
+): Promise<void> {
+    if (!data.creatorId || !data.commitment || !data.signature) return;
+
+    const creatorSignKey = lookupCreatorSignKey(data.creatorId);
+    if (!creatorSignKey) {
+        // Annuaire des membres pas encore chargé localement — limitation
+        // opérationnelle, pas un signal d'attaque : on ne bloque pas.
+        console.warn(`[E2EE] Clé de signature de ${data.creatorId} introuvable localement : enveloppe non vérifiée.`);
+        return;
+    }
+
+    const trustedSignKey = await requireTrustedSignKey(data.creatorId, creatorSignKey);
+    await verifyKeyEnvelope(
+        rawKey,
+        { ctx, version, commitment: data.commitment, signature: data.signature },
+        trustedSignKey
+    );
 }
