@@ -276,6 +276,7 @@ import ThreadTextarea from './ThreadTextarea.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { user } from '@/assets/var';
 import { encryptForPeer } from '@/assets/utils/crypto';
+import { requireTrustedKey } from '@/assets/utils/keyTrust';
 import { useToast } from '@/composables/useToast';
 import { openProfile } from '@/composables/useProfile';
 import useSettingsItem from '@/composables/useSettingsItem';
@@ -606,7 +607,18 @@ const saveEdit = async () => {
         return;
     }
 
-    const { ciphertext, encryptedAesKey, iv, selfEncryptedAesKey } = await encryptForPeer(content, peerPubKey, myPubKey);
+    // Même contrôle d'épinglage que l'envoi (audit FC1) : l'édition reprenait
+    // la clé publique de l'historique sans vérification.
+    let trustedPeerKey: string;
+    try {
+        trustedPeerKey = await requireTrustedKey(props.msg.recipientId, peerPubKey);
+    } catch {
+        toast.show("La clé de sécurité du destinataire a changé : vérifiez-la avant de modifier ce message.", "error");
+        emit('edit-end');
+        return;
+    }
+
+    const { ciphertext, encryptedAesKey, iv, selfEncryptedAesKey } = await encryptForPeer(content, trustedPeerKey, myPubKey);
 
     const socket = await useWSocket();
 

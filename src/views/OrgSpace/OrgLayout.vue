@@ -22,10 +22,12 @@ import { isMeeting } from '@/composables/usePrivatMeet';
 import isDesktopApp from '@/assets/isDesktopApp';
 import { useToast } from '@/composables/useToast';
 import { privateKey, decryptThreadKeyWithRsa, encryptThreadKeyForMember } from '@/assets/utils/crypto';
+import { requireTrustedKey } from '@/assets/utils/keyTrust';
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { usePermissions } from '@/composables/usePermissions';
 import SpinLoader from '@/components/SpinLoader.vue';
 import UnencryptedCallConfirm from '@/components/voice/UnencryptedCallConfirm.vue';
+import KeyTrustAlerts from '@/components/security/KeyTrustAlerts.vue';
 
 
 const props = defineProps<{
@@ -278,8 +280,20 @@ const initSocketListener = async () => {
         }
     });
 
-    socket.value?.on('key-requested', async ({ threadId, requesterId, publicKey }: { threadId: string, requesterId: string, publicKey: string }) => {
-        if (!privateKey.value || !publicKey) return;
+    socket.value?.on('key-requested', async ({ threadId, requesterId }: { threadId: string, requesterId: string }) => {
+        if (!privateKey.value || !requesterId) return;
+
+        // La clé publique du demandeur n'est plus prise dans l'événement
+        // (recopiée du payload par le serveur) : on scelle uniquement pour la
+        // clé épinglée de ce membre ; une clé changée n'obtient rien et est
+        // signalée à l'utilisateur (audit FC1).
+        const announced = openedOrg.value?.members?.find((m: OrgMember) => m.userId === requesterId)?.user?.publicKey;
+        let trustedKey: string;
+        try {
+            trustedKey = await requireTrustedKey(requesterId, announced);
+        } catch {
+            return;
+        }
 
         // Delay to avoid all users spamming the server at the exact same millisecond
         setTimeout(() => {
@@ -287,7 +301,7 @@ const initSocketListener = async () => {
                 if (res.encryptedKey && !res.needsReadd) {
                     try {
                         const rawKey = await decryptThreadKeyWithRsa(res.encryptedKey, privateKey.value!);
-                        const newEncryptedKey = await encryptThreadKeyForMember(rawKey, publicKey);
+                        const newEncryptedKey = await encryptThreadKeyForMember(rawKey, trustedKey);
                         
                         socket.value?.emit("distribute-thread-keys", {
                             threadId,
@@ -299,7 +313,7 @@ const initSocketListener = async () => {
                     }
                 }
             });
-        }, Math.random() * 2000);
+        }, crypto.getRandomValues(new Uint32Array(1))[0]! % 2000);
     });
 
     socket.value?.on('todo-added', ({ task }: { task: any }) => {
@@ -751,6 +765,7 @@ onBeforeUnmount(async () => {
             <UserCard :isLittleScreen="isLittleScreen" />
 
             <UnencryptedCallConfirm />
+            <KeyTrustAlerts />
 
         </div>
 

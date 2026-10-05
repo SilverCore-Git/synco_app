@@ -167,6 +167,7 @@ import sfetch from '@/assets/utils/sfetch';
 import type { Thread } from '@/types/types';
 import { useToast } from '@/composables/useToast';
 import { generateThreadKey, encryptThreadKeyForMember, E2EEUnloked, privateKey } from '@/assets/utils/crypto';
+import { resolveRecipientKey } from '@/assets/utils/keyTrust';
 
 const route = useRoute();
 const router = useRouter();
@@ -285,7 +286,12 @@ const handleSubmit = async () => {
                     
                     if (member.publicKey && typeof member.publicKey === 'string' && member.publicKey.trim().startsWith('{')) 
                     {
-                        const encryptedKey = await encryptThreadKeyForMember(newThreadKey, member.publicKey);
+                        // Clé épinglée (audit FC1) : un membre dont la clé a
+                        // changé ne reçoit pas de copie, il est signalé.
+                        let trustedKey: string;
+                        try { trustedKey = await resolveRecipientKey(member.id, member.publicKey); }
+                        catch { continue; }
+                        const encryptedKey = await encryptThreadKeyForMember(newThreadKey, trustedKey);
                         encryptedKeysPayload.push({
                             userId: member.id,
                             encryptedKey: encryptedKey

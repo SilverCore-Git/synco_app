@@ -7,6 +7,7 @@ import {
     unwrapAiSessionKey,
 } from '@/assets/utils/crypto';
 import { registerKeyCache } from '@/assets/utils/keyCaches';
+import { requireTrustedKey } from '@/assets/utils/keyTrust';
 
 /**
  * Erreur typée levée par `ensureAiSessionKey`/`getAiSessionKeyRawBase64` — l'appelant (UI) doit la
@@ -168,8 +169,11 @@ export async function shareAiSessionKeyWithMember(
         throw new AiSessionKeyUnavailableError('🔒 Déverrouillez votre sécurité (code PIN) pour accéder à l\'IA.');
     }
 
+    // Clé épinglée du destinataire (audit FC1), résolue avant de toucher aux
+    // octets bruts de la clé de session.
+    const trustedKey = await requireTrustedKey(targetUserId, targetPublicKeyJWK);
     const rawKeyBytes = await unwrapAiSessionKey(cached.sealedForMe, privateKey.value);
-    const encryptedKey = await wrapAiSessionKeyForMember(rawKeyBytes, targetPublicKeyJWK);
+    const encryptedKey = await wrapAiSessionKeyForMember(rawKeyBytes, trustedKey);
     new Uint8Array(rawKeyBytes).fill(0);
 
     const res = await sfetch(`/api/orgs/${orgId}/ai/key`, {

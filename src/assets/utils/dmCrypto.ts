@@ -2,6 +2,7 @@ import sfetch from './sfetch';
 import { privateKey, decryptSpaceKeyWithRsa, generateSpaceKey, encryptSpaceKeyForMember } from './crypto';
 import { openedOrg, user } from '@/assets/var';
 import { registerKeyCache } from './keyCaches';
+import { requireTrustedKey } from './keyTrust';
 
 // Cache for DM conversation keys, keyed by peerId
 const dmKeyCache = new Map<string, CryptoKey>();
@@ -78,7 +79,9 @@ async function resolveDMConversationKey(peerId: string): Promise<{ key: CryptoKe
 
             const newKey = await generateSpaceKey();
 
-            const encryptedKeyForPeer = await encryptSpaceKeyForMember(newKey, peerPublicKey);
+            // Clé épinglée du pair (audit FC1) : la clé de conversation
+            // chiffre toutes les pièces jointes du DM.
+            const encryptedKeyForPeer = await encryptSpaceKeyForMember(newKey, await requireTrustedKey(peerId, peerPublicKey));
             const encryptedKeyForMe = await encryptSpaceKeyForMember(newKey, user.value.publicKey);
 
             const saveResponse = await sfetch(`/api/dm/${peerId}/key`, {

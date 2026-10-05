@@ -543,6 +543,32 @@ export async function unlockSecurity(pin: string, salt: string, encryptedKey: st
     }
 }
 
+/**
+ * La clé publique servie par le serveur (/api/users/me) doit correspondre à
+ * la clé privée déverrouillée : elle sert à se sceller ses propres copies de
+ * clés (selfEncryptedAesKey, clé de conversation DM, clé de session IA). Sans
+ * ce contrôle, un serveur malveillant y substituait la sienne (audit FC1 §4).
+ */
+export class OwnKeyMismatchError extends Error {
+    constructor() {
+        super("La clé publique fournie par le serveur ne correspond pas à votre clé privée.");
+        this.name = 'OwnKeyMismatchError';
+    }
+}
+
+export async function assertOwnPublicKeyMatches(publicKeyJWK: string | null | undefined, priv: CryptoKey): Promise<void> {
+    if (!publicKeyJWK) throw new OwnKeyMismatchError();
+    const pub = await crypto.subtle.importKey(
+        'jwk', JSON.parse(publicKeyJWK), { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['encrypt']
+    ).catch(() => { throw new OwnKeyMismatchError(); });
+    const probe = crypto.getRandomValues(new Uint8Array(32));
+    const ct = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, pub, probe);
+    const pt = new Uint8Array(await crypto.subtle.decrypt({ name: 'RSA-OAEP' }, priv, ct).catch(() => new ArrayBuffer(0)));
+    if (pt.length !== probe.length || !pt.every((b, i) => b === probe[i])) {
+        throw new OwnKeyMismatchError();
+    }
+}
+
 export function lockSecurity()
 {
     privateKey.value = null;

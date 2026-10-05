@@ -148,6 +148,7 @@ import { openedOrg } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import useWSocket from '@/composables/useWSocket';
 import { encryptThreadKeyForMember, decryptThreadKeyWithRsa, privateKey } from '@/assets/utils/crypto';
+import { resolveRecipientKey } from '@/assets/utils/keyTrust';
 import Popup from '@/components/Popup.vue';
 import WebhooksManager from '@/views/OrgSpace/views/settings/views/components/WebhooksManager.vue';
 import IconSelector from '@/components/common/IconSelector.vue';
@@ -300,7 +301,8 @@ const addMember = async (member: OrgMember) => {
             
             if (member.user?.publicKey && typeof member.user.publicKey === 'string' && member.user.publicKey.trim().startsWith('{')) 
             {
-                const encryptedKeyForNew = await encryptThreadKeyForMember(rawThreadKey, member.user.publicKey);
+                // Clé épinglée du nouveau membre (audit FC1).
+                const encryptedKeyForNew = await encryptThreadKeyForMember(rawThreadKey, await resolveRecipientKey(member.userId, member.user.publicKey));
                 threadKeysPayload.push({
                     threadId: myKey.threadId,
                     keys: [{

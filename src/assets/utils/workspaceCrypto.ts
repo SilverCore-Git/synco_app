@@ -1,6 +1,7 @@
 import sfetch from './sfetch';
 import { privateKey, decryptSpaceKeyWithRsa, generateSpaceKey, encryptSpaceKeyForMember } from './crypto';
 import { registerKeyCache } from './keyCaches';
+import { resolveRecipientKey } from './keyTrust';
 
 // Cache for Workspace keys
 const workspaceKeyCache = new Map<string, CryptoKey>();
@@ -70,9 +71,12 @@ export async function shareWorkspaceKeyWithMissingMembers(workspaceId: string, k
         const keys = [];
         for (const member of missing.members) {
             try {
-                keys.push({ userId: member.id, encryptedKey: await encryptSpaceKeyForMember(key, member.publicKey) });
+                // Clé épinglée uniquement : une clé substituée par le serveur
+                // pour un membre connu ne reçoit rien (audit FC1).
+                const pk = await resolveRecipientKey(member.id, member.publicKey);
+                keys.push({ userId: member.id, encryptedKey: await encryptSpaceKeyForMember(key, pk) });
             } catch {
-                console.warn(`[E2EE] Clé publique inutilisable pour ${member.id} : clé d'espace non transmise.`);
+                console.warn(`[E2EE] Clé publique inutilisable ou non vérifiée pour ${member.id} : clé d'espace non transmise.`);
             }
         }
         if (keys.length === 0) return;
@@ -150,7 +154,7 @@ async function resolveWorkspaceKey(workspaceId: string): Promise<{ key: CryptoKe
                     // CryptoKey object instead of a JsonWebKey, which throws and
                     // was silently swallowed below, so no member ever actually
                     // got a wrapped copy and key generation always failed.
-                    const encryptedKeyBase64 = await encryptSpaceKeyForMember(newSpaceKey, member.publicKey);
+                    const encryptedKeyBase64 = await encryptSpaceKeyForMember(newSpaceKey, await resolveRecipientKey(member.id, member.publicKey));
                     keysToDistribute.push({
                         userId: member.id,
                         encryptedKey: encryptedKeyBase64

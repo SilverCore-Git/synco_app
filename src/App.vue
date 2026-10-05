@@ -15,7 +15,7 @@ import AiGatewayConsent from './components/common/AiGatewayConsent.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
 import useSettingsItem from './composables/useSettingsItem';
 import { initKC, isTauriPlatform, loginWithSystemBrowser } from './assets/keycloak';
-import { E2EEUnloked, setupFirstTimeSecurityV3, unlockSecurity, unlockSecurityV3, SALT_V2_PREFIX, SALT_V3_PREFIX } from './assets/utils/crypto';
+import { E2EEUnloked, setupFirstTimeSecurityV3, unlockSecurity, unlockSecurityV3, SALT_V2_PREFIX, SALT_V3_PREFIX, privateKey, lockSecurity, assertOwnPublicKeyMatches, OwnKeyMismatchError } from './assets/utils/crypto';
 import sfetch from './assets/utils/sfetch';
 import { useToast } from './composables/useToast';
 import TopBar from './components/layout/topBar.vue';
@@ -236,8 +236,19 @@ const submit = async () => {
 
     }
 
+    // Après tout déverrouillage : la clé publique servie doit correspondre à
+    // la clé privée, sinon on reverrouille (audit FC1 §4).
+    if (privateKey.value) {
+      await assertOwnPublicKeyMatches(user.value?.publicKey, privateKey.value);
+    }
+
   } catch (e) {
-    toast.show('Erreur de déchiffrement', 'error');
+    if (e instanceof OwnKeyMismatchError) {
+      lockSecurity();
+      toast.show("Alerte de sécurité : la clé publique fournie par le serveur ne correspond pas à votre clé privée. Le chiffrement reste verrouillé ; contactez votre administrateur.", 'error', 20000);
+    } else {
+      toast.show('Erreur de déchiffrement', 'error');
+    }
   } finally {
     pinLoading.value = false;
     window.removeEventListener('keydown', handleInput);

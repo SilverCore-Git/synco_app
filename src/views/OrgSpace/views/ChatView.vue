@@ -341,7 +341,8 @@
             </p>
 
             <div class="px-4 py-3 rounded-xl bg-(--bg2) border border-(--border-color) text-center">
-                <span class="text-lg font-mono tracking-[0.2em] text-(--text)">{{ keyFingerprint }}</span>
+                <!-- Empreinte complète (SHA-256, RFC 7638), en groupes de 4 (audit FC1) -->
+                <span class="text-sm font-mono tracking-wider break-all text-(--text)">{{ keyFingerprint }}</span>
             </div>
 
             <template #footer>
@@ -387,7 +388,7 @@ import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useNotification } from '@/composables/useNotification';
 import { useRecentDMs } from '@/composables/useRecentDMs';
 import { getCachedPlaintext, setCachedPlaintext } from '@/assets/utils/dmPlaintextCache';
-import { checkKeyTrust, trustKey, computeKeyFingerprint, type KeyTrustResult } from '@/assets/utils/keyTrust';
+import { checkKeyTrust, trustKey, computeKeyFingerprint, requireTrustedKey, dismissKeyTrustAlert, type KeyTrustResult } from '@/assets/utils/keyTrust';
 import Popup from '@/components/Popup.vue';
 
 const route = useRoute();
@@ -1026,6 +1027,7 @@ const openKeyPanel = async () => {
 const trustCurrentKey = async () => {
     if (!recipient.value?.publicKey) return;
     await trustKey(recipient.value.id, recipient.value.publicKey);
+    dismissKeyTrustAlert(recipient.value.id);
     keyTrustState.value = 'match';
     toast.show('Nouvelle clé de sécurité approuvée.', 'warning');
 };
@@ -1077,7 +1079,11 @@ const sendMessage = async () => {
             return;
         }
 
-        const trust = await checkKeyTrust(recipient.value.id, recipientPubKey);
+        // Épinglage TOFU explicite : première rencontre épinglée, clé changée
+        // refusée (keyTrust.ts, audit FC1).
+        let trust: KeyTrustResult = 'match';
+        try { await requireTrustedKey(recipient.value.id, recipientPubKey); }
+        catch { trust = 'changed'; dismissKeyTrustAlert(recipient.value.id); }
         if (trust === 'changed')
         {
             toast.show(
