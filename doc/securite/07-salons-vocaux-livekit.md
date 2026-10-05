@@ -5,7 +5,7 @@
 | **Date** | 2026-09-28 |
 | **Fichiers clés** | [`synco_app/src/composables/useLiveKit.ts`](../../src/composables/useLiveKit.ts), [`src/routes/LiveKit.ts`](../../../synco_api/src/routes/LiveKit.ts) |
 | **Infrastructure** | Serveur LiveKit (SFU) auto-hébergé |
-| **Statut** | ✅ **E2EE** (activé et vérifié) quand le salon possède une `ThreadKey` — ⚠️ sinon non chiffré, après confirmation explicite et avec badge |
+| **Statut** | ✅ **E2EE** (activé et vérifié) quand le salon possède une `ThreadKey` — ⚠️ sinon non chiffré, signalé par un badge |
 
 ---
 
@@ -57,7 +57,7 @@ Le chiffrement/déchiffrement média s'exécute dans un **Web Worker dédié** (
 | Membre du salon avec une `ThreadKey` | ✅ E2EE activé et vérifié après connexion ; badge vert « Chiffré de bout en bout » |
 | Clé présente mais indéchiffrable (PIN verrouillé, échec RSA) | ⛔ L'appel n'est **pas** rejoint (message d'erreur) |
 | Salon chiffré (`e2eeRequired`) mais copie de clé manquante | ⛔ L'appel n'est **pas** rejoint |
-| Salon sans aucune `ThreadKey` | ⚠️ Rejoint **seulement** après confirmation dans `UnencryptedCallConfirm.vue` ; badge jaune « Non chiffré » |
+| Salon sans aucune `ThreadKey` (ancien salon) | ⚠️ Rejoint directement, sans action de l'utilisateur ; badge jaune « Non chiffré » |
 | Invité par lien d'invitation, salon chiffré | ⛔ Refusé par l'API (409) : il ne pourrait ni entendre ni être entendu |
 | Invité par lien d'invitation, salon sans clé | ⚠️ Rejoint en clair, badge jaune visible |
 

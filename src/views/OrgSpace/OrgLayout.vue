@@ -26,7 +26,6 @@ import { requireTrustedKey } from '@/assets/utils/keyTrust';
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { usePermissions } from '@/composables/usePermissions';
 import SpinLoader from '@/components/SpinLoader.vue';
-import UnencryptedCallConfirm from '@/components/voice/UnencryptedCallConfirm.vue';
 import KeyTrustAlerts from '@/components/security/KeyTrustAlerts.vue';
 
 
@@ -766,7 +765,6 @@ onBeforeUnmount(async () => {
 
             <UserCard :isLittleScreen="isLittleScreen" />
 
-            <UnencryptedCallConfirm />
             <KeyTrustAlerts />
 
         </div>

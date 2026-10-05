@@ -1,38 +1,15 @@
-import { shallowRef } from 'vue';
 import sfetch from '@/assets/utils/sfetch';
-import useLiveKit, { CallEncryptionError, CallNotEncryptedError } from './useLiveKit';
+import useLiveKit, { CallEncryptionError } from './useLiveKit';
 import { useToast } from './useToast';
 
 /**
  * Rejoindre un salon vocal d'une org (VoiceThreadView, VoiceThreadBtn).
  *
- * Un salon chiffré ne se rejoint jamais en clair ; un salon sans clé E2EE ne
- * se rejoint qu'après un choix explicite de l'utilisateur, dans une modale
- * maison (UnencryptedCallConfirm.vue, montée une fois dans OrgLayout) —
- * jamais en silence (audit FC3).
+ * Aucune action demandée à l'utilisateur : un salon chiffré se rejoint
+ * chiffré (et jamais en clair si la clé manque — audit FC3), un salon sans
+ * clé E2EE (ancien salon) se rejoint directement, son état étant indiqué par
+ * le badge de l'appel (CallE2EEBadge).
  */
-
-const pendingConfirm = shallowRef<{ resolve: (accepted: boolean) => void } | null>(null);
-
-function askUnencryptedConsent(): Promise<boolean> {
-    pendingConfirm.value?.resolve(false);
-    return new Promise((resolve) => {
-        pendingConfirm.value = {
-            resolve: (accepted) => {
-                pendingConfirm.value = null;
-                resolve(accepted);
-            },
-        };
-    });
-}
-
-export function useUnencryptedCallPrompt() {
-    return {
-        pendingConfirm,
-        accept: () => pendingConfirm.value?.resolve(true),
-        decline: () => pendingConfirm.value?.resolve(false),
-    };
-}
 
 /** Renvoie true si l'appel a été rejoint. */
 export async function joinVoiceThread(threadId: string, spaceId: string): Promise<boolean> {
@@ -50,14 +27,12 @@ export async function joinVoiceThread(threadId: string, spaceId: string): Promis
     const data = await res.json();
 
     try {
-        await connectToRoom(data.url, data.token, threadId, spaceId, data.e2eeKey, { e2eeRequired: !!data.e2eeRequired });
+        await connectToRoom(data.url, data.token, threadId, spaceId, data.e2eeKey, {
+            e2eeRequired: !!data.e2eeRequired,
+            allowUnencrypted: true,
+        });
         return true;
     } catch (e) {
-        if (e instanceof CallNotEncryptedError) {
-            if (!(await askUnencryptedConsent())) return false;
-            await connectToRoom(data.url, data.token, threadId, spaceId, null, { allowUnencrypted: true });
-            return true;
-        }
         if (e instanceof CallEncryptionError) {
             toast.show(e.message, 'error');
             return false;
