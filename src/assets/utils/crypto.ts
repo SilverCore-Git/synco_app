@@ -640,13 +640,18 @@ export async function unlockSigningKey(encryptedSignPrivateKeyBase64: string, si
 export async function generateSigningKeypairForMigration(
     pin: string,
     salt: string,
-    wrapSecretBase64?: string
+    // v3 uniquement : round-trip verifier -> wrapSecret dédié (même forme que
+    // unlockSecurityV3), le wrapSecret n'étant jamais mis en cache ailleurs
+    // une fois le déverrouillage terminé (audit FC10).
+    doFetchWrapSecret?: (verifier: string) => Promise<{ wrapSecret: string }>
 ): Promise<{ publicSignKey: string; encryptedSignPrivateKey: string; signKeyIv: string }> {
     if (salt.startsWith(SALT_V3_PREFIX)) {
-        if (!wrapSecretBase64) throw new Error('wrapSecret requis pour un compte v3');
+        if (!doFetchWrapSecret) throw new Error('doFetchWrapSecret requis pour un compte v3');
         const rawSalt = salt.slice(SALT_V3_PREFIX.length);
         const unlockKeyBytes = await deriveUnlockKeyV3(pin, rawSalt);
-        const wrapSecretBytes = Uint8Array.from(atob(wrapSecretBase64), c => c.charCodeAt(0));
+        const verifier = await deriveVerifierV3(unlockKeyBytes);
+        const { wrapSecret } = await doFetchWrapSecret(verifier);
+        const wrapSecretBytes = Uint8Array.from(atob(wrapSecret), c => c.charCodeAt(0));
         const masterKey = await deriveMasterKeyV3(unlockKeyBytes, wrapSecretBytes.buffer);
         return generateSigningKeypair(masterKey);
     }
