@@ -12,6 +12,13 @@
         </div>
 
         <div class="flex items-center gap-3">
+          <span
+            v-if="cumulativeUsage.totalTokens > 0"
+            class="text-[11px] font-medium text-(--text2) bg-(--text)/5 px-2 py-1 rounded-full"
+            title="Total de tokens utilisés dans cette conversation"
+          >
+            {{ formatTokenCount(cumulativeUsage.totalTokens) }} tokens
+          </span>
           <button @click="showUsersBar = !showUsersBar" class="hover:text-(--text) transition-colors ml-2"
             :class="showUsersBar ? 'text-(--text)' : 'text-(--text2)'">
             <i class="bi bi-people-fill text-lg" />
@@ -79,6 +86,9 @@
                 handleAgentToolDecision(tool, true, index, id);
               }"
             />
+            <p v-if="msg.usage" class="text-[11px] text-(--text2)/70 mt-1">
+              {{ formatTokenCount(msg.usage.totalTokens) }} tokens<template v-if="msg.usage.reasoningTokens"> (dont {{ formatTokenCount(msg.usage.reasoningTokens) }} de raisonnement)</template>
+            </p>
           </div>
 
           <!-- Assistant turn: legacy path (local/custom, migration pending) -->
@@ -259,6 +269,10 @@
               </div>
 
             </div>
+
+            <p v-if="msg.usage" class="text-[11px] text-(--text2)/70 mt-1">
+              {{ formatTokenCount(msg.usage.totalTokens) }} tokens<template v-if="msg.usage.reasoningTokens"> (dont {{ formatTokenCount(msg.usage.reasoningTokens) }} de raisonnement)</template>
+            </p>
           </div>
         </div>
       </div>
@@ -393,7 +407,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
+import { ref, computed, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
 import * as webllm from '@mlc-ai/web-llm';
 import { localLLM, availableModels } from '@/services/LocalLLMService';
 import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages, syncSession, fetchSessions, activeSessionId, selectedModelId, setEncryptedSessionTitle } from '@/services/AIService';
@@ -429,7 +443,11 @@ const { Item: savedModelId, isLoaded: savedModelLoaded } = useSettingsItem('ai_s
 // Le rendu markdown passe par MarkdownRender.vue (partagé avec le chat/les
 // tâches) — il ne reste ici que le nettoyage spécifique à l'IA : les blocs
 // <tool_call> internes ne doivent jamais apparaître dans le texte affiché.
-const cleanAiContent = (text: string) => text.replace(/<tool_call>[\s\S]*?(?:<\/tool_call>|$)/g, '');
+// <think> est un filet de sécurité pour une balise mal fermée qui aurait
+// échappé à l'extraction dédiée (Phase 3) — pas le chemin normal.
+const cleanAiContent = (text: string) => text
+  .replace(/<tool_call>[\s\S]*?(?:<\/tool_call>|$)/g, '')
+  .replace(/<think>[\s\S]*?(?:<\/think>|$)/g, '');
 
 const handleLinks = (e: MouseEvent) => {
   const target = (e.target as HTMLElement).closest('a');
@@ -484,6 +502,10 @@ interface ChatMessage {
   viaAgentLoop?: boolean;
   /** Uniquement pour viaAgentLoop : texte et tools entrelacés dans l'ordre d'arrivée. */
   parts?: TurnPart[];
+  /** Cumul des tokens de ce tour (plusieurs appels provider possibles si des tools s'enchaînent). */
+  usage?: { promptTokens: number; completionTokens: number; totalTokens: number; reasoningTokens: number };
+  /** Raisonnement accumulé du modèle pour ce tour — transporté, pas encore rendu (Phase 3). */
+  thinkingBuffer?: string;
 }
 
 const recommendedModelId = ref<string>('');
@@ -512,6 +534,19 @@ watch(activeSessionId, async () => {
   }
 });
 const messages = aiSessionMessages as unknown as Ref<ChatMessage[]>;
+
+// Recalculé à la volée depuis les messages en mémoire — pas de stockage dédié, cf. plan.
+const cumulativeUsage = computed(() => messages.value.reduce((acc, m) => {
+  if (m.usage) acc.totalTokens += m.usage.totalTokens || 0;
+  return acc;
+}, { totalTokens: 0 }));
+
+function formatTokenCount(n: number): string {
+  if (n < 1000) return String(n);
+  if (n < 10000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  return Math.round(n / 1000) + 'k';
+}
+
 const chatContainer = ref<HTMLElement | null>(null);
 const hasNavigatorGpu = typeof navigator !== 'undefined' && !!(navigator as any).gpu;
 const temporaryImages = ref<Record<string, string>>({});
@@ -904,6 +939,20 @@ const consumeAgentStream = async (
       }
     } else if (ev.type === 'text') {
       appendTextPart(idx, ev.delta);
+    } else if (ev.type === 'thinking') {
+      const m = messages.value[idx]!;
+      m.thinkingBuffer = (m.thinkingBuffer || '') + ev.delta;
+    } else if (ev.type === 'usage') {
+      // Un tour peut enchaîner plusieurs appels provider (texte -> tool -> texte...), chacun avec
+      // son propre usage : on cumule pour obtenir le total réel du tour, pas juste le dernier appel.
+      const m = messages.value[idx]!;
+      const acc = m.usage || { promptTokens: 0, completionTokens: 0, totalTokens: 0, reasoningTokens: 0 };
+      m.usage = {
+        promptTokens: acc.promptTokens + (ev.promptTokens || 0),
+        completionTokens: acc.completionTokens + (ev.completionTokens || 0),
+        totalTokens: acc.totalTokens + (ev.totalTokens || 0),
+        reasoningTokens: acc.reasoningTokens + (ev.reasoningTokens || 0),
+      };
     } else if (ev.type === 'tool_call_result') {
       upsertToolPart(idx, ev.toolCallId, { name: ev.name, status: 'done', category: 'server', mutating: false, result: ev.result });
     } else if (ev.type === 'tool_call_pending') {
@@ -1137,6 +1186,15 @@ const sendMessage = async (hiddenPrompt?: string) => {
           name: chunk.name,
           arguments: chunk.arguments,
           status: 'pending'
+        };
+      } else if (typeof chunk === 'object' && chunk.type === 'usage') {
+        const m = messages.value[assistantMsgIndex]!;
+        const acc = m.usage || { promptTokens: 0, completionTokens: 0, totalTokens: 0, reasoningTokens: 0 };
+        m.usage = {
+          promptTokens: acc.promptTokens + (chunk.promptTokens || 0),
+          completionTokens: acc.completionTokens + (chunk.completionTokens || 0),
+          totalTokens: acc.totalTokens + (chunk.totalTokens || 0),
+          reasoningTokens: acc.reasoningTokens + (chunk.reasoningTokens || 0),
         };
       } else {
         messages.value[assistantMsgIndex]!.content += chunk;

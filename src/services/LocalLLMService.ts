@@ -149,15 +149,27 @@ class LocalLLMService {
         const asyncChunkGenerator = await this.engine.chat.completions.create({
             messages,
             stream: true,
+            stream_options: { include_usage: true },
             temperature: 0.7,
         });
 
         let buffer = "";
 
         for await (const chunk of asyncChunkGenerator) {
+            // Chunk terminal à choices vide, usage rempli (cf. ChatCompletionStreamOptions) : à
+            // traiter avant le `continue` sur contenu vide ci-dessous, sinon jamais atteint.
+            if (chunk.usage) {
+                yield {
+                    type: 'usage',
+                    promptTokens: chunk.usage.prompt_tokens,
+                    completionTokens: chunk.usage.completion_tokens,
+                    totalTokens: chunk.usage.total_tokens,
+                };
+            }
+
             const content = chunk.choices[0]?.delta?.content || "";
             if (!content) continue;
-            
+
             buffer += content;
             
             // 1. Chercher un JSON brut complet avec regex
