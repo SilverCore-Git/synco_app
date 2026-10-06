@@ -56,8 +56,8 @@
                             <i class="bi bi-lock-fill text-[10px]" />
                             <div class="h-2.5 w-32 rounded-full bg-(--text)/10 animate-pulse" />
                         </div>
-                        <div v-else class="max-w-md opacity-70 pointer-events-none text-[11px] line-clamp-1 [&_p]:inline [&_h1]:inline [&_h2]:inline [&_h3]:inline">
-                            <MarkdownRender :content="msg.replyMessage?.content || ''" :show-reference-cards="false" />
+                        <div v-else class="max-w-md opacity-70 pointer-events-none text-[11px] truncate">
+                            {{ messagePreview(msg.replyMessage?.content) }}
                         </div>
 
                     </div>
@@ -287,6 +287,7 @@ import { user } from '@/assets/var';
 import { encryptForPeer } from '@/assets/utils/crypto';
 import { requireTrustedKey } from '@/assets/utils/keyTrust';
 import { useToast } from '@/composables/useToast';
+import { messagePreview } from '@/assets/utils/messagePreview';
 import { openProfile } from '@/composables/useProfile';
 import useSettingsItem from '@/composables/useSettingsItem';
 import LinkPreview from './LinkPreview.vue';

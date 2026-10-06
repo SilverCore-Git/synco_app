@@ -60,8 +60,8 @@
                             @{{ $p(msg.replyMessage?.sender?.name) || 'Anonyme' }}
                         </span>
 
-                        <div class="max-w-md opacity-70 pointer-events-none text-[11px] line-clamp-1 [&_p]:inline [&_h1]:inline [&_h2]:inline [&_h3]:inline">
-                            <MarkdownRender :content="msg.replyMessage?.content || ''" :show-reference-cards="false" />
+                        <div class="max-w-md opacity-70 pointer-events-none text-[11px] truncate">
+                            {{ messagePreview(msg.replyMessage?.content) }}
                         </div>
 
                     </div>
@@ -275,6 +275,7 @@ import ThreadTextarea from './ThreadTextarea.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { user, member } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
+import { messagePreview } from '@/assets/utils/messagePreview';
 import { openProfile } from '@/composables/useProfile';
 import WebhookEmbed from './WebhookEmbed.vue';
 import LinkPreview from './LinkPreview.vue';

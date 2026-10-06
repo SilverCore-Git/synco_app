@@ -29,9 +29,9 @@
 
             <div
                 v-if="msg.content"
-                class="mt-0.5 text-xs text-(--text2)/80 line-clamp-1 pointer-events-none [&_p]:inline [&_h1]:inline [&_h2]:inline [&_h3]:inline"
+                class="mt-0.5 text-xs text-(--text2)/80 truncate pointer-events-none"
             >
-                <MarkdownRender :content="msg.content" :show-reference-cards="false" />
+                {{ messagePreview(msg.content) }}
             </div>
 
             <p v-else-if="fileCount" class="mt-0.5 text-xs text-(--text2)/80 italic">
@@ -59,9 +59,9 @@
 <script lang="ts" setup>
 
 import { defaultAvatar } from '@/assets/utils/defaultAvatar';
+import { messagePreview } from '@/assets/utils/messagePreview';
 import { computed } from 'vue';
 import type { DMMessage, Message } from '@/types/types';
-import MarkdownRender from '../../views/MarkdownRender.vue';
 
 const props = defineProps<{
     msg: Message | DMMessage;
