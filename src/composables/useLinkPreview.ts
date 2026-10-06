@@ -3,14 +3,22 @@
 // qui chiffrent côté client) et va chercher ses balises Open Graph en
 // requêtant la page DIRECTEMENT depuis l'appareil — jamais via synco_api, qui
 // ne doit apprendre aucun des liens partagés dans un message, même
-// indirectement. Contrepartie acceptée : un site qui ne renvoie pas
-// d'en-têtes CORS permissifs ne montrera pas d'aperçu (cf. extractFirstUrl —
-// c'est pour ça que le fetch échoue silencieusement plutôt que de bloquer
-// l'affichage du message). Aucun JavaScript de la page distante n'est
-// exécuté : on ne lit que le texte brut de sa réponse HTTP.
+// indirectement. Contreparties acceptées :
+// - un site sans en-têtes CORS permissifs ne montrera pas d'aperçu (le fetch
+//   échoue silencieusement plutôt que de bloquer l'affichage du message) ;
+// - ce fetch part automatiquement, sans clic, dès l'affichage du message :
+//   l'IP/la présence de l'utilisateur est donc révélée à qui contrôle le
+//   domaine du lien (comme pour toute ressource auto-chargée), ce qu'aucun
+//   garde-fou client ne peut éviter sans soit exiger un clic explicite, soit
+//   repasser par un serveur — exactement ce qu'on a choisi de ne pas faire ici.
+// isPrivateHostname.ts limite seulement la deuxième moitié du risque (sonder
+// le réseau local/interne de l'utilisateur), pas la première.
+// Aucun JavaScript de la page distante n'est exécuté : on ne lit que le
+// texte brut de sa réponse HTTP.
 import { ref } from 'vue';
 import type { LinkPreviewData } from '@/types/linkPreview';
 import { extractOpenGraphTags } from '@/assets/utils/openGraph';
+import { isPrivateOrLocalHostname } from '@/assets/utils/isPrivateHostname';
 
 const URL_RE = /\bhttps?:\/\/[^\s<>"')]+/i;
 
@@ -30,13 +38,33 @@ const FETCH_TIMEOUT_MS = 8_000;
 const MAX_BYTES = 512 * 1024;
 
 async function fetchHtml(url: string): Promise<{ html: string; finalUrl: string } | null> {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  // Un lien pasté est fetché automatiquement, sans clic, dès l'affichage du
+  // message : sans ce garde-fou, un lien vers une IP privée/locale (réseau
+  // de l'utilisateur, service interne non authentifié) serait requêté par son
+  // propre navigateur à son insu (CSRF-like côté client, cf. isPrivateHostname.ts
+  // pour la limite assumée face au DNS rebinding, indétectable depuis le JS
+  // du navigateur).
+  if (isPrivateOrLocalHostname(parsed.hostname)) return null;
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const res = await fetch(url, {
       signal: controller.signal,
       credentials: 'omit',
-      redirect: 'follow',
+      // Une redirection pourrait mener vers un hôte privé que le contrôle
+      // ci-dessus n'a pas vu (l'URL pastée elle-même était publique) — on ne
+      // la suit donc jamais plutôt que de la revalider (le mode 'manual' ne
+      // donnerait qu'une réponse opaque, sans accès à l'en-tête Location pour
+      // une cible cross-origin).
+      redirect: 'error',
+      referrerPolicy: 'no-referrer',
       headers: { accept: 'text/html,application/xhtml+xml' },
     });
     // Un site sans en-tête CORS permissif atterrit ici en échec (opaque ou
