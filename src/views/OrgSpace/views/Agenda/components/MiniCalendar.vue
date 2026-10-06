@@ -21,22 +21,15 @@
                     'is-other-month': !day.inMonth,
                     'is-today': day.isToday,
                     'is-selected': day.isSelected,
-                    'has-events': day.hasEvents
+                    'has-events': day.hasEvents,
+                    'is-in-range': day.inRange,
+                    'is-range-start': day.rangeStart,
+                    'is-range-end': day.rangeEnd
                 }"
                 @click="emit('pick-day', day.date)"
             >
                 {{ day.date.getDate() }}
             </button>
-
-            <!-- Cadre de la semaine affichée dans WeekGrid — un rectangle par
-                 ligne de la grille traversée (1 ou 2, jamais plus, une
-                 fenêtre de 7 jours ne peut chevaucher que 2 lignes). -->
-            <div
-                v-for="seg in rangeSegments"
-                :key="'range-' + seg.row + '-' + seg.colStart"
-                class="mini-cal-range-box"
-                :style="{ gridRow: seg.row, gridColumn: `${seg.colStart} / span ${seg.colSpan}` }"
-            ></div>
         </div>
     </div>
 </template>
@@ -87,6 +80,16 @@ interface MiniDay {
     isToday: boolean;
     isSelected: boolean;
     hasEvents: boolean;
+    // Semaine affichée dans WeekGrid (fenêtre glissante, pas forcément
+    // lundi-dimanche) — teinte directement le bouton du jour plutôt qu'un
+    // rectangle superposé par-dessus (qui ignorait la forme ronde des
+    // boutons et rendait mal, voir git log). rangeStart/rangeEnd ne
+    // marquent les coins arrondis qu'aux deux bouts réels de la semaine
+    // (ou de la ligne de grille, si la semaine traverse deux lignes) pour
+    // former un bandeau continu plutôt que 7 carrés séparés.
+    inRange: boolean;
+    rangeStart: boolean;
+    rangeEnd: boolean;
 }
 
 const days = computed<MiniDay[]>(() => {
@@ -101,70 +104,40 @@ const days = computed<MiniDay[]>(() => {
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    // Le cadre de la semaine (rangeSegments ci-dessous) remplace le simple
-    // point "jour sélectionné" pendant qu'un range est actif — évite la
+    // Le bandeau de semaine (inRange ci-dessous) remplace le simple point
+    // "jour sélectionné" pendant qu'un range est actif — évite la
     // redondance visuelle avec cursorDate qui, lui, reste figé sur le point
     // de départ de la navigation (voir AgendaView.vue).
     const selectedIso = props.highlightStart ? null : isoDay(cursor);
+    const rangeStartIso = props.highlightStart ? isoDay(props.highlightStart) : null;
+    const rangeEndIso = props.highlightEnd ? isoDay(props.highlightEnd) : null;
 
     const eventDays = new Set(props.occurrences.map(o => isoDay(new Date(o.startAt))));
 
     const list: MiniDay[] = [];
     const ptr = new Date(gridStart);
+    let col = 0;
     while (ptr.getTime() <= gridEnd.getTime()) {
         const iso = isoDay(ptr);
+        const inRange = rangeStartIso !== null && rangeEndIso !== null && iso >= rangeStartIso && iso <= rangeEndIso;
         list.push({
             date: new Date(ptr),
             iso,
             inMonth: ptr.getMonth() === cursor.getMonth(),
             isToday: ptr.getTime() === today.getTime(),
             isSelected: iso === selectedIso,
-            hasEvents: eventDays.has(iso)
+            hasEvents: eventDays.has(iso),
+            inRange,
+            // col === 0/6 : début/fin de la ligne de grille (la semaine
+            // continue sur la ligne suivante) ; iso === rangeStartIso/EndIso :
+            // véritable début/fin de la semaine affichée.
+            rangeStart: inRange && (col === 0 || iso === rangeStartIso),
+            rangeEnd: inRange && (col === 6 || iso === rangeEndIso)
         });
         ptr.setDate(ptr.getDate() + 1);
+        col = (col + 1) % 7;
     }
     return list;
-});
-
-// ── Cadre rectangulaire de la semaine affichée dans WeekGrid ────────────
-// La grille mini-calendrier est en CSS Grid 7 colonnes ; on positionne un
-// overlay par ligne de grille traversée (grid-row/grid-column), plutôt que
-// de teinter chaque jour individuellement — un simple fond par cellule se
-// scinde visuellement en 7 carrés séparés (gap entre lignes, coins arrondis
-// par bouton) au lieu de former UN rectangle, en plus de casser en deux
-// blocs disjoints dès que la fenêtre de 7 jours n'est pas alignée
-// lundi-dimanche (le cas général ici, voir WeekGrid.vue::startOfDay).
-interface RangeSegment {
-    row: number;
-    colStart: number;
-    colSpan: number;
-}
-
-const rangeSegments = computed<RangeSegment[]>(() => {
-    if (!props.highlightStart || !props.highlightEnd) return [];
-    const startIso = isoDay(props.highlightStart);
-    const endIso = isoDay(props.highlightEnd);
-    const list = days.value;
-    const startIdx = list.findIndex(d => d.iso === startIso);
-    const endIdx = list.findIndex(d => d.iso === endIso);
-    // La semaine visible peut déborder du mois actuellement affiché par le
-    // mini-calendrier (navigation manuelle du mois, ou scroll qui a
-    // dépassé la marge de grille) — pas de cadre à dessiner dans ce cas.
-    if (startIdx === -1 || endIdx === -1) return [];
-
-    const segments: RangeSegment[] = [];
-    let i = startIdx;
-    while (i <= endIdx) {
-        const row = Math.floor(i / 7);
-        const rowLastIdx = Math.min(row * 7 + 6, endIdx);
-        segments.push({
-            row: row + 1,
-            colStart: (i % 7) + 1,
-            colSpan: rowLastIdx - i + 1
-        });
-        i = rowLastIdx + 1;
-    }
-    return segments;
 });
 </script>
 
@@ -239,8 +212,25 @@ const rangeSegments = computed<RangeSegment[]>(() => {
     opacity: 0.45;
 }
 
+/* Semaine affichée dans WeekGrid : bandeau continu formé par les fonds des
+   boutons eux-mêmes (coins carrés) avec les deux bouts arrondis — pas de
+   calque séparé par-dessus, donc jamais de décalage avec la forme ronde
+   des jours. */
+.mini-cal-day.is-in-range {
+    border-radius: 0;
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+.mini-cal-day.is-range-start {
+    border-radius: 999px 0 0 999px;
+}
+.mini-cal-day.is-range-end {
+    border-radius: 0 999px 999px 0;
+}
+
 .mini-cal-day.is-today {
-    color: var(--primary);
+    border-radius: 999px;
+    background: var(--primary);
+    color: white;
     font-weight: 800;
 }
 
@@ -249,18 +239,7 @@ const rangeSegments = computed<RangeSegment[]>(() => {
     color: white;
 }
 
-.mini-cal-range-box {
-    z-index: 0;
-    align-self: stretch;
-    justify-self: stretch;
-    margin: 1px 0;
-    border: 1.5px solid var(--primary);
-    background: color-mix(in srgb, var(--primary) 14%, transparent);
-    border-radius: 10px;
-    pointer-events: none;
-}
-
-.mini-cal-day.has-events:not(.is-selected)::after {
+.mini-cal-day.has-events:not(.is-selected):not(.is-today)::after {
     content: '';
     position: absolute;
     bottom: 2px;
