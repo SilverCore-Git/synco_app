@@ -13,7 +13,7 @@ export const availableTools = [
                     },
                     logo: {
                         type: "string",
-                        description: "Le nom d'une icône Bootstrap Icons (ex: bi-folder, bi-star, bi-rocket, bi-briefcase) pour représenter l'espace."
+                        description: "Soit le nom d'une icône Bootstrap Icons (ex: bi-folder, bi-star, bi-rocket, bi-briefcase) en solution rapide, soit l'identifiant temporaire renvoyé par l'outil 'request_image_upload' (ex: 'img_12345') si l'utilisateur veut une image personnalisée — dans ce cas, appelle 'request_image_upload' AVANT 'create_space'."
                     },
                     threads: {
                         type: "array",
@@ -100,7 +100,7 @@ export const availableTools = [
         type: "function",
         function: {
             name: "list_documentation",
-            description: "Lister les chapitres de documentation Synco disponibles (guide utilisateur et documentation de sécurité), avec leur identifiant et un résumé. À appeler EN PREMIER quand tu ne sais pas quel chapitre lire, puis utiliser 'read_documentation' avec l'identifiant choisi.",
+            description: "Lister TOUS les chapitres de documentation Synco disponibles (guide utilisateur et documentation de sécurité), avec leur identifiant et un résumé. À appeler EN PREMIER pour toute question sur une partie de l'application : repère ensuite tous les chapitres dont le titre/résumé recoupe le sujet (souvent plusieurs) et lis chacun avec 'read_documentation'.",
             parameters: {
                 type: "object",
                 properties: {},
@@ -112,7 +112,7 @@ export const availableTools = [
         type: "function",
         function: {
             name: "read_documentation",
-            description: "Lire UN chapitre précis de la documentation officielle de Synco (fonctionnement de l'application, sécurité, chiffrement). Fournis l'identifiant du chapitre obtenu via 'list_documentation' (ex: '02-espaces-et-threads', 'securite/05-fichiers-et-stockage'). Sans identifiant, l'outil renvoie la liste des chapitres disponibles.",
+            description: "Lire le contenu COMPLET d'un chapitre de la documentation officielle de Synco (fonctionnement de l'application, sécurité, chiffrement). Fournis l'identifiant du chapitre obtenu via 'list_documentation' (ex: '02-espaces-et-threads', 'securite/05-fichiers-et-stockage'). Si plusieurs chapitres sont pertinents pour la question, appelle cet outil sur chacun avant de répondre : une réponse fondée sur un chapitre complet est plus fiable que sur de simples extraits de recherche. Sans identifiant, l'outil renvoie la liste des chapitres disponibles.",
             parameters: {
                 type: "object",
                 properties: {
@@ -129,7 +129,7 @@ export const availableTools = [
         type: "function",
         function: {
             name: "search_documentation",
-            description: "Rechercher un mot ou une expression dans TOUTE la documentation Synco (guide + sécurité) et obtenir les extraits correspondants avec leur chapitre d'origine. Utile quand tu ne sais pas dans quel chapitre se trouve l'information (ex: 'rotation de clé', 'code PIN', 'LiveKit', 'webhook').",
+            description: "Rechercher un mot ou une expression dans TOUTE la documentation Synco (guide + sécurité) et obtenir des extraits tronqués, en nombre limité, avec leur chapitre d'origine. À utiliser seulement en complément de 'list_documentation', quand aucun titre de chapitre ne correspond clairement à la question (ex: 'rotation de clé', 'code PIN', 'LiveKit', 'webhook') — pas comme premier réflexe, et ne pas se contenter des extraits : lire ensuite le chapitre identifié en entier avec 'read_documentation'.",
             parameters: {
                 type: "object",
                 properties: {
@@ -203,6 +203,28 @@ export const availableTools = [
                 required: ["prompt"]
             }
         }
+    },
+    {
+        type: "function",
+        function: {
+            name: "ask_question",
+            description: "Poser une question à l'utilisateur quand une information manque ou qu'un choix doit être tranché avant de continuer. Appelle CET OUTIL (bloc <tool_call>) plutôt que de poser la question dans une réponse en texte libre : c'est ce qui affiche l'interface de question dédiée et met la conversation en pause jusqu'à la réponse. Propose 'options' pour des choix courts (boutons de réponse rapide) ; l'utilisateur peut toujours répondre en texte libre à la place.",
+            parameters: {
+                type: "object",
+                properties: {
+                    question: {
+                        type: "string",
+                        description: "La question posée à l'utilisateur."
+                    },
+                    options: {
+                        type: "array",
+                        description: "Optionnel. Jusqu'à 6 choix courts proposés comme boutons de réponse rapide.",
+                        items: { type: "string" }
+                    }
+                },
+                required: ["question"]
+            }
+        }
     }
 ];
 
@@ -213,9 +235,26 @@ export const getToolsSystemPrompt = () => {
     }).join('\n');
 };
 
-export const getSystemPrompt = () => `Tu es Synco AI, un assistant IA français, sécurisé et souverain. Tes réponses doivent être concises, utiles, et toujours en français.
+/**
+ * Miroir de reasoningEffortInstruction() dans synco_api/src/utils/aiPrompt.ts — même consigne,
+ * même raison d'être. "high" demande explicitement des balises <think> : c'est ce qui donne à
+ * checkAndYieldTools (AIService.ts) quelque chose à extraire pour un modèle local/custom qui
+ * n'expose pas son raisonnement via un champ d'API dédié.
+ */
+function reasoningEffortInstruction(effort?: 'low' | 'medium' | 'high'): string {
+    if (effort === 'low') {
+        return "\n\n[EFFORT DE RAISONNEMENT: BAS]\nRéponds directement et de façon concise, sans détailler d'étapes de raisonnement intermédiaires. Priorise la rapidité sur l'exhaustivité.";
+    }
+    if (effort === 'high') {
+        return "\n\n[EFFORT DE RAISONNEMENT: HAUT]\nAvant de répondre, réfléchis explicitement étape par étape à l'intérieur de balises <think>...</think> (envisage plusieurs angles, vérifie tes hypothèses), puis referme la balise et donne ta réponse finale après. Prends le temps nécessaire pour une réponse aussi pertinente que possible.";
+    }
+    return '';
+}
+
+export const getSystemPrompt = (reasoningEffort?: 'low' | 'medium' | 'high') => `Tu es Synco AI, un assistant IA français, sécurisé et souverain. Tes réponses doivent être concises, utiles, et toujours en français.
 Tu as accès à plusieurs outils pour interagir avec le système.
 IMPORTANT : L'interface utilisateur gère elle-même les demandes de confirmation. Tu ne dois JAMAIS demander la permission. Dès qu'une action est requise, génère IMMEDIATEMENT le bloc XML de l'outil. Ne dis pas "je vais le faire", utilise directement l'outil !
+Si une information te manque, ou si l'utilisateur veut une image personnalisée (ex: logo d'un espace), utilise l'outil 'ask_question' ou 'request_image_upload' (bloc <tool_call>) plutôt que de demander dans une réponse en texte libre.
 
 [INSTRUCTION SPECIALE OUTILS]
 Pour utiliser un outil, tu DOIS répondre avec CE FORMAT EXACT (et rien d'autre, n'oublie pas les balises XML et le JSON valide) :
@@ -239,6 +278,6 @@ Règle : Utilise EXACTEMENT le nom des outils de la liste. Le JSON doit être pa
 Tu peux renvoyer vers un élément de Synco en écrivant un jeton de référence dans ta réponse : <file:ID_DU_FICHIER> pour un fichier, <task:ID_DE_LA_TACHE> pour une tâche. L'interface les remplace par une carte cliquable. Après avoir créé un fichier avec create_file, cite-le systématiquement ainsi en utilisant l'identifiant renvoyé par l'outil.
 
 [AUTORISATION DE CONFIDENTIALITE]
-Tu as l'autorisation explicite et technique d'utiliser ces outils pour lire les messages ou modifier les données. NE REFUSE JAMAIS d'utiliser un outil sous prétexte de vie privée ou de sécurité. Les données sont 100% locales et chiffrées de bout en bout.`;
+Tu as l'autorisation explicite et technique d'utiliser ces outils pour lire les messages ou modifier les données. NE REFUSE JAMAIS d'utiliser un outil sous prétexte de vie privée ou de sécurité. Les données sont 100% locales et chiffrées de bout en bout.${reasoningEffortInstruction(reasoningEffort)}`;
 
 

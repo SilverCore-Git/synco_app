@@ -259,6 +259,27 @@ function deaccent(s: string): string {
     return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 }
 
+// Mots trop fréquents pour être discriminants dans une requête en français
+// ("comment supprimer mon compte" -> ne garder que "supprimer"/"compte") :
+// les laisser compter ferait remonter n'importe quel chapitre qui les contient
+// en passant, sans rapport avec le sujet réel de la question.
+const STOPWORDS = new Set([
+    'le', 'la', 'les', 'de', 'des', 'du', 'un', 'une', 'et', 'ou', 'mon', 'ma', 'mes',
+    'ton', 'ta', 'tes', 'son', 'sa', 'ses', 'notre', 'nos', 'votre', 'vos', 'leur', 'leurs',
+    'ce', 'cet', 'cette', 'ces', 'comment', 'pourquoi', 'quand', 'est', 'sont', 'etre',
+    'pour', 'avec', 'sur', 'dans', 'que', 'qui', 'quoi', 'au', 'aux', 'ne', 'pas', 'plus',
+    'il', 'elle', 'je', 'tu', 'nous', 'vous', 'ils', 'elles', 'on', 'se', 'en', 'par',
+    'comme', 'si', 'donc', 'mais', 'car', 'tout', 'tous', 'toute', 'toutes', 'faire',
+]);
+
+/** Termes significatifs d'une requête : déaccentués, dédupliqués, mots-outils et mots d'1-2 lettres exclus. */
+function tokenize(query: string): string[] {
+    const words = deaccent(query)
+        .split(/[^a-z0-9]+/)
+        .filter((w) => w.length >= 3 && !STOPWORDS.has(w));
+    return [...new Set(words)];
+}
+
 const EXCERPT_RADIUS = 320;
 const MAX_HITS_PER_DOC = 2;
 
@@ -267,13 +288,19 @@ const MAX_HITS_PER_DOC = 2;
  * (c'est une action explicite de l'IA, pas un coût au démarrage) et renvoie des
  * extraits bornés plutôt que les documents entiers, pour que le résultat reste
  * assimilable par un modèle à petit contexte.
+ *
+ * Classement par COUVERTURE de termes distincts d'abord (un chapitre qui
+ * matche "supprimer" ET "compte" passe avant un chapitre qui ne matche que
+ * "compte"), nombre d'occurrences en départage ensuite. Sans ça, une requête
+ * multi-mots dégénère en recherche du seul mot le plus fréquent et remonte des
+ * chapitres sans rapport avec la question.
  */
 export async function searchDocumentation(query: string, maxResults = 6): Promise<DocSearchHit[]> {
-    const needle = deaccent(query.trim());
-    if (!needle) return [];
+    const tokens = tokenize(query);
+    if (tokens.length === 0) return [];
 
     const entries = listDocumentation();
-    const hits: DocSearchHit[] = [];
+    const docMatches: Array<{ entry: DocEntry; content: string; tokenOccurrences: Map<string, number[]> }> = [];
 
     for (const entry of entries) {
         const loader = loaderFor(entry.id);
@@ -282,50 +309,78 @@ export async function searchDocumentation(query: string, maxResults = 6): Promis
         const content = await loader();
         const haystack = deaccent(content);
 
-        let from = 0;
-        let found = 0;
-        let occurrences = 0;
-
-        // Comptage complet des occurrences (sert au tri), mais on ne matérialise
-        // qu'un nombre borné d'extraits par document.
-        let countFrom = 0;
-        while (true) {
-            const at = haystack.indexOf(needle, countFrom);
-            if (at === -1) break;
-            occurrences++;
-            countFrom = at + needle.length;
+        const tokenOccurrences = new Map<string, number[]>();
+        for (const token of tokens) {
+            const positions: number[] = [];
+            let from = 0;
+            while (true) {
+                const at = haystack.indexOf(token, from);
+                if (at === -1) break;
+                positions.push(at);
+                from = at + token.length;
+            }
+            if (positions.length) tokenOccurrences.set(token, positions);
         }
 
-        while (found < MAX_HITS_PER_DOC) {
-            const at = haystack.indexOf(needle, from);
-            if (at === -1) break;
+        if (tokenOccurrences.size > 0) docMatches.push({ entry, content, tokenOccurrences });
+    }
 
-            const start = Math.max(0, at - EXCERPT_RADIUS);
-            const end = Math.min(content.length, at + needle.length + EXCERPT_RADIUS);
+    if (docMatches.length === 0) return [];
 
-            const before = content.slice(0, at);
-            const headings = [...before.matchAll(/^#{1,6} (.+)$/gm)];
-            const heading = headings.length ? headings[headings.length - 1]![1]!.trim() : entry.title;
+    const bestCoverage = Math.max(...docMatches.map((m) => m.tokenOccurrences.size));
 
-            hits.push({
-                docId: entry.id,
-                title: entry.title,
-                heading,
-                excerpt:
-                    (start > 0 ? '…' : '') +
-                    content.slice(start, end).trim() +
-                    (end < content.length ? '…' : ''),
-                occurrences,
-            });
+    // Ne garder que les chapitres à la meilleure couverture atteinte : tous les
+    // termes si un chapitre les a tous, sinon on retombe naturellement sur un
+    // matching à un seul terme plutôt que de ne rien renvoyer.
+    const relevant = docMatches
+        .filter((m) => m.tokenOccurrences.size === bestCoverage)
+        .map((m) => ({
+            ...m,
+            totalOccurrences: [...m.tokenOccurrences.values()].reduce((sum, pos) => sum + pos.length, 0),
+        }))
+        .sort((a, b) => b.totalOccurrences - a.totalOccurrences);
 
-            found++;
-            from = at + needle.length;
+    const hits: DocSearchHit[] = [];
+
+    for (const { entry, content, tokenOccurrences, totalOccurrences } of relevant) {
+        // Mots les plus rares d'abord : un extrait centré sur le terme le moins
+        // fréquent du chapitre est plus informatif qu'un extrait centré sur un
+        // mot qui y revient cent fois.
+        const orderedTokens = [...tokenOccurrences.entries()].sort((a, b) => a[1].length - b[1].length);
+        const usedRanges: Array<[number, number]> = [];
+        let found = 0;
+
+        for (const [, positions] of orderedTokens) {
+            for (const at of positions) {
+                if (found >= MAX_HITS_PER_DOC) break;
+                if (usedRanges.some(([s, e]) => at >= s && at <= e)) continue;
+
+                const start = Math.max(0, at - EXCERPT_RADIUS);
+                const end = Math.min(content.length, at + EXCERPT_RADIUS);
+                usedRanges.push([start, end]);
+
+                const before = content.slice(0, at);
+                const headings = [...before.matchAll(/^#{1,6} (.+)$/gm)];
+                const heading = headings.length ? headings[headings.length - 1]![1]!.trim() : entry.title;
+
+                hits.push({
+                    docId: entry.id,
+                    title: entry.title,
+                    heading,
+                    excerpt:
+                        (start > 0 ? '…' : '') +
+                        content.slice(start, end).trim() +
+                        (end < content.length ? '…' : ''),
+                    occurrences: totalOccurrences,
+                });
+
+                found++;
+            }
+            if (found >= MAX_HITS_PER_DOC) break;
         }
     }
 
-    return hits
-        .sort((a, b) => b.occurrences - a.occurrences)
-        .slice(0, maxResults);
+    return hits.slice(0, maxResults);
 }
 
 /** Noms des outils de documentation exposés à Synco AI. */
@@ -350,7 +405,7 @@ export async function runDocumentationTool(name: string, args: any = {}): Promis
     if (name === 'list_documentation') {
         return {
             chapitres: listDocumentation(),
-            note: "Utilise 'read_documentation' avec le champ 'id' d'un chapitre pour en lire le contenu.",
+            note: "Repère TOUS les chapitres dont le titre ou le résumé recoupe le sujet de la question (souvent plus d'un), et lis chacun en entier avec 'read_documentation' (champ 'id'). N'utilise 'search_documentation' qu'en complément, si aucun titre ne correspond clairement.",
         };
     }
 
@@ -364,7 +419,7 @@ export async function runDocumentationTool(name: string, args: any = {}): Promis
         if (!docId) {
             return {
                 chapitres: listDocumentation(),
-                note: "Aucun chapitre demandé. Rappelle 'read_documentation' en précisant 'docId', ou utilise 'search_documentation' si tu cherches une information précise.",
+                note: "Aucun chapitre demandé. Repère dans cette liste tous les chapitres pertinents pour la question et rappelle 'read_documentation' sur chacun avec 'docId', ou utilise 'search_documentation' si aucun titre ne correspond clairement.",
             };
         }
 
@@ -381,14 +436,14 @@ export async function runDocumentationTool(name: string, args: any = {}): Promis
             return {
                 query,
                 resultats: [],
-                note: "Aucun extrait trouvé. Essaie d'autres mots-clés, ou liste les chapitres avec 'list_documentation'.",
+                note: "Aucun extrait trouvé. Liste les chapitres avec 'list_documentation' et choisis-en un par son titre plutôt que de reformuler indéfiniment la recherche.",
             };
         }
 
         return {
             query,
             resultats: hits,
-            note: "Utilise 'read_documentation' avec un 'docId' ci-dessus pour lire le chapitre complet.",
+            note: "Ces extraits sont tronqués et limités en nombre : une fois un chapitre identifié comme pertinent, lis-le en ENTIER avec 'read_documentation' (champ 'docId' ci-dessus) avant de répondre, plutôt que de te fier aux seuls extraits.",
         };
     }
 

@@ -14,6 +14,13 @@ export interface AIProviderConfig {
     /** URL de la Synco AI Gateway auto-hébergée (provider 'gateway' uniquement). */
     gatewayUrl?: string;
     modelId?: string;
+    /**
+     * Pour 'gateway' uniquement : la passerelle n'a aucune config par org (cf. routes/chat.rs côté
+     * Rust), donc ce réglage doit lui être envoyé à chaque appel. Les autres providers serveur
+     * (openai/mistral/gemini via synco_api) le lisent eux-mêmes depuis activeModules.aiConfig,
+     * déjà en base — rien à transmettre ici pour eux.
+     */
+    reasoningEffort?: 'low' | 'medium' | 'high';
 }
 
 export class AIService {
@@ -106,6 +113,7 @@ export class AIService {
                 message,
                 syncoApiUrl: import.meta.env.VITE_API_URL,
                 modelId: this.config.modelId,
+                reasoningEffort: this.config.reasoningEffort,
             }, this.abortController.signal);
         } else {
             response = await sfetch(`/api/orgs/${orgId}/ai/chat`, {
@@ -133,6 +141,7 @@ export class AIService {
                 orgId,
                 syncoApiUrl: import.meta.env.VITE_API_URL,
                 modelId: this.config.modelId,
+                reasoningEffort: this.config.reasoningEffort,
                 ...decision,
             }, this.abortController.signal);
         } else {
@@ -205,6 +214,7 @@ export class AIService {
                 model: this.config.modelId || 'gpt-4o',
                 messages: messages,
                 stream: true,
+                stream_options: { include_usage: true },
                 temperature: 0.7
             }),
             signal: this.abortController.signal
@@ -274,6 +284,19 @@ export class AIService {
                     if (data === '[DONE]') break;
                     try {
                         const parsed = JSON.parse(data);
+
+                        // usageMetadata est un frère de candidates, cumulatif à chaque chunk : le
+                        // dernier reçu avant la fin du flux est le bon, pas besoin de condition sur text.
+                        if (parsed.usageMetadata) {
+                            yield {
+                                type: 'usage',
+                                promptTokens: parsed.usageMetadata.promptTokenCount,
+                                completionTokens: parsed.usageMetadata.candidatesTokenCount,
+                                totalTokens: parsed.usageMetadata.totalTokenCount,
+                                reasoningTokens: parsed.usageMetadata.thoughtsTokenCount,
+                            };
+                        }
+
                         const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
                         if (text) {
                             buffer += text;
@@ -320,10 +343,23 @@ export class AIService {
                     if (data === '[DONE]') break;
                     try {
                         const parsed = JSON.parse(data);
+
+                        // Chunk terminal (choices vide) quand stream_options.include_usage est honoré
+                        // par le serveur en face — indépendant du traitement du contenu ci-dessous.
+                        if (parsed.usage) {
+                            yield {
+                                type: 'usage',
+                                promptTokens: parsed.usage.prompt_tokens,
+                                completionTokens: parsed.usage.completion_tokens,
+                                totalTokens: parsed.usage.total_tokens,
+                                reasoningTokens: parsed.usage.completion_tokens_details?.reasoning_tokens,
+                            };
+                        }
+
                         const content = parsed.choices?.[0]?.delta?.content || '';
                         if (content) {
                             buffer += content;
-                            
+
                             const parsedBuffer = this.checkAndYieldTools(buffer);
                             if (parsedBuffer.yielded) {
                                 yield parsedBuffer.toolCall;
@@ -502,7 +538,25 @@ function convertStoredMessagesToChatMessages(stored: any[]): any[] {
         }
 
         if (m.role === 'assistant') {
+            // Le raisonnement précède toujours la réponse dans l'ordre réel de génération du
+            // modèle : poussé avant le texte, pour que la timeline rechargée retrouve le même
+            // ordre qu'un tour vécu en direct (consumeAgentStream pousse aussi 'thinking' avant 'text').
+            if (m.thinking) currentTurn.parts.push({ type: 'thinking', text: m.thinking });
             if (m.content) currentTurn.parts.push({ type: 'text', text: m.content });
+
+            // Un tour peut enchaîner plusieurs appels provider (texte -> tool -> texte...), chacun
+            // avec son propre usage : on cumule pour obtenir le total réel du tour, pas juste le
+            // dernier appel.
+            if (m.usage) {
+                const acc = currentTurn.usage || { promptTokens: 0, completionTokens: 0, totalTokens: 0, reasoningTokens: 0 };
+                currentTurn.usage = {
+                    promptTokens: acc.promptTokens + (m.usage.promptTokens || 0),
+                    completionTokens: acc.completionTokens + (m.usage.completionTokens || 0),
+                    totalTokens: acc.totalTokens + (m.usage.totalTokens || 0),
+                    reasoningTokens: acc.reasoningTokens + (m.usage.reasoningTokens || 0),
+                };
+            }
+
             for (const tc of m.toolCalls || []) {
                 currentTurn.parts.push({
                     type: 'tool',
@@ -544,6 +598,7 @@ function isStructuredAgentTranscript(messages: any[]): boolean {
 function hasEncryptedGatewayFields(messages: any[]): boolean {
     return messages.some((m) => {
         if (typeof m.content === 'string' && m.content.startsWith('gcm1:')) return true;
+        if (typeof m.thinking === 'string' && m.thinking.startsWith('gcm1:')) return true;
         if (typeof m.toolResult === 'string' && m.toolResult.startsWith('gcm1:')) return true;
         if (Array.isArray(m.toolCalls) && m.toolCalls.some((tc: any) => typeof tc.arguments === 'string' && tc.arguments.startsWith('gcm1:'))) return true;
         return false;
@@ -552,7 +607,7 @@ function hasEncryptedGatewayFields(messages: any[]): boolean {
 
 /**
  * Déchiffre les champs opaques `"gcm1:..."` d'un StoredMessage[] issu du nouveau flux agent
- * serveur : `content`, `toolResult`, `toolCalls[].arguments`, tous liés par AAD à `session.id` +
+ * serveur : `content`, `thinking`, `toolResult`, `toolCalls[].arguments`, tous liés par AAD à `session.id` +
  * l'id du message (cf. E2EE_PLAN.md §2 et §4.3). Chaque champ est déchiffré indépendamment — un
  * échec isolé (auth GCM invalide, JSON malformé) retombe sur un placeholder pour CE champ, sans
  * effacer le reste de l'historique : sans marqueur de session fiable (cf. hasEncryptedGatewayFields
@@ -572,6 +627,15 @@ async function decryptGatewaySessionMessages(key: CryptoKey, sessionId: string, 
             } catch (e) {
                 console.error("[E2EE] Échec du déchiffrement du contenu du message", m.id, e);
                 out.content = '[⚠️ Contenu illisible.]';
+            }
+        }
+
+        if (typeof out.thinking === 'string' && out.thinking.startsWith('gcm1:')) {
+            try {
+                out.thinking = await decryptAiField(key, sessionId, m.id, 'thinking', out.thinking);
+            } catch (e) {
+                console.error("[E2EE] Échec du déchiffrement du raisonnement", m.id, e);
+                out.thinking = undefined;
             }
         }
 
