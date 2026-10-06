@@ -28,6 +28,8 @@ import { SearchSyncService } from '@/services/SearchSyncService';
 import { usePermissions } from '@/composables/usePermissions';
 import SpinLoader from '@/components/SpinLoader.vue';
 import KeyTrustAlerts from '@/components/security/KeyTrustAlerts.vue';
+import OrgBannedScreen from '@/components/OrgBannedScreen.vue';
+import { isOrgBanned, getOrgBanInfo } from '@/composables/useOrgBanStatus';
 
 
 const props = defineProps<{
@@ -53,6 +55,8 @@ const orgOnOpen = computed(() => {
 });
 
 const orgReady = computed(() => openedOrg.value?.id === props.orgId);
+const orgBanned = computed(() => isOrgBanned(props.orgId));
+const orgBanInfo = computed(() => getOrgBanInfo(props.orgId));
 
 // Le panneau de contenu utilise v-show (pas v-if) pour la bascule liste/contenu
 // sur mobile — un cycle display:none -> visible relance une animation CSS.
@@ -640,10 +644,16 @@ onMounted(async () => {
     if (!openedOrg.value || openedOrg.value.id !== props.orgId) {
         const res = await sfetch(`/api/orgs/${props.orgId}`);
         if (!res.ok) {
-            window.location.href = '/';
+            // Organisation bannie : sfetch a déjà enregistré le motif
+            // (useOrgBanStatus), orgBanned ci-dessous l'affiche à la place du
+            // contenu — pas de redirection, sans quoi le motif ne serait
+            // jamais visible.
+            if (!isOrgBanned(props.orgId)) {
+                window.location.href = '/';
+            }
             return;
         }
-        openedOrg.value = await res.json(); 
+        openedOrg.value = await res.json();
     }
     // Le peer des sessions éphémères doit être identifié par le même id
     // (OrgMember.id) que PrivateMeetView.vue/ChatView.vue utilisent comme
@@ -705,6 +715,17 @@ onBeforeUnmount(async () => {
             "
             :style="{ viewTransitionName: `openOrg-${orgOnOpen?.id}` }"
         >
+
+            <!-- Organisation bannie : aucun accès à son contenu, ni en
+                 lecture ni en écriture — pas de barre d'espaces, de salons,
+                 de membres ni de vue de route, juste le motif. -->
+            <OrgBannedScreen
+                v-if="orgBanned"
+                class="flex-1 h-full"
+                :reason="orgBanInfo?.reason ?? null"
+                :bannedAt="orgBanInfo?.bannedAt ?? null"
+            />
+            <template v-else>
 
             <SpaceBar class="h-full" />
             <ThreadsBar
@@ -768,6 +789,8 @@ onBeforeUnmount(async () => {
                     :class="isLittleScreen ? 'fixed top-0 right-0 h-full z-50 bg-(--bg) shadow-lg' : 'relative'"
                 />
             </Transition>
+
+            </template>
 
             <UserCard :isLittleScreen="isLittleScreen" />
 
