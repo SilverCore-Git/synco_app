@@ -1,6 +1,6 @@
 <template>
 
-  <div class="w-full h-full flex flex-col items-center justify-center bg-(--bg3) p-6 select-none">
+  <div class="fixed inset-0 z-100 w-full h-full flex flex-col items-center justify-center bg-(--bg3) p-6 select-none">
 
     <div class="flex flex-col items-center text-center max-w-md">
 
@@ -13,14 +13,13 @@
       </h2>
 
       <p class="text-sm text-(--text2) mt-3 leading-relaxed">
-        L'accès à cette organisation a été retiré par un administrateur Synco.
-        Personne — y compris son propriétaire — ne peut plus la consulter, y
-        envoyer ou y modifier quoi que ce soit.
+        Un administrateur l'a bannie : personne ne peut plus l'ouvrir, y écrire
+        ou la modifier, pas même son propriétaire.
       </p>
 
       <div v-if="reason" class="mt-6 w-full text-left bg-(--bg) border border-(--text)/10 rounded-2xl p-4">
         <p class="text-[10px] font-black uppercase tracking-widest text-(--text2)">Motif</p>
-        <p class="text-sm text-(--text) mt-1.5 leading-relaxed whitespace-pre-line break-words">{{ reason }}</p>
+        <SimpleMarkdown :content="reason" class="text-sm text-(--text) mt-1.5 leading-relaxed break-words" />
       </div>
 
       <p v-if="formattedDate" class="text-xs text-(--text2) mt-5">
@@ -45,6 +44,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
+import SimpleMarkdown from '@/components/common/SimpleMarkdown.vue';
 
 const props = defineProps<{
   reason: string | null;

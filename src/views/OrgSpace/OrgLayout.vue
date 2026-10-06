@@ -718,10 +718,11 @@ onBeforeUnmount(async () => {
 
             <!-- Organisation bannie : aucun accès à son contenu, ni en
                  lecture ni en écriture — pas de barre d'espaces, de salons,
-                 de membres ni de vue de route, juste le motif. -->
+                 de membres (UserCard) ni de vue de route, juste le motif.
+                 position fixed + z-100 (OrgBannedScreen) : passe au-dessus de
+                 tout plutôt que de dépendre de l'ordre du DOM. -->
             <OrgBannedScreen
                 v-if="orgBanned"
-                class="flex-1 h-full"
                 :reason="orgBanInfo?.reason ?? null"
                 :bannedAt="orgBanInfo?.bannedAt ?? null"
             />

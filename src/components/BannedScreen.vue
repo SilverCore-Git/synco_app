@@ -25,7 +25,7 @@
 
       <div v-if="banInfo.reason" class="mt-6 w-full text-left bg-(--bg) border border-(--text)/10 rounded-2xl p-4">
         <p class="text-[10px] font-black uppercase tracking-widest text-(--text2)">Motif</p>
-        <p class="text-sm text-(--text) mt-1.5 leading-relaxed whitespace-pre-line break-words">{{ banInfo.reason }}</p>
+        <SimpleMarkdown :content="banInfo.reason" class="text-sm text-(--text) mt-1.5 leading-relaxed break-words" />
       </div>
 
       <p v-if="formattedDate" class="text-xs text-(--text2) mt-5">
@@ -53,6 +53,7 @@ import { logoutEverywhere } from '@/assets/keycloak';
 import { disconnectSocket } from '@/composables/useWSocket';
 import useSettingsItem from '@/composables/useSettingsItem';
 import { banInfo } from '@/composables/useBanStatus';
+import SimpleMarkdown from '@/components/common/SimpleMarkdown.vue';
 
 const { Item: theme } = useSettingsItem('theme', 'dark');
 
