@@ -20,6 +20,7 @@
                 v-for="day in days"
                 :key="'ad-' + day.iso"
                 class="time-grid-allday-cell"
+                :class="{ 'is-today': day.isToday }"
                 :style="{ width: dayWidth + 'px' }"
                 @click="emitCreate(allDayDate(day.date), allDayEndDate(day.date), true, $event)"
             >
@@ -43,6 +44,7 @@
                 v-for="day in days"
                 :key="'col-' + day.iso"
                 class="time-grid-day-col"
+                :class="{ 'is-today': day.isToday }"
                 :data-iso="day.iso"
                 :style="{ height: rowHeight * 24 + 'px', width: dayWidth + 'px' }"
                 @mousedown="onPointerDown($event, day)"
@@ -743,10 +745,17 @@ const eventDragLabel = computed(() => {
     font-size: 13px;
     font-weight: 700;
     color: var(--text);
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .is-today .time-grid-day-number {
-    color: var(--primary);
+    background: var(--primary);
+    color: white;
 }
 
 .time-grid-allday {
@@ -777,6 +786,10 @@ const eventDragLabel = computed(() => {
     cursor: pointer;
 }
 
+.time-grid-allday-cell.is-today {
+    background: color-mix(in srgb, var(--primary) 6%, transparent);
+}
+
 .time-grid-body {
     flex: 1;
     display: flex;
@@ -802,6 +815,10 @@ const eventDragLabel = computed(() => {
     border-right: 1px solid var(--border-color);
     cursor: crosshair;
     user-select: none;
+}
+
+.time-grid-day-col.is-today {
+    background: color-mix(in srgb, var(--primary) 6%, transparent);
 }
 
 .time-grid-hour-line {
