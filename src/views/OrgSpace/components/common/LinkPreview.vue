@@ -4,20 +4,20 @@
         :href="safeUrl(preview.url)!"
         target="_blank"
         rel="noopener noreferrer"
-        class="mt-2 flex w-full max-w-[500px] overflow-hidden rounded-md border border-(--text)/10 bg-black/10 hover:bg-black/15 transition-colors"
+        class="mt-2 flex flex-col w-full max-w-[500px] overflow-hidden rounded-md border border-(--text)/10 bg-black/10 hover:bg-black/15 transition-colors"
     >
+        <div class="flex flex-col gap-0.5 p-2.5 min-w-0">
+            <span v-if="preview.siteName" class="text-[10px] uppercase tracking-wide text-(--text2)">{{ preview.siteName }}</span>
+            <span v-if="preview.title" class="text-sm font-semibold text-(--primary) line-clamp-2">{{ preview.title }}</span>
+            <span v-if="preview.description" class="text-xs text-(--text2) line-clamp-2">{{ preview.description }}</span>
+        </div>
         <img
             v-if="imageSrc"
             :src="imageSrc"
             loading="lazy"
             decoding="async"
-            class="w-24 shrink-0 object-cover"
+            class="w-full max-h-64 object-cover"
         />
-        <div class="flex flex-col gap-0.5 p-2.5 min-w-0 justify-center">
-            <span v-if="preview.siteName" class="text-[10px] uppercase tracking-wide text-(--text2)">{{ preview.siteName }}</span>
-            <span v-if="preview.title" class="text-sm font-semibold text-(--primary) line-clamp-2">{{ preview.title }}</span>
-            <span v-if="preview.description" class="text-xs text-(--text2) line-clamp-2">{{ preview.description }}</span>
-        </div>
     </a>
     <div v-else-if="loading" class="mt-2 h-16 w-full max-w-[500px] rounded-md bg-(--text)/5 animate-pulse" />
 </template>
