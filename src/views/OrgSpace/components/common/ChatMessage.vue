@@ -180,6 +180,7 @@
                                         @user-click="(u: User, e: MouseEvent) => openProfile(u, e)"
                                         @reference-click="onReferenceClick"
                                     />
+                                    <LinkPreview :content="msg.content" />
                                     <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
                                     <!-- Reçu en clair : jamais rendu comme un message chiffré (audit FC7) -->
                                     <span
@@ -288,6 +289,7 @@ import { requireTrustedKey } from '@/assets/utils/keyTrust';
 import { useToast } from '@/composables/useToast';
 import { openProfile } from '@/composables/useProfile';
 import useSettingsItem from '@/composables/useSettingsItem';
+import LinkPreview from './LinkPreview.vue';
 import { orgMentionLookup, isUserMentioned } from '@/composables/useMentions';
 import { extractReferenceTokens } from '@/composables/useReferences';
 import { navigateToReference } from '@/composables/useReferenceNavigation';
