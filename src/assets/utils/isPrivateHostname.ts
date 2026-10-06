@@ -94,14 +94,31 @@ const IPV6_BLOCKS: ReadonlyArray<readonly [string, number]> = [
 ];
 
 function isPrivateIPv6(ip: string): boolean {
-    // IPv4-mappée (::ffff:a.b.c.d) : reclasser sous les règles IPv4 — sinon un
-    // hôte qui ne résout qu'en IPv4-mappée contourne IPV4_BLOCKS.
-    const mapped = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-    if (mapped) return isPrivateIPv4(mapped[1]);
+    // IPv4-mappée tapée à la main (::ffff:a.b.c.d en décimal pointé) : jamais
+    // ce que produit URL.hostname en pratique (voir plus bas), mais gardé
+    // pour tout appelant qui passerait une chaîne non normalisée.
+    const textualMapped = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+    if (textualMapped) return isPrivateIPv4(textualMapped[1]);
 
     const addr = parseIPv6(ip);
     // Forme IPv6 inattendue/invalide : fail-closed, comme ssrfGuard.ts.
     if (addr === null) return true;
+
+    // IPv4-mappée réellement produite par URL.hostname : TOUJOURS sérialisée
+    // en groupes hex (ex. "::ffff:7f00:1" pour 127.0.0.1), jamais en décimal
+    // pointé — la regex textuelle ci-dessus ne matche donc jamais une valeur
+    // qui vient réellement de `new URL(...).hostname` (vérifié empiriquement :
+    // "http://[::ffff:127.0.0.1]/" donne .hostname === "[::ffff:7f00:1]").
+    // On reclasse donc l'IPv4 embarquée au niveau des bits plutôt que de
+    // bloquer toute la plage ::ffff:0:0/96, qui rejetterait aussi bien les
+    // adresses IPv4 PUBLIQUES tunnelées ainsi (même choix que BLOCKED_IPV6
+    // côté serveur, cf. son commentaire sur le comportement cross-family de
+    // net.BlockList).
+    if (addr >> 32n === 0xffffn) {
+        const v4 = addr & 0xffffffffn;
+        const octets = [24n, 16n, 8n, 0n].map((shift) => Number((v4 >> shift) & 0xffn));
+        return isPrivateIPv4(octets.join('.'));
+    }
 
     return IPV6_BLOCKS.some(([net, prefix]) => {
         const netAddr = parseIPv6(net);
