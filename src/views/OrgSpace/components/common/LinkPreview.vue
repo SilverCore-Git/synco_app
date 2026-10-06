@@ -7,8 +7,8 @@
         class="mt-2 flex w-full max-w-[500px] overflow-hidden rounded-md border border-(--text)/10 bg-black/10 hover:bg-black/15 transition-colors"
     >
         <img
-            v-if="safeUrl(preview.image)"
-            :src="safeUrl(preview.image)!"
+            v-if="imageSrc"
+            :src="imageSrc"
             loading="lazy"
             decoding="async"
             class="w-24 shrink-0 object-cover"
@@ -39,6 +39,16 @@ watch(url, (u) => {
 }, { immediate: true });
 
 const hasContent = computed(() => !!(preview.value?.title || preview.value?.description || preview.value?.image));
+
+// synco_api renvoie toujours un chemin relatif vers son propre proxy
+// d'image (routes/linkPreviewImage.ts), jamais l'URL externe directement —
+// CSP img-src n'autorise que https://api.synco.one, pas un domaine
+// arbitraire. On y préfixe la même base que sfetch.ts.
+const imageSrc = computed(() => {
+    const img = preview.value?.image;
+    if (typeof img !== 'string' || !img.startsWith('/api/link-preview-image?')) return null;
+    return `${import.meta.env.VITE_API_URL}${img}`;
+});
 
 // Même garde que WebhookEmbed.vue : ne jamais faire confiance au schéma d'une
 // URL qui vient d'un tiers (ici, la page distante dont on a parsé les
