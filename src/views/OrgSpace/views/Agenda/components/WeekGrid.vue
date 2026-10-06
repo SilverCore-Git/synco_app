@@ -93,6 +93,7 @@ import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import EventChip from './EventChip.vue';
 import { isTaskDeadlineOccurrence, type OccurrenceInstance } from '@/types/agenda';
 import { isLittleScreen } from '@/assets/var';
+import { layoutDayEvents } from './eventLayout';
 
 const props = defineProps<{
     cursorDate: Date;
@@ -341,23 +342,46 @@ function isLocked(occ: OccurrenceInstance): boolean {
 
 // Découpe la portion d'un événement (éventuellement multi-jours) visible
 // dans une colonne de jour donnée.
-function eventStyle(occ: OccurrenceInstance, day: DayColumn) {
+function rangeMinutesForDay(occ: OccurrenceInstance, dayIso: string): { start: number; end: number } {
     const start = new Date(occ.startAt);
     const end = new Date(occ.endAt);
     const startIso = isoDay(start);
     const endIso = isoDay(end);
 
-    const startMinutes = day.iso === startIso ? start.getHours() * 60 + start.getMinutes() : 0;
-    const endMinutes = day.iso === endIso ? end.getHours() * 60 + end.getMinutes() : 24 * 60;
-    let durationMinutes = endMinutes - startMinutes;
+    const startMinutes = dayIso === startIso ? start.getHours() * 60 + start.getMinutes() : 0;
+    const endMinutes = dayIso === endIso ? end.getHours() * 60 + end.getMinutes() : 24 * 60;
+    return { start: startMinutes, end: endMinutes };
+}
+
+// Événements qui se chevauchent dans le temps → côte à côte plutôt que
+// superposés. Calculé par colonne de jour (un événement multi-jours peut
+// avoir un nombre de colonnes différent selon le jour traversé).
+const dayEventLayouts = computed(() => {
+    const map = new Map<string, Map<string, { col: number; cols: number }>>();
+    for (const day of days.value) {
+        map.set(day.iso, layoutDayEvents(day.timedOccurrences, occ => rangeMinutesForDay(occ, day.iso)));
+    }
+    return map;
+});
+
+function eventStyle(occ: OccurrenceInstance, day: DayColumn) {
+    const { start: startMinutes, end: endMinutesRaw } = rangeMinutesForDay(occ, day.iso);
+    let durationMinutes = endMinutesRaw - startMinutes;
     if (durationMinutes < 20) durationMinutes = 20;
 
     const top = (startMinutes / 60) * rowHeight;
     const height = (durationMinutes / 60) * rowHeight;
 
+    const slot = dayEventLayouts.value.get(day.iso)?.get(occ.occurrenceKey) || { col: 0, cols: 1 };
+    const GAP = 2;
+    const left = `calc(${(slot.col / slot.cols) * 100}% + ${GAP}px)`;
+    const width = `calc(${(1 / slot.cols) * 100}% - ${GAP * 2}px)`;
+
     return {
         top: `${top}px`,
         height: `${height}px`,
+        left,
+        width,
         '--event-color': occ.color || undefined
     };
 }
@@ -782,8 +806,6 @@ const eventDragLabel = computed(() => {
 
 .time-grid-event {
     position: absolute;
-    left: 2px;
-    right: 2px;
     border-radius: 6px;
     overflow: visible;
     cursor: grab;
