@@ -171,9 +171,13 @@ function measureDayWidth() {
     dayWidth.value = Math.max(80, Math.floor(available / VISIBLE_DAYS));
 }
 
+// Centre cursorDate parmi les VISIBLE_DAYS colonnes visibles (pas juste en
+// bord gauche de la fenêtre) : on recule d'une demi-fenêtre avant lui.
+const CENTER_OFFSET = Math.floor(VISIBLE_DAYS / 2);
+
 function scrollToCenter() {
     if (!bodyEl.value) return;
-    bodyEl.value.scrollLeft = INITIAL_HALF * dayWidth.value;
+    bodyEl.value.scrollLeft = (INITIAL_HALF - CENTER_OFFSET) * dayWidth.value;
     if (headerEl.value) headerEl.value.scrollLeft = bodyEl.value.scrollLeft;
     if (alldayEl.value) alldayEl.value.scrollLeft = bodyEl.value.scrollLeft;
 }
