@@ -790,9 +790,9 @@ onBeforeUnmount(async () => {
                 />
             </Transition>
 
-            </template>
-
             <UserCard :isLittleScreen="isLittleScreen" />
+
+            </template>
 
             <KeyTrustAlerts />
 
