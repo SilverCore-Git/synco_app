@@ -162,6 +162,14 @@ function resetBuffer(center: Date) {
     bufferDayCount.value = INITIAL_HALF * 2 + 1;
 }
 
+// Le composant est recréé à chaque fois qu'on revient sur la vue semaine
+// (v-if dans AgendaView.vue, pas de keep-alive) : sans cet appel, le buffer
+// initial ci-dessus ne serait pas décalé de INITIAL_HALF comme resetBuffer
+// le fait, et cursorDate se retrouverait à l'index 0 au lieu de
+// INITIAL_HALF — scrollToCenter() (qui suppose ce dernier) centrerait alors
+// sur le mauvais jour.
+resetBuffer(props.cursorDate);
+
 const headerEl = ref<HTMLElement | null>(null);
 const alldayEl = ref<HTMLElement | null>(null);
 const bodyEl = ref<HTMLElement | null>(null);
