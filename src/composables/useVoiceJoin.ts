@@ -1,10 +1,13 @@
 import sfetch from '@/assets/utils/sfetch';
 import useLiveKit, { CallEncryptionError } from './useLiveKit';
+import useWSocket from './useWSocket';
 import { useToast } from './useToast';
 import { generateThreadKey, encryptThreadKeyForMember, E2EEUnloked, privateKey } from '@/assets/utils/crypto';
 import { resolveRecipientKey } from '@/assets/utils/keyTrust';
 import { openedOrg, user } from '@/assets/var';
 import type { Thread } from '@/types/types';
+
+const KEY_RECOVERY_TIMEOUT_MS = 8000;
 
 /**
  * Rejoindre un salon vocal d'une org (VoiceThreadView, VoiceThreadBtn).
@@ -59,6 +62,40 @@ async function bootstrapVocalThreadE2EE(thread: Thread): Promise<void> {
     });
 }
 
+/**
+ * Salon déjà chiffré (d'autres membres ont une clé) mais sans copie pour
+ * nous — typiquement après un reset E2EE, ou un membre resté hors d'un
+ * bootstrap partiel. Sans ce repli, ce membre ne pourrait plus jamais
+ * rejoindre l'appel : contrairement à ThreadView.vue (messages), aucune UI
+ * vocale ne déclenchait jusqu'ici la récupération needsReadd. Réutilise le
+ * mécanisme existant (request-thread-keys / distribute-thread-keys) plutôt
+ * que d'en refaire un : true si une clé a été reçue pendant l'attente.
+ */
+async function waitForKeyRedistribution(threadId: string, timeoutMs: number): Promise<boolean> {
+    const socket = (await useWSocket()).value;
+    if (!socket) return false;
+
+    return new Promise<boolean>((resolve) => {
+        let settled = false;
+        const onDistributed = ({ threadId: tid }: { threadId: string }) => {
+            if (tid !== threadId || settled) return;
+            settled = true;
+            clearTimeout(timer);
+            socket.off('keys-distributed', onDistributed);
+            resolve(true);
+        };
+        const timer = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            socket.off('keys-distributed', onDistributed);
+            resolve(false);
+        }, timeoutMs);
+
+        socket.on('keys-distributed', onDistributed);
+        socket.emit('request-thread-keys', { threadId, publicKey: user.value?.publicKey });
+    });
+}
+
 /** Renvoie true si l'appel a été rejoint. */
 export async function joinVoiceThread(thread: Thread, spaceId: string): Promise<boolean> {
     const toast = useToast();
@@ -83,6 +120,16 @@ export async function joinVoiceThread(thread: Thread, spaceId: string): Promise<
             if (retry.ok) data = await retry.json();
         } catch (e) {
             console.error('[E2EE] Bootstrap du salon vocal échoué, jointure en clair:', e);
+        }
+    } else if (data.e2eeRequired && !data.e2eeKey) {
+        try {
+            const repaired = await waitForKeyRedistribution(thread.id, KEY_RECOVERY_TIMEOUT_MS);
+            if (repaired) {
+                const retry = await fetchToken();
+                if (retry.ok) data = await retry.json();
+            }
+        } catch (e) {
+            console.error('[E2EE] Récupération de la clé du salon vocal échouée:', e);
         }
     }
 
