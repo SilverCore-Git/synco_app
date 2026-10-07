@@ -271,6 +271,8 @@
                 :isDeafened="isDeafened"
                 :switchDevice="switchDevice"
                 :applyVideoQuality="(source, opts) => applyVideoQuality(source === 'camera' ? Track.Source.Camera : Track.Source.ScreenShare, opts)"
+                :noiseSuppressionEnabled="isNoiseSuppressionEnabled"
+                :toggleNoiseSuppression="toggleNoiseSuppression"
                 @toggleMic="toggleMicrophone(!isMicEnabled)"
                 @toggleCam="onToggleCam"
                 @toggleScreenShare="onToggleScreenShare"
@@ -374,7 +376,9 @@ const {
     toggleScreenShare,
     toggleDeafen,
     switchDevice,
-    applyVideoQuality
+    applyVideoQuality,
+    isNoiseSuppressionEnabled,
+    toggleNoiseSuppression
 } = useLiveKit();
 
 const userFocused = ref<any>(null);
