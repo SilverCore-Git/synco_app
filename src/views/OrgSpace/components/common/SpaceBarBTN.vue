@@ -1,6 +1,12 @@
 <template>
 
-    <div class="group relative ">
+    <div
+        ref="rootRef"
+        class="group relative"
+        :style="{ '--glow-rgb': glowRgb }"
+        @mouseenter="onMouseEnter"
+        @mouseleave="hovering = false"
+    >
 
         <button
             @click="$emit('click')"
@@ -19,32 +25,32 @@
             ]"
         >
 
-            <div 
+            <div
                 class="
                     absolute inset-0
-                    opacity-0 group-hover:opacity-10 
+                    opacity-0 group-hover:opacity-10
                     transition-opacity
-                " 
-                :class="redhover ? 'bg-red-500' : 'bg-(--primary)'"
+                "
+                :style="{ backgroundColor: 'rgb(var(--glow-rgb))' }"
             />
 
-            <img 
-                v-if="icon && icon.includes('data:')" 
-                :src="icon" 
+            <img
+                v-if="icon && icon.includes('data:')"
+                :src="icon"
                 :alt="label"
                 class="
                      rounded-md object-cover
                     group-active:scale-50 group-hover:scale-110
-                    transition-all duration-300 ease-out 
+                    transition-all duration-300 ease-out
                 "
             />
 
-            <i 
+            <i
                 v-else-if="icon"
                 class="
                     bi text-[28px] relative z-10
                     group-active:scale-50 group-hover:scale-110
-                    transition-all duration-300 ease-out     
+                    transition-all duration-300 ease-out
                 "
                 :class="[
                     active && iconFillOnActive ? icon + '-fill' : icon,
@@ -52,7 +58,7 @@
                     redhover ? 'group-hover:text-red-500' : 'group-hover:text-(--primary)'
                 ]"
             />
-            
+
             <div v-else class="w-full h-full bg-(--bg) flex items-center justify-center group-hover:scale-110 group-active:scale-50 transition-all duration-300 ease-out ">
                 <span class="text-xl font-black text-(--primary)">{{ label.substring(0, 2).toUpperCase() }}</span>
             </div>
@@ -77,36 +83,48 @@
             <i class="bi bi-mic-fill text-white text-[9px]" />
         </div>
 
-        <div
-            class="
-                absolute left-14 top-1/2 -translate-y-1/2
-                hidden group-hover:flex z-50 pointer-events-none
-            "
-        >
-            <span
-                class="
-                    bg-(--bg2) text-(--text) text-xs font-bold
-                    px-3 py-1.5 rounded-lg border relative
-                    shadow-xl shadow-black/50 whitespace-nowrap
-                    animate-silver-load 
-                "
-                :class="redhover ? 'border-red-500/30' : 'border-(--primary)/30'"
+        <!-- Teleporté sur <body> : SpaceBar.vue liste ces boutons dans un
+             `ul` en overflow-y-auto, qui clippe tout descendant positionné en
+             absolu dépassant la largeur de la sidebar (overflow-y non
+             'visible' force overflow-x à se comporter comme 'auto' — CSS
+             Overflow Module) — le tooltip était donc invisible, pas
+             seulement mal empilé. Même pattern que DropDown.vue : on
+             recalcule sa position depuis le bouton et on le sort du flux
+             clippé plutôt que de jouer sur z-index, qui n'aurait rien changé
+             au clipping. `--glow-rgb` est redéfini ici car Teleport déplace
+             le nœud hors de son parent dans le DOM réel : il n'hérite plus
+             de la valeur posée sur `rootRef`. -->
+        <Teleport to="body">
+            <div
+                v-if="hovering"
+                class="fixed z-[1000] pointer-events-none"
+                :style="{ ...tooltipPosition, '--glow-rgb': glowRgb }"
             >
-                {{ label }}
-            
-                <div 
+                <span
                     class="
-                        absolute -left-1 top-1/2 
-                        -translate-y-1/2 w-2 h-2 
-                        border-l border-b
-                        rotate-45 bg-(--bg2) 
+                        bg-(--bg2) text-(--text) text-xs font-bold
+                        px-3 py-1.5 rounded-lg border relative
+                        shadow-xl shadow-black/50 whitespace-nowrap
+                        animate-silver-load
                     "
-                    :class="redhover ? 'border-red-500/30' : 'border-(--primary)/30'"
-                />
+                    :style="{ borderColor: 'rgba(var(--glow-rgb), 0.3)' }"
+                >
+                    {{ label }}
 
-            </span>
+                    <div
+                        class="
+                            absolute -left-1 top-1/2
+                            -translate-y-1/2 w-2 h-2
+                            border-l border-b
+                            rotate-45 bg-(--bg2)
+                        "
+                        :style="{ borderColor: 'rgba(var(--glow-rgb), 0.3)' }"
+                    />
 
-        </div>
+                </span>
+
+            </div>
+        </Teleport>
 
     </div>
 
@@ -114,6 +132,8 @@
 
 <script lang="ts" setup>
 
+import { ref, computed, watch } from 'vue';
+import { getAverageColor, hexToRgb } from '@/assets/utils/getAverageColor';
 
 const props = defineProps<{
     icon: string; // bi | http
@@ -130,12 +150,42 @@ defineEmits<{
     (e: 'click'): void;
 }>();
 
+// Couleur tampon de l'image du space (même principe que les bannières
+// utilisateur, cf. UserDropDown.vue) : teinte le halo au survol, l'overlay
+// et le tooltip. `null` pour les boutons sans image (icônes bi-*, logo
+// absent) : --glow-rgb retombe alors sur --primary-rgb, le rendu d'avant.
+const dominantRgb = ref<string | null>(null);
+
+watch(() => props.icon, async (icon) => {
+    dominantRgb.value = icon && icon.includes('data:') ? hexToRgb(await getAverageColor(icon)) : null;
+}, { immediate: true });
+
+const glowRgb = computed(() => {
+    if (props.redhover) return '239, 68, 68'; // red-500, cf. classes hover existantes
+    return dominantRgb.value || 'var(--primary-rgb)';
+});
+
+const rootRef = ref<HTMLElement | null>(null);
+const hovering = ref(false);
+const tooltipPosition = ref<Record<string, string>>({});
+
+const onMouseEnter = () => {
+    hovering.value = true;
+    if (!rootRef.value) return;
+    const rect = rootRef.value.getBoundingClientRect();
+    tooltipPosition.value = {
+        top: `${rect.top + rect.height / 2}px`,
+        left: `${rect.right + 8}px`,
+        transform: 'translateY(-50%)'
+    };
+};
+
 </script>
 
 <style scoped>
 
 button:hover {
-  box-shadow: 0 0 15px -3px rgba(30, 215, 96, 0.2);
+  box-shadow: 0 0 15px -3px rgba(var(--glow-rgb), 0.2);
 }
 
 .animate-silver-load {
