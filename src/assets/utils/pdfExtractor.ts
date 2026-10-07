@@ -14,7 +14,7 @@ export async function extractTextFromPDF(file: File): Promise<string> {
         // piégé déposé par un tiers (audit FX7).
         const pdf = await pdfjsLib.getDocument({
             data: arrayBuffer,
-            isEvalSupported: false,
+            //isEvalSupported: false,
             enableXfa: false,
             disableFontFace: true,
         }).promise;

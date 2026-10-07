@@ -17,7 +17,7 @@
             >
                 <button
                     v-for="(opt, i) in args.options" :key="opt"
-                    :style="{ transitionDelay: `${i * 40}ms` }"
+                    :style="{ transitionDelay: `${Number(i) * 40}ms` }"
                     @click="$emit('answer', opt)"
                     class="text-xs font-medium px-3 py-1.5 rounded-lg border border-(--border-color) bg-(--bg) hover:border-(--primary)/50 hover:bg-(--primary)/5 text-(--text) transition-colors"
                 >{{ opt }}</button>
