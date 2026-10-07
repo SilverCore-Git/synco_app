@@ -15,7 +15,14 @@ import { openedOrg } from '@/assets/var';
 import { decryptThreadKeyWithRsa, privateKey } from '@/assets/utils/crypto';
 import { pinOrCheckKey } from '@/assets/utils/keyPinning';
 import { verifyKeyEnvelopeIfPresent } from '@/assets/utils/keyEnvelope';
-import E2EEWorker from '../../node_modules/livekit-client/dist/livekit-client.e2ee.worker.js?worker&url';
+// `?worker` (constructeur), pas `?worker&url` + new Worker(url) manuel :
+// laisse Vite servir le fichier via son propre pipeline d'assets (bon
+// Content-Type, bon format worker.format — IIFE par défaut, cohérent avec
+// ce bundle UMD). Le ?worker&url précédent pointait un fichier statique
+// brut au fond de node_modules ; Firefox est plus strict que Chrome sur le
+// Content-Type réel d'un script de worker et refusait de l'exécuter
+// (erreur onerror vide, sans message).
+import E2EEWorker from '../../node_modules/livekit-client/dist/livekit-client.e2ee.worker.js?worker';
 import useWSocket from './useWSocket';
 import { useToast } from './useToast';
 import sfetch from '@/assets/utils/sfetch';
@@ -242,14 +249,7 @@ function useLiveKit()
             new Uint8Array(mediaKey).fill(0);
             e2eeOptions = {
                 keyProvider,
-                // Le bundle livekit-client.e2ee.worker.js (la cible "require" de la
-                // map exports du package) est un IIFE/UMD classique, sans
-                // import/export — { type: 'module' } force pourtant le navigateur
-                // à le charger comme un module ES. Chrome tolère l'incohérence
-                // (un script sans imports reste un module valide), Firefox non :
-                // le worker échoue à s'initialiser (EncryptionError silencieuse
-                // puis CallEncryptionError), uniquement sur Firefox.
-                worker: new Worker(E2EEWorker),
+                worker: new E2EEWorker(),
             };
         }
 
