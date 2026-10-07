@@ -173,7 +173,7 @@
         <div
             v-else
             class="
-                grid grid-cols-[repeat(auto-fill,minmax(18rem,1fr))]
+                grid grid-cols-[repeat(auto-fit,minmax(18rem,1fr))]
                 justify-center justify-items-center items-center p-4 xl:p-10
                 gap-6 transition-all duration-500 w-full min-h-full
             "
