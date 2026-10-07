@@ -315,7 +315,7 @@
 
                     </div>
 
-                    <div v-if="inviteLinks.length > 0" class="overflow-x-auto">
+                    <div v-if="genericInviteLinks.length > 0" class="overflow-x-auto">
                         <div class="w-full">
 
                             <!-- Header -->
@@ -323,11 +323,11 @@
                                         hidden sm:grid
                             ">
                                 <div class="px-6 py-4 font-bold">Code</div>
-                                <div 
+                                <div
                                     class="px-6 py-4 font-bold
                                             hidden sm:block
                                 ">Utilisations</div>
-                                <div 
+                                <div
                                     class="px-6 py-4 font-bold
                                             hidden sm:block
                                 ">Expiration</div>
@@ -337,7 +337,7 @@
                             <!-- Body -->
                             <div class="divide-y divide-(--border-color)">
                                 <div
-                                    v-for="link in inviteLinks"
+                                    v-for="link in genericInviteLinks"
                                     :key="link.id"
                                     class="group block sm:grid sm:grid-cols-[1fr_1fr_1fr_1fr] hover:bg-(--bg)/40 transition-colors"
                                 >
@@ -479,9 +479,87 @@
                     </div>
 
 
-                    
+
                     <div v-else class="p-8 text-center text-(--text2) text-sm">
                         Aucun lien d'invitation actif.
+                    </div>
+
+                </section>
+
+                <!----------------------------->
+                <!-- SECTION INVITATION EMAIL -->
+                <!----------------------------->
+                <section class="bg-(--bg2) rounded-2xl border border-(--border-color) shadow-sm overflow-hidden flex flex-col">
+
+                    <div class="p-6 border-b border-(--border-color) flex flex-col gap-6 bg-(--bg3)/20">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-bold text-(--text) flex items-center gap-3">
+                                Invitations par e-mail
+                                <span class="bg-(--text)/10 text-(--text) py-1 px-2.5 rounded-lg text-xs" v-if="emailInvites.length > 0">
+                                    {{ emailInvites.length }} en attente
+                                </span>
+                            </h3>
+                        </div>
+
+                        <!-- Zone de saisie de l'adresse à inviter -->
+                        <div class="flex flex-col sm:flex-row gap-3" v-if="can('ORG_MEMBERS')">
+                            <input
+                                v-model="inviteEmail"
+                                type="email"
+                                placeholder="adresse@email.com"
+                                class="flex-1 bg-(--bg) border border-(--border-color) rounded-xl px-4 py-3 text-sm text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner placeholder:text-(--text2)"
+                                @keyup.enter="sendEmailInvite()"
+                            />
+                            <button
+                                @click="sendEmailInvite()"
+                                :disabled="sendingEmailInvite || !inviteEmail.trim()"
+                                class="primary flex items-center justify-center gap-2 whitespace-nowrap shadow-sm !w-full sm:!w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <i class="bi" :class="sendingEmailInvite ? 'bi-arrow-repeat animate-spin' : 'bi-envelope-plus'" />
+                                Envoyer l'invitation
+                            </button>
+                        </div>
+                    </div>
+
+                    <div v-if="emailInvites.length > 0" class="divide-y divide-(--border-color)">
+                        <div
+                            v-for="inv in emailInvites"
+                            :key="inv.id"
+                            class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-6 hover:bg-(--bg)/40 transition-colors"
+                        >
+                            <div class="flex items-center gap-3 min-w-0">
+                                <i class="bi bi-envelope text-(--text2)" />
+                                <div class="flex flex-col min-w-0">
+                                    <span class="text-sm font-semibold text-(--text) truncate">{{ inv.email }}</span>
+                                    <span class="text-[11px]" :class="isExpired(inv) ? 'text-red-400' : 'text-(--text2)'">
+                                        {{ isExpired(inv) ? 'Expirée' : `Expire le ${new Date(inv.expiresAt).toLocaleDateString('fr-FR')}` }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-2 shrink-0" v-if="can('ORG_MEMBERS')">
+                                <button
+                                    @click="sendEmailInvite(inv.email)"
+                                    :disabled="sendingEmailInvite"
+                                    class="bg-(--bg) border border-(--border-color) text-(--text2) hover:text-(--text) hover:bg-(--text)/5 rounded-xl px-3 py-2 text-xs font-medium transition-all flex items-center gap-2 disabled:opacity-50"
+                                    title="Renvoyer l'invitation"
+                                >
+                                    <i class="bi bi-arrow-repeat" />
+                                    Renvoyer
+                                </button>
+                                <button
+                                    @click="deleteInvite(inv.code, 1)"
+                                    class="p-2 rounded-xl text-(--text2) hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                                    title="Révoquer l'invitation"
+                                >
+                                    <i class="bi bi-trash" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-else class="p-8 text-center text-(--text2) text-sm">
+                        Aucune invitation par e-mail en attente.
                     </div>
 
                 </section>
@@ -526,6 +604,16 @@ const copied = ref<boolean>(false);
 const inviteLinks = ref<any[]>([]);
 const inviteLink = ref<string>('');
 const inviteMaxUses = ref<number>(1);
+const inviteEmail = ref<string>('');
+const sendingEmailInvite = ref<boolean>(false);
+
+// Une même liste (OrgInvite) porte les liens génériques et les invitations
+// nominatives par e-mail : on la scinde ici plutôt que côté API pour garder
+// un seul fetch et un seul "Révoquer" (deleteInvite, par code) pour les deux.
+const genericInviteLinks = computed(() => inviteLinks.value.filter(l => !l.email));
+const emailInvites = computed(() => inviteLinks.value.filter(l => !!l.email));
+
+const isExpired = (invite: any) => !!invite.expiresAt && new Date(invite.expiresAt) < new Date();
 
 const orgId = computed(() => openedOrg.value?.id);
 const { fetchRoles, can } = usePermissions(orgId);
@@ -719,6 +807,46 @@ const createInviteLink = async () => {
 
     } catch (err) {
         toast.show('Erreur lors de la création du lien.', 'error');
+    }
+
+};
+
+const sendEmailInvite = async (resendTo?: string) => {
+
+    const email = (resendTo ?? inviteEmail.value).trim();
+    if (!email || sendingEmailInvite.value) return;
+
+    sendingEmailInvite.value = true;
+
+    try {
+
+        const res = await sfetch('/api/orgs/users/inviteLink/email', {
+            method: 'POST',
+            body: JSON.stringify({ organizationId: openedOrg.value?.id, email })
+        });
+        const data = await res.json();
+
+        // Renvoyée (OK) ou créée mais non délivrée (502) : l'API remplace
+        // toute invitation en attente pour cette adresse par une nouvelle,
+        // on reflète donc la même substitution côté liste locale.
+        const invite = res.ok ? data : data.invite;
+
+        if (invite) {
+            inviteLinks.value = inviteLinks.value.filter(l => l.email?.toLowerCase() !== email.toLowerCase());
+            inviteLinks.value.unshift(invite);
+        }
+
+        if (res.ok) {
+            toast.show(`Invitation envoyée à ${email}.`, 'success');
+            if (!resendTo) inviteEmail.value = '';
+        } else {
+            toast.show(data.error || "Erreur lors de l'envoi de l'invitation.", 'error');
+        }
+
+    } catch (err) {
+        toast.show('Erreur de connexion', 'error');
+    } finally {
+        sendingEmailInvite.value = false;
     }
 
 };
