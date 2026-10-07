@@ -411,12 +411,21 @@ function useLiveKit()
             const prefs = getVoicePrefs();
             const micOptions: AudioCaptureOptions = {};
             if (prefs.micDeviceId) micOptions.deviceId = prefs.micDeviceId;
-            if (prefs.noiseSuppressionEnabled) {
-                noiseProcessor = new RNNoiseProcessor();
-                micOptions.processor = noiseProcessor;
-            }
             isNoiseSuppressionEnabled.value = prefs.noiseSuppressionEnabled;
             await newRoom.localParticipant.setMicrophoneEnabled(true, micOptions);
+
+            // Le processor doit être attaché après coup, pas via les options
+            // ci-dessus : passé à la création, livekit-client (2.18.1) appelle
+            // setProcessor avant d'avoir assigné l'audioContext à la piste
+            // (ordre interne à create.ts), ce qui fait échouer tout
+            // setMicrophoneEnabled avec "Audio context needs to be set [...]".
+            if (prefs.noiseSuppressionEnabled) {
+                const micTrack = newRoom.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack as LocalAudioTrack | undefined;
+                if (micTrack) {
+                    noiseProcessor = new RNNoiseProcessor();
+                    await micTrack.setProcessor(noiseProcessor);
+                }
+            }
 
             // Périphérique de sortie audio choisi dans les réglages, appliqué dès la
             // connexion — échoue silencieusement si le device a disparu depuis
