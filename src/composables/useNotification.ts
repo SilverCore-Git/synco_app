@@ -1,6 +1,6 @@
 import { ref, computed, type Ref } from 'vue';
 import useWSocket from './useWSocket';
-import { user } from '../assets/var';
+import { user, openedOrg } from '../assets/var';
 import { useToast } from './useToast';
 import { useRouter } from 'vue-router';
 import sfetch from '../assets/utils/sfetch';
@@ -417,6 +417,34 @@ export function useNotification() {
   // ==================== WEB SOCKET ====================
 
   /**
+   * Est-ce que cette notification MESSAGE concerne le DM ou le salon
+   * actuellement ouvert à l'écran ? Dans ce cas elle ne doit pas allumer de
+   * badge/point rouge — on est déjà en train de lire la conversation. Même
+   * règle que notif:dm:new-message / notif:new-message dans OrgLayout.vue,
+   * qui suppriment déjà le toast riche dans ce cas ; ici on couvre le badge
+   * du centre de notifications (UsersBar, ThreadsBar...) qui vient d'un
+   * pipeline séparé (notification:push) et n'avait pas ce garde-fou.
+   */
+  const isForActiveConversation = (notification: AppNotification): boolean => {
+    if (notification.type !== 'MESSAGE') return false;
+    const route = router.currentRoute.value;
+
+    if (notification.data?.dmUserId) {
+      if (route.name !== 'OrgThreadChat' && route.name !== 'OrgThreadChatPrivateMeet') return false;
+      // route.params.userId est en réalité l'id du membre (OrgMember.id), pas
+      // l'id utilisateur — cf. ChatView.vue (recipient, markDMAsRead).
+      const peerMemberId = openedOrg.value?.members?.find(m => m.user?.id === notification.data?.dmUserId)?.id;
+      return !!peerMemberId && route.params.userId === peerMemberId;
+    }
+
+    if (notification.data?.threadId) {
+      return route.params.threadId === notification.data.threadId;
+    }
+
+    return false;
+  };
+
+  /**
    * Configurer les listeners WebSocket
    */
   const setupWebSocketListeners = (): void => {
@@ -428,6 +456,13 @@ export function useNotification() {
       const exists = notifications.value.some(n => n.id === notification.id);
       if (!exists) {
         notifications.value.unshift(notification);
+      }
+
+      // Déjà en train de regarder cette conversation : la notification est
+      // instantanément marquée lue (pas de point rouge), cf. isForActiveConversation.
+      if (isForActiveConversation(notification)) {
+        markAsRead(notification.id);
+        return;
       }
 
       // Les messages (DM ou salon) ont déjà leur propre toast riche — avatar,
