@@ -139,9 +139,9 @@
                                 :class="!isReadOnly ? 'cursor-pointer hover:ring-2 hover:ring-(--primary)/50 transition-all' : ''"
                             />
                             <span
-                                v-if="msg.sender.data?.status"
+                                v-if="senderStatus(msg.sender)"
                                 class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg)"
-                                :class="getColorByStatus(msg.sender.data.status)"
+                                :class="getColorByStatus(senderStatus(msg.sender)!)"
                             />
                         </div>
                         <div 
@@ -280,7 +280,7 @@ import { encryptMessageWithContentKey } from '@/assets/utils/crypto';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import ThreadTextarea from './ThreadTextarea.vue';
 import { useRoute, useRouter } from 'vue-router';
-import { user, member } from '@/assets/var';
+import { user, member, openedOrg } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import { messagePreview } from '@/assets/utils/messagePreview';
 import { openProfile } from '@/composables/useProfile';
@@ -290,6 +290,15 @@ import { orgMentionLookup, isUserMentioned } from '@/composables/useMentions';
 import { extractReferenceTokens } from '@/composables/useReferences';
 import { navigateToReference } from '@/composables/useReferenceNavigation';
 import type { User } from '@/types/types';
+
+// msg.sender est une copie figée au moment de la réception du message : son
+// data.status n'est jamais mis à jour par le socket `user-status-changed`
+// (cf. OrgLayout.vue), contrairement à openedOrg.members qui lui est réactif.
+const senderStatus = (sender?: User | null): string | undefined => {
+    if (!sender) return undefined;
+    const m = openedOrg.value?.members?.find(mb => mb.userId === sender.id);
+    return m?.user?.data?.status || sender.data?.status;
+};
 
 const toast = useToast();
 const showReactionPicker = ref<boolean>(false);

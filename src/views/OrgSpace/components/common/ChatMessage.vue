@@ -126,9 +126,9 @@
                                 class="rounded-full w-9 h-9 object-cover cursor-pointer hover:ring-2 hover:ring-(--primary)/50 transition-all"
                             />
                             <span
-                                v-if="msg.sender.data?.status"
+                                v-if="senderStatus(msg.sender)"
                                 class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg)"
-                                :class="getColorByStatus(msg.sender.data.status)"
+                                :class="getColorByStatus(senderStatus(msg.sender)!)"
                             />
                         </div>
                         <div 
@@ -290,7 +290,7 @@ import MessageAttachments from './MessageAttachments.vue';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import ThreadTextarea from './ThreadTextarea.vue';
 import { useRoute, useRouter } from 'vue-router';
-import { user } from '@/assets/var';
+import { user, openedOrg } from '@/assets/var';
 import { encryptForPeer } from '@/assets/utils/crypto';
 import { requireTrustedKey } from '@/assets/utils/keyTrust';
 import { useToast } from '@/composables/useToast';
@@ -302,6 +302,15 @@ import { orgMentionLookup, isUserMentioned } from '@/composables/useMentions';
 import { extractReferenceTokens } from '@/composables/useReferences';
 import { navigateToReference } from '@/composables/useReferenceNavigation';
 import type { User } from '@/types/types';
+
+// msg.sender est une copie figée au moment de la réception du message : son
+// data.status n'est jamais mis à jour par le socket `user-status-changed`
+// (cf. OrgLayout.vue), contrairement à openedOrg.members qui lui est réactif.
+const senderStatus = (sender?: User | null): string | undefined => {
+    if (!sender) return undefined;
+    const member = openedOrg.value?.members?.find(m => m.userId === sender.id);
+    return member?.user?.data?.status || sender.data?.status;
+};
 
 const toast = useToast();
 const showReactionPicker = ref<boolean>(false);
