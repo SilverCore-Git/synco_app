@@ -9,12 +9,16 @@ import {
     VideoPresets,
     ScreenSharePresets,
     type VideoCaptureOptions,
-    type ScreenShareCaptureOptions
+    type ScreenShareCaptureOptions,
+    type AudioCaptureOptions,
+    type LocalAudioTrack
 } from 'livekit-client';
 import { openedOrg } from '@/assets/var';
 import { decryptThreadKeyWithRsa, privateKey } from '@/assets/utils/crypto';
 import { pinOrCheckKey } from '@/assets/utils/keyPinning';
 import { verifyKeyEnvelopeIfPresent } from '@/assets/utils/keyEnvelope';
+import { RNNoiseProcessor } from '@/assets/utils/rnnoiseProcessor';
+import { getVoicePrefs, saveVoicePrefs } from '@/assets/utils/voicePrefs';
 import E2EEWorker from '../../node_modules/livekit-client/dist/livekit-client.e2ee.worker.js?worker&url';
 import useWSocket from './useWSocket';
 import { useToast } from './useToast';
@@ -34,6 +38,9 @@ const isScreenShareEnabled = ref<boolean>(false);
 const isDeafened = ref<boolean>(false);
 const keyProvider = new ExternalE2EEKeyProvider();
 let intentionalDisconnect = false;
+
+const isNoiseSuppressionEnabled = ref<boolean>(getVoicePrefs().noiseSuppressionEnabled);
+let noiseProcessor: RNNoiseProcessor | null = null;
 
 /**
  * État réel du chiffrement de bout en bout de l'appel en cours, lu sur la
@@ -334,6 +341,7 @@ function useLiveKit()
             videoTracks.value.clear();
             gainNodes.forEach(g => g.disconnect());
             gainNodes.clear();
+            noiseProcessor = null;
 
             if (!intentionalDisconnect) {
                 useToast().show("Connexion au salon vocal perdue", "error");
@@ -400,9 +408,15 @@ function useLiveKit()
             room.value = newRoom;
             isConnected.value = true;
 
-            const { getVoicePrefs } = await import('@/assets/utils/voicePrefs');
             const prefs = getVoicePrefs();
-            await newRoom.localParticipant.setMicrophoneEnabled(true, prefs.micDeviceId ? { deviceId: prefs.micDeviceId } : undefined);
+            const micOptions: AudioCaptureOptions = {};
+            if (prefs.micDeviceId) micOptions.deviceId = prefs.micDeviceId;
+            if (prefs.noiseSuppressionEnabled) {
+                noiseProcessor = new RNNoiseProcessor();
+                micOptions.processor = noiseProcessor;
+            }
+            isNoiseSuppressionEnabled.value = prefs.noiseSuppressionEnabled;
+            await newRoom.localParticipant.setMicrophoneEnabled(true, micOptions);
 
             // Périphérique de sortie audio choisi dans les réglages, appliqué dès la
             // connexion — échoue silencieusement si le device a disparu depuis
@@ -452,6 +466,7 @@ function useLiveKit()
             videoTracks.value.clear();
             gainNodes.forEach(g => g.disconnect());
             gainNodes.clear();
+            noiseProcessor = null;
 
         }
 
@@ -491,6 +506,24 @@ function useLiveKit()
             gainNodes.forEach((gain, identity) => {
                 gain.gain.value = en ? 0 : getStoredVolume(identity) / 100;
             });
+        },
+
+        isNoiseSuppressionEnabled,
+        /** Active/désactive RNNoise sur la piste micro déjà publiée, sans republier ni couper l'appel. */
+        toggleNoiseSuppression: async (en: boolean) => {
+            saveVoicePrefs({ noiseSuppressionEnabled: en });
+            isNoiseSuppressionEnabled.value = en;
+
+            const audioTrack = room.value?.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack as LocalAudioTrack | undefined;
+            if (!audioTrack) return;
+
+            if (en) {
+                noiseProcessor = new RNNoiseProcessor();
+                await audioTrack.setProcessor(noiseProcessor);
+            } else if (audioTrack.getProcessor()) {
+                await audioTrack.stopProcessor();
+                noiseProcessor = null;
+            }
         },
 
         /** Volume local (0-200%) appliqué au flux d'un participant distant — jamais envoyé au serveur. */
