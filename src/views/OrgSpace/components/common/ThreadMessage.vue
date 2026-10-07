@@ -129,15 +129,21 @@
                             @error="(e: any) => e.target.src = defaultAvatar(msg.webhookName || 'Webhook', '#7c3aed')"
                             class="rounded-full w-9 h-9 object-cover shrink-0 cursor-default"
                         />
-                        <img 
-                            v-else-if="msg.sender && !isStacked"
-                            :src="msg.sender?.avatarUrl || defaultAvatar($p(msg.sender?.name))"
-                            :alt="$p(msg.sender?.name)"
-                            @error="(e: any) => e.target.src = defaultAvatar($p(msg.sender?.name))"
-                            @click.stop="(e) => !isReadOnly && msg.sender && openProfile(msg.sender, e)"
-                            class="rounded-full w-9 h-9 object-cover shrink-0"
-                            :class="!isReadOnly ? 'cursor-pointer hover:ring-2 hover:ring-(--primary)/50 transition-all' : ''"
-                        />
+                        <div v-else-if="msg.sender && !isStacked" class="relative shrink-0">
+                            <img
+                                :src="msg.sender?.avatarUrl || defaultAvatar($p(msg.sender?.name))"
+                                :alt="$p(msg.sender?.name)"
+                                @error="(e: any) => e.target.src = defaultAvatar($p(msg.sender?.name))"
+                                @click.stop="(e) => !isReadOnly && msg.sender && openProfile(msg.sender, e)"
+                                class="rounded-full w-9 h-9 object-cover"
+                                :class="!isReadOnly ? 'cursor-pointer hover:ring-2 hover:ring-(--primary)/50 transition-all' : ''"
+                            />
+                            <span
+                                v-if="msg.sender.data?.status"
+                                class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg)"
+                                :class="getColorByStatus(msg.sender.data.status)"
+                            />
+                        </div>
                         <div 
                             v-else-if="isStacked"
                             class="w-9 shrink-0 flex items-start justify-center opacity-0 group-hover:opacity-100 transition-opacity select-none"
@@ -260,6 +266,7 @@
 <script setup lang="ts">
 
 import { defaultAvatar } from '@/assets/utils/defaultAvatar';
+import getColorByStatus from '@/assets/utils/getColorByStatus';
 import { computed, nextTick, ref, watch } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
