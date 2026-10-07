@@ -237,7 +237,7 @@ const handleAction = async () => {
     else 
     {
 
-        await joinVoiceThread(props.thread.id, String(route.params.spaceId));
+        await joinVoiceThread(props.thread, String(route.params.spaceId));
 
     }
 

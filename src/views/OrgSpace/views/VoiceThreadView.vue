@@ -493,7 +493,7 @@ const joinCall = async () => {
     try {
         fetchPermissions(spaceId.value);
 
-        await joinVoiceThread(props.thread.id, String(route.params.spaceId));
+        await joinVoiceThread(props.thread!, String(route.params.spaceId));
     } catch (e) {
         toast.show("Erreur de connexion", "error");
     } finally {
