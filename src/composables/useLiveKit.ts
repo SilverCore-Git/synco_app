@@ -242,7 +242,14 @@ function useLiveKit()
             new Uint8Array(mediaKey).fill(0);
             e2eeOptions = {
                 keyProvider,
-                worker: new Worker(E2EEWorker, { type: 'module' }),
+                // Le bundle livekit-client.e2ee.worker.js (la cible "require" de la
+                // map exports du package) est un IIFE/UMD classique, sans
+                // import/export — { type: 'module' } force pourtant le navigateur
+                // à le charger comme un module ES. Chrome tolère l'incohérence
+                // (un script sans imports reste un module valide), Firefox non :
+                // le worker échoue à s'initialiser (EncryptionError silencieuse
+                // puis CallEncryptionError), uniquement sur Firefox.
+                worker: new Worker(E2EEWorker),
             };
         }
 
