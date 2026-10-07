@@ -13,9 +13,9 @@
 
 
                 <img 
-                    :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`" 
+                    :src="recipient?.avatarUrl || defaultAvatar($p(recipient?.name))" 
                     :alt="$p(recipient.name)"
-                    @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`"
+                    @error="(e: any) => e.target.src = defaultAvatar($p(recipient?.name))"
                     class="w-9 h-9 rounded-full border border-(--text)/10"
                 />
 
@@ -90,7 +90,7 @@
                    
                     <div class="w-20 h-20 rounded-full bg-(--text)/5 flex items-center justify-center mb-4 overflow-hidden border-2 border-(--text)/10">
                         <img 
-                            :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`" 
+                            :src="recipient?.avatarUrl || defaultAvatar($p(recipient?.name))" 
                             class="w-full h-full object-cover" 
                         />
                     </div>
@@ -341,7 +341,8 @@
             </p>
 
             <div class="px-4 py-3 rounded-xl bg-(--bg2) border border-(--border-color) text-center">
-                <span class="text-lg font-mono tracking-[0.2em] text-(--text)">{{ keyFingerprint }}</span>
+                <!-- Empreinte complète (SHA-256, RFC 7638), en groupes de 4 (audit FC1) -->
+                <span class="text-sm font-mono tracking-wider break-all text-(--text)">{{ keyFingerprint }}</span>
             </div>
 
             <template #footer>
@@ -358,6 +359,7 @@
 
 <script lang="ts" setup>
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { DMMessage, OrgMember, User } from '@/types/types';
@@ -386,7 +388,7 @@ import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useNotification } from '@/composables/useNotification';
 import { useRecentDMs } from '@/composables/useRecentDMs';
 import { getCachedPlaintext, setCachedPlaintext } from '@/assets/utils/dmPlaintextCache';
-import { checkKeyTrust, trustKey, computeKeyFingerprint, type KeyTrustResult } from '@/assets/utils/keyTrust';
+import { checkKeyTrust, trustKey, computeKeyFingerprint, requireTrustedKey, dismissKeyTrustAlert, type KeyTrustResult } from '@/assets/utils/keyTrust';
 import Popup from '@/components/Popup.vue';
 
 const route = useRoute();
@@ -654,7 +656,10 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<
 
         // Only attempt decryption if message is marked as E2EE and has the required keys
         if (!msg.isE2EE || !keyToUse || !msg.nonce) {
-            return { ...msg, content: msg.content };
+            // Contenu en clair (ou drapeau isE2EE posé à faux par le serveur) :
+            // affiché avec un marqueur explicite, jamais comme un message
+            // chiffré authentique (audit FC7).
+            return { ...msg, content: msg.content, securityState: 'plaintext' };
         }
 
         const cached = getCachedPlaintext(msg.id, msg.nonce);
@@ -1025,6 +1030,7 @@ const openKeyPanel = async () => {
 const trustCurrentKey = async () => {
     if (!recipient.value?.publicKey) return;
     await trustKey(recipient.value.id, recipient.value.publicKey);
+    dismissKeyTrustAlert(recipient.value.id);
     keyTrustState.value = 'match';
     toast.show('Nouvelle clé de sécurité approuvée.', 'warning');
 };
@@ -1035,6 +1041,12 @@ const sendMessage = async () => {
 
     const clearContent = newMessage.value;
     const tempId = `temp-${Date.now()}`;
+    // Jamais d'envoi en clair implicite : chiffrement verrouillé = refus
+    // (audit FC7).
+    if (isE2EEEnabled.value && !E2EEUnloked.value) {
+        toast.show('Déverrouillez le chiffrement (code PIN) pour envoyer ce message.', 'error');
+        return;
+    }
     const useEncryption = isE2EEEnabled.value && E2EEUnloked.value;
 
     const tempMessage = {
@@ -1076,7 +1088,11 @@ const sendMessage = async () => {
             return;
         }
 
-        const trust = await checkKeyTrust(recipient.value.id, recipientPubKey);
+        // Épinglage TOFU explicite : première rencontre épinglée, clé changée
+        // refusée (keyTrust.ts, audit FC1).
+        let trust: KeyTrustResult = 'match';
+        try { await requireTrustedKey(recipient.value.id, recipientPubKey); }
+        catch { trust = 'changed'; dismissKeyTrustAlert(recipient.value.id); }
         if (trust === 'changed')
         {
             toast.show(

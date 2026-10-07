@@ -149,7 +149,7 @@ const acceptInvite = async () => {
     } 
     catch (err: any) {
         accepting.value = false;
-        error.value = "Erreur lors de l'acceptation de l'invitation.";
+        error.value = err?.message || "Erreur lors de l'acceptation de l'invitation.";
     }
 
 };

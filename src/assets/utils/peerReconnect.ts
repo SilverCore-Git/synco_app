@@ -10,6 +10,7 @@
 interface ReconnectablePeer {
     readonly destroyed: boolean;
     readonly disconnected: boolean;
+    readonly options: { token?: string };
     reconnect(): void;
 }
 
@@ -27,10 +28,15 @@ interface ReconnectablePeer {
  *
  * Mirrors useWSocket.ts's own reconnection backoff (1s up to 5s) rather
  * than retrying instantly forever.
+ *
+ * `fetchToken` fournit un ticket PeerJS neuf avant chaque reconnect() :
+ * PeerJS renvoie sinon le token donné à la construction, que le serveur
+ * refuse dès qu'il a expiré ou que le secret a changé (redémarrage de
+ * synco_api) — la reconnexion bouclait alors indéfiniment sur un refus.
  */
 export function createPeerReconnector(
     getPeer: () => ReconnectablePeer | null,
-    options: { baseDelay?: number; maxDelay?: number } = {}
+    options: { baseDelay?: number; maxDelay?: number; fetchToken?: () => Promise<string | null> } = {}
 ) {
     const baseDelay = options.baseDelay ?? 1000;
     const maxDelay = options.maxDelay ?? 5000;
@@ -55,13 +61,20 @@ export function createPeerReconnector(
 
     const schedule = () => {
         if (timeoutId) return; // déjà une tentative programmée
-        timeoutId = setTimeout(() => {
+        timeoutId = setTimeout(async () => {
             timeoutId = null;
+            delay = Math.min(delay * 1.5, maxDelay);
             const peer = getPeer();
-            if (peer && !peer.destroyed && peer.disconnected) {
+            if (!peer || peer.destroyed || !peer.disconnected) return;
+            if (options.fetchToken) {
+                const token = await options.fetchToken().catch(() => null);
+                if (!token) return schedule();
+                // PeerJS relit options.token à chaque reconnect().
+                peer.options.token = token;
+            }
+            if (getPeer() === peer && !peer.destroyed && peer.disconnected) {
                 peer.reconnect();
             }
-            delay = Math.min(delay * 1.5, maxDelay);
         }, delay);
     };
 

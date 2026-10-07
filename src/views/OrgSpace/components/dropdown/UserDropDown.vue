@@ -1,10 +1,11 @@
 <script setup lang="ts">
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import type { User } from '@/types/types';
 import DropDown from '@/components/DropDown.vue';
 import useWSocket, { disconnectSocket } from '@/composables/useWSocket';
 import { openedOrg } from '@/assets/var';
-import { keycloak } from '@/assets/keycloak';
+import { keycloak, logoutEverywhere } from '@/assets/keycloak';
 import { computed, ref, watch } from 'vue';
 import { getAverageColor } from '@/assets/utils/getAverageColor';
 
@@ -18,7 +19,7 @@ const dominantColor = ref('#16ac77');
 
 watch(() => [props.user?.avatarUrl, props.user?.name], async () => {
     if (props.user) {
-        const url = props.user.avatarUrl || `https://ui-avatars.com/api/?name=${props.user.name}&background=128a60&color=fff`;
+        const url = props.user.avatarUrl || defaultAvatar(props.user.name);
         dominantColor.value = await getAverageColor(url);
     }
 }, { immediate: true });
@@ -113,7 +114,7 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
                 <div class="absolute top-[38px] left-4 p-1.5 bg-(--bg) rounded-full z-10 shadow-lg">
                     <div class="relative">
                         <img
-                            :src="user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.name}&background=128a60&color=fff`"
+                            :src="user?.avatarUrl || defaultAvatar(user?.name)"
                             class="w-[64px] h-[64px] rounded-full object-cover"
                         />
                         <div class="absolute bottom-0 right-0 w-4 h-4 rounded-full border-[3px] border-(--bg) shadow-sm" :class="statusColorClass"></div>
@@ -194,7 +195,7 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
             <div class="h-px bg-(--text)/5 my-1" />
 
             <div class="p-1 pb-8">
-                <button @click="disconnectSocket(); keycloak.logout()" class="text-red-500! hover:bg-red-500! hover:text-(--white)! dropdown-item-style dropdown-item-annimate">
+                <button @click="disconnectSocket(); logoutEverywhere()" class="text-red-500! hover:bg-red-500! hover:text-(--white)! dropdown-item-style dropdown-item-annimate">
                     <i class="bi bi-box-arrow-right mr-2" /> Déconnexion
                 </button>
             </div>

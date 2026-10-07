@@ -69,6 +69,35 @@
                         </div>
                     </section>
 
+                    <!-- Profondeur de réflexion : s'applique à tous les fournisseurs, y compris local -->
+                    <section class="space-y-6">
+                        <h4 class="text-xs font-bold uppercase tracking-widest text-(--text2) mb-4">Profondeur de réflexion</h4>
+                        <p class="text-xs text-(--text2) leading-relaxed -mt-2">
+                            Contrôle combien l'IA réfléchit avant de répondre. Les fournisseurs avec un réglage natif
+                            (OpenAI o*/GPT-5, Gemini 2.5+) l'utilisent directement ; les autres suivent une consigne
+                            adaptée dans le prompt système — l'effet dépend alors aussi du modèle choisi.
+                        </p>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <label v-for="level in reasoningLevels" :key="level.id"
+                                class="relative flex flex-col p-5 border rounded-2xl cursor-pointer transition-all hover:shadow-md group"
+                                :class="orgData.reasoningEffort === level.id ? 'border-(--primary) bg-(--primary)/5 shadow-sm' : 'border-(--border-color) bg-(--bg2) hover:border-(--text)/20'">
+
+                                <input type="radio" :value="level.id" v-model="orgData.reasoningEffort" name="reasoningEffort" class="sr-only">
+
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="font-bold text-sm text-(--text)">{{ level.name }}</span>
+                                    <div class="w-5 h-5 rounded-full border flex items-center justify-center transition-colors"
+                                         :class="orgData.reasoningEffort === level.id ? 'border-(--primary) bg-(--primary)' : 'border-(--text)/30 group-hover:border-(--text)/50 bg-transparent'">
+                                        <i v-if="orgData.reasoningEffort === level.id" class="bi bi-check text-white text-xs"></i>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-(--text2) leading-relaxed">{{ level.desc }}</p>
+
+                            </label>
+                        </div>
+                    </section>
+
                     <!-- Options Spécifiques -->
                     <section v-if="orgData.provider !== 'local'" class="animate-fade-in space-y-6">
                         <h4 class="text-xs font-bold uppercase tracking-widest text-(--text2) mb-4">Configuration Spécifique</h4>
@@ -122,6 +151,7 @@
                                         type="text"
                                         class="w-full bg-(--bg) border border-(--border-color) pl-11 pr-4 py-3 text-sm focus:outline-none rounded-xl focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner text-(--text)"
                                         placeholder="https://ia-gateway.mon-organisation.fr"
+                                        @blur="fetchOllamaModels"
                                     />
                                 </div>
                                 <p class="text-[10px] text-(--text2) leading-relaxed">Le navigateur appelle cette passerelle directement (pas notre serveur), avec votre compte Synco pour vous authentifier. Ollama vit à côté (ou dans le même conteneur) de cette passerelle — elle sait déjà où le trouver.</p>
@@ -288,9 +318,16 @@ const getAiConfig = () => {
         hasApiKey: config.hasApiKey || false,
         endpointUrl: config.endpointUrl || '',
         gatewayUrl: config.gatewayUrl || '',
-        modelId: config.modelId || ''
+        modelId: config.modelId || '',
+        reasoningEffort: config.reasoningEffort || 'medium'
     };
 };
+
+const reasoningLevels: Array<{ id: 'low' | 'medium' | 'high'; name: string; desc: string }> = [
+    { id: 'low', name: 'Bas', desc: 'Réponses rapides et directes, raisonnement minimal, moins de tokens consommés.' },
+    { id: 'medium', name: 'Moyen', desc: "Comportement par défaut : bon équilibre entre rapidité et pertinence." },
+    { id: 'high', name: 'Haut', desc: "Réflexion plus poussée avant de répondre : réponses plus pertinentes, mais plus lentes et plus coûteuses en tokens." },
+];
 
 const orgData = ref({ ...getAiConfig() });
 
@@ -301,7 +338,8 @@ const hasChanges = computed(() => {
         (orgData.value.apiKey || '') !== '' ||
         orgData.value.endpointUrl !== initial.endpointUrl ||
         orgData.value.gatewayUrl !== initial.gatewayUrl ||
-        orgData.value.modelId !== initial.modelId
+        orgData.value.modelId !== initial.modelId ||
+        orgData.value.reasoningEffort !== initial.reasoningEffort
     );
 });
 
@@ -328,14 +366,14 @@ const modelsError = ref('');
 let modelsFetchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const fetchOllamaModels = async () => {
-    if (orgData.value.provider !== 'gateway' || !orgData.value.gatewayUrl) {
+    if (orgData.value.provider !== 'gateway' || !orgData.value.gatewayUrl || !openedOrg.value?.id) {
         ollamaModels.value = [];
         return;
     }
     loadingModels.value = true;
     modelsError.value = '';
     try {
-        ollamaModels.value = await listGatewayModels(orgData.value.gatewayUrl);
+        ollamaModels.value = await listGatewayModels(orgData.value.gatewayUrl, openedOrg.value.id);
         if (ollamaModels.value.length === 0) {
             modelsError.value = "Aucun modèle trouvé sur cet Ollama — pensez à en télécharger un (ollama pull).";
         }
@@ -347,9 +385,14 @@ const fetchOllamaModels = async () => {
     }
 };
 
-watch([() => orgData.value.provider, () => orgData.value.gatewayUrl], () => {
+// Ne récupère les modèles qu'au chargement (valeur déjà enregistrée) et
+// quand l'utilisateur quitte le champ (@blur sur l'input), jamais à chaque
+// frappe : sinon chaque caractère tapé envoyait le jeton Keycloak à
+// l'origine en cours de saisie, et aurait maintenant déclenché le panneau
+// de consentement à répétition pendant la frappe (audit FC5).
+watch(() => orgData.value.provider, () => {
     if (modelsFetchTimeout) clearTimeout(modelsFetchTimeout);
-    modelsFetchTimeout = setTimeout(fetchOllamaModels, 500);
+    modelsFetchTimeout = setTimeout(fetchOllamaModels, 0);
 }, { immediate: true });
 
 const availableModelOptions = computed(() => {
@@ -428,7 +471,8 @@ const saveSettings = async () => {
             provider: orgData.value.provider,
             endpointUrl: orgData.value.endpointUrl,
             gatewayUrl: orgData.value.gatewayUrl,
-            modelId: orgData.value.modelId
+            modelId: orgData.value.modelId,
+            reasoningEffort: orgData.value.reasoningEffort
         };
 
         if (orgData.value.apiKey) {

@@ -12,6 +12,13 @@
         </div>
 
         <div class="flex items-center gap-3">
+          <span
+            v-if="cumulativeUsage.totalTokens > 0"
+            class="text-[11px] font-medium text-(--text2) bg-(--text)/5 px-2 py-1 rounded-full"
+            title="Total de tokens utilisés dans cette conversation"
+          >
+            {{ formatTokenCount(cumulativeUsage.totalTokens) }} tokens
+          </span>
           <button @click="showUsersBar = !showUsersBar" class="hover:text-(--text) transition-colors ml-2"
             :class="showUsersBar ? 'text-(--text)' : 'text-(--text2)'">
             <i class="bi bi-people-fill text-lg" />
@@ -70,15 +77,11 @@
             <AgentTurn
               :parts="msg.parts || []"
               :is-generating="isGenerating && index === messages.length - 1"
-              @accept="(tool) => handleAgentToolDecision(tool, true, index)"
-              @reject="(tool) => handleAgentToolDecision(tool, false, index)"
               @open-task="(t) => selectedTask = t"
-              @provide-image="(tool, base64) => {
-                const id = 'img_' + Date.now();
-                temporaryImages[id] = base64;
-                handleAgentToolDecision(tool, true, index, id);
-              }"
             />
+            <p v-if="msg.usage" class="text-[11px] text-(--text2)/70 mt-1">
+              {{ formatTokenCount(msg.usage.totalTokens) }} tokens<template v-if="msg.usage.reasoningTokens"> (dont {{ formatTokenCount(msg.usage.reasoningTokens) }} de raisonnement)</template>
+            </p>
           </div>
 
           <!-- Assistant turn: legacy path (local/custom, migration pending) -->
@@ -121,22 +124,10 @@
                   class="bg-black/50 px-2 py-1 rounded text-(--primary) font-bold">{{ msg.tool_call.name }}</code>
               </p>
 
-              <div class="mt-4" v-if="msg.tool_call.status === 'pending'">
-                <div v-if="msg.tool_call.name === 'request_image_upload'" class="w-full">
-                  <IconSelector model-value="" @on-base64="(base64) => {
-                    const id = 'img_' + Date.now();
-                    temporaryImages[id] = base64;
-                    if (msg.tool_call) handleToolCall(msg.tool_call, true, index, id);
-                  }" />
-                </div>
-                <div v-else class="flex gap-2">
-                  <button
-                    @click="handleToolCall(msg.tool_call!, true, index)"
-                    class="bg-green-500/20 text-green-500 border border-green-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-500/30 transition-colors">Accepter</button>
-                  <button
-                    @click="handleToolCall(msg.tool_call!, false, index)"
-                    class="bg-red-500/20 text-red-500 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/30 transition-colors">Refuser</button>
-                </div>
+              <!-- Confirmation/réponse déplacée dans PendingActionBar, au-dessus de la zone de saisie. -->
+              <div class="mt-4 text-(--text2) text-xs font-medium flex items-center gap-2" v-if="msg.tool_call.status === 'pending'">
+                <i class="bi bi-hourglass-split"></i>
+                En attente de ta confirmation ci-dessous...
               </div>
               <div v-else-if="msg.tool_call.status === 'executing'"
                 class="text-(--primary) text-xs font-bold mt-3 flex items-center gap-2">
@@ -259,6 +250,10 @@
               </div>
 
             </div>
+
+            <p v-if="msg.usage" class="text-[11px] text-(--text2)/70 mt-1">
+              {{ formatTokenCount(msg.usage.totalTokens) }} tokens<template v-if="msg.usage.reasoningTokens"> (dont {{ formatTokenCount(msg.usage.reasoningTokens) }} de raisonnement)</template>
+            </p>
           </div>
         </div>
       </div>
@@ -369,6 +364,20 @@
       </div>
 
       <div class="p-1 border-t border-(--border-color) shrink-0 relative">
+
+        <Transition name="fade-slide-in-up">
+          <div v-if="pendingAction" :key="pendingAction.tool.toolCallId" class="w-full max-w-5xl mx-auto mb-2">
+            <PendingActionBar
+              :tool="pendingAction.tool"
+              @accept="acceptPendingAction()"
+              @always-accept="acceptPendingAction(true)"
+              @reject="rejectPendingAction()"
+              @answer="(value) => acceptPendingAction(false, value)"
+              @image="(base64) => acceptPendingAction(false, base64)"
+            />
+          </div>
+        </Transition>
+
         <form @submit.prevent="() => sendMessage()"
           class="relative w-full max-w-5xl mx-auto flex items-end gap-3 border border-(--text)/10 rounded-xl px-4 py-2 transition-all shadow-2xl"
           :class="(!aiIsInitialized || isGenerating) ? 'bg-black/50 opacity-50 cursor-not-allowed' : 'bg-(--bg) focus-within:border-(--primary)/50'">
@@ -393,7 +402,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
+import { ref, computed, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
 import * as webllm from '@mlc-ai/web-llm';
 import { localLLM, availableModels } from '@/services/LocalLLMService';
 import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages, syncSession, fetchSessions, activeSessionId, selectedModelId, setEncryptedSessionTitle } from '@/services/AIService';
@@ -401,8 +410,8 @@ import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
-import IconSelector from '@/components/common/IconSelector.vue';
 import AgentTurn from '../components/ai/AgentTurn.vue';
+import PendingActionBar from '../components/ai/PendingActionBar.vue';
 import MarkdownRender from './MarkdownRender.vue';
 import type { TurnPart, ToolStep } from '../components/ai/agentTypes';
 import { useUsersBar } from '@/composables/useUsersBar';
@@ -417,6 +426,7 @@ import globalVectorWorker from '@/services/GlobalVectorWorker';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { generateThreadKey, encryptThreadKeyForMember, privateKey } from '@/assets/utils/crypto';
+import { resolveRecipientKey } from '@/assets/utils/keyTrust';
 import { openedOrg, user } from '@/assets/var';
 import { getSystemPrompt } from '@/services/AITools';
 import { createFolderRequest, createTextFile } from '@/services/fileActions';
@@ -428,7 +438,11 @@ const { Item: savedModelId, isLoaded: savedModelLoaded } = useSettingsItem('ai_s
 // Le rendu markdown passe par MarkdownRender.vue (partagé avec le chat/les
 // tâches) — il ne reste ici que le nettoyage spécifique à l'IA : les blocs
 // <tool_call> internes ne doivent jamais apparaître dans le texte affiché.
-const cleanAiContent = (text: string) => text.replace(/<tool_call>[\s\S]*?(?:<\/tool_call>|$)/g, '');
+// <think> est un filet de sécurité pour une balise mal fermée qui aurait
+// échappé à l'extraction dédiée (Phase 3) — pas le chemin normal.
+const cleanAiContent = (text: string) => text
+  .replace(/<tool_call>[\s\S]*?(?:<\/tool_call>|$)/g, '')
+  .replace(/<think>[\s\S]*?(?:<\/think>|$)/g, '');
 
 const handleLinks = (e: MouseEvent) => {
   const target = (e.target as HTMLElement).closest('a');
@@ -483,11 +497,17 @@ interface ChatMessage {
   viaAgentLoop?: boolean;
   /** Uniquement pour viaAgentLoop : texte et tools entrelacés dans l'ordre d'arrivée. */
   parts?: TurnPart[];
+  /** Cumul des tokens de ce tour (plusieurs appels provider possibles si des tools s'enchaînent). */
+  usage?: { promptTokens: number; completionTokens: number; totalTokens: number; reasoningTokens: number };
 }
 
 const recommendedModelId = ref<string>('');
 const selectedTask = ref<any>(null);
 const isGenerating = ref(false);
+// Par outil (façon Claude Code "don't ask again for this tool"), pas global : autoriser
+// create_task sans redemander ne doit pas dispenser de confirmation pour delete_task. Volontairement
+// non persisté — remis à zéro au rechargement, une autorisation en masse est une décision ponctuelle.
+const autoAcceptTools = ref<Set<string>>(new Set());
 const hasStartedInit = ref(false);
 const inputMsg = ref('');
 const chatInputRef = ref<any>(null);
@@ -511,6 +531,19 @@ watch(activeSessionId, async () => {
   }
 });
 const messages = aiSessionMessages as unknown as Ref<ChatMessage[]>;
+
+// Recalculé à la volée depuis les messages en mémoire — pas de stockage dédié, cf. plan.
+const cumulativeUsage = computed(() => messages.value.reduce((acc, m) => {
+  if (m.usage) acc.totalTokens += m.usage.totalTokens || 0;
+  return acc;
+}, { totalTokens: 0 }));
+
+function formatTokenCount(n: number): string {
+  if (n < 1000) return String(n);
+  if (n < 10000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  return Math.round(n / 1000) + 'k';
+}
+
 const chatContainer = ref<HTMLElement | null>(null);
 const hasNavigatorGpu = typeof navigator !== 'undefined' && !!(navigator as any).gpu;
 const temporaryImages = ref<Record<string, string>>({});
@@ -639,7 +672,11 @@ const createThreadHelper = async (orgId: string, spaceId: string | undefined, na
   let encryptedKeysPayload = [];
   for (const member of members) {
     if (member.publicKey && typeof member.publicKey === 'string' && member.publicKey.trim().startsWith('{')) {
-      const encryptedKey = await encryptThreadKeyForMember(newThreadKey, member.publicKey);
+      // Clé épinglée (audit FC1) : un membre dont la clé a changé est écarté.
+      let trustedKey: string;
+      try { trustedKey = await resolveRecipientKey(member.id, member.publicKey); }
+      catch { continue; }
+      const encryptedKey = await encryptThreadKeyForMember(newThreadKey, trustedKey);
       encryptedKeysPayload.push({ userId: member.id, encryptedKey });
     }
   }
@@ -667,7 +704,7 @@ const createThreadHelper = async (orgId: string, spaceId: string | undefined, na
   return data;
 };
 
-const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, accept: boolean, _assistantMsgIndex: number, imageId?: string) => {
+const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, accept: boolean, _assistantMsgIndex: number, clientValue?: string) => {
   if (!accept) {
     toolCall.status = 'rejected';
     messages.value.push({
@@ -796,8 +833,12 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
       result = JSON.stringify(docResult, null, 2);
 
     } else if (toolCall.name === 'request_image_upload') {
-      toolData = { id: imageId };
-      result = `L'utilisateur a fourni une image. Identifiant de l'image : '${imageId}'. Utilise EXACTEMENT cette valeur '${imageId}' pour le paramètre 'logo' de 'create_space'.`;
+      toolData = { id: clientValue };
+      result = `L'utilisateur a fourni une image. Identifiant de l'image : '${clientValue}'. Utilise EXACTEMENT cette valeur '${clientValue}' pour le paramètre 'logo' de 'create_space'.`;
+
+    } else if (toolCall.name === 'ask_question') {
+      toolData = { answer: clientValue ?? '' };
+      result = `Réponse de l'utilisateur : "${clientValue ?? ''}"`;
 
     } else if (toolCall.name === 'create_folder') {
       const folder = await createFolderRequest(args.spaceId, orgId, args.name, args.parentFolderId);
@@ -845,6 +886,8 @@ const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, a
     sendMessage("L'action a été effectuée avec succès. Réponds très brièvement en une seule phrase pour confirmer à l'utilisateur.");
   } else if (['search_messages', 'read_tasks'].includes(toolCall.name) || isDocumentationTool(toolCall.name)) {
     sendMessage("Voici les informations demandées. Réponds à la question de l'utilisateur en te basant sur ces résultats.");
+  } else if (toolCall.name === 'ask_question') {
+    sendMessage("L'utilisateur a répondu à ta question. Continue en te basant sur cette réponse.");
   }
 };
 
@@ -854,6 +897,14 @@ const appendTextPart = (idx: number, delta: string) => {
   const last = parts[parts.length - 1];
   if (last && last.type === 'text') last.text += delta;
   else parts.push({ type: 'text', text: delta });
+};
+
+/** Même logique qu'appendTextPart, pour le raisonnement du modèle — rendu par ThinkingStepItem. */
+const appendThinkingPart = (idx: number, delta: string) => {
+  const parts = messages.value[idx]!.parts!;
+  const last = parts[parts.length - 1];
+  if (last && last.type === 'thinking') last.text += delta;
+  else parts.push({ type: 'thinking', text: delta });
 };
 
 /** Met à jour le tool_call déjà présent dans la turn (par id), ou en ajoute un nouveau segment. */
@@ -899,18 +950,47 @@ const consumeAgentStream = async (
       }
     } else if (ev.type === 'text') {
       appendTextPart(idx, ev.delta);
+    } else if (ev.type === 'thinking') {
+      appendThinkingPart(idx, ev.delta);
+    } else if (ev.type === 'usage') {
+      // Un tour peut enchaîner plusieurs appels provider (texte -> tool -> texte...), chacun avec
+      // son propre usage : on cumule pour obtenir le total réel du tour, pas juste le dernier appel.
+      const m = messages.value[idx]!;
+      const acc = m.usage || { promptTokens: 0, completionTokens: 0, totalTokens: 0, reasoningTokens: 0 };
+      m.usage = {
+        promptTokens: acc.promptTokens + (ev.promptTokens || 0),
+        completionTokens: acc.completionTokens + (ev.completionTokens || 0),
+        totalTokens: acc.totalTokens + (ev.totalTokens || 0),
+        reasoningTokens: acc.reasoningTokens + (ev.reasoningTokens || 0),
+      };
     } else if (ev.type === 'tool_call_result') {
       upsertToolPart(idx, ev.toolCallId, { name: ev.name, status: 'done', category: 'server', mutating: false, result: ev.result });
+      // create_space est exécuté côté serveur (category 'server') dans cette boucle, contrairement
+      // à create_thread (category 'client', exécuté par executeClientTool qui pousse déjà dans
+      // space.threads via createThreadHelper) : sans ce push, le nouvel espace ne rejoint jamais
+      // openedOrg.value.spaces, que SpaceBar.vue observe — il resterait invisible dans la barre
+      // latérale jusqu'au prochain refetch complet de l'org (ex: F5).
+      if (ev.name === 'create_space' && ev.result?.id && openedOrg.value?.spaces && !openedOrg.value.spaces.some((s: any) => s.id === ev.result.id)) {
+        openedOrg.value.spaces.push(ev.result);
+      }
     } else if (ev.type === 'tool_call_pending') {
       upsertToolPart(idx, ev.toolCallId, { name: ev.name, args: ev.args, status: 'pending', category: 'server', mutating: true });
+      if (autoAcceptTools.value.has(ev.name)) {
+        const parts = messages.value[idx]!.parts!;
+        const tool = (parts.find((p) => p.type === 'tool' && p.tool.toolCallId === ev.toolCallId) as { type: 'tool'; tool: ToolStep }).tool;
+        await handleAgentToolDecision(tool, true, idx);
+        return;
+      }
     } else if (ev.type === 'tool_call_client_required') {
       upsertToolPart(idx, ev.toolCallId, {
         name: ev.name, args: ev.args,
         status: (ev.mutating || ev.interactive) ? 'pending' : 'executing',
         category: 'client', mutating: ev.mutating, interactive: ev.interactive,
       });
-      if (!ev.mutating && !ev.interactive) {
-        // Tool client non-mutant (ex: search_messages) : exécution immédiate, sans confirmation.
+      // Tool client non-mutant (ex: search_messages) : toujours auto-exécuté, confirmation ou pas —
+      // "interactive" (ex: ask_question, upload d'image) reste exclu, même avec autoAcceptTools :
+      // il n'y a aucune valeur à fournir automatiquement à la place de l'utilisateur.
+      if ((!ev.mutating && !ev.interactive) || (ev.mutating && !ev.interactive && autoAcceptTools.value.has(ev.name))) {
         const parts = messages.value[idx]!.parts!;
         const tool = (parts.find((p) => p.type === 'tool' && p.tool.toolCallId === ev.toolCallId) as { type: 'tool'; tool: ToolStep }).tool;
         await handleAgentToolDecision(tool, true, idx);
@@ -949,7 +1029,7 @@ const toLlmSearchHit = (hit: any) => {
   };
 };
 
-const executeClientTool = async (name: string, args: any, imageId?: string): Promise<any> => {
+const executeClientTool = async (name: string, args: any, clientValue?: string): Promise<any> => {
   const orgId = route.params.orgId as string;
 
   if (name === 'search_messages') {
@@ -1016,7 +1096,11 @@ const executeClientTool = async (name: string, args: any, imageId?: string): Pro
   }
 
   if (name === 'request_image_upload') {
-    return { id: imageId, note: `Utilise EXACTEMENT '${imageId}' pour le paramètre 'logo' de create_space.` };
+    return { id: clientValue, note: `Utilise EXACTEMENT '${clientValue}' pour le paramètre 'logo' de create_space.` };
+  }
+
+  if (name === 'ask_question') {
+    return { answer: clientValue ?? '' };
   }
 
   throw new Error(`Outil client inconnu: ${name}`);
@@ -1027,7 +1111,7 @@ const handleAgentToolDecision = async (
   toolCall: ToolStep,
   accept: boolean,
   assistantMsgIndex: number,
-  imageId?: string
+  clientValue?: string
 ) => {
   const orgId = route.params.orgId as string;
   const sessionId = activeSessionId.value;
@@ -1043,7 +1127,7 @@ const handleAgentToolDecision = async (
     } else {
       try {
         const args = typeof toolCall.args === 'string' ? JSON.parse(toolCall.args || '{}') : toolCall.args;
-        decision = { clientResult: await executeClientTool(toolCall.name, args, imageId) };
+        decision = { clientResult: await executeClientTool(toolCall.name, args, clientValue) };
       } catch (e: any) {
         decision = { clientResult: { error: e.message || 'Erreur technique.' } };
       }
@@ -1064,6 +1148,61 @@ const handleAgentToolDecision = async (
     isGenerating.value = false;
   }
 };
+
+/**
+ * L'action en attente d'une décision utilisateur — au plus une à la fois, puisque runLoop côté
+ * serveur (synco_api) s'arrête dès qu'un tool mutant/client a besoin d'être confirmé/exécuté
+ * ailleurs. Couvre les deux boucles : viaAgentLoop (parts structurées) et legacy (tool_call unique),
+ * pour que PendingActionBar s'affiche de façon identique quel que soit le provider.
+ */
+const pendingAction = computed<{ kind: 'agent' | 'legacy'; idx: number; tool: ToolStep } | null>(() => {
+  const idx = messages.value.length - 1;
+  const msg = messages.value[idx];
+  if (!msg) return null;
+
+  if (msg.viaAgentLoop) {
+    const toolPart = (msg.parts || []).find((p) => p.type === 'tool' && p.tool.status === 'pending') as { type: 'tool'; tool: ToolStep } | undefined;
+    return toolPart ? { kind: 'agent', idx, tool: toolPart.tool } : null;
+  }
+
+  if (msg.tool_call?.status === 'pending') {
+    return { kind: 'legacy', idx, tool: msg.tool_call as unknown as ToolStep };
+  }
+  return null;
+});
+
+function acceptPendingAction(always = false, value?: string) {
+  const pending = pendingAction.value;
+  if (!pending) return;
+
+  if (always) autoAcceptTools.value.add(pending.tool.name);
+
+  // PendingActionBar renvoie directement le base64 pour request_image_upload : c'est ici, au
+  // moment de la décision, qu'on lui attribue un id temporaire — comme le faisait l'ancien
+  // callback IconSelector inline, juste déplacé hors du template.
+  if (pending.tool.name === 'request_image_upload' && value) {
+    const id = 'img_' + Date.now();
+    temporaryImages.value[id] = value;
+    value = id;
+  }
+
+  if (pending.kind === 'agent') {
+    handleAgentToolDecision(pending.tool, true, pending.idx, value);
+  } else {
+    handleToolCall(pending.tool as NonNullable<ChatMessage['tool_call']>, true, pending.idx, value);
+  }
+}
+
+function rejectPendingAction() {
+  const pending = pendingAction.value;
+  if (!pending) return;
+
+  if (pending.kind === 'agent') {
+    handleAgentToolDecision(pending.tool, false, pending.idx);
+  } else {
+    handleToolCall(pending.tool as NonNullable<ChatMessage['tool_call']>, false, pending.idx);
+  }
+}
 
 /** Providers OpenAI/Mistral/Gemini : la conversation passe entièrement par la boucle d'agent serveur. */
 const sendMessageViaAgent = async (text: string) => {
@@ -1119,7 +1258,7 @@ const sendMessage = async (hiddenPrompt?: string) => {
   try {
 
     const chatContext = [
-      { role: 'system', content: getSystemPrompt() },
+      { role: 'system', content: getSystemPrompt(aiService.config.reasoningEffort) },
       ...messages.value.slice(0, -1).map(m => ({ role: m.role, content: m.content }))
     ];
 
@@ -1133,6 +1272,15 @@ const sendMessage = async (hiddenPrompt?: string) => {
           arguments: chunk.arguments,
           status: 'pending'
         };
+      } else if (typeof chunk === 'object' && chunk.type === 'usage') {
+        const m = messages.value[assistantMsgIndex]!;
+        const acc = m.usage || { promptTokens: 0, completionTokens: 0, totalTokens: 0, reasoningTokens: 0 };
+        m.usage = {
+          promptTokens: acc.promptTokens + (chunk.promptTokens || 0),
+          completionTokens: acc.completionTokens + (chunk.completionTokens || 0),
+          totalTokens: acc.totalTokens + (chunk.totalTokens || 0),
+          reasoningTokens: acc.reasoningTokens + (chunk.reasoningTokens || 0),
+        };
       } else {
         messages.value[assistantMsgIndex]!.content += chunk;
       }
@@ -1140,7 +1288,10 @@ const sendMessage = async (hiddenPrompt?: string) => {
     }
 
     const tCall = messages.value[assistantMsgIndex]?.tool_call;
-    if (tCall?.status === 'pending' && isDocumentationTool(tCall.name)) {
+    // request_image_upload et ask_question restent exclus même avec autoAcceptTools : il n'y a
+    // rien à fournir automatiquement à la place d'une vraie image ou d'une vraie réponse.
+    const tCallAutoExcluded = tCall?.name === 'request_image_upload' || tCall?.name === 'ask_question';
+    if (tCall?.status === 'pending' && (isDocumentationTool(tCall.name) || (autoAcceptTools.value.has(tCall.name) && !tCallAutoExcluded))) {
       setTimeout(() => {
         handleToolCall(tCall, true, assistantMsgIndex);
       }, 50);

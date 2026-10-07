@@ -145,13 +145,20 @@ const emit = defineEmits<{
 
 const router = useRouter();
 
+// `class` n'est jamais produit par marked pour ces balises et permettait de
+// réutiliser les utilitaires Tailwind du bundle (fixed inset-0 z-[9999]…)
+// pour recouvrir toute l'application depuis un message — hameçonnage du PIN
+// E2EE depuis une fausse interface système (audit FX2). `style`/`id` sont
+// également interdits par anti-clobbering, défense en profondeur.
 const sanitizeOptions = computed(() => props.mode === 'document' ? {
     ALLOWED_TAGS: DOCUMENT_ALLOWED_TAGS,
-    ALLOWED_ATTR: ['href', 'target', 'class', 'rel', 'src', 'alt', 'title', 'type', 'checked', 'disabled', 'align'],
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'title', 'type', 'checked', 'disabled', 'align'],
+    FORBID_ATTR: ['class', 'style', 'id', 'name'],
     ALLOWED_URI_REGEXP
 } : {
     ALLOWED_TAGS: CHAT_ALLOWED_TAGS,
-    ALLOWED_ATTR: ['href', 'target', 'class', 'rel'],
+    ALLOWED_ATTR: ['href', 'target', 'rel'],
+    FORBID_ATTR: ['class', 'style', 'id', 'name'],
     ALLOWED_URI_REGEXP
 });
 
@@ -366,6 +373,15 @@ const onTaskCardClick = (task: Task) => {
 </script>
 
 <style scoped>
+
+/* Défense en profondeur (audit FX2) : même si `class`/`style` repassaient un
+   jour la liste blanche, un descendant ne peut plus sortir de la bulle
+   (`position: fixed` y redevient relatif à ce conteneur). */
+.markdown-body {
+  contain: layout paint;
+  isolation: isolate;
+  overflow: hidden;
+}
 
 .markdown-body :deep(p) {
   margin-bottom: 0.5rem;

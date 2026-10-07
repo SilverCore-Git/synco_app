@@ -15,10 +15,10 @@
         <div class="relative shrink-0">
 
             <img
-                :src="user?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(user?.user?.name)}&background=128a60&color=fff`"
+                :src="user?.user?.avatarUrl || defaultAvatar($p(user?.user?.name))"
                 :alt="$p(user?.user?.name)"
                 class="w-8 h-8 rounded-full object-cover border border-(--text)/10 group-hover:border-(--primary)/30 transition-colors"
-                @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(user?.user?.name)}&background=128a60&color=fff`"
+                @error="(e: any) => e.target.src = defaultAvatar($p(user?.user?.name))"
             />
             
             <div 
@@ -41,11 +41,6 @@
             </span>
         </div>
 
-        <div
-            v-if="hasUnread"
-            class="ml-auto w-2 h-2 mr-1.5 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_var(--glow-danger-strong)]"
-        />
-
         <button
             v-if="user?.user?.id !== keycloak.subject"
             @click.stop="startCall(user.user!)"
@@ -55,12 +50,18 @@
             <i class="bi bi-telephone-fill text-sm" />
         </button>
 
+        <div
+            v-if="hasUnread"
+            class="shrink-0 w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_var(--glow-danger-strong)]"
+        />
+
     </button>
 
 </template>
 
 <script lang="ts" setup>
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { computed } from 'vue';
 import getColorByStatus from '@/assets/utils/getColorByStatus';
 import type { OrgMember } from '@/types/types';

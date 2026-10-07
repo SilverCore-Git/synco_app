@@ -30,7 +30,7 @@
                 <button class="dash-row" @click="openItem(item)">
                     <div class="relative shrink-0">
                         <img
-                            :src="item.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title)}&background=128a60&color=fff`"
+                            :src="item.avatar || defaultAvatar(item.title)"
                             class="w-9 h-9 rounded-full"
                             alt=""
                         />
@@ -45,6 +45,9 @@
                         </span>
                         <span v-else-if="item.kind === 'calendarAccess'" class="dash-row-badge bg-(--primary)">
                             <i class="bi bi-calendar2-week" />
+                        </span>
+                        <span v-else-if="item.kind === 'event'" class="dash-row-badge bg-(--primary)">
+                            <i class="bi bi-calendar2-check" />
                         </span>
                     </div>
                     <div class="flex-1 min-w-0 text-left">
@@ -62,6 +65,7 @@
 </template>
 
 <script lang="ts" setup>
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { openedOrg } from '@/assets/var';
@@ -80,7 +84,7 @@ onMounted(async () => {
 
 interface DashItem {
     key: string;
-    kind: 'dm' | 'thread' | 'missedCall' | 'missedMeet' | 'workspaceAdded' | 'calendarAccess';
+    kind: 'dm' | 'thread' | 'missedCall' | 'missedMeet' | 'workspaceAdded' | 'calendarAccess' | 'event';
     title: string;
     subtitle: string;
     avatar?: string | null;
@@ -169,7 +173,8 @@ const unreadThreads = computed<DashItem[]>(() => {
 const OTHER_TYPES: NotificationType[] = [
     'MISSED_CALL', 'MISSED_MEET', 'WORKSPACE_ADDED',
     'CALENDAR_ACCESS_REQUEST', 'CALENDAR_ACCESS_INVITE',
-    'CALENDAR_ACCESS_GRANTED', 'CALENDAR_ACCESS_DECLINED', 'CALENDAR_ACCESS_REVOKED'
+    'CALENDAR_ACCESS_GRANTED', 'CALENDAR_ACCESS_DECLINED', 'CALENDAR_ACCESS_REVOKED',
+    'EVENT_INVITE', 'EVENT_RSVP', 'EVENT_REMINDER'
 ];
 
 const CALENDAR_ACCESS_TYPES: NotificationType[] = [
@@ -177,10 +182,13 @@ const CALENDAR_ACCESS_TYPES: NotificationType[] = [
     'CALENDAR_ACCESS_GRANTED', 'CALENDAR_ACCESS_DECLINED', 'CALENDAR_ACCESS_REVOKED'
 ];
 
+const EVENT_TYPES: NotificationType[] = ['EVENT_INVITE', 'EVENT_RSVP', 'EVENT_REMINDER'];
+
 function kindForOtherType(type: NotificationType): DashItem['kind'] {
     if (type === 'MISSED_CALL') return 'missedCall';
     if (type === 'MISSED_MEET') return 'missedMeet';
     if (CALENDAR_ACCESS_TYPES.includes(type)) return 'calendarAccess';
+    if (EVENT_TYPES.includes(type)) return 'event';
     return 'workspaceAdded';
 }
 
@@ -226,6 +234,20 @@ defineExpose({ markAllRead });
 
 function openItem(item: DashItem) {
     const orgId = openedOrg.value?.id;
+
+    // missedCall / missedMeet / workspaceAdded : événements ponctuels sans
+    // route reconstructible localement — pas de vue dédiée à "rouvrir" une
+    // fois lus (contrairement à un DM/thread, toujours là), donc marqués lus
+    // au clic plutôt que de rester affichés indéfiniment. Fait avant le
+    // early-return sur orgId ci-dessous : sans ça, un clic pendant que
+    // l'organisation finit encore de charger ne faisait tout simplement
+    // rien — pas d'erreur visible, mais la notification restait non lue.
+    if (item.kind === 'missedCall' || item.kind === 'missedMeet' || item.kind === 'workspaceAdded' || item.kind === 'calendarAccess' || item.kind === 'event') {
+        markAsRead(item.notifId);
+        if (item.route) router.push(item.route);
+        return;
+    }
+
     if (!orgId) return;
 
     if (item.kind === 'dm' && item.dmUserId) {
@@ -236,12 +258,6 @@ function openItem(item: DashItem) {
         router.push(`/${orgId}/${item.spaceId || 'home'}/${item.threadId}`);
         return;
     }
-    // missedCall / missedMeet / workspaceAdded : événements ponctuels sans
-    // route reconstructible localement — pas de vue dédiée à "rouvrir" une
-    // fois lus (contrairement à un DM/thread, toujours là), donc marqués lus
-    // au clic plutôt que de rester affichés indéfiniment.
-    markAsRead(item.notifId);
-    if (item.route) router.push(item.route);
 }
 </script>
 

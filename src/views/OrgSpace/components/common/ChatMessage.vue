@@ -41,9 +41,9 @@
                         <div class="z-10 absolute left-4 top-2.5 w-7 h-13 border-l-2 border-t-2 border-(--text)/20 group-hover/reply:border-(--text)/40 rounded-tl-md" />
 
                         <img 
-                            :src="msg.replyMessage?.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(msg.replyMessage?.sender?.name)}&background=128a60&color=fff`"
+                            :src="msg.replyMessage?.sender?.avatarUrl || defaultAvatar($p(msg.replyMessage?.sender?.name))"
                             :alt="$p(msg.replyMessage?.sender?.name)"
-                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(msg.replyMessage?.sender?.name)}&background=128a60&color=fff`"
+                            @error="(e: any) => e.target.src = defaultAvatar($p(msg.replyMessage?.sender?.name))"
                             class="w-4 h-4 rounded-full opacity-80 shrink-0"
                         />
                         
@@ -56,8 +56,8 @@
                             <i class="bi bi-lock-fill text-[10px]" />
                             <div class="h-2.5 w-32 rounded-full bg-(--text)/10 animate-pulse" />
                         </div>
-                        <div v-else class="max-w-md opacity-70 pointer-events-none text-[11px] line-clamp-1 [&_p]:inline [&_h1]:inline [&_h2]:inline [&_h3]:inline">
-                            <MarkdownRender :content="msg.replyMessage?.content || ''" :show-reference-cards="false" />
+                        <div v-else class="max-w-md opacity-70 pointer-events-none text-[11px] truncate">
+                            {{ messagePreview(msg.replyMessage?.content) }}
                         </div>
 
                     </div>
@@ -117,14 +117,20 @@
 
                     <div class="z-20 flex justify-start items-start gap-3 min-w-0 w-full">
 
-                        <img 
-                            v-if="msg.sender && !isStacked"
-                            :src="msg.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(msg.sender?.name)}&background=128a60&color=fff`"
-                            :alt="$p(msg.sender?.name)"
-                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(msg.sender?.name)}&background=128a60&color=fff`"
-                            @click.stop="(e) => msg.sender && openProfile(msg.sender, e)"
-                            class="rounded-full w-9 h-9 object-cover shrink-0 cursor-pointer hover:ring-2 hover:ring-(--primary)/50 transition-all"
-                        />
+                        <div v-if="msg.sender && !isStacked" class="relative shrink-0">
+                            <img
+                                :src="msg.sender?.avatarUrl || defaultAvatar($p(msg.sender?.name))"
+                                :alt="$p(msg.sender?.name)"
+                                @error="(e: any) => e.target.src = defaultAvatar($p(msg.sender?.name))"
+                                @click.stop="(e) => msg.sender && openProfile(msg.sender, e)"
+                                class="rounded-full w-9 h-9 object-cover cursor-pointer hover:ring-2 hover:ring-(--primary)/50 transition-all"
+                            />
+                            <span
+                                v-if="senderStatus(msg.sender)"
+                                class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg)"
+                                :class="getColorByStatus(senderStatus(msg.sender)!)"
+                            />
+                        </div>
                         <div 
                             v-else-if="isStacked"
                             class="w-9 shrink-0 flex items-start justify-center opacity-0 group-hover:opacity-100 transition-opacity select-none"
@@ -180,7 +186,16 @@
                                         @user-click="(u: User, e: MouseEvent) => openProfile(u, e)"
                                         @reference-click="onReferenceClick"
                                     />
+                                    <LinkPreview :content="msg.content" />
                                     <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
+                                    <!-- Reçu en clair : jamais rendu comme un message chiffré (audit FC7) -->
+                                    <span
+                                        v-if="(msg as any).securityState === 'plaintext'"
+                                        class="ml-1 inline-flex items-center gap-1 text-[10px] font-semibold text-amber-500"
+                                        title="Ce message n'est pas chiffré de bout en bout : son contenu a pu être lu ou fourni par le serveur."
+                                    >
+                                        <i class="bi bi-unlock-fill" /> Non chiffré
+                                    </span>
                                 </div>
                                 <div v-if="(msg as any).sendFailed" class="mt-1 flex items-center gap-2 text-[11px] text-red-400">
                                     <i class="bi bi-exclamation-circle-fill" />
@@ -261,6 +276,8 @@
 // pour laquelle un id a du sens.
 defineOptions({ inheritAttrs: false });
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
+import getColorByStatus from '@/assets/utils/getColorByStatus';
 import { computed, nextTick, ref, watch } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
@@ -273,15 +290,27 @@ import MessageAttachments from './MessageAttachments.vue';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import ThreadTextarea from './ThreadTextarea.vue';
 import { useRoute, useRouter } from 'vue-router';
-import { user } from '@/assets/var';
+import { user, openedOrg } from '@/assets/var';
 import { encryptForPeer } from '@/assets/utils/crypto';
+import { requireTrustedKey } from '@/assets/utils/keyTrust';
 import { useToast } from '@/composables/useToast';
+import { messagePreview } from '@/assets/utils/messagePreview';
 import { openProfile } from '@/composables/useProfile';
 import useSettingsItem from '@/composables/useSettingsItem';
+import LinkPreview from './LinkPreview.vue';
 import { orgMentionLookup, isUserMentioned } from '@/composables/useMentions';
 import { extractReferenceTokens } from '@/composables/useReferences';
 import { navigateToReference } from '@/composables/useReferenceNavigation';
 import type { User } from '@/types/types';
+
+// msg.sender est une copie figée au moment de la réception du message : son
+// data.status n'est jamais mis à jour par le socket `user-status-changed`
+// (cf. OrgLayout.vue), contrairement à openedOrg.members qui lui est réactif.
+const senderStatus = (sender?: User | null): string | undefined => {
+    if (!sender) return undefined;
+    const member = openedOrg.value?.members?.find(m => m.userId === sender.id);
+    return member?.user?.data?.status || sender.data?.status;
+};
 
 const toast = useToast();
 const showReactionPicker = ref<boolean>(false);
@@ -605,7 +634,18 @@ const saveEdit = async () => {
         return;
     }
 
-    const { ciphertext, encryptedAesKey, iv, selfEncryptedAesKey } = await encryptForPeer(content, peerPubKey, myPubKey);
+    // Même contrôle d'épinglage que l'envoi (audit FC1) : l'édition reprenait
+    // la clé publique de l'historique sans vérification.
+    let trustedPeerKey: string;
+    try {
+        trustedPeerKey = await requireTrustedKey(props.msg.recipientId, peerPubKey);
+    } catch {
+        toast.show("La clé de sécurité du destinataire a changé : vérifiez-la avant de modifier ce message.", "error");
+        emit('edit-end');
+        return;
+    }
+
+    const { ciphertext, encryptedAesKey, iv, selfEncryptedAesKey } = await encryptForPeer(content, trustedPeerKey, myPubKey);
 
     const socket = await useWSocket();
 

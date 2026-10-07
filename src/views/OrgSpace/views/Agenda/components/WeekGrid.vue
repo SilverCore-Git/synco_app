@@ -20,6 +20,7 @@
                 v-for="day in days"
                 :key="'ad-' + day.iso"
                 class="time-grid-allday-cell"
+                :class="{ 'is-today': day.isToday }"
                 :style="{ width: dayWidth + 'px' }"
                 @click="emitCreate(allDayDate(day.date), allDayEndDate(day.date), true, $event)"
             >
@@ -43,6 +44,7 @@
                 v-for="day in days"
                 :key="'col-' + day.iso"
                 class="time-grid-day-col"
+                :class="{ 'is-today': day.isToday }"
                 :data-iso="day.iso"
                 :style="{ height: rowHeight * 24 + 'px', width: dayWidth + 'px' }"
                 @mousedown="onPointerDown($event, day)"
@@ -93,6 +95,7 @@ import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import EventChip from './EventChip.vue';
 import { isTaskDeadlineOccurrence, type OccurrenceInstance } from '@/types/agenda';
 import { isLittleScreen } from '@/assets/var';
+import { layoutDayEvents } from './eventLayout';
 
 const props = defineProps<{
     cursorDate: Date;
@@ -159,6 +162,14 @@ function resetBuffer(center: Date) {
     bufferDayCount.value = INITIAL_HALF * 2 + 1;
 }
 
+// Le composant est recréé à chaque fois qu'on revient sur la vue semaine
+// (v-if dans AgendaView.vue, pas de keep-alive) : sans cet appel, le buffer
+// initial ci-dessus ne serait pas décalé de INITIAL_HALF comme resetBuffer
+// le fait, et cursorDate se retrouverait à l'index 0 au lieu de
+// INITIAL_HALF — scrollToCenter() (qui suppose ce dernier) centrerait alors
+// sur le mauvais jour.
+resetBuffer(props.cursorDate);
+
 const headerEl = ref<HTMLElement | null>(null);
 const alldayEl = ref<HTMLElement | null>(null);
 const bodyEl = ref<HTMLElement | null>(null);
@@ -170,9 +181,13 @@ function measureDayWidth() {
     dayWidth.value = Math.max(80, Math.floor(available / VISIBLE_DAYS));
 }
 
+// Centre cursorDate parmi les VISIBLE_DAYS colonnes visibles (pas juste en
+// bord gauche de la fenêtre) : on recule d'une demi-fenêtre avant lui.
+const CENTER_OFFSET = Math.floor(VISIBLE_DAYS / 2);
+
 function scrollToCenter() {
     if (!bodyEl.value) return;
-    bodyEl.value.scrollLeft = INITIAL_HALF * dayWidth.value;
+    bodyEl.value.scrollLeft = (INITIAL_HALF - CENTER_OFFSET) * dayWidth.value;
     if (headerEl.value) headerEl.value.scrollLeft = bodyEl.value.scrollLeft;
     if (alldayEl.value) alldayEl.value.scrollLeft = bodyEl.value.scrollLeft;
 }
@@ -341,23 +356,46 @@ function isLocked(occ: OccurrenceInstance): boolean {
 
 // Découpe la portion d'un événement (éventuellement multi-jours) visible
 // dans une colonne de jour donnée.
-function eventStyle(occ: OccurrenceInstance, day: DayColumn) {
+function rangeMinutesForDay(occ: OccurrenceInstance, dayIso: string): { start: number; end: number } {
     const start = new Date(occ.startAt);
     const end = new Date(occ.endAt);
     const startIso = isoDay(start);
     const endIso = isoDay(end);
 
-    const startMinutes = day.iso === startIso ? start.getHours() * 60 + start.getMinutes() : 0;
-    const endMinutes = day.iso === endIso ? end.getHours() * 60 + end.getMinutes() : 24 * 60;
-    let durationMinutes = endMinutes - startMinutes;
+    const startMinutes = dayIso === startIso ? start.getHours() * 60 + start.getMinutes() : 0;
+    const endMinutes = dayIso === endIso ? end.getHours() * 60 + end.getMinutes() : 24 * 60;
+    return { start: startMinutes, end: endMinutes };
+}
+
+// Événements qui se chevauchent dans le temps → côte à côte plutôt que
+// superposés. Calculé par colonne de jour (un événement multi-jours peut
+// avoir un nombre de colonnes différent selon le jour traversé).
+const dayEventLayouts = computed(() => {
+    const map = new Map<string, Map<string, { col: number; cols: number }>>();
+    for (const day of days.value) {
+        map.set(day.iso, layoutDayEvents(day.timedOccurrences, occ => rangeMinutesForDay(occ, day.iso)));
+    }
+    return map;
+});
+
+function eventStyle(occ: OccurrenceInstance, day: DayColumn) {
+    const { start: startMinutes, end: endMinutesRaw } = rangeMinutesForDay(occ, day.iso);
+    let durationMinutes = endMinutesRaw - startMinutes;
     if (durationMinutes < 20) durationMinutes = 20;
 
     const top = (startMinutes / 60) * rowHeight;
     const height = (durationMinutes / 60) * rowHeight;
 
+    const slot = dayEventLayouts.value.get(day.iso)?.get(occ.occurrenceKey) || { col: 0, cols: 1 };
+    const GAP = 2;
+    const left = `calc(${(slot.col / slot.cols) * 100}% + ${GAP}px)`;
+    const width = `calc(${(1 / slot.cols) * 100}% - ${GAP * 2}px)`;
+
     return {
         top: `${top}px`,
         height: `${height}px`,
+        left,
+        width,
         '--event-color': occ.color || undefined
     };
 }
@@ -715,10 +753,17 @@ const eventDragLabel = computed(() => {
     font-size: 13px;
     font-weight: 700;
     color: var(--text);
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .is-today .time-grid-day-number {
-    color: var(--primary);
+    background: var(--primary);
+    color: white;
 }
 
 .time-grid-allday {
@@ -749,6 +794,10 @@ const eventDragLabel = computed(() => {
     cursor: pointer;
 }
 
+.time-grid-allday-cell.is-today {
+    background: color-mix(in srgb, var(--primary) 6%, transparent);
+}
+
 .time-grid-body {
     flex: 1;
     display: flex;
@@ -776,14 +825,16 @@ const eventDragLabel = computed(() => {
     user-select: none;
 }
 
+.time-grid-day-col.is-today {
+    background: color-mix(in srgb, var(--primary) 6%, transparent);
+}
+
 .time-grid-hour-line {
     border-bottom: 1px solid var(--border-color);
 }
 
 .time-grid-event {
     position: absolute;
-    left: 2px;
-    right: 2px;
     border-radius: 6px;
     overflow: visible;
     cursor: grab;

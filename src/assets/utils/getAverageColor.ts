@@ -1,3 +1,14 @@
+/**
+ * "#16ac77" -> "22, 172, 119" : alimente des `rgba()`/`rgb()` dynamiques
+ * dans des custom properties CSS, sur le même modèle que --primary-rgb
+ * (style.css).
+ */
+export const hexToRgb = (hex: string): string => {
+    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!m) return '22, 172, 119'; // fallback --primary-rgb
+    return `${parseInt(m[1]!, 16)}, ${parseInt(m[2]!, 16)}, ${parseInt(m[3]!, 16)}`;
+};
+
 export const getAverageColor = (url: string): Promise<string> => {
     return new Promise((resolve) => {
         const img = new Image();

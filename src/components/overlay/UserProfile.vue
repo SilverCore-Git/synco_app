@@ -39,9 +39,9 @@
             <div class="absolute top-[48px] left-4 p-1.5 bg-(--bg) rounded-full z-10">
                 <div class="relative">
                     <img
-                        :src="u.avatarUrl || `https://ui-avatars.com/api/?name=${u.name}&background=128a60&color=fff`"
+                        :src="u.avatarUrl || defaultAvatar(u.name)"
                         :alt="u.name"
-                        @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${u.name}&background=128a60&color=fff`"
+                        @error="(e: any) => e.target.src = defaultAvatar(u.name)"
                         class="w-[84px] h-[84px] rounded-full object-cover"
                     />
                     <!-- Status indicator -->
@@ -133,6 +133,7 @@
 
 <script setup lang="ts">
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { computed } from 'vue';
 import type { User } from '@/types/types';
 import { user, openedOrg } from '@/assets/var';
@@ -151,7 +152,7 @@ const dominantColor = ref('#16ac77');
 
 watch(() => [props.isOpen, u.value?.avatarUrl, u.value?.name], async () => {
     if (props.isOpen && u.value) {
-        const url = u.value.avatarUrl || `https://ui-avatars.com/api/?name=${u.value.name}&background=128a60&color=fff`;
+        const url = u.value.avatarUrl || defaultAvatar(u.value.name);
         dominantColor.value = await getAverageColor(url);
     }
 }, { immediate: true });

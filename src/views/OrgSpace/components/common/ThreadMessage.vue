@@ -40,16 +40,16 @@
 
                         <img
                             v-if="msg.replyMessage?.isWebhook"
-                            :src="msg.replyMessage?.webhookAvatar || `https://ui-avatars.com/api/?name=${msg.replyMessage?.webhookName || 'Webhook'}&background=7c3aed&color=fff`"
+                            :src="msg.replyMessage?.webhookAvatar || defaultAvatar(msg.replyMessage?.webhookName || 'Webhook', '#7c3aed')"
                             :alt="msg.replyMessage?.webhookName || 'Webhook'"
-                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${msg.replyMessage?.webhookName || 'Webhook'}&background=7c3aed&color=fff`"
+                            @error="(e: any) => e.target.src = defaultAvatar(msg.replyMessage?.webhookName || 'Webhook', '#7c3aed')"
                             class="w-4 h-4 rounded-full opacity-80 shrink-0"
                         />
                         <img
                             v-else
-                            :src="msg.replyMessage?.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(msg.replyMessage?.sender?.name)}&background=128a60&color=fff`"
+                            :src="msg.replyMessage?.sender?.avatarUrl || defaultAvatar($p(msg.replyMessage?.sender?.name))"
                             :alt="$p(msg.replyMessage?.sender?.name)"
-                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(msg.replyMessage?.sender?.name)}&background=128a60&color=fff`"
+                            @error="(e: any) => e.target.src = defaultAvatar($p(msg.replyMessage?.sender?.name))"
                             class="w-4 h-4 rounded-full opacity-80 shrink-0"
                         />
 
@@ -60,8 +60,8 @@
                             @{{ $p(msg.replyMessage?.sender?.name) || 'Anonyme' }}
                         </span>
 
-                        <div class="max-w-md opacity-70 pointer-events-none text-[11px] line-clamp-1 [&_p]:inline [&_h1]:inline [&_h2]:inline [&_h3]:inline">
-                            <MarkdownRender :content="msg.replyMessage?.content || ''" :show-reference-cards="false" />
+                        <div class="max-w-md opacity-70 pointer-events-none text-[11px] truncate">
+                            {{ messagePreview(msg.replyMessage?.content) }}
                         </div>
 
                     </div>
@@ -124,20 +124,26 @@
 
                         <img 
                             v-if="msg.isWebhook && !isStacked"
-                            :src="msg.webhookAvatar || `https://ui-avatars.com/api/?name=${msg.webhookName || 'Webhook'}&background=7c3aed&color=fff`"
+                            :src="msg.webhookAvatar || defaultAvatar(msg.webhookName || 'Webhook', '#7c3aed')"
                             :alt="msg.webhookName || 'Webhook'"
-                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${msg.webhookName || 'Webhook'}&background=7c3aed&color=fff`"
+                            @error="(e: any) => e.target.src = defaultAvatar(msg.webhookName || 'Webhook', '#7c3aed')"
                             class="rounded-full w-9 h-9 object-cover shrink-0 cursor-default"
                         />
-                        <img 
-                            v-else-if="msg.sender && !isStacked"
-                            :src="msg.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(msg.sender?.name)}&background=128a60&color=fff`"
-                            :alt="$p(msg.sender?.name)"
-                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(msg.sender?.name)}&background=128a60&color=fff`"
-                            @click.stop="(e) => !isReadOnly && msg.sender && openProfile(msg.sender, e)"
-                            class="rounded-full w-9 h-9 object-cover shrink-0"
-                            :class="!isReadOnly ? 'cursor-pointer hover:ring-2 hover:ring-(--primary)/50 transition-all' : ''"
-                        />
+                        <div v-else-if="msg.sender && !isStacked" class="relative shrink-0">
+                            <img
+                                :src="msg.sender?.avatarUrl || defaultAvatar($p(msg.sender?.name))"
+                                :alt="$p(msg.sender?.name)"
+                                @error="(e: any) => e.target.src = defaultAvatar($p(msg.sender?.name))"
+                                @click.stop="(e) => !isReadOnly && msg.sender && openProfile(msg.sender, e)"
+                                class="rounded-full w-9 h-9 object-cover"
+                                :class="!isReadOnly ? 'cursor-pointer hover:ring-2 hover:ring-(--primary)/50 transition-all' : ''"
+                            />
+                            <span
+                                v-if="senderStatus(msg.sender)"
+                                class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg)"
+                                :class="getColorByStatus(senderStatus(msg.sender)!)"
+                            />
+                        </div>
                         <div 
                             v-else-if="isStacked"
                             class="w-9 shrink-0 flex items-start justify-center opacity-0 group-hover:opacity-100 transition-opacity select-none"
@@ -164,6 +170,13 @@
                                     {{ msg.webhookName || 'Webhook' }}
                                     <span class="ml-1 bg-(--primary) text-white text-[9px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider inline-flex items-center">
                                         <i class="bi bi-robot mr-1 text-[8px]"></i> BOT
+                                    </span>
+                                    <!-- Contenu de webhook : en clair, non authentifié (audit FC7) -->
+                                    <span
+                                        class="ml-1 inline-flex items-center gap-1 text-[9px] font-semibold text-amber-500"
+                                        title="Message de webhook : non chiffré de bout en bout, son contenu est visible par le serveur."
+                                    >
+                                        <i class="bi bi-unlock-fill" /> Non chiffré
                                     </span>
                                 </span>
                                 <span 
@@ -200,6 +213,7 @@
                                     @reference-click="onReferenceClick"
                                 />
                                 <WebhookEmbed v-if="msg.isWebhook && msg.embeds && msg.embeds.length > 0" :embeds="msg.embeds" />
+                                <LinkPreview v-else :content="msg.content" />
                                 <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
                             </div>
                             
@@ -251,6 +265,8 @@
 
 <script setup lang="ts">
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
+import getColorByStatus from '@/assets/utils/getColorByStatus';
 import { computed, nextTick, ref, watch } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
@@ -264,14 +280,25 @@ import { encryptMessageWithContentKey } from '@/assets/utils/crypto';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import ThreadTextarea from './ThreadTextarea.vue';
 import { useRoute, useRouter } from 'vue-router';
-import { user, member } from '@/assets/var';
+import { user, member, openedOrg } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
+import { messagePreview } from '@/assets/utils/messagePreview';
 import { openProfile } from '@/composables/useProfile';
 import WebhookEmbed from './WebhookEmbed.vue';
+import LinkPreview from './LinkPreview.vue';
 import { orgMentionLookup, isUserMentioned } from '@/composables/useMentions';
 import { extractReferenceTokens } from '@/composables/useReferences';
 import { navigateToReference } from '@/composables/useReferenceNavigation';
 import type { User } from '@/types/types';
+
+// msg.sender est une copie figée au moment de la réception du message : son
+// data.status n'est jamais mis à jour par le socket `user-status-changed`
+// (cf. OrgLayout.vue), contrairement à openedOrg.members qui lui est réactif.
+const senderStatus = (sender?: User | null): string | undefined => {
+    if (!sender) return undefined;
+    const m = openedOrg.value?.members?.find(mb => mb.userId === sender.id);
+    return m?.user?.data?.status || sender.data?.status;
+};
 
 const toast = useToast();
 const showReactionPicker = ref<boolean>(false);

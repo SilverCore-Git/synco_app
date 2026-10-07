@@ -45,12 +45,13 @@
       <div v-if="searchQuery">
         <div v-if="filteredEmojis.length > 0" class="grid grid-cols-7 sm:grid-cols-8 gap-1">
           <button
-            v-for="emoji in filteredEmojis"
-            :key="emoji"
-            @click="selectEmoji(emoji)"
+            v-for="entry in filteredEmojis"
+            :key="entry.emoji"
+            @click="selectEmoji(entry.emoji)"
+            :title="entry.name"
             class="text-2xl p-1.5 rounded-xl hover:bg-(--text)/10 transition-transform active:scale-90 duration-100"
           >
-            {{ emoji }}
+            {{ entry.emoji }}
           </button>
         </div>
         <div v-else class="text-center py-12 text-(--text)/30 text-sm">
@@ -70,12 +71,13 @@
           </h3>
           <div class="grid grid-cols-7 sm:grid-cols-8 gap-1">
             <button
-              v-for="emoji in category.emojis"
-              :key="emoji"
-              @click="selectEmoji(emoji)"
+              v-for="entry in category.emojis"
+              :key="entry.emoji"
+              @click="selectEmoji(entry.emoji)"
+              :title="entry.name"
               class="text-2xl p-1.5 rounded-xl hover:bg-(--text)/10 transition-transform active:scale-90 duration-100"
             >
-              {{ emoji }}
+              {{ entry.emoji }}
             </button>
           </div>
         </div>
@@ -86,6 +88,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { emojiCategories, type EmojiEntry } from './emojiData';
 
 const emit = defineEmits<{
   (e: 'select', emoji: string): void
@@ -122,123 +125,24 @@ const recordEmojiUsage = (emoji: string) => {
   }
 };
 
-// Base de données d'emojis classifiée
-const emojiCategories = [
-  {
-    id: 'smileys',
-    name: 'Smileys & Personnes',
-    icon: '😀',
-    emojis: [
-      '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', 
-      '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🥸', '🤩', '🥳', 
-      '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', 
-      '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', 
-      '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', 
-      '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑', '🤠', '😈', '👿', '👹', '👺', '🤡', '💩', 
-      '👻', '💀', '☠️', '👽', '👾', '🤖', '🎃', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾',
-      '👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', 
-      '🖕', '👇', '☝️', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️', 
-      '💅', '🤳', '💪', '🦾', '🦿', '🦵', '🦶', '👂', '🦻', '👃', '🧠', '🫀', '🫁', '🦷', '🦴', '👀', 
-      '👁️', '👅', '👄', '💋', '🩸'
-    ]
-  },
-  {
-    id: 'animals',
-    name: 'Animaux & Nature',
-    icon: '🐱',
-    emojis: [
-      '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐻‍❄️', '🐨', '🐯', '🦁', '🐮', '🐷', '🐽', '🐸', 
-      '🐵', '🙈', '🙉', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤', '🐣', '🐥', '🦆', '🦅', '🦉', '🦤', '🦩', 
-      '🦚', '🦜', '🐺', '🐗', '🐴', '🦄', '🐝', '🪱', '🐛', '🦋', '🐌', '🐞', '🐜', '🪰', '🪲', '🪳', 
-      '🦂', '🕸️', '🕷️', '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', 
-      '🐬', '🐳', '🐋', '🦈', '🐊', '🐅', '🐆', '🦓', '🦍', '🦧', '🦣', '🐘', '🦛', '🦏', '🐪', '🐫', 
-      '🦒', '🦘', '🦬', '🐃', '🐂', '🐄', '🐎', '🐖', '🐏', '🐑', '🐐', '🦌', '🐕', '🐩', '🐈', '🐈‍⬛', 
-      '🪶', '🦅', '🕊️', '🐇', '🦫', '🦔', '🐿️', '🦡', '🦥', '🦦', '🦨', '🦘', '🦡', '🐾', '🐉', '🐲', 
-      '🌵', '🎄', '🌲', '🌳', '🌴', '🪵', '🌱', '🌿', '☘️', '🍀', '🎍', '🪴', '🎋', '🍃', '🍂', '🍁', 
-      '🍄', '🐚', '🪨', '🌾', '💐', '🌷', '🌹', '🥀', '🌺', '🌸', '🌼', '🌻', '🌞', '🌝', '🌛', '🌜', 
-      '🌙', '🪐', '💫', '⭐️', '🌟', '✨', '⚡️', '☄️', '💥', '🔥', '🌪️', '🌈', '☀️', '🌤️', '⛅️', '🌥️', 
-      '☁️', '🌦️', '🌧️', '⛈️', '🌩️', '❄️', '☃️', '⛄️', '🌬️', '💨', '💧', '💦', '☔️', '☂️', '🌊', '🌫️'
-    ]
-  },
-  {
-    id: 'food',
-    name: 'Nourriture & Boisson',
-    icon: '🍏',
-    emojis: [
-      '🍏', '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', 
-      '🥝', '🍅', '🍆', '🥑', '🥦', '🥬', '🥒', '🌶️', '🫑', '🌽', '🥕', '🫒', '🧄', '🧅', '🥔', '🍠', 
-      '🥐', '🥯', '🍞', '🥖', '🥨', '🧀', '🥚', '🍳', '🧈', '🥞', '🧇', '🥓', '🥩', '🍗', '🍖', '🍔', 
-      '🍟', '🍕', '🌭', '🥪', '🌮', '🌯', '🫔', '🥙', '🧆', '🥚', '🍳', '🥘', '🍲', '🫕', '🥣', '🥗', 
-      '🍿', '🧈', '🧂', '🥫', '🍱', '🍘', '🍙', '🍚', '🍛', '🍜', '🍝', '🍠', '🍢', '🍣', '🍤', '🍥', 
-      '🥮', '🍡', '🥟', '🥠', '🥡', '🍦', '🍧', '🍨', '🍩', '🍪', '🎂', '🍰', '🧁', '🥧', '🍫', '🍬', 
-      '🍭', '🍮', '🍯', '🍼', '🥛', '☕️', '🫖', '🍵', '🍶', '🍾', '🍷', '🍸', '🍹', '🍺', '🍻', '🥂', 
-      '🥃', '🥤', '🧋', '🧃', '🧉', '🧊'
-    ]
-  },
-  {
-    id: 'activity',
-    name: 'Activités & Sports',
-    icon: '⚽',
-    emojis: [
-      '⚽️', '🏀', '🏈', '⚾️', '🥎', '🎾', '🏐', '🏉', '🥏', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🪃', 
-      '🥅', '⛳️', '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽', '🛹', '🛼', '🛷', '⛸️', '🥌', '🎿', '🏂', 
-      '🪂', '🏋️', '🤼', '🤸', '⛹️', '🤺', '🤾', '🏌️', '🏇', '🧘', '🏄', '🏊', '🤽', '🚣', '🧗', '🚴', 
-      '🚵', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖️', '🏵️', '🎗️', '🎫', '🎟️', '🎪', '🤹', '🎭', '🩰', '🎨', 
-      '🎬', '🎤', '🎧', '🎼', '🎹', '🥁', '🪘', '🎷', '🎺', '🎸', '🪕', '🎻', '🎲', '♟️', '🎯', '🎳', 
-      '🎮', '🎰', '🧩'
-    ]
-  },
-  {
-    id: 'objects',
-    name: 'Objets',
-    icon: '💡',
-    emojis: [
-      '👑', '🎒', '👓', '🕶️', '🥽', '🥼', '🛟', '🧳', '☂️', '🪞', '💄', '💍', '💼', '📱', '📲', '💻', 
-      '⌨️', '🖥️', '🖨️', '🖱️', '🖲️', '🕹️', '🗜️', '💽', '💾', '💿', '📀', '📼', '📷', '📸', '📹', '🎥', 
-      '📽️', '🎞️', '📞', '📟', '📠', '📺', '📻', '🎙️', '🎚️', '🎛️', '🧭', '⏱️', '⏲️', '⏰', '🕰️', '⌛️', 
-      '⏳', '📡', '🔋', '🔌', '💡', '🔦', '🕯️', '🪔', '🧯', '🛢️', '💸', '💵', '💴', '💶', '💷', '🪙', 
-      '💰', '💳', '💎', '⚖️', '🪜', '🧰', '🪛', '🔧', '🔨', '⚒️', '🛠️', '⛏️', '🪓', '🪚', '🔬', '🔭', 
-      '📡', '💉', '🩸', '💊', '🩹', '🩺', '🚪', '🛗', '🪞', '🪟', '🛏️', '🛋️', '🪑', '🚽', '🪠', '🚿', 
-      '🛁', '🪒', '🧴', '🧷', '🧹', '🧺', '🧻', '🧼', '🪣', '🧽', '🔑', '🗝️', '🪤', '📦', '📫', '📦', 
-      '📜', '📃', '📄', '📑', '📊', '📈', '📉', '🗒️', '🗓️', '📆', '📅', '🗑️', '📇', '🗃️', '🗳️', '🗄️', 
-      '📋', '📁', '📂', '🗂️', '🗞️', '📰', '📓', '📔', '📒', '📕', '📗', '📘', '📙', '📚', '📖', '🔖', 
-      '🧷', '🔗', '📎', '🖇️', '📐', '📏', '📌', '📍', '✂️', '🖊️', '🖋️', '✒️', '📝', '✏️', '🔍', '🔎'
-    ]
-  },
-  {
-    id: 'flags',
-    name: 'Drapeaux',
-    icon: '🏁',
-    emojis: [
-      '🏁', '🚩', '🎌', '🏴', '🏳️', '🏳️‍🌈', '🏳️‍⚧️', '🏴‍☠️', '🇦🇨', '🇦🇩', '🇦🇪', '🇦🇫', '🇦🇬', '🇦🇮', '🇦🇱', 
-      '🇦🇲', '🇦🇴', '🇦🇶', '🇦🇷', '🇦🇸', '🇦🇹', '🇦🇺', '🇦🇼', '🇦🇽', '🇦🇿', '🇧🇦', '🇧🇧', '🇧🇩', '🇧🇪', '🇧🇫', '🇧🇬', 
-      '🇧🇭', '🇧🇮', '🇧🇯', '🇧🇱', '🇧🇲', '🇧🇳', '🇧🇴', '🇧🇶', '🇧🇷', '🇧🇸', '🇧🇹', '🇧🇻', '🇧🇼', '🇧🇾', '🇧🇿', '🇨🇦', 
-      '🇨🇨', '🇨🇩', '🇨🇫', '🇨🇬', '🇨🇭', '🇨🇮', '🇨🇰', '🇨🇱', '🇨🇲', '🇨🇳', '🇨🇴', '🇨🇵', '🇨🇷', '🇨🇺', '🇨🇻', '🇨🇼', 
-      '🇨🇽', '🇨🇾', '🇨🇿', '🇩🇪', '🇩🇬', '🇩🇯', '🇩🇰', '🇩🇲', '🇩🇴', '🇩🇿', '🇪🇦', '🇪🇨', '🇪🇪', '🇪🇬', '🇪🇭', '🇪🇷', 
-      '🇪🇸', '🇪🇹', '🇪🇺', '🇫🇮', '🇫🇯', '🇫🇰', '🇫🇲', '🇫🇴', '🇫🇷', '🇬🇦', '🇬🇧', '🇬🇩', '🇬🇪', '🇬🇫', '🇬🇬', '🇬🇭', 
-      '🇬🇮', '🇬🇱', '🇬🇲', '🇬🇳', '🇬🇵', '🇬🇶', '🇬🇷', '🇬🇸', '🇬🇹', '🇬🇺', '🇬🇼', '🇬🇾', '🇭🇰', '🇭🇲', '🇭🇳', '🇭🇷', 
-      '🇭🇹', '🇭🇺', '🇮🇨', '🇮🇩', '🇮🇪', '🇮🇱', '🇮🇲', '🇮🇳', '🇮🇴', '🇮🇶', '🇮🇷', '🇮🇸', '🇮🇹', '🇯🇪', '🇯🇲', '🇯🇴', 
-      '🇯🇵', '🇰🇪', '🇰🇬', '🇰🇭', '🇰🇮', '🇰🇲', '🇰🇳', '🇰🇵', '🇰🇷', '🇰🇼', '🇰🇾', '🇰🇿', '🇱🇦', '🇱🇧', '🇱🇨', '🇱🇮', 
-      '🇱🇰', '🇱🇷', '🇱🇸', '🇱🇹', '🇱🇺', '🇱🇻', '🇱🇾', '🇲🇦', '🇲🇨', '🇲🇩', '🇲🇪', '🇲🇫', '🇲🇬', '🇲🇭', '🇲🇰', '🇲🇱', 
-      '🇲🇲', '🇲🇳', '🇲🇴', '🇲🇵', '🇲🇶', '🇲🇷', '🇲🇸', '🇲🇹', '🇲🇺', '🇲🇻', '🇲🇼', '🇲🇽', '🇲🇾', '🇲🇿', '🇳🇦', '🇳🇨', 
-      '🇳🇪', '🇳🇫', '🇳🇬', '🇳🇮', '🇳🇱', '🇳🇴', '🇳🇵', '🇳🇷', '🇳🇺', '🇳🇿', '🇴🇲', '🇵🇦', '🇵🇪', '🇵🇫', '🇵🇬', '🇵🇭', 
-      '🇵🇰', '🇵🇱', '🇵🇲', '🇵🇳', '🇵🇷', '🇵🇸', '🇵🇹', '🇵🇼', '🇵运行', '🇵🇾', '🇶🇦', '🇷🇪', '🇷🇴', '🇷🇸', '🇷🇺', '🇷🇼', 
-      '🇸🇦', '🇸🇧', '🇸🇨', '🇸🇩', '🇸🇪', '🇸🇬', '🇸🇭', '🇸🇮', '🇸🇯', '🇸🇰', '🇸🇱', '🇸🇲', '🇸🇳', '🇸🇴', '🇸🇷', '🇸🇸', 
-      '🇸🇹', '🇸🇻', '🇸🇽', '叙', '🇸🇿', '🇹🇦', '🇹🇨', '🇹🇩', '🇹🇫', '🇹🇬', '🇹🇭', '🇹🇯', '🇹🇰', '🇹🇱', '🇹🇲', '🇹🇳', 
-      '🇹🇴', '🇹🇷', '🇹🇹', '🇹🇻', '🇹🇼', '🇹🇿', '🇺🇦', '🇺🇬', '🇺🇲', '🇺🇳', '🇺🇸', '🇺🇾', '🇺🇿', '🇻🇦', '🇻🇨', '🇻🇪', 
-      '🇻🇬', '🇻🇮', '🇻🇳', '🇻🇺', '🇼🇫', '🇼🇸', '🇽🇰', '🇾🇪', '🇾🇹', '🇿🇦', '🇿🇲', '🇿🇼'
-    ]
-  }
-];
-
 const activeCategory = ref(recentEmojis.value.length > 0 ? 'recent' : emojiCategories[0]!.id);
+
+// Table de correspondance emoji -> entrée nommée, pour retrouver le nom des
+// emojis récents (stockés comme simples caractères dans localStorage).
+const emojiEntryByChar = new Map<string, EmojiEntry>(
+  emojiCategories.flatMap(c => c.emojis).map(entry => [entry.emoji, entry])
+);
+
+const recentEmojiEntries = computed<EmojiEntry[]>(() =>
+  recentEmojis.value.map(e => emojiEntryByChar.get(e) ?? { emoji: e, name: '', keywords: [] })
+);
 
 // Catégorie "Récents" ajoutée en tête, seulement si l'utilisateur a déjà
 // choisi au moins un emoji — sinon on ne montre pas un onglet vide.
 const displayedCategories = computed(() => {
   if (recentEmojis.value.length === 0) return emojiCategories;
   return [
-    { id: 'recent', name: 'Récemment utilisés', icon: '🕒', emojis: recentEmojis.value },
+    { id: 'recent', name: 'Récemment utilisés', icon: '🕒', emojis: recentEmojiEntries.value },
     ...emojiCategories
   ];
 });
@@ -246,11 +150,19 @@ const displayedCategories = computed(() => {
 // Combine tous les emojis dans une liste plate pour la recherche
 const allEmojisFlat = emojiCategories.flatMap(c => c.emojis);
 
-// Système de filtrage natif (Vue effectue la comparaison de chaînes)
+// Normalise une chaîne pour une comparaison insensible aux accents et à la casse
+const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+// Recherche sur l'emoji lui-même (collé directement), son nom ou ses mots-clés
 const filteredEmojis = computed(() => {
   if (!searchQuery.value) return [];
-  const q = searchQuery.value.trim().toLowerCase();
-  return allEmojisFlat.filter(emoji => emoji.includes(q) || q === '');
+  const q = normalize(searchQuery.value.trim());
+  if (!q) return [];
+  return allEmojisFlat.filter(entry =>
+    entry.emoji.includes(searchQuery.value.trim()) ||
+    normalize(entry.name).includes(q) ||
+    entry.keywords.some(k => normalize(k).includes(q))
+  );
 });
 
 // Émet l'emoji, l'enregistre comme récent, et ferme/réinitialise si nécessaire

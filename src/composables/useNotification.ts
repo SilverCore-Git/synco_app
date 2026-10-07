@@ -1,6 +1,6 @@
 import { ref, computed, type Ref } from 'vue';
 import useWSocket from './useWSocket';
-import { user } from '../assets/var';
+import { user, openedOrg } from '../assets/var';
 import { useToast } from './useToast';
 import { useRouter } from 'vue-router';
 import sfetch from '../assets/utils/sfetch';
@@ -268,10 +268,16 @@ export function useNotification() {
         notification.isRead = true;
       }
 
-      // Appel API
-      await sfetch(`/api/notifications/${notificationId}/read`, {
+      // Appel API — fetch() ne rejette jamais sur un 4xx/5xx : sans ce
+      // contrôle explicite, une réponse d'erreur (ex. 403/404/500) était
+      // silencieusement prise pour un succès, l'optimistic update restait
+      // en place pour la session en cours, et la notification réapparaissait
+      // non lue au prochain chargement (le serveur, lui, n'avait jamais été
+      // mis à jour).
+      const res = await sfetch(`/api/notifications/${notificationId}/read`, {
         method: 'PATCH'
       });
+      if (!res.ok) throw new Error(`PATCH /notifications/${notificationId}/read -> ${res.status}`);
 
       // Notifier via WebSocket pour synchroniser les autres onglets
       socket?.value?.emit('notification:mark-read', { notificationId });
@@ -348,6 +354,7 @@ export function useNotification() {
   const markTasksAsRead = async (spaceId?: string): Promise<void> => {
     try {
       let markedCount = 0;
+      let failedCount = 0;
       const promises: Promise<void>[] = [];
 
       // Optimistic update
@@ -355,15 +362,31 @@ export function useNotification() {
         if (!n.isRead && isTaskNotification(n) && (!spaceId || n.data?.spaceId === spaceId)) {
           n.isRead = true;
           markedCount++;
-          // We can use the existing read API per notification
+          // allSettled : une notification en échec ne doit pas faire revenir
+          // tout le lot en arrière. Mais sans vérifier res.ok ici, un
+          // 403/404/500 passait pour un succès (fetch() ne rejette que sur
+          // une vraie coupure réseau) — cette notification restait donc
+          // "lue" en local tout en étant toujours non lue côté serveur, et
+          // réapparaissait non lue au prochain chargement.
           promises.push(
-            sfetch(`/api/notifications/${n.id}/read`, { method: 'PATCH' }).then(() => { })
+            sfetch(`/api/notifications/${n.id}/read`, { method: 'PATCH' }).then((res) => {
+              if (!res.ok) {
+                n.isRead = false;
+                failedCount++;
+              }
+            }).catch(() => {
+              n.isRead = false;
+              failedCount++;
+            })
           );
         }
       });
 
       if (markedCount > 0) {
         await Promise.allSettled(promises);
+        if (failedCount > 0) {
+          toast.show('Échec de la mise à jour de certaines notifications', 'error');
+        }
       }
     } catch (error) {
       console.error('[Notifications] Failed to mark tasks as read:', error);
@@ -381,10 +404,11 @@ export function useNotification() {
         n.isRead = true;
       });
 
-      // Appel API
-      await sfetch('/api/notifications/read-all', {
+      // Appel API — même contrôle explicite du statut que markAsRead ci-dessus.
+      const res = await sfetch('/api/notifications/read-all', {
         method: 'PATCH'
       });
+      if (!res.ok) throw new Error(`PATCH /notifications/read-all -> ${res.status}`);
 
       // Notifier via WebSocket
       socket?.value?.emit('notification:mark-all-read');
@@ -402,9 +426,10 @@ export function useNotification() {
    */
   const removeNotification = async (notificationId: string): Promise<void> => {
     try {
-      await sfetch(`/api/notifications/${notificationId}`, {
+      const res = await sfetch(`/api/notifications/${notificationId}`, {
         method: 'DELETE'
       });
+      if (!res.ok) throw new Error(`DELETE /notifications/${notificationId} -> ${res.status}`);
 
       // Supprimer du state local
       notifications.value = notifications.value.filter(n => n.id !== notificationId);
@@ -415,6 +440,34 @@ export function useNotification() {
   };
 
   // ==================== WEB SOCKET ====================
+
+  /**
+   * Est-ce que cette notification MESSAGE concerne le DM ou le salon
+   * actuellement ouvert à l'écran ? Dans ce cas elle ne doit pas allumer de
+   * badge/point rouge — on est déjà en train de lire la conversation. Même
+   * règle que notif:dm:new-message / notif:new-message dans OrgLayout.vue,
+   * qui suppriment déjà le toast riche dans ce cas ; ici on couvre le badge
+   * du centre de notifications (UsersBar, ThreadsBar...) qui vient d'un
+   * pipeline séparé (notification:push) et n'avait pas ce garde-fou.
+   */
+  const isForActiveConversation = (notification: AppNotification): boolean => {
+    if (notification.type !== 'MESSAGE') return false;
+    const route = router.currentRoute.value;
+
+    if (notification.data?.dmUserId) {
+      if (route.name !== 'OrgThreadChat' && route.name !== 'OrgThreadChatPrivateMeet') return false;
+      // route.params.userId est en réalité l'id du membre (OrgMember.id), pas
+      // l'id utilisateur — cf. ChatView.vue (recipient, markDMAsRead).
+      const peerMemberId = openedOrg.value?.members?.find(m => m.user?.id === notification.data?.dmUserId)?.id;
+      return !!peerMemberId && route.params.userId === peerMemberId;
+    }
+
+    if (notification.data?.threadId) {
+      return route.params.threadId === notification.data.threadId;
+    }
+
+    return false;
+  };
 
   /**
    * Configurer les listeners WebSocket
@@ -428,6 +481,13 @@ export function useNotification() {
       const exists = notifications.value.some(n => n.id === notification.id);
       if (!exists) {
         notifications.value.unshift(notification);
+      }
+
+      // Déjà en train de regarder cette conversation : la notification est
+      // instantanément marquée lue (pas de point rouge), cf. isForActiveConversation.
+      if (isForActiveConversation(notification)) {
+        markAsRead(notification.id);
+        return;
       }
 
       // Les messages (DM ou salon) ont déjà leur propre toast riche — avatar,

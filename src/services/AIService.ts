@@ -5,6 +5,7 @@ import sfetch from '@/assets/utils/sfetch';
 import { keycloak } from '@/assets/keycloak';
 import { encryptForPeer, decryptFromPeer, privateKey, encryptAiField, decryptAiField } from '@/assets/utils/crypto';
 import { ensureAiSessionKey, getAiSessionKeyRawBase64, AiSessionKeyUnavailableError } from './AiSessionKeyService';
+import { assertAllowedGateway } from './aiGatewayPolicy';
 
 export interface AIProviderConfig {
     provider: 'local' | 'openai' | 'gemini' | 'mistral' | 'custom' | 'gateway';
@@ -13,6 +14,13 @@ export interface AIProviderConfig {
     /** URL de la Synco AI Gateway auto-hébergée (provider 'gateway' uniquement). */
     gatewayUrl?: string;
     modelId?: string;
+    /**
+     * Pour 'gateway' uniquement : la passerelle n'a aucune config par org (cf. routes/chat.rs côté
+     * Rust), donc ce réglage doit lui être envoyé à chaque appel. Les autres providers serveur
+     * (openai/mistral/gemini via synco_api) le lisent eux-mêmes depuis activeModules.aiConfig,
+     * déjà en base — rien à transmettre ici pour eux.
+     */
+    reasoningEffort?: 'low' | 'medium' | 'high';
 }
 
 export class AIService {
@@ -55,8 +63,19 @@ export class AIService {
      * Porte aussi la clé de session IA de l'org (X-Session-Key) — la passerelle en a besoin pour
      * déchiffrer/chiffrer les champs sensibles avant/après son propre appel à synco_api, cf.
      * E2EE_PLAN.md §3-4. `synco_api` ne voit jamais cette clé (appel direct navigateur→gateway).
+     *
+     * `gatewayUrl` vient d'activeModules.aiConfig, lu tel quel depuis la réponse de l'API : un
+     * détenteur de ORG_AI (ou l'opérateur/un intrus côté synco_api, sans toucher la base) peut la
+     * pointer vers un serveur arbitraire, qui recevrait alors le jeton Keycloak complet de chaque
+     * membre et la clé de session IA en clair. `assertAllowedGateway` valide la forme de l'URL et,
+     * si l'origine n'est pas déjà fiable (liste blanche au build ou déjà acceptée), bloque tant que
+     * l'utilisateur n'a pas explicitement autorisé cette origine précise (audit FC5).
      */
-    private async gatewayFetch(orgId: string, url: string, body: any, signal: AbortSignal): Promise<Response> {
+    private async gatewayFetch(orgId: string, path: string, body: any, signal: AbortSignal): Promise<Response> {
+        const userId = user.value?.id;
+        if (!userId) throw new Error('Utilisateur non identifié.');
+        const base = await assertAllowedGateway(this.config.gatewayUrl, userId, orgId);
+
         // Indépendants l'un de l'autre (rafraîchir le token Keycloak / récupérer la clé de session
         // IA) — en parallèle plutôt qu'en séquence, ça évite d'empiler deux aller-retours réseau
         // quand ni l'un ni l'autre n'est déjà en cache (ex: tout premier message d'une session).
@@ -64,7 +83,7 @@ export class AIService {
             keycloak.authenticated ? keycloak.updateToken(60).catch(() => {}) : Promise.resolve(),
             getAiSessionKeyRawBase64(orgId),
         ]);
-        return fetch(url, {
+        return fetch(`${base}${path}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -88,13 +107,13 @@ export class AIService {
         let response: Response;
 
         if (this.config.provider === 'gateway') {
-            const gatewayUrl = (this.config.gatewayUrl || '').replace(/\/$/, '');
-            response = await this.gatewayFetch(orgId, `${gatewayUrl}/chat`, {
+            response = await this.gatewayFetch(orgId, '/chat', {
                 orgId,
                 sessionId: sessionId || undefined,
                 message,
                 syncoApiUrl: import.meta.env.VITE_API_URL,
                 modelId: this.config.modelId,
+                reasoningEffort: this.config.reasoningEffort,
             }, this.abortController.signal);
         } else {
             response = await sfetch(`/api/orgs/${orgId}/ai/chat`, {
@@ -118,11 +137,11 @@ export class AIService {
         let response: Response;
 
         if (this.config.provider === 'gateway') {
-            const gatewayUrl = (this.config.gatewayUrl || '').replace(/\/$/, '');
-            response = await this.gatewayFetch(orgId, `${gatewayUrl}/chat/${sessionId}/tool-result`, {
+            response = await this.gatewayFetch(orgId, `/chat/${sessionId}/tool-result`, {
                 orgId,
                 syncoApiUrl: import.meta.env.VITE_API_URL,
                 modelId: this.config.modelId,
+                reasoningEffort: this.config.reasoningEffort,
                 ...decision,
             }, this.abortController.signal);
         } else {
@@ -195,6 +214,7 @@ export class AIService {
                 model: this.config.modelId || 'gpt-4o',
                 messages: messages,
                 stream: true,
+                stream_options: { include_usage: true },
                 temperature: 0.7
             }),
             signal: this.abortController.signal
@@ -264,6 +284,19 @@ export class AIService {
                     if (data === '[DONE]') break;
                     try {
                         const parsed = JSON.parse(data);
+
+                        // usageMetadata est un frère de candidates, cumulatif à chaque chunk : le
+                        // dernier reçu avant la fin du flux est le bon, pas besoin de condition sur text.
+                        if (parsed.usageMetadata) {
+                            yield {
+                                type: 'usage',
+                                promptTokens: parsed.usageMetadata.promptTokenCount,
+                                completionTokens: parsed.usageMetadata.candidatesTokenCount,
+                                totalTokens: parsed.usageMetadata.totalTokenCount,
+                                reasoningTokens: parsed.usageMetadata.thoughtsTokenCount,
+                            };
+                        }
+
                         const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
                         if (text) {
                             buffer += text;
@@ -310,10 +343,23 @@ export class AIService {
                     if (data === '[DONE]') break;
                     try {
                         const parsed = JSON.parse(data);
+
+                        // Chunk terminal (choices vide) quand stream_options.include_usage est honoré
+                        // par le serveur en face — indépendant du traitement du contenu ci-dessous.
+                        if (parsed.usage) {
+                            yield {
+                                type: 'usage',
+                                promptTokens: parsed.usage.prompt_tokens,
+                                completionTokens: parsed.usage.completion_tokens,
+                                totalTokens: parsed.usage.total_tokens,
+                                reasoningTokens: parsed.usage.completion_tokens_details?.reasoning_tokens,
+                            };
+                        }
+
                         const content = parsed.choices?.[0]?.delta?.content || '';
                         if (content) {
                             buffer += content;
-                            
+
                             const parsedBuffer = this.checkAndYieldTools(buffer);
                             if (parsedBuffer.yielded) {
                                 yield parsedBuffer.toolCall;
@@ -389,12 +435,19 @@ export class AIService {
  * d'appel direct navigateur → Ollama, pour éviter une config CORS séparée sur Ollama). La
  * passerelle sait elle-même où joindre Ollama (OLLAMA_URL, config de déploiement) — on ne le lui
  * dit pas ici. Utilisé par AISettings.vue pour peupler le sélecteur de modèle du provider 'gateway'.
+ *
+ * Même contrôle que gatewayFetch (audit FC5) : avant ce correctif, chaque frappe dans le champ
+ * d'URL (débounce 500ms côté AISettings.vue) envoyait le jeton Keycloak complet à l'origine en
+ * cours de saisie, sans aucune validation.
  */
-export async function listGatewayModels(gatewayUrl: string): Promise<string[]> {
+export async function listGatewayModels(gatewayUrl: string, orgId: string): Promise<string[]> {
+    const userId = user.value?.id;
+    if (!userId) throw new Error('Utilisateur non identifié.');
+    const base = await assertAllowedGateway(gatewayUrl, userId, orgId);
+
     if (keycloak.authenticated) {
         await keycloak.updateToken(60).catch(() => {});
     }
-    const base = gatewayUrl.replace(/\/$/, '');
     const url = `${base}/models`;
 
     const res = await fetch(url, {
@@ -485,7 +538,25 @@ function convertStoredMessagesToChatMessages(stored: any[]): any[] {
         }
 
         if (m.role === 'assistant') {
+            // Le raisonnement précède toujours la réponse dans l'ordre réel de génération du
+            // modèle : poussé avant le texte, pour que la timeline rechargée retrouve le même
+            // ordre qu'un tour vécu en direct (consumeAgentStream pousse aussi 'thinking' avant 'text').
+            if (m.thinking) currentTurn.parts.push({ type: 'thinking', text: m.thinking });
             if (m.content) currentTurn.parts.push({ type: 'text', text: m.content });
+
+            // Un tour peut enchaîner plusieurs appels provider (texte -> tool -> texte...), chacun
+            // avec son propre usage : on cumule pour obtenir le total réel du tour, pas juste le
+            // dernier appel.
+            if (m.usage) {
+                const acc = currentTurn.usage || { promptTokens: 0, completionTokens: 0, totalTokens: 0, reasoningTokens: 0 };
+                currentTurn.usage = {
+                    promptTokens: acc.promptTokens + (m.usage.promptTokens || 0),
+                    completionTokens: acc.completionTokens + (m.usage.completionTokens || 0),
+                    totalTokens: acc.totalTokens + (m.usage.totalTokens || 0),
+                    reasoningTokens: acc.reasoningTokens + (m.usage.reasoningTokens || 0),
+                };
+            }
+
             for (const tc of m.toolCalls || []) {
                 currentTurn.parts.push({
                     type: 'tool',
@@ -527,6 +598,7 @@ function isStructuredAgentTranscript(messages: any[]): boolean {
 function hasEncryptedGatewayFields(messages: any[]): boolean {
     return messages.some((m) => {
         if (typeof m.content === 'string' && m.content.startsWith('gcm1:')) return true;
+        if (typeof m.thinking === 'string' && m.thinking.startsWith('gcm1:')) return true;
         if (typeof m.toolResult === 'string' && m.toolResult.startsWith('gcm1:')) return true;
         if (Array.isArray(m.toolCalls) && m.toolCalls.some((tc: any) => typeof tc.arguments === 'string' && tc.arguments.startsWith('gcm1:'))) return true;
         return false;
@@ -535,7 +607,7 @@ function hasEncryptedGatewayFields(messages: any[]): boolean {
 
 /**
  * Déchiffre les champs opaques `"gcm1:..."` d'un StoredMessage[] issu du nouveau flux agent
- * serveur : `content`, `toolResult`, `toolCalls[].arguments`, tous liés par AAD à `session.id` +
+ * serveur : `content`, `thinking`, `toolResult`, `toolCalls[].arguments`, tous liés par AAD à `session.id` +
  * l'id du message (cf. E2EE_PLAN.md §2 et §4.3). Chaque champ est déchiffré indépendamment — un
  * échec isolé (auth GCM invalide, JSON malformé) retombe sur un placeholder pour CE champ, sans
  * effacer le reste de l'historique : sans marqueur de session fiable (cf. hasEncryptedGatewayFields
@@ -555,6 +627,15 @@ async function decryptGatewaySessionMessages(key: CryptoKey, sessionId: string, 
             } catch (e) {
                 console.error("[E2EE] Échec du déchiffrement du contenu du message", m.id, e);
                 out.content = '[⚠️ Contenu illisible.]';
+            }
+        }
+
+        if (typeof out.thinking === 'string' && out.thinking.startsWith('gcm1:')) {
+            try {
+                out.thinking = await decryptAiField(key, sessionId, m.id, 'thinking', out.thinking);
+            } catch (e) {
+                console.error("[E2EE] Échec du déchiffrement du raisonnement", m.id, e);
+                out.thinking = undefined;
             }
         }
 

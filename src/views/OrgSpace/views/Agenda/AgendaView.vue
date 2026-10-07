@@ -99,6 +99,7 @@
             :org-id="orgId"
             :occurrence="selectedOccurrence"
             :initial-range="createInitialRange"
+            :initial-title="createInitialTitle"
             @close="onPanelClose"
             @saved="onPanelSaved"
             @deleted="onPanelDeleted"
@@ -132,7 +133,7 @@ const route = useRoute();
 const router = useRouter();
 const orgId = computed(() => route.params.orgId as string);
 
-const { occurrences, loading, fetchRange, updateEvent, updateOccurrence } = useAgenda();
+const { occurrences, loading, fetchRange, updateEvent, updateOccurrence, getEvent } = useAgenda();
 const { sharedOccurrences, fetchGrants, fetchSharedOccurrences } = useCalendarAccess();
 const { isExternalCalendarVisible } = useExternalCalendars();
 
@@ -365,19 +366,21 @@ function onQuickCreateCreated() {
     refetch();
 }
 
-function onQuickCreateMoreOptions(range: Range) {
+function onQuickCreateMoreOptions(range: Range, title: string) {
     showQuickCreate.value = false;
-    openCreatePanel(range);
+    openCreatePanel(range, title);
 }
 
 // ── Panneau latéral événement (édition complète) ─────────────────────
 const showPanel = ref(false);
 const selectedOccurrence = ref<OccurrenceInstance | null>(null);
 const createInitialRange = ref<Range | null>(null);
+const createInitialTitle = ref<string>('');
 
-function openCreatePanel(range: Range) {
+function openCreatePanel(range: Range, title: string = '') {
     selectedOccurrence.value = null;
     createInitialRange.value = range;
+    createInitialTitle.value = title;
     selectionRange.value = range;
     showPanel.value = true;
 }
@@ -398,6 +401,7 @@ function openEditModal(occ: OccurrenceInstance) {
     showQuickCreate.value = false;
     selectedOccurrence.value = occ;
     createInitialRange.value = null;
+    createInitialTitle.value = '';
     showPanel.value = true;
 }
 
@@ -409,6 +413,43 @@ function openTaskDeadline(occ: OccurrenceInstance) {
     const task = myTasksWithDeadline.value.find(t => t.id === taskId);
     router.push(task?.spaceId ? `/${orgId.value}/${task.spaceId}/tasks` : `/${orgId.value}/tasks`);
 }
+
+// Ouverture depuis une notification ('/:orgId/agenda?eventId=...', voir la
+// route construite côté API dans agendaService.ts) : passe en vue semaine
+// sur la semaine de l'événement et ouvre directement son panneau, plutôt
+// que de laisser la vue par défaut inchangée avec le paramètre ignoré.
+async function openEventFromNotification(eventId: string) {
+    const event = await getEvent(orgId.value, eventId);
+    if (!event) return;
+
+    viewMode.value = 'week';
+    cursorDate.value = new Date(event.startAt);
+
+    openEditModal({
+        occurrenceKey: event.id,
+        eventId: event.id,
+        title: event.title,
+        description: event.description,
+        location: event.location,
+        startAt: event.startAt,
+        endAt: event.endAt,
+        allDay: event.allDay,
+        color: event.color,
+        isRecurring: !!event.recurrenceRule,
+        isException: false,
+        creatorId: event.creatorId,
+        attendees: event.attendees,
+        externalConnectionId: null
+    });
+
+    // Retire eventId de l'URL : un rechargement de page ne doit pas rouvrir
+    // le panneau indéfiniment une fois qu'il a été ouvert une première fois.
+    router.replace({ query: { ...route.query, eventId: undefined } });
+}
+
+watch(() => route.query.eventId, (eventId) => {
+    if (typeof eventId === 'string' && eventId) openEventFromNotification(eventId);
+}, { immediate: true });
 
 function clearSelectionIfCreating() {
     if (!selectedOccurrence.value) selectionRange.value = null;
