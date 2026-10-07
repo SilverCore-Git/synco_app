@@ -42,6 +42,8 @@ export const TOOL_LABELS: Record<string, { label: string; icon: string }> = {
     create_folder: { label: "Création d'un dossier", icon: 'bi-folder-plus' },
     request_image_upload: { label: "Sélection d'une image", icon: 'bi-image' },
     ask_question: { label: 'Question à l\'utilisateur', icon: 'bi-question-circle' },
+    create_email_report: { label: "Création d'un rapport e-mail", icon: 'bi-envelope-paper' },
+    list_email_reports: { label: 'Liste des rapports e-mail', icon: 'bi-envelope-paper' },
 };
 
 export function toolLabel(name: string) {

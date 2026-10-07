@@ -98,6 +98,7 @@ const summary = computed(() => {
         case 'create_file': return a.name;
         case 'update_task': return a.title;
         case 'update_space': return a.name;
+        case 'create_email_report': return a.name;
         default: return '';
     }
 });
