@@ -15,14 +15,13 @@ import { openedOrg } from '@/assets/var';
 import { decryptThreadKeyWithRsa, privateKey } from '@/assets/utils/crypto';
 import { pinOrCheckKey } from '@/assets/utils/keyPinning';
 import { verifyKeyEnvelopeIfPresent } from '@/assets/utils/keyEnvelope';
-// `?worker` (constructeur), pas `?worker&url` + new Worker(url) manuel :
-// laisse Vite servir le fichier via son propre pipeline d'assets (bon
-// Content-Type, bon format worker.format — IIFE par défaut, cohérent avec
-// ce bundle UMD). Le ?worker&url précédent pointait un fichier statique
-// brut au fond de node_modules ; Firefox est plus strict que Chrome sur le
-// Content-Type réel d'un script de worker et refusait de l'exécuter
-// (erreur onerror vide, sans message).
-import E2EEWorker from '../../node_modules/livekit-client/dist/livekit-client.e2ee.worker.js?worker';
+// En dev, Vite force toujours le worker ?worker en type: module (visible en
+// Réseau : ...e2ee.worker.js?worker_file&type=module), quelle que soit la
+// façon dont on l'instancie côté code — donc .mjs (la cible "import" de la
+// map exports du package, un vrai module ES) et non .js (la cible "require",
+// un bundle UMD/IIFE). Charger l'UMD en module fonctionnait par chance sur
+// Chrome mais échouait sur Firefox (onerror vide, sans message).
+import E2EEWorker from '../../node_modules/livekit-client/dist/livekit-client.e2ee.worker.mjs?worker';
 import useWSocket from './useWSocket';
 import { useToast } from './useToast';
 import sfetch from '@/assets/utils/sfetch';
