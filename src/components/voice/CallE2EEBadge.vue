@@ -3,25 +3,24 @@
         <button
             type="button"
             @click="open = !open"
-            class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors"
+            class="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border transition-colors"
             :class="encrypted
-                ? 'bg-green-500/10 text-green-500 border-green-500/20'
-                : 'bg-amber-500/10 text-amber-500 border-amber-500/20'"
+                ? 'bg-green-500/10 text-green-500/80 border-green-500/15'
+                : 'bg-amber-500/15 text-amber-500 border-amber-500/30'"
         >
-            <i class="bi" :class="encrypted ? 'bi-shield-lock-fill' : 'bi-shield-exclamation'" />
-            {{ encrypted ? 'Chiffré de bout en bout' : 'Non chiffré' }}
+            <i class="bi text-[10px]" :class="encrypted ? 'bi-shield-lock-fill' : 'bi-shield-exclamation'" />
+            {{ encrypted ? 'Chiffré' : 'Non chiffré' }}
         </button>
         <div
             v-if="open"
-            class="absolute z-20 mt-2 w-72 p-3 rounded-xl bg-(--bg2) border border-(--text)/10 shadow-2xl text-xs text-(--text) leading-relaxed"
+            class="absolute z-20 mt-1.5 w-56 p-2 rounded-lg bg-(--bg2) border shadow-xl text-[11px] leading-snug"
+            :class="encrypted ? 'border-(--text)/10 text-(--text2)' : 'border-amber-500/30 text-amber-500/90 font-medium'"
         >
             <template v-if="encrypted">
-                L'audio, la vidéo et les partages d'écran sont chiffrés sur votre appareil avec la clé du salon :
-                le serveur d'appels ne voit que des données chiffrées.
+                Audio, vidéo et partage d'écran sont chiffrés sur votre appareil ; le serveur ne voit que des données chiffrées.
             </template>
             <template v-else>
-                Cet appel n'est pas chiffré de bout en bout : le serveur d'appels peut techniquement voir et
-                entendre son contenu. Évitez d'y partager des informations sensibles.
+                Cet appel n'est pas chiffré de bout en bout : le serveur peut techniquement en voir le contenu.
             </template>
         </div>
     </div>
