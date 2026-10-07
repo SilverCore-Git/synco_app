@@ -365,16 +365,18 @@
 
       <div class="p-1 border-t border-(--border-color) shrink-0 relative">
 
-        <div v-if="pendingAction" class="w-full max-w-5xl mx-auto mb-2">
-          <PendingActionBar
-            :tool="pendingAction.tool"
-            @accept="acceptPendingAction()"
-            @always-accept="acceptPendingAction(true)"
-            @reject="rejectPendingAction()"
-            @answer="(value) => acceptPendingAction(false, value)"
-            @image="(base64) => acceptPendingAction(false, base64)"
-          />
-        </div>
+        <Transition name="fade-slide-in-up">
+          <div v-if="pendingAction" :key="pendingAction.tool.toolCallId" class="w-full max-w-5xl mx-auto mb-2">
+            <PendingActionBar
+              :tool="pendingAction.tool"
+              @accept="acceptPendingAction()"
+              @always-accept="acceptPendingAction(true)"
+              @reject="rejectPendingAction()"
+              @answer="(value) => acceptPendingAction(false, value)"
+              @image="(base64) => acceptPendingAction(false, base64)"
+            />
+          </div>
+        </Transition>
 
         <form @submit.prevent="() => sendMessage()"
           class="relative w-full max-w-5xl mx-auto flex items-end gap-3 border border-(--text)/10 rounded-xl px-4 py-2 transition-all shadow-2xl"

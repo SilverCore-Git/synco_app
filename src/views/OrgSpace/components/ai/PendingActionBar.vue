@@ -1,20 +1,27 @@
 <template>
 
-    <div class="bg-(--bg2) border border-(--border-color) rounded-2xl p-4 shadow-2xl flex flex-col gap-3">
+    <div class="action-card relative bg-(--bg2) border border-(--border-color) rounded-2xl p-4 shadow-2xl flex flex-col gap-3 overflow-hidden">
 
         <!-- L'IA pose une question : réponse rapide (options) ou texte libre -->
         <template v-if="tool.name === 'ask_question'">
-            <div class="flex items-start gap-2 text-sm text-(--text)">
-                <i class="bi bi-question-circle text-(--primary) mt-0.5 shrink-0"></i>
-                <p class="font-medium">{{ args.question }}</p>
+            <div class="flex items-start gap-3 text-sm text-(--text)">
+                <span class="icon-badge w-9 h-9 rounded-full bg-(--primary)/15 flex items-center justify-center shrink-0">
+                    <i class="bi bi-question-circle text-(--primary) text-base relative z-10"></i>
+                </span>
+                <p class="font-medium pt-1.5">{{ args.question }}</p>
             </div>
-            <div v-if="args.options?.length" class="flex flex-wrap gap-2">
+            <TransitionGroup
+                v-if="args.options?.length"
+                name="list" tag="div" appear
+                class="flex flex-wrap gap-2"
+            >
                 <button
-                    v-for="opt in args.options" :key="opt"
+                    v-for="(opt, i) in args.options" :key="opt"
+                    :style="{ transitionDelay: `${i * 40}ms` }"
                     @click="$emit('answer', opt)"
                     class="text-xs font-medium px-3 py-1.5 rounded-lg border border-(--border-color) bg-(--bg) hover:border-(--primary)/50 hover:bg-(--primary)/5 text-(--text) transition-colors"
                 >{{ opt }}</button>
-            </div>
+            </TransitionGroup>
             <form @submit.prevent="submitAnswer" class="flex gap-2">
                 <input
                     v-model="answerText"
@@ -28,8 +35,10 @@
 
         <!-- Upload d'image (ex: logo d'un espace) -->
         <template v-else-if="tool.name === 'request_image_upload'">
-            <div class="flex items-center gap-2 text-sm text-(--text) font-medium">
-                <i class="bi bi-image text-(--primary)"></i>
+            <div class="flex items-center gap-3 text-sm text-(--text) font-medium">
+                <span class="icon-badge w-9 h-9 rounded-full bg-(--primary)/15 flex items-center justify-center shrink-0">
+                    <i class="bi bi-image text-(--primary) text-base relative z-10"></i>
+                </span>
                 {{ args.prompt || 'Sélectionne une image' }}
             </div>
             <IconSelector model-value="" @on-base64="(base64: string) => $emit('image', base64)" />
@@ -37,18 +46,22 @@
 
         <!-- Confirmation d'une action mutante (create_space, create_task, delete_task...) -->
         <template v-else>
-            <div class="flex items-center gap-2 text-sm text-(--text)">
-                <i :class="icon" class="text-(--primary)"></i>
-                <span class="font-medium">Synco AI veut : {{ label }}</span>
-                <span v-if="summary" class="text-(--text2) truncate">— {{ summary }}</span>
+            <div class="flex items-center gap-3 text-sm text-(--text)">
+                <span class="icon-badge w-9 h-9 rounded-full bg-(--primary)/15 flex items-center justify-center shrink-0">
+                    <i :class="icon" class="text-(--primary) text-base relative z-10"></i>
+                </span>
+                <span class="min-w-0 truncate">
+                    <span class="font-medium">Synco AI veut : {{ label }}</span>
+                    <span v-if="summary" class="text-(--text2)"> — {{ summary }}</span>
+                </span>
             </div>
-            <div class="flex flex-wrap gap-2">
-                <button @click="$emit('accept')" class="primary px-4 py-2 rounded-xl text-sm font-medium">Accepter</button>
-                <button @click="$emit('always-accept')" class="default px-4 py-2 rounded-xl text-sm font-medium">
+            <TransitionGroup name="list" tag="div" appear class="flex flex-wrap gap-2">
+                <button key="accept" style="transition-delay: 0ms" @click="$emit('accept')" class="primary px-4 py-2 rounded-xl text-sm font-medium">Accepter</button>
+                <button key="always" style="transition-delay: 40ms" @click="$emit('always-accept')" class="default px-4 py-2 rounded-xl text-sm font-medium">
                     Toujours accepter « {{ label }} » (cette session)
                 </button>
-                <button @click="$emit('reject')" class="danger px-4 py-2 rounded-xl text-sm font-medium">Refuser</button>
-            </div>
+                <button key="reject" style="transition-delay: 80ms" @click="$emit('reject')" class="danger px-4 py-2 rounded-xl text-sm font-medium">Refuser</button>
+            </TransitionGroup>
         </template>
 
     </div>
@@ -112,3 +125,41 @@ function submitAnswer() {
 }
 
 </script>
+
+<style scoped>
+/* Respiration douce du contour : rappelle que la barre attend une décision
+   sans être une alerte agressive (lent, variation d'opacité faible). */
+.action-card {
+    animation: pending-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes pending-breathe {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(var(--primary-rgb), 0.08), 0 10px 30px -14px rgba(var(--primary-rgb), 0.18); }
+    50% { box-shadow: 0 0 0 1px rgba(var(--primary-rgb), 0.2), 0 10px 34px -10px rgba(var(--primary-rgb), 0.35); }
+}
+
+/* Anneau qui s'étend et s'efface derrière l'icône, façon indicateur "en direct" —
+   signale que l'action est en attente d'une réponse plutôt qu'un simple statut. */
+.icon-badge {
+    position: relative;
+}
+
+.icon-badge::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 9999px;
+    background: rgba(var(--primary-rgb), 0.3);
+    animation: pending-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes pending-ping {
+    0% { transform: scale(0.8); opacity: 0.6; }
+    80%, 100% { transform: scale(1.8); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .action-card { animation: none; }
+    .icon-badge::before { animation: none; display: none; }
+}
+</style>
