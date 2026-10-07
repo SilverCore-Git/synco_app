@@ -63,7 +63,11 @@ interface SecurityStatus {
 // ============================================================================
 
 const peer = ref<Peer | null>(null);
-const peerReconnector = createPeerReconnector(() => peer.value);
+const fetchPeerTicket = async (): Promise<string | null> => {
+    const res = await sfetch('/api/users/me/peer-ticket');
+    return res.ok ? (await res.json()).ticket : null;
+};
+const peerReconnector = createPeerReconnector(() => peer.value, { fetchToken: fetchPeerTicket });
 const localStream = ref<MediaStream | null>(null);
 const screenStream = ref<MediaStream | null>(null);
 const isCalling = ref<boolean>(false);
@@ -256,7 +260,10 @@ export default function useSecurePeer() {
                 cleanupPeer();
             } else if (peer.value.disconnected) {
                 try {
-                    await peer.value.reconnect();
+                    const ticket = await fetchPeerTicket();
+                    if (!ticket) throw new Error('Ticket PeerJS indisponible.');
+                    peer.value.options.token = ticket;
+                    peer.value.reconnect();
                     return;
                 } catch (e) {
                     console.error('[SECURE-PEER] Reconnect failed, recreating peer:', e);

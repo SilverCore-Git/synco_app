@@ -86,7 +86,11 @@ const stopRingtone = () => {
 };
 
 const peer = ref<Peer | null>(null);
-const peerReconnector = createPeerReconnector(() => peer.value);
+const fetchPeerTicket = async (): Promise<string | null> => {
+    const res = await sfetch('/api/users/me/peer-ticket');
+    return res.ok ? (await res.json()).ticket : null;
+};
+const peerReconnector = createPeerReconnector(() => peer.value, { fetchToken: fetchPeerTicket });
 const myPeerId = ref<string>('');
 const connection = ref<DataConnection | null>(null);
 const isConnected = ref<boolean>(false);
