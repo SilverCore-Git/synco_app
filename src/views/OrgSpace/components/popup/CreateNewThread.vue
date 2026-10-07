@@ -245,7 +245,10 @@ const handleSubmit = async () => {
         const spaceId = route.params.spaceId as string;
         let encryptedKeysPayload: Array<{ userId: string; encryptedKey: string }> = [];
 
-        if (form.type === 'text') 
+        // Tous les salons (texte ET vocal) doivent être E2EE : un salon vocal
+        // créé sans ThreadKey ne pourrait plus jamais être chiffré, le
+        // serveur n'ayant alors aucune clé à distribuer (cf. e2eeRequired
+        // dans synco_api/src/routes/LiveKit.ts).
         {
 
             try {
