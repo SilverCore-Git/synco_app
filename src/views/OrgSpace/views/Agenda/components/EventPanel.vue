@@ -298,6 +298,8 @@ const props = defineProps<{
     orgId: string;
     occurrence?: OccurrenceInstance | null;
     initialRange?: InitialRange | null;
+    /** Titre déjà tapé dans EventQuickCreate.vue avant de cliquer "Plus d'options" — sinon perdu à l'ouverture du panneau complet. */
+    initialTitle?: string;
 }>();
 
 const emit = defineEmits<{
@@ -706,6 +708,7 @@ watch(() => props.show, async (isShown) => {
         }
     } else if (props.initialRange) {
         prefillFromInitialRange(props.initialRange);
+        if (props.initialTitle) title.value = props.initialTitle;
     }
 
     await nextTick();

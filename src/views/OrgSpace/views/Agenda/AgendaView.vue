@@ -99,6 +99,7 @@
             :org-id="orgId"
             :occurrence="selectedOccurrence"
             :initial-range="createInitialRange"
+            :initial-title="createInitialTitle"
             @close="onPanelClose"
             @saved="onPanelSaved"
             @deleted="onPanelDeleted"
@@ -365,19 +366,21 @@ function onQuickCreateCreated() {
     refetch();
 }
 
-function onQuickCreateMoreOptions(range: Range) {
+function onQuickCreateMoreOptions(range: Range, title: string) {
     showQuickCreate.value = false;
-    openCreatePanel(range);
+    openCreatePanel(range, title);
 }
 
 // ── Panneau latéral événement (édition complète) ─────────────────────
 const showPanel = ref(false);
 const selectedOccurrence = ref<OccurrenceInstance | null>(null);
 const createInitialRange = ref<Range | null>(null);
+const createInitialTitle = ref<string>('');
 
-function openCreatePanel(range: Range) {
+function openCreatePanel(range: Range, title: string = '') {
     selectedOccurrence.value = null;
     createInitialRange.value = range;
+    createInitialTitle.value = title;
     selectionRange.value = range;
     showPanel.value = true;
 }
@@ -398,6 +401,7 @@ function openEditModal(occ: OccurrenceInstance) {
     showQuickCreate.value = false;
     selectedOccurrence.value = occ;
     createInitialRange.value = null;
+    createInitialTitle.value = '';
     showPanel.value = true;
 }
 
