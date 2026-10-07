@@ -268,10 +268,16 @@ export function useNotification() {
         notification.isRead = true;
       }
 
-      // Appel API
-      await sfetch(`/api/notifications/${notificationId}/read`, {
+      // Appel API — fetch() ne rejette jamais sur un 4xx/5xx : sans ce
+      // contrôle explicite, une réponse d'erreur (ex. 403/404/500) était
+      // silencieusement prise pour un succès, l'optimistic update restait
+      // en place pour la session en cours, et la notification réapparaissait
+      // non lue au prochain chargement (le serveur, lui, n'avait jamais été
+      // mis à jour).
+      const res = await sfetch(`/api/notifications/${notificationId}/read`, {
         method: 'PATCH'
       });
+      if (!res.ok) throw new Error(`PATCH /notifications/${notificationId}/read -> ${res.status}`);
 
       // Notifier via WebSocket pour synchroniser les autres onglets
       socket?.value?.emit('notification:mark-read', { notificationId });
@@ -348,6 +354,7 @@ export function useNotification() {
   const markTasksAsRead = async (spaceId?: string): Promise<void> => {
     try {
       let markedCount = 0;
+      let failedCount = 0;
       const promises: Promise<void>[] = [];
 
       // Optimistic update
@@ -355,15 +362,31 @@ export function useNotification() {
         if (!n.isRead && isTaskNotification(n) && (!spaceId || n.data?.spaceId === spaceId)) {
           n.isRead = true;
           markedCount++;
-          // We can use the existing read API per notification
+          // allSettled : une notification en échec ne doit pas faire revenir
+          // tout le lot en arrière. Mais sans vérifier res.ok ici, un
+          // 403/404/500 passait pour un succès (fetch() ne rejette que sur
+          // une vraie coupure réseau) — cette notification restait donc
+          // "lue" en local tout en étant toujours non lue côté serveur, et
+          // réapparaissait non lue au prochain chargement.
           promises.push(
-            sfetch(`/api/notifications/${n.id}/read`, { method: 'PATCH' }).then(() => { })
+            sfetch(`/api/notifications/${n.id}/read`, { method: 'PATCH' }).then((res) => {
+              if (!res.ok) {
+                n.isRead = false;
+                failedCount++;
+              }
+            }).catch(() => {
+              n.isRead = false;
+              failedCount++;
+            })
           );
         }
       });
 
       if (markedCount > 0) {
         await Promise.allSettled(promises);
+        if (failedCount > 0) {
+          toast.show('Échec de la mise à jour de certaines notifications', 'error');
+        }
       }
     } catch (error) {
       console.error('[Notifications] Failed to mark tasks as read:', error);
@@ -381,10 +404,11 @@ export function useNotification() {
         n.isRead = true;
       });
 
-      // Appel API
-      await sfetch('/api/notifications/read-all', {
+      // Appel API — même contrôle explicite du statut que markAsRead ci-dessus.
+      const res = await sfetch('/api/notifications/read-all', {
         method: 'PATCH'
       });
+      if (!res.ok) throw new Error(`PATCH /notifications/read-all -> ${res.status}`);
 
       // Notifier via WebSocket
       socket?.value?.emit('notification:mark-all-read');
@@ -402,9 +426,10 @@ export function useNotification() {
    */
   const removeNotification = async (notificationId: string): Promise<void> => {
     try {
-      await sfetch(`/api/notifications/${notificationId}`, {
+      const res = await sfetch(`/api/notifications/${notificationId}`, {
         method: 'DELETE'
       });
+      if (!res.ok) throw new Error(`DELETE /notifications/${notificationId} -> ${res.status}`);
 
       // Supprimer du state local
       notifications.value = notifications.value.filter(n => n.id !== notificationId);

@@ -227,6 +227,20 @@ defineExpose({ markAllRead });
 
 function openItem(item: DashItem) {
     const orgId = openedOrg.value?.id;
+
+    // missedCall / missedMeet / workspaceAdded : événements ponctuels sans
+    // route reconstructible localement — pas de vue dédiée à "rouvrir" une
+    // fois lus (contrairement à un DM/thread, toujours là), donc marqués lus
+    // au clic plutôt que de rester affichés indéfiniment. Fait avant le
+    // early-return sur orgId ci-dessous : sans ça, un clic pendant que
+    // l'organisation finit encore de charger ne faisait tout simplement
+    // rien — pas d'erreur visible, mais la notification restait non lue.
+    if (item.kind === 'missedCall' || item.kind === 'missedMeet' || item.kind === 'workspaceAdded' || item.kind === 'calendarAccess') {
+        markAsRead(item.notifId);
+        if (item.route) router.push(item.route);
+        return;
+    }
+
     if (!orgId) return;
 
     if (item.kind === 'dm' && item.dmUserId) {
@@ -237,12 +251,6 @@ function openItem(item: DashItem) {
         router.push(`/${orgId}/${item.spaceId || 'home'}/${item.threadId}`);
         return;
     }
-    // missedCall / missedMeet / workspaceAdded : événements ponctuels sans
-    // route reconstructible localement — pas de vue dédiée à "rouvrir" une
-    // fois lus (contrairement à un DM/thread, toujours là), donc marqués lus
-    // au clic plutôt que de rester affichés indéfiniment.
-    markAsRead(item.notifId);
-    if (item.route) router.push(item.route);
 }
 </script>
 
