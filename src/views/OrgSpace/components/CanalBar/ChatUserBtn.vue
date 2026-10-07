@@ -41,11 +41,6 @@
             </span>
         </div>
 
-        <div
-            v-if="hasUnread"
-            class="ml-auto w-2 h-2 mr-1.5 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_var(--glow-danger-strong)]"
-        />
-
         <button
             v-if="user?.user?.id !== keycloak.subject"
             @click.stop="startCall(user.user!)"
@@ -54,6 +49,11 @@
         >
             <i class="bi bi-telephone-fill text-sm" />
         </button>
+
+        <div
+            v-if="hasUnread"
+            class="shrink-0 w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_var(--glow-danger-strong)]"
+        />
 
     </button>
 
