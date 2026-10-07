@@ -168,8 +168,42 @@ async function unwrapRoomKey(
     }
 }
 
+/**
+ * L'activation réelle de l'E2EE est un aller-retour asynchrone avec le
+ * worker (postMessage 'enable' → le worker répond 'enable' confirmé →
+ * ParticipantEncryptionStatusChanged) : `room.isE2EEEnabled` juste après
+ * `connect()` peut encore valoir false alors que l'activation est seulement
+ * en cours, pas en échec (observé plus lent sur Firefox que Chrome,
+ * suffisant pour perdre la course sur une vérification synchrone). On
+ * attend donc le véritable événement, avec un timeout en dernier recours.
+ */
+function waitForE2EEActivation(room: Room, timeoutMs: number): Promise<boolean> {
+    if (room.isE2EEEnabled) return Promise.resolve(true);
+    return new Promise<boolean>((resolve) => {
+        let settled = false;
+        const cleanup = () => {
+            clearTimeout(timer);
+            room.off(RoomEvent.ParticipantEncryptionStatusChanged, onStatusChanged);
+        };
+        const onStatusChanged = (encrypted: boolean, participant?: Participant) => {
+            if (settled || !encrypted) return;
+            if (participant && participant.identity !== room.localParticipant.identity) return;
+            settled = true;
+            cleanup();
+            resolve(true);
+        };
+        const timer = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            resolve(room.isE2EEEnabled);
+        }, timeoutMs);
+        room.on(RoomEvent.ParticipantEncryptionStatusChanged, onStatusChanged);
+    });
+}
 
-function useLiveKit() 
+
+function useLiveKit()
 {
     
     const getWSData = (r: Room) => {
@@ -396,7 +430,10 @@ function useLiveKit()
             await newRoom.connect(url, token);
 
             // L'état réel doit correspondre à l'intention : sinon on coupe.
-            if (e2eeOptions && !newRoom.isE2EEEnabled) {
+            // Aucune piste n'est encore publiée à ce stade (setMicrophoneEnabled
+            // vient après), donc attendre ici ne risque pas de laisser partir du
+            // média en clair pendant l'activation.
+            if (e2eeOptions && !(await waitForE2EEActivation(newRoom, 5000))) {
                 intentionalDisconnect = true;
                 await newRoom.disconnect();
                 throw new CallEncryptionError("Le chiffrement de bout en bout de l'appel n'a pas pu être activé.");
