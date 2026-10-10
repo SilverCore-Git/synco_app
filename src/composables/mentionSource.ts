@@ -63,9 +63,11 @@ export interface MentionSource extends MentionRenderSource {
 /** Fourni par ChatTimeline à partir de son MessageChannel ; ThreadTextarea l'injecte. */
 export const MENTION_SOURCE_KEY: InjectionKey<MentionSource> = Symbol('mentionSource');
 
-// Membres pour lesquels le cache de résolution a déjà été pré-rempli :
-// partagé par toutes les instances (comme le cache lui-même).
-let seededMembers: OrgMember[] | undefined;
+// Membres pour lesquels le cache de résolution des mentions @user a déjà été
+// pré-rempli : inutile de le refaire pour chaque message tant que la liste
+// des membres n'a pas changé. Partagé par toutes les instances (comme le
+// cache lui-même).
+let seededMembers: OrgMember[] | undefined | null = null;
 
 /** Rendu des mentions de l'organisation ouverte — sans état propre, partageable partout. */
 export const orgMentionRenderSource: MentionRenderSource = {

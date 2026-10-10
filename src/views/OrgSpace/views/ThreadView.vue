@@ -67,12 +67,11 @@
                         <ThreadMessage
                             :msg="msg"
                             :selectedMessage="selectedMessage"
-                            :messages="sortedMessages"
-                            :currentThreadKey="currentThreadKey"
                             :is-stacked="index > 0 && sameAuthor(sortedMessages[index-1]!, msg) && !msg.replyToId && (new Date(msg.createdAt).getTime() - new Date(sortedMessages[index-1]!.createdAt).getTime() < 60000)"
                             :is-editing="editingMessageId === msg.id"
                             @edit-start="editingMessageId = msg.id"
                             @edit-end="endEdit"
+                            @jump-to="(id: string) => router.push({ query: { ...route.query, select: id } })"
                         />
                     </div>
 
@@ -269,7 +268,7 @@
 
 <script lang="ts" setup>
 
-import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { computed, ref, onMounted, onUnmounted, watch, nextTick, provide } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { Thread, Message } from '@/types/types';
 import useWSocket from '@/composables/useWSocket';
@@ -298,6 +297,7 @@ import { pinOrCheckKey, repinKey, KeyChangedError } from '@/assets/utils/keyPinn
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 import { useNotification } from '@/composables/useNotification';
+import { createThreadMessageChannel, MESSAGE_CHANNEL_KEY } from '@/composables/messageChannel';
 
 
 const props = defineProps<{ 
@@ -428,6 +428,17 @@ const canSpeak = computed(() => {
 
     return false;
 });
+
+// Canal du salon : ThreadMessage (et plus tard la timeline) passent par lui
+// pour tout ce qui touche au socket, aux droits et aux mentions.
+const channel = createThreadMessageChannel({
+    thread,
+    spaceId: () => route.params.spaceId as string | undefined,
+    encryptionKey: currentThreadKey,
+    canWrite: canSpeak,
+    socket,
+});
+provide(MESSAGE_CHANNEL_KEY, channel);
 
 // file / pj
 const triggerFileSearch = () => fileInputRef.value?.click();

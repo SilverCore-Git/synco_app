@@ -95,11 +95,6 @@ const MAX_CACHE_SIZE = 200;
 const taskCardCache = new Map<string, Task>();
 const fileCardCache = new Map<string, StoredFile>();
 
-// Membres pour lesquels le cache de résolution des mentions @user a déjà été
-// pré-rempli : inutile de le refaire pour chaque message tant que la liste
-// des membres n'a pas changé.
-let seededMembers: unknown = null;
-
 </script>
 
 <script setup lang="ts">
@@ -108,9 +103,10 @@ import { computed, ref, reactive, watch, nextTick, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { openedOrg } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
-import { orgMentionLookup, renderMentions, handleMentionClick } from '@/composables/useMentions';
+import { renderMentions, handleMentionClick } from '@/composables/useMentions';
+import { orgMentionRenderSource, type MentionRenderSource } from '@/composables/mentionSource';
 import {
-  renderReferences, buildLocalUserResolutions, seedResolveCache, handleReferenceChipClick,
+  renderReferences, handleReferenceChipClick,
   escapeReferenceTokensForMarkdown, stripBlockReferenceTokens, extractReferenceTokens,
   type ExtractedReference, type ResolvedReference, type ResolveBatchFn,
 } from '@/composables/useReferences';
@@ -132,6 +128,9 @@ const props = withDefaults(defineProps<{
   // références tâche/fichier restent en chip inline au lieu de la vraie
   // TaskCard/FileCard, bien trop grande pour tenir dans un aperçu.
   showReferenceCards?: boolean;
+  // Personnes citables et résolution des tokens : celles de la conversation
+  // (MessageChannel) quand il y en a une, sinon l'organisation ouverte.
+  mentionSource?: MentionRenderSource;
 }>(), {
   mode: 'chat',
   enableReferences: true,
@@ -214,21 +213,16 @@ const renderedHtml = computed(() => {
 });
 
 const rootRef = ref<HTMLElement | null>(null);
-const mentionLookup = orgMentionLookup;
+const source = computed(() => props.mentionSource ?? orgMentionRenderSource);
+const mentionLookup = computed(() => source.value.lookup.value);
 
 const resolveBatch: ResolveBatchFn = async (items: ExtractedReference[]) => {
-  const orgId = openedOrg.value?.id;
   const map = new Map<string, ResolvedReference>();
-  if (!orgId || items.length === 0) return map;
+  if (items.length === 0) return map;
 
   try {
-    const res = await sfetch('/api/mentions/resolve', {
-      method: 'POST',
-      body: JSON.stringify({ orgId, items }),
-    });
-    if (!res.ok) return map;
-    const data = await res.json();
-    for (const item of data.items || []) {
+    const resolved = await source.value.resolve(items);
+    for (const item of resolved || []) {
       // Le backend n'envoie jamais `label` quand ok=false (anti-fuite : rien
       // sur la ressource à un lecteur sans accès) — retomber sur `item.id`
       // affichait l'UUID brut dans le chip restreint au lieu d'un message
@@ -259,11 +253,7 @@ const applyPostProcessing = async () => {
 
   if (!props.enableReferences) return;
 
-  const members = openedOrg.value?.members;
-  if (members !== seededMembers) {
-    seedResolveCache(buildLocalUserResolutions(members));
-    seededMembers = members;
-  }
+  source.value.seedLocal?.();
   await renderReferences(root, resolveBatch);
   renderTimestampTokens(root);
 };
