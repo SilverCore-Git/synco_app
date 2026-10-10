@@ -23,6 +23,23 @@
             <i class="bi bi-building-fill"></i> Organisations
         </router-link>
       </div>
+
+      <!-- Clé de chiffrement du support (super-admin) : mise en place à
+           l'ouverture du panel, rotation après un retrait de l'équipe. -->
+      <div v-if="staffKeyAdmin.isSuperAdmin.value && staffKeyAdmin.state.value !== 'idle'"
+           class="max-w-7xl mx-auto mt-4 flex items-center gap-3 text-xs rounded-xl px-4 py-2 border"
+           :class="staffKeyBannerClass">
+        <i class="bi" :class="staffKeyBannerIcon"></i>
+        <span class="flex-1">{{ staffKeyBannerText }}</span>
+        <button
+          v-if="staffKeyAdmin.state.value === 'error' || staffKeyAdmin.state.value === 'locked' || staffKeyAdmin.rotationPending.value"
+          class="default text-xs"
+          :disabled="staffKeyAdmin.busy.value"
+          @click="retryStaffKey"
+        >
+          Réessayer
+        </button>
+      </div>
     </nav>
 
     <main class="flex-1 min-h-0 overflow-y-auto">
@@ -35,4 +52,45 @@
 
 <script setup lang="ts">
 // Admin layout - child routes are rendered in <router-view>
+import { computed, onMounted } from 'vue';
+import { useStaffKeyAdmin } from '@/composables/useStaffKeyAdmin';
+
+const staffKeyAdmin = useStaffKeyAdmin();
+
+const staffKeyBannerText = computed(() => {
+  const version = staffKeyAdmin.current.value?.version;
+  switch (staffKeyAdmin.state.value) {
+    case 'checking': return 'Clé du support : vérification…';
+    case 'creating': return 'Clé du support : création et partage à l\'équipe…';
+    case 'rotating': return 'Clé du support : renouvellement et partage aux membres restants…';
+    case 'locked': return 'Clé du support : déverrouillez votre session (code PIN) pour la gérer.';
+    case 'error': return `Clé du support : ${staffKeyAdmin.error.value ?? 'erreur'}`;
+    case 'ready':
+      return staffKeyAdmin.rotationPending.value
+        ? 'Clé du support : un renouvellement est en attente après un retrait de l\'équipe.'
+        : `Clé du support active${version ? ` (version ${version})` : ''}.`;
+    default: return '';
+  }
+});
+
+const staffKeyBannerClass = computed(() => {
+  const s = staffKeyAdmin.state.value;
+  if (s === 'error' || s === 'locked' || staffKeyAdmin.rotationPending.value) return 'border-amber-500/30 bg-amber-500/5 text-amber-500';
+  if (s === 'ready') return 'border-(--text)/5 bg-(--bg2) text-(--text2)';
+  return 'border-(--primary)/20 bg-(--primary)/5 text-(--primary)';
+});
+
+const staffKeyBannerIcon = computed(() => {
+  const s = staffKeyAdmin.state.value;
+  if (staffKeyAdmin.busy.value) return 'bi-arrow-repeat animate-spin';
+  if (s === 'error' || s === 'locked' || staffKeyAdmin.rotationPending.value) return 'bi-exclamation-triangle-fill';
+  return 'bi-shield-lock-fill';
+});
+
+const retryStaffKey = () => {
+  if (staffKeyAdmin.rotationPending.value) void staffKeyAdmin.rotate();
+  else void staffKeyAdmin.ensureSetup();
+};
+
+onMounted(() => { void staffKeyAdmin.ensureSetup(); });
 </script>

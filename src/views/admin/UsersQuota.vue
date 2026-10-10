@@ -70,6 +70,11 @@
                                                 class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-(--primary)/15 text-(--primary)">
                                                 <i class="bi bi-shield-fill mr-1"></i>Admin
                                             </span>
+                                            <span v-if="user.isModerator && !user.isSuperAdmin"
+                                                class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500"
+                                                title="Équipe support">
+                                                <i class="bi bi-headset mr-1"></i>Modérateur
+                                            </span>
                                             <span v-if="user.isBanned"
                                                 class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-500/15 text-red-500"
                                                 :title="user.bannedReason || 'Aucun motif renseigné'">
@@ -130,6 +135,21 @@
                                     :title="user.isAdmin ? 'Retirer le rôle administrateur' : 'Passer administrateur'"
                                 >
                                     <i class="text-lg" :class="user.isAdmin ? 'bi bi-shield-fill-check' : 'bi bi-shield-plus'"></i>
+                                </button>
+                                <!-- Rôle modérateur (équipe support, sans accès au panel
+                                     admin) : réservé à l'administrateur principal. Un admin
+                                     fait déjà partie de l'équipe : pas de bascule, sauf pour
+                                     retirer un ancien rôle modérateur. -->
+                                <button
+                                    v-if="isSuperAdmin && !user.isSuperAdmin && (!user.isAdmin || user.isModerator)"
+                                    @click="openModeratorModal(user)"
+                                    class="p-2 rounded-lg transition-colors"
+                                    :class="user.isModerator
+                                        ? 'text-emerald-500 hover:bg-emerald-500/10'
+                                        : 'text-(--text2) hover:text-emerald-500 hover:bg-emerald-500/10'"
+                                    :title="user.isModerator ? 'Retirer le rôle modérateur' : 'Passer modérateur'"
+                                >
+                                    <i class="text-lg bi" :class="user.isModerator ? 'bi-headset' : 'bi-person-plus'"></i>
                                 </button>
                                 <button
                                     v-if="canModerate(user)"
@@ -312,6 +332,45 @@
             </template>
         </Popup>
 
+        <!-- Rôle modérateur : réservé à l'administrateur principal. -->
+        <Popup :isOpen="!!userToToggleModerator" @close="userToToggleModerator = null">
+            <template #title>
+                {{ userToToggleModerator?.isModerator ? 'Retirer le rôle modérateur' : 'Passer modérateur' }}
+            </template>
+
+            <p class="text-sm text-(--text)">
+                <template v-if="userToToggleModerator?.isModerator">
+                    <span class="font-bold">{{ $p(userToToggleModerator?.name) || userToToggleModerator?.email }}</span>
+                    perdra l'accès au panel support.
+                </template>
+                <template v-else>
+                    <span class="font-bold">{{ $p(userToToggleModerator?.name) || userToToggleModerator?.email }}</span>
+                    aura accès au panel support : tous les tickets, leurs messages (publics et
+                    internes) et la fiche des demandeurs. Il n'aura pas accès au panel admin.
+                </template>
+            </p>
+            <p class="text-xs text-(--text2) mt-3">
+                <template v-if="userToToggleModerator?.isModerator">
+                    La clé de chiffrement du support sera ensuite renouvelée pour les membres restants.
+                </template>
+                <template v-else>
+                    La clé de chiffrement du support lui sera transmise (dès qu'il aura configuré
+                    son code PIN, s'il ne l'a pas encore fait).
+                </template>
+            </p>
+
+            <template #footer>
+                <button @click="userToToggleModerator = null" class="default">Annuler</button>
+                <button
+                    @click="confirmModeratorToggle"
+                    :class="[userToToggleModerator?.isModerator ? 'danger' : 'primary', { loader: isTogglingModerator }]"
+                    :disabled="isTogglingModerator"
+                >
+                    {{ userToToggleModerator?.isModerator ? 'Retirer' : 'Confirmer' }}
+                </button>
+            </template>
+        </Popup>
+
         <ConfirmDelete
             :show="!!userToDelete"
             :itemName="userToDelete?.name || userToDelete?.email || 'cet utilisateur'"
@@ -333,8 +392,13 @@ import sfetch from '@/assets/utils/sfetch';
 import { useToast } from '@/composables/useToast';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import Popup from '@/components/Popup.vue';
+import { SupportApiError, supportAdminApi } from '@/services/support/api';
+import { useStaffKeyAdmin } from '@/composables/useStaffKeyAdmin';
 
 const toast = useToast();
+// Nominations/retraits de l'équipe support : copies et rotation de la clé
+// de chiffrement du support (SUPPORT_FEATURE.md §2.1).
+const staffKeyAdmin = useStaffKeyAdmin();
 
 // Doit rester aligné avec MAX_BAN_REASON_LENGTH côté synco_api
 // (routes/admin.ts), qui tronque au-delà.
@@ -351,6 +415,7 @@ interface AdminUser {
     organizations: { id: string; name: string; logo: string | null }[];
     isAdmin: boolean;
     isSuperAdmin: boolean;
+    isModerator: boolean;
     isBanned: boolean;
     bannedAt: string | null;
     bannedReason: string | null;
@@ -390,6 +455,9 @@ const banActionUserId = ref<string | null>(null);
 
 const userToToggleAdmin = ref<AdminUser | null>(null);
 const isTogglingAdmin = ref(false);
+
+const userToToggleModerator = ref<AdminUser | null>(null);
+const isTogglingModerator = ref(false);
 
 /**
  * Mêmes règles que côté API : on ne se bannit pas soi-même, l'administrateur
@@ -447,6 +515,7 @@ const fetchData = async () => {
                 organizations: u.organizations ?? [],
                 isAdmin: u.isAdmin ?? false,
                 isSuperAdmin: u.isSuperAdmin ?? false,
+                isModerator: u.isModerator ?? false,
                 isBanned: u.isBanned ?? false,
                 bannedAt: u.bannedAt ?? null,
                 bannedReason: u.bannedReason ?? null
@@ -599,26 +668,72 @@ const openAdminModal = (user: AdminUser) => {
     userToToggleAdmin.value = user;
 };
 
+const roleErrorMessage = (e: unknown, fallback: string) =>
+    e instanceof SupportApiError ? (e.message || fallback) : 'Erreur de connexion';
+
+/**
+ * Suite commune à une nomination dans l'équipe support (admin ou
+ * modérateur) : les copies de la clé du support non jointes à la requête
+ * (clé publique inconnue) sont comblées via missing-shares.
+ */
+const afterStaffNomination = () => { void staffKeyAdmin.afterNomination(); };
+
+/**
+ * Suite commune à un retrait : si la personne ne fait plus partie de
+ * l'équipe, l'API a supprimé ses copies ; une nouvelle version de la clé
+ * est générée pour les membres restants (rotation).
+ */
+const afterStaffRemoval = (stillStaff: boolean) => {
+    if (!stillStaff) void staffKeyAdmin.rotate();
+};
+
 const confirmAdminToggle = async () => {
     if (!userToToggleAdmin.value) return;
     const target = userToToggleAdmin.value;
     const revoking = target.isAdmin;
     isTogglingAdmin.value = true;
     try {
-        const res = await sfetch(`/api/admin/admins/${target.id}`, {
-            method: revoking ? 'DELETE' : 'POST'
-        });
-        if (res.ok) {
-            patchUser(target.id, { isAdmin: !revoking });
-            toast.show(revoking ? 'Rôle administrateur retiré' : 'Utilisateur passé administrateur', 'success');
-            userToToggleAdmin.value = null;
+        if (revoking) {
+            await supportAdminApi.removeAdmin(target.id);
         } else {
-            toast.show((await res.json()).error || 'Erreur lors de la modification du rôle', 'error');
+            await supportAdminApi.addAdmin(target.id, await staffKeyAdmin.nominationShares(target.id));
         }
+        patchUser(target.id, { isAdmin: !revoking });
+        toast.show(revoking ? 'Rôle administrateur retiré' : 'Utilisateur passé administrateur', 'success');
+        userToToggleAdmin.value = null;
+        if (revoking) afterStaffRemoval(target.isModerator);
+        else afterStaffNomination();
     } catch (e) {
-        toast.show('Erreur de connexion', 'error');
+        toast.show(roleErrorMessage(e, 'Erreur lors de la modification du rôle'), 'error');
     } finally {
         isTogglingAdmin.value = false;
+    }
+};
+
+const openModeratorModal = (user: AdminUser) => {
+    userToToggleModerator.value = user;
+};
+
+const confirmModeratorToggle = async () => {
+    if (!userToToggleModerator.value) return;
+    const target = userToToggleModerator.value;
+    const revoking = target.isModerator;
+    isTogglingModerator.value = true;
+    try {
+        if (revoking) {
+            await supportAdminApi.removeModerator(target.id);
+        } else {
+            await supportAdminApi.addModerator(target.id, await staffKeyAdmin.nominationShares(target.id));
+        }
+        patchUser(target.id, { isModerator: !revoking });
+        toast.show(revoking ? 'Rôle modérateur retiré' : 'Utilisateur passé modérateur', 'success');
+        userToToggleModerator.value = null;
+        if (revoking) afterStaffRemoval(target.isAdmin || target.isSuperAdmin);
+        else afterStaffNomination();
+    } catch (e) {
+        toast.show(roleErrorMessage(e, 'Erreur lors de la modification du rôle'), 'error');
+    } finally {
+        isTogglingModerator.value = false;
     }
 };
 
