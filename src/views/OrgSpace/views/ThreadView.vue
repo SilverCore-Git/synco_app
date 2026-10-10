@@ -286,7 +286,7 @@ import SpinLoader from '@/components/SpinLoader.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import ReplyBanner from '../components/common/ReplyBanner.vue';
 import useFooterInset from '@/composables/useFooterInset';
-import useResponse from '@/composables/useResponse';
+import { provideResponse } from '@/composables/useResponse';
 import { extractReferenceTokens } from '@/composables/useReferences';
 import { uploadFiles } from '@/assets/uploadFile';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
@@ -344,7 +344,8 @@ const debugMsg = ref<string>('');
 const hasMore = ref<boolean>(true);
 const isFetchingMore = ref<boolean>(false);
 const sortedMessages = ref<Message[]>([]);
-const { messageWillBeResponded, setMessageWillBeResponded } = useResponse();
+// Réponse en cours propre à ce salon (plus partagée avec les DM).
+const { messageWillBeResponded, setMessageWillBeResponded } = provideResponse();
 const lastMessageId = ref<string>('');
 const showEmojiPicker = ref<boolean>(false);
 const showUnreadDelimiterAfterId = ref<string | null>(null);
