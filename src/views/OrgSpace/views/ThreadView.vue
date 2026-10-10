@@ -298,6 +298,7 @@ import { SearchSyncService } from '@/services/SearchSyncService';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 import { useNotification } from '@/composables/useNotification';
 import { createThreadMessageChannel, MESSAGE_CHANNEL_KEY } from '@/composables/messageChannel';
+import { MENTION_SOURCE_KEY } from '@/composables/mentionSource';
 
 
 const props = defineProps<{ 
@@ -439,6 +440,8 @@ const channel = createThreadMessageChannel({
     socket,
 });
 provide(MESSAGE_CHANNEL_KEY, channel);
+// Une seule source de mentions pour le composer et les champs d'édition.
+provide(MENTION_SOURCE_KEY, channel.mentions);
 
 // file / pj
 const triggerFileSearch = () => fileInputRef.value?.click();
