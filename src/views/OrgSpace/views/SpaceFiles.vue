@@ -281,6 +281,7 @@
                         @download="downloadFolder(folder)"
                         @show-permissions="openFolderPermissions(folder)"
                         @request-delete="requestDeleteFolder"
+                        @request-share="openShareModal('folder', folder.id, folder.name)"
                     />
 
                 </div>
@@ -303,6 +304,7 @@
                     @show-file-info="handleShowFileInfo"
                     @file-watermarked="handleFileWatermarked"
                     @show-permissions="openFilePermissions(file)"
+                    @request-share="openShareModal('file', file.id, file.originalName)"
                 />
 
                 </div>
@@ -623,6 +625,12 @@
         @deleted="selectedFileForViewer = null"
     />
 
+    <ShareToTargetModal
+        :show="showShareModal"
+        :item="shareItem"
+        @close="showShareModal = false"
+    />
+
 </template>
 
 <script lang="ts" setup>
@@ -654,6 +662,7 @@ import { extractTextFromPDF } from '@/assets/utils/pdfExtractor';
 import VectorWorker from '@/workers/semantic.worker?worker';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 import ManageAccessModal from '@/components/permissions/ManageAccessModal.vue';
+import ShareToTargetModal from '@/components/common/ShareToTargetModal.vue';
 
 
 const { showUsersBar } = useUsersBar();
@@ -1188,6 +1197,14 @@ const goHistoryForward = () => {
     isHistoryNavigating.value = true;
     historyIndex.value += 1;
     currentFolderId.value = folderHistory.value[historyIndex.value] || 'root';
+};
+
+const showShareModal = ref<boolean>(false);
+const shareItem = ref<{ kind: 'file' | 'folder'; id: string; name: string } | null>(null);
+
+const openShareModal = (kind: 'file' | 'folder', id: string, name: string) => {
+    shareItem.value = { kind, id, name };
+    showShareModal.value = true;
 };
 
 const openFolderPermissions = (folder: Folder) => {
