@@ -583,6 +583,14 @@ const openDeleteModal = (user: AdminUser) => {
 
 const confirmDeleteUser = async () => {
     if (!userToDelete.value) return;
+    // Capturé avant le `filter` ci-dessous : l'API supprime déjà les lignes
+    // AdminGrant/ModeratorGrant de ce compte en cascade, mais pas la clé
+    // d'équipe elle-même — si la personne gardait sa clé privée déverrouillée
+    // (appareil compromis, copie locale), elle continue de déchiffrer tous
+    // les tickets de support tant que la clé n'est pas renouvelée. C'est un
+    // chemin de retrait frère de confirmAdminToggle/confirmModeratorToggle,
+    // qui doit donc déclencher la même rotation (audit sécurité SAV).
+    const wasStaff = userToDelete.value.isAdmin || userToDelete.value.isModerator;
     isDeleting.value = true;
     try {
         const res = await sfetch(`/api/admin/users/${userToDelete.value.id}`, {
@@ -592,6 +600,7 @@ const confirmDeleteUser = async () => {
             users.value = users.value.filter(u => u.id !== userToDelete.value!.id);
             toast.show('Utilisateur supprimé avec succès', 'success');
             userToDelete.value = null;
+            if (wasStaff) afterStaffRemoval(false);
         } else {
             toast.show((await res.json()).error || 'Erreur lors de la suppression', 'error');
         }

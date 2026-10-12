@@ -3,12 +3,9 @@ import useWSocket from '@/composables/useWSocket';
 
 /**
  * Accès au socket partagé de l'app pour les événements `support:*`
- * (SUPPORT_FEATURE.md §6).
- *
- * Attention (comportement de l'API) : `support:join` fait quitter au socket
- * toutes les autres rooms `support:*` — y compris l'autre canal du même
- * ticket. Comme l'app n'a qu'un socket, un seul canal reçoit le temps réel
- * à la fois tant que l'API n'est pas corrigée (cf. rapport d'intégration).
+ * (SUPPORT_FEATURE.md §6). `support:join` fait quitter les rooms des autres
+ * tickets, mais garde les deux canaux du ticket courant : les timelines
+ * PUBLIC et INTERNAL d'un même ticket cohabitent sur ce socket unique.
  */
 
 export const SUPPORT_ACK_TIMEOUT_MS = 15000;

@@ -1,4 +1,3 @@
-import sfetch from '@/assets/utils/sfetch';
 import { user } from '@/assets/var';
 import { privateKey, privateSignKey, unwrapFileKey } from '@/assets/utils/crypto';
 import { resolveRecipientKey } from '@/assets/utils/keyTrust';
@@ -25,7 +24,6 @@ import {
     type SupportChannel,
     type SupportStaffKeyIn,
     type SupportStaffKeyInfo,
-    type SupportStaffMember,
     type SupportTicketDTO,
     type SupportTicketKeyDTO,
     type SupportTicketStaffDTO,
@@ -259,36 +257,15 @@ export async function fillMissingStaffKeyShares(force = false): Promise<number> 
 // ---------------------------------------------------------------------------
 
 /**
- * Clés publiques des membres de l'équipe. GET /staff/public-keys n'existe
- * pas (encore) côté API : en repli, GET /api/users/:id, qui ne renvoie la
- * clé que si l'on partage une organisation avec la personne. Un membre dont
- * la clé reste inconnue fera échouer la création (400 de l'API, listé).
+ * Clés publiques des membres de l'équipe (GET /staff/public-keys). Les clés
+ * de signature apprises au passage servent aux enveloppes FC4.
  */
-async function fetchStaffPublicKeys(members: SupportStaffMember[]): Promise<Map<string, string | null>> {
+async function fetchStaffPublicKeys(): Promise<Map<string, string | null>> {
     const out = new Map<string, string | null>();
-    for (const m of members) if (m.publicKey !== undefined) out.set(m.id, m.publicKey);
-    if (members.every(m => out.has(m.id))) return out;
-
-    try {
-        for (const row of await supportApi.getStaffPublicKeys()) {
-            const id = row.userId ?? row.id;
-            if (id) out.set(id, row.publicKey);
-        }
-        return out;
-    } catch (e) {
-        if (!(e instanceof SupportApiError) || (e.status !== 404 && e.status !== 405)) throw e;
+    for (const row of await supportApi.getStaffPublicKeys()) {
+        out.set(row.userId, row.publicKey);
+        rememberSignKey(row.userId, row.publicSignKey);
     }
-
-    await Promise.all(members.filter(m => !out.has(m.id)).map(async (m) => {
-        if (m.id === user.value?.id) { out.set(m.id, user.value?.publicKey ?? null); return; }
-        try {
-            const res = await sfetch(`/api/users/${encodeURIComponent(m.id)}`);
-            if (!res.ok) return;
-            const data: { publicKey?: string; publicSignKey?: string } = await res.json();
-            if (data.publicKey) out.set(m.id, data.publicKey);
-            if (data.publicSignKey) rememberSignKey(m.id, data.publicSignKey);
-        } catch { /* clé inconnue : signalée par l'API à la création */ }
-    }));
     return out;
 }
 
@@ -306,15 +283,14 @@ export async function createStaffKeyVersion(): Promise<SupportStaffKeyInfo> {
     const current = await supportApi.getStaffKey();
     const version = (current?.version ?? 0) + 1;
 
-    const members = await supportApi.listStaffMembers();
-    const keys = await fetchStaffPublicKeys(members);
+    const keys = await fetchStaffPublicKeys();
 
     const pair = await generateStaffKeyPair();
     const signature = await signStaffKey(version, pair.publicKey);
 
     const shares: { userId: string; encryptedPrivateKey: string }[] = [];
     const unverified: string[] = [];
-    const recipients = new Set([user.value.id, ...members.map(m => m.id)]);
+    const recipients = new Set([user.value.id, ...keys.keys()]);
     for (const id of recipients) {
         const raw = id === user.value.id ? user.value.publicKey : keys.get(id);
         if (!raw) continue;
@@ -367,8 +343,8 @@ export async function ensureStaffKeyExists(): Promise<SupportStaffKeyInfo | null
 
 // Le créateur d'un ticket (ou le membre qui a créé la clé INTERNAL) n'est en
 // général pas membre de l'organisation ouverte : on garde ici les clés de
-// signature apprises (liste de l'équipe, fiche du ticket, profil). `null` :
-// déjà cherchée, introuvable (pas de nouvelle requête).
+// signature apprises (DTO équipe, liste de l'équipe, annuaire des clés).
+// `null` : déjà cherchée, introuvable (pas de nouvelle requête).
 const signKeys = new Map<string, string | null>();
 registerKeyCache(() => signKeys.clear());
 
@@ -378,15 +354,17 @@ export function rememberSignKey(userId: string, publicSignKey: string | null | u
 
 const signKeyOf = (userId: string) => signKeys.get(userId) ?? null;
 
+/**
+ * Clé de signature d'un membre de l'équipe (créateur d'une clé INTERNAL) :
+ * apprise via GET /staff/members, chargé une fois. Le créateur d'un ticket,
+ * lui, arrive avec le DTO équipe (creator.publicSignKey).
+ */
 async function primeSignKey(userId: string | null | undefined): Promise<void> {
     if (!userId || userId === user.value?.id || signKeys.has(userId)) return;
     try {
-        const res = await sfetch(`/api/users/${encodeURIComponent(userId)}`);
-        const data: { publicSignKey?: string } | null = res.ok ? await res.json() : null;
-        signKeys.set(userId, data?.publicSignKey ?? null);
-    } catch {
-        signKeys.set(userId, null);
-    }
+        for (const m of await supportApi.listStaffMembers()) rememberSignKey(m.id, m.publicSignKey);
+    } catch { /* pas membre de l'équipe : rien à apprendre ici */ }
+    if (!signKeys.has(userId)) signKeys.set(userId, null);
 }
 
 // ---------------------------------------------------------------------------

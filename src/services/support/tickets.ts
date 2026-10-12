@@ -8,7 +8,6 @@ import {
 } from '@/assets/utils/supportCrypto';
 import {
     isStaffTicket,
-    type SupportMessageDTO,
     type SupportTicketClientDTO,
     type SupportTicketDTO,
     type SupportTicketPriority,
@@ -19,7 +18,7 @@ import {
     SupportLockedError, SupportNotConfiguredError,
     ensureInternalKey, fetchCurrentStaffKey, getTicketChannelKey, prepareInternalKeyForClaim,
 } from './keys';
-import { emitWithAck, getSupportSocket } from './socket';
+import { getSupportSocket } from './socket';
 
 /**
  * Parcours de bout en bout d'un ticket côté client et côté équipe :
@@ -68,7 +67,8 @@ export interface CreateSupportTicketResult {
  *     (signature vérifiée), avec l'enveloppe FC4 ;
  *  3. titre + premier message chiffrés, POST /tickets ;
  *  4. pièces jointes : envoi chiffré (contexte support PUBLIC) puis liaison
- *     au premier message par `support:edit-message-files`, comme un thread.
+ *     au premier message (`firstMessageId` de la réponse) par
+ *     `support:edit-message-files`, comme un thread.
  */
 export async function createSupportTicket(input: CreateSupportTicketInput): Promise<CreateSupportTicketResult> {
     if (!privateKey.value) throw new SupportLockedError();
@@ -93,7 +93,7 @@ export async function createSupportTicket(input: CreateSupportTicketInput): Prom
     const encTitle = title ? await encryptMessageWithContentKey(title, key) : null;
     const encBody = await encryptMessageWithContentKey(description, key);
 
-    const ticket = await supportApi.createTicket({
+    const { firstMessageId, ...ticket } = await supportApi.createTicket({
         id,
         ...(encTitle ? { titleCipher: encTitle.ciphertext, titleIv: encTitle.iv } : {}),
         ...(input.organizationId ? { organizationId: input.organizationId } : {}),
@@ -112,7 +112,7 @@ export async function createSupportTicket(input: CreateSupportTicketInput): Prom
     let attachmentError: Error | null = null;
     if (files.length) {
         try {
-            await attachFilesToFirstMessage(id, files, input.onUploadProgress, input.onFileProgress);
+            await attachFilesToFirstMessage(id, firstMessageId, files, input.onUploadProgress, input.onFileProgress);
         } catch (e) {
             console.error('[Support] Pièces jointes du ticket non envoyées :', (e as Error).message);
             attachmentError = e instanceof Error ? e : new Error(String(e));
@@ -124,6 +124,7 @@ export async function createSupportTicket(input: CreateSupportTicketInput): Prom
 
 async function attachFilesToFirstMessage(
     ticketId: string,
+    firstMessageId: string,
     files: File[],
     onProgress?: (percent: number) => void,
     onFileProgress?: (index: number, percent: number) => void,
@@ -131,23 +132,14 @@ async function attachFilesToFirstMessage(
     const total = files.reduce((s, f) => s + f.size, 0);
     if (total > SUPPORT_MAX_TICKET_BYTES) throw new Error('Les pièces jointes dépassent 200 Mo au total.');
 
-    const socket = await getSupportSocket();
-    // Le POST ne renvoie pas le premier message : on le lit via join.
-    const { messages } = await emitWithAck<{ messages: SupportMessageDTO[] }>(socket, 'support:join', { ticketId, channel: 'PUBLIC' });
-    const first = messages.find(m => m.senderId === user.value?.id) ?? messages[0];
-    if (!first) throw new Error('Premier message du ticket introuvable.');
-
-    try {
-        const uploaded = await uploadFiles(
-            files,
-            { supportTicketId: ticketId, supportChannel: 'PUBLIC', supportMessageId: first.id },
-            onProgress,
-            onFileProgress,
-        );
-        socket.emit('support:edit-message-files', { id: first.id, files: uploaded });
-    } finally {
-        socket.emit('support:leave', { ticketId, channel: 'PUBLIC' });
-    }
+    const uploaded = await uploadFiles(
+        files,
+        { supportTicketId: ticketId, supportChannel: 'PUBLIC', supportMessageId: firstMessageId },
+        onProgress,
+        onFileProgress,
+    );
+    // Liaison au premier message, comme un thread (upload puis liaison).
+    (await getSupportSocket()).emit('support:edit-message-files', { id: firstMessageId, files: uploaded });
 }
 
 /** Titre en clair d'un ticket (null s'il n'en a pas). */

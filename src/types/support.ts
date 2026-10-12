@@ -63,9 +63,8 @@ export interface SupportTag {
 
 /** Ticket vu par l'équipe. */
 export interface SupportTicketStaffDTO extends Omit<SupportTicketClientDTO, 'myKey'> {
-    // publicSignKey : absent du contrat actuel, lu s'il est un jour fourni
-    // pour vérifier l'enveloppe FC4 de la clé PUBLIC posée par le client.
-    creator: SupportUserLite & { email: string; publicSignKey?: string | null };
+    // publicSignKey : vérifie l'enveloppe FC4 de la clé PUBLIC posée par le client.
+    creator: SupportUserLite & { email: string; publicSignKey: string | null };
     tags: SupportTag[];
     publicStaffKey: SupportTicketKeyDTO | null;
     internalStaffKey: SupportTicketKeyDTO | null;
@@ -126,6 +125,7 @@ export interface SupportRequesterDTO {
     email: string;
     pseudo: string | null;
     avatarUrl: string | null;
+    publicSignKey: string | null;
     job: string | null;
     description: string | null;
     createdAt: string;
@@ -140,11 +140,16 @@ export interface SupportRequesterDTO {
 
 export interface SupportStaffMember extends SupportUserLite {
     role: SupportStaffRole;
-    // Absents du contrat actuel (GET /staff/members) : lus s'ils sont un
-    // jour fournis (enveloppes FC4 des clés INTERNAL, partage de la clé
-    // d'équipe sans requête par personne).
-    publicKey?: string | null;
-    publicSignKey?: string | null;
+    publicKey: string | null;
+    /** Vérifie les enveloppes FC4 des clés INTERNAL créées par ce membre. */
+    publicSignKey: string | null;
+}
+
+/** GET /staff/public-keys : annuaire de l'équipe pour la mise en place et la rotation. */
+export interface SupportStaffPublicKey {
+    userId: string;
+    publicKey: string | null;
+    publicSignKey: string | null;
 }
 
 /** Version (signée) de la clé d'équipe, telle que servie par GET /staff-key(/versions). */
@@ -177,6 +182,9 @@ export interface SupportKeyIn {
 export interface SupportStaffKeyIn extends SupportKeyIn {
     staffKeyVersion: number;
 }
+
+/** Réponse de POST /tickets : le ticket et l'id du premier message (liaison des pièces jointes). */
+export type CreateSupportTicketResponse = SupportTicketClientDTO & { firstMessageId: string };
 
 export interface CreateSupportTicketPayload {
     id: string;

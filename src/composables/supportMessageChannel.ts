@@ -18,6 +18,7 @@ import { createStaticMentionSource } from '@/composables/mentionSource';
 import useSettingsItem from '@/composables/useSettingsItem';
 import { emitWithAck } from '@/services/support/socket';
 import { loadStaffMembers, staffMembers } from '@/services/support/staffMembers';
+import { supportApi } from '@/services/support/api';
 
 /**
  * MessageChannel d'un canal de ticket de support (SUPPORT_FEATURE.md §6),
@@ -37,10 +38,8 @@ import { loadStaffMembers, staffMembers } from '@/services/support/staffMembers'
  *
  * À appeler dans le `setup()` de la vue (pose des watchers).
  *
- * Limite de l'API à connaître : `support:join` fait quitter les autres rooms
- * `support:*` du socket, y compris l'autre canal du même ticket. Avec deux
- * timelines (PUBLIC + INTERNAL), seul le dernier canal rejoint reçoit le
- * temps réel tant que l'API n'est pas corrigée.
+ * Deux timelines (PUBLIC + INTERNAL) d'un même ticket peuvent partager le
+ * socket : `support:join` ne fait quitter que les rooms des autres tickets.
  */
 
 export interface SupportMentionPerson {
@@ -69,10 +68,16 @@ export interface SupportMessageChannelOptions {
 }
 
 export interface SupportPinning {
-    /** Id du message épinglé connu (null : aucun, ou hors des pages chargées). */
+    /** Id du message épinglé (null : aucun). */
     readonly pinnedId: Readonly<Ref<string | null>>;
-    /** Le message épinglé s'il a été vu (historique chargé ou événement), chiffré. */
+    /**
+     * Le message épinglé, chiffré (à déchiffrer avec decryptMessages comme
+     * le reste) — lu par GET /tickets/:id/pinned-message après `join()` et à
+     * chaque `support:pinned`, même s'il est hors de l'historique chargé.
+     */
     readonly pinnedMessage: Readonly<Ref<Message | null>>;
+    /** Relit le message épinglé auprès de l'API. */
+    refresh(): Promise<void>;
     /** Épingle (un seul par ticket, l'ancien est désépinglé) ou désépingle. */
     pin(messageId: string, pinned: boolean): void;
 }
@@ -247,10 +252,24 @@ export const createSupportMessageChannel = (options: SupportMessageChannelOption
         return { messages: (res.messages ?? []).filter(m => matchesConversation(m)).map(track), hasMore: !!res.hasMore };
     };
 
+    const refreshPinned = async () => {
+        const id = ticketId.value;
+        if (channel !== 'INTERNAL' || !id) return;
+        try {
+            const dto = await supportApi.getPinnedMessage(id);
+            if (id !== ticketId.value) return;
+            if (dto) track(dto);
+            else { pinnedId.value = null; pinnedMessage.value = null; }
+        } catch (e) {
+            console.warn('[Support] Message épinglé indisponible :', (e as Error).message);
+        }
+    };
+
     const pinning: SupportPinning | undefined = channel === 'INTERNAL'
         ? {
             pinnedId,
             pinnedMessage,
+            refresh: refreshPinned,
             pin: (messageId, pinned) => {
                 socket.value?.emit('support:pin-message', { id: messageId, pinned });
             },
@@ -272,7 +291,11 @@ export const createSupportMessageChannel = (options: SupportMessageChannelOption
         participants,
         pinning,
 
-        join: () => page('support:join'),
+        join: async () => {
+            const res = await page('support:join');
+            void refreshPinned();
+            return res;
+        },
 
         leave: () => {
             if (ticketId.value) socket.value?.emit('support:leave', { ticketId: ticketId.value, channel });
@@ -351,6 +374,7 @@ export const createSupportMessageChannel = (options: SupportMessageChannelOption
                 if (data.pinned) {
                     pinnedId.value = data.id;
                     pinnedMessage.value = null;
+                    void refreshPinned();
                 } else if (pinnedId.value === data.id) {
                     pinnedId.value = null;
                     pinnedMessage.value = null;

@@ -1,6 +1,9 @@
 import sfetch from '@/assets/utils/sfetch';
 import type {
     CreateSupportTicketPayload,
+    CreateSupportTicketResponse,
+    SupportMessageDTO,
+    SupportStaffPublicKey,
     SupportMissingShare,
     SupportRequesterDTO,
     SupportRole,
@@ -70,17 +73,12 @@ export const supportApi = {
     getMissingShares: () => call<SupportMissingShare[]>(`${BASE}/staff-key/missing-shares`),
     createShares: (shares: { version: number; userId: string; encryptedPrivateKey: string }[]) =>
         call<{ success: true; created: number }>(`${BASE}/staff-key/shares`, { method: 'POST', body: { shares } }),
-    /**
-     * Clés publiques des membres de l'équipe — route absente de l'API au
-     * moment de l'écriture (§5 la dit « inutile »), mais indispensable à la
-     * mise en place et à la rotation (POST /staff-key exige une copie pour
-     * chaque membre ayant une publicKey). Voir keys.ts pour le repli.
-     */
-    getStaffPublicKeys: () => call<{ userId?: string; id?: string; publicKey: string | null }[]>(`${BASE}/staff/public-keys`),
+    /** Clés publiques (et de signature) de l'équipe : mise en place et rotation de la clé d'équipe. */
+    getStaffPublicKeys: () => call<SupportStaffPublicKey[]>(`${BASE}/staff/public-keys`),
 
     // ── Client ──────────────────────────────────────────────────────────
     createTicket: (payload: CreateSupportTicketPayload) =>
-        call<SupportTicketClientDTO>(`${BASE}/tickets`, { method: 'POST', body: payload }),
+        call<CreateSupportTicketResponse>(`${BASE}/tickets`, { method: 'POST', body: payload }),
     listMyTickets: () => call<SupportTicketClientDTO[]>(`${BASE}/tickets`),
     /** Client : SupportTicketClientDTO (créateur) ; équipe : SupportTicketStaffDTO. */
     getTicket: (id: string) => call<SupportTicketDTO>(`${BASE}/tickets/${enc(id)}`),
@@ -107,6 +105,8 @@ export const supportApi = {
         call<SupportTicketStaffDTO>(`${BASE}/tickets/${enc(id)}`, { method: 'PATCH', body }),
     setTicketTags: (id: string, tagIds: string[]) =>
         call<SupportTicketStaffDTO>(`${BASE}/tickets/${enc(id)}/tags`, { method: 'PUT', body: { tagIds } }),
+    /** Message épinglé du fil INTERNAL (équipe), même hors de l'historique chargé. */
+    getPinnedMessage: (id: string) => call<SupportMessageDTO | null>(`${BASE}/tickets/${enc(id)}/pinned-message`),
     getRequester: (id: string) => call<SupportRequesterDTO>(`${BASE}/tickets/${enc(id)}/requester`),
     listStaffMembers: () => call<SupportStaffMember[]>(`${BASE}/staff/members`),
 
