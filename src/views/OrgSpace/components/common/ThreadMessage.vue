@@ -66,6 +66,18 @@
 
                     </div>
 
+                    <!-- Transféré depuis un autre salon/DM : l'attribution et la
+                         citation sont déjà dans le texte (voir confirmForward),
+                         ce lien ne sert qu'à retrouver l'original. -->
+                    <button
+                        v-if="transferOrigin"
+                        @click="navigateToTransferOrigin(router, transferOrigin)"
+                        class="flex items-center gap-1.5 mb-1 text-[11px] text-(--text2) hover:text-(--primary) transition-colors"
+                    >
+                        <i class="bi bi-arrow-return-right" />
+                        Message transféré — voir l'original
+                    </button>
+
                     <!-- Montée seulement au survol : chaque bouton porte un
                          v-tooltip, et floating-vue monte un composant Popper
                          complet par tooltip dès le montage du bouton (cf. le
@@ -243,12 +255,19 @@
 
                 </div>
 
-        <ConfirmDelete 
+        <ConfirmDelete
             :show="showDeleteConfirm"
             itemType="le message"
             :itemName="msg.content.substring(0, 50)"
             @confirm="deleteMessage"
             @cancel="showDeleteConfirm = false"
+        />
+
+        <ShareToTargetModal
+            :show="showForwardModal"
+            :preview="{ icon: 'bi-send-fill', title: messagePreview(msg.content) }"
+            :send="confirmForward"
+            @close="showForwardModal = false"
         />
 
         <MessageActionSheet
@@ -286,8 +305,12 @@ import { messagePreview } from '@/assets/utils/messagePreview';
 import WebhookEmbed from './WebhookEmbed.vue';
 import LinkPreview from './LinkPreview.vue';
 import { isUserMentioned } from '@/composables/useMentions';
-import { extractReferenceTokens } from '@/composables/useReferences';
+import { extractReferenceTokens, buildReferenceToken } from '@/composables/useReferences';
 import { useMessageChannel } from '@/composables/messageChannel';
+import { useRouter } from 'vue-router';
+import { navigateToTransferOrigin } from '@/composables/useReferenceNavigation';
+import ShareToTargetModal from '@/components/common/ShareToTargetModal.vue';
+import { forwardMessage, type ShareTarget, type ShareReferenceResult, type TransferOrigin } from '@/composables/useShareReference';
 import type { User } from '@/types/types';
 
 // Tout ce qui dépend de la conversation (envoi sur le socket, droits,
@@ -372,6 +395,13 @@ const dropdownBtns: DropdownBtn[] = [
         show: () => true
     },
     {
+        icon: "bi-send-fill",
+        tooltip: "transférer",
+        label: "Transférer",
+        func: () => { showForwardModal.value = true; },
+        show: (msg: Message) => !msg.isWebhook
+    },
+    {
         icon: "bi-emoji-grin-fill",
         tooltip: "réagir",
         label: "Réagir",
@@ -444,11 +474,35 @@ const { setMessageWillBeResponded } = useResponse();
 // Les mises à jour de réactions sont reçues une seule fois par la timeline
 // (MessageChannel.subscribe), plus par un écouteur socket par message.
 
+const router = useRouter();
+
 const showPlusDropdown = ref<boolean>(false);
 const hovered = ref<boolean>(false);
 const showDeleteConfirm = ref<boolean>(false);
+const showForwardModal = ref<boolean>(false);
 const editContent = ref<string>('');
 const editTextareaRef = ref<InstanceType<typeof ThreadTextarea> | null>(null);
+
+// Ce message est-il lui-même le résultat d'un transfert ? Mutuellement
+// exclusifs (voir Message dans schema.prisma) : transferId pointe vers un
+// autre Message (salon -> salon), transferOriginDmMessageId vers une
+// DMMessage (DM -> salon).
+const transferOrigin = computed<TransferOrigin | null>(() => {
+    if (props.msg.transferId) return { kind: 'thread', id: props.msg.transferId };
+    if (props.msg.transferOriginDmMessageId) return { kind: 'dm', id: props.msg.transferOriginDmMessageId };
+    return null;
+});
+
+// Le message transféré est rechiffré pour la destination, donc son contenu
+// doit déjà porter l'attribution et la citation en clair (voir
+// ChatMessage.vue::confirmForward, même logique côté DM).
+const confirmForward = (target: ShareTarget, note: string): Promise<ShareReferenceResult> => {
+    const msg = props.msg;
+    const quoted = msg.content.split('\n').map(line => `> ${line}`).join('\n');
+    const attribution = msg.senderId ? `${buildReferenceToken('user', msg.senderId)} a écrit :` : 'Message transféré :';
+    const parts = [note.trim(), attribution, quoted].filter(Boolean);
+    return forwardMessage(target, parts.join('\n'), { kind: 'thread', id: msg.id });
+};
 
 watch(() => props.isEditing, (editing) => {
     if (!editing) return;

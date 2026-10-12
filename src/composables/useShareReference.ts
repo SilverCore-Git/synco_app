@@ -31,12 +31,24 @@ export interface ShareReferenceResult {
     error?: string;
 }
 
+/**
+ * Pointeur de provenance pour un message transféré — pure métadonnée de
+ * navigation ("Voir l'original"), jamais une source de contenu : le serveur
+ * la revalide par EXPÉDITEUR à l'envoi (messageTransferService) et par
+ * LECTEUR à la résolution (GET /api/messages/transfer-origin), voir
+ * forwardMessage ci-dessous.
+ */
+export interface TransferOrigin {
+    kind: 'thread' | 'dm';
+    id: string;
+}
+
 const buildContent = (refKind: ReferenceKind, refId: string, note?: string): string => {
     const token = buildReferenceToken(refKind, refId);
     return note?.trim() ? `${note.trim()}\n${token}` : token;
 };
 
-async function sendToThread(threadId: string, spaceId: string | undefined, content: string): Promise<ShareReferenceResult> {
+async function sendToThread(threadId: string, spaceId: string | undefined, content: string, transferOrigin?: TransferOrigin): Promise<ShareReferenceResult> {
     const socketRef = await useWSocket();
     const socket = socketRef.value;
     if (!socket) return { ok: false, error: 'Non connecté au serveur.' };
@@ -77,6 +89,7 @@ async function sendToThread(threadId: string, spaceId: string | undefined, conte
             nonce: `n_${Date.now()}`,
             context: spaceId ? 'workspace' : 'home',
             references,
+            transferOrigin,
         }, (res: any) => resolve(res));
     });
 
@@ -84,7 +97,7 @@ async function sendToThread(threadId: string, spaceId: string | undefined, conte
     return { ok: true };
 }
 
-async function sendToDM(recipientId: string, recipientPublicKey: string, content: string): Promise<ShareReferenceResult> {
+async function sendToDM(recipientId: string, recipientPublicKey: string, content: string, transferOrigin?: TransferOrigin): Promise<ShareReferenceResult> {
     const socketRef = await useWSocket();
     const socket = socketRef.value;
     if (!socket) return { ok: false, error: 'Non connecté au serveur.' };
@@ -113,6 +126,7 @@ async function sendToDM(recipientId: string, recipientPublicKey: string, content
         nonce: encrypted.iv,
         isE2EE: true,
         references,
+        transferOrigin,
     };
 
     const response: any = await new Promise((resolve) => {
@@ -135,4 +149,24 @@ export async function shareReference(
     return target.kind === 'thread'
         ? sendToThread(target.threadId, target.spaceId, content)
         : sendToDM(target.recipientId, target.recipientPublicKey, content);
+}
+
+/**
+ * Transfère un message déjà déchiffré (son contenu en mémoire, puisqu'il est
+ * affiché) vers un autre salon ou une DM — contrairement à shareReference,
+ * `content` n'est PAS une référence `<kind:id>` mais le texte déjà prêt à
+ * chiffrer pour la destination (attribution + citation, voir
+ * ChatMessage.vue/ThreadMessage.vue). `origin` ne voyage que comme métadonnée
+ * de navigation (voir TransferOrigin) : le serveur la revalide par
+ * expéditeur avant de la persister, jamais utilisée pour reconstruire le
+ * contenu lui-même.
+ */
+export async function forwardMessage(
+    target: ShareTarget,
+    content: string,
+    origin: TransferOrigin
+): Promise<ShareReferenceResult> {
+    return target.kind === 'thread'
+        ? sendToThread(target.threadId, target.spaceId, content, origin)
+        : sendToDM(target.recipientId, target.recipientPublicKey, content, origin);
 }

@@ -152,7 +152,11 @@ export interface Message {
     threadId: string;
     senderId: string | null;
     replyToId: string | null;
+    // Provenance d'un transfert (salon -> salon) : transferId, ou (DM ->
+    // salon), loose, pas d'entité à joindre (voir schema.prisma) : ce
+    // pointeur ne sert qu'à "Voir l'original", jamais au contenu affiché.
     transferId: string | null;
+    transferOriginDmMessageId?: string | null;
     content: string;
     nonce: string;
     iv: string | null;
@@ -209,6 +213,12 @@ export interface DMMessage {
 
     replyMessage?: DMMessage | null;
     replies?: DMMessage[];
+
+    // Symétrique de Message.transferId/transferOriginDmMessageId : transferId
+    // pour un transfert DM -> DM, transferOriginMessageId (loose) pour un
+    // transfert salon -> DM.
+    transferId?: string | null;
+    transferOriginMessageId?: string | null;
 
     type?: 'text' | 'voice_invite';
     voiceInviteThreadId?: string | null;

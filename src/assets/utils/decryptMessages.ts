@@ -65,8 +65,11 @@ const decryptSingleMessage = async (msg: Message | null | undefined, key: Crypto
 };
 
 /**
- * Déchiffre une liste de messages (et les messages cités/transférés qu'ils
- * embarquent), puis la trie par date. Sans clé, renvoie la liste telle quelle.
+ * Déchiffre une liste de messages (et les messages cités qu'ils embarquent),
+ * puis la trie par date. Sans clé, renvoie la liste telle quelle. Un message
+ * transféré n'a rien de spécial à déchiffrer ici : son contenu (attribution +
+ * citation de l'original) est du texte normal, déjà rechiffré pour CE salon/
+ * DM au moment de l'envoi (voir useShareReference.ts::forwardMessage).
  */
 export const decryptMessages = async (msgs: Message[], key: CryptoKey | null): Promise<Message[]> => {
 
@@ -82,17 +85,6 @@ export const decryptMessages = async (msgs: Message[], key: CryptoKey | null): P
             const decryptedReply = await decryptSingleMessage(decryptedMain.replyMessage, key);
             if (decryptedReply) {
                 decryptedMain.replyMessage = decryptedReply;
-            }
-        }
-
-        // Le transfert de message est une fonctionnalité en attente : le
-        // serveur ne l'envoie plus dans l'historique allégé, mais les anciens
-        // formats (et la future fonctionnalité) peuvent encore le porter.
-        if (decryptedMain.transferMessage)
-        {
-            const decryptedTransfer = await decryptSingleMessage(decryptedMain.transferMessage, key);
-            if (decryptedTransfer) {
-                decryptedMain.transferMessage = decryptedTransfer;
             }
         }
 
@@ -141,7 +133,6 @@ export const decryptEditedMessage = async (editedMsg: Message, key: CryptoKey | 
         content: decryptedContent,
         reactions: formattedReactions,
         replyMessage: previous?.replyMessage ?? editedMsg.replyMessage,
-        transferMessage: previous?.transferMessage ?? editedMsg.transferMessage,
     };
 
 };

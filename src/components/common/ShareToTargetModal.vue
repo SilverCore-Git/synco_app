@@ -17,9 +17,9 @@
                             </div>
                             <div class="min-w-0">
                                 <h2 class="text-lg font-bold text-(--text)">Transférer</h2>
-                                <p class="text-xs text-(--text2) truncate flex items-center gap-1.5">
-                                    <i class="bi" :class="item?.kind === 'folder' ? 'bi-folder-fill text-amber-400' : 'bi-file-earmark-fill'" />
-                                    {{ item?.name }}
+                                <p v-if="preview" class="text-xs text-(--text2) truncate flex items-center gap-1.5">
+                                    <i class="bi" :class="preview.icon" />
+                                    <span class="truncate">{{ preview.title }}</span>
                                 </p>
                             </div>
                         </div>
@@ -109,7 +109,7 @@
                         <div class="flex justify-end gap-3">
                             <button @click="close" class="default">Annuler</button>
                             <button
-                                @click="send"
+                                @click="confirmSend"
                                 :disabled="!selectedTarget || sending"
                                 class="primary flex items-center justify-center gap-2"
                                 :class="!selectedTarget || sending ? 'opacity-40 cursor-not-allowed!' : ''"
@@ -133,22 +133,31 @@
 
 <script setup lang="ts">
 
-// Picker « où transférer ce fichier/dossier ? » lancé depuis le file
-// manager (FileCard.vue/FolderCard.vue -> SpaceFiles.vue) : propose tous les
-// salons (de l'espace courant + des autres workspaces + "accueil" de l'org)
-// et tous les membres de l'org comme destination DM, puis envoie un message
-// contenant <file:id>/<folder:id> — exactement l'équivalent de le "pinguer"
-// avec & depuis le composer, mais sans ouvrir la conversation cible.
+// Picker générique « où transférer ceci ? » : propose tous les salons (de
+// l'espace courant + des autres workspaces + "accueil" de l'org) et tous les
+// membres de l'org comme destination DM, puis délègue l'envoi réel au
+// consommateur via la prop `send` — ce composant ne sait rien du contenu
+// transféré (fichier/dossier pingé avec &, ou message réécrit/rechiffré, cf.
+// useShareReference.ts) ni de son format, seulement de la destination choisie
+// et de la note optionnelle.
+// - Lancé depuis le file manager (FileCard.vue/FolderCard.vue ->
+//   SpaceFiles.vue) pour partager un fichier/dossier.
+// - Lancé depuis ChatMessage.vue/ThreadMessage.vue pour transférer un message.
 
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { openedOrg, user } from '@/assets/var';
-import { shareReference, type ShareTarget } from '@/composables/useShareReference';
+import type { ShareTarget, ShareReferenceResult } from '@/composables/useShareReference';
 import { useToast } from '@/composables/useToast';
 import type { Thread } from '@/types/types';
 
 const props = defineProps<{
     show: boolean;
-    item: { kind: 'file' | 'folder'; id: string; name: string } | null;
+    // Icône + titre affichés dans l'en-tête, pour rappeler ce qu'on transfère.
+    preview: { icon: string; title: string } | null;
+    // Envoie réellement vers la cible choisie (+ note optionnelle) — c'est au
+    // consommateur de savoir comment construire le contenu (référence &
+    // fichier/dossier, ou contenu de message déchiffré/rechiffré).
+    send: (target: ShareTarget, note: string) => Promise<ShareReferenceResult>;
 }>();
 
 const emit = defineEmits<{ (e: 'close'): void }>();
@@ -237,11 +246,11 @@ const selectedLabel = computed(() => {
 
 const select = (target: ShareTarget) => { selectedTarget.value = target; };
 
-const send = async () => {
-    if (!selectedTarget.value || !props.item || sending.value) return;
+const confirmSend = async () => {
+    if (!selectedTarget.value || sending.value) return;
     sending.value = true;
     try {
-        const result = await shareReference(selectedTarget.value, { kind: props.item.kind, id: props.item.id }, note.value);
+        const result = await props.send(selectedTarget.value, note.value);
         if (!result.ok) {
             toast.show(result.error || 'Échec du transfert.', 'error');
             return;

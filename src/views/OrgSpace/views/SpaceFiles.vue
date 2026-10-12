@@ -627,7 +627,8 @@
 
     <ShareToTargetModal
         :show="showShareModal"
-        :item="shareItem"
+        :preview="shareItem ? { icon: shareItem.kind === 'folder' ? 'bi-folder-fill text-amber-400' : 'bi-file-earmark-fill', title: shareItem.name } : null"
+        :send="(target, note) => shareReference(target, { kind: shareItem!.kind, id: shareItem!.id }, note)"
         @close="showShareModal = false"
     />
 
@@ -663,6 +664,7 @@ import VectorWorker from '@/workers/semantic.worker?worker';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 import ManageAccessModal from '@/components/permissions/ManageAccessModal.vue';
 import ShareToTargetModal from '@/components/common/ShareToTargetModal.vue';
+import { shareReference } from '@/composables/useShareReference';
 
 
 const { showUsersBar } = useUsersBar();

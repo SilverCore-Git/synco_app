@@ -62,6 +62,18 @@
 
                     </div>
 
+                    <!-- Transféré depuis un autre salon/DM : l'attribution et la
+                         citation sont déjà dans le texte (voir confirmForward),
+                         ce lien ne sert qu'à retrouver l'original. -->
+                    <button
+                        v-if="transferOrigin"
+                        @click="navigateToTransferOrigin(router, transferOrigin)"
+                        class="flex items-center gap-1.5 mb-1 text-[11px] text-(--text2) hover:text-(--primary) transition-colors"
+                    >
+                        <i class="bi bi-arrow-return-right" />
+                        Message transféré — voir l'original
+                    </button>
+
                     <!-- Montée seulement au survol : chaque bouton porte un
                          v-tooltip, et floating-vue monte un composant Popper
                          complet par tooltip dès le montage du bouton. 6 par
@@ -244,12 +256,19 @@
 
                 </div>
 
-        <ConfirmDelete 
+        <ConfirmDelete
             :show="showDeleteConfirm"
             itemType="le message"
             :itemName="msg.content.substring(0, 50)"
             @confirm="deleteMessage"
             @cancel="showDeleteConfirm = false"
+        />
+
+        <ShareToTargetModal
+            :show="showForwardModal"
+            :preview="{ icon: 'bi-send-fill', title: messagePreview(msg.content) }"
+            :send="confirmForward"
+            @close="showForwardModal = false"
         />
 
         <MessageActionSheet
@@ -299,8 +318,10 @@ import { openProfile } from '@/composables/useProfile';
 import useSettingsItem from '@/composables/useSettingsItem';
 import LinkPreview from './LinkPreview.vue';
 import { orgMentionLookup, isUserMentioned } from '@/composables/useMentions';
-import { extractReferenceTokens } from '@/composables/useReferences';
-import { navigateToReference } from '@/composables/useReferenceNavigation';
+import { extractReferenceTokens, buildReferenceToken } from '@/composables/useReferences';
+import { navigateToReference, navigateToTransferOrigin } from '@/composables/useReferenceNavigation';
+import ShareToTargetModal from '@/components/common/ShareToTargetModal.vue';
+import { forwardMessage, type ShareTarget, type ShareReferenceResult, type TransferOrigin } from '@/composables/useShareReference';
 import type { User } from '@/types/types';
 
 // msg.sender est une copie figée au moment de la réception du message : son
@@ -426,6 +447,13 @@ const dropdownBtns: DropdownBtn[] = [
         show: () => true
     },
     {
+        icon: "bi-send-fill",
+        tooltip: "transférer",
+        label: "Transférer",
+        func: () => { showForwardModal.value = true; },
+        show: (msg: DMMessage) => !msg.decrypting
+    },
+    {
         icon: "bi-emoji-grin-fill",
         tooltip: "réagir",
         label: "Réagir",
@@ -500,8 +528,30 @@ const { setMessageWillBeResponded } = useResponse();
 const showPlusDropdown = ref<boolean>(false);
 const hovered = ref<boolean>(false);
 const showDeleteConfirm = ref<boolean>(false);
+const showForwardModal = ref<boolean>(false);
 const editContent = ref<string>('');
 const editTextareaRef = ref<InstanceType<typeof ThreadTextarea> | null>(null);
+
+// Ce message est-il lui-même le résultat d'un transfert ? Les deux champs
+// sont mutuellement exclusifs (voir Message/DMMessage dans schema.prisma) :
+// transferId pointe vers une autre DMMessage (DM -> DM), transferOriginMessageId
+// vers un Message de salon (salon -> DM).
+const transferOrigin = computed<TransferOrigin | null>(() => {
+    if (props.msg.transferId) return { kind: 'dm', id: props.msg.transferId };
+    if (props.msg.transferOriginMessageId) return { kind: 'thread', id: props.msg.transferOriginMessageId };
+    return null;
+});
+
+// Le message transféré est rechiffré pour la destination, donc son contenu
+// doit déjà porter l'attribution et la citation en clair — <@:id> se résout
+// comme n'importe quelle mention normale, aucune résolution spéciale requise
+// côté lecteur (voir useReferences.ts renderReferences).
+const confirmForward = (target: ShareTarget, note: string): Promise<ShareReferenceResult> => {
+    const msg = props.msg;
+    const quoted = msg.content.split('\n').map(line => `> ${line}`).join('\n');
+    const parts = [note.trim(), `${buildReferenceToken('user', msg.senderId)} a écrit :`, quoted].filter(Boolean);
+    return forwardMessage(target, parts.join('\n'), { kind: 'dm', id: msg.id });
+};
 
 watch(() => props.isEditing, (editing) => {
     if (!editing) return;
