@@ -19,10 +19,12 @@
         <main class="flex-1 min-h-0 overflow-y-auto">
             <div class="max-w-4xl mx-auto p-6 flex flex-col gap-6">
 
-                <div v-if="showCreate" class="bg-(--bg) border border-(--border-color) rounded-2xl p-6">
-                    <h2 class="text-lg font-bold mb-4">Nouveau ticket</h2>
-                    <NewSupportTicketForm @created="onCreated" @cancel="showCreate = false" />
-                </div>
+                <Transition name="fade-slide-in-up">
+                    <div v-if="showCreate" class="bg-(--bg) border border-(--border-color) rounded-2xl p-6">
+                        <h2 class="text-lg font-bold mb-4">Nouveau ticket</h2>
+                        <NewSupportTicketForm @created="onCreated" @cancel="showCreate = false" />
+                    </div>
+                </Transition>
 
                 <div v-if="loading" class="flex justify-center py-10">
                     <SpinLoader />

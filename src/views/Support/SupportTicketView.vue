@@ -1,6 +1,10 @@
 <template>
 
-    <div class="h-full flex flex-col overflow-hidden bg-(--bg2) text-(--text)">
+    <!-- relative : ancre la barre de saisie de ChatTimeline (absolute
+         inset-x-0) à cette page plutôt qu'au premier ancêtre positionné
+         rencontré plus haut dans l'app (même motif que ThreadLayout.vue,
+         cf. SupportPanelTicketView.vue pour le cas à deux colonnes). -->
+    <div class="relative h-full flex flex-col overflow-hidden bg-(--bg2) text-(--text)">
 
         <nav class="shrink-0 bg-(--bg)/80 backdrop-blur-xl border-b border-(--text)/5 px-4 sm:px-6 py-3">
             <div class="max-w-3xl mx-auto flex items-center gap-3">

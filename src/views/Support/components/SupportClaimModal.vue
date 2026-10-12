@@ -8,7 +8,11 @@
 
         <div class="flex flex-col gap-4">
             <p class="text-sm text-(--text2)">Choisissez l'urgence de ce ticket pour le prendre en charge.</p>
-            <SupportSearchSelect v-model="priority" :options="priorityOptions" placeholder="Choisir une urgence..." />
+            <!-- :z-index supérieur à celui de la Popup (2000 par défaut) :
+                 sans lui, le DropDown (z-index 1000 par défaut, inférieur à
+                 la Popup) s'ouvrait sous elle — visible sous le fond assombri
+                 ou pas du tout, en tout cas inerte au clic. -->
+            <SupportSearchSelect v-model="priority" :options="priorityOptions" placeholder="Choisir une urgence..." :z-index="2100" />
         </div>
 
         <template #footer>

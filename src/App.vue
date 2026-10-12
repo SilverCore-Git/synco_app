@@ -655,8 +655,23 @@ onMounted(async () => {
                ce court instant d'attente reste discret plutôt que de réafficher
                le plein écran logo+barre, qui donnait l'impression d'un rechargement. -->
           <Transition name="fade" mode="out-in">
-            <div v-if="isLoaded" class="w-full h-full animate-app-reveal" key="loaded">
-              <RouterView />
+            <div v-if="isLoaded" class="w-full h-full relative overflow-hidden animate-app-reveal" key="loaded">
+              <!-- Transition "push" (src/style.css) : une route dont le
+                   meta.overlay est vrai (/root, /support, /support-panel…)
+                   glisse depuis la droite et recouvre la page du dessous au
+                   lieu de la remplacer instantanément. mode par défaut (pas
+                   out-in) : l'ancienne et la nouvelle page coexistent dans
+                   le DOM pendant la transition — nécessaire pour l'effet de
+                   recouvrement, voir le commentaire sur .overlay-page. -->
+              <RouterView v-slot="{ Component, route: matchedRoute }">
+                <Transition name="push">
+                  <component
+                    :is="Component"
+                    :key="matchedRoute.fullPath"
+                    :class="{ 'overlay-page': matchedRoute.meta?.overlay }"
+                  />
+                </Transition>
+              </RouterView>
             </div>
 
             <div v-else class="w-full h-full flex items-center justify-center bg-(--bg)" key="loading">

@@ -5,7 +5,7 @@
          liste qui peut grandir (contrainte produit Synco : jamais une
          rangée de boutons, cf. project_synco_scale_ux). -->
 
-    <DropDown ref="dropdownRef" align="left" content-iner-t-w="w-72 max-h-80 overflow-hidden flex flex-col p-0!">
+    <DropDown ref="dropdownRef" align="left" :z-index="zIndex" content-iner-t-w="w-72 max-h-80 overflow-hidden flex flex-col p-0!">
 
         <template #trigger>
             <button
@@ -112,6 +112,8 @@ const props = defineProps<{
     noneLabel?: string;
     /** Propose de créer l'entrée tapée si elle ne correspond à aucune option (ex. tags). */
     creatable?: boolean;
+    /** À passer quand ce select s'ouvre depuis l'intérieur d'une Popup.vue (cf. DropDown.vue). */
+    zIndex?: number;
 }>();
 
 const emit = defineEmits<{

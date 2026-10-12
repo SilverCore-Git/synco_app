@@ -108,7 +108,14 @@
 
         <main v-if="ticket" class="flex-1 min-h-0 flex overflow-hidden">
 
-            <div class="flex-1 min-w-0 flex flex-col" :class="{ 'hidden sm:flex': mobileTab !== 'public' }">
+            <!-- relative + overflow-hidden : ChatTimeline ancre sa barre de
+                 saisie en `absolute inset-x-0` au premier ancêtre positionné
+                 (même motif que ThreadLayout.vue). Sans ça, les deux
+                 timelines PUBLIC/INTERNAL remontaient jusqu'au même ancêtre
+                 positionné de la page, et leurs barres de saisie s'étalaient
+                 chacune sur toute cette largeur au lieu de rester dans leur
+                 colonne — celle du fil interne recouvrait celle du client. -->
+            <div class="relative overflow-hidden flex-1 min-w-0 flex flex-col" :class="{ 'hidden sm:flex': mobileTab !== 'public' }">
                 <ChatTimeline :channel="publicChannel" ref="publicTimelineRef" :loading="loadingPublic" placeholder="Répondre au client...">
                     <template #header>
                         <div v-if="events.length" class="mb-4">
@@ -120,7 +127,7 @@
 
             <div class="w-full sm:w-96 shrink-0 border-l border-(--text)/5 flex flex-col overflow-hidden" :class="{ 'hidden sm:flex': mobileTab !== 'internal' }">
 
-                <div class="flex-1 min-h-0 flex flex-col">
+                <div class="relative overflow-hidden flex-1 min-h-0 flex flex-col">
                     <ChatTimeline :channel="internalChannel" ref="internalTimelineRef" :loading="loadingInternal" placeholder="Note interne (invisible du client)...">
                         <template #header>
                             <div v-if="internalChannel.pinning?.pinnedId.value" class="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs">

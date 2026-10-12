@@ -32,6 +32,11 @@ const routes = [
     name: 'AdminPanel',
     component: AdminPanel,
     redirect: '/root/users',
+    // meta.overlay : transition "push" (App.vue/style.css) — cette page
+    // glisse depuis la droite et recouvre la page du dessous au lieu de la
+    // remplacer instantanément. Hérité par les enfants (users/orgs), qui
+    // partagent ce même composant/cette même entrée dans RouterView.
+    meta: { overlay: true },
     beforeEnter: async (_to: any, _from: any, next: any) => {
       try {
         const res = await sfetch('/api/admin/isAdmin');
@@ -62,6 +67,8 @@ const routes = [
     path: '/support',
     name: 'SupportTicketList',
     component: () => import('./views/Support/SupportTicketList.vue'),
+    // meta.overlay : voir le commentaire sur /root ci-dessus.
+    meta: { overlay: true },
   },
 
   {
@@ -69,12 +76,14 @@ const routes = [
     name: 'SupportTicketView',
     component: () => import('./views/Support/SupportTicketView.vue'),
     props: true,
+    meta: { overlay: true },
   },
 
   {
     path: '/support-panel',
     name: 'SupportPanel',
     component: () => import('./views/Support/SupportPanel.vue'),
+    meta: { overlay: true },
     // Même logique que le guard du panel admin (/root) : GET /api/support/me
     // dit si l'utilisateur est membre de l'équipe (super-admin, admin ou
     // modérateur) — un modérateur n'a pas accès à /api/admin mais doit
@@ -95,6 +104,7 @@ const routes = [
     name: 'SupportPanelTicketView',
     component: () => import('./views/Support/SupportPanelTicketView.vue'),
     props: true,
+    meta: { overlay: true },
     beforeEnter: async (_to: any, _from: any, next: any) => {
       try {
         const role = await loadSupportRole();
