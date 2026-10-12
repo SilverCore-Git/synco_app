@@ -84,14 +84,14 @@
 
 </template>
 
-<script lang="ts" setup>
+<script lang="ts" setup generic="T extends string = string">
 
 import { computed, ref, watch } from 'vue';
 import DropDown from '@/components/DropDown.vue';
 import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 
-export interface SupportSelectOption {
-    id: string;
+export interface SupportSelectOption<T extends string = string> {
+    id: T;
     label: string;
     sublabel?: string;
     color?: string;
@@ -99,9 +99,13 @@ export interface SupportSelectOption {
     avatarUrl?: string | null;
 }
 
+// Générique (T) : la plupart des appelants choisissent dans une énumération
+// typée (statut, urgence…) plutôt qu'une simple chaîne — sans ça, chaque
+// v-model vers un ref<SupportTicketPriority | null> par exemple aurait
+// nécessité un cast manuel à chaque site d'appel.
 const props = defineProps<{
-    modelValue: string | null;
-    options: SupportSelectOption[];
+    modelValue: T | null;
+    options: SupportSelectOption<T>[];
     placeholder?: string;
     searchPlaceholder?: string;
     /** Option « Aucune » en tête de liste (valeur null). */
@@ -111,7 +115,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-    (e: 'update:modelValue', value: string | null): void;
+    (e: 'update:modelValue', value: T | null): void;
     (e: 'create', label: string): void;
 }>();
 
@@ -128,7 +132,7 @@ const filtered = computed(() => {
 
 const exactMatch = computed(() => props.options.some(o => o.label.toLowerCase() === search.value.trim().toLowerCase()));
 
-const select = (id: string | null) => {
+const select = (id: T | null) => {
     emit('update:modelValue', id);
     search.value = '';
     dropdownRef.value?.closeDropdown();

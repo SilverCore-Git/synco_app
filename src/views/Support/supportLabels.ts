@@ -1,4 +1,5 @@
-import type { SupportTicketPriority, SupportTicketStatus } from '@/types/support';
+import { SUPPORT_TICKET_PRIORITIES, SUPPORT_TICKET_STATUSES, type SupportTicketPriority, type SupportTicketStatus } from '@/types/support';
+import type { SupportSelectOption } from '@/components/support/SupportSearchSelect.vue';
 
 /**
  * Libellés et couleurs partagés par tous les écrans du SAV (liste client,
@@ -38,3 +39,9 @@ export const PRIORITY_COLORS: Record<SupportTicketPriority, string> = {
 
 export const statusLabel = (s: SupportTicketStatus | null | undefined) => (s ? STATUS_LABELS[s] : '—');
 export const priorityLabel = (p: SupportTicketPriority | null | undefined) => (p ? PRIORITY_LABELS[p] : 'Non définie');
+
+/** Options typées pour SupportSearchSelect<SupportTicketStatus|Priority> : évite un cast à chaque site d'appel. */
+export const STATUS_OPTIONS: SupportSelectOption<SupportTicketStatus>[] =
+    SUPPORT_TICKET_STATUSES.map((id) => ({ id, label: STATUS_LABELS[id] }));
+export const PRIORITY_OPTIONS: SupportSelectOption<SupportTicketPriority>[] =
+    SUPPORT_TICKET_PRIORITIES.map((id) => ({ id, label: PRIORITY_LABELS[id] }));

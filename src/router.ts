@@ -16,6 +16,7 @@ import ThreadLayout from './views/OrgSpace/views/ThreadLayout.vue';
 import { nextTick } from 'vue';
 import SpaceFiles from './views/OrgSpace/views/SpaceFiles.vue';
 import AdminPanel from './views/AdminPanel.vue';
+import { loadSupportRole } from './services/support/role';
 
 
 const routes = [
@@ -68,6 +69,41 @@ const routes = [
     name: 'SupportTicketView',
     component: () => import('./views/Support/SupportTicketView.vue'),
     props: true,
+  },
+
+  {
+    path: '/support-panel',
+    name: 'SupportPanel',
+    component: () => import('./views/Support/SupportPanel.vue'),
+    // Même logique que le guard du panel admin (/root) : GET /api/support/me
+    // dit si l'utilisateur est membre de l'équipe (super-admin, admin ou
+    // modérateur) — un modérateur n'a pas accès à /api/admin mais doit
+    // pouvoir ouvrir ce panel.
+    beforeEnter: async (_to: any, _from: any, next: any) => {
+      try {
+        const role = await loadSupportRole();
+        if (role) return next();
+        return next('/');
+      } catch (e) {
+        return next('/');
+      }
+    },
+  },
+
+  {
+    path: '/support-panel/:id',
+    name: 'SupportPanelTicketView',
+    component: () => import('./views/Support/SupportPanelTicketView.vue'),
+    props: true,
+    beforeEnter: async (_to: any, _from: any, next: any) => {
+      try {
+        const role = await loadSupportRole();
+        if (role) return next();
+        return next('/');
+      } catch (e) {
+        return next('/');
+      }
+    },
   },
 
   {
