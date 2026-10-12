@@ -12,6 +12,9 @@ import { logoutEverywhere } from '@/assets/keycloak';
 import { disconnectSocket } from '@/composables/useWSocket';
 import DropDown from '@/components/DropDown.vue';
 import UserSettings from '@/components/windows/UserSettings.vue';
+import { useSupportRole } from '@/composables/useSupportRole';
+
+const { isStaff: isSupportStaff } = useSupportRole();
 
 const toast = useToast();
 
@@ -118,6 +121,16 @@ onMounted(async () => {
                             </router-link>
                         </div>
                     </template>
+
+                    <div class="h-px bg-(--text)/5 my-1" />
+                    <div class="p-1">
+                        <router-link to="/support" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--text) hover:bg-(--text)/5 rounded-lg transition-colors">
+                            <i class="bi bi-life-preserver"></i> Aide &amp; support
+                        </router-link>
+                        <router-link v-if="isSupportStaff" to="/support-panel" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--primary) font-bold hover:bg-(--primary)/20 rounded-lg transition-colors">
+                            <i class="bi bi-headset"></i> Panel SAV
+                        </router-link>
+                    </div>
 
                     <div class="h-px bg-(--text)/5 my-1" />
                     <div class="p-1">

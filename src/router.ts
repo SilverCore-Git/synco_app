@@ -58,6 +58,19 @@ const routes = [
   },
 
   {
+    path: '/support',
+    name: 'SupportTicketList',
+    component: () => import('./views/Support/SupportTicketList.vue'),
+  },
+
+  {
+    path: '/support/:id',
+    name: 'SupportTicketView',
+    component: () => import('./views/Support/SupportTicketView.vue'),
+    props: true,
+  },
+
+  {
     path: '/invite/:code',
     name: 'InviteView',
     component: InviteView,

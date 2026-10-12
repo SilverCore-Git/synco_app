@@ -8,6 +8,9 @@ import { openedOrg } from '@/assets/var';
 import { keycloak, logoutEverywhere } from '@/assets/keycloak';
 import { computed, ref, watch } from 'vue';
 import { getAverageColor } from '@/assets/utils/getAverageColor';
+import { useSupportRole } from '@/composables/useSupportRole';
+
+const { isStaff } = useSupportRole();
 
 const props = defineProps<{
     user: User | undefined;
@@ -190,6 +193,17 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
                     Invisible
                 </button>
 
+            </div>
+
+            <div class="h-px bg-(--text)/5 my-1" />
+
+            <div class="p-1">
+                <router-link to="/support" class="dropdown-item-style dropdown-item-annimate">
+                    <i class="bi bi-life-preserver mr-2" /> Aide &amp; support
+                </router-link>
+                <router-link v-if="isStaff" to="/support-panel" class="text-(--primary)! font-bold dropdown-item-style dropdown-item-annimate">
+                    <i class="bi bi-headset mr-2" /> Panel SAV
+                </router-link>
             </div>
 
             <div class="h-px bg-(--text)/5 my-1" />

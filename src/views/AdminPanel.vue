@@ -22,6 +22,11 @@
         <router-link to="/root/orgs" exact-active-class="!bg-(--primary) !text-white" class="px-4 py-2 rounded-lg font-bold text-sm transition-colors flex items-center gap-2 bg-(--text)/5 text-(--text) hover:bg-(--text)/10">
             <i class="bi bi-building-fill"></i> Organisations
         </router-link>
+        <!-- Pas un onglet de ce layout (le panel SAV a son propre espace,
+             distinct visuellement du panel admin) : juste un accès rapide. -->
+        <router-link to="/support-panel" class="px-4 py-2 rounded-lg font-bold text-sm transition-colors flex items-center gap-2 bg-(--text)/5 text-(--text) hover:bg-(--text)/10 ml-auto">
+            <i class="bi bi-headset"></i> Panel SAV
+        </router-link>
       </div>
 
       <!-- Clé de chiffrement du support (super-admin) : mise en place à
