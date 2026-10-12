@@ -8,6 +8,7 @@
             :users="activeList"
             :active-index="activeMentionIndex"
             :kind="activeTriggerKind ?? 'user'"
+            :loading="isSearchingRemote"
             @select="insertMention"
         />
 
@@ -87,6 +88,11 @@ const mentions = useMentionSource();
 mentions.refresh?.();
 
 const searchResults = ref<MentionEntry[]>([]);
+// Affiche un spinner dans MentionsList pendant l'aller-retour /mentions/search
+// débouncé (#/!/& : pas de filtrage local possible, voir searchRemote) — sans
+// ça la liste restait vide et silencieuse pendant les ~200ms + réseau,
+// donnant l'impression qu'aucun résultat n'existait.
+const isSearchingRemote = ref<boolean>(false);
 
 // --- Affichage lisible dans le <textarea> -----------------------------
 // modelValue reste TOUJOURS le contenu brut avec tokens <kind:id> (c'est le
@@ -150,13 +156,16 @@ let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 // sans un aller-retour réseau.
 const searchRemote = (kind: ReferenceKind, query: string) => {
     if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+    isSearchingRemote.value = true;
     searchDebounceTimer = setTimeout(async () => {
-        if (!mentions.search) { searchResults.value = []; return; }
+        if (!mentions.search) { searchResults.value = []; isSearchingRemote.value = false; return; }
         try {
             searchResults.value = await mentions.search(kind, query);
         } catch (err) {
             console.error('[ThreadTextarea] mentions/search failed:', err);
             searchResults.value = [];
+        } finally {
+            isSearchingRemote.value = false;
         }
     }, 200);
 };

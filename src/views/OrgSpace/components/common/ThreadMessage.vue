@@ -481,7 +481,7 @@ const handleAddReaction = async (payload: { messageId: string; emoji: string }) 
     if (error) toast.show(error, 'error');
 };
 
-const onReferenceClick = (ref: { kind: 'thread' | 'task' | 'file'; id: string; spaceId?: string }) => {
+const onReferenceClick = (ref: { kind: 'thread' | 'task' | 'file' | 'folder'; id: string; spaceId?: string }) => {
     if (channel.referencesEnabled) channel.openReference?.(ref);
 };
 

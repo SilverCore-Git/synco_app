@@ -8,7 +8,7 @@
             @click="onClick"
         />
 
-        <div v-if="blockRefs.taskIds.length || blockRefs.fileIds.length" class="flex flex-col gap-2 mt-2">
+        <div v-if="blockRefs.taskIds.length || blockRefs.fileIds.length || blockRefs.folderIds.length" class="flex flex-col gap-2 mt-2">
 
             <template v-for="id in blockRefs.taskIds" :key="'task-' + id">
                 <TaskCard
@@ -35,6 +35,17 @@
                 </span>
             </template>
 
+            <template v-for="id in blockRefs.folderIds" :key="'folder-' + id">
+                <FolderRefCard
+                    v-if="folderCardState(id).status === 'ok'"
+                    :folder="folderCardState(id).folder!"
+                />
+                <span v-else class="inline-flex w-fit items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-white/8 text-(--text2)">
+                    <i class="bi bi-folder-fill"></i>
+                    {{ folderCardState(id).status === 'error' ? 'Dossier inaccessible' : 'Chargement…' }}
+                </span>
+            </template>
+
         </div>
     </div>
 </template>
@@ -51,7 +62,7 @@
 
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-import type { Task, StoredFile } from '@/types/types';
+import type { Task, StoredFile, Folder } from '@/types/types';
 
 marked.setOptions({
   breaks: true,
@@ -94,6 +105,7 @@ const MAX_CACHE_SIZE = 200;
 // refetcher la même tâche/fichier à chaque message qui la référence.
 const taskCardCache = new Map<string, Task>();
 const fileCardCache = new Map<string, StoredFile>();
+const folderCardCache = new Map<string, Folder>();
 
 </script>
 
@@ -114,6 +126,7 @@ import { navigateToReference } from '@/composables/useReferenceNavigation';
 import { renderTimestampTokens } from '@/composables/useTimestampTokens';
 import TaskCard from '@/views/OrgSpace/components/SpaceTasks/TaskCard.vue';
 import FileCard from '@/views/OrgSpace/components/SpaceFiles/FileCard.vue';
+import FolderRefCard from '@/views/OrgSpace/components/SpaceFiles/FolderRefCard.vue';
 import type { User } from '@/types/types';
 
 const props = withDefaults(defineProps<{
@@ -139,7 +152,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   (e: 'user-click', user: User, event: MouseEvent): void;
-  (e: 'reference-click', ref: { kind: 'thread' | 'task' | 'file'; id: string; spaceId?: string }, event: MouseEvent): void;
+  (e: 'reference-click', ref: { kind: 'thread' | 'task' | 'file' | 'folder'; id: string; spaceId?: string }, event: MouseEvent): void;
 }>();
 
 const router = useRouter();
@@ -179,15 +192,17 @@ const textSourceContent = computed(() => {
 });
 
 const blockRefs = computed(() => {
-  if (!props.enableReferences || !props.showReferenceCards) return { taskIds: [] as string[], fileIds: [] as string[] };
+  if (!props.enableReferences || !props.showReferenceCards) return { taskIds: [] as string[], fileIds: [] as string[], folderIds: [] as string[] };
   const refs = extractReferenceTokens(props.content);
   const taskIds: string[] = [];
   const fileIds: string[] = [];
+  const folderIds: string[] = [];
   for (const r of refs) {
     if (r.type === 'task') taskIds.push(r.id);
     else if (r.type === 'file') fileIds.push(r.id);
+    else if (r.type === 'folder') folderIds.push(r.id);
   }
-  return { taskIds, fileIds };
+  return { taskIds, fileIds, folderIds };
 });
 
 const renderedHtml = computed(() => {
@@ -271,10 +286,11 @@ const onClick = (event: MouseEvent) => {
   }
 
   // Une référence de rôle (<role:id>) n'a pas de destination de navigation
-  // (pas une entité comme thread/task/file, cf. useReferenceNavigation.ts) —
-  // rien à faire au clic. Check positif (plutôt qu'exclure 'user'/'role')
-  // pour que TS narrowe chip.kind exactement à la forme attendue par l'event.
-  if (chip.kind !== 'thread' && chip.kind !== 'task' && chip.kind !== 'file') return;
+  // (pas une entité comme thread/task/file/folder, cf.
+  // useReferenceNavigation.ts) — rien à faire au clic. Check positif (plutôt
+  // qu'exclure 'user'/'role') pour que TS narrowe chip.kind exactement à la
+  // forme attendue par l'event.
+  if (chip.kind !== 'thread' && chip.kind !== 'task' && chip.kind !== 'file' && chip.kind !== 'folder') return;
 
   // Reconstruire l'objet plutôt que de passer `chip` tel quel : narrower
   // `chip.kind` sur les lectures ci-dessus ne narrowe pas le type de `chip`
@@ -301,9 +317,11 @@ onMounted(() => {
 type CardStatus = 'loading' | 'ok' | 'error';
 const taskStates = reactive(new Map<string, { status: CardStatus; task?: Task }>());
 const fileStates = reactive(new Map<string, { status: CardStatus; file?: StoredFile }>());
+const folderStates = reactive(new Map<string, { status: CardStatus; folder?: Folder }>());
 
 const taskCardState = (id: string) => taskStates.get(id) ?? { status: 'loading' as CardStatus };
 const fileCardState = (id: string) => fileStates.get(id) ?? { status: 'loading' as CardStatus };
+const folderCardState = (id: string) => folderStates.get(id) ?? { status: 'loading' as CardStatus };
 
 const loadTaskCard = async (id: string) => {
   if (taskStates.has(id)) return;
@@ -347,9 +365,31 @@ const loadFileCard = async (id: string) => {
   }
 };
 
+const loadFolderCard = async (id: string) => {
+  if (folderStates.has(id)) return;
+  const cached = folderCardCache.get(id);
+  if (cached) { folderStates.set(id, { status: 'ok', folder: cached }); return; }
+
+  const orgId = openedOrg.value?.id;
+  if (!orgId) return;
+
+  folderStates.set(id, { status: 'loading' });
+  try {
+    const res = await sfetch(`/api/mentions/folder/${id}?orgId=${orgId}`);
+    if (!res.ok) { folderStates.set(id, { status: 'error' }); return; }
+    const folder: Folder = await res.json();
+    folderCardCache.set(id, folder);
+    folderStates.set(id, { status: 'ok', folder });
+  } catch (err) {
+    console.error('[MarkdownRender] Failed to load folder card:', err);
+    folderStates.set(id, { status: 'error' });
+  }
+};
+
 watch(blockRefs, (refs) => {
   refs.taskIds.forEach(loadTaskCard);
   refs.fileIds.forEach(loadFileCard);
+  refs.folderIds.forEach(loadFolderCard);
 }, { immediate: true });
 
 // TaskCard n'a pas de comportement de clic propre (voir son template, c'est

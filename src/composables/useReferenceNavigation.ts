@@ -13,14 +13,15 @@ export const revealFileInFiles = (router: Router, file: { id: string; spaceId: s
 };
 
 /**
- * Navigue vers l'entité visée par un chip <#:id>/<task:id>/<file:id>.
+ * Navigue vers l'entité visée par un chip <#:id>/<task:id>/<file:id>/<folder:id>.
  * Réutilise les routes existantes (SpaceThreadView/OrgThreadHome pour les
  * salons, ?select= de TasksSpace/TasksGlobal pour les tâches) ; un fichier
- * ouvre son emplacement dans le gestionnaire de fichiers.
+ * ouvre son emplacement dans le gestionnaire de fichiers, un dossier s'ouvre
+ * directement (?folderId=, voir SpaceFiles.vue::handleRouteQuery).
  */
 export const navigateToReference = (
   router: Router,
-  ref: { kind: 'thread' | 'task' | 'file'; id: string; spaceId?: string }
+  ref: { kind: 'thread' | 'task' | 'file' | 'folder'; id: string; spaceId?: string }
 ): void => {
   const orgId = openedOrg.value?.id;
   if (!orgId) return;
@@ -42,6 +43,11 @@ export const navigateToReference = (
       break;
     case 'file':
       if (ref.spaceId) revealFileInFiles(router, { id: ref.id, spaceId: ref.spaceId });
+      break;
+    case 'folder':
+      if (ref.spaceId) {
+        router.push({ name: 'SpaceFiles', params: { orgId, spaceId: ref.spaceId }, query: { showView: '1', folderId: ref.id } });
+      }
       break;
   }
 };

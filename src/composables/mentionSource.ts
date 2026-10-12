@@ -142,13 +142,29 @@ export const createOrgMentionSource = (): MentionSource => {
             const spaceId = route.params.spaceId as string | undefined;
             if (!orgId) return [];
 
-            const params = new URLSearchParams({ q: query, types: kind, orgId });
+            // '&' ouvre un picker mixte fichiers+dossiers (comme '@' pour
+            // membres+rôles) : on pingue un dossier entier, pas seulement un
+            // fichier — voir FOLDER_TRIGGER_CONFIG dans useReferences.ts.
+            const types = kind === 'file' ? 'file,folder' : kind;
+            const params = new URLSearchParams({ q: query, types, orgId });
             if (spaceId) params.set('spaceId', spaceId);
             const res = await sfetch(`/api/mentions/search?${params.toString()}`);
             if (!res.ok) return [];
             const data = await res.json();
-            const entries: { id: string; label: string; subtitle?: string }[] = data[kind] || [];
-            return entries.map(e => ({ id: e.id, name: e.label, pseudo: e.subtitle }));
+
+            if (kind !== 'file') {
+                const entries: { id: string; label: string; subtitle?: string }[] = data[kind] || [];
+                return entries.map(e => ({ id: e.id, name: e.label, pseudo: e.subtitle }));
+            }
+
+            // Dossiers d'abord : on cherche en général un dossier entier pour
+            // regrouper, les fichiers isolés arrivent ensuite.
+            const folders: { id: string; label: string; subtitle?: string }[] = data.folder || [];
+            const files: { id: string; label: string; subtitle?: string }[] = data.file || [];
+            return [
+                ...folders.map(e => ({ id: e.id, name: e.label, pseudo: e.subtitle, kind: 'folder' as const })),
+                ...files.map(e => ({ id: e.id, name: e.label, pseudo: e.subtitle })),
+            ];
         },
 
         refresh: fetchOrgRoles,

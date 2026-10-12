@@ -50,7 +50,7 @@ export interface MessageChannelListeners {
 }
 
 /** Ouverture d'une référence `#`/`!`/`&` cliquée dans un message. */
-export type ReferenceTarget = { kind: 'thread' | 'task' | 'file'; id: string; spaceId?: string };
+export type ReferenceTarget = { kind: 'thread' | 'task' | 'file' | 'folder'; id: string; spaceId?: string };
 
 export interface MessageChannel {
     /** Identité de la conversation courante (id du thread, du ticket+canal…) ; null tant qu'aucune. */

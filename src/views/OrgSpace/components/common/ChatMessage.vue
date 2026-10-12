@@ -547,7 +547,7 @@ const handleAddReaction = async (payload: { messageId: string; emoji: string; is
 
 // Reaction updates are handled centrally in ChatView.vue — no per-instance socket listener needed
 
-const onReferenceClick = (ref: { kind: 'thread' | 'task' | 'file'; id: string; spaceId?: string }) => {
+const onReferenceClick = (ref: { kind: 'thread' | 'task' | 'file' | 'folder'; id: string; spaceId?: string }) => {
     navigateToReference(router, ref);
 };
 
