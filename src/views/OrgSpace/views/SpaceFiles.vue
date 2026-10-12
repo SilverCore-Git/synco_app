@@ -749,19 +749,27 @@ const selectAllVisible = () => {
     selectionBeforeRange = null;
 };
 
-// Ctrl+A : raccourci habituel, mais seulement une fois une sélection commencée,
-// pour ne pas voler le "tout sélectionner" du texte au reste de la vue.
-const handleSelectAllShortcut = (e: KeyboardEvent) => {
-
-    if (e.key !== 'a' && e.key !== 'A') return;
-    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
-    if (selectedItems.value.size === 0) return;
+// Ctrl+A (sélectionner tout, une fois une sélection commencée) et Suppr
+// (demander la suppression de la sélection courante) : tous deux ignorés si
+// le focus est dans un champ de saisie, pour ne pas voler ces touches au reste
+// de la vue (texte en cours d'édition, recherche, etc.).
+const handleKeyboardShortcuts = (e: KeyboardEvent) => {
 
     const target = e.target as HTMLElement | null;
     if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
 
-    e.preventDefault();
-    selectAllVisible();
+    if ((e.key === 'a' || e.key === 'A') && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+        if (selectedItems.value.size === 0) return;
+        e.preventDefault();
+        selectAllVisible();
+        return;
+    }
+
+    if (e.key === 'Delete') {
+        if (selectedItems.value.size === 0) return;
+        e.preventDefault();
+        requestDeleteSelection();
+    }
 
 };
 
@@ -1358,6 +1366,32 @@ const moveFile = async (fileId: string, folderId: string) => {
 
 const triggerFileSearch = () => fileInputRef.value?.click();
 
+// Ctrl+V : importe les fichiers (image copiée, fichier copié dans l'explorateur
+// du système, etc.) présents dans le presse-papiers directement dans le dossier
+// courant. Ignoré si le focus est dans un champ de saisie pour laisser le
+// collage de texte habituel se produire.
+const handlePaste = (e: ClipboardEvent) => {
+
+    const target = e.target as HTMLElement | null;
+    if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
+
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const files: File[] = [];
+    for (const item of Array.from(items)) {
+        if (item.kind !== 'file') continue;
+        const file = item.getAsFile();
+        if (file) files.push(file);
+    }
+
+    if (files.length === 0) return;
+
+    e.preventDefault();
+    handleFiles(files, currentFolderId.value);
+
+};
+
 const handleFolderDragStart = (event: DragEvent, folderId: string) => {
     isDragging.value = true;
     isDeleting.value = false;
@@ -1701,7 +1735,8 @@ const refreshFolder = () => fetchSpaceContent({ silent: true });
 
 onMounted(async() => {
 
-    window.addEventListener('keydown', handleSelectAllShortcut);
+    window.addEventListener('keydown', handleKeyboardShortcuts);
+    window.addEventListener('paste', handlePaste);
 
     await fetchSpaceContent();
     
@@ -1754,7 +1789,8 @@ onMounted(async() => {
 });
 
 onUnmounted(async () => {
-    window.removeEventListener('keydown', handleSelectAllShortcut);
+    window.removeEventListener('keydown', handleKeyboardShortcuts);
+    window.removeEventListener('paste', handlePaste);
     const socket = await useWSocket();
     socket.value?.off('file-added');
     socket.value?.off('file-updated');
