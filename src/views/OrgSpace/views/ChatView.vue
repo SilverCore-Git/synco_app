@@ -162,14 +162,7 @@
 
             <div v-if="isSomeoneTyping" class="h-5 flex justify-start items-center px-4 gap-2 select-none">
             
-                <div class="typing-indicator">
-                    <div class="typing-circle" />
-                    <div class="typing-circle" />
-                    <div class="typing-circle" />
-                    <div class="typing-shadow" />
-                    <div class="typing-shadow" />
-                    <div class="typing-shadow" />
-                </div>
+                <TypingIndicator />
 
                 <p class="text-[11px] text-(--text2) italic">
                     {{ $p(recipient.name) }} est en train d'écrire
@@ -381,6 +374,7 @@ import PrivateMeetView from './PrivateMeetView.vue';
 import usePrivateMeet from '@/composables/usePrivatMeet';
 import ChatMessage from '../components/common/ChatMessage.vue';
 import ReplyBanner from '../components/common/ReplyBanner.vue';
+import TypingIndicator from '@/components/common/TypingIndicator.vue';
 import useFooterInset from '@/composables/useFooterInset';
 import { uploadFiles } from '@/assets/uploadFile';
 import useResponse from '@/composables/useResponse';
@@ -1366,96 +1360,3 @@ onUnmounted(() => {
     removeListeners();
 });
 </script>
-
-<style scoped>
-
-.typing-indicator {
-  width: 60px;
-  height: 30px;
-  position: relative;
-  z-index: 4;
-}
-
-.typing-circle {
-  width: 8px;
-  height: 8px;
-  position: absolute;
-  border-radius: 50%;
-  background-color: var(--primary);
-  left: 15%;
-  transform-origin: 50%;
-  animation: typing-circle7124 0.5s alternate infinite ease;
-}
-
-@keyframes typing-circle7124 {
-  0% {
-    top: 20px;
-    height: 5px;
-    border-radius: 50px 50px 25px 25px;
-    transform: scaleX(1.7);
-  }
-
-  40% {
-    height: 8px;
-    border-radius: 50%;
-    transform: scaleX(1);
-  }
-
-  100% {
-    top: 0%;
-  }
-}
-
-.typing-circle:nth-child(2) {
-  left: 45%;
-  animation-delay: 0.2s;
-}
-
-.typing-circle:nth-child(3) {
-  left: auto;
-  right: 15%;
-  animation-delay: 0.3s;
-}
-
-.typing-shadow {
-  width: 5px;
-  height: 4px;
-  border-radius: 50%;
-  background-color: rgba(0, 0, 0, 0.2);
-  position: absolute;
-  top: 30px;
-  transform-origin: 50%;
-  z-index: 3;
-  left: 15%;
-  filter: blur(1px);
-  animation: typing-shadow046 0.5s alternate infinite ease;
-}
-
-@keyframes typing-shadow046 {
-  0% {
-    transform: scaleX(1.5);
-  }
-
-  40% {
-    transform: scaleX(1);
-    opacity: 0.7;
-  }
-
-  100% {
-    transform: scaleX(0.2);
-    opacity: 0.4;
-  }
-}
-
-.typing-shadow:nth-child(4) {
-  left: 45%;
-  animation-delay: 0.2s;
-}
-
-.typing-shadow:nth-child(5) {
-  left: auto;
-  right: 15%;
-  animation-delay: 0.3s;
-}
-
-</style>

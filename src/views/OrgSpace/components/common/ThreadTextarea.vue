@@ -35,14 +35,13 @@
 
 <script lang="ts" setup>
 
-import { openedOrg } from '@/assets/var';
 import MentionsList from '@/components/common/MentionsList.vue';
-import { buildMentionableList, type MentionEntry } from '@/composables/useMentions';
+import { type MentionEntry } from '@/composables/useMentions';
 import {
     TRIGGERS, TRIGGER_QUERY_REGEX, KIND_TO_TRIGGER_CHAR, buildReferenceToken,
     extractReferenceTokens, type ReferenceKind,
 } from '@/composables/useReferences';
-import sfetch from '@/assets/utils/sfetch';
+import { useMentionSource } from '@/composables/mentionSource';
 import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 
@@ -80,28 +79,14 @@ const activeMentionIndex = ref<number>(0);
 const startMentionIndex = ref<number>(-1);
 const activeTriggerKind = ref<ReferenceKind | null>(null);
 
-const mentionableUsers = ref<MentionEntry[]>(buildMentionableList(openedOrg.value?.members));
+// Personnes/rôles citables et recherche des références : ceux de la
+// conversation englobante (MessageChannel → ChatTimeline), sinon ceux de
+// l'organisation ouverte (formulaires de tâche, DM, IA…).
+const mentions = useMentionSource();
+// Rôles susceptibles d'avoir changé depuis le dernier champ ouvert.
+mentions.refresh?.();
+
 const searchResults = ref<MentionEntry[]>([]);
-
-// @ ouvre un picker mixte membres+rôles (comme Discord) — Role.name n'étant
-// pas chiffré (contrairement à Thread/Task/File), on peut se permettre la
-// même liste-locale-filtrée-côté-client que les membres, pas besoin du
-// aller-retour /mentions/search débouncé utilisé pour #/!/&.
-const orgRoles = ref<MentionEntry[]>([]);
-
-const fetchOrgRoles = async () => {
-    const orgId = openedOrg.value?.id;
-    if (!orgId) { orgRoles.value = []; return; }
-    try {
-        const res = await sfetch(`/api/orgs/${orgId}/roles`);
-        if (!res.ok) { orgRoles.value = []; return; }
-        const data: { id: string; name: string }[] = await res.json();
-        orgRoles.value = data.map(r => ({ id: r.id, name: r.name, kind: 'role' as const }));
-    } catch (err) {
-        console.error('[ThreadTextarea] Failed to fetch org roles:', err);
-        orgRoles.value = [];
-    }
-};
 
 // --- Affichage lisible dans le <textarea> -----------------------------
 // modelValue reste TOUJOURS le contenu brut avec tokens <kind:id> (c'est le
@@ -138,17 +123,10 @@ const primePendingSubsFromContent = async (raw: string) => {
     const refs = extractReferenceTokens(raw);
     if (!refs.length) return;
 
-    const orgId = openedOrg.value?.id;
-    if (!orgId) return;
-
     try {
-        const res = await sfetch('/api/mentions/resolve', {
-            method: 'POST',
-            body: JSON.stringify({ orgId, items: refs }),
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        for (const item of data.items || []) {
+        const items = await mentions.resolve(refs);
+        if (!items) return;
+        for (const item of items) {
             if (!item.ok) continue; // pas de label sans accès — reste en token brut, pas de perte silencieuse
             const token = buildReferenceToken(item.type, item.id);
             if (pendingSubs.value.some(s => s.token === token)) continue;
@@ -159,15 +137,9 @@ const primePendingSubsFromContent = async (raw: string) => {
     }
 };
 
-watch(() => openedOrg.value?.members, (members) => {
-    mentionableUsers.value = buildMentionableList(members);
-});
-
-watch(() => openedOrg.value?.id, fetchOrgRoles, { immediate: true });
-
 const activeList = computed<MentionEntry[]>(() =>
     activeTriggerKind.value === 'user' || !activeTriggerKind.value
-        ? [...mentionableUsers.value, ...orgRoles.value]
+        ? mentions.entries.value
         : searchResults.value
 );
 
@@ -179,18 +151,9 @@ let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 const searchRemote = (kind: ReferenceKind, query: string) => {
     if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
     searchDebounceTimer = setTimeout(async () => {
-        const orgId = route.params.orgId as string | undefined;
-        const spaceId = route.params.spaceId as string | undefined;
-        if (!orgId) { searchResults.value = []; return; }
-
+        if (!mentions.search) { searchResults.value = []; return; }
         try {
-            const params = new URLSearchParams({ q: query, types: kind, orgId });
-            if (spaceId) params.set('spaceId', spaceId);
-            const res = await sfetch(`/api/mentions/search?${params.toString()}`);
-            if (!res.ok) { searchResults.value = []; return; }
-            const data = await res.json();
-            const entries: { id: string; label: string; subtitle?: string }[] = data[kind] || [];
-            searchResults.value = entries.map(e => ({ id: e.id, name: e.label, pseudo: e.subtitle }));
+            searchResults.value = await mentions.search(kind, query);
         } catch (err) {
             console.error('[ThreadTextarea] mentions/search failed:', err);
             searchResults.value = [];
@@ -212,6 +175,14 @@ const updateMentionState = (text: string, selectionStart: number) => {
     {
         const triggerChar = mentionMatch[1]!;
         const kind = TRIGGERS[triggerChar]?.kind ?? 'user';
+
+        // Références #/!/& désactivées pour cette conversation (pas de
+        // recherche fournie) : le caractère reste du texte ordinaire.
+        if (kind !== 'user' && !mentions.search) {
+            showMentions.value = false;
+            return;
+        }
+
         showMentions.value = true;
         activeTriggerKind.value = kind;
         mentionQuery.value = mentionMatch[2] || '';
@@ -281,7 +252,7 @@ const handleKeydown = (e: KeyboardEvent) => {
     // searchResults est déjà filtré côté serveur pour #/!/& — un second
     // filtre client sur un `label` déchiffré serait redondant.
     const filtered = activeTriggerKind.value === 'user' || !activeTriggerKind.value
-        ? [...mentionableUsers.value, ...orgRoles.value].filter(u => u.name.toLowerCase().includes(query) || (u.pseudo && u.pseudo.toLowerCase().includes(query)))
+        ? mentions.entries.value.filter(u => u.name.toLowerCase().includes(query) || (u.pseudo && u.pseudo.toLowerCase().includes(query)))
         : searchResults.value;
 
     if (!filtered.length) return;

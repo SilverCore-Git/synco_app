@@ -3,7 +3,8 @@ import { createChunkedFileKey } from '@/assets/utils/chunkedCrypto';
 import { E2EE_V2_CHUNK_SIZE, GCM_TAG_LENGTH, chunkCountForPlain, encryptedSizeForPlain, plainChunkRange } from '@/assets/utils/chunkedCryptoCore';
 import { encryptChunkInPool } from '@/assets/utils/cryptoPool';
 import { resolveFileKek, type FileKeyContext } from '@/assets/utils/fileKeys';
-import { CdnUpload } from './cdn';
+import { CdnUpload, type UploadRequest } from './cdn';
+import type { SupportChannel } from '@/types/support';
 import { TransferCancelledError, linkedAbortController, partSlots, runPool, withRetry, type TransferHandle } from './transferManager';
 
 /**
@@ -34,6 +35,13 @@ export interface UploadContext {
     // Salon d'organisation (hors espace) : sa clé chiffre ses pièces jointes.
     // Local au client, jamais envoyé à l'API (le lien passe par le message).
     threadId?: string;
+    // Pièce jointe de ticket de support (SUPPORT_FEATURE.md §2.3) : chiffrée
+    // avec la clé du canal, envoyée sans organisation (conteneur à part,
+    // l'API refuse de mêler supportTicketId à toute autre destination).
+    supportTicketId?: string;
+    supportChannel?: SupportChannel;
+    /** Message déjà existant (facultatif) : l'API vérifie qu'il est à soi, dans ce ticket et ce canal. */
+    supportMessageId?: string;
 }
 
 /** Ce qu'on envoie : un nouveau fichier, ou le nouveau contenu d'un fichier existant. */
@@ -53,6 +61,27 @@ export function uploadMimeType(name: string, type: string): string {
     return type || 'application/octet-stream';
 }
 
+/** Destination d'un nouveau fichier, telle qu'attendue par POST /api/cdn/transfers/uploads. */
+function createDestination(context: UploadContext, fileName: string): NonNullable<UploadRequest['create']> {
+    if (context.supportTicketId) {
+        return {
+            supportTicketId: context.supportTicketId,
+            supportChannel: context.supportChannel ?? 'PUBLIC',
+            supportMessageId: context.supportMessageId,
+            fileName,
+        };
+    }
+    return {
+        orgId: openedOrg.value!.id,
+        workspaceId: context.workspaceId,
+        messageId: context.messageId,
+        dmMessageId: context.dmMessageId,
+        folderId: context.folderId,
+        taskId: context.taskId,
+        fileName,
+    };
+}
+
 export async function runChunkedUpload(source: Blob, name: string, target: UploadTarget, handle: TransferHandle): Promise<any> {
 
     const { signal } = handle;
@@ -65,17 +94,7 @@ export async function runChunkedUpload(source: Blob, name: string, target: Uploa
 
     const upload = await CdnUpload.open({
         ...(target.kind === 'create'
-            ? {
-                create: {
-                    orgId: openedOrg.value!.id,
-                    workspaceId: target.context.workspaceId,
-                    messageId: target.context.messageId,
-                    dmMessageId: target.context.dmMessageId,
-                    folderId: target.context.folderId,
-                    taskId: target.context.taskId,
-                    fileName: name,
-                },
-            }
+            ? { create: createDestination(target.context, name) }
             : { replaceFileId: target.fileId }),
         size: encryptedSizeForPlain(source.size, chunkSize),
         partSize: chunkSize + GCM_TAG_LENGTH,

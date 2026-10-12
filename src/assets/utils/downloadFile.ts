@@ -1,6 +1,7 @@
 import sfetch from "./sfetch";
 import { NoFileKeyError, resolveFileKek } from "./fileKeys";
 import { WorkspaceKeyNotSharedError } from "./workspaceCrypto";
+import { StaffKeyNotSharedError, resolveSupportFileKek } from "@/services/support/keys";
 import { useToast } from "@/composables/useToast";
 import { enqueueTransfer, isAbortError } from "@/services/transfers/transferManager";
 import { FileChangedError, type DownloadTicket } from "@/services/transfers/cdn";
@@ -36,12 +37,16 @@ export interface FileMetadata {
     // salon d'une pièce jointe hors espace (cf. synco_api cdnRoutes.ts).
     dmPeerId?: string;
     threadId?: string;
+    // Pièce jointe de ticket de support : le canal n'est pas renvoyé par
+    // l'API, la bonne clé est retrouvée à l'essai (resolveSupportFileKek).
+    supportTicketId?: string | null;
+    supportMessageId?: string | null;
     download?: DownloadTicket;
 }
 
 /** Message à montrer à l'utilisateur pour une erreur de lecture/envoi. */
 export const fileErrorMessage = (error: unknown, fallback: string) =>
-    error instanceof WorkspaceKeyNotSharedError || error instanceof NoFileKeyError ? error.message : fallback;
+    error instanceof WorkspaceKeyNotSharedError || error instanceof NoFileKeyError || error instanceof StaffKeyNotSharedError ? error.message : fallback;
 
 // Au-delà, un fichier est écrit directement sur le disque (si le navigateur
 // le permet) plutôt qu'assemblé en mémoire.
@@ -56,9 +61,11 @@ export const fetchFileMetadata = async (fileId: string): Promise<FileMetadata> =
 /** Taille en clair, à partir des métadonnées. */
 export const plainSizeOf = (metadata: Pick<FileMetadata, 'size' | 'iv'>) => chunkedPlainSize(metadata);
 
-/** KEK du fichier, selon son contexte (espace, DM, salon). */
-export const fileKekOf = async (metadata: FileMetadata) =>
-    (await resolveFileKek({ workspaceId: metadata.workspaceId, dmPeerId: metadata.dmPeerId, threadId: metadata.threadId })).key;
+/** KEK du fichier, selon son contexte (espace, DM, salon, ticket de support). */
+export const fileKekOf = async (metadata: FileMetadata) => {
+    if (metadata.supportTicketId) return resolveSupportFileKek(metadata.supportTicketId, metadata.encryptedFileKey);
+    return (await resolveFileKek({ workspaceId: metadata.workspaceId, dmPeerId: metadata.dmPeerId, threadId: metadata.threadId })).key;
+};
 
 /**
  * Exécute `run` ; si le fichier a été remplacé pendant la lecture (édition
