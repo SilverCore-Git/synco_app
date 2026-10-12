@@ -61,6 +61,11 @@
                             <img :src="t.assignee.avatarUrl || defaultAvatar(t.assignee.name)" class="w-7 h-7 rounded-full object-cover" />
                         </div>
 
+                        <div
+                            v-if="getUnreadCountBySupportTicketId(t.id, 'client').value > 0"
+                            class="w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_var(--glow-danger-strong)] shrink-0"
+                        />
+
                         <i class="bi bi-chevron-right text-(--text2) shrink-0" />
                     </router-link>
 
@@ -79,6 +84,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { useClientSupportTickets } from '@/composables/useSupportTicketEvents';
+import { useNotification } from '@/composables/useNotification';
 import SpinLoader from '@/components/SpinLoader.vue';
 import NewSupportTicketForm from './components/NewSupportTicketForm.vue';
 import type { CreateSupportTicketResult } from '@/services/support/tickets';
@@ -88,6 +94,7 @@ const router = useRouter();
 const showCreate = ref(false);
 
 const { tickets, titles, loading, error } = useClientSupportTickets();
+const { getUnreadCountBySupportTicketId } = useNotification();
 
 const onCreated = (result: CreateSupportTicketResult) => {
     showCreate.value = false;

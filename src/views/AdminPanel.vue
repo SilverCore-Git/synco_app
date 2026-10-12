@@ -26,6 +26,7 @@
              distinct visuellement du panel admin) : juste un accès rapide. -->
         <router-link to="/support-panel" class="px-4 py-2 rounded-lg font-bold text-sm transition-colors flex items-center gap-2 bg-(--text)/5 text-(--text) hover:bg-(--text)/10 ml-auto">
             <i class="bi bi-headset"></i> Panel SAV
+            <div v-if="getUnreadCountForSupportStaff > 0" class="w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_var(--glow-danger-strong)]" />
         </router-link>
       </div>
 
@@ -59,6 +60,9 @@
 // Admin layout - child routes are rendered in <router-view>
 import { computed, onMounted } from 'vue';
 import { useStaffKeyAdmin } from '@/composables/useStaffKeyAdmin';
+import { useNotification } from '@/composables/useNotification';
+
+const { getUnreadCountForSupportStaff } = useNotification();
 
 const staffKeyAdmin = useStaffKeyAdmin();
 

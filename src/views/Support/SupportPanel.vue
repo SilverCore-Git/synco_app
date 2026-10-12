@@ -80,6 +80,11 @@
                     </div>
                     <span v-else class="text-[10px] font-bold text-amber-500 shrink-0">Non assigné</span>
 
+                    <div
+                        v-if="getUnreadCountBySupportTicketId(t.id, 'staff').value > 0"
+                        class="w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_var(--glow-danger-strong)] shrink-0"
+                    />
+
                     <i class="bi bi-chevron-right text-(--text2) shrink-0" />
                 </router-link>
 
@@ -98,6 +103,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { useStaffSupportTickets } from '@/composables/useSupportTicketEvents';
+import { useNotification } from '@/composables/useNotification';
 import { supportApi } from '@/services/support/api';
 import type { SupportTag, SupportTicketPriority, SupportTicketStatus } from '@/types/support';
 import SpinLoader from '@/components/SpinLoader.vue';
@@ -127,6 +133,7 @@ const filters = computed(() => ({
 }));
 
 const { tickets, titles, loading, hasMore, error, loadMore } = useStaffSupportTickets(filters);
+const { getUnreadCountBySupportTicketId } = useNotification();
 
 const PRIORITY_ORDER: Record<string, number> = { URGENT: 0, HIGH: 1, NORMAL: 2, LOW: 3 };
 const sorted = computed(() => [...tickets.value].sort((a, b) => {

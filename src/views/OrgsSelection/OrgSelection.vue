@@ -13,8 +13,10 @@ import { disconnectSocket } from '@/composables/useWSocket';
 import DropDown from '@/components/DropDown.vue';
 import UserSettings from '@/components/windows/UserSettings.vue';
 import { useSupportRole } from '@/composables/useSupportRole';
+import { useNotification } from '@/composables/useNotification';
 
 const { isStaff: isSupportStaff } = useSupportRole();
+const { getUnreadCountForSupport, getUnreadCountForSupportStaff } = useNotification();
 
 const toast = useToast();
 
@@ -126,9 +128,11 @@ onMounted(async () => {
                     <div class="p-1">
                         <router-link to="/support" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--text) hover:bg-(--text)/5 rounded-lg transition-colors">
                             <i class="bi bi-life-preserver"></i> Aide &amp; support
+                            <div v-if="getUnreadCountForSupport > 0" class="ml-auto w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_var(--glow-danger-strong)]" />
                         </router-link>
                         <router-link v-if="isSupportStaff" to="/support-panel" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--primary) font-bold hover:bg-(--primary)/20 rounded-lg transition-colors">
                             <i class="bi bi-headset"></i> Panel SAV
+                            <div v-if="getUnreadCountForSupportStaff > 0" class="ml-auto w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_var(--glow-danger-strong)]" />
                         </router-link>
                     </div>
 

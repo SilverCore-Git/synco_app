@@ -97,6 +97,7 @@ import { useToast } from '@/composables/useToast';
 import useWSocket from '@/composables/useWSocket';
 import { useSupportRole } from '@/composables/useSupportRole';
 import { useSupportTicketEvents } from '@/composables/useSupportTicketEvents';
+import { useNotification } from '@/composables/useNotification';
 import { createSupportMessageChannel } from '@/composables/supportMessageChannel';
 import { supportApi } from '@/services/support/api';
 import { openSupportTicket } from '@/services/support/tickets';
@@ -111,6 +112,7 @@ import { STATUS_COLORS, PRIORITY_COLORS, statusLabel, priorityLabel } from './su
 const route = useRoute();
 const toast = useToast();
 const { role } = useSupportRole();
+const { markSupportTicketAsRead } = useNotification();
 
 const ticketId = computed(() => route.params.id as string);
 const ticket = shallowRef<SupportTicketDTO | null>(null);
@@ -154,6 +156,7 @@ const load = async () => {
         publicKey.value = opened.publicKey;
         publicKeyError.value = opened.publicKeyError;
         loadingTicket.value = false;
+        void markSupportTicketAsRead(ticketId.value);
 
         await loadEvents();
 
