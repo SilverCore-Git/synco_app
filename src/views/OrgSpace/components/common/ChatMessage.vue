@@ -62,9 +62,9 @@
 
                     </div>
 
-                    <!-- Transféré depuis un autre salon/DM : l'attribution et la
-                         citation sont déjà dans le texte (voir confirmForward),
-                         ce lien ne sert qu'à retrouver l'original. -->
+                    <!-- Transféré depuis un autre salon/DM : la ForwardedMessageCard
+                         ci-dessus montre déjà l'auteur et le texte d'origine,
+                         ce lien ne sert qu'à retrouver l'original lui-même. -->
                     <button
                         v-if="transferOrigin"
                         @click="navigateToTransferOrigin(router, transferOrigin)"
@@ -193,12 +193,13 @@
                                     <div class="h-3.5 w-3/4 max-w-md rounded-lg bg-(--text)/5 animate-pulse" />
                                 </div>
                                 <div v-else class="text-(--text) text-sm leading-relaxed wrap-break-word">
+                                    <ForwardedMessageCard v-if="forwarded" :payload="forwarded.payload" class="mb-1.5" />
                                     <MarkdownRender
-                                        :content="msg.content"
+                                        :content="forwarded ? forwarded.note : msg.content"
                                         @user-click="(u: User, e: MouseEvent) => openProfile(u, e)"
                                         @reference-click="onReferenceClick"
                                     />
-                                    <LinkPreview :content="msg.content" />
+                                    <LinkPreview :content="forwarded ? forwarded.note : msg.content" />
                                     <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
                                     <!-- Reçu en clair : jamais rendu comme un message chiffré (audit FC7) -->
                                     <span
@@ -259,14 +260,14 @@
         <ConfirmDelete
             :show="showDeleteConfirm"
             itemType="le message"
-            :itemName="msg.content.substring(0, 50)"
+            :itemName="(forwarded ? forwarded.payload.text : msg.content).substring(0, 50)"
             @confirm="deleteMessage"
             @cancel="showDeleteConfirm = false"
         />
 
         <ShareToTargetModal
             :show="showForwardModal"
-            :preview="{ icon: 'bi-send-fill', title: messagePreview(msg.content) }"
+            :preview="{ icon: 'bi-send-fill', title: messagePreview(forwarded ? forwarded.payload.text : msg.content) }"
             :send="confirmForward"
             @close="showForwardModal = false"
         />
@@ -318,10 +319,12 @@ import { openProfile } from '@/composables/useProfile';
 import useSettingsItem from '@/composables/useSettingsItem';
 import LinkPreview from './LinkPreview.vue';
 import { orgMentionLookup, isUserMentioned } from '@/composables/useMentions';
-import { extractReferenceTokens, buildReferenceToken } from '@/composables/useReferences';
+import { extractReferenceTokens } from '@/composables/useReferences';
 import { navigateToReference, navigateToTransferOrigin } from '@/composables/useReferenceNavigation';
 import ShareToTargetModal from '@/components/common/ShareToTargetModal.vue';
+import ForwardedMessageCard from '@/components/common/ForwardedMessageCard.vue';
 import { forwardMessage, type ShareTarget, type ShareReferenceResult, type TransferOrigin } from '@/composables/useShareReference';
+import { buildForwardToken, extractForwardedPayload } from '@/composables/useForwardedContent';
 import type { User } from '@/types/types';
 
 // msg.sender est une copie figée au moment de la réception du message : son
@@ -399,7 +402,8 @@ let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
 const copyMessage = async (msg: DMMessage) => {
     try {
-        await navigator.clipboard.writeText(msg.content);
+        const forwardedMsg = extractForwardedPayload(msg.content);
+        await navigator.clipboard.writeText(forwardedMsg ? forwardedMsg.payload.text : msg.content);
         copied.value = true;
         clearTimeout(copiedTimer);
         copiedTimer = setTimeout(() => copied.value = false, 1500);
@@ -542,15 +546,28 @@ const transferOrigin = computed<TransferOrigin | null>(() => {
     return null;
 });
 
+// Ce message EST-il un transfert reçu ? Rendu en carte (ForwardedMessageCard)
+// plutôt qu'un "X a écrit :" tapé en dur dans le texte — voir
+// useForwardedContent.ts. `forwarded.note` est ce que l'expéditeur a ajouté
+// autour (peut être vide), affiché/formaté normalement par MarkdownRender.
+const forwarded = computed(() => extractForwardedPayload(props.msg.content));
+
 // Le message transféré est rechiffré pour la destination, donc son contenu
-// doit déjà porter l'attribution et la citation en clair — <@:id> se résout
-// comme n'importe quelle mention normale, aucune résolution spéciale requise
-// côté lecteur (voir useReferences.ts renderReferences).
+// doit déjà porter tout ce qu'il faut pour afficher la carte (nom/avatar de
+// l'auteur original, texte) — voir buildForwardToken. Transférer un message
+// déjà transféré repart de SON origine (payload.senderId/text), pas du
+// message courant : sinon chaque relais ajoute une couche d'encodage de plus
+// et "qui a écrit ça" finit par désigner le dernier relais, pas l'auteur.
 const confirmForward = (target: ShareTarget, note: string): Promise<ShareReferenceResult> => {
     const msg = props.msg;
-    const quoted = msg.content.split('\n').map(line => `> ${line}`).join('\n');
-    const parts = [note.trim(), `${buildReferenceToken('user', msg.senderId)} a écrit :`, quoted].filter(Boolean);
-    return forwardMessage(target, parts.join('\n'), { kind: 'dm', id: msg.id });
+    const original = forwarded.value?.payload ?? {
+        senderId: msg.senderId,
+        senderName: msg.sender?.name || 'Anonyme',
+        senderAvatar: msg.sender?.avatarUrl,
+        text: msg.content,
+    };
+    const content = note.trim() ? `${note.trim()}\n${buildForwardToken(original)}` : buildForwardToken(original);
+    return forwardMessage(target, content, { kind: 'dm', id: msg.id });
 };
 
 watch(() => props.isEditing, (editing) => {

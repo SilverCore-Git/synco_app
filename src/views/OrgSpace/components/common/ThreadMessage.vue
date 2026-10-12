@@ -66,9 +66,9 @@
 
                     </div>
 
-                    <!-- Transféré depuis un autre salon/DM : l'attribution et la
-                         citation sont déjà dans le texte (voir confirmForward),
-                         ce lien ne sert qu'à retrouver l'original. -->
+                    <!-- Transféré depuis un autre salon/DM : la ForwardedMessageCard
+                         ci-dessus montre déjà l'auteur et le texte d'origine,
+                         ce lien ne sert qu'à retrouver l'original lui-même. -->
                     <button
                         v-if="transferOrigin"
                         @click="navigateToTransferOrigin(router, transferOrigin)"
@@ -219,15 +219,16 @@
                                 </p>
                             </div>
                             <div v-else class="text-(--text) text-sm leading-relaxed wrap-break-word">
+                                <ForwardedMessageCard v-if="forwarded" :payload="forwarded.payload" class="mb-1.5" />
                                 <MarkdownRender
-                                    :content="msg.content"
+                                    :content="forwarded ? forwarded.note : msg.content"
                                     :mention-source="channel.mentions"
                                     :show-reference-cards="channel.referencesEnabled"
                                     @user-click="(u: User, e: MouseEvent) => channel.openProfile?.(u, e)"
                                     @reference-click="onReferenceClick"
                                 />
                                 <WebhookEmbed v-if="msg.isWebhook && msg.embeds && msg.embeds.length > 0" :embeds="msg.embeds" />
-                                <LinkPreview v-else :content="msg.content" />
+                                <LinkPreview v-else :content="forwarded ? forwarded.note : msg.content" />
                                 <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
                             </div>
                             
@@ -258,14 +259,14 @@
         <ConfirmDelete
             :show="showDeleteConfirm"
             itemType="le message"
-            :itemName="msg.content.substring(0, 50)"
+            :itemName="(forwarded ? forwarded.payload.text : msg.content).substring(0, 50)"
             @confirm="deleteMessage"
             @cancel="showDeleteConfirm = false"
         />
 
         <ShareToTargetModal
             :show="showForwardModal"
-            :preview="{ icon: 'bi-send-fill', title: messagePreview(msg.content) }"
+            :preview="{ icon: 'bi-send-fill', title: messagePreview(forwarded ? forwarded.payload.text : msg.content) }"
             :send="confirmForward"
             @close="showForwardModal = false"
         />
@@ -305,12 +306,14 @@ import { messagePreview } from '@/assets/utils/messagePreview';
 import WebhookEmbed from './WebhookEmbed.vue';
 import LinkPreview from './LinkPreview.vue';
 import { isUserMentioned } from '@/composables/useMentions';
-import { extractReferenceTokens, buildReferenceToken } from '@/composables/useReferences';
+import { extractReferenceTokens } from '@/composables/useReferences';
 import { useMessageChannel } from '@/composables/messageChannel';
 import { useRouter } from 'vue-router';
 import { navigateToTransferOrigin } from '@/composables/useReferenceNavigation';
 import ShareToTargetModal from '@/components/common/ShareToTargetModal.vue';
+import ForwardedMessageCard from '@/components/common/ForwardedMessageCard.vue';
 import { forwardMessage, type ShareTarget, type ShareReferenceResult, type TransferOrigin } from '@/composables/useShareReference';
+import { buildForwardToken, extractForwardedPayload } from '@/composables/useForwardedContent';
 import type { User } from '@/types/types';
 
 // Tout ce qui dépend de la conversation (envoi sur le socket, droits,
@@ -358,7 +361,8 @@ let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
 const copyMessage = async (msg: Message) => {
     try {
-        await navigator.clipboard.writeText(msg.content);
+        const forwardedMsg = extractForwardedPayload(msg.content);
+        await navigator.clipboard.writeText(forwardedMsg ? forwardedMsg.payload.text : msg.content);
         copied.value = true;
         clearTimeout(copiedTimer);
         copiedTimer = setTimeout(() => copied.value = false, 1500);
@@ -493,15 +497,24 @@ const transferOrigin = computed<TransferOrigin | null>(() => {
     return null;
 });
 
+// Ce message EST-il un transfert reçu ? Rendu en carte (ForwardedMessageCard),
+// voir ChatMessage.vue::forwarded (même logique côté salon).
+const forwarded = computed(() => extractForwardedPayload(props.msg.content));
+
 // Le message transféré est rechiffré pour la destination, donc son contenu
-// doit déjà porter l'attribution et la citation en clair (voir
-// ChatMessage.vue::confirmForward, même logique côté DM).
+// doit déjà porter tout ce qu'il faut pour afficher la carte. Transférer un
+// message déjà transféré repart de SON origine, pas du message courant
+// (voir ChatMessage.vue::confirmForward).
 const confirmForward = (target: ShareTarget, note: string): Promise<ShareReferenceResult> => {
     const msg = props.msg;
-    const quoted = msg.content.split('\n').map(line => `> ${line}`).join('\n');
-    const attribution = msg.senderId ? `${buildReferenceToken('user', msg.senderId)} a écrit :` : 'Message transféré :';
-    const parts = [note.trim(), attribution, quoted].filter(Boolean);
-    return forwardMessage(target, parts.join('\n'), { kind: 'thread', id: msg.id });
+    const original = forwarded.value?.payload ?? {
+        senderId: msg.senderId || '',
+        senderName: msg.isWebhook ? (msg.webhookName || 'Webhook') : (msg.sender?.name || 'Anonyme'),
+        senderAvatar: msg.isWebhook ? msg.webhookAvatar : msg.sender?.avatarUrl,
+        text: msg.content,
+    };
+    const content = note.trim() ? `${note.trim()}\n${buildForwardToken(original)}` : buildForwardToken(original);
+    return forwardMessage(target, content, { kind: 'thread', id: msg.id });
 };
 
 watch(() => props.isEditing, (editing) => {
