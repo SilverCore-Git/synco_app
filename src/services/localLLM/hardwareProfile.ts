@@ -31,7 +31,7 @@ export interface Recommendation {
     assessments: ModelAssessment[];
 }
 
-const PROFILE_KEY = 'synco_local_ai_hw_v3';
+const PROFILE_KEY = 'synco_local_ai_hw_v4';
 const MAX_TIER_KEY = 'synco_local_ai_max_tier';
 const GB = 1024 ** 3;
 
@@ -75,12 +75,6 @@ const measureBandwidth = async (adapter: any): Promise<number | null> => {
     let device: any;
     try {
         const resolution = timerResolutionMs();
-        // Il faut un temps mesuré ≥ 20 résolutions pour que l'erreur d'arrondi reste < 5 %.
-        const targetMs = Math.max(40, resolution * 20);
-        if (targetMs > 1500) {
-            console.info(`[LocalLLM] Chronomètre trop grossier (${resolution} ms) : benchmark GPU ignoré.`);
-            return null;
-        }
 
         device = await adapter.requestDevice();
         const GPUBufferUsage = (self as any).GPUBufferUsage;
@@ -98,8 +92,18 @@ const measureBandwidth = async (adapter: any): Promise<number | null> => {
         };
 
         await run(2);
-        // onSubmittedWorkDone a une latence fixe de plusieurs ms : on allonge le travail jusqu'au
-        // temps cible pour qu'elle devienne négligeable.
+        // Latence de onSubmittedWorkDone à vide : Firefox répond par paliers de ~100 ms, ce qui
+        // dépasserait n'importe quel seuil fixe et ferait mesurer la latence au lieu du GPU.
+        const latency = Math.max(await run(0), await run(0), await run(0));
+        // Temps mesuré ≥ 20 résolutions du chronomètre et ≥ 10 latences : erreur < 10 %.
+        const targetMs = Math.max(40, resolution * 20, latency * 10);
+        if (targetMs > 1500) {
+            console.info(`[LocalLLM] Mesure GPU trop imprécise (chronomètre ${resolution} ms, latence ${Math.round(latency)} ms) : benchmark ignoré.`);
+            src.destroy();
+            dst.destroy();
+            return null;
+        }
+
         let iterations = 12;
         let elapsed = await run(iterations);
         while (elapsed < targetMs && iterations < 8192) {
