@@ -1,6 +1,11 @@
 import { openedOrg, user } from '@/assets/var';
 import { localLLM } from './LocalLLMService';
 import { computed, ref, watch } from 'vue';
+import useSettingsItem from '@/composables/useSettingsItem';
+import {
+    normalizeAiConfig, enabledProviderIds, providerForRegime, regimeOf, resolveEffectiveEffort, resolveEffectiveProvider,
+    type AiProviderId, type AiUserPrefs, type ReasoningEffort, type SessionRegime,
+} from './aiProviders';
 import sfetch from '@/assets/utils/sfetch';
 import { keycloak } from '@/assets/keycloak';
 import { encryptForPeer, decryptFromPeer, privateKey, encryptAiField, decryptAiField } from '@/assets/utils/crypto';
@@ -23,16 +28,52 @@ export interface AIProviderConfig {
     reasoningEffort?: 'low' | 'medium' | 'high';
 }
 
+// Choix de l'utilisateur (provider, effort) par organisation, synchronisé sur son compte. Créé à la
+// demande : useSettingsItem lance une lecture réseau dès son premier appel.
+let prefsStore: ReturnType<typeof useSettingsItem> | null = null;
+const getPrefsStore = () => (prefsStore ??= useSettingsItem('ai_prefs', {}));
+
+/** Remplace le provider choisi quand on rouvre une conversation d'une autre famille (non persisté). */
+const sessionProviderOverride = ref<AiProviderId | null>(null);
+/** Famille de la conversation affichée, quand elle a été détectée au chargement. */
+const activeSessionRegime = ref<SessionRegime | null>(null);
+
 export class AIService {
-    
+
+    /** Configuration de l'organisation, normalisée (ancien et nouveau format). */
+    public get orgConfig() {
+        return normalizeAiConfig(openedOrg.value?.activeModules?.aiConfig);
+    }
+
+    public get userPrefs(): AiUserPrefs {
+        const orgId = openedOrg.value?.id;
+        return (orgId && getPrefsStore().Item.value?.[orgId]) || {};
+    }
+
+    public get provider(): AiProviderId {
+        return resolveEffectiveProvider(this.orgConfig, this.userPrefs, sessionProviderOverride.value);
+    }
+
+    /**
+     * Configuration effective : le provider choisi par l'utilisateur (sinon le défaut de l'org) avec ses
+     * réglages, et l'effort de réflexion choisi (sinon celui de l'org). Les appelants ne voient jamais
+     * la différence avec l'ancienne config à provider unique.
+     */
     public get config(): AIProviderConfig {
-        return openedOrg.value?.activeModules?.aiConfig || {
-            provider: 'local'
+        const cfg = this.orgConfig;
+        const provider = this.provider;
+        const entry = cfg.providers[provider] || { enabled: true };
+        return {
+            provider,
+            modelId: entry.modelId,
+            endpointUrl: entry.endpointUrl,
+            gatewayUrl: entry.gatewayUrl,
+            reasoningEffort: resolveEffectiveEffort(cfg, this.userPrefs),
         };
     }
 
     public get isLocal() {
-        return this.config.provider === 'local';
+        return this.provider === 'local';
     }
 
     public get currentModelName() {
@@ -118,7 +159,12 @@ export class AIService {
         } else {
             response = await sfetch(`/api/orgs/${orgId}/ai/chat`, {
                 method: 'POST',
-                body: JSON.stringify({ sessionId: sessionId || undefined, message }),
+                body: JSON.stringify({
+                    sessionId: sessionId || undefined,
+                    message,
+                    provider: this.config.provider,
+                    reasoningEffort: this.config.reasoningEffort,
+                }),
                 signal: this.abortController.signal,
             });
         }
@@ -147,7 +193,11 @@ export class AIService {
         } else {
             response = await sfetch(`/api/orgs/${orgId}/ai/chat/${sessionId}/tool-result`, {
                 method: 'POST',
-                body: JSON.stringify(decision),
+                body: JSON.stringify({
+                    ...decision,
+                    provider: this.config.provider,
+                    reasoningEffort: this.config.reasoningEffort,
+                }),
                 signal: this.abortController.signal,
             });
         }
@@ -206,7 +256,7 @@ export class AIService {
         const orgId = openedOrg.value?.id;
         if (!orgId) throw new Error("Aucune organisation ouverte");
 
-        const url = `/api/orgs/${orgId}/ai/proxy`;
+        const url = `/api/orgs/${orgId}/ai/proxy?provider=${this.config.provider}`;
 
         const response = await sfetch(url, {
             method: 'POST',
@@ -234,7 +284,7 @@ export class AIService {
         const orgId = openedOrg.value?.id;
         if (!orgId) throw new Error("Aucune organisation ouverte");
 
-        const url = `/api/orgs/${orgId}/ai/proxy`;
+        const url = `/api/orgs/${orgId}/ai/proxy?provider=${this.config.provider}`;
 
         const geminiMessages = messages
           .filter((m: any) => m.role !== 'system')
@@ -665,6 +715,19 @@ async function decryptGatewaySessionMessages(key: CryptoKey, sessionId: string, 
     }));
 }
 
+/**
+ * Une conversation ne se poursuit qu'avec un provider de la même famille (stockage et pilotage
+ * différents : clair côté serveur, chiffré par la passerelle, ou piloté par le navigateur). À
+ * l'ouverture d'une ancienne conversation d'une autre famille, on bascule donc temporairement sur un
+ * provider compatible, sans toucher au choix mémorisé de l'utilisateur.
+ */
+const alignProviderWithSession = (regime: SessionRegime | null) => {
+    activeSessionRegime.value = regime;
+    sessionProviderOverride.value = null;
+    if (!regime || regimeOf(aiService.provider) === regime) return;
+    sessionProviderOverride.value = providerForRegime(aiService.orgConfig, regime, aiService.orgConfig.defaultProvider);
+};
+
 export const loadSession = async (id: string) => {
     if (!openedOrg.value) return;
     try {
@@ -675,6 +738,15 @@ export const loadSession = async (id: string) => {
             activeSessionId.value = session.id;
 
             let loadedMessages = session.messages || [];
+
+            let regime: SessionRegime | null = null;
+            if (Array.isArray(loadedMessages) && loadedMessages.length > 0) {
+                regime = hasEncryptedGatewayFields(loadedMessages) ? 'gateway'
+                    : isStructuredAgentTranscript(loadedMessages) ? 'server'
+                    : 'client';
+            } else if (loadedMessages && loadedMessages.isE2EE) {
+                regime = 'client';
+            }
 
             if (Array.isArray(loadedMessages) && hasEncryptedGatewayFields(loadedMessages)) {
                 // Cas 3 (nouveau) : structure JSON en clair, mais content/toolResult/toolCalls[].arguments
@@ -716,6 +788,7 @@ export const loadSession = async (id: string) => {
             }
 
             aiSessionMessages.value = loadedMessages;
+            alignProviderWithSession(regime);
         }
     } catch (e) {
         console.error("Erreur chargement de la session", e);
@@ -744,7 +817,39 @@ export const newSession = () => {
     aiService.interrupt();
     aiSessionMessages.value = [];
     activeSessionId.value = null;
+    activeSessionRegime.value = null;
+    sessionProviderOverride.value = null;
 };
+
+export const aiActiveProvider = computed(() => aiService.provider);
+export const aiEnabledProviders = computed(() => enabledProviderIds(aiService.orgConfig));
+export const aiDefaultProvider = computed(() => aiService.orgConfig.defaultProvider);
+export const aiEffort = computed<ReasoningEffort>(() => aiService.config.reasoningEffort || 'medium');
+
+const saveUserPrefs = (patch: AiUserPrefs) => {
+    const orgId = openedOrg.value?.id;
+    if (!orgId) return;
+    const store = getPrefsStore();
+    const all = store.Item.value && typeof store.Item.value === 'object' ? store.Item.value : {};
+    store.Item.value = { ...all, [orgId]: { ...(all[orgId] || {}), ...patch } };
+};
+
+/**
+ * Choisit le provider pour l'utilisateur courant. Renvoie true si la conversation en cours ne pouvait
+ * pas être poursuivie avec ce provider (autre famille) et qu'une nouvelle a donc été ouverte.
+ */
+export const setActiveProvider = (provider: AiProviderId): boolean => {
+    if (!aiService.orgConfig.providers[provider]?.enabled) return false;
+    const hasConversation = aiSessionMessages.value.some((m: any) => m.role === 'user' || m.role === 'assistant');
+    const currentRegime = activeSessionRegime.value ?? regimeOf(aiService.provider);
+    const startedNew = hasConversation && regimeOf(provider) !== currentRegime;
+    if (startedNew) newSession();
+    sessionProviderOverride.value = null;
+    saveUserPrefs({ provider });
+    return startedNew;
+};
+
+export const setReasoningEffort = (effort: ReasoningEffort) => saveUserPrefs({ reasoningEffort: effort });
 
 /**
  * Pose le titre chiffré d'une session gateway. `syncSession()` ne s'applique pas au provider
