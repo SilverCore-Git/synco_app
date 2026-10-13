@@ -31,7 +31,7 @@ export interface Recommendation {
     assessments: ModelAssessment[];
 }
 
-const PROFILE_KEY = 'synco_local_ai_hw_v1';
+const PROFILE_KEY = 'synco_local_ai_hw_v2';
 const MAX_TIER_KEY = 'synco_local_ai_max_tier';
 const GB = 1024 ** 3;
 
@@ -54,7 +54,7 @@ const readCached = (): { sig: string; bandwidthGBs: number | null } | null => {
 /**
  * Copie GPU→GPU chronométrée. Le décodage d'un LLM relit tous les poids à chaque token, donc
  * le débit mémoire prédit la vitesse bien mieux que le nom de la carte — que Chrome masque
- * d'ailleurs (adapter.info.description est vide sans flag). ~50 à 150 ms, une fois par GPU.
+ * d'ailleurs (adapter.info.description est vide sans flag). Une fois par GPU.
  */
 const measureBandwidth = async (adapter: any): Promise<number | null> => {
     let device: any;
@@ -75,9 +75,15 @@ const measureBandwidth = async (adapter: any): Promise<number | null> => {
         };
 
         await run(2);
-        const iterations = 12;
-        let best = Infinity;
-        for (let i = 0; i < 2; i++) best = Math.min(best, await run(iterations));
+        // onSubmittedWorkDone a plusieurs ms de latence fixe dans Chrome : sur un GPU rapide, 12
+        // copies durent ~7 ms et la mesure s'effondre. On allonge jusqu'à ≥ 40 ms de travail.
+        let iterations = 12;
+        let elapsed = await run(iterations);
+        while (elapsed < 40 && iterations < 1536) {
+            iterations *= 2;
+            elapsed = await run(iterations);
+        }
+        const best = Math.min(elapsed, await run(iterations));
         src.destroy();
         dst.destroy();
         // Lecture + écriture : 2 × taille par copie.
@@ -180,10 +186,11 @@ const gpuMemoryBudgetMB = (p: HardwareProfile): number => {
         if (ramGB >= 8 && (p.bandwidthGBs ?? 0) >= 120) ramGB = 16;
         return ramGB * 1024 * 0.5;
     }
+    // Le débit ne dit pas grand-chose de la VRAM (RTX 4060 : 8 Go sur un bus 128 bits) : on vise
+    // large, le repli automatique sur VRAM insuffisante (capTierAfterFailure) corrige l'excès.
     const bw = p.bandwidthGBs ?? 0;
-    if (bw >= 300) return 10 * 1024;
-    if (bw >= 170) return 7 * 1024;
-    if (bw >= 100) return 4 * 1024;
+    if (bw >= 150) return 8 * 1024;
+    if (bw >= 90) return 4 * 1024;
     return 2 * 1024;
 };
 

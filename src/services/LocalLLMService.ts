@@ -64,6 +64,8 @@ class LocalLLMService {
                 return;
             }
             this.recommendation.value = recommendModel(profile);
+            console.info('[LocalLLM] Profil matériel', profile, this.recommendation.value.assessments
+                .map(a => ({ modèle: a.model.name, ok: a.fits, tokS: a.estTokensPerSec && Math.round(a.estTokensPerSec), bloquants: a.blockers.join(', ') })));
             const saved = findModel(storageGet(SELECTION_KEY));
             this.selectedModelId.value = (saved ?? this.recommendation.value.model).id;
             if (this.status.value === 'detecting') this.status.value = 'idle';

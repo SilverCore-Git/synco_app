@@ -28,6 +28,14 @@ describe("recommendModel", () => {
         expect(r.precision).toBe('f16');
     });
 
+    test("RTX 4060 8 Go (bus 128 bits, ~200 Go/s mesurés) → tier 1", () => {
+        expect(tierOf(profile({ vendor: 'nvidia', architecture: 'lovelace', bandwidthGBs: 200 }))).toBe(1);
+    });
+
+    test("GTX 1650 4 Go (~100 Go/s) → tier 2", () => {
+        expect(tierOf(profile({ vendor: 'nvidia', architecture: 'turing', bandwidthGBs: 100 }))).toBe(2);
+    });
+
     test("sans shader-f16 → variante f32", () => {
         expect(recommendModel(profile({ vendor: 'nvidia', bandwidthGBs: 300, shaderF16: false })).precision).toBe('f32');
     });
