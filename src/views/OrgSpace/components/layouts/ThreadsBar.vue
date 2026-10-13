@@ -192,12 +192,13 @@
 
                     <div v-if="aiIsLocal">
                         <p class="text-[10px] uppercase font-bold text-(--text2) mb-1">Modèle Local</p>
-                        <select 
-                            v-model="selectedModelId"
+                        <select
+                            :value="localLLM.selectedModelId.value"
+                            @change="localLLM.select(($event.target as HTMLSelectElement).value)"
                             class="w-full bg-black/20 border border-(--text)/10 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-(--primary) transition-colors"
                         >
                             <option v-for="model in availableModels" :key="model.id" :value="model.id">
-                            Tier {{ model.tier }} - {{ model.name }}
+                            Tier {{ model.tier }} - {{ model.name }}{{ localLLM.recommendation.value?.model.id === model.id ? ' (recommandé)' : '' }}
                             </option>
                         </select>
                     </div>
@@ -375,8 +376,8 @@ import { usePermissions } from '@/composables/usePermissions';
 import Category from '../CanalBar/Category.vue';
 import isDesktopApp from '@/assets/isDesktopApp';
 import SpaceSearchModal from '../popup/SpaceSearchModal.vue';
-import { chatSessions, activeSessionId, newSession, deleteSession, loadSession, aiIsLocal, selectedModelId } from '@/services/AIService';
-import { availableModels } from '@/services/LocalLLMService';
+import { chatSessions, activeSessionId, newSession, deleteSession, loadSession, aiIsLocal } from '@/services/AIService';
+import { availableModels, localLLM } from '@/services/LocalLLMService';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { useRecentDMs } from '@/composables/useRecentDMs';
 import { useNotification } from '@/composables/useNotification';

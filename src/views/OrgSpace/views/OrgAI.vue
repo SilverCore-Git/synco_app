@@ -270,98 +270,7 @@
         </button>
       </Transition>
 
-      <!-- Loading / Status Bar / Manual Start -->
-      <div v-if="aiIsLocal && !aiIsInitialized"
-        class="px-6 py-4 border-t border-(--border-color) bg-black/20 flex flex-col gap-3 shrink-0">
-
-        <!-- WebGPU Non supporté (Erreur bloquante) -->
-        <div v-if="!aiHasWebGPU"
-          class="flex items-start gap-4 bg-red-950/40 border-l-4 border-red-500 p-5 rounded-r-xl rounded-l-sm mb-5 shadow-lg">
-          <div class="bg-red-500/20 p-2 rounded-full shrink-0 mt-1">
-            <i class="bi bi-x-circle-fill text-2xl text-red-500"></i>
-          </div>
-          <div class="flex-1">
-            <h4 class="text-red-400 font-black text-base uppercase tracking-wider mb-2">Matériel non compatible</h4>
-            <p class="text-sm text-(--text)/90 leading-relaxed mb-4">
-              L'agent IA nécessite l'accélération matérielle <strong>WebGPU</strong> pour fonctionner.
-              Aucune carte graphique compatible n'a été détectée dans votre navigateur. L'exécution en local est donc
-              désactivée.
-            </p>
-
-            <div class="bg-black/40 p-4 rounded-lg border border-(--border-color) text-sm text-(--text)/80">
-              <p class="font-bold text-red-300 mb-2 flex items-center gap-2"><i class="bi bi-wrench-adjustable"></i>
-                Pistes de résolution :</p>
-              <ul class="list-disc ml-5 space-y-2">
-                <li><strong>Linux :</strong> L'accélération WebGPU est souvent bloquée. Nous recommandons d'utiliser
-                  <strong>Chromium ou Chrome sous Windows ou macOS</strong> pour profiter de l'IA locale.</li>
-                <li><strong>Pilotes :</strong> Vérifiez que vos pilotes graphiques sont à jour.</li>
-                <li v-if="hasNavigatorGpu">WebGPU est activé dans votre navigateur, mais l'accès à la carte graphique a
-                  échoué (problème OS/Drivers).</li>
-                <li v-else>Assurez-vous d'utiliser une version récente de <strong>Google Chrome, Edge ou Brave</strong>.
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-        <div v-if="initError"
-          class="flex items-center gap-4 bg-red-500/10 border border-red-500/20 p-4 rounded-xl mb-2">
-          <i class="bi bi-x-circle text-2xl text-red-500"></i>
-          <div class="flex-1">
-            <h4 class="text-red-500 font-bold text-sm">Erreur d'initialisation</h4>
-            <p class="text-xs text-red-500/80 mt-1 mb-2">{{ initError }}</p>
-
-            <div v-if="initError.includes('f16')"
-              class="bg-black/20 p-3 rounded-lg border border-(--border-color) text-xs text-(--text)/70">
-              <strong>Astuce Chrome/Edge :</strong> Il est impossible d'activer cette fonctionnalité automatiquement.
-              Cependant, vous pouvez forcer son activation manuellement :
-              <ol class="list-decimal ml-4 mt-1 space-y-1">
-                <li>Copiez l'URL <code
-                    class="bg-black/50 px-1 py-0.5 rounded text-white select-all">chrome://flags/#enable-webgpu-developer-features</code>
-                  et collez-la dans la barre d'adresse de votre navigateur.</li>
-                <li>Passez l'option <strong>WebGPU Developer Features</strong> de <span
-                    class="text-(--text)">Default</span> à <span class="text-green-400 font-bold">Enabled</span>.</li>
-                <li>Redémarrez le navigateur et réessayez.</li>
-              </ol>
-            </div>
-          </div>
-        </div>
-
-        <!-- Installation classique -->
-        <div v-if="!hasStartedInit" class="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div class="text-sm">
-            <p class="font-bold text-(--text)/80">Téléchargement initial de Synco AI requis</p>
-            <p class="text-(--text)/50 text-xs">Modèle sélectionné : <span
-                class="font-mono text-(--primary)">{{availableModels.find(m => m.id === selectedModelId)?.name ||
-                'Aucun' }}</span></p>
-          </div>
-          <div class="flex gap-2">
-            <button v-if="aiHasWebGPU" @click="startInit"
-              class="primary flex items-center gap-2">
-              <i class="bi bi-play-fill" v-if="isModelCached"></i>
-              <i class="bi bi-cloud-arrow-down-fill" v-else></i>
-              {{ isModelCached ? 'Initialiser (GPU)' : 'Télécharger & Initialiser (GPU)' }}
-            </button>
-          </div>
-        </div>
-
-        <div v-else class="flex flex-col gap-2">
-          <div class="flex items-center justify-between text-xs text-(--text)/50">
-            <span class="flex items-center gap-2">
-              <i class="bi"
-                :class="[aiDownloadProgress >= 100 ? 'bi-cpu animate-pulse' : 'bi-cloud-arrow-down animate-bounce', 'text-(--primary)']"></i>
-              {{ aiDownloadProgress >= 100 ? 'Initialisation en mémoire (cela peut prendre du temps)...' :
-              'Téléchargement et initialisation...' }}
-            </span>
-            <span class="font-mono">{{ aiDownloadProgress }}%</span>
-          </div>
-          <div class="w-full h-1.5 bg-(--text)/10 rounded-full overflow-hidden">
-            <div class="h-full transition-all duration-300 bg-(--primary)" :style="{ width: aiDownloadProgress + '%' }">
-            </div>
-          </div>
-          <p class="text-[10px] text-(--text)/30 text-center mt-1 font-mono truncate">{{ aiDownloadText }}</p>
-        </div>
-
-      </div>
+      <LocalModelPanel v-if="aiIsLocal" />
 
       <div class="p-1 border-t border-(--border-color) shrink-0 relative">
 
@@ -380,15 +289,15 @@
 
         <form @submit.prevent="() => sendMessage()"
           class="relative w-full max-w-5xl mx-auto flex items-end gap-3 border border-(--text)/10 rounded-xl px-4 py-2 transition-all shadow-2xl"
-          :class="(!aiIsInitialized || isGenerating) ? 'bg-black/50 opacity-50 cursor-not-allowed' : 'bg-(--bg) focus-within:border-(--primary)/50'">
+          :class="(!canType || isGenerating) ? 'bg-black/50 opacity-50 cursor-not-allowed' : 'bg-(--bg) focus-within:border-(--primary)/50'">
 
           <ThreadTextarea ref="chatInputRef" v-model="inputMsg" placeholder="Demandez-moi n'importe quoi..."
-            :disabled="!aiIsInitialized || isGenerating" @send="() => sendMessage()" />
+            :disabled="!canType || isGenerating" @send="() => sendMessage()" />
 
           <button type="button" @click="isGenerating ? stopGeneration() : sendMessage()"
             class="shrink-0 mb-1 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50"
             :class="isGenerating ? 'text-red-500 hover:text-red-400' : 'text-(--primary) hover:brightness-110'"
-            :disabled="!aiIsInitialized || (!inputMsg.trim() && !isGenerating)">
+            :disabled="!canType || (!inputMsg.trim() && !isGenerating)">
             <i :class="isGenerating ? 'bi-stop-fill text-xl' : 'bi-send-fill text-xl'"></i>
           </button>
 
@@ -403,19 +312,18 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
-import * as webllm from '@mlc-ai/web-llm';
-import { localLLM, availableModels } from '@/services/LocalLLMService';
-import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages, syncSession, fetchSessions, activeSessionId, selectedModelId, setEncryptedSessionTitle } from '@/services/AIService';
+import { localLLM } from '@/services/LocalLLMService';
+import { aiService, aiIsLocal, aiSessionMessages, syncSession, fetchSessions, activeSessionId, setEncryptedSessionTitle } from '@/services/AIService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import AgentTurn from '../components/ai/AgentTurn.vue';
 import PendingActionBar from '../components/ai/PendingActionBar.vue';
+import LocalModelPanel from '../components/ai/LocalModelPanel.vue';
 import MarkdownRender from './MarkdownRender.vue';
 import type { TurnPart, ToolStep } from '../components/ai/agentTypes';
 import { useUsersBar } from '@/composables/useUsersBar';
-import useSettingsItem from '@/composables/useSettingsItem';
 import { useRoute, useRouter } from 'vue-router';
 
 const route = useRoute();
@@ -433,7 +341,6 @@ import { createFolderRequest, createTextFile } from '@/services/fileActions';
 import { isDocumentationTool, runDocumentationTool } from '@/services/DocumentationService';
 
 const { showUsersBar } = useUsersBar();
-const { Item: savedModelId, isLoaded: savedModelLoaded } = useSettingsItem('ai_selected_model', '');
 
 // Le rendu markdown passe par MarkdownRender.vue (partagé avec le chat/les
 // tâches) — il ne reste ici que le nettoyage spécifique à l'IA : les blocs
@@ -501,14 +408,12 @@ interface ChatMessage {
   usage?: { promptTokens: number; completionTokens: number; totalTokens: number; reasoningTokens: number };
 }
 
-const recommendedModelId = ref<string>('');
 const selectedTask = ref<any>(null);
 const isGenerating = ref(false);
 // Par outil (façon Claude Code "don't ask again for this tool"), pas global : autoriser
 // create_task sans redemander ne doit pas dispenser de confirmation pour delete_task. Volontairement
 // non persisté — remis à zéro au rechargement, une autorisation en masse est une décision ponctuelle.
 const autoAcceptTools = ref<Set<string>>(new Set());
-const hasStartedInit = ref(false);
 const inputMsg = ref('');
 const chatInputRef = ref<any>(null);
 
@@ -545,7 +450,6 @@ function formatTokenCount(n: number): string {
 }
 
 const chatContainer = ref<HTMLElement | null>(null);
-const hasNavigatorGpu = typeof navigator !== 'undefined' && !!(navigator as any).gpu;
 const temporaryImages = ref<Record<string, string>>({});
 
 const scrollToBottom = async () => {
@@ -565,77 +469,8 @@ const onChatScroll = () => {
   showScrollToBottom.value = distanceFromBottom > 200;
 };
 
-const initError = ref('');
-
-// @ts-ignore
-const loadModel = async () => {
-  if (!selectedModelId.value && aiIsLocal.value) return;
-  savedModelId.value = selectedModelId.value; // Save selection to DB
-
-  if (!aiIsLocal.value) {
-    // Les API distantes n'ont pas besoin de téléchargement WebGPU
-    hasStartedInit.value = true;
-    initError.value = '';
-    return;
-  }
-
-  // On vérifie d'abord l'état du cache pour ce nouveau modèle
-  await checkCacheStatus();
-
-  if (isModelCached.value) {
-    initError.value = '';
-    hasStartedInit.value = true;
-    try {
-      await localLLM.init(selectedModelId.value);
-    } catch (e: any) {
-      console.error("Impossible de charger le modèle", e);
-      initError.value = "Erreur WebGPU: " + (e.message || String(e));
-      hasStartedInit.value = false;
-    }
-  } else {
-    // Si le modèle n'est pas en cache, on force l'utilisateur à voir l'écran de téléchargement
-    // On coupe l'éventuel modèle précédent
-    if (localLLM.engine) {
-      localLLM.engine.unload();
-      localLLM.engine = null;
-    }
-    hasStartedInit.value = false;
-    localLLM.isInitialized.value = false;
-  }
-};
-
-const isModelCached = ref(false);
-
-const checkCacheStatus = async () => {
-  if (selectedModelId.value) {
-    try {
-      isModelCached.value = await webllm.hasModelInCache(selectedModelId.value);
-      if (isModelCached.value && localLLM.currentModel.value?.id !== selectedModelId.value && !hasStartedInit.value) {
-        // Auto-initialiser silencieusement si c'est déjà en cache
-        startInit();
-      }
-    } catch (e) {
-      isModelCached.value = false;
-    }
-  }
-};
-
-watch(selectedModelId, () => {
-  loadModel();
-});
-
-const startInit = async () => {
-  if (!selectedModelId.value) return;
-  hasStartedInit.value = true;
-  initError.value = '';
-  try {
-    await localLLM.init(selectedModelId.value);
-  } catch (e: any) {
-    console.error("Impossible d'initialiser le modèle", e);
-    initError.value = "Le modèle graphique (WebGPU) n'est pas supporté par votre carte graphique ou navigateur.";
-    hasStartedInit.value = false;
-  }
-};
+// Pendant le téléchargement/chargement on laisse écrire : localLLM.chat() attend que le modèle soit prêt.
+const canType = computed(() => !aiIsLocal.value || ['ready', 'loading', 'downloading'].includes(localLLM.status.value));
 
 const stopGeneration = () => {
   if (isGenerating.value) {
@@ -1308,10 +1143,11 @@ const sendMessage = async (hiddenPrompt?: string) => {
 
 // syncSession is handled in AIService
 
-onMounted(async () => {
-  const recommended = await localLLM.getRecommendedModel();
-  recommendedModelId.value = recommended.id;
+watch(aiIsLocal, (isLocal) => {
+  if (isLocal) localLLM.autoLoadIfCached();
+}, { immediate: true });
 
+onMounted(async () => {
   await nextTick();
   chatInputRef.value?.textarea?.focus();
 });
@@ -1320,22 +1156,5 @@ watch(() => openedOrg.value, async (newVal) => {
   if (newVal) {
     await fetchSessions();
   }
-}, { immediate: true });
-
-watch(savedModelLoaded, async (loaded) => {
-  if (!loaded) return;
-
-  if (!aiIsInitialized.value) {
-    if (savedModelId.value) {
-      selectedModelId.value = savedModelId.value;
-    } else {
-      selectedModelId.value = recommendedModelId.value;
-      savedModelId.value = recommendedModelId.value;
-    }
-  } else {
-    hasStartedInit.value = true;
-    selectedModelId.value = aiCurrentModelName.value || '';
-  }
-  await checkCacheStatus();
 }, { immediate: true });
 </script>

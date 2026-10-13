@@ -1,6 +1,6 @@
 import { openedOrg, user } from '@/assets/var';
 import { localLLM } from './LocalLLMService';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import sfetch from '@/assets/utils/sfetch';
 import { keycloak } from '@/assets/keycloak';
 import { encryptForPeer, decryptFromPeer, privateKey, encryptAiField, decryptAiField } from '@/assets/utils/crypto';
@@ -467,15 +467,13 @@ export const aiService = new AIService();
 
 // Vue Reactive Bindings for OrgAI.vue compatibility
 export const aiIsLocal = computed(() => aiService.isLocal);
-export const aiIsInitialized = computed(() => aiService.isLocal ? localLLM.isInitialized.value : true);
-export const aiCurrentModelName = computed(() => aiService.currentModelName);
-export const aiHasWebGPU = localLLM.hasWebGPU;
-export const aiDownloadProgress = localLLM.downloadProgress;
-export const aiDownloadText = localLLM.downloadText;
+
+watch(() => openedOrg.value?.id, (orgId) => {
+    if (orgId && aiService.isLocal) localLLM.warmupInBackground();
+});
 
 export const aiSessionMessages = ref<any[]>([]);
 
-export const selectedModelId = ref<string>('');
 export const chatSessions = ref<any[]>([]);
 export const activeSessionId = ref<string | null>(null);
 

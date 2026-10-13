@@ -1,237 +1,331 @@
-import * as webllm from '@mlc-ai/web-llm';
-import { ref } from 'vue';
+import { computed, ref, shallowRef } from 'vue';
+import type { WorkerRequest, WorkerResponse } from '../workers/llm.worker';
+import { availableModels, findModel, type LLMModel } from './localLLM/catalog';
+import { getModelCacheStatus, getModelSize, type ModelCacheStatus } from './localLLM/modelCache';
+import {
+    assessModel, capTierAfterFailure, getHardwareProfile, recommendModel,
+    type HardwareProfile, type ModelAssessment, type Recommendation,
+} from './localLLM/hardwareProfile';
 
-export interface LLMModel {
-    id: string;
-    name: string;
-    size: string;
-    vram: number;
-    tier: number;
-}
+export { availableModels, type LLMModel };
 
-export const availableModels: LLMModel[] = [
-    {
-        id: "Mistral-7B-Instruct-v0.3-q4f32_1-MLC",
-        name: "Mistral 7B",
-        size: "4.1 GB",
-        vram: 4096,
-        tier: 1
-    },
-    {
-        id: "Ministral-3-3B-Instruct-2512-BF16-q4f32_1-MLC",
-        name: "Ministral 3B",
-        size: "2.2 GB",
-        vram: 3072,
-        tier: 2
-    },
-    {
-        id: "SmolLM2-1.7B-Instruct-q4f32_1-MLC",
-        name: "SmolLM2 1.7B",
-        size: "1.1 GB",
-        vram: 1536,
-        tier: 3
-    }
-];
+export type LocalAIStatus = 'detecting' | 'unsupported' | 'idle' | 'downloading' | 'loading' | 'ready' | 'error';
+
+const SELECTION_KEY = 'synco_local_ai_model';
+const LAST_USED_KEY = 'synco_local_ai_last_used';
+const RECENT_USE_MS = 7 * 24 * 3600 * 1000;
+// Le téléchargement occupe 0→90 % de la barre, l'upload GPU 90→100 %, pour une barre monotone.
+const DOWNLOAD_SHARE = 0.9;
+
+const storageGet = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
+const storageSet = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* noop */ } };
 
 class LocalLLMService {
-    engine: webllm.MLCEngine | null = null;
-    isInitialized = ref(false);
-    hasWebGPU = ref(typeof navigator !== 'undefined' && !!(navigator as any).gpu);
-    downloadProgress = ref(0);
-    downloadText = ref("");
+    status = ref<LocalAIStatus>('detecting');
+    profile = shallowRef<HardwareProfile | null>(null);
+    recommendation = shallowRef<Recommendation | null>(null);
+    /** Famille choisie sur CET appareil (pas synchronisée au compte : le matériel diffère d'un PC à l'autre). */
+    selectedModelId = ref<string>('');
     currentModel = ref<LLMModel | null>(null);
+    cacheStatus = ref<ModelCacheStatus | null>(null);
+    exactSizeBytes = ref<number | null>(null);
 
-    constructor() {}
+    progress = ref(0);
+    phase = ref<'download' | 'load' | null>(null);
+    downloadedBytes = ref(0);
+    totalBytes = ref(0);
+    bytesPerSec = ref(0);
+    error = ref<{ message: string; kind: string } | null>(null);
+    notice = ref('');
 
-    async getRecommendedModel(): Promise<LLMModel> {
-        try {
-            if (typeof navigator === 'undefined' || !(navigator as any).gpu) {
-                console.warn("[LocalLLMService] WebGPU non supporté. On recommande le modèle Tier 3.");
-                this.hasWebGPU.value = false;
-                return availableModels.find(m => m.tier === 3)!;
+    isInitialized = computed(() => this.status.value === 'ready');
+    hasWebGPU = computed(() => this.status.value !== 'unsupported');
+    selectedModel = computed(() => findModel(this.selectedModelId.value) ?? null);
+    selectedAssessment = computed<ModelAssessment | null>(() => {
+        const p = this.profile.value;
+        const m = this.selectedModel.value;
+        return p && m ? assessModel(p, m, this.cacheStatus.value?.cachedBytes ?? 0) : null;
+    });
+
+    private worker: Worker | null = null;
+    private prepared: Promise<void> | null = null;
+    private loading: { mlcId: string; promise: Promise<void>; resolve: () => void; reject: (e: Error) => void } | null = null;
+    private chatListeners = new Map<string, (msg: WorkerResponse) => void>();
+    private speedSamples: Array<{ t: number; bytes: number }> = [];
+    private downloadedThisLoad = false;
+
+    /** Détection matérielle + choix du modèle + état du cache. Idempotent et peu coûteux après le 1er appel. */
+    prepare(): Promise<void> {
+        this.prepared ??= (async () => {
+            const profile = await getHardwareProfile();
+            this.profile.value = profile;
+            if (!profile.webgpu) {
+                this.status.value = 'unsupported';
+                return;
             }
+            this.recommendation.value = recommendModel(profile);
+            const saved = findModel(storageGet(SELECTION_KEY));
+            this.selectedModelId.value = (saved ?? this.recommendation.value.model).id;
+            if (this.status.value === 'detecting') this.status.value = 'idle';
+            await this.refreshCacheStatus();
+        })();
+        return this.prepared;
+    }
 
-            const adapter = await (navigator as any).gpu.requestAdapter();
-            if (!adapter) {
-                this.hasWebGPU.value = false;
-                return availableModels.find(m => m.tier === 3)!;
-            }
-
-            let info: any = null;
-            if (adapter.requestAdapterInfo) {
-                // Some older browsers might require this to be async, some synchronous.
-                info = await adapter.requestAdapterInfo();
-            } else {
-                info = (adapter as any).info || {};
-            }
-
-            const description = (info.description || info.architecture || info.device || "").toLowerCase();
-            const vendor = (info.vendor || "").toLowerCase();
-
-            // M-series Apple Silicon
-            if (vendor.includes('apple') || description.includes('apple')) {
-                if (description.includes('max') || description.includes('pro') || description.includes('ultra')) {
-                    return availableModels.find(m => m.tier === 1)!;
-                }
-                return availableModels.find(m => m.tier === 2)!;
-            }
-
-            // Nvidia
-            if (vendor.includes('nvidia') || description.includes('rtx') || description.includes('geforce') || description.includes('gtx')) {
-                if (description.match(/rtx\s*(30[6-9]\d|40[6-9]\d|40\d\d|30\d\d|a\d000)/)) {
-                    return availableModels.find(m => m.tier === 1)!;
-                }
-                if (description.match(/rtx|gtx\s*(1660|1070|1080|980|1060|2060|2070|2080)/)) {
-                    return availableModels.find(m => m.tier === 2)!;
-                }
-                return availableModels.find(m => m.tier === 2)!; // Default Nvidia is tier 2
-            }
-
-            // AMD Radeon
-            if (vendor.includes('amd') || description.includes('radeon') || description.includes('rx')) {
-                if (description.match(/rx\s*(6[7-9]\d\d|7[7-9]\d\d|6900|7900)/)) {
-                    return availableModels.find(m => m.tier === 1)!;
-                }
-                return availableModels.find(m => m.tier === 2)!;
-            }
-
-            // Default fallback for Intel or unknown GPUs
-            return availableModels.find(m => m.tier === 3)!;
-        } catch (error) {
-            console.error("[LocalLLMService] Erreur lors de l'évaluation du hardware:", error);
-            this.hasWebGPU.value = false;
-            return availableModels.find(m => m.tier === 3)!;
+    /** Charge le modèle sans intervention si ses poids sont déjà sur le disque. */
+    async autoLoadIfCached() {
+        await this.prepare();
+        if (this.status.value === 'idle' && this.cacheStatus.value?.complete) {
+            await this.load().catch(() => { /* état d'erreur déjà exposé */ });
         }
     }
 
-    async init(modelId: string) {
-        if (this.engine) {
-            this.engine.unload();
-            this.engine = null;
-        }
-
-        this.isInitialized.value = false;
-        this.downloadProgress.value = 0;
-        this.downloadText.value = "Initialisation...";
-        this.currentModel.value = availableModels.find(m => m.id === modelId) || null;
-
-        const initProgressCallback = (report: webllm.InitProgressReport) => {
-            console.log("[LocalLLMService] Progress:", report);
-            this.downloadProgress.value = Math.round(report.progress * 100);
-            this.downloadText.value = report.text;
-        };
-
-        const customAppConfig: webllm.AppConfig = {
-            ...webllm.prebuiltAppConfig,
-            // On laisse WebLLM utiliser les URLs HuggingFace par défaut pour les modèles f32
-            // puisqu'ils ne sont pas mis en cache sur le serveur local (seuls les f16 le sont).
-        };
-
-        try {
-            this.engine = new webllm.MLCEngine();
-            this.engine.setAppConfig(customAppConfig);
-            this.engine.setInitProgressCallback(initProgressCallback);
-            await this.engine.reload(modelId);
-            this.isInitialized.value = true;
-        } catch (error) {
-            console.error("[LocalLLMService] Erreur d'initialisation du modèle:", error);
-            this.downloadText.value = "Erreur d'initialisation.";
-            throw error;
-        }
+    /** Préchargement en tâche de fond pour qui utilise l'IA locale régulièrement sur cette machine. */
+    warmupInBackground() {
+        const last = Number(storageGet(LAST_USED_KEY) || 0);
+        if (Date.now() - last > RECENT_USE_MS) return;
+        const run = () => this.autoLoadIfCached();
+        const ric = (globalThis as any).requestIdleCallback as ((cb: () => void, o?: any) => void) | undefined;
+        if (ric) ric(run, { timeout: 5000 });
+        else setTimeout(run, 2000);
     }
 
-    async *chat(messages: any[]) {
-        if (!this.engine || !this.isInitialized.value) {
-            throw new Error("L'agent IA n'est pas prêt.");
+    async select(familyId: string) {
+        const model = findModel(familyId);
+        if (!model || model.id === this.selectedModelId.value) return;
+        storageSet(SELECTION_KEY, model.id);
+        this.selectedModelId.value = model.id;
+        this.notice.value = '';
+        this.error.value = null;
+        if (this.loading) {
+            this.unload();
+        } else if (this.status.value === 'ready' || this.status.value === 'error') {
+            this.status.value = 'idle';
         }
+        await this.refreshCacheStatus();
+        if (this.cacheStatus.value?.complete) await this.load().catch(() => {});
+    }
 
+    async refreshCacheStatus() {
+        const variant = this.selectedVariant();
+        if (!variant) return;
+        this.exactSizeBytes.value = null;
+        this.cacheStatus.value = await getModelCacheStatus(variant.mlcId).catch(() => null);
+        if (this.cacheStatus.value?.totalBytes) this.exactSizeBytes.value = this.cacheStatus.value.totalBytes;
+        else getModelSize(variant.mlcId).then(s => { this.exactSizeBytes.value = s; }).catch(() => {});
+    }
 
-        const asyncChunkGenerator = await this.engine.chat.completions.create({
-            messages,
-            stream: true,
-            stream_options: { include_usage: true },
-            temperature: 0.7,
-        });
+    load(): Promise<void> {
+        const model = this.selectedModel.value;
+        const variant = this.selectedVariant();
+        if (!model || !variant) return Promise.reject(new Error('Aucun modèle sélectionné.'));
+        if (this.status.value === 'ready' && this.currentModel.value?.id === model.id) return Promise.resolve();
+        if (this.loading?.mlcId === variant.mlcId) return this.loading.promise;
 
-        let buffer = "";
+        this.loading?.reject(new Error('Chargement remplacé par un autre modèle.'));
+        let resolve!: () => void;
+        let reject!: (e: Error) => void;
+        const promise = new Promise<void>((res, rej) => { resolve = res; reject = rej; });
+        promise.catch(() => {});
+        this.loading = { mlcId: variant.mlcId, promise, resolve, reject };
 
-        for await (const chunk of asyncChunkGenerator) {
-            // Chunk terminal à choices vide, usage rempli (cf. ChatCompletionStreamOptions) : à
-            // traiter avant le `continue` sur contenu vide ci-dessous, sinon jamais atteint.
-            if (chunk.usage) {
-                yield {
-                    type: 'usage',
-                    promptTokens: chunk.usage.prompt_tokens,
-                    completionTokens: chunk.usage.completion_tokens,
-                    totalTokens: chunk.usage.total_tokens,
-                };
-            }
+        this.error.value = null;
+        this.currentModel.value = null;
+        this.progress.value = 0;
+        this.phase.value = null;
+        this.speedSamples = [];
+        this.downloadedThisLoad = false;
+        this.status.value = this.cacheStatus.value?.complete ? 'loading' : 'downloading';
+        // Sans stockage persistant, le navigateur peut évincer plusieurs Go de poids sous pression disque.
+        (navigator as any).storage?.persist?.().catch(() => {});
 
-            const content = chunk.choices[0]?.delta?.content || "";
-            if (!content) continue;
+        this.ensureWorker().postMessage({ type: 'load', mlcId: variant.mlcId } satisfies WorkerRequest);
+        return promise;
+    }
 
-            buffer += content;
-            
-            // 1. Chercher un JSON brut complet avec regex
-            // On utilise s (dotall) au cas où il y aurait des retours à la ligne
-            const jsonMatch = buffer.match(/\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"arguments"\s*:\s*\{[\s\S]*?\}\s*\}/);
-            if (jsonMatch) {
-                try {
-                    const parsed = JSON.parse(jsonMatch[0]);
-                    yield { type: 'tool_call', ...parsed };
-                    buffer = buffer.replace(jsonMatch[0], ""); // Enlever le JSON du buffer
-                    continue; // On continue avec le reste du buffer
-                } catch(e) {
-                    // Pas encore un JSON valide, on attend
-                }
-            }
+    unload() {
+        this.loading?.reject(new Error('Chargement annulé.'));
+        this.loading = null;
+        this.worker?.postMessage({ type: 'unload' } satisfies WorkerRequest);
+        this.currentModel.value = null;
+        this.phase.value = null;
+        if (this.status.value !== 'unsupported') this.status.value = 'idle';
+        this.refreshCacheStatus();
+    }
 
-            // 2. Chercher une balise XML complète
-            const xmlMatch = buffer.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
-            if (xmlMatch && xmlMatch[1]) {
-                try {
-                    const parsed = JSON.parse(xmlMatch[1].trim());
-                    yield { type: 'tool_call', ...parsed };
-                    buffer = buffer.replace(xmlMatch[0], "");
+    async *chat(messages: any[]): AsyncGenerator<any, void, unknown> {
+        if (this.status.value !== 'ready') {
+            if (!this.loading) throw new Error("L'agent IA n'est pas prêt.");
+            await this.loading.promise;
+        }
+        storageSet(LAST_USED_KEY, String(Date.now()));
+
+        const id = crypto.randomUUID();
+        const queue: WorkerResponse[] = [];
+        let wake: (() => void) | null = null;
+        this.chatListeners.set(id, msg => { queue.push(msg); wake?.(); });
+        // Les messages viennent souvent de refs Vue : un Proxy n'est pas clonable par postMessage.
+        const plain = JSON.parse(JSON.stringify(messages));
+        this.ensureWorker().postMessage({ type: 'chat', id, messages: plain, temperature: 0.7 } satisfies WorkerRequest);
+
+        let buffer = '';
+        try {
+            for (;;) {
+                if (queue.length === 0) await new Promise<void>(r => { wake = r; });
+                wake = null;
+                const msg = queue.shift()!;
+                if (msg.type === 'done') break;
+                if (msg.type === 'chatError') throw new Error(msg.message);
+                if (msg.type === 'usage') {
+                    yield { type: 'usage', promptTokens: msg.promptTokens, completionTokens: msg.completionTokens, totalTokens: msg.totalTokens };
                     continue;
-                } catch(e) {
-                    console.error("[WebGPU] Failed to parse XML tool call", e);
+                }
+                if (msg.type !== 'chunk') continue;
+
+                buffer += msg.content;
+
+                const jsonMatch = buffer.match(/\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"arguments"\s*:\s*\{[\s\S]*?\}\s*\}/);
+                if (jsonMatch) {
+                    try {
+                        const parsed = JSON.parse(jsonMatch[0]);
+                        yield { type: 'tool_call', ...parsed };
+                        buffer = buffer.replace(jsonMatch[0], '');
+                        continue;
+                    } catch { /* JSON encore incomplet */ }
+                }
+
+                const xmlMatch = buffer.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
+                if (xmlMatch && xmlMatch[1]) {
+                    try {
+                        const parsed = JSON.parse(xmlMatch[1].trim());
+                        yield { type: 'tool_call', ...parsed };
+                        buffer = buffer.replace(xmlMatch[0], '');
+                        continue;
+                    } catch (e) {
+                        console.error('[WebGPU] Failed to parse XML tool call', e);
+                    }
+                }
+
+                // Ne pas afficher un JSON/XML d'appel d'outil en cours de construction.
+                let safeToFlushIndex = buffer.length;
+                const lastBrace = buffer.lastIndexOf('{');
+                const lastAngle = buffer.lastIndexOf('<');
+                if (lastBrace !== -1) safeToFlushIndex = Math.min(safeToFlushIndex, lastBrace);
+                if (lastAngle !== -1) safeToFlushIndex = Math.min(safeToFlushIndex, lastAngle);
+                if (buffer.length > 300 && !buffer.includes('{"name"') && !buffer.includes('<tool_call>')) {
+                    safeToFlushIndex = buffer.length;
+                }
+                if (safeToFlushIndex > 0) {
+                    yield buffer.substring(0, safeToFlushIndex);
+                    buffer = buffer.substring(safeToFlushIndex);
                 }
             }
 
-            // 3. Purge intelligente du buffer
-            // On ne veut pas afficher les morceaux de JSON ou XML en cours de construction
-            let safeToFlushIndex = buffer.length;
-            
-            const lastBrace = buffer.lastIndexOf('{');
-            const lastAngle = buffer.lastIndexOf('<');
-            
-            if (lastBrace !== -1) safeToFlushIndex = Math.min(safeToFlushIndex, lastBrace);
-            if (lastAngle !== -1) safeToFlushIndex = Math.min(safeToFlushIndex, lastAngle);
-            
-            // Si le buffer est bloqué par une accolade depuis trop longtemps (faux positif), on force la purge
-            if (buffer.length > 300 && !buffer.includes('{"name"') && !buffer.includes('<tool_call>')) {
-                safeToFlushIndex = buffer.length;
-            }
-
-            if (safeToFlushIndex > 0) {
-                yield buffer.substring(0, safeToFlushIndex);
-                buffer = buffer.substring(safeToFlushIndex);
-            }
-        }
-
-        if (buffer.trim()) {
-            // Nettoyage final pour ne pas cracher de restes de code JSON cassé
-            if (!buffer.includes('{"name"') && !buffer.includes('<tool_call>')) {
+            if (buffer.trim() && !buffer.includes('{"name"') && !buffer.includes('<tool_call>')) {
                 yield buffer;
             }
+        } finally {
+            this.chatListeners.delete(id);
         }
     }
 
     interrupt() {
-        if (this.engine) {
-            this.engine.interruptGenerate();
+        this.worker?.postMessage({ type: 'interrupt' } satisfies WorkerRequest);
+    }
+
+    private selectedVariant() {
+        const model = this.selectedModel.value;
+        if (!model) return null;
+        return model.variants[this.profile.value?.shaderF16 ? 'f16' : 'f32'];
+    }
+
+    private ensureWorker(): Worker {
+        if (this.worker) return this.worker;
+        const worker = new Worker(new URL('../workers/llm.worker.ts', import.meta.url), { type: 'module' });
+        worker.onmessage = (e: MessageEvent<WorkerResponse>) => this.onWorkerMessage(e.data);
+        this.worker = worker;
+        return worker;
+    }
+
+    private onWorkerMessage(msg: WorkerResponse) {
+        if ('id' in msg) {
+            this.chatListeners.get(msg.id)?.(msg);
+            return;
         }
+        if (msg.type === 'progress') return this.onProgress(msg);
+        if (!this.loading || this.loading.mlcId !== msg.mlcId) return;
+
+        const loading = this.loading;
+        this.loading = null;
+        if (msg.type === 'loaded') {
+            this.currentModel.value = this.selectedModel.value;
+            this.status.value = 'ready';
+            this.progress.value = 100;
+            this.phase.value = null;
+            this.cacheStatus.value = { totalBytes: this.totalBytes.value, cachedBytes: this.totalBytes.value, complete: true };
+            loading.resolve();
+            return;
+        }
+
+        const err = new Error(msg.message);
+        loading.reject(err);
+        this.phase.value = null;
+        if (msg.kind === 'aborted') return;
+        if (msg.kind === 'gpu-memory') return this.downgradeAfterOOM();
+        this.status.value = 'error';
+        this.error.value = { message: msg.message, kind: msg.kind };
+        this.refreshCacheStatus();
+    }
+
+    private onProgress(msg: Extract<WorkerResponse, { type: 'progress' }>) {
+        if (!this.loading) return;
+        this.phase.value = msg.phase;
+        if (msg.phase === 'download') {
+            this.downloadedBytes.value = msg.loadedBytes;
+            this.totalBytes.value = msg.totalBytes;
+            if (msg.progress < 1) {
+                this.downloadedThisLoad = true;
+                this.status.value = 'downloading';
+                this.trackSpeed(msg.loadedBytes);
+            }
+        } else {
+            this.status.value = 'loading';
+        }
+        let value = msg.progress;
+        if (this.downloadedThisLoad) {
+            value = msg.phase === 'download' ? msg.progress * DOWNLOAD_SHARE : DOWNLOAD_SHARE + msg.progress * (1 - DOWNLOAD_SHARE);
+        } else if (msg.phase === 'download') {
+            return;
+        }
+        this.progress.value = Math.max(this.progress.value, Math.min(99, Math.round(value * 100)));
+    }
+
+    private trackSpeed(bytes: number) {
+        const t = performance.now();
+        this.speedSamples.push({ t, bytes });
+        while (this.speedSamples.length > 2 && t - this.speedSamples[0]!.t > 5000) this.speedSamples.shift();
+        const first = this.speedSamples[0]!;
+        const dt = (t - first.t) / 1000;
+        if (dt > 0.5) this.bytesPerSec.value = Math.max(0, (bytes - first.bytes) / dt);
+    }
+
+    /** VRAM insuffisante : on mémorise la limite pour cette machine et on bascule sur le tier inférieur. */
+    private async downgradeAfterOOM() {
+        const failed = this.selectedModel.value;
+        if (!failed || failed.tier === 3 || !this.profile.value) {
+            this.status.value = 'error';
+            this.error.value = { message: 'La mémoire graphique de cet appareil est insuffisante pour le modèle local.', kind: 'gpu-memory' };
+            return;
+        }
+        capTierAfterFailure(failed.tier);
+        this.recommendation.value = recommendModel(this.profile.value);
+        const fallback = this.recommendation.value.model;
+        storageSet(SELECTION_KEY, fallback.id);
+        this.selectedModelId.value = fallback.id;
+        this.status.value = 'idle';
+        this.notice.value = `${failed.name} est trop lourd pour la mémoire graphique de cet appareil : ${fallback.name} a été sélectionné à la place.`;
+        await this.refreshCacheStatus();
+        if (this.cacheStatus.value?.complete) await this.load().catch(() => {});
     }
 }
 
