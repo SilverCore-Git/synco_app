@@ -269,3 +269,10 @@ export const recommendModel = (p: HardwareProfile): Recommendation => {
     const pick = best ?? assessments.find(a => a.model.tier === 3)!;
     return { model: pick.model, precision: pick.precision, assessments };
 };
+
+/** Annule la limite mémorisée par capTierAfterFailure. */
+export const resetTierCap = () => {
+    try {
+        localStorage.removeItem(MAX_TIER_KEY);
+    } catch { /* noop */ }
+};

@@ -190,7 +190,7 @@
 
                 <div
                     class="flex-1 min-h-0 overflow-y-auto p-2 w-full"
-                    :style="{ paddingBottom: userCardHeight + 8 + 'px' }"
+                    :style="{ paddingBottom: userCardHeight + 24 + 'px' }"
                 >
                     <p class="text-[10px] uppercase font-bold text-(--text2) px-2 mt-2 mb-3">Historique</p>
                     

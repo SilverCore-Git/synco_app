@@ -60,3 +60,30 @@ export const getModelSize = async (mlcId: string): Promise<number> => {
     const shards = await getShardManifest(mlcId);
     return shards.reduce((acc, s) => acc + s.nbytes, 0);
 };
+
+/** Octets réellement présents dans le cache pour ce modèle (0 s'il n'a jamais été téléchargé). */
+export const getCachedBytes = async (mlcId: string): Promise<number> => {
+    if (typeof caches === 'undefined') return 0;
+    const status = await getModelCacheStatus(mlcId).catch(() => null);
+    return status?.cachedBytes ?? 0;
+};
+
+/**
+ * Supprime du cache navigateur les poids, le tokenizer, le manifeste et la config d'un modèle.
+ * Le wasm (WASM_CACHE) est conservé : quelques Mo, et il est partagé par les variantes d'une même architecture.
+ */
+export const deleteModelCache = async (mlcId: string): Promise<void> => {
+    if (typeof caches === 'undefined') return;
+    const base = modelBaseUrl(mlcId);
+    for (const name of [MODEL_CACHE, CONFIG_CACHE]) {
+        const cache = await caches.open(name);
+        const keys = await cache.keys();
+        await Promise.all(keys.filter(r => r.url.startsWith(base)).map(r => cache.delete(r)));
+    }
+};
+
+/** Vide entièrement les caches WebLLM (tous modèles, configs et wasm). */
+export const clearAllModelCaches = async (): Promise<void> => {
+    if (typeof caches === 'undefined') return;
+    await Promise.all([MODEL_CACHE, CONFIG_CACHE, WASM_CACHE].map(n => caches.delete(n)));
+};

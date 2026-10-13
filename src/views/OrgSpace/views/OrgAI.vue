@@ -19,6 +19,9 @@
           >
             {{ formatTokenCount(cumulativeUsage.totalTokens) }} tokens
           </span>
+          <button @click="showAiSettings = true" class="text-(--text2) hover:text-(--text) transition-colors ml-2" title="Paramètres de Synco AI">
+            <i class="bi bi-three-dots-vertical text-lg" />
+          </button>
           <button @click="showUsersBar = !showUsersBar" class="hover:text-(--text) transition-colors ml-2"
             :class="showUsersBar ? 'text-(--text)' : 'text-(--text2)'">
             <i class="bi bi-people-fill text-lg" />
@@ -306,6 +309,8 @@
         </form>
       </div>
 
+      <AiSettingsModal :show="showAiSettings" @close="showAiSettings = false" />
+
       <TaskDetailsModal :task="selectedTask" :isOpen="!!selectedTask" @close="selectedTask = null" />
 
     </div>
@@ -324,6 +329,8 @@ import AgentTurn from '../components/ai/AgentTurn.vue';
 import PendingActionBar from '../components/ai/PendingActionBar.vue';
 import LocalModelPanel from '../components/ai/LocalModelPanel.vue';
 import AiComposerControls from '../components/ai/AiComposerControls.vue';
+import AiSettingsModal from '../components/ai/AiSettingsModal.vue';
+import { recordUsage } from '@/services/aiUsageStats';
 import MarkdownRender from './MarkdownRender.vue';
 import type { TurnPart, ToolStep } from '../components/ai/agentTypes';
 import { useUsersBar } from '@/composables/useUsersBar';
@@ -412,6 +419,7 @@ interface ChatMessage {
 }
 
 const selectedTask = ref<any>(null);
+const showAiSettings = ref(false);
 const isGenerating = ref(false);
 // Par outil (façon Claude Code "don't ask again for this tool"), pas global : autoriser
 // create_task sans redemander ne doit pas dispenser de confirmation pour delete_task. Volontairement
@@ -791,6 +799,7 @@ const consumeAgentStream = async (
     } else if (ev.type === 'thinking') {
       appendThinkingPart(idx, ev.delta);
     } else if (ev.type === 'usage') {
+      recordUsage(aiService.config.provider, aiService.currentModelName, ev);
       // Un tour peut enchaîner plusieurs appels provider (texte -> tool -> texte...), chacun avec
       // son propre usage : on cumule pour obtenir le total réel du tour, pas juste le dernier appel.
       const m = messages.value[idx]!;
@@ -1111,6 +1120,7 @@ const sendMessage = async (hiddenPrompt?: string) => {
           status: 'pending'
         };
       } else if (typeof chunk === 'object' && chunk.type === 'usage') {
+        recordUsage(aiService.config.provider, aiService.currentModelName, chunk);
         const m = messages.value[assistantMsgIndex]!;
         const acc = m.usage || { promptTokens: 0, completionTokens: 0, totalTokens: 0, reasoningTokens: 0 };
         m.usage = {

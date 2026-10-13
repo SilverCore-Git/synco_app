@@ -1,9 +1,9 @@
 import { computed, ref, shallowRef } from 'vue';
 import type { WorkerRequest, WorkerResponse } from '../workers/llm.worker';
 import { availableModels, findModel, type LLMModel } from './localLLM/catalog';
-import { getModelCacheStatus, getModelSize, type ModelCacheStatus } from './localLLM/modelCache';
+import { clearAllModelCaches, deleteModelCache, getCachedBytes, getModelCacheStatus, getModelSize, type ModelCacheStatus } from './localLLM/modelCache';
 import {
-    assessModel, capTierAfterFailure, getHardwareProfile, recommendModel,
+    assessModel, capTierAfterFailure, resetTierCap, getHardwareProfile, recommendModel,
     type HardwareProfile, type ModelAssessment, type Recommendation,
 } from './localLLM/hardwareProfile';
 
@@ -13,6 +13,9 @@ export type LocalAIStatus = 'detecting' | 'unsupported' | 'idle' | 'downloading'
 
 const SELECTION_KEY = 'synco_local_ai_model';
 const LAST_USED_KEY = 'synco_local_ai_last_used';
+const AUTOLOAD_KEY = 'synco_local_ai_autoload';
+const WARMUP_KEY = 'synco_local_ai_warmup';
+const DEBUG_KEY = 'synco_local_ai_debug';
 const RECENT_USE_MS = 7 * 24 * 3600 * 1000;
 // Le téléchargement occupe 0→90 % de la barre, l'upload GPU 90→100 %, pour une barre monotone.
 const DOWNLOAD_SHARE = 0.9;
@@ -29,6 +32,11 @@ class LocalLLMService {
     currentModel = ref<LLMModel | null>(null);
     cacheStatus = ref<ModelCacheStatus | null>(null);
     exactSizeBytes = ref<number | null>(null);
+
+    /** Réglages de l'appareil : charger le modèle seul à l'ouverture / le précharger en tâche de fond / journaliser. */
+    autoLoad = ref(storageGet(AUTOLOAD_KEY) !== '0');
+    backgroundWarmup = ref(storageGet(WARMUP_KEY) !== '0');
+    debugLogs = ref(storageGet(DEBUG_KEY) === '1');
 
     progress = ref(0);
     phase = ref<'download' | 'load' | null>(null);
@@ -64,7 +72,7 @@ class LocalLLMService {
                 return;
             }
             this.recommendation.value = recommendModel(profile);
-            console.info('[LocalLLM] Profil matériel', profile, this.recommendation.value.assessments
+            this.log('Profil matériel', profile, this.recommendation.value.assessments
                 .map(a => ({ modèle: a.model.name, ok: a.fits, tokS: a.estTokensPerSec && Math.round(a.estTokensPerSec), bloquants: a.blockers.join(', ') })));
             const saved = findModel(storageGet(SELECTION_KEY));
             this.selectedModelId.value = (saved ?? this.recommendation.value.model).id;
@@ -77,6 +85,7 @@ class LocalLLMService {
     /** Charge le modèle sans intervention si ses poids sont déjà sur le disque. */
     async autoLoadIfCached() {
         await this.prepare();
+        if (!this.autoLoad.value) return;
         if (this.status.value === 'idle' && this.cacheStatus.value?.complete) {
             await this.load().catch(() => { /* état d'erreur déjà exposé */ });
         }
@@ -84,6 +93,7 @@ class LocalLLMService {
 
     /** Préchargement en tâche de fond pour qui utilise l'IA locale régulièrement sur cette machine. */
     warmupInBackground() {
+        if (!this.autoLoad.value || !this.backgroundWarmup.value) return;
         const last = Number(storageGet(LAST_USED_KEY) || 0);
         if (Date.now() - last > RECENT_USE_MS) return;
         const run = () => this.autoLoadIfCached();
@@ -109,6 +119,69 @@ class LocalLLMService {
         }
         await this.refreshCacheStatus();
         if (this.cacheStatus.value?.complete) await this.load().catch(() => {});
+    }
+
+    setAutoLoad(v: boolean) { this.autoLoad.value = v; storageSet(AUTOLOAD_KEY, v ? '1' : '0'); }
+    setBackgroundWarmup(v: boolean) { this.backgroundWarmup.value = v; storageSet(WARMUP_KEY, v ? '1' : '0'); }
+    setDebugLogs(v: boolean) { this.debugLogs.value = v; storageSet(DEBUG_KEY, v ? '1' : '0'); }
+
+    private log(...args: unknown[]) {
+        if (this.debugLogs.value) console.info('[LocalLLM]', ...args);
+    }
+
+    /**
+     * Libère réellement la mémoire graphique : on termine le worker (donc le moteur WebGPU), là où
+     * `unload()` ne fait que décharger le modèle en gardant le moteur. Les poids restent sur le disque.
+     */
+    releaseGpu() {
+        this.log('Déchargement du GPU');
+        this.loading?.reject(new Error('Chargement annulé.'));
+        this.loading = null;
+        this.worker?.postMessage({ type: 'interrupt' } satisfies WorkerRequest);
+        this.worker?.terminate();
+        this.worker = null;
+        for (const [id, listener] of this.chatListeners) {
+            listener({ type: 'chatError', id, message: 'Le GPU a été déchargé.' });
+        }
+        this.currentModel.value = null;
+        this.phase.value = null;
+        this.progress.value = 0;
+        this.error.value = null;
+        if (this.status.value !== 'unsupported') this.status.value = 'idle';
+        return this.refreshCacheStatus();
+    }
+
+    /** Octets en cache de chaque modèle du catalogue (f16 + f32 cumulés). */
+    async listModelDisk(): Promise<Array<{ model: LLMModel; cachedBytes: number }>> {
+        await this.prepare();
+        return Promise.all(availableModels.map(async model => ({
+            model,
+            cachedBytes: (await Promise.all((['f16', 'f32'] as const).map(k => getCachedBytes(model.variants[k].mlcId))))
+                .reduce((a, b) => a + b, 0),
+        })));
+    }
+
+    /** Supprime les poids du navigateur (les deux précisions). Décharge d'abord le GPU s'il s'agit du modèle actif. */
+    async deleteModel(familyId: string) {
+        const model = findModel(familyId);
+        if (!model) return;
+        if (this.selectedModelId.value === model.id && (this.currentModel.value || this.loading)) await this.releaseGpu();
+        this.log('Suppression du modèle', model.id);
+        await Promise.all((['f16', 'f32'] as const).map(k => deleteModelCache(model.variants[k].mlcId)));
+        if (this.selectedModelId.value === model.id && this.status.value === 'error') this.status.value = 'idle';
+        await this.refreshCacheStatus();
+    }
+
+    async deleteAllModels() {
+        await this.releaseGpu();
+        await clearAllModelCaches();
+        await this.refreshCacheStatus();
+    }
+
+    /** Oublie la limite de tier mémorisée après un manque de VRAM, et recalcule la recommandation. */
+    async resetTierLimit() {
+        resetTierCap();
+        if (this.profile.value?.webgpu) this.recommendation.value = recommendModel(this.profile.value);
     }
 
     async refreshCacheStatus() {
