@@ -63,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import DropDown from '@/components/DropDown.vue';
 import { useToast } from '@/composables/useToast';
 import { openedOrg } from '@/assets/var';
@@ -76,6 +76,11 @@ import { getProviderMeta, type AiProviderId, type ReasoningEffort } from '@/serv
 defineProps<{ busy?: boolean }>();
 
 const toast = useToast();
+
+// Pour afficher le modèle local recommandé dans la liste dès son ouverture (le diagnostic matériel est mis en cache).
+onMounted(() => {
+    if (aiEnabledProviders.value.includes('local')) localLLM.prepare();
+});
 
 const activeProvider = aiActiveProvider;
 const defaultProvider = aiDefaultProvider;

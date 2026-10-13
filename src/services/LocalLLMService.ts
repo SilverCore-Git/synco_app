@@ -93,6 +93,9 @@ class LocalLLMService {
     }
 
     async select(familyId: string) {
+        // Sans le profil matériel on viserait la mauvaise variante (f16/f32) pour le cache et le chargement.
+        await this.prepare();
+        if (this.status.value === 'unsupported') return;
         const model = findModel(familyId);
         if (!model || model.id === this.selectedModelId.value) return;
         storageSet(SELECTION_KEY, model.id);
