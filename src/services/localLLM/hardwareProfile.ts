@@ -31,7 +31,7 @@ export interface Recommendation {
     assessments: ModelAssessment[];
 }
 
-const PROFILE_KEY = 'synco_local_ai_hw_v2';
+const PROFILE_KEY = 'synco_local_ai_hw_v3';
 const MAX_TIER_KEY = 'synco_local_ai_max_tier';
 const GB = 1024 ** 3;
 
@@ -51,14 +51,37 @@ const readCached = (): { sig: string; bandwidthGBs: number | null } | null => {
     }
 };
 
+/** Plus petit écart non nul entre deux lectures de performance.now() (Firefox peut l'arrondir à 100 ms). */
+const timerResolutionMs = (): number => {
+    let min = Infinity;
+    const deadline = performance.now() + 400;
+    for (let n = 0; n < 3 && performance.now() < deadline; n++) {
+        const t0 = performance.now();
+        let t1 = t0;
+        while (t1 === t0 && performance.now() < deadline) t1 = performance.now();
+        if (t1 > t0) min = Math.min(min, t1 - t0);
+    }
+    return Number.isFinite(min) ? min : 100;
+};
+
 /**
  * Copie GPU→GPU chronométrée. Le décodage d'un LLM relit tous les poids à chaque token, donc
- * le débit mémoire prédit la vitesse bien mieux que le nom de la carte — que Chrome masque
- * d'ailleurs (adapter.info.description est vide sans flag). Une fois par GPU.
+ * le débit mémoire prédit la vitesse bien mieux que le nom de la carte — que les navigateurs
+ * masquent (adapter.info vide sous Firefox / sans flag Chrome). Une fois par GPU.
+ * Renvoie null si le chronomètre est trop grossier pour mesurer : une valeur fausse ferait
+ * écarter à tort un bon GPU, alors qu'une valeur inconnue laisse le repli OOM faire son travail.
  */
 const measureBandwidth = async (adapter: any): Promise<number | null> => {
     let device: any;
     try {
+        const resolution = timerResolutionMs();
+        // Il faut un temps mesuré ≥ 20 résolutions pour que l'erreur d'arrondi reste < 5 %.
+        const targetMs = Math.max(40, resolution * 20);
+        if (targetMs > 1500) {
+            console.info(`[LocalLLM] Chronomètre trop grossier (${resolution} ms) : benchmark GPU ignoré.`);
+            return null;
+        }
+
         device = await adapter.requestDevice();
         const GPUBufferUsage = (self as any).GPUBufferUsage;
         const size = 64 * 1024 * 1024;
@@ -75,19 +98,19 @@ const measureBandwidth = async (adapter: any): Promise<number | null> => {
         };
 
         await run(2);
-        // onSubmittedWorkDone a plusieurs ms de latence fixe dans Chrome : sur un GPU rapide, 12
-        // copies durent ~7 ms et la mesure s'effondre. On allonge jusqu'à ≥ 40 ms de travail.
+        // onSubmittedWorkDone a une latence fixe de plusieurs ms : on allonge le travail jusqu'au
+        // temps cible pour qu'elle devienne négligeable.
         let iterations = 12;
         let elapsed = await run(iterations);
-        while (elapsed < 40 && iterations < 1536) {
+        while (elapsed < targetMs && iterations < 8192) {
             iterations *= 2;
             elapsed = await run(iterations);
         }
-        const best = Math.min(elapsed, await run(iterations));
         src.destroy();
         dst.destroy();
+        if (elapsed < targetMs) return null;
         // Lecture + écriture : 2 × taille par copie.
-        return (2 * size * iterations) / (best / 1000) / 1e9;
+        return (2 * size * iterations) / (elapsed / 1000) / 1e9;
     } catch (e) {
         console.warn('[LocalLLM] Benchmark GPU impossible', e);
         return null;
@@ -98,6 +121,8 @@ const measureBandwidth = async (adapter: any): Promise<number | null> => {
 
 const isUnifiedMemory = (vendor: string, architecture: string, bandwidth: number | null, mobile: boolean) => {
     if (mobile) return true;
+    // Fabricant masqué : on ne peut pas savoir, le débit mesuré (ou le repli OOM) tranchera.
+    if (!vendor) return false;
     if (vendor.includes('apple') || vendor.includes('qualcomm') || vendor.includes('arm')) return true;
     if (vendor.includes('intel')) return !/hp|alchemist|battlemage/.test(architecture);
     if (vendor.includes('nvidia')) return false;
@@ -188,7 +213,8 @@ const gpuMemoryBudgetMB = (p: HardwareProfile): number => {
     }
     // Le débit ne dit pas grand-chose de la VRAM (RTX 4060 : 8 Go sur un bus 128 bits) : on vise
     // large, le repli automatique sur VRAM insuffisante (capTierAfterFailure) corrige l'excès.
-    const bw = p.bandwidthGBs ?? 0;
+    if (p.bandwidthGBs === null) return 8 * 1024;
+    const bw = p.bandwidthGBs;
     if (bw >= 150) return 8 * 1024;
     if (bw >= 90) return 4 * 1024;
     return 2 * 1024;

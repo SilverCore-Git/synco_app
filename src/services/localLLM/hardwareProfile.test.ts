@@ -36,6 +36,14 @@ describe("recommendModel", () => {
         expect(tierOf(profile({ vendor: 'nvidia', architecture: 'turing', bandwidthGBs: 100 }))).toBe(2);
     });
 
+    test("fabricant masqué et benchmark impossible → on tente le tier 1 (repli OOM en cas d'échec)", () => {
+        expect(tierOf(profile({ vendor: '', unifiedMemory: false, bandwidthGBs: null }))).toBe(1);
+    });
+
+    test("fabricant masqué mais débit mesuré très bas (vrai iGPU) → tier 3", () => {
+        expect(tierOf(profile({ vendor: '', unifiedMemory: false, bandwidthGBs: 16 }))).toBe(3);
+    });
+
     test("sans shader-f16 → variante f32", () => {
         expect(recommendModel(profile({ vendor: 'nvidia', bandwidthGBs: 300, shaderF16: false })).precision).toBe('f32');
     });
