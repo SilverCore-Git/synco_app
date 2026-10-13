@@ -204,7 +204,10 @@
                     </div>
                 </div>
 
-                <div class="flex-1 overflow-y-auto p-2 w-full">
+                <div
+                    class="flex-1 min-h-0 overflow-y-auto p-2 w-full"
+                    :style="{ paddingBottom: userCardHeight + 8 + 'px' }"
+                >
                     <p class="text-[10px] uppercase font-bold text-(--text2) px-2 mt-2 mb-3">Historique</p>
                     
                     <div v-if="chatSessions.length === 0" class="text-xs text-center text-(--text2) mt-4 italic">
