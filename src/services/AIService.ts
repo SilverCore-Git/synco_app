@@ -535,10 +535,6 @@ export const aiService = new AIService();
 // Vue Reactive Bindings for OrgAI.vue compatibility
 export const aiIsLocal = computed(() => aiService.isLocal);
 
-watch([() => openedOrg.value?.id, () => aiPrefsReady.value], ([orgId, ready]) => {
-    if (orgId && ready && aiService.isLocal) localLLM.warmupInBackground();
-});
-
 export const aiSessionMessages = ref<any[]>([]);
 
 export const chatSessions = ref<any[]>([]);
@@ -876,6 +872,10 @@ export const setActiveProvider = (provider: AiProviderId): boolean => {
 };
 
 export const setReasoningEffort = (effort: ReasoningEffort) => saveUserPrefs({ reasoningEffort: effort });
+
+watch([() => openedOrg.value?.id, () => aiPrefsReady.value], ([orgId, ready]) => {
+    if (orgId && ready && aiService.isLocal) localLLM.warmupInBackground();
+});
 
 /**
  * Pose le titre chiffré d'une session gateway. `syncSession()` ne s'applique pas au provider
