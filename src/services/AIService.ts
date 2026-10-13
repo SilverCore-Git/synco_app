@@ -3,7 +3,7 @@ import { localLLM } from './LocalLLMService';
 import { computed, ref, watch } from 'vue';
 import useSettingsItem from '@/composables/useSettingsItem';
 import {
-    normalizeAiConfig, enabledProviderIds, providerForRegime, regimeOf, resolveEffectiveEffort, resolveEffectiveProvider,
+    normalizeAiConfig, enabledProviderIds, isProviderId, isReasoningEffort, providerForRegime, regimeOf, resolveEffectiveEffort, resolveEffectiveProvider,
     type AiProviderId, type AiUserPrefs, type ReasoningEffort, type SessionRegime,
 } from './aiProviders';
 import sfetch from '@/assets/utils/sfetch';
@@ -28,10 +28,21 @@ export interface AIProviderConfig {
     reasoningEffort?: 'low' | 'medium' | 'high';
 }
 
-// Choix de l'utilisateur (provider, effort) par organisation, synchronisé sur son compte. Créé à la
-// demande : useSettingsItem lance une lecture réseau dès son premier appel.
-let prefsStore: ReturnType<typeof useSettingsItem> | null = null;
-const getPrefsStore = () => (prefsStore ??= useSettingsItem('ai_prefs', {}));
+// Choix de l'utilisateur par organisation, synchronisés sur son compte. Un réglage par valeur
+// (`ai_provider_<orgId>`, `ai_effort_<orgId>`) : POST /api/users/me/settings refuse tout ce qui n'est pas
+// string/boolean/number. Créés à la demande : useSettingsItem lance une lecture réseau au premier appel.
+const PREFS_FALLBACK_MS = 8000;
+const prefsFallbackElapsed = ref(false);
+let prefsFallbackStarted = false;
+
+const prefItem = (kind: 'provider' | 'effort', orgId: string) => {
+    if (!prefsFallbackStarted) {
+        prefsFallbackStarted = true;
+        setTimeout(() => { prefsFallbackElapsed.value = true; }, PREFS_FALLBACK_MS);
+    }
+    // Pas de valeur par défaut : rien n'est écrit tant que l'utilisateur n'a pas fait de choix explicite.
+    return useSettingsItem(`ai_${kind}_${orgId}`, undefined);
+};
 
 /** Remplace le provider choisi quand on rouvre une conversation d'une autre famille (non persisté). */
 const sessionProviderOverride = ref<AiProviderId | null>(null);
@@ -47,7 +58,13 @@ export class AIService {
 
     public get userPrefs(): AiUserPrefs {
         const orgId = openedOrg.value?.id;
-        return (orgId && getPrefsStore().Item.value?.[orgId]) || {};
+        if (!orgId) return {};
+        const provider = prefItem('provider', orgId).Item.value;
+        const effort = prefItem('effort', orgId).Item.value;
+        return {
+            provider: isProviderId(provider) ? provider : undefined,
+            reasoningEffort: isReasoningEffort(effort) ? effort : undefined,
+        };
     }
 
     public get provider(): AiProviderId {
@@ -518,8 +535,8 @@ export const aiService = new AIService();
 // Vue Reactive Bindings for OrgAI.vue compatibility
 export const aiIsLocal = computed(() => aiService.isLocal);
 
-watch(() => openedOrg.value?.id, (orgId) => {
-    if (orgId && aiService.isLocal) localLLM.warmupInBackground();
+watch([() => openedOrg.value?.id, () => aiPrefsReady.value], ([orgId, ready]) => {
+    if (orgId && ready && aiService.isLocal) localLLM.warmupInBackground();
 });
 
 export const aiSessionMessages = ref<any[]>([]);
@@ -829,10 +846,19 @@ export const aiEffort = computed<ReasoningEffort>(() => aiService.config.reasoni
 const saveUserPrefs = (patch: AiUserPrefs) => {
     const orgId = openedOrg.value?.id;
     if (!orgId) return;
-    const store = getPrefsStore();
-    const all = store.Item.value && typeof store.Item.value === 'object' ? store.Item.value : {};
-    store.Item.value = { ...all, [orgId]: { ...(all[orgId] || {}), ...patch } };
+    if (patch.provider) prefItem('provider', orgId).Item.value = patch.provider;
+    if (patch.reasoningEffort) prefItem('effort', orgId).Item.value = patch.reasoningEffort;
 };
+
+/**
+ * true une fois les choix de l'utilisateur lus sur son compte. Avant, le provider effectif n'est que le
+ * défaut de l'org : démarrer le modèle local à ce moment gaspillerait des Go pour qui préfère un autre provider.
+ */
+export const aiPrefsReady = computed(() => {
+    const orgId = openedOrg.value?.id;
+    if (!orgId) return false;
+    return (prefItem('provider', orgId).isLoaded.value && prefItem('effort', orgId).isLoaded.value) || prefsFallbackElapsed.value;
+});
 
 /**
  * Choisit le provider pour l'utilisateur courant. Renvoie true si la conversation en cours ne pouvait

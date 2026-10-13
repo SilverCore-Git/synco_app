@@ -273,7 +273,7 @@
         </button>
       </Transition>
 
-      <LocalModelPanel v-if="aiIsLocal" />
+      <LocalModelPanel v-if="aiIsLocal && aiPrefsReady" />
 
       <div class="p-1 border-t border-(--border-color) shrink-0 relative">
 
@@ -320,7 +320,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
 import { localLLM } from '@/services/LocalLLMService';
-import { aiService, aiIsLocal, aiSessionMessages, syncSession, fetchSessions, activeSessionId, setEncryptedSessionTitle } from '@/services/AIService';
+import { aiService, aiIsLocal, aiPrefsReady, aiSessionMessages, syncSession, fetchSessions, activeSessionId, setEncryptedSessionTitle } from '@/services/AIService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
@@ -1156,8 +1156,9 @@ const sendMessage = async (hiddenPrompt?: string) => {
 
 // syncSession is handled in AIService
 
-watch(aiIsLocal, (isLocal) => {
-  if (isLocal) localLLM.autoLoadIfCached();
+// Attend la lecture du choix de l'utilisateur : avant, aiIsLocal reflète seulement le défaut de l'org.
+watch([aiIsLocal, aiPrefsReady], ([isLocal, ready]) => {
+  if (isLocal && ready) localLLM.autoLoadIfCached();
 }, { immediate: true });
 
 onMounted(async () => {

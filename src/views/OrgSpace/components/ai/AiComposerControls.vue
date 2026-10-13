@@ -3,7 +3,7 @@
 
         <DropDown align="top" contentInerTW="!w-80">
             <template #trigger>
-                <button type="button" class="chip" :disabled="busy" :title="busy ? 'Impossible de changer pendant une réponse' : 'Choisir le fournisseur et le modèle'">
+                <button type="button" class="chip" :disabled="locked" :title="busy ? 'Impossible de changer pendant une réponse' : 'Choisir le fournisseur et le modèle'">
                     <i class="bi text-(--primary)" :class="activeMeta.icon"></i>
                     <span class="font-semibold truncate max-w-48">{{ activeMeta.name }}</span>
                     <span v-if="activeModelLabel" class="text-(--text2) truncate max-w-40 hidden sm:inline">· {{ activeModelLabel }}</span>
@@ -40,7 +40,7 @@
 
         <DropDown align="top" contentInerTW="!w-72">
             <template #trigger>
-                <button type="button" class="chip" :disabled="busy" title="Profondeur de réflexion">
+                <button type="button" class="chip" :disabled="locked" title="Profondeur de réflexion">
                     <i class="bi bi-lightbulb text-(--primary)"></i>
                     <span class="text-(--text2) hidden sm:inline">Réflexion</span>
                     <span class="font-semibold">{{ currentLevel.name }}</span>
@@ -69,11 +69,13 @@ import { useToast } from '@/composables/useToast';
 import { openedOrg } from '@/assets/var';
 import { localLLM, availableModels } from '@/services/LocalLLMService';
 import {
-    aiActiveProvider, aiDefaultProvider, aiEffort, aiEnabledProviders, setActiveProvider, setReasoningEffort,
+    aiActiveProvider, aiDefaultProvider, aiEffort, aiEnabledProviders, aiPrefsReady, setActiveProvider, setReasoningEffort,
 } from '@/services/AIService';
 import { getProviderMeta, type AiProviderId, type ReasoningEffort } from '@/services/aiProviders';
 
-defineProps<{ busy?: boolean }>();
+const props = defineProps<{ busy?: boolean }>();
+// Tant que le choix de l'utilisateur n'est pas lu, un clic serait écrasé par la valeur du compte.
+const locked = computed(() => props.busy || !aiPrefsReady.value);
 
 const toast = useToast();
 
