@@ -287,6 +287,8 @@
           </div>
         </Transition>
 
+        <AiComposerControls :busy="isGenerating" />
+
         <form @submit.prevent="() => sendMessage()"
           class="relative w-full max-w-5xl mx-auto flex items-end gap-3 border border-(--text)/10 rounded-xl px-4 py-2 transition-all shadow-2xl"
           :class="(!canType || isGenerating) ? 'bg-black/50 opacity-50 cursor-not-allowed' : 'bg-(--bg) focus-within:border-(--primary)/50'">
@@ -321,6 +323,7 @@ import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import AgentTurn from '../components/ai/AgentTurn.vue';
 import PendingActionBar from '../components/ai/PendingActionBar.vue';
 import LocalModelPanel from '../components/ai/LocalModelPanel.vue';
+import AiComposerControls from '../components/ai/AiComposerControls.vue';
 import MarkdownRender from './MarkdownRender.vue';
 import type { TurnPart, ToolStep } from '../components/ai/agentTypes';
 import { useUsersBar } from '@/composables/useUsersBar';

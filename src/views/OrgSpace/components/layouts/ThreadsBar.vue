@@ -188,22 +188,6 @@
                     </div>
                 </div>
 
-                <div class="p-4 border-b border-(--border-color) w-full" v-if="aiIsLocal">
-
-                    <div v-if="aiIsLocal">
-                        <p class="text-[10px] uppercase font-bold text-(--text2) mb-1">Modèle Local</p>
-                        <select
-                            :value="localLLM.selectedModelId.value"
-                            @change="localLLM.select(($event.target as HTMLSelectElement).value)"
-                            class="w-full bg-black/20 border border-(--text)/10 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-(--primary) transition-colors"
-                        >
-                            <option v-for="model in availableModels" :key="model.id" :value="model.id">
-                            Tier {{ model.tier }} - {{ model.name }}{{ localLLM.recommendation.value?.model.id === model.id ? ' (recommandé)' : '' }}
-                            </option>
-                        </select>
-                    </div>
-                </div>
-
                 <div
                     class="flex-1 min-h-0 overflow-y-auto p-2 w-full"
                     :style="{ paddingBottom: userCardHeight + 8 + 'px' }"
@@ -379,8 +363,7 @@ import { usePermissions } from '@/composables/usePermissions';
 import Category from '../CanalBar/Category.vue';
 import isDesktopApp from '@/assets/isDesktopApp';
 import SpaceSearchModal from '../popup/SpaceSearchModal.vue';
-import { chatSessions, activeSessionId, newSession, deleteSession, loadSession, aiIsLocal } from '@/services/AIService';
-import { availableModels, localLLM } from '@/services/LocalLLMService';
+import { chatSessions, activeSessionId, newSession, deleteSession, loadSession } from '@/services/AIService';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { useRecentDMs } from '@/composables/useRecentDMs';
 import { useNotification } from '@/composables/useNotification';
