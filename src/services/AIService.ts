@@ -818,20 +818,27 @@ export const aiPrefsReady = computed(() => {
 });
 
 /**
- * Reprend la conversation affichée comme point de départ d'une nouvelle session : on ne garde que le
- * texte (les tools et le raisonnement d'une boucle d'agent n'ont de sens que pour son propre provider).
+ * Reprend la conversation affichée comme point de départ d'une nouvelle session. Les tours gardent leur
+ * structure (étapes d'outils, raisonnement) : l'affichage reste identique, et le moteur local rejoue
+ * les outils et leurs résultats depuis ces parts. Un outil resté en attente de confirmation est
+ * refusé, sinon il bloquerait la saisie dans la nouvelle session.
  */
-const flattenForFork = (messages: any[]) => messages
-    .map((m: any) => {
-        const text = m.content || (m.parts || []).filter((p: any) => p.type === 'text').map((p: any) => p.text).join('');
-        return { role: m.role, content: text };
-    })
-    .filter((m: any) => (m.role === 'user' || m.role === 'assistant') && m.content?.trim());
+const forkMessages = (messages: any[]) => {
+    const copy = JSON.parse(JSON.stringify(messages)) as any[];
+    for (const m of copy) {
+        for (const part of m.parts ?? []) {
+            if (part.type === 'tool' && (part.tool.status === 'pending' || part.tool.status === 'executing')) {
+                part.tool.status = 'rejected';
+            }
+        }
+    }
+    return copy.filter((m) => m.role === 'user' || m.role === 'assistant');
+};
 
 /**
  * Choisit le provider pour l'utilisateur courant. Si la conversation en cours ne peut pas être poursuivie
- * avec ce provider (autre famille), une nouvelle session est ouverte : 'forked' quand elle reprend le texte
- * déjà affiché (possible vers un provider piloté par le navigateur, qui reçoit tout l'historique à chaque
+ * avec ce provider (autre famille), une nouvelle session est ouverte : 'forked' quand elle reprend la conversation
+ * déjà affichée (possible vers un provider piloté par le navigateur, qui reçoit tout l'historique à chaque
  * message), 'new' quand elle repart de zéro (le serveur et la passerelle ne reçoivent que le dernier message).
  */
 export const setActiveProvider = (provider: AiProviderId): 'forked' | 'new' | false => {
@@ -841,7 +848,7 @@ export const setActiveProvider = (provider: AiProviderId): 'forked' | 'new' | fa
     const startedNew = hasConversation && regimeOf(provider) !== currentRegime;
     let result: 'forked' | 'new' | false = false;
     if (startedNew) {
-        const carried = regimeOf(provider) === 'client' ? flattenForFork(aiSessionMessages.value) : [];
+        const carried = regimeOf(provider) === 'client' ? forkMessages(aiSessionMessages.value) : [];
         newSession();
         if (carried.length) aiSessionMessages.value = carried;
         result = carried.length ? 'forked' : 'new';
