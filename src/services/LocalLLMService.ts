@@ -1,5 +1,6 @@
 import { computed, ref, shallowRef } from 'vue';
 import type { LoadTimings, WorkerRequest, WorkerResponse } from '../workers/llm.worker';
+import { ToolCallStreamParser, type ParsedEvent } from './agent/toolCallParser';
 import { availableModels, findModel, type LLMModel } from './localLLM/catalog';
 import { clearAllModelCaches, deleteModelCache, getCachedBytes, getModelCacheStatus, getModelSize, type ModelCacheStatus } from './localLLM/modelCache';
 import {
@@ -252,7 +253,8 @@ class LocalLLMService {
         const plain = JSON.parse(JSON.stringify(messages));
         this.ensureWorker().postMessage({ type: 'chat', id, messages: plain, temperature: 0.7 } satisfies WorkerRequest);
 
-        let buffer = '';
+        const parser = new ToolCallStreamParser();
+        const toChunks = (events: ParsedEvent[]) => events.map(ev => ev.type === 'text' ? ev.text : { type: 'tool_call', name: ev.name, arguments: ev.arguments });
         try {
             for (;;) {
                 if (queue.length === 0) await new Promise<void>(r => { wake = r; });
@@ -265,49 +267,9 @@ class LocalLLMService {
                     continue;
                 }
                 if (msg.type !== 'chunk') continue;
-
-                buffer += msg.content;
-
-                const jsonMatch = buffer.match(/\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"arguments"\s*:\s*\{[\s\S]*?\}\s*\}/);
-                if (jsonMatch) {
-                    try {
-                        const parsed = JSON.parse(jsonMatch[0]);
-                        yield { type: 'tool_call', ...parsed };
-                        buffer = buffer.replace(jsonMatch[0], '');
-                        continue;
-                    } catch { /* JSON encore incomplet */ }
-                }
-
-                const xmlMatch = buffer.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
-                if (xmlMatch && xmlMatch[1]) {
-                    try {
-                        const parsed = JSON.parse(xmlMatch[1].trim());
-                        yield { type: 'tool_call', ...parsed };
-                        buffer = buffer.replace(xmlMatch[0], '');
-                        continue;
-                    } catch (e) {
-                        console.error('[WebGPU] Failed to parse XML tool call', e);
-                    }
-                }
-
-                // Ne pas afficher un JSON/XML d'appel d'outil en cours de construction.
-                let safeToFlushIndex = buffer.length;
-                const lastBrace = buffer.lastIndexOf('{');
-                const lastAngle = buffer.lastIndexOf('<');
-                if (lastBrace !== -1) safeToFlushIndex = Math.min(safeToFlushIndex, lastBrace);
-                if (lastAngle !== -1) safeToFlushIndex = Math.min(safeToFlushIndex, lastAngle);
-                if (buffer.length > 300 && !buffer.includes('{"name"') && !buffer.includes('<tool_call>')) {
-                    safeToFlushIndex = buffer.length;
-                }
-                if (safeToFlushIndex > 0) {
-                    yield buffer.substring(0, safeToFlushIndex);
-                    buffer = buffer.substring(safeToFlushIndex);
-                }
+                yield* toChunks(parser.push(msg.content));
             }
-
-            if (buffer.trim() && !buffer.includes('{"name"') && !buffer.includes('<tool_call>')) {
-                yield buffer;
-            }
+            yield* toChunks(parser.flush());
         } finally {
             this.chatListeners.delete(id);
         }

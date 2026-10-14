@@ -289,12 +289,12 @@
 
         <AiComposerControls :busy="isGenerating" />
 
-        <form @submit.prevent="() => sendMessage()"
+        <form @submit.prevent="sendMessage"
           class="relative w-full max-w-5xl mx-auto flex items-end gap-3 border border-(--text)/10 rounded-xl px-4 py-2 transition-all shadow-2xl"
           :class="(!canType || isGenerating) ? 'bg-black/50 opacity-50 cursor-not-allowed' : 'bg-(--bg) focus-within:border-(--primary)/50'">
 
           <ThreadTextarea ref="chatInputRef" v-model="inputMsg" placeholder="Demandez-moi n'importe quoi..."
-            :disabled="!canType || isGenerating" @send="() => sendMessage()" />
+            :disabled="!canType || isGenerating" @send="sendMessage" />
 
           <button type="button" @click="isGenerating ? stopGeneration() : sendMessage()"
             class="shrink-0 mb-1 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50"
@@ -315,7 +315,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
 import { localLLM } from '@/services/LocalLLMService';
-import { aiService, aiIsLocal, aiPrefsReady, aiSessionMessages, syncSession, fetchSessions, activeSessionId, setEncryptedSessionTitle } from '@/services/AIService';
+import { aiService, aiIsLocal, aiIsClientDriven, aiPrefsReady, aiSessionMessages, syncSession, fetchSessions, activeSessionId, setEncryptedSessionTitle, clientAgentTurn, resumeClientAgent } from '@/services/AIService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
@@ -340,7 +340,6 @@ import { SearchSyncService } from '@/services/SearchSyncService';
 import { generateThreadKey, encryptThreadKeyForMember, privateKey } from '@/assets/utils/crypto';
 import { resolveRecipientKey } from '@/assets/utils/keyTrust';
 import { openedOrg, user } from '@/assets/var';
-import { getSystemPrompt } from '@/services/AITools';
 import { createFolderRequest, createTextFile } from '@/services/fileActions';
 import { isDocumentationTool, runDocumentationTool } from '@/services/DocumentationService';
 
@@ -543,193 +542,6 @@ const createThreadHelper = async (orgId: string, spaceId: string | undefined, na
   return data;
 };
 
-const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, accept: boolean, _assistantMsgIndex: number, clientValue?: string) => {
-  if (!accept) {
-    toolCall.status = 'rejected';
-    messages.value.push({
-      role: 'user',
-      content: `[SYSTEM] L'action '${toolCall.name}' a été REFUSÉE par l'utilisateur.`
-    });
-    sendMessage("J'ai refusé cette action. Ne la relance pas. Demande-moi plutôt pourquoi ou propose une alternative.");
-    return;
-  }
-
-  toolCall.status = 'executing';
-
-  let result = "";
-  let toolData: any = null;
-  try {
-    const args = typeof toolCall.arguments === 'string' ? JSON.parse(toolCall.arguments || '{}') : toolCall.arguments;
-    const orgId = route.params.orgId as string;
-
-    if (toolCall.name === 'create_space') {
-      if (args.logo && args.logo.startsWith('img_') && temporaryImages.value[args.logo]) {
-        args.logo = temporaryImages.value[args.logo];
-      }
-      const res = await sfetch(`/api/spaces/org/${orgId}`, {
-        method: 'POST',
-        body: JSON.stringify({ name: args.name, logo: args.logo, membersId: [] })
-      });
-      const spaceData = await res.json();
-      if (spaceData.error) throw new Error(spaceData.error);
-
-      if (openedOrg.value && openedOrg.value.spaces) {
-        openedOrg.value.spaces.push(spaceData);
-      }
-      toolData = spaceData;
-      result = `Espace '${args.name}' créé avec succès.`;
-
-      if (args.threads && Array.isArray(args.threads) && args.threads.length > 0) {
-        let threadsCreated = [];
-        for (const t of args.threads) {
-          try {
-            const tData = await createThreadHelper(orgId, spaceData.id, t.name, t.type);
-            threadsCreated.push(tData);
-          } catch (e) {
-            console.error("Erreur lors de la création d'un salon rattaché:", e);
-          }
-        }
-        toolData.threads = threadsCreated;
-        result += ` ${threadsCreated.length} salons y ont été créés.`;
-      }
-
-    } else if (toolCall.name === 'create_task') {
-      const payload = {
-        title: args.title,
-        description: args.description || null,
-        dueDate: null,
-        spaceId: null,
-        assigneeIds: user.value?.id ? [user.value.id] : [],
-        parentTaskId: null,
-        status: 'TODO'
-      };
-      const res = await sfetch(`/api/tasks/${orgId}/tasks`, {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (!res.ok || data.error) throw new Error(data.error || "Erreur serveur");
-      result = `Tâche '${args.title}' créée avec succès.`;
-      toolData = data;
-
-    } else if (toolCall.name === 'search_messages') {
-      // Load all workspaces indices dynamically before searching
-      const org = openedOrg.value;
-      if (org && org.spaces && privateKey.value) {
-        for (const space of org.spaces) {
-          await SearchSyncService.restoreWorkspaceIndexes(space.id, toRaw(privateKey.value));
-        }
-      }
-
-      const query = args.query;
-      const workerId = Date.now().toString();
-
-      const vectorPromise = new Promise<number[]>((resolve, reject) => {
-        const handler = (e: MessageEvent) => {
-          if (e.data.id === workerId && e.data.status === 'complete') {
-            globalVectorWorker.removeEventListener('message', handler);
-            resolve(e.data.vector);
-          } else if (e.data.id === workerId && e.data.status === 'error') {
-            globalVectorWorker.removeEventListener('message', handler);
-            reject(new Error(e.data.error));
-          }
-        };
-        globalVectorWorker.addEventListener('message', handler);
-      });
-
-      globalVectorWorker.postMessage({ id: workerId, text: query, type: 'SEARCH' });
-      const vector = await vectorPromise;
-      const searchResults = await localSearchDB.searchByVector(vector, query, undefined, 5);
-
-      if (searchResults.length === 0) {
-        result = `Aucun résultat trouvé dans la base sémantique pour "${query}".`;
-      } else {
-        result = `Résultats de recherche pour "${query}" :\n\n` + searchResults.map((r: any, i) => `[Résultat ${i + 1}]\n${JSON.stringify(toLlmSearchHit(r))}`).join('\n\n');
-        toolData = searchResults;
-      }
-
-    } else if (toolCall.name === 'create_thread') {
-      const threads = args.threads || [];
-      if (threads.length === 0) throw new Error("Aucun salon spécifié.");
-
-      let created = [];
-      for (const t of threads) {
-        try {
-          const tData = await createThreadHelper(orgId, t.spaceId, t.name, t.type);
-          created.push(tData);
-        } catch (e: any) {
-          console.error("Erreur création salon:", e);
-          throw new Error(`Erreur lors de la création du salon '${t.name}': ${e.message}`);
-        }
-      }
-      toolData = created;
-      result = `${created.length} salon(s) créé(s) avec succès. Les clés E2EE ont été générées et distribuées.`;
-
-    } else if (isDocumentationTool(toolCall.name)) {
-      const docResult = await runDocumentationTool(toolCall.name, args);
-
-      toolData = docResult;
-      result = JSON.stringify(docResult, null, 2);
-
-    } else if (toolCall.name === 'request_image_upload') {
-      toolData = { id: clientValue };
-      result = `L'utilisateur a fourni une image. Identifiant de l'image : '${clientValue}'. Utilise EXACTEMENT cette valeur '${clientValue}' pour le paramètre 'logo' de 'create_space'.`;
-
-    } else if (toolCall.name === 'ask_question') {
-      toolData = { answer: clientValue ?? '' };
-      result = `Réponse de l'utilisateur : "${clientValue ?? ''}"`;
-
-    } else if (toolCall.name === 'create_folder') {
-      const folder = await createFolderRequest(args.spaceId, orgId, args.name, args.parentFolderId);
-      toolData = folder;
-      result = `Dossier '${folder.name}' créé avec succès.`;
-
-    } else if (toolCall.name === 'create_file') {
-      const file = await createTextFile({
-        spaceId: args.spaceId,
-        name: args.name,
-        content: args.content ?? '',
-        folderId: args.folderId,
-      });
-      toolData = file;
-      result = `Fichier '${file.originalName}' créé avec succès. Cite-le dans ta réponse en écrivant <file:${file.id}>.`;
-
-    } else if (toolCall.name === 'read_tasks') {
-      const res = await sfetch(`/api/tasks/${orgId}/lists/me`);
-      const data = await res.json();
-      if (!res.ok || data.error) throw new Error(data.error || "Erreur serveur");
-      result = "Voici les tâches de l'utilisateur :\n" + JSON.stringify(data, null, 2);
-      toolData = data;
-
-    } else {
-      result = "Erreur: Outil inconnu.";
-    }
-  } catch (e: any) {
-    result = "Erreur technique lors de l'exécution : " + e.message;
-  }
-
-  toolCall.status = 'accepted';
-
-  messages.value.push({
-    role: 'user',
-    content: `[SYSTEM] Résultat de l'action '${toolCall.name}' :\n${result}`,
-    tool_data: {
-      name: toolCall.name,
-      results: toolData
-    }
-  });
-
-  if (toolCall.name === 'create_file') {
-    sendMessage("Le fichier a été créé. Confirme-le en une seule phrase et termine par le jeton de référence du fichier indiqué dans le résultat.");
-  } else if (['create_task', 'create_space', 'create_thread', 'create_folder'].includes(toolCall.name)) {
-    sendMessage("L'action a été effectuée avec succès. Réponds très brièvement en une seule phrase pour confirmer à l'utilisateur.");
-  } else if (['search_messages', 'read_tasks'].includes(toolCall.name) || isDocumentationTool(toolCall.name)) {
-    sendMessage("Voici les informations demandées. Réponds à la question de l'utilisateur en te basant sur ces résultats.");
-  } else if (toolCall.name === 'ask_question') {
-    sendMessage("L'utilisateur a répondu à ta question. Continue en te basant sur cette réponse.");
-  }
-};
-
 /** Ajoute du texte au dernier segment 'text' de la turn, ou en ouvre un nouveau si le dernier segment est un tool. */
 const appendTextPart = (idx: number, delta: string) => {
   const parts = messages.value[idx]!.parts!;
@@ -804,7 +616,7 @@ const consumeAgentStream = async (
         reasoningTokens: acc.reasoningTokens + (ev.reasoningTokens || 0),
       };
     } else if (ev.type === 'tool_call_result') {
-      upsertToolPart(idx, ev.toolCallId, { name: ev.name, status: 'done', category: 'server', mutating: false, result: ev.result });
+      upsertToolPart(idx, ev.toolCallId, { name: ev.name, status: 'done', category: 'server', mutating: false, result: ev.result, ...(ev.args !== undefined && { args: ev.args }) });
       // create_space est exécuté côté serveur (category 'server') dans cette boucle, contrairement
       // à create_thread (category 'client', exécuté par executeClientTool qui pousse déjà dans
       // space.threads via createThreadHelper) : sans ce push, le nouvel espace ne rejoint jamais
@@ -955,7 +767,9 @@ const handleAgentToolDecision = async (
 ) => {
   const orgId = route.params.orgId as string;
   const sessionId = activeSessionId.value;
-  if (!sessionId || !toolCall.toolCallId) return;
+  const clientDriven = aiIsClientDriven.value;
+  // Moteur piloté par le navigateur : la conversation n'existe côté serveur qu'après sa première synchro.
+  if (!toolCall.toolCallId || (!clientDriven && !sessionId)) return;
 
   toolCall.status = 'executing';
 
@@ -980,12 +794,15 @@ const handleAgentToolDecision = async (
   await scrollToBottom();
   try {
     const idx = assistantMsgIndex;
-    const generator = aiService.resumeAgentTurn(orgId, sessionId, decision);
+    const generator = clientDriven
+      ? resumeClientAgent(orgId, { toolCallId: toolCall.toolCallId, name: toolCall.name, args: toolCall.args, category: toolCall.category }, decision)
+      : aiService.resumeAgentTurn(orgId, sessionId!, decision);
     await consumeAgentStream(generator, () => idx);
   } catch (e: any) {
     if (messages.value[assistantMsgIndex]) appendTextPart(assistantMsgIndex, `\n\n**Erreur:** ${e.message}`);
   } finally {
     isGenerating.value = false;
+    if (clientDriven) await syncSession('');
   }
 };
 
@@ -995,20 +812,14 @@ const handleAgentToolDecision = async (
  * ailleurs. Couvre les deux boucles : viaAgentLoop (parts structurées) et legacy (tool_call unique),
  * pour que PendingActionBar s'affiche de façon identique quel que soit le provider.
  */
-const pendingAction = computed<{ kind: 'agent' | 'legacy'; idx: number; tool: ToolStep } | null>(() => {
+const pendingAction = computed<{ idx: number; tool: ToolStep } | null>(() => {
   const idx = messages.value.length - 1;
   const msg = messages.value[idx];
   if (!msg) return null;
 
-  if (msg.viaAgentLoop) {
-    const toolPart = (msg.parts || []).find((p) => p.type === 'tool' && p.tool.status === 'pending') as { type: 'tool'; tool: ToolStep } | undefined;
-    return toolPart ? { kind: 'agent', idx, tool: toolPart.tool } : null;
-  }
-
-  if (msg.tool_call?.status === 'pending') {
-    return { kind: 'legacy', idx, tool: msg.tool_call as unknown as ToolStep };
-  }
-  return null;
+  if (!msg.viaAgentLoop) return null;
+  const toolPart = (msg.parts || []).find((p) => p.type === 'tool' && p.tool.status === 'pending') as { type: 'tool'; tool: ToolStep } | undefined;
+  return toolPart ? { idx, tool: toolPart.tool } : null;
 });
 
 function acceptPendingAction(always = false, value?: string) {
@@ -1026,27 +837,32 @@ function acceptPendingAction(always = false, value?: string) {
     value = id;
   }
 
-  if (pending.kind === 'agent') {
-    handleAgentToolDecision(pending.tool, true, pending.idx, value);
-  } else {
-    handleToolCall(pending.tool as NonNullable<ChatMessage['tool_call']>, true, pending.idx, value);
-  }
+  handleAgentToolDecision(pending.tool, true, pending.idx, value);
 }
 
 function rejectPendingAction() {
   const pending = pendingAction.value;
   if (!pending) return;
 
-  if (pending.kind === 'agent') {
-    handleAgentToolDecision(pending.tool, false, pending.idx);
-  } else {
-    handleToolCall(pending.tool as NonNullable<ChatMessage['tool_call']>, false, pending.idx);
-  }
+  handleAgentToolDecision(pending.tool, false, pending.idx);
 }
 
-/** Providers OpenAI/Mistral/Gemini : la conversation passe entièrement par la boucle d'agent serveur. */
-const sendMessageViaAgent = async (text: string) => {
+/**
+ * Tous les fournisseurs passent par la même boucle d'agent et le même flux d'événements : côté serveur
+ * (OpenAI/Mistral/Gemini/passerelle) ou dans le navigateur (WebGPU local, serveur custom).
+ */
+const sendMessage = async () => {
+  if (isGenerating.value) {
+    stopGeneration();
+    return;
+  }
+
+  const text = inputMsg.value.trim();
+  if (!text) return;
+  inputMsg.value = '';
+
   const orgId = route.params.orgId as string;
+  const clientDriven = aiIsClientDriven.value;
   messages.value.push({ role: 'user', content: text });
   const assistantMsgIndex = messages.value.length;
   messages.value.push({ role: 'assistant', content: '', viaAgentLoop: true, parts: [] });
@@ -1056,7 +872,7 @@ const sendMessageViaAgent = async (text: string) => {
 
   try {
     const idx = assistantMsgIndex;
-    const generator = aiService.chatAgentTurn(orgId, activeSessionId.value, text);
+    const generator = clientDriven ? clientAgentTurn(orgId) : aiService.chatAgentTurn(orgId, activeSessionId.value, text);
     await consumeAgentStream(generator, () => idx, text);
   } catch (error: any) {
     if (error.message !== 'USER_STOPPED' && !String(error).includes('USER_STOPPED')) {
@@ -1064,86 +880,8 @@ const sendMessageViaAgent = async (text: string) => {
     }
   } finally {
     isGenerating.value = false;
-  }
-};
-
-const sendMessage = async (hiddenPrompt?: string) => {
-  if (isGenerating.value) {
-    stopGeneration();
-    return;
-  }
-
-  const text = hiddenPrompt || inputMsg.value.trim();
-  if (!text && !hiddenPrompt) return;
-
-  if (!hiddenPrompt) {
-    inputMsg.value = '';
-  }
-
-  if (!hiddenPrompt && ['openai', 'mistral', 'gemini', 'gateway'].includes(aiService.config.provider)) {
-    await sendMessageViaAgent(text);
-    return;
-  }
-
-  if (!hiddenPrompt) {
-    messages.value.push({ role: 'user', content: text });
-  }
-
-  const assistantMsgIndex = messages.value.length;
-  messages.value.push({ role: 'assistant', content: '' });
-
-  isGenerating.value = true;
-  await scrollToBottom();
-
-  try {
-
-    const chatContext = [
-      { role: 'system', content: getSystemPrompt(aiService.config.reasoningEffort) },
-      ...messages.value.slice(0, -1).map(m => ({ role: m.role, content: m.content }))
-    ];
-
-    const generator = await aiService.chat(chatContext as any); // On envoie l'historique avec le prompt système
-
-    for await (const chunk of generator) {
-      if (!isGenerating.value) break;
-      if (typeof chunk === 'object' && chunk.type === 'tool_call') {
-        messages.value[assistantMsgIndex]!.tool_call = {
-          name: chunk.name,
-          arguments: chunk.arguments,
-          status: 'pending'
-        };
-      } else if (typeof chunk === 'object' && chunk.type === 'usage') {
-        recordUsage(aiService.config.provider, aiService.currentModelName, chunk);
-        const m = messages.value[assistantMsgIndex]!;
-        const acc = m.usage || { promptTokens: 0, completionTokens: 0, totalTokens: 0, reasoningTokens: 0 };
-        m.usage = {
-          promptTokens: acc.promptTokens + (chunk.promptTokens || 0),
-          completionTokens: acc.completionTokens + (chunk.completionTokens || 0),
-          totalTokens: acc.totalTokens + (chunk.totalTokens || 0),
-          reasoningTokens: acc.reasoningTokens + (chunk.reasoningTokens || 0),
-        };
-      } else {
-        messages.value[assistantMsgIndex]!.content += chunk;
-      }
-      await scrollToBottom();
-    }
-
-    const tCall = messages.value[assistantMsgIndex]?.tool_call;
-    // request_image_upload et ask_question restent exclus même avec autoAcceptTools : il n'y a
-    // rien à fournir automatiquement à la place d'une vraie image ou d'une vraie réponse.
-    const tCallAutoExcluded = tCall?.name === 'request_image_upload' || tCall?.name === 'ask_question';
-    if (tCall?.status === 'pending' && (isDocumentationTool(tCall.name) || (autoAcceptTools.value.has(tCall.name) && !tCallAutoExcluded))) {
-      setTimeout(() => {
-        handleToolCall(tCall, true, assistantMsgIndex);
-      }, 50);
-    }
-  } catch (error: any) {
-    if (error.message !== "USER_STOPPED" && !String(error).includes("USER_STOPPED")) {
-      messages.value[assistantMsgIndex]!.content += `\n\n**Erreur:** ${error.message}`;
-    }
-  } finally {
-    isGenerating.value = false;
-    await syncSession(text);
+    // Une conversation pilotée par le navigateur est stockée (chiffrée) par le client lui-même.
+    if (clientDriven) await syncSession(text);
   }
 };
 

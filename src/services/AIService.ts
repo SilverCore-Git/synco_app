@@ -11,6 +11,8 @@ import { keycloak } from '@/assets/keycloak';
 import { encryptForPeer, decryptFromPeer, privateKey, encryptAiField, decryptAiField } from '@/assets/utils/crypto';
 import { ensureAiSessionKey, getAiSessionKeyRawBase64, AiSessionKeyUnavailableError } from './AiSessionKeyService';
 import { assertAllowedGateway } from './aiGatewayPolicy';
+import { ToolCallStreamParser, type ParsedEvent } from './agent/toolCallParser';
+import { startClientAgentTurn, resumeClientAgentTurn, type ClientAgentDeps, type ClientDecision, type PendingClientTool } from './agent/clientAgent';
 
 export interface AIProviderConfig {
     provider: 'local' | 'openai' | 'gemini' | 'mistral' | 'custom' | 'gateway';
@@ -48,6 +50,13 @@ const prefItem = (kind: 'provider' | 'effort', orgId: string) => {
 const sessionProviderOverride = ref<AiProviderId | null>(null);
 /** Famille de la conversation affichée, quand elle a été détectée au chargement. */
 const activeSessionRegime = ref<SessionRegime | null>(null);
+
+/** Convertit les événements du parseur en ce que consomment les appelants de chat() : du texte ou un `tool_call`. */
+function* toolStream(events: ParsedEvent[]): Generator<any> {
+    for (const ev of events) {
+        yield ev.type === 'text' ? ev.text : { type: 'tool_call', name: ev.name, arguments: ev.arguments };
+    }
+}
 
 export class AIService {
 
@@ -336,7 +345,7 @@ export class AIService {
         if (!reader) throw new Error("No reader");
 
         const decoder = new TextDecoder();
-        let buffer = "";
+        const parser = new ToolCallStreamParser();
 
         while (true) {
             const { done, value } = await reader.read();
@@ -365,17 +374,7 @@ export class AIService {
                         }
 
                         const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                        if (text) {
-                            buffer += text;
-                            const parsedBuffer = this.checkAndYieldTools(buffer);
-                            if (parsedBuffer.yielded) {
-                                yield parsedBuffer.toolCall;
-                                buffer = parsedBuffer.remainingBuffer;
-                            } else if (parsedBuffer.safeText) {
-                                yield parsedBuffer.safeText;
-                                buffer = parsedBuffer.remainingBuffer;
-                            }
-                        }
+                        if (text) yield* toolStream(parser.push(text));
                     } catch (e) {
                         // ignore JSON parse error on incomplete chunks
                     }
@@ -383,117 +382,51 @@ export class AIService {
             }
         }
 
-        if (buffer.trim()) {
-            if (!buffer.includes('{"name"') && !buffer.includes('<tool_call>')) {
-                yield buffer;
-            }
-        }
+        yield* toolStream(parser.flush());
     }
 
     private async *parseSSEStream(body: ReadableStream<Uint8Array> | null): AsyncGenerator<any, void, unknown> {
         if (!body) throw new Error("No response body");
-        
+
         const reader = body.getReader();
         const decoder = new TextDecoder();
-        let buffer = "";
+        const parser = new ToolCallStreamParser();
+        // Une ligne SSE peut être coupée entre deux paquets réseau : on ne traite que les lignes complètes.
+        let pending = "";
+        let finished = false;
 
-        while (true) {
+        const handle = function* (line: string): Generator<any> {
+            if (!line.startsWith('data: ')) return;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') { finished = true; return; }
+            let parsed: any;
+            try { parsed = JSON.parse(data); } catch { return; }
+
+            // Chunk terminal (choices vide) quand stream_options.include_usage est honoré
+            // par le serveur en face — indépendant du traitement du contenu ci-dessous.
+            if (parsed.usage) {
+                yield {
+                    type: 'usage',
+                    promptTokens: parsed.usage.prompt_tokens,
+                    completionTokens: parsed.usage.completion_tokens,
+                    totalTokens: parsed.usage.total_tokens,
+                    reasoningTokens: parsed.usage.completion_tokens_details?.reasoning_tokens,
+                };
+            }
+            const content = parsed.choices?.[0]?.delta?.content || '';
+            if (content) yield* toolStream(parser.push(content));
+        };
+
+        while (!finished) {
             const { done, value } = await reader.read();
             if (done) break;
-            
-            const chunkStr = decoder.decode(value, { stream: true });
-            const lines = chunkStr.split('\n');
-
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    const data = line.slice(6);
-                    if (data === '[DONE]') break;
-                    try {
-                        const parsed = JSON.parse(data);
-
-                        // Chunk terminal (choices vide) quand stream_options.include_usage est honoré
-                        // par le serveur en face — indépendant du traitement du contenu ci-dessous.
-                        if (parsed.usage) {
-                            yield {
-                                type: 'usage',
-                                promptTokens: parsed.usage.prompt_tokens,
-                                completionTokens: parsed.usage.completion_tokens,
-                                totalTokens: parsed.usage.total_tokens,
-                                reasoningTokens: parsed.usage.completion_tokens_details?.reasoning_tokens,
-                            };
-                        }
-
-                        const content = parsed.choices?.[0]?.delta?.content || '';
-                        if (content) {
-                            buffer += content;
-
-                            const parsedBuffer = this.checkAndYieldTools(buffer);
-                            if (parsedBuffer.yielded) {
-                                yield parsedBuffer.toolCall;
-                                buffer = parsedBuffer.remainingBuffer;
-                            } else if (parsedBuffer.safeText) {
-                                yield parsedBuffer.safeText;
-                                buffer = parsedBuffer.remainingBuffer;
-                            }
-                        }
-                    } catch (e) {
-                        // ignore JSON parse error
-                    }
-                }
-            }
+            pending += decoder.decode(value, { stream: true });
+            const lines = pending.split('\n');
+            pending = lines.pop() ?? '';
+            for (const line of lines) yield* handle(line);
         }
-
-        if (buffer.trim()) {
-            if (!buffer.includes('{"name"') && !buffer.includes('<tool_call>')) {
-                yield buffer;
-            }
-        }
-    }
-
-    private checkAndYieldTools(buffer: string): { yielded: boolean, toolCall?: any, safeText?: string, remainingBuffer: string } {
-        // 1. JSON
-        const jsonMatch = buffer.match(/\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"arguments"\s*:\s*(\{[\s\S]*?\}|"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*')\s*\}/);
-        if (jsonMatch) {
-            try {
-                const parsed = JSON.parse(jsonMatch[0]);
-                if (typeof parsed.arguments === 'string') {
-                    try { parsed.arguments = JSON.parse(parsed.arguments); } catch(e) {}
-                }
-                return { yielded: true, toolCall: { type: 'tool_call', ...parsed }, remainingBuffer: buffer.replace(jsonMatch[0], "") };
-            } catch(e) {}
-        }
-
-        // 2. XML
-        const xmlMatch = buffer.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
-        if (xmlMatch && xmlMatch[1]) {
-            try {
-                let inner = xmlMatch[1].trim();
-                inner = inner.replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
-                const parsed = JSON.parse(inner);
-                if (typeof parsed.arguments === 'string') {
-                    try { parsed.arguments = JSON.parse(parsed.arguments); } catch(e) {}
-                }
-                return { yielded: true, toolCall: { type: 'tool_call', ...parsed }, remainingBuffer: buffer.replace(xmlMatch[0], "") };
-            } catch(e) {}
-        }
-
-        // 3. Safe text
-        let safeToFlushIndex = buffer.length;
-        const lastBrace = buffer.lastIndexOf('{');
-        const lastAngle = buffer.lastIndexOf('<');
-        
-        if (lastBrace !== -1) safeToFlushIndex = Math.min(safeToFlushIndex, lastBrace);
-        if (lastAngle !== -1) safeToFlushIndex = Math.min(safeToFlushIndex, lastAngle);
-        
-        if (buffer.length > 300 && !buffer.includes('{"name"') && !buffer.includes('<tool_call>')) {
-            safeToFlushIndex = buffer.length;
-        }
-
-        if (safeToFlushIndex > 0) {
-            return { yielded: false, safeText: buffer.substring(0, safeToFlushIndex), remainingBuffer: buffer.substring(safeToFlushIndex) };
-        }
-
-        return { yielded: false, remainingBuffer: buffer };
+        if (pending) yield* handle(pending);
+        yield* toolStream(parser.flush());
     }
 }
 
@@ -833,6 +766,34 @@ export const newSession = () => {
     activeSessionRegime.value = null;
     sessionProviderOverride.value = null;
 };
+
+/**
+ * true quand la conversation est pilotée par le navigateur (WebGPU local, serveur custom) : c'est
+ * alors `clientAgentTurn` qui fait tourner la boucle d'agent, avec le même flux d'événements que le
+ * serveur pour les autres fournisseurs.
+ */
+export const aiIsClientDriven = computed(() => regimeOf(aiService.provider) === 'client');
+
+// Un petit modèle se perd dans une liste de 21 outils : on lui en donne le noyau.
+const SMALL_MODEL_TOOLS = [
+    'search_messages', 'search_documentation', 'read_documentation', 'list_documentation',
+    'read_tasks', 'create_task', 'list_spaces', 'ask_question',
+];
+
+const clientAgentDeps = (orgId: string): ClientAgentDeps => ({
+    orgId,
+    effort: aiService.config.reasoningEffort,
+    getMessages: () => aiSessionMessages.value,
+    chat: async function* (messages) { yield* await aiService.chat(messages); },
+    interrupt: () => aiService.interrupt(),
+    allowedTools: aiService.isLocal && localLLM.selectedModel.value?.tier === 3 ? SMALL_MODEL_TOOLS : undefined,
+});
+
+/** Tour d'agent d'un moteur piloté par le navigateur. Le message de l'utilisateur est déjà dans aiSessionMessages. */
+export const clientAgentTurn = (orgId: string) => startClientAgentTurn(clientAgentDeps(orgId));
+
+export const resumeClientAgent = (orgId: string, tool: PendingClientTool, decision: ClientDecision) =>
+    resumeClientAgentTurn(clientAgentDeps(orgId), tool, decision);
 
 export const aiActiveProvider = computed(() => aiService.provider);
 export const aiEnabledProviders = computed(() => enabledProviderIds(aiService.orgConfig));
