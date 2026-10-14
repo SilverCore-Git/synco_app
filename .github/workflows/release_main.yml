@@ -7,9 +7,28 @@ on:
 permissions:
   contents: write
 
+# Pas d'artefacts (quota de stockage) : la release est créée d'abord et chaque job de build y
+# upload directement son binaire.
+env:
+  RELEASE_TAG: dev-${{ github.run_number }}
+
 jobs:
+  create-release:
+    name: Création de la release GitHub
+    runs-on: ubuntu-latest
+    steps:
+      - name: Création de la release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ github.sha }}
+          name: "Synco dev build #${{ github.run_number }}"
+          prerelease: true
+          generate_release_notes: true
+
   build-android-apk:
     name: Build Android APK (debug)
+    needs: create-release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout du code
@@ -28,6 +47,8 @@ jobs:
 
       - name: Configuration du SDK Android
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools' # le paquet legacy "tools" n'existe plus dans le repo Google (cf android-actions/setup-android#537)
 
       - name: Génération des fichiers .env
         run: |
@@ -51,16 +72,16 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Upload de l'APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: synco-android-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 1 # additional safety for artifact retention
+      - name: Upload de l'APK sur la release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk synco-android-debug.apk
+          gh release upload "$RELEASE_TAG" synco-android-debug.apk
 
   build-windows-msi:
     name: Build de l'installeur Windows (MSI)
+    needs: create-release
     runs-on: windows-latest
     steps:
       - name: Checkout du code
@@ -81,16 +102,15 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
         run: bunx tauri build --bundles msi
 
-      - name: Upload du MSI
-        uses: actions/upload-artifact@v4
-        with:
-          name: synco-windows-msi
-          path: src-tauri/target/release/bundle/msi/*.msi
-          if-no-files-found: error
-          retention-days: 1 # additional safety for artifact retention
+      - name: Upload du MSI sur la release
+        shell: bash # powershell n'expand pas le glob pour gh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$RELEASE_TAG" src-tauri/target/release/bundle/msi/*.msi
 
   build-linux-appimage:
     name: Build de l'AppImage Linux
+    needs: create-release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout du code
@@ -144,13 +164,10 @@ jobs:
           ./appimagetool --appimage-extract-and-run squashfs-root "$APPIMAGE"
           rm -rf squashfs-root appimagetool
 
-      - name: Upload de l'AppImage
-        uses: actions/upload-artifact@v4
-        with:
-          name: synco-linux-appimage
-          path: src-tauri/target/release/bundle/appimage/*.AppImage
-          if-no-files-found: error
-          retention-days: 1 # additional safety for artifact retention
+      - name: Upload de l'AppImage sur la release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$RELEASE_TAG" src-tauri/target/release/bundle/appimage/*.AppImage
 
   build-docker-image:
     name: Build et push de l'image Docker (front, prod)
@@ -185,6 +202,8 @@ jobs:
 
       - name: Build et push de l'image prod
         uses: docker/build-push-action@v6
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: false # pas d'artefact .dockerbuild
         with:
           context: .
           target: prod
@@ -193,24 +212,3 @@ jobs:
           tags: |
             ghcr.io/${{ steps.meta.outputs.owner }}/synco_app:latest
             ghcr.io/${{ steps.meta.outputs.owner }}/synco_app:${{ github.sha }}
-
-  create-release:
-    name: Création de la release GitHub
-    needs: [ build-android-apk, build-windows-msi, build-linux-appimage ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Téléchargement des artefacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: synco-*
-          path: release-assets
-          merge-multiple: true
-
-      - name: Création de la release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: dev-${{ github.run_number }}
-          name: "Synco dev build #${{ github.run_number }}"
-          prerelease: true
-          generate_release_notes: true
-          files: release-assets/**
