@@ -113,8 +113,11 @@ const currentLevel = computed(() => levels.find(l => l.id === effort.value) ?? l
 
 const pickProvider = (id: AiProviderId) => {
     if (id === activeProvider.value) return;
-    if (setActiveProvider(id)) {
-        toast.show('Nouvelle conversation : ce fournisseur ne peut pas reprendre la précédente.', 'info', 4000);
+    const outcome = setActiveProvider(id);
+    if (outcome === 'forked') {
+        toast.show('Le texte de la conversation est repris dans une nouvelle session ; l\'ancienne reste dans l\'historique.', 'info', 5000);
+    } else if (outcome === 'new') {
+        toast.show('Nouvelle conversation : ce fournisseur ne peut pas reprendre la précédente, qui reste dans l\'historique.', 'info', 5000);
     }
 };
 

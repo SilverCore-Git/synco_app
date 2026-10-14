@@ -857,18 +857,37 @@ export const aiPrefsReady = computed(() => {
 });
 
 /**
- * Choisit le provider pour l'utilisateur courant. Renvoie true si la conversation en cours ne pouvait
- * pas être poursuivie avec ce provider (autre famille) et qu'une nouvelle a donc été ouverte.
+ * Reprend la conversation affichée comme point de départ d'une nouvelle session : on ne garde que le
+ * texte (les tools et le raisonnement d'une boucle d'agent n'ont de sens que pour son propre provider).
  */
-export const setActiveProvider = (provider: AiProviderId): boolean => {
+const flattenForFork = (messages: any[]) => messages
+    .map((m: any) => {
+        const text = m.content || (m.parts || []).filter((p: any) => p.type === 'text').map((p: any) => p.text).join('');
+        return { role: m.role, content: text };
+    })
+    .filter((m: any) => (m.role === 'user' || m.role === 'assistant') && m.content?.trim());
+
+/**
+ * Choisit le provider pour l'utilisateur courant. Si la conversation en cours ne peut pas être poursuivie
+ * avec ce provider (autre famille), une nouvelle session est ouverte : 'forked' quand elle reprend le texte
+ * déjà affiché (possible vers un provider piloté par le navigateur, qui reçoit tout l'historique à chaque
+ * message), 'new' quand elle repart de zéro (le serveur et la passerelle ne reçoivent que le dernier message).
+ */
+export const setActiveProvider = (provider: AiProviderId): 'forked' | 'new' | false => {
     if (!aiService.orgConfig.providers[provider]?.enabled) return false;
     const hasConversation = aiSessionMessages.value.some((m: any) => m.role === 'user' || m.role === 'assistant');
     const currentRegime = activeSessionRegime.value ?? regimeOf(aiService.provider);
     const startedNew = hasConversation && regimeOf(provider) !== currentRegime;
-    if (startedNew) newSession();
+    let result: 'forked' | 'new' | false = false;
+    if (startedNew) {
+        const carried = regimeOf(provider) === 'client' ? flattenForFork(aiSessionMessages.value) : [];
+        newSession();
+        if (carried.length) aiSessionMessages.value = carried;
+        result = carried.length ? 'forked' : 'new';
+    }
     sessionProviderOverride.value = null;
     saveUserPrefs({ provider });
-    return startedNew;
+    return result;
 };
 
 export const setReasoningEffort = (effort: ReasoningEffort) => saveUserPrefs({ reasoningEffort: effort });
