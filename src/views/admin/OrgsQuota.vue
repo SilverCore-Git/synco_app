@@ -48,15 +48,25 @@
                                 {{ error }}
                             </td>
                         </tr>
-                        <tr v-else v-for="org in filteredOrgs" :key="org.id" class="hover:bg-(--text)/[0.02] transition-colors group">
+                        <tr v-else v-for="org in filteredOrgs" :key="org.id"
+                            class="hover:bg-(--text)/[0.02] transition-colors group"
+                            :class="{ 'bg-red-500/[0.04]': org.isBanned }">
                             <td class="p-4">
                                 <div class="flex items-center gap-3">
                                     <img v-if="org.logo && org.logo.includes('data:')" :src="org.logo" class="w-10 h-10 rounded-xl object-cover shrink-0" />
-                                    <div v-else class="w-10 h-10 rounded-xl bg-(--primary)/20 text-(--primary) flex items-center justify-center font-bold text-lg shrink-0">
+                                    <div v-else class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg shrink-0"
+                                        :class="org.isBanned ? 'bg-red-500/15 text-red-500' : 'bg-(--primary)/20 text-(--primary)'">
                                         <i class="bi" :class="org.logo || 'bi-building'"></i>
                                     </div>
                                     <div>
-                                        <p class="font-bold text-sm text-(--text)">{{ org.name }}</p>
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <p class="font-bold text-sm text-(--text)">{{ org.name }}</p>
+                                            <span v-if="org.isBanned"
+                                                class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-500/15 text-red-500"
+                                                :title="org.bannedReason || 'Aucun motif renseigné'">
+                                                <i class="bi bi-slash-circle mr-1"></i>Bannie
+                                            </span>
+                                        </div>
                                         <p class="text-[10px] text-(--text2) font-mono mt-0.5">{{ org.id }}</p>
                                     </div>
                                 </div>
@@ -98,13 +108,27 @@
                                 </div>
                             </td>
 
-                            <td class="p-4 text-right">
-                                <button 
+                            <td class="p-4 text-right whitespace-nowrap">
+                                <button
                                     @click="openOrgEditModal(org)"
                                     class="p-2 text-(--text2) hover:text-(--primary) hover:bg-(--primary)/10 rounded-lg transition-colors"
                                     title="Modifier les quotas"
                                 >
                                     <i class="bi bi-pencil-square text-lg"></i>
+                                </button>
+                                <button
+                                    @click="org.isBanned ? unbanOrg(org) : openBanModal(org)"
+                                    class="p-2 rounded-lg transition-colors"
+                                    :class="org.isBanned
+                                        ? 'text-amber-500 hover:bg-amber-500/10'
+                                        : 'text-(--text2) hover:text-red-500 hover:bg-red-500/10'"
+                                    :title="org.isBanned ? 'Lever le bannissement' : 'Bannir l\'organisation'"
+                                    :disabled="banActionOrgId === org.id"
+                                >
+                                    <i class="text-lg"
+                                        :class="banActionOrgId === org.id
+                                            ? 'bi bi-arrow-repeat animate-spin'
+                                            : org.isBanned ? 'bi bi-arrow-counterclockwise' : 'bi bi-slash-circle'"></i>
                                 </button>
                             </td>
                         </tr>
@@ -231,6 +255,41 @@
                 </div>
             </div>
         </div>
+
+        <!-- Bannissement : Popup maison (jamais de confirm() natif) avec saisie
+             du motif, affiché tel quel dans l'organisation au prochain accès. -->
+        <Popup :isOpen="!!orgToBan" @close="closeBanModal">
+            <template #title>Bannir une organisation</template>
+
+            <p class="text-sm text-(--text)">
+                <span class="font-bold">{{ orgToBan?.name }}</span>
+                devient inaccessible à tous ses membres, propriétaire compris :
+                impossible de l'ouvrir, d'y envoyer ou d'y modifier quoi que ce soit.
+            </p>
+            <p class="text-xs text-(--text2) mt-2">
+                Ses données sont conservées — le bannissement peut être levé à tout moment.
+            </p>
+
+            <label class="block text-xs font-bold uppercase tracking-widest text-(--text2) mt-5 mb-1.5">
+                Motif (facultatif)
+            </label>
+            <textarea
+                v-model="banReason"
+                rows="3"
+                :maxlength="MAX_BAN_REASON_LENGTH"
+                placeholder="Ce motif sera affiché aux membres de l'organisation."
+                class="w-full bg-(--bg2) border border-(--text)/10 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all"
+            ></textarea>
+            <p class="text-[10px] text-(--text2) mt-1 text-right">{{ banReason.length }} / {{ MAX_BAN_REASON_LENGTH }}</p>
+
+            <template #footer>
+                <button @click="closeBanModal" class="default">Annuler</button>
+                <button @click="confirmBan" class="danger" :class="{ loader: isBanning }" :disabled="isBanning">
+                    Bannir
+                </button>
+            </template>
+        </Popup>
+
     </div>
 </template>
 
@@ -238,8 +297,13 @@
 import { ref, computed, onMounted } from 'vue';
 import sfetch from '@/assets/utils/sfetch';
 import { useToast } from '@/composables/useToast';
+import Popup from '@/components/Popup.vue';
 
 const toast = useToast();
+
+// Doit rester aligné avec MAX_BAN_REASON_LENGTH côté synco_api
+// (routes/admin.ts), qui tronque au-delà.
+const MAX_BAN_REASON_LENGTH = 500;
 
 interface AdminOrg {
     id: string;
@@ -251,6 +315,9 @@ interface AdminOrg {
     maxStorage: string | number;
     usedStorage: string | number;
     features: string[];
+    isBanned: boolean;
+    bannedAt: string | null;
+    bannedReason: string | null;
 }
 
 const orgs = ref<AdminOrg[]>([]);
@@ -272,6 +339,11 @@ const orgEditForm = ref({
         agenda: true
     }
 });
+
+const orgToBan = ref<AdminOrg | null>(null);
+const banReason = ref('');
+const isBanning = ref(false);
+const banActionOrgId = ref<string | null>(null);
 
 const filteredOrgs = computed(() => {
     if (!searchOrgQuery.value) return orgs.value;
@@ -317,7 +389,10 @@ const fetchData = async () => {
                 currentUsers: o.currentUsers ?? 0,
                 maxStorage: o.maxStorage ?? 0,
                 usedStorage: o.usedStorage ?? 0,
-                features: o.features ?? []
+                features: o.features ?? [],
+                isBanned: o.isBanned ?? false,
+                bannedAt: o.bannedAt ?? null,
+                bannedReason: o.bannedReason ?? null
             }));
         }
         else error.value = (await orgRes.json()).error || 'Accès refusé.';
@@ -391,6 +466,68 @@ const saveOrgQuotas = async () => {
         toast.show('Erreur de connexion', 'error');
     } finally {
         isSavingOrg.value = false;
+    }
+};
+
+const openBanModal = (org: AdminOrg) => {
+    orgToBan.value = org;
+    banReason.value = '';
+};
+
+const closeBanModal = () => {
+    orgToBan.value = null;
+    banReason.value = '';
+};
+
+const patchOrg = (orgId: string, patch: Partial<AdminOrg>) => {
+    const target = orgs.value.find(o => o.id === orgId);
+    if (target) Object.assign(target, patch);
+};
+
+const confirmBan = async () => {
+    if (!orgToBan.value) return;
+    const target = orgToBan.value;
+    isBanning.value = true;
+    try {
+        const res = await sfetch(`/api/admin/organizations/${target.id}/ban`, {
+            method: 'POST',
+            body: JSON.stringify({ reason: banReason.value.trim() })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            patchOrg(target.id, {
+                isBanned: true,
+                bannedAt: data.bannedAt ?? new Date().toISOString(),
+                bannedReason: data.bannedReason ?? null
+            });
+            toast.show('Organisation bannie', 'success');
+            closeBanModal();
+        } else {
+            toast.show((await res.json()).error || 'Erreur lors du bannissement', 'error');
+        }
+    } catch (e) {
+        toast.show('Erreur de connexion', 'error');
+    } finally {
+        isBanning.value = false;
+    }
+};
+
+// Lever un bannissement est immédiatement réversible et sans perte : pas de
+// confirmation, l'action est directe (même choix que pour un utilisateur).
+const unbanOrg = async (org: AdminOrg) => {
+    banActionOrgId.value = org.id;
+    try {
+        const res = await sfetch(`/api/admin/organizations/${org.id}/ban`, { method: 'DELETE' });
+        if (res.ok) {
+            patchOrg(org.id, { isBanned: false, bannedAt: null, bannedReason: null });
+            toast.show('Bannissement levé', 'success');
+        } else {
+            toast.show((await res.json()).error || 'Erreur lors du débannissement', 'error');
+        }
+    } catch (e) {
+        toast.show('Erreur de connexion', 'error');
+    } finally {
+        banActionOrgId.value = null;
     }
 };
 

@@ -17,14 +17,19 @@ import { keycloak } from '@/assets/keycloak';
 import useNotifications from '@/composables/useNotifications';
 import { useNotification } from '@/composables/useNotification';
 import { useRecentDMs } from '@/composables/useRecentDMs';
-import { isMeeting } from '@/composables/usePrivatMeet';
+import { isMeeting, registerIncomingMeetSecret } from '@/composables/usePrivatMeet';
 
 import isDesktopApp from '@/assets/isDesktopApp';
 import { useToast } from '@/composables/useToast';
 import { privateKey, decryptThreadKeyWithRsa, encryptThreadKeyForMember } from '@/assets/utils/crypto';
+import { requireTrustedKey } from '@/assets/utils/keyTrust';
+import { signKeyEnvelope } from '@/assets/utils/keyEnvelope';
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { usePermissions } from '@/composables/usePermissions';
 import SpinLoader from '@/components/SpinLoader.vue';
+import KeyTrustAlerts from '@/components/security/KeyTrustAlerts.vue';
+import OrgBannedScreen from '@/components/OrgBannedScreen.vue';
+import { isOrgBanned, getOrgBanInfo } from '@/composables/useOrgBanStatus';
 
 
 const props = defineProps<{
@@ -50,6 +55,8 @@ const orgOnOpen = computed(() => {
 });
 
 const orgReady = computed(() => openedOrg.value?.id === props.orgId);
+const orgBanned = computed(() => isOrgBanned(props.orgId));
+const orgBanInfo = computed(() => getOrgBanInfo(props.orgId));
 
 // Le panneau de contenu utilise v-show (pas v-if) pour la bascule liste/contenu
 // sur mobile — un cycle display:none -> visible relance une animation CSS.
@@ -277,8 +284,20 @@ const initSocketListener = async () => {
         }
     });
 
-    socket.value?.on('key-requested', async ({ threadId, requesterId, publicKey }: { threadId: string, requesterId: string, publicKey: string }) => {
-        if (!privateKey.value || !publicKey) return;
+    socket.value?.on('key-requested', async ({ threadId, requesterId }: { threadId: string, requesterId: string }) => {
+        if (!privateKey.value || !requesterId) return;
+
+        // La clé publique du demandeur n'est plus prise dans l'événement
+        // (recopiée du payload par le serveur) : on scelle uniquement pour la
+        // clé épinglée de ce membre ; une clé changée n'obtient rien et est
+        // signalée à l'utilisateur (audit FC1).
+        const announced = openedOrg.value?.members?.find((m: OrgMember) => m.userId === requesterId)?.user?.publicKey;
+        let trustedKey: string;
+        try {
+            trustedKey = await requireTrustedKey(requesterId, announced);
+        } catch {
+            return;
+        }
 
         // Delay to avoid all users spamming the server at the exact same millisecond
         setTimeout(() => {
@@ -286,19 +305,24 @@ const initSocketListener = async () => {
                 if (res.encryptedKey && !res.needsReadd) {
                     try {
                         const rawKey = await decryptThreadKeyWithRsa(res.encryptedKey, privateKey.value!);
-                        const newEncryptedKey = await encryptThreadKeyForMember(rawKey, publicKey);
-                        
+                        const newEncryptedKey = await encryptThreadKeyForMember(rawKey, trustedKey);
+                        // FC4 §2 : signe la copie redistribuée — l'id du
+                        // salon est connu ici (contrairement à sa création),
+                        // donc le contexte signé est bien formé.
+                        const envelope = await signKeyEnvelope(rawKey, `thread:${threadId}`, 1).catch(() => null);
+
                         socket.value?.emit("distribute-thread-keys", {
                             threadId,
                             targetUserId: requesterId,
-                            encryptedKey: newEncryptedKey
+                            encryptedKey: newEncryptedKey,
+                            ...envelope,
                         });
                     } catch (e) {
                         console.error("[E2EE] Failed to distribute key:", e);
                     }
                 }
             });
-        }, Math.random() * 2000);
+        }, crypto.getRandomValues(new Uint32Array(1))[0]! % 2000);
     });
 
     socket.value?.on('todo-added', ({ task }: { task: any }) => {
@@ -496,7 +520,9 @@ const initSocketListener = async () => {
 
     });
 
-    socket.value?.on('privateMeet:incomingCall', async ({ callerId }: { callerId: string }) => {
+    socket.value?.on('privateMeet:incomingCall', async ({ callerId, meetSecret }: { callerId: string, meetSecret?: string }) => {
+        // Secret de session de l'invitation (audit FC6), utilisé à l'acceptation.
+        registerIncomingMeetSecret(callerId, meetSecret);
         const orgMember = openedOrg.value?.members?.find(m => m.userId === callerId);
         if (!isMeeting.value) {
             notify('notif:privateMeet', orgMember, -1);
@@ -618,10 +644,16 @@ onMounted(async () => {
     if (!openedOrg.value || openedOrg.value.id !== props.orgId) {
         const res = await sfetch(`/api/orgs/${props.orgId}`);
         if (!res.ok) {
-            window.location.href = '/';
+            // Organisation bannie : sfetch a déjà enregistré le motif
+            // (useOrgBanStatus), orgBanned ci-dessous l'affiche à la place du
+            // contenu — pas de redirection, sans quoi le motif ne serait
+            // jamais visible.
+            if (!isOrgBanned(props.orgId)) {
+                window.location.href = '/';
+            }
             return;
         }
-        openedOrg.value = await res.json(); 
+        openedOrg.value = await res.json();
     }
     // Le peer des sessions éphémères doit être identifié par le même id
     // (OrgMember.id) que PrivateMeetView.vue/ChatView.vue utilisent comme
@@ -683,6 +715,18 @@ onBeforeUnmount(async () => {
             "
             :style="{ viewTransitionName: `openOrg-${orgOnOpen?.id}` }"
         >
+
+            <!-- Organisation bannie : aucun accès à son contenu, ni en
+                 lecture ni en écriture — pas de barre d'espaces, de salons,
+                 de membres (UserCard) ni de vue de route, juste le motif.
+                 position fixed + z-100 (OrgBannedScreen) : passe au-dessus de
+                 tout plutôt que de dépendre de l'ordre du DOM. -->
+            <OrgBannedScreen
+                v-if="orgBanned"
+                :reason="orgBanInfo?.reason ?? null"
+                :bannedAt="orgBanInfo?.bannedAt ?? null"
+            />
+            <template v-else>
 
             <SpaceBar class="h-full" />
             <ThreadsBar
@@ -748,6 +792,10 @@ onBeforeUnmount(async () => {
             </Transition>
 
             <UserCard :isLittleScreen="isLittleScreen" />
+
+            </template>
+
+            <KeyTrustAlerts />
 
         </div>
 

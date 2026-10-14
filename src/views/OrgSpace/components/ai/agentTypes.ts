@@ -11,9 +11,14 @@ export interface ToolStep {
     result?: any;
 }
 
+/** Statuts de point affichables par TimelineGutter — ceux des tools, plus 'text'/'thinking' pour les segments sans ToolStep. */
+export type TimelineDotStatus = ToolStepStatus | 'text' | 'thinking';
+
 export type TurnPart =
     | { type: 'text'; text: string }
-    | { type: 'tool'; tool: ToolStep };
+    | { type: 'tool'; tool: ToolStep }
+    /** Raisonnement du modèle avant sa réponse — affiché replié, façon "Réflexion (Xs)". */
+    | { type: 'thinking'; text: string; durationMs?: number };
 
 /** Libellés/icônes français par tool — utilisés par ToolStepItem pour l'affichage replié. */
 export const TOOL_LABELS: Record<string, { label: string; icon: string }> = {
@@ -36,6 +41,9 @@ export const TOOL_LABELS: Record<string, { label: string; icon: string }> = {
     create_file: { label: "Création d'un fichier", icon: 'bi-file-earmark-plus' },
     create_folder: { label: "Création d'un dossier", icon: 'bi-folder-plus' },
     request_image_upload: { label: "Sélection d'une image", icon: 'bi-image' },
+    ask_question: { label: 'Question à l\'utilisateur', icon: 'bi-question-circle' },
+    create_email_report: { label: "Création d'un rapport e-mail", icon: 'bi-envelope-paper' },
+    list_email_reports: { label: 'Liste des rapports e-mail', icon: 'bi-envelope-paper' },
 };
 
 export function toolLabel(name: string) {

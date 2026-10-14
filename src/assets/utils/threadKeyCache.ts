@@ -1,5 +1,4 @@
-import { watch } from 'vue';
-import { E2EEUnloked } from './crypto';
+import { registerKeyCache } from './keyCaches';
 
 // Clés AES des salons déjà déchiffrées pendant la session. Sans ce cache,
 // chaque ouverture d'un salon attendait l'aller-retour get-thread-access ET un
@@ -32,6 +31,4 @@ export function invalidateThreadKey(threadId: string): void {
     cache.delete(threadId);
 }
 
-watch(E2EEUnloked, (unlocked) => {
-    if (!unlocked) cache.clear();
-});
+registerKeyCache(() => cache.clear());

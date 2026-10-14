@@ -13,9 +13,9 @@
 
 
                 <img 
-                    :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`" 
+                    :src="recipient?.avatarUrl || defaultAvatar($p(recipient?.name))" 
                     :alt="$p(recipient.name)"
-                    @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`"
+                    @error="(e: any) => e.target.src = defaultAvatar($p(recipient?.name))"
                     class="w-9 h-9 rounded-full border border-(--text)/10"
                 />
 
@@ -90,7 +90,7 @@
                    
                     <div class="w-20 h-20 rounded-full bg-(--text)/5 flex items-center justify-center mb-4 overflow-hidden border-2 border-(--text)/10">
                         <img 
-                            :src="recipient?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(recipient?.name)}&background=128a60&color=fff`" 
+                            :src="recipient?.avatarUrl || defaultAvatar($p(recipient?.name))" 
                             class="w-full h-full object-cover" 
                         />
                     </div>
@@ -162,14 +162,7 @@
 
             <div v-if="isSomeoneTyping" class="h-5 flex justify-start items-center px-4 gap-2 select-none">
             
-                <div class="typing-indicator">
-                    <div class="typing-circle" />
-                    <div class="typing-circle" />
-                    <div class="typing-circle" />
-                    <div class="typing-shadow" />
-                    <div class="typing-shadow" />
-                    <div class="typing-shadow" />
-                </div>
+                <TypingIndicator />
 
                 <p class="text-[11px] text-(--text2) italic">
                     {{ $p(recipient.name) }} est en train d'écrire
@@ -341,7 +334,8 @@
             </p>
 
             <div class="px-4 py-3 rounded-xl bg-(--bg2) border border-(--border-color) text-center">
-                <span class="text-lg font-mono tracking-[0.2em] text-(--text)">{{ keyFingerprint }}</span>
+                <!-- Empreinte complète (SHA-256, RFC 7638), en groupes de 4 (audit FC1) -->
+                <span class="text-sm font-mono tracking-wider break-all text-(--text)">{{ keyFingerprint }}</span>
             </div>
 
             <template #footer>
@@ -358,6 +352,7 @@
 
 <script lang="ts" setup>
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { DMMessage, OrgMember, User } from '@/types/types';
@@ -379,6 +374,7 @@ import PrivateMeetView from './PrivateMeetView.vue';
 import usePrivateMeet from '@/composables/usePrivatMeet';
 import ChatMessage from '../components/common/ChatMessage.vue';
 import ReplyBanner from '../components/common/ReplyBanner.vue';
+import TypingIndicator from '@/components/common/TypingIndicator.vue';
 import useFooterInset from '@/composables/useFooterInset';
 import { uploadFiles } from '@/assets/uploadFile';
 import useResponse from '@/composables/useResponse';
@@ -386,7 +382,7 @@ import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useNotification } from '@/composables/useNotification';
 import { useRecentDMs } from '@/composables/useRecentDMs';
 import { getCachedPlaintext, setCachedPlaintext } from '@/assets/utils/dmPlaintextCache';
-import { checkKeyTrust, trustKey, computeKeyFingerprint, type KeyTrustResult } from '@/assets/utils/keyTrust';
+import { checkKeyTrust, trustKey, computeKeyFingerprint, requireTrustedKey, dismissKeyTrustAlert, type KeyTrustResult } from '@/assets/utils/keyTrust';
 import Popup from '@/components/Popup.vue';
 
 const route = useRoute();
@@ -654,7 +650,10 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<
 
         // Only attempt decryption if message is marked as E2EE and has the required keys
         if (!msg.isE2EE || !keyToUse || !msg.nonce) {
-            return { ...msg, content: msg.content };
+            // Contenu en clair (ou drapeau isE2EE posé à faux par le serveur) :
+            // affiché avec un marqueur explicite, jamais comme un message
+            // chiffré authentique (audit FC7).
+            return { ...msg, content: msg.content, securityState: 'plaintext' };
         }
 
         const cached = getCachedPlaintext(msg.id, msg.nonce);
@@ -1025,6 +1024,7 @@ const openKeyPanel = async () => {
 const trustCurrentKey = async () => {
     if (!recipient.value?.publicKey) return;
     await trustKey(recipient.value.id, recipient.value.publicKey);
+    dismissKeyTrustAlert(recipient.value.id);
     keyTrustState.value = 'match';
     toast.show('Nouvelle clé de sécurité approuvée.', 'warning');
 };
@@ -1035,6 +1035,12 @@ const sendMessage = async () => {
 
     const clearContent = newMessage.value;
     const tempId = `temp-${Date.now()}`;
+    // Jamais d'envoi en clair implicite : chiffrement verrouillé = refus
+    // (audit FC7).
+    if (isE2EEEnabled.value && !E2EEUnloked.value) {
+        toast.show('Déverrouillez le chiffrement (code PIN) pour envoyer ce message.', 'error');
+        return;
+    }
     const useEncryption = isE2EEEnabled.value && E2EEUnloked.value;
 
     const tempMessage = {
@@ -1076,7 +1082,11 @@ const sendMessage = async () => {
             return;
         }
 
-        const trust = await checkKeyTrust(recipient.value.id, recipientPubKey);
+        // Épinglage TOFU explicite : première rencontre épinglée, clé changée
+        // refusée (keyTrust.ts, audit FC1).
+        let trust: KeyTrustResult = 'match';
+        try { await requireTrustedKey(recipient.value.id, recipientPubKey); }
+        catch { trust = 'changed'; dismissKeyTrustAlert(recipient.value.id); }
         if (trust === 'changed')
         {
             toast.show(
@@ -1350,96 +1360,3 @@ onUnmounted(() => {
     removeListeners();
 });
 </script>
-
-<style scoped>
-
-.typing-indicator {
-  width: 60px;
-  height: 30px;
-  position: relative;
-  z-index: 4;
-}
-
-.typing-circle {
-  width: 8px;
-  height: 8px;
-  position: absolute;
-  border-radius: 50%;
-  background-color: var(--primary);
-  left: 15%;
-  transform-origin: 50%;
-  animation: typing-circle7124 0.5s alternate infinite ease;
-}
-
-@keyframes typing-circle7124 {
-  0% {
-    top: 20px;
-    height: 5px;
-    border-radius: 50px 50px 25px 25px;
-    transform: scaleX(1.7);
-  }
-
-  40% {
-    height: 8px;
-    border-radius: 50%;
-    transform: scaleX(1);
-  }
-
-  100% {
-    top: 0%;
-  }
-}
-
-.typing-circle:nth-child(2) {
-  left: 45%;
-  animation-delay: 0.2s;
-}
-
-.typing-circle:nth-child(3) {
-  left: auto;
-  right: 15%;
-  animation-delay: 0.3s;
-}
-
-.typing-shadow {
-  width: 5px;
-  height: 4px;
-  border-radius: 50%;
-  background-color: rgba(0, 0, 0, 0.2);
-  position: absolute;
-  top: 30px;
-  transform-origin: 50%;
-  z-index: 3;
-  left: 15%;
-  filter: blur(1px);
-  animation: typing-shadow046 0.5s alternate infinite ease;
-}
-
-@keyframes typing-shadow046 {
-  0% {
-    transform: scaleX(1.5);
-  }
-
-  40% {
-    transform: scaleX(1);
-    opacity: 0.7;
-  }
-
-  100% {
-    transform: scaleX(0.2);
-    opacity: 0.4;
-  }
-}
-
-.typing-shadow:nth-child(4) {
-  left: 45%;
-  animation-delay: 0.2s;
-}
-
-.typing-shadow:nth-child(5) {
-  left: auto;
-  right: 15%;
-  animation-delay: 0.3s;
-}
-
-</style>

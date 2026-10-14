@@ -26,6 +26,16 @@ tauri-plugin-log = "2"
 tauri-plugin-deep-link = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-notification = "2"
+# Déjà présent transitivement (via tauri) à 2.5.8 : juste promu en
+# dépendance directe pour valider l'URL passée à open_external_url, qui ne
+# faisait aucun contrôle de schéma/hôte avant de la transmettre à un
+# interpréteur système (audit FX1).
+url = "2"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "2"
+# Trousseau de l'OS (Keychain macOS, Gestionnaire d'identifiants Windows,
+# Secret Service/GNOME Keyring Linux) pour le refresh token Keycloak, qui
+# vivait en clair dans localStorage sur Tauri (audit FC9). Mobile (Android/
+# iOS) passe par un mécanisme Capacitor séparé côté JS, pas par ce crate.
+keyring = { version = "=3.6.3", features = ["apple-native", "windows-native", "sync-secret-service"] }

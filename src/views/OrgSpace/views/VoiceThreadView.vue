@@ -5,6 +5,9 @@
         class="relative w-full h-full flex flex-col overflow-hidden"
     >
 
+        <!-- État réel du chiffrement de l'appel (audit FC3) -->
+        <CallE2EEBadge :encrypted="isCallE2EE" class="absolute top-3 left-3 z-10" />
+
         <div class="flex-1 min-h-0 overflow-y-auto">
 
         <div
@@ -50,7 +53,7 @@
 
                     <div class="relative">
                         <img 
-                            :src="getMeta(userFocused).avatarUrl || `https://ui-avatars.com/api/?name=${getMeta(userFocused).name}`" 
+                            :src="getMeta(userFocused).avatarUrl || defaultAvatar(getMeta(userFocused).name)" 
                             class="w-32 h-32 rounded-full border-4 transition-all duration-300"
                             :class="userFocused.isSpeaking ? 'border-(--primary) scale-110 shadow-[0_0_30px_rgba(var(--primary-rgb),0.5)]' : 'border-transparent'"
                         />
@@ -131,7 +134,7 @@
                     <div v-else class="flex flex-col items-center gap-4">
                         <div class="relative">
                             <img 
-                                :src="getMeta(p).avatarUrl || `https://ui-avatars.com/api/?name=${getMeta(p).name}`" 
+                                :src="getMeta(p).avatarUrl || defaultAvatar(getMeta(p).name)" 
                                 class="w-12 h-12 rounded-full border-2 transition-all duration-300"
                                 :class="p.isSpeaking ? 'border-(--primary) scale-110 shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)]' : 'border-transparent'"
                             />
@@ -170,7 +173,7 @@
         <div
             v-else
             class="
-                grid grid-cols-[repeat(auto-fill,minmax(18rem,1fr))]
+                grid grid-cols-[repeat(auto-fit,minmax(18rem,1fr))]
                 justify-center justify-items-center items-center p-4 xl:p-10
                 gap-6 transition-all duration-500 w-full min-h-full
             "
@@ -209,7 +212,7 @@
                 <div v-else class="flex flex-col items-center gap-4">
                     <div class="relative">
                         <img 
-                            :src="getMeta(p).avatarUrl || `https://ui-avatars.com/api/?name=${getMeta(p).name}`" 
+                            :src="getMeta(p).avatarUrl || defaultAvatar(getMeta(p).name)" 
                             class="w-24 h-24 rounded-full border-4 transition-all duration-300"
                             :class="p.isSpeaking ? 'border-(--primary) scale-110 shadow-[0_0_25px_rgba(var(--primary-rgb),0.5)]' : 'border-transparent'"
                         />
@@ -268,6 +271,8 @@
                 :isDeafened="isDeafened"
                 :switchDevice="switchDevice"
                 :applyVideoQuality="(source, opts) => applyVideoQuality(source === 'camera' ? Track.Source.Camera : Track.Source.ScreenShare, opts)"
+                :noiseSuppressionEnabled="isNoiseSuppressionEnabled"
+                :toggleNoiseSuppression="toggleNoiseSuppression"
                 @toggleMic="toggleMicrophone(!isMicEnabled)"
                 @toggleCam="onToggleCam"
                 @toggleScreenShare="onToggleScreenShare"
@@ -323,17 +328,19 @@
 
 <script setup lang="ts">
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { computed, onMounted, onUnmounted, ref, type ComponentPublicInstance } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Track } from 'livekit-client';
 import useLiveKit from '@/composables/useLiveKit';
+import { joinVoiceThread } from '@/composables/useVoiceJoin';
+import CallE2EEBadge from '@/components/voice/CallE2EEBadge.vue';
 import VideoTrack from '../components/common/VideoTrack.vue';
 import CallControls from '@/components/peer/CallControls.vue';
 import VoiceInviteModal from '../components/popup/VoiceInviteModal.vue';
 import VoiceParticipantMenu from '../components/dropdown/VoiceParticipantMenu.vue';
 import type { Thread } from '@/types/types';
 import { openedOrg, user } from '@/assets/var';
-import sfetch from '@/assets/utils/sfetch';
 import { useToast } from '@/composables/useToast';
 import { usePermissions } from '@/composables/usePermissions';
 import { getVoicePrefs, resolveCameraCaptureOptions } from '@/assets/utils/voicePrefs';
@@ -362,14 +369,16 @@ const {
     isCameraEnabled,
     isScreenShareEnabled,
     isDeafened,
-    connectToRoom,
+    isCallE2EE,
     leaveRoom,
     toggleMicrophone,
     toggleCamera,
     toggleScreenShare,
     toggleDeafen,
     switchDevice,
-    applyVideoQuality
+    applyVideoQuality,
+    isNoiseSuppressionEnabled,
+    toggleNoiseSuppression
 } = useLiveKit();
 
 const userFocused = ref<any>(null);
@@ -488,17 +497,7 @@ const joinCall = async () => {
     try {
         fetchPermissions(spaceId.value);
 
-        const res = await sfetch('/api/livekit/token', {
-            method: 'POST',
-            body: JSON.stringify({ threadId: props.thread.id }),
-        });
-
-        if (res.ok) {
-            const data = await res.json();
-            await connectToRoom(data.url, data.token, props.thread.id, String(route.params.spaceId), data.e2eeKey);
-        } else {
-            toast.show("Impossible de se connecter au salon", "error");
-        }
+        await joinVoiceThread(props.thread!, String(route.params.spaceId));
     } catch (e) {
         toast.show("Erreur de connexion", "error");
     } finally {

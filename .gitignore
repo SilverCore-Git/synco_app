@@ -31,7 +31,8 @@ dist-ssr
 \n# Local AI Models\npublic/models\n
 /public/models
 .env.production
-.claude
 CLAUDE.md
 sync app.env.production
-graphify-out
+graphify-out/cache/
+graphify-out/.graphify_chunk_list_*
+graphify-out/.graphify_python

@@ -34,7 +34,7 @@
                             
                             <div class="relative shrink-0">
                                 <img
-                                    :src="(notif.msg as any)?.isWebhook ? ((notif.msg as any)?.webhookAvatar || `https://ui-avatars.com/api/?name=${(notif.msg as any)?.webhookName || 'Webhook'}&background=7c3aed&color=fff`) : ((notif.msg as any)?.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${$p((notif.msg as any)?.sender?.name)}&background=128a60&color=fff`)"
+                                    :src="(notif.msg as any)?.isWebhook ? ((notif.msg as any)?.webhookAvatar || defaultAvatar((notif.msg as any)?.webhookName || 'Webhook', '#7c3aed')) : ((notif.msg as any)?.sender?.avatarUrl || defaultAvatar($p((notif.msg as any)?.sender?.name)))"
                                     class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
                                 />
                             </div>
@@ -64,7 +64,7 @@
                             
                             <div class="relative shrink-0">
                                 <img 
-                                    :src="notif.dmmsg?.sender?.avatarUrl  || `https://ui-avatars.com/api/?name=${$p(notif.dmmsg?.sender?.name)}&background=128a60&color=fff`"
+                                    :src="notif.dmmsg?.sender?.avatarUrl  || defaultAvatar($p(notif.dmmsg?.sender?.name))"
                                     class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
                                 />
                             </div>
@@ -92,7 +92,7 @@
 
                                 <div class="relative">
                                     <img
-                                        :src="notif.call?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(notif.call?.user?.name)}&background=128a60&color=fff`"
+                                        :src="notif.call?.user?.avatarUrl || defaultAvatar($p(notif.call?.user?.name))"
                                         class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
                                     />
                                 </div>
@@ -136,7 +136,7 @@
 
                                 <div class="relative">
                                     <img
-                                        :src="notif.privateMeet?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(notif.privateMeet?.user?.name)}&background=128a60&color=fff`"
+                                        :src="notif.privateMeet?.user?.avatarUrl || defaultAvatar($p(notif.privateMeet?.user?.name))"
                                         class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
                                     />
                                 </div>
@@ -182,7 +182,7 @@
 
                             <div class="relative shrink-0">
                                 <img
-                                    :src="notif.privateMeetMsg?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(notif.privateMeetMsg?.user?.name)}&background=128a60&color=fff`"
+                                    :src="notif.privateMeetMsg?.user?.avatarUrl || defaultAvatar($p(notif.privateMeetMsg?.user?.name))"
                                     class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
                                 />
                             </div>
@@ -210,7 +210,7 @@
 
                             <div class="relative shrink-0">
                                 <img
-                                    :src="notif.missedCall?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(notif.missedCall?.user?.name)}&background=ef4444&color=fff`"
+                                    :src="notif.missedCall?.user?.avatarUrl || defaultAvatar($p(notif.missedCall?.user?.name), '#ef4444')"
                                     class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
                                 />
                                 <span class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center border-2 border-(--bg2)">
@@ -241,7 +241,7 @@
 
                             <div class="relative shrink-0">
                                 <img
-                                    :src="notif.missedMeet?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(notif.missedMeet?.user?.name)}&background=ef4444&color=fff`"
+                                    :src="notif.missedMeet?.user?.avatarUrl || defaultAvatar($p(notif.missedMeet?.user?.name), '#ef4444')"
                                     class="w-11 h-11 rounded-full object-cover border border-(--text)/5"
                                 />
                                 <span class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center border-2 border-(--bg2)">
@@ -287,6 +287,7 @@
 
 <script setup lang="ts">
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import getSpaceIdByThreadId from '@/assets/utils/getSpaceWithThreadId';
 import { openedOrg } from '@/assets/var';
 import useNotifications, { type Notification, type NotificationType } from '@/composables/useNotifications';

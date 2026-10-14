@@ -1,5 +1,6 @@
 <script setup lang="ts">
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { organizations, user } from '@/assets/var';
 import OrgBtn from './components/OrgBtn.vue';
 import { onMounted, reactive, ref, computed } from 'vue';
@@ -7,10 +8,15 @@ import sfetch from '@/assets/utils/sfetch';
 import Popup from '@/components/Popup.vue';
 import IconSelector from '@/components/common/IconSelector.vue';
 import { useToast } from '@/composables/useToast';
-import { keycloak } from '@/assets/keycloak';
+import { logoutEverywhere } from '@/assets/keycloak';
 import { disconnectSocket } from '@/composables/useWSocket';
 import DropDown from '@/components/DropDown.vue';
 import UserSettings from '@/components/windows/UserSettings.vue';
+import { useSupportRole } from '@/composables/useSupportRole';
+import { useNotification } from '@/composables/useNotification';
+
+const { isStaff: isSupportStaff } = useSupportRole();
+const { getUnreadCountForSupport, getUnreadCountForSupportStaff } = useNotification();
 
 const toast = useToast();
 
@@ -92,7 +98,7 @@ onMounted(async () => {
                 <template #trigger>
                     <button class="w-10 h-10 rounded-full overflow-hidden border-2 border-(--text)/10 hover:border-(--primary)/50 transition-all shadow-sm focus:outline-none">
                         <img
-                            :src="user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=128a60&color=fff`"
+                            :src="user?.avatarUrl || defaultAvatar(user?.name || 'User')"
                             alt="Profile"
                             class="w-full h-full object-cover"
                         />
@@ -120,13 +126,25 @@ onMounted(async () => {
 
                     <div class="h-px bg-(--text)/5 my-1" />
                     <div class="p-1">
+                        <router-link to="/support" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--text) hover:bg-(--text)/5 rounded-lg transition-colors">
+                            <i class="bi bi-life-preserver"></i> Aide &amp; support
+                            <div v-if="getUnreadCountForSupport > 0" class="ml-auto w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_var(--glow-danger-strong)]" />
+                        </router-link>
+                        <router-link v-if="isSupportStaff" to="/support-panel" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--primary) font-bold hover:bg-(--primary)/20 rounded-lg transition-colors">
+                            <i class="bi bi-headset"></i> Panel SAV
+                            <div v-if="getUnreadCountForSupportStaff > 0" class="ml-auto w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_var(--glow-danger-strong)]" />
+                        </router-link>
+                    </div>
+
+                    <div class="h-px bg-(--text)/5 my-1" />
+                    <div class="p-1">
                         <button @click="openUserSettings('security')" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors">
                             <i class="bi bi-trash-fill"></i> Supprimer mon compte
                         </button>
                     </div>
                     <div class="h-px bg-(--text)/5 my-1" />
                     <div class="p-1">
-                        <button @click="disconnectSocket(); keycloak.logout()" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-500 font-bold hover:bg-red-500 hover:text-white rounded-lg transition-colors">
+                        <button @click="disconnectSocket(); logoutEverywhere()" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-500 font-bold hover:bg-red-500 hover:text-white rounded-lg transition-colors">
                             <i class="bi bi-box-arrow-right"></i> Déconnexion
                         </button>
                     </div>

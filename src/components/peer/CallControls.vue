@@ -114,6 +114,16 @@
                         <span class="truncate">{{ d.label || 'Microphone' }}</span>
                         <i v-if="prefs.micDeviceId === d.deviceId" class="bi bi-check text-(--primary)" />
                     </button>
+                    <template v-if="toggleNoiseSuppression">
+                        <div class="border-t border-(--white)/10 my-1" />
+                        <button
+                            @click="onToggleNoiseSuppression"
+                            class="dropdown-item-style dropdown-item-annimate justify-between gap-2"
+                        >
+                            <span class="truncate">Suppression de bruit</span>
+                            <i class="bi" :class="noiseSuppressionEnabled ? 'bi-toggle-on text-(--primary)' : 'bi-toggle-off text-(--text2)'" />
+                        </button>
+                    </template>
                 </template>
             </DropDown>
         </div>
@@ -204,6 +214,10 @@ interface Props {
         options: { resolution: { width: number; height: number }; frameRate: number }
     ) => void | Promise<void>;
     showInvite?: boolean;
+    // Optionnel : seul useLiveKit.ts (salons vocaux) l'implémente. useSecurePeer.ts
+    // (appels privés, WebRTC brut) ne passe pas ces props, donc le bouton reste caché.
+    noiseSuppressionEnabled?: boolean;
+    toggleNoiseSuppression?: (en: boolean) => void | Promise<void>;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -274,6 +288,10 @@ const selectSpeaker = (deviceId: string) => {
     prefs.value.speakerDeviceId = deviceId;
     saveVoicePrefs({ speakerDeviceId: deviceId });
     props.switchDevice('audiooutput', deviceId);
+};
+
+const onToggleNoiseSuppression = () => {
+    props.toggleNoiseSuppression?.(!props.noiseSuppressionEnabled);
 };
 
 const onCamDeviceChange = () => {

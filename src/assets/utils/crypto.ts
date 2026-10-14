@@ -1,6 +1,11 @@
 import { computed, ref } from "vue";
+import { clearAllKeyCaches } from "./keyCaches";
 
 export const privateKey = ref<CryptoKey | null>(null);
+// Clé privée ECDSA P-256 d'identité de signature — distincte de privateKey
+// (RSA-OAEP, chiffrement uniquement). Audit FC4 §2 : signe les enveloppes de
+// clé symétrique qu'on distribue (voir keyEnvelope.ts), jamais de contenu.
+export const privateSignKey = ref<CryptoKey | null>(null);
 export const E2EEUnloked = computed(() => {
     return privateKey.value !== null && typeof privateKey.value === 'object';
 });
@@ -53,7 +58,9 @@ export async function deriveMasterKey (pin: string, salt: string): Promise<Crypt
         },
         baseKey,
         { name: "AES-GCM", length: 256 },
-        true,
+        // Jamais exportée (audit FC10) — mêmes deux appelants que
+        // deriveMasterKeyV3, tous deux internes à ce fichier.
+        false,
         ["encrypt", "decrypt"]
     );
 
@@ -540,9 +547,117 @@ export async function unlockSecurity(pin: string, salt: string, encryptedKey: st
     }
 }
 
+/**
+ * La clé publique servie par le serveur (/api/users/me) doit correspondre à
+ * la clé privée déverrouillée : elle sert à se sceller ses propres copies de
+ * clés (selfEncryptedAesKey, clé de conversation DM, clé de session IA). Sans
+ * ce contrôle, un serveur malveillant y substituait la sienne (audit FC1 §4).
+ */
+export class OwnKeyMismatchError extends Error {
+    constructor() {
+        super("La clé publique fournie par le serveur ne correspond pas à votre clé privée.");
+        this.name = 'OwnKeyMismatchError';
+    }
+}
+
+export async function assertOwnPublicKeyMatches(publicKeyJWK: string | null | undefined, priv: CryptoKey): Promise<void> {
+    if (!publicKeyJWK) throw new OwnKeyMismatchError();
+    const pub = await crypto.subtle.importKey(
+        'jwk', JSON.parse(publicKeyJWK), { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['encrypt']
+    ).catch(() => { throw new OwnKeyMismatchError(); });
+    const probe = crypto.getRandomValues(new Uint8Array(32));
+    const ct = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, pub, probe);
+    const pt = new Uint8Array(await crypto.subtle.decrypt({ name: 'RSA-OAEP' }, priv, ct).catch(() => new ArrayBuffer(0)));
+    if (pt.length !== probe.length || !pt.every((b, i) => b === probe[i])) {
+        throw new OwnKeyMismatchError();
+    }
+}
+
 export function lockSecurity()
 {
     privateKey.value = null;
+    privateSignKey.value = null;
+    // Sans cet appel, workspaceKeyCache/dmKeyCache/le cache de clé de
+    // session IA restaient utilisables après un verrouillage manuel — seul
+    // threadKeyCache réagissait déjà (watch(E2EEUnloked, ...) local) à ce
+    // que privateKey devienne null (audit FC10).
+    clearAllKeyCaches();
+}
+
+// ---------------------------------------------------------------------------
+// Clé d'identité de signature (FC4 §2) — ECDSA P-256, wrappée sous le même
+// master key que la clé privée RSA (même PIN, même compte), stockée côté
+// serveur (User.encryptedSignPrivateKey/signKeyIv) pour la même raison que
+// encryptedPrivateKey : un second appareil doit pouvoir la déchiffrer.
+// ---------------------------------------------------------------------------
+
+/** Génère la paire, la wrappe sous `masterKey`, et arme privateSignKey.value. */
+export async function generateSigningKeypair(masterKey: CryptoKey): Promise<{
+    publicSignKey: string;
+    encryptedSignPrivateKey: string;
+    signKeyIv: string;
+}> {
+    const keyPair = await crypto.subtle.generateKey(
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        true,
+        ['sign', 'verify']
+    );
+
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const exportedPriv = await crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
+    const encryptedPriv = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, masterKey, exportedPriv);
+    const publicSignKeyJWK = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
+
+    // Jamais exportée nulle part ensuite : seul `sign` (audit FC10, même
+    // traitement que privateKey ci-dessus).
+    privateSignKey.value = await crypto.subtle.importKey(
+        'pkcs8', exportedPriv, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']
+    );
+
+    return {
+        publicSignKey: JSON.stringify(publicSignKeyJWK),
+        encryptedSignPrivateKey: btoa(String.fromCharCode(...new Uint8Array(encryptedPriv))),
+        signKeyIv: btoa(String.fromCharCode(...iv)),
+    };
+}
+
+/** Déchiffre et arme privateSignKey.value à partir du matériau servi par le serveur. */
+export async function unlockSigningKey(encryptedSignPrivateKeyBase64: string, signKeyIvBase64: string, masterKey: CryptoKey): Promise<void> {
+    const encryptedData = Uint8Array.from(atob(encryptedSignPrivateKeyBase64), c => c.charCodeAt(0));
+    const iv = Uint8Array.from(atob(signKeyIvBase64), c => c.charCodeAt(0));
+    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, masterKey, encryptedData);
+    privateSignKey.value = await crypto.subtle.importKey(
+        'pkcs8', decrypted, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']
+    );
+}
+
+/**
+ * Migration d'un compte existant (v2/v3, pas encore de clé de signature) :
+ * re-dérive le master key courant à partir du PIN déjà saisi pour déverrouiller
+ * (jamais mis en cache ailleurs, audit FC10) et génère la paire manquante.
+ * `wrapSecret` n'est fourni que pour un compte v3 ; absent pour v2.
+ */
+export async function generateSigningKeypairForMigration(
+    pin: string,
+    salt: string,
+    // v3 uniquement : round-trip verifier -> wrapSecret dédié (même forme que
+    // unlockSecurityV3), le wrapSecret n'étant jamais mis en cache ailleurs
+    // une fois le déverrouillage terminé (audit FC10).
+    doFetchWrapSecret?: (verifier: string) => Promise<{ wrapSecret: string }>
+): Promise<{ publicSignKey: string; encryptedSignPrivateKey: string; signKeyIv: string }> {
+    if (salt.startsWith(SALT_V3_PREFIX)) {
+        if (!doFetchWrapSecret) throw new Error('doFetchWrapSecret requis pour un compte v3');
+        const rawSalt = salt.slice(SALT_V3_PREFIX.length);
+        const unlockKeyBytes = await deriveUnlockKeyV3(pin, rawSalt);
+        const verifier = await deriveVerifierV3(unlockKeyBytes);
+        const { wrapSecret } = await doFetchWrapSecret(verifier);
+        const wrapSecretBytes = Uint8Array.from(atob(wrapSecret), c => c.charCodeAt(0));
+        const masterKey = await deriveMasterKeyV3(unlockKeyBytes, wrapSecretBytes.buffer);
+        return generateSigningKeypair(masterKey);
+    }
+    // legacy / v2 : dérivation directe, comme deriveMasterKey ci-dessus.
+    const masterKey = await deriveMasterKey(pin, salt);
+    return generateSigningKeypair(masterKey);
 }
 
 // ---------------------------------------------------------------------------
@@ -598,7 +713,9 @@ async function deriveMasterKeyV3(unlockKeyBytes: ArrayBuffer, wrapSecretBytes: A
         },
         ikm,
         { name: "AES-GCM", length: 256 },
-        true,
+        // Jamais exportée nulle part (seulement encrypt/decrypt ci-dessous) :
+        // non-extractable (audit FC10).
+        false,
         ["encrypt", "decrypt"]
     );
 }
@@ -651,6 +768,12 @@ export async function setupFirstTimeSecurityV3(pin: string) {
     );
     privateKey.value = nonExtractablePrivateKey;
 
+    // FC4 §2 : la paire de signature est générée ici (pas dans un second
+    // aller-retour PIN) puisque masterKey est déjà disponible — mais elle
+    // est envoyée séparément à PATCH /me/signKey, pas à /me/initE2EE ou
+    // /me/resetE2EE, dont le schéma de validation ignorerait ces champs.
+    const signing = await generateSigningKeypair(masterKey);
+
     return {
         publicKey: JSON.stringify(publicKeyJWK),
         encryptedPrivateKey: btoa(String.fromCharCode(...new Uint8Array(encryptedPriv))),
@@ -658,6 +781,7 @@ export async function setupFirstTimeSecurityV3(pin: string) {
         pinSalt: salt,
         verifier,
         wrapSecret,
+        ...signing,
     };
 
 }
@@ -672,7 +796,10 @@ export async function unlockSecurityV3(
     salt: string,
     encryptedKey: string,
     iv: string,
-    doFetch: (verifier: string) => Promise<{ wrapSecret: string }>
+    doFetch: (verifier: string) => Promise<{ wrapSecret: string }>,
+    // FC4 §2 : absents pour un compte pas encore migré — privateSignKey
+    // reste alors null, et App.vue génère la paire manquante après coup.
+    signKey?: { encryptedSignPrivateKey?: string; signKeyIv?: string }
 ): Promise<boolean> {
     const rawSalt = salt.slice(SALT_V3_PREFIX.length);
     const unlockKeyBytes = await deriveUnlockKeyV3(pin, rawSalt);
@@ -683,9 +810,53 @@ export async function unlockSecurityV3(
     const masterKey = await deriveMasterKeyV3(unlockKeyBytes, wrapSecretBytes.buffer);
 
     privateKey.value = await decryptUserPrivateKey(encryptedKey, iv, masterKey);
+
+    if (signKey?.encryptedSignPrivateKey && signKey?.signKeyIv) {
+        await unlockSigningKey(signKey.encryptedSignPrivateKey, signKey.signKeyIv, masterKey);
+    }
+
     return true;
 }
 
+
+/**
+ * Migration d'un compte au PIN legacy (4 chiffres, PBKDF2 100 000, entièrement
+ * côté client — testable hors ligne) vers le schéma v3 assisté par le
+ * serveur, avec verrouillage des essais (audit FC2). Même PIN, même paire de
+ * clés : seule la clé privée est ré-emballée. À appeler juste après un
+ * déverrouillage legacy réussi.
+ */
+export async function rewrapLegacyPrivateKeyV3(pin: string, legacySalt: string, encryptedKey: string, iv: string) {
+    if (legacySalt.startsWith(SALT_V2_PREFIX) || legacySalt.startsWith(SALT_V3_PREFIX)) {
+        throw new Error('Compte non legacy');
+    }
+    const legacyMaster = await deriveMasterKey(pin, legacySalt);
+    const pkcs8 = new Uint8Array(await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: Uint8Array.from(atob(iv), c => c.charCodeAt(0)) },
+        legacyMaster,
+        Uint8Array.from(atob(encryptedKey), c => c.charCodeAt(0)),
+    ));
+
+    try {
+        const rawSalt = generateSaltV3Raw();
+        const unlockKeyBytes = await deriveUnlockKeyV3(pin, rawSalt);
+        const verifier = await deriveVerifierV3(unlockKeyBytes);
+        const wrapSecretBytes = crypto.getRandomValues(new Uint8Array(32));
+        const masterKey = await deriveMasterKeyV3(unlockKeyBytes, wrapSecretBytes.buffer);
+        const newIv = crypto.getRandomValues(new Uint8Array(12));
+        const encryptedPriv = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: newIv }, masterKey, pkcs8);
+
+        return {
+            pinSalt: SALT_V3_PREFIX + rawSalt,
+            iv: btoa(String.fromCharCode(...newIv)),
+            encryptedPrivateKey: btoa(String.fromCharCode(...new Uint8Array(encryptedPriv))),
+            verifier,
+            wrapSecret: btoa(String.fromCharCode(...wrapSecretBytes)),
+        };
+    } finally {
+        pkcs8.fill(0);
+    }
+}
 
 // For AI session E2EE (provider 'gateway' — clé de session partagée par organisation)
 

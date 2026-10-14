@@ -66,6 +66,7 @@ import { computed, ref } from 'vue';
 import EventChip from './EventChip.vue';
 import { isTaskDeadlineOccurrence, type OccurrenceInstance } from '@/types/agenda';
 import { isLittleScreen } from '@/assets/var';
+import { layoutDayEvents } from './eventLayout';
 
 const props = defineProps<{
     cursorDate: Date;
@@ -136,7 +137,7 @@ const allDayEnd = computed(() => {
     return d;
 });
 
-function eventStyle(occ: OccurrenceInstance) {
+function rangeMinutes(occ: OccurrenceInstance): { start: number; end: number } {
     const start = new Date(occ.startAt);
     const end = new Date(occ.endAt);
     const iso = isoDay(props.cursorDate);
@@ -145,15 +146,31 @@ function eventStyle(occ: OccurrenceInstance) {
 
     const startMinutes = iso === startIso ? start.getHours() * 60 + start.getMinutes() : 0;
     const endMinutes = iso === endIso ? end.getHours() * 60 + end.getMinutes() : 24 * 60;
-    let durationMinutes = endMinutes - startMinutes;
+    return { start: startMinutes, end: endMinutes };
+}
+
+// Événements qui se chevauchent dans le temps → côte à côte plutôt que
+// superposés (chaque colonne de cluster se partage la largeur disponible).
+const eventLayout = computed(() => layoutDayEvents(timedOccurrences.value, rangeMinutes));
+
+function eventStyle(occ: OccurrenceInstance) {
+    const { start: startMinutes, end: endMinutesRaw } = rangeMinutes(occ);
+    let durationMinutes = endMinutesRaw - startMinutes;
     if (durationMinutes < 20) durationMinutes = 20;
 
     const top = (startMinutes / 60) * rowHeight;
     const height = (durationMinutes / 60) * rowHeight;
 
+    const slot = eventLayout.value.get(occ.occurrenceKey) || { col: 0, cols: 1 };
+    const GAP = 2;
+    const left = `calc(${(slot.col / slot.cols) * 100}% + ${GAP}px)`;
+    const width = `calc(${(1 / slot.cols) * 100}% - ${GAP * 2}px)`;
+
     return {
         top: `${top}px`,
         height: `${height}px`,
+        left,
+        width,
         '--event-color': occ.color || undefined
     };
 }
@@ -479,8 +496,6 @@ const eventDragLabel = computed(() => {
 
 .time-grid-event {
     position: absolute;
-    left: 4px;
-    right: 4px;
     border-radius: 6px;
     overflow: visible;
     cursor: grab;

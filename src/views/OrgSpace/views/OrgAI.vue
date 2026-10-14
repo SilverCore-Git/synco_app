@@ -12,6 +12,13 @@
         </div>
 
         <div class="flex items-center gap-3">
+          <span
+            v-if="cumulativeUsage.totalTokens > 0"
+            class="text-[11px] font-medium text-(--text2) bg-(--text)/5 px-2 py-1 rounded-full"
+            title="Total de tokens utilisés dans cette conversation"
+          >
+            {{ formatTokenCount(cumulativeUsage.totalTokens) }} tokens
+          </span>
           <button @click="showUsersBar = !showUsersBar" class="hover:text-(--text) transition-colors ml-2"
             :class="showUsersBar ? 'text-(--text)' : 'text-(--text2)'">
             <i class="bi bi-people-fill text-lg" />
@@ -70,15 +77,11 @@
             <AgentTurn
               :parts="msg.parts || []"
               :is-generating="isGenerating && index === messages.length - 1"
-              @accept="(tool) => handleAgentToolDecision(tool, true, index)"
-              @reject="(tool) => handleAgentToolDecision(tool, false, index)"
               @open-task="(t) => selectedTask = t"
-              @provide-image="(tool, base64) => {
-                const id = 'img_' + Date.now();
-                temporaryImages[id] = base64;
-                handleAgentToolDecision(tool, true, index, id);
-              }"
             />
+            <p v-if="msg.usage" class="text-[11px] text-(--text2)/70 mt-1">
+              {{ formatTokenCount(msg.usage.totalTokens) }} tokens<template v-if="msg.usage.reasoningTokens"> (dont {{ formatTokenCount(msg.usage.reasoningTokens) }} de raisonnement)</template>
+            </p>
           </div>
 
           <!-- Assistant turn: legacy path (local/custom, migration pending) -->
@@ -121,22 +124,10 @@
                   class="bg-black/50 px-2 py-1 rounded text-(--primary) font-bold">{{ msg.tool_call.name }}</code>
               </p>
 
-              <div class="mt-4" v-if="msg.tool_call.status === 'pending'">
-                <div v-if="msg.tool_call.name === 'request_image_upload'" class="w-full">
-                  <IconSelector model-value="" @on-base64="(base64) => {
-                    const id = 'img_' + Date.now();
-                    temporaryImages[id] = base64;
-                    if (msg.tool_call) handleToolCall(msg.tool_call, true, index, id);
-                  }" />
-                </div>
-                <div v-else class="flex gap-2">
-                  <button
-                    @click="handleToolCall(msg.tool_call!, true, index)"
-                    class="bg-green-500/20 text-green-500 border border-green-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-500/30 transition-colors">Accepter</button>
-                  <button
-                    @click="handleToolCall(msg.tool_call!, false, index)"
-                    class="bg-red-500/20 text-red-500 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/30 transition-colors">Refuser</button>
-                </div>
+              <!-- Confirmation/réponse déplacée dans PendingActionBar, au-dessus de la zone de saisie. -->
+              <div class="mt-4 text-(--text2) text-xs font-medium flex items-center gap-2" v-if="msg.tool_call.status === 'pending'">
+                <i class="bi bi-hourglass-split"></i>
+                En attente de ta confirmation ci-dessous...
               </div>
               <div v-else-if="msg.tool_call.status === 'executing'"
                 class="text-(--primary) text-xs font-bold mt-3 flex items-center gap-2">
@@ -259,6 +250,10 @@
               </div>
 
             </div>
+
+            <p v-if="msg.usage" class="text-[11px] text-(--text2)/70 mt-1">
+              {{ formatTokenCount(msg.usage.totalTokens) }} tokens<template v-if="msg.usage.reasoningTokens"> (dont {{ formatTokenCount(msg.usage.reasoningTokens) }} de raisonnement)</template>
+            </p>
           </div>
         </div>
       </div>
@@ -275,111 +270,36 @@
         </button>
       </Transition>
 
-      <!-- Loading / Status Bar / Manual Start -->
-      <div v-if="aiIsLocal && !aiIsInitialized"
-        class="px-6 py-4 border-t border-(--border-color) bg-black/20 flex flex-col gap-3 shrink-0">
-
-        <!-- WebGPU Non supporté (Erreur bloquante) -->
-        <div v-if="!aiHasWebGPU"
-          class="flex items-start gap-4 bg-red-950/40 border-l-4 border-red-500 p-5 rounded-r-xl rounded-l-sm mb-5 shadow-lg">
-          <div class="bg-red-500/20 p-2 rounded-full shrink-0 mt-1">
-            <i class="bi bi-x-circle-fill text-2xl text-red-500"></i>
-          </div>
-          <div class="flex-1">
-            <h4 class="text-red-400 font-black text-base uppercase tracking-wider mb-2">Matériel non compatible</h4>
-            <p class="text-sm text-(--text)/90 leading-relaxed mb-4">
-              L'agent IA nécessite l'accélération matérielle <strong>WebGPU</strong> pour fonctionner.
-              Aucune carte graphique compatible n'a été détectée dans votre navigateur. L'exécution en local est donc
-              désactivée.
-            </p>
-
-            <div class="bg-black/40 p-4 rounded-lg border border-(--border-color) text-sm text-(--text)/80">
-              <p class="font-bold text-red-300 mb-2 flex items-center gap-2"><i class="bi bi-wrench-adjustable"></i>
-                Pistes de résolution :</p>
-              <ul class="list-disc ml-5 space-y-2">
-                <li><strong>Linux :</strong> L'accélération WebGPU est souvent bloquée. Nous recommandons d'utiliser
-                  <strong>Chromium ou Chrome sous Windows ou macOS</strong> pour profiter de l'IA locale.</li>
-                <li><strong>Pilotes :</strong> Vérifiez que vos pilotes graphiques sont à jour.</li>
-                <li v-if="hasNavigatorGpu">WebGPU est activé dans votre navigateur, mais l'accès à la carte graphique a
-                  échoué (problème OS/Drivers).</li>
-                <li v-else>Assurez-vous d'utiliser une version récente de <strong>Google Chrome, Edge ou Brave</strong>.
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-        <div v-if="initError"
-          class="flex items-center gap-4 bg-red-500/10 border border-red-500/20 p-4 rounded-xl mb-2">
-          <i class="bi bi-x-circle text-2xl text-red-500"></i>
-          <div class="flex-1">
-            <h4 class="text-red-500 font-bold text-sm">Erreur d'initialisation</h4>
-            <p class="text-xs text-red-500/80 mt-1 mb-2">{{ initError }}</p>
-
-            <div v-if="initError.includes('f16')"
-              class="bg-black/20 p-3 rounded-lg border border-(--border-color) text-xs text-(--text)/70">
-              <strong>Astuce Chrome/Edge :</strong> Il est impossible d'activer cette fonctionnalité automatiquement.
-              Cependant, vous pouvez forcer son activation manuellement :
-              <ol class="list-decimal ml-4 mt-1 space-y-1">
-                <li>Copiez l'URL <code
-                    class="bg-black/50 px-1 py-0.5 rounded text-white select-all">chrome://flags/#enable-webgpu-developer-features</code>
-                  et collez-la dans la barre d'adresse de votre navigateur.</li>
-                <li>Passez l'option <strong>WebGPU Developer Features</strong> de <span
-                    class="text-(--text)">Default</span> à <span class="text-green-400 font-bold">Enabled</span>.</li>
-                <li>Redémarrez le navigateur et réessayez.</li>
-              </ol>
-            </div>
-          </div>
-        </div>
-
-        <!-- Installation classique -->
-        <div v-if="!hasStartedInit" class="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div class="text-sm">
-            <p class="font-bold text-(--text)/80">Téléchargement initial de Synco AI requis</p>
-            <p class="text-(--text)/50 text-xs">Modèle sélectionné : <span
-                class="font-mono text-(--primary)">{{availableModels.find(m => m.id === selectedModelId)?.name ||
-                'Aucun' }}</span></p>
-          </div>
-          <div class="flex gap-2">
-            <button v-if="aiHasWebGPU" @click="startInit"
-              class="primary flex items-center gap-2">
-              <i class="bi bi-play-fill" v-if="isModelCached"></i>
-              <i class="bi bi-cloud-arrow-down-fill" v-else></i>
-              {{ isModelCached ? 'Initialiser (GPU)' : 'Télécharger & Initialiser (GPU)' }}
-            </button>
-          </div>
-        </div>
-
-        <div v-else class="flex flex-col gap-2">
-          <div class="flex items-center justify-between text-xs text-(--text)/50">
-            <span class="flex items-center gap-2">
-              <i class="bi"
-                :class="[aiDownloadProgress >= 100 ? 'bi-cpu animate-pulse' : 'bi-cloud-arrow-down animate-bounce', 'text-(--primary)']"></i>
-              {{ aiDownloadProgress >= 100 ? 'Initialisation en mémoire (cela peut prendre du temps)...' :
-              'Téléchargement et initialisation...' }}
-            </span>
-            <span class="font-mono">{{ aiDownloadProgress }}%</span>
-          </div>
-          <div class="w-full h-1.5 bg-(--text)/10 rounded-full overflow-hidden">
-            <div class="h-full transition-all duration-300 bg-(--primary)" :style="{ width: aiDownloadProgress + '%' }">
-            </div>
-          </div>
-          <p class="text-[10px] text-(--text)/30 text-center mt-1 font-mono truncate">{{ aiDownloadText }}</p>
-        </div>
-
-      </div>
+      <LocalModelPanel v-if="aiIsLocal && aiPrefsReady" />
 
       <div class="p-1 border-t border-(--border-color) shrink-0 relative">
-        <form @submit.prevent="() => sendMessage()"
+
+        <Transition name="fade-slide-in-up">
+          <div v-if="pendingAction" :key="pendingAction.tool.toolCallId" class="w-full max-w-5xl mx-auto mb-2">
+            <PendingActionBar
+              :tool="pendingAction.tool"
+              @accept="acceptPendingAction()"
+              @always-accept="acceptPendingAction(true)"
+              @reject="rejectPendingAction()"
+              @answer="(value) => acceptPendingAction(false, value)"
+              @image="(base64) => acceptPendingAction(false, base64)"
+            />
+          </div>
+        </Transition>
+
+        <AiComposerControls :busy="isGenerating" />
+
+        <form @submit.prevent="sendMessage"
           class="relative w-full max-w-5xl mx-auto flex items-end gap-3 border border-(--text)/10 rounded-xl px-4 py-2 transition-all shadow-2xl"
-          :class="(!aiIsInitialized || isGenerating) ? 'bg-black/50 opacity-50 cursor-not-allowed' : 'bg-(--bg) focus-within:border-(--primary)/50'">
+          :class="(!canType || isGenerating) ? 'bg-black/50 opacity-50 cursor-not-allowed' : 'bg-(--bg) focus-within:border-(--primary)/50'">
 
           <ThreadTextarea ref="chatInputRef" v-model="inputMsg" placeholder="Demandez-moi n'importe quoi..."
-            :disabled="!aiIsInitialized || isGenerating" @send="() => sendMessage()" />
+            :disabled="!canType || isGenerating" @send="sendMessage" />
 
           <button type="button" @click="isGenerating ? stopGeneration() : sendMessage()"
             class="shrink-0 mb-1 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50"
             :class="isGenerating ? 'text-red-500 hover:text-red-400' : 'text-(--primary) hover:brightness-110'"
-            :disabled="!aiIsInitialized || (!inputMsg.trim() && !isGenerating)">
+            :disabled="!canType || (!inputMsg.trim() && !isGenerating)">
             <i :class="isGenerating ? 'bi-stop-fill text-xl' : 'bi-send-fill text-xl'"></i>
           </button>
 
@@ -393,20 +313,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
-import * as webllm from '@mlc-ai/web-llm';
-import { localLLM, availableModels } from '@/services/LocalLLMService';
-import { aiService, aiIsLocal, aiIsInitialized, aiCurrentModelName, aiHasWebGPU, aiDownloadProgress, aiDownloadText, aiSessionMessages, syncSession, fetchSessions, activeSessionId, selectedModelId, setEncryptedSessionTitle } from '@/services/AIService';
+import { ref, computed, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
+import { localLLM } from '@/services/LocalLLMService';
+import { aiService, aiIsLocal, aiIsClientDriven, aiPrefsReady, aiSessionMessages, syncSession, fetchSessions, activeSessionId, setEncryptedSessionTitle, clientAgentTurn, resumeClientAgent } from '@/services/AIService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
-import IconSelector from '@/components/common/IconSelector.vue';
 import AgentTurn from '../components/ai/AgentTurn.vue';
+import PendingActionBar from '../components/ai/PendingActionBar.vue';
+import LocalModelPanel from '../components/ai/LocalModelPanel.vue';
+import AiComposerControls from '../components/ai/AiComposerControls.vue';
+import { recordUsage } from '@/services/aiUsageStats';
 import MarkdownRender from './MarkdownRender.vue';
 import type { TurnPart, ToolStep } from '../components/ai/agentTypes';
 import { useUsersBar } from '@/composables/useUsersBar';
-import useSettingsItem from '@/composables/useSettingsItem';
 import { useRoute, useRouter } from 'vue-router';
 
 const route = useRoute();
@@ -417,18 +338,21 @@ import globalVectorWorker from '@/services/GlobalVectorWorker';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { generateThreadKey, encryptThreadKeyForMember, privateKey } from '@/assets/utils/crypto';
+import { resolveRecipientKey } from '@/assets/utils/keyTrust';
 import { openedOrg, user } from '@/assets/var';
-import { getSystemPrompt } from '@/services/AITools';
 import { createFolderRequest, createTextFile } from '@/services/fileActions';
 import { isDocumentationTool, runDocumentationTool } from '@/services/DocumentationService';
 
 const { showUsersBar } = useUsersBar();
-const { Item: savedModelId, isLoaded: savedModelLoaded } = useSettingsItem('ai_selected_model', '');
 
 // Le rendu markdown passe par MarkdownRender.vue (partagé avec le chat/les
 // tâches) — il ne reste ici que le nettoyage spécifique à l'IA : les blocs
 // <tool_call> internes ne doivent jamais apparaître dans le texte affiché.
-const cleanAiContent = (text: string) => text.replace(/<tool_call>[\s\S]*?(?:<\/tool_call>|$)/g, '');
+// <think> est un filet de sécurité pour une balise mal fermée qui aurait
+// échappé à l'extraction dédiée (Phase 3) — pas le chemin normal.
+const cleanAiContent = (text: string) => text
+  .replace(/<tool_call>[\s\S]*?(?:<\/tool_call>|$)/g, '')
+  .replace(/<think>[\s\S]*?(?:<\/think>|$)/g, '');
 
 const handleLinks = (e: MouseEvent) => {
   const target = (e.target as HTMLElement).closest('a');
@@ -483,12 +407,16 @@ interface ChatMessage {
   viaAgentLoop?: boolean;
   /** Uniquement pour viaAgentLoop : texte et tools entrelacés dans l'ordre d'arrivée. */
   parts?: TurnPart[];
+  /** Cumul des tokens de ce tour (plusieurs appels provider possibles si des tools s'enchaînent). */
+  usage?: { promptTokens: number; completionTokens: number; totalTokens: number; reasoningTokens: number };
 }
 
-const recommendedModelId = ref<string>('');
 const selectedTask = ref<any>(null);
 const isGenerating = ref(false);
-const hasStartedInit = ref(false);
+// Par outil (façon Claude Code "don't ask again for this tool"), pas global : autoriser
+// create_task sans redemander ne doit pas dispenser de confirmation pour delete_task. Volontairement
+// non persisté — remis à zéro au rechargement, une autorisation en masse est une décision ponctuelle.
+const autoAcceptTools = ref<Set<string>>(new Set());
 const inputMsg = ref('');
 const chatInputRef = ref<any>(null);
 
@@ -511,8 +439,20 @@ watch(activeSessionId, async () => {
   }
 });
 const messages = aiSessionMessages as unknown as Ref<ChatMessage[]>;
+
+// Recalculé à la volée depuis les messages en mémoire — pas de stockage dédié, cf. plan.
+const cumulativeUsage = computed(() => messages.value.reduce((acc, m) => {
+  if (m.usage) acc.totalTokens += m.usage.totalTokens || 0;
+  return acc;
+}, { totalTokens: 0 }));
+
+function formatTokenCount(n: number): string {
+  if (n < 1000) return String(n);
+  if (n < 10000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  return Math.round(n / 1000) + 'k';
+}
+
 const chatContainer = ref<HTMLElement | null>(null);
-const hasNavigatorGpu = typeof navigator !== 'undefined' && !!(navigator as any).gpu;
 const temporaryImages = ref<Record<string, string>>({});
 
 const scrollToBottom = async () => {
@@ -532,77 +472,8 @@ const onChatScroll = () => {
   showScrollToBottom.value = distanceFromBottom > 200;
 };
 
-const initError = ref('');
-
-// @ts-ignore
-const loadModel = async () => {
-  if (!selectedModelId.value && aiIsLocal.value) return;
-  savedModelId.value = selectedModelId.value; // Save selection to DB
-
-  if (!aiIsLocal.value) {
-    // Les API distantes n'ont pas besoin de téléchargement WebGPU
-    hasStartedInit.value = true;
-    initError.value = '';
-    return;
-  }
-
-  // On vérifie d'abord l'état du cache pour ce nouveau modèle
-  await checkCacheStatus();
-
-  if (isModelCached.value) {
-    initError.value = '';
-    hasStartedInit.value = true;
-    try {
-      await localLLM.init(selectedModelId.value);
-    } catch (e: any) {
-      console.error("Impossible de charger le modèle", e);
-      initError.value = "Erreur WebGPU: " + (e.message || String(e));
-      hasStartedInit.value = false;
-    }
-  } else {
-    // Si le modèle n'est pas en cache, on force l'utilisateur à voir l'écran de téléchargement
-    // On coupe l'éventuel modèle précédent
-    if (localLLM.engine) {
-      localLLM.engine.unload();
-      localLLM.engine = null;
-    }
-    hasStartedInit.value = false;
-    localLLM.isInitialized.value = false;
-  }
-};
-
-const isModelCached = ref(false);
-
-const checkCacheStatus = async () => {
-  if (selectedModelId.value) {
-    try {
-      isModelCached.value = await webllm.hasModelInCache(selectedModelId.value);
-      if (isModelCached.value && localLLM.currentModel.value?.id !== selectedModelId.value && !hasStartedInit.value) {
-        // Auto-initialiser silencieusement si c'est déjà en cache
-        startInit();
-      }
-    } catch (e) {
-      isModelCached.value = false;
-    }
-  }
-};
-
-watch(selectedModelId, () => {
-  loadModel();
-});
-
-const startInit = async () => {
-  if (!selectedModelId.value) return;
-  hasStartedInit.value = true;
-  initError.value = '';
-  try {
-    await localLLM.init(selectedModelId.value);
-  } catch (e: any) {
-    console.error("Impossible d'initialiser le modèle", e);
-    initError.value = "Le modèle graphique (WebGPU) n'est pas supporté par votre carte graphique ou navigateur.";
-    hasStartedInit.value = false;
-  }
-};
+// Pendant le téléchargement/chargement on laisse écrire : localLLM.chat() attend que le modèle soit prêt.
+const canType = computed(() => !aiIsLocal.value || ['ready', 'loading', 'downloading'].includes(localLLM.status.value));
 
 const stopGeneration = () => {
   if (isGenerating.value) {
@@ -639,7 +510,11 @@ const createThreadHelper = async (orgId: string, spaceId: string | undefined, na
   let encryptedKeysPayload = [];
   for (const member of members) {
     if (member.publicKey && typeof member.publicKey === 'string' && member.publicKey.trim().startsWith('{')) {
-      const encryptedKey = await encryptThreadKeyForMember(newThreadKey, member.publicKey);
+      // Clé épinglée (audit FC1) : un membre dont la clé a changé est écarté.
+      let trustedKey: string;
+      try { trustedKey = await resolveRecipientKey(member.id, member.publicKey); }
+      catch { continue; }
+      const encryptedKey = await encryptThreadKeyForMember(newThreadKey, trustedKey);
       encryptedKeysPayload.push({ userId: member.id, encryptedKey });
     }
   }
@@ -667,193 +542,20 @@ const createThreadHelper = async (orgId: string, spaceId: string | undefined, na
   return data;
 };
 
-const handleToolCall = async (toolCall: NonNullable<ChatMessage['tool_call']>, accept: boolean, _assistantMsgIndex: number, imageId?: string) => {
-  if (!accept) {
-    toolCall.status = 'rejected';
-    messages.value.push({
-      role: 'user',
-      content: `[SYSTEM] L'action '${toolCall.name}' a été REFUSÉE par l'utilisateur.`
-    });
-    sendMessage("J'ai refusé cette action. Ne la relance pas. Demande-moi plutôt pourquoi ou propose une alternative.");
-    return;
-  }
-
-  toolCall.status = 'executing';
-
-  let result = "";
-  let toolData: any = null;
-  try {
-    const args = typeof toolCall.arguments === 'string' ? JSON.parse(toolCall.arguments || '{}') : toolCall.arguments;
-    const orgId = route.params.orgId as string;
-
-    if (toolCall.name === 'create_space') {
-      if (args.logo && args.logo.startsWith('img_') && temporaryImages.value[args.logo]) {
-        args.logo = temporaryImages.value[args.logo];
-      }
-      const res = await sfetch(`/api/spaces/org/${orgId}`, {
-        method: 'POST',
-        body: JSON.stringify({ name: args.name, logo: args.logo, membersId: [] })
-      });
-      const spaceData = await res.json();
-      if (spaceData.error) throw new Error(spaceData.error);
-
-      if (openedOrg.value && openedOrg.value.spaces) {
-        openedOrg.value.spaces.push(spaceData);
-      }
-      toolData = spaceData;
-      result = `Espace '${args.name}' créé avec succès.`;
-
-      if (args.threads && Array.isArray(args.threads) && args.threads.length > 0) {
-        let threadsCreated = [];
-        for (const t of args.threads) {
-          try {
-            const tData = await createThreadHelper(orgId, spaceData.id, t.name, t.type);
-            threadsCreated.push(tData);
-          } catch (e) {
-            console.error("Erreur lors de la création d'un salon rattaché:", e);
-          }
-        }
-        toolData.threads = threadsCreated;
-        result += ` ${threadsCreated.length} salons y ont été créés.`;
-      }
-
-    } else if (toolCall.name === 'create_task') {
-      const payload = {
-        title: args.title,
-        description: args.description || null,
-        dueDate: null,
-        spaceId: null,
-        assigneeIds: user.value?.id ? [user.value.id] : [],
-        parentTaskId: null,
-        status: 'TODO'
-      };
-      const res = await sfetch(`/api/tasks/${orgId}/tasks`, {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (!res.ok || data.error) throw new Error(data.error || "Erreur serveur");
-      result = `Tâche '${args.title}' créée avec succès.`;
-      toolData = data;
-
-    } else if (toolCall.name === 'search_messages') {
-      // Load all workspaces indices dynamically before searching
-      const org = openedOrg.value;
-      if (org && org.spaces && privateKey.value) {
-        for (const space of org.spaces) {
-          await SearchSyncService.restoreWorkspaceIndexes(space.id, toRaw(privateKey.value));
-        }
-      }
-
-      const query = args.query;
-      const workerId = Date.now().toString();
-
-      const vectorPromise = new Promise<number[]>((resolve, reject) => {
-        const handler = (e: MessageEvent) => {
-          if (e.data.id === workerId && e.data.status === 'complete') {
-            globalVectorWorker.removeEventListener('message', handler);
-            resolve(e.data.vector);
-          } else if (e.data.id === workerId && e.data.status === 'error') {
-            globalVectorWorker.removeEventListener('message', handler);
-            reject(new Error(e.data.error));
-          }
-        };
-        globalVectorWorker.addEventListener('message', handler);
-      });
-
-      globalVectorWorker.postMessage({ id: workerId, text: query, type: 'SEARCH' });
-      const vector = await vectorPromise;
-      const searchResults = await localSearchDB.searchByVector(vector, query, undefined, 5);
-
-      if (searchResults.length === 0) {
-        result = `Aucun résultat trouvé dans la base sémantique pour "${query}".`;
-      } else {
-        result = `Résultats de recherche pour "${query}" :\n\n` + searchResults.map((r: any, i) => `[Résultat ${i + 1}]\n${JSON.stringify(toLlmSearchHit(r))}`).join('\n\n');
-        toolData = searchResults;
-      }
-
-    } else if (toolCall.name === 'create_thread') {
-      const threads = args.threads || [];
-      if (threads.length === 0) throw new Error("Aucun salon spécifié.");
-
-      let created = [];
-      for (const t of threads) {
-        try {
-          const tData = await createThreadHelper(orgId, t.spaceId, t.name, t.type);
-          created.push(tData);
-        } catch (e: any) {
-          console.error("Erreur création salon:", e);
-          throw new Error(`Erreur lors de la création du salon '${t.name}': ${e.message}`);
-        }
-      }
-      toolData = created;
-      result = `${created.length} salon(s) créé(s) avec succès. Les clés E2EE ont été générées et distribuées.`;
-
-    } else if (isDocumentationTool(toolCall.name)) {
-      const docResult = await runDocumentationTool(toolCall.name, args);
-
-      toolData = docResult;
-      result = JSON.stringify(docResult, null, 2);
-
-    } else if (toolCall.name === 'request_image_upload') {
-      toolData = { id: imageId };
-      result = `L'utilisateur a fourni une image. Identifiant de l'image : '${imageId}'. Utilise EXACTEMENT cette valeur '${imageId}' pour le paramètre 'logo' de 'create_space'.`;
-
-    } else if (toolCall.name === 'create_folder') {
-      const folder = await createFolderRequest(args.spaceId, orgId, args.name, args.parentFolderId);
-      toolData = folder;
-      result = `Dossier '${folder.name}' créé avec succès.`;
-
-    } else if (toolCall.name === 'create_file') {
-      const file = await createTextFile({
-        spaceId: args.spaceId,
-        name: args.name,
-        content: args.content ?? '',
-        folderId: args.folderId,
-      });
-      toolData = file;
-      result = `Fichier '${file.originalName}' créé avec succès. Cite-le dans ta réponse en écrivant <file:${file.id}>.`;
-
-    } else if (toolCall.name === 'read_tasks') {
-      const res = await sfetch(`/api/tasks/${orgId}/lists/me`);
-      const data = await res.json();
-      if (!res.ok || data.error) throw new Error(data.error || "Erreur serveur");
-      result = "Voici les tâches de l'utilisateur :\n" + JSON.stringify(data, null, 2);
-      toolData = data;
-
-    } else {
-      result = "Erreur: Outil inconnu.";
-    }
-  } catch (e: any) {
-    result = "Erreur technique lors de l'exécution : " + e.message;
-  }
-
-  toolCall.status = 'accepted';
-
-  messages.value.push({
-    role: 'user',
-    content: `[SYSTEM] Résultat de l'action '${toolCall.name}' :\n${result}`,
-    tool_data: {
-      name: toolCall.name,
-      results: toolData
-    }
-  });
-
-  if (toolCall.name === 'create_file') {
-    sendMessage("Le fichier a été créé. Confirme-le en une seule phrase et termine par le jeton de référence du fichier indiqué dans le résultat.");
-  } else if (['create_task', 'create_space', 'create_thread', 'create_folder'].includes(toolCall.name)) {
-    sendMessage("L'action a été effectuée avec succès. Réponds très brièvement en une seule phrase pour confirmer à l'utilisateur.");
-  } else if (['search_messages', 'read_tasks'].includes(toolCall.name) || isDocumentationTool(toolCall.name)) {
-    sendMessage("Voici les informations demandées. Réponds à la question de l'utilisateur en te basant sur ces résultats.");
-  }
-};
-
 /** Ajoute du texte au dernier segment 'text' de la turn, ou en ouvre un nouveau si le dernier segment est un tool. */
 const appendTextPart = (idx: number, delta: string) => {
   const parts = messages.value[idx]!.parts!;
   const last = parts[parts.length - 1];
   if (last && last.type === 'text') last.text += delta;
   else parts.push({ type: 'text', text: delta });
+};
+
+/** Même logique qu'appendTextPart, pour le raisonnement du modèle — rendu par ThinkingStepItem. */
+const appendThinkingPart = (idx: number, delta: string) => {
+  const parts = messages.value[idx]!.parts!;
+  const last = parts[parts.length - 1];
+  if (last && last.type === 'thinking') last.text += delta;
+  else parts.push({ type: 'thinking', text: delta });
 };
 
 /** Met à jour le tool_call déjà présent dans la turn (par id), ou en ajoute un nouveau segment. */
@@ -899,18 +601,48 @@ const consumeAgentStream = async (
       }
     } else if (ev.type === 'text') {
       appendTextPart(idx, ev.delta);
+    } else if (ev.type === 'thinking') {
+      appendThinkingPart(idx, ev.delta);
+    } else if (ev.type === 'usage') {
+      recordUsage(aiService.config.provider, aiService.currentModelName, ev);
+      // Un tour peut enchaîner plusieurs appels provider (texte -> tool -> texte...), chacun avec
+      // son propre usage : on cumule pour obtenir le total réel du tour, pas juste le dernier appel.
+      const m = messages.value[idx]!;
+      const acc = m.usage || { promptTokens: 0, completionTokens: 0, totalTokens: 0, reasoningTokens: 0 };
+      m.usage = {
+        promptTokens: acc.promptTokens + (ev.promptTokens || 0),
+        completionTokens: acc.completionTokens + (ev.completionTokens || 0),
+        totalTokens: acc.totalTokens + (ev.totalTokens || 0),
+        reasoningTokens: acc.reasoningTokens + (ev.reasoningTokens || 0),
+      };
     } else if (ev.type === 'tool_call_result') {
-      upsertToolPart(idx, ev.toolCallId, { name: ev.name, status: 'done', category: 'server', mutating: false, result: ev.result });
+      upsertToolPart(idx, ev.toolCallId, { name: ev.name, status: 'done', category: 'server', mutating: false, result: ev.result, ...(ev.args !== undefined && { args: ev.args }) });
+      // create_space est exécuté côté serveur (category 'server') dans cette boucle, contrairement
+      // à create_thread (category 'client', exécuté par executeClientTool qui pousse déjà dans
+      // space.threads via createThreadHelper) : sans ce push, le nouvel espace ne rejoint jamais
+      // openedOrg.value.spaces, que SpaceBar.vue observe — il resterait invisible dans la barre
+      // latérale jusqu'au prochain refetch complet de l'org (ex: F5).
+      if (ev.name === 'create_space' && ev.result?.id && openedOrg.value?.spaces && !openedOrg.value.spaces.some((s: any) => s.id === ev.result.id)) {
+        openedOrg.value.spaces.push(ev.result);
+      }
     } else if (ev.type === 'tool_call_pending') {
       upsertToolPart(idx, ev.toolCallId, { name: ev.name, args: ev.args, status: 'pending', category: 'server', mutating: true });
+      if (autoAcceptTools.value.has(ev.name)) {
+        const parts = messages.value[idx]!.parts!;
+        const tool = (parts.find((p) => p.type === 'tool' && p.tool.toolCallId === ev.toolCallId) as { type: 'tool'; tool: ToolStep }).tool;
+        await handleAgentToolDecision(tool, true, idx);
+        return;
+      }
     } else if (ev.type === 'tool_call_client_required') {
       upsertToolPart(idx, ev.toolCallId, {
         name: ev.name, args: ev.args,
         status: (ev.mutating || ev.interactive) ? 'pending' : 'executing',
         category: 'client', mutating: ev.mutating, interactive: ev.interactive,
       });
-      if (!ev.mutating && !ev.interactive) {
-        // Tool client non-mutant (ex: search_messages) : exécution immédiate, sans confirmation.
+      // Tool client non-mutant (ex: search_messages) : toujours auto-exécuté, confirmation ou pas —
+      // "interactive" (ex: ask_question, upload d'image) reste exclu, même avec autoAcceptTools :
+      // il n'y a aucune valeur à fournir automatiquement à la place de l'utilisateur.
+      if ((!ev.mutating && !ev.interactive) || (ev.mutating && !ev.interactive && autoAcceptTools.value.has(ev.name))) {
         const parts = messages.value[idx]!.parts!;
         const tool = (parts.find((p) => p.type === 'tool' && p.tool.toolCallId === ev.toolCallId) as { type: 'tool'; tool: ToolStep }).tool;
         await handleAgentToolDecision(tool, true, idx);
@@ -949,7 +681,7 @@ const toLlmSearchHit = (hit: any) => {
   };
 };
 
-const executeClientTool = async (name: string, args: any, imageId?: string): Promise<any> => {
+const executeClientTool = async (name: string, args: any, clientValue?: string): Promise<any> => {
   const orgId = route.params.orgId as string;
 
   if (name === 'search_messages') {
@@ -1016,7 +748,11 @@ const executeClientTool = async (name: string, args: any, imageId?: string): Pro
   }
 
   if (name === 'request_image_upload') {
-    return { id: imageId, note: `Utilise EXACTEMENT '${imageId}' pour le paramètre 'logo' de create_space.` };
+    return { id: clientValue, note: `Utilise EXACTEMENT '${clientValue}' pour le paramètre 'logo' de create_space.` };
+  }
+
+  if (name === 'ask_question') {
+    return { answer: clientValue ?? '' };
   }
 
   throw new Error(`Outil client inconnu: ${name}`);
@@ -1027,11 +763,13 @@ const handleAgentToolDecision = async (
   toolCall: ToolStep,
   accept: boolean,
   assistantMsgIndex: number,
-  imageId?: string
+  clientValue?: string
 ) => {
   const orgId = route.params.orgId as string;
   const sessionId = activeSessionId.value;
-  if (!sessionId || !toolCall.toolCallId) return;
+  const clientDriven = aiIsClientDriven.value;
+  // Moteur piloté par le navigateur : la conversation n'existe côté serveur qu'après sa première synchro.
+  if (!toolCall.toolCallId || (!clientDriven && !sessionId)) return;
 
   toolCall.status = 'executing';
 
@@ -1043,7 +781,7 @@ const handleAgentToolDecision = async (
     } else {
       try {
         const args = typeof toolCall.args === 'string' ? JSON.parse(toolCall.args || '{}') : toolCall.args;
-        decision = { clientResult: await executeClientTool(toolCall.name, args, imageId) };
+        decision = { clientResult: await executeClientTool(toolCall.name, args, clientValue) };
       } catch (e: any) {
         decision = { clientResult: { error: e.message || 'Erreur technique.' } };
       }
@@ -1056,18 +794,75 @@ const handleAgentToolDecision = async (
   await scrollToBottom();
   try {
     const idx = assistantMsgIndex;
-    const generator = aiService.resumeAgentTurn(orgId, sessionId, decision);
+    const generator = clientDriven
+      ? resumeClientAgent(orgId, { toolCallId: toolCall.toolCallId, name: toolCall.name, args: toolCall.args, category: toolCall.category }, decision)
+      : aiService.resumeAgentTurn(orgId, sessionId!, decision);
     await consumeAgentStream(generator, () => idx);
   } catch (e: any) {
     if (messages.value[assistantMsgIndex]) appendTextPart(assistantMsgIndex, `\n\n**Erreur:** ${e.message}`);
   } finally {
     isGenerating.value = false;
+    if (clientDriven) await syncSession('');
   }
 };
 
-/** Providers OpenAI/Mistral/Gemini : la conversation passe entièrement par la boucle d'agent serveur. */
-const sendMessageViaAgent = async (text: string) => {
+/**
+ * L'action en attente d'une décision utilisateur — au plus une à la fois, puisque runLoop côté
+ * serveur (synco_api) s'arrête dès qu'un tool mutant/client a besoin d'être confirmé/exécuté
+ * ailleurs. Couvre les deux boucles : viaAgentLoop (parts structurées) et legacy (tool_call unique),
+ * pour que PendingActionBar s'affiche de façon identique quel que soit le provider.
+ */
+const pendingAction = computed<{ idx: number; tool: ToolStep } | null>(() => {
+  const idx = messages.value.length - 1;
+  const msg = messages.value[idx];
+  if (!msg) return null;
+
+  if (!msg.viaAgentLoop) return null;
+  const toolPart = (msg.parts || []).find((p) => p.type === 'tool' && p.tool.status === 'pending') as { type: 'tool'; tool: ToolStep } | undefined;
+  return toolPart ? { idx, tool: toolPart.tool } : null;
+});
+
+function acceptPendingAction(always = false, value?: string) {
+  const pending = pendingAction.value;
+  if (!pending) return;
+
+  if (always) autoAcceptTools.value.add(pending.tool.name);
+
+  // PendingActionBar renvoie directement le base64 pour request_image_upload : c'est ici, au
+  // moment de la décision, qu'on lui attribue un id temporaire — comme le faisait l'ancien
+  // callback IconSelector inline, juste déplacé hors du template.
+  if (pending.tool.name === 'request_image_upload' && value) {
+    const id = 'img_' + Date.now();
+    temporaryImages.value[id] = value;
+    value = id;
+  }
+
+  handleAgentToolDecision(pending.tool, true, pending.idx, value);
+}
+
+function rejectPendingAction() {
+  const pending = pendingAction.value;
+  if (!pending) return;
+
+  handleAgentToolDecision(pending.tool, false, pending.idx);
+}
+
+/**
+ * Tous les fournisseurs passent par la même boucle d'agent et le même flux d'événements : côté serveur
+ * (OpenAI/Mistral/Gemini/passerelle) ou dans le navigateur (WebGPU local, serveur custom).
+ */
+const sendMessage = async () => {
+  if (isGenerating.value) {
+    stopGeneration();
+    return;
+  }
+
+  const text = inputMsg.value.trim();
+  if (!text) return;
+  inputMsg.value = '';
+
   const orgId = route.params.orgId as string;
+  const clientDriven = aiIsClientDriven.value;
   messages.value.push({ role: 'user', content: text });
   const assistantMsgIndex = messages.value.length;
   messages.value.push({ role: 'assistant', content: '', viaAgentLoop: true, parts: [] });
@@ -1077,7 +872,7 @@ const sendMessageViaAgent = async (text: string) => {
 
   try {
     const idx = assistantMsgIndex;
-    const generator = aiService.chatAgentTurn(orgId, activeSessionId.value, text);
+    const generator = clientDriven ? clientAgentTurn(orgId) : aiService.chatAgentTurn(orgId, activeSessionId.value, text);
     await consumeAgentStream(generator, () => idx, text);
   } catch (error: any) {
     if (error.message !== 'USER_STOPPED' && !String(error).includes('USER_STOPPED')) {
@@ -1085,82 +880,19 @@ const sendMessageViaAgent = async (text: string) => {
     }
   } finally {
     isGenerating.value = false;
-  }
-};
-
-const sendMessage = async (hiddenPrompt?: string) => {
-  if (isGenerating.value) {
-    stopGeneration();
-    return;
-  }
-
-  const text = hiddenPrompt || inputMsg.value.trim();
-  if (!text && !hiddenPrompt) return;
-
-  if (!hiddenPrompt) {
-    inputMsg.value = '';
-  }
-
-  if (!hiddenPrompt && ['openai', 'mistral', 'gemini', 'gateway'].includes(aiService.config.provider)) {
-    await sendMessageViaAgent(text);
-    return;
-  }
-
-  if (!hiddenPrompt) {
-    messages.value.push({ role: 'user', content: text });
-  }
-
-  const assistantMsgIndex = messages.value.length;
-  messages.value.push({ role: 'assistant', content: '' });
-
-  isGenerating.value = true;
-  await scrollToBottom();
-
-  try {
-
-    const chatContext = [
-      { role: 'system', content: getSystemPrompt() },
-      ...messages.value.slice(0, -1).map(m => ({ role: m.role, content: m.content }))
-    ];
-
-    const generator = await aiService.chat(chatContext as any); // On envoie l'historique avec le prompt système
-
-    for await (const chunk of generator) {
-      if (!isGenerating.value) break;
-      if (typeof chunk === 'object' && chunk.type === 'tool_call') {
-        messages.value[assistantMsgIndex]!.tool_call = {
-          name: chunk.name,
-          arguments: chunk.arguments,
-          status: 'pending'
-        };
-      } else {
-        messages.value[assistantMsgIndex]!.content += chunk;
-      }
-      await scrollToBottom();
-    }
-
-    const tCall = messages.value[assistantMsgIndex]?.tool_call;
-    if (tCall?.status === 'pending' && isDocumentationTool(tCall.name)) {
-      setTimeout(() => {
-        handleToolCall(tCall, true, assistantMsgIndex);
-      }, 50);
-    }
-  } catch (error: any) {
-    if (error.message !== "USER_STOPPED" && !String(error).includes("USER_STOPPED")) {
-      messages.value[assistantMsgIndex]!.content += `\n\n**Erreur:** ${error.message}`;
-    }
-  } finally {
-    isGenerating.value = false;
-    await syncSession(text);
+    // Une conversation pilotée par le navigateur est stockée (chiffrée) par le client lui-même.
+    if (clientDriven) await syncSession(text);
   }
 };
 
 // syncSession is handled in AIService
 
-onMounted(async () => {
-  const recommended = await localLLM.getRecommendedModel();
-  recommendedModelId.value = recommended.id;
+// Attend la lecture du choix de l'utilisateur : avant, aiIsLocal reflète seulement le défaut de l'org.
+watch([aiIsLocal, aiPrefsReady], ([isLocal, ready]) => {
+  if (isLocal && ready) localLLM.autoLoadIfCached();
+}, { immediate: true });
 
+onMounted(async () => {
   await nextTick();
   chatInputRef.value?.textarea?.focus();
 });
@@ -1169,22 +901,5 @@ watch(() => openedOrg.value, async (newVal) => {
   if (newVal) {
     await fetchSessions();
   }
-}, { immediate: true });
-
-watch(savedModelLoaded, async (loaded) => {
-  if (!loaded) return;
-
-  if (!aiIsInitialized.value) {
-    if (savedModelId.value) {
-      selectedModelId.value = savedModelId.value;
-    } else {
-      selectedModelId.value = recommendedModelId.value;
-      savedModelId.value = recommendedModelId.value;
-    }
-  } else {
-    hasStartedInit.value = true;
-    selectedModelId.value = aiCurrentModelName.value || '';
-  }
-  await checkCacheStatus();
 }, { immediate: true });
 </script>

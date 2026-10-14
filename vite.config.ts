@@ -39,11 +39,27 @@ function devLanCspPlugin(): Plugin {
       mode = config.mode;
     },
     transformIndexHtml(html) {
-      const envFile = mode === 'production' ? '.env.production' : '.env';
+      const isProd = mode === 'production';
+      const envFile = isProd ? '.env.production' : '.env';
       const devLanIp = getEnvValue('VITE_TAURI_DEV_IP', '', envFile);
-      return devLanIp
+      let out = devLanIp
         ? html.split('__DEV_LAN_ORIGIN__').join(`https://${devLanIp}:*`)
         : html.split(' __DEV_LAN_ORIGIN__').join('');
+
+      // localhost:* ne doit jamais atteindre le build de production : avant
+      // ce correctif ces origines étaient écrites en dur dans la CSP,
+      // présentes même en prod (audit FX5). Un build de dev reste permissif
+      // (localhost, tous ports) pour que le hot-reload/les outils locaux
+      // continuent de fonctionner.
+      const devHosts = isProd ? '' : ' http://localhost:* https://localhost:*';
+      const devConnect = isProd ? '' : ' http://localhost:* https://localhost:* ws://localhost:* wss://localhost:*';
+      out = out
+        .split('__CSP_DEV_SCRIPT__').join(devHosts)
+        .split('__CSP_DEV_CONNECT__').join(devConnect)
+        .split('__CSP_DEV_IMG__').join(devHosts)
+        .split('__CSP_DEV_FRAME__').join(devHosts);
+
+      return out;
     },
   };
 }

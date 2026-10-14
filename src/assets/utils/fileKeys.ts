@@ -2,7 +2,11 @@ import { getWorkspaceKey } from './workspaceCrypto';
 import { getDMConversationKey } from './dmCrypto';
 import { decryptThreadKeyWithRsa, privateKey } from './crypto';
 import { getCachedThreadKey, setCachedThreadKey } from './threadKeyCache';
+import { pinOrCheckKey } from './keyPinning';
+import { verifyKeyEnvelopeIfPresent } from './keyEnvelope';
 import useWSocket from '@/composables/useWSocket';
+import { resolveSupportTicketKey } from '@/services/support/keys';
+import type { SupportChannel } from '@/types/support';
 
 /**
  * Clé qui emballe la DEK d'un fichier (KEK), selon son contexte. Tout
@@ -12,12 +16,17 @@ import useWSocket from '@/composables/useWSocket';
  *   espace                → clé d'espace (tous les membres)
  *   conversation DM       → clé de conversation (les 2 participants)
  *   salon d'organisation  → clé du salon (ses membres, comme ses messages)
+ *   ticket de support     → clé du canal du ticket (PUBLIC : client +
+ *                           équipe ; INTERNAL : équipe seulement)
  */
 
 export interface FileKeyContext {
     workspaceId?: string | null;
     dmPeerId?: string | null;
     threadId?: string | null;
+    supportTicketId?: string | null;
+    /** Canal du ticket ; PUBLIC par défaut (le seul accessible au client). */
+    supportChannel?: SupportChannel | null;
 }
 
 export class NoFileKeyError extends Error {
@@ -36,7 +45,7 @@ async function getThreadKey(threadId: string): Promise<CryptoKey> {
 
     const socket = (await useWSocket()).value;
     if (!socket) throw new Error('Non connecté au serveur.');
-    const response: { encryptedKey?: string; error?: string } = await new Promise((resolve) => {
+    const response: { encryptedKey?: string; error?: string; creatorId?: string; commitment?: string; signature?: string } = await new Promise((resolve) => {
         socket.timeout(THREAD_KEY_TIMEOUT_MS).emit('get-thread-access', { threadId }, (err: Error | null, res: any) => {
             resolve(err ? { error: "Le serveur n'a pas répondu." } : res);
         });
@@ -45,6 +54,8 @@ async function getThreadKey(threadId: string): Promise<CryptoKey> {
     if (!privateKey.value) throw new Error('Chiffrement de bout en bout verrouillé.');
 
     const key = await decryptThreadKeyWithRsa(response.encryptedKey, privateKey.value);
+    await verifyKeyEnvelopeIfPresent(key, `thread:${threadId}`, 1, response); // audit FC4 §2
+    await pinOrCheckKey(key, `thread:${threadId}`, 1); // audit FC4 §1
     setCachedThreadKey(threadId, response.encryptedKey, key);
     return key;
 }
@@ -55,9 +66,11 @@ export async function resolveFileKek(context: FileKeyContext): Promise<{ key: Cr
     if (context.dmPeerId) return getDMConversationKey(context.dmPeerId);
     // Les clés de salon n'ont pas de version : 1.
     if (context.threadId) return { key: await getThreadKey(context.threadId), version: 1 };
+    // Clés de ticket : une seule version (1), comme les salons.
+    if (context.supportTicketId) return { key: await resolveSupportTicketKey(context.supportTicketId, context.supportChannel ?? 'PUBLIC'), version: 1 };
     throw new NoFileKeyError();
 }
 
 /** Un fichier peut-il être chiffré dans ce contexte ? (pour griser l'ajout de pièces jointes) */
 export const hasFileKeyContext = (context: FileKeyContext) =>
-    !!(context.workspaceId || context.dmPeerId || context.threadId);
+    !!(context.workspaceId || context.dmPeerId || context.threadId || context.supportTicketId);

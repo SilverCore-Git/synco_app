@@ -248,7 +248,9 @@
                         <p class="mt-2 flex items-center gap-1.5 text-xs font-medium" :class="connectionType === 'relay' ? 'text-yellow-500' : connectionType === 'direct' ? 'text-green-500' : 'text-(--text2)'">
                             <i class="bi" :class="connectionType === 'relay' ? 'bi-exclamation-triangle-fill' : connectionType === 'direct' ? 'bi-check-circle-fill' : 'bi-hourglass-split'" />
                             {{ connectionType === 'relay'
-                                ? 'Connexion actuelle : relayée (réseau restrictif) — le média reste chiffré de bout en bout malgré tout'
+                                ? (securityStatus?.mediaE2EE
+                                    ? 'Connexion actuelle : relayée (réseau restrictif) — le média reste chiffré de bout en bout malgré tout'
+                                    : 'Connexion actuelle : relayée (réseau restrictif) — protégée par le chiffrement WebRTC standard, authentifié par le code de sécurité')
                                 : connectionType === 'direct'
                                     ? 'Connexion actuelle : directe'
                                     : 'Connexion en cours de vérification…' }}
@@ -260,12 +262,19 @@
                     <i class="bi bi-key-fill text-lg text-(--primary) mt-0.5 shrink-0" />
                     <div>
                         <p class="text-(--text) font-semibold mb-1">Chiffrement de bout en bout</p>
-                        <p>
+                        <p v-if="securityStatus?.mediaE2EE !== false">
                             WebRTC chiffre déjà nativement tout le média (DTLS-SRTP, automatique
                             et obligatoire). Synco ajoute une seconde couche : à l'établissement
                             de l'appel, vos deux appareils négocient une clé de session unique
                             (ECDH) que seul votre correspondant peut calculer — même le serveur
                             de signalisation qui vous met en relation ne peut pas la connaître.
+                        </p>
+                        <!-- Pas de surchiffrement possible sur ce navigateur (audit FC8) -->
+                        <p v-else>
+                            Votre navigateur ne permet pas le second chiffrement de Synco : l'appel
+                            est protégé par le chiffrement WebRTC standard (DTLS-SRTP), dont les clés
+                            sont couvertes par le code de sécurité ci-dessous. Vérifiez ce code pour
+                            exclure toute interception.
                         </p>
                     </div>
                 </div>
@@ -440,6 +449,7 @@
 
 <script setup lang="ts">
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import useSecurePeer from '@/composables/useSecurePeer';
 import { computed, onUnmounted, ref, watch, type ComponentPublicInstance } from 'vue';
 import DraggableWindow from '../common/DraggableWindow.vue';
@@ -518,12 +528,12 @@ const getParticipantName = (peerId: string | null): string => {
 const getParticipantAvatar = (peerId: string | null): string => {
     if (!peerId) return '';
     const member = openedOrg.value?.members?.find(m => m.user?.id === peerId);
-    return member?.user?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(member?.user?.name || '')}&background=128a60&color=fff`;
+    return member?.user?.avatarUrl || defaultAvatar(member?.user?.name || '');
 };
 
 const currentPeerName = computed(() => getParticipantName(currentPeerId.value));
 const currentPeerAvatar = computed(() => getParticipantAvatar(currentPeerId.value));
-const myAvatar = computed(() => user.value?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.value?.name || '')}&background=128a60&color=fff`);
+const myAvatar = computed(() => user.value?.avatarUrl || defaultAvatar(user.value?.name || ''));
 
 // Applique le device/résolution/framerate choisis dans les réglages à
 // l'activation, comme onToggleCam/onToggleScreenShare dans VoiceThreadView.vue.

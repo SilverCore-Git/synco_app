@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { computed, type PropType } from 'vue';
 import { useNotification } from '../../composables/useNotification';
 import type { AppNotification } from '../../composables/useNotification';
@@ -125,7 +126,7 @@ const senderAvatar = computed(() => {
   const realAvatar = props.notification.metadata?.senderAvatar as string | undefined;
   if (realAvatar) return realAvatar;
   if (displaySender.value && displaySender.value !== 'Système') {
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(displaySender.value)}&background=128a60&color=fff`;
+    return defaultAvatar(displaySender.value);
   }
   return undefined;
 });

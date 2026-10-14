@@ -35,9 +35,22 @@ const baseCsp = tauriConf.app.security.csp;
 
 // __DEV_LAN_ORIGIN__ est toujours précédé d'un espace dans le CSP de base, donc en son
 // absence on retire aussi cet espace pour ne pas laisser de séparateur vide dans la CSP finale.
-const patchedCsp = devLanIp
+let patchedCsp = devLanIp
   ? baseCsp.split(DEV_LAN_ORIGIN_PLACEHOLDER).join(`https://${devLanIp}:*`)
   : baseCsp.split(` ${DEV_LAN_ORIGIN_PLACEHOLDER}`).join('');
+
+// localhost:* ne doit jamais atteindre un binaire `tauri build` : avant ce
+// correctif ces origines étaient écrites en dur dans tauri.conf.json, donc
+// présentes même dans une release (audit FX5). `mode` ('dev'/'build') vient
+// de l'argument CLI passé à ce script, pas de NODE_ENV.
+const isProd = mode === 'build';
+const devHosts = isProd ? '' : ' http://localhost:* https://localhost:*';
+const devConnect = isProd ? '' : ' http://localhost:* https://localhost:* ws://localhost:* wss://localhost:*';
+patchedCsp = patchedCsp
+  .split('__CSP_DEV_SCRIPT__').join(devHosts)
+  .split('__CSP_DEV_CONNECT__').join(devConnect)
+  .split('__CSP_DEV_IMG__').join(devHosts)
+  .split('__CSP_DEV_FRAME__').join(devHosts);
 
 // On résout et on lance le binaire du CLI Tauri directement (plutôt que via npx) pour ne pas
 // dépendre de la façon dont le gestionnaire de paquets (npm/bun) a posé les shims dans .bin.

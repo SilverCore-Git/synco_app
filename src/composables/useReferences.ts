@@ -1,6 +1,6 @@
 import type { OrgMember } from '@/types/types';
 
-export type ReferenceKind = 'user' | 'role' | 'thread' | 'task' | 'file';
+export type ReferenceKind = 'user' | 'role' | 'thread' | 'task' | 'file' | 'folder';
 
 export interface TriggerConfig {
   kind: ReferenceKind;
@@ -30,19 +30,30 @@ export const TRIGGERS: Record<string, TriggerConfig> = {
 // KIND_TO_TRIGGER_CHAR ci-dessous.
 export const ROLE_TRIGGER_CONFIG: TriggerConfig = { kind: 'role', tokenPrefix: 'role', label: 'Rôles', icon: 'bi-shield-fill' };
 
+// Même principe que 'role' sur '@' : & ouvre un picker mixte fichiers+dossiers
+// (on veut pouvoir pinger un dossier entier, pas seulement un fichier), donc
+// 'folder' n'a pas non plus son propre caractère.
+export const FOLDER_TRIGGER_CONFIG: TriggerConfig = { kind: 'folder', tokenPrefix: 'folder', label: 'Dossiers', icon: 'bi-folder-fill' };
+
 const PREFIX_TO_KIND: Record<string, ReferenceKind> = {};
 for (const t of Object.values(TRIGGERS)) PREFIX_TO_KIND[t.tokenPrefix] = t.kind;
 PREFIX_TO_KIND[ROLE_TRIGGER_CONFIG.tokenPrefix] = ROLE_TRIGGER_CONFIG.kind;
+PREFIX_TO_KIND[FOLDER_TRIGGER_CONFIG.tokenPrefix] = FOLDER_TRIGGER_CONFIG.kind;
 
 // kind -> caractère de trigger (l'inverse de TRIGGERS) — utilisé pour
 // afficher un texte lisible ("!Titre de tâche") à la place du token brut
-// dans l'éditeur (voir ThreadTextarea.vue). 'role' partage le '@' de 'user'.
+// dans l'éditeur (voir ThreadTextarea.vue). 'role' partage le '@' de 'user',
+// 'folder' partage le '&' de 'file'.
 export const KIND_TO_TRIGGER_CHAR: Record<ReferenceKind, string> = {} as Record<ReferenceKind, string>;
 for (const [char, t] of Object.entries(TRIGGERS)) KIND_TO_TRIGGER_CHAR[t.kind] = char;
 KIND_TO_TRIGGER_CHAR.role = '@';
+KIND_TO_TRIGGER_CHAR.folder = '&';
 
-const configForKind = (kind: ReferenceKind): TriggerConfig =>
-  kind === 'role' ? ROLE_TRIGGER_CONFIG : Object.values(TRIGGERS).find(t => t.kind === kind)!;
+const configForKind = (kind: ReferenceKind): TriggerConfig => {
+  if (kind === 'role') return ROLE_TRIGGER_CONFIG;
+  if (kind === 'folder') return FOLDER_TRIGGER_CONFIG;
+  return Object.values(TRIGGERS).find(t => t.kind === kind)!;
+};
 
 // Charset partagé avec l'ancien MENTION_CHAR_CLASS (useMentions.ts) — lettres/
 // chiffres unicode + quelques signes usuels dans un nom.
@@ -51,8 +62,8 @@ const QUERY_CHAR_CLASS = "\\p{L}\\p{N}_.'’-";
 // Détecte un trigger "en cours de frappe" juste avant le curseur, ex. "voir #gen" -> ['#', 'gen'].
 export const TRIGGER_QUERY_REGEX = new RegExp(`(?:^|\\s)([@#!&])([${QUERY_CHAR_CLASS}]*)$`, 'u');
 
-// Matches <@:id> / <#:id> / <task:id> / <file:id> / <role:id>.
-export const REFERENCE_TOKEN_REGEX = /<(@|#|task|file|role):([a-zA-Z0-9_-]+)>/g;
+// Matches <@:id> / <#:id> / <task:id> / <file:id> / <folder:id> / <role:id>.
+export const REFERENCE_TOKEN_REGEX = /<(@|#|task|file|folder|role):([a-zA-Z0-9_-]+)>/g;
 
 export interface ExtractedReference {
   type: ReferenceKind;
@@ -90,10 +101,11 @@ export const extractReferenceTokens = (content: string | undefined | null): Extr
 // dans le DOM (v-html), donc renderReferences les retrouve normalement.
 // 'role' a le même souci que task/file (mot ≥2 lettres = scheme valide pour
 // marked), même si son chip reste inline (pas de carte bloc) — toujours
-// échappé, jamais retiré par stripBlockReferenceTokens.
+// échappé, jamais retiré par stripBlockReferenceTokens. 'folder' suit le même
+// traitement que 'file' (carte bloc, voir FolderRefCard dans MarkdownRender.vue).
 export const escapeReferenceTokensForMarkdown = (content: string): string =>
   content.replace(REFERENCE_TOKEN_REGEX, (full, prefix: string, id: string) =>
-    (prefix === 'task' || prefix === 'file' || prefix === 'role') ? `&lt;${prefix}:${id}&gt;` : full
+    (prefix === 'task' || prefix === 'file' || prefix === 'folder' || prefix === 'role') ? `&lt;${prefix}:${id}&gt;` : full
   );
 
 export const buildReferenceToken = (kind: ReferenceKind, id: string): string => {
@@ -101,14 +113,15 @@ export const buildReferenceToken = (kind: ReferenceKind, id: string): string => 
   return `<${config.tokenPrefix}:${id}>`;
 };
 
-// Retire les tokens <task:id>/<file:id> du markdown source — utilisé quand
-// MarkdownRender les affiche à part, via les vrais TaskCard.vue/FileCard.vue
-// (voir MarkdownRender.vue), plutôt qu'inline dans le texte. Laisse
-// <@:id>/<#:id> intacts pour la passe chip habituelle. Consomme l'espace
-// simple inséré après le token par ThreadTextarea.insertMention pour éviter
-// une double espace à l'endroit où il était.
+// Retire les tokens <task:id>/<file:id>/<folder:id> du markdown source —
+// utilisé quand MarkdownRender les affiche à part, via les vrais
+// TaskCard.vue/FileCard.vue/FolderRefCard.vue (voir MarkdownRender.vue),
+// plutôt qu'inline dans le texte. Laisse <@:id>/<#:id> intacts pour la passe
+// chip habituelle. Consomme l'espace simple inséré après le token par
+// ThreadTextarea.insertMention pour éviter une double espace à l'endroit où
+// il était.
 export const stripBlockReferenceTokens = (content: string): string =>
-  content.replace(/<(?:task|file):[a-zA-Z0-9_-]+> ?/g, '').trim();
+  content.replace(/<(?:task|file|folder):[a-zA-Z0-9_-]+> ?/g, '').trim();
 
 export interface ResolvedReference {
   label: string;

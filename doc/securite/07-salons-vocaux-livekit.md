@@ -5,7 +5,7 @@
 | **Date** | 2026-09-28 |
 | **Fichiers clés** | [`synco_app/src/composables/useLiveKit.ts`](../../src/composables/useLiveKit.ts), [`src/routes/LiveKit.ts`](../../../synco_api/src/routes/LiveKit.ts) |
 | **Infrastructure** | Serveur LiveKit (SFU) auto-hébergé |
-| **Statut** | ✅ **E2EE** quand le salon possède une `ThreadKey` — ❌ **non chiffré au niveau applicatif** sinon |
+| **Statut** | ✅ **E2EE** (activé et vérifié) quand le salon possède une `ThreadKey` — ⚠️ sinon non chiffré, signalé par un badge |
 
 ---
 
@@ -28,56 +28,40 @@ GET /api/livekit/token?threadId=…
 { url, token, e2eeKey: threadKey?.encryptedKey ?? null }
 ```
 
-Côté client :
+La réponse porte aussi `e2eeRequired: true` dès qu'au moins un membre détient une `ThreadKey` pour ce salon.
+
+Côté client (`useLiveKit.ts`, correctif de l'audit FC3 du 01/10) :
 
 ```ts
-// useLiveKit.ts
 const threadKey = await decryptThreadKeyWithRsa(encryptedThreadKey, privateKey.value);
-const roomKey   = await crypto.subtle.exportKey('raw', threadKey);
-await keyProvider.setKey(roomKey);
+// Clé média dédiée, liée au salon : la clé de messages n'est pas réutilisée telle quelle.
+const mediaKey  = HKDF-SHA256(threadKey, info = "synco-livekit-media-v1:" + threadId);
+await keyProvider.setKey(mediaKey);
 
-e2eeOptions = {
-    keyProvider,                                    // ExternalE2EEKeyProvider
-    worker: new Worker(E2EEWorker, { type: 'module' })
-};
-new Room({ e2ee: e2eeOptions, ... });
+const room = new Room({ e2ee: { keyProvider, worker } });
+await room.setE2EEEnabled(true);   // indispensable : l'option e2ee seule n'active rien
+await room.connect(url, token);
+if (!room.isE2EEEnabled) { /* on coupe : échec fermé */ }
 ```
+
+Avant ce correctif, `setE2EEEnabled(true)` n'était jamais appelé : l'option `e2ee` du constructeur installe le worker mais laisse `encryptionType = NONE`, si bien que **le média partait en clair vers le SFU** pour tous les salons.
 
 Le champ `e2eeKey` renvoyé par l'API est du **ciphertext RSA-OAEP**, inexploitable sans la clé privée du destinataire. **`synco_api` ne manipule jamais la clé AES en clair**, et le serveur LiveKit ne la reçoit jamais du tout.
 
 Le chiffrement/déchiffrement média s'exécute dans un **Web Worker dédié** (`livekit-client.e2ee.worker.js`), isolé du thread principal.
 
-## 3. ⚠️ Dégradation silencieuse : `e2eeKey: null`
+## 3. Échec fermé et choix explicite
 
-```ts
-async function unwrapRoomKey(encryptedThreadKey) {
-    if (!encryptedThreadKey || !privateKey.value) return null;
-    ...
-}
-// puis :
-if (roomKey) { /* E2EE activé */ }
-// sinon : e2eeOptions = undefined → salle NON chiffrée au niveau applicatif
-```
-
-Quand `roomKey` est `null`, la salle est créée **sans options E2EE**. Le média reste protégé par DTLS/TLS entre chaque participant et le SFU, mais **le serveur LiveKit voit le flux en clair**.
-
-Le code traite ce cas comme « cet appel n'est pas E2EE », **pas comme une erreur**.
-
-### Quand cela se produit
-
-| Situation | E2EE ? |
+| Situation | Comportement |
 |---|---|
-| Membre du salon avec une `ThreadKey` | ✅ Oui |
-| **Invité rejoignant par lien d'invitation** (`ThreadInvite`) | ❌ **Non** — pas de `ThreadKey` |
-| Salon créé avant l'activation de l'E2EE (pas de ligne `ThreadKey`) | ❌ **Non** |
-| Utilisateur n'ayant pas déverrouillé son PIN (`privateKey` nulle) | ❌ **Non** |
-| Échec du déchiffrement RSA de la clé | ❌ **Non** (`console.error` puis `null`) |
+| Membre du salon avec une `ThreadKey` | ✅ E2EE activé et vérifié après connexion ; badge vert « Chiffré de bout en bout » |
+| Clé présente mais indéchiffrable (PIN verrouillé, échec RSA) | ⛔ L'appel n'est **pas** rejoint (message d'erreur) |
+| Salon chiffré (`e2eeRequired`) mais copie de clé manquante | ⛔ L'appel n'est **pas** rejoint |
+| Salon sans aucune `ThreadKey` (ancien salon) | ⚠️ Rejoint directement, sans action de l'utilisateur ; badge jaune « Non chiffré » |
+| Invité par lien d'invitation, salon chiffré | ⛔ Refusé par l'API (409) : il ne pourrait ni entendre ni être entendu |
+| Invité par lien d'invitation, salon sans clé | ⚠️ Rejoint en clair, badge jaune visible |
 
-### ⚠️ Conséquence critique : dégradation de tout le salon
-
-LiveKit ne permet pas de mélanger participants E2EE et non-E2EE dans une même salle de façon utile : un participant sans clé ne peut pas déchiffrer les flux des autres et ses propres flux ne sont pas chiffrés. **L'arrivée d'un invité sans `ThreadKey` dégrade concrètement la confidentialité de l'appel pour tout le monde.**
-
-➡️ **Rien dans l'interface n'indique explicitement si l'appel en cours est E2EE ou non**, contrairement aux appels P2P qui affichent un statut de sécurité et une empreinte. C'est l'écart le plus significatif entre la promesse produit et la réalité technique relevé dans ce rapport.
+Un participant distant qui publie en clair dans un salon chiffré déclenche un avertissement (`ParticipantEncryptionStatusChanged`).
 
 ## 4. Contrôle d'accès à la salle
 

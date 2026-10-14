@@ -2,19 +2,32 @@ import { keycloak } from "../keycloak";
 import { Capacitor } from "@capacitor/core";
 import { reportApiFailure, reportApiSuccess } from "@/composables/useApiHealth";
 import { setBanned } from "@/composables/useBanStatus";
+import { setOrgBanned } from "@/composables/useOrgBanStatus";
 
 // Un compte banni reçoit un 403 portant ce code sur CHAQUE route de l'API
 // (banMiddleware côté synco_api). On le détecte ici, au seul endroit par
 // lequel passent toutes les requêtes, plutôt que dans chaque appelant.
+//
+// Une organisation bannie reçoit le même traitement avec le code
+// `ORG_BANNED` (orgBanMiddleware), mais uniquement sur les routes dont l'URL
+// porte directement :orgId (ouvrir l'organisation, ses réglages...) : c'est
+// par cette route (GET /api/orgs/:orgId à l'ouverture) que le bannissement
+// est appris, ce qui suffit à couvrir le cas pratique.
 const detectBan = async (response: Response): Promise<boolean> => {
     if (response.status !== 403) return false;
     try {
         // clone() : le corps doit rester intact pour l'appelant, qui fera
         // presque toujours son propre .json() sur cette même réponse.
         const body = await response.clone().json();
-        if (body?.code !== 'ACCOUNT_BANNED') return false;
-        setBanned({ reason: body.reason ?? null, bannedAt: body.bannedAt ?? null });
-        return true;
+        if (body?.code === 'ACCOUNT_BANNED') {
+            setBanned({ reason: body.reason ?? null, bannedAt: body.bannedAt ?? null });
+            return true;
+        }
+        if (body?.code === 'ORG_BANNED' && body?.orgId) {
+            setOrgBanned(body.orgId, { reason: body.reason ?? null, bannedAt: body.bannedAt ?? null });
+            return true;
+        }
+        return false;
     } catch {
         return false;
     }

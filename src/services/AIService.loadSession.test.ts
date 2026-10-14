@@ -6,6 +6,14 @@ import { describe, expect, mock, test } from "bun:test";
 // ensureAiSessionKey, appelé en interne pour le cas 'gateway-aes-gcm-v1').
 let sfetchImpl: (url: string, init?: any) => Promise<Response> = async () => new Response(null, { status: 500 });
 
+// Épinglage des clés (keyPinning.ts, audit FC4) : pas d'IndexedDB sous bun.
+const idbStore = new Map<string, unknown>();
+mock.module("idb-keyval", () => ({
+    get: async (k: string) => idbStore.get(k),
+    set: async (k: string, v: unknown) => { idbStore.set(k, v); },
+    del: async (k: string) => { idbStore.delete(k); },
+}));
+
 mock.module("@/assets/utils/sfetch", () => ({
     default: (url: string, init?: any) => sfetchImpl(url, init),
 }));

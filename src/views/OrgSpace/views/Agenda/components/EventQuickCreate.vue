@@ -23,7 +23,7 @@
                 </label>
 
                 <div class="quick-create-footer">
-                    <button type="button" class="quick-create-more" @click="emit('more-options', currentRange)">
+                    <button type="button" class="quick-create-more" @click="emit('more-options', currentRange, title)">
                         Plus d'options
                     </button>
                     <button type="button" class="quick-create-save" :disabled="saving" @click="save">
@@ -56,7 +56,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     close: [];
     created: [];
-    'more-options': [range: Range];
+    'more-options': [range: Range, title: string];
 }>();
 
 const { createEvent } = useAgenda();

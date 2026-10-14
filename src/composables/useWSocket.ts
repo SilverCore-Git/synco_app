@@ -3,6 +3,7 @@ import { io, type Socket } from "socket.io-client";
 import { ref, type Ref } from "vue";
 import { debugLog, debugWarn } from "@/assets/utils/debugLog";
 import { banned, setBanned } from "./useBanStatus";
+import { setOrgBanned, setOrgUnbanned } from "./useOrgBanStatus";
 
 const socket = ref<Socket | null>(null);
 const isConnecting = ref<boolean>(false);
@@ -174,6 +175,22 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
             console.warn("[WS] Compte banni, fermeture de la session");
             setBanned({ reason: payload?.reason ?? null, bannedAt: payload?.bannedAt ?? null });
             disconnectSocket();
+        });
+
+        // Émis par le serveur au moment exact où un administrateur bannit une
+        // organisation. Enregistré ici (socket app-wide) plutôt que dans
+        // OrgLayout.vue : la salle `org:${orgId}` reste jointe tout au long de
+        // la session, y compris quand cette organisation n'est pas la vue
+        // actuellement affichée — un listener scopé au composant manquerait
+        // l'événement pendant que l'utilisateur navigue ailleurs.
+        socket.value.on("org:banned", (payload: { orgId: string; bannedAt?: string; reason?: string | null }) => {
+            if (!payload?.orgId) return;
+            setOrgBanned(payload.orgId, { reason: payload?.reason ?? null, bannedAt: payload?.bannedAt ?? null });
+        });
+
+        socket.value.on("org:unbanned", (payload: { orgId: string }) => {
+            if (!payload?.orgId) return;
+            setOrgUnbanned(payload.orgId);
         });
 
         socket.value.on("connect_error", async (err) => {

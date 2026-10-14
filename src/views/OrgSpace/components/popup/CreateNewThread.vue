@@ -91,7 +91,7 @@
             <div class="max-h-32 overflow-y-auto bg-(--bg2)/20 border border-(--text)/10 rounded-xl p-2 flex flex-col gap-1 custom-scrollbar">
                 <label v-for="member in availableMembers" :key="member.user!.id" class="flex items-center gap-3 p-2 hover:bg-(--text)/5 rounded-lg cursor-pointer transition-colors">
                     <input type="checkbox" :value="member.user!.id" v-model="form.accessMembersId" class="w-4 h-4 rounded bg-black/20 border-(--text)/10 text-(--primary) focus:ring-0 focus:ring-offset-0 cursor-pointer accent-(--primary)" />
-                    <img :src="member.user!.avatarUrl || `https://ui-avatars.com/api/?name=${member.user!.name}&background=128a60&color=fff`" class="w-6 h-6 rounded-full object-cover" />
+                    <img :src="member.user!.avatarUrl || defaultAvatar(member.user!.name)" class="w-6 h-6 rounded-full object-cover" />
                     <span class="text-sm text-(--text) font-medium">{{ member.user!.name }}</span>
                 </label>
                 <div v-if="availableMembers.length === 0" class="text-xs text-(--text)/40 p-2 text-center">Aucun membre disponible</div>
@@ -117,7 +117,7 @@
                 <div class="max-h-32 overflow-y-auto bg-(--bg2)/20 border border-(--text)/10 rounded-xl p-2 flex flex-col gap-1 custom-scrollbar">
                     <label v-for="member in availableMembers" :key="member.user!.id" class="flex items-center gap-3 p-2 hover:bg-(--text)/5 rounded-lg cursor-pointer transition-colors">
                         <input type="checkbox" :value="member.user!.id" v-model="form.writersId" class="w-4 h-4 rounded bg-black/20 border-(--text)/10 text-(--primary) focus:ring-0 focus:ring-offset-0 cursor-pointer accent-(--primary)" />
-                        <img :src="member.user!.avatarUrl || `https://ui-avatars.com/api/?name=${member.user!.name}&background=128a60&color=fff`" class="w-6 h-6 rounded-full object-cover" />
+                        <img :src="member.user!.avatarUrl || defaultAvatar(member.user!.name)" class="w-6 h-6 rounded-full object-cover" />
                         <span class="text-sm text-(--text) font-medium">{{ member.user!.name }}</span>
                     </label>
                     <div v-if="availableMembers.length === 0" class="text-xs text-(--text)/40 p-2 text-center">Aucun membre disponible</div>
@@ -158,6 +158,7 @@
 
 <script setup lang="ts">
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { ref, reactive, nextTick, watch, computed } from 'vue';
 import Popup from '@/components/Popup.vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -166,6 +167,13 @@ import sfetch from '@/assets/utils/sfetch';
 import type { Thread } from '@/types/types';
 import { useToast } from '@/composables/useToast';
 import { generateThreadKey, encryptThreadKeyForMember, E2EEUnloked, privateKey } from '@/assets/utils/crypto';
+import { resolveRecipientKey } from '@/assets/utils/keyTrust';
+// FC4 §2 : pas d'enveloppe signée ici — l'id du salon (composant du contexte
+// signé, thread:<id>) n'est attribué par le serveur qu'à la création,
+// seulement connu une fois la réponse reçue. La première copie de ThreadKey
+// reste donc non signée (creatorId seul, côté serveur) ; toute distribution
+// ultérieure à ce même salon (nouveau membre, redistribution) la signe
+// normalement, puisque l'id existe alors déjà — cf. OrgLayout.vue.
 
 const route = useRoute();
 const router = useRouter();
@@ -237,7 +245,10 @@ const handleSubmit = async () => {
         const spaceId = route.params.spaceId as string;
         let encryptedKeysPayload: Array<{ userId: string; encryptedKey: string }> = [];
 
-        if (form.type === 'text') 
+        // Tous les salons (texte ET vocal) doivent être E2EE : un salon vocal
+        // créé sans ThreadKey ne pourrait plus jamais être chiffré, le
+        // serveur n'ayant alors aucune clé à distribuer (cf. e2eeRequired
+        // dans synco_api/src/routes/LiveKit.ts).
         {
 
             try {
@@ -284,7 +295,12 @@ const handleSubmit = async () => {
                     
                     if (member.publicKey && typeof member.publicKey === 'string' && member.publicKey.trim().startsWith('{')) 
                     {
-                        const encryptedKey = await encryptThreadKeyForMember(newThreadKey, member.publicKey);
+                        // Clé épinglée (audit FC1) : un membre dont la clé a
+                        // changé ne reçoit pas de copie, il est signalé.
+                        let trustedKey: string;
+                        try { trustedKey = await resolveRecipientKey(member.id, member.publicKey); }
+                        catch { continue; }
+                        const encryptedKey = await encryptThreadKeyForMember(newThreadKey, trustedKey);
                         encryptedKeysPayload.push({
                             userId: member.id,
                             encryptedKey: encryptedKey

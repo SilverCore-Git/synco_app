@@ -41,9 +41,9 @@
                         <div class="z-10 absolute left-4 top-2.5 w-7 h-13 border-l-2 border-t-2 border-(--text)/20 group-hover/reply:border-(--text)/40 rounded-tl-md" />
 
                         <img 
-                            :src="msg.replyMessage?.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(msg.replyMessage?.sender?.name)}&background=128a60&color=fff`"
+                            :src="msg.replyMessage?.sender?.avatarUrl || defaultAvatar($p(msg.replyMessage?.sender?.name))"
                             :alt="$p(msg.replyMessage?.sender?.name)"
-                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(msg.replyMessage?.sender?.name)}&background=128a60&color=fff`"
+                            @error="(e: any) => e.target.src = defaultAvatar($p(msg.replyMessage?.sender?.name))"
                             class="w-4 h-4 rounded-full opacity-80 shrink-0"
                         />
                         
@@ -56,11 +56,23 @@
                             <i class="bi bi-lock-fill text-[10px]" />
                             <div class="h-2.5 w-32 rounded-full bg-(--text)/10 animate-pulse" />
                         </div>
-                        <div v-else class="max-w-md opacity-70 pointer-events-none text-[11px] line-clamp-1 [&_p]:inline [&_h1]:inline [&_h2]:inline [&_h3]:inline">
-                            <MarkdownRender :content="msg.replyMessage?.content || ''" :show-reference-cards="false" />
+                        <div v-else class="max-w-md opacity-70 pointer-events-none text-[11px] truncate">
+                            {{ messagePreview(msg.replyMessage?.content) }}
                         </div>
 
                     </div>
+
+                    <!-- Transféré depuis un autre salon/DM : la ForwardedMessageCard
+                         ci-dessus montre déjà l'auteur et le texte d'origine,
+                         ce lien ne sert qu'à retrouver l'original lui-même. -->
+                    <button
+                        v-if="transferOrigin"
+                        @click="navigateToTransferOrigin(router, transferOrigin)"
+                        class="flex items-center gap-1.5 mb-1 text-[11px] text-(--text2) hover:text-(--primary) transition-colors"
+                    >
+                        <i class="bi bi-arrow-return-right" />
+                        Message transféré — voir l'original
+                    </button>
 
                     <!-- Montée seulement au survol : chaque bouton porte un
                          v-tooltip, et floating-vue monte un composant Popper
@@ -117,14 +129,20 @@
 
                     <div class="z-20 flex justify-start items-start gap-3 min-w-0 w-full">
 
-                        <img 
-                            v-if="msg.sender && !isStacked"
-                            :src="msg.sender?.avatarUrl || `https://ui-avatars.com/api/?name=${$p(msg.sender?.name)}&background=128a60&color=fff`"
-                            :alt="$p(msg.sender?.name)"
-                            @error="(e: any) => e.target.src = `https://ui-avatars.com/api/?name=${$p(msg.sender?.name)}&background=128a60&color=fff`"
-                            @click.stop="(e) => msg.sender && openProfile(msg.sender, e)"
-                            class="rounded-full w-9 h-9 object-cover shrink-0 cursor-pointer hover:ring-2 hover:ring-(--primary)/50 transition-all"
-                        />
+                        <div v-if="msg.sender && !isStacked" class="relative shrink-0">
+                            <img
+                                :src="msg.sender?.avatarUrl || defaultAvatar($p(msg.sender?.name))"
+                                :alt="$p(msg.sender?.name)"
+                                @error="(e: any) => e.target.src = defaultAvatar($p(msg.sender?.name))"
+                                @click.stop="(e) => msg.sender && openProfile(msg.sender, e)"
+                                class="rounded-full w-9 h-9 object-cover cursor-pointer hover:ring-2 hover:ring-(--primary)/50 transition-all"
+                            />
+                            <span
+                                v-if="senderStatus(msg.sender)"
+                                class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg)"
+                                :class="getColorByStatus(senderStatus(msg.sender)!)"
+                            />
+                        </div>
                         <div 
                             v-else-if="isStacked"
                             class="w-9 shrink-0 flex items-start justify-center opacity-0 group-hover:opacity-100 transition-opacity select-none"
@@ -175,12 +193,22 @@
                                     <div class="h-3.5 w-3/4 max-w-md rounded-lg bg-(--text)/5 animate-pulse" />
                                 </div>
                                 <div v-else class="text-(--text) text-sm leading-relaxed wrap-break-word">
+                                    <ForwardedMessageCard v-if="forwarded" :payload="forwarded.payload" class="mb-1.5" />
                                     <MarkdownRender
-                                        :content="msg.content"
+                                        :content="forwarded ? forwarded.note : msg.content"
                                         @user-click="(u: User, e: MouseEvent) => openProfile(u, e)"
                                         @reference-click="onReferenceClick"
                                     />
+                                    <LinkPreview :content="forwarded ? forwarded.note : msg.content" />
                                     <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
+                                    <!-- Reçu en clair : jamais rendu comme un message chiffré (audit FC7) -->
+                                    <span
+                                        v-if="(msg as any).securityState === 'plaintext'"
+                                        class="ml-1 inline-flex items-center gap-1 text-[10px] font-semibold text-amber-500"
+                                        title="Ce message n'est pas chiffré de bout en bout : son contenu a pu être lu ou fourni par le serveur."
+                                    >
+                                        <i class="bi bi-unlock-fill" /> Non chiffré
+                                    </span>
                                 </div>
                                 <div v-if="(msg as any).sendFailed" class="mt-1 flex items-center gap-2 text-[11px] text-red-400">
                                     <i class="bi bi-exclamation-circle-fill" />
@@ -229,12 +257,19 @@
 
                 </div>
 
-        <ConfirmDelete 
+        <ConfirmDelete
             :show="showDeleteConfirm"
             itemType="le message"
-            :itemName="msg.content.substring(0, 50)"
+            :itemName="(forwarded ? forwarded.payload.text : msg.content).substring(0, 50)"
             @confirm="deleteMessage"
             @cancel="showDeleteConfirm = false"
+        />
+
+        <ShareToTargetModal
+            :show="showForwardModal"
+            :preview="{ icon: 'bi-send-fill', title: messagePreview(forwarded ? forwarded.payload.text : msg.content) }"
+            :send="confirmForward"
+            @close="showForwardModal = false"
         />
 
         <MessageActionSheet
@@ -261,6 +296,8 @@
 // pour laquelle un id a du sens.
 defineOptions({ inheritAttrs: false });
 
+import { defaultAvatar } from '@/assets/utils/defaultAvatar';
+import getColorByStatus from '@/assets/utils/getColorByStatus';
 import { computed, nextTick, ref, watch } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
@@ -273,15 +310,31 @@ import MessageAttachments from './MessageAttachments.vue';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import ThreadTextarea from './ThreadTextarea.vue';
 import { useRoute, useRouter } from 'vue-router';
-import { user } from '@/assets/var';
+import { user, openedOrg } from '@/assets/var';
 import { encryptForPeer } from '@/assets/utils/crypto';
+import { requireTrustedKey } from '@/assets/utils/keyTrust';
 import { useToast } from '@/composables/useToast';
+import { messagePreview } from '@/assets/utils/messagePreview';
 import { openProfile } from '@/composables/useProfile';
 import useSettingsItem from '@/composables/useSettingsItem';
+import LinkPreview from './LinkPreview.vue';
 import { orgMentionLookup, isUserMentioned } from '@/composables/useMentions';
 import { extractReferenceTokens } from '@/composables/useReferences';
-import { navigateToReference } from '@/composables/useReferenceNavigation';
+import { navigateToReference, navigateToTransferOrigin } from '@/composables/useReferenceNavigation';
+import ShareToTargetModal from '@/components/common/ShareToTargetModal.vue';
+import ForwardedMessageCard from '@/components/common/ForwardedMessageCard.vue';
+import { forwardMessage, type ShareTarget, type ShareReferenceResult, type TransferOrigin } from '@/composables/useShareReference';
+import { buildForwardToken, extractForwardedPayload } from '@/composables/useForwardedContent';
 import type { User } from '@/types/types';
+
+// msg.sender est une copie figée au moment de la réception du message : son
+// data.status n'est jamais mis à jour par le socket `user-status-changed`
+// (cf. OrgLayout.vue), contrairement à openedOrg.members qui lui est réactif.
+const senderStatus = (sender?: User | null): string | undefined => {
+    if (!sender) return undefined;
+    const member = openedOrg.value?.members?.find(m => m.userId === sender.id);
+    return member?.user?.data?.status || sender.data?.status;
+};
 
 const toast = useToast();
 const showReactionPicker = ref<boolean>(false);
@@ -349,7 +402,8 @@ let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
 const copyMessage = async (msg: DMMessage) => {
     try {
-        await navigator.clipboard.writeText(msg.content);
+        const forwardedMsg = extractForwardedPayload(msg.content);
+        await navigator.clipboard.writeText(forwardedMsg ? forwardedMsg.payload.text : msg.content);
         copied.value = true;
         clearTimeout(copiedTimer);
         copiedTimer = setTimeout(() => copied.value = false, 1500);
@@ -395,6 +449,13 @@ const dropdownBtns: DropdownBtn[] = [
         label: "Répondre",
         func: (msg: DMMessage) => setMessageWillBeResponded(msg),
         show: () => true
+    },
+    {
+        icon: "bi-send-fill",
+        tooltip: "transférer",
+        label: "Transférer",
+        func: () => { showForwardModal.value = true; },
+        show: (msg: DMMessage) => !msg.decrypting
     },
     {
         icon: "bi-emoji-grin-fill",
@@ -471,8 +532,43 @@ const { setMessageWillBeResponded } = useResponse();
 const showPlusDropdown = ref<boolean>(false);
 const hovered = ref<boolean>(false);
 const showDeleteConfirm = ref<boolean>(false);
+const showForwardModal = ref<boolean>(false);
 const editContent = ref<string>('');
 const editTextareaRef = ref<InstanceType<typeof ThreadTextarea> | null>(null);
+
+// Ce message est-il lui-même le résultat d'un transfert ? Les deux champs
+// sont mutuellement exclusifs (voir Message/DMMessage dans schema.prisma) :
+// transferId pointe vers une autre DMMessage (DM -> DM), transferOriginMessageId
+// vers un Message de salon (salon -> DM).
+const transferOrigin = computed<TransferOrigin | null>(() => {
+    if (props.msg.transferId) return { kind: 'dm', id: props.msg.transferId };
+    if (props.msg.transferOriginMessageId) return { kind: 'thread', id: props.msg.transferOriginMessageId };
+    return null;
+});
+
+// Ce message EST-il un transfert reçu ? Rendu en carte (ForwardedMessageCard)
+// plutôt qu'un "X a écrit :" tapé en dur dans le texte — voir
+// useForwardedContent.ts. `forwarded.note` est ce que l'expéditeur a ajouté
+// autour (peut être vide), affiché/formaté normalement par MarkdownRender.
+const forwarded = computed(() => extractForwardedPayload(props.msg.content));
+
+// Le message transféré est rechiffré pour la destination, donc son contenu
+// doit déjà porter tout ce qu'il faut pour afficher la carte (nom/avatar de
+// l'auteur original, texte) — voir buildForwardToken. Transférer un message
+// déjà transféré repart de SON origine (payload.senderId/text), pas du
+// message courant : sinon chaque relais ajoute une couche d'encodage de plus
+// et "qui a écrit ça" finit par désigner le dernier relais, pas l'auteur.
+const confirmForward = (target: ShareTarget, note: string): Promise<ShareReferenceResult> => {
+    const msg = props.msg;
+    const original = forwarded.value?.payload ?? {
+        senderId: msg.senderId,
+        senderName: msg.sender?.name || 'Anonyme',
+        senderAvatar: msg.sender?.avatarUrl,
+        text: msg.content,
+    };
+    const content = note.trim() ? `${note.trim()}\n${buildForwardToken(original)}` : buildForwardToken(original);
+    return forwardMessage(target, content, { kind: 'dm', id: msg.id });
+};
 
 watch(() => props.isEditing, (editing) => {
     if (!editing) return;
@@ -518,7 +614,7 @@ const handleAddReaction = async (payload: { messageId: string; emoji: string; is
 
 // Reaction updates are handled centrally in ChatView.vue — no per-instance socket listener needed
 
-const onReferenceClick = (ref: { kind: 'thread' | 'task' | 'file'; id: string; spaceId?: string }) => {
+const onReferenceClick = (ref: { kind: 'thread' | 'task' | 'file' | 'folder'; id: string; spaceId?: string }) => {
     navigateToReference(router, ref);
 };
 
@@ -605,7 +701,18 @@ const saveEdit = async () => {
         return;
     }
 
-    const { ciphertext, encryptedAesKey, iv, selfEncryptedAesKey } = await encryptForPeer(content, peerPubKey, myPubKey);
+    // Même contrôle d'épinglage que l'envoi (audit FC1) : l'édition reprenait
+    // la clé publique de l'historique sans vérification.
+    let trustedPeerKey: string;
+    try {
+        trustedPeerKey = await requireTrustedKey(props.msg.recipientId, peerPubKey);
+    } catch {
+        toast.show("La clé de sécurité du destinataire a changé : vérifiez-la avant de modifier ce message.", "error");
+        emit('edit-end');
+        return;
+    }
+
+    const { ciphertext, encryptedAesKey, iv, selfEncryptedAesKey } = await encryptForPeer(content, trustedPeerKey, myPubKey);
 
     const socket = await useWSocket();
 

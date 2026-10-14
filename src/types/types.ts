@@ -115,9 +115,12 @@ export interface User {
   description?: string;
 
   publicKey?: string; // Format JWK (string JSON)
+  publicSignKey?: string; // Format JWK (string JSON) — clé d'identité ECDSA P-256, FC4 §2
   encryptedPrivateKey?: string; // Base64
   keyIv?: string;           // Base64
   pinSalt?: string;           // String aléatoire
+  encryptedSignPrivateKey?: string; // Base64, FC4 §2
+  signKeyIv?: string;                // Base64, FC4 §2
 
   data: {
     status: string;
@@ -149,7 +152,11 @@ export interface Message {
     threadId: string;
     senderId: string | null;
     replyToId: string | null;
+    // Provenance d'un transfert (salon -> salon) : transferId, ou (DM ->
+    // salon), loose, pas d'entité à joindre (voir schema.prisma) : ce
+    // pointeur ne sert qu'à "Voir l'original", jamais au contenu affiché.
     transferId: string | null;
+    transferOriginDmMessageId?: string | null;
     content: string;
     nonce: string;
     iv: string | null;
@@ -189,6 +196,8 @@ export interface DMMessage {
     senderId: string;
     replyToId: string | null;
     isE2EE: boolean;
+  /** Posé côté client : reçu en clair, affiché avec un marqueur (audit FC7). */
+  securityState?: 'plaintext';
     content: string;
     nonce: string;
     encryptedAesKey: string | null;
@@ -204,6 +213,12 @@ export interface DMMessage {
 
     replyMessage?: DMMessage | null;
     replies?: DMMessage[];
+
+    // Symétrique de Message.transferId/transferOriginDmMessageId : transferId
+    // pour un transfert DM -> DM, transferOriginMessageId (loose) pour un
+    // transfert salon -> DM.
+    transferId?: string | null;
+    transferOriginMessageId?: string | null;
 
     type?: 'text' | 'voice_invite';
     voiceInviteThreadId?: string | null;
@@ -327,6 +342,9 @@ export interface Task {
   parentTaskId?: string | null;
   parentTask?: Task | null;
   subtasks?: Task[];
+
+  /** Tâches partageant le même stackId = une pile (grosse carte) dans le Kanban. */
+  stackId?: string | null;
 
   tags?: Tag[];
   attachments?: TaskAttachment[];

@@ -9,7 +9,15 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 export async function extractTextFromPDF(file: File): Promise<string> {
     try {
         const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        // Extraction de texte seulement : aucun besoin d'évaluer du JS, des
+        // polices compilées ou du scripting PDF sur un fichier potentiellement
+        // piégé déposé par un tiers (audit FX7).
+        const pdf = await pdfjsLib.getDocument({
+            data: arrayBuffer,
+            //isEvalSupported: false,
+            enableXfa: false,
+            disableFontFace: true,
+        }).promise;
         let fullText = '';
         
         for (let i = 1; i <= pdf.numPages; i++) {

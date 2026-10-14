@@ -1,6 +1,6 @@
 import { ref, computed, type Ref } from 'vue';
 import useWSocket from './useWSocket';
-import { user } from '../assets/var';
+import { user, openedOrg } from '../assets/var';
 import { useToast } from './useToast';
 import { useRouter } from 'vue-router';
 import sfetch from '../assets/utils/sfetch';
@@ -268,10 +268,16 @@ export function useNotification() {
         notification.isRead = true;
       }
 
-      // Appel API
-      await sfetch(`/api/notifications/${notificationId}/read`, {
+      // Appel API — fetch() ne rejette jamais sur un 4xx/5xx : sans ce
+      // contrôle explicite, une réponse d'erreur (ex. 403/404/500) était
+      // silencieusement prise pour un succès, l'optimistic update restait
+      // en place pour la session en cours, et la notification réapparaissait
+      // non lue au prochain chargement (le serveur, lui, n'avait jamais été
+      // mis à jour).
+      const res = await sfetch(`/api/notifications/${notificationId}/read`, {
         method: 'PATCH'
       });
+      if (!res.ok) throw new Error(`PATCH /notifications/${notificationId}/read -> ${res.status}`);
 
       // Notifier via WebSocket pour synchroniser les autres onglets
       socket?.value?.emit('notification:mark-read', { notificationId });
@@ -334,6 +340,26 @@ export function useNotification() {
   };
 
   /**
+   * Marquer toutes les notifications d'un ticket de support comme lues
+   * (même mécanisme que markThreadAsRead/markDMAsRead) — appelé à
+   * l'ouverture d'un ticket, côté client ou côté équipe.
+   */
+  const markSupportTicketAsRead = async (ticketId: string): Promise<void> => {
+    try {
+      notifications.value.forEach(n => {
+        if (!n.isRead && n.data?.ticketId === ticketId) {
+          n.isRead = true;
+        }
+      });
+
+      socket?.value?.emit('notification:mark-read-by-support-ticket', { ticketId });
+    } catch (error) {
+      console.error('[Notifications] Failed to mark support ticket as read:', error);
+      await loadNotifications();
+    }
+  };
+
+  /**
    * Notification liée aux tâches : TASK_ASSIGNED est ce qu'émet réellement
    * l'API (tasksService.ts notifyTaskAssignment, création/mise à jour) ;
    * CUSTOM/TASK_UPDATE est l'ancien format, gardé pour les notifs en base.
@@ -348,6 +374,7 @@ export function useNotification() {
   const markTasksAsRead = async (spaceId?: string): Promise<void> => {
     try {
       let markedCount = 0;
+      let failedCount = 0;
       const promises: Promise<void>[] = [];
 
       // Optimistic update
@@ -355,15 +382,31 @@ export function useNotification() {
         if (!n.isRead && isTaskNotification(n) && (!spaceId || n.data?.spaceId === spaceId)) {
           n.isRead = true;
           markedCount++;
-          // We can use the existing read API per notification
+          // allSettled : une notification en échec ne doit pas faire revenir
+          // tout le lot en arrière. Mais sans vérifier res.ok ici, un
+          // 403/404/500 passait pour un succès (fetch() ne rejette que sur
+          // une vraie coupure réseau) — cette notification restait donc
+          // "lue" en local tout en étant toujours non lue côté serveur, et
+          // réapparaissait non lue au prochain chargement.
           promises.push(
-            sfetch(`/api/notifications/${n.id}/read`, { method: 'PATCH' }).then(() => { })
+            sfetch(`/api/notifications/${n.id}/read`, { method: 'PATCH' }).then((res) => {
+              if (!res.ok) {
+                n.isRead = false;
+                failedCount++;
+              }
+            }).catch(() => {
+              n.isRead = false;
+              failedCount++;
+            })
           );
         }
       });
 
       if (markedCount > 0) {
         await Promise.allSettled(promises);
+        if (failedCount > 0) {
+          toast.show('Échec de la mise à jour de certaines notifications', 'error');
+        }
       }
     } catch (error) {
       console.error('[Notifications] Failed to mark tasks as read:', error);
@@ -381,10 +424,11 @@ export function useNotification() {
         n.isRead = true;
       });
 
-      // Appel API
-      await sfetch('/api/notifications/read-all', {
+      // Appel API — même contrôle explicite du statut que markAsRead ci-dessus.
+      const res = await sfetch('/api/notifications/read-all', {
         method: 'PATCH'
       });
+      if (!res.ok) throw new Error(`PATCH /notifications/read-all -> ${res.status}`);
 
       // Notifier via WebSocket
       socket?.value?.emit('notification:mark-all-read');
@@ -402,9 +446,10 @@ export function useNotification() {
    */
   const removeNotification = async (notificationId: string): Promise<void> => {
     try {
-      await sfetch(`/api/notifications/${notificationId}`, {
+      const res = await sfetch(`/api/notifications/${notificationId}`, {
         method: 'DELETE'
       });
+      if (!res.ok) throw new Error(`DELETE /notifications/${notificationId} -> ${res.status}`);
 
       // Supprimer du state local
       notifications.value = notifications.value.filter(n => n.id !== notificationId);
@@ -415,6 +460,45 @@ export function useNotification() {
   };
 
   // ==================== WEB SOCKET ====================
+
+  /**
+   * Est-ce que cette notification MESSAGE concerne le DM ou le salon
+   * actuellement ouvert à l'écran ? Dans ce cas elle ne doit pas allumer de
+   * badge/point rouge — on est déjà en train de lire la conversation. Même
+   * règle que notif:dm:new-message / notif:new-message dans OrgLayout.vue,
+   * qui suppriment déjà le toast riche dans ce cas ; ici on couvre le badge
+   * du centre de notifications (UsersBar, ThreadsBar...) qui vient d'un
+   * pipeline séparé (notification:push) et n'avait pas ce garde-fou.
+   */
+  const isForActiveConversation = (notification: AppNotification): boolean => {
+    const route = router.currentRoute.value;
+
+    // SAV : la conversation active est le ticket ouvert, côté client
+    // (SupportTicketView) ou côté équipe (SupportPanelTicketView, qui
+    // affiche les deux canaux à la fois — pas besoin de distinguer
+    // PUBLIC/INTERNAL ici).
+    if (notification.type.startsWith('SUPPORT_TICKET_')) {
+      if (!notification.data?.ticketId) return false;
+      return (route.name === 'SupportTicketView' || route.name === 'SupportPanelTicketView')
+        && route.params.id === notification.data.ticketId;
+    }
+
+    if (notification.type !== 'MESSAGE') return false;
+
+    if (notification.data?.dmUserId) {
+      if (route.name !== 'OrgThreadChat' && route.name !== 'OrgThreadChatPrivateMeet') return false;
+      // route.params.userId est en réalité l'id du membre (OrgMember.id), pas
+      // l'id utilisateur — cf. ChatView.vue (recipient, markDMAsRead).
+      const peerMemberId = openedOrg.value?.members?.find(m => m.user?.id === notification.data?.dmUserId)?.id;
+      return !!peerMemberId && route.params.userId === peerMemberId;
+    }
+
+    if (notification.data?.threadId) {
+      return route.params.threadId === notification.data.threadId;
+    }
+
+    return false;
+  };
 
   /**
    * Configurer les listeners WebSocket
@@ -428,6 +512,13 @@ export function useNotification() {
       const exists = notifications.value.some(n => n.id === notification.id);
       if (!exists) {
         notifications.value.unshift(notification);
+      }
+
+      // Déjà en train de regarder cette conversation : la notification est
+      // instantanément marquée lue (pas de point rouge), cf. isForActiveConversation.
+      if (isForActiveConversation(notification)) {
+        markAsRead(notification.id);
+        return;
       }
 
       // Les messages (DM ou salon) ont déjà leur propre toast riche — avatar,
@@ -456,6 +547,13 @@ export function useNotification() {
     socket.value.on('notification:all-read', () => {
       notifications.value.forEach(n => {
         n.isRead = true;
+      });
+    });
+
+    // Ticket de support marqué lu depuis un autre onglet.
+    socket.value.on('notification:support-ticket-read', (data: { ticketId: string }) => {
+      notifications.value.forEach(n => {
+        if (n.data?.ticketId === data.ticketId) n.isRead = true;
       });
     });
   };
@@ -693,6 +791,44 @@ export function useNotification() {
     return notifications.value.filter(n => !n.isRead && n.type === 'MESSAGE' && n.data?.dmUserId).length;
   });
 
+  // Un même type (ex. SUPPORT_TICKET_REPLY) part aussi bien vers le client
+  // que vers l'équipe — seul `data.route` distingue les deux côtés (posé par
+  // l'API à chaque notification de ticket, cf. SUPPORT_FEATURE.md §7). On
+  // s'en sert pour ne pas allumer le rond rouge du menu « Aide & support »
+  // (client) à cause d'une notification destinée au panel SAV (équipe), et
+  // réciproquement.
+  const isClientSupportNotification = (n: AppNotification): boolean =>
+    n.type.startsWith('SUPPORT_TICKET_') && typeof n.data?.route === 'string' && n.data.route.startsWith('/support/');
+  const isStaffSupportNotification = (n: AppNotification): boolean =>
+    n.type.startsWith('SUPPORT_TICKET_') && typeof n.data?.route === 'string' && n.data.route.startsWith('/support-panel/');
+
+  /**
+   * Non-lues pour un ticket de support précis — rond rouge sur une entrée de
+   * liste. `scope` doit correspondre à la liste qui l'affiche : 'client'
+   * (SupportTicketList.vue) ou 'staff' (SupportPanel.vue).
+   */
+  const getUnreadCountBySupportTicketId = (ticketId: string, scope: 'client' | 'staff'): Ref<number> => {
+    const isMatch = scope === 'client' ? isClientSupportNotification : isStaffSupportNotification;
+    return computed(() => {
+      return notifications.value.filter(n => !n.isRead && isMatch(n) && n.data?.ticketId === ticketId).length;
+    });
+  };
+
+  /**
+   * Non-lues côté client (mes tickets) — rond rouge sur le menu
+   * « Aide & support », tout le long du chemin jusqu'au ticket concerné.
+   */
+  const getUnreadCountForSupport = computed(() => {
+    return notifications.value.filter(n => !n.isRead && isClientSupportNotification(n)).length;
+  });
+
+  /**
+   * Non-lues côté équipe — rond rouge sur le lien « Panel SAV ».
+   */
+  const getUnreadCountForSupportStaff = computed(() => {
+    return notifications.value.filter(n => !n.isRead && isStaffSupportNotification(n)).length;
+  });
+
   // ==================== RETURN ====================
 
   return {
@@ -712,6 +848,9 @@ export function useNotification() {
     getUnreadCountForTasks,
     getUnreadCountForSpaceTasks,
     getUnreadCountForDMs,
+    getUnreadCountBySupportTicketId,
+    getUnreadCountForSupport,
+    getUnreadCountForSupportStaff,
 
     // Méthodes
     init,
@@ -722,6 +861,7 @@ export function useNotification() {
     markAsRead,
     markThreadAsRead,
     markDMAsRead,
+    markSupportTicketAsRead,
     markTasksAsRead,
     markAllAsRead,
     removeNotification,

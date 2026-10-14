@@ -20,6 +20,8 @@
         </div>
 
         <main class="flex-1 overflow-y-auto md:overflow-hidden flex flex-col p-6 w-full h-full gap-6">
+            <TaskSearchBar v-model:query="searchQuery" v-model:regex="searchRegex" :invalid="searchInvalid" />
+
             <!-- Filtres : espace (perso + tous les projets où j'ai des tâches) et tags -->
             <div class="flex items-center gap-2 w-full shrink-0 flex-wrap">
                 <DropDown align="left" content-iner-t-w="min-w-[240px]">
@@ -94,9 +96,9 @@
                 </DropDown>
 
                 <button
-                    v-if="filterSpaceId || filterTagIds.length"
+                    v-if="filterSpaceId || filterTagIds.length || searchQuery"
                     type="button"
-                    @click="filterSpaceId = null; filterTagIds = []"
+                    @click="filterSpaceId = null; filterTagIds = []; searchQuery = ''"
                     class="text-[11px] font-bold text-(--text2) hover:text-(--text) flex items-center gap-1 ml-1"
                 >
                     <i class="bi bi-x-circle"></i>
@@ -159,8 +161,15 @@
 
                 <!-- Mobile : liste simple filtrée par l'onglet actif, pas de glisser-déposer -->
                 <div class="flex-1 min-h-0 overflow-y-auto md:hidden space-y-3">
+                    <div
+                        v-for="item in columnItems(mobileActiveColumn)" :key="item.key"
+                        :class="item.tasks.length > 1 ? 'rounded-2xl border border-(--primary)/30 bg-(--primary)/5 p-1.5 space-y-1.5' : ''"
+                    >
+                    <div v-if="item.tasks.length > 1" class="flex items-center gap-1.5 px-2 pt-1 pb-0.5 text-[10px] font-black uppercase tracking-widest text-(--primary)">
+                        <i class="bi bi-stack"></i> Pile · {{ item.tasks.length }} tâches
+                    </div>
                     <TaskCard
-                        v-for="task in filteredTasks(mobileActiveColumn)" :key="task.id"
+                        v-for="task in item.tasks" :key="task.id"
                         :task="task"
                         @click="openTaskDetails(task)"
                     >
@@ -192,6 +201,7 @@
                             </div>
                         </template>
                     </TaskCard>
+                    </div>
 
                     <p v-if="filteredTasks(mobileActiveColumn).length === 0" class="text-xs text-(--text2) italic text-center py-8">
                         Aucune tâche ici.
@@ -231,8 +241,22 @@
                         </div>
 
                         <div class="flex-1 overflow-y-auto space-y-3 min-h-0 pr-1 custom-scrollbar">
+                            <div
+                                v-for="item in columnItems(col.id)" :key="item.key"
+                                :class="item.tasks.length > 1 ? 'rounded-2xl border border-(--primary)/30 bg-(--primary)/5 p-1.5 space-y-1.5' : ''"
+                            >
+                            <div
+                                v-if="item.tasks.length > 1"
+                                draggable="true"
+                                @dragstart="onStackDragStart($event, item)"
+                                @dragend="onDragEnd"
+                                class="flex items-center gap-1.5 px-2 pt-1 pb-0.5 text-[10px] font-black uppercase tracking-widest text-(--primary) cursor-grab active:cursor-grabbing select-none"
+                                title="Glisser pour déplacer toute la pile"
+                            >
+                                <i class="bi bi-grip-horizontal"></i> Pile · {{ item.tasks.length }} tâches
+                            </div>
                             <DropDown
-                                v-for="task in filteredTasks(col.id)" :key="task.id"
+                                v-for="(task, index) in item.tasks" :key="task.id"
                                 align="mouse" click="right" class="w-full"
                             >
                             <template #trigger>
@@ -242,14 +266,10 @@
                                 draggable="true"
                                 @dragstart="onDragStart($event, task)"
                                 @dragend="onDragEnd"
-                                @dragover.prevent="onCardDragOver($event, task)"
+                                @dragover.prevent="dragOverCard($event, task, item, index)"
                                 @drop.stop="onCardDrop($event, task, col.id)"
                                 @click="openTaskDetails(task)"
-                                :class="[
-                                    'active:cursor-grabbing',
-                                    dragOverTaskId === task.id && dragOverPosition === 'before' ? 'border-t-2 border-t-(--primary)' : '',
-                                    dragOverTaskId === task.id && dragOverPosition === 'after' ? 'border-b-2 border-b-(--primary)' : ''
-                                ]"
+                                :class="['active:cursor-grabbing', dropIndicatorClass(task)]"
                             >
                                 <template #header-right>
                                     <span class="text-[9px] font-bold text-(--text2) uppercase truncate max-w-20 shrink-0">
@@ -259,6 +279,14 @@
                             </TaskCard>
                             </template>
                             <template #content>
+                                <button
+                                    v-if="item.tasks.length > 1"
+                                    @click="detachFromStack(task)"
+                                    class="dropdown-item-annimate dropdown-item-style gap-2"
+                                >
+                                    <i class="bi bi-box-arrow-up" />
+                                    Retirer de la pile
+                                </button>
                                 <button
                                     @click="startRenameTask(task)"
                                     class="dropdown-item-annimate dropdown-item-style gap-2"
@@ -293,6 +321,7 @@
                                 </button>
                             </template>
                             </DropDown>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -369,6 +398,7 @@ import type { Task, TodoList } from '@/types/types';
 import { useToast } from '@/composables/useToast';
 import TaskProgressGauge from '../components/SpaceTasks/TaskProgressGauge.vue';
 import TaskCard from '../components/SpaceTasks/TaskCard.vue';
+import TaskSearchBar from '../components/SpaceTasks/TaskSearchBar.vue';
 import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
@@ -376,11 +406,12 @@ import DropDown from '@/components/DropDown.vue';
 import TaskTagPicker from '../components/popup/TaskTagPicker.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { user, openedOrg } from '@/assets/var';
-import confetti from 'canvas-confetti';
 import useWSocket from '@/composables/useWSocket';
 import { useNotification } from '@/composables/useNotification';
 import { useTaskOrder } from '@/composables/useTaskOrder';
 import { usePersistedTaskFilters } from '@/composables/usePersistedTaskFilters';
+import { useTaskStacks, type TaskStackItem } from '@/composables/useTaskStacks';
+import { buildTaskMatcher } from '@/assets/utils/taskSearch';
 
 const route = useRoute();
 const router = useRouter();
@@ -407,8 +438,12 @@ const showArchiveAllConfirm = ref(false);
 const archivedCount = ref(0);
 const dragOverArchiveBtn = ref(false);
 
-const dragOverTaskId = ref<string | null>(null);
-const dragOverPosition = ref<'before' | 'after' | null>(null);
+// Recherche : volontairement non persistée (contrairement aux filtres), pour
+// qu'on ne revienne pas sur un tableau « vide » sans savoir pourquoi.
+const searchQuery = ref('');
+const searchRegex = ref(false);
+const searchState = computed(() => buildTaskMatcher(searchQuery.value, searchRegex.value));
+const searchInvalid = computed(() => searchState.value.invalid);
 
 const columns = [
     { id: 'TODO', title: 'À faire', color: 'text-gray-400', icon: 'bi-circle' },
@@ -503,6 +538,7 @@ const visibleTasks = computed(() => {
         if (filterTagIds.value.length && !t.tags?.some(tag => filterTagIds.value.includes(tag.id))) return false;
         if (filterSpaceId.value === 'personal' && t.spaceId) return false;
         if (filterSpaceId.value && filterSpaceId.value !== 'personal' && t.spaceId !== filterSpaceId.value) return false;
+        if (searchState.value.matcher && !searchState.value.matcher(t)) return false;
         return true;
     });
 });
@@ -510,6 +546,16 @@ const visibleTasks = computed(() => {
 const filteredTasks = (status: string) => {
     return sortByOrder(visibleTasks.value.filter(t => t.status === status));
 };
+
+const {
+    columnItems, beginDrag, beginStackDrag, endDrag, draggedIds, changeStatus: changeTaskStatus,
+    dropOnColumn, dragOverCard, dropOnCard, detachFromStack, dropIndicatorClass
+} = useTaskStacks({
+    orgId: route.params.orgId as string,
+    allTasks: rawTasks,
+    columnTasks: filteredTasks,
+    persistOrder
+});
 
 const loadLists = async () => {
     try {
@@ -584,15 +630,17 @@ const loadLists = async () => {
 const onDragStart = (e: DragEvent, task: Task) => {
     isDraggingTask.value = true;
     isDeleting.value = false;
-    if (e.dataTransfer) {
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('taskId', task.id);
-    }
+    beginDrag(e, task);
+};
+
+const onStackDragStart = (e: DragEvent, item: TaskStackItem) => {
+    isDraggingTask.value = true;
+    isDeleting.value = false;
+    beginStackDrag(e, item);
 };
 
 const onDragEnd = () => {
-    dragOverTaskId.value = null;
-    dragOverPosition.value = null;
+    endDrag();
     dragOverArchiveBtn.value = false;
     if (!isDeleting.value) {
         isDraggingTask.value = false;
@@ -628,13 +676,14 @@ const archiveTaskById = async (taskId: string) => {
 };
 
 const onDropToArchiveBtn = async (e: DragEvent) => {
-    const taskId = e.dataTransfer?.getData('taskId');
+    const taskIds = draggedIds(e);
+    endDrag();
     dragOverArchiveBtn.value = false;
-    if (!taskId) return;
+    if (!taskIds.length) return;
 
     try {
-        await archiveTaskById(taskId);
-        toast.show("Tâche archivée", "success");
+        await Promise.all(taskIds.map(archiveTaskById));
+        toast.show(taskIds.length > 1 ? "Tâches archivées" : "Tâche archivée", "success");
     } catch (err) {
         toast.show("Erreur lors de l'archivage", "error");
     }
@@ -681,8 +730,9 @@ const loadArchivedCount = async () => {
 };
 
 const onDropToTrash = async (e: DragEvent) => {
-    const taskId = e.dataTransfer?.getData('taskId');
-    if (!taskId) return;
+    const taskIds = draggedIds(e);
+    endDrag();
+    if (!taskIds.length) return;
 
     isDeleting.value = true;
     isHoveringTrash.value = false;
@@ -693,92 +743,22 @@ const onDropToTrash = async (e: DragEvent) => {
     }, 600);
 
     try {
-        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskId}`, {
-            method: 'DELETE'
-        });
-
-        if (!res.ok) throw new Error("API Error");
-
-        onTaskDeleted(taskId);
-        toast.show("Tâche supprimée", "success");
+        await Promise.all(taskIds.map(async taskId => {
+            const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskId}`, {
+                method: 'DELETE'
+            });
+            if (!res.ok) throw new Error("API Error");
+            onTaskDeleted(taskId);
+        }));
+        toast.show(taskIds.length > 1 ? "Tâches supprimées" : "Tâche supprimée", "success");
     } catch (err) {
         toast.show("Erreur lors de la suppression", "error");
     }
 };
 
-const changeTaskStatus = async (taskToMove: Task, newStatus: string) => {
-    if (taskToMove.status === newStatus) return;
+const onDrop = (e: DragEvent, newStatus: string) => dropOnColumn(e, newStatus);
 
-    const oldStatus = taskToMove.status;
-    taskToMove.status = newStatus as 'TODO' | 'IN_PROGRESS' | 'DONE';
-
-    try {
-        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskToMove.id}`, {
-            method: 'PUT',
-            body: JSON.stringify({ status: newStatus })
-        });
-        if (!res.ok) throw new Error();
-
-        if (newStatus === 'DONE') {
-            try {
-                confetti({
-                    particleCount: 150,
-                    spread: 80,
-                    origin: { y: 0.6 },
-                    colors: ['#4ade80', '#3b82f6', '#fbbf24', '#f87171'],
-                    zIndex: 10000
-                });
-            } catch (e) {}
-        }
-
-    } catch (err) {
-        taskToMove.status = oldStatus;
-        toast.show("Erreur lors du déplacement", "error");
-    }
-};
-
-const onDrop = async (e: DragEvent, newStatus: string) => {
-    const taskId = e.dataTransfer?.getData('taskId');
-    if (!taskId) return;
-
-    const taskToMove = rawTasks.value.find(t => t.id === taskId);
-    if (!taskToMove) return;
-
-    const columnTaskIds = filteredTasks(newStatus)
-        .filter(t => t.id !== taskId)
-        .map(t => t.id);
-    columnTaskIds.push(taskId);
-    await persistOrder(columnTaskIds);
-
-    await changeTaskStatus(taskToMove, newStatus);
-};
-
-const onCardDragOver = (e: DragEvent, task: Task) => {
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const midpoint = rect.top + rect.height / 2;
-    dragOverTaskId.value = task.id;
-    dragOverPosition.value = e.clientY < midpoint ? 'before' : 'after';
-};
-
-const onCardDrop = async (e: DragEvent, targetTask: Task, newStatus: string) => {
-    const taskId = e.dataTransfer?.getData('taskId');
-    const position = dragOverPosition.value;
-    dragOverTaskId.value = null;
-    dragOverPosition.value = null;
-
-    if (!taskId || taskId === targetTask.id) return;
-
-    const taskToMove = rawTasks.value.find(t => t.id === taskId);
-    if (!taskToMove) return;
-
-    const columnTasks = filteredTasks(newStatus).filter(t => t.id !== taskId);
-    const targetIndex = columnTasks.findIndex(t => t.id === targetTask.id);
-    const insertIndex = position === 'after' ? targetIndex + 1 : targetIndex;
-    columnTasks.splice(insertIndex, 0, taskToMove);
-
-    await persistOrder(columnTasks.map(t => t.id));
-    await changeTaskStatus(taskToMove, newStatus);
-};
+const onCardDrop = (e: DragEvent, targetTask: Task, newStatus: string) => dropOnCard(e, targetTask, newStatus);
 
 const openTaskDetails = (task: Task) => {
     openTaskInEditMode.value = false;

@@ -9,6 +9,7 @@ export interface VoiceDevicePrefs {
     screenResolution: { width: number; height: number };
     screenFrameRate: number;
     qualityMode: VideoQualityMode;
+    noiseSuppressionEnabled: boolean;
 }
 
 const STORAGE_KEY = 'synco:voiceDevicePrefs';
@@ -27,6 +28,7 @@ const DEFAULT_PREFS: VoiceDevicePrefs = {
     screenResolution: RESOLUTION_PRESETS['1080p'],
     screenFrameRate: 30,
     qualityMode: 'auto',
+    noiseSuppressionEnabled: true,
 };
 
 export function getVoicePrefs(): VoiceDevicePrefs {

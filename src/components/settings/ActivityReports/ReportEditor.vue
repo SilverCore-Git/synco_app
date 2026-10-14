@@ -254,7 +254,10 @@ const toast = useToast();
 
 type Draft = Omit<ActivityReport, 'id' | 'organizationId' | 'organization' | 'space' | 'nextRunAt' | 'lastSentAt'>;
 
-const draft = reactive<Draft>({
+// `let` (not `const`): the ScheduleBuilder v-model compiles to a
+// reassignment of this binding, even though it's never actually triggered
+// (ScheduleBuilder mutates the object in place, see its own comment).
+let draft = reactive<Draft>({
     name: '',
     enabled: true,
     spaceId: null,

@@ -1,48 +1,44 @@
+// Prépare un miroir des modèles IA locaux (servi via VITE_LOCAL_AI_MODELS_URL).
+// Doit rester aligné sur src/services/localLLM/catalog.ts.
+// Usage : node scripts/download_ai_models.js [f16|f32] [dossier_de_sortie]
 import fs from 'fs';
 import path from 'path';
 import { pipeline } from 'stream/promises';
+import { Readable } from 'stream';
 import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const MODELS_DIR = path.resolve(__dirname, '../public/models');
+const precisionArg = process.argv[2];
+const MODELS_DIR = path.resolve(process.argv[3] || path.resolve(__dirname, '../public/models'));
 const WASM_DIR = path.resolve(MODELS_DIR, 'wasm');
+const WASM_BASE = 'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_84/base';
 
-const models = [
-    {
-        id: "SmolLM2-135M-Instruct-q0f16-MLC",
-        hfRepo: "mlc-ai/SmolLM2-135M-Instruct-q0f16-MLC",
-        wasmUrl: "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_84/base/SmolLM2-135M-Instruct-q0f16_cs1k-webgpu.wasm",
-        wasmName: "SmolLM2-135M-Instruct-q0f16_cs1k-webgpu.wasm"
-    },
-    {
-        id: "Qwen2-1.5B-Instruct-q4f16_1-MLC",
-        hfRepo: "mlc-ai/Qwen2-1.5B-Instruct-q4f16_1-MLC",
-        wasmUrl: "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_84/base/Qwen2-1.5B-Instruct-q4f16_1_cs1k-webgpu.wasm",
-        wasmName: "Qwen2-1.5B-Instruct-q4f16_1_cs1k-webgpu.wasm"
-    },
-    {
-        id: "Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
-        hfRepo: "mlc-ai/Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
-        wasmUrl: "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_84/base/Mistral-7B-Instruct-v0.3-q4f16_1_cs1k-webgpu.wasm",
-        wasmName: "Mistral-7B-Instruct-v0.3-q4f16_1_cs1k-webgpu.wasm"
-    }
+const families = [
+    'Mistral-7B-Instruct-v0.3-{p}_1-MLC',
+    'Ministral-3-3B-Instruct-2512-BF16-{p}_1-MLC',
+    'SmolLM2-1.7B-Instruct-{p}_1-MLC',
 ];
+const precisions = precisionArg ? [precisionArg] : ['f16', 'f32'];
+
+const models = families.flatMap(f => precisions.map(p => {
+    const id = f.replace('{p}', `q4${p}`);
+    return { id, hfRepo: `mlc-ai/${id}`, wasmName: `${id.replace(/-MLC$/, '')}_cs1k-webgpu.wasm` };
+}));
 
 async function downloadFile(url, dest) {
     if (fs.existsSync(dest)) {
-        console.log(`[SKIP] Already exists: ${dest}`);
+        console.log(`[SKIP] ${path.basename(dest)}`);
         return;
     }
-    
-    console.log(`[DOWNLOAD] ${url} -> ${dest}`);
+    console.log(`[DOWNLOAD] ${url}`);
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.statusText}`);
-    
-    const fileStream = fs.createWriteStream(dest);
-    // Use Web Streams API to Node.js stream
-    await pipeline(res.body, fileStream);
+    if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    // Écriture atomique : un fichier interrompu ne doit pas être pris pour complet au prochain lancement.
+    const tmp = `${dest}.part`;
+    await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(tmp));
+    fs.renameSync(tmp, dest);
 }
 
 async function fetchHfTree(repo) {
@@ -52,36 +48,27 @@ async function fetchHfTree(repo) {
 }
 
 async function main() {
-    if (!fs.existsSync(MODELS_DIR)) fs.mkdirSync(MODELS_DIR, { recursive: true });
-    if (!fs.existsSync(WASM_DIR)) fs.mkdirSync(WASM_DIR, { recursive: true });
+    fs.mkdirSync(WASM_DIR, { recursive: true });
 
     for (const model of models) {
-        console.log(`\n=== Processing Model: ${model.id} ===`);
+        console.log(`\n=== ${model.id} ===`);
         const modelPath = path.join(MODELS_DIR, model.id, 'resolve', 'main');
-        if (!fs.existsSync(modelPath)) fs.mkdirSync(modelPath, { recursive: true });
+        const files = (await fetchHfTree(model.hfRepo))
+            .filter(f => f.type === 'file' && !f.path.startsWith('.') && !f.path.endsWith('.md'));
 
-        // 1. Download HuggingFace files
-        console.log("Fetching repository tree...");
-        const files = await fetchHfTree(model.hfRepo);
-        
-        for (const file of files) {
-            if (file.type !== 'file') continue;
-            // Skip large git objects if any, usually HF tree only returns repo files
-            if (file.path.startsWith('.')) continue; // skip .gitattributes etc.
-            if (file.path.endsWith('.md')) continue; // skip README
-            
-            const fileUrl = `https://huggingface.co/${model.hfRepo}/resolve/main/${file.path}`;
-            const destPath = path.join(modelPath, file.path);
-            await downloadFile(fileUrl, destPath);
-        }
+        // 4 téléchargements simultanés par modèle.
+        const queue = [...files];
+        await Promise.all(Array.from({ length: 4 }, async () => {
+            for (let f = queue.shift(); f; f = queue.shift()) {
+                await downloadFile(`https://huggingface.co/${model.hfRepo}/resolve/main/${f.path}`, path.join(modelPath, f.path));
+            }
+        }));
 
-        // 2. Download WASM library
-        console.log("\nDownloading WASM library...");
-        const wasmDest = path.join(WASM_DIR, model.wasmName);
-        await downloadFile(model.wasmUrl, wasmDest);
-
-        console.log(`=== Done: ${model.id} ===\n`);
+        await downloadFile(`${WASM_BASE}/${model.wasmName}`, path.join(WASM_DIR, model.wasmName));
     }
 }
 
-main().catch(console.error);
+main().catch(e => {
+    console.error(e);
+    process.exit(1);
+});
