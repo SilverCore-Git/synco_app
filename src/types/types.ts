@@ -343,6 +343,9 @@ export interface Task {
   parentTask?: Task | null;
   subtasks?: Task[];
 
+  /** Tâches partageant le même stackId = une pile (grosse carte) dans le Kanban. */
+  stackId?: string | null;
+
   tags?: Tag[];
   attachments?: TaskAttachment[];
   linkedFiles?: TaskLinkedFile[];
