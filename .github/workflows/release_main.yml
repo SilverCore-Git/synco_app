@@ -28,6 +28,8 @@ jobs:
 
       - name: Configuration du SDK Android
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools' # le paquet legacy "tools" n'existe plus dans le repo Google (cf android-actions/setup-android#537)
 
       - name: Génération des fichiers .env
         run: |
