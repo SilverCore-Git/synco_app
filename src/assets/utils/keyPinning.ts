@@ -17,7 +17,9 @@ import { user } from '@/assets/var';
  * épinglée (TOFU). Seule une signature de l'émetteur (FC4 §2) la détecterait.
  */
 
-export type KeyContext = `space:${string}` | `thread:${string}` | `dm:${string}` | `ai:${string}`;
+// `support:<ticketId>:public|internal` : clés des deux canaux d'un ticket de
+// support (SUPPORT_FEATURE.md §2.2), épinglées et signées comme les autres.
+export type KeyContext = `space:${string}` | `thread:${string}` | `dm:${string}` | `ai:${string}` | `support:${string}`;
 
 export class KeyChangedError extends Error {
     readonly context: KeyContext;

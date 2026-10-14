@@ -82,7 +82,7 @@ const onSpaceOrderChange = async () => {
 
         <ul
             class="flex justify-start items-center flex-col gap-2 h-full w-full overflow-y-auto"
-            :style="{ paddingBottom: userCardHeight + 'px' }"
+            :style="{ paddingBottom: userCardHeight + 16 + 'px' }"
         >
 
             <RouterLink to="/" class="shrink-0">
@@ -208,7 +208,7 @@ const onSpaceOrderChange = async () => {
 
         <ul
             class="flex justify-start items-center flex-col gap-2 h-full w-full overflow-y-auto"
-            :style="{ paddingBottom: userCardHeight + 'px' }"
+            :style="{ paddingBottom: userCardHeight + 16 + 'px' }"
         >
 
             <SpaceBarBTN

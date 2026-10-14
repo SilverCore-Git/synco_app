@@ -70,12 +70,16 @@ export interface UploadTicket {
 export interface UploadRequest {
     /** Nouveau fichier : destination ; remplacement : null. */
     create?: {
-        orgId: string;
+        // Absent pour une pièce jointe de support (sans organisation).
+        orgId?: string;
         workspaceId?: string;
         messageId?: string;
         dmMessageId?: string;
         folderId?: string;
         taskId?: string;
+        supportTicketId?: string;
+        supportChannel?: 'PUBLIC' | 'INTERNAL';
+        supportMessageId?: string;
         fileName: string;
     };
     /** Remplacement du contenu d'un fichier existant. */

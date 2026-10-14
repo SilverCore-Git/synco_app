@@ -281,6 +281,7 @@
                         @download="downloadFolder(folder)"
                         @show-permissions="openFolderPermissions(folder)"
                         @request-delete="requestDeleteFolder"
+                        @request-share="openShareModal('folder', folder.id, folder.name)"
                     />
 
                 </div>
@@ -303,6 +304,7 @@
                     @show-file-info="handleShowFileInfo"
                     @file-watermarked="handleFileWatermarked"
                     @show-permissions="openFilePermissions(file)"
+                    @request-share="openShareModal('file', file.id, file.originalName)"
                 />
 
                 </div>
@@ -623,6 +625,13 @@
         @deleted="selectedFileForViewer = null"
     />
 
+    <ShareToTargetModal
+        :show="showShareModal"
+        :preview="shareItem ? { icon: shareItem.kind === 'folder' ? 'bi-folder-fill text-amber-400' : 'bi-file-earmark-fill', title: shareItem.name } : null"
+        :send="(target, note) => shareReference(target, { kind: shareItem!.kind, id: shareItem!.id }, note)"
+        @close="showShareModal = false"
+    />
+
 </template>
 
 <script lang="ts" setup>
@@ -654,6 +663,8 @@ import { extractTextFromPDF } from '@/assets/utils/pdfExtractor';
 import VectorWorker from '@/workers/semantic.worker?worker';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 import ManageAccessModal from '@/components/permissions/ManageAccessModal.vue';
+import ShareToTargetModal from '@/components/common/ShareToTargetModal.vue';
+import { shareReference } from '@/composables/useShareReference';
 
 
 const { showUsersBar } = useUsersBar();
@@ -740,19 +751,27 @@ const selectAllVisible = () => {
     selectionBeforeRange = null;
 };
 
-// Ctrl+A : raccourci habituel, mais seulement une fois une sélection commencée,
-// pour ne pas voler le "tout sélectionner" du texte au reste de la vue.
-const handleSelectAllShortcut = (e: KeyboardEvent) => {
-
-    if (e.key !== 'a' && e.key !== 'A') return;
-    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
-    if (selectedItems.value.size === 0) return;
+// Ctrl+A (sélectionner tout, une fois une sélection commencée) et Suppr
+// (demander la suppression de la sélection courante) : tous deux ignorés si
+// le focus est dans un champ de saisie, pour ne pas voler ces touches au reste
+// de la vue (texte en cours d'édition, recherche, etc.).
+const handleKeyboardShortcuts = (e: KeyboardEvent) => {
 
     const target = e.target as HTMLElement | null;
     if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
 
-    e.preventDefault();
-    selectAllVisible();
+    if ((e.key === 'a' || e.key === 'A') && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+        if (selectedItems.value.size === 0) return;
+        e.preventDefault();
+        selectAllVisible();
+        return;
+    }
+
+    if (e.key === 'Delete') {
+        if (selectedItems.value.size === 0) return;
+        e.preventDefault();
+        requestDeleteSelection();
+    }
 
 };
 
@@ -1190,6 +1209,14 @@ const goHistoryForward = () => {
     currentFolderId.value = folderHistory.value[historyIndex.value] || 'root';
 };
 
+const showShareModal = ref<boolean>(false);
+const shareItem = ref<{ kind: 'file' | 'folder'; id: string; name: string } | null>(null);
+
+const openShareModal = (kind: 'file' | 'folder', id: string, name: string) => {
+    shareItem.value = { kind, id, name };
+    showShareModal.value = true;
+};
+
 const openFolderPermissions = (folder: Folder) => {
     selectedFolderForPerms.value = folder;
     showFolderPermissions.value = true;
@@ -1340,6 +1367,32 @@ const moveFile = async (fileId: string, folderId: string) => {
 };
 
 const triggerFileSearch = () => fileInputRef.value?.click();
+
+// Ctrl+V : importe les fichiers (image copiée, fichier copié dans l'explorateur
+// du système, etc.) présents dans le presse-papiers directement dans le dossier
+// courant. Ignoré si le focus est dans un champ de saisie pour laisser le
+// collage de texte habituel se produire.
+const handlePaste = (e: ClipboardEvent) => {
+
+    const target = e.target as HTMLElement | null;
+    if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
+
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const files: File[] = [];
+    for (const item of Array.from(items)) {
+        if (item.kind !== 'file') continue;
+        const file = item.getAsFile();
+        if (file) files.push(file);
+    }
+
+    if (files.length === 0) return;
+
+    e.preventDefault();
+    handleFiles(files, currentFolderId.value);
+
+};
 
 const handleFolderDragStart = (event: DragEvent, folderId: string) => {
     isDragging.value = true;
@@ -1684,7 +1737,8 @@ const refreshFolder = () => fetchSpaceContent({ silent: true });
 
 onMounted(async() => {
 
-    window.addEventListener('keydown', handleSelectAllShortcut);
+    window.addEventListener('keydown', handleKeyboardShortcuts);
+    window.addEventListener('paste', handlePaste);
 
     await fetchSpaceContent();
     
@@ -1737,7 +1791,8 @@ onMounted(async() => {
 });
 
 onUnmounted(async () => {
-    window.removeEventListener('keydown', handleSelectAllShortcut);
+    window.removeEventListener('keydown', handleKeyboardShortcuts);
+    window.removeEventListener('paste', handlePaste);
     const socket = await useWSocket();
     socket.value?.off('file-added');
     socket.value?.off('file-updated');

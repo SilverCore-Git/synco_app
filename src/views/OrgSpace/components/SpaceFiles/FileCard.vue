@@ -112,7 +112,7 @@
                         <i class="bi bi-shield-lock" />
                         Ajouter un filigrane
                     </button>
-                    <button 
+                    <button
                         v-if="file.messageId || file.dmMessageId"
                         @click="viewMessagesWithFile(file)"
                         class="dropdown-item-annimate dropdown-item-style gap-2"
@@ -120,7 +120,14 @@
                         <i class="bi bi-chat-left" />
                         Voir le message
                     </button>
-                    <button 
+                    <button
+                        @click="$emit('request-share', file)"
+                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                    >
+                        <i class="bi bi-send" />
+                        Transférer
+                    </button>
+                    <button
                         @click="deleteFile(file)"
                         class="dropdown-item-annimate dropdown-item-style gap-2 text-red-500! hover:bg-red-500/5!"
                     >
@@ -193,7 +200,7 @@ const props = defineProps<{
     isSelectionMode?: boolean
 }>();
 
-const emit = defineEmits(['file-deleted', 'show-file-info', 'file-watermarked', 'toggle-select', 'range-select', 'request-delete', 'show-permissions']);
+const emit = defineEmits(['file-deleted', 'show-file-info', 'file-watermarked', 'toggle-select', 'range-select', 'request-delete', 'show-permissions', 'request-share']);
 
 let longPressTimer: any = null;
 

@@ -20,10 +20,11 @@ export interface MentionEntry {
   name: string;
   pseudo?: string;
   special?: 'everyone' | 'here';
-  // Présent quand le trigger '@' mélange plusieurs kinds (membres + rôles) —
-  // absent pour les entrées "membre" classiques, où le kind est déjà porté
-  // par activeTriggerKind. Voir ThreadTextarea.vue insertMention.
-  kind?: 'role';
+  // Présent quand le trigger mélange plusieurs kinds : '@' -> membres+rôles,
+  // '&' -> fichiers+dossiers — absent pour l'entrée "par défaut" du trigger
+  // (membre, fichier), où le kind est déjà porté par activeTriggerKind. Voir
+  // ThreadTextarea.vue insertMention.
+  kind?: 'role' | 'folder';
 }
 
 export type MentionTarget =

@@ -1,11 +1,18 @@
 import { openedOrg, user } from '@/assets/var';
 import { localLLM } from './LocalLLMService';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import useSettingsItem from '@/composables/useSettingsItem';
+import {
+    normalizeAiConfig, enabledProviderIds, isProviderId, isReasoningEffort, providerForRegime, regimeOf, resolveEffectiveEffort, resolveEffectiveProvider,
+    type AiProviderId, type AiUserPrefs, type ReasoningEffort, type SessionRegime,
+} from './aiProviders';
 import sfetch from '@/assets/utils/sfetch';
 import { keycloak } from '@/assets/keycloak';
 import { encryptForPeer, decryptFromPeer, privateKey, encryptAiField, decryptAiField } from '@/assets/utils/crypto';
 import { ensureAiSessionKey, getAiSessionKeyRawBase64, AiSessionKeyUnavailableError } from './AiSessionKeyService';
 import { assertAllowedGateway } from './aiGatewayPolicy';
+import { ToolCallStreamParser, type ParsedEvent } from './agent/toolCallParser';
+import { startClientAgentTurn, resumeClientAgentTurn, type ClientAgentDeps, type ClientDecision, type PendingClientTool } from './agent/clientAgent';
 
 export interface AIProviderConfig {
     provider: 'local' | 'openai' | 'gemini' | 'mistral' | 'custom' | 'gateway';
@@ -23,16 +30,76 @@ export interface AIProviderConfig {
     reasoningEffort?: 'low' | 'medium' | 'high';
 }
 
+// Choix de l'utilisateur par organisation, synchronisés sur son compte. Un réglage par valeur
+// (`ai_provider_<orgId>`, `ai_effort_<orgId>`) : POST /api/users/me/settings refuse tout ce qui n'est pas
+// string/boolean/number. Créés à la demande : useSettingsItem lance une lecture réseau au premier appel.
+const PREFS_FALLBACK_MS = 8000;
+const prefsFallbackElapsed = ref(false);
+let prefsFallbackStarted = false;
+
+const prefItem = (kind: 'provider' | 'effort', orgId: string) => {
+    if (!prefsFallbackStarted) {
+        prefsFallbackStarted = true;
+        setTimeout(() => { prefsFallbackElapsed.value = true; }, PREFS_FALLBACK_MS);
+    }
+    // Pas de valeur par défaut : rien n'est écrit tant que l'utilisateur n'a pas fait de choix explicite.
+    return useSettingsItem(`ai_${kind}_${orgId}`, undefined);
+};
+
+/** Remplace le provider choisi quand on rouvre une conversation d'une autre famille (non persisté). */
+const sessionProviderOverride = ref<AiProviderId | null>(null);
+/** Famille de la conversation affichée, quand elle a été détectée au chargement. */
+const activeSessionRegime = ref<SessionRegime | null>(null);
+
+/** Convertit les événements du parseur en ce que consomment les appelants de chat() : du texte ou un `tool_call`. */
+function* toolStream(events: ParsedEvent[]): Generator<any> {
+    for (const ev of events) {
+        yield ev.type === 'text' ? ev.text : { type: 'tool_call', name: ev.name, arguments: ev.arguments };
+    }
+}
+
 export class AIService {
-    
+
+    /** Configuration de l'organisation, normalisée (ancien et nouveau format). */
+    public get orgConfig() {
+        return normalizeAiConfig(openedOrg.value?.activeModules?.aiConfig);
+    }
+
+    public get userPrefs(): AiUserPrefs {
+        const orgId = openedOrg.value?.id;
+        if (!orgId) return {};
+        const provider = prefItem('provider', orgId).Item.value;
+        const effort = prefItem('effort', orgId).Item.value;
+        return {
+            provider: isProviderId(provider) ? provider : undefined,
+            reasoningEffort: isReasoningEffort(effort) ? effort : undefined,
+        };
+    }
+
+    public get provider(): AiProviderId {
+        return resolveEffectiveProvider(this.orgConfig, this.userPrefs, sessionProviderOverride.value);
+    }
+
+    /**
+     * Configuration effective : le provider choisi par l'utilisateur (sinon le défaut de l'org) avec ses
+     * réglages, et l'effort de réflexion choisi (sinon celui de l'org). Les appelants ne voient jamais
+     * la différence avec l'ancienne config à provider unique.
+     */
     public get config(): AIProviderConfig {
-        return openedOrg.value?.activeModules?.aiConfig || {
-            provider: 'local'
+        const cfg = this.orgConfig;
+        const provider = this.provider;
+        const entry = cfg.providers[provider] || { enabled: true };
+        return {
+            provider,
+            modelId: entry.modelId,
+            endpointUrl: entry.endpointUrl,
+            gatewayUrl: entry.gatewayUrl,
+            reasoningEffort: resolveEffectiveEffort(cfg, this.userPrefs),
         };
     }
 
     public get isLocal() {
-        return this.config.provider === 'local';
+        return this.provider === 'local';
     }
 
     public get currentModelName() {
@@ -118,7 +185,12 @@ export class AIService {
         } else {
             response = await sfetch(`/api/orgs/${orgId}/ai/chat`, {
                 method: 'POST',
-                body: JSON.stringify({ sessionId: sessionId || undefined, message }),
+                body: JSON.stringify({
+                    sessionId: sessionId || undefined,
+                    message,
+                    provider: this.config.provider,
+                    reasoningEffort: this.config.reasoningEffort,
+                }),
                 signal: this.abortController.signal,
             });
         }
@@ -147,7 +219,11 @@ export class AIService {
         } else {
             response = await sfetch(`/api/orgs/${orgId}/ai/chat/${sessionId}/tool-result`, {
                 method: 'POST',
-                body: JSON.stringify(decision),
+                body: JSON.stringify({
+                    ...decision,
+                    provider: this.config.provider,
+                    reasoningEffort: this.config.reasoningEffort,
+                }),
                 signal: this.abortController.signal,
             });
         }
@@ -206,7 +282,7 @@ export class AIService {
         const orgId = openedOrg.value?.id;
         if (!orgId) throw new Error("Aucune organisation ouverte");
 
-        const url = `/api/orgs/${orgId}/ai/proxy`;
+        const url = `/api/orgs/${orgId}/ai/proxy?provider=${this.config.provider}`;
 
         const response = await sfetch(url, {
             method: 'POST',
@@ -234,7 +310,7 @@ export class AIService {
         const orgId = openedOrg.value?.id;
         if (!orgId) throw new Error("Aucune organisation ouverte");
 
-        const url = `/api/orgs/${orgId}/ai/proxy`;
+        const url = `/api/orgs/${orgId}/ai/proxy?provider=${this.config.provider}`;
 
         const geminiMessages = messages
           .filter((m: any) => m.role !== 'system')
@@ -269,7 +345,7 @@ export class AIService {
         if (!reader) throw new Error("No reader");
 
         const decoder = new TextDecoder();
-        let buffer = "";
+        const parser = new ToolCallStreamParser();
 
         while (true) {
             const { done, value } = await reader.read();
@@ -298,17 +374,7 @@ export class AIService {
                         }
 
                         const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                        if (text) {
-                            buffer += text;
-                            const parsedBuffer = this.checkAndYieldTools(buffer);
-                            if (parsedBuffer.yielded) {
-                                yield parsedBuffer.toolCall;
-                                buffer = parsedBuffer.remainingBuffer;
-                            } else if (parsedBuffer.safeText) {
-                                yield parsedBuffer.safeText;
-                                buffer = parsedBuffer.remainingBuffer;
-                            }
-                        }
+                        if (text) yield* toolStream(parser.push(text));
                     } catch (e) {
                         // ignore JSON parse error on incomplete chunks
                     }
@@ -316,117 +382,51 @@ export class AIService {
             }
         }
 
-        if (buffer.trim()) {
-            if (!buffer.includes('{"name"') && !buffer.includes('<tool_call>')) {
-                yield buffer;
-            }
-        }
+        yield* toolStream(parser.flush());
     }
 
     private async *parseSSEStream(body: ReadableStream<Uint8Array> | null): AsyncGenerator<any, void, unknown> {
         if (!body) throw new Error("No response body");
-        
+
         const reader = body.getReader();
         const decoder = new TextDecoder();
-        let buffer = "";
+        const parser = new ToolCallStreamParser();
+        // Une ligne SSE peut être coupée entre deux paquets réseau : on ne traite que les lignes complètes.
+        let pending = "";
+        let finished = false;
 
-        while (true) {
+        const handle = function* (line: string): Generator<any> {
+            if (!line.startsWith('data: ')) return;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') { finished = true; return; }
+            let parsed: any;
+            try { parsed = JSON.parse(data); } catch { return; }
+
+            // Chunk terminal (choices vide) quand stream_options.include_usage est honoré
+            // par le serveur en face — indépendant du traitement du contenu ci-dessous.
+            if (parsed.usage) {
+                yield {
+                    type: 'usage',
+                    promptTokens: parsed.usage.prompt_tokens,
+                    completionTokens: parsed.usage.completion_tokens,
+                    totalTokens: parsed.usage.total_tokens,
+                    reasoningTokens: parsed.usage.completion_tokens_details?.reasoning_tokens,
+                };
+            }
+            const content = parsed.choices?.[0]?.delta?.content || '';
+            if (content) yield* toolStream(parser.push(content));
+        };
+
+        while (!finished) {
             const { done, value } = await reader.read();
             if (done) break;
-            
-            const chunkStr = decoder.decode(value, { stream: true });
-            const lines = chunkStr.split('\n');
-
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    const data = line.slice(6);
-                    if (data === '[DONE]') break;
-                    try {
-                        const parsed = JSON.parse(data);
-
-                        // Chunk terminal (choices vide) quand stream_options.include_usage est honoré
-                        // par le serveur en face — indépendant du traitement du contenu ci-dessous.
-                        if (parsed.usage) {
-                            yield {
-                                type: 'usage',
-                                promptTokens: parsed.usage.prompt_tokens,
-                                completionTokens: parsed.usage.completion_tokens,
-                                totalTokens: parsed.usage.total_tokens,
-                                reasoningTokens: parsed.usage.completion_tokens_details?.reasoning_tokens,
-                            };
-                        }
-
-                        const content = parsed.choices?.[0]?.delta?.content || '';
-                        if (content) {
-                            buffer += content;
-
-                            const parsedBuffer = this.checkAndYieldTools(buffer);
-                            if (parsedBuffer.yielded) {
-                                yield parsedBuffer.toolCall;
-                                buffer = parsedBuffer.remainingBuffer;
-                            } else if (parsedBuffer.safeText) {
-                                yield parsedBuffer.safeText;
-                                buffer = parsedBuffer.remainingBuffer;
-                            }
-                        }
-                    } catch (e) {
-                        // ignore JSON parse error
-                    }
-                }
-            }
+            pending += decoder.decode(value, { stream: true });
+            const lines = pending.split('\n');
+            pending = lines.pop() ?? '';
+            for (const line of lines) yield* handle(line);
         }
-
-        if (buffer.trim()) {
-            if (!buffer.includes('{"name"') && !buffer.includes('<tool_call>')) {
-                yield buffer;
-            }
-        }
-    }
-
-    private checkAndYieldTools(buffer: string): { yielded: boolean, toolCall?: any, safeText?: string, remainingBuffer: string } {
-        // 1. JSON
-        const jsonMatch = buffer.match(/\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"arguments"\s*:\s*(\{[\s\S]*?\}|"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*')\s*\}/);
-        if (jsonMatch) {
-            try {
-                const parsed = JSON.parse(jsonMatch[0]);
-                if (typeof parsed.arguments === 'string') {
-                    try { parsed.arguments = JSON.parse(parsed.arguments); } catch(e) {}
-                }
-                return { yielded: true, toolCall: { type: 'tool_call', ...parsed }, remainingBuffer: buffer.replace(jsonMatch[0], "") };
-            } catch(e) {}
-        }
-
-        // 2. XML
-        const xmlMatch = buffer.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
-        if (xmlMatch && xmlMatch[1]) {
-            try {
-                let inner = xmlMatch[1].trim();
-                inner = inner.replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
-                const parsed = JSON.parse(inner);
-                if (typeof parsed.arguments === 'string') {
-                    try { parsed.arguments = JSON.parse(parsed.arguments); } catch(e) {}
-                }
-                return { yielded: true, toolCall: { type: 'tool_call', ...parsed }, remainingBuffer: buffer.replace(xmlMatch[0], "") };
-            } catch(e) {}
-        }
-
-        // 3. Safe text
-        let safeToFlushIndex = buffer.length;
-        const lastBrace = buffer.lastIndexOf('{');
-        const lastAngle = buffer.lastIndexOf('<');
-        
-        if (lastBrace !== -1) safeToFlushIndex = Math.min(safeToFlushIndex, lastBrace);
-        if (lastAngle !== -1) safeToFlushIndex = Math.min(safeToFlushIndex, lastAngle);
-        
-        if (buffer.length > 300 && !buffer.includes('{"name"') && !buffer.includes('<tool_call>')) {
-            safeToFlushIndex = buffer.length;
-        }
-
-        if (safeToFlushIndex > 0) {
-            return { yielded: false, safeText: buffer.substring(0, safeToFlushIndex), remainingBuffer: buffer.substring(safeToFlushIndex) };
-        }
-
-        return { yielded: false, remainingBuffer: buffer };
+        if (pending) yield* handle(pending);
+        yield* toolStream(parser.flush());
     }
 }
 
@@ -467,15 +467,9 @@ export const aiService = new AIService();
 
 // Vue Reactive Bindings for OrgAI.vue compatibility
 export const aiIsLocal = computed(() => aiService.isLocal);
-export const aiIsInitialized = computed(() => aiService.isLocal ? localLLM.isInitialized.value : true);
-export const aiCurrentModelName = computed(() => aiService.currentModelName);
-export const aiHasWebGPU = localLLM.hasWebGPU;
-export const aiDownloadProgress = localLLM.downloadProgress;
-export const aiDownloadText = localLLM.downloadText;
 
 export const aiSessionMessages = ref<any[]>([]);
 
-export const selectedModelId = ref<string>('');
 export const chatSessions = ref<any[]>([]);
 export const activeSessionId = ref<string | null>(null);
 
@@ -667,6 +661,19 @@ async function decryptGatewaySessionMessages(key: CryptoKey, sessionId: string, 
     }));
 }
 
+/**
+ * Une conversation ne se poursuit qu'avec un provider de la même famille (stockage et pilotage
+ * différents : clair côté serveur, chiffré par la passerelle, ou piloté par le navigateur). À
+ * l'ouverture d'une ancienne conversation d'une autre famille, on bascule donc temporairement sur un
+ * provider compatible, sans toucher au choix mémorisé de l'utilisateur.
+ */
+const alignProviderWithSession = (regime: SessionRegime | null) => {
+    activeSessionRegime.value = regime;
+    sessionProviderOverride.value = null;
+    if (!regime || regimeOf(aiService.provider) === regime) return;
+    sessionProviderOverride.value = providerForRegime(aiService.orgConfig, regime, aiService.orgConfig.defaultProvider);
+};
+
 export const loadSession = async (id: string) => {
     if (!openedOrg.value) return;
     try {
@@ -677,6 +684,15 @@ export const loadSession = async (id: string) => {
             activeSessionId.value = session.id;
 
             let loadedMessages = session.messages || [];
+
+            let regime: SessionRegime | null = null;
+            if (Array.isArray(loadedMessages) && loadedMessages.length > 0) {
+                regime = hasEncryptedGatewayFields(loadedMessages) ? 'gateway'
+                    : isStructuredAgentTranscript(loadedMessages) ? 'server'
+                    : 'client';
+            } else if (loadedMessages && loadedMessages.isE2EE) {
+                regime = 'client';
+            }
 
             if (Array.isArray(loadedMessages) && hasEncryptedGatewayFields(loadedMessages)) {
                 // Cas 3 (nouveau) : structure JSON en clair, mais content/toolResult/toolCalls[].arguments
@@ -718,6 +734,7 @@ export const loadSession = async (id: string) => {
             }
 
             aiSessionMessages.value = loadedMessages;
+            alignProviderWithSession(regime);
         }
     } catch (e) {
         console.error("Erreur chargement de la session", e);
@@ -746,7 +763,106 @@ export const newSession = () => {
     aiService.interrupt();
     aiSessionMessages.value = [];
     activeSessionId.value = null;
+    activeSessionRegime.value = null;
+    sessionProviderOverride.value = null;
 };
+
+/**
+ * true quand la conversation est pilotée par le navigateur (WebGPU local, serveur custom) : c'est
+ * alors `clientAgentTurn` qui fait tourner la boucle d'agent, avec le même flux d'événements que le
+ * serveur pour les autres fournisseurs.
+ */
+export const aiIsClientDriven = computed(() => regimeOf(aiService.provider) === 'client');
+
+// Un petit modèle se perd dans une liste de 21 outils : on lui en donne le noyau.
+const SMALL_MODEL_TOOLS = [
+    'search_messages', 'search_documentation', 'read_documentation', 'list_documentation',
+    'read_tasks', 'create_task', 'list_spaces', 'ask_question',
+];
+
+const clientAgentDeps = (orgId: string): ClientAgentDeps => ({
+    orgId,
+    effort: aiService.config.reasoningEffort,
+    getMessages: () => aiSessionMessages.value,
+    chat: async function* (messages) { yield* await aiService.chat(messages); },
+    interrupt: () => aiService.interrupt(),
+    allowedTools: aiService.isLocal && localLLM.selectedModel.value?.tier === 3 ? SMALL_MODEL_TOOLS : undefined,
+});
+
+/** Tour d'agent d'un moteur piloté par le navigateur. Le message de l'utilisateur est déjà dans aiSessionMessages. */
+export const clientAgentTurn = (orgId: string) => startClientAgentTurn(clientAgentDeps(orgId));
+
+export const resumeClientAgent = (orgId: string, tool: PendingClientTool, decision: ClientDecision) =>
+    resumeClientAgentTurn(clientAgentDeps(orgId), tool, decision);
+
+export const aiActiveProvider = computed(() => aiService.provider);
+export const aiEnabledProviders = computed(() => enabledProviderIds(aiService.orgConfig));
+export const aiDefaultProvider = computed(() => aiService.orgConfig.defaultProvider);
+export const aiEffort = computed<ReasoningEffort>(() => aiService.config.reasoningEffort || 'medium');
+
+const saveUserPrefs = (patch: AiUserPrefs) => {
+    const orgId = openedOrg.value?.id;
+    if (!orgId) return;
+    if (patch.provider) prefItem('provider', orgId).Item.value = patch.provider;
+    if (patch.reasoningEffort) prefItem('effort', orgId).Item.value = patch.reasoningEffort;
+};
+
+/**
+ * true une fois les choix de l'utilisateur lus sur son compte. Avant, le provider effectif n'est que le
+ * défaut de l'org : démarrer le modèle local à ce moment gaspillerait des Go pour qui préfère un autre provider.
+ */
+export const aiPrefsReady = computed(() => {
+    const orgId = openedOrg.value?.id;
+    if (!orgId) return false;
+    return (prefItem('provider', orgId).isLoaded.value && prefItem('effort', orgId).isLoaded.value) || prefsFallbackElapsed.value;
+});
+
+/**
+ * Reprend la conversation affichée comme point de départ d'une nouvelle session. Les tours gardent leur
+ * structure (étapes d'outils, raisonnement) : l'affichage reste identique, et le moteur local rejoue
+ * les outils et leurs résultats depuis ces parts. Un outil resté en attente de confirmation est
+ * refusé, sinon il bloquerait la saisie dans la nouvelle session.
+ */
+const forkMessages = (messages: any[]) => {
+    const copy = JSON.parse(JSON.stringify(messages)) as any[];
+    for (const m of copy) {
+        for (const part of m.parts ?? []) {
+            if (part.type === 'tool' && (part.tool.status === 'pending' || part.tool.status === 'executing')) {
+                part.tool.status = 'rejected';
+            }
+        }
+    }
+    return copy.filter((m) => m.role === 'user' || m.role === 'assistant');
+};
+
+/**
+ * Choisit le provider pour l'utilisateur courant. Si la conversation en cours ne peut pas être poursuivie
+ * avec ce provider (autre famille), une nouvelle session est ouverte : 'forked' quand elle reprend la conversation
+ * déjà affichée (possible vers un provider piloté par le navigateur, qui reçoit tout l'historique à chaque
+ * message), 'new' quand elle repart de zéro (le serveur et la passerelle ne reçoivent que le dernier message).
+ */
+export const setActiveProvider = (provider: AiProviderId): 'forked' | 'new' | false => {
+    if (!aiService.orgConfig.providers[provider]?.enabled) return false;
+    const hasConversation = aiSessionMessages.value.some((m: any) => m.role === 'user' || m.role === 'assistant');
+    const currentRegime = activeSessionRegime.value ?? regimeOf(aiService.provider);
+    const startedNew = hasConversation && regimeOf(provider) !== currentRegime;
+    let result: 'forked' | 'new' | false = false;
+    if (startedNew) {
+        const carried = regimeOf(provider) === 'client' ? forkMessages(aiSessionMessages.value) : [];
+        newSession();
+        if (carried.length) aiSessionMessages.value = carried;
+        result = carried.length ? 'forked' : 'new';
+    }
+    sessionProviderOverride.value = null;
+    saveUserPrefs({ provider });
+    return result;
+};
+
+export const setReasoningEffort = (effort: ReasoningEffort) => saveUserPrefs({ reasoningEffort: effort });
+
+watch([() => openedOrg.value?.id, () => aiPrefsReady.value], ([orgId, ready]) => {
+    if (orgId && ready && aiService.isLocal) localLLM.warmupInBackground();
+});
 
 /**
  * Pose le titre chiffré d'une session gateway. `syncSession()` ne s'applique pas au provider

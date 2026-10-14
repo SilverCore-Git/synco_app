@@ -105,7 +105,7 @@
                         <i class="bi bi-pencil" />
                         Renommer
                     </button>
-                    <button 
+                    <button
                         v-if="user?.id === folder.ownerId"
                         @click="$emit('show-permissions', folder)"
                         class="dropdown-item-annimate dropdown-item-style gap-2"
@@ -113,7 +113,14 @@
                         <i class="bi bi-shield-lock" />
                         Gérer les accès
                     </button>
-                    <button 
+                    <button
+                        @click="$emit('request-share', folder)"
+                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                    >
+                        <i class="bi bi-send" />
+                        Transférer
+                    </button>
+                    <button
                         @click="$emit('request-delete', folder.id)"
                         class="dropdown-item-annimate dropdown-item-style gap-2 text-red-500! hover:bg-red-500/5!"
                     >
@@ -151,7 +158,7 @@ const props = defineProps<{
     isSelectionMode?: boolean
 }>();
 
-const emit = defineEmits(['toggle-select', 'range-select', 'click', 'download', 'show-permissions', 'request-delete']);
+const emit = defineEmits(['toggle-select', 'range-select', 'click', 'download', 'show-permissions', 'request-delete', 'request-share']);
 
 let longPressTimer: any = null;
 

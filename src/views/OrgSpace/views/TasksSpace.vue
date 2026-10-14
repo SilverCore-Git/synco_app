@@ -33,6 +33,8 @@
 
         <main class="flex-1 overflow-y-auto md:overflow-hidden flex flex-col p-6 w-full h-full gap-6">
             
+            <TaskSearchBar v-model:query="searchQuery" v-model:regex="searchRegex" :invalid="searchInvalid" />
+
             <!-- Filter Bar : toujours sur une seule ligne, y compris sur mobile -->
             <div class="flex flex-row flex-nowrap items-center gap-2 w-full min-w-0 shrink-0">
                 
@@ -92,9 +94,9 @@
                 </DropDown>
 
                 <button
-                    v-if="filterUserId || filterTagIds.length"
+                    v-if="filterUserId || filterTagIds.length || searchQuery"
                     type="button"
-                    @click="filterUserId = null; filterTagIds = []"
+                    @click="filterUserId = null; filterTagIds = []; searchQuery = ''"
                     class="text-[11px] font-bold text-(--text2) hover:text-(--text) flex items-center gap-1 ml-1 shrink-0"
                 >
                     <i class="bi bi-x-circle"></i>
@@ -153,7 +155,14 @@
 
                 <div class="flex-1 overflow-y-auto space-y-3 pr-1">
                     <div
-                        v-for="task in filteredTasks(mobileActiveColumn)" :key="task.id"
+                        v-for="item in columnItems(mobileActiveColumn)" :key="item.key"
+                        :class="item.tasks.length > 1 ? 'rounded-2xl border border-(--primary)/30 bg-(--primary)/5 p-1.5 space-y-1.5' : ''"
+                    >
+                    <div v-if="item.tasks.length > 1" class="flex items-center gap-1.5 px-2 pt-1 pb-0.5 text-[10px] font-black uppercase tracking-widest text-(--primary)">
+                        <i class="bi bi-stack"></i> Pile · {{ item.tasks.length }} tâches
+                    </div>
+                    <div
+                        v-for="task in item.tasks" :key="task.id"
                         @click="openTaskDetails(task)"
                         class="border p-4 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
                         :class="isTaskOverdue(task) ? TASK_CARD_OVERDUE_CLASS : 'bg-(--bg2) border-(--text)/10'"
@@ -210,6 +219,8 @@
                         </div>
                     </div>
 
+                    </div>
+
                     <div v-if="filteredTasks(mobileActiveColumn).length === 0" class="text-center text-(--text2) text-sm py-12">
                         Aucune tâche ici.
                     </div>
@@ -250,103 +261,46 @@
                     </div>
 
                     <div class="flex-1 overflow-y-auto space-y-4 min-h-0 pr-1 custom-scrollbar">
+                        <div
+                            v-for="item in columnItems(col.id)" :key="item.key"
+                            :class="item.tasks.length > 1 ? 'rounded-2xl border border-(--primary)/30 bg-(--primary)/5 p-1.5 space-y-2' : ''"
+                        >
+                        <div
+                            v-if="item.tasks.length > 1"
+                            draggable="true"
+                            @dragstart="onStackDragStart($event, item)"
+                            @dragend="onDragEnd"
+                            class="flex items-center gap-1.5 px-2 pt-1 pb-0.5 text-[10px] font-black uppercase tracking-widest text-(--primary) cursor-grab active:cursor-grabbing select-none"
+                            title="Glisser pour déplacer toute la pile"
+                        >
+                            <i class="bi bi-grip-horizontal"></i> Pile · {{ item.tasks.length }} tâches
+                        </div>
                         <DropDown
-                            v-for="task in filteredTasks(col.id)" :key="task.id"
+                            v-for="(task, index) in item.tasks" :key="task.id"
                             align="mouse" click="right" class="w-full"
                         >
                         <template #trigger>
-                        <div
-                             :id="'task-' + task.id"
-                             draggable="true"
-                             @dragstart="onDragStart($event, task)"
-                             @dragend="onDragEnd"
-                             @dragover.prevent="onCardDragOver($event, task)"
-                             @drop.stop="onCardDrop($event, task, col.id)"
-                             @click="openTaskDetails(task)"
-                             class="border p-4 rounded-xl cursor-pointer active:cursor-grabbing transition-all group relative overflow-hidden"
-                             :class="[
-                                isTaskOverdue(task) ? TASK_CARD_OVERDUE_CLASS : TASK_CARD_NORMAL_CLASS,
-                                dragOverTaskId === task.id && dragOverPosition === 'before' ? 'border-t-2 border-t-(--primary)' : '',
-                                dragOverTaskId === task.id && dragOverPosition === 'after' ? 'border-b-2 border-b-(--primary)' : ''
-                             ]"
-                        >
-                            <div class="flex justify-between items-start gap-2">
-                                <div class="flex flex-col gap-1">
-                                    <p class="text-sm font-bold text-(--text) leading-snug">{{ task.title }}</p>
-                                    <span v-if="task.parentTask" class="text-[9px] font-bold text-(--primary) uppercase flex items-center gap-1 opacity-80">
-                                        <i class="bi bi-arrow-return-right"></i> {{ task.parentTask.title }}
-                                    </span>
-                                    <span v-if="isTaskOverdue(task)" class="self-start mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500 text-white text-[9px] font-black uppercase tracking-wider">
-                                        <i class="bi bi-exclamation-triangle-fill"></i> {{ overdueLabel(task.dueDate!) }}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div v-if="task.tags?.length" class="flex flex-wrap gap-1 mt-2">
-                                <span
-                                    v-for="tag in task.tags.slice(0, 3)" :key="tag.id"
-                                    class="px-2 py-0.5 rounded-full text-[9px] font-bold border"
-                                    :style="{ borderColor: tag.color, color: tag.color }"
-                                >
-                                    {{ tag.name }}
-                                </span>
-                                <span v-if="task.tags.length > 3" class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-(--text)/5 text-(--text2)">
-                                    +{{ task.tags.length - 3 }}
-                                </span>
-                            </div>
-
-                            <div class="flex items-center justify-between mt-4">
-                                <div class="flex items-center -space-x-1.5" v-if="task.assignees?.length">
-                                    <template v-for="assignee in task.assignees.slice(0,3)" :key="assignee.id">
-                                        <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="$p(assignee.name)" class="w-6 h-6 rounded-full object-cover border-2 border-(--bg2) z-10 hover:z-20">
-                                        <div v-else :title="$p(assignee.name)" class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10 hover:z-20">
-                                            {{ $p(assignee.name).substring(0, 2).toUpperCase() }}
-                                        </div>
-                                    </template>
-                                    <div v-if="task.assignees.length > 3" class="w-6 h-6 rounded-full bg-(--text)/10 text-(--text) flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10">
-                                        +{{ task.assignees.length - 3 }}
-                                    </div>
-                                </div>
-                                <div v-else></div>
-
-                                <div class="flex items-center gap-1.5">
-                                    <div v-if="task._count?.attachments" class="flex items-center gap-1 text-xs bg-(--text)/5 px-2 py-1 rounded-lg font-bold text-(--text2)">
-                                        <i class="bi bi-paperclip"></i>
-                                        {{ task._count.attachments }}
-                                    </div>
-                                    <div v-if="task.subtasks && task.subtasks.length > 0" class="flex items-center gap-1.5 text-xs bg-(--text)/5 px-2.5 py-1 rounded-lg font-bold text-(--text)/50">
-                                        <i class="bi bi-check2-square text-(--primary)"></i>
-                                        {{ task.subtasks.filter((st: any) => st.status === 'DONE').length }}/{{ task.subtasks.length }}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Progress Bar (Gauge) -->
-                            <div class="mt-4 pt-3 border-t border-(--border-color)" v-if="task.dueDate && task.status !== 'DONE'">
-                                <div class="flex justify-between items-end mb-1.5">
-                                    <span class="text-[9px] font-black uppercase tracking-widest text-(--text2)">
-                                        Échéance
-                                    </span>
-                                    <span class="text-[10px] font-black" :class="getProgress(task).color.replace('bg-', 'text-')">
-                                        {{ getProgress(task).text }}
-                                    </span>
-                                </div>
-                                <div class="w-full h-1.5 bg-(--surface-sunken) rounded-full overflow-hidden">
-                                    <div class="h-full rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(currentColor,0.5)]" 
-                                         :class="getProgress(task).color" 
-                                         :style="{ width: getProgress(task).percent + '%' }"></div>
-                                </div>
-                            </div>
-                            
-                            <div class="mt-4 pt-3 border-t border-(--border-color) flex items-center justify-center" v-else-if="task.status === 'DONE'">
-                                <span class="text-[10px] font-black uppercase tracking-widest text-green-500">
-                                    <i class="bi bi-check-lg mr-1"></i> Terminée
-                                </span>
-                            </div>
-
-                        </div>
+                        <TaskCard
+                            :task="task"
+                            :id="'task-' + task.id"
+                            draggable="true"
+                            @dragstart="onDragStart($event, task)"
+                            @dragend="onDragEnd"
+                            @dragover.prevent="dragOverCard($event, task, item, index)"
+                            @drop.stop="onCardDrop($event, task, col.id)"
+                            @click="openTaskDetails(task)"
+                            :class="['active:cursor-grabbing', dropIndicatorClass(task)]"
+                        />
                         </template>
                         <template #content>
+                            <button
+                                v-if="item.tasks.length > 1"
+                                @click="detachFromStack(task)"
+                                class="dropdown-item-annimate dropdown-item-style gap-2"
+                            >
+                                <i class="bi bi-box-arrow-up" />
+                                Retirer de la pile
+                            </button>
                             <button
                                 @click="startRenameTask(task)"
                                 class="dropdown-item-annimate dropdown-item-style gap-2"
@@ -381,6 +335,7 @@
                             </button>
                         </template>
                         </DropDown>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -454,6 +409,8 @@ import sfetch from '@/assets/utils/sfetch';
 import { openedOrg, user } from '@/assets/var';
 import type { Task, OrgMember } from '@/types/types';
 import TaskProgressGauge from '../components/SpaceTasks/TaskProgressGauge.vue';
+import TaskCard from '../components/SpaceTasks/TaskCard.vue';
+import TaskSearchBar from '../components/SpaceTasks/TaskSearchBar.vue';
 
 import { useToast } from '@/composables/useToast';
 import { useUsersBar } from '@/composables/useUsersBar';
@@ -465,11 +422,12 @@ import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
 import DropDown from '@/components/DropDown.vue';
 import TaskTagPicker from '../components/popup/TaskTagPicker.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
-import confetti from 'canvas-confetti';
 import { useNotification } from '@/composables/useNotification';
 import { useTaskOrder } from '@/composables/useTaskOrder';
 import { usePersistedTaskFilters } from '@/composables/usePersistedTaskFilters';
-import { isTaskOverdue, overdueLabel, TASK_CARD_NORMAL_CLASS, TASK_CARD_OVERDUE_CLASS } from '@/assets/utils/taskOverdue';
+import { useTaskStacks, type TaskStackItem } from '@/composables/useTaskStacks';
+import { buildTaskMatcher } from '@/assets/utils/taskSearch';
+import { isTaskOverdue, overdueLabel, TASK_CARD_OVERDUE_CLASS } from '@/assets/utils/taskOverdue';
 
 const route = useRoute();
 const router = useRouter();
@@ -494,8 +452,12 @@ const archivedCount = ref(0);
 const dragOverArchiveBtn = ref(false);
 const dragOverMemberId = ref<string | null>(null);
 
-const dragOverTaskId = ref<string | null>(null);
-const dragOverPosition = ref<'before' | 'after' | null>(null);
+// Recherche : volontairement non persistée (contrairement aux filtres), pour
+// qu'on ne revienne pas sur un tableau « vide » sans savoir pourquoi.
+const searchQuery = ref('');
+const searchRegex = ref(false);
+const searchState = computed(() => buildTaskMatcher(searchQuery.value, searchRegex.value));
+const searchInvalid = computed(() => searchState.value.invalid);
 
 const selectedTask = ref<Task | null>(null);
 const openTaskInEditMode = ref(false);
@@ -563,6 +525,7 @@ const visibleTasks = computed(() => {
     return tasks.value.filter(t => {
         if (filterUserId.value && !t.assignees?.some(a => a.id === filterUserId.value)) return false;
         if (filterTagIds.value.length && !t.tags?.some(tag => filterTagIds.value.includes(tag.id))) return false;
+        if (searchState.value.matcher && !searchState.value.matcher(t)) return false;
         return true;
     });
 });
@@ -571,32 +534,15 @@ const filteredTasks = (status: string) => {
     return sortByOrder(visibleTasks.value.filter(t => t.status === status));
 };
 
-const getProgress = (task: Task) => {
-    if (!task.dueDate) return { percent: 0, text: '', color: 'bg-green-500' };
-    const start = new Date(task.createdAt).getTime();
-    const end = new Date(task.dueDate).getTime();
-    const now = new Date().getTime();
-    
-    if (now > end) return { percent: 100, text: overdueLabel(task.dueDate), color: 'bg-red-500' };
-    
-    const total = end - start;
-    const passed = now - start;
-    let percent = (passed / total) * 100;
-    if (percent < 0) percent = 0;
-    
-    const remainingMs = end - now;
-    const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
-    const remainingDays = Math.floor(remainingHours / 24);
-    
-    let text = remainingHours < 24 ? `${remainingHours}h restantes` : `${remainingDays}j restants`;
-    
-    let color = 'bg-green-500'; // Safe
-    if (percent > 60) color = 'bg-orange-400'; // Warning
-    if (percent > 85) color = 'bg-red-500'; // Danger
-    if (percent > 95) color = 'bg-red-600 animate-pulse'; // Critical
-
-    return { percent, text, color };
-};
+const {
+    columnItems, beginDrag, beginStackDrag, endDrag, draggedIds, changeStatus: changeTaskStatus,
+    dropOnColumn, dragOverCard, dropOnCard, detachFromStack, dropIndicatorClass
+} = useTaskStacks({
+    orgId: route.params.orgId as string,
+    allTasks: tasks,
+    columnTasks: filteredTasks,
+    persistOrder
+});
 
 const loadTasks = async () => {
     try {
@@ -744,15 +690,17 @@ const onTaskDeleted = (taskId: string) => {
 const onDragStart = (e: DragEvent, task: Task) => {
     isDraggingTask.value = true;
     isDeleting.value = false;
-    if (e.dataTransfer) {
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('taskId', task.id);
-    }
+    beginDrag(e, task);
+};
+
+const onStackDragStart = (e: DragEvent, item: TaskStackItem) => {
+    isDraggingTask.value = true;
+    isDeleting.value = false;
+    beginStackDrag(e, item);
 };
 
 const onDragEnd = () => {
-    dragOverTaskId.value = null;
-    dragOverPosition.value = null;
+    endDrag();
     dragOverArchiveBtn.value = false;
     dragOverMemberId.value = null;
     if (!isDeleting.value) {
@@ -789,41 +737,40 @@ const archiveTaskById = async (taskId: string) => {
 };
 
 const onDropToArchiveBtn = async (e: DragEvent) => {
-    const taskId = e.dataTransfer?.getData('taskId');
+    const taskIds = draggedIds(e);
+    endDrag();
     dragOverArchiveBtn.value = false;
-    if (!taskId) return;
+    if (!taskIds.length) return;
 
     try {
-        await archiveTaskById(taskId);
-        toast.show("Tâche archivée", "success");
+        await Promise.all(taskIds.map(archiveTaskById));
+        toast.show(taskIds.length > 1 ? "Tâches archivées" : "Tâche archivée", "success");
     } catch (err) {
         toast.show("Erreur lors de l'archivage", "error");
     }
 };
 
 const onDropToAssign = async (e: DragEvent, member: OrgMember) => {
-    const taskId = e.dataTransfer?.getData('taskId');
+    const taskIds = draggedIds(e);
+    endDrag();
     dragOverMemberId.value = null;
-    if (!taskId) return;
+    if (!taskIds.length) return;
 
-    const task = tasks.value.find(t => t.id === taskId);
-    if (!task) return;
-
-    if (task.assignees?.some(a => a.id === member.userId)) {
+    const targets = tasks.value.filter(t => taskIds.includes(t.id) && !t.assignees?.some(a => a.id === member.userId));
+    if (!targets.length) {
         toast.show(`${member.user?.name || 'Cet utilisateur'} est déjà assigné à cette tâche`, "info");
         return;
     }
 
-    const newAssigneeIds = [...(task.assignees?.map(a => a.id) || []), member.userId];
-
     try {
-        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskId}`, {
-            method: 'PUT',
-            body: JSON.stringify({ assigneeIds: newAssigneeIds })
-        });
-        if (!res.ok) throw new Error("API Error");
-        const updatedTask = await res.json();
-        onTaskUpdated(updatedTask);
+        await Promise.all(targets.map(async task => {
+            const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${task.id}`, {
+                method: 'PUT',
+                body: JSON.stringify({ assigneeIds: [...(task.assignees?.map(a => a.id) || []), member.userId] })
+            });
+            if (!res.ok) throw new Error("API Error");
+            onTaskUpdated(await res.json());
+        }));
         toast.show(`Tâche assignée à ${member.user?.name || "l'utilisateur"}`, "success");
     } catch (err) {
         toast.show("Erreur lors de l'assignation", "error");
@@ -871,8 +818,9 @@ const loadArchivedCount = async () => {
 };
 
 const onDropToTrash = async (e: DragEvent) => {
-    const taskId = e.dataTransfer?.getData('taskId');
-    if (!taskId) return;
+    const taskIds = draggedIds(e);
+    endDrag();
+    if (!taskIds.length) return;
 
     isDeleting.value = true;
     isHoveringTrash.value = false;
@@ -883,93 +831,22 @@ const onDropToTrash = async (e: DragEvent) => {
     }, 600);
 
     try {
-        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskId}`, {
-            method: 'DELETE'
-        });
-        
-        if (!res.ok) throw new Error("API Error");
-        
-        onTaskDeleted(taskId);
-        toast.show("Tâche supprimée", "success");
+        await Promise.all(taskIds.map(async taskId => {
+            const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskId}`, {
+                method: 'DELETE'
+            });
+            if (!res.ok) throw new Error("API Error");
+            onTaskDeleted(taskId);
+        }));
+        toast.show(taskIds.length > 1 ? "Tâches supprimées" : "Tâche supprimée", "success");
     } catch (err) {
         toast.show("Erreur lors de la suppression", "error");
     }
 };
 
-const changeTaskStatus = async (taskToMove: Task, newStatus: string) => {
-    if (taskToMove.status === newStatus) return;
+const onDrop = (e: DragEvent, newStatus: string) => dropOnColumn(e, newStatus);
 
-    const oldStatus = taskToMove.status;
-    taskToMove.status = newStatus as 'TODO' | 'IN_PROGRESS' | 'DONE';
-
-    try {
-        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskToMove.id}`, {
-            method: 'PUT',
-            body: JSON.stringify({ status: newStatus })
-        });
-
-        if (!res.ok) throw new Error("API Error");
-
-        if (newStatus === 'DONE') {
-            try {
-                confetti({
-                    particleCount: 150,
-                    spread: 80,
-                    origin: { y: 0.6 },
-                    colors: ['#4ade80', '#3b82f6', '#fbbf24', '#f87171'],
-                    zIndex: 10000
-                });
-            } catch (e) {}
-        }
-
-    } catch (err) {
-        taskToMove.status = oldStatus;
-        toast.show("Erreur lors du déplacement", "error");
-    }
-};
-
-const onDrop = async (e: DragEvent, newStatus: string) => {
-    const taskId = e.dataTransfer?.getData('taskId');
-    if (!taskId) return;
-
-    const taskToMove = tasks.value.find(t => t.id === taskId);
-    if (!taskToMove) return;
-
-    const columnTaskIds = filteredTasks(newStatus)
-        .filter(t => t.id !== taskId)
-        .map(t => t.id);
-    columnTaskIds.push(taskId);
-    await persistOrder(columnTaskIds);
-
-    await changeTaskStatus(taskToMove, newStatus);
-};
-
-const onCardDragOver = (e: DragEvent, task: Task) => {
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const midpoint = rect.top + rect.height / 2;
-    dragOverTaskId.value = task.id;
-    dragOverPosition.value = e.clientY < midpoint ? 'before' : 'after';
-};
-
-const onCardDrop = async (e: DragEvent, targetTask: Task, newStatus: string) => {
-    const taskId = e.dataTransfer?.getData('taskId');
-    const position = dragOverPosition.value;
-    dragOverTaskId.value = null;
-    dragOverPosition.value = null;
-
-    if (!taskId || taskId === targetTask.id) return;
-
-    const taskToMove = tasks.value.find(t => t.id === taskId);
-    if (!taskToMove) return;
-
-    const columnTasks = filteredTasks(newStatus).filter(t => t.id !== taskId);
-    const targetIndex = columnTasks.findIndex(t => t.id === targetTask.id);
-    const insertIndex = position === 'after' ? targetIndex + 1 : targetIndex;
-    columnTasks.splice(insertIndex, 0, taskToMove);
-
-    await persistOrder(columnTasks.map(t => t.id));
-    await changeTaskStatus(taskToMove, newStatus);
-};
+const onCardDrop = (e: DragEvent, targetTask: Task, newStatus: string) => dropOnCard(e, targetTask, newStatus);
 
 onMounted(async () => {
     fetchOrder();

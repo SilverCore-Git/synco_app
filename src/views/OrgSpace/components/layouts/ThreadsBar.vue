@@ -186,24 +186,25 @@
                         <i class="bi bi-robot"></i>
                         <h3 class="font-semibold">{{ title }}</h3>
                     </div>
+
+                    <DropDown align="right" class="ml-2">
+                        <template #trigger>
+                            <button class="default">
+                                <i class="bi bi-three-dots text-(--text2)" />
+                            </button>
+                        </template>
+                        <template #content>
+                            <button @click="showAiSettings = true" class="dropdown-item-annimate dropdown-item-style">
+                                <i class="bi bi-gear mr-2" /> Paramètres
+                            </button>
+                        </template>
+                    </DropDown>
                 </div>
 
-                <div class="p-4 border-b border-(--border-color) w-full" v-if="aiIsLocal">
-
-                    <div v-if="aiIsLocal">
-                        <p class="text-[10px] uppercase font-bold text-(--text2) mb-1">Modèle Local</p>
-                        <select 
-                            v-model="selectedModelId"
-                            class="w-full bg-black/20 border border-(--text)/10 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-(--primary) transition-colors"
-                        >
-                            <option v-for="model in availableModels" :key="model.id" :value="model.id">
-                            Tier {{ model.tier }} - {{ model.name }}
-                            </option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="flex-1 overflow-y-auto p-2 w-full">
+                <div
+                    class="flex-1 min-h-0 overflow-y-auto p-2 w-full"
+                    :style="{ paddingBottom: userCardHeight + 24 + 'px' }"
+                >
                     <p class="text-[10px] uppercase font-bold text-(--text2) px-2 mt-2 mb-3">Historique</p>
                     
                     <div v-if="chatSessions.length === 0" class="text-xs text-center text-(--text2) mt-4 italic">
@@ -351,6 +352,8 @@
 
         </template>
 
+        <AiSettings :show="showAiSettings" @close="showAiSettings = false" />
+
         <SpaceSearchModal :show="showSearchModal" @close="showSearchModal = false" />
 
     </div>
@@ -374,9 +377,10 @@ import { settingsViews } from '../../views/settings/settings';
 import { usePermissions } from '@/composables/usePermissions';
 import Category from '../CanalBar/Category.vue';
 import isDesktopApp from '@/assets/isDesktopApp';
+import DropDown from '@/components/DropDown.vue';
+import AiSettings from '@/components/windows/AiSettings.vue';
 import SpaceSearchModal from '../popup/SpaceSearchModal.vue';
-import { chatSessions, activeSessionId, newSession, deleteSession, loadSession, aiIsLocal, selectedModelId } from '@/services/AIService';
-import { availableModels } from '@/services/LocalLLMService';
+import { chatSessions, activeSessionId, newSession, deleteSession, loadSession } from '@/services/AIService';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { useRecentDMs } from '@/composables/useRecentDMs';
 import { useNotification } from '@/composables/useNotification';
@@ -409,6 +413,7 @@ const unreadSpaceTasks = computed(() => getUnreadCountForSpaceTasks(String(route
 
 const showDropDown = ref<boolean>(false);
 const showSearchModal = ref<boolean>(false);
+const showAiSettings = ref<boolean>(false);
 
 const showSettingsNav = computed(() => isSettings.value && canAny(['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI']));
 

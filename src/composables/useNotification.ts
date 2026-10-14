@@ -340,6 +340,26 @@ export function useNotification() {
   };
 
   /**
+   * Marquer toutes les notifications d'un ticket de support comme lues
+   * (même mécanisme que markThreadAsRead/markDMAsRead) — appelé à
+   * l'ouverture d'un ticket, côté client ou côté équipe.
+   */
+  const markSupportTicketAsRead = async (ticketId: string): Promise<void> => {
+    try {
+      notifications.value.forEach(n => {
+        if (!n.isRead && n.data?.ticketId === ticketId) {
+          n.isRead = true;
+        }
+      });
+
+      socket?.value?.emit('notification:mark-read-by-support-ticket', { ticketId });
+    } catch (error) {
+      console.error('[Notifications] Failed to mark support ticket as read:', error);
+      await loadNotifications();
+    }
+  };
+
+  /**
    * Notification liée aux tâches : TASK_ASSIGNED est ce qu'émet réellement
    * l'API (tasksService.ts notifyTaskAssignment, création/mise à jour) ;
    * CUSTOM/TASK_UPDATE est l'ancien format, gardé pour les notifs en base.
@@ -451,8 +471,19 @@ export function useNotification() {
    * pipeline séparé (notification:push) et n'avait pas ce garde-fou.
    */
   const isForActiveConversation = (notification: AppNotification): boolean => {
-    if (notification.type !== 'MESSAGE') return false;
     const route = router.currentRoute.value;
+
+    // SAV : la conversation active est le ticket ouvert, côté client
+    // (SupportTicketView) ou côté équipe (SupportPanelTicketView, qui
+    // affiche les deux canaux à la fois — pas besoin de distinguer
+    // PUBLIC/INTERNAL ici).
+    if (notification.type.startsWith('SUPPORT_TICKET_')) {
+      if (!notification.data?.ticketId) return false;
+      return (route.name === 'SupportTicketView' || route.name === 'SupportPanelTicketView')
+        && route.params.id === notification.data.ticketId;
+    }
+
+    if (notification.type !== 'MESSAGE') return false;
 
     if (notification.data?.dmUserId) {
       if (route.name !== 'OrgThreadChat' && route.name !== 'OrgThreadChatPrivateMeet') return false;
@@ -516,6 +547,13 @@ export function useNotification() {
     socket.value.on('notification:all-read', () => {
       notifications.value.forEach(n => {
         n.isRead = true;
+      });
+    });
+
+    // Ticket de support marqué lu depuis un autre onglet.
+    socket.value.on('notification:support-ticket-read', (data: { ticketId: string }) => {
+      notifications.value.forEach(n => {
+        if (n.data?.ticketId === data.ticketId) n.isRead = true;
       });
     });
   };
@@ -753,6 +791,44 @@ export function useNotification() {
     return notifications.value.filter(n => !n.isRead && n.type === 'MESSAGE' && n.data?.dmUserId).length;
   });
 
+  // Un même type (ex. SUPPORT_TICKET_REPLY) part aussi bien vers le client
+  // que vers l'équipe — seul `data.route` distingue les deux côtés (posé par
+  // l'API à chaque notification de ticket, cf. SUPPORT_FEATURE.md §7). On
+  // s'en sert pour ne pas allumer le rond rouge du menu « Aide & support »
+  // (client) à cause d'une notification destinée au panel SAV (équipe), et
+  // réciproquement.
+  const isClientSupportNotification = (n: AppNotification): boolean =>
+    n.type.startsWith('SUPPORT_TICKET_') && typeof n.data?.route === 'string' && n.data.route.startsWith('/support/');
+  const isStaffSupportNotification = (n: AppNotification): boolean =>
+    n.type.startsWith('SUPPORT_TICKET_') && typeof n.data?.route === 'string' && n.data.route.startsWith('/support-panel/');
+
+  /**
+   * Non-lues pour un ticket de support précis — rond rouge sur une entrée de
+   * liste. `scope` doit correspondre à la liste qui l'affiche : 'client'
+   * (SupportTicketList.vue) ou 'staff' (SupportPanel.vue).
+   */
+  const getUnreadCountBySupportTicketId = (ticketId: string, scope: 'client' | 'staff'): Ref<number> => {
+    const isMatch = scope === 'client' ? isClientSupportNotification : isStaffSupportNotification;
+    return computed(() => {
+      return notifications.value.filter(n => !n.isRead && isMatch(n) && n.data?.ticketId === ticketId).length;
+    });
+  };
+
+  /**
+   * Non-lues côté client (mes tickets) — rond rouge sur le menu
+   * « Aide & support », tout le long du chemin jusqu'au ticket concerné.
+   */
+  const getUnreadCountForSupport = computed(() => {
+    return notifications.value.filter(n => !n.isRead && isClientSupportNotification(n)).length;
+  });
+
+  /**
+   * Non-lues côté équipe — rond rouge sur le lien « Panel SAV ».
+   */
+  const getUnreadCountForSupportStaff = computed(() => {
+    return notifications.value.filter(n => !n.isRead && isStaffSupportNotification(n)).length;
+  });
+
   // ==================== RETURN ====================
 
   return {
@@ -772,6 +848,9 @@ export function useNotification() {
     getUnreadCountForTasks,
     getUnreadCountForSpaceTasks,
     getUnreadCountForDMs,
+    getUnreadCountBySupportTicketId,
+    getUnreadCountForSupport,
+    getUnreadCountForSupportStaff,
 
     // Méthodes
     init,
@@ -782,6 +861,7 @@ export function useNotification() {
     markAsRead,
     markThreadAsRead,
     markDMAsRead,
+    markSupportTicketAsRead,
     markTasksAsRead,
     markAllAsRead,
     removeNotification,

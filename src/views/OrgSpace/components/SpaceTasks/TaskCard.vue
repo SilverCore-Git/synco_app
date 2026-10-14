@@ -35,9 +35,9 @@
         <div class="flex items-center justify-between mt-4" v-if="task.assignees?.length || (task.subtasks && task.subtasks.length > 0) || task._count?.attachments">
             <div class="flex items-center -space-x-1.5" v-if="task.assignees?.length">
                 <template v-for="assignee in task.assignees.slice(0,3)" :key="assignee.id">
-                    <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="assignee.name" class="w-6 h-6 rounded-full object-cover border-2 border-(--bg2) z-10 hover:z-20">
-                    <div v-else :title="assignee.name" class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10 hover:z-20">
-                        {{ assignee.name?.substring(0, 2).toUpperCase() || 'U' }}
+                    <img v-if="assignee.avatarUrl" :src="assignee.avatarUrl" :title="$p(assignee.name)" class="w-6 h-6 rounded-full object-cover border-2 border-(--bg2) z-10 hover:z-20">
+                    <div v-else :title="$p(assignee.name)" class="w-6 h-6 rounded-full bg-(--primary)/20 text-(--primary) flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10 hover:z-20">
+                        {{ $p(assignee.name)?.substring(0, 2).toUpperCase() || 'U' }}
                     </div>
                 </template>
                 <div v-if="task.assignees.length > 3" class="w-6 h-6 rounded-full bg-(--text)/10 text-(--text) flex items-center justify-center text-[9px] font-black border-2 border-(--bg2) z-10">

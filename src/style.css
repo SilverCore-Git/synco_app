@@ -743,6 +743,46 @@ button.tab:not(.active) {
 }
 
 
+/* Transition "pleine page" façon panneau coulissant (App.vue, RouterView) :
+   /root, /support et /support-panel glissent depuis la droite et
+   recouvrent la page en dessous, comme un panneau empilé par-dessus
+   (navigation "push" mobile), plutôt qu'un simple échange instantané.
+   Seul l'élément marqué .overlay-page (la page qui entre OU qui sort,
+   jamais celle qui reste en dessous) est concerné par le glissement : la
+   règle ne cible que lui, par sélecteur combiné, afin que la page de
+   dessous (non "overlay-page") n'anime jamais sa propre sortie/entrée —
+   elle doit rester immobile, invisible sous l'autre tant qu'elle la
+   recouvre. Mode par défaut (pas out-in) : les deux pages coexistent dans
+   le DOM pendant la transition, condition nécessaire pour que l'une
+   recouvre vraiment l'autre au lieu de se succéder. */
+.push-enter-active.overlay-page,
+.push-leave-active.overlay-page {
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.push-enter-from.overlay-page,
+.push-leave-to.overlay-page {
+  transform: translateX(100%);
+}
+
+.push-enter-to.overlay-page,
+.push-leave-from.overlay-page {
+  transform: translateX(0);
+}
+
+/* z-50 (App.vue) : au-dessus du contenu normal d'une page (barres, listes…
+   qui montent au plus haut à z-110 dans ChatTimeline) ; largement sous
+   Popup.vue/ConfirmDelete.vue (z-2000/z-3000), qui doivent continuer à
+   s'ouvrir par-dessus même depuis l'intérieur d'une page "overlay". */
+.overlay-page {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  background: var(--bg2);
+  overflow: hidden;
+}
+
+
 /* Révélation de l'UI juste après le déverrouillage de la session (App.vue) :
    application directe d'une animation CSS @keyframes plutôt que des classes
    <Transition> de Vue — une animation se rejoue automatiquement à chaque

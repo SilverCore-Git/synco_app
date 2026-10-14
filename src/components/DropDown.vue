@@ -25,11 +25,11 @@
                     v-if="isOpen || show"
                     ref="dropdownContentRef"
                     class="
-                        fixed z-[1000] mt-2 w-56 rounded-xl border border-(--border-color)
+                        fixed mt-2 w-56 rounded-xl border border-(--border-color)
                         bg-(--bg) shadow-xl ring-1 ring-(--text)/5 focus:outline-none
                     "
                     :class="props.contentInerTW || ''"
-                    :style="getDropdownPosition()"
+                    :style="{ ...getDropdownPosition(), zIndex: props.zIndex ?? 1000 }"
                 >
                     <div class="p-1.5 sdropdown" @click="closeDropdown">
                         <slot name="content" />
@@ -51,6 +51,11 @@ const props = defineProps<{
   click?: 'right' | 'left';
   show?: boolean;
   contentInerTW?: string;
+  // En style inline (jamais en classe Tailwind z-*) : une Popup.vue ouverte
+  // au-dessus (z-index 2000 par défaut) rend ce DropDown invisible/inerte
+  // en dessous sinon — cf. project_synco_scale_ux. À passer explicitement
+  // (ex. 2100) quand ce DropDown s'ouvre depuis l'intérieur d'une Popup.
+  zIndex?: number;
 }>();
 
 const triggerRef = ref<HTMLElement | null>(null);

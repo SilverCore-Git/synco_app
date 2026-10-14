@@ -32,7 +32,7 @@
 
                     <div 
                         v-if="msg.replyToId && msg.replyMessage" 
-                        @click="router.push({ query: { ...route.query, select: msg.replyMessage?.id } })"
+                        @click="msg.replyMessage && emit('jump-to', msg.replyMessage.id)"
                         class="group/reply reply-context flex items-center gap-2 mb-1 text-xs text-(--text2) relative pl-13 cursor-pointer"
                     >
                         
@@ -66,6 +66,18 @@
 
                     </div>
 
+                    <!-- Transféré depuis un autre salon/DM : la ForwardedMessageCard
+                         ci-dessus montre déjà l'auteur et le texte d'origine,
+                         ce lien ne sert qu'à retrouver l'original lui-même. -->
+                    <button
+                        v-if="transferOrigin"
+                        @click="navigateToTransferOrigin(router, transferOrigin)"
+                        class="flex items-center gap-1.5 mb-1 text-[11px] text-(--text2) hover:text-(--primary) transition-colors"
+                    >
+                        <i class="bi bi-arrow-return-right" />
+                        Message transféré — voir l'original
+                    </button>
+
                     <!-- Montée seulement au survol : chaque bouton porte un
                          v-tooltip, et floating-vue monte un composant Popper
                          complet par tooltip dès le montage du bouton (cf. le
@@ -78,7 +90,7 @@
                             rounded-xl border border-(--text)/10
                             bg-(--bg) shadow-xl ring-1 ring-(--text)/5 focus:outline-none
                         "
-                        :class="(showPlusDropdown ? 'flex' : 'hidden group-hover:flex') + (isReadOnly ? ' !hidden' : '')"
+                        :class="(showPlusDropdown ? 'flex' : 'hidden group-hover:flex') + (locked ? ' !hidden' : '')"
                     >
 
                         <button
@@ -107,7 +119,7 @@
                         >
 
                             <button
-                                v-if="isMessageOwner(msg) || member?.role === 'ADMIN' || member?.role === 'admin'"
+                                v-if="channel.canDelete(msg) || channel.canModerate.value"
                                 @click="openDeleteConfirm"
                                 class="dropdown-item-annimate dropdown-item-style  text-red-400! hover:bg-red-500/10!"
                             >
@@ -134,14 +146,14 @@
                                 :src="msg.sender?.avatarUrl || defaultAvatar($p(msg.sender?.name))"
                                 :alt="$p(msg.sender?.name)"
                                 @error="(e: any) => e.target.src = defaultAvatar($p(msg.sender?.name))"
-                                @click.stop="(e) => !isReadOnly && msg.sender && openProfile(msg.sender, e)"
+                                @click.stop="(e) => profileClickable && msg.sender && channel.openProfile!(msg.sender, e)"
                                 class="rounded-full w-9 h-9 object-cover"
-                                :class="!isReadOnly ? 'cursor-pointer hover:ring-2 hover:ring-(--primary)/50 transition-all' : ''"
+                                :class="profileClickable ? 'cursor-pointer hover:ring-2 hover:ring-(--primary)/50 transition-all' : ''"
                             />
                             <span
-                                v-if="senderStatus(msg.sender)"
+                                v-if="channel.senderStatus(msg.sender)"
                                 class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-(--bg)"
-                                :class="getColorByStatus(senderStatus(msg.sender)!)"
+                                :class="getColorByStatus(channel.senderStatus(msg.sender)!)"
                             />
                         </div>
                         <div 
@@ -182,8 +194,8 @@
                                 <span 
                                     v-else
                                     class="text-(--text) font-bold text-xs tracking-tighter truncate"
-                                    :class="!isReadOnly ? 'cursor-pointer hover:underline' : ''"
-                                    @click.stop="(e) => !isReadOnly && msg.sender && openProfile(msg.sender, e)"
+                                    :class="profileClickable ? 'cursor-pointer hover:underline' : ''"
+                                    @click.stop="(e) => profileClickable && msg.sender && channel.openProfile!(msg.sender, e)"
                                 >
                                     {{ $p(msg.sender?.name) || 'Anonyme' }}
                                 </span>
@@ -207,20 +219,23 @@
                                 </p>
                             </div>
                             <div v-else class="text-(--text) text-sm leading-relaxed wrap-break-word">
+                                <ForwardedMessageCard v-if="forwarded" :payload="forwarded.payload" class="mb-1.5" />
                                 <MarkdownRender
-                                    :content="msg.content"
-                                    @user-click="(u: User, e: MouseEvent) => openProfile(u, e)"
+                                    :content="forwarded ? forwarded.note : msg.content"
+                                    :mention-source="channel.mentions"
+                                    :show-reference-cards="channel.referencesEnabled"
+                                    @user-click="(u: User, e: MouseEvent) => channel.openProfile?.(u, e)"
                                     @reference-click="onReferenceClick"
                                 />
                                 <WebhookEmbed v-if="msg.isWebhook && msg.embeds && msg.embeds.length > 0" :embeds="msg.embeds" />
-                                <LinkPreview v-else :content="msg.content" />
+                                <LinkPreview v-else :content="forwarded ? forwarded.note : msg.content" />
                                 <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
                             </div>
                             
                             <!-- Message reactions -->
                             <MessageReactions
                                 ref="reactionsRef"
-                                v-if="!isReadOnly || (msg.reactions && Object.keys(msg.reactions).length > 0)"
+                                v-if="!locked || (msg.reactions && Object.keys(msg.reactions).length > 0)"
                                 :message-id="msg.id"
                                 :reactions="(msg.reactions as any)"
                                 :is-dm="false"
@@ -230,7 +245,7 @@
                                 :showReactionPicker="showReactionPicker"
                                 :pickerCoords="pickerCoords"
                                 :alignRight="msg.senderId === user?.id"
-                                :isReadOnly="isReadOnly"
+                                :isReadOnly="locked"
                             />
 
                             <MessageAttachments v-if="msg.files && msg.files.length > 0" :files="msg.files" />
@@ -241,12 +256,19 @@
 
                 </div>
 
-        <ConfirmDelete 
+        <ConfirmDelete
             :show="showDeleteConfirm"
             itemType="le message"
-            :itemName="msg.content.substring(0, 50)"
+            :itemName="(forwarded ? forwarded.payload.text : msg.content).substring(0, 50)"
             @confirm="deleteMessage"
             @cancel="showDeleteConfirm = false"
+        />
+
+        <ShareToTargetModal
+            :show="showForwardModal"
+            :preview="{ icon: 'bi-send-fill', title: messagePreview(forwarded ? forwarded.payload.text : msg.content) }"
+            :send="confirmForward"
+            @close="showForwardModal = false"
         />
 
         <MessageActionSheet
@@ -270,7 +292,6 @@ import getColorByStatus from '@/assets/utils/getColorByStatus';
 import { computed, nextTick, ref, watch } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
-import useWSocket from '@/composables/useWSocket';
 import MessageReactions from '@/components/common/MessageReactions.vue';
 import MessageActionSheet, { type SheetAction } from '@/components/common/MessageActionSheet.vue';
 import { useLongPress } from '@/composables/useLongPress';
@@ -279,26 +300,27 @@ import MessageAttachments from './MessageAttachments.vue';
 import { encryptMessageWithContentKey } from '@/assets/utils/crypto';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import ThreadTextarea from './ThreadTextarea.vue';
-import { useRoute, useRouter } from 'vue-router';
-import { user, member, openedOrg } from '@/assets/var';
+import { user } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import { messagePreview } from '@/assets/utils/messagePreview';
-import { openProfile } from '@/composables/useProfile';
 import WebhookEmbed from './WebhookEmbed.vue';
 import LinkPreview from './LinkPreview.vue';
-import { orgMentionLookup, isUserMentioned } from '@/composables/useMentions';
+import { isUserMentioned } from '@/composables/useMentions';
 import { extractReferenceTokens } from '@/composables/useReferences';
-import { navigateToReference } from '@/composables/useReferenceNavigation';
+import { useMessageChannel } from '@/composables/messageChannel';
+import { useRouter } from 'vue-router';
+import { navigateToTransferOrigin } from '@/composables/useReferenceNavigation';
+import ShareToTargetModal from '@/components/common/ShareToTargetModal.vue';
+import ForwardedMessageCard from '@/components/common/ForwardedMessageCard.vue';
+import { forwardMessage, type ShareTarget, type ShareReferenceResult, type TransferOrigin } from '@/composables/useShareReference';
+import { buildForwardToken, extractForwardedPayload } from '@/composables/useForwardedContent';
 import type { User } from '@/types/types';
 
-// msg.sender est une copie figée au moment de la réception du message : son
-// data.status n'est jamais mis à jour par le socket `user-status-changed`
-// (cf. OrgLayout.vue), contrairement à openedOrg.members qui lui est réactif.
-const senderStatus = (sender?: User | null): string | undefined => {
-    if (!sender) return undefined;
-    const m = openedOrg.value?.members?.find(mb => mb.userId === sender.id);
-    return m?.user?.data?.status || sender.data?.status;
-};
+// Tout ce qui dépend de la conversation (envoi sur le socket, droits,
+// mentions, profils, statut des expéditeurs) passe par le canal fourni par
+// ChatTimeline ; hors conversation, repli en lecture seule (cf.
+// createOrgPreviewChannel).
+const channel = useMessageChannel();
 
 const toast = useToast();
 const showReactionPicker = ref<boolean>(false);
@@ -307,8 +329,6 @@ const pickerCoords = ref<{ x: number, y: number } | null>(null);
 const props = defineProps<{
     msg: Message;
     selectedMessage?: string | null;
-    messages?: Message[];
-    currentThreadKey?: CryptoKey | null;
     isReadOnly?: boolean;
     isStacked?: boolean;
     isEditing?: boolean;
@@ -317,7 +337,13 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'edit-start'): void;
     (e: 'edit-end'): void;
+    // Clic sur l'encart de réponse : aller au message cité.
+    (e: 'jump-to', messageId: string): void;
 }>();
+
+// Aperçu figé (prop) ou conversation en lecture seule (canal) : aucune action.
+const locked = computed(() => !!props.isReadOnly || channel.readOnly.value);
+const profileClickable = computed(() => !locked.value && !!channel.openProfile);
 
 interface DropdownBtn {
     icon: string,
@@ -330,20 +356,13 @@ interface DropdownBtn {
     show: (msg: Message) => boolean;
 }
 
-// Un message webhook n'a pas de senderId (aucun expéditeur humain) : la
-// suppression reste possible pour le créateur du webhook via webhookCreatorId,
-// mais l'édition ne l'est jamais (cf. dropdownBtns "modifier" ci-dessous).
-function isMessageOwner(msg: Message): boolean {
-    if (msg.isWebhook) return msg.webhookCreatorId === user.value?.id;
-    return msg.senderId === user.value?.id;
-}
-
 const copied = ref<boolean>(false);
 let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
 const copyMessage = async (msg: Message) => {
     try {
-        await navigator.clipboard.writeText(msg.content);
+        const forwardedMsg = extractForwardedPayload(msg.content);
+        await navigator.clipboard.writeText(forwardedMsg ? forwardedMsg.payload.text : msg.content);
         copied.value = true;
         clearTimeout(copiedTimer);
         copiedTimer = setTimeout(() => copied.value = false, 1500);
@@ -370,7 +389,7 @@ const dropdownBtns: DropdownBtn[] = [
         tooltip: "modifier",
         label: "Modifier",
         func: () => startEdit(),
-        show: (msg: Message) => msg.senderId == user.value?.id
+        show: (msg: Message) => channel.canEdit(msg)
     },
     {
         icon: "bi-arrow-90deg-left",
@@ -378,6 +397,13 @@ const dropdownBtns: DropdownBtn[] = [
         label: "Répondre",
         func: (msg: Message) => setMessageWillBeResponded(msg),
         show: () => true
+    },
+    {
+        icon: "bi-send-fill",
+        tooltip: "transférer",
+        label: "Transférer",
+        func: () => { showForwardModal.value = true; },
+        show: (msg: Message) => !msg.isWebhook
     },
     {
         icon: "bi-emoji-grin-fill",
@@ -404,7 +430,7 @@ const dropdownBtns: DropdownBtn[] = [
         func: () => openDeleteConfirm(),
         class: "text-red-400! hover:bg-red-500/10!",
         danger: true,
-        show: (msg: Message) => isMessageOwner(msg)
+        show: (msg: Message) => channel.canDelete(msg)
     }
 ];
 
@@ -418,7 +444,7 @@ const showActionSheet = ref<boolean>(false);
 const reactionsRef = ref<InstanceType<typeof MessageReactions> | null>(null);
 
 const longPress = useLongPress(() => {
-    if (props.isEditing || props.isReadOnly) return;
+    if (props.isEditing || locked.value) return;
     showActionSheet.value = true;
 });
 
@@ -447,18 +473,49 @@ const openPickerFromSheet = () => {
     showReactionPicker.value = true;
 };
 
-const router = useRouter();
-const route = useRoute();
 const { setMessageWillBeResponded } = useResponse();
 
-// Les mises à jour de réactions sont reçues une seule fois par ThreadView.vue
-// (message-reaction-updated), plus par un écouteur socket par message.
+// Les mises à jour de réactions sont reçues une seule fois par la timeline
+// (MessageChannel.subscribe), plus par un écouteur socket par message.
+
+const router = useRouter();
 
 const showPlusDropdown = ref<boolean>(false);
 const hovered = ref<boolean>(false);
 const showDeleteConfirm = ref<boolean>(false);
+const showForwardModal = ref<boolean>(false);
 const editContent = ref<string>('');
 const editTextareaRef = ref<InstanceType<typeof ThreadTextarea> | null>(null);
+
+// Ce message est-il lui-même le résultat d'un transfert ? Mutuellement
+// exclusifs (voir Message dans schema.prisma) : transferId pointe vers un
+// autre Message (salon -> salon), transferOriginDmMessageId vers une
+// DMMessage (DM -> salon).
+const transferOrigin = computed<TransferOrigin | null>(() => {
+    if (props.msg.transferId) return { kind: 'thread', id: props.msg.transferId };
+    if (props.msg.transferOriginDmMessageId) return { kind: 'dm', id: props.msg.transferOriginDmMessageId };
+    return null;
+});
+
+// Ce message EST-il un transfert reçu ? Rendu en carte (ForwardedMessageCard),
+// voir ChatMessage.vue::forwarded (même logique côté salon).
+const forwarded = computed(() => extractForwardedPayload(props.msg.content));
+
+// Le message transféré est rechiffré pour la destination, donc son contenu
+// doit déjà porter tout ce qu'il faut pour afficher la carte. Transférer un
+// message déjà transféré repart de SON origine, pas du message courant
+// (voir ChatMessage.vue::confirmForward).
+const confirmForward = (target: ShareTarget, note: string): Promise<ShareReferenceResult> => {
+    const msg = props.msg;
+    const original = forwarded.value?.payload ?? {
+        senderId: msg.senderId || '',
+        senderName: msg.isWebhook ? (msg.webhookName || 'Webhook') : (msg.sender?.name || 'Anonyme'),
+        senderAvatar: msg.isWebhook ? msg.webhookAvatar : msg.sender?.avatarUrl,
+        text: msg.content,
+    };
+    const content = note.trim() ? `${note.trim()}\n${buildForwardToken(original)}` : buildForwardToken(original);
+    return forwardMessage(target, content, { kind: 'thread', id: msg.id });
+};
 
 watch(() => props.isEditing, (editing) => {
     if (!editing) return;
@@ -470,7 +527,7 @@ watch(() => props.isEditing, (editing) => {
 });
 
 
-const mentionLookup = orgMentionLookup;
+const mentionLookup = channel.mentions.lookup;
 
 // Couvre l'ancien format @pseudo (isUserMentioned) ET le nouveau <@:id> — un
 // message envoyé après cette feature ne matchera jamais le premier.
@@ -480,29 +537,19 @@ const isTagMe = computed(() => {
     return extractReferenceTokens(props.msg.content).some(r => r.type === 'user' && r.id === user.value!.id);
 });
 
-const handleAddReaction = async (payload: { messageId: string; emoji: string; isDM: boolean }) => {
-   
-    const socket = await useWSocket();
-   
+const handleAddReaction = async (payload: { messageId: string; emoji: string }) => {
+
     if (!user.value?.id) {
         toast.show('Veuillez vous connecter pour ajouter une réaction', 'error');
         return;
     }
-    
-    // Send to server via WebSocket
-    const eventName = payload.isDM ? 'add-dm-reaction' : 'add-message-reaction';
-    socket.value?.emit(eventName, { 
-        messageId: payload.messageId,
-        emoji: payload.emoji
-    }, (response: any) => {
-        if (response.error) {
-            toast.show(response.error, 'error');
-        }
-    });
+
+    const error = await channel.react(payload.messageId, payload.emoji);
+    if (error) toast.show(error, 'error');
 };
 
-const onReferenceClick = (ref: { kind: 'thread' | 'task' | 'file'; id: string; spaceId?: string }) => {
-    navigateToReference(router, ref);
+const onReferenceClick = (ref: { kind: 'thread' | 'task' | 'file' | 'folder'; id: string; spaceId?: string }) => {
+    if (channel.referencesEnabled) channel.openReference?.(ref);
 };
 
 
@@ -537,9 +584,8 @@ const cancelEdit = () => {
     emit('edit-end');
 }
 
-const deleteMessage = async () => {
-    const socket = await useWSocket();
-    socket.value?.emit('delete-message', props.msg.id);
+const deleteMessage = () => {
+    channel.remove(props.msg.id);
     showDeleteConfirm.value = false;
 };
 
@@ -551,16 +597,14 @@ const saveEdit = async () => {
         return;
     }
 
-    const { ciphertext, iv } = await encryptMessageWithContentKey(content, props.currentThreadKey!);
+    // Clé momentanément indisponible (changement de clé du salon en cours) :
+    // on reste en édition plutôt que de perdre la saisie.
+    const key = channel.encryptionKey.value;
+    if (!key) return;
 
-    const socket = await useWSocket();
+    const { ciphertext, iv } = await encryptMessageWithContentKey(content, key);
 
-    socket.value?.emit('edit-message', {
-        id: props.msg.id,
-        content: ciphertext,
-        iv: iv,
-        references: extractReferenceTokens(content),
-    });
+    channel.edit(props.msg.id, ciphertext, iv, extractReferenceTokens(content));
 
     emit('edit-end');
 

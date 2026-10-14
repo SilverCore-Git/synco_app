@@ -8,6 +8,11 @@ import { openedOrg } from '@/assets/var';
 import { keycloak, logoutEverywhere } from '@/assets/keycloak';
 import { computed, ref, watch } from 'vue';
 import { getAverageColor } from '@/assets/utils/getAverageColor';
+import { useSupportRole } from '@/composables/useSupportRole';
+import { useNotification } from '@/composables/useNotification';
+
+const { isStaff } = useSupportRole();
+const { getUnreadCountForSupport, getUnreadCountForSupportStaff } = useNotification();
 
 const props = defineProps<{
     user: User | undefined;
@@ -190,6 +195,19 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
                     Invisible
                 </button>
 
+            </div>
+
+            <div class="h-px bg-(--text)/5 my-1" />
+
+            <div class="p-1">
+                <router-link to="/support" class="dropdown-item-style dropdown-item-annimate">
+                    <i class="bi bi-life-preserver mr-2" /> Aide &amp; support
+                    <div v-if="getUnreadCountForSupport > 0" class="ml-auto w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_var(--glow-danger-strong)]" />
+                </router-link>
+                <router-link v-if="isStaff" to="/support-panel" class="text-(--primary)! font-bold dropdown-item-style dropdown-item-annimate">
+                    <i class="bi bi-headset mr-2" /> Panel SAV
+                    <div v-if="getUnreadCountForSupportStaff > 0" class="ml-auto w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_var(--glow-danger-strong)]" />
+                </router-link>
             </div>
 
             <div class="h-px bg-(--text)/5 my-1" />
