@@ -1,21 +1,28 @@
 <template>
-    <Teleport to="body">
-        <Transition name="fade">
-            <div v-if="show" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4" @click="emit('close')">
-                <div class="bg-(--bg) rounded-2xl border border-(--text)/10 shadow-2xl w-full max-w-3xl h-[80vh] flex flex-col overflow-hidden" @click.stop>
 
-                    <div class="flex items-center justify-between px-5 py-3 border-b border-(--border-color) shrink-0">
-                        <h3 class="font-semibold flex items-center gap-2"><i class="bi bi-sliders text-(--primary)"></i> Paramètres de Synco AI</h3>
-                        <button class="text-(--text2) hover:text-(--text) p-1" @click="emit('close')"><i class="bi bi-x-lg text-xl"></i></button>
-                    </div>
+    <Window :isOpen="show" @close="emit('close')">
 
-                    <div class="flex gap-1 px-4 pt-3 border-b border-(--border-color) shrink-0 overflow-x-auto">
-                        <button v-for="t in tabs" :key="t.id" class="tab-btn" :class="tab === t.id ? 'tab-active' : ''" @click="tab = t.id">
-                            <i class="bi" :class="t.icon"></i> {{ t.label }}
-                        </button>
-                    </div>
+        <div class="flex flex-col sm:flex-row w-full h-full bg-(--bg) text-(--text) rounded-xl overflow-hidden shadow-2xl relative">
 
-                    <div class="flex-1 min-h-0 overflow-y-auto p-5 space-y-6">
+            <aside class="w-full sm:w-64 bg-(--bg2) border-b sm:border-b-0 sm:border-r border-(--border-color) p-2 sm:p-4 pr-14 sm:pr-4 flex flex-row sm:flex-col gap-2 shrink-0 overflow-x-auto hide-scrollbar">
+
+                <h2 class="hidden sm:block text-xl font-black text-(--text) mb-4 px-3 pt-2">Synco AI</h2>
+
+                <button
+                    v-for="t in tabs"
+                    :key="t.id"
+                    @click="tab = t.id"
+                    class="tab whitespace-nowrap shrink-0 sm:w-full"
+                    :class="tab === t.id ? 'active' : ''"
+                >
+                    <i :class="[t.icon, 'text-lg']" />
+                    {{ t.label }}
+                </button>
+
+            </aside>
+
+            <main class="flex-1 min-h-0 bg-(--bg) relative overflow-y-auto p-4 sm:p-8 space-y-6">
+
 
                         <!-- Statistiques -->
                         <template v-if="tab === 'stats'">
@@ -140,11 +147,11 @@
                                 </div>
                             </div>
                         </template>
-                    </div>
-                </div>
-            </div>
-        </Transition>
-    </Teleport>
+            </main>
+
+        </div>
+
+    </Window>
 
     <ConfirmDelete
         :show="!!modelToDelete"
@@ -177,6 +184,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import Window from './Window.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { localLLM, type LLMModel } from '@/services/LocalLLMService';
 import { usageEvents, resetUsageStats, groupUsage, dailyTokens } from '@/services/aiUsageStats';
@@ -336,12 +344,6 @@ watch(() => props.show, open => {
 </script>
 
 <style scoped>
-.tab-btn {
-    display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.9rem;
-    font-size: 0.8rem; color: var(--text2); border-bottom: 2px solid transparent; white-space: nowrap;
-}
-.tab-btn:hover { color: var(--text); }
-.tab-active { color: var(--text); border-bottom-color: var(--primary); }
 .card { background: var(--bg2); border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 0.75rem 1rem; }
 .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text2); margin-bottom: 0.5rem; }
 .chip { padding: 0.25rem 0.7rem; border-radius: 999px; font-size: 0.75rem; color: var(--text2); border: 1px solid var(--border-color); }

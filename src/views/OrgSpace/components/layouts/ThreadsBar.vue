@@ -186,6 +186,19 @@
                         <i class="bi bi-robot"></i>
                         <h3 class="font-semibold">{{ title }}</h3>
                     </div>
+
+                    <DropDown align="right" class="ml-2">
+                        <template #trigger>
+                            <button class="default">
+                                <i class="bi bi-three-dots text-(--text2)" />
+                            </button>
+                        </template>
+                        <template #content>
+                            <button @click="showAiSettings = true" class="dropdown-item-annimate dropdown-item-style">
+                                <i class="bi bi-gear mr-2" /> Paramètres
+                            </button>
+                        </template>
+                    </DropDown>
                 </div>
 
                 <div
@@ -339,6 +352,8 @@
 
         </template>
 
+        <AiSettings :show="showAiSettings" @close="showAiSettings = false" />
+
         <SpaceSearchModal :show="showSearchModal" @close="showSearchModal = false" />
 
     </div>
@@ -362,6 +377,8 @@ import { settingsViews } from '../../views/settings/settings';
 import { usePermissions } from '@/composables/usePermissions';
 import Category from '../CanalBar/Category.vue';
 import isDesktopApp from '@/assets/isDesktopApp';
+import DropDown from '@/components/DropDown.vue';
+import AiSettings from '@/components/windows/AiSettings.vue';
 import SpaceSearchModal from '../popup/SpaceSearchModal.vue';
 import { chatSessions, activeSessionId, newSession, deleteSession, loadSession } from '@/services/AIService';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
@@ -396,6 +413,7 @@ const unreadSpaceTasks = computed(() => getUnreadCountForSpaceTasks(String(route
 
 const showDropDown = ref<boolean>(false);
 const showSearchModal = ref<boolean>(false);
+const showAiSettings = ref<boolean>(false);
 
 const showSettingsNav = computed(() => isSettings.value && canAny(['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI']));
 
