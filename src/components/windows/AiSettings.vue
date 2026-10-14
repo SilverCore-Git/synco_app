@@ -140,6 +140,14 @@
                                 </div>
                             </div>
 
+                            <div v-if="localLLM.lastLoadTimings.value">
+                                <p class="section-title">Dernier chargement du modèle</p>
+                                <div class="card text-xs space-y-1 font-mono">
+                                    <p>Total : {{ sec(localLLM.lastLoadTimings.value.totalMs) }} (vérif. du cache {{ sec(localLLM.lastLoadTimings.value.prefetchMs) }}, moteur {{ sec(localLLM.lastLoadTimings.value.reloadMs) }})</p>
+                                    <p v-for="ph in localLLM.lastLoadTimings.value.phases" :key="ph.label + ph.atMs" class="text-(--text2)">+{{ sec(ph.atMs) }} · {{ ph.label }}</p>
+                                </div>
+                            </div>
+
                             <div v-if="localLLM.profile.value">
                                 <p class="section-title">Matériel détecté</p>
                                 <div class="card text-xs space-y-1 font-mono">
@@ -218,6 +226,7 @@ const events = computed(() => {
 });
 
 const fmt = (n: number) => n < 1000 ? String(n) : n < 1e6 ? (n / 1000).toFixed(n < 10000 ? 1 : 0).replace(/\.0$/, '') + 'k' : (n / 1e6).toFixed(1) + 'M';
+const sec = (ms: number) => (ms / 1000).toFixed(1) + ' s';
 const fmtBytes = (n: number) => n >= 1024 ** 3 ? (n / 1024 ** 3).toFixed(1) + ' Go' : Math.round(n / 1024 ** 2) + ' Mo';
 
 const cards = computed(() => {

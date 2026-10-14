@@ -1,5 +1,5 @@
 import { computed, ref, shallowRef } from 'vue';
-import type { WorkerRequest, WorkerResponse } from '../workers/llm.worker';
+import type { LoadTimings, WorkerRequest, WorkerResponse } from '../workers/llm.worker';
 import { availableModels, findModel, type LLMModel } from './localLLM/catalog';
 import { clearAllModelCaches, deleteModelCache, getCachedBytes, getModelCacheStatus, getModelSize, type ModelCacheStatus } from './localLLM/modelCache';
 import {
@@ -37,6 +37,9 @@ class LocalLLMService {
     autoLoad = ref(storageGet(AUTOLOAD_KEY) !== '0');
     backgroundWarmup = ref(storageGet(WARMUP_KEY) !== '0');
     debugLogs = ref(storageGet(DEBUG_KEY) === '1');
+
+    /** Détail du dernier chargement réussi (affiché dans Paramètres › Débogage). */
+    lastLoadTimings = ref<LoadTimings | null>(null);
 
     progress = ref(0);
     phase = ref<'download' | 'load' | null>(null);
@@ -84,6 +87,9 @@ class LocalLLMService {
 
     /** Charge le modèle sans intervention si ses poids sont déjà sur le disque. */
     async autoLoadIfCached() {
+        // Le worker charge et analyse web-llm (~6 Mo de JS) : on le démarre pendant la détection du matériel
+        // plutôt qu'après. Seulement si le chargement est autorisé, sinon on gaspillerait cette mémoire.
+        if (this.autoLoad.value) this.ensureWorker();
         await this.prepare();
         if (!this.autoLoad.value) return;
         if (this.status.value === 'idle' && this.cacheStatus.value?.complete) {
@@ -217,7 +223,7 @@ class LocalLLMService {
         // Sans stockage persistant, le navigateur peut évincer plusieurs Go de poids sous pression disque.
         (navigator as any).storage?.persist?.().catch(() => {});
 
-        this.ensureWorker().postMessage({ type: 'load', mlcId: variant.mlcId } satisfies WorkerRequest);
+        this.ensureWorker().postMessage({ type: 'load', mlcId: variant.mlcId, cached: this.cacheStatus.value?.complete === true } satisfies WorkerRequest);
         return promise;
     }
 
@@ -338,6 +344,8 @@ class LocalLLMService {
         if (msg.type === 'loaded') {
             this.currentModel.value = this.selectedModel.value;
             this.status.value = 'ready';
+            this.lastLoadTimings.value = msg.timings;
+            this.log('Modèle chargé', msg.timings);
             this.progress.value = 100;
             this.phase.value = null;
             this.cacheStatus.value = { totalBytes: this.totalBytes.value, cachedBytes: this.totalBytes.value, complete: true };

@@ -3,14 +3,25 @@ import { modelBaseUrl, modelLibUrlOverride } from '@/services/localLLM/catalog';
 import { CONFIG_CACHE, MODEL_CACHE, WASM_CACHE, getShardManifest, shardUrls } from '@/services/localLLM/modelCache';
 
 export type WorkerRequest =
-    | { type: 'load'; mlcId: string }
+    /** `cached` : l'appelant sait déjà que tous les poids sont dans le cache, inutile de le réinspecter. */
+    | { type: 'load'; mlcId: string; cached?: boolean }
     | { type: 'chat'; id: string; messages: any[]; temperature: number }
     | { type: 'interrupt' }
     | { type: 'unload' };
 
+export interface LoadTimings {
+    totalMs: number;
+    /** Inspection / complétion du cache avant le moteur (0 si ignorée). */
+    prefetchMs: number;
+    /** Durée de `engine.reload()` : lecture des poids, compilation des shaders, envoi au GPU. */
+    reloadMs: number;
+    /** Étapes rapportées par WebLLM, avec l'instant (ms depuis le début) de leur première apparition. */
+    phases: Array<{ label: string; atMs: number }>;
+}
+
 export type WorkerResponse =
     | { type: 'progress'; phase: 'download' | 'load'; loadedBytes: number; totalBytes: number; progress: number }
-    | { type: 'loaded'; mlcId: string; ms: number }
+    | { type: 'loaded'; mlcId: string; ms: number; timings: LoadTimings }
     | { type: 'loadError'; mlcId: string; message: string; kind: 'gpu-memory' | 'shader-f16' | 'network' | 'aborted' | 'other' }
     | { type: 'chunk'; id: string; content: string }
     | { type: 'usage'; id: string; promptTokens: number; completionTokens: number; totalTokens: number }
@@ -134,9 +145,9 @@ const classify = (e: any): Extract<WorkerResponse, { type: 'loadError' }>['kind'
     return 'other';
 };
 
-const load = async (mlcId: string) => {
+const load = async (mlcId: string, cached = false) => {
     if (loadedId === mlcId && engine) {
-        post({ type: 'loaded', mlcId, ms: 0 });
+        post({ type: 'loaded', mlcId, ms: 0, timings: { totalMs: 0, prefetchMs: 0, reloadMs: 0, phases: [] } });
         return;
     }
     loadController?.abort();
@@ -149,19 +160,28 @@ const load = async (mlcId: string) => {
             await engine.unload();
             loadedId = null;
         }
-        await prefetch(mlcId, controller.signal);
+        // Poids déjà tous en cache : le prefetch ne ferait que relire le manifeste et lister des centaines
+        // d'entrées pour rien. WebLLM retélécharge de lui-même un petit fichier annexe qui manquerait.
+        if (!cached) await prefetch(mlcId, controller.signal);
+        const tPrefetch = performance.now();
         if (controller.signal.aborted) throw new DOMException('aborted', 'AbortError');
 
         engine ??= new webllm.MLCEngine();
         engine.setAppConfig(appConfigFor(mlcId));
+        const phases: LoadTimings['phases'] = [];
         engine.setInitProgressCallback(report => {
+            const label = String(report.text ?? '').split(/[\[:\d]/)[0]!.trim();
+            if (label && phases[phases.length - 1]?.label !== label) phases.push({ label, atMs: Math.round(performance.now() - t0) });
             // Après le prefetch, seule la phase "Loading model from cache" (upload GPU) reste.
             post({ type: 'progress', phase: 'load', loadedBytes: 0, totalBytes: 0, progress: report.progress });
         });
         await engine.reload(mlcId);
         if (controller.signal.aborted) throw new DOMException('aborted', 'AbortError');
         loadedId = mlcId;
-        post({ type: 'loaded', mlcId, ms: Math.round(performance.now() - t0) });
+        const totalMs = Math.round(performance.now() - t0);
+        post({ type: 'loaded', mlcId, ms: totalMs, timings: {
+            totalMs, prefetchMs: Math.round(tPrefetch - t0), reloadMs: Math.round(performance.now() - tPrefetch), phases,
+        } });
     } catch (e: any) {
         if (loadController === controller) loadedId = null;
         post({ type: 'loadError', mlcId, message: e?.message ?? String(e), kind: classify(e) });
@@ -203,7 +223,7 @@ const chat = async (id: string, messages: any[], temperature: number) => {
 self.onmessage = (event: MessageEvent<WorkerRequest>) => {
     const msg = event.data;
     switch (msg.type) {
-        case 'load': load(msg.mlcId); break;
+        case 'load': load(msg.mlcId, msg.cached); break;
         case 'chat': chat(msg.id, msg.messages, msg.temperature); break;
         case 'interrupt': engine?.interruptGenerate(); break;
         case 'unload':
