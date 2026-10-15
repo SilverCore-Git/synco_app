@@ -321,16 +321,70 @@ const submit = async () => {
 }
 
 const showResetConfirm = ref<boolean>(false);
+// Étapes : 'warn' (avertissement + confirmations) → 'code' (code reçu par email).
+const resetStep = ref<'warn' | 'code'>('warn');
+const resetAckLoss = ref<boolean>(false);
+const resetAckIrreversible = ref<boolean>(false);
+const resetTyped = ref<string>('');
+const resetCode = ref<string>('');
+const resetBusy = ref<boolean>(false);
+const RESET_PHRASE = 'RÉINITIALISER';
+
+const canSendResetCode = computed(() =>
+  resetAckLoss.value && resetAckIrreversible.value &&
+  resetTyped.value.trim().toUpperCase() === RESET_PHRASE && !resetBusy.value
+);
+
+const closeResetPopup = () => {
+  showResetConfirm.value = false;
+  resetStep.value = 'warn';
+  resetAckLoss.value = false;
+  resetAckIrreversible.value = false;
+  resetTyped.value = '';
+  resetCode.value = '';
+};
 
 const pinForgot = () => {
+  closeResetPopup();
   showResetConfirm.value = true;
 };
 
+const sendResetCode = async () => {
+  if (!canSendResetCode.value) return;
+  resetBusy.value = true;
+  try {
+    const res = await sfetch('/api/users/me/pin/reset/request', { method: 'POST' });
+    if (res.ok) {
+      resetStep.value = 'code';
+      toast.show('Un code de confirmation vous a été envoyé par email.', 'info', 8000);
+    } else {
+      toast.show((await res.json().catch(() => ({}))).error || "Impossible d'envoyer le code", 'error');
+    }
+  } finally {
+    resetBusy.value = false;
+  }
+};
+
 const resetPIN = async () => {
-  showResetConfirm.value = false;
-  isResettingPIN.value = true;
-  pin.value = '';
-  toast.show('Veuillez définir un nouveau code PIN', 'info');
+  if (!/^\d{6}$/.test(resetCode.value) || resetBusy.value) return;
+  resetBusy.value = true;
+  try {
+    const res = await sfetch('/api/users/me/pin/reset/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ code: resetCode.value }),
+    });
+    if (!res.ok) {
+      toast.show((await res.json().catch(() => ({}))).error || 'Code incorrect', 'error');
+      resetCode.value = '';
+      return;
+    }
+    closeResetPopup();
+    isResettingPIN.value = true;
+    pin.value = '';
+    toast.show('Email validé. Veuillez définir un nouveau code PIN', 'info');
+  } finally {
+    resetBusy.value = false;
+  }
 };
 
 const handleInput = (e: KeyboardEvent) => {
@@ -776,18 +830,55 @@ onMounted(async () => {
               Code PIN oublié ?
             </button>
 
-            <Popup :isOpen="showResetConfirm" @close="showResetConfirm = false">
+            <Popup :isOpen="showResetConfirm" @close="closeResetPopup">
               <template #title>Réinitialiser le code PIN</template>
-              <p class="text-(--text) text-sm">
-                Cela réinitialisera votre clé de chiffrement.
-                <span class="text-amber-500 font-medium">Tous vos anciens messages deviendront illisibles.</span>
-              </p>
-              <p class="text-(--text2) text-xs mt-4">
-                Cette action ne peut pas être annulée.
-              </p>
+
+              <template v-if="resetStep === 'warn'">
+                <div class="rounded-lg border-2 border-red-500 bg-red-500/10 p-4">
+                  <p class="text-red-500 font-bold text-base uppercase tracking-wide">
+                    <i class="bi bi-exclamation-triangle-fill mr-1"></i> Action destructive et irréversible
+                  </p>
+                  <p class="text-(--text) text-sm mt-2">
+                    Si vous réinitialisez votre code PIN, <strong>vous perdez définitivement tout votre historique</strong> :
+                    <strong>tous les messages déjà envoyés et reçus deviendront illisibles</strong>, et personne, pas même nous, ne pourra les récupérer.
+                  </p>
+                </div>
+                <p class="text-(--text2) text-xs mt-3">
+                  Si vous pensez vous souvenir de votre code, annulez et réessayez plutôt que de réinitialiser.
+                  Un code de confirmation sera envoyé à votre adresse email.
+                </p>
+                <label class="flex items-start gap-2 mt-4 text-sm text-(--text) cursor-pointer">
+                  <input type="checkbox" v-model="resetAckLoss" class="mt-1" />
+                  <span>Je comprends que tous mes anciens messages seront perdus.</span>
+                </label>
+                <label class="flex items-start gap-2 mt-2 text-sm text-(--text) cursor-pointer">
+                  <input type="checkbox" v-model="resetAckIrreversible" class="mt-1" />
+                  <span>Je comprends que cette action est irréversible.</span>
+                </label>
+                <p class="text-(--text2) text-xs mt-4">Tapez <strong class="text-red-500">{{ RESET_PHRASE }}</strong> pour confirmer :</p>
+                <input v-model="resetTyped" type="text" @keydown.stop autocomplete="off" spellcheck="false" :placeholder="RESET_PHRASE"
+                  class="w-full mt-1 rounded-md border border-(--border) bg-transparent px-3 py-2 text-sm" />
+              </template>
+
+              <template v-else>
+                <p class="text-(--text) text-sm">
+                  Saisissez le code à 6 chiffres envoyé à votre adresse email. Il expire dans 15 minutes.
+                </p>
+                <input v-model="resetCode" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code"
+                  placeholder="000000" @keydown.stop @keyup.enter="resetPIN"
+                  class="w-full mt-3 rounded-md border border-(--border) bg-transparent px-3 py-2 text-center text-xl tracking-[0.5em]" />
+                <p class="text-amber-500 text-xs mt-3 font-medium">
+                  Une fois le code validé, vos anciens messages seront définitivement perdus.
+                </p>
+                <button @click="sendResetCode" :disabled="resetBusy" class="mt-3 text-xs text-(--text2) hover:text-(--primary) underline">
+                  Renvoyer un code
+                </button>
+              </template>
+
               <template #footer>
-                <button @click="showResetConfirm = false" class="default">Annuler</button>
-                <button @click="resetPIN" class="danger">Réinitialiser</button>
+                <button @click="closeResetPopup" class="default">Annuler</button>
+                <button v-if="resetStep === 'warn'" @click="sendResetCode" :disabled="!canSendResetCode" class="danger">Envoyer le code par email</button>
+                <button v-else @click="resetPIN" :disabled="resetCode.length !== 6 || resetBusy" class="danger">Valider et réinitialiser</button>
               </template>
             </Popup>
 
