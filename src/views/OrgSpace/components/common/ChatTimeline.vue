@@ -442,7 +442,7 @@ const handlePaste = (e: ClipboardEvent) => {
     }
 };
 
-const { isDragging } = useWindowFileDrop((files) => handleFiles(files), () => channel.canWrite.value);
+const { isDragging } = useWindowFileDrop((files) => handleFiles(files), () => props.channel.canWrite.value);
 
 const removeFile = (index: number) => {
     selectedFiles.value.splice(index, 1);
