@@ -59,16 +59,15 @@
             v-else
             ref="messagesContainer"
             class="flex-1 overflow-y-scroll p-4 w-full"
-            @dragover.prevent="isDragging = true"
-            @dragleave.prevent="isDragging = false"
-            @drop.prevent="handleDrop"
         >
 
             <div v-if="recipient" class="flex flex-col justify-end min-h-full w-full relative">
 
-                <div v-if="isDragging" class="absolute inset-0 z-20 bg-(--primary)/10 border-2 border-dashed border-(--primary) rounded-xl flex items-center justify-center pointer-events-none">
-                    <p class="text-(--primary) font-bold">Déposer pour envoyer (chiffré, P2P)</p>
-                </div>
+                <Teleport to="body">
+                    <div v-if="isDragging" class="fixed inset-4 z-[3500] bg-(--primary)/10 backdrop-blur-[2px] border-2 border-dashed border-(--primary) rounded-2xl flex items-center justify-center pointer-events-none">
+                        <p class="text-(--primary) font-bold text-xl">Déposer pour envoyer (chiffré, P2P)</p>
+                    </div>
+                </Teleport>
 
                 <div class="space-y-1 w-full">
 
@@ -293,6 +292,7 @@ import SpinLoader from '@/components/SpinLoader.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import Popup from '@/components/Popup.vue';
+import useWindowFileDrop from '@/composables/useWindowFileDrop';
 
 const {
     messages,
@@ -313,7 +313,6 @@ const router = useRouter();
 const toast = useToast();
 
 const newMessage = ref<string>('');
-const isDragging = ref<boolean>(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 const connectionType = ref<'direct' | 'relay' | 'unknown' | null>(null);
 const showCloseConfirm = ref<boolean>(false);
@@ -380,10 +379,7 @@ const handleFilePicked = async (files: FileList | null) => {
     if (fileInput.value) fileInput.value.value = '';
 };
 
-const handleDrop = async (e: DragEvent) => {
-    isDragging.value = false;
-    if (e.dataTransfer?.files) await handleFilePicked(e.dataTransfer.files);
-};
+const { isDragging } = useWindowFileDrop((files) => { void handleFilePicked(files); }, () => !!recipient.value);
 
 // Si la session se termine (l'autre côté ferme, ou expiration faute de
 // réponse) pendant qu'on la regarde, `recipient` ci-dessus redevient null

@@ -3,8 +3,8 @@ import { onBeforeUnmount, onMounted, ref, type Ref } from 'vue';
 const hasFiles = (e: DragEvent) => !!e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files');
 
 // Zone de dépôt de fichiers couvrant toute la fenêtre (et pas seulement le
-// composer). Les dépôts déjà pris en charge par un élément plus précis
-// (handler avec .prevent) sont ignorés pour ne pas être traités deux fois.
+// composer). Un dépôt déjà pris en charge par un élément plus précis
+// (drop avec .prevent) est ignoré pour ne pas être traités deux fois.
 export default function useWindowFileDrop(onFiles: (files: FileList) => void, enabled: () => boolean = () => true): { isDragging: Ref<boolean> } {
     const isDragging = ref(false);
     let depth = 0;
@@ -17,7 +17,7 @@ export default function useWindowFileDrop(onFiles: (files: FileList) => void, en
         isDragging.value = true;
     };
     const onOver = (e: DragEvent) => {
-        if (!enabled() || !hasFiles(e) || e.defaultPrevented) return;
+        if (!enabled() || !hasFiles(e)) return;
         e.preventDefault();
     };
     const onLeave = (e: DragEvent) => {
@@ -34,16 +34,18 @@ export default function useWindowFileDrop(onFiles: (files: FileList) => void, en
     };
 
     onMounted(() => {
-        window.addEventListener('dragenter', onEnter);
-        window.addEventListener('dragover', onOver);
-        window.addEventListener('dragleave', onLeave);
+        // enter/over/leave en capture : aucun composant intermédiaire ne peut
+        // les avaler (stopPropagation) avant qu'on affiche la zone de dépôt.
+        window.addEventListener('dragenter', onEnter, true);
+        window.addEventListener('dragover', onOver, true);
+        window.addEventListener('dragleave', onLeave, true);
         window.addEventListener('drop', onDrop);
         window.addEventListener('dragend', reset);
     });
     onBeforeUnmount(() => {
-        window.removeEventListener('dragenter', onEnter);
-        window.removeEventListener('dragover', onOver);
-        window.removeEventListener('dragleave', onLeave);
+        window.removeEventListener('dragenter', onEnter, true);
+        window.removeEventListener('dragover', onOver, true);
+        window.removeEventListener('dragleave', onLeave, true);
         window.removeEventListener('drop', onDrop);
         window.removeEventListener('dragend', reset);
     });

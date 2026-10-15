@@ -156,7 +156,7 @@
             <div
                 v-if="isDragging"
                 class="
-                    fixed inset-4 z-[1000] bg-(--primary)/10 backdrop-blur-[2px]
+                    fixed inset-4 z-[3500] bg-(--primary)/10 backdrop-blur-[2px]
                     border-2 border-dashed border-(--primary)
                     rounded-2xl flex items-center justify-center
                     pointer-events-none
