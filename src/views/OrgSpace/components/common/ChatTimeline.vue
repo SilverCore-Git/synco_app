@@ -150,24 +150,23 @@
         <div
             v-if="channel.canWrite.value"
             class="relative flex flex-col w-full"
-            @dragover.prevent="isDragging = true"
-            @dragleave.prevent="isDragging = false"
-            @drop.prevent="handleDrop"
         >
 
+            <Teleport to="body">
             <div
                 v-if="isDragging"
                 class="
-                    absolute inset-0 z-50 bg-(--primary)/10
-                     border-2 border-dashed border-(--primary)
-                     rounded-xl flex items-center justify-center
-                     pointer-events-none
+                    fixed inset-4 z-[1000] bg-(--primary)/10 backdrop-blur-[2px]
+                    border-2 border-dashed border-(--primary)
+                    rounded-2xl flex items-center justify-center
+                    pointer-events-none
                 "
             >
-                <span class="text-(--primary) font-bold">
+                <span class="text-(--primary) font-bold text-xl">
                     Relâchez pour ajouter
                 </span>
             </div>
+            </Teleport>
 
             <!-- Bannières propres à la conversation (ex. clé du salon
                  remplacée, audit FC4), juste au-dessus de la saisie. -->
@@ -256,6 +255,7 @@ import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { extractReferenceTokens } from '@/composables/useReferences';
 import { provideResponse } from '@/composables/useResponse';
 import useFooterInset from '@/composables/useFooterInset';
+import useWindowFileDrop from '@/composables/useWindowFileDrop';
 import { MESSAGE_CHANNEL_KEY, type MessageChannel } from '@/composables/messageChannel';
 import { MENTION_SOURCE_KEY } from '@/composables/mentionSource';
 import SpinLoader from '@/components/SpinLoader.vue';
@@ -442,11 +442,7 @@ const handlePaste = (e: ClipboardEvent) => {
     }
 };
 
-const isDragging = ref<boolean>(false);
-const handleDrop = (e: DragEvent) => {
-    isDragging.value = false;
-    if (e.dataTransfer?.files) handleFiles(e.dataTransfer.files);
-};
+const { isDragging } = useWindowFileDrop((files) => handleFiles(files), () => channel.canWrite.value);
 
 const removeFile = (index: number) => {
     selectedFiles.value.splice(index, 1);

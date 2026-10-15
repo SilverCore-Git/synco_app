@@ -229,24 +229,23 @@
 
             <div 
                 class="relative flex flex-col w-full"
-                @dragover.prevent="isDragging = true"
-                @dragleave.prevent="isDragging = false"
-                @drop.prevent="handleDrop"
             >
             
-                <div 
-                    v-if="isDragging" 
-                    class="
-                        absolute inset-0 z-50 bg-(--primary)/10
-                        border-2 border-dashed border-(--primary) 
-                        rounded-xl flex items-center justify-center 
-                        pointer-events-none
-                    "
-                >
-                    <span class="text-(--primary) font-bold">
-                        Relâchez pour ajouter
-                    </span>
-                </div>
+                <Teleport to="body">
+            <div
+                v-if="isDragging"
+                class="
+                    fixed inset-4 z-[1000] bg-(--primary)/10 backdrop-blur-[2px]
+                    border-2 border-dashed border-(--primary)
+                    rounded-2xl flex items-center justify-center
+                    pointer-events-none
+                "
+            >
+                <span class="text-(--primary) font-bold text-xl">
+                    Relâchez pour ajouter
+                </span>
+            </div>
+            </Teleport>
 
                 <div class="relative flex items-center bg-(--bg) border border-(--text)/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
 
@@ -376,6 +375,7 @@ import ChatMessage from '../components/common/ChatMessage.vue';
 import ReplyBanner from '../components/common/ReplyBanner.vue';
 import TypingIndicator from '@/components/common/TypingIndicator.vue';
 import useFooterInset from '@/composables/useFooterInset';
+import useWindowFileDrop from '@/composables/useWindowFileDrop';
 import { uploadFiles } from '@/assets/uploadFile';
 import useResponse from '@/composables/useResponse';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
@@ -587,11 +587,7 @@ watch(() => messageWillBeResponded.value, () => {
     TextareaRef.value?.textarea?.focus();
 });
 
-const isDragging = ref<boolean>(false);
-const handleDrop = (e: DragEvent) => {
-    isDragging.value = false;
-    if (e.dataTransfer?.files) handleFiles(e.dataTransfer.files);
-};
+const { isDragging } = useWindowFileDrop((files) => handleFiles(files), () => !!recipient.value);
 
 const removeFile = (index: number) => {
     selectedFiles.value.splice(index, 1);
