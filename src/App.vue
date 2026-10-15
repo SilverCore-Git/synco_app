@@ -11,6 +11,7 @@ import type { User } from '@/types/types';
 import Notifications from './components/overlay/Notifications.vue';
 import TransfersPanel from './components/overlay/TransfersPanel.vue';
 import ConnectionStatusBanner from './components/overlay/ConnectionStatusBanner.vue';
+import RateLimitOverlay from './components/overlay/RateLimitOverlay.vue';
 import AiGatewayConsent from './components/common/AiGatewayConsent.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
 import useSettingsItem from './composables/useSettingsItem';
@@ -612,6 +613,7 @@ onMounted(async () => {
     <Notifications />
     <TransfersPanel />
     <ConnectionStatusBanner />
+    <RateLimitOverlay />
     <AiGatewayConsent />
 
     <!-- Compte banni : prioritaire sur tout le reste. Un compte banni ne

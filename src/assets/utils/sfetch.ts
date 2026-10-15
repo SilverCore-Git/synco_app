@@ -1,6 +1,7 @@
 import { keycloak } from "../keycloak";
 import { Capacitor } from "@capacitor/core";
 import { reportApiFailure, reportApiSuccess } from "@/composables/useApiHealth";
+import { reportRateLimited } from "@/composables/useRateLimit";
 import { setBanned } from "@/composables/useBanStatus";
 import { setOrgBanned } from "@/composables/useOrgBanStatus";
 
@@ -85,6 +86,15 @@ export default async function sfetch(url: string, arg?: any, retryCount = 0): Pr
         reportApiFailure();
     } else {
         reportApiSuccess();
+    }
+
+    // 429 : quota de requêtes dépassé côté API. On bloque l'UI avec un
+    // décompte plutôt que de laisser les appelants en chargement infini.
+    // /pin/unlock est exclu : son 429 est un verrouillage de PIN, déjà géré
+    // par l'écran de PIN avec son propre décompte (retryAfterSeconds).
+    if (response.status === 429 && !url.includes('/pin/unlock')) {
+        reportRateLimited(response.headers.get('Retry-After'));
+        return response;
     }
 
     // Vérifié avant le rafraîchissement de jeton ci-dessous : un 403 de
