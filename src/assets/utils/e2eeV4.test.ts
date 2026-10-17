@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
     E2eeV4Error, answerLinkRequest, completeLink, createDeviceEnvelope, createLinkRequest, createRecoveryEnvelope,
     formatRecoveryKey, generateAccountKeyBytes, generateDeviceId, generateDeviceKeyBytes, generateDeviceKeyPair, generateRecoveryKeyBytes,
-    importAccountKey, openDeviceEnvelope, openDevicePrivateKey, openIdentityKey, openRecoveryEnvelope, parseRecoveryKey, sealDevicePrivateKey, sealIdentityKey,
+    importAccountKey, linkCodeFor, verifyLinkCode, openDeviceEnvelope, openDevicePrivateKey, openIdentityKey, openRecoveryEnvelope, parseRecoveryKey, sealDevicePrivateKey, sealIdentityKey,
 } from "./e2eeV4";
 
 const U = "user-1";
@@ -131,6 +131,19 @@ describe("e2eeV4 — liaison d'un nouvel appareil", () => {
         const done = await completeLink(real, answerToReal, U);
         // le code affiché par l'appareil connecté ne correspond pas à celui du nouvel appareil
         expect(done.sas).not.toBe(answerToAttacker.sas);
+    });
+
+    test("code de liaison : accepté pour la bonne clé, refusé pour une clé substituée ou une autre demande", async () => {
+        const real = await createLinkRequest();
+        const attacker = await createLinkRequest();
+        const code = await linkCodeFor(real.publicKey, real.requestId);
+        expect(code).toMatch(/^([0-9A-HJKMNP-TV-Z]{4}-){4}[0-9A-HJKMNP-TV-Z]{4}$/);
+        expect(await verifyLinkCode(code, real.publicKey, real.requestId)).toBe(true);
+        expect(await verifyLinkCode(code.toLowerCase().replace(/-/g, " "), real.publicKey, real.requestId)).toBe(true);
+        // le serveur annonce sa propre clé à l'appareil connecté : le code recopié ne correspond pas
+        expect(await verifyLinkCode(code, attacker.publicKey, real.requestId)).toBe(false);
+        expect(await verifyLinkCode(code, real.publicKey, crypto.randomUUID())).toBe(false);
+        expect(await verifyLinkCode(code.slice(0, 12), real.publicKey, real.requestId)).toBe(false);
     });
 
     test("demande liée à son identifiant et à l'utilisateur", async () => {

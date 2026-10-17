@@ -64,7 +64,8 @@ Connexion Keycloak → l'app récupère le `DeviceEnvelope` de son `deviceId` �
 2. Un **appareil déjà connecté** scanne le QR (canal hors bande : le serveur ne peut pas substituer la clé), affiche le nom et la plateforme du nouvel appareil et demande une confirmation explicite.
 3. Il calcule ECDH + HKDF, chiffre AK pour le nouvel appareil et dépose cette enveloppe temporaire sur le serveur (`DeviceLinkRequest`, valable quelques minutes, usage unique).
 4. Le nouvel appareil la récupère, ouvre AK, génère sa propre DK, enregistre son `DeviceEnvelope` et détruit l'enveloppe temporaire.
-5. Un **code de vérification** à 6 chiffres, dérivé de l'échange et affiché des deux côtés, couvre le cas de saisie manuelle sans QR (anti-MITM du serveur).
+5. **Sans QR code** (saisie manuelle) : le nouvel appareil affiche un **code de liaison** de 96 bits (20 caractères) dérivé de sa clé publique et de l'identifiant de la demande ; l'utilisateur le recopie sur l'appareil connecté, qui le vérifie contre la clé annoncée par le serveur avant de répondre. Un serveur actif ne peut donc pas substituer sa clé (il faudrait ~2^96 essais).
+6. Un **code à 6 chiffres**, affiché des deux côtés, confirme l'intention de l'utilisateur. Il **n'est pas** une défense contre un serveur actif (20 bits se forcent en quelques secondes) : la défense est l'authenticité de la clé du nouvel appareil (QR ou code de liaison).
 
 ### 4.4 Aucun autre appareil disponible
 1. **Clé de récupération** : l'utilisateur la saisit, l'app ouvre `RecoveryEnvelope`, puis enregistre l'appareil comme en 4.3 (étapes 4).

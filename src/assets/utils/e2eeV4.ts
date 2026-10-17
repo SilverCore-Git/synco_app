@@ -273,9 +273,12 @@ export async function openRecoveryEnvelope(rk: Uint8Array, envelope: string, use
 // Appareil connecté : answerLinkRequest() → clé publique éphémère + enveloppe d'AK, déposées sur le serveur.
 // Nouvel appareil : completeLink() → AK. Les deux côtés affichent le même code de vérification.
 //
-// Le QR code transporte la clé publique du nouvel appareil hors du serveur : le serveur ne peut pas
-// la substituer. Sur le chemin sans QR (code saisi), la clé transite par le serveur : le code de
-// vérification, comparé par l'utilisateur sur les deux écrans, révèle alors une substitution.
+// Authenticité de la clé du nouvel appareil (la seule chose qu'un serveur actif pourrait substituer) :
+// - par QR code : la clé voyage hors du serveur ;
+// - par saisie manuelle : l'utilisateur recopie le CODE DE LIAISON (96 bits dérivés de la clé et de
+//   l'identifiant de la demande, cf. linkCodeFor) et l'appareil connecté le vérifie avant de répondre.
+// Le code à 6 chiffres (`sas`) n'est PAS une défense contre un serveur actif : 20 bits se forcent
+// en quelques secondes d'essais de clés. Il sert seulement à confirmer l'intention de l'utilisateur.
 
 type EcJwk = { kty: 'EC'; crv: 'P-256'; x: string; y: string };
 
@@ -290,6 +293,31 @@ const ecdhKeyPair = () => crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 
 
 async function importPeer(jwk: JsonWebKey): Promise<CryptoKey> {
     return crypto.subtle.importKey('jwk', canonicalJwk(jwk), { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+}
+
+// 12 octets de SHA-256 → 20 caractères (96 bits) : forcer une clé de remplacement coûte ~2^96 essais.
+const LINK_CODE_BYTES = 12;
+const LINK_CODE_CHARS = 20;
+
+/** Code de liaison à afficher sur le nouvel appareil et à recopier sur l'appareil connecté. */
+export async function linkCodeFor(publicKey: JsonWebKey, requestId: string): Promise<string> {
+    const input = enc.encode(`synco-e4-linkcode|${requestId}|${JSON.stringify(canonicalJwk(publicKey))}`);
+    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', input));
+    return base32Encode(digest.slice(0, LINK_CODE_BYTES)).slice(0, LINK_CODE_CHARS).match(/.{1,4}/g)!.join('-');
+}
+
+/**
+ * Vérifie le code saisi contre la clé publique annoncée par le serveur pour cette demande.
+ * À appeler AVANT answerLinkRequest sur le chemin sans QR code.
+ */
+export async function verifyLinkCode(input: string, publicKey: JsonWebKey, requestId: string): Promise<boolean> {
+    const normalize = (t: string) => t.toUpperCase().replace(/[\s-]/g, '').replace(/O/g, '0').replace(/[IL]/g, '1');
+    const typed = normalize(input);
+    const expected = normalize(await linkCodeFor(publicKey, requestId));
+    if (typed.length !== expected.length) return false;
+    let diff = 0;
+    for (let i = 0; i < expected.length; i++) diff |= typed.charCodeAt(i) ^ expected.charCodeAt(i);
+    return diff === 0;
 }
 
 export interface LinkRequest {
