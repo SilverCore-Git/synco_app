@@ -202,18 +202,17 @@
                         </div>
                     </section>
 
-                    <!-- Langues : une ligne -->
+                    <!-- Langues : même grille libellé / valeur que la section libre -->
                     <section v-else-if="block.type === 'languages'" class="row">
                         <i class="bi bi-translate row-icon" />
                         <div class="min-w-0 flex-1">
                             <p class="row-label">{{ blockTitle(block) }}</p>
-                            <p class="text-sm">
-                                <template v-for="(item, i) in block.items" :key="item.id">
-                                    <span v-if="i > 0" class="text-(--text2)"> · </span>
-                                    <span>{{ item.label }}</span>
-                                    <span v-if="item.level" class="text-(--text2) text-xs"> ({{ levelLabel(LANGUAGE_LEVELS, item.level).toLowerCase() }})</span>
+                            <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+                                <template v-for="item in block.items" :key="item.id">
+                                    <dt class="min-w-0 break-words">{{ item.label }}</dt>
+                                    <dd class="text-(--text2)">{{ item.level ? levelLabel(LANGUAGE_LEVELS, item.level) : '' }}</dd>
                                 </template>
-                            </p>
+                            </dl>
                         </div>
                     </section>
 
