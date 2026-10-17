@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
     E2eeV4Error, answerLinkRequest, completeLink, createDeviceEnvelope, createLinkRequest, createRecoveryEnvelope,
-    formatRecoveryKey, generateAccountKeyBytes, generateDeviceId, generateDeviceKeyBytes, generateRecoveryKeyBytes,
-    importAccountKey, openDeviceEnvelope, openIdentityKey, openRecoveryEnvelope, parseRecoveryKey, sealIdentityKey,
+    formatRecoveryKey, generateAccountKeyBytes, generateDeviceId, generateDeviceKeyBytes, generateDeviceKeyPair, generateRecoveryKeyBytes,
+    importAccountKey, openDeviceEnvelope, openDevicePrivateKey, openIdentityKey, openRecoveryEnvelope, parseRecoveryKey, sealDevicePrivateKey, sealIdentityKey,
 } from "./e2eeV4";
 
 const U = "user-1";
@@ -25,19 +25,39 @@ describe("e2eeV4 — clés d'identité enveloppées par AK", () => {
     });
 });
 
-describe("e2eeV4 — enveloppe d'appareil", () => {
-    test("aller-retour", async () => {
-        const dk = generateDeviceKeyBytes(), ak = generateAccountKeyBytes(), id = generateDeviceId();
-        const env = await createDeviceEnvelope(dk, ak, U, id);
-        expect(await openDeviceEnvelope(dk, env, U, id)).toEqual(ak);
+describe("e2eeV4 — appareil : paire ECDH, DK et enveloppe d'AK", () => {
+    async function newDevice() {
+        const dk = generateDeviceKeyBytes(), id = generateDeviceId();
+        const pair = await generateDeviceKeyPair();
+        const sealed = await sealDevicePrivateKey(dk, id, pair.privateKeyPkcs8);
+        return { dk, id, publicKey: pair.publicKey, sealed };
+    }
+
+    test("n'importe quel appareil enveloppe AK pour un autre ; seul celui-ci l'ouvre (rotation sans DK)", async () => {
+        const dev = await newDevice(), ak = generateAccountKeyBytes();
+        const env = await createDeviceEnvelope(dev.publicKey, ak, U, dev.id);
+        const priv = await openDevicePrivateKey(dev.dk, dev.id, dev.sealed);
+        expect(await openDeviceEnvelope(priv, dev.publicKey, env, U, dev.id)).toEqual(ak);
     });
 
-    test("mauvaise DK, autre appareil, autre utilisateur : refus", async () => {
-        const dk = generateDeviceKeyBytes(), ak = generateAccountKeyBytes(), id = generateDeviceId();
-        const env = await createDeviceEnvelope(dk, ak, U, id);
-        await expect(openDeviceEnvelope(generateDeviceKeyBytes(), env, U, id)).rejects.toBeInstanceOf(E2eeV4Error);
-        await expect(openDeviceEnvelope(dk, env, U, generateDeviceId())).rejects.toBeInstanceOf(E2eeV4Error);
-        await expect(openDeviceEnvelope(dk, env, "autre", id)).rejects.toBeInstanceOf(E2eeV4Error);
+    test("clé privée scellée sous DK : mauvaise DK ou autre appareil refusés", async () => {
+        const dev = await newDevice();
+        await expect(openDevicePrivateKey(generateDeviceKeyBytes(), dev.id, dev.sealed)).rejects.toBeInstanceOf(E2eeV4Error);
+        await expect(openDevicePrivateKey(dev.dk, generateDeviceId(), dev.sealed)).rejects.toBeInstanceOf(E2eeV4Error);
+    });
+
+    test("enveloppe d'un autre appareil, d'un autre utilisateur ou altérée : refus", async () => {
+        const a = await newDevice(), b = await newDevice(), ak = generateAccountKeyBytes();
+        const env = await createDeviceEnvelope(a.publicKey, ak, U, a.id);
+        const privA = await openDevicePrivateKey(a.dk, a.id, a.sealed);
+        const privB = await openDevicePrivateKey(b.dk, b.id, b.sealed);
+        await expect(openDeviceEnvelope(privB, b.publicKey, env, U, b.id)).rejects.toBeInstanceOf(E2eeV4Error);
+        await expect(openDeviceEnvelope(privA, a.publicKey, env, "autre", a.id)).rejects.toBeInstanceOf(E2eeV4Error);
+        await expect(openDeviceEnvelope(privA, a.publicKey, env, U, b.id)).rejects.toBeInstanceOf(E2eeV4Error);
+        const [eph, blob] = env.split(".");
+        const flipped = blob.slice(0, -4) + (blob.endsWith("AAAA") ? "BBBB" : "AAAA");
+        await expect(openDeviceEnvelope(privA, a.publicKey, `${eph}.${flipped}`, U, a.id)).rejects.toBeInstanceOf(E2eeV4Error);
+        await expect(openDeviceEnvelope(privA, a.publicKey, "x", U, a.id)).rejects.toBeInstanceOf(E2eeV4Error);
     });
 });
 

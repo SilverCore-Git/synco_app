@@ -3,7 +3,9 @@
  *
  * Module pur : aucune dépendance Vue, réseau ni stockage. Il fournit :
  * - la clé de compte AK (256 bits) qui enveloppe les clés privées d'identité ;
- * - l'enveloppe d'AK par appareil (clé d'appareil DK, coffre matériel de l'appareil) ;
+ * - l'enveloppe d'AK par appareil : chiffrement asymétrique (ECDH + AES-GCM) vers la clé publique de
+ *   l'appareil, pour qu'un appareil puisse envelopper une nouvelle AK pour les autres (rotation) ;
+ *   la clé privée de l'appareil est scellée localement par DK (coffre matériel de l'appareil) ;
  * - la clé de récupération RK (saisie par l'utilisateur) et son enveloppe ;
  * - la liaison d'un nouvel appareil (ECDH éphémère + code de vérification).
  *
@@ -96,23 +98,79 @@ export async function openIdentityKey(
 }
 
 // ---------------------------------------------------------------------------
-// Enveloppe d'appareil : AES-GCM(DK, AK)
+// Appareil : paire ECDH + clé locale DK
 // ---------------------------------------------------------------------------
+//
+// - DK (256 bits) vit dans le coffre matériel de l'appareil (Keychain, Keystore, passkey PRF…).
+//   Elle ne scelle que la clé privée ECDH de l'appareil, stockée localement.
+// - La clé publique de l'appareil est enregistrée sur le serveur. Toute enveloppe d'AK destinée à
+//   cet appareil est chiffrée vers elle : n'importe quel appareil connecté peut donc en produire une
+//   (liaison, rotation d'AK) sans connaître DK.
 
 export const generateDeviceKeyBytes = (): Uint8Array => randomBytes(KEY_LENGTH);
 export const generateDeviceId = (): string => crypto.randomUUID();
 
-const deviceAad = (userId: string, deviceId: string) => `synco-e4-device|${userId}|${deviceId}`;
-
-/** Enveloppe AK pour un appareil. `dk` ne quitte jamais le coffre de l'appareil. */
-export async function createDeviceEnvelope(dk: Uint8Array, akBytes: Uint8Array, userId: string, deviceId: string): Promise<string> {
-    if (akBytes.length !== KEY_LENGTH) throw new E2eeV4Error('Invalid account key length');
-    return toB64(await seal(await aesKey(dk, ['encrypt']), deviceAad(userId, deviceId), akBytes as BufferSource));
+export interface DeviceKeyPair {
+    publicKey: JsonWebKey;
+    /** PKCS#8 de la clé privée ECDH, à sceller avec sealDevicePrivateKey avant tout stockage. */
+    privateKeyPkcs8: ArrayBuffer;
 }
 
-/** Ouvre l'enveloppe d'un appareil et renvoie les octets d'AK (à effacer après usage). */
-export async function openDeviceEnvelope(dk: Uint8Array, envelope: string, userId: string, deviceId: string): Promise<Uint8Array> {
-    const ak = new Uint8Array(await open(await aesKey(dk, ['decrypt']), deviceAad(userId, deviceId), fromB64(envelope)));
+export async function generateDeviceKeyPair(): Promise<DeviceKeyPair> {
+    const pair = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+    return {
+        publicKey: canonicalJwk(await crypto.subtle.exportKey('jwk', pair.publicKey)),
+        privateKeyPkcs8: await crypto.subtle.exportKey('pkcs8', pair.privateKey),
+    };
+}
+
+const devicePrivateAad = (deviceId: string) => `synco-e4-device-private|${deviceId}`;
+
+/** Scelle la clé privée de l'appareil sous DK pour un stockage local. */
+export async function sealDevicePrivateKey(dk: Uint8Array, deviceId: string, pkcs8: BufferSource): Promise<string> {
+    return toB64(await seal(await aesKey(dk, ['encrypt']), devicePrivateAad(deviceId), pkcs8));
+}
+
+/** Clé privée ECDH non extractable de l'appareil, prête à ouvrir ses enveloppes. */
+export async function openDevicePrivateKey(dk: Uint8Array, deviceId: string, sealed: string): Promise<CryptoKey> {
+    const pkcs8 = await open(await aesKey(dk, ['decrypt']), devicePrivateAad(deviceId), fromB64(sealed));
+    return crypto.subtle.importKey('pkcs8', pkcs8, { name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveBits']);
+}
+
+const deviceEnvelopeAad = (userId: string, deviceId: string) => `synco-e4-device-envelope|${userId}|${deviceId}`;
+
+async function deviceEnvelopeKey(privateKey: CryptoKey, peerPublic: JsonWebKey, ephemeralPublic: JsonWebKey, userId: string, deviceId: string, devicePublic: JsonWebKey) {
+    const shared = await crypto.subtle.deriveBits({ name: 'ECDH', public: await importPeer(peerPublic) }, privateKey, 256);
+    const ikm = await crypto.subtle.importKey('raw', shared, 'HKDF', false, ['deriveBits']);
+    const info = enc.encode(`synco-e4-device-envelope|${userId}|${deviceId}|${JSON.stringify(canonicalJwk(devicePublic))}|${JSON.stringify(canonicalJwk(ephemeralPublic))}`);
+    const bits = await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: enc.encode('synco-e4-device-v1'), info }, ikm, 256);
+    return aesKey(new Uint8Array(bits), ['encrypt', 'decrypt']);
+}
+
+/** Enveloppe AK vers la clé publique d'un appareil : "<clé publique éphémère JSON>.<blob b64>". */
+export async function createDeviceEnvelope(devicePublicKey: JsonWebKey, akBytes: Uint8Array, userId: string, deviceId: string): Promise<string> {
+    if (akBytes.length !== KEY_LENGTH) throw new E2eeV4Error('Invalid account key length');
+    const eph = await ecdhKeyPair();
+    const ephPublic = canonicalJwk(await crypto.subtle.exportKey('jwk', eph.publicKey));
+    const key = await deviceEnvelopeKey(eph.privateKey, devicePublicKey, ephPublic, userId, deviceId, devicePublicKey);
+    const blob = await seal(key, deviceEnvelopeAad(userId, deviceId), akBytes as BufferSource);
+    return `${toB64(enc.encode(JSON.stringify(ephPublic)))}.${toB64(blob)}`;
+}
+
+/** Ouvre l'enveloppe d'un appareil avec sa clé privée. Renvoie les octets d'AK (à effacer après usage). */
+export async function openDeviceEnvelope(
+    devicePrivateKey: CryptoKey,
+    devicePublicKey: JsonWebKey,
+    envelope: string,
+    userId: string,
+    deviceId: string
+): Promise<Uint8Array> {
+    const [ephB64, blobB64, extra] = envelope.split('.');
+    if (!ephB64 || !blobB64 || extra !== undefined) throw new E2eeV4Error('Invalid device envelope');
+    let ephPublic: JsonWebKey;
+    try { ephPublic = JSON.parse(new TextDecoder().decode(fromB64(ephB64))); } catch { throw new E2eeV4Error('Invalid device envelope'); }
+    const key = await deviceEnvelopeKey(devicePrivateKey, ephPublic, ephPublic, userId, deviceId, devicePublicKey);
+    const ak = new Uint8Array(await open(key, deviceEnvelopeAad(userId, deviceId), fromB64(blobB64)));
     if (ak.length !== KEY_LENGTH) throw new E2eeV4Error('Invalid account key length');
     return ak;
 }

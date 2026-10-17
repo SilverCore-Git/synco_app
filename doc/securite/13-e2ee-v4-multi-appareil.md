@@ -23,16 +23,18 @@ Identité (inchangée)   RSA-OAEP 4096 + ECDSA P-256
         │  enveloppées par
         ▼
 AccountKey (AK)        256 bits aléatoires, créée une fois, jamais en clair côté serveur
-        │  enveloppée par appareil, et par la clé de récupération
+        │  enveloppée pour chaque appareil (vers sa clé publique) et par la clé de récupération
         ▼
-┌ DeviceKey (DK)       256 bits aléatoires, propre à CHAQUE appareil, stockée dans son coffre matériel
-│  └ DeviceEnvelope    AES-GCM(DK, AK) — stockée sur le serveur, inutilisable sans DK
+┌ Paire d'appareil     ECDH P-256 : la clé publique est enregistrée sur le serveur
+│  ├ DeviceEnvelope    ECDH éphémère + HKDF + AES-GCM(AK) vers la clé publique de l'appareil
+│  └ DK                256 bits aléatoires dans le coffre matériel ; scelle uniquement la clé privée de l'appareil
 └ RecoveryKey (RK)     256 bits, montrée une seule fois à l'utilisateur
    └ RecoveryEnvelope  AES-GCM(HKDF(RK), AK) — stockée sur le serveur
 ```
 
-- **Le serveur ne voit jamais** : AK, DK, RK, ni le PIN. Il stocke uniquement des enveloppes chiffrées.
-- **Compromission du serveur seul** : l'attaquant obtient des enveloppes qu'il ne peut ouvrir sans DK (coffre matériel d'un appareil) ni RK. Aucune force brute possible : il n'existe pas de secret faible à tester.
+- **Pourquoi une paire par appareil** : pour retirer un appareil, un appareil restant doit pouvoir produire une nouvelle enveloppe d'une **nouvelle AK** pour tous les autres, sans connaître leurs DK. Avec des enveloppes symétriques, chaque appareil devrait être présent pour la rotation.
+- **Le serveur ne voit jamais** : AK, DK, la clé privée d'un appareil, RK, ni le PIN. Il stocke des clés publiques et des enveloppes chiffrées.
+- **Compromission du serveur seul** : l'attaquant obtient des enveloppes qu'il ne peut ouvrir sans la clé privée d'un appareil (scellée par sa DK dans le coffre matériel) ni RK. Aucune force brute possible : il n'existe pas de secret faible à tester.
 - Les clés privées d'identité sont chiffrées par AK (et non plus par une clé dérivée du PIN). Un changement de PIN ne touche donc plus à rien de chiffré côté serveur.
 
 ## 3. Coffre local par plateforme (où vit DK)
@@ -69,12 +71,12 @@ Connexion Keycloak → l'app récupère le `DeviceEnvelope` de son `deviceId` �
 2. **Sans clé de récupération** : voir §6 (récupération par PIN, plus faible et explicitement présentée comme telle). En dernier recours, réinitialisation avec perte de l'historique (comportement actuel).
 
 ### 4.5 Retirer un appareil perdu
-Suppression de son `DeviceEnvelope`, puis **rotation d'AK** : nouvelle AK, réenveloppement de l'identité et des appareils restants. Un appareil volé avec son coffre déverrouillé connaît encore l'identité : voir §7 pour la rotation d'identité, hors périmètre de la première version.
+Un appareil connecté demande une confirmation, génère une **nouvelle AK**, réenveloppe l'identité et la clé de récupération, produit une enveloppe pour la clé publique de **chaque appareil restant** et envoie le tout en une seule transaction (le serveur vérifie que l'ensemble des appareils actifs est exactement couvert). L'appareil retiré perd son enveloppe et ne peut plus rien obtenir de neuf. Un appareil volé avec son coffre déverrouillé connaît encore l'identité : voir §7 pour la rotation d'identité, hors périmètre de la première version.
 
 ## 5. Modèle serveur (esquisse)
 
 ```
-UserDevice        id, userId, name, platform, deviceEnvelope (b64), createdAt, lastUsedAt, revokedAt
+UserDevice        id, userId, name, platform, devicePublicKey (jwk), deviceEnvelope (b64), createdAt, lastUsedAt, revokedAt
 AccountRecovery   userId, recoveryEnvelope (b64), kdfInfo, createdAt        -- 0..1 par utilisateur
 DeviceLinkRequest id, userId, devicePublicKey (jwk), envelope (b64 nullable), expiresAt, consumedAt
 User              + e2eeVersion ('v3' | 'v4'), encryptedPrivateKey / encryptedSignPrivateKey = chiffrées par AK en v4
@@ -118,7 +120,7 @@ Les comptes existants restent fonctionnels et inchangés tant qu'ils ne migrent 
 | **P1** | Noyau cryptographique pur et testé : AK, enveloppes, liaison d'appareil (ECDH + SAS), clé de récupération, formats versionnés |
 | **P2** | API : schéma Prisma, routes (appareils, liaison, récupération), limitation de débit, notifications, tests |
 | **P3** | Coffres par plateforme : web (PRF/IndexedDB), Capacitor (biométrie native), Tauri |
-| **P4** | Interface : onboarding, clé de récupération, liste des appareils, liaison par QR, déverrouillage |
+| **P4** | Interface : onboarding, clé de récupération, **paramètres utilisateur › « Appareils et sécurité »** (liste, nom, plateforme, dernière activité, appareil actuel, déconnexion, ajout par QR, clé de récupération, récupération par PIN), liaison par QR, déverrouillage |
 | **P5** | Migration v3 → v4 et suppression du matériel PIN côté serveur |
 | **P6** | Révocation d'appareil avec rotation d'AK |
 | **P7** | Récupération par PIN durcie (troisième acteur) et, plus tard, rotation d'identité |
@@ -134,3 +136,14 @@ Chaque phase est committée séparément, avec ses tests, et reste compatible av
 | 3 | Troisième acteur (§6) | *À trancher* : Keycloak avec client réservé, ou petit service de clés séparé ; même opérateur ou non. |
 | 4 | Migration v3 → v4 (§8) | **Proposée** (pas imposée dans un premier temps). |
 | 5 | Retrait d'un appareil (§4.5) | *À confirmer* : rotation d'AK seule en v1, rotation d'identité plus tard. |
+
+## 11. Gestion des appareils dans les paramètres
+
+Nouvelle section **« Appareils et sécurité »** dans les paramètres utilisateur :
+- liste des appareils : nom modifiable, plateforme, date d'ajout, dernière activité, badge « Cet appareil » ;
+- **Déconnecter** un appareil (confirmation avec `ConfirmDelete.vue`, jamais de dialogue natif) : retrait + rotation d'AK ;
+- **Ajouter un appareil** : QR code à scanner depuis un appareil connecté, avec le code de vérification à comparer ;
+- **Clé de récupération** : télécharger / régénérer (régénérer invalide la précédente) ;
+- **Récupération par PIN** : activer / désactiver avec avertissement ;
+- verrou local : changer le PIN local, activer / désactiver la biométrie ;
+- alertes : e-mail et notification in-app à l'ajout et au retrait d'un appareil.
