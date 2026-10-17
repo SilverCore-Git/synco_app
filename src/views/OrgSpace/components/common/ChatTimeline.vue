@@ -249,6 +249,7 @@ import type { Message } from '@/types/types';
 import { user } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import { encryptMessageWithContentKey } from '@/assets/utils/crypto';
+import { useMessageDraft, channelKeyCipher } from '@/composables/useMessageDraft';
 import { decryptMessages, decryptEditedMessage } from '@/assets/utils/decryptMessages';
 import { uploadFiles } from '@/assets/uploadFile';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
@@ -329,6 +330,8 @@ const fileProgress = ref<number[]>([]);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const TextareaRef = ref<InstanceType<typeof ThreadTextarea> | null>(null);
 const newMessage = ref<string>("");
+// Brouillon du composer conservé (chiffré) quand on quitte puis revient sur la conversation.
+useMessageDraft(newMessage, () => props.channel.id.value, () => props.channel.encryptionKey.value ? channelKeyCipher(props.channel.encryptionKey.value) : null);
 const messagesContainer = ref<HTMLElement | null>(null);
 const footerRef = ref<HTMLElement | null>(null);
 const emojiPickerRef = ref<HTMLElement | null>(null);

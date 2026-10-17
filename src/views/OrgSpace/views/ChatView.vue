@@ -363,6 +363,7 @@ import getColorByStatus from '@/assets/utils/getColorByStatus';
 import getTextByStatus from '@/assets/utils/getTextByStatus';
 import { useToast } from '@/composables/useToast';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
+import { useMessageDraft, selfCipher } from '@/composables/useMessageDraft';
 import DropDown from '@/components/DropDown.vue';
 import EmojiPicker from '@/components/common/EmojiPicker.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
@@ -419,6 +420,15 @@ watch(
 const isE2EEEnabled = ref<boolean>(true);
 const messages = ref<any[]>([]);
 const newMessage = ref<string>("");
+// Brouillon par conversation, chiffré pour soi (clé publique) ; pas pour les sessions éphémères.
+useMessageDraft(
+    newMessage,
+    () => (isPrivateMeet.value ? null : (route.params.userId as string) || null),
+    () => {
+        const pub = user.value?.publicKey;
+        return pub && privateKey.value ? selfCipher(pub, privateKey.value) : null;
+    },
+);
 const messagesContainer = ref<HTMLElement | null>(null);
 const footerRef = ref<HTMLElement | null>(null);
 const { footerHeight } = useFooterInset(footerRef, messagesContainer, 72);

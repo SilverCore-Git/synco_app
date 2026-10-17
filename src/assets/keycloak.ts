@@ -301,7 +301,7 @@ async function loginWithSystemBrowser(): Promise<boolean> {
 // Clés propres à l'utilisateur : tout ce qui révèle son activité ou permet
 // de reprendre sa session. Les préférences purement visuelles (thème...)
 // peuvent rester pour la prochaine personne sur ce poste.
-const USER_SCOPED_PREFIXES = ['kc_', 'lastRead_', 'agenda-hidden-', 'task-filters'];
+const USER_SCOPED_PREFIXES = ['kc_', 'lastRead_', 'agenda-hidden-', 'task-filters', 'draft_'];
 const USER_SCOPED_KEYS = ['userId', 'lastOpenedOrgId', 'fcm-device-id'];
 
 /**
