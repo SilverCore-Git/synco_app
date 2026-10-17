@@ -352,6 +352,7 @@
 <script lang="ts" setup>
 
 import { defaultAvatar } from '@/assets/utils/defaultAvatar';
+import { autoFocus } from '@/assets/utils/autoFocus';
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { DMMessage, OrgMember, User } from '@/types/types';
@@ -1285,7 +1286,7 @@ const mount = async () => {
     }
     if (E2EEUnloked.value) 
     {
-        TextareaRef.value?.textarea?.focus();
+        autoFocus(TextareaRef.value?.textarea);
     }
 };
 

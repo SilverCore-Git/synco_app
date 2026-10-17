@@ -342,6 +342,7 @@ import { resolveRecipientKey } from '@/assets/utils/keyTrust';
 import { openedOrg, user } from '@/assets/var';
 import { createFolderRequest, createTextFile } from '@/services/fileActions';
 import { isDocumentationTool, runDocumentationTool } from '@/services/DocumentationService';
+import { autoFocus } from '@/assets/utils/autoFocus';
 
 const { showUsersBar } = useUsersBar();
 
@@ -434,9 +435,7 @@ const useSuggestion = async (prompt: string) => {
 
 watch(activeSessionId, async () => {
   await nextTick();
-  if (chatInputRef.value?.textarea) {
-    chatInputRef.value.textarea.focus();
-  }
+  autoFocus(chatInputRef.value?.textarea);
 });
 const messages = aiSessionMessages as unknown as Ref<ChatMessage[]>;
 
@@ -894,7 +893,7 @@ watch([aiIsLocal, aiPrefsReady], ([isLocal, ready]) => {
 
 onMounted(async () => {
   await nextTick();
-  chatInputRef.value?.textarea?.focus();
+  autoFocus(chatInputRef.value?.textarea);
 });
 
 watch(() => openedOrg.value, async (newVal) => {
