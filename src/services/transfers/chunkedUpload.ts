@@ -87,7 +87,7 @@ export async function runChunkedUpload(source: Blob, name: string, target: Uploa
     const { signal } = handle;
     const keyContext = target.kind === 'create' ? target.context : target.keyContext;
     const { key: kek, version: keyVersion } = await resolveFileKek(keyContext);
-    const fileKey = await createChunkedFileKey(kek);
+    const fileKey = await createChunkedFileKey(kek, { name, mime: uploadMimeType(name, source.type), size: source.size });
 
     const chunkSize = E2EE_V2_CHUNK_SIZE;
     const partCount = chunkCountForPlain(source.size, chunkSize);
@@ -120,7 +120,7 @@ export async function runChunkedUpload(source: Blob, name: string, target: Uploa
             const release = await partSlots.acquire(parts.signal);
             try {
                 const { start, end } = plainChunkRange(index, source.size, chunkSize);
-                const body = new Blob([await encryptChunkInPool(fileKey.fileKey, fileKey.noncePrefix, index, index === partCount - 1, source.slice(start, end))]);
+                const body = new Blob([await encryptChunkInPool(fileKey.fileKey, fileKey.noncePrefix, index, index === partCount - 1, source.slice(start, end), fileKey.fileUid)]);
                 if (parts.signal.aborted) throw new TransferCancelledError();
                 const plainLength = end - start;
 

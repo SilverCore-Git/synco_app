@@ -1,5 +1,6 @@
 import { computed, ref } from "vue";
 import { clearAllKeyCaches } from "./keyCaches";
+import { isFileKeyV3, unwrapFileKeyV3 } from "./fileKeyV3";
 
 export const privateKey = ref<CryptoKey | null>(null);
 // Clé privée ECDSA P-256 d'identité de signature — distincte de privateKey
@@ -476,6 +477,7 @@ export async function wrapFileKey(rawFileKey: ArrayBuffer, kek: CryptoKey): Prom
 /** Inverse of wrapFileKey() (current layout: key-wrap IV prepended). */
 export async function unwrapFileKey(encryptedFileKeyBase64: string, kek: CryptoKey): Promise<ArrayBuffer>
 {
+    if (isFileKeyV3(encryptedFileKeyBase64)) return (await unwrapFileKeyV3(encryptedFileKeyBase64, kek)).raw;
     const encryptedFileKeyBytes = Uint8Array.from(atob(encryptedFileKeyBase64), c => c.charCodeAt(0));
     return crypto.subtle.decrypt(
         { name: "AES-GCM", iv: encryptedFileKeyBytes.slice(0, 12) },

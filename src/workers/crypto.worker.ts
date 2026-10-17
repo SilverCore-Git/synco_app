@@ -8,8 +8,8 @@ import { encryptChunk, decryptChunk } from '@/assets/utils/chunkedCryptoCore';
  */
 
 export type CryptoJob =
-    | { op: 'encrypt'; key: CryptoKey; noncePrefix: Uint8Array; index: number; isLast: boolean; blob: Blob }
-    | { op: 'decrypt'; key: CryptoKey; noncePrefix: Uint8Array; index: number; isLast: boolean; data: ArrayBuffer };
+    | { op: 'encrypt'; key: CryptoKey; noncePrefix: Uint8Array; index: number; isLast: boolean; blob: Blob; fileUid?: Uint8Array }
+    | { op: 'decrypt'; key: CryptoKey; noncePrefix: Uint8Array; index: number; isLast: boolean; data: ArrayBuffer; fileUid?: Uint8Array };
 
 export type CryptoWorkerRequest = CryptoJob & { id: number };
 
@@ -21,8 +21,8 @@ self.onmessage = async (event: MessageEvent<CryptoWorkerRequest>) => {
     const req = event.data;
     try {
         const data = req.op === 'encrypt'
-            ? await encryptChunk(req.key, req.noncePrefix, req.index, req.isLast, await req.blob.arrayBuffer())
-            : await decryptChunk(req.key, req.noncePrefix, req.index, req.isLast, req.data);
+            ? await encryptChunk(req.key, req.noncePrefix, req.index, req.isLast, await req.blob.arrayBuffer(), req.fileUid)
+            : await decryptChunk(req.key, req.noncePrefix, req.index, req.isLast, req.data, req.fileUid);
         (self as unknown as Worker).postMessage({ id: req.id, ok: true, data } satisfies CryptoWorkerResponse, [data]);
     } catch (error) {
         (self as unknown as Worker).postMessage({

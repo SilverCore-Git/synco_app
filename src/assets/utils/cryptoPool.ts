@@ -79,9 +79,10 @@ export async function encryptChunkInPool(
     noncePrefix: Uint8Array,
     index: number,
     isLast: boolean,
-    blob: Blob
+    blob: Blob,
+    fileUid?: Uint8Array
 ): Promise<ArrayBuffer> {
-    const job = run({ op: 'encrypt', key, noncePrefix, index, isLast, blob }, []);
+    const job = run({ op: 'encrypt', key, noncePrefix, index, isLast, blob, fileUid }, []);
     if (job) {
         try {
             return await job;
@@ -89,7 +90,7 @@ export async function encryptChunkInPool(
             if (!workersBroken) throw error;
         }
     }
-    return encryptChunk(key, noncePrefix, index, isLast, await blob.arrayBuffer());
+    return encryptChunk(key, noncePrefix, index, isLast, await blob.arrayBuffer(), fileUid);
 }
 
 /** Déchiffre un morceau ; `data` est transféré au worker (inutilisable ensuite). */
@@ -98,10 +99,11 @@ export async function decryptChunkInPool(
     noncePrefix: Uint8Array,
     index: number,
     isLast: boolean,
-    data: ArrayBuffer
+    data: ArrayBuffer,
+    fileUid?: Uint8Array
 ): Promise<ArrayBuffer> {
     if (!workersBroken) {
-        const job = run({ op: 'decrypt', key, noncePrefix, index, isLast, data }, [data]);
+        const job = run({ op: 'decrypt', key, noncePrefix, index, isLast, data, fileUid }, [data]);
         if (job) {
             try {
                 return await job;
@@ -114,5 +116,5 @@ export async function decryptChunkInPool(
             }
         }
     }
-    return decryptChunk(key, noncePrefix, index, isLast, data);
+    return decryptChunk(key, noncePrefix, index, isLast, data, fileUid);
 }

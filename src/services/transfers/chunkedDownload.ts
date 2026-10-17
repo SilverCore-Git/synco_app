@@ -91,6 +91,8 @@ export interface ChunkedFileMeta {
     size: number;
     iv: string;
     encryptedFileKey: string;
+    /** Nom de l'enregistrement : doit correspondre au manifeste authentifié du contenu (FC11). */
+    originalName?: string;
     /** Absent si le contenu est introuvable sur le serveur. */
     download?: DownloadTicket;
 }
@@ -114,7 +116,7 @@ export async function runChunkedDownload(
 
     if (!meta.download) throw new Error('Contenu du fichier introuvable sur le serveur');
     const cdn = new CdnDownload(meta.id, meta.download, meta.blobId);
-    const fileKey = await openChunkedFileKey(meta.encryptedFileKey, kek);
+    const { fileKey, fileUid } = await openChunkedFileKey(meta.encryptedFileKey, kek, meta.originalName);
     const encryptedSize = Number(meta.size);
     const count = chunkCountForEncrypted(encryptedSize, format.chunkSize);
     const plainSize = plainSizeForEncrypted(encryptedSize, format.chunkSize);
@@ -131,7 +133,7 @@ export async function runChunkedDownload(
 
                 let plain: ArrayBuffer;
                 try {
-                    plain = await decryptChunkInPool(fileKey, format.noncePrefix, index, index === count - 1, encrypted);
+                    plain = await decryptChunkInPool(fileKey, format.noncePrefix, index, index === count - 1, encrypted, fileUid);
                 } catch {
                     throw new Error('Fichier corrompu ou clé de déchiffrement invalide');
                 }
