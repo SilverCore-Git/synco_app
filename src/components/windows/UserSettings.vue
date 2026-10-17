@@ -174,42 +174,13 @@
                                 />
                             </div>
 
-                            <div class="bg-(--bg) rounded-xl shadow-xl overflow-hidden border border-(--border-color)">
-                                <div 
-                                    class="h-[80px] w-full transition-all duration-500"
-                                    :style="{ background: `linear-gradient(to top right, rgba(0,0,0,0.3), transparent), ${dominantColor}` }"
-                                ></div>
-                                <div class="px-4 -mt-10">
-                                    <div class="inline-block p-1.5 bg-(--bg) rounded-full">
-                                        <img
-                                            :src="user?.avatarUrl || defaultAvatar($p(user?.name))"
-                                            :alt="$p(user?.name)"
-                                            @error="(e: any) => e.target.src = defaultAvatar($p(user?.name))"
-                                            class="w-[68px] h-[68px] rounded-full object-cover"
-                                        />
-                                    </div>
-                                </div>
-                                <div class="px-4 pb-4">
-                                    <div class="bg-(--bg2) rounded-lg p-4 mt-1 border border-(--border-color) shadow-inner">
-                                        <h2 class="text-lg font-bold text-(--text) leading-tight">{{ $p(previewName) }}</h2>
-                                        <p v-if="previewHeadline" class="text-xs text-(--primary) font-bold uppercase tracking-wider mb-1">{{ previewHeadline }}</p>
-                                        <p class="text-sm text-(--text2)">{{ formData.email }}</p>
-
-                                        <div v-if="formData.description.trim()">
-                                            <div class="w-full h-px bg-(--text)/5 my-3"></div>
-                                            <h3 class="text-[11px] font-bold text-(--text2) uppercase tracking-wide mb-2">À propos</h3>
-                                            <p class="text-sm text-(--text) leading-relaxed whitespace-pre-line">{{ formData.description }}</p>
-                                        </div>
-
-                                        <template v-if="previewProfile.blocks.length">
-                                            <div class="w-full h-px bg-(--text)/5 my-3"></div>
-                                            <ProfileBlocksView :profile="previewProfile" />
-                                        </template>
-                                        <p v-else-if="!formData.description.trim()" class="text-xs text-(--text2) mt-3 italic">
-                                            Rien d'autre n'est visible ici pour le moment.
-                                        </p>
-                                    </div>
-                                </div>
+                            <div class="rounded-2xl shadow-xl overflow-hidden border border-(--border-color)">
+                                <ProfileCard
+                                    :user="{ name: $p(previewName), avatarUrl: user?.avatarUrl, email: formData.email, description: formData.description, createdAt: user?.createdAt }"
+                                    :profile="previewProfile"
+                                    :status="user?.data?.status || 'online'"
+                                    empty-hint="Rien d'autre n'est visible ici pour le moment."
+                                />
                             </div>
                             <p v-if="hiddenBlockCount > 0" class="text-[11px] text-(--text2) flex items-start gap-1.5">
                                 <i class="bi bi-eye-slash mt-0.5"></i>
@@ -641,11 +612,11 @@ import ProfileUploader from '../common/ProfileUploader.vue';
 import ConfirmDelete from '../common/ConfirmDelete.vue';
 import ActivityReports from '../settings/ActivityReports/index.vue';
 import ProfileEditor from '../profile/ProfileEditor.vue';
-import ProfileBlocksView from '../profile/ProfileBlocksView.vue';
+import ProfileCard from '../profile/ProfileCard.vue';
 import SupportSearchSelect, { type SupportSelectOption } from '../support/SupportSearchSelect.vue';
 import { user, organizations, openedOrg } from '@/assets/var';
 import type { UserProfile } from '@/types/types';
-import { cleanProfile, emptyProfile, profileForOrg, profileHeadline } from '@/assets/utils/userProfile';
+import { cleanProfile, emptyProfile, profileForOrg } from '@/assets/utils/userProfile';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import { E2EEUnloked, lockSecurity } from '@/assets/utils/crypto';
@@ -720,7 +691,6 @@ const previewOrgOptions = computed<SupportSelectOption[]>(() =>
     (organizations.value || []).map((o: any) => ({ id: o.id, label: o.name, avatarUrl: o.logo || null })));
 
 const previewProfile = computed(() => profileForOrg(cleanProfile(profileDraft.value), previewOrgId.value));
-const previewHeadline = computed(() => profileHeadline(previewProfile.value));
 const previewName = computed(() => `${formData.firstName} ${formData.lastName}`.trim() || user.value?.name || '');
 const hiddenBlockCount = computed(() => cleanProfile(profileDraft.value).blocks.length - previewProfile.value.blocks.length);
 

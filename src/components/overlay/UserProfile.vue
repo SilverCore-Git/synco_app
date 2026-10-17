@@ -16,114 +16,39 @@
 
           <div
             v-if="isOpen && profileUser"
-            class="bg-(--bg) rounded-xl shadow-2xl overflow-hidden flex flex-col font-sans"
-            :class="profilePosition ? 'absolute w-[340px] max-h-[calc(100vh-40px)]' : 'w-full max-w-sm relative'"
+            class="rounded-2xl shadow-2xl overflow-hidden flex flex-col font-sans border border-(--border-color) bg-(--bg)"
+            :class="profilePosition ? 'absolute w-[360px] max-h-[calc(100vh-40px)]' : 'w-full max-w-sm relative max-h-[calc(100vh-32px)]'"
             :style="profilePosition ? { top: `${profilePosition.top}px`, left: `${profilePosition.left}px` } : {}"
             @click.stop
           >
-
-            <!-- Banner -->
-            <div 
-                class="h-[100px] w-full relative z-0 transition-all duration-500"
-                :style="{ background: `linear-gradient(to top right, rgba(0,0,0,0.3), transparent), ${dominantColor}` }"
+            <ProfileCard
+              class="flex-1"
+              :user="u"
+              :profile="orgProfile"
+              :headline="headline"
+              :roles="roles"
+              :status="userStatus"
+              :is-self="u.id === user?.id"
             >
+              <template #banner-actions>
                 <button
-                    @click="emit('close')"
-                    class="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/30 hover:bg-black/50 flex items-center justify-center text-white transition-colors"
+                  @click="emit('close')"
+                  class="w-7 h-7 rounded-full bg-black/30 hover:bg-black/50 flex items-center justify-center text-white transition-colors"
+                  title="Fermer"
                 >
-                    <i class="bi bi-x" />
+                  <i class="bi bi-x-lg text-xs" />
                 </button>
-            </div>
-
-            <!-- Avatar overlapping banner (Outside scrolling container to prevent clipping) -->
-            <div class="absolute top-[48px] left-4 p-1.5 bg-(--bg) rounded-full z-10">
-                <div class="relative">
-                    <img
-                        :src="u.avatarUrl || defaultAvatar(u.name)"
-                        :alt="u.name"
-                        @error="(e: any) => e.target.src = defaultAvatar(u.name)"
-                        class="w-[84px] h-[84px] rounded-full object-cover"
-                    />
-                    <!-- Status indicator -->
-                    <div class="absolute bottom-0 right-0 w-6 h-6 rounded-full border-[4px] border-(--bg) flex items-center justify-center" :class="statusColorClass">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Content container -->
-            <div class="px-4 relative flex-1 overflow-y-auto z-0">
-                <!-- Spacer for the avatar overlapping -->
-                <div class="h-[46px]"></div>
-
-                <!-- Content Card -->
-                <div class="bg-(--bg2) rounded-lg p-4 mb-4 mt-3 border border-(--border-color) shadow-inner">
-                    <!-- Name -->
-                    <h2 class="text-xl font-bold text-(--text) leading-tight">{{ u.name }}</h2>
-                    <p class="text-xs text-(--primary) font-bold uppercase tracking-wider mb-1" v-if="headline">{{ headline }}</p>
-                    <p class="text-sm text-(--text2) mb-3">{{ u.email }}</p>
-                    
-                    <div v-if="u.description">
-                        <div class="w-full h-px bg-(--text)/5 my-3"></div>
-                        <h3 class="text-[11px] font-bold text-(--text2) uppercase tracking-wide mb-2">À propos</h3>
-                        <p class="text-sm text-(--text) leading-relaxed">{{ u.description }}</p>
-                    </div>
-
-                    <template v-if="orgProfile?.blocks.length">
-                        <div class="w-full h-px bg-(--text)/5 my-3"></div>
-                        <ProfileBlocksView :profile="orgProfile" />
-                    </template>
-
-                    <div class="w-full h-px bg-(--text)/5 my-3"></div>
-
-                    <!-- Role Section -->
-                    <div class="mb-4">
-                        <h3 class="text-[11px] font-bold text-(--text2) uppercase tracking-wide mb-2">Rôles</h3>
-                        <div class="flex flex-wrap gap-1.5">
-                            <span 
-                                v-for="mr in memberRoles"
-                                :key="mr.role.id"
-                                class="flex items-center gap-1.5 px-2 py-1 rounded bg-(--bg) border border-(--border-color) text-xs font-medium text-(--text) shadow-sm"
-                            >
-                                <div class="w-2.5 h-2.5 rounded-full shadow-sm" :style="{ backgroundColor: mr.role.color || '#6b7280' }"></div>
-                                {{ mr.role.name }}
-                            </span>
-                            <span 
-                                v-if="memberRoles.length === 0"
-                                class="flex items-center gap-1.5 px-2 py-1 rounded bg-(--bg) border border-(--border-color) text-xs font-medium text-(--text) shadow-sm"
-                            >
-                                <div class="w-2.5 h-2.5 rounded-full shadow-sm bg-(--primary)"></div>
-                                Membre
-                            </span>
-                            <span v-if="u.id === user?.id" class="flex items-center gap-1.5 px-2 py-1 rounded bg-(--bg) border border-(--border-color) text-xs font-medium text-(--text) shadow-sm">
-                                Vous
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="w-full h-px bg-(--text)/5 my-3"></div>
-
-                    <!-- Membre depuis -->
-                    <div>
-                        <h3 class="text-[11px] font-bold text-(--text2) uppercase tracking-wide mb-2">Membre depuis</h3>
-                        <p class="text-sm text-(--text) flex items-center gap-2">
-                            <i class="bi bi-calendar3 text-(--text2)"></i>
-                            {{ formatDate(u.createdAt) }}
-                        </p>
-                    </div>
-
-                </div>
-
-                <!-- Action Button -->
-                <div v-if="u.id !== user?.id" class="mb-4">
-                    <button
-                        @click="sendMessage"
-                        class="primary w-full flex items-center justify-center gap-2 shadow-lg shadow-(--primary)/20"
-                    >
-                        <i class="bi bi-chat-left-text-fill"></i>
-                        Envoyer un message
-                    </button>
-                </div>
-            </div>
+              </template>
+              <template v-if="u.id !== user?.id" #footer>
+                <button
+                  @click="sendMessage"
+                  class="primary w-full flex items-center justify-center gap-2 text-sm"
+                >
+                  <i class="bi bi-chat-left-text-fill"></i>
+                  Envoyer un message
+                </button>
+              </template>
+            </ProfileCard>
           </div>
 
         </Transition>
@@ -138,15 +63,12 @@
 
 <script setup lang="ts">
 
-import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { computed } from 'vue';
 import type { User } from '@/types/types';
 import { user, openedOrg } from '@/assets/var';
 import { profilePosition } from '@/composables/useProfile';
-import { getAverageColor } from '@/assets/utils/getAverageColor';
 import { profileForOrg } from '@/assets/utils/userProfile';
-import ProfileBlocksView from '@/components/profile/ProfileBlocksView.vue';
-import { ref, watch } from 'vue';
+import ProfileCard from '@/components/profile/ProfileCard.vue';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -154,15 +76,6 @@ const props = defineProps<{
 }>();
 
 const u = computed(() => props.profileUser!);
-
-const dominantColor = ref('#16ac77');
-
-watch(() => [props.isOpen, u.value?.avatarUrl, u.value?.name], async () => {
-    if (props.isOpen && u.value) {
-        const url = u.value.avatarUrl || defaultAvatar(u.value.name);
-        dominantColor.value = await getAverageColor(url);
-    }
-}, { immediate: true });
 
 const orgMember = computed(() => {
     if (!openedOrg.value?.members || !u.value?.id) return null;
@@ -180,9 +93,11 @@ const orgProfile = computed(() => {
 
 const headline = computed(() => orgMember.value?.user?.job ?? u.value?.job);
 
-const memberRoles = computed(() => {
-    if (!orgMember.value?.memberRoles) return [];
-    return orgMember.value.memberRoles.filter((mr: any) => mr.role);
+// Sans rôle attribué : « Membre », comme avant.
+const roles = computed(() => {
+    const list = (orgMember.value?.memberRoles || []).filter((mr: any) => mr.role).map((mr: any) => mr.role);
+    if (list.length === 0 && orgMember.value) return [{ id: 'member', name: 'Membre', color: null }];
+    return list;
 });
 
 const userStatus = computed(() => {
@@ -191,29 +106,11 @@ const userStatus = computed(() => {
     return member?.user?.data?.status || u.value?.data?.status || 'offline';
 });
 
-const statusColorClass = computed(() => {
-    switch (userStatus.value) {
-        case 'online': return 'bg-green-500';
-        case 'idle': return 'bg-yellow-500';
-        case 'dnd': return 'bg-red-500';
-        default: return 'bg-gray-500';
-    }
-});
-
 const emit = defineEmits(['close', 'send-message']);
 
 const sendMessage = () => {
   emit('send-message', u.value);
   emit('close');
-};
-
-const formatDate = (date: string | Date) => {
-  const dateObj = date instanceof Date ? date : new Date(date);
-  return dateObj.toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
 };
 
 </script>
