@@ -45,8 +45,10 @@ export interface OpenedFileKey {
 }
 
 /**
- * Désemballe la DEK d'un fichier. Si `expectedName` est fourni et que le fichier a un manifeste,
- * le nom du contenu doit être celui de l'enregistrement, sinon FileSubstitutedError.
+ * Désemballe la DEK d'un fichier. Pour un fichier v3, `expectedName` (nom de l'enregistrement) est
+ * obligatoire : un nom absent ou différent de celui du manifeste authentifié lève FileSubstitutedError,
+ * pour qu'un serveur ne puisse pas désactiver le contrôle en omettant le champ. Les fichiers anciens
+ * (sans manifeste) restent lisibles sans ce contrôle.
  */
 export async function openChunkedFileKey(encryptedFileKey: string, kek: CryptoKey, expectedName?: string): Promise<OpenedFileKey> {
     if (!isFileKeyV3(encryptedFileKey)) {
@@ -59,6 +61,6 @@ export async function openChunkedFileKey(encryptedFileKey: string, kek: CryptoKe
     const key = await crypto.subtle.importKey('raw', raw, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
     new Uint8Array(raw).fill(0);
     const manifest = await openManifestV3(encryptedFileKey, key);
-    if (expectedName !== undefined && manifest.name !== expectedName) throw new FileSubstitutedError(expectedName, manifest.name);
+    if (typeof expectedName !== 'string' || manifest.name !== expectedName) throw new FileSubstitutedError(expectedName, manifest.name);
     return { fileKey: key, fileUid, manifest };
 }

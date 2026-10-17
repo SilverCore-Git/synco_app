@@ -43,6 +43,12 @@ describe("format de fichier v3 (FC11)", () => {
         await expect(openChunkedFileKey(draft.encryptedFileKey, kek, "contrat_signe.pdf")).rejects.toBeInstanceOf(FileSubstitutedError);
     });
 
+    test("nom attendu absent pour un fichier v3 : refus (contrôle non désactivable)", async () => {
+        const kek = await newKek();
+        const k = await createChunkedFileKey(kek, manifest("a.pdf"));
+        await expect(openChunkedFileKey(k.encryptedFileKey, kek)).rejects.toBeInstanceOf(FileSubstitutedError);
+    });
+
     test("mauvaise KEK : refus", async () => {
         const k = await createChunkedFileKey(await newKek(), manifest("a.pdf"));
         await expect(openChunkedFileKey(k.encryptedFileKey, await newKek())).rejects.toThrow();

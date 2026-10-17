@@ -27,8 +27,8 @@ export interface FileManifest {
 }
 
 export class FileSubstitutedError extends Error {
-    constructor(expected: string, actual: string) {
-        super(`Le contenu de ce fichier ne correspond pas à son nom (« ${actual} » au lieu de « ${expected} »). Il a peut-être été substitué par le serveur.`);
+    constructor(expected: string | undefined, actual: string) {
+        super(`Le contenu de ce fichier ne correspond pas à son nom (« ${actual} » au lieu de « ${expected ?? 'nom absent'} »). Il a peut-être été substitué par le serveur.`);
         this.name = 'FileSubstitutedError';
     }
 }
@@ -84,6 +84,6 @@ export async function unwrapFileKeyV3(encryptedFileKey: string, kek: CryptoKey):
 export async function openManifestV3(encryptedFileKey: string, dek: CryptoKey): Promise<FileManifest> {
     const { fileUid, manifest } = parseFileKeyV3(encryptedFileKey);
     const parsed = JSON.parse(new TextDecoder().decode(await open(dek, aad('synco-manifest-v3', fileUid), manifest)));
-    if (parsed?.v !== 3 || typeof parsed.name !== 'string') throw new Error('Invalid file manifest');
+    if (parsed?.v !== 3 || typeof parsed.name !== 'string' || typeof parsed.mime !== 'string' || !Number.isSafeInteger(parsed.size) || parsed.size < 0) throw new Error('Invalid file manifest');
     return parsed as FileManifest;
 }

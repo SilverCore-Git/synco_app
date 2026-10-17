@@ -1,4 +1,5 @@
 import { openChunkedFileKey } from '@/assets/utils/chunkedCrypto';
+import { FileSubstitutedError } from '@/assets/utils/fileKeyV3';
 import {
     chunkCountForEncrypted,
     encryptedChunkRange,
@@ -116,10 +117,12 @@ export async function runChunkedDownload(
 
     if (!meta.download) throw new Error('Contenu du fichier introuvable sur le serveur');
     const cdn = new CdnDownload(meta.id, meta.download, meta.blobId);
-    const { fileKey, fileUid } = await openChunkedFileKey(meta.encryptedFileKey, kek, meta.originalName);
+    const { fileKey, fileUid, manifest } = await openChunkedFileKey(meta.encryptedFileKey, kek, meta.originalName);
     const encryptedSize = Number(meta.size);
     const count = chunkCountForEncrypted(encryptedSize, format.chunkSize);
     const plainSize = plainSizeForEncrypted(encryptedSize, format.chunkSize);
+    // Taille du clair déclarée dans le manifeste authentifié (FC11) : un contenu de taille différente est un autre fichier.
+    if (manifest && manifest.size !== plainSize) throw new FileSubstitutedError(meta.originalName, manifest.name);
 
     const parts = linkedAbortController(signal);
     let loaded = 0;
