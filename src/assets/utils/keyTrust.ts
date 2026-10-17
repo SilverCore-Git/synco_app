@@ -156,7 +156,8 @@ export function canonicalEcJwk(jwk: string | object): string {
 
 const signNs = () => `trusted-signkey:${user.value?.id ?? 'anon'}:`;
 
-async function readPinnedSignKey(userId: string): Promise<string | undefined> {
+/** Clé de signature déjà épinglée (TOFU) pour `userId`, si elle existe. */
+export async function readPinnedSignKey(userId: string): Promise<string | undefined> {
     return await get<string>(signNs() + userId);
 }
 

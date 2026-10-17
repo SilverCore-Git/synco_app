@@ -158,3 +158,18 @@ describe("DM authentifiés (audit FC7)", () => {
         expect(dmClientMsgIdOf(edited.iv)).toBe(dmClientMsgIdOf(e.iv));
     });
 });
+
+describe("clé de signature épinglée prioritaire sur l'annuaire (revue FC7)", () => {
+    test("annuaire vidé par le serveur : message signé toujours vérifié, message non signé invalid", async () => {
+        await asAlice();
+        const key = await threadKey();
+        const ctx = { threadId: "t1", senderId: "alice" };
+        const first = await encryptThreadMessageV2("a", key, ctx);
+        expect((await decryptThreadMessageV2(first.ciphertext, first.iv, key, ctx)).auth).toBe("verified"); // épingle la clé
+        (openedOrg as any).value = { members: [] }; // le serveur retire la clé de l'annuaire
+        const second = await encryptThreadMessageV2("b", key, ctx);
+        expect((await decryptThreadMessageV2(second.ciphertext, second.iv, key, ctx)).auth).toBe("verified");
+        const stripped = second.iv.split(".").slice(0, 3).join(".") + ".";
+        expect((await decryptThreadMessageV2(second.ciphertext, stripped, key, ctx)).auth).toBe("invalid");
+    });
+});

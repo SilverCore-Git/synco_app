@@ -1,5 +1,5 @@
 import { decryptFromPeer, encryptForPeer, privateSignKey } from './crypto';
-import { lookupCreatorSignKey, requireTrustedSignKey } from './keyTrust';
+import { lookupCreatorSignKey, readPinnedSignKey, requireTrustedSignKey } from './keyTrust';
 
 /**
  * Messages de salon authentifiés, format v2 (audit FC7 §1-2).
@@ -36,6 +36,15 @@ export function parseAuthenticatedIv(ivField: string): ParsedIv {
     const parts = ivField.slice(V2_PREFIX.length).split('.');
     if (parts.length !== 3 || !parts[0] || !parts[1]) throw new MessageAuthError('Invalid v2 message iv');
     return { iv: parts[0], clientMsgId: parts[1], signature: parts[2] ?? '' };
+}
+
+/**
+ * Clé de signature à utiliser pour `senderId` : la clé déjà épinglée localement prime sur l'annuaire
+ * des membres (fourni par le serveur, qui pourrait omettre la clé pour faire passer un message
+ * signé pour « non vérifiable »).
+ */
+async function senderSignKey(senderId: string): Promise<string | null> {
+    return (await readPinnedSignKey(senderId)) ?? lookupCreatorSignKey(senderId);
 }
 
 const aad = (threadId: string, senderId: string, clientMsgId: string) =>
@@ -82,7 +91,7 @@ export const clientMsgIdOf = (ivField: string | null | undefined): string | unde
     isAuthenticatedIv(ivField) ? parseAuthenticatedIv(ivField!).clientMsgId : undefined;
 
 async function verifySignature(parsed: ParsedIv, ctx: MessageContext, ciphertextB64: string): Promise<MessageAuthState> {
-    const signKeyJwk = lookupCreatorSignKey(ctx.senderId);
+    const signKeyJwk = await senderSignKey(ctx.senderId);
     if (!parsed.signature) {
         // Pas de signature alors que l'expéditeur a une clé d'identité : signature retirée.
         return signKeyJwk ? 'invalid' : 'unsigned';
@@ -202,7 +211,7 @@ export async function encryptDmV2(
 async function verifyDmSignature(
     parsed: ParsedIv, ctx: DmContext, ciphertext: string, encryptedAesKey: string, selfEncryptedAesKey: string
 ): Promise<MessageAuthState> {
-    const signKeyJwk = lookupCreatorSignKey(ctx.senderId);
+    const signKeyJwk = await senderSignKey(ctx.senderId);
     if (!parsed.signature) return signKeyJwk ? 'invalid' : 'unsigned';
     if (!signKeyJwk) return 'unsigned';
     try {
