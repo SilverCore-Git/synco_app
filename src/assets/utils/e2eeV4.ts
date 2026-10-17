@@ -273,12 +273,40 @@ export async function openRecoveryEnvelope(rk: Uint8Array, envelope: string, use
 // Appareil connecté : answerLinkRequest() → clé publique éphémère + enveloppe d'AK, déposées sur le serveur.
 // Nouvel appareil : completeLink() → AK. Les deux côtés affichent le même code de vérification.
 //
-// Authenticité de la clé du nouvel appareil (la seule chose qu'un serveur actif pourrait substituer) :
-// - par QR code : la clé voyage hors du serveur ;
-// - par saisie manuelle : l'utilisateur recopie le CODE DE LIAISON (96 bits dérivés de la clé et de
-//   l'identifiant de la demande, cf. linkCodeFor) et l'appareil connecté le vérifie avant de répondre.
-// Le code à 6 chiffres (`sas`) n'est PAS une défense contre un serveur actif : 20 bits se forcent
-// en quelques secondes d'essais de clés. Il sert seulement à confirmer l'intention de l'utilisateur.
+// Authenticité de la liaison : un SECRET DE LIAISON de 128 bits, tiré par le nouvel appareil et
+// transmis HORS du serveur (QR code, ou code recopié à la main). Il entre dans la dérivation de la
+// clé d'enveloppe. Conséquences :
+// - un serveur actif qui connaît les deux clés publiques ne peut pas fabriquer une enveloppe que le
+//   nouvel appareil accepterait (il lui manque le secret) : pas d'injection d'une fausse AK ;
+// - s'il substitue la clé du nouvel appareil, il ne peut pas dériver la clé d'enveloppe non plus :
+//   il n'obtient pas AK.
+// Le secret doit être fort (128 bits) : un secret court se testerait hors ligne contre l'enveloppe.
+// Le code à 6 chiffres (`sas`) n'est PAS une défense (20 bits se forcent en quelques secondes) : il
+// confirme seulement l'intention de l'utilisateur.
+
+export const LINK_SECRET_BYTES = 16;
+
+export const generateLinkSecret = (): Uint8Array => randomBytes(LINK_SECRET_BYTES);
+
+const LINK_SECRET_CHARS = 26;
+
+/** « XXXX-XXXX-… » (26 caractères + 2 de contrôle) à afficher / recopier ; le QR code peut transporter les mêmes octets. */
+export async function formatLinkSecret(secret: Uint8Array): Promise<string> {
+    if (secret.length !== LINK_SECRET_BYTES) throw new E2eeV4Error('Invalid link secret length');
+    const body = base32Encode(secret).slice(0, LINK_SECRET_CHARS);
+    return (body + (await checksum(secret)).slice(0, 2)).match(/.{1,4}/g)!.join('-');
+}
+
+/** Lit un secret saisi à la main (casse, espaces, tirets et O/0, I/L/1 tolérés) ; la somme de contrôle détecte les fautes de frappe. */
+export async function parseLinkSecret(input: string): Promise<Uint8Array> {
+    const text = input.toUpperCase().replace(/[\s-]/g, '').replace(/O/g, '0').replace(/[IL]/g, '1');
+    if (text.length !== LINK_SECRET_CHARS + 2) throw new E2eeV4Error('Invalid link secret length');
+    const bytes = base32Decode(text.slice(0, LINK_SECRET_CHARS)).slice(0, LINK_SECRET_BYTES);
+    if (bytes.length !== LINK_SECRET_BYTES || (await checksum(bytes)).slice(0, 2) !== text.slice(LINK_SECRET_CHARS)) {
+        throw new E2eeV4Error('Invalid link secret checksum');
+    }
+    return bytes;
+}
 
 type EcJwk = { kty: 'EC'; crv: 'P-256'; x: string; y: string };
 
@@ -295,35 +323,12 @@ async function importPeer(jwk: JsonWebKey): Promise<CryptoKey> {
     return crypto.subtle.importKey('jwk', canonicalJwk(jwk), { name: 'ECDH', namedCurve: 'P-256' }, false, []);
 }
 
-// 12 octets de SHA-256 → 20 caractères (96 bits) : forcer une clé de remplacement coûte ~2^96 essais.
-const LINK_CODE_BYTES = 12;
-const LINK_CODE_CHARS = 20;
-
-/** Code de liaison à afficher sur le nouvel appareil et à recopier sur l'appareil connecté. */
-export async function linkCodeFor(publicKey: JsonWebKey, requestId: string): Promise<string> {
-    const input = enc.encode(`synco-e4-linkcode|${requestId}|${JSON.stringify(canonicalJwk(publicKey))}`);
-    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', input));
-    return base32Encode(digest.slice(0, LINK_CODE_BYTES)).slice(0, LINK_CODE_CHARS).match(/.{1,4}/g)!.join('-');
-}
-
-/**
- * Vérifie le code saisi contre la clé publique annoncée par le serveur pour cette demande.
- * À appeler AVANT answerLinkRequest sur le chemin sans QR code.
- */
-export async function verifyLinkCode(input: string, publicKey: JsonWebKey, requestId: string): Promise<boolean> {
-    const normalize = (t: string) => t.toUpperCase().replace(/[\s-]/g, '').replace(/O/g, '0').replace(/[IL]/g, '1');
-    const typed = normalize(input);
-    const expected = normalize(await linkCodeFor(publicKey, requestId));
-    if (typed.length !== expected.length) return false;
-    let diff = 0;
-    for (let i = 0; i < expected.length; i++) diff |= typed.charCodeAt(i) ^ expected.charCodeAt(i);
-    return diff === 0;
-}
-
 export interface LinkRequest {
     requestId: string;
     publicKey: JsonWebKey;
     privateKey: CryptoKey;
+    /** À montrer à l'utilisateur (QR / code), jamais à envoyer au serveur. */
+    linkSecret: Uint8Array;
 }
 
 /** Côté nouvel appareil. `privateKey` reste en mémoire jusqu'à completeLink(). */
@@ -333,19 +338,20 @@ export async function createLinkRequest(): Promise<LinkRequest> {
         requestId: crypto.randomUUID(),
         publicKey: canonicalJwk(await crypto.subtle.exportKey('jwk', pair.publicKey)),
         privateKey: pair.privateKey,
+        linkSecret: generateLinkSecret(),
     };
 }
 
 async function deriveLinkSecrets(
     privateKey: CryptoKey,
     peerPublicKey: JsonWebKey,
-    ctx: { userId: string; requestId: string; newDevicePublicKey: JsonWebKey; responderPublicKey: JsonWebKey }
+    ctx: { userId: string; requestId: string; newDevicePublicKey: JsonWebKey; responderPublicKey: JsonWebKey; linkSecret: Uint8Array }
 ) {
     const shared = await crypto.subtle.deriveBits({ name: 'ECDH', public: await importPeer(peerPublicKey) }, privateKey, 256);
     const ikm = await crypto.subtle.importKey('raw', shared, 'HKDF', false, ['deriveBits']);
     // Le transcript (les deux clés publiques) est lié à la dérivation : toute substitution change la clé ET le code.
     const info = enc.encode(`synco-e4-link|${ctx.userId}|${ctx.requestId}|${JSON.stringify(canonicalJwk(ctx.newDevicePublicKey))}|${JSON.stringify(canonicalJwk(ctx.responderPublicKey))}`);
-    const bits = new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: enc.encode('synco-e4-link-v1'), info }, ikm, 256 + 32));
+    const bits = new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array([...enc.encode('synco-e4-link-v2|'), ...ctx.linkSecret]), info }, ikm, 256 + 32));
     const sasNumber = new DataView(bits.buffer, 32, 4).getUint32(0) % 1_000_000;
     const sas = String(sasNumber).padStart(6, '0');
     return { wrapKey: await aesKey(bits.slice(0, 32), ['encrypt', 'decrypt']), sas: `${sas.slice(0, 3)} ${sas.slice(3)}` };
@@ -365,12 +371,14 @@ export async function answerLinkRequest(
     newDevicePublicKey: JsonWebKey,
     akBytes: Uint8Array,
     userId: string,
-    requestId: string
+    requestId: string,
+    linkSecret: Uint8Array
 ): Promise<LinkAnswer> {
     if (akBytes.length !== KEY_LENGTH) throw new E2eeV4Error('Invalid account key length');
+    if (linkSecret.length !== LINK_SECRET_BYTES) throw new E2eeV4Error('Invalid link secret length');
     const pair = await ecdhKeyPair();
     const responderPublicKey = canonicalJwk(await crypto.subtle.exportKey('jwk', pair.publicKey));
-    const { wrapKey, sas } = await deriveLinkSecrets(pair.privateKey, newDevicePublicKey, { userId, requestId, newDevicePublicKey, responderPublicKey });
+    const { wrapKey, sas } = await deriveLinkSecrets(pair.privateKey, newDevicePublicKey, { userId, requestId, newDevicePublicKey, responderPublicKey, linkSecret });
     const envelope = toB64(await seal(wrapKey, linkAad(userId, requestId), akBytes as BufferSource));
     return { responderPublicKey, envelope, sas };
 }
@@ -386,8 +394,55 @@ export async function completeLink(
         requestId: request.requestId,
         newDevicePublicKey: request.publicKey,
         responderPublicKey: answer.responderPublicKey,
+        linkSecret: request.linkSecret,
     });
     const akBytes = new Uint8Array(await open(wrapKey, linkAad(userId, request.requestId), fromB64(answer.envelope)));
     if (akBytes.length !== KEY_LENGTH) throw new E2eeV4Error('Invalid account key length');
     return { akBytes, sas };
+}
+
+// ---------------------------------------------------------------------------
+// Certificat d'appareil : signé par la clé de signature d'identité du compte
+// ---------------------------------------------------------------------------
+//
+// Un appareil qui enveloppe AK pour les autres (rotation) ne doit jamais se fier à une clé publique
+// fournie telle quelle par le serveur : le serveur pourrait y glisser la sienne et obtenir la
+// nouvelle AK, donc toute l'identité. Chaque appareil est donc certifié par la clé de signature
+// d'identité (ECDSA), que seuls les appareils déjà liés peuvent utiliser. Le nom n'est pas signé :
+// il reste modifiable.
+
+const deviceCertBytes = (userId: string, deviceId: string, platform: string, devicePublicKey: JsonWebKey) =>
+    enc.encode(`synco-e4-device-cert|${userId}|${deviceId}|${platform}|${JSON.stringify(canonicalJwk(devicePublicKey))}`);
+
+export async function signDeviceCertificate(
+    identitySignKey: CryptoKey,
+    userId: string,
+    deviceId: string,
+    platform: string,
+    devicePublicKey: JsonWebKey
+): Promise<string> {
+    const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, identitySignKey, deviceCertBytes(userId, deviceId, platform, devicePublicKey) as BufferSource);
+    return toB64(new Uint8Array(sig));
+}
+
+/** `identitySignPublicKey` : clé de signature d'identité épinglée (keyTrust), pas une valeur du serveur. */
+export async function verifyDeviceCertificate(
+    identitySignPublicKey: JsonWebKey,
+    certificate: string,
+    userId: string,
+    deviceId: string,
+    platform: string,
+    devicePublicKey: JsonWebKey
+): Promise<boolean> {
+    try {
+        const key = await crypto.subtle.importKey('jwk', identitySignPublicKey, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+        return await crypto.subtle.verify(
+            { name: 'ECDSA', hash: 'SHA-256' },
+            key,
+            fromB64(certificate) as BufferSource,
+            deviceCertBytes(userId, deviceId, platform, devicePublicKey) as BufferSource
+        );
+    } catch {
+        return false;
+    }
 }

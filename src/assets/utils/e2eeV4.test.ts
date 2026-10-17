@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
     E2eeV4Error, answerLinkRequest, completeLink, createDeviceEnvelope, createLinkRequest, createRecoveryEnvelope,
     formatRecoveryKey, generateAccountKeyBytes, generateDeviceId, generateDeviceKeyBytes, generateDeviceKeyPair, generateRecoveryKeyBytes,
-    importAccountKey, linkCodeFor, verifyLinkCode, openDeviceEnvelope, openDevicePrivateKey, openIdentityKey, openRecoveryEnvelope, parseRecoveryKey, sealDevicePrivateKey, sealIdentityKey,
+    importAccountKey, generateLinkSecret, formatLinkSecret, parseLinkSecret, signDeviceCertificate, verifyDeviceCertificate, openDeviceEnvelope, openDevicePrivateKey, openIdentityKey, openRecoveryEnvelope, parseRecoveryKey, sealDevicePrivateKey, sealIdentityKey,
 } from "./e2eeV4";
 
 const U = "user-1";
@@ -91,70 +91,89 @@ describe("e2eeV4 — liaison d'un nouvel appareil", () => {
     test("AK transmise, même code de vérification des deux côtés", async () => {
         const ak = generateAccountKeyBytes();
         const request = await createLinkRequest();
-        const answer = await answerLinkRequest(request.publicKey, ak, U, request.requestId);
+        const answer = await answerLinkRequest(request.publicKey, ak, U, request.requestId, request.linkSecret);
         const done = await completeLink(request, answer, U);
         expect(done.akBytes).toEqual(ak);
         expect(done.sas).toBe(answer.sas);
         expect(done.sas).toMatch(/^\d{3} \d{3}$/);
     });
 
-    test("le serveur substitue sa clé publique de réponse : AK non obtenue", async () => {
-        const ak = generateAccountKeyBytes();
-        const request = await createLinkRequest();
-        await answerLinkRequest(request.publicKey, ak, U, request.requestId);
-        const attacker = await createLinkRequest();
-        const forged = await answerLinkRequest(request.publicKey, generateAccountKeyBytes(), U, request.requestId);
-        // enveloppe de l'attaquant (autre AK) sous SA propre clé éphémère ≠ celle du vrai répondeur
-        const swapped = { responderPublicKey: attacker.publicKey, envelope: forged.envelope };
-        await expect(completeLink(request, swapped, U)).rejects.toBeInstanceOf(E2eeV4Error);
+    test("secret de liaison : format lisible, aller-retour, tolérant à la saisie, faute détectée", async () => {
+        const secret = generateLinkSecret();
+        const text = await formatLinkSecret(secret);
+        expect(text).toMatch(/^([0-9A-HJKMNP-TV-Z]{4}-){6}[0-9A-HJKMNP-TV-Z]{4}$/);
+        expect(await parseLinkSecret(text)).toEqual(secret);
+        expect(await parseLinkSecret(text.toLowerCase().replace(/-/g, " "))).toEqual(secret);
+        const alt = text[0] === "2" ? "3" : "2";
+        await expect(parseLinkSecret(alt + text.slice(1))).rejects.toBeInstanceOf(E2eeV4Error);
+        await expect(parseLinkSecret(text.slice(0, -4))).rejects.toBeInstanceOf(E2eeV4Error);
     });
 
-    test("le serveur substitue la clé du nouvel appareil (saisie manuelle) : codes différents", async () => {
+    test("serveur actif SANS le secret : ne peut ni fabriquer une enveloppe acceptée ni ouvrir celle d'un autre", async () => {
+        const request = await createLinkRequest();
+        // il connaît les deux clés publiques et l'identifiant, mais pas le secret
+        const forged = await answerLinkRequest(request.publicKey, generateAccountKeyBytes(), U, request.requestId, generateLinkSecret());
+        await expect(completeLink(request, forged, U)).rejects.toBeInstanceOf(E2eeV4Error);
+    });
+
+    test("serveur qui substitue la clé du nouvel appareil : l'appareil connecté chiffre pour lui, mais sans le secret il n'obtient pas AK", async () => {
         const ak = generateAccountKeyBytes();
         const real = await createLinkRequest();
-        const attacker = await createLinkRequest();
-        // l'appareil connecté répond à la clé de l'attaquant, le vrai appareil reçoit la réponse
-        const answer = await answerLinkRequest(attacker.publicKey, ak, U, real.requestId);
+        const attacker = await createLinkRequest(); // sa propre paire, son propre secret
+        const answer = await answerLinkRequest(attacker.publicKey, ak, U, real.requestId, real.linkSecret);
+        // l'attaquant tente d'ouvrir avec sa clé privée mais un secret deviné
+        await expect(completeLink({ ...attacker, requestId: real.requestId }, answer, U)).rejects.toBeInstanceOf(E2eeV4Error);
+        // et le vrai appareil ne peut pas l'ouvrir non plus (mauvaise clé)
         await expect(completeLink(real, answer, U)).rejects.toBeInstanceOf(E2eeV4Error);
     });
 
-    test("relais actif du serveur (saisie manuelle) : il obtient AK mais les deux codes diffèrent", async () => {
-        const ak = generateAccountKeyBytes();
-        const real = await createLinkRequest();
-        const attacker = await createLinkRequest();
-        // 1) il remplace la clé du nouvel appareil par la sienne auprès de l'appareil connecté
-        const answerToAttacker = await answerLinkRequest(attacker.publicKey, ak, U, real.requestId);
-        const stolen = await completeLink({ ...attacker, requestId: real.requestId }, answerToAttacker, U);
-        expect(stolen.akBytes).toEqual(ak);
-        // 2) il répond au vrai appareil avec sa propre clé éphémère
-        const answerToReal = await answerLinkRequest(real.publicKey, stolen.akBytes, U, real.requestId);
-        const done = await completeLink(real, answerToReal, U);
-        // le code affiché par l'appareil connecté ne correspond pas à celui du nouvel appareil
-        expect(done.sas).not.toBe(answerToAttacker.sas);
-    });
-
-    test("code de liaison : accepté pour la bonne clé, refusé pour une clé substituée ou une autre demande", async () => {
-        const real = await createLinkRequest();
-        const attacker = await createLinkRequest();
-        const code = await linkCodeFor(real.publicKey, real.requestId);
-        expect(code).toMatch(/^([0-9A-HJKMNP-TV-Z]{4}-){4}[0-9A-HJKMNP-TV-Z]{4}$/);
-        expect(await verifyLinkCode(code, real.publicKey, real.requestId)).toBe(true);
-        expect(await verifyLinkCode(code.toLowerCase().replace(/-/g, " "), real.publicKey, real.requestId)).toBe(true);
-        // le serveur annonce sa propre clé à l'appareil connecté : le code recopié ne correspond pas
-        expect(await verifyLinkCode(code, attacker.publicKey, real.requestId)).toBe(false);
-        expect(await verifyLinkCode(code, real.publicKey, crypto.randomUUID())).toBe(false);
-        expect(await verifyLinkCode(code.slice(0, 12), real.publicKey, real.requestId)).toBe(false);
+    test("secret erroné côté appareil connecté : enveloppe refusée", async () => {
+        const request = await createLinkRequest();
+        const answer = await answerLinkRequest(request.publicKey, generateAccountKeyBytes(), U, request.requestId, generateLinkSecret());
+        await expect(completeLink(request, answer, U)).rejects.toBeInstanceOf(E2eeV4Error);
     });
 
     test("demande liée à son identifiant et à l'utilisateur", async () => {
         const ak = generateAccountKeyBytes();
         const request = await createLinkRequest();
-        const answer = await answerLinkRequest(request.publicKey, ak, U, request.requestId);
+        const answer = await answerLinkRequest(request.publicKey, ak, U, request.requestId, request.linkSecret);
         await expect(completeLink(request, answer, "autre")).rejects.toBeInstanceOf(E2eeV4Error);
         await expect(completeLink({ ...request, requestId: crypto.randomUUID() }, answer, U)).rejects.toBeInstanceOf(E2eeV4Error);
     });
 
-    test("clé publique invalide refusée", async () => {
-        await expect(answerLinkRequest({ kty: "RSA" } as any, generateAccountKeyBytes(), U, "r")).rejects.toBeInstanceOf(E2eeV4Error);
+    test("clé publique ou secret invalides refusés", async () => {
+        const secret = generateLinkSecret();
+        await expect(answerLinkRequest({ kty: "RSA" } as any, generateAccountKeyBytes(), U, "r", secret)).rejects.toBeInstanceOf(E2eeV4Error);
+        const request = await createLinkRequest();
+        await expect(answerLinkRequest(request.publicKey, generateAccountKeyBytes(), U, "r", new Uint8Array(4))).rejects.toBeInstanceOf(E2eeV4Error);
+    });
+});
+
+describe("e2eeV4 — certificat d'appareil", () => {
+    async function identity() {
+        const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+        return { priv: pair.privateKey, pub: await crypto.subtle.exportKey("jwk", pair.publicKey) };
+    }
+
+    test("signé par l'identité, vérifié avec sa clé publique", async () => {
+        const id = await identity(), dev = await generateDeviceKeyPair(), deviceId = generateDeviceId();
+        const cert = await signDeviceCertificate(id.priv, U, deviceId, "ios", dev.publicKey);
+        expect(await verifyDeviceCertificate(id.pub, cert, U, deviceId, "ios", dev.publicKey)).toBe(true);
+    });
+
+    test("clé d'appareil substituée par le serveur, autre appareil, autre plateforme ou autre utilisateur : refusés", async () => {
+        const id = await identity(), dev = await generateDeviceKeyPair(), evil = await generateDeviceKeyPair(), deviceId = generateDeviceId();
+        const cert = await signDeviceCertificate(id.priv, U, deviceId, "ios", dev.publicKey);
+        expect(await verifyDeviceCertificate(id.pub, cert, U, deviceId, "ios", evil.publicKey)).toBe(false);
+        expect(await verifyDeviceCertificate(id.pub, cert, U, generateDeviceId(), "ios", dev.publicKey)).toBe(false);
+        expect(await verifyDeviceCertificate(id.pub, cert, U, deviceId, "android", dev.publicKey)).toBe(false);
+        expect(await verifyDeviceCertificate(id.pub, cert, "autre", deviceId, "ios", dev.publicKey)).toBe(false);
+    });
+
+    test("certificat d'une autre identité, ou illisible : refusé", async () => {
+        const id = await identity(), other = await identity(), dev = await generateDeviceKeyPair(), deviceId = generateDeviceId();
+        const forged = await signDeviceCertificate(other.priv, U, deviceId, "web", dev.publicKey);
+        expect(await verifyDeviceCertificate(id.pub, forged, U, deviceId, "web", dev.publicKey)).toBe(false);
+        expect(await verifyDeviceCertificate(id.pub, "!!!", U, deviceId, "web", dev.publicKey)).toBe(false);
     });
 });

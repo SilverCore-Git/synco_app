@@ -26,6 +26,7 @@ AccountKey (AK)        256 bits aléatoires, créée une fois, jamais en clair c
         │  enveloppée pour chaque appareil (vers sa clé publique) et par la clé de récupération
         ▼
 ┌ Paire d'appareil     ECDH P-256 : la clé publique est enregistrée sur le serveur
+│  ├ Certificat        signature d'identité sur (utilisateur, appareil, plateforme, clé publique)
 │  ├ DeviceEnvelope    ECDH éphémère + HKDF + AES-GCM(AK) vers la clé publique de l'appareil
 │  └ DK                256 bits aléatoires dans le coffre matériel ; scelle uniquement la clé privée de l'appareil
 └ RecoveryKey (RK)     256 bits, montrée une seule fois à l'utilisateur
@@ -60,12 +61,14 @@ Le PIN à 4 chiffres sert de **repli local** quand la biométrie est indisponibl
 Connexion Keycloak → l'app récupère le `DeviceEnvelope` de son `deviceId` → coffre local déverrouillé par biométrie ou PIN → DK → AK → identité. Aucun appel au serveur n'est nécessaire pour valider un PIN.
 
 ### 4.3 Ajouter un appareil (cas normal, sans serveur de confiance)
-1. Le **nouvel appareil** génère une paire éphémère ECDH P-256 et affiche un **QR code** contenant sa clé publique et un identifiant de demande (lien de secours : code court à saisir).
-2. Un **appareil déjà connecté** scanne le QR (canal hors bande : le serveur ne peut pas substituer la clé), affiche le nom et la plateforme du nouvel appareil et demande une confirmation explicite.
-3. Il calcule ECDH + HKDF, chiffre AK pour le nouvel appareil et dépose cette enveloppe temporaire sur le serveur (`DeviceLinkRequest`, valable quelques minutes, usage unique).
-4. Le nouvel appareil la récupère, ouvre AK, génère sa propre DK, enregistre son `DeviceEnvelope` et détruit l'enveloppe temporaire.
-5. **Sans QR code** (saisie manuelle) : le nouvel appareil affiche un **code de liaison** de 96 bits (20 caractères) dérivé de sa clé publique et de l'identifiant de la demande ; l'utilisateur le recopie sur l'appareil connecté, qui le vérifie contre la clé annoncée par le serveur avant de répondre. Un serveur actif ne peut donc pas substituer sa clé (il faudrait ~2^96 essais).
-6. Un **code à 6 chiffres**, affiché des deux côtés, confirme l'intention de l'utilisateur. Il **n'est pas** une défense contre un serveur actif (20 bits se forcent en quelques secondes) : la défense est l'authenticité de la clé du nouvel appareil (QR ou code de liaison).
+1. Le **nouvel appareil** génère une paire ECDH éphémère et un **secret de liaison** de 128 bits. Il affiche un **QR code** contenant le secret et l'identifiant de la demande, ou le même secret sous forme de **code à recopier** (28 caractères, somme de contrôle incluse). Le secret ne quitte jamais l'écran : il n'est **pas** envoyé au serveur. Seules la clé publique éphémère et l'identifiant sont déposés.
+2. Un **appareil déjà connecté** scanne le QR (ou reçoit le code saisi), affiche le nom et la plateforme du nouvel appareil et demande une confirmation explicite.
+3. Il calcule ECDH + HKDF **avec le secret de liaison**, chiffre AK pour le nouvel appareil et dépose cette enveloppe temporaire (`DeviceLinkRequest`, quelques minutes, usage unique).
+4. Le nouvel appareil l'ouvre, génère sa paire d'appareil permanente et sa DK, **fait certifier sa clé publique par la clé de signature d'identité** qu'il vient de recevoir, puis enregistre son appareil (le serveur vérifie le certificat).
+5. Pourquoi le secret : sans lui, un serveur actif qui connaît les clés publiques pourrait fabriquer une enveloppe contenant une fausse AK (et de fausses clés d'identité) que le nouvel appareil accepterait, ou se faire passer pour le nouvel appareil auprès de l'appareil connecté. Avec lui, il ne peut dériver aucune des clés d'enveloppe. Il doit être fort (128 bits) : un secret court se testerait hors ligne contre l'enveloppe.
+6. Un **code à 6 chiffres**, affiché des deux côtés, confirme l'intention de l'utilisateur. Il **n'est pas** une défense contre un serveur actif (20 bits se forcent en quelques secondes).
+
+**Certificats d'appareil.** Chaque appareil est certifié par la clé de signature d'identité du compte (ECDSA), sur (utilisateur, identifiant, plateforme, clé publique). Un appareil qui enveloppe une nouvelle AK pour les autres (rotation) **vérifie chaque certificat** contre la clé de signature d'identité épinglée et ignore tout appareil non certifié : le serveur ne peut pas y glisser sa propre clé pour obtenir la nouvelle AK. Le serveur vérifie aussi les certificats à l'enregistrement, donc une simple session Keycloak ne suffit pas à ajouter un appareil.
 
 ### 4.4 Aucun autre appareil disponible
 1. **Clé de récupération** : l'utilisateur la saisit, l'app ouvre `RecoveryEnvelope`, puis enregistre l'appareil comme en 4.3 (étapes 4).
@@ -77,7 +80,7 @@ Un appareil connecté demande une confirmation, génère une **nouvelle AK**, r�
 ## 5. Modèle serveur (esquisse)
 
 ```
-UserDevice        id, userId, name, platform, devicePublicKey (jwk), deviceEnvelope (b64), createdAt, lastUsedAt, revokedAt
+UserDevice        id, userId, name, platform, devicePublicKey (jwk), certificate (b64), deviceEnvelope (b64), createdAt, lastUsedAt
 AccountRecovery   userId, recoveryEnvelope (b64), kdfInfo, createdAt        -- 0..1 par utilisateur
 DeviceLinkRequest id, userId, devicePublicKey (jwk), envelope (b64 nullable), expiresAt, consumedAt
 User              + e2eeVersion ('v3' | 'v4'), encryptedPrivateKey / encryptedSignPrivateKey = chiffrées par AK en v4
