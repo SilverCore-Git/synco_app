@@ -12,6 +12,7 @@ import { debugLog } from '@/assets/utils/debugLog';
 import { createPeerReconnector } from '@/assets/utils/peerReconnect';
 import { generateFingerprint, normalizeSas } from '@/assets/utils/sas';
 import sfetch from '@/assets/utils/sfetch';
+import { createFrameTransform } from '@/assets/utils/frameCrypto';
 
 // ============================================================================
 // Types
@@ -23,6 +24,8 @@ interface SecureCallSession {
     peerId: string;
     e2eeKey: CryptoKey | null;
     e2eeKeyId: number;
+    /** Worker RTCRtpScriptTransform (Firefox, Safari), cf. setupMediaEncryption. */
+    frameWorker?: Worker;
     keyAgreementComplete: boolean;
     authenticated: boolean;
     keyExchangeTimeout: any | null;
@@ -525,6 +528,7 @@ export default function useSecurePeer() {
                         callEncryptionKeys.value = keys;
                         
                         session.e2eeKey = sharedKey;
+                        session.frameWorker?.postMessage({ type: 'key', key: sharedKey });
                         session.keyAgreementComplete = true;
 
                         // Send confirmation with callId
@@ -572,6 +576,7 @@ export default function useSecurePeer() {
                         callEncryptionKeys.value = keys;
                         
                         session.e2eeKey = sharedKey;
+                        session.frameWorker?.postMessage({ type: 'key', key: sharedKey });
                         session.keyAgreementComplete = true;
 
                         // Generate authentication fingerprint
@@ -826,8 +831,32 @@ export default function useSecurePeer() {
             callSecurityStatus.value = new Map(status);
         };
 
+        // Repli standard (Firefox, Safari) quand createEncodedStreams (Chrome) est absent : transform
+        // dans un worker, même format de trame (cf. assets/utils/frameCrypto.ts).
+        if (!('createEncodedStreams' in RTCRtpSender.prototype) && 'RTCRtpScriptTransform' in window) {
+            try {
+                const worker = new Worker(new URL('../workers/frameCrypto.worker.ts', import.meta.url), { type: 'module' });
+                session.frameWorker = worker;
+                if (session.e2eeKey) worker.postMessage({ type: 'key', key: session.e2eeKey });
+                const Transform = (window as any).RTCRtpScriptTransform;
+                pc.getSenders().forEach(sender => {
+                    if (sender.track) (sender as any).transform = new Transform(worker, { side: 'send' });
+                });
+                pc.getReceivers().forEach(receiver => {
+                    if (receiver.track) (receiver as any).transform = new Transform(worker, { side: 'receive' });
+                });
+                setMediaE2EE(true);
+            } catch (e) {
+                console.error('[SECURE-PEER] Erreur setup E2EE (RTCRtpScriptTransform):', e);
+                session.frameWorker?.terminate();
+                session.frameWorker = undefined;
+                setMediaE2EE(false);
+            }
+            return;
+        }
+
         if (!('createEncodedStreams' in RTCRtpSender.prototype)) {
-            console.warn('[SECURE-PEER] Insertable Streams API non supportée. Le flux média ne sera pas doublement chiffré.');
+            console.warn('[SECURE-PEER] Ni Insertable Streams ni RTCRtpScriptTransform : le flux média ne sera pas doublement chiffré.');
             // L'interface ne doit plus promettre un surchiffrement absent (audit FC8).
             setMediaE2EE(false);
             return;
@@ -835,67 +864,18 @@ export default function useSecurePeer() {
         setMediaE2EE(true);
 
         try {
-            // Senders (Encrypt)
             pc.getSenders().forEach(sender => {
                 if (!sender.track || (sender as any)._e2eeSetup) return;
                 (sender as any)._e2eeSetup = true;
-
                 const streams = (sender as any).createEncodedStreams();
-                const transform = new TransformStream({
-                    async transform(chunk, controller) {
-                        if (!session.e2eeKey) return; // Drop frame if key is not ready
-                        
-                        const data = new Uint8Array(chunk.data);
-                        const iv = crypto.getRandomValues(new Uint8Array(12));
-                        
-                        try {
-                            const ciphertext = await crypto.subtle.encrypt(
-                                { name: 'AES-GCM', iv },
-                                session.e2eeKey,
-                                data
-                            );
-                            const payload = new Uint8Array(iv.length + ciphertext.byteLength);
-                            payload.set(iv, 0);
-                            payload.set(new Uint8Array(ciphertext), iv.length);
-                            chunk.data = payload.buffer;
-                            controller.enqueue(chunk);
-                        } catch (e) {
-                            // Ignorer
-                        }
-                    }
-                });
-                streams.readable.pipeThrough(transform).pipeTo(streams.writable);
+                streams.readable.pipeThrough(createFrameTransform('send', () => session.e2eeKey)).pipeTo(streams.writable);
             });
 
-            // Receivers (Decrypt)
             pc.getReceivers().forEach(receiver => {
                 if (!receiver.track || (receiver as any)._e2eeSetup) return;
                 (receiver as any)._e2eeSetup = true;
-
                 const streams = (receiver as any).createEncodedStreams();
-                const transform = new TransformStream({
-                    async transform(chunk, controller) {
-                        if (!session.e2eeKey) return;
-                        
-                        const payload = new Uint8Array(chunk.data);
-                        if (payload.byteLength > 12) {
-                            const iv = payload.slice(0, 12);
-                            const ciphertext = payload.slice(12);
-                            try {
-                                const plaintext = await crypto.subtle.decrypt(
-                                    { name: 'AES-GCM', iv },
-                                    session.e2eeKey,
-                                    ciphertext
-                                );
-                                chunk.data = plaintext;
-                                controller.enqueue(chunk);
-                            } catch (e) {
-                                // Decryption failed
-                            }
-                        }
-                    }
-                });
-                streams.readable.pipeThrough(transform).pipeTo(streams.writable);
+                streams.readable.pipeThrough(createFrameTransform('receive', () => session.e2eeKey)).pipeTo(streams.writable);
             });
         } catch(e) {
             console.error('[SECURE-PEER] Erreur setup E2EE:', e);
@@ -1290,6 +1270,8 @@ export default function useSecurePeer() {
         const streams = remoteStreams.value;
         streams.delete(peerId);
         remoteStreams.value = streams;
+
+        session?.frameWorker?.terminate();
 
         const calls = activeCalls.value;
         calls.delete(peerId);
