@@ -63,6 +63,8 @@ export interface MessageChannel {
     readonly readOnly: Readonly<Ref<boolean>>;
     /** Peut supprimer les messages d'autrui (modération). */
     readonly canModerate: Readonly<Ref<boolean>>;
+    /** Les messages sont chiffrés au format authentifié (AAD + signature, cf. messageAuth.ts) ; faux : format historique (support). */
+    readonly authenticatedMessages?: boolean;
 
     /** Envoie un message ; résout avec le message confirmé par le serveur, rejette avec l'erreur. */
     send(msg: OutgoingMessage): Promise<Message>;
@@ -164,6 +166,7 @@ export const createThreadMessageChannel = (options: ThreadMessageChannelOptions)
         canWrite,
         readOnly: ref(false),
         canModerate: orgCanModerate,
+        authenticatedMessages: true,
 
         send: (msg) => new Promise((resolve, reject) => {
             if (!socket.value) return reject("Non connecté au serveur.");

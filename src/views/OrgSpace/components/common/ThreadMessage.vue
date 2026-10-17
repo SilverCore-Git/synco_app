@@ -298,6 +298,7 @@ import { useLongPress } from '@/composables/useLongPress';
 import type { Message } from '@/types/types';
 import MessageAttachments from './MessageAttachments.vue';
 import { encryptMessageWithContentKey } from '@/assets/utils/crypto';
+import { clientMsgIdOf, encryptThreadMessageV2 } from '@/assets/utils/messageAuth';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import ThreadTextarea from './ThreadTextarea.vue';
 import { user } from '@/assets/var';
@@ -602,7 +603,12 @@ const saveEdit = async () => {
     const key = channel.encryptionKey.value;
     if (!key) return;
 
-    const { ciphertext, iv } = await encryptMessageWithContentKey(content, key);
+    // Une édition garde l'identifiant du message d'origine : même contexte d'AAD et de signature.
+    const threadId = channel.id.value;
+    const originalId = clientMsgIdOf(props.msg.iv);
+    const { ciphertext, iv } = channel.authenticatedMessages && threadId && user.value?.id && originalId
+        ? await encryptThreadMessageV2(content, key, { threadId, senderId: user.value.id }, originalId)
+        : await encryptMessageWithContentKey(content, key);
 
     channel.edit(props.msg.id, ciphertext, iv, extractReferenceTokens(content));
 

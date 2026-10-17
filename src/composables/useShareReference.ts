@@ -7,6 +7,7 @@ import {
 import { pinOrCheckKey, KeyChangedError } from '@/assets/utils/keyPinning';
 import { getCachedThreadKey, setCachedThreadKey } from '@/assets/utils/threadKeyCache';
 import { requireTrustedKey } from '@/assets/utils/keyTrust';
+import { encryptThreadMessageV2 } from '@/assets/utils/messageAuth';
 import { buildReferenceToken, extractReferenceTokens, type ReferenceKind } from '@/composables/useReferences';
 
 /**
@@ -78,7 +79,9 @@ async function sendToThread(threadId: string, spaceId: string | undefined, conte
         }
     }
 
-    const { ciphertext, iv } = await encryptMessageWithContentKey(content, key);
+    const { ciphertext, iv } = user.value?.id
+        ? await encryptThreadMessageV2(content, key, { threadId, senderId: user.value.id })
+        : await encryptMessageWithContentKey(content, key);
     const references = extractReferenceTokens(content);
 
     const response: any = await new Promise((resolve) => {

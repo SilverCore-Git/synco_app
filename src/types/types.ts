@@ -187,6 +187,8 @@ export interface Message {
     content: string;
     nonce: string;
     iv: string | null;
+    /** Authenticité d'un message de salon (FC7), posée au déchiffrement. */
+    authState?: 'legacy' | 'unsigned' | 'verified' | 'invalid';
     edited: boolean | null;
     createdAt: string | Date;
     updatedAt: string | Date;

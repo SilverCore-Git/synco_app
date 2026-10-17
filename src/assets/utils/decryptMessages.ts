@@ -1,5 +1,6 @@
 import type { Message } from '@/types/types';
 import { decryptMessageWithContentKey } from '@/assets/utils/crypto';
+import { decryptThreadMessageV2, findReplayedMessages, isAuthenticatedIv } from '@/assets/utils/messageAuth';
 
 /**
  * Déchiffrement des messages d'une conversation au format « thread »
@@ -34,7 +35,27 @@ export const formatReactions = (reactions: any[]): ReactionMap => {
 const normalizeReactions = (reactions: Message['reactions']) =>
     Array.isArray(reactions) ? formatReactions(reactions as any) : reactions;
 
-const decryptSingleMessage = async (msg: Message | null | undefined, key: CryptoKey): Promise<Message | null> => {
+export const UNVERIFIED_SENDER_TEXT = "[⚠️ Expéditeur non vérifié — ce message n'est pas affiché.]";
+
+/**
+ * Déchiffre le contenu d'un message, au format authentifié (FC7) ou historique. Un message v2 dont
+ * l'origine n'est pas valide (signature fausse, rejeu) n'est jamais affiché : il est remplacé par
+ * UNVERIFIED_SENDER_TEXT. Lève si le chiffré ne correspond pas à son contexte (salon, expéditeur).
+ */
+const decryptContent = async (
+    msg: Message,
+    vectorInit: string,
+    key: CryptoKey,
+    replayed = false
+): Promise<{ text: string; authState: NonNullable<Message['authState']> }> => {
+    if (isAuthenticatedIv(vectorInit) && msg.senderId) {
+        const { text, auth } = await decryptThreadMessageV2(msg.content, vectorInit, key, { threadId: msg.threadId, senderId: msg.senderId }, replayed);
+        return auth === 'invalid' ? { text: UNVERIFIED_SENDER_TEXT, authState: 'invalid' } : { text, authState: auth };
+    }
+    return { text: await decryptMessageWithContentKey(msg.content, vectorInit, key), authState: 'legacy' };
+};
+
+const decryptSingleMessage = async (msg: Message | null | undefined, key: CryptoKey, replayed = false): Promise<Message | null> => {
 
     if (!msg) return null;
     if (!msg.content || msg.content.trim() === "") return msg;
@@ -50,11 +71,11 @@ const decryptSingleMessage = async (msg: Message | null | undefined, key: Crypto
             return { ...msg, content: "[⚠️ Impossible de déchiffrer ce message.]" };
         }
 
-        const clearText = await decryptMessageWithContentKey(msg.content, vectorInit, key);
+        const { text: clearText, authState } = await decryptContent(msg, vectorInit, key, replayed);
 
         const formattedReactions = msg.reactions ? normalizeReactions(msg.reactions) : {};
 
-        return { ...msg, content: clearText, reactions: formattedReactions };
+        return { ...msg, content: clearText, authState, reactions: formattedReactions };
 
     }
     catch (cryptoErr) {
@@ -75,9 +96,12 @@ export const decryptMessages = async (msgs: Message[], key: CryptoKey | null): P
 
     if (!key) return msgs;
 
+    // Messages qui répètent l'identifiant d'un message plus ancien : rejeux (FC7).
+    const replayed = findReplayedMessages(msgs);
+
     const decryptedMessages = await Promise.all(msgs.map(async m => {
 
-        let decryptedMain = await decryptSingleMessage(m, key);
+        let decryptedMain = await decryptSingleMessage(m, key, replayed.has(m.id));
         if (!decryptedMain) return m;
 
         if (decryptedMain.replyMessage)
@@ -113,11 +137,12 @@ export const decryptMessages = async (msgs: Message[], key: CryptoKey | null): P
 export const decryptEditedMessage = async (editedMsg: Message, key: CryptoKey | null, findPrevious: () => Message | undefined): Promise<Message> => {
 
     let decryptedContent = editedMsg.content;
+    let authState: Message['authState'];
     if (editedMsg.content && editedMsg.content.trim() !== "" && key)
     {
         try {
             const vectorInit = editedMsg.iv && editedMsg.iv.trim() !== "" ? editedMsg.iv : editedMsg.nonce;
-            decryptedContent = await decryptMessageWithContentKey(editedMsg.content, vectorInit, key);
+            ({ text: decryptedContent, authState } = await decryptContent(editedMsg, vectorInit, key));
         } catch (err) {
             decryptedContent = "🔒 Échec du déchiffrement lors de l'édition.";
         }
@@ -131,6 +156,7 @@ export const decryptEditedMessage = async (editedMsg: Message, key: CryptoKey | 
     return {
         ...editedMsg,
         content: decryptedContent,
+        authState,
         reactions: formattedReactions,
         replyMessage: previous?.replyMessage ?? editedMsg.replyMessage,
     };

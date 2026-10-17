@@ -249,6 +249,7 @@ import type { Message } from '@/types/types';
 import { user } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import { encryptMessageWithContentKey } from '@/assets/utils/crypto';
+import { encryptThreadMessageV2 } from '@/assets/utils/messageAuth';
 import { useMessageDraft, channelKeyCipher } from '@/composables/useMessageDraft';
 import { decryptMessages, decryptEditedMessage } from '@/assets/utils/decryptMessages';
 import { uploadFiles } from '@/assets/uploadFile';
@@ -596,7 +597,10 @@ const sendMessage = async () => {
             );
         }
 
-        const { ciphertext, iv } = await encryptMessageWithContentKey(newMessage.value, key);
+        const threadId = props.channel.id.value;
+        const { ciphertext, iv } = props.channel.authenticatedMessages && threadId && user.value?.id
+            ? await encryptThreadMessageV2(newMessage.value, key, { threadId, senderId: user.value.id })
+            : await encryptMessageWithContentKey(newMessage.value, key);
 
         const confirmedMessage = await props.channel.send({
             content: ciphertext,
