@@ -26,15 +26,28 @@
 
                     <!-- Détails par espace de travail -->
                     <div class="bg-(--bg2) border border-(--border-color) rounded-2xl p-6 shadow-sm flex flex-col gap-4 max-h-[420px]">
-                        <div>
-                            <h4 class="text-sm font-bold text-(--text)">Détails par Espace de travail</h4>
-                            <p class="text-xs text-(--text2) mt-1">Répartition de l'utilisation du stockage.</p>
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                                <h4 class="text-sm font-bold text-(--text)">Détails par Espace de travail</h4>
+                                <p class="text-xs text-(--text2) mt-1">Répartition de l'utilisation du stockage.</p>
+                            </div>
+                            <div class="relative w-full sm:w-60 group">
+                                <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-xs group-focus-within:text-(--primary) transition-colors" />
+                                <input
+                                    v-model="spaceSearch"
+                                    type="text"
+                                    placeholder="Rechercher un espace..."
+                                    class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-9 pr-3 py-2 text-xs text-(--text) focus:outline-none focus:border-(--primary) transition-all placeholder:text-(--text2)"
+                                />
+                            </div>
                         </div>
                         <div class="overflow-y-auto min-h-0 pr-2 space-y-2 mt-2 custom-scrollbar">
-                            <div v-if="openedOrg?.spaces?.length" v-for="space in openedOrg?.spaces" :key="space.id" class="flex items-center justify-between p-3 bg-(--bg) border border-(--border-color) rounded-xl group hover:border-(--primary)/50 transition-colors">
+                            <div v-if="filteredSpaces.length" v-for="space in filteredSpaces" :key="space.id" class="flex items-center justify-between p-3 bg-(--bg) border border-(--border-color) rounded-xl group hover:border-(--primary)/50 transition-colors">
                                 <div class="flex items-center gap-3 overflow-hidden">
-                                    <div class="w-8 h-8 rounded-lg bg-(--primary)/10 text-(--primary) flex items-center justify-center shrink-0">
-                                        <i class="bi bi-folder-fill"></i>
+                                    <div class="w-8 h-8 rounded-lg bg-(--primary)/10 text-(--primary) flex items-center justify-center shrink-0 overflow-hidden">
+                                        <img v-if="space.logo && space.logo.includes('data:')" :src="space.logo" :alt="space.name" class="w-full h-full object-cover" />
+                                        <i v-else-if="space.logo" class="bi" :class="space.logo"></i>
+                                        <span v-else class="text-[11px] font-black">{{ space.name.substring(0, 2).toUpperCase() }}</span>
                                     </div>
                                     <span class="font-medium text-sm truncate group-hover:text-(--primary) transition-colors">{{ space.name }}</span>
                                 </div>
@@ -43,7 +56,7 @@
                                 </span>
                             </div>
                             <div v-else class="text-sm text-(--text2) italic mt-2 p-6 text-center border border-dashed border-(--border-color) rounded-xl bg-(--bg)/50">
-                                Aucun espace de travail n'utilise de stockage.
+                                {{ spaceSearch ? 'Aucun espace ne correspond à la recherche.' : "Aucun espace de travail n'utilise de stockage." }}
                             </div>
                         </div>
                     </div>
@@ -243,6 +256,13 @@ onMounted(() => {
     if (openedOrg.value) {
         fetchFiles();
     }
+});
+
+const spaceSearch = ref('');
+const filteredSpaces = computed(() => {
+    const q = spaceSearch.value.trim().toLowerCase();
+    const spaces = openedOrg.value?.spaces || [];
+    return q ? spaces.filter(s => s.name.toLowerCase().includes(q)) : spaces;
 });
 
 const typeFilter = ref('all');
