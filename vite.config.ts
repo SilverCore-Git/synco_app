@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from 'vite'
+import { build as viteBuild, defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite';
 import basicSsl from '@vitejs/plugin-basic-ssl';
@@ -64,12 +64,50 @@ function devLanCspPlugin(): Plugin {
   };
 }
 
+// Service worker FCM : compilé depuis src/sw/ avec le SDK Firebase embarqué, servi à la même URL
+// que l'ancien fichier statique (/firebase-messaging-sw.js), donc les abonnements push existants
+// continuent de fonctionner. Évite tout importScripts() vers un CDN tiers (audit FX10).
+function firebaseSwPlugin(): Plugin {
+  const entry = fileURLToPath(new URL('./src/sw/firebase-messaging-sw.ts', import.meta.url));
+  const compile = async (): Promise<string> => {
+    const result = await viteBuild({
+      configFile: false,
+      logLevel: 'silent',
+      build: {
+        write: false,
+        minify: true,
+        lib: { entry, formats: ['iife'], name: 'SyncoFirebaseSw', fileName: () => 'firebase-messaging-sw.js' },
+      },
+    });
+    const outputs = (Array.isArray(result) ? result : [result]) as any[];
+    return outputs[0].output[0].code as string;
+  };
+  return {
+    name: 'firebase-messaging-sw',
+    configureServer(server) {
+      server.middlewares.use('/firebase-messaging-sw.js', async (_req, res, next) => {
+        try {
+          res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
+          res.setHeader('Service-Worker-Allowed', '/');
+          res.end(await compile());
+        } catch (error) {
+          next(error);
+        }
+      });
+    },
+    async generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'firebase-messaging-sw.js', source: await compile() });
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
     vue(),
     tailwindcss(),
     useHttps ? basicSsl() : undefined,
     devLanCspPlugin(),
+    firebaseSwPlugin(),
   ].filter(Boolean),
   resolve: {
     alias: {
