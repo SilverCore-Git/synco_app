@@ -59,7 +59,7 @@
                 <div class="bg-(--bg2) rounded-lg p-4 mb-4 mt-3 border border-(--border-color) shadow-inner">
                     <!-- Name -->
                     <h2 class="text-xl font-bold text-(--text) leading-tight">{{ u.name }}</h2>
-                    <p class="text-xs text-(--primary) font-bold uppercase tracking-wider mb-1" v-if="u.job">{{ u.job }}</p>
+                    <p class="text-xs text-(--primary) font-bold uppercase tracking-wider mb-1" v-if="headline">{{ headline }}</p>
                     <p class="text-sm text-(--text2) mb-3">{{ u.email }}</p>
                     
                     <div v-if="u.description">
@@ -67,6 +67,11 @@
                         <h3 class="text-[11px] font-bold text-(--text2) uppercase tracking-wide mb-2">À propos</h3>
                         <p class="text-sm text-(--text) leading-relaxed">{{ u.description }}</p>
                     </div>
+
+                    <template v-if="orgProfile?.blocks.length">
+                        <div class="w-full h-px bg-(--text)/5 my-3"></div>
+                        <ProfileBlocksView :profile="orgProfile" />
+                    </template>
 
                     <div class="w-full h-px bg-(--text)/5 my-3"></div>
 
@@ -139,6 +144,8 @@ import type { User } from '@/types/types';
 import { user, openedOrg } from '@/assets/var';
 import { profilePosition } from '@/composables/useProfile';
 import { getAverageColor } from '@/assets/utils/getAverageColor';
+import { profileForOrg } from '@/assets/utils/userProfile';
+import ProfileBlocksView from '@/components/profile/ProfileBlocksView.vue';
 import { ref, watch } from 'vue';
 
 const props = defineProps<{
@@ -161,6 +168,17 @@ const orgMember = computed(() => {
     if (!openedOrg.value?.members || !u.value?.id) return null;
     return openedOrg.value.members.find(m => m.userId === u.value.id) || null;
 });
+
+// Le serveur ne sert dans `openedOrg.members` que les blocs visibles dans
+// cette org, et le poste principal correspondant. L'utilisateur courant a
+// en revanche son profil complet : on le filtre ici pour montrer la même
+// chose que ce que voient ses collègues.
+const orgProfile = computed(() => {
+    if (u.value?.id === user.value?.id) return profileForOrg(user.value?.profile, openedOrg.value?.id ?? null);
+    return orgMember.value?.user?.profile ?? u.value?.profile ?? null;
+});
+
+const headline = computed(() => orgMember.value?.user?.job ?? u.value?.job);
 
 const memberRoles = computed(() => {
     if (!orgMember.value?.memberRoles) return [];

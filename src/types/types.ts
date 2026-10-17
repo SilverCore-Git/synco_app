@@ -103,6 +103,32 @@ export interface ReactionUser {
   avatarUrl?: string;
 }
 
+// Profil professionnel en blocs — cf. synco_api src/utils/userProfile.ts.
+// `orgIds: null` = visible dans toutes les organisations de l'utilisateur.
+export type ProfileBlockType = 'positions' | 'skills' | 'projects' | 'languages' | 'links' | 'custom';
+
+export interface ProfilePositionItem { id: string; title: string; team?: string; since?: string; primary?: boolean }
+export interface ProfileSkillItem { id: string; label: string; level?: 'notions' | 'confirme' | 'expert' }
+export interface ProfileProjectItem { id: string; name: string; role?: string; description?: string; url?: string }
+export interface ProfileLanguageItem { id: string; label: string; level?: 'notions' | 'professionnel' | 'courant' | 'natif' }
+export interface ProfileLinkItem { id: string; label: string; url: string }
+export interface ProfileCustomItem { id: string; label: string; value: string }
+
+interface ProfileBlockBase { id: string; title?: string; orgIds: string[] | null }
+
+export type ProfileBlock =
+  | ProfileBlockBase & { type: 'positions'; items: ProfilePositionItem[] }
+  | ProfileBlockBase & { type: 'skills'; items: ProfileSkillItem[] }
+  | ProfileBlockBase & { type: 'projects'; items: ProfileProjectItem[] }
+  | ProfileBlockBase & { type: 'languages'; items: ProfileLanguageItem[] }
+  | ProfileBlockBase & { type: 'links'; items: ProfileLinkItem[] }
+  | ProfileBlockBase & { type: 'custom'; items: ProfileCustomItem[] };
+
+export interface UserProfile {
+  version: 1;
+  blocks: ProfileBlock[];
+}
+
 export interface User {
   id: string;
   email: string;
@@ -111,7 +137,8 @@ export interface User {
   lastName?: string;
   pseudo?: string;
   avatarUrl?: string;
-  job?: string;
+  job?: string; // Poste principal (dénormalisé depuis `profile`)
+  profile?: UserProfile;
   description?: string;
 
   publicKey?: string; // Format JWK (string JSON)

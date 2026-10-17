@@ -272,14 +272,16 @@ const initSocketListener = async () => {
         if (member && member.user) {
             if (data.name !== undefined) member.user.name = data.name;
             if (data.avatarUrl !== undefined) member.user.avatarUrl = data.avatarUrl;
-            if (data.job !== undefined) member.user.job = data.job;
+            if (data.job !== undefined) member.user.job = data.job ?? undefined;
+            if (data.profile !== undefined) member.user.profile = data.profile;
             if (data.description !== undefined) member.user.description = data.description;
         }
         
+        // `job`/`profile` reçus ici sont filtrés pour cette org : ne pas en
+        // écraser le profil complet de l'utilisateur courant (cf. GET /me).
         if (user.value && user.value.id === userId) {
             if (data.name !== undefined) user.value.name = data.name;
             if (data.avatarUrl !== undefined) user.value.avatarUrl = data.avatarUrl;
-            if (data.job !== undefined) user.value.job = data.job;
             if (data.description !== undefined) user.value.description = data.description;
         }
     });
