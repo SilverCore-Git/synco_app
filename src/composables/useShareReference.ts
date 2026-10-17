@@ -7,7 +7,7 @@ import {
 import { pinOrCheckKey, KeyChangedError } from '@/assets/utils/keyPinning';
 import { getCachedThreadKey, setCachedThreadKey } from '@/assets/utils/threadKeyCache';
 import { requireTrustedKey } from '@/assets/utils/keyTrust';
-import { encryptThreadMessageV2 } from '@/assets/utils/messageAuth';
+import { encryptDmV2, encryptThreadMessageV2 } from '@/assets/utils/messageAuth';
 import { buildReferenceToken, extractReferenceTokens, type ReferenceKind } from '@/composables/useReferences';
 
 /**
@@ -114,7 +114,9 @@ async function sendToDM(recipientId: string, recipientPublicKey: string, content
 
     let encrypted;
     try {
-        encrypted = await encryptForPeer(content, recipientPublicKey, user.value?.publicKey || undefined);
+        encrypted = user.value?.id
+            ? await encryptDmV2(content, recipientPublicKey, user.value.publicKey || undefined, { senderId: user.value.id, recipientId })
+            : await encryptForPeer(content, recipientPublicKey, user.value?.publicKey || undefined);
     } catch (e) {
         console.error('[useShareReference] DM encryption failed:', e);
         return { ok: false, error: 'Erreur lors du chiffrement.' };

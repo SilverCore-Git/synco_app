@@ -9,7 +9,7 @@ mock.module("idb-keyval", () => ({
 
 const { user, openedOrg } = await import("@/assets/var");
 const { privateSignKey } = await import("./crypto");
-const { encryptThreadMessageV2, decryptThreadMessageV2, clientMsgIdOf, isAuthenticatedIv } = await import("./messageAuth");
+const { encryptThreadMessageV2, decryptThreadMessageV2, clientMsgIdOf, isAuthenticatedIv, encryptDmV2, decryptDmV2, findReplayedDms, dmClientMsgIdOf } = await import("./messageAuth");
 const { decryptMessages } = await import("./decryptMessages");
 const { encryptMessageWithContentKey } = await import("./crypto");
 
@@ -98,5 +98,63 @@ describe("messages de salon authentifiés (audit FC7)", () => {
         expect(out[1]!.authState).toBe("verified");
         expect(out[2]!.authState).toBe("invalid");
         expect(out[2]!.content).toContain("Expéditeur non vérifié");
+    });
+});
+
+describe("DM authentifiés (audit FC7)", () => {
+    const rsaPair = () => crypto.subtle.generateKey(
+        { name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["encrypt", "decrypt"]);
+    const jwk = async (k: CryptoKey) => JSON.stringify(await crypto.subtle.exportKey("jwk", k));
+
+    async function setup() {
+        store.clear();
+        const sign = await signingPair();
+        privateSignKey.value = sign.privateKey;
+        const pub = JSON.stringify(await crypto.subtle.exportKey("jwk", sign.publicKey));
+        (user as any).value = { id: "bob" };
+        (openedOrg as any).value = { members: [{ userId: "alice", user: { publicSignKey: pub } }] };
+        const alice = await rsaPair(), bob = await rsaPair();
+        return { alice, bob, ctx: { senderId: "alice", recipientId: "bob" } };
+    }
+
+    test("aller-retour destinataire et expéditeur, signature vérifiée", async () => {
+        const { alice, bob, ctx } = await setup();
+        const e = await encryptDmV2("salut Bob", await jwk(bob.publicKey), await jwk(alice.publicKey), ctx);
+        const msg = { content: e.ciphertext, nonce: e.iv, encryptedAesKey: e.encryptedAesKey, selfEncryptedAesKey: e.selfEncryptedAesKey };
+        expect(await decryptDmV2(msg, e.encryptedAesKey, bob.privateKey, ctx)).toEqual({ text: "salut Bob", auth: "verified" });
+        expect((await decryptDmV2(msg, e.selfEncryptedAesKey!, alice.privateKey, ctx)).text).toBe("salut Bob");
+    });
+
+    test("DM fabriqué par un tiers au nom d'Alice (clé publique de Bob suffit) : invalid", async () => {
+        const { alice, bob, ctx } = await setup();
+        const mallory = await signingPair();
+        privateSignKey.value = mallory.privateKey;
+        const e = await encryptDmV2("virement urgent", await jwk(bob.publicKey), undefined, ctx);
+        const msg = { content: e.ciphertext, nonce: e.iv, encryptedAesKey: e.encryptedAesKey, selfEncryptedAesKey: undefined };
+        expect((await decryptDmV2(msg, e.encryptedAesKey, bob.privateKey, ctx)).auth).toBe("invalid");
+    });
+
+    test("réattribution (autre expéditeur) ou autre destinataire : déchiffrement refusé", async () => {
+        const { bob, ctx } = await setup();
+        const e = await encryptDmV2("x", await jwk(bob.publicKey), undefined, ctx);
+        const msg = { content: e.ciphertext, nonce: e.iv, encryptedAesKey: e.encryptedAesKey, selfEncryptedAesKey: undefined };
+        await expect(decryptDmV2(msg, e.encryptedAesKey, bob.privateKey, { senderId: "direction", recipientId: "bob" })).rejects.toThrow();
+        await expect(decryptDmV2(msg, e.encryptedAesKey, bob.privateKey, { senderId: "alice", recipientId: "carol" })).rejects.toThrow();
+    });
+
+    test("clé AES emballée remplacée par le serveur : signature invalide", async () => {
+        const { bob, ctx } = await setup();
+        const e = await encryptDmV2("x", await jwk(bob.publicKey), undefined, ctx);
+        const msg = { content: e.ciphertext, nonce: e.iv, encryptedAesKey: e.encryptedAesKey, selfEncryptedAesKey: "AAAA" };
+        expect((await decryptDmV2(msg, e.encryptedAesKey, bob.privateKey, ctx)).auth).toBe("invalid");
+    });
+
+    test("rejeu repéré par date, identifiant conservé à l'édition", async () => {
+        const { bob, ctx } = await setup();
+        const e = await encryptDmV2("x", await jwk(bob.publicKey), undefined, ctx);
+        const dm = (id: string, at: number) => ({ id, senderId: "alice", recipientId: "bob", nonce: e.iv, createdAt: new Date(at).toISOString() });
+        expect([...findReplayedDms([dm("b", 2), dm("a", 1)])]).toEqual(["b"]);
+        const edited = await encryptDmV2("y", await jwk(bob.publicKey), undefined, ctx, dmClientMsgIdOf(e.iv));
+        expect(dmClientMsgIdOf(edited.iv)).toBe(dmClientMsgIdOf(e.iv));
     });
 });

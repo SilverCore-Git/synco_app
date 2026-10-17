@@ -1,4 +1,4 @@
-import { privateSignKey } from './crypto';
+import { decryptFromPeer, encryptForPeer, privateSignKey } from './crypto';
 import { lookupCreatorSignKey, requireTrustedSignKey } from './keyTrust';
 
 /**
@@ -138,6 +138,117 @@ export function findReplayedMessages(msgs: Array<{ id: string; threadId: string;
         const cid = clientMsgIdOf(m.iv);
         if (!cid) continue;
         const key = `${m.threadId}|${m.senderId}|${cid}`;
+        if (seen.has(key)) replayed.add(m.id);
+        else seen.add(key);
+    }
+    return replayed;
+}
+
+
+// ---------------------------------------------------------------------------
+// Messages privés (DM), format v2 — audit FC7 §1-2
+// ---------------------------------------------------------------------------
+//
+// Le DM est chiffré pour le destinataire (RSA-OAEP + AES-GCM) sans qu'aucune clé de l'expéditeur
+// n'intervienne : n'importe qui peut en fabriquer un. Le format v2 ajoute au champ `nonce` (opaque
+// pour l'API) un identifiant de message et une signature ECDSA de l'expéditeur ; l'AAD d'AES-GCM
+// lie le chiffré à (expéditeur, destinataire, identifiant). Les clés AES emballées font partie des
+// octets signés.
+//
+//   "d2." + ivB64 + "." + clientMsgId + "." + signatureB64
+
+const DM_V2_PREFIX = 'd2.';
+
+export interface DmContext { senderId: string; recipientId: string }
+
+export const isAuthenticatedDmNonce = (nonce: string | null | undefined): boolean => !!nonce && nonce.startsWith(DM_V2_PREFIX);
+
+function parseDmNonce(nonce: string): ParsedIv {
+    const parts = nonce.slice(DM_V2_PREFIX.length).split('.');
+    if (parts.length !== 3 || !parts[0] || !parts[1]) throw new MessageAuthError('Invalid v2 DM nonce');
+    return { iv: parts[0], clientMsgId: parts[1], signature: parts[2] ?? '' };
+}
+
+export const dmClientMsgIdOf = (nonce: string | null | undefined): string | undefined =>
+    isAuthenticatedDmNonce(nonce) ? parseDmNonce(nonce!).clientMsgId : undefined;
+
+const dmAad = (ctx: DmContext, clientMsgId: string) =>
+    enc.encode(`synco-dm-v2|${ctx.senderId}|${ctx.recipientId}|${clientMsgId}`);
+
+const dmSignedBytes = (ctx: DmContext, clientMsgId: string, ivB64: string, ciphertext: string, encryptedAesKey: string, selfEncryptedAesKey: string) =>
+    enc.encode(`synco-sig-v1|dm|${ctx.senderId}|${ctx.recipientId}|${clientMsgId}|${ivB64}|${ciphertext}|${encryptedAesKey}|${selfEncryptedAesKey}`);
+
+/** Chiffre un DM au format v2. `iv` du résultat est à envoyer dans le champ `nonce`. */
+export async function encryptDmV2(
+    text: string,
+    peerPublicKeyJWK: string,
+    myPublicKeyJWK: string | object | undefined,
+    ctx: DmContext,
+    clientMsgId: string = crypto.randomUUID()
+) {
+    const r = await encryptForPeer(text, peerPublicKeyJWK, myPublicKeyJWK, dmAad(ctx, clientMsgId));
+    let signature = '';
+    if (privateSignKey.value) {
+        const sig = await crypto.subtle.sign(
+            { name: 'ECDSA', hash: 'SHA-256' },
+            privateSignKey.value,
+            dmSignedBytes(ctx, clientMsgId, r.iv, r.ciphertext, r.encryptedAesKey, r.selfEncryptedAesKey ?? '') as BufferSource
+        );
+        signature = toB64(new Uint8Array(sig));
+    }
+    return { ...r, iv: `${DM_V2_PREFIX}${r.iv}.${clientMsgId}.${signature}` };
+}
+
+async function verifyDmSignature(
+    parsed: ParsedIv, ctx: DmContext, ciphertext: string, encryptedAesKey: string, selfEncryptedAesKey: string
+): Promise<MessageAuthState> {
+    const signKeyJwk = lookupCreatorSignKey(ctx.senderId);
+    if (!parsed.signature) return signKeyJwk ? 'invalid' : 'unsigned';
+    if (!signKeyJwk) return 'unsigned';
+    try {
+        const pinned = await requireTrustedSignKey(ctx.senderId, signKeyJwk);
+        const key = await crypto.subtle.importKey('jwk', JSON.parse(pinned), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+        const ok = await crypto.subtle.verify(
+            { name: 'ECDSA', hash: 'SHA-256' },
+            key,
+            fromB64(parsed.signature) as BufferSource,
+            dmSignedBytes(ctx, parsed.clientMsgId, parsed.iv, ciphertext, encryptedAesKey, selfEncryptedAesKey) as BufferSource
+        );
+        return ok ? 'verified' : 'invalid';
+    } catch {
+        return 'invalid';
+    }
+}
+
+/**
+ * Déchiffre un DM v2 avec `aesKeyForMe` (la clé AES emballée pour moi : `encryptedAesKey` si je suis
+ * le destinataire, `selfEncryptedAesKey` si j'en suis l'expéditeur). Lève si le chiffré a été
+ * réattribué ou déplacé. `replayed` : cf. findReplayedDms.
+ */
+export async function decryptDmV2(
+    msg: { content: string; nonce: string; encryptedAesKey: string | null | undefined; selfEncryptedAesKey: string | null | undefined },
+    aesKeyForMe: string,
+    myPrivateKey: CryptoKey,
+    ctx: DmContext,
+    replayed = false
+): Promise<{ text: string; auth: MessageAuthState }> {
+    const parsed = parseDmNonce(msg.nonce);
+    const text = await decryptFromPeer(msg.content, aesKeyForMe, parsed.iv, myPrivateKey, dmAad(ctx, parsed.clientMsgId));
+    const auth = replayed
+        ? 'invalid'
+        : await verifyDmSignature(parsed, ctx, msg.content, msg.encryptedAesKey ?? '', msg.selfEncryptedAesKey ?? '');
+    return { text, auth };
+}
+
+/** Ids des DM qui rejouent l'identifiant d'un DM plus ancien de la liste (le plus ancien reste valide). */
+export function findReplayedDms(msgs: Array<{ id: string; senderId: string; recipientId: string; nonce: string | null; createdAt: string | Date }>): Set<string> {
+    const replayed = new Set<string>();
+    const seen = new Set<string>();
+    const ordered = [...msgs].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    for (const m of ordered) {
+        const cid = dmClientMsgIdOf(m.nonce);
+        if (!cid) continue;
+        const key = `${m.senderId}|${m.recipientId}|${cid}`;
         if (seen.has(key)) replayed.add(m.id);
         else seen.add(key);
     }

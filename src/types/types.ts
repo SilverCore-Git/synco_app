@@ -227,6 +227,8 @@ export interface DMMessage {
     isE2EE: boolean;
   /** Posé côté client : reçu en clair, affiché avec un marqueur (audit FC7). */
   securityState?: 'plaintext';
+  /** Authenticité d'un DM (FC7), posée au déchiffrement. */
+  authState?: 'legacy' | 'unsigned' | 'verified' | 'invalid';
     content: string;
     nonce: string;
     encryptedAesKey: string | null;

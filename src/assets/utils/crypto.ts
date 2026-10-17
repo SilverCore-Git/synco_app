@@ -95,7 +95,7 @@ export async function decryptUserPrivateKey (
 
 
 
-export async function encryptForPeer (text: string, peerPublicKeyJWK: string, myPublicKeyJWK?: string | object) 
+export async function encryptForPeer (text: string, peerPublicKeyJWK: string, myPublicKeyJWK?: string | object, additionalData?: Uint8Array) 
 {
 
     const encoder = new TextEncoder();
@@ -116,7 +116,7 @@ export async function encryptForPeer (text: string, peerPublicKeyJWK: string, my
 
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const ciphertext = await crypto.subtle.encrypt(
-        { name: "AES-GCM", iv },
+        additionalData ? { name: "AES-GCM", iv, additionalData: additionalData as BufferSource } : { name: "AES-GCM", iv },
         messageKey,
         encoder.encode(text)
     );
@@ -169,7 +169,8 @@ export async function decryptFromPeer (
     ciphertextBase64: string,
     encryptedAesKeyBase64: string,
     ivBase64: string,
-    myPrivateKey: CryptoKey
+    myPrivateKey: CryptoKey,
+    additionalData?: Uint8Array
 ) 
 {
 
@@ -188,7 +189,7 @@ export async function decryptFromPeer (
     );
 
     const decrypted = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv },
+        additionalData ? { name: "AES-GCM", iv, additionalData: additionalData as BufferSource } : { name: "AES-GCM", iv },
         aesKey,
         ciphertext
     );

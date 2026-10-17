@@ -383,7 +383,9 @@ import useResponse from '@/composables/useResponse';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useNotification } from '@/composables/useNotification';
 import { useRecentDMs } from '@/composables/useRecentDMs';
-import { getCachedPlaintext, setCachedPlaintext } from '@/assets/utils/dmPlaintextCache';
+import { getCachedAuth, getCachedPlaintext, setCachedPlaintext } from '@/assets/utils/dmPlaintextCache';
+import { decryptDmV2, findReplayedDms, isAuthenticatedDmNonce, encryptDmV2 } from '@/assets/utils/messageAuth';
+import { UNVERIFIED_SENDER_TEXT } from '@/assets/utils/decryptMessages';
 import { checkKeyTrust, trustKey, computeKeyFingerprint, requireTrustedKey, dismissKeyTrustAlert, type KeyTrustResult } from '@/assets/utils/keyTrust';
 import Popup from '@/components/Popup.vue';
 
@@ -639,7 +641,7 @@ const hydrateParticipants = (msg: DMMessage): DMMessage => {
     return hydrated;
 };
 
-const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<DMMessage | null> => {
+const decryptSingleMessage = async (msg: DMMessage | null | undefined, replayed = false): Promise<DMMessage | null> => {
 
         if (!msg) return null;
         
@@ -664,9 +666,20 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<
         }
 
         const cached = getCachedPlaintext(msg.id, msg.nonce);
-        if (cached !== undefined) return { ...msg, content: cached };
+        if (cached !== undefined && !replayed) return { ...msg, content: cached, authState: getCachedAuth(msg.id, msg.nonce) ?? 'legacy' };
 
         try {
+
+            // DM authentifié (FC7) : AAD (expéditeur, destinataire, id) + signature de l'expéditeur.
+            if (isAuthenticatedDmNonce(msg.nonce)) {
+                // Les citations (replyMessage) n'embarquent pas recipientId : c'est l'autre participant.
+                const recipientId = msg.recipientId ?? (msg.senderId === user.value?.id ? recipient.value?.id : user.value?.id);
+                if (!recipientId) throw new Error('DM recipient unknown');
+                const { text, auth } = await decryptDmV2(msg, keyToUse, privateKey.value, { senderId: msg.senderId, recipientId }, replayed);
+                if (auth === 'invalid') return { ...msg, content: UNVERIFIED_SENDER_TEXT, authState: 'invalid' };
+                setCachedPlaintext(msg.id, msg.nonce, text, auth);
+                return { ...msg, content: text, authState: auth };
+            }
 
             const clearText = await decryptFromPeer(msg.content, keyToUse, msg.nonce, privateKey.value);
             setCachedPlaintext(msg.id, msg.nonce, clearText);
@@ -682,8 +695,11 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<
 
 // Contenu principal uniquement (pas la citation), tous les messages en même
 // temps : WebCrypto parallélise lui-même les déchiffrements RSA.
-const decryptMain = (list: DMMessage[]): Promise<DMMessage[]> =>
-    Promise.all(list.map(async m => (await decryptSingleMessage(m)) ?? m));
+const decryptMain = (list: DMMessage[]): Promise<DMMessage[]> => {
+    // DM qui rejouent l'identifiant d'un DM plus ancien de la liste (FC7).
+    const replayed = findReplayedDms(list as any);
+    return Promise.all(list.map(async m => (await decryptSingleMessage(m, replayed.has(m.id))) ?? m));
+};
 
 // Texte clair des messages déjà déchiffrés, par id : une citation dont le
 // message d'origine est dans la liste se résout sans aucun déchiffrement.
@@ -1111,7 +1127,9 @@ const sendMessage = async () => {
 
         try {
             
-            const encryptedData = await encryptForPeer(clearContent, recipientPubKey, myPubKey || undefined);
+            const encryptedData = user.value?.id
+                ? await encryptDmV2(clearContent, recipientPubKey, myPubKey || undefined, { senderId: user.value.id, recipientId: recipient.value.id })
+                : await encryptForPeer(clearContent, recipientPubKey, myPubKey || undefined);
 
             finalContent = encryptedData.ciphertext;
             finalEncryptedAesKey = encryptedData.encryptedAesKey;
