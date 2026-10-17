@@ -25,12 +25,12 @@
                     </div>
 
                     <!-- Détails par espace de travail -->
-                    <div class="bg-(--bg2) border border-(--border-color) rounded-2xl p-6 shadow-sm flex flex-col gap-4 max-h-[300px]">
+                    <div class="bg-(--bg2) border border-(--border-color) rounded-2xl p-6 shadow-sm flex flex-col gap-4 max-h-[420px]">
                         <div>
                             <h4 class="text-sm font-bold text-(--text)">Détails par Espace de travail</h4>
                             <p class="text-xs text-(--text2) mt-1">Répartition de l'utilisation du stockage.</p>
                         </div>
-                        <div class="overflow-y-auto pr-2 space-y-2 mt-2 custom-scrollbar">
+                        <div class="overflow-y-auto min-h-0 pr-2 space-y-2 mt-2 custom-scrollbar">
                             <div v-if="openedOrg?.spaces?.length" v-for="space in openedOrg?.spaces" :key="space.id" class="flex items-center justify-between p-3 bg-(--bg) border border-(--border-color) rounded-xl group hover:border-(--primary)/50 transition-colors">
                                 <div class="flex items-center gap-3 overflow-hidden">
                                     <div class="w-8 h-8 rounded-lg bg-(--primary)/10 text-(--primary) flex items-center justify-center shrink-0">
@@ -97,7 +97,7 @@
                         </button>
                     </div>
 
-                    <div class="overflow-auto max-h-[500px] custom-scrollbar">
+                    <div class="overflow-auto max-h-[480px] custom-scrollbar">
 
                         <table class="w-full text-left border-collapse">
 
