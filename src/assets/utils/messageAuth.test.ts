@@ -173,3 +173,17 @@ describe("clé de signature épinglée prioritaire sur l'annuaire (revue FC7)", 
         expect((await decryptThreadMessageV2(second.ciphertext, stripped, key, ctx)).auth).toBe("invalid");
     });
 });
+
+describe("anciens DM (compatibilité FC7)", () => {
+    test("un DM chiffré sans AAD ni signature se déchiffre toujours avec decryptFromPeer, et n'est pas pris pour du v2", async () => {
+        const { encryptForPeer, decryptFromPeer } = await import("./crypto");
+        const { isAuthenticatedDmNonce } = await import("./messageAuth");
+        const rsa = await crypto.subtle.generateKey(
+            { name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["encrypt", "decrypt"]);
+        const pub = JSON.stringify(await crypto.subtle.exportKey("jwk", rsa.publicKey));
+        const old = await encryptForPeer("ancien DM", pub, pub);
+        expect(isAuthenticatedDmNonce(old.iv)).toBe(false);
+        expect(await decryptFromPeer(old.ciphertext, old.encryptedAesKey, old.iv, rsa.privateKey)).toBe("ancien DM");
+        expect(await decryptFromPeer(old.ciphertext, old.selfEncryptedAesKey!, old.iv, rsa.privateKey)).toBe("ancien DM");
+    });
+});
