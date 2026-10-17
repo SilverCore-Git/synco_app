@@ -1,4 +1,5 @@
 import { decryptFromPeer, encryptForPeer, privateSignKey } from './crypto';
+import { noteMessageRevision } from './messageRevisions';
 import { lookupCreatorSignKey, readPinnedSignKey, requireTrustedSignKey } from './keyTrust';
 
 /**
@@ -16,6 +17,7 @@ import { lookupCreatorSignKey, readPinnedSignKey, requireTrustedSignKey } from '
  * comme opaque. Un `iv` ancien (base64 seul) reste lu comme avant, sans garantie d'origine.
  *
  *   v2 : "m2." + ivB64 + "." + clientMsgId + "." + signatureB64 (vide si l'expéditeur n'a pas de clé de signature)
+ *        [+ "." + rev pour une édition : compteur croissant, dans l'AAD et la signature ; absent = 0]
  */
 
 const V2_PREFIX = 'm2.';
@@ -28,14 +30,23 @@ export type MessageAuthState = 'legacy' | 'unsigned' | 'verified' | 'invalid';
 
 export class MessageAuthError extends Error {}
 
-interface ParsedIv { iv: string; clientMsgId: string; signature: string }
+interface ParsedIv { iv: string; clientMsgId: string; signature: string; rev: number }
+
+function parseRev(raw: string | undefined): number {
+    if (raw === undefined) return 0;
+    const n = Number(raw);
+    if (!Number.isSafeInteger(n) || n < 1) throw new MessageAuthError('Invalid revision');
+    return n;
+}
+
+const revSuffix = (rev: number) => (rev > 0 ? `|rev:${rev}` : '');
 
 export const isAuthenticatedIv = (ivField: string | null | undefined): boolean => !!ivField && ivField.startsWith(V2_PREFIX);
 
 export function parseAuthenticatedIv(ivField: string): ParsedIv {
     const parts = ivField.slice(V2_PREFIX.length).split('.');
-    if (parts.length !== 3 || !parts[0] || !parts[1]) throw new MessageAuthError('Invalid v2 message iv');
-    return { iv: parts[0], clientMsgId: parts[1], signature: parts[2] ?? '' };
+    if (parts.length < 3 || parts.length > 4 || !parts[0] || !parts[1]) throw new MessageAuthError('Invalid v2 message iv');
+    return { iv: parts[0], clientMsgId: parts[1], signature: parts[2] ?? '', rev: parseRev(parts[3]) };
 }
 
 /**
@@ -47,11 +58,11 @@ async function senderSignKey(senderId: string): Promise<string | null> {
     return (await readPinnedSignKey(senderId)) ?? lookupCreatorSignKey(senderId);
 }
 
-const aad = (threadId: string, senderId: string, clientMsgId: string) =>
-    enc.encode(`synco-msg-v2|${threadId}|${senderId}|${clientMsgId}`);
+const aad = (threadId: string, senderId: string, clientMsgId: string, rev = 0) =>
+    enc.encode(`synco-msg-v2|${threadId}|${senderId}|${clientMsgId}${revSuffix(rev)}`);
 
-const signedBytes = (threadId: string, senderId: string, clientMsgId: string, ivB64: string, ciphertextB64: string) =>
-    enc.encode(`synco-sig-v1|thread|${threadId}|${senderId}|${clientMsgId}|${ivB64}|${ciphertextB64}`);
+const signedBytes = (threadId: string, senderId: string, clientMsgId: string, ivB64: string, ciphertextB64: string, rev = 0) =>
+    enc.encode(`synco-sig-v1|thread|${threadId}|${senderId}|${clientMsgId}|${ivB64}|${ciphertextB64}${revSuffix(rev)}`);
 
 export interface MessageContext { threadId: string; senderId: string }
 
@@ -63,11 +74,12 @@ export async function encryptThreadMessageV2(
     text: string,
     threadKey: CryptoKey,
     ctx: MessageContext,
-    clientMsgId: string = crypto.randomUUID()
+    clientMsgId: string = crypto.randomUUID(),
+    rev = 0
 ): Promise<{ ciphertext: string; iv: string }> {
     const ivBytes = crypto.getRandomValues(new Uint8Array(12));
     const ct = new Uint8Array(await crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv: ivBytes, additionalData: aad(ctx.threadId, ctx.senderId, clientMsgId) },
+        { name: 'AES-GCM', iv: ivBytes, additionalData: aad(ctx.threadId, ctx.senderId, clientMsgId, rev) },
         threadKey,
         enc.encode(text)
     ));
@@ -79,16 +91,20 @@ export async function encryptThreadMessageV2(
         const sig = await crypto.subtle.sign(
             { name: 'ECDSA', hash: 'SHA-256' },
             privateSignKey.value,
-            signedBytes(ctx.threadId, ctx.senderId, clientMsgId, ivB64, ciphertext) as BufferSource
+            signedBytes(ctx.threadId, ctx.senderId, clientMsgId, ivB64, ciphertext, rev) as BufferSource
         );
         signature = toB64(new Uint8Array(sig));
     }
-    return { ciphertext, iv: `${V2_PREFIX}${ivB64}.${clientMsgId}.${signature}` };
+    return { ciphertext, iv: `${V2_PREFIX}${ivB64}.${clientMsgId}.${signature}${rev > 0 ? `.${rev}` : ''}` };
 }
 
 /** Identifiant de message à reprendre pour une édition ; undefined si le message est ancien. */
 export const clientMsgIdOf = (ivField: string | null | undefined): string | undefined =>
     isAuthenticatedIv(ivField) ? parseAuthenticatedIv(ivField!).clientMsgId : undefined;
+
+/** Révision d'un message v2 (0 = jamais édité), pour calculer la suivante lors d'une édition. */
+export const revisionOf = (ivField: string | null | undefined): number =>
+    isAuthenticatedIv(ivField) ? parseAuthenticatedIv(ivField!).rev : 0;
 
 async function verifySignature(parsed: ParsedIv, ctx: MessageContext, ciphertextB64: string): Promise<MessageAuthState> {
     const signKeyJwk = await senderSignKey(ctx.senderId);
@@ -105,7 +121,7 @@ async function verifySignature(parsed: ParsedIv, ctx: MessageContext, ciphertext
             { name: 'ECDSA', hash: 'SHA-256' },
             key,
             fromB64(parsed.signature) as BufferSource,
-            signedBytes(ctx.threadId, ctx.senderId, parsed.clientMsgId, parsed.iv, ciphertextB64) as BufferSource
+            signedBytes(ctx.threadId, ctx.senderId, parsed.clientMsgId, parsed.iv, ciphertextB64, parsed.rev) as BufferSource
         );
         return ok ? 'verified' : 'invalid';
     } catch {
@@ -127,11 +143,13 @@ export async function decryptThreadMessageV2(
 ): Promise<{ text: string; auth: MessageAuthState }> {
     const parsed = parseAuthenticatedIv(ivField);
     const plain = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: fromB64(parsed.iv), additionalData: aad(ctx.threadId, ctx.senderId, parsed.clientMsgId) },
+        { name: 'AES-GCM', iv: fromB64(parsed.iv), additionalData: aad(ctx.threadId, ctx.senderId, parsed.clientMsgId, parsed.rev) },
         threadKey,
         fromB64(ciphertextB64)
     );
-    const auth = replayed ? 'invalid' : await verifySignature(parsed, ctx, ciphertextB64);
+    let auth = replayed ? 'invalid' : await verifySignature(parsed, ctx, ciphertextB64);
+    // Version plus ancienne que la dernière éditée déjà vue : retour en arrière imposé par le serveur.
+    if (auth !== 'invalid' && !await noteMessageRevision(`thread|${ctx.threadId}|${ctx.senderId}|${parsed.clientMsgId}`, parsed.rev)) auth = 'invalid';
     return { text: new TextDecoder().decode(plain), auth };
 }
 
@@ -174,18 +192,21 @@ export const isAuthenticatedDmNonce = (nonce: string | null | undefined): boolea
 
 function parseDmNonce(nonce: string): ParsedIv {
     const parts = nonce.slice(DM_V2_PREFIX.length).split('.');
-    if (parts.length !== 3 || !parts[0] || !parts[1]) throw new MessageAuthError('Invalid v2 DM nonce');
-    return { iv: parts[0], clientMsgId: parts[1], signature: parts[2] ?? '' };
+    if (parts.length < 3 || parts.length > 4 || !parts[0] || !parts[1]) throw new MessageAuthError('Invalid v2 DM nonce');
+    return { iv: parts[0], clientMsgId: parts[1], signature: parts[2] ?? '', rev: parseRev(parts[3]) };
 }
 
 export const dmClientMsgIdOf = (nonce: string | null | undefined): string | undefined =>
     isAuthenticatedDmNonce(nonce) ? parseDmNonce(nonce!).clientMsgId : undefined;
 
-const dmAad = (ctx: DmContext, clientMsgId: string) =>
-    enc.encode(`synco-dm-v2|${ctx.senderId}|${ctx.recipientId}|${clientMsgId}`);
+export const dmRevisionOf = (nonce: string | null | undefined): number =>
+    isAuthenticatedDmNonce(nonce) ? parseDmNonce(nonce!).rev : 0;
 
-const dmSignedBytes = (ctx: DmContext, clientMsgId: string, ivB64: string, ciphertext: string, encryptedAesKey: string, selfEncryptedAesKey: string) =>
-    enc.encode(`synco-sig-v1|dm|${ctx.senderId}|${ctx.recipientId}|${clientMsgId}|${ivB64}|${ciphertext}|${encryptedAesKey}|${selfEncryptedAesKey}`);
+const dmAad = (ctx: DmContext, clientMsgId: string, rev = 0) =>
+    enc.encode(`synco-dm-v2|${ctx.senderId}|${ctx.recipientId}|${clientMsgId}${revSuffix(rev)}`);
+
+const dmSignedBytes = (ctx: DmContext, clientMsgId: string, ivB64: string, ciphertext: string, encryptedAesKey: string, selfEncryptedAesKey: string, rev = 0) =>
+    enc.encode(`synco-sig-v1|dm|${ctx.senderId}|${ctx.recipientId}|${clientMsgId}|${ivB64}|${ciphertext}|${encryptedAesKey}|${selfEncryptedAesKey}${revSuffix(rev)}`);
 
 /** Chiffre un DM au format v2. `iv` du résultat est à envoyer dans le champ `nonce`. */
 export async function encryptDmV2(
@@ -193,19 +214,20 @@ export async function encryptDmV2(
     peerPublicKeyJWK: string,
     myPublicKeyJWK: string | object | undefined,
     ctx: DmContext,
-    clientMsgId: string = crypto.randomUUID()
+    clientMsgId: string = crypto.randomUUID(),
+    rev = 0
 ) {
-    const r = await encryptForPeer(text, peerPublicKeyJWK, myPublicKeyJWK, dmAad(ctx, clientMsgId));
+    const r = await encryptForPeer(text, peerPublicKeyJWK, myPublicKeyJWK, dmAad(ctx, clientMsgId, rev));
     let signature = '';
     if (privateSignKey.value) {
         const sig = await crypto.subtle.sign(
             { name: 'ECDSA', hash: 'SHA-256' },
             privateSignKey.value,
-            dmSignedBytes(ctx, clientMsgId, r.iv, r.ciphertext, r.encryptedAesKey, r.selfEncryptedAesKey ?? '') as BufferSource
+            dmSignedBytes(ctx, clientMsgId, r.iv, r.ciphertext, r.encryptedAesKey, r.selfEncryptedAesKey ?? '', rev) as BufferSource
         );
         signature = toB64(new Uint8Array(sig));
     }
-    return { ...r, iv: `${DM_V2_PREFIX}${r.iv}.${clientMsgId}.${signature}` };
+    return { ...r, iv: `${DM_V2_PREFIX}${r.iv}.${clientMsgId}.${signature}${rev > 0 ? `.${rev}` : ''}` };
 }
 
 async function verifyDmSignature(
@@ -221,7 +243,7 @@ async function verifyDmSignature(
             { name: 'ECDSA', hash: 'SHA-256' },
             key,
             fromB64(parsed.signature) as BufferSource,
-            dmSignedBytes(ctx, parsed.clientMsgId, parsed.iv, ciphertext, encryptedAesKey, selfEncryptedAesKey) as BufferSource
+            dmSignedBytes(ctx, parsed.clientMsgId, parsed.iv, ciphertext, encryptedAesKey, selfEncryptedAesKey, parsed.rev) as BufferSource
         );
         return ok ? 'verified' : 'invalid';
     } catch {
@@ -242,10 +264,11 @@ export async function decryptDmV2(
     replayed = false
 ): Promise<{ text: string; auth: MessageAuthState }> {
     const parsed = parseDmNonce(msg.nonce);
-    const text = await decryptFromPeer(msg.content, aesKeyForMe, parsed.iv, myPrivateKey, dmAad(ctx, parsed.clientMsgId));
-    const auth = replayed
+    const text = await decryptFromPeer(msg.content, aesKeyForMe, parsed.iv, myPrivateKey, dmAad(ctx, parsed.clientMsgId, parsed.rev));
+    let auth: MessageAuthState = replayed
         ? 'invalid'
         : await verifyDmSignature(parsed, ctx, msg.content, msg.encryptedAesKey ?? '', msg.selfEncryptedAesKey ?? '');
+    if (auth !== 'invalid' && !await noteMessageRevision(`dm|${ctx.senderId}|${ctx.recipientId}|${parsed.clientMsgId}`, parsed.rev)) auth = 'invalid';
     return { text, auth };
 }
 

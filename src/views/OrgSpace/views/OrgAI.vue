@@ -26,6 +26,15 @@
         </div>
       </div>
 
+      <!-- Conversation lisible par le serveur : jamais présentée comme chiffrée (audit FC7) -->
+      <div
+        v-if="aiSessionNotEncrypted"
+        class="px-5 py-2 flex items-center gap-2 text-xs text-amber-500 bg-amber-500/10 border-b border-amber-500/20 shrink-0"
+      >
+        <i class="bi bi-unlock-fill" />
+        <span>Conversation non chiffrée de bout en bout : le serveur peut en lire le contenu.</span>
+      </div>
+
       <!-- Chat Container -->
       <div class="flex-1 overflow-y-auto p-6 space-y-6 flex flex-col w-full max-w-5xl mx-auto" ref="chatContainer"
         @scroll="onChatScroll">
@@ -315,7 +324,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
 import { localLLM } from '@/services/LocalLLMService';
-import { aiService, aiIsLocal, aiIsClientDriven, aiPrefsReady, aiSessionMessages, syncSession, fetchSessions, activeSessionId, setEncryptedSessionTitle, clientAgentTurn, resumeClientAgent } from '@/services/AIService';
+import { aiService, aiIsLocal, aiIsClientDriven, aiSessionNotEncrypted, aiPrefsReady, aiSessionMessages, syncSession, fetchSessions, activeSessionId, setEncryptedSessionTitle, clientAgentTurn, resumeClientAgent } from '@/services/AIService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';

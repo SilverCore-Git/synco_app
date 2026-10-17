@@ -187,3 +187,51 @@ describe("anciens DM (compatibilité FC7)", () => {
         expect(await decryptFromPeer(old.ciphertext, old.selfEncryptedAesKey!, old.iv, rsa.privateKey)).toBe("ancien DM");
     });
 });
+
+describe("révisions d'édition (rejeu d'une ancienne version)", () => {
+    test("une version plus ancienne que la dernière éditée déjà vue est refusée (message de salon)", async () => {
+        await asAlice();
+        const key = await threadKey();
+        const ctx = { threadId: "t1", senderId: "alice" };
+        const id = crypto.randomUUID();
+        const original = await encryptThreadMessageV2("v0", key, ctx, id);
+        const edit1 = await encryptThreadMessageV2("v1", key, ctx, id, 1);
+        const { revisionOf } = await import("./messageAuth");
+        expect(revisionOf(original.iv)).toBe(0);
+        expect(revisionOf(edit1.iv)).toBe(1);
+        expect((await decryptThreadMessageV2(original.ciphertext, original.iv, key, ctx)).auth).toBe("verified");
+        expect((await decryptThreadMessageV2(edit1.ciphertext, edit1.iv, key, ctx)).text).toBe("v1");
+        // le serveur ressert l'original
+        expect((await decryptThreadMessageV2(original.ciphertext, original.iv, key, ctx)).auth).toBe("invalid");
+        // la version courante reste valide
+        expect((await decryptThreadMessageV2(edit1.ciphertext, edit1.iv, key, ctx)).auth).toBe("verified");
+    });
+
+    test("le compteur est signé : le retirer ou le baisser invalide la signature", async () => {
+        await asAlice();
+        const key = await threadKey();
+        const ctx = { threadId: "t1", senderId: "alice" };
+        const edit = await encryptThreadMessageV2("v2", key, ctx, crypto.randomUUID(), 2);
+        const forged = edit.iv.split(".").slice(0, 4).join(".") + ".1";
+        await expect(decryptThreadMessageV2(edit.ciphertext, forged, key, ctx)).rejects.toThrow(); // AAD
+        const noRev = edit.iv.split(".").slice(0, 4).join(".");
+        await expect(decryptThreadMessageV2(edit.ciphertext, noRev, key, ctx)).rejects.toThrow();
+    });
+
+    test("DM : même contrôle de retour en arrière", async () => {
+        store.clear();
+        const sign = await signingPair();
+        privateSignKey.value = sign.privateKey;
+        (user as any).value = { id: "bob" };
+        (openedOrg as any).value = { members: [{ userId: "alice", user: { publicSignKey: JSON.stringify(await crypto.subtle.exportKey("jwk", sign.publicKey)) } }] };
+        const rsa = await crypto.subtle.generateKey({ name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["encrypt", "decrypt"]);
+        const pub = JSON.stringify(await crypto.subtle.exportKey("jwk", rsa.publicKey));
+        const ctx = { senderId: "alice", recipientId: "bob" };
+        const id = crypto.randomUUID();
+        const m0 = await encryptDmV2("a", pub, undefined, ctx, id);
+        const m1 = await encryptDmV2("b", pub, undefined, ctx, id, 1);
+        const asMsg = (e: any) => ({ content: e.ciphertext, nonce: e.iv, encryptedAesKey: e.encryptedAesKey, selfEncryptedAesKey: undefined });
+        expect((await decryptDmV2(asMsg(m1), m1.encryptedAesKey, rsa.privateKey, ctx)).auth).toBe("verified");
+        expect((await decryptDmV2(asMsg(m0), m0.encryptedAesKey, rsa.privateKey, ctx)).auth).toBe("invalid");
+    });
+});

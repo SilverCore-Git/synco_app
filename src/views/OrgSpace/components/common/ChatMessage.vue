@@ -201,6 +201,7 @@
                                     />
                                     <LinkPreview :content="forwarded ? forwarded.note : msg.content" />
                                     <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
+                                    <MessageAuthBadge v-if="!(msg as any).securityState" :state="(msg as any).authState" />
                                     <!-- Reçu en clair : jamais rendu comme un message chiffré (audit FC7) -->
                                     <span
                                         v-if="(msg as any).securityState === 'plaintext'"
@@ -312,7 +313,8 @@ import ThreadTextarea from './ThreadTextarea.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { user, openedOrg } from '@/assets/var';
 import { encryptForPeer } from '@/assets/utils/crypto';
-import { dmClientMsgIdOf, encryptDmV2 } from '@/assets/utils/messageAuth';
+import MessageAuthBadge from './MessageAuthBadge.vue';
+import { dmClientMsgIdOf, dmRevisionOf, encryptDmV2 } from '@/assets/utils/messageAuth';
 import { requireTrustedKey } from '@/assets/utils/keyTrust';
 import { useToast } from '@/composables/useToast';
 import { messagePreview } from '@/assets/utils/messagePreview';
@@ -716,7 +718,7 @@ const saveEdit = async () => {
     // Une édition garde l'identifiant du message d'origine ; un DM ancien reste en ancien format.
     const originalId = dmClientMsgIdOf(props.msg.nonce);
     const { ciphertext, encryptedAesKey, iv, selfEncryptedAesKey } = originalId && user.value?.id
-        ? await encryptDmV2(content, trustedPeerKey, myPubKey, { senderId: user.value.id, recipientId: props.msg.recipientId }, originalId)
+        ? await encryptDmV2(content, trustedPeerKey, myPubKey, { senderId: user.value.id, recipientId: props.msg.recipientId }, originalId, dmRevisionOf(props.msg.nonce) + 1)
         : await encryptForPeer(content, trustedPeerKey, myPubKey);
 
     const socket = await useWSocket();

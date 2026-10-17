@@ -230,6 +230,7 @@
                                 <WebhookEmbed v-if="msg.isWebhook && msg.embeds && msg.embeds.length > 0" :embeds="msg.embeds" />
                                 <LinkPreview v-else :content="forwarded ? forwarded.note : msg.content" />
                                 <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
+                                <MessageAuthBadge v-if="!msg.isWebhook && channel.authenticatedMessages" :state="msg.authState" />
                             </div>
                             
                             <!-- Message reactions -->
@@ -298,7 +299,8 @@ import { useLongPress } from '@/composables/useLongPress';
 import type { Message } from '@/types/types';
 import MessageAttachments from './MessageAttachments.vue';
 import { encryptMessageWithContentKey } from '@/assets/utils/crypto';
-import { clientMsgIdOf, encryptThreadMessageV2 } from '@/assets/utils/messageAuth';
+import MessageAuthBadge from './MessageAuthBadge.vue';
+import { clientMsgIdOf, encryptThreadMessageV2, revisionOf } from '@/assets/utils/messageAuth';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import ThreadTextarea from './ThreadTextarea.vue';
 import { user } from '@/assets/var';
@@ -607,7 +609,7 @@ const saveEdit = async () => {
     const threadId = channel.id.value;
     const originalId = clientMsgIdOf(props.msg.iv);
     const { ciphertext, iv } = channel.authenticatedMessages && threadId && user.value?.id && originalId
-        ? await encryptThreadMessageV2(content, key, { threadId, senderId: user.value.id }, originalId)
+        ? await encryptThreadMessageV2(content, key, { threadId, senderId: user.value.id }, originalId, revisionOf(props.msg.iv) + 1)
         : await encryptMessageWithContentKey(content, key);
 
     channel.edit(props.msg.id, ciphertext, iv, extractReferenceTokens(content));

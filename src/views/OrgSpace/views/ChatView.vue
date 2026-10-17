@@ -683,7 +683,7 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined, replayed 
 
             const clearText = await decryptFromPeer(msg.content, keyToUse, msg.nonce, privateKey.value);
             setCachedPlaintext(msg.id, msg.nonce, clearText);
-            return { ...msg, content: clearText };
+            return { ...msg, content: clearText, authState: 'legacy' };
 
         } 
         catch (cryptoErr) {
