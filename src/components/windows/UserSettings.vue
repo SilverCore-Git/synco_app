@@ -21,7 +21,12 @@
 
             </aside>
 
-            <main class="flex-1 p-4 sm:p-8 overflow-y-auto bg-(--bg)">
+            <!-- Colonne de contenu : la barre d'enregistrement est hors de la
+                 zone qui défile, pour rester collée au bas de la fenêtre (en
+                 sticky dans <main>, le padding la décollait du bord). -->
+            <div class="flex-1 min-w-0 min-h-0 flex flex-col bg-(--bg)">
+
+            <main class="flex-1 min-h-0 p-4 sm:p-8 overflow-y-auto bg-(--bg)">
                 
                 <!-- PROFIL -->
                 <section 
@@ -38,45 +43,6 @@
 
                         <!-- Édition -->
                         <div class="space-y-8 min-w-0">
-
-                            <!-- Avatar -->
-                            <div class="w-full relative rounded-xl overflow-hidden bg-(--bg2) border border-(--border-color) shadow-xl">
-                                <div 
-                                    class="h-[100px] w-full relative z-0 transition-all duration-500"
-                                    :style="{ background: `linear-gradient(to top right, rgba(0,0,0,0.3), transparent), ${dominantColor}` }"
-                                ></div>
-                                <div class="px-4 sm:px-6 relative flex justify-end items-end pb-4">
-                                    <div class="absolute -top-10 left-4 sm:left-6 p-1.5 bg-(--bg2) rounded-full z-10 shadow-lg">
-                                        <button
-                                            type="button"
-                                            class="group relative block w-[80px] h-[80px] rounded-full overflow-hidden bg-(--bg)"
-                                            title="Modifier l'avatar"
-                                            @click="avatarChange = true"
-                                        >
-                                            <img 
-                                                :src="user?.avatarUrl || defaultAvatar($p(user?.name))" 
-                                                :alt="$p(user?.name)" 
-                                                @error="(e: any) => e.target.src = defaultAvatar($p(user?.name))"
-                                                class="w-full h-full object-cover"
-                                            />
-                                            <span class="absolute inset-0 flex items-center justify-center bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <i class="bi bi-camera-fill text-xl"></i>
-                                            </span>
-                                        </button>
-                                    </div>
-                                    <button 
-                                        @click="avatarChange = true" 
-                                        class="mt-3 second flex items-center gap-2 text-sm"
-                                    >
-                                        <i class="bi bi-camera-fill"></i>
-                                        Modifier l'avatar
-                                    </button>
-                                </div>
-                                <ProfileUploader 
-                                    :show="avatarChange" 
-                                    @close="avatarChange = false" 
-                                />
-                            </div>
 
                             <!-- Identité -->
                             <div class="space-y-4">
@@ -180,8 +146,18 @@
                                     :profile="previewProfile"
                                     :status="user?.data?.status || 'online'"
                                     empty-hint="Rien d'autre n'est visible ici pour le moment."
+                                    avatar-editable
+                                    @edit-avatar="avatarChange = true"
                                 />
                             </div>
+                            <ProfileUploader 
+                                :show="avatarChange" 
+                                @close="avatarChange = false" 
+                            />
+                            <p class="text-[11px] text-(--text2) flex items-center gap-1.5">
+                                <i class="bi bi-camera"></i>
+                                Cliquez sur votre avatar pour le changer.
+                            </p>
                             <p v-if="hiddenBlockCount > 0" class="text-[11px] text-(--text2) flex items-start gap-1.5">
                                 <i class="bi bi-eye-slash mt-0.5"></i>
                                 {{ hiddenBlockCount }} section{{ hiddenBlockCount > 1 ? 's' : '' }} masquée{{ hiddenBlockCount > 1 ? 's' : '' }} pour ces membres.
@@ -190,30 +166,6 @@
 
                     </div>
 
-                    <!-- Barre d'enregistrement -->
-                    <Transition name="savebar">
-                        <div
-                            v-if="isModified"
-                            class="sticky bottom-0 mt-8 -mx-4 sm:-mx-8 -mb-4 sm:-mb-8 px-4 sm:px-8 py-3 bg-(--bg2)/95 backdrop-blur border-t border-(--border-color) flex flex-col sm:flex-row sm:items-center gap-3 z-20"
-                        >
-                            <p class="flex-1 text-sm text-(--text) flex items-center gap-2">
-                                <i class="bi bi-exclamation-circle-fill text-amber-500"></i>
-                                Modifications non enregistrées
-                            </p>
-                            <div class="flex gap-2 justify-end">
-                                <button class="default text-sm" :disabled="isUpdating" @click="resetForm">Annuler</button>
-                                <button  
-                                    @click="updateProfile"
-                                    class="primary flex items-center justify-center gap-2 text-sm" 
-                                    :disabled="isUpdating"
-                                >
-                                    <i v-if="isUpdating" class="bi bi-arrow-repeat animate-spin"></i>
-                                    <i v-else class="bi bi-check-circle-fill"></i>
-                                    <span>{{ isUpdating ? 'Enregistrement...' : 'Enregistrer' }}</span>
-                                </button>
-                            </div>
-                        </div>
-                    </Transition>
 
                 </section>
 
@@ -584,6 +536,33 @@
 
             </main>
 
+            <!-- Barre d'enregistrement -->
+            <Transition name="savebar">
+                <div
+                    v-if="activeTab === 'account' && isModified"
+                    class="shrink-0 px-4 sm:px-8 py-3 bg-(--bg2) border-t border-(--border-color) flex flex-col sm:flex-row sm:items-center gap-3"
+                >
+                    <p class="flex-1 text-sm text-(--text) flex items-center gap-2">
+                        <i class="bi bi-exclamation-circle-fill text-amber-500"></i>
+                        Modifications non enregistrées
+                    </p>
+                    <div class="flex gap-2 justify-end">
+                        <button class="default text-sm" :disabled="isUpdating" @click="resetForm">Annuler</button>
+                        <button  
+                            @click="updateProfile"
+                            class="primary flex items-center justify-center gap-2 text-sm" 
+                            :disabled="isUpdating"
+                        >
+                            <i v-if="isUpdating" class="bi bi-arrow-repeat animate-spin"></i>
+                            <i v-else class="bi bi-check-circle-fill"></i>
+                            <span>{{ isUpdating ? 'Enregistrement...' : 'Enregistrer' }}</span>
+                        </button>
+                    </div>
+                </div>
+            </Transition>
+
+            </div>
+
         </div>
 
     </Window>
@@ -604,7 +583,6 @@
 
 <script setup lang="ts">
 
-import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { ref, reactive, watch, computed } from 'vue';
 import Window from './Window.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
@@ -622,7 +600,6 @@ import sfetch from '@/assets/utils/sfetch';
 import { E2EEUnloked, lockSecurity } from '@/assets/utils/crypto';
 import { logoutEverywhere } from '@/assets/keycloak';
 import { disconnectSocket } from '@/composables/useWSocket';
-import { getAverageColor } from '@/assets/utils/getAverageColor';
 
 const props = withDefaults(defineProps<{
   isOpen: boolean;
@@ -641,7 +618,6 @@ const { Item: privacyMode } = useSettingsItem('privacyMode', false);
 const activeTab = ref<string>(props.initialTab);
 const avatarChange = ref<boolean>(false);
 const isUpdating = ref<boolean>(false);
-const dominantColor = ref('#16ac77');
 
 const passwordForm = reactive({
     currentPassword: '',
@@ -738,13 +714,6 @@ watch(user, (newVal) => {
 // remplace aussi `user`, et ne doit pas effacer une édition en cours.
 watch(savedProfileJson, () => {
     profileDraft.value = JSON.parse(JSON.stringify(user.value?.profile || emptyProfile()));
-}, { immediate: true });
-
-watch(() => [user.value?.avatarUrl, user.value?.name], async () => {
-    if (user.value) {
-        const url = user.value.avatarUrl || defaultAvatar(user.value.name);
-        dominantColor.value = await getAverageColor(url);
-    }
 }, { immediate: true });
 
 const updateNotificationPrefs = async <K extends keyof typeof notifPrefs>(key: K, value: typeof notifPrefs[K]) => {

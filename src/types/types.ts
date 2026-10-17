@@ -111,7 +111,7 @@ export interface ProfilePositionItem { id: string; title: string; team?: string;
 export interface ProfileSkillItem { id: string; label: string; level?: 'notions' | 'confirme' | 'expert' }
 export interface ProfileProjectItem { id: string; name: string; role?: string; description?: string; url?: string }
 export interface ProfileLanguageItem { id: string; label: string; level?: 'notions' | 'professionnel' | 'courant' | 'natif' }
-export interface ProfileLinkItem { id: string; label: string; url: string }
+export interface ProfileLinkItem { id: string; label: string; url: string; icon?: string } // icon : nom Bootstrap Icons sans « bi- »
 export interface ProfileCustomItem { id: string; label: string; value: string }
 
 interface ProfileBlockBase { id: string; title?: string; orgIds: string[] | null }

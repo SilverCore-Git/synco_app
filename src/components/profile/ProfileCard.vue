@@ -25,12 +25,27 @@
 
             <div class="flex items-end justify-between gap-3 -mt-9">
                 <div class="relative shrink-0">
-                    <img
-                        :src="user.avatarUrl || defaultAvatar(displayName)"
-                        :alt="displayName"
-                        @error="(e: any) => e.target.src = defaultAvatar(displayName)"
-                        class="w-[76px] h-[76px] rounded-2xl object-cover ring-4 ring-(--bg) bg-(--bg2)"
-                    />
+                    <component
+                        :is="avatarEditable ? 'button' : 'div'"
+                        :type="avatarEditable ? 'button' : undefined"
+                        class="group/avatar relative block rounded-2xl overflow-hidden ring-4 ring-(--bg) bg-(--bg2)"
+                        :title="avatarEditable ? 'Modifier l\'avatar' : undefined"
+                        @click="avatarEditable && emit('edit-avatar')"
+                    >
+                        <img
+                            :src="user.avatarUrl || defaultAvatar(displayName)"
+                            :alt="displayName"
+                            @error="(e: any) => e.target.src = defaultAvatar(displayName)"
+                            class="w-[76px] h-[76px] object-cover"
+                        />
+                        <span
+                            v-if="avatarEditable"
+                            class="absolute inset-0 flex flex-col items-center justify-center gap-0.5 bg-black/55 text-white opacity-0 group-hover/avatar:opacity-100 group-focus-visible/avatar:opacity-100 transition-opacity"
+                        >
+                            <i class="bi bi-camera-fill text-lg" />
+                            <span class="text-[10px] font-semibold">Modifier</span>
+                        </span>
+                    </component>
                     <span
                         v-if="status"
                         class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-4 border-(--bg)"
@@ -47,10 +62,14 @@
                         :href="link.url"
                         target="_blank"
                         rel="noopener noreferrer"
-                        :title="`${link.label} — ${link.url}`"
-                        class="w-8 h-8 rounded-full flex items-center justify-center bg-(--bg2) border border-(--border-color) text-(--text2) hover:text-(--primary) hover:border-(--primary)/50 transition-colors"
+                        :aria-label="link.label"
+                        class="group/link relative w-8 h-8 rounded-full flex items-center justify-center bg-(--bg2) border border-(--border-color) text-(--text2) hover:text-(--primary) hover:border-(--primary)/50 focus-visible:text-(--primary) transition-colors"
                     >
-                        <i :class="linkIcon(link.url)" />
+                        <i :class="linkIconClass(link)" />
+                        <!-- Infobulle : le texte saisi par l'utilisateur -->
+                        <span
+                            class="pointer-events-none absolute top-full right-0 mt-1.5 z-30 max-w-[14rem] truncate px-2 py-1 rounded-md bg-(--text) text-(--bg) text-xs font-medium shadow-lg opacity-0 translate-y-0.5 group-hover/link:opacity-100 group-hover/link:translate-y-0 group-focus-visible/link:opacity-100 transition-all"
+                        >{{ link.label }}</span>
                     </a>
                     <button
                         v-if="links.length > MAX_LINK_ICONS"
@@ -90,18 +109,18 @@
             <div class="flex flex-col divide-y divide-(--border-color)">
 
                 <!-- À propos -->
-                <section v-if="user.description?.trim()" class="row">
-                    <i class="bi bi-quote row-icon" />
-                    <div class="min-w-0">
-                        <p
-                            class="text-sm leading-relaxed whitespace-pre-line"
-                            :class="aboutExpanded ? '' : 'line-clamp-3'"
-                            ref="aboutRef"
-                        >{{ user.description }}</p>
-                        <button v-if="aboutOverflows || aboutExpanded" type="button" class="more-btn" @click="aboutExpanded = !aboutExpanded">
-                            {{ aboutExpanded ? 'Réduire' : 'Lire la suite' }}
-                        </button>
+                <section v-if="user.description?.trim()" class="py-3 first:pt-0">
+                    <div
+                        ref="aboutRef"
+                        class="relative overflow-hidden"
+                        :class="aboutExpanded ? '' : 'max-h-[4.6rem]'"
+                    >
+                        <SimpleMarkdown :content="user.description" class="text-sm leading-relaxed break-words" />
+                        <div v-if="aboutOverflows && !aboutExpanded" class="absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-(--bg) to-transparent" />
                     </div>
+                    <button v-if="aboutOverflows" type="button" class="more-btn" @click="aboutExpanded = !aboutExpanded">
+                        {{ aboutExpanded ? 'Réduire' : 'Lire la suite' }}
+                    </button>
                 </section>
 
                 <template v-for="block in bodyBlocks" :key="block.id">
@@ -237,7 +256,8 @@ import { computed, nextTick, reactive, ref, watch } from 'vue';
 import type { ProfileBlock, ProfileLinkItem, ProfilePositionItem, UserProfile } from '@/types/types';
 import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { getAverageColor } from '@/assets/utils/getAverageColor';
-import { LANGUAGE_LEVELS, SKILL_LEVELS, blockTitle, formatSince, isSafeUrl } from '@/assets/utils/userProfile';
+import { LANGUAGE_LEVELS, SKILL_LEVELS, blockTitle, formatSince, isSafeUrl, linkIconClass } from '@/assets/utils/userProfile';
+import SimpleMarkdown from '@/components/common/SimpleMarkdown.vue';
 
 const props = defineProps<{
     user: {
@@ -255,7 +275,11 @@ const props = defineProps<{
     status?: string;
     isSelf?: boolean;
     emptyHint?: string;
+    // Aperçu des paramètres : clic sur l'avatar = le modifier.
+    avatarEditable?: boolean;
 }>();
+
+const emit = defineEmits<{ (e: 'edit-avatar'): void }>();
 
 const MAX_SKILLS = 8;
 const MAX_PROJECTS = 3;
@@ -307,28 +331,17 @@ const aboutExpanded = ref(false);
 const aboutOverflows = ref(false);
 const aboutRef = ref<HTMLElement | null>(null);
 
+// Mesuré replié : le markdown rend une hauteur variable (listes, titres…).
 watch(() => props.user.description, async () => {
     aboutExpanded.value = false;
     await nextTick();
     const el = aboutRef.value;
     aboutOverflows.value = !!el && el.scrollHeight > el.clientHeight + 1;
-}, { immediate: true });
+}, { immediate: true, flush: 'post' });
 
 // --- Divers
 const levelLabel = (levels: readonly { id: string; label: string }[], id: string) =>
     levels.find(l => l.id === id)?.label ?? '';
-
-const LINK_ICONS: [RegExp, string][] = [
-    [/github\.com/i, 'bi bi-github'],
-    [/gitlab\./i, 'bi bi-gitlab'],
-    [/linkedin\.com/i, 'bi bi-linkedin'],
-    [/(twitter|x)\.com/i, 'bi bi-twitter-x'],
-    [/behance\.net/i, 'bi bi-behance'],
-    [/dribbble\.com/i, 'bi bi-dribbble'],
-    [/youtube\.com|youtu\.be/i, 'bi bi-youtube'],
-    [/figma\.com/i, 'bi bi-vector-pen'],
-];
-const linkIcon = (url: string) => LINK_ICONS.find(([re]) => re.test(url))?.[1] ?? 'bi bi-globe2';
 
 const memberSince = computed(() => {
     if (!props.user.createdAt) return null;

@@ -224,8 +224,45 @@
                 <!-- LIENS -->
                 <template v-else-if="block.type === 'links'">
                     <div v-for="(item, i) in block.items" :key="item.id" class="item-row">
-                        <div class="grid grid-cols-1 sm:grid-cols-[12rem_1fr] gap-2 flex-1">
-                            <input v-model="item.label" class="field" placeholder="Libellé (ex. GitHub)" maxlength="60" />
+                        <!-- Icône : choisie, ou déduite de l'URL tant qu'on n'a rien choisi -->
+                        <DropDown align="left" content-iner-t-w="w-72">
+                            <template #trigger>
+                                <button
+                                    type="button"
+                                    class="w-10 h-[38px] shrink-0 rounded-lg border flex items-center justify-center transition-colors"
+                                    :class="item.icon ? 'border-(--primary)/50 text-(--primary) bg-(--primary)/10' : 'border-(--border-color) text-(--text2) bg-(--bg) hover:text-(--text)'"
+                                    :title="item.icon ? 'Changer l\'icône' : 'Choisir une icône (sinon déduite du lien)'"
+                                >
+                                    <i :class="linkIconClass(item)" />
+                                </button>
+                            </template>
+                            <template #content>
+                                <p class="px-2 pt-1 pb-2 text-[11px] text-(--text2)">Icône du lien</p>
+                                <div class="grid grid-cols-6 gap-1 px-1 pb-1">
+                                    <button
+                                        v-for="choice in LINK_ICON_CHOICES"
+                                        :key="choice.id"
+                                        type="button"
+                                        class="aspect-square rounded-lg flex items-center justify-center text-base transition-colors"
+                                        :class="item.icon === choice.id ? 'bg-(--primary) text-white' : 'text-(--text) hover:bg-(--primary)/15'"
+                                        :title="choice.label"
+                                        @click="item.icon = choice.id"
+                                    >
+                                        <i :class="`bi bi-${choice.id}`" />
+                                    </button>
+                                </div>
+                                <button
+                                    v-if="item.icon"
+                                    type="button"
+                                    class="w-full mt-1 px-2 py-1.5 rounded-lg text-xs text-left text-(--text2) hover:bg-(--text)/10"
+                                    @click="item.icon = undefined"
+                                >
+                                    <i class="bi bi-magic" /> Automatique (selon le lien)
+                                </button>
+                            </template>
+                        </DropDown>
+                        <div class="grid grid-cols-1 sm:grid-cols-[12rem_1fr] gap-2 flex-1 ml-1">
+                            <input v-model="item.label" class="field" placeholder="Texte au survol (ex. Mon GitHub)" maxlength="60" />
                             <input v-model="item.url" class="field" placeholder="https://…" maxlength="500" @blur="item.url = normalizeUrl(item.url)" />
                         </div>
                         <button type="button" class="icon-btn hover:text-red-500!" title="Retirer" @click="block.items.splice(i, 1)">
@@ -312,7 +349,7 @@ import type { ProfileBlock, ProfileBlockType, ProfilePositionItem, ProfileSkillI
 import { organizations, openedOrg } from '@/assets/var';
 import {
     BLOCK_META, BLOCK_ORDER, LANGUAGE_LEVELS, MAX_BLOCKS, MAX_ITEMS, PROJECT_ROLES, SKILL_LEVELS,
-    blockTitle, cleanProfile, newBlock, newId, normalizeUrl,
+    LINK_ICON_CHOICES, blockTitle, cleanProfile, linkIconClass, newBlock, newId, normalizeUrl,
 } from '@/assets/utils/userProfile';
 
 const model = defineModel<UserProfile>({ required: true });

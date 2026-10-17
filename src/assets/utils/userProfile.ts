@@ -23,7 +23,7 @@ export const BLOCK_META: Record<ProfileBlockType, BlockMeta> = {
     skills: { label: 'Spécialités', icon: 'bi bi-stars', hint: 'Ce sur quoi vos collègues peuvent vous solliciter', addLabel: 'Ajouter' },
     projects: { label: 'Projets & responsabilités', icon: 'bi bi-kanban-fill', hint: 'Ce dont vous êtes responsable ou référent', addLabel: 'Ajouter un projet' },
     languages: { label: 'Langues', icon: 'bi bi-translate', hint: 'Les langues dans lesquelles on peut travailler avec vous', addLabel: 'Ajouter une langue' },
-    links: { label: 'Liens', icon: 'bi bi-link-45deg', hint: 'Portfolio, dépôt de code, profil professionnel…', addLabel: 'Ajouter un lien' },
+    links: { label: 'Liens', icon: 'bi bi-link-45deg', hint: 'Affichés en icônes sur votre carte ; le texte apparaît au survol', addLabel: 'Ajouter un lien' },
     custom: { label: 'Section libre', icon: 'bi bi-card-text', hint: 'Bureau, horaires, référent RH… à vous de choisir', addLabel: 'Ajouter un champ' },
 };
 
@@ -117,4 +117,59 @@ export function formatSince(since?: string): string | null {
     if (!m) return `Depuis ${y}`;
     const d = new Date(Number(y), Number(m) - 1, 1);
     return `Depuis ${d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`;
+}
+
+// --- Icônes de liens
+// Choix proposés dans l'éditeur ; sans choix, l'icône est déduite de l'URL.
+export const LINK_ICON_CHOICES: { id: string; label: string }[] = [
+    { id: 'globe2', label: 'Site web' },
+    { id: 'link-45deg', label: 'Lien' },
+    { id: 'briefcase', label: 'Portfolio' },
+    { id: 'file-earmark-person', label: 'CV' },
+    { id: 'calendar-check', label: 'Prise de rendez-vous' },
+    { id: 'camera-video', label: 'Visio' },
+    { id: 'book', label: 'Documentation' },
+    { id: 'journal-code', label: 'Blog technique' },
+    { id: 'kanban', label: 'Tableau de suivi' },
+    { id: 'github', label: 'GitHub' },
+    { id: 'gitlab', label: 'GitLab' },
+    { id: 'git', label: 'Git' },
+    { id: 'stack-overflow', label: 'Stack Overflow' },
+    { id: 'linkedin', label: 'LinkedIn' },
+    { id: 'twitter-x', label: 'X' },
+    { id: 'mastodon', label: 'Mastodon' },
+    { id: 'medium', label: 'Medium' },
+    { id: 'youtube', label: 'YouTube' },
+    { id: 'behance', label: 'Behance' },
+    { id: 'dribbble', label: 'Dribbble' },
+    { id: 'instagram', label: 'Instagram' },
+    { id: 'facebook', label: 'Facebook' },
+    { id: 'slack', label: 'Slack' },
+    { id: 'discord', label: 'Discord' },
+    { id: 'trello', label: 'Trello' },
+];
+
+const LINK_ICON_PATTERNS: [RegExp, string][] = [
+    [/github\.com/i, 'github'],
+    [/gitlab\./i, 'gitlab'],
+    [/linkedin\.com/i, 'linkedin'],
+    [/(twitter|x)\.com/i, 'twitter-x'],
+    [/stackoverflow\.com/i, 'stack-overflow'],
+    [/behance\.net/i, 'behance'],
+    [/dribbble\.com/i, 'dribbble'],
+    [/youtube\.com|youtu\.be/i, 'youtube'],
+    [/medium\.com/i, 'medium'],
+    [/instagram\.com/i, 'instagram'],
+    [/trello\.com/i, 'trello'],
+    [/calendly\.com|cal\.com/i, 'calendar-check'],
+];
+
+export function autoLinkIcon(url: string): string {
+    return LINK_ICON_PATTERNS.find(([re]) => re.test(url))?.[1] ?? 'globe2';
+}
+
+/** Classe CSS de l'icône d'un lien : choix de l'utilisateur, sinon déduite de l'URL. */
+export function linkIconClass(link: { url: string; icon?: string }): string {
+    const icon = link.icon && LINK_ICON_CHOICES.some(c => c.id === link.icon) ? link.icon : autoLinkIcon(link.url);
+    return `bi bi-${icon}`;
 }
