@@ -398,6 +398,8 @@ const handleInput = (e: KeyboardEvent) => {
 // plutôt qu'un vrai pourcentage d'octets transférés, qui n'a pas de sens ici
 // (peu de requêtes, surtout de la latence réseau/Keycloak).
 const bootProgress = ref(0);
+// Libellé affiché en bas du loader : ce qui est en cours de chargement.
+const bootStatus = ref('Démarrage…');
 
 const finishAuthInit = async () => {
   // init.run() lance 3 requêtes en parallèle (user, orgs, org ouverte) —
@@ -405,7 +407,17 @@ const finishAuthInit = async () => {
   // d'un coup à 85%. On avance plutôt à chaque requête qui termine, dans
   // l'ordre où elles arrivent (pas forcément 1-2-3).
   let completedInitSteps = 0;
-  await init.run(() => {
+  bootStatus.value = 'Chargement de votre profil…';
+  const pending = new Set(['user', 'orgs', 'openedOrg']);
+  const labels: Record<string, string> = {
+    user: 'Chargement de votre profil…',
+    orgs: 'Chargement de vos organisations…',
+    openedOrg: "Chargement de l'espace ouvert…"
+  };
+  await init.run((done) => {
+    pending.delete(done);
+    const next = pending.values().next().value;
+    if (next) bootStatus.value = labels[next];
     completedInitSteps++;
     bootProgress.value = 50 + (completedInitSteps / 3) * 35;
   });
@@ -417,8 +429,10 @@ const finishAuthInit = async () => {
     return;
   }
 
+  bootStatus.value = 'Finalisation…';
   await waitFor(() => user.value !== null);
   bootProgress.value = 90;
+  bootStatus.value = 'Connexion sécurisée…';
   await initPeer();
   bootProgress.value = 95;
   useAppPresence();
@@ -464,6 +478,7 @@ const bootstrap = async (options?: { silent?: boolean }) => {
   bootError.value = false;
   bootLoading.value = true;
   bootProgress.value = 5;
+  bootStatus.value = 'Connexion au serveur…';
 
   try {
     const res = await fetch(`${import.meta.env.VITE_API_URL}/health`);
@@ -475,6 +490,7 @@ const bootstrap = async (options?: { silent?: boolean }) => {
     }
     bootProgress.value = 25;
 
+    bootStatus.value = 'Authentification auprès de Keycloak…';
     debugLog('[boot] calling initKC...');
     authenticated.value = await initKC();
     debugLog('[boot] initKC done, authenticated =', authenticated.value);
@@ -691,7 +707,7 @@ onMounted(async () => {
           key="boot-loading"
           class="h-full w-full flex flex-col items-center justify-center p-6 select-none animate-app-reveal"
         >
-          <Loader :progress="bootProgress" />
+          <Loader :progress="bootProgress" :status="bootStatus" />
         </div>
       </Transition>
     </div>

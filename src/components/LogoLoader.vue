@@ -19,6 +19,13 @@
       <div v-else class="h-full w-1/3 rounded-full bg-(--primary) progress-indeterminate" />
     </div>
 
+    <p
+      v-if="status"
+      class="absolute bottom-8 inset-x-0 text-center text-xs text-(--text2) uppercase tracking-widest font-bold px-6"
+    >
+      {{ status }}
+    </p>
+
   </div>
 
 </template>
@@ -29,6 +36,8 @@
 // d'attente inconnue, ex. chargement de l'organisation après déverrouillage).
 defineProps<{
   progress?: number;
+  // Texte du statut affiché en bas de l'écran (ce qui est en cours de chargement).
+  status?: string;
 }>();
 </script>
 
