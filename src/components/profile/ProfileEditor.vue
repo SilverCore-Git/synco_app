@@ -90,10 +90,30 @@
                 <!-- POSTES -->
                 <template v-if="block.type === 'positions'">
                     <div v-for="(item, i) in block.items" :key="item.id" class="item-row">
-                        <div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_9rem] gap-2 flex-1">
+                        <div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 flex-1">
                             <input v-model="item.title" class="field" placeholder="Intitulé (ex. Cheffe de projet)" maxlength="120" />
                             <input v-model="item.team" class="field" placeholder="Équipe / service (facultatif)" maxlength="120" />
-                            <input v-model="item.since" type="month" class="field" title="Depuis (facultatif)" />
+                            <!-- Pas d'<input type="month"> : Firefox desktop l'affiche en
+                                 champ texte libre, et la saisie arrivait telle quelle à l'API. -->
+                            <div class="flex gap-1" title="Depuis (facultatif)">
+                                <select
+                                    class="field w-auto!"
+                                    :value="sinceMonth(item.since)"
+                                    :disabled="!sinceYear(item.since)"
+                                    @change="item.since = buildSince(sinceYear(item.since), ($event.target as HTMLSelectElement).value)"
+                                >
+                                    <option value="">Mois</option>
+                                    <option v-for="(m, mi) in MONTHS" :key="m" :value="String(mi + 1).padStart(2, '0')">{{ m }}</option>
+                                </select>
+                                <select
+                                    class="field w-auto!"
+                                    :value="sinceYear(item.since)"
+                                    @change="item.since = buildSince(($event.target as HTMLSelectElement).value, sinceMonth(item.since))"
+                                >
+                                    <option value="">Depuis…</option>
+                                    <option v-for="y in YEARS" :key="y" :value="String(y)">{{ y }}</option>
+                                </select>
+                            </div>
                         </div>
                         <button
                             type="button"
@@ -380,6 +400,13 @@ const setPrimary = (items: ProfilePositionItem[], index: number) => {
     }
     if (!wasPrimary && items[index]) items[index].primary = true;
 };
+
+// « Depuis » : AAAA ou AAAA-MM, le format attendu par l'API.
+const MONTHS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+const YEARS = Array.from({ length: 60 }, (_, i) => new Date().getFullYear() - i);
+const sinceYear = (since?: string) => (since && /^\d{4}/.test(since) ? since.slice(0, 4) : '');
+const sinceMonth = (since?: string) => (since && /^\d{4}-\d{2}$/.test(since) ? since.slice(5, 7) : '');
+const buildSince = (year: string, month: string) => (year ? (month ? `${year}-${month}` : year) : undefined);
 
 // --- Spécialités
 const skillDrafts = reactive<Record<string, string>>({});

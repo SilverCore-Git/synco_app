@@ -87,7 +87,9 @@ export function cleanProfile(profile: UserProfile): UserProfile {
                 Object.fromEntries(Object.entries(item).filter(([, v]) => v !== '' && v !== undefined && v !== null))),
         } as unknown as ProfileBlock;
         switch (b.type) {
-            case 'positions': return { ...b, items: b.items.filter(i => i.title?.trim()) };
+            // Une date illisible (ancienne saisie libre) est abandonnée plutôt
+            // que de faire refuser tout le profil par l'API.
+            case 'positions': return { ...b, items: b.items.filter(i => i.title?.trim()).map(i => (i.since && !/^\d{4}(-\d{2})?$/.test(i.since) ? { ...i, since: undefined } : i)) };
             case 'skills': return { ...b, items: b.items.filter(i => i.label?.trim()) };
             case 'projects': return { ...b, items: b.items.filter(i => i.name?.trim()).map(i => (i.url ? { ...i, url: normalizeUrl(i.url) } : i)) };
             case 'languages': return { ...b, items: b.items.filter(i => i.label?.trim()) };
