@@ -482,20 +482,31 @@ const onTaskDragEnd = () => {
     dragOverFolderId.value = null;
 };
 
+// Si la tâche déplacée fait partie de la sélection, toute la sélection suit.
 const assignToFolder = async (task: Task, folderId: string | null) => {
-    if ((task.todoListId || null) === folderId) return;
-    try {
-        const res = await sfetch(`/api/tasks/${orgId.value}/tasks/${task.id}`, {
+    const ids = selectedTaskIds.value.has(task.id) ? [...selectedTaskIds.value] : [task.id];
+    const toMove = archivedTasks.value.filter(t => ids.includes(t.id) && (t.todoListId || null) !== folderId);
+    if (!toMove.length) return;
+
+    const results = await Promise.allSettled(toMove.map(async (t) => {
+        const res = await sfetch(`/api/tasks/${orgId.value}/tasks/${t.id}`, {
             method: 'PUT',
             body: JSON.stringify({ todoListId: folderId })
         });
         if (!res.ok) throw new Error();
         const updated = await res.json();
-        const idx = archivedTasks.value.findIndex(t => t.id === task.id);
+        const idx = archivedTasks.value.findIndex(x => x.id === t.id);
         if (idx !== -1) archivedTasks.value[idx] = updated;
+    }));
+
+    const failed = results.filter(r => r.status === 'rejected').length;
+    const moved = toMove.length - failed;
+    if (failed) {
+        toast.show(`Erreur lors du déplacement de ${failed} tâche(s)`, 'error');
+    } else if (moved > 1) {
+        toast.show(`${moved} tâches ${folderId ? 'déplacées dans le dossier' : 'retirées du dossier'}`, 'success');
+    } else {
         toast.show(folderId ? 'Tâche déplacée dans le dossier' : 'Tâche retirée du dossier', 'success');
-    } catch (e) {
-        toast.show('Erreur lors du déplacement', 'error');
     }
 };
 
