@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | 📝 Spécification — branche `feat/e2ee-v4` (synco_app et synco_api). Rien n'est encore implémenté. |
+| **Statut** | 🚧 En cours — branche `feat/e2ee-v4` (synco_app et synco_api). P1 (noyau cryptographique) et P2 (API) faits ; P3 à P7 restent à faire. |
 | **Origine** | Audit 2026-10-01, FC2 : le serveur détient un vérificateur et un `wrapSecret` qui permettent de forcer les 10 000 PIN hors ligne. |
 | **Contraintes** | PIN à **4 chiffres** conservé (expérience utilisateur) · **multi-appareil obligatoire** · compatibilité : les comptes legacy/v2/v3 continuent de fonctionner tant qu'ils ne migrent pas · le plus sûr possible. |
 
@@ -105,6 +105,7 @@ recoveryPinKey = HKDF( PBKDF2(pin) ‖ serverSecret ‖ thirdPartySecret )
 ## 7. Limites assumées
 
 - **Web sans PRF** : le PIN à 4 chiffres est la seule barrière contre quelqu'un qui copie le profil du navigateur. Les navigateurs n'offrent pas de limiteur d'essais matériel. C'est l'état de l'art pour le web et c'est signalé à l'utilisateur.
+- **Vérification à l'ouverture (P3/P5)** : après avoir ouvert AK puis les clés d'identité, un appareil doit vérifier que la clé publique RSA dérivée de la clé privée correspond à celle qu'il a épinglée (ou, pour un appareil neuf, à celle annoncée par une source indépendante du serveur lors de la liaison). C'est la défense contre un serveur qui servirait de fausses enveloppes **et** de fausses clés d'identité.
 - **Appareil volé déverrouillé** : il connaît l'identité jusqu'à sa rotation. La rotation d'identité (nouvelles paires RSA/ECDSA et redistribution des clés symétriques) est un chantier à part.
 - **Perte de tous les appareils sans clé de récupération ni récupération par PIN** : perte de l'historique, comme aujourd'hui.
 - **Biométrie** : une modification des empreintes enrôlées peut invalider la clé du Keystore ; le repli par PIN local puis la reliaison de l'appareil prennent le relais.
@@ -121,8 +122,8 @@ Les comptes existants restent fonctionnels et inchangés tant qu'ils ne migrent 
 
 | Phase | Contenu |
 |---|---|
-| **P1** | Noyau cryptographique pur et testé : AK, enveloppes, liaison d'appareil (ECDH + SAS), clé de récupération, formats versionnés |
-| **P2** | API : schéma Prisma, routes (appareils, liaison, récupération), limitation de débit, notifications, tests |
+| **P1** ✅ | Noyau cryptographique pur et testé : AK, enveloppes, liaison d'appareil (ECDH + SAS), clé de récupération, formats versionnés |
+| **P2** ✅ | API : schéma Prisma, routes (appareils, liaison, récupération), limitation de débit, notifications, tests |
 | **P3** | Coffres par plateforme : web (PRF/IndexedDB), Capacitor (biométrie native), Tauri |
 | **P4** | Interface : onboarding, clé de récupération, **paramètres utilisateur › « Appareils et sécurité »** (liste, nom, plateforme, dernière activité, appareil actuel, déconnexion, ajout par QR, clé de récupération, récupération par PIN), liaison par QR, déverrouillage |
 | **P5** | Migration v3 → v4 et suppression du matériel PIN côté serveur |
