@@ -125,10 +125,12 @@ Les comptes existants restent fonctionnels et inchangés tant qu'ils ne migrent 
 
 Chaque phase est committée séparément, avec ses tests, et reste compatible avec les comptes existants.
 
-## 10. Décisions à valider avant le code
+## 10. Décisions
 
-1. **Clé de récupération** : obligatoire à la création de compte, ou proposée et ignorable ?
-2. **Récupération par PIN (§6)** : activée par défaut avec avertissement, désactivée par défaut, ou absente de la v4 ?
-3. **Troisième acteur (§6)** : Keycloak avec client réservé, ou petit service de clés séparé ? Le même opérateur gère-t-il les deux ?
-4. **Migration (§8)** : proposée à chaque ouverture, ou imposée au bout d'un délai ?
-5. **Retrait d'appareil (§4.5)** : rotation d'AK seule en v1, rotation d'identité plus tard : acceptable ?
+| # | Question | Décision |
+|---|---|---|
+| 1 | Clé de récupération | **Proposée au téléchargement à la création du compte** (non forcée). |
+| 2 | Récupération par PIN (§6) | **Proposée** à l'utilisateur, avec avertissement sur sa moindre sécurité. |
+| 3 | Troisième acteur (§6) | *À trancher* : Keycloak avec client réservé, ou petit service de clés séparé ; même opérateur ou non. |
+| 4 | Migration v3 → v4 (§8) | **Proposée** (pas imposée dans un premier temps). |
+| 5 | Retrait d'un appareil (§4.5) | *À confirmer* : rotation d'AK seule en v1, rotation d'identité plus tard. |
