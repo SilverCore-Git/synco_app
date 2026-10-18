@@ -24,3 +24,9 @@ At the end of your session, you **MUST** document your work to maintain the long
 When starting a new major feature:
 1. Create a markdown specification in `vibe/features/[FEATURE_NAME]_FEATURE.md`.
 2. Document the architecture, API endpoints, components, and security considerations before implementation.
+
+## 5. E-mails : toujours la charte graphique Synco
+Tout e-mail rédigé (e-mail envoyé par l'API, modèle, ou mail à envoyer à quelqu'un) **DOIT** être stylisé avec la charte graphique Synco — **jamais** un e-mail en texte brut.
+- Utiliser la coque commune `synco_api/src/services/emailLayout.ts` : `renderShell()`, `ctaButton()`, `preheader()`, couleurs `BRAND` (`#16ac77`), `BRAND_DARK` (`#0d7551`), `BRAND_DEEP` (`#062d1f`) et `TONES`.
+- Mise en page en `<table>` avec styles inline (compatibilité Outlook/Gmail), bandeau d'en-tête Synco, bouton d'action aux couleurs de la marque.
+- Tout texte dynamique passe par `escapeHtml()` (ou `renderMarkdownEmail()` pour du markdown).
