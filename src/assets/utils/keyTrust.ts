@@ -1,6 +1,8 @@
 import { get, set, del } from 'idb-keyval';
 import { shallowRef } from 'vue';
 import { user, openedOrg } from '@/assets/var';
+import sfetch from './sfetch';
+import { followIdentityChain, type IdentityTransition } from './e2eeV4';
 
 /**
  * Épinglage des clés publiques E2EE des autres utilisateurs (TOFU).
@@ -119,6 +121,7 @@ export async function requireTrustedKey(userId: string, publicKeyJWK: string | o
         await trustKey(userId, jwk);
         return jwk;
     }
+    if (await acceptedByTransitionChain(userId, { rsa: jwk })) return jwk;
     reportUntrusted(userId, jwk);
     throw new UntrustedKeyError(userId, state);
 }
@@ -188,8 +191,33 @@ export async function requireTrustedSignKey(userId: string, publicSignKeyJWK: st
         await set(signNs() + userId, jwk);
         return jwk;
     }
-    if (pinned !== jwk) throw new UntrustedKeyError(userId, 'changed');
+    if (pinned !== jwk && !(await acceptedByTransitionChain(userId, { sign: jwk }))) throw new UntrustedKeyError(userId, 'changed');
     return jwk;
+}
+
+/**
+ * E2EE v4, rotation d'identité : une clé changée est acceptée sans alerte seulement si une chaîne de
+ * transitions, chacune signée par la clé de signature précédente, part de la clé de signature
+ * ÉPINGLÉE ici pour cet utilisateur et aboutit exactement à la clé présentée. Le serveur fournit la
+ * chaîne mais ne peut pas la forger. Sans clé de signature épinglée, rien n'est vérifiable : le
+ * comportement reste celui d'avant (alerte / refus).
+ */
+async function acceptedByTransitionChain(userId: string, presented: { rsa?: string; sign?: string }): Promise<boolean> {
+    try {
+        const pinnedSign = await readPinnedSignKey(userId);
+        if (!pinnedSign) return false;
+        const res = await sfetch(`/api/e2ee/v4/users/${encodeURIComponent(userId)}/transitions`);
+        if (!res.ok) return false;
+        const end = await followIdentityChain(userId, pinnedSign, (await res.json()) as IdentityTransition[]);
+        if (!end) return false;
+        if (presented.rsa && canonicalRsaJwk(presented.rsa) !== end.publicKey) return false;
+        if (presented.sign && canonicalEcJwk(presented.sign) !== end.publicSignKey) return false;
+        await trustKey(userId, end.publicKey);
+        await set(signNs() + userId, end.publicSignKey);
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 /**

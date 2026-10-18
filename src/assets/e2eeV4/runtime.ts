@@ -1,6 +1,6 @@
 import { user } from '@/assets/var';
 import type { User } from '@/types/types';
-import { privateKey, privateSignKey } from '../utils/crypto';
+import { archivedPrivateKeys, privateKey, privateSignKey } from '../utils/crypto';
 import { canonicalEcJwk, checkKeyTrust, readPinnedSignKey, trustKey, trustSignKey } from '../utils/keyTrust';
 import { detectPlatform, getLocalDevice, idbStore, preferredVaults, vaultOfKind } from '../deviceVault';
 import type { DevicePlatform } from '../deviceVault/localDevice';
@@ -79,6 +79,7 @@ export const servedFrom = (u: User | null | undefined): ServedIdentity => ({ pub
 
 /** Arme la session déverrouillée (comme unlockSecurity*). */
 export function applyIdentityKeys(keys: IdentityKeys) {
+    archivedPrivateKeys.value = keys.archivedKeys;
     privateSignKey.value = keys.privateSignKey;
     privateKey.value = keys.privateKey;
 }
