@@ -823,6 +823,34 @@ export async function unlockSecurityV3(
 
 
 /**
+ * Migration v3 → v4 (doc/securite/13-e2ee-v4-multi-appareil.md §8) : rouvre, avec le PIN v3, les
+ * MÊMES clés privées d'identité (PKCS#8) pour les réenvelopper sous la clé de compte v4, et
+ * fournit la preuve du PIN (`verifier`) que POST /api/e2ee/v4/init exige. Les octets renvoyés
+ * sont à effacer par l'appelant dès qu'ils sont scellés.
+ */
+export async function openV3IdentityForMigration(
+    pin: string,
+    salt: string,
+    sealed: { encryptedPrivateKey: string; keyIv: string; encryptedSignPrivateKey: string; signKeyIv: string },
+    doFetch: (verifier: string) => Promise<{ wrapSecret: string }>
+): Promise<{ rsaPkcs8: Uint8Array; signPkcs8: Uint8Array; verifier: string }> {
+    if (!salt.startsWith(SALT_V3_PREFIX)) throw new Error('Compte non v3');
+    const unlockKeyBytes = await deriveUnlockKeyV3(pin, salt.slice(SALT_V3_PREFIX.length));
+    const verifier = await deriveVerifierV3(unlockKeyBytes);
+    const { wrapSecret } = await doFetch(verifier);
+    const masterKey = await deriveMasterKeyV3(unlockKeyBytes, Uint8Array.from(atob(wrapSecret), c => c.charCodeAt(0)).buffer);
+    const b64 = (s: string) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+    const rsaPkcs8 = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(sealed.keyIv) }, masterKey, b64(sealed.encryptedPrivateKey)));
+    try {
+        const signPkcs8 = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(sealed.signKeyIv) }, masterKey, b64(sealed.encryptedSignPrivateKey)));
+        return { rsaPkcs8, signPkcs8, verifier };
+    } catch (e) {
+        rsaPkcs8.fill(0);
+        throw e;
+    }
+}
+
+/**
  * Migration d'un compte au PIN legacy (4 chiffres, PBKDF2 100 000, entièrement
  * côté client — testable hors ligne) vers le schéma v3 assisté par le
  * serveur, avec verrouillage des essais (audit FC2). Même PIN, même paire de

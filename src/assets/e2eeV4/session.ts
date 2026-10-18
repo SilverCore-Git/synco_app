@@ -377,14 +377,29 @@ export interface PreparedAccount {
     discard(): Promise<void>;
 }
 
+/** Migration v3 → v4 : identité existante (rouverte avec le PIN v3) et preuve du PIN. */
+export interface MigrationSource {
+    rsaPkcs8: Uint8Array;
+    signPkcs8: Uint8Array;
+    verifier: string;
+    /** Clés publiques telles que stockées par le serveur : renvoyées à l'identique (l'API refuse tout changement). */
+    served: ServedIdentity;
+}
+
 export async function prepareV4Account(
     dev: DeviceContext,
-    opts: EnrollOptions & { mode: 'create' | 'reset' },
+    opts: EnrollOptions & { mode: 'create' | 'reset' | 'migrate'; migration?: MigrationSource },
 ): Promise<PreparedAccount> {
-    const id = await generateIdentity();
+    const migration = opts.mode === 'migrate' ? opts.migration : undefined;
+    if (opts.mode === 'migrate' && !migration) throw new E2eeV4Error('Migration source required');
+    // Migration : les MÊMES clés privées (rien ne change pour les messages, fichiers et DM existants).
+    const id: IdentityBytes & IdentityPin = migration
+        ? { rsaPkcs8: migration.rsaPkcs8, signPkcs8: migration.signPkcs8, ...(await derivePublic(migration)) }
+        : await generateIdentity();
     const akBytes = generateAccountKeyBytes();
     const rk = generateRecoveryKeyBytes();
     try {
+        if (migration) assertServed(id, migration.served);
         const pin: IdentityPin = { publicKey: id.publicKey, publicSignKey: id.publicSignKey };
         const sealed = await sealIdentity(akBytes, dev.userId, id);
         const { payload } = await enroll(dev.userId, dev.store, akBytes, id.signPkcs8, pin, opts);
@@ -398,12 +413,16 @@ export async function prepareV4Account(
             async commit(withRecovery: boolean) {
                 const body = {
                     device: payload,
-                    identity: { ...sealed, publicKey: pin.publicKey, publicSignKey: pin.publicSignKey },
+                    identity: {
+                        ...sealed,
+                        publicKey: migration?.served.publicKey ?? pin.publicKey,
+                        publicSignKey: migration?.served.publicSignKey ?? pin.publicSignKey,
+                    },
                     ...(withRecovery ? { recoveryEnvelope } : {}),
                 };
                 try {
                     if (opts.mode === 'reset') await dev.api.reset(body);
-                    else await dev.api.init(body);
+                    else await dev.api.init(migration ? { ...body, verifier: migration.verifier } : body);
                 } catch (e) {
                     await discard();
                     throw e;

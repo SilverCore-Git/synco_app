@@ -330,3 +330,51 @@ describe("réinitialisation de dernier recours", () => {
         await unlockV4(a.dev, sealedOf(server.state), served(server.state), a.ctx);
     });
 });
+
+describe("migration v3 → v4", () => {
+    async function v3Identity() {
+        const rsa = await crypto.subtle.generateKey({ name: "RSA-OAEP", hash: "SHA-256", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]) }, true, ["encrypt", "decrypt"]);
+        const sig = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+        return {
+            rsa, sig,
+            // Comme crypto.ts en v3 : JWK complet (alg, ext, key_ops), pas la forme canonique.
+            served: { publicKey: JSON.stringify(await crypto.subtle.exportKey("jwk", rsa.publicKey)), publicSignKey: JSON.stringify(await crypto.subtle.exportKey("jwk", sig.publicKey)) },
+            source: async () => ({
+                rsaPkcs8: new Uint8Array(await crypto.subtle.exportKey("pkcs8", rsa.privateKey)),
+                signPkcs8: new Uint8Array(await crypto.subtle.exportKey("pkcs8", sig.privateKey)),
+            }),
+        };
+    }
+
+    test("mêmes clés d'identité, clés publiques renvoyées à l'identique, preuve du PIN jointe", async () => {
+        const server = fakeServer();
+        const a = device(server.api);
+        const v3 = await v3Identity();
+        const bytes = await v3.source();
+        const prepared = await prepareV4Account(a.dev, { ...a.opts, mode: "migrate", migration: { ...bytes, verifier: "proof", served: v3.served } });
+        // les octets PKCS#8 fournis sont effacés une fois scellés
+        expect(bytes.rsaPkcs8.every(b => b === 0)).toBe(true);
+        await prepared.commit(true);
+
+        const init = server.state.calls.find(c => c.route === "init")!.body as InitBody;
+        expect(init.verifier).toBe("proof");
+        expect(init.identity.publicKey).toBe(v3.served.publicKey);
+        expect(init.identity.publicSignKey).toBe(v3.served.publicSignKey);
+
+        // un ancien message chiffré pour la clé publique v3 reste lisible avec la clé v4
+        const old = await crypto.subtle.encrypt({ name: "RSA-OAEP" }, v3.rsa.publicKey, new TextEncoder().encode("historique"));
+        const keys = await unlockV4(a.dev, sealedOf(server.state), served(server.state), a.ctx);
+        expect(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "RSA-OAEP" }, keys.privateKey, old))).toBe("historique");
+    });
+
+    test("clé publique servie qui ne correspond pas : refusé avant tout envoi", async () => {
+        const server = fakeServer();
+        const a = device(server.api);
+        const v3 = await v3Identity();
+        const other = await v3Identity();
+        const attempt = prepareV4Account(a.dev, { ...a.opts, mode: "migrate", migration: { ...(await v3.source()), verifier: "proof", served: other.served } });
+        expect(await errName(attempt)).toBe("IdentityMismatchError");
+        expect(server.state.calls.length).toBe(0);
+        expect(await getLocalDevice(a.dev.store, U)).toBeUndefined();
+    });
+});
