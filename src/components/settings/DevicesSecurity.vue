@@ -617,6 +617,97 @@ async function runRotation(removeIds: string[], newIdentity: boolean, deviceName
     }
 }
 
+// --- récupération par code PIN ------------------------------------------------------
+
+const pinRec = reactive({ enabled: false, locked: false, attemptsLeft: 0, reachable: true, busy: false });
+const confirmDisablePin = ref(false);
+
+async function refreshPinRec() {
+    if (!pinRecoveryConfigured) return;
+    try {
+        const st = await pinRecoveryStatus(pinRecoveryActors);
+        Object.assign(pinRec, { enabled: st.enabled, locked: st.locked, attemptsLeft: st.attemptsLeft, reachable: st.guardReachable });
+    } catch {
+        pinRec.reachable = false;
+    }
+}
+
+const enablePin = reactive({ open: false, step: 'warn' as 'warn' | 'choose' | 'confirm', ack: false, pin: '', first: '', errorTick: 0 });
+
+function openEnablePin() {
+    Object.assign(enablePin, { open: true, step: pinRec.enabled ? 'choose' : 'warn', ack: false, pin: '', first: '' });
+}
+
+function closeEnablePin() {
+    if (pinRec.busy) return;
+    Object.assign(enablePin, { open: false, pin: '', first: '' });
+}
+
+async function submitEnablePin() {
+    if (!dev || enablePin.pin.length !== 4) return;
+    if (enablePin.step === 'choose') {
+        enablePin.first = enablePin.pin;
+        enablePin.pin = '';
+        enablePin.step = 'confirm';
+        return;
+    }
+    if (enablePin.pin !== enablePin.first) {
+        enablePin.errorTick++;
+        toast.show('Les deux codes ne correspondent pas.', 'error');
+        Object.assign(enablePin, { step: 'choose', pin: '', first: '' });
+        return;
+    }
+    const code = enablePin.pin;
+    Object.assign(enablePin, { pin: '', first: '' });
+    pinRec.busy = true;
+    try {
+        const ctx = await vaultCtx('Confirmez l\'activation de la récupération par code PIN.');
+        await enablePinRecovery(dev, pinRecoveryActors, code, ctx);
+        enablePin.open = false;
+        toast.show('Récupération par code PIN activée.', 'success');
+    } catch (e) {
+        reportError(e, "Impossible d'activer la récupération par code PIN.");
+        enablePin.step = 'choose';
+    } finally {
+        pinRec.busy = false;
+        await refreshPinRec();
+    }
+}
+
+async function disablePin() {
+    if (!dev) return;
+    pinRec.busy = true;
+    try {
+        const ctx = await vaultCtx('Confirmez la désactivation de la récupération par code PIN.');
+        await disablePinRecovery(dev, pinRecoveryActors, ctx);
+        toast.show('Récupération par code PIN désactivée.', 'success');
+    } catch (e) {
+        reportError(e, 'Impossible de désactiver la récupération par code PIN.');
+    } finally {
+        confirmDisablePin.value = false;
+        pinRec.busy = false;
+        await refreshPinRec();
+    }
+}
+
+/** Code de récupération pour une rotation : la chaîne, `null` = désactiver, `undefined` = annuler. */
+const recPinAsk = reactive({ open: false, pin: '' });
+let recPinResolver: ((v: string | null | undefined) => void) | null = null;
+
+function askRecoveryPin(): Promise<string | null | undefined> {
+    recPinAsk.pin = '';
+    recPinAsk.open = true;
+    return new Promise((resolve) => { recPinResolver = resolve; });
+}
+
+function answerRecPin(v: string | null | undefined) {
+    const r = recPinResolver;
+    recPinResolver = null;
+    recPinAsk.open = false;
+    recPinAsk.pin = '';
+    r?.(v);
+}
+
 let pendingLockAfterRecovery = false;
 function closeNewRecovery() {
     if (!recoveryAck.value) return;

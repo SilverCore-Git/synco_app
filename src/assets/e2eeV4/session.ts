@@ -2,8 +2,8 @@ import {
     E2eeV4Error, answerLinkRequest, completeLink, createDeviceEnvelope, createLinkRequest, createRecoveryEnvelope,
     followIdentityChain, formatLinkSecret, formatRecoveryKey, generateAccountKeyBytes, generateRecoveryKeyBytes, importAccountKey,
     openIdentityArchive, openIdentityKey, openRecoveryEnvelope, parseLinkSecret, parseRecoveryKey, sealIdentityArchive,
-    sealIdentityKey, signDeviceCertificate, signIdentityTransition, verifyDeviceCertificate,
-    type IdentityTransition, type LinkRequest,
+    sealIdentityKey, signActionProof, signDeviceCertificate, signIdentityTransition, verifyDeviceCertificate,
+    type IdentityTransition, type LinkRequest, type ProofAction,
 } from '../utils/e2eeV4';
 import {
     enrollThisDevice, forgetThisDevice, getLocalDevice, setLocalIdentity, unlockAccountKey,
@@ -72,6 +72,8 @@ export interface RotateBody {
     pinRecoveryEnvelope?: string;
     /** Archive des anciennes clés d'identité, rescellée sous la nouvelle AK (si elle existe). */
     identityArchive?: string;
+    /** Preuve de possession de l'identité (audit V4A1). */
+    proof?: string;
     envelopes: Array<{ deviceId: string; envelope: string }>;
 }
 
@@ -83,12 +85,17 @@ export interface RotateIdentityBody {
     recoveryEnvelope?: string;
     pinRecoveryEnvelope?: string;
     identityArchive: string;
+    proof?: string;
 }
 
 /** Erreur HTTP de l'API v4 (status conservé pour distinguer 404 / 409…). */
 export class V4ApiError extends Error {
-    constructor(readonly status: number, message: string, readonly body?: Record<string, unknown>) {
+    readonly status: number;
+    readonly body?: Record<string, unknown>;
+    constructor(status: number, message: string, body?: Record<string, unknown>) {
         super(message);
+        this.status = status;
+        this.body = body;
         this.name = 'V4ApiError';
     }
 }
@@ -105,11 +112,11 @@ export interface V4Api {
     getIdentityArchive(): Promise<string | null>;
     getTransitions(userId: string): Promise<IdentityTransition[]>;
     getRecovery(): Promise<string | null>;
-    putRecovery(recoveryEnvelope: string): Promise<void>;
-    deleteRecovery(): Promise<void>;
+    putRecovery(recoveryEnvelope: string, proof: string): Promise<void>;
+    deleteRecovery(proof: string): Promise<void>;
     createLink(body: { id: string; publicKey: string; name: string; platform: DevicePlatform }): Promise<{ expiresAt: string }>;
     pendingLinks(): Promise<PendingLink[]>;
-    answerLink(id: string, body: { responderPublicKey: string; envelope: string }): Promise<void>;
+    answerLink(id: string, body: { responderPublicKey: string; envelope: string; proof: string }): Promise<void>;
     getLink(id: string): Promise<{ answered: boolean; responderPublicKey: string | null; envelope: string | null } | null>;
     cancelLink(id: string): Promise<void>;
 }
@@ -125,11 +132,13 @@ export interface V4Api {
  * - 'served' : la clé publique servie par le serveur n'est pas celle de la clé privée.
  */
 export class IdentityMismatchError extends Error {
-    constructor(readonly kind: 'pinned' | 'served') {
+    readonly kind: 'pinned' | 'served';
+    constructor(kind: 'pinned' | 'served') {
         super(kind === 'pinned'
             ? "Les clés de chiffrement reçues ne sont pas celles de votre compte sur cet appareil."
             : "La clé publique fournie par le serveur ne correspond pas à votre clé privée.");
         this.name = 'IdentityMismatchError';
+        this.kind = kind;
     }
 }
 
@@ -297,6 +306,23 @@ export interface DeviceContext {
     vaultFor: (kind: VaultKind) => DeviceVault | undefined;
     api: V4Api;
     trust: OwnIdentityTrust;
+    /** Identité scellée actuelle, fraîchement lue (ancre des preuves de possession). */
+    fetchSealed: () => Promise<SealedIdentity>;
+}
+
+/**
+ * Preuve de possession de l'identité pour une écriture protégée (audit V4A1) : la clé de signature
+ * est rouverte avec AK le temps de signer, sur l'identité scellée actuelle.
+ */
+export async function proveAction(dev: DeviceContext, akBytes: Uint8Array, action: ProofAction, body: Record<string, unknown>): Promise<string> {
+    const sealed = await dev.fetchSealed();
+    const signPkcs8 = new Uint8Array(await openIdentityKey(await importAccountKey(akBytes), 'sign', dev.userId, { ciphertext: sealed.encryptedSignPrivateKey, iv: sealed.signKeyIv }));
+    try {
+        const key = await crypto.subtle.importKey('pkcs8', signPkcs8 as BufferSource, EC_SIGN, false, ['sign']);
+        return await signActionProof(key, dev.userId, action, sealed.encryptedPrivateKey, body);
+    } finally {
+        signPkcs8.fill(0);
+    }
 }
 
 /** Charge l'enveloppe de cet appareil ; un 404 signifie qu'il a été retiré. */
@@ -643,7 +669,10 @@ export async function answerLink(
     try {
         return await withAccountKey(dev, ctx, async (akBytes) => {
             const answer = await answerLinkRequest(JSON.parse(pending.publicKey), akBytes, dev.userId, pending.id, linkSecret);
-            await dev.api.answerLink(pending.id, { responderPublicKey: JSON.stringify(answer.responderPublicKey), envelope: answer.envelope });
+            const body = { responderPublicKey: JSON.stringify(answer.responderPublicKey), envelope: answer.envelope };
+            // La preuve couvre aussi l'identifiant de la demande.
+            const proof = await proveAction(dev, akBytes, 'link-answer', { ...body, requestId: pending.id });
+            await dev.api.answerLink(pending.id, { ...body, proof });
             return { sas: answer.sas };
         });
     } finally {
@@ -718,12 +747,15 @@ async function rotateAccount(dev: DeviceContext, o: RotationOptions): Promise<Ro
     let oldPin: IdentityPin | undefined;
     let thisDeviceId = '';
     let signKey = '';
+    let anchor = '';
     try {
         // Une seule confirmation (coffre) pour toute l'opération, reprises comprises.
         await withAccountKey(dev, o.ctx, async (akBytes, record) => {
             thisDeviceId = record.deviceId;
             signKey = await referenceSignKey(record, dev.trust);
-            id = await openIdentity(akBytes, dev.userId, await o.fetchSealed());
+            const sealed = await o.fetchSealed();
+            anchor = sealed.encryptedPrivateKey;
+            id = await openIdentity(akBytes, dev.userId, sealed);
             hadArchive = (await dev.api.getIdentityArchive()) !== null;
             archived = await openArchive(dev, akBytes);
             if (o.pinRecovery) sealPinRecovery = await o.pinRecovery(akBytes);
@@ -733,6 +765,8 @@ async function rotateAccount(dev: DeviceContext, o: RotationOptions): Promise<Ro
 
         let transition: RotateIdentityBody['transition'] | undefined;
         let newSignKey: CryptoKey | undefined;
+        // Preuves de possession signées par l'identité ACTUELLE (audit V4A1).
+        const currentSigner = await crypto.subtle.importKey('pkcs8', id!.signPkcs8 as BufferSource, EC_SIGN, false, ['sign']);
         if (o.newIdentity) {
             next = await generateIdentity();
             // L'ancienne clé RSA rejoint l'archive : l'historique scellé pour elle reste lisible.
@@ -781,9 +815,11 @@ async function rotateAccount(dev: DeviceContext, o: RotationOptions): Promise<Ro
                             ...envelopes[i]!,
                             certificate: await signDeviceCertificate(newSignKey!, dev.userId, d.id, d.platform, JSON.parse(d.publicKey)),
                         })));
-                        rotated = await dev.api.rotateIdentity({ transition: transition!, identity, devices, removeDeviceIds: [...remove], identityArchive: identityArchive!, ...extras });
+                        const body = { transition: transition!, identity, devices, removeDeviceIds: [...remove], identityArchive: identityArchive!, ...extras };
+                        rotated = await dev.api.rotateIdentity({ ...body, proof: await signActionProof(currentSigner, dev.userId, 'rotate-identity', anchor, body) });
                     } else {
-                        rotated = await dev.api.rotate({ removeDeviceIds: [...remove], identity, envelopes, ...extras, ...(identityArchive ? { identityArchive } : {}) });
+                        const body = { removeDeviceIds: [...remove], identity, envelopes, ...extras, ...(identityArchive ? { identityArchive } : {}) };
+                        rotated = await dev.api.rotate({ ...body, proof: await signActionProof(currentSigner, dev.userId, 'rotate', anchor, body) });
                     }
                 } catch (e) {
                     if (e instanceof V4ApiError && e.status === 409 && attempt < MAX_ROTATION_ATTEMPTS) continue;
@@ -856,7 +892,8 @@ export async function regenerateRecoveryKey(dev: DeviceContext, ctx?: VaultConte
     return withAccountKey(dev, ctx, async (akBytes) => {
         const rk = generateRecoveryKeyBytes();
         try {
-            await dev.api.putRecovery(await createRecoveryEnvelope(rk, akBytes, dev.userId));
+            const recoveryEnvelope = await createRecoveryEnvelope(rk, akBytes, dev.userId);
+            await dev.api.putRecovery(recoveryEnvelope, await proveAction(dev, akBytes, 'recovery-put', { recoveryEnvelope }));
             return await formatRecoveryKey(rk);
         } finally {
             rk.fill(0);

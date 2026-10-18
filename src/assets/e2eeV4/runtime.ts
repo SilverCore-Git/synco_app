@@ -1,4 +1,5 @@
 import { user } from '@/assets/var';
+import { refetchUser } from '@/assets/init';
 import type { User } from '@/types/types';
 import { archivedPrivateKeys, privateKey, privateSignKey } from '../utils/crypto';
 import { canonicalEcJwk, checkKeyTrust, readPinnedSignKey, trustKey, trustSignKey } from '../utils/keyTrust';
@@ -61,7 +62,10 @@ export async function deviceContext(): Promise<DeviceContext> {
     if (record) await loadVault(record.vaultKind);
     await enrollmentVaults();
     if ((await detectPlatform()) === 'web') await loadVault('web-pin');
-    return { userId, store: idbStore, vaultFor: (k) => vaults.get(k), api: httpV4Api, trust: keyTrustAdapter(userId) };
+    return {
+        userId, store: idbStore, vaultFor: (k) => vaults.get(k), api: httpV4Api, trust: keyTrustAdapter(userId),
+        fetchSealed: async () => { await refetchUser(); return sealedFrom(user.value); },
+    };
 }
 
 export const vaultFor = (kind: VaultKind) => loadVault(kind);

@@ -42,3 +42,14 @@ describe("chaîne de transitions d'identité", () => {
         await expect(openIdentityArchive(ak, "user-2", sealed)).rejects.toThrow();
     });
 });
+
+import { actionProofMessage, stableStringify } from "./e2eeV4";
+
+describe("preuve de possession de l'identité (V4A1)", () => {
+    test("JSON stable et message identiques à synco_api (vecteur figé)", async () => {
+        expect(stableStringify({ b: [2, { d: 1, c: undefined, a: "x" }], a: null, proof: "p" })).toBe('{"a":null,"b":[2,{"a":"x","d":1}],"proof":"p"}');
+        // Même vecteur que synco_api (security/v4-proof-vector.test.ts) : toute divergence casse l'interopérabilité.
+        expect(await actionProofMessage("u1", "rotate", "SEALED", { z: 1, a: [1, 2], proof: "ignored" }))
+            .toBe("synco-e4-proof|u1|rotate|2OKD2VnXWQNiCehoyksY+wMGu+nwTBNSZ+ARMa2lZsw=|YDtxW4uHng0daBbeos3jsiQvIUkytfn+YGxT46AdEEI=");
+    });
+});

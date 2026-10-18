@@ -41,10 +41,10 @@ export const pinRecoveryActors: PinRecoveryActors = {
     server: {
         status: () => api<PinRecoveryStatus>('GET', ''),
         begin: (blinded) => api('POST', '/begin', { blinded }),
-        commit: (setupId, verifyHash, envelope) => api('POST', '/commit', { setupId, verifyHash, envelope }),
+        commit: (setupId, verifyHash, envelope, proof) => api('POST', '/commit', { setupId, verifyHash, envelope, proof }),
         evaluate: (blinded) => api('POST', '/evaluate', { blinded }),
         verify: (token) => api('POST', '/verify', { token }),
-        disable: () => api('DELETE', ''),
+        disable: (proof) => api('DELETE', '', { proof }),
     },
     guard: {
         status: () => guard<PinRecoveryStatus>('GET', '/status'),

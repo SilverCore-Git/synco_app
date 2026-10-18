@@ -4,6 +4,7 @@ import { getLocalDevice } from "../deviceVault/localDevice";
 import { prepareV4Account, removeDevices, unlockV4 } from "./session";
 import { PinRecoveryFailure, disablePinRecovery, enablePinRecovery, keepPinRecovery, pinRecoveryStatus, recoverWithPin, type OprfActor, type PinRecoveryActors } from "./pinRecovery";
 import { U, device, errName, fakeServer, sealedOf, served } from "./testkit";
+import { actionProofMessage } from "../utils/e2eeV4";
 
 const oprf = p256_oprf.oprf;
 const toB64 = (b: Uint8Array) => btoa(String.fromCharCode(...b));
@@ -17,7 +18,7 @@ function fakeActor(envelopeStore?: { get(): string | null; set(v: string | null)
     const actor: OprfActor & { commit(id: string, h: string, env?: string): Promise<void> } = {
         async status() { const enabled = !!st.key && (!envelopeStore || !!envelopeStore.get()); return { enabled, attemptsLeft: enabled ? MAX - st.failures : 0, locked: enabled && st.failures >= MAX }; },
         async begin(blinded) { st.seen.push(blinded); const { secretKey } = oprf.generateKeyPair(); st.pending = { id: crypto.randomUUID(), key: secretKey }; return { setupId: st.pending.id, evaluated: toB64(oprf.blindEvaluate(secretKey, fromB64(blinded))) }; },
-        async commit(id, h, env) { if (st.pending?.id !== id) throw err(409); st.key = st.pending.key; st.verifyHash = h; st.failures = 0; st.pending = null; if (envelopeStore && env) envelopeStore.set(env); },
+        async commit(id, h, env, _proof?: string) { if (st.pending?.id !== id) throw err(409); st.key = st.pending.key; st.verifyHash = h; st.failures = 0; st.pending = null; if (envelopeStore && env) envelopeStore.set(env); },
         async evaluate(blinded) {
             st.seen.push(blinded);
             if (!st.key || (envelopeStore && !envelopeStore.get())) throw err(404);
@@ -26,7 +27,7 @@ function fakeActor(envelopeStore?: { get(): string | null; set(v: string | null)
             return { evaluated: toB64(oprf.blindEvaluate(st.key, fromB64(blinded))), attemptsLeft: MAX - st.failures, ...(envelopeStore ? { envelope: envelopeStore.get()! } : {}) };
         },
         async verify(token) { const h = toB64(new Uint8Array(await crypto.subtle.digest("SHA-256", fromB64(token)))); if (h !== st.verifyHash) throw err(422); st.failures = 0; },
-        async disable() { st.key = null; st.verifyHash = null; envelopeStore?.set(null); },
+        async disable(_proof?: string) { st.key = null; st.verifyHash = null; envelopeStore?.set(null); },
     };
     return { actor, st };
 }
@@ -112,7 +113,7 @@ describe("récupération par PIN", () => {
     test("désactivation ; keyguard injoignable : signalé comme tel", async () => {
         const { a, actors } = await setup();
         await enablePinRecovery(a.dev, actors, "4821", a.ctx);
-        await disablePinRecovery(actors);
+        await disablePinRecovery(a.dev, actors, a.ctx);
         expect((await pinRecoveryStatus(actors)).enabled).toBe(false);
         const down = { ...actors, guard: { ...actors.guard, status: async () => { throw new Error("réseau"); } } } as PinRecoveryActors;
         expect((await pinRecoveryStatus(down)).guardReachable).toBe(false);
@@ -124,3 +125,23 @@ describe("récupération par PIN", () => {
         expect(apiActor.st.seen.length).toBe(0);
     });
 });
+
+describe("preuve d'identité (V4A1)", () => {
+    test("l'activation et la désactivation chez synco_api portent une preuve valide de l'identité", async () => {
+        const { server, a, actors } = await setup();
+        const proofs: Array<{ action: "pin-commit" | "pin-delete"; body: Record<string, unknown> }> = [];
+        const commit = actors.server.commit;
+        actors.server.commit = async (setupId, verifyHash, envelope, proof) => { proofs.push({ action: "pin-commit", body: { setupId, verifyHash, envelope, proof } }); return commit(setupId, verifyHash, envelope, proof); };
+        const disable = actors.server.disable;
+        actors.server.disable = async (proof) => { proofs.push({ action: "pin-delete", body: { proof } }); return disable(proof); };
+        await enablePinRecovery(a.dev, actors, "4821", a.ctx);
+        await disablePinRecovery(a.dev, actors, a.ctx);
+        const key = await crypto.subtle.importKey("jwk", JSON.parse(server.state.user!.publicSignKey), { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+        for (const p of proofs) {
+            const msg = new TextEncoder().encode(await actionProofMessage(U, p.action, server.state.user!.encryptedPrivateKey, p.body));
+            expect(await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, key, Uint8Array.from(atob(p.body.proof as string), c => c.charCodeAt(0)), msg)).toBe(true);
+        }
+        expect(proofs.map(p => p.action)).toEqual(["pin-commit", "pin-delete"]);
+    });
+});
+

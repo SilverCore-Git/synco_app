@@ -1,6 +1,6 @@
 import { PinVault } from "../deviceVault/pinVault";
 import { type DeviceVault, type KeyValueStore, type VaultError } from "../deviceVault/types";
-import { followIdentityChain, verifyDeviceCertificate, type IdentityTransition } from "../utils/e2eeV4";
+import { actionProofMessage, followIdentityChain, verifyDeviceCertificate, type IdentityTransition, type ProofAction } from "../utils/e2eeV4";
 import {
     IdentityMismatchError, V4ApiError,
     type DeviceContext, type InitBody, type OwnIdentityTrust, type PendingLink, type RemoteDevice, type SealedIdentity, type V4Api,
@@ -28,8 +28,19 @@ export function fakeServer() {
         links: new Map<string, PendingLink & { responderPublicKey?: string; envelope?: string }>(),
         calls: [] as Array<{ route: string; body: unknown }>,
     };
+    /** Même contrôle que synco_api (verifyActionProof) : signature par la clé de signature actuelle. */
+    const requireProof = async (action: ProofAction, body: Record<string, unknown>) => {
+        const proof = body.proof;
+        let ok = false;
+        if (typeof proof === "string" && state.user) {
+            const key = await crypto.subtle.importKey("jwk", JSON.parse(state.user.publicSignKey), { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+            const msg = new TextEncoder().encode(await actionProofMessage(U, action, state.user.encryptedPrivateKey, body));
+            ok = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, key, Uint8Array.from(atob(proof), c => c.charCodeAt(0)), msg);
+        }
+        if (!ok) throw new V4ApiError(403, "preuve d'identité");
+    };
     const addDev = (d: InitBody["device"]) => state.devices.set(d.id, { id: d.id, name: d.name, platform: d.platform, publicKey: d.publicKey, certificate: d.certificate, envelope: d.envelope, createdAt: new Date().toISOString(), lastUsedAt: null });
-    const api: V4Api = {
+    const api: V4Api & { __sealed(): Promise<SealedIdentity> } = {
         async init(body) { state.calls.push({ route: "init", body }); state.user = body.identity; addDev(body.device); state.recovery = body.recoveryEnvelope ?? null; },
         async reset(body) { state.calls.push({ route: "reset", body }); state.devices.clear(); state.user = body.identity; addDev(body.device); state.recovery = body.recoveryEnvelope ?? null; },
         async listDevices() { return [...state.devices.values()].map(({ envelope: _e, ...d }) => d); },
@@ -42,6 +53,7 @@ export function fakeServer() {
         },
         async rotate(body) {
             state.calls.push({ route: "rotate", body });
+            await requireProof("rotate", body as unknown as Record<string, unknown>);
             const remaining = [...state.devices.keys()].filter(id => !body.removeDeviceIds.includes(id)).sort();
             const provided = body.envelopes.map(e => e.deviceId).sort();
             if (JSON.stringify(remaining) !== JSON.stringify(provided)) throw new V4ApiError(409, "couverture");
@@ -62,6 +74,7 @@ export function fakeServer() {
         },
         async rotateIdentity(body) {
             state.calls.push({ route: "rotateIdentity", body });
+            await requireProof("rotate-identity", body as unknown as Record<string, unknown>);
             const t = body.transition;
             if (t.seq !== state.transitions.length) throw new V4ApiError(409, "rang");
             const signed = { seq: t.seq, oldPublicSignKey: state.user!.publicSignKey, newPublicKey: t.publicKey, newPublicSignKey: t.publicSignKey, signature: t.signature };
@@ -92,11 +105,17 @@ export function fakeServer() {
         async getIdentityArchive() { return state.identityArchive; },
         async getTransitions() { return [...state.transitions]; },
         async getRecovery() { return state.recovery; },
-        async putRecovery(env) { state.recovery = env; },
-        async deleteRecovery() { state.recovery = null; },
+        async putRecovery(recoveryEnvelope, proof) { await requireProof("recovery-put", { recoveryEnvelope, proof }); state.recovery = recoveryEnvelope; },
+        async deleteRecovery(proof) { await requireProof("recovery-delete", { proof }); state.recovery = null; },
+        /** Hors API : identité scellée actuelle (DeviceContext.fetchSealed). */
+        __sealed: async (): Promise<SealedIdentity> => ({ ...state.user! }),
         async createLink(body) { state.links.set(body.id, { ...body, createdAt: "", expiresAt: "" }); return { expiresAt: "" }; },
         async pendingLinks() { return [...state.links.values()].filter(l => !l.envelope); },
-        async answerLink(id, body) { const l = state.links.get(id); if (!l || l.envelope) throw new V4ApiError(404, "x"); Object.assign(l, body); },
+        async answerLink(id, body) {
+            await requireProof("link-answer", { ...body, requestId: id });
+            const l = state.links.get(id); if (!l || l.envelope) throw new V4ApiError(404, "x");
+            Object.assign(l, { responderPublicKey: body.responderPublicKey, envelope: body.envelope });
+        },
         async getLink(id) { const l = state.links.get(id); return l ? { answered: !!l.envelope, responderPublicKey: l.responderPublicKey ?? null, envelope: l.envelope ?? null } : null; },
         async cancelLink(id) { state.links.delete(id); },
     };
@@ -118,7 +137,11 @@ export function trustStore(): OwnIdentityTrust & { pinned?: { publicKey: string;
 export function device(api: V4Api, pin = "4821") {
     const store = memory();
     const vault = new PinVault(store, 1000);
-    const dev: DeviceContext = { userId: U, store, vaultFor: () => vault, api, trust: trustStore() };
+    const sealed = (api as V4Api & { __sealed?: () => Promise<SealedIdentity> }).__sealed;
+    const dev: DeviceContext = {
+        userId: U, store, vaultFor: () => vault, api, trust: trustStore(),
+        fetchSealed: sealed ?? (async () => { throw new Error("pas d'identité"); }),
+    };
     return { dev, vault, ctx: { pin }, opts: { name: "Appareil", platform: "web" as const, vaults: [vault as DeviceVault], ctx: { pin } } };
 }
 

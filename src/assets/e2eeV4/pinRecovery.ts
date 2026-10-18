@@ -1,7 +1,7 @@
 import { p256_oprf } from '@noble/curves/nist.js';
 import { E2eeV4Error } from '../utils/e2eeV4';
 import {
-    enrollWithAccountKey, withAccountKey,
+    enrollWithAccountKey, proveAction, withAccountKey,
     type DeviceContext, type EnrollOptions, type IdentityKeys, type SealedIdentity, type ServedIdentity,
 } from './session';
 import type { VaultContext } from '../deviceVault/types';
@@ -43,17 +43,24 @@ export interface OprfActor {
 }
 
 export interface PinRecoveryActors {
-    /** synco_api : détient aussi l'enveloppe d'AK. */
-    server: OprfActor & { commit(setupId: string, verifyHash: string, envelope: string): Promise<void> };
+    /** synco_api : détient aussi l'enveloppe d'AK ; validation et désactivation exigent une preuve d'identité. */
+    server: Omit<OprfActor, 'disable'> & {
+        commit(setupId: string, verifyHash: string, envelope: string, proof: string): Promise<void>;
+        disable(proof: string): Promise<void>;
+    };
     /** synco_keyguard. */
     guard: OprfActor & { commit(setupId: string, verifyHash: string): Promise<void> };
 }
 
 /** Erreur de récupération par PIN avec le nombre d'essais restants (le plus bas des deux acteurs). */
 export class PinRecoveryFailure extends Error {
-    constructor(readonly reason: 'wrong-pin' | 'locked' | 'disabled', readonly attemptsLeft: number) {
+    readonly reason: 'wrong-pin' | 'locked' | 'disabled';
+    readonly attemptsLeft: number;
+    constructor(reason: 'wrong-pin' | 'locked' | 'disabled', attemptsLeft: number) {
         super(reason === 'wrong-pin' ? 'Code PIN incorrect.' : reason === 'locked' ? 'Récupération par PIN bloquée.' : 'Récupération par PIN non activée.');
         this.name = 'PinRecoveryFailure';
+        this.reason = reason;
+        this.attemptsLeft = attemptsLeft;
     }
 }
 
@@ -172,13 +179,18 @@ export async function enablePinRecovery(dev: DeviceContext, actors: PinRecoveryA
         const { wrapKey, token, verifyHash } = await deriveKeys(dev.userId, a.output, b.output);
         token.fill(0);
         const envelope = await sealAk(wrapKey, dev.userId, akBytes);
+        const proof = await proveAction(dev, akBytes, 'pin-commit', { setupId: a.result.setupId, verifyHash, envelope });
         await actors.guard.commit(b.result.setupId, verifyHash);
-        await actors.server.commit(a.result.setupId, verifyHash, envelope);
+        await actors.server.commit(a.result.setupId, verifyHash, envelope, proof);
     });
 }
 
-export async function disablePinRecovery(actors: PinRecoveryActors): Promise<void> {
-    await Promise.all([actors.server.disable(), actors.guard.disable().catch(() => {})]);
+/** Désactivation : redemande le coffre (preuve d'identité exigée par synco_api). */
+export async function disablePinRecovery(dev: DeviceContext, actors: PinRecoveryActors, ctx?: VaultContext): Promise<void> {
+    await withAccountKey(dev, ctx, async (akBytes) => {
+        await actors.server.disable(await proveAction(dev, akBytes, 'pin-delete', {}));
+    });
+    await actors.guard.disable().catch(() => {});
 }
 
 /** Connexion d'un appareil neuf avec le PIN de récupération (aucun appareil ni clé de récupération). */

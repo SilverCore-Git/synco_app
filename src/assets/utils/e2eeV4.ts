@@ -44,7 +44,7 @@ async function aesKey(raw: Uint8Array, usages: KeyUsage[]): Promise<CryptoKey> {
 
 async function seal(key: CryptoKey, aad: string, plain: BufferSource): Promise<Uint8Array> {
     const iv = randomBytes(12);
-    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: enc.encode(aad) }, key, plain));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv as BufferSource, additionalData: enc.encode(aad) }, key, plain));
     const out = new Uint8Array(12 + ct.length);
     out.set(iv, 0);
     out.set(ct, 12);
@@ -560,4 +560,37 @@ export async function openIdentityArchive(ak: CryptoKey, userId: string, archive
     } finally {
         plain.fill(0);
     }
+}
+
+// ---------------------------------------------------------------------------
+// Preuve de possession de l'identité (audit 2026-10-18, V4A1)
+// ---------------------------------------------------------------------------
+//
+// Les écritures destructrices de l'état chiffré (rotation, récupération, récupération par PIN,
+// réponse de liaison) portent une signature de la clé de signature d'identité : une session
+// Keycloak volée ne suffit plus à les faire. Mêmes octets que synco_api (e2eeV4Service.ts).
+
+export type ProofAction = 'rotate' | 'rotate-identity' | 'recovery-put' | 'recovery-delete' | 'pin-commit' | 'pin-delete' | 'link-answer';
+
+/** JSON à clés triées récursivement, sans espaces (identique à synco_api). */
+export function stableStringify(value: unknown): string {
+    if (Array.isArray(value)) return `[${value.map(v => stableStringify(v === undefined ? null : v)).join(',')}]`;
+    if (value && typeof value === 'object') {
+        const entries = Object.entries(value as Record<string, unknown>).filter(([, v]) => v !== undefined).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+        return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`).join(',')}}`;
+    }
+    return JSON.stringify(value);
+}
+
+const sha256B64 = async (text: string) => toB64(new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(text))));
+
+export async function actionProofMessage(userId: string, action: ProofAction, sealedIdentity: string, body: Record<string, unknown>): Promise<string> {
+    const { proof: _ignored, ...rest } = body;
+    return `synco-e4-proof|${userId}|${action}|${await sha256B64(sealedIdentity)}|${await sha256B64(stableStringify(rest))}`;
+}
+
+/** Signe `body` : `sealedIdentity` est l'identité scellée actuelle (User.encryptedPrivateKey). */
+export async function signActionProof(signKey: CryptoKey, userId: string, action: ProofAction, sealedIdentity: string, body: Record<string, unknown>): Promise<string> {
+    const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, signKey, enc.encode(await actionProofMessage(userId, action, sealedIdentity, body)) as BufferSource);
+    return toB64(new Uint8Array(sig));
 }
