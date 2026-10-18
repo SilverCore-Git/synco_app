@@ -203,6 +203,13 @@ export async function switchVault(args: SwitchVaultArgs): Promise<LocalDeviceRec
     }
 }
 
+/** Met à jour l'identité épinglée de cet appareil (après une rotation d'identité vérifiée). */
+export async function setLocalIdentity(store: KeyValueStore, userId: string, identity: IdentityPin): Promise<void> {
+    const record = await getLocalDevice(store, userId);
+    if (!record) return;
+    await store.set(recordKey(userId), { ...record, identity });
+}
+
 /** Oublie cet appareil localement (déconnexion, appareil retiré à distance). */
 export async function forgetThisDevice(userId: string, store: KeyValueStore, vaultFor: UnlockArgs['vaultFor']): Promise<void> {
     const record = await getLocalDevice(store, userId);

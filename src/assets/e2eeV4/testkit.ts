@@ -1,5 +1,6 @@
 import { PinVault } from "../deviceVault/pinVault";
 import { type DeviceVault, type KeyValueStore, type VaultError } from "../deviceVault/types";
+import { followIdentityChain, verifyDeviceCertificate, type IdentityTransition } from "../utils/e2eeV4";
 import {
     IdentityMismatchError, V4ApiError,
     type DeviceContext, type InitBody, type OwnIdentityTrust, type PendingLink, type RemoteDevice, type SealedIdentity, type V4Api,
@@ -22,6 +23,8 @@ export function fakeServer() {
         recovery: null as string | null,
         /** Enveloppe de la récupération par PIN (tenue par l'acteur synco_api). */
         pinRecovery: null as string | null,
+        identityArchive: null as string | null,
+        transitions: [] as IdentityTransition[],
         links: new Map<string, PendingLink & { responderPublicKey?: string; envelope?: string }>(),
         calls: [] as Array<{ route: string; body: unknown }>,
     };
@@ -43,6 +46,8 @@ export function fakeServer() {
             const provided = body.envelopes.map(e => e.deviceId).sort();
             if (JSON.stringify(remaining) !== JSON.stringify(provided)) throw new V4ApiError(409, "couverture");
             if (state.recovery && !body.recoveryEnvelope) throw new V4ApiError(400, "récupération requise");
+            if (state.identityArchive && !body.identityArchive) throw new V4ApiError(400, "archive requise");
+            if (body.identityArchive) state.identityArchive = body.identityArchive;
             Object.assign(state.user!, body.identity);
             for (const e of body.envelopes) state.devices.get(e.deviceId)!.envelope = e.envelope;
             if (body.recoveryEnvelope && state.recovery) state.recovery = body.recoveryEnvelope;
@@ -55,6 +60,37 @@ export function fakeServer() {
             state.links.clear();
             return { pinRecoveryDisabled };
         },
+        async rotateIdentity(body) {
+            state.calls.push({ route: "rotateIdentity", body });
+            const t = body.transition;
+            if (t.seq !== state.transitions.length) throw new V4ApiError(409, "rang");
+            const signed = { seq: t.seq, oldPublicSignKey: state.user!.publicSignKey, newPublicKey: t.publicKey, newPublicSignKey: t.publicSignKey, signature: t.signature };
+            const end = await followIdentityChain(U, state.user!.publicSignKey, [signed]);
+            if (!end || end.publicKey !== t.publicKey || end.publicSignKey !== t.publicSignKey) throw new V4ApiError(400, "transition");
+            const removeIds = body.removeDeviceIds ?? [];
+            const remaining = [...state.devices.keys()].filter(id => !removeIds.includes(id)).sort();
+            if (JSON.stringify(remaining) !== JSON.stringify(body.devices.map(d => d.deviceId).sort())) throw new V4ApiError(409, "couverture");
+            for (const d of body.devices) {
+                const known = state.devices.get(d.deviceId)!;
+                if (!(await verifyDeviceCertificate(JSON.parse(t.publicSignKey), d.certificate, U, d.deviceId, known.platform, JSON.parse(known.publicKey)))) throw new V4ApiError(400, "certificat");
+            }
+            if (state.recovery && !body.recoveryEnvelope) throw new V4ApiError(400, "récupération requise");
+            Object.assign(state.user!, body.identity, { publicKey: t.publicKey, publicSignKey: t.publicSignKey });
+            for (const d of body.devices) Object.assign(state.devices.get(d.deviceId)!, { envelope: d.envelope, certificate: d.certificate });
+            for (const id of removeIds) state.devices.delete(id);
+            if (body.recoveryEnvelope && state.recovery) state.recovery = body.recoveryEnvelope;
+            let pinRecoveryDisabled = false;
+            if (state.pinRecovery) {
+                if (body.pinRecoveryEnvelope) state.pinRecovery = body.pinRecoveryEnvelope;
+                else { state.pinRecovery = null; pinRecoveryDisabled = true; }
+            }
+            state.identityArchive = body.identityArchive;
+            state.transitions.push(signed);
+            state.links.clear();
+            return { pinRecoveryDisabled };
+        },
+        async getIdentityArchive() { return state.identityArchive; },
+        async getTransitions() { return [...state.transitions]; },
         async getRecovery() { return state.recovery; },
         async putRecovery(env) { state.recovery = env; },
         async deleteRecovery() { state.recovery = null; },

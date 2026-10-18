@@ -1,11 +1,12 @@
 import {
     E2eeV4Error, answerLinkRequest, completeLink, createDeviceEnvelope, createLinkRequest, createRecoveryEnvelope,
-    formatLinkSecret, formatRecoveryKey, generateAccountKeyBytes, generateRecoveryKeyBytes, importAccountKey,
-    openIdentityKey, openRecoveryEnvelope, parseLinkSecret, parseRecoveryKey, sealIdentityKey, verifyDeviceCertificate,
-    type LinkRequest,
+    followIdentityChain, formatLinkSecret, formatRecoveryKey, generateAccountKeyBytes, generateRecoveryKeyBytes, importAccountKey,
+    openIdentityArchive, openIdentityKey, openRecoveryEnvelope, parseLinkSecret, parseRecoveryKey, sealIdentityArchive,
+    sealIdentityKey, signDeviceCertificate, signIdentityTransition, verifyDeviceCertificate,
+    type IdentityTransition, type LinkRequest,
 } from '../utils/e2eeV4';
 import {
-    enrollThisDevice, forgetThisDevice, getLocalDevice, unlockAccountKey,
+    enrollThisDevice, forgetThisDevice, getLocalDevice, setLocalIdentity, unlockAccountKey,
     type DevicePayload, type DevicePlatform, type IdentityPin, type LocalDeviceRecord,
 } from '../deviceVault/localDevice';
 import { VaultError, type DeviceVault, type KeyValueStore, type VaultContext, type VaultKind } from '../deviceVault/types';
@@ -69,7 +70,19 @@ export interface RotateBody {
     recoveryEnvelope?: string;
     /** Récupération par PIN conservée : nouvelle AK scellée sous la même clé (pinRecovery.ts). */
     pinRecoveryEnvelope?: string;
+    /** Archive des anciennes clés d'identité, rescellée sous la nouvelle AK (si elle existe). */
+    identityArchive?: string;
     envelopes: Array<{ deviceId: string; envelope: string }>;
+}
+
+export interface RotateIdentityBody {
+    transition: { seq: number; publicKey: string; publicSignKey: string; signature: string };
+    identity: SealedIdentity;
+    devices: Array<{ deviceId: string; envelope: string; certificate: string }>;
+    removeDeviceIds?: string[];
+    recoveryEnvelope?: string;
+    pinRecoveryEnvelope?: string;
+    identityArchive: string;
 }
 
 /** Erreur HTTP de l'API v4 (status conservé pour distinguer 404 / 409…). */
@@ -88,6 +101,9 @@ export interface V4Api {
     renameDevice(deviceId: string, name: string): Promise<void>;
     addDevice(body: { device: DevicePayload; linkRequestId?: string }): Promise<void>;
     rotate(body: RotateBody): Promise<{ pinRecoveryDisabled?: boolean } | void>;
+    rotateIdentity(body: RotateIdentityBody): Promise<{ pinRecoveryDisabled?: boolean } | void>;
+    getIdentityArchive(): Promise<string | null>;
+    getTransitions(userId: string): Promise<IdentityTransition[]>;
     getRecovery(): Promise<string | null>;
     putRecovery(recoveryEnvelope: string): Promise<void>;
     deleteRecovery(): Promise<void>;
@@ -203,13 +219,36 @@ export interface IdentityKeys {
     privateKey: CryptoKey;
     /** ECDSA, non extractable, `sign` seulement. */
     privateSignKey: CryptoKey;
+    /** Anciennes clés privées RSA (rotations d'identité passées) : lecture de l'historique. */
+    archivedKeys: CryptoKey[];
 }
 
-async function importIdentity(id: IdentityBytes): Promise<IdentityKeys> {
+async function importIdentity(id: IdentityBytes, archived: Uint8Array[] = []): Promise<IdentityKeys> {
     return {
         privateKey: await crypto.subtle.importKey('pkcs8', id.rsaPkcs8 as BufferSource, RSA_PARAMS, false, ['decrypt']),
         privateSignKey: await crypto.subtle.importKey('pkcs8', id.signPkcs8 as BufferSource, EC_SIGN, false, ['sign']),
+        archivedKeys: await Promise.all(archived.map(k => crypto.subtle.importKey('pkcs8', k as BufferSource, RSA_PARAMS, false, ['decrypt']))),
     };
+}
+
+const wipeAll = (list: Uint8Array[]) => list.forEach(b => b.fill(0));
+
+/** PKCS#8 de l'archive d'identité (vide s'il n'y en a pas). */
+async function openArchive(dev: DeviceContext, akBytes: Uint8Array): Promise<Uint8Array[]> {
+    const archive = await dev.api.getIdentityArchive();
+    return archive ? openIdentityArchive(await importAccountKey(akBytes), dev.userId, archive) : [];
+}
+
+/**
+ * L'identité ouverte diffère de celle épinglée : acceptée seulement si une chaîne de transitions
+ * signées part de l'identité épinglée et aboutit exactement à celle-ci (rotation faite depuis un
+ * autre appareil). Le pin local est alors mis à jour.
+ */
+async function acceptRotatedIdentity(dev: DeviceContext, pinned: IdentityPin, derived: IdentityPin): Promise<void> {
+    const end = await followIdentityChain(dev.userId, pinned.publicSignKey, await dev.api.getTransitions(dev.userId).catch(() => []));
+    if (!end || end.publicKey !== derived.publicKey || end.publicSignKey !== derived.publicSignKey) throw new IdentityMismatchError('pinned');
+    await setLocalIdentity(dev.store, dev.userId, derived);
+    await dev.trust.pin(derived, { replace: true });
 }
 
 /** Ce que le serveur annonce (user.publicKey / publicSignKey) : comparé, jamais cru. */
@@ -301,25 +340,28 @@ export interface UnlockResult extends IdentityKeys {
  */
 export async function unlockV4(dev: DeviceContext, sealed: SealedIdentity, served: ServedIdentity, ctx?: VaultContext): Promise<UnlockResult> {
     let id: IdentityBytes | undefined;
+    let archived: Uint8Array[] = [];
     try {
         const record = await withAccountKey(dev, ctx, async (akBytes, rec) => {
             id = await openIdentity(akBytes, dev.userId, sealed);
+            archived = await openArchive(dev, akBytes);
             return rec;
         });
         const derived = await derivePublic(id!);
         const pinned = record.identity;
         if (pinned) {
             if (canonicalRsa(pinned.publicKey) !== derived.publicKey || canonicalEc(pinned.publicSignKey) !== derived.publicSignKey) {
-                throw new IdentityMismatchError('pinned');
+                await acceptRotatedIdentity(dev, pinned, derived);
             }
         } else {
             // Enregistrement antérieur à P4 : keyTrust sert de référence (et refuse un changement).
             await dev.trust.pin(derived);
         }
         assertServed(derived, served);
-        return { ...(await importIdentity(id!)), deviceId: record.deviceId };
+        return { ...(await importIdentity(id!, archived)), deviceId: record.deviceId };
     } finally {
         wipeIdentity(id);
+        wipeAll(archived);
     }
 }
 
@@ -456,7 +498,9 @@ export async function enrollWithAccountKey(
     linkRequestId?: string,
 ): Promise<IdentityKeys> {
     const id = await openIdentity(akBytes, dev.userId, sealed);
+    let archived: Uint8Array[] = [];
     try {
+        archived = await openArchive(dev, akBytes);
         const derived = await derivePublic(id);
         assertServed(derived, served);
         const { payload } = await enroll(dev.userId, dev.store, akBytes, id.signPkcs8, derived, opts);
@@ -467,9 +511,10 @@ export async function enrollWithAccountKey(
             throw e;
         }
         await dev.trust.pin(derived);
-        return await importIdentity(id);
+        return await importIdentity(id, archived);
     } finally {
         wipeIdentity(id);
+        wipeAll(archived);
     }
 }
 
@@ -640,49 +685,70 @@ export interface RotationResult {
     removedThisDevice: boolean;
     /** La récupération par PIN existait et n'a pas été conservée : le serveur l'a désactivée. */
     pinRecoveryDisabled: boolean;
+    /** Rotation d'identité : les nouvelles clés (et l'archive) à mettre en service. */
+    keys?: IdentityKeys;
 }
 
 const MAX_ROTATION_ATTEMPTS = 3;
 
+/** Récupération par PIN à conserver lors d'une rotation (pinRecovery.ts, keepPinRecovery). */
+export type KeepPinRecovery = (currentAk: Uint8Array) => Promise<(newAk: Uint8Array) => Promise<string>>;
+
+interface RotationOptions {
+    removeIds: string[];
+    fetchSealed: () => Promise<SealedIdentity>;
+    ctx?: VaultContext;
+    pinRecovery?: KeepPinRecovery;
+    /** Remplace aussi les paires d'identité (RSA / ECDSA). */
+    newIdentity: boolean;
+}
+
 /**
- * Retire des appareils : nouvelle AK, identité rescellée, une enveloppe par appareil restant
- * **certifié** (certificat vérifié contre la clé de signature épinglée, jamais contre une valeur du
- * serveur). Les appareils non certifiés sont retirés avec les autres : aucune enveloppe ne leur est
- * jamais produite. Si un appareil est ajouté entre-temps (409), on recommence avec la liste à jour.
- *
- * Limite (spec §7) : un appareil retiré qui était déverrouillé connaît encore l'identité ; seule une
- * rotation d'identité (hors périmètre) l'en priverait.
+ * Nouvelle AK : identité rescellée (ou remplacée), une enveloppe par appareil restant **certifié**
+ * (certificat vérifié contre la clé de signature épinglée, jamais contre une valeur du serveur). Les
+ * appareils non certifiés sont retirés avec les autres : aucune enveloppe ne leur est jamais
+ * produite. Si un appareil est ajouté entre-temps (409), on recommence avec la liste à jour.
  */
-export async function removeDevices(
-    dev: DeviceContext,
-    removeIds: string[],
-    fetchSealed: () => Promise<SealedIdentity>,
-    ctx?: VaultContext,
-    /**
-     * Récupération par PIN à conserver : reçoit l'AK actuelle (pour vérifier le PIN contre
-     * l'enveloppe existante) et renvoie de quoi sceller chaque nouvelle AK (pinRecovery.ts).
-     */
-    pinRecovery?: (currentAk: Uint8Array) => Promise<(newAk: Uint8Array) => Promise<string>>,
-): Promise<RotationResult> {
+async function rotateAccount(dev: DeviceContext, o: RotationOptions): Promise<RotationResult> {
     let sealPinRecovery: ((newAk: Uint8Array) => Promise<string>) | undefined;
     let id: IdentityBytes | undefined;
+    let next: (IdentityBytes & IdentityPin) | undefined;
+    let archived: Uint8Array[] = [];
+    let hadArchive = false;
+    let oldPin: IdentityPin | undefined;
     let thisDeviceId = '';
     let signKey = '';
     try {
         // Une seule confirmation (coffre) pour toute l'opération, reprises comprises.
-        await withAccountKey(dev, ctx, async (akBytes, record) => {
+        await withAccountKey(dev, o.ctx, async (akBytes, record) => {
             thisDeviceId = record.deviceId;
             signKey = await referenceSignKey(record, dev.trust);
-            id = await openIdentity(akBytes, dev.userId, await fetchSealed());
-            if (pinRecovery) sealPinRecovery = await pinRecovery(akBytes);
-            const derived = await derivePublic(id);
-            if (record.identity && canonicalEc(record.identity.publicSignKey) !== derived.publicSignKey) throw new IdentityMismatchError('pinned');
+            id = await openIdentity(akBytes, dev.userId, await o.fetchSealed());
+            hadArchive = (await dev.api.getIdentityArchive()) !== null;
+            archived = await openArchive(dev, akBytes);
+            if (o.pinRecovery) sealPinRecovery = await o.pinRecovery(akBytes);
+            oldPin = await derivePublic(id);
+            if (record.identity && canonicalEc(record.identity.publicSignKey) !== oldPin.publicSignKey) throw new IdentityMismatchError('pinned');
         });
+
+        let transition: RotateIdentityBody['transition'] | undefined;
+        let newSignKey: CryptoKey | undefined;
+        if (o.newIdentity) {
+            next = await generateIdentity();
+            // L'ancienne clé RSA rejoint l'archive : l'historique scellé pour elle reste lisible.
+            archived = [...archived, id!.rsaPkcs8.slice()];
+            const oldSigner = await crypto.subtle.importKey('pkcs8', id!.signPkcs8 as BufferSource, EC_SIGN, false, ['sign']);
+            const seq = (await dev.api.getTransitions(dev.userId)).length;
+            const t = await signIdentityTransition(oldSigner, dev.userId, seq, oldPin!.publicSignKey, next.publicKey, next.publicSignKey);
+            transition = { seq, publicKey: t.newPublicKey, publicSignKey: t.newPublicSignKey, signature: t.signature };
+            newSignKey = await crypto.subtle.importKey('pkcs8', next.signPkcs8 as BufferSource, EC_SIGN, false, ['sign']);
+        }
+        const target = next ?? id!;
 
         for (let attempt = 1; ; attempt++) {
             const checked = await checkDevices(dev, await dev.api.listDevices());
             const signJwk = JSON.parse(signKey) as JsonWebKey;
-            const remove = new Set(removeIds.filter(rid => checked.some(d => d.id === rid)));
+            const remove = new Set(o.removeIds.filter(rid => checked.some(d => d.id === rid)));
             const keep: CheckedDevice[] = [];
             for (const d of checked) {
                 if (remove.has(d.id)) continue;
@@ -694,7 +760,7 @@ export async function removeDevices(
             const newAk = generateAccountKeyBytes();
             const rk = generateRecoveryKeyBytes();
             try {
-                const identity = await sealIdentity(newAk, dev.userId, id!);
+                const identity = await sealIdentity(newAk, dev.userId, target);
                 const envelopes = await Promise.all(keep.map(async d => ({
                     deviceId: d.id,
                     envelope: await createDeviceEnvelope(JSON.parse(d.publicKey), newAk, dev.userId, d.id),
@@ -702,23 +768,41 @@ export async function removeDevices(
                 const hasRecovery = (await dev.api.getRecovery()) !== null;
                 const recoveryEnvelope = hasRecovery ? await createRecoveryEnvelope(rk, newAk, dev.userId) : undefined;
                 const pinRecoveryEnvelope = sealPinRecovery ? await sealPinRecovery(newAk) : undefined;
+                const identityArchive = (hadArchive || o.newIdentity) ? await sealIdentityArchive(await importAccountKey(newAk), dev.userId, archived) : undefined;
+                const extras = {
+                    ...(recoveryEnvelope ? { recoveryEnvelope } : {}),
+                    ...(pinRecoveryEnvelope ? { pinRecoveryEnvelope } : {}),
+                };
                 let rotated: { pinRecoveryDisabled?: boolean } | void;
                 try {
-                    rotated = await dev.api.rotate({
-                        removeDeviceIds: [...remove], identity, envelopes,
-                        ...(recoveryEnvelope ? { recoveryEnvelope } : {}),
-                        ...(pinRecoveryEnvelope ? { pinRecoveryEnvelope } : {}),
-                    });
+                    if (o.newIdentity) {
+                        // Chaque appareil conservé est recertifié par la NOUVELLE identité.
+                        const devices = await Promise.all(keep.map(async (d, i) => ({
+                            ...envelopes[i]!,
+                            certificate: await signDeviceCertificate(newSignKey!, dev.userId, d.id, d.platform, JSON.parse(d.publicKey)),
+                        })));
+                        rotated = await dev.api.rotateIdentity({ transition: transition!, identity, devices, removeDeviceIds: [...remove], identityArchive: identityArchive!, ...extras });
+                    } else {
+                        rotated = await dev.api.rotate({ removeDeviceIds: [...remove], identity, envelopes, ...extras, ...(identityArchive ? { identityArchive } : {}) });
+                    }
                 } catch (e) {
                     if (e instanceof V4ApiError && e.status === 409 && attempt < MAX_ROTATION_ATTEMPTS) continue;
                     throw e;
                 }
                 const removedThisDevice = remove.has(thisDeviceId);
                 if (removedThisDevice) await forgetThisDevice(dev.userId, dev.store, dev.vaultFor);
+                let keys: IdentityKeys | undefined;
+                if (next) {
+                    const pin: IdentityPin = { publicKey: next.publicKey, publicSignKey: next.publicSignKey };
+                    if (!removedThisDevice) await setLocalIdentity(dev.store, dev.userId, pin);
+                    await dev.trust.pin(pin, { replace: true });
+                    keys = await importIdentity(next, archived);
+                }
                 return {
                     removed: [...remove],
                     removedThisDevice,
                     pinRecoveryDisabled: !!rotated?.pinRecoveryDisabled,
+                    ...(keys ? { keys } : {}),
                     ...(hasRecovery ? { recoveryKeyText: await formatRecoveryKey(rk) } : {}),
                 };
             } finally {
@@ -728,7 +812,39 @@ export async function removeDevices(
         }
     } finally {
         wipeIdentity(id);
+        wipeIdentity(next);
+        wipeAll(archived);
     }
+}
+
+/**
+ * Retire des appareils avec rotation d'AK seule. Limite (spec §7) : un appareil retiré qui était
+ * déverrouillé connaît encore l'identité ; rotateIdentity l'en prive pour l'avenir.
+ */
+export function removeDevices(
+    dev: DeviceContext,
+    removeIds: string[],
+    fetchSealed: () => Promise<SealedIdentity>,
+    ctx?: VaultContext,
+    pinRecovery?: KeepPinRecovery,
+): Promise<RotationResult> {
+    return rotateAccount(dev, { removeIds, fetchSealed, ctx, pinRecovery, newIdentity: false });
+}
+
+/**
+ * Rotation d'identité (spec §7, P7) : nouvelles paires RSA / ECDSA et nouvelle AK, transition signée
+ * par l'ancienne clé de signature (les autres membres suivent la chaîne et acceptent les nouvelles
+ * clés sans alerte), appareils conservés recertifiés, ancienne clé RSA archivée sous AK. Peut retirer
+ * des appareils dans la même opération. Les nouvelles clés sont dans `result.keys`.
+ */
+export function rotateIdentity(
+    dev: DeviceContext,
+    removeIds: string[],
+    fetchSealed: () => Promise<SealedIdentity>,
+    ctx?: VaultContext,
+    pinRecovery?: KeepPinRecovery,
+): Promise<RotationResult> {
+    return rotateAccount(dev, { removeIds, fetchSealed, ctx, pinRecovery, newIdentity: true });
 }
 
 // ---------------------------------------------------------------------------

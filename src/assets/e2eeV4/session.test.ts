@@ -3,7 +3,7 @@ import { getLocalDevice } from "../deviceVault/localDevice";
 import { createDeviceEnvelope, generateAccountKeyBytes } from "../utils/e2eeV4";
 import {
     DeviceRevokedError, IdentityMismatchError, V4ApiError, answerLink, checkDevices, linkQrPayload, parseLinkQr,
-    prepareV4Account, recoverWithKey, regenerateRecoveryKey, removeDevices, startLink, unlockV4,
+    prepareV4Account, recoverWithKey, regenerateRecoveryKey, removeDevices, rotateIdentity, startLink, unlockV4,
     type InitBody,
 } from "./session";
 import { U, device, errName, fakeServer, sealedOf, served } from "./testkit";
@@ -302,3 +302,59 @@ describe("migration v3 → v4", () => {
         expect(await getLocalDevice(a.dev.store, U)).toBeUndefined();
     });
 });
+
+describe("rotation d'identité", () => {
+    test("nouvelles clés ; l'autre appareil les accepte par la chaîne signée et relit l'historique", async () => {
+        const { server, a } = await createAccount();
+        const b = await link(server, a);
+        const oldPub = await crypto.subtle.importKey("jwk", JSON.parse(server.state.user!.publicKey), { name: "RSA-OAEP", hash: "SHA-256" }, false, ["encrypt"]);
+        const oldMessage = await crypto.subtle.encrypt({ name: "RSA-OAEP" }, oldPub, new TextEncoder().encode("ancien"));
+        const before = server.state.user!.publicKey;
+
+        const result = await rotateIdentity(a.dev, [], async () => sealedOf(server.state), a.ctx);
+        expect(server.state.user!.publicKey).not.toBe(before);
+        expect(result.keys!.archivedKeys.length).toBe(1);
+        expect(server.state.transitions.length).toBe(1);
+
+        // b n'a rien fait : au déverrouillage, l'identité diffère de son pin mais la chaîne la justifie
+        const keysB = await unlockV4(b.dev, sealedOf(server.state), served(server.state), b.ctx);
+        expect((await getLocalDevice(b.dev.store, U))!.identity!.publicKey).toBe(server.state.user!.publicKey);
+        const plain = await crypto.subtle.decrypt({ name: "RSA-OAEP" }, keysB.archivedKeys[0]!, oldMessage);
+        expect(new TextDecoder().decode(plain)).toBe("ancien");
+        // la clé actuelle ne lit pas l'ancien message : seule l'archive le permet
+        await expect(crypto.subtle.decrypt({ name: "RSA-OAEP" }, keysB.privateKey, oldMessage)).rejects.toBeDefined();
+    });
+
+    test("rotation d'identité qui retire un appareil, puis rotation d'AK : l'archive suit", async () => {
+        const { server, a } = await createAccount();
+        const b = await link(server, a);
+        const c = await link(server, a, "3333");
+        const bId = (await getLocalDevice(b.dev.store, U))!.deviceId;
+        await rotateIdentity(a.dev, [bId], async () => sealedOf(server.state), a.ctx);
+        expect(await errName(unlockV4(b.dev, sealedOf(server.state), served(server.state), b.ctx))).toBe("DeviceRevokedError");
+
+        const cId = (await getLocalDevice(c.dev.store, U))!.deviceId;
+        const d = await link(server, a, "4444");
+        await removeDevices(a.dev, [cId], async () => sealedOf(server.state), a.ctx);
+        const keysD = await unlockV4(d.dev, sealedOf(server.state), served(server.state), d.ctx);
+        expect(keysD.archivedKeys.length).toBe(1);
+    });
+
+    test("identité remplacée par le serveur sans transition signée : refusée", async () => {
+        const { server, a } = await createAccount();
+        const b = await link(server, a);
+        // le serveur rejoue une rotation légitime mais efface la chaîne qui la justifie
+        await rotateIdentity(a.dev, [], async () => sealedOf(server.state), a.ctx);
+        server.state.transitions = [];
+        expect(await errName(unlockV4(b.dev, sealedOf(server.state), served(server.state), b.ctx))).toBe("IdentityMismatchError");
+    });
+
+    test("clé de récupération après rotation : un appareil neuf obtient aussi l'archive", async () => {
+        const { server, a } = await createAccount();
+        const result = await rotateIdentity(a.dev, [], async () => sealedOf(server.state), a.ctx);
+        const c = device(server.api, "2222");
+        const keys = await recoverWithKey(c.dev, result.recoveryKeyText!, sealedOf(server.state), served(server.state), c.opts);
+        expect(keys.archivedKeys.length).toBe(1);
+    });
+});
+
