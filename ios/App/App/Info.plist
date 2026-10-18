@@ -60,5 +60,7 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Synco utilise Face ID pour déverrouiller vos messages chiffrés.</string>
 </dict>
 </plist>

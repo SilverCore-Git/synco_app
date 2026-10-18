@@ -96,9 +96,19 @@ mod secure_store {
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     const SERVICE: &str = "fr.silvercore.synco";
 
+    // Clé d'appareil E2EE v4 : « e2ee-dk: » suivi de l'UUID de l'appareil (36 caractères hexadécimaux
+    // et tirets). Un préfixe fixe et une forme stricte, jamais un nom libre venu du front.
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    fn is_device_key(key: &str) -> bool {
+        match key.strip_prefix("e2ee-dk:") {
+            Some(id) => id.len() == 36 && id.chars().all(|c| c.is_ascii_hexdigit() || c == '-'),
+            None => false,
+        }
+    }
+
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     fn entry(key: &str) -> Result<keyring::Entry, String> {
-        if !ALLOWED_KEYS.contains(&key) {
+        if !ALLOWED_KEYS.contains(&key) && !is_device_key(key) {
             return Err("clé non autorisée".into());
         }
         keyring::Entry::new(SERVICE, key).map_err(|e| e.to_string())

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | 🚧 En cours — branche `feat/e2ee-v4` (synco_app et synco_api). P1 (noyau cryptographique) et P2 (API) faits ; P3 à P7 restent à faire. |
+| **Statut** | 🚧 En cours — branche `feat/e2ee-v4` (synco_app et synco_api). P1 (noyau cryptographique), P2 (API) et P3 (coffres par plateforme) faits ; P4 à P7 restent à faire. |
 | **Origine** | Audit 2026-10-01, FC2 : le serveur détient un vérificateur et un `wrapSecret` qui permettent de forcer les 10 000 PIN hors ligne. |
 | **Contraintes** | PIN à **4 chiffres** conservé (expérience utilisateur) · **multi-appareil obligatoire** · compatibilité : les comptes legacy/v2/v3 continuent de fonctionner tant qu'ils ne migrent pas · le plus sûr possible. |
 
@@ -124,7 +124,7 @@ Les comptes existants restent fonctionnels et inchangés tant qu'ils ne migrent 
 |---|---|
 | **P1** ✅ | Noyau cryptographique pur et testé : AK, enveloppes, liaison d'appareil (ECDH + SAS), clé de récupération, formats versionnés |
 | **P2** ✅ | API : schéma Prisma, routes (appareils, liaison, récupération), limitation de débit, notifications, tests |
-| **P3** | Coffres par plateforme : web (PRF/IndexedDB), Capacitor (biométrie native), Tauri |
+| **P3** ✅ | Coffres par plateforme : web (PRF/IndexedDB), Capacitor (biométrie native), Tauri |
 | **P4** | Interface : onboarding, clé de récupération, **paramètres utilisateur › « Appareils et sécurité »** (liste, nom, plateforme, dernière activité, appareil actuel, déconnexion, ajout par QR, clé de récupération, récupération par PIN), liaison par QR, déverrouillage |
 | **P5** | Migration v3 → v4 et suppression du matériel PIN côté serveur |
 | **P6** | Révocation d'appareil avec rotation d'AK |
@@ -152,3 +152,21 @@ Nouvelle section **« Appareils et sécurité »** dans les paramètres utilisat
 - **Récupération par PIN** : activer / désactiver avec avertissement ;
 - verrou local : changer le PIN local, activer / désactiver la biométrie ;
 - alertes : e-mail et notification in-app à l'ajout et au retrait d'un appareil.
+
+## 12. Coffres par plateforme — état de P3 (`src/assets/deviceVault/`)
+
+| Coffre | Fichier | Testé |
+|---|---|---|
+| Web, passkey WebAuthn PRF | `prfVault.ts` | authentificateur simulé |
+| Web, repli PIN local (PBKDF2 600 000, effacement au 10ᵉ échec) | `pinVault.ts` | oui |
+| Capacitor, Keychain / Keystore + biométrie ou code de l'appareil | `nativeVault.ts` | plugins simulés |
+| Tauri, trousseau du système (`secure_store_*`, clés `e2ee-dk:<uuid>` seulement) | `keyringVault.ts`, `src-tauri/src/lib.rs` | commande simulée, liste blanche Rust vérifiée isolément |
+| Orchestration : inscription avec repli, déverrouillage d'AK | `localDevice.ts` | oui |
+
+**À valider sur de vrais appareils** (non faisable depuis cet environnement) : Face ID / Touch ID (iOS), empreinte / visage (Android), Windows Hello / Secret Service (desktop), passkey PRF sur Chrome, Safari, Edge et Firefox. Après `bun install`, `npx cap sync` est nécessaire pour embarquer `@aparajita/capacitor-biometric-auth` dans les projets natifs.
+
+**Points de conception**
+- À l'inscription, les coffres sont essayés du plus protecteur au repli ; seule l'*indisponibilité* de la plateforme autorise un repli, jamais une annulation de l'utilisateur.
+- Au déverrouillage, la clé publique servie par le serveur doit être celle enregistrée localement, sinon l'enveloppe est refusée.
+- Une fois AK ouverte, l'appelant (P4/P5) doit encore vérifier que la clé d'identité déchiffrée correspond à celle qu'il a épinglée (voir §7).
+- Capacitor : la biométrie est un contrôle côté application devant un secret protégé par le trousseau de l'OS, non lié cryptographiquement à la lecture. Un appareil sans aucun verrouillage d'écran est refusé.

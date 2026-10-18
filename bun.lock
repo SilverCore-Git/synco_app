@@ -5,6 +5,7 @@
     "": {
       "name": "test-silvercore",
       "dependencies": {
+        "@aparajita/capacitor-biometric-auth": "10.0.0",
         "@aparajita/capacitor-secure-storage": "8.0.1",
         "@capacitor/android": "^8.4.2",
         "@capacitor/app": "^8.1.1",
@@ -16,7 +17,7 @@
         "@guolao/vue-monaco-editor": "^1.6.0",
         "@mlc-ai/web-llm": "^0.2.84",
         "@orama/orama": "^3.1.18",
-        "@sapphi-red/web-noise-suppressor": "0.4.1",
+        "@sapphi-red/web-noise-suppressor": "^0.4.1",
         "@tailwindcss/vite": "^4.1.17",
         "@tauri-apps/api": "^2.11.1",
         "@tauri-apps/plugin-deep-link": "^2.4.9",
@@ -64,6 +65,8 @@
     },
   },
   "packages": {
+    "@aparajita/capacitor-biometric-auth": ["@aparajita/capacitor-biometric-auth@10.0.0", "", { "dependencies": { "@capacitor/android": "^8.0.2", "@capacitor/app": "^8.0.0", "@capacitor/core": "^8.0.2", "@capacitor/ios": "^8.0.2" } }, "sha512-azjWaRucB8x1/gSzSTp/NxelaOZyg+m765gSzjwUkSQgg30RrZPmPq6pyLeeXVSZNDY3Rxf5Hj8obgZaXirCFQ=="],
+
     "@aparajita/capacitor-secure-storage": ["@aparajita/capacitor-secure-storage@8.0.1", "", { "dependencies": { "@capacitor/android": "^8.0.2", "@capacitor/app": "^8.0.0", "@capacitor/core": "^8.0.2", "@capacitor/ios": "^8.0.2", "@capacitor/keyboard": "^8.0.0" } }, "sha512-NSYIQtH6TyBgL3myumQGcCE3iecq2PtGNFlGxl1fJKEU37Dv5DudzDlwg42cgbVxCm1ay72g4X7rTSAvKULsVg=="],
 
     "@babel/code-frame": ["@babel/code-frame@7.29.7", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.29.7", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw=="],
