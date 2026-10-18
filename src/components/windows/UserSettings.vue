@@ -175,8 +175,8 @@
                     class="animate-fade-in space-y-8"
                 >
                     <div>
-                        <h3 class="text-xl font-black text-(--text) mb-1">Sécurité & Confidentialité</h3>
-                        <p class="text-sm text-(--text2)">Gérez la sécurité de votre compte et le chiffrement de bout en bout.</p>
+                        <h3 class="text-xl font-black text-(--text) mb-1">Appareils et sécurité</h3>
+                        <p class="text-sm text-(--text2)">Gérez vos appareils, la sécurité de votre compte et le chiffrement de bout en bout.</p>
                     </div>
 
                     <div class="space-y-6">
@@ -213,6 +213,9 @@
                             </div>
                         </div>
 
+                        <!-- E2EE v4 : appareils, clé de récupération, verrou local (doc/securite/13 §11) -->
+                        <DevicesSecurity v-if="isV4 && E2EEUnloked" />
+
                         <div v-if="E2EEUnloked" class="space-y-4">
                             <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Preuve de chiffrement (E2EE)</h4>
                             
@@ -234,7 +237,7 @@
                                     </button>
                                 </div>
                                 <p class="text-[10px] text-(--text2) leading-relaxed">
-                                    Ceci est l'empreinte unique de votre clé publique. Elle est utilisée par vos contacts pour chiffrer les messages qu'ils vous envoient. Seul votre appareil (grâce au code PIN) peut les déchiffrer avec la clé privée correspondante.
+                                    Ceci est l'empreinte unique de votre clé publique. Elle est utilisée par vos contacts pour chiffrer les messages qu'ils vous envoient. {{ isV4 ? 'Seuls vos appareils connectés peuvent les déchiffrer avec la clé privée correspondante.' : 'Seul votre appareil (grâce au code PIN) peut les déchiffrer avec la clé privée correspondante.' }}
                                 </p>
                             </div>
                         </div>
@@ -598,6 +601,8 @@ import { cleanProfile, emptyProfile, profileForOrg } from '@/assets/utils/userPr
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import { E2EEUnloked, lockSecurity } from '@/assets/utils/crypto';
+import { isV4Account } from '@/assets/e2eeV4/runtime';
+import DevicesSecurity from '../settings/DevicesSecurity.vue';
 import { logoutEverywhere } from '@/assets/keycloak';
 import { disconnectSocket } from '@/composables/useWSocket';
 
@@ -610,6 +615,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits(['close']);
 const toast = useToast();
+const isV4 = computed(() => isV4Account(user.value?.pinSalt));
 
 const { Item: theme } = useSettingsItem('theme', 'dark');
 const { Item: devMode } = useSettingsItem('devMode', false);
@@ -922,7 +928,7 @@ const deleteAccount = async () => {
 
 const tabs = [
     { id: 'account', label: 'Mon profil', icon: 'bi bi-person-badge-fill' },
-    { id: 'security', label: 'Sécurité', icon: 'bi bi-shield-lock-fill' },
+    { id: 'security', label: 'Appareils et sécurité', icon: 'bi bi-shield-lock-fill' },
     { id: 'appearance', label: 'Apparence', icon: 'bi bi-palette-fill' },
     { id: 'notifications', label: 'Notifications', icon: 'bi bi-bell-fill' },
     { id: 'reports', label: "Rapports", icon: 'bi bi-envelope-paper-fill' }
