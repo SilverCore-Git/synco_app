@@ -112,6 +112,21 @@
             </div>
         </div>
 
+        <!-- ================= Clés de chiffrement ================= -->
+        <div class="space-y-4">
+            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Clés de chiffrement</h4>
+            <div class="p-5 bg-(--bg2) border border-(--border-color) rounded-xl flex flex-col sm:flex-row sm:items-center gap-4">
+                <div class="flex-1">
+                    <p class="text-sm font-bold text-(--text)">Renouveler mes clés de chiffrement</p>
+                    <p class="text-xs text-(--text2) mt-1 leading-relaxed">
+                        À faire si un appareil perdu ou volé était déverrouillé : il ne pourra plus rien déchiffrer de ce qui vous sera envoyé ensuite.
+                        Vos contacts reçoivent automatiquement vos nouvelles clés ; votre historique reste lisible sur vos appareils.
+                    </p>
+                </div>
+                <button class="second text-sm whitespace-nowrap" :disabled="!E2EEUnloked || rotating" @click="confirmRotate = true">Renouveler</button>
+            </div>
+        </div>
+
         <!-- ================= Verrou de cet appareil ================= -->
         <div v-if="localKind" class="space-y-4">
             <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Verrou de cet appareil</h4>
@@ -313,8 +328,23 @@
             :checkbox="true"
             checkbox-label="Je comprends que cet appareil perdra l'accès à mes nouveaux messages."
             :loading="removing"
+            extra-option-label="Renouveler aussi mes clés de chiffrement (recommandé si cet appareil était déverrouillé)"
+            v-model:extra-option-value="rotateWithRemoval"
             @confirm="confirmRemove"
             @cancel="removeTarget = null"
+        />
+
+        <ConfirmDelete
+            :show="confirmRotate"
+            title="Renouveler vos clés de chiffrement ?"
+            item-name="vos clés de chiffrement"
+            item-type="vos clés de chiffrement"
+            message="De nouvelles clés seront créées et distribuées à vos appareils. Vos contacts les recevront automatiquement ; votre historique reste lisible sur vos appareils. Les salons et espaces existants gardent leur clé tant qu'elle n'est pas renouvelée par leurs membres."
+            :extra-warning="hasRecovery ? 'Votre clé de récupération sera renouvelée : la nouvelle s\'affichera ensuite.' : ''"
+            button-text="Renouveler"
+            :loading="rotating"
+            @confirm="confirmRotate = false; runRotation([], true)"
+            @cancel="confirmRotate = false"
         />
 
         <ConfirmDelete
@@ -350,12 +380,12 @@ import { getLocalDevice, idbStore, switchVault, VaultError, type VaultContext, t
 import { PinVault } from '@/assets/deviceVault/pinVault';
 import { E2eeV4Error, parseLinkSecret } from '@/assets/utils/e2eeV4';
 import {
-    IdentityMismatchError, V4ApiError, answerLink, checkDevices, parseLinkQr, regenerateRecoveryKey, removeDevices,
+    IdentityMismatchError, V4ApiError, answerLink, checkDevices, parseLinkQr, regenerateRecoveryKey, removeDevices, rotateIdentity,
     type CheckedDevice, type DeviceContext, type PendingLink,
 } from '@/assets/e2eeV4/session';
 import { PinRecoveryFailure, disablePinRecovery, enablePinRecovery, keepPinRecovery, pinRecoveryStatus } from '@/assets/e2eeV4/pinRecovery';
 import { pinRecoveryActors, pinRecoveryConfigured } from '@/assets/e2eeV4/pinRecoveryApi';
-import { PLATFORM_ICONS, PLATFORM_LABELS, deviceContext, enrollmentVaults, sealedFrom, vaultFor } from '@/assets/e2eeV4/runtime';
+import { applyIdentityKeys, PLATFORM_ICONS, PLATFORM_LABELS, deviceContext, enrollmentVaults, sealedFrom, vaultFor } from '@/assets/e2eeV4/runtime';
 
 /**
  * Paramètres › Appareils et sécurité (E2EE v4, doc/securite/13-e2ee-v4-multi-appareil.md §11).
@@ -508,6 +538,7 @@ const removeWarning = computed(() => {
     const parts = ["Si cet appareil était déverrouillé au moment de sa perte, il conserve l'accès à ce qu'il a déjà pu ouvrir : changez aussi votre mot de passe."];
     if (hasRecovery.value) parts.push('Votre clé de récupération sera renouvelée : la nouvelle s\'affichera ensuite.');
     if (pinRec.enabled) parts.push('Votre code PIN de récupération vous sera demandé pour la conserver.');
+    parts.push("Pour l'en priver aussi à l'avenir, cochez le renouvellement des clés ci-dessous.");
     const uncertified = devices.value.filter(x => !x.certified && x.id !== removeTarget.value?.id).length;
     if (uncertified) parts.push(`${uncertified} appareil(s) non certifié(s) seront aussi retirés.`);
     return parts.join(' ');
@@ -519,10 +550,30 @@ function askRemove(d: CheckedDevice) {
 
 async function confirmRemove() {
     const d = removeTarget.value;
-    if (!dev || !d) return;
+    if (!d) return;
     removing.value = true;
     try {
-        const ctx = await vaultCtx(`Confirmez la déconnexion de « ${d.name} ».`);
+        await runRotation([d.id], rotateWithRemoval.value, d.name);
+    } finally {
+        removing.value = false;
+        removeTarget.value = null;
+        rotateWithRemoval.value = false;
+    }
+}
+
+const rotateWithRemoval = ref(false);
+const confirmRotate = ref(false);
+const rotating = ref(false);
+
+/**
+ * Nouvelle clé de compte (retrait d'appareils) et, si `newIdentity`, nouvelles clés d'identité.
+ * Redemande le coffre, puis le code de récupération par PIN s'il faut la conserver.
+ */
+async function runRotation(removeIds: string[], newIdentity: boolean, deviceName?: string) {
+    if (!dev) return;
+    rotating.value = true;
+    try {
+        const ctx = await vaultCtx(deviceName ? `Confirmez la déconnexion de « ${deviceName} ».` : 'Confirmez le renouvellement de vos clés.');
         // Récupération par PIN active : on la conserve (code demandé) ou on la désactive, au choix.
         let keep: ReturnType<typeof keepPinRecovery> | undefined;
         if (pinRec.enabled && !pinRec.locked) {
@@ -530,14 +581,21 @@ async function confirmRemove() {
             if (recPin === undefined) return;
             if (recPin) keep = keepPinRecovery(pinRecoveryActors, dev.userId, recPin);
         }
-        const result = await removeDevices(dev, [d.id], async () => { await refetchUser(); return sealedFrom(user.value); }, ctx, keep);
+        const fetchSealed = async () => { await refetchUser(); return sealedFrom(user.value); };
+        const result = newIdentity
+            ? await rotateIdentity(dev, removeIds, fetchSealed, ctx, keep)
+            : await removeDevices(dev, removeIds, fetchSealed, ctx, keep);
         if (result.pinRecoveryDisabled) {
             await pinRecoveryActors.guard.disable().catch(() => {});
             toast.show('La récupération par code PIN a été désactivée.', 'info');
         }
-        removeTarget.value = null;
-        const extra = result.removed.length - 1;
-        toast.show(extra > 0 ? `Appareil déconnecté (et ${extra} appareil(s) non certifié(s) retiré(s)).` : 'Appareil déconnecté.', 'success');
+        const extra = result.removed.length - removeIds.length;
+        if (removeIds.length) toast.show(extra > 0 ? `Appareil déconnecté (et ${extra} appareil(s) non certifié(s) retiré(s)).` : 'Appareil déconnecté.', 'success');
+        if (newIdentity) {
+            await refetchUser();
+            if (result.keys && !result.removedThisDevice) applyIdentityKeys(result.keys);
+            toast.show('Clés de chiffrement renouvelées.', 'success');
+        }
         if (result.recoveryKeyText) {
             recoveryAck.value = false;
             newRecovery.value = result.recoveryKeyText;
@@ -551,102 +609,12 @@ async function confirmRemove() {
         await reload();
     } catch (e) {
         if (e instanceof E2eeV4Error && /remain/.test(e.message)) toast.show('Impossible de déconnecter votre seul appareil.', 'error');
-        else if (e instanceof PinRecoveryFailure) toast.show(e.reason === 'wrong-pin' ? `Code PIN de récupération incorrect (${e.attemptsLeft} essai(s) restant(s)). Aucun appareil n'a été retiré.` : `${e.message} Aucun appareil n'a été retiré.`, 'error', 8000);
-        else reportError(e, "La déconnexion de l'appareil a échoué.");
+        else if (e instanceof PinRecoveryFailure) toast.show(e.reason === 'wrong-pin' ? `Code PIN de récupération incorrect (${e.attemptsLeft} essai(s) restant(s)). Rien n'a été modifié.` : `${e.message} Rien n'a été modifié.`, 'error', 8000);
+        else reportError(e, newIdentity ? 'Le renouvellement des clés a échoué.' : "La déconnexion de l'appareil a échoué.");
     } finally {
-        removing.value = false;
-        removeTarget.value = null;
+        rotating.value = false;
         refreshPinRec();
     }
-}
-
-// --- récupération par code PIN ------------------------------------------------------
-
-const pinRec = reactive({ enabled: false, locked: false, attemptsLeft: 0, reachable: true, busy: false });
-const confirmDisablePin = ref(false);
-
-async function refreshPinRec() {
-    if (!pinRecoveryConfigured) return;
-    try {
-        const st = await pinRecoveryStatus(pinRecoveryActors);
-        Object.assign(pinRec, { enabled: st.enabled, locked: st.locked, attemptsLeft: st.attemptsLeft, reachable: st.guardReachable });
-    } catch {
-        pinRec.reachable = false;
-    }
-}
-
-const enablePin = reactive({ open: false, step: 'warn' as 'warn' | 'choose' | 'confirm', ack: false, pin: '', first: '', errorTick: 0 });
-
-function openEnablePin() {
-    Object.assign(enablePin, { open: true, step: pinRec.enabled ? 'choose' : 'warn', ack: false, pin: '', first: '' });
-}
-
-function closeEnablePin() {
-    if (pinRec.busy) return;
-    Object.assign(enablePin, { open: false, pin: '', first: '' });
-}
-
-async function submitEnablePin() {
-    if (!dev || enablePin.pin.length !== 4) return;
-    if (enablePin.step === 'choose') {
-        enablePin.first = enablePin.pin;
-        enablePin.pin = '';
-        enablePin.step = 'confirm';
-        return;
-    }
-    if (enablePin.pin !== enablePin.first) {
-        enablePin.errorTick++;
-        toast.show('Les deux codes ne correspondent pas.', 'error');
-        Object.assign(enablePin, { step: 'choose', pin: '', first: '' });
-        return;
-    }
-    const code = enablePin.pin;
-    Object.assign(enablePin, { pin: '', first: '' });
-    pinRec.busy = true;
-    try {
-        const ctx = await vaultCtx('Confirmez l\'activation de la récupération par code PIN.');
-        await enablePinRecovery(dev, pinRecoveryActors, code, ctx);
-        enablePin.open = false;
-        toast.show('Récupération par code PIN activée.', 'success');
-    } catch (e) {
-        reportError(e, "Impossible d'activer la récupération par code PIN.");
-        enablePin.step = 'choose';
-    } finally {
-        pinRec.busy = false;
-        await refreshPinRec();
-    }
-}
-
-async function disablePin() {
-    pinRec.busy = true;
-    try {
-        await disablePinRecovery(pinRecoveryActors);
-        toast.show('Récupération par code PIN désactivée.', 'success');
-    } catch (e) {
-        reportError(e, 'Impossible de désactiver la récupération par code PIN.');
-    } finally {
-        confirmDisablePin.value = false;
-        pinRec.busy = false;
-        await refreshPinRec();
-    }
-}
-
-/** Code de récupération pour une rotation : la chaîne, `null` = désactiver, `undefined` = annuler. */
-const recPinAsk = reactive({ open: false, pin: '' });
-let recPinResolver: ((v: string | null | undefined) => void) | null = null;
-
-function askRecoveryPin(): Promise<string | null | undefined> {
-    recPinAsk.pin = '';
-    recPinAsk.open = true;
-    return new Promise((resolve) => { recPinResolver = resolve; });
-}
-
-function answerRecPin(v: string | null | undefined) {
-    const r = recPinResolver;
-    recPinResolver = null;
-    recPinAsk.open = false;
-    recPinAsk.pin = '';
-    r?.(v);
 }
 
 let pendingLockAfterRecovery = false;
