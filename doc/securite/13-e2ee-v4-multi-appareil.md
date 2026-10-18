@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | 🚧 En cours — branche `feat/e2ee-v4` (synco_app et synco_api). P1 à P6 faits (P6, le retrait d'appareil avec rotation d'AK, a été réalisé avec l'interface de P4) ; P7 : récupération par PIN faite (§14, service `synco_keyguard`), rotation d'identité restante. Rien n'a encore été validé sur de vrais appareils (§13.6). |
+| **Statut** | 🚧 En cours — branche `feat/e2ee-v4` (synco_app et synco_api). P1 à P6 faits (P6, le retrait d'appareil avec rotation d'AK, a été réalisé avec l'interface de P4) ; P7 faite : récupération par PIN (§14, service `synco_keyguard`) et rotation d'identité (§15). Audit et pentest de l'ensemble : `doc/securite/audit-2026-10-18-e2ee-v4/`. Rien n'a encore été validé sur de vrais appareils (§13.6). |
 | **Origine** | Audit 2026-10-01, FC2 : le serveur détient un vérificateur et un `wrapSecret` qui permettent de forcer les 10 000 PIN hors ligne. |
 | **Contraintes** | PIN à **4 chiffres** conservé (expérience utilisateur) · **multi-appareil obligatoire** · compatibilité : les comptes legacy/v2/v3 continuent de fonctionner tant qu'ils ne migrent pas · le plus sûr possible. |
 
@@ -108,7 +108,7 @@ recoveryPinKey = HKDF( PBKDF2(pin) ‖ serverSecret ‖ thirdPartySecret )
 
 - **Web sans PRF** : le PIN à 4 chiffres est la seule barrière contre quelqu'un qui copie le profil du navigateur. Les navigateurs n'offrent pas de limiteur d'essais matériel. C'est l'état de l'art pour le web et c'est signalé à l'utilisateur.
 - **Vérification à l'ouverture (P3/P5)** : après avoir ouvert AK puis les clés d'identité, un appareil doit vérifier que la clé publique RSA dérivée de la clé privée correspond à celle qu'il a épinglée (ou, pour un appareil neuf, à celle annoncée par une source indépendante du serveur lors de la liaison). C'est la défense contre un serveur qui servirait de fausses enveloppes **et** de fausses clés d'identité.
-- **Appareil volé déverrouillé** : il connaît l'identité jusqu'à sa rotation. La rotation d'identité (nouvelles paires RSA/ECDSA et redistribution des clés symétriques) est un chantier à part.
+- **Appareil volé déverrouillé** : il connaît l'identité jusqu'à sa rotation (§15). La rotation d'identité le prive de tout ce qui est scellé ensuite pour la nouvelle clé (DM, nouvelles clés distribuées) ; les clés de salons et d'espaces qu'il a déjà vues restent valides jusqu'à leur propre renouvellement.
 - **Perte de tous les appareils sans clé de récupération ni récupération par PIN** : perte de l'historique, comme aujourd'hui.
 - **Biométrie** : une modification des empreintes enrôlées peut invalider la clé du Keystore ; le repli par PIN local puis la reliaison de l'appareil prennent le relais.
 
@@ -130,7 +130,7 @@ Les comptes existants restent fonctionnels et inchangés tant qu'ils ne migrent 
 | **P4** ✅ | Interface : onboarding, clé de récupération, **paramètres utilisateur › « Appareils et sécurité »** (liste, nom, plateforme, dernière activité, appareil actuel, déconnexion, ajout par QR, clé de récupération, récupération par PIN annoncée), liaison par QR, déverrouillage (§13) |
 | **P5** ✅ | Migration v3 → v4 proposée dans les paramètres, suppression du matériel PIN côté serveur (§13.4) |
 | **P6** ✅ | Révocation d'appareil avec rotation d'AK (réalisée avec P4, §13.2) |
-| **P7** | Récupération par PIN durcie (troisième acteur) ✅ (§14) ; rotation d'identité : à faire |
+| **P7** ✅ | Récupération par PIN durcie (troisième acteur, §14) et rotation d'identité (§15) |
 
 Chaque phase est committée séparément, avec ses tests, et reste compatible avec les comptes existants.
 
@@ -269,4 +269,27 @@ OPRF de la RFC 9497 sur P-256 (`@noble/curves` 2.4.0, côté app, API et keyguar
 - **Sauvegardes** : les volumes de synco_api et du keyguard ne doivent jamais être sauvegardés ensemble, et `KEYGUARD_MASTER_KEY` ne doit vivre dans aucune des deux bases.
 - **Audience Keycloak** : à restreindre (`KEYCLOAK_AUDIENCE`) quand un mapper dédié existera ; la sécurité ne repose pas dessus (plafond d'essais).
 - **À valider en conditions réelles** : déploiement du keyguard derrière le proxy TLS, CORS, parcours complet dans l'app (activation, récupération sur un appareil neuf, retrait avec conservation).
+
+## 15. Rotation d'identité — état de P7
+
+### 15.1 Principe
+
+`rotateIdentity` (app) → `POST /e2ee/v4/rotate-identity` (API), en une transaction :
+1. nouvelles paires RSA-OAEP 4096 et ECDSA P-256, nouvelle AK ;
+2. **transition** `(userId, rang, ancienne clé de signature, nouvelle clé publique, nouvelle clé de signature)` signée par l'**ancienne** clé de signature ; le serveur la vérifie contre la clé qu'il stocke : une session Keycloak seule ne peut pas remplacer l'identité ;
+3. chaque appareil conservé (certificat vérifié contre la clé épinglée) reçoit une enveloppe de la nouvelle AK et un **certificat signé par la nouvelle identité** ; couverture exacte exigée ; des appareils peuvent être retirés dans la même opération ;
+4. l'ancienne clé privée RSA rejoint l'**archive d'identité**, scellée par la nouvelle AK (`User.identityArchive`), avec la clé de récupération renouvelée et la récupération par PIN conservée sur demande.
+
+### 15.2 Effets
+
+- **Ses propres appareils** : au déverrouillage, une identité différente de celle épinglée n'est acceptée que si une chaîne de transitions signées part de l'identité épinglée et y aboutit exactement ; le pin local est alors mis à jour. Sans chaîne valide : `IdentityMismatchError` (défense du §7 inchangée).
+- **Historique** : tous les déchiffrements RSA de l'identité courante (`crypto.ts`, `rsaDecrypt`) se rabattent sur les clés archivées ; DM, clés de salons, d'espaces, de sessions IA et partages de clé d'équipe scellés pour l'ancienne clé restent lisibles. Toute rotation d'AK rescelle l'archive (exigée par l'API dès qu'elle existe).
+- **Autres membres** (`keyTrust`) : une clé RSA ou de signature changée est acceptée sans alerte seulement si la chaîne `GET /e2ee/v4/users/:id/transitions` part de la clé de signature **épinglée localement** pour ce membre et aboutit à la clé présentée. Sinon, comportement d'avant : alerte (RSA) ou refus (signature).
+
+### 15.3 Limites
+
+- **Clés symétriques déjà vues** : un appareil volé qui connaissait des `ThreadKey` / `WorkspaceKey` les garde ; seule leur rotation par les membres (mécanismes existants de version de clé) l'en prive. Il perd en revanche les DM et les clés distribuées après la rotation.
+- **Membre sans clé de signature épinglée** pour l'utilisateur qui a tourné : la chaîne n'est pas vérifiable, il voit l'alerte habituelle de changement de clé.
+- **Appareil volé déverrouillé plus rapide que le propriétaire** : il détient l'ancienne clé de signature et peut, lui aussi, signer une transition. La parade reste la même que pour la rotation d'AK : réagir vite (mot de passe Keycloak changé, sessions révoquées) ; les notifications e-mail signalent chaque rotation.
+- La réinitialisation de dernier recours ne produit pas de transition (l'ancienne identité est perdue) : les membres voient l'alerte de changement de clé, comme avant la v4.
 
