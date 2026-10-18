@@ -28,6 +28,8 @@ import { debugLog } from './assets/utils/debugLog';
 import Popup from './components/Popup.vue';
 import BannedScreen from './components/BannedScreen.vue';
 import { isProfileOpen, profileUser, closeProfile } from './composables/useProfile';
+import V4Gate from './components/e2ee/V4Gate.vue';
+import { isV4Account } from './assets/e2eeV4/runtime';
 import useFavicon from './composables/useFavicon';
 import { banned } from './composables/useBanStatus';
 
@@ -82,14 +84,26 @@ const isResettingPIN = ref<boolean>(false);
 //   endpoint (see crypto.ts's SALT_V3_PREFIX comment), not from PIN length.
 // v3 is the sole target for every new setup and every PIN reset going
 // forward, regardless of which scheme the account was on before.
-type PinScheme = 'legacy' | 'v2' | 'v3';
+//
+// v4 ("v4:", doc/securite/13-e2ee-v4-multi-appareil.md) : plus aucun PIN côté
+// serveur, l'identité est enveloppée par une clé de compte que détiennent les
+// appareils. Écran dédié (V4Gate) ; tout compte neuf est créé en v4.
+type PinScheme = 'legacy' | 'v2' | 'v3' | 'v4';
 const pinScheme = computed<PinScheme>(() => {
   const salt = user.value?.pinSalt || '';
+  if (isV4Account(salt)) return 'v4';
   if (salt.startsWith(SALT_V3_PREFIX)) return 'v3';
   if (salt.startsWith(SALT_V2_PREFIX)) return 'v2';
   return 'legacy';
 });
 const isUnlockMode = computed(() => pinSetup.value && !isResettingPIN.value);
+// v4 : compte v4, ou compte neuf (création directement en v4). Les comptes
+// legacy / v2 / v3 gardent exactement l'écran PIN ci-dessous.
+const v4GateMode = computed<'unlock' | 'onboard' | null>(() => {
+  if (pinScheme.value === 'v4') return 'unlock';
+  if (!pinSetup.value && !isResettingPIN.value) return 'onboard';
+  return null;
+});
 
 const MIN_PIN_LENGTH = 6;
 const MAX_PIN_LENGTH = 10;
@@ -389,6 +403,9 @@ const resetPIN = async () => {
 };
 
 const handleInput = (e: KeyboardEvent) => {
+  // V4Gate gère son propre clavier : sans cette garde, Entrée lancerait ici
+  // la création d'un compte v3.
+  if (v4GateMode.value) return;
   if (e.key >= '0' && e.key <= '9') press(e.key);
   else if (e.key === 'Enter' && canSubmitPin.value) submit();
   else if (e.key === 'Backspace') pin.value = pin.value.slice(0, -1);
@@ -756,7 +773,9 @@ onMounted(async () => {
         <div class="w-full h-full" key="lock" v-else>
 
           <Transition name="fade" mode="out-in">
-          <div v-if="pinLoading" key="pin-loading"
+          <V4Gate v-if="v4GateMode" key="v4-gate" :mode="v4GateMode" />
+
+          <div v-else-if="pinLoading" key="pin-loading"
             class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none animate-app-reveal">
             <SpinLoader />
           </div>

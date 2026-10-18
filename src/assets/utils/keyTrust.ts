@@ -162,6 +162,15 @@ export async function readPinnedSignKey(userId: string): Promise<string | undefi
 }
 
 /**
+ * Épingle explicitement une clé de signature. Réservé à sa propre identité E2EE v4 (création,
+ * liaison, réinitialisation de dernier recours), dont la clé publique est dérivée de la clé privée
+ * ouverte : jamais une valeur servie par le serveur.
+ */
+export async function trustSignKey(userId: string, publicSignKeyJWK: string | object): Promise<void> {
+    await set(signNs() + userId, canonicalEcJwk(publicSignKeyJWK));
+}
+
+/**
  * Point de passage avant de faire confiance à la signature d'une enveloppe
  * de clé (keyEnvelope.ts) au nom de `userId` :
  * - 'match'   : la clé épinglée, renvoyée telle quelle ;

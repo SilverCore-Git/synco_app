@@ -545,8 +545,9 @@ export async function startLink(dev: DeviceContext, name: string, platform: Devi
                         akBytes.fill(0);
                         return keys;
                     } catch (e) {
-                        // PIN local à choisir : on garde AK le temps de la saisie, sinon on efface.
-                        if (!(e instanceof VaultError && e.code === 'pin-required')) { done = true; akBytes.fill(0); }
+                        // PIN local à choisir, ou invite système annulée : on garde AK le temps de
+                        // réessayer (dispose() l'efface en cas d'abandon) ; sinon on efface.
+                        if (!(e instanceof VaultError && (e.code === 'pin-required' || e.code === 'cancelled'))) { done = true; akBytes.fill(0); }
                         throw e;
                     }
                 },
