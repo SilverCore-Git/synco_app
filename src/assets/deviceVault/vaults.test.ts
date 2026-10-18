@@ -96,7 +96,11 @@ describe("NativeVault (Capacitor)", () => {
 
 describe("PrfVault (WebAuthn)", () => {
     /** Authentificateur simulé : PRF = HMAC(secret par credential, salt). */
-    function authenticator(opts: { prf?: boolean; enabledOnly?: boolean; deny?: boolean } = {}) {
+    /**
+     * `prf: false` : aucune prise en charge. `silentAtCreate` : comme certains gestionnaires de mots de
+     * passe (extensions), rien n'est annoncé à la création mais PRF répond à l'assertion.
+     */
+    function authenticator(opts: { prf?: boolean; enabledOnly?: boolean; deny?: boolean; silentAtCreate?: boolean } = {}) {
         const secrets = new Map<string, CryptoKey>();
         const hmac = async (secret: CryptoKey, salt: ArrayBuffer) => crypto.subtle.sign("HMAC", secret, salt);
         const credentials = {
@@ -108,7 +112,7 @@ describe("PrfVault (WebAuthn)", () => {
                 const salt = options.publicKey.extensions.prf.eval.first;
                 return {
                     rawId: id.buffer,
-                    getClientExtensionResults: () => opts.prf === false ? {} : opts.enabledOnly ? { prf: { enabled: true } } : { prf: { enabled: true, results: { first: undefined } } },
+                    getClientExtensionResults: () => opts.prf === false || opts.silentAtCreate ? {} : opts.enabledOnly ? { prf: { enabled: true } } : { prf: { enabled: true, results: { first: undefined } } },
                     _salt: salt,
                 };
             },
@@ -117,6 +121,7 @@ describe("PrfVault (WebAuthn)", () => {
                 const idKey = btoa(String.fromCharCode(...new Uint8Array(options.publicKey.allowCredentials[0].id)));
                 const secret = secrets.get(idKey);
                 if (!secret) throw Object.assign(new Error("none"), { name: "NotAllowedError" });
+                if (opts.prf === false) return { getClientExtensionResults: () => ({}) };
                 const first = await hmac(secret, options.publicKey.extensions.prf.eval.first);
                 return { getClientExtensionResults: () => ({ prf: { results: { first } } }) };
             },
@@ -142,9 +147,19 @@ describe("PrfVault (WebAuthn)", () => {
         expect(a).not.toEqual(b);
     });
 
-    test("authentificateur sans PRF → unavailable (le repli PIN prend le relais)", async () => {
-        const vault = new PrfVault({ credentials: authenticator({ prf: false }), store: memory() });
+    test("authentificateur sans PRF → unavailable, passkey inutile signalée au gestionnaire, rien n'est stocké", async () => {
+        const signaled: string[] = [];
+        const store = memory();
+        const vault = new PrfVault({ credentials: authenticator({ prf: false }), store, signalUnknownCredential: async (id) => { signaled.push(id); } });
         expect(await code(vault.create("d"))).toBe("unavailable");
+        expect(signaled.length).toBe(1);
+        expect(await vault.has("d")).toBe(false);
+    });
+
+    test("gestionnaire qui n'annonce pas PRF à la création mais y répond à l'assertion : accepté", async () => {
+        const vault = new PrfVault({ credentials: authenticator({ silentAtCreate: true }), store: memory() });
+        const dk = await vault.create("d");
+        expect(await vault.load("d")).toEqual(dk);
     });
 
     test("refus de l'utilisateur → cancelled", async () => {

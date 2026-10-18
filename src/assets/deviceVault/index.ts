@@ -48,7 +48,13 @@ async function createVault(kind: VaultKind): Promise<DeviceVault | undefined> {
             });
         }
         case 'webauthn-prf':
-            return webAuthnAvailable() ? new PrfVault({ credentials: navigator.credentials, store: idbStore, rpId: location.hostname }) : undefined;
+            return webAuthnAvailable() ? new PrfVault({
+                credentials: navigator.credentials, store: idbStore, rpId: location.hostname,
+                signalUnknownCredential: async (credentialId) => {
+                    const signal = (window.PublicKeyCredential as unknown as { signalUnknownCredential?: (o: { rpId: string; credentialId: string }) => Promise<void> }).signalUnknownCredential;
+                    await signal?.call(window.PublicKeyCredential, { rpId: location.hostname, credentialId });
+                },
+            }) : undefined;
         case 'web-pin':
             return new PinVault(idbStore);
     }

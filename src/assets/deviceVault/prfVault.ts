@@ -18,7 +18,14 @@ export interface PrfDeps {
     store: KeyValueStore;
     rpName?: string;
     rpId?: string;
+    /**
+     * Signale au gestionnaire de passkeys qu'une passkey créée ici est inutilisable (Signal API,
+     * PublicKeyCredential.signalUnknownCredential) : il peut la retirer au lieu de la garder.
+     */
+    signalUnknownCredential?: (credentialIdB64url: string) => Promise<void>;
 }
+
+const toB64url = (bytes: Uint8Array) => toB64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
 interface PrfRecord { v: 1; credentialId: string }
 
@@ -90,13 +97,24 @@ export class PrfVault implements DeviceVault {
 
         const pkc = credential as PublicKeyCredential;
         const results = pkc.getClientExtensionResults() as PrfResults;
-        if (!results.prf?.enabled && !results.prf?.results?.first) {
-            throw new VaultError('unavailable', "Cette passkey ne prend pas en charge l'extension PRF.");
-        }
-
         const credentialId = new Uint8Array(pkc.rawId);
-        // Certains authentificateurs ne renvoient la valeur PRF qu'à une assertion : on la demande ici.
-        const output = results.prf?.results?.first ?? await this.evaluate(credentialId, deviceId);
+
+        // Beaucoup d'authentificateurs ne renvoient la valeur PRF qu'à une assertion, et certains
+        // gestionnaires de passkeys (extensions de navigateur) n'annoncent même pas `prf.enabled` à
+        // la création : seule l'assertion tranche. Une passkey sans PRF reste inutilisable ici
+        // (elle ne fournit aucun secret pour protéger DK) : on la signale au gestionnaire.
+        let output = results.prf?.results?.first;
+        if (!output) {
+            try {
+                output = await this.evaluate(credentialId, deviceId);
+            } catch (e) {
+                if (e instanceof VaultError && e.code === 'unavailable') {
+                    await this.deps.signalUnknownCredential?.(toB64url(credentialId)).catch(() => {});
+                    throw new VaultError('unavailable', "Cette passkey (ou le gestionnaire qui l'enregistre) ne fournit pas l'extension PRF nécessaire au chiffrement.");
+                }
+                throw e;
+            }
+        }
         await this.deps.store.set(recordKey(deviceId), { v: 1, credentialId: toB64(credentialId) } satisfies PrfRecord);
         return deriveDk(output, deviceId);
     }

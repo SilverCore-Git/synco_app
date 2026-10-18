@@ -107,10 +107,10 @@
                 <div class="flex flex-wrap gap-2">
                     <button v-if="localKind === 'web-pin'" class="second text-sm" :disabled="lockBusy" @click="openChangePin">Changer le code PIN local</button>
                     <button v-if="localKind === 'web-pin' && prfPossible" class="primary text-sm" :disabled="lockBusy" @click="enablePasskey">
-                        <i class="bi bi-fingerprint mr-1" /> Activer la biométrie (passkey)
+                        <i class="bi bi-fingerprint mr-1" /> Utiliser une passkey
                     </button>
                     <button v-if="localKind === 'webauthn-prf'" class="second text-sm" :disabled="lockBusy" @click="disablePasskey">
-                        Désactiver la biométrie (code PIN local)
+                        Revenir au code PIN local
                     </button>
                 </div>
             </div>
@@ -292,8 +292,8 @@ import { PLATFORM_ICONS, PLATFORM_LABELS, deviceContext, enrollmentVaults, seale
 const toast = useToast();
 
 const VAULT_INFO: Record<VaultKind, { icon: string; label: string; detail: string }> = {
-    'webauthn-prf': { icon: 'bi-fingerprint', label: 'Passkey (biométrie)', detail: "Vos clés s'ouvrent avec l'empreinte, le visage ou le code de votre appareil. Les essais sont limités par le matériel." },
-    'web-pin': { icon: 'bi-123', label: 'Code PIN local', detail: "Ce code n'est jamais envoyé au serveur. Sur le web, il est la seule barrière pour qui copierait le profil de votre navigateur : activez la biométrie si votre appareil le permet." },
+    'webauthn-prf': { icon: 'bi-fingerprint', label: 'Passkey', detail: "Vos clés s'ouvrent avec votre passkey (empreinte, visage, code de l'appareil ou de la clé de sécurité, ou gestionnaire de passkeys compatible PRF)." },
+    'web-pin': { icon: 'bi-123', label: 'Code PIN local', detail: "Ce code n'est jamais envoyé au serveur. Sur le web, il est la seule barrière pour qui copierait le profil de votre navigateur : utilisez une passkey si votre appareil ou votre gestionnaire de passkeys le permet." },
     'native-biometric': { icon: 'bi-fingerprint', label: 'Biométrie du téléphone', detail: "Face ID, Touch ID ou empreinte, avec le code de l'appareil en repli. Gérée par les réglages de votre téléphone." },
     'os-keyring': { icon: 'bi-safe', label: 'Trousseau du système', detail: "Vos clés sont protégées par votre session sur cet ordinateur (Trousseau macOS, Gestionnaire d'identifiants Windows, Secret Service Linux)." },
 };
@@ -668,13 +668,13 @@ async function enablePasskey() {
         const from = dev.vaultFor('web-pin');
         const to = dev.vaultFor('webauthn-prf') ?? await vaultFor('webauthn-prf');
         if (!from || !to) throw new VaultError('unavailable', "Ce navigateur ne propose pas de passkey compatible.");
-        const fromCtx = await vaultCtx('Saisissez votre code PIN local pour activer la biométrie.');
+        const fromCtx = await vaultCtx('Saisissez votre code PIN local pour passer à une passkey.');
         await switchVault({ userId: dev.userId, store: idbStore, from, to, fromCtx });
-        toast.show('Biométrie activée : cet appareil se déverrouille avec votre passkey.', 'success');
+        toast.show('Passkey activée : cet appareil se déverrouille avec elle.', 'success');
         await reload();
     } catch (e) {
-        if (e instanceof VaultError && e.code === 'unavailable') toast.show("Votre appareil ne propose pas de passkey compatible (extension PRF). Le code PIN local reste actif.", 'error', 8000);
-        else reportError(e, "Impossible d'activer la biométrie.");
+        if (e instanceof VaultError && e.code === 'unavailable') toast.show("Cette passkey ne fournit pas l'extension PRF nécessaire au chiffrement (c'est le cas de certains gestionnaires de passkeys et navigateurs). Elle a été signalée comme inutilisable à votre gestionnaire ; le code PIN local reste actif.", 'error', 12000);
+        else reportError(e, "Impossible d'activer la passkey.");
     } finally {
         lockBusy.value = false;
     }
