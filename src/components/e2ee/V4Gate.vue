@@ -257,7 +257,7 @@ import {
 } from '@/assets/e2eeV4/session';
 import { E2eeV4Error } from '@/assets/utils/e2eeV4';
 import {
-    applyIdentityKeys, defaultDeviceName, detectPlatform, deviceContext, enrollmentVaults, sealedFrom, servedFrom,
+    applyIdentityKeys, autoUnlock, defaultDeviceName, detectPlatform, deviceContext, enrollmentVaults, sealedFrom, servedFrom,
 } from '@/assets/e2eeV4/runtime';
 
 /**
@@ -739,7 +739,10 @@ onMounted(async () => {
         // Trousseau du système et biométrie native : on propose l'invite tout de suite. Une passkey
         // exige un geste de l'utilisateur (bouton), le PIN local une saisie.
         const kind = local.record.vaultKind;
-        if (kind === 'os-keyring' || kind === 'native-biometric') tryUnlock();
+        if ((kind === 'os-keyring' || kind === 'native-biometric') && !autoUnlock.tried) {
+            autoUnlock.tried = true;
+            tryUnlock();
+        }
     } catch (e) {
         console.error('[E2EE v4] initialisation :', e);
         toast.show("Impossible d'initialiser le chiffrement sur cet appareil.", 'error');

@@ -14,6 +14,12 @@ import { IdentityMismatchError, type DeviceContext, type IdentityKeys, type OwnI
  */
 
 export const V4_SALT_PREFIX = 'v4:';
+
+/**
+ * Le déverrouillage sans saisie (trousseau du système, invite biométrique native) n'est proposé
+ * d'office qu'une fois par lancement : après « Verrouiller la session », il faut le redemander.
+ */
+export const autoUnlock = { tried: false };
 export const isV4Account = (pinSalt?: string | null) => !!pinSalt && pinSalt.startsWith(V4_SALT_PREFIX);
 
 /** Sa propre identité, épinglée dans keyTrust (mêmes magasins que pour les autres membres). */
