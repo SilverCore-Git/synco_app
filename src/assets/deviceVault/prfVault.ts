@@ -108,9 +108,15 @@ export class PrfVault implements DeviceVault {
             try {
                 output = await this.evaluate(credentialId, deviceId);
             } catch (e) {
-                if (e instanceof VaultError && e.code === 'unavailable') {
-                    await this.deps.signalUnknownCredential?.(toB64url(credentialId)).catch(() => {});
-                    throw new VaultError('unavailable', "Cette passkey (ou le gestionnaire qui l'enregistre) ne fournit pas l'extension PRF nécessaire au chiffrement.");
+                // La passkey existe mais n'a pas fourni le secret : elle ne sera jamais utilisée (rien
+                // n'est enregistré ici), on la signale au gestionnaire dans tous les cas. Un refus à
+                // ce stade est le plus souvent un gestionnaire qui ne prend pas en charge PRF et
+                // laisse le navigateur réclamer une clé de sécurité à sa place (ex. une extension).
+                await this.deps.signalUnknownCredential?.(toB64url(credentialId)).catch(() => {});
+                if (e instanceof VaultError && (e.code === 'unavailable' || e.code === 'cancelled')) {
+                    throw new VaultError('unavailable', e.code === 'cancelled'
+                        ? "La passkey a été créée mais n'a pas fourni le secret de chiffrement (PRF) : demande annulée, ou gestionnaire de passkeys incompatible."
+                        : "Cette passkey (ou le gestionnaire qui l'enregistre) ne fournit pas l'extension PRF nécessaire au chiffrement.");
                 }
                 throw e;
             }

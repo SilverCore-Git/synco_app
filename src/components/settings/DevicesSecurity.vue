@@ -673,7 +673,10 @@ async function enablePasskey() {
         toast.show('Passkey activée : cet appareil se déverrouille avec elle.', 'success');
         await reload();
     } catch (e) {
-        if (e instanceof VaultError && e.code === 'unavailable') toast.show("Cette passkey ne fournit pas l'extension PRF nécessaire au chiffrement (c'est le cas de certains gestionnaires de passkeys et navigateurs). Elle a été signalée comme inutilisable à votre gestionnaire ; le code PIN local reste actif.", 'error', 12000);
+        if (e instanceof VaultError && e.code === 'unavailable') {
+            const detail = e.message && e.message !== 'unavailable' ? e.message : "Cette passkey ne fournit pas l'extension PRF nécessaire au chiffrement.";
+            toast.show(`${detail} Vous pouvez la supprimer de votre gestionnaire ; le code PIN local reste actif.`, 'error', 12000);
+        }
         else reportError(e, "Impossible d'activer la passkey.");
     } finally {
         lockBusy.value = false;

@@ -100,7 +100,7 @@ describe("PrfVault (WebAuthn)", () => {
      * `prf: false` : aucune prise en charge. `silentAtCreate` : comme certains gestionnaires de mots de
      * passe (extensions), rien n'est annoncé à la création mais PRF répond à l'assertion.
      */
-    function authenticator(opts: { prf?: boolean; enabledOnly?: boolean; deny?: boolean; silentAtCreate?: boolean } = {}) {
+    function authenticator(opts: { prf?: boolean; enabledOnly?: boolean; deny?: boolean; silentAtCreate?: boolean; denyGet?: boolean } = {}) {
         const secrets = new Map<string, CryptoKey>();
         const hmac = async (secret: CryptoKey, salt: ArrayBuffer) => crypto.subtle.sign("HMAC", secret, salt);
         const credentials = {
@@ -117,7 +117,7 @@ describe("PrfVault (WebAuthn)", () => {
                 };
             },
             async get(options: any) {
-                if (opts.deny) throw Object.assign(new Error("denied"), { name: "NotAllowedError" });
+                if (opts.deny || opts.denyGet) throw Object.assign(new Error("denied"), { name: "NotAllowedError" });
                 const idKey = btoa(String.fromCharCode(...new Uint8Array(options.publicKey.allowCredentials[0].id)));
                 const secret = secrets.get(idKey);
                 if (!secret) throw Object.assign(new Error("none"), { name: "NotAllowedError" });
@@ -151,6 +151,14 @@ describe("PrfVault (WebAuthn)", () => {
         const signaled: string[] = [];
         const store = memory();
         const vault = new PrfVault({ credentials: authenticator({ prf: false }), store, signalUnknownCredential: async (id) => { signaled.push(id); } });
+        expect(await code(vault.create("d"))).toBe("unavailable");
+        expect(signaled.length).toBe(1);
+        expect(await vault.has("d")).toBe(false);
+    });
+
+    test("passkey créée puis assertion PRF refusée (gestionnaire sans PRF, le navigateur réclame une clé) : unavailable et signalée", async () => {
+        const signaled: string[] = [];
+        const vault = new PrfVault({ credentials: authenticator({ silentAtCreate: true, denyGet: true }), store: memory(), signalUnknownCredential: async (id) => { signaled.push(id); } });
         expect(await code(vault.create("d"))).toBe("unavailable");
         expect(signaled.length).toBe(1);
         expect(await vault.has("d")).toBe(false);
