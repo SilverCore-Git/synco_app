@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | 🚧 En cours — branche `feat/e2ee-v4` (synco_app et synco_api). P1 (noyau cryptographique), P2 (API) et P3 (coffres par plateforme) faits ; P4 à P7 restent à faire. |
+| **Statut** | 🚧 En cours — branche `feat/e2ee-v4` (synco_app et synco_api). P1 à P6 faits (P6, le retrait d'appareil avec rotation d'AK, a été réalisé avec l'interface de P4) ; reste P7 (récupération par PIN durcie, rotation d'identité). Rien n'a encore été validé sur de vrais appareils (§13.6). |
 | **Origine** | Audit 2026-10-01, FC2 : le serveur détient un vérificateur et un `wrapSecret` qui permettent de forcer les 10 000 PIN hors ligne. |
 | **Contraintes** | PIN à **4 chiffres** conservé (expérience utilisateur) · **multi-appareil obligatoire** · compatibilité : les comptes legacy/v2/v3 continuent de fonctionner tant qu'ils ne migrent pas · le plus sûr possible. |
 
@@ -125,9 +125,9 @@ Les comptes existants restent fonctionnels et inchangés tant qu'ils ne migrent 
 | **P1** ✅ | Noyau cryptographique pur et testé : AK, enveloppes, liaison d'appareil (ECDH + SAS), clé de récupération, formats versionnés |
 | **P2** ✅ | API : schéma Prisma, routes (appareils, liaison, récupération), limitation de débit, notifications, tests |
 | **P3** ✅ | Coffres par plateforme : web (PRF/IndexedDB), Capacitor (biométrie native), Tauri |
-| **P4** | Interface : onboarding, clé de récupération, **paramètres utilisateur › « Appareils et sécurité »** (liste, nom, plateforme, dernière activité, appareil actuel, déconnexion, ajout par QR, clé de récupération, récupération par PIN), liaison par QR, déverrouillage |
-| **P5** | Migration v3 → v4 et suppression du matériel PIN côté serveur |
-| **P6** | Révocation d'appareil avec rotation d'AK |
+| **P4** ✅ | Interface : onboarding, clé de récupération, **paramètres utilisateur › « Appareils et sécurité »** (liste, nom, plateforme, dernière activité, appareil actuel, déconnexion, ajout par QR, clé de récupération, récupération par PIN annoncée), liaison par QR, déverrouillage (§13) |
+| **P5** ✅ | Migration v3 → v4 proposée dans les paramètres, suppression du matériel PIN côté serveur (§13.4) |
+| **P6** ✅ | Révocation d'appareil avec rotation d'AK (réalisée avec P4, §13.2) |
 | **P7** | Récupération par PIN durcie (troisième acteur) et, plus tard, rotation d'identité |
 
 Chaque phase est committée séparément, avec ses tests, et reste compatible avec les comptes existants.
@@ -140,7 +140,9 @@ Chaque phase est committée séparément, avec ses tests, et reste compatible av
 | 2 | Récupération par PIN (§6) | **Proposée** à l'utilisateur, avec avertissement sur sa moindre sécurité. |
 | 3 | Troisième acteur (§6) | *À trancher* : Keycloak avec client réservé, ou petit service de clés séparé ; même opérateur ou non. |
 | 4 | Migration v3 → v4 (§8) | **Proposée** (pas imposée dans un premier temps). |
-| 5 | Retrait d'un appareil (§4.5) | *À confirmer* : rotation d'AK seule en v1, rotation d'identité plus tard. |
+| 5 | Retrait d'un appareil (§4.5) | **Rotation d'AK seule** en v1 (appliquée en P4), rotation d'identité plus tard (P7). |
+| 6 | Clé de récupération et rotation d'AK | Une rotation **renouvelle la clé de récupération** (nouvelle clé affichée) : l'ancienne enveloppait l'ancienne AK, et aucun appareil ne détient RK. |
+| 7 | Dépendances QR | `uqr` 0.1.3 (affichage) et `jsqr` 1.4.0 (lecture si `BarcodeDetector` est absent), sans dépendance transitive. |
 
 ## 11. Gestion des appareils dans les paramètres
 
@@ -170,3 +172,53 @@ Nouvelle section **« Appareils et sécurité »** dans les paramètres utilisat
 - Au déverrouillage, la clé publique servie par le serveur doit être celle enregistrée localement, sinon l'enveloppe est refusée.
 - Une fois AK ouverte, l'appelant (P4/P5) doit encore vérifier que la clé d'identité déchiffrée correspond à celle qu'il a épinglée (voir §7).
 - Capacitor : la biométrie est un contrôle côté application devant un secret protégé par le trousseau de l'OS, non lié cryptographiquement à la lecture. Un appareil sans aucun verrouillage d'écran est refusé.
+
+## 13. Interface et migration — état de P4 / P5
+
+### 13.1 Fichiers
+
+| Rôle | Fichier | Testé |
+|---|---|---|
+| Orchestration (déverrouillage, création, liaison des deux côtés, récupération, rotation, migration) | `src/assets/e2eeV4/session.ts` | oui, de bout en bout contre un serveur simulé qui applique les règles de `synco_api` |
+| Appels HTTP `/api/e2ee/v4` | `src/assets/e2eeV4/api.ts` | non (mince) |
+| Liaison avec l'application (coffres, keyTrust, `privateKey`) | `src/assets/e2eeV4/runtime.ts` | type-check |
+| Écran de verrouillage v4 (déverrouillage, connexion d'un appareil, création, réinitialisation) | `src/components/e2ee/V4Gate.vue`, branché dans `App.vue` | type-check, build |
+| Paramètres › Appareils et sécurité | `src/components/settings/DevicesSecurity.vue`, `E2eeUpgrade.vue` (migration) | type-check, build |
+| Pavé PIN, QR code, lecteur de QR, clé de récupération | `src/components/e2ee/*.vue` | type-check, build |
+| Verrous API, retrait multiple, réinitialisation | `synco_api` : `routes/users.ts`, `routes/e2eeV4.ts`, `security/e2ee-v4-p4.db.test.ts` | oui |
+
+### 13.2 Règles appliquées
+
+- **Aucune AK gardée pendant la session.** Chaque opération sensible (répondre à une liaison, retirer un appareil, régénérer la clé de récupération, changer de coffre) rouvre le coffre : biométrie, passkey ou PIN local. AK, DK, RK et les PKCS#8 d'identité sont effacés (`fill(0)`) après usage, hors de tout état Vue.
+- **Identité épinglée.** À l'inscription d'un appareil, les clés publiques *dérivées des clés privées ouvertes* (AK authentifiée par le secret de liaison, la clé de récupération ou la création) sont enregistrées dans l'enregistrement local et dans keyTrust. À chaque déverrouillage, l'identité ouverte doit leur correspondre (défense du §7), puis correspondre à ce que sert le serveur.
+- **Rotation.** Les certificats sont vérifiés contre la clé de signature épinglée. Un appareil non certifié ne reçoit jamais d'enveloppe : il est signalé dans la liste (« Non certifié ») et retiré avec l'appareil demandé (`removeDeviceIds`). Sur un 409 (appareil ajouté entre-temps), la rotation recommence avec la liste à jour, sans redemander le coffre. Un appareil peut se retirer lui-même s'il en reste un autre ; le dernier appareil ne peut pas être retiré.
+- **Liaison.** Le QR contient `synco-link:1:<requestId>:<secret>` ; le code à recopier est le même secret (28 caractères). Ni l'un ni l'autre ne part vers l'API. En saisie manuelle, l'appareil connecté choisit parmi les demandes en attente (nom, plateforme, heure). Le code à 6 chiffres est affiché des deux côtés ; le nouvel appareil ne s'inscrit qu'après « Les codes correspondent ».
+- **Création de compte.** Le PIN local n'est demandé que si le coffre l'exige (web sans passkey PRF). Après une annulation de l'invite passkey, l'utilisateur peut choisir explicitement le PIN local (jamais de repli silencieux). La clé de récupération est proposée ; si l'utilisateur continue sans elle (confirmation `ConfirmDelete`), aucune enveloppe n'est enregistrée.
+- **Comptes legacy / v2 / v3** : écran PIN d'`App.vue` inchangé ; le gestionnaire clavier global est neutralisé quand l'écran v4 est affiché.
+
+### 13.3 Compléments côté API
+
+- Les routes `/me/initE2EE`, `/me/resetE2EE`, `/me/pin/migrate`, `/me/pin/unlock`, `/me/signKey` et `/me/publicKey` répondent **409** pour un compte v4. Sans ce verrou, une session Keycloak volée pouvait remplacer `publicSignKey` (et faire accepter par le serveur des appareils certifiés par sa propre clé), réintroduire un PIN testable hors ligne via `/me/pin/migrate` (qui acceptait tout sel ni `v2:` ni `v3:`, donc `v4:`), ou rendre l'identité illisible.
+- `POST /rotate` accepte `removeDeviceIds[]`.
+- `POST /e2ee/v4/reset` : réinitialisation de dernier recours (nouvelle identité, premier appareil ; appareils, récupération et liaisons précédents supprimés ; `ThreadKey` supprimées comme dans `/me/resetE2EE`), protégée par le code reçu par e-mail. Le certificat est vérifié avant de consommer le code.
+
+### 13.4 Migration v3 → v4 (P5)
+
+Proposée dans les paramètres (et signalée une fois par un message après un déverrouillage v3) : PIN v3 → mêmes PKCS#8 + preuve `verifier` → AK, DK, RK neuves → identité rescellée sous AK → `POST /init`, qui supprime `UserPinSecret`. Les clés publiques sont renvoyées **à l'identique** (chaîne stockée, pas la forme canonique), après vérification qu'elles correspondent aux clés privées. Comptes `v2:` (PIN long) : non éligibles pour l'instant (aucune preuve de PIN vérifiable par le serveur). Les comptes legacy passent d'abord en v3 au déverrouillage, comme avant.
+
+### 13.5 Limites connues
+
+- **Appareil retiré qui était déverrouillé** : il garde l'identité (et donc l'historique) jusqu'à une rotation d'identité (P7). L'interface du retrait le dit et conseille de changer de mot de passe.
+- **Retrait = nouvelle clé de récupération** quand une récupération existe (décision 6) : l'utilisateur doit conserver la nouvelle clé.
+- **Récupération par PIN** : affichée « Bientôt disponible », non simulée ; le troisième acteur (décision 3) reste à trancher.
+- **Téléchargement de la clé de récupération** : lien `download` d'un fichier texte ; le comportement dans les WebView Tauri / Capacitor est à vérifier (la copie reste possible).
+- `/me/initE2EE` reste sans garde pour un compte v3 déjà initialisé (antérieur à la v4, hors périmètre).
+
+### 13.6 À valider sur de vrais appareils
+
+Rien de ce qui suit n'a pu être lancé depuis l'environnement de développement :
+- parcours complet dans l'application : création v4, déverrouillage, ajout d'un second appareil par QR et par code, retrait, clé de récupération, réinitialisation, migration d'un compte v3 ;
+- lecture du QR par la caméra : `BarcodeDetector` (Chrome, Android) et `jsqr` (Firefox, Safari, WebKitGTK), permission caméra Android (ajoutée au manifeste) et iOS (`NSCameraUsageDescription` à ajouter si un projet iOS est créé) ;
+- passkey PRF (Chrome, Edge, Safari ; Firefox inégal), Face ID / Touch ID, empreinte Android, trousseau Tauri ;
+- téléchargement du fichier de clé de récupération dans Tauri et Capacitor.
+
