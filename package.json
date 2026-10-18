@@ -23,6 +23,7 @@
     "@firebase/messaging": "^0.13.0",
     "@guolao/vue-monaco-editor": "^1.6.0",
     "@mlc-ai/web-llm": "^0.2.84",
+    "@noble/curves": "2.4.0",
     "@orama/orama": "^3.1.18",
     "@sapphi-red/web-noise-suppressor": "^0.4.1",
     "@tailwindcss/vite": "^4.1.17",

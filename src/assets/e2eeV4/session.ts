@@ -67,6 +67,8 @@ export interface RotateBody {
     removeDeviceIds: string[];
     identity: SealedIdentity;
     recoveryEnvelope?: string;
+    /** Récupération par PIN conservée : nouvelle AK scellée sous la même clé (pinRecovery.ts). */
+    pinRecoveryEnvelope?: string;
     envelopes: Array<{ deviceId: string; envelope: string }>;
 }
 
@@ -85,7 +87,7 @@ export interface V4Api {
     getEnvelope(deviceId: string): Promise<{ envelope: string; publicKey: string; certificate: string }>;
     renameDevice(deviceId: string, name: string): Promise<void>;
     addDevice(body: { device: DevicePayload; linkRequestId?: string }): Promise<void>;
-    rotate(body: RotateBody): Promise<void>;
+    rotate(body: RotateBody): Promise<{ pinRecoveryDisabled?: boolean } | void>;
     getRecovery(): Promise<string | null>;
     putRecovery(recoveryEnvelope: string): Promise<void>;
     deleteRecovery(): Promise<void>;
@@ -445,7 +447,7 @@ export async function prepareV4Account(
  * AK authentique en main (liaison authentifiée par le secret, ou clé de récupération) : ouvre
  * l'identité, compare à ce que sert le serveur, épingle, inscrit l'appareil puis l'enregistre.
  */
-async function enrollWithAccountKey(
+export async function enrollWithAccountKey(
     dev: DeviceContext,
     akBytes: Uint8Array,
     sealed: SealedIdentity,
@@ -636,6 +638,8 @@ export interface RotationResult {
     recoveryKeyText?: string;
     /** Cet appareil a été retiré : il est oublié localement, l'appelant doit verrouiller. */
     removedThisDevice: boolean;
+    /** La récupération par PIN existait et n'a pas été conservée : le serveur l'a désactivée. */
+    pinRecoveryDisabled: boolean;
 }
 
 const MAX_ROTATION_ATTEMPTS = 3;
@@ -654,7 +658,13 @@ export async function removeDevices(
     removeIds: string[],
     fetchSealed: () => Promise<SealedIdentity>,
     ctx?: VaultContext,
+    /**
+     * Récupération par PIN à conserver : reçoit l'AK actuelle (pour vérifier le PIN contre
+     * l'enveloppe existante) et renvoie de quoi sceller chaque nouvelle AK (pinRecovery.ts).
+     */
+    pinRecovery?: (currentAk: Uint8Array) => Promise<(newAk: Uint8Array) => Promise<string>>,
 ): Promise<RotationResult> {
+    let sealPinRecovery: ((newAk: Uint8Array) => Promise<string>) | undefined;
     let id: IdentityBytes | undefined;
     let thisDeviceId = '';
     let signKey = '';
@@ -664,6 +674,7 @@ export async function removeDevices(
             thisDeviceId = record.deviceId;
             signKey = await referenceSignKey(record, dev.trust);
             id = await openIdentity(akBytes, dev.userId, await fetchSealed());
+            if (pinRecovery) sealPinRecovery = await pinRecovery(akBytes);
             const derived = await derivePublic(id);
             if (record.identity && canonicalEc(record.identity.publicSignKey) !== derived.publicSignKey) throw new IdentityMismatchError('pinned');
         });
@@ -690,8 +701,14 @@ export async function removeDevices(
                 })));
                 const hasRecovery = (await dev.api.getRecovery()) !== null;
                 const recoveryEnvelope = hasRecovery ? await createRecoveryEnvelope(rk, newAk, dev.userId) : undefined;
+                const pinRecoveryEnvelope = sealPinRecovery ? await sealPinRecovery(newAk) : undefined;
+                let rotated: { pinRecoveryDisabled?: boolean } | void;
                 try {
-                    await dev.api.rotate({ removeDeviceIds: [...remove], identity, envelopes, ...(recoveryEnvelope ? { recoveryEnvelope } : {}) });
+                    rotated = await dev.api.rotate({
+                        removeDeviceIds: [...remove], identity, envelopes,
+                        ...(recoveryEnvelope ? { recoveryEnvelope } : {}),
+                        ...(pinRecoveryEnvelope ? { pinRecoveryEnvelope } : {}),
+                    });
                 } catch (e) {
                     if (e instanceof V4ApiError && e.status === 409 && attempt < MAX_ROTATION_ATTEMPTS) continue;
                     throw e;
@@ -701,6 +718,7 @@ export async function removeDevices(
                 return {
                     removed: [...remove],
                     removedThisDevice,
+                    pinRecoveryDisabled: !!rotated?.pinRecoveryDisabled,
                     ...(hasRecovery ? { recoveryKeyText: await formatRecoveryKey(rk) } : {}),
                 };
             } finally {
