@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | 🚧 En cours — branche `feat/e2ee-v4` (synco_app et synco_api). P1 à P6 faits (P6, le retrait d'appareil avec rotation d'AK, a été réalisé avec l'interface de P4) ; P7 faite : récupération par PIN (§14, service `synco_keyguard`) et rotation d'identité (§15). Audit et pentest de l'ensemble : `doc/securite/audit-2026-10-18-e2ee-v4/`. Rien n'a encore été validé sur de vrais appareils (§13.6). |
+| **Statut** | 🚧 En cours — branche `feat/e2ee-v4` (synco_app et synco_api). P1 à P6 faits (P6, le retrait d'appareil avec rotation d'AK, a été réalisé avec l'interface de P4) ; P7 faite : récupération par PIN (§14, service `synco_keyguard`) et rotation d'identité (§15). Audit et pentest de l'ensemble : [`audits/audit_pentest_e2ee-v4_2026-10-18/`](../../audits/audit_pentest_e2ee-v4_2026-10-18/README.md) (10 constats, dont V4A1 haut, corrigé). Rien n'a encore été validé sur de vrais appareils (§13.6). |
 | **Origine** | Audit 2026-10-01, FC2 : le serveur détient un vérificateur et un `wrapSecret` qui permettent de forcer les 10 000 PIN hors ligne. |
 | **Contraintes** | PIN à **4 chiffres** conservé (expérience utilisateur) · **multi-appareil obligatoire** · compatibilité : les comptes legacy/v2/v3 continuent de fonctionner tant qu'ils ne migrent pas · le plus sûr possible. |
 
@@ -199,6 +199,8 @@ Nouvelle section **« Appareils et sécurité »** dans les paramètres utilisat
 - **Comptes legacy / v2 / v3** : écran PIN d'`App.vue` inchangé ; le gestionnaire clavier global est neutralisé quand l'écran v4 est affiché.
 
 ### 13.3 Compléments côté API
+
+- **Preuve de possession de l'identité** (audit V4A1) : `/rotate`, `/rotate-identity`, `PUT` / `DELETE /recovery`, `/pin-recovery/commit`, `DELETE /pin-recovery` et `/link/:id/answer` exigent une signature ECDSA de la clé de signature d'identité sur `synco-e4-proof|userId|action|SHA-256(identité scellée actuelle)|SHA-256(JSON stable du corps)` ; sinon 403. Une session Keycloak volée ne peut plus écraser l'état chiffré.
 
 - Les routes `/me/initE2EE`, `/me/resetE2EE`, `/me/pin/migrate`, `/me/pin/unlock`, `/me/signKey` et `/me/publicKey` répondent **409** pour un compte v4. Sans ce verrou, une session Keycloak volée pouvait remplacer `publicSignKey` (et faire accepter par le serveur des appareils certifiés par sa propre clé), réintroduire un PIN testable hors ligne via `/me/pin/migrate` (qui acceptait tout sel ni `v2:` ni `v3:`, donc `v4:`), ou rendre l'identité illisible.
 - `POST /rotate` accepte `removeDeviceIds[]`.
