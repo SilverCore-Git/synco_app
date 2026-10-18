@@ -263,6 +263,7 @@ import QrCode from './QrCode.vue';
 import RecoveryKeyPanel from './RecoveryKeyPanel.vue';
 import { user } from '@/assets/var';
 import { refetchUser } from '@/assets/init';
+import useWSocket from '@/composables/useWSocket';
 import sfetch from '@/assets/utils/sfetch';
 import { lockSecurity } from '@/assets/utils/crypto';
 import { useToast } from '@/composables/useToast';
@@ -518,10 +519,11 @@ const linkCode = ref('');
 const linkSas = ref('');
 
 const stopPolling = () => { if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; } };
+const stopListening = () => { stopPolling(); socketOff?.(); };
 
 async function beginLink() {
     if (!dev) return;
-    stopPolling();
+    stopListening();
     await started?.cancel();
     started = null;
     linkQr.value = '';
@@ -534,40 +536,75 @@ async function beginLink() {
         linkSecondsLeft.value = Math.round((linkExpiresAt - Date.now()) / 1000);
         ensureTicker();
         poll();
+        void listenLinkAnswer();
     } catch (e) {
         step.value = 'connect';
         toast.show(e instanceof V4ApiError ? e.message : 'Impossible de créer la demande de connexion.', 'error');
     }
 }
 
-function poll() {
-    pollTimer = setTimeout(async () => {
-        if (!started || step.value !== 'link') return;
-        if (linkSecondsLeft.value <= 0) return;
-        try {
-            const result = await started.poll();
-            if (result) {
-                opened = result;
-                linkSas.value = result.sas;
-                linkQr.value = '';
-                step.value = 'link-sas';
-                return;
-            }
-        } catch (e) {
-            if (e instanceof V4ApiError && e.status === 404) { linkSecondsLeft.value = 0; return; }
-            if (e instanceof E2eeV4Error) {
-                // Réponse qui ne s'ouvre pas avec notre secret : mauvais code saisi, ou réponse forgée.
-                toast.show("La réponse reçue n'a pas pu être vérifiée. Recommencez la connexion.", 'error', 8000);
-                await cancelLink();
-                return;
-            }
+// La réponse de l'appareil connecté arrive par WebSocket (« e2ee-link-answered ») ; l'interrogation
+// périodique n'est qu'un filet de sécurité (socket coupé, événement manqué). À 2 s elle épuisait le
+// quota de l'API (120 requêtes / 15 min) avant même l'expiration de la demande.
+const POLL_FALLBACK_MS = 20_000;
+let checking = false;
+let socketOff: (() => void) | null = null;
+
+/** Lit la réponse une fois. `true` : la liaison n'a plus rien à attendre (réponse, expiration ou échec). */
+async function checkLink(): Promise<boolean> {
+    if (!started || step.value !== 'link' || checking) return false;
+    if (linkSecondsLeft.value <= 0) return true;
+    checking = true;
+    try {
+        const result = await started.poll();
+        if (result) {
+            opened = result;
+            linkSas.value = result.sas;
+            linkQr.value = '';
+            step.value = 'link-sas';
+            return true;
         }
-        poll();
-    }, 2000);
+    } catch (e) {
+        if (e instanceof V4ApiError && e.status === 404) { linkSecondsLeft.value = 0; return true; }
+        if (e instanceof E2eeV4Error) {
+            // Réponse qui ne s'ouvre pas avec notre secret : mauvais code saisi, ou réponse forgée.
+            toast.show("La réponse reçue n'a pas pu être vérifiée. Recommencez la connexion.", 'error', 8000);
+            await cancelLink();
+            return true;
+        }
+    } finally {
+        checking = false;
+    }
+    return false;
+}
+
+function poll() {
+    stopPolling();
+    pollTimer = setTimeout(async () => {
+        if (!(await checkLink()) && started && step.value === 'link') poll();
+    }, POLL_FALLBACK_MS);
+}
+
+async function listenLinkAnswer() {
+    socketOff?.();
+    try {
+        const socket = (await useWSocket()).value;
+        if (!socket) return;
+        const onAnswered = (payload: { requestId?: string }) => {
+            if (payload?.requestId && payload.requestId === started?.requestId) {
+                void checkLink().then(done => { if (done) stopListening(); });
+            }
+        };
+        // Après une coupure, l'événement a pu être manqué : on relit une fois à la reconnexion.
+        const onReconnect = () => { void checkLink().then(done => { if (done) stopListening(); }); };
+        socket.on('e2ee-link-answered', onAnswered);
+        socket.on('connect', onReconnect);
+        socketOff = () => { socket.off('e2ee-link-answered', onAnswered); socket.off('connect', onReconnect); socketOff = null; };
+    } catch { /* le filet de sécurité prend le relais */ }
 }
 
 async function cancelLink() {
-    stopPolling();
+    stopListening();
     await opened?.dispose();
     opened = null;
     await started?.cancel();
@@ -830,7 +867,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-    stopPolling();
+    stopListening();
     if (ticker) clearInterval(ticker);
     opened?.dispose();
     started?.cancel();
