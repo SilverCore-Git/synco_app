@@ -455,3 +455,109 @@ export async function verifyDeviceCertificate(
         return false;
     }
 }
+
+// ---------------------------------------------------------------------------
+// Rotation d'identité : transitions signées et archive des anciennes clés
+// ---------------------------------------------------------------------------
+//
+// Une rotation d'identité remplace les paires RSA / ECDSA. Pour que les autres membres acceptent les
+// nouvelles clés sans alerte (et sans faire confiance au serveur), chaque changement est signé par
+// la clé de signature PRÉCÉDENTE ; ils suivent la chaîne depuis la clé qu'ils ont épinglée. Les
+// anciennes clés privées RSA restent lisibles par les appareils du compte, dans une archive scellée
+// par AK : l'historique chiffré pour l'ancienne clé publique reste déchiffrable.
+
+const rsaCanonical = (jwk: JsonWebKey) => {
+    if (jwk.kty !== 'RSA' || typeof jwk.n !== 'string' || typeof jwk.e !== 'string') throw new E2eeV4Error('Invalid RSA public key');
+    return JSON.stringify({ e: jwk.e, kty: 'RSA', n: jwk.n });
+};
+const ecCanonical = (jwk: JsonWebKey) => {
+    const k = canonicalJwk(jwk);
+    return JSON.stringify({ crv: 'P-256', kty: 'EC', x: k.x, y: k.y });
+};
+const parseJwk = (j: string | JsonWebKey): JsonWebKey => (typeof j === 'string' ? JSON.parse(j) : j);
+
+const identityTransitionBytes = (userId: string, seq: number, oldSign: string, newPub: string, newSign: string) =>
+    enc.encode(`synco-e4-identity-transition|${userId}|${seq}|${oldSign}|${newPub}|${newSign}`);
+
+export interface IdentityTransition {
+    seq: number;
+    oldPublicSignKey: string;
+    newPublicKey: string;
+    newPublicSignKey: string;
+    signature: string;
+}
+
+/** Signe le passage à une nouvelle identité avec la clé de signature ACTUELLE. */
+export async function signIdentityTransition(
+    oldSignPrivateKey: CryptoKey,
+    userId: string,
+    seq: number,
+    oldPublicSignKey: string | JsonWebKey,
+    newPublicKey: string | JsonWebKey,
+    newPublicSignKey: string | JsonWebKey,
+): Promise<IdentityTransition> {
+    const oldSign = ecCanonical(parseJwk(oldPublicSignKey));
+    const newPub = rsaCanonical(parseJwk(newPublicKey));
+    const newSign = ecCanonical(parseJwk(newPublicSignKey));
+    const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, oldSignPrivateKey, identityTransitionBytes(userId, seq, oldSign, newPub, newSign) as BufferSource);
+    return { seq, oldPublicSignKey: oldSign, newPublicKey: newPub, newPublicSignKey: newSign, signature: toB64(new Uint8Array(sig)) };
+}
+
+/**
+ * Suit la chaîne de transitions depuis une clé de signature épinglée (jamais depuis une valeur du
+ * serveur) et renvoie l'identité au bout de la partie valide, ou `null` si aucune transition valide
+ * ne part de la clé épinglée. Chaque maillon doit être signé par la clé du maillon précédent.
+ */
+export async function followIdentityChain(
+    userId: string,
+    pinnedPublicSignKey: string | JsonWebKey,
+    chain: IdentityTransition[],
+): Promise<{ publicKey: string; publicSignKey: string } | null> {
+    let current = ecCanonical(parseJwk(pinnedPublicSignKey));
+    let end: { publicKey: string; publicSignKey: string } | null = null;
+    for (const t of [...chain].sort((a, b) => a.seq - b.seq)) {
+        let oldSign: string, newPub: string, newSign: string;
+        try {
+            oldSign = ecCanonical(parseJwk(t.oldPublicSignKey));
+            newPub = rsaCanonical(parseJwk(t.newPublicKey));
+            newSign = ecCanonical(parseJwk(t.newPublicSignKey));
+        } catch {
+            continue;
+        }
+        if (oldSign !== current) continue;
+        try {
+            const key = await crypto.subtle.importKey('jwk', JSON.parse(current), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+            const ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, fromB64(t.signature) as BufferSource, identityTransitionBytes(userId, t.seq, oldSign, newPub, newSign) as BufferSource);
+            if (!ok) continue;
+        } catch {
+            continue;
+        }
+        current = newSign;
+        end = { publicKey: newPub, publicSignKey: newSign };
+    }
+    return end;
+}
+
+const archiveAad = (userId: string) => `synco-e4-identity-archive|${userId}`;
+
+/** Archive des anciennes clés privées RSA (PKCS#8), scellée par AK. */
+export async function sealIdentityArchive(ak: CryptoKey, userId: string, rsaPkcs8List: Uint8Array[]): Promise<string> {
+    const json = enc.encode(JSON.stringify(rsaPkcs8List.map(toB64)));
+    try {
+        return toB64(await seal(ak, archiveAad(userId), json as BufferSource));
+    } finally {
+        json.fill(0);
+    }
+}
+
+/** Renvoie les PKCS#8 de l'archive (à effacer après import). */
+export async function openIdentityArchive(ak: CryptoKey, userId: string, archive: string): Promise<Uint8Array[]> {
+    const plain = new Uint8Array(await open(ak, archiveAad(userId), fromB64(archive)));
+    try {
+        const list = JSON.parse(new TextDecoder().decode(plain)) as unknown;
+        if (!Array.isArray(list) || list.some(x => typeof x !== 'string')) throw new E2eeV4Error('Invalid identity archive');
+        return (list as string[]).map(fromB64);
+    } finally {
+        plain.fill(0);
+    }
+}
