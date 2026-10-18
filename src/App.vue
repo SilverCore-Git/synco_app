@@ -172,6 +172,19 @@ const migrateSigningKeyIfNeeded = async (pinValue: string, salt: string) => {
   }
 };
 
+// E2EE v4 (P5) : mise à niveau proposée, pas imposée — une seule fois par
+// compte et par appareil, la proposition reste ensuite dans les paramètres.
+const offerV4Upgrade = () => {
+  const key = `e2ee-v4-offer:${user.value?.id}`;
+  try {
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, '1');
+  } catch {
+    return;
+  }
+  toast.show('Nouveau : utilisez Synco sur plusieurs appareils sans dépendre de votre code PIN. Paramètres › Appareils et sécurité.', 'info', 12000);
+};
+
 const press = (num: string) => {
   if (pin.value.length < pinMaxLength.value) {
     pin.value += num;
@@ -246,6 +259,7 @@ const submit = async () => {
           // nouveau round-trip verifier, fetchWrapSecret suffit.
           await migrateSigningKeyIfNeeded(pin.value, user.value.pinSalt);
           pin.value = '';
+          offerV4Upgrade();
         } catch (e: any) {
           pin.value = '';
           if (e?.locked) {

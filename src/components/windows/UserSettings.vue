@@ -215,6 +215,8 @@
 
                         <!-- E2EE v4 : appareils, clé de récupération, verrou local (doc/securite/13 §11) -->
                         <DevicesSecurity v-if="isV4 && E2EEUnloked" />
+                        <!-- Comptes v3 : migration proposée, pas imposée (P5) -->
+                        <E2eeUpgrade v-else-if="E2EEUnloked" />
 
                         <div v-if="E2EEUnloked" class="space-y-4">
                             <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Preuve de chiffrement (E2EE)</h4>
@@ -603,6 +605,7 @@ import sfetch from '@/assets/utils/sfetch';
 import { E2EEUnloked, lockSecurity } from '@/assets/utils/crypto';
 import { isV4Account } from '@/assets/e2eeV4/runtime';
 import DevicesSecurity from '../settings/DevicesSecurity.vue';
+import E2eeUpgrade from '../settings/E2eeUpgrade.vue';
 import { logoutEverywhere } from '@/assets/keycloak';
 import { disconnectSocket } from '@/composables/useWSocket';
 
