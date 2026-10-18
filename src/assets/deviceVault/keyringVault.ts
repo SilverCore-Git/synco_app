@@ -17,7 +17,10 @@ const key = (deviceId: string) => `e2ee-dk:${deviceId}`;
 export class KeyringVault implements DeviceVault {
     readonly capabilities = { kind: 'os-keyring', hardwareBacked: false, biometric: false, needsPin: false, rateLimit: 'none' } as const;
 
-    constructor(private readonly invoke: Invoke) {}
+    private readonly invoke: Invoke;
+    constructor(invoke: Invoke) {
+        this.invoke = invoke;
+    }
 
     async create(deviceId: string): Promise<Uint8Array> {
         const dk = crypto.getRandomValues(new Uint8Array(DK_LENGTH));

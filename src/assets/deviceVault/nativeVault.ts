@@ -1,4 +1,4 @@
-import { DK_LENGTH, VaultError, fromB64, toB64, type DeviceVault, type VaultContext } from './types';
+import { DK_LENGTH, VaultError, fromB64, toB64, type DeviceVault } from './types';
 
 /**
  * Coffre Capacitor (iOS / Android) : DK vit dans le Keychain iOS (accessible seulement appareil
@@ -39,7 +39,10 @@ export class NativeVault implements DeviceVault {
     readonly capabilities = { kind: 'native-biometric', hardwareBacked: true, biometric: true, needsPin: false, rateLimit: 'hardware' } as const;
     private configured = false;
 
-    constructor(private readonly deps: NativeDeps) {}
+    private readonly deps: NativeDeps;
+    constructor(deps: NativeDeps) {
+        this.deps = deps;
+    }
 
     private async configure(): Promise<void> {
         if (this.configured) return;

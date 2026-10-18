@@ -1,4 +1,4 @@
-import { DK_LENGTH, VaultError, fromB64, toB64, type DeviceVault, type KeyValueStore, type VaultContext } from './types';
+import { DK_LENGTH, VaultError, fromB64, toB64, type DeviceVault, type KeyValueStore } from './types';
 
 /**
  * Coffre web adossé à une passkey WebAuthn (extension PRF) : DK est DÉRIVÉE d'un secret que
@@ -52,7 +52,10 @@ export function webAuthnAvailable(): boolean {
 export class PrfVault implements DeviceVault {
     readonly capabilities = { kind: 'webauthn-prf', hardwareBacked: true, biometric: true, needsPin: false, rateLimit: 'hardware' } as const;
 
-    constructor(private readonly deps: PrfDeps) {}
+    private readonly deps: PrfDeps;
+    constructor(deps: PrfDeps) {
+        this.deps = deps;
+    }
 
     private async evaluate(credentialId: Uint8Array, deviceId: string): Promise<ArrayBuffer> {
         let assertion: Credential | null;

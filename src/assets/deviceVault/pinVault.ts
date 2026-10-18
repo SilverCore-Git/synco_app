@@ -44,7 +44,12 @@ async function deriveKey(pin: string, salt: Uint8Array, iterations: number): Pro
 export class PinVault implements DeviceVault {
     readonly capabilities = { kind: 'web-pin', hardwareBacked: false, biometric: false, needsPin: true, rateLimit: 'software' } as const;
 
-    constructor(private readonly store: KeyValueStore, private readonly iterations = PIN_VAULT_ITERATIONS) {}
+    private readonly store: KeyValueStore;
+    private readonly iterations: number;
+    constructor(store: KeyValueStore, iterations = PIN_VAULT_ITERATIONS) {
+        this.store = store;
+        this.iterations = iterations;
+    }
 
     async create(deviceId: string, ctx?: VaultContext): Promise<Uint8Array> {
         if (!ctx?.pin) throw new VaultError('pin-required');

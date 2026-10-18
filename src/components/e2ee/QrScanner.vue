@@ -42,7 +42,8 @@ type Detector = { detect(source: CanvasImageSource): Promise<Array<{ rawValue: s
 
 async function makeDecoder(): Promise<(v: HTMLVideoElement) => Promise<string | null>> {
     const BD = (window as unknown as { BarcodeDetector?: { new(o: { formats: string[] }): Detector; getSupportedFormats?: () => Promise<string[]> } }).BarcodeDetector;
-    if (BD && (await BD.getSupportedFormats?.().catch(() => []))?.includes('qr_code')) {
+    const formats: string[] = (await BD?.getSupportedFormats?.().catch(() => [] as string[])) ?? [];
+    if (BD && formats.includes('qr_code')) {
         const detector = new BD({ formats: ['qr_code'] });
         return async (v) => (await detector.detect(v).catch(() => []))[0]?.rawValue ?? null;
     }

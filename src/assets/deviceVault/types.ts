@@ -42,9 +42,13 @@ export type VaultErrorCode =
     | 'missing';       // aucune clé pour cet appareil
 
 export class VaultError extends Error {
-    constructor(readonly code: VaultErrorCode, message?: string, readonly retryAfterSeconds?: number) {
+    readonly code: VaultErrorCode;
+    readonly retryAfterSeconds?: number;
+    constructor(code: VaultErrorCode, message?: string, retryAfterSeconds?: number) {
         super(message ?? code);
         this.name = 'VaultError';
+        this.code = code;
+        this.retryAfterSeconds = retryAfterSeconds;
     }
 }
 
