@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | 🚧 En cours — branche `feat/e2ee-v4` (synco_app et synco_api). P1 à P6 faits (P6, le retrait d'appareil avec rotation d'AK, a été réalisé avec l'interface de P4) ; reste P7 (récupération par PIN durcie, rotation d'identité). Rien n'a encore été validé sur de vrais appareils (§13.6). |
+| **Statut** | 🚧 En cours — branche `feat/e2ee-v4` (synco_app et synco_api). P1 à P6 faits (P6, le retrait d'appareil avec rotation d'AK, a été réalisé avec l'interface de P4) ; P7 : récupération par PIN faite (§14, service `synco_keyguard`), rotation d'identité restante. Rien n'a encore été validé sur de vrais appareils (§13.6). |
 | **Origine** | Audit 2026-10-01, FC2 : le serveur détient un vérificateur et un `wrapSecret` qui permettent de forcer les 10 000 PIN hors ligne. |
 | **Contraintes** | PIN à **4 chiffres** conservé (expérience utilisateur) · **multi-appareil obligatoire** · compatibilité : les comptes legacy/v2/v3 continuent de fonctionner tant qu'ils ne migrent pas · le plus sûr possible. |
 
@@ -97,6 +97,8 @@ Seul chemin où un PIN à 4 chiffres protège encore un secret détenu par le se
 recoveryPinKey = HKDF( PBKDF2(pin) ‖ serverSecret ‖ thirdPartySecret )
 ```
 
+> Réalisé en P7 sous une forme plus forte que cette esquisse : les deux secrets sont des **clés OPRF** (§14). Le PIN n'est jamais envoyé, même dérivé ; chaque acteur ne voit qu'un élément aveuglé.
+
 - `serverSecret` : stocké dans la base de `synco_api`, libéré après vérification du jeton et limitation d'essais.
 - `thirdPartySecret` : détenu par un **troisième acteur** (service de clés dédié, ou Keycloak via un client/une audience réservés dont le jeton n'est **jamais** envoyé à `synco_api`).
 - Un attaquant doit alors compromettre **les deux** composants et connaître le PIN ; en revanche, qui obtient les deux secrets force 10 000 PIN en quelques secondes.
@@ -128,7 +130,7 @@ Les comptes existants restent fonctionnels et inchangés tant qu'ils ne migrent 
 | **P4** ✅ | Interface : onboarding, clé de récupération, **paramètres utilisateur › « Appareils et sécurité »** (liste, nom, plateforme, dernière activité, appareil actuel, déconnexion, ajout par QR, clé de récupération, récupération par PIN annoncée), liaison par QR, déverrouillage (§13) |
 | **P5** ✅ | Migration v3 → v4 proposée dans les paramètres, suppression du matériel PIN côté serveur (§13.4) |
 | **P6** ✅ | Révocation d'appareil avec rotation d'AK (réalisée avec P4, §13.2) |
-| **P7** | Récupération par PIN durcie (troisième acteur) et, plus tard, rotation d'identité |
+| **P7** | Récupération par PIN durcie (troisième acteur) ✅ (§14) ; rotation d'identité : à faire |
 
 Chaque phase est committée séparément, avec ses tests, et reste compatible avec les comptes existants.
 
@@ -138,7 +140,7 @@ Chaque phase est committée séparément, avec ses tests, et reste compatible av
 |---|---|---|
 | 1 | Clé de récupération | **Proposée au téléchargement à la création du compte** (non forcée). |
 | 2 | Récupération par PIN (§6) | **Proposée** à l'utilisateur, avec avertissement sur sa moindre sécurité. |
-| 3 | Troisième acteur (§6) | *À trancher* : Keycloak avec client réservé, ou petit service de clés séparé ; même opérateur ou non. |
+| 3 | Troisième acteur (§6) | **Service séparé `synco_keyguard`**, dépôt indépendant, isolé dans son conteneur (même opérateur, infrastructure séparée). |
 | 4 | Migration v3 → v4 (§8) | **Proposée** (pas imposée dans un premier temps). |
 | 5 | Retrait d'un appareil (§4.5) | **Rotation d'AK seule** en v1 (appliquée en P4), rotation d'identité plus tard (P7). |
 | 6 | Clé de récupération et rotation d'AK | Une rotation **renouvelle la clé de récupération** (nouvelle clé affichée) : l'ancienne enveloppait l'ancienne AK, et aucun appareil ne détient RK. |
@@ -221,4 +223,50 @@ Rien de ce qui suit n'a pu être lancé depuis l'environnement de développement
 - lecture du QR par la caméra : `BarcodeDetector` (Chrome, Android) et `jsqr` (Firefox, Safari, WebKitGTK), permission caméra Android (ajoutée au manifeste) et iOS (`NSCameraUsageDescription` à ajouter si un projet iOS est créé) ;
 - passkey PRF (Chrome, Edge, Safari ; Firefox inégal), Face ID / Touch ID, empreinte Android, trousseau Tauri ;
 - téléchargement du fichier de clé de récupération dans Tauri et Capacitor.
+
+## 14. Récupération par PIN — état de P7
+
+### 14.1 Construction
+
+```
+x        = "synco-e4-pinrec|<userId>|<PIN>"
+sortieA  = OPRF(cléA, x)     synco_api       (clé par utilisateur, PinRecovery.oprfKey)
+sortieB  = OPRF(cléB, x)     synco_keyguard  (clé par utilisateur, scellée par KEYGUARD_MASTER_KEY)
+K        = HKDF(sortieA ‖ sortieB, sel = "synco-e4-pinrec|<userId>")
+enveloppe = AES-GCM(K_wrap, AK)  stockée par synco_api ;  jeton = HKDF(…, "verify"), SHA-256(jeton) chez chaque acteur
+```
+
+OPRF de la RFC 9497 sur P-256 (`@noble/curves` 2.4.0, côté app, API et keyguard). Le client aveugle `x` : un acteur ne voit qu'un point aléatoire et renvoie son évaluation ; il ne peut ni retrouver le PIN, ni le tester sans l'autre clé.
+
+### 14.2 Propriétés
+
+| Compromis | Conséquence |
+|---|---|
+| Base de synco_api seule (cléA, enveloppe) | Aucune force brute : il manque cléB. Chaque essai en ligne passe par le keyguard (10 au plus). |
+| synco_keyguard seul (cléB, clé maîtresse) | Aucune force brute : ni enveloppe ni cléA. |
+| Session Keycloak volée, ou synco_api malveillant qui rejoue des jetons | 10 essais chez chaque acteur, puis blocage ; chaque essai est notifié par e-mail. |
+| **Les deux** acteurs compromis | Force brute des 10 000 PIN en quelques secondes : limite assumée, annoncée dans l'interface. |
+
+- **Essais** : chaque évaluation est comptée (atomiquement) par chaque acteur ; 10 au plus, puis HTTP 423. Le compteur revient à zéro sur preuve de réussite (le jeton, que seul qui connaît K peut produire) ou par une réactivation depuis un appareil connecté.
+- **Activation** : clé OPRF neuve chez chaque acteur, gardée en attente jusqu'à sa validation (10 min) : une activation ne peut pas servir d'oracle sur la clé active. Le keyguard est validé avant synco_api.
+- **Rotation d'AK** (retrait d'appareil) : l'app redemande le code de récupération, vérifie qu'il ouvre l'enveloppe actuelle (elle doit contenir l'AK actuelle) et scelle chaque nouvelle AK sous la même K (`pinRecoveryEnvelope`). Sans code, synco_api supprime la récupération par PIN et l'app la désactive au keyguard. La réinitialisation de dernier recours la supprime aussi.
+- **Isolement** : l'app appelle le keyguard directement (`VITE_KEYGUARD_URL`) avec le jeton Keycloak ; synco_api ne lui parle jamais. Le keyguard vérifie le jeton lui-même (JWKS), n'a aucune dépendance vers synco_api, tourne dans un conteneur sans privilège, en lecture seule, avec son propre volume SQLite.
+
+### 14.3 Fichiers
+
+| Rôle | Fichier | Testé |
+|---|---|---|
+| Protocole client (activation, récupération, rotation, état) | `src/assets/e2eeV4/pinRecovery.ts` | oui, acteurs simulés avec la vraie OPRF |
+| Appels HTTP des deux acteurs | `src/assets/e2eeV4/pinRecoveryApi.ts` | type-check |
+| Interface | `V4Gate.vue` (connexion), `DevicesSecurity.vue` (activation, retrait) | type-check, build |
+| Acteur n° 1 | `synco_api` : `services/pinRecoveryService.ts`, routes `/e2ee/v4/pin-recovery`, `security/e2ee-v4-pin-recovery.db.test.ts` | oui (base locale) |
+| Acteur n° 2 | dépôt `synco_keyguard` (Express, Prisma/SQLite, Docker) | oui |
+
+### 14.4 Limites et exploitation
+
+- **Déni de service** : une session volée peut réactiver (et donc remplacer) ou désactiver la récupération par PIN ; elle n'obtient rien, et l'utilisateur est prévenu par e-mail.
+- **Évaluations non vérifiables** (OPRF simple, pas VOPRF) : un acteur qui répondrait faux ne ferait qu'empêcher la récupération.
+- **Sauvegardes** : les volumes de synco_api et du keyguard ne doivent jamais être sauvegardés ensemble, et `KEYGUARD_MASTER_KEY` ne doit vivre dans aucune des deux bases.
+- **Audience Keycloak** : à restreindre (`KEYCLOAK_AUDIENCE`) quand un mapper dédié existera ; la sécurité ne repose pas dessus (plafond d'essais).
+- **À valider en conditions réelles** : déploiement du keyguard derrière le proxy TLS, CORS, parcours complet dans l'app (activation, récupération sur un appareil neuf, retrait avec conservation).
 
