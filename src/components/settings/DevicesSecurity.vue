@@ -77,18 +77,37 @@
         <!-- ================= Récupération par PIN ================= -->
         <div class="space-y-4">
             <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Récupération par code PIN</h4>
-            <div class="p-5 bg-(--bg2) border border-(--border-color) rounded-xl space-y-3 opacity-80">
-                <div class="flex items-center justify-between gap-4">
-                    <p class="text-sm font-bold text-(--text)">
-                        Retrouver mes messages avec mon code PIN
-                        <span class="ml-2 px-2 py-0.5 rounded text-[10px] uppercase tracking-widest bg-(--text)/10 text-(--text2)">Bientôt disponible</span>
+            <div class="p-5 bg-(--bg2) border border-(--border-color) rounded-xl space-y-3" :class="{ 'opacity-80': !pinRecoveryConfigured }">
+                <div class="flex items-center justify-between gap-4 flex-wrap">
+                    <p class="text-sm font-bold text-(--text) flex items-center gap-2">
+                        <template v-if="!pinRecoveryConfigured">
+                            Retrouver mes messages avec un code PIN
+                            <span class="px-2 py-0.5 rounded text-[10px] uppercase tracking-widest bg-(--text)/10 text-(--text2)">Non proposée sur ce serveur</span>
+                        </template>
+                        <template v-else-if="!pinRec.reachable">
+                            <i class="bi bi-cloud-slash text-amber-500" /> Service de récupération injoignable pour le moment
+                        </template>
+                        <template v-else-if="pinRec.enabled && pinRec.locked">
+                            <i class="bi bi-lock-fill text-red-500" /> Bloquée après trop d'essais
+                        </template>
+                        <template v-else-if="pinRec.enabled">
+                            <i class="bi bi-check-circle-fill text-(--primary)" /> Activée · {{ pinRec.attemptsLeft }} essai(s) avant blocage
+                        </template>
+                        <template v-else>
+                            <i class="bi bi-dash-circle text-(--text2)" /> Désactivée
+                        </template>
                     </p>
-                    <input type="checkbox" disabled class="h-4 w-4" aria-label="Récupération par code PIN (bientôt disponible)" />
+                    <div v-if="pinRecoveryConfigured && pinRec.reachable" class="flex gap-2">
+                        <button class="text-sm" :class="pinRec.enabled ? 'second' : 'primary'" :disabled="!E2EEUnloked || pinRec.busy" @click="openEnablePin">
+                            {{ pinRec.enabled ? (pinRec.locked ? 'Réactiver' : 'Changer le code') : 'Activer' }}
+                        </button>
+                        <button v-if="pinRec.enabled" class="second text-sm" :disabled="pinRec.busy" @click="confirmDisablePin = true">Désactiver</button>
+                    </div>
                 </div>
                 <p class="text-xs text-(--text2) leading-relaxed">
                     Option de secours pour qui n'a plus ni appareil ni clé de récupération. Elle est <strong class="text-amber-500">nettement moins sûre</strong> :
-                    un code à 4 chiffres se devine en quelques secondes par quiconque obtiendrait les deux secrets serveur qui le protègent.
-                    Elle restera désactivée tant que vous ne l'activez pas.
+                    votre code n'est jamais envoyé, mais quiconque volerait à la fois les secrets de nos deux serveurs pourrait deviner un code à 4 chiffres en quelques secondes.
+                    10 essais au plus, puis blocage ; chaque essai vous est signalé par e-mail.
                 </p>
             </div>
         </div>
@@ -230,6 +249,59 @@
             </template>
         </Popup>
 
+        <!-- Activer / changer le code de récupération -->
+        <Popup :isOpen="enablePin.open" @close="closeEnablePin">
+            <template #title>Récupération par code PIN</template>
+            <div v-if="enablePin.step === 'warn'" class="space-y-4">
+                <div class="flex items-start gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <i class="bi bi-exclamation-triangle-fill text-amber-500 mt-0.5 shrink-0" />
+                    <span class="text-xs text-amber-500 leading-snug">
+                        Un code à 4 chiffres protège moins bien que vos appareils ou votre clé de récupération. Votre code n'est jamais envoyé
+                        (il est « aveuglé ») et deux serveurs séparés limitent les essais, mais quiconque compromettrait les deux pourrait retrouver vos messages.
+                    </span>
+                </div>
+                <label class="flex items-start gap-2 text-sm text-(--text) cursor-pointer">
+                    <input type="checkbox" v-model="enablePin.ack" class="mt-1" />
+                    <span>J'ai compris et je veux tout de même pouvoir récupérer mes messages avec un code PIN.</span>
+                </label>
+            </div>
+            <div v-else class="flex flex-col items-center">
+                <p class="text-sm text-(--text2) mb-6 text-center max-w-sm">
+                    {{ enablePin.step === 'choose' ? 'Choisissez votre code PIN de récupération (4 chiffres). Vous pouvez reprendre votre code habituel.' : 'Saisissez-le à nouveau pour confirmer.' }}
+                </p>
+                <PinPad v-if="enablePin.open" v-model="enablePin.pin" :error-tick="enablePin.errorTick" :disabled="pinRec.busy" @submit="submitEnablePin" />
+            </div>
+            <template #footer>
+                <button class="default" :disabled="pinRec.busy" @click="closeEnablePin">Annuler</button>
+                <button v-if="enablePin.step === 'warn'" class="primary" :disabled="!enablePin.ack" @click="enablePin.step = 'choose'">Continuer</button>
+            </template>
+        </Popup>
+
+        <!-- Code de récupération demandé lors d'un retrait d'appareil -->
+        <Popup :isOpen="recPinAsk.open" :zIndex="2200" @close="answerRecPin(undefined)">
+            <template #title>Conserver la récupération par code PIN</template>
+            <p class="text-sm text-(--text2) mb-6">
+                Une nouvelle clé de compte va être créée. Saisissez votre code PIN de récupération pour la conserver, ou désactivez-la.
+            </p>
+            <PinPad v-if="recPinAsk.open" v-model="recPinAsk.pin" auto-submit @submit="answerRecPin(recPinAsk.pin)" />
+            <template #footer>
+                <button class="default" @click="answerRecPin(undefined)">Annuler le retrait</button>
+                <button class="second" @click="answerRecPin(null)">Désactiver la récupération par PIN</button>
+            </template>
+        </Popup>
+
+        <ConfirmDelete
+            :show="confirmDisablePin"
+            title="Désactiver la récupération par code PIN ?"
+            item-name="la récupération par code PIN"
+            item-type="la récupération par code PIN"
+            message="Vous ne pourrez plus retrouver vos messages avec un code PIN. Vos appareils et votre clé de récupération restent les moyens d'accès."
+            button-text="Désactiver"
+            :loading="pinRec.busy"
+            @confirm="disablePin"
+            @cancel="confirmDisablePin = false"
+        />
+
         <ConfirmDelete
             :show="!!removeTarget"
             title="Déconnecter cet appareil ?"
@@ -281,6 +353,8 @@ import {
     IdentityMismatchError, V4ApiError, answerLink, checkDevices, parseLinkQr, regenerateRecoveryKey, removeDevices,
     type CheckedDevice, type DeviceContext, type PendingLink,
 } from '@/assets/e2eeV4/session';
+import { PinRecoveryFailure, disablePinRecovery, enablePinRecovery, keepPinRecovery, pinRecoveryStatus } from '@/assets/e2eeV4/pinRecovery';
+import { pinRecoveryActors, pinRecoveryConfigured } from '@/assets/e2eeV4/pinRecoveryApi';
 import { PLATFORM_ICONS, PLATFORM_LABELS, deviceContext, enrollmentVaults, sealedFrom, vaultFor } from '@/assets/e2eeV4/runtime';
 
 /**
@@ -342,6 +416,7 @@ onMounted(async () => {
     dev = await deviceContext();
     prfPossible.value = (await enrollmentVaults()).some(v => v.capabilities.kind === 'webauthn-prf');
     await reload();
+    await refreshPinRec();
 });
 
 // --- confirmation par le coffre ------------------------------------------------
@@ -432,6 +507,7 @@ const removeMessage = computed(() => {
 const removeWarning = computed(() => {
     const parts = ["Si cet appareil était déverrouillé au moment de sa perte, il conserve l'accès à ce qu'il a déjà pu ouvrir : changez aussi votre mot de passe."];
     if (hasRecovery.value) parts.push('Votre clé de récupération sera renouvelée : la nouvelle s\'affichera ensuite.');
+    if (pinRec.enabled) parts.push('Votre code PIN de récupération vous sera demandé pour la conserver.');
     const uncertified = devices.value.filter(x => !x.certified && x.id !== removeTarget.value?.id).length;
     if (uncertified) parts.push(`${uncertified} appareil(s) non certifié(s) seront aussi retirés.`);
     return parts.join(' ');
@@ -447,7 +523,18 @@ async function confirmRemove() {
     removing.value = true;
     try {
         const ctx = await vaultCtx(`Confirmez la déconnexion de « ${d.name} ».`);
-        const result = await removeDevices(dev, [d.id], async () => { await refetchUser(); return sealedFrom(user.value); }, ctx);
+        // Récupération par PIN active : on la conserve (code demandé) ou on la désactive, au choix.
+        let keep: ReturnType<typeof keepPinRecovery> | undefined;
+        if (pinRec.enabled && !pinRec.locked) {
+            const recPin = await askRecoveryPin();
+            if (recPin === undefined) return;
+            if (recPin) keep = keepPinRecovery(pinRecoveryActors, dev.userId, recPin);
+        }
+        const result = await removeDevices(dev, [d.id], async () => { await refetchUser(); return sealedFrom(user.value); }, ctx, keep);
+        if (result.pinRecoveryDisabled) {
+            await pinRecoveryActors.guard.disable().catch(() => {});
+            toast.show('La récupération par code PIN a été désactivée.', 'info');
+        }
         removeTarget.value = null;
         const extra = result.removed.length - 1;
         toast.show(extra > 0 ? `Appareil déconnecté (et ${extra} appareil(s) non certifié(s) retiré(s)).` : 'Appareil déconnecté.', 'success');
@@ -464,11 +551,102 @@ async function confirmRemove() {
         await reload();
     } catch (e) {
         if (e instanceof E2eeV4Error && /remain/.test(e.message)) toast.show('Impossible de déconnecter votre seul appareil.', 'error');
+        else if (e instanceof PinRecoveryFailure) toast.show(e.reason === 'wrong-pin' ? `Code PIN de récupération incorrect (${e.attemptsLeft} essai(s) restant(s)). Aucun appareil n'a été retiré.` : `${e.message} Aucun appareil n'a été retiré.`, 'error', 8000);
         else reportError(e, "La déconnexion de l'appareil a échoué.");
     } finally {
         removing.value = false;
         removeTarget.value = null;
+        refreshPinRec();
     }
+}
+
+// --- récupération par code PIN ------------------------------------------------------
+
+const pinRec = reactive({ enabled: false, locked: false, attemptsLeft: 0, reachable: true, busy: false });
+const confirmDisablePin = ref(false);
+
+async function refreshPinRec() {
+    if (!pinRecoveryConfigured) return;
+    try {
+        const st = await pinRecoveryStatus(pinRecoveryActors);
+        Object.assign(pinRec, { enabled: st.enabled, locked: st.locked, attemptsLeft: st.attemptsLeft, reachable: st.guardReachable });
+    } catch {
+        pinRec.reachable = false;
+    }
+}
+
+const enablePin = reactive({ open: false, step: 'warn' as 'warn' | 'choose' | 'confirm', ack: false, pin: '', first: '', errorTick: 0 });
+
+function openEnablePin() {
+    Object.assign(enablePin, { open: true, step: pinRec.enabled ? 'choose' : 'warn', ack: false, pin: '', first: '' });
+}
+
+function closeEnablePin() {
+    if (pinRec.busy) return;
+    Object.assign(enablePin, { open: false, pin: '', first: '' });
+}
+
+async function submitEnablePin() {
+    if (!dev || enablePin.pin.length !== 4) return;
+    if (enablePin.step === 'choose') {
+        enablePin.first = enablePin.pin;
+        enablePin.pin = '';
+        enablePin.step = 'confirm';
+        return;
+    }
+    if (enablePin.pin !== enablePin.first) {
+        enablePin.errorTick++;
+        toast.show('Les deux codes ne correspondent pas.', 'error');
+        Object.assign(enablePin, { step: 'choose', pin: '', first: '' });
+        return;
+    }
+    const code = enablePin.pin;
+    Object.assign(enablePin, { pin: '', first: '' });
+    pinRec.busy = true;
+    try {
+        const ctx = await vaultCtx('Confirmez l\'activation de la récupération par code PIN.');
+        await enablePinRecovery(dev, pinRecoveryActors, code, ctx);
+        enablePin.open = false;
+        toast.show('Récupération par code PIN activée.', 'success');
+    } catch (e) {
+        reportError(e, "Impossible d'activer la récupération par code PIN.");
+        enablePin.step = 'choose';
+    } finally {
+        pinRec.busy = false;
+        await refreshPinRec();
+    }
+}
+
+async function disablePin() {
+    pinRec.busy = true;
+    try {
+        await disablePinRecovery(pinRecoveryActors);
+        toast.show('Récupération par code PIN désactivée.', 'success');
+    } catch (e) {
+        reportError(e, 'Impossible de désactiver la récupération par code PIN.');
+    } finally {
+        confirmDisablePin.value = false;
+        pinRec.busy = false;
+        await refreshPinRec();
+    }
+}
+
+/** Code de récupération pour une rotation : la chaîne, `null` = désactiver, `undefined` = annuler. */
+const recPinAsk = reactive({ open: false, pin: '' });
+let recPinResolver: ((v: string | null | undefined) => void) | null = null;
+
+function askRecoveryPin(): Promise<string | null | undefined> {
+    recPinAsk.pin = '';
+    recPinAsk.open = true;
+    return new Promise((resolve) => { recPinResolver = resolve; });
+}
+
+function answerRecPin(v: string | null | undefined) {
+    const r = recPinResolver;
+    recPinResolver = null;
+    recPinAsk.open = false;
+    recPinAsk.pin = '';
+    r?.(v);
 }
 
 let pendingLockAfterRecovery = false;

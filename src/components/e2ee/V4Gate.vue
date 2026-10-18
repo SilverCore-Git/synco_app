@@ -55,11 +55,18 @@
                     <small>La clé de 56 caractères proposée à la création de votre compte.</small>
                 </span>
             </button>
-            <div class="option opacity-60 cursor-not-allowed!" aria-disabled="true">
+            <button v-if="pinRecovery.enabled && !pinRecovery.locked" class="option" @click="openPinRecovery">
+                <i class="bi bi-123 text-2xl text-(--primary)" />
+                <span>
+                    <strong>Avec mon code PIN de récupération</strong>
+                    <small>Secours moins sûr que les deux autres. {{ pinRecovery.attemptsLeft }} essai(s) restant(s) avant blocage.</small>
+                </span>
+            </button>
+            <div v-else class="option opacity-60 cursor-not-allowed!" aria-disabled="true">
                 <i class="bi bi-123 text-2xl" />
                 <span>
-                    <strong>Avec mon code PIN <em class="not-italic text-[10px] uppercase tracking-widest ml-1 px-1.5 py-0.5 rounded bg-(--text)/10">Bientôt disponible</em></strong>
-                    <small>Récupération de secours, moins sûre que les deux autres.</small>
+                    <strong>Avec mon code PIN de récupération</strong>
+                    <small>{{ pinRecoveryUnavailableText }}</small>
                 </span>
             </div>
 
@@ -121,6 +128,16 @@
                     Connecter cet appareil
                 </button>
             </div>
+        </div>
+
+        <!-- ============ Récupération par PIN ============ -->
+        <div v-else-if="step === 'pin-recovery'" class="flex flex-col items-center">
+            <p class="text-sm text-(--text2) mb-6 max-w-sm text-center leading-relaxed">
+                Saisissez votre <strong class="text-(--text)">code PIN de récupération</strong>.
+                Il reste {{ pinRecovery.attemptsLeft }} essai(s) ; ensuite, cette méthode sera bloquée.
+            </p>
+            <PinPad v-model="pin" auto-submit :disabled="busy" :error-tick="errorTick" @submit="submitPinRecovery" />
+            <button class="mt-6 text-xs text-(--text2) hover:text-(--primary)" :disabled="busy" @click="step = 'connect'">Retour</button>
         </div>
 
         <!-- ============ Choix du PIN local ============ -->
@@ -237,7 +254,7 @@
 
 <script setup lang="ts">
 
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import SpinLoader from '../SpinLoader.vue';
 import Popup from '../Popup.vue';
 import ConfirmDelete from '../common/ConfirmDelete.vue';
@@ -256,6 +273,8 @@ import {
     type DeviceContext, type EnrollOptions, type OpenedLink, type PreparedAccount, type StartedLink,
 } from '@/assets/e2eeV4/session';
 import { E2eeV4Error } from '@/assets/utils/e2eeV4';
+import { PinRecoveryFailure, pinRecoveryStatus, recoverWithPin } from '@/assets/e2eeV4/pinRecovery';
+import { pinRecoveryActors, pinRecoveryConfigured } from '@/assets/e2eeV4/pinRecoveryApi';
 import {
     applyIdentityKeys, autoUnlock, defaultDeviceName, detectPlatform, deviceContext, enrollmentVaults, sealedFrom, servedFrom,
 } from '@/assets/e2eeV4/runtime';
@@ -273,7 +292,7 @@ const props = defineProps<{ mode: 'unlock' | 'onboard' }>();
 const toast = useToast();
 const { Item: theme } = useSettingsItem('theme', 'dark');
 
-type Step = 'loading' | 'unlock' | 'connect' | 'link' | 'link-sas' | 'recovery' | 'choose-pin' | 'onboard-intro' | 'onboard-recovery';
+type Step = 'loading' | 'unlock' | 'connect' | 'link' | 'link-sas' | 'recovery' | 'pin-recovery' | 'choose-pin' | 'onboard-intro' | 'onboard-recovery';
 const step = ref<Step>('loading');
 const busy = ref(false);
 const pin = ref('');
@@ -311,6 +330,7 @@ const title = computed(() => ({
     link: 'Connecter depuis un autre appareil',
     'link-sas': 'Confirmez la connexion',
     recovery: 'Clé de récupération',
+    'pin-recovery': 'Récupération par code PIN',
     'choose-pin': pinFirst.value ? 'Confirmez votre code PIN' : 'Choisissez un code PIN local',
     'onboard-intro': resetMode.value ? 'Réinitialiser le chiffrement' : 'Configurez votre accès sécurisé',
     'onboard-recovery': 'Votre clé de récupération',
@@ -582,6 +602,64 @@ async function confirmLink() {
 
 const recoveryInput = ref('');
 
+// --- récupération par PIN -----------------------------------------------------
+
+const pinRecovery = reactive({ enabled: false, locked: false, attemptsLeft: 0, checked: false, reachable: true });
+const pinRecoveryUnavailableText = computed(() => {
+    if (!pinRecoveryConfigured) return 'Non proposée sur ce serveur.';
+    if (!pinRecovery.checked) return 'Vérification…';
+    if (!pinRecovery.reachable) return 'Service de récupération injoignable pour le moment.';
+    if (pinRecovery.locked) return "Bloquée après trop d'essais. Elle se réactive depuis un appareil connecté.";
+    return "Non activée sur votre compte.";
+});
+
+async function refreshPinRecovery() {
+    if (!pinRecoveryConfigured || props.mode === 'onboard') return;
+    try {
+        const st = await pinRecoveryStatus(pinRecoveryActors);
+        Object.assign(pinRecovery, { enabled: st.enabled, locked: st.locked, attemptsLeft: st.attemptsLeft, reachable: st.guardReachable });
+    } catch {
+        pinRecovery.enabled = false;
+    } finally {
+        pinRecovery.checked = true;
+    }
+}
+
+function openPinRecovery() {
+    pin.value = '';
+    step.value = 'pin-recovery';
+}
+
+async function submitPinRecovery() {
+    if (!dev || busy.value || pin.value.length !== 4) return;
+    busy.value = true;
+    const code = pin.value;
+    pin.value = '';
+    try {
+        const keys = await withPinFallback(opts => recoverWithPin(dev!, pinRecoveryActors, code, sealedFrom(user.value), servedFrom(user.value), opts));
+        await finishConnected(keys);
+    } catch (e) {
+        if (e instanceof PinRecoveryFailure) {
+            errorTick.value++;
+            if (e.reason === 'wrong-pin') {
+                pinRecovery.attemptsLeft = e.attemptsLeft;
+                toast.show(e.attemptsLeft > 0 ? `Code PIN incorrect. ${e.attemptsLeft} essai(s) restant(s).` : 'Code PIN incorrect. La récupération par PIN est maintenant bloquée.', 'error', 8000);
+                if (e.attemptsLeft === 0) { pinRecovery.locked = true; step.value = 'connect'; }
+            } else {
+                pinRecovery.locked = e.reason === 'locked';
+                pinRecovery.enabled = false;
+                toast.show(e.reason === 'locked' ? "La récupération par PIN est bloquée après trop d'essais." : "La récupération par PIN n'est pas activée sur votre compte.", 'error', 8000);
+                step.value = 'connect';
+            }
+        } else if (!handleEnrollError(e)) {
+            console.error('[E2EE v4] récupération par PIN :', e);
+            toast.show('La récupération par PIN a échoué.', 'error');
+        }
+    } finally {
+        busy.value = false;
+    }
+}
+
 async function submitRecovery() {
     if (!dev || busy.value) return;
     busy.value = true;
@@ -733,6 +811,7 @@ onMounted(async () => {
         vaults = await enrollmentVaults();
         hasPinVault.value = vaults.some(v => v.capabilities.needsPin);
         if (props.mode === 'onboard') { step.value = 'onboard-intro'; return; }
+        refreshPinRecovery();
         const local = await refreshLocalState();
         if (!local?.record) { step.value = 'connect'; return; }
         step.value = 'unlock';
