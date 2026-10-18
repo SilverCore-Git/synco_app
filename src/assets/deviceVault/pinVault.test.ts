@@ -97,4 +97,23 @@ describe("PinVault (repli web)", () => {
         await vault.remove(ID);
         expect(await vault.has(ID)).toBe(false);
     });
+
+    test("changement de PIN : même DK, l'ancien PIN ne fonctionne plus", async () => {
+        const { store } = memory();
+        const vault = new PinVault(store, 1000);
+        const dk = await vault.create(ID, { pin: "4821" });
+        await vault.changePin(ID, "4821", "9157");
+        expect(await vault.load(ID, { pin: "9157" })).toEqual(dk);
+        expect(await code(vault.load(ID, { pin: "4821" }))).toBe("wrong-pin");
+    });
+
+    test("changement de PIN avec un mauvais ancien PIN : refusé et compté", async () => {
+        const { store } = memory();
+        const vault = new PinVault(store, 1000);
+        await vault.create(ID, { pin: "4821" });
+        expect(await code(vault.changePin(ID, "0000", "9157"))).toBe("wrong-pin");
+        expect(((await store.get<{ failures: number }>(`e4-pinvault:${ID}`))!).failures).toBe(1);
+        expect(await code(vault.changePin(ID, "4821", "12"))).toBe("wrong-pin");
+        expect(await code(vault.load(ID, { pin: "4821" }))).toBe("ok");
+    });
 });

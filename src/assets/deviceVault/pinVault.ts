@@ -51,14 +51,7 @@ export class PinVault implements DeviceVault {
         if (ctx.pin.length < MIN_PIN_LENGTH) throw new VaultError('wrong-pin', 'Le PIN doit contenir au moins 4 caractères.');
 
         const dk = crypto.getRandomValues(new Uint8Array(DK_LENGTH));
-        const salt = crypto.getRandomValues(new Uint8Array(16));
-        const iv = crypto.getRandomValues(new Uint8Array(12));
-        const key = await deriveKey(ctx.pin, salt, this.iterations);
-        const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: aad(deviceId) }, key, dk as BufferSource));
-
-        await this.store.set(recordKey(deviceId), {
-            v: 1, salt: toB64(salt), iv: toB64(iv), ciphertext: toB64(ct), iterations: this.iterations, failures: 0, lockedUntil: null,
-        } satisfies PinVaultRecord);
+        await this.write(deviceId, dk, ctx.pin);
         return dk;
     }
 
@@ -100,6 +93,30 @@ export class PinVault implements DeviceVault {
 
         await this.store.set(recordKey(deviceId), { ...record, failures: 0, lockedUntil: null } satisfies PinVaultRecord);
         return dk;
+    }
+
+    /**
+     * Change le PIN local sans changer DK : rien d'autre à resceller. L'ancien PIN passe par load(),
+     * donc par le même compteur d'essais.
+     */
+    async changePin(deviceId: string, oldPin: string, newPin: string): Promise<void> {
+        if (newPin.length < MIN_PIN_LENGTH) throw new VaultError('wrong-pin', 'Le PIN doit contenir au moins 4 caractères.');
+        const dk = await this.load(deviceId, { pin: oldPin });
+        try {
+            await this.write(deviceId, dk, newPin);
+        } finally {
+            dk.fill(0);
+        }
+    }
+
+    private async write(deviceId: string, dk: Uint8Array, pin: string): Promise<void> {
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const key = await deriveKey(pin, salt, this.iterations);
+        const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: aad(deviceId) }, key, dk as BufferSource));
+        await this.store.set(recordKey(deviceId), {
+            v: 1, salt: toB64(salt), iv: toB64(iv), ciphertext: toB64(ct), iterations: this.iterations, failures: 0, lockedUntil: null,
+        } satisfies PinVaultRecord);
     }
 
     remove(deviceId: string): Promise<void> {

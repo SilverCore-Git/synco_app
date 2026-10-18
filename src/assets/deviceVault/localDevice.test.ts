@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { E2eeV4Error, generateAccountKeyBytes, verifyDeviceCertificate } from "../utils/e2eeV4";
-import { enrollThisDevice, forgetThisDevice, getLocalDevice, unlockAccountKey, type LocalDeviceRecord } from "./localDevice";
+import { enrollThisDevice, forgetThisDevice, getLocalDevice, switchVault, unlockAccountKey, type LocalDeviceRecord } from "./localDevice";
 import { PinVault } from "./pinVault";
 import { KeyringVault } from "./keyringVault";
 import { VaultError, type DeviceVault, type KeyValueStore } from "./types";
@@ -122,4 +122,57 @@ describe("enrollThisDevice / unlockAccountKey", () => {
         expect((m.get(`e4-device:${U}`) as LocalDeviceRecord).sealedPrivateKey.length).toBeGreaterThan(100);
         expect(record.vaultKind).toBe("os-keyring");
     });
+
+    test("l'identité épinglée est conservée dans l'enregistrement et renvoyée au déverrouillage", async () => {
+        const { store } = memory(), id = await signing();
+        const vault = new PinVault(store, 1000);
+        const identity = { publicKey: '{"e":"AQAB","kty":"RSA","n":"x"}', publicSignKey: '{"crv":"P-256","kty":"EC","x":"a","y":"b"}' };
+        const { payload } = await enrollThisDevice({ userId: U, name: "n", platform: "web", akBytes: generateAccountKeyBytes(), identitySignKey: id.priv, vaults: [vault], store, ctx: { pin: "4821" }, identity });
+        const { record } = await unlockAccountKey({ userId: U, store, ctx: { pin: "4821" }, vaultFor: () => vault, fetchEnvelope: async () => ({ envelope: payload.envelope, publicKey: payload.publicKey }) });
+        expect(record.identity).toEqual(identity);
+    });
 });
+
+describe("switchVault", () => {
+    test("PIN local → trousseau : même appareil, même AK, l'ancien coffre est vidé", async () => {
+        const { store } = memory(), id = await signing(), ak = generateAccountKeyBytes();
+        const pinVault = new PinVault(store, 1000);
+        const ring = new Map<string, string>();
+        const keyring = new KeyringVault((async (cmd: string, a: any) => cmd === "secure_store_set" ? (ring.set(a.key, a.value), undefined) : cmd === "secure_store_get" ? ring.get(a.key) ?? null : (ring.delete(a.key), undefined)) as any);
+        const { payload } = await enrollThisDevice({ userId: U, name: "n", platform: "web", akBytes: ak, identitySignKey: id.priv, vaults: [pinVault], store, ctx: { pin: "4821" } });
+
+        const next = await switchVault({ userId: U, store, from: pinVault, to: keyring, fromCtx: { pin: "4821" } });
+        expect(next.vaultKind).toBe("os-keyring");
+        expect(next.deviceId).toBe(payload.id);
+        expect(await pinVault.has(payload.id)).toBe(false);
+
+        const vaultFor = (k: string) => (k === "os-keyring" ? keyring : pinVault) as DeviceVault;
+        const { akBytes } = await unlockAccountKey({ userId: U, store, vaultFor, fetchEnvelope: async () => ({ envelope: payload.envelope, publicKey: payload.publicKey }) });
+        expect(akBytes).toEqual(ak);
+    });
+
+    test("mauvais PIN : rien ne change", async () => {
+        const { store } = memory(), id = await signing();
+        const pinVault = new PinVault(store, 1000);
+        const created: string[] = [];
+        const spy: DeviceVault = { ...unavailable, capabilities: { ...unavailable.capabilities, kind: "os-keyring" }, create: async (d) => { created.push(d); return crypto.getRandomValues(new Uint8Array(32)); } };
+        await enrollThisDevice({ userId: U, name: "n", platform: "web", akBytes: generateAccountKeyBytes(), identitySignKey: id.priv, vaults: [pinVault], store, ctx: { pin: "4821" } });
+        const before = await getLocalDevice(store, U);
+        expect(await code(switchVault({ userId: U, store, from: pinVault, to: spy, fromCtx: { pin: "0000" } }))).toBe("wrong-pin");
+        expect(created.length).toBe(0);
+        expect((await getLocalDevice(store, U))!.sealedPrivateKey).toBe(before!.sealedPrivateKey);
+    });
+
+    test("échec du nouveau coffre après création : il est vidé, l'ancien reste utilisable", async () => {
+        const { store } = memory(), id = await signing();
+        const pinVault = new PinVault(store, 1000);
+        const removed: string[] = [];
+        const bad: DeviceVault = { ...unavailable, capabilities: { ...unavailable.capabilities, kind: "os-keyring" }, create: async () => new Uint8Array(5), remove: async (d) => { removed.push(d); } };
+        const { payload } = await enrollThisDevice({ userId: U, name: "n", platform: "web", akBytes: generateAccountKeyBytes(), identitySignKey: id.priv, vaults: [pinVault], store, ctx: { pin: "4821" } });
+        await expect(switchVault({ userId: U, store, from: pinVault, to: bad, fromCtx: { pin: "4821" } })).rejects.toBeDefined();
+        expect(removed).toEqual([payload.id]);
+        expect((await getLocalDevice(store, U))!.vaultKind).toBe("web-pin");
+        expect(await code(pinVault.load(payload.id, { pin: "4821" }))).toBe("ok");
+    });
+});
+

@@ -1,6 +1,6 @@
 import {
     E2eeV4Error, createDeviceEnvelope, generateDeviceId, generateDeviceKeyPair, openDeviceEnvelope,
-    openDevicePrivateKey, sealDevicePrivateKey, signDeviceCertificate,
+    openDevicePrivateKey, openDevicePrivateKeyBytes, sealDevicePrivateKey, signDeviceCertificate,
 } from '../utils/e2eeV4';
 import { VaultError, type DeviceVault, type KeyValueStore, type VaultContext, type VaultKind } from './types';
 
@@ -21,6 +21,18 @@ export interface LocalDeviceRecord {
     sealedPrivateKey: string;
     publicKey: JsonWebKey;
     createdAt: number;
+    /**
+     * Clés publiques d'identité du compte (JWK canoniques), dérivées des clés privées ouvertes par une
+     * AK authentifiée lors de l'inscription. À chaque déverrouillage, les clés ouvertes doivent y
+     * correspondre : un serveur qui servirait une fausse enveloppe ET de fausses clés d'identité
+     * (spec §7) est détecté. Absent des enregistrements antérieurs à P4.
+     */
+    identity?: IdentityPin;
+}
+
+export interface IdentityPin {
+    publicKey: string;
+    publicSignKey: string;
 }
 
 const recordKey = (userId: string) => `e4-device:${userId}`;
@@ -50,6 +62,8 @@ export interface EnrollArgs {
     vaults: DeviceVault[];
     store: KeyValueStore;
     ctx?: VaultContext;
+    /** Identité du compte à épingler dans l'enregistrement local (voir LocalDeviceRecord.identity). */
+    identity?: IdentityPin;
 }
 
 /**
@@ -85,6 +99,7 @@ export async function enrollThisDevice(args: EnrollArgs): Promise<{ payload: Dev
 
         const record: LocalDeviceRecord = {
             v: 1, userId: args.userId, deviceId, vaultKind: vault.capabilities.kind, sealedPrivateKey, publicKey: pair.publicKey, createdAt: Date.now(),
+            ...(args.identity ? { identity: args.identity } : {}),
         };
         await args.store.set(recordKey(args.userId), record);
         return {
@@ -115,7 +130,7 @@ const canonical = (jwk: JsonWebKey) => JSON.stringify({ kty: jwk.kty, crv: jwk.c
  * serveur. La clé publique renvoyée par le serveur doit être celle enregistrée localement, sinon le
  * serveur a tenté de substituer une enveloppe.
  */
-export async function unlockAccountKey(args: UnlockArgs): Promise<{ akBytes: Uint8Array; deviceId: string }> {
+export async function unlockAccountKey(args: UnlockArgs): Promise<{ akBytes: Uint8Array; deviceId: string; record: LocalDeviceRecord }> {
     const record = await getLocalDevice(args.store, args.userId);
     if (!record) throw new VaultError('missing', 'Cet appareil n\'est pas enregistré.');
     const vault = args.vaultFor(record.vaultKind);
@@ -135,7 +150,57 @@ export async function unlockAccountKey(args: UnlockArgs): Promise<{ akBytes: Uin
         throw new E2eeV4Error('Server device key does not match this device');
     }
     const akBytes = await openDeviceEnvelope(privateKey, record.publicKey, remote.envelope, args.userId, record.deviceId);
-    return { akBytes, deviceId: record.deviceId };
+    return { akBytes, deviceId: record.deviceId, record };
+}
+
+export interface SwitchVaultArgs {
+    userId: string;
+    store: KeyValueStore;
+    from: DeviceVault;
+    to: DeviceVault;
+    fromCtx?: VaultContext;
+    toCtx?: VaultContext;
+}
+
+/**
+ * Change le coffre de cet appareil (ex. PIN local → passkey) sans changer d'appareil : la clé privée
+ * de l'appareil est rescellée sous une nouvelle DK. Rien ne change côté serveur. L'ancien coffre
+ * n'est vidé qu'une fois le nouvel enregistrement écrit.
+ */
+export async function switchVault(args: SwitchVaultArgs): Promise<LocalDeviceRecord> {
+    const record = await getLocalDevice(args.store, args.userId);
+    if (!record) throw new VaultError('missing', 'Cet appareil n\'est pas enregistré.');
+    if (record.vaultKind !== args.from.capabilities.kind) throw new VaultError('unavailable', 'Coffre actuel inattendu.');
+    if (args.from.capabilities.kind === args.to.capabilities.kind) return record;
+
+    const oldDk = await args.from.load(record.deviceId, args.fromCtx);
+    let pkcs8: Uint8Array;
+    try {
+        pkcs8 = await openDevicePrivateKeyBytes(oldDk, record.deviceId, record.sealedPrivateKey);
+    } finally {
+        oldDk.fill(0);
+    }
+
+    try {
+        const newDk = await args.to.create(record.deviceId, args.toCtx);
+        try {
+            const next: LocalDeviceRecord = {
+                ...record,
+                vaultKind: args.to.capabilities.kind,
+                sealedPrivateKey: await sealDevicePrivateKey(newDk, record.deviceId, pkcs8 as BufferSource),
+            };
+            await args.store.set(recordKey(args.userId), next);
+            await args.from.remove(record.deviceId).catch(() => {});
+            return next;
+        } catch (e) {
+            await args.to.remove(record.deviceId).catch(() => {});
+            throw e;
+        } finally {
+            newDk.fill(0);
+        }
+    } finally {
+        pkcs8.fill(0);
+    }
 }
 
 /** Oublie cet appareil localement (déconnexion, appareil retiré à distance). */

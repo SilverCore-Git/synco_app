@@ -133,8 +133,17 @@ export async function sealDevicePrivateKey(dk: Uint8Array, deviceId: string, pkc
 
 /** Clé privée ECDH non extractable de l'appareil, prête à ouvrir ses enveloppes. */
 export async function openDevicePrivateKey(dk: Uint8Array, deviceId: string, sealed: string): Promise<CryptoKey> {
-    const pkcs8 = await open(await aesKey(dk, ['decrypt']), devicePrivateAad(deviceId), fromB64(sealed));
-    return crypto.subtle.importKey('pkcs8', pkcs8, { name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveBits']);
+    const pkcs8 = await openDevicePrivateKeyBytes(dk, deviceId, sealed);
+    try {
+        return await crypto.subtle.importKey('pkcs8', pkcs8 as BufferSource, { name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveBits']);
+    } finally {
+        pkcs8.fill(0);
+    }
+}
+
+/** PKCS#8 de la clé privée de l'appareil, pour la resceller sous une autre DK (changement de coffre). À effacer après usage. */
+export async function openDevicePrivateKeyBytes(dk: Uint8Array, deviceId: string, sealed: string): Promise<Uint8Array> {
+    return new Uint8Array(await open(await aesKey(dk, ['decrypt']), devicePrivateAad(deviceId), fromB64(sealed)));
 }
 
 const deviceEnvelopeAad = (userId: string, deviceId: string) => `synco-e4-device-envelope|${userId}|${deviceId}`;
