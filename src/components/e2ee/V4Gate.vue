@@ -67,30 +67,25 @@
                 </div>
 
                 <div class="flex min-w-0 flex-col">
-                    <span class="live-pill"><span class="live-dot" /> En attente de l'autre appareil</span>
+                    <div class="link-status" role="status">
+                        <i class="bi bi-phone" />
+                        <span class="link-wire" aria-hidden="true"><i /><i /><i /></span>
+                        <i class="bi bi-laptop" />
+                        <span>En attente de l'autre appareil<span class="dots" aria-hidden="true"><b>.</b><b>.</b><b>.</b></span></span>
+                    </div>
 
                     <ol class="how mt-5 space-y-4">
                         <li style="--i: 0"><span class="how-n">1</span><p>Ouvrez Synco sur un appareil <strong>déjà connecté</strong> à votre compte.</p></li>
                         <li style="--i: 1"><span class="how-n">2</span><p>Allez dans <strong>Paramètres › Appareils et sécurité</strong>, puis <strong>Ajouter un appareil</strong>.</p></li>
-                        <li style="--i: 2"><span class="how-n">3</span><p>Scannez ce QR code, puis comparez les deux codes à 6 chiffres.</p></li>
+                        <li style="--i: 2"><span class="how-n">3</span><p>Scannez ce QR code, ou saisissez le code ci-dessous, puis comparez les deux codes à 6 chiffres.</p></li>
                     </ol>
 
-                    <button class="mt-5 self-start text-xs font-semibold text-(--primary) hover:underline" :aria-expanded="showCode" @click="showCode = !showCode">
-                        <i class="bi me-1" :class="showCode ? 'bi-chevron-up' : 'bi-keyboard'" />
-                        {{ showCode ? 'Masquer le code' : 'Pas de caméra ? Saisir un code à la place' }}
-                    </button>
-                    <div class="reveal" :class="{ open: showCode }">
-                        <div>
-                            <div class="mt-3 flex items-center gap-2">
-                                <div class="code-chips" aria-label="Code de liaison">
-                                    <span v-for="(part, i) in linkCode.split('-')" :key="i">{{ part }}</span>
-                                </div>
-                                <button class="copy-btn" :class="{ done: copied }" :title="copied ? 'Copié' : 'Copier le code'" @click="copyLinkCode">
-                                    <i class="bi" :class="copied ? 'bi-check2' : 'bi-clipboard'" />
-                                </button>
-                            </div>
-                            <p class="mt-2 text-xs text-(--text2)">À saisir sur l'appareil connecté, dans « Ajouter un appareil ».</p>
-                        </div>
+                    <div class="code-line mt-5" aria-label="Code de liaison à recopier">
+                        <i class="bi bi-keyboard text-(--text2)" />
+                        <code>{{ linkCode }}</code>
+                        <button class="copy-btn" :class="{ done: copied }" :title="copied ? 'Copié' : 'Copier le code'" @click="copyLinkCode">
+                            <i class="bi" :class="copied ? 'bi-check2' : 'bi-clipboard'" />
+                        </button>
                     </div>
 
                     <p class="mt-auto pt-6 text-xs leading-snug text-amber-500/90">
@@ -436,7 +431,6 @@ const lockoutSeconds = ref(0);
 const linkSecondsLeft = ref(0);
 const linkTotalSeconds = ref(300);
 const linkProgress = computed(() => linkTotalSeconds.value > 0 ? Math.max(0, Math.min(1, linkSecondsLeft.value / linkTotalSeconds.value)) : 0);
-const showCode = ref(false);
 const copied = ref(false);
 
 let ticker: ReturnType<typeof setInterval> | null = null;
@@ -626,7 +620,6 @@ async function beginLink() {
     await started?.cancel();
     started = null;
     linkQr.value = '';
-    showCode.value = false;
     step.value = 'link';
     try {
         started = await startLink(dev, defaultDeviceName(platform.value), platform.value);
@@ -1050,14 +1043,21 @@ onUnmounted(() => {
 .expiry-fill.ok { background: var(--primary); transition: transform 0.2s ease, background-color 0.4s ease; }
 .expiry-fill:not(.ok):not(.warn) { transition: transform 1s linear, background-color 0.4s ease; }
 
-/* ---------- indicateur « en attente » ---------- */
-.live-pill {
-    align-self: flex-start; display: inline-flex; align-items: center; gap: 0.5rem;
-    padding: 0.3rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600;
-    color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent);
+/* ---------- état « en attente » ---------- */
+.link-status {
+    align-self: flex-start; display: inline-flex; align-items: center; gap: 0.6rem;
+    padding: 0.45rem 0.9rem 0.45rem 0.8rem; border-radius: 999px; font-size: 0.8125rem; font-weight: 600;
+    color: var(--text); background: color-mix(in srgb, var(--primary) 9%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
 }
-.live-dot { position: relative; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--primary); }
-.live-dot::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--primary); animation: ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite; }
+.link-status > i { color: var(--primary); font-size: 1rem; }
+.link-wire { display: inline-flex; gap: 0.2rem; }
+.link-wire i { width: 0.3rem; height: 0.3rem; border-radius: 50%; background: var(--primary); opacity: 0.25; animation: wire 1.2s ease-in-out infinite; }
+.link-wire i:nth-child(2) { animation-delay: 0.2s; }
+.link-wire i:nth-child(3) { animation-delay: 0.4s; }
+.link-status span > .dots b { font-weight: 700; animation: blink 1.4s infinite both; }
+.dots b:nth-child(2) { animation-delay: 0.2s; }
+.dots b:nth-child(3) { animation-delay: 0.4s; }
 
 /* ---------- mode d'emploi ---------- */
 .how li { display: flex; gap: 0.875rem; align-items: flex-start; font-size: 0.875rem; line-height: 1.45; color: var(--text2); animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(var(--i) * 80ms + 120ms); }
@@ -1067,16 +1067,16 @@ onUnmounted(() => {
     font-size: 0.75rem; font-weight: 700; color: var(--primary); background: color-mix(in srgb, var(--primary) 14%, transparent);
 }
 
-/* ---------- code à recopier ---------- */
-.reveal { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease; }
-.reveal.open { grid-template-rows: 1fr; opacity: 1; }
-.reveal > div { overflow: hidden; }
-.code-chips { display: flex; flex-wrap: wrap; gap: 0.375rem; user-select: all; }
-.code-chips span {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8125rem; letter-spacing: 0.08em;
-    padding: 0.3rem 0.5rem; border-radius: 0.5rem; color: var(--text);
-    background: color-mix(in srgb, var(--text) 6%, transparent); border: 1px solid var(--border-color);
+/* ---------- code à recopier (une seule ligne) ---------- */
+.code-line {
+    display: flex; align-items: center; gap: 0.6rem; max-width: 100%; padding: 0.35rem 0.4rem 0.35rem 0.8rem;
+    border-radius: 0.8rem; border: 1px solid var(--border-color); background: color-mix(in srgb, var(--text) 5%, transparent);
 }
+.code-line code {
+    flex: 1; min-width: 0; white-space: nowrap; overflow-x: auto; scrollbar-width: none; user-select: all; color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: clamp(0.62rem, 2.5vw, 0.8125rem); letter-spacing: 0.05em;
+}
+.code-line code::-webkit-scrollbar { display: none; }
 .copy-btn {
     flex: none; width: 2.25rem; height: 2.25rem; border-radius: 0.6rem; display: grid; place-items: center;
     color: var(--text2); border: 1px solid var(--border-color); transition: all 0.2s ease;
@@ -1162,7 +1162,8 @@ onUnmounted(() => {
 /* ---------- animations ---------- */
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @keyframes pop-in { from { opacity: 0; transform: scale(0.88); } to { opacity: 1; transform: none; } }
-@keyframes ping { 75%, 100% { transform: scale(2.6); opacity: 0; } }
+@keyframes wire { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.25); } }
+@keyframes blink { 0%, 80%, 100% { opacity: 0.15; } 40% { opacity: 1; } }
 @keyframes shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; }
