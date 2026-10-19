@@ -20,10 +20,11 @@
             <i class="bi bi-info-circle-fill text-amber-500 mr-1" /> {{ notice }}
         </div>
 
-        <div v-if="step === 'loading'" class="py-10"><SpinLoader /></div>
+        <Transition :name="stepTransition" mode="out-in">
+        <div v-if="step === 'loading'" key="loading" class="py-10"><SpinLoader /></div>
 
         <!-- ============ Déverrouillage quotidien ============ -->
-        <template v-else-if="step === 'unlock'">
+        <div v-else-if="step === 'unlock'" key="unlock" class="flex flex-col items-center">
             <template v-if="lockoutSeconds > 0">
                 <p class="text-amber-500 font-medium">Trop de tentatives incorrectes.</p>
                 <p class="text-(--text2) text-sm mt-1">Réessayez dans {{ formatDuration(lockoutSeconds) }}</p>
@@ -37,108 +38,183 @@
             <button class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text2) hover:text-(--primary) transition-colors" @click="goConnect()">
                 {{ unlockNeedsPin ? 'Code PIN oublié ?' : 'Autre méthode' }}
             </button>
-        </template>
-
-        <!-- ============ Secours : plus aucun appareil connecté ============ -->
-        <div v-else-if="step === 'connect'" class="max-w-md w-full space-y-3">
-            <p class="text-sm text-(--text2) text-center pb-1">
-                Ces deux méthodes servent uniquement si vous n'avez plus aucun appareil déjà connecté à votre compte.
-            </p>
-            <button class="option" @click="step = 'recovery'">
-                <i class="bi bi-key-fill text-2xl text-(--primary)" />
-                <span>
-                    <strong>Avec ma clé de récupération</strong>
-                    <small>La clé de 56 caractères proposée à la création de votre compte.</small>
-                </span>
-            </button>
-            <button v-if="pinRecovery.enabled && !pinRecovery.locked" class="option" @click="openPinRecovery">
-                <i class="bi bi-123 text-2xl text-(--primary)" />
-                <span>
-                    <strong>Avec mon code PIN de récupération</strong>
-                    <small>Secours moins sûr que la clé. {{ pinRecovery.attemptsLeft }} essai(s) restant(s) avant blocage.</small>
-                </span>
-            </button>
-            <div v-else class="option opacity-60 cursor-not-allowed!" aria-disabled="true">
-                <i class="bi bi-123 text-2xl" />
-                <span>
-                    <strong>Avec mon code PIN de récupération</strong>
-                    <small>{{ pinRecoveryUnavailableText }}</small>
-                </span>
-            </div>
-
-            <div class="pt-4 border-t border-(--border-color) flex flex-col items-center gap-3">
-                <button class="text-xs text-(--text2) hover:text-(--primary)" @click="beginLink">
-                    <i class="bi bi-arrow-left mr-1" /> Retour à la connexion depuis un autre appareil
-                </button>
-                <button class="text-xs text-red-500/80 hover:text-red-500" @click="openReset">
-                    Je n'ai plus aucun appareil ni ma clé de récupération
-                </button>
-            </div>
         </div>
 
-        <!-- ============ Liaison : QR code ============ -->
-        <div v-else-if="step === 'link'" class="max-w-md w-full flex flex-col items-center gap-4 text-center">
-            <template v-if="linkQr">
-                <p class="text-sm text-(--text2)">
-                    Sur un appareil déjà connecté : <strong class="text-(--text)">Paramètres › Appareils et sécurité › Ajouter un appareil</strong>, puis scannez ce code.
-                </p>
-                <QrCode :value="linkQr" label="QR code de liaison" />
-                <div class="w-full">
-                    <p class="text-xs text-(--text2) mb-1">Ou saisissez ce code sur l'autre appareil :</p>
-                    <p class="font-mono text-base tracking-wider text-(--text) select-all">{{ linkCode }}</p>
+        <!-- ============ Liaison : QR code (chemin par défaut) ============ -->
+        <div v-else-if="step === 'link'" key="link" class="w-full max-w-3xl">
+            <div class="gate-card grid gap-8 p-6 md:grid-cols-[auto_1fr] md:p-8">
+
+                <div class="flex flex-col items-center gap-4">
+                    <div class="qr-frame" :class="{ 'is-expired': linkExpired, 'is-ready': !!linkQr }">
+                        <QrCode v-if="linkQr" :value="linkQr" label="QR code de liaison" class="qr-in" />
+                        <div v-else class="qr-skeleton" aria-hidden="true" />
+                        <Transition name="fade">
+                            <div v-if="linkExpired" class="qr-expired">
+                                <i class="bi bi-hourglass-bottom text-2xl" />
+                                <span class="font-semibold text-sm">Code expiré</span>
+                                <button class="primary text-sm" @click="beginLink">Nouveau code</button>
+                            </div>
+                        </Transition>
+                    </div>
+                    <div class="w-full max-w-52">
+                        <div class="expiry" role="progressbar" aria-label="Validité du code" :aria-valuenow="linkSecondsLeft" aria-valuemin="0" :aria-valuemax="linkTotalSeconds">
+                            <div class="expiry-fill" :class="{ warn: linkSecondsLeft <= 60 }" :style="{ transform: `scaleX(${linkProgress})` }" />
+                        </div>
+                        <p class="mt-2 text-center text-xs tabular-nums text-(--text2)">
+                            {{ linkQr ? (linkExpired ? 'Expiré' : `Valable ${formatDuration(linkSecondsLeft)}`) : 'Préparation…' }}
+                        </p>
+                    </div>
                 </div>
-                <p class="text-xs text-(--text2)">
-                    <i class="bi bi-hourglass-split mr-1" />
-                    {{ linkSecondsLeft > 0 ? `Expire dans ${formatDuration(linkSecondsLeft)}` : 'Code expiré' }}
-                </p>
-                <p class="text-xs text-amber-500/90 max-w-sm">
-                    Ne montrez ce code qu'à vos propres appareils : il donne accès à vos messages chiffrés.
-                </p>
-                <button v-if="linkSecondsLeft <= 0" class="primary text-sm" @click="beginLink">Nouveau code</button>
-                <div class="w-full pt-4 border-t border-(--border-color) flex flex-col items-center gap-2">
-                    <button class="text-xs text-(--text2) hover:text-(--primary)" @click="openRescue">
-                        Je n'ai plus aucun appareil connecté
+
+                <div class="flex min-w-0 flex-col">
+                    <span class="live-pill"><span class="live-dot" /> En attente de l'autre appareil</span>
+
+                    <ol class="how mt-5 space-y-4">
+                        <li style="--i: 0"><span class="how-n">1</span><p>Ouvrez Synco sur un appareil <strong>déjà connecté</strong> à votre compte.</p></li>
+                        <li style="--i: 1"><span class="how-n">2</span><p>Allez dans <strong>Paramètres › Appareils et sécurité</strong>, puis <strong>Ajouter un appareil</strong>.</p></li>
+                        <li style="--i: 2"><span class="how-n">3</span><p>Scannez ce QR code, puis comparez les deux codes à 6 chiffres.</p></li>
+                    </ol>
+
+                    <button class="mt-5 self-start text-xs font-semibold text-(--primary) hover:underline" :aria-expanded="showCode" @click="showCode = !showCode">
+                        <i class="bi me-1" :class="showCode ? 'bi-chevron-up' : 'bi-keyboard'" />
+                        {{ showCode ? 'Masquer le code' : 'Pas de caméra ? Saisir un code à la place' }}
                     </button>
-                    <button v-if="hasLocalRecord && !identityAlert" class="text-xs text-(--text2) hover:text-(--primary)" @click="leaveLink">
-                        <i class="bi bi-arrow-left mr-1" /> Revenir au déverrouillage
-                    </button>
+                    <div class="reveal" :class="{ open: showCode }">
+                        <div>
+                            <div class="mt-3 flex items-center gap-2">
+                                <div class="code-chips" aria-label="Code de liaison">
+                                    <span v-for="(part, i) in linkCode.split('-')" :key="i">{{ part }}</span>
+                                </div>
+                                <button class="copy-btn" :class="{ done: copied }" :title="copied ? 'Copié' : 'Copier le code'" @click="copyLinkCode">
+                                    <i class="bi" :class="copied ? 'bi-check2' : 'bi-clipboard'" />
+                                </button>
+                            </div>
+                            <p class="mt-2 text-xs text-(--text2)">À saisir sur l'appareil connecté, dans « Ajouter un appareil ».</p>
+                        </div>
+                    </div>
+
+                    <p class="mt-auto pt-6 text-xs leading-snug text-amber-500/90">
+                        <i class="bi bi-shield-lock-fill me-1" /> Ne montrez ce code qu'à vos propres appareils : il donne accès à vos messages chiffrés.
+                    </p>
                 </div>
-            </template>
-            <SpinLoader v-else />
+            </div>
+
+            <button class="rescue-row" @click="openRescue">
+                <span class="rescue-ico"><i class="bi bi-life-preserver" /></span>
+                <span class="min-w-0 flex-1 text-left">
+                    <strong>Je n'ai plus aucun appareil connecté</strong>
+                    <small>Récupérer l'accès avec une clé ou un code de secours</small>
+                </span>
+                <i class="bi bi-arrow-right rescue-arrow" />
+            </button>
+            <div v-if="hasLocalRecord && !identityAlert" class="mt-3 text-center">
+                <button class="text-xs text-(--text2) hover:text-(--primary)" @click="leaveLink">
+                    <i class="bi bi-arrow-left me-1" /> Revenir au déverrouillage
+                </button>
+            </div>
         </div>
 
         <!-- ============ Liaison : code de confirmation ============ -->
-        <div v-else-if="step === 'link-sas'" class="max-w-md w-full flex flex-col items-center gap-4 text-center">
-            <p class="text-sm text-(--text2)">L'autre appareil a validé la demande. Vérifiez qu'il affiche le même code :</p>
-            <p class="font-mono text-4xl font-bold tracking-[0.3em] text-(--text)">{{ linkSas }}</p>
-            <div class="flex gap-2">
-                <button class="default text-sm" :disabled="busy" @click="cancelLink()">Les codes diffèrent</button>
-                <button class="primary text-sm" :class="{ loader: busy }" :disabled="busy" @click="confirmLink">Les codes correspondent</button>
+        <div v-else-if="step === 'link-sas'" key="link-sas" class="w-full max-w-md">
+            <div class="gate-card flex flex-col items-center gap-5 p-8 text-center">
+                <span class="badge-ico"><i class="bi bi-phone-vibrate" /></span>
+                <p class="max-w-xs text-sm leading-relaxed text-(--text2)">
+                    L'autre appareil a validé la demande. Vérifiez qu'il affiche <strong class="text-(--text)">exactement le même code</strong> :
+                </p>
+                <div class="sas" aria-label="Code de confirmation">
+                    <span v-for="(group, g) in [linkSas.slice(0, 3), linkSas.slice(3)]" :key="g" class="sas-group">
+                        <span v-for="(d, i) in group" :key="i" class="sas-digit" :style="{ '--i': g * 3 + i }">{{ d }}</span>
+                    </span>
+                </div>
+                <p class="text-xs text-(--text2)">Deux codes différents signalent une tentative d'interception : refusez.</p>
+                <div class="flex w-full gap-3">
+                    <button class="default flex-1" :disabled="busy" @click="cancelLink()">Les codes diffèrent</button>
+                    <button class="primary flex-1" :class="{ loader: busy }" :disabled="busy" @click="confirmLink">Les codes correspondent</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ Secours : plus aucun appareil connecté ============ -->
+        <div v-else-if="step === 'connect'" key="connect" class="w-full max-w-md">
+            <button class="back-btn" @click="beginLink"><i class="bi bi-arrow-left" /> Retour</button>
+
+            <div class="stagger space-y-3">
+                <button class="method" style="--i: 0" @click="step = 'recovery'">
+                    <span class="method-ico"><i class="bi bi-key-fill" /></span>
+                    <span class="min-w-0 flex-1">
+                        <strong>Clé de récupération <em class="tag tag-ok">Recommandé</em></strong>
+                        <small>La clé de 56 caractères proposée à la création de votre compte.</small>
+                    </span>
+                    <i class="bi bi-chevron-right method-arrow" />
+                </button>
+
+                <button v-if="pinRecovery.enabled && !pinRecovery.locked" class="method" style="--i: 1" @click="openPinRecovery">
+                    <span class="method-ico"><i class="bi bi-123" /></span>
+                    <span class="min-w-0 flex-1">
+                        <strong>Code PIN de récupération <em class="tag tag-warn">Moins sûr</em></strong>
+                        <small>Un code à 4 chiffres, vérifié par deux serveurs distincts.</small>
+                        <span class="attempts" :class="{ low: pinRecovery.attemptsLeft <= 3 }" :aria-label="`${pinRecovery.attemptsLeft} essais restants`">
+                            <i v-for="n in 10" :key="n" :class="{ on: n <= pinRecovery.attemptsLeft }" />
+                            <span>{{ pinRecovery.attemptsLeft }} essai(s) restant(s)</span>
+                        </span>
+                    </span>
+                    <i class="bi bi-chevron-right method-arrow" />
+                </button>
+                <div v-else class="method is-disabled" style="--i: 1" aria-disabled="true">
+                    <span class="method-ico"><i class="bi bi-123" /></span>
+                    <span class="min-w-0 flex-1">
+                        <strong>Code PIN de récupération</strong>
+                        <small>{{ pinRecoveryUnavailableText }}</small>
+                    </span>
+                    <i class="bi bi-lock-fill text-(--text2)" />
+                </div>
+
+                <div class="last-resort" style="--i: 2">
+                    <p class="last-resort-label"><span>Dernier recours</span></p>
+                    <button class="danger-row" @click="openReset">
+                        <i class="bi bi-arrow-counterclockwise" />
+                        <span class="min-w-0 flex-1 text-left">
+                            <strong>Repartir de zéro</strong>
+                            <small>Ni appareil, ni clé : nouvelle identité, historique chiffré définitivement perdu.</small>
+                        </span>
+                    </button>
+                </div>
             </div>
         </div>
 
         <!-- ============ Clé de récupération ============ -->
-        <div v-else-if="step === 'recovery'" class="max-w-md w-full space-y-4">
-            <p class="text-sm text-(--text2)">Saisissez votre clé de récupération (les tirets et les espaces sont facultatifs).</p>
-            <textarea v-model="recoveryInput" rows="3" spellcheck="false" autocomplete="off" autocapitalize="characters"
-                placeholder="XXXX-XXXX-XXXX-…" @keydown.stop
-                class="w-full rounded-xl border border-(--border-color) bg-(--bg) px-4 py-3 font-mono text-sm tracking-wider text-(--text) focus:outline-none focus:border-(--primary)" />
-            <div class="flex justify-between gap-2">
-                <button class="default text-sm" :disabled="busy" @click="step = 'connect'">Retour</button>
-                <button class="primary text-sm" :class="{ loader: busy }" :disabled="busy || recoveryInput.replace(/[\s-]/g, '').length < 56" @click="submitRecovery">
-                    Connecter cet appareil
-                </button>
+        <div v-else-if="step === 'recovery'" key="recovery" class="w-full max-w-md">
+            <button class="back-btn" :disabled="busy" @click="step = 'connect'"><i class="bi bi-arrow-left" /> Retour</button>
+            <div class="gate-card space-y-4 p-6">
+                <div class="flex items-center gap-3">
+                    <span class="method-ico"><i class="bi bi-key-fill" /></span>
+                    <p class="text-sm leading-snug text-(--text2)">Saisissez ou collez votre clé. Les tirets, les espaces et la casse n'ont pas d'importance.</p>
+                </div>
+                <textarea :value="recoveryInput" rows="3" spellcheck="false" autocomplete="off" autocapitalize="characters" autofocus
+                    placeholder="XXXX-XXXX-XXXX-XXXX-…" @input="onRecoveryInput" @keydown.stop @keydown.enter.prevent="recoveryReady && submitRecovery()"
+                    class="key-field" :class="{ ready: recoveryReady }" />
+                <div>
+                    <div class="expiry"><div class="expiry-fill" :class="{ ok: recoveryReady }" :style="{ transform: `scaleX(${Math.min(1, recoveryChars / 56)})` }" /></div>
+                    <p class="mt-1.5 flex justify-between text-xs tabular-nums text-(--text2)">
+                        <span>{{ recoveryReady ? 'Longueur correcte' : 'Une clé compte 56 caractères' }}</span>
+                        <span>{{ recoveryChars }} / 56</span>
+                    </p>
+                </div>
+                <button class="primary w-full" :class="{ loader: busy }" :disabled="busy || !recoveryReady" @click="submitRecovery">Connecter cet appareil</button>
             </div>
         </div>
 
         <!-- ============ Récupération par PIN ============ -->
-        <div v-else-if="step === 'pin-recovery'" class="flex flex-col items-center">
-            <p class="text-sm text-(--text2) mb-6 max-w-sm text-center leading-relaxed">
+        <div v-else-if="step === 'pin-recovery'" key="pin-recovery" class="flex w-full max-w-md flex-col items-center">
+            <button class="back-btn self-start" :disabled="busy" @click="step = 'connect'"><i class="bi bi-arrow-left" /> Retour</button>
+            <p class="mb-5 max-w-sm text-center text-sm leading-relaxed text-(--text2)">
                 Saisissez votre <strong class="text-(--text)">code PIN de récupération</strong>.
-                Il reste {{ pinRecovery.attemptsLeft }} essai(s) ; ensuite, cette méthode sera bloquée.
             </p>
+            <span class="attempts mb-6" :class="{ low: pinRecovery.attemptsLeft <= 3 }">
+                <i v-for="n in 10" :key="n" :class="{ on: n <= pinRecovery.attemptsLeft }" />
+                <span>{{ pinRecovery.attemptsLeft }} essai(s) avant blocage</span>
+            </span>
             <PinPad v-model="pin" auto-submit :disabled="busy" :error-tick="errorTick" @submit="submitPinRecovery" />
-            <button class="mt-6 text-xs text-(--text2) hover:text-(--primary)" :disabled="busy" @click="step = 'connect'">Retour</button>
         </div>
 
         <!-- ============ Choix du PIN local ============ -->
@@ -192,6 +268,8 @@
                 <button class="text-xs text-(--text2) hover:text-amber-500" :disabled="busy" @click="skipRecovery = true">Continuer sans clé de récupération</button>
             </div>
         </div>
+
+        </Transition>
 
         <!-- ============ Confirmations ============ -->
         <ConfirmDelete
@@ -255,7 +333,7 @@
 
 <script setup lang="ts">
 
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import SpinLoader from '../SpinLoader.vue';
 import Popup from '../Popup.vue';
 import ConfirmDelete from '../common/ConfirmDelete.vue';
@@ -328,8 +406,8 @@ const vaultLabel = computed(() => {
 const title = computed(() => ({
     loading: 'Chargement…',
     unlock: 'Déverrouillez votre session',
-    connect: 'Plus aucun appareil connecté',
-    link: 'Connecter depuis un autre appareil',
+    connect: "Récupérer l'accès",
+    link: 'Connecter cet appareil',
     'link-sas': 'Confirmez la connexion',
     recovery: 'Clé de récupération',
     'pin-recovery': 'Récupération par code PIN',
@@ -338,9 +416,17 @@ const title = computed(() => ({
     'onboard-recovery': 'Votre clé de récupération',
 }[step.value]));
 
-const subtitle = computed(() => step.value === 'connect'
-    ? "Cet appareil n'a pas encore accès à vos messages chiffrés."
-    : step.value === 'link' ? "Cet appareil n'a pas encore accès à vos messages chiffrés. Validez-le depuis un appareil déjà connecté." : '');
+const subtitle = computed(() => ({
+    link: "Validez cet appareil depuis un appareil déjà connecté à votre compte.",
+    connect: "Ces méthodes servent seulement quand aucun de vos appareils connectés n'est à portée.",
+} as Partial<Record<Step, string>>)[step.value] ?? '');
+
+// --- transitions entre écrans : on avance (→) ou on revient (←) dans l'arborescence --------
+
+const STEP_DEPTH: Partial<Record<Step, number>> = { 'link-sas': 1, connect: 1, recovery: 2, 'pin-recovery': 2 };
+const stepDirection = ref<'fwd' | 'back'>('fwd');
+watch(step, (now, before) => { stepDirection.value = (STEP_DEPTH[now] ?? 0) >= (STEP_DEPTH[before] ?? 0) ? 'fwd' : 'back'; });
+const stepTransition = computed(() => `step-${stepDirection.value}`);
 
 const formatDuration = (s: number) => s < 60 ? `${s} s` : s < 3600 ? `${Math.ceil(s / 60)} min` : `${Math.ceil(s / 3600)} h`;
 
@@ -348,6 +434,11 @@ const formatDuration = (s: number) => s < 60 ? `${s} s` : s < 3600 ? `${Math.cei
 
 const lockoutSeconds = ref(0);
 const linkSecondsLeft = ref(0);
+const linkTotalSeconds = ref(300);
+const linkProgress = computed(() => linkTotalSeconds.value > 0 ? Math.max(0, Math.min(1, linkSecondsLeft.value / linkTotalSeconds.value)) : 0);
+const showCode = ref(false);
+const copied = ref(false);
+
 let ticker: ReturnType<typeof setInterval> | null = null;
 let linkExpiresAt = 0;
 const ensureTicker = () => {
@@ -514,6 +605,17 @@ let pollTimer: ReturnType<typeof setTimeout> | null = null;
 const linkQr = ref('');
 const linkCode = ref('');
 const linkSas = ref('');
+const linkExpired = computed(() => !!linkQr.value && linkSecondsLeft.value <= 0);
+
+async function copyLinkCode() {
+    try {
+        await navigator.clipboard.writeText(linkCode.value);
+        copied.value = true;
+        setTimeout(() => { copied.value = false; }, 2000);
+    } catch {
+        toast.show('Copie impossible : sélectionnez le code à la main.', 'error');
+    }
+}
 
 const stopPolling = () => { if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; } };
 const stopListening = () => { stopPolling(); socketOff?.(); };
@@ -524,6 +626,7 @@ async function beginLink() {
     await started?.cancel();
     started = null;
     linkQr.value = '';
+    showCode.value = false;
     step.value = 'link';
     try {
         started = await startLink(dev, defaultDeviceName(platform.value), platform.value);
@@ -531,6 +634,7 @@ async function beginLink() {
         linkCode.value = started.codeText;
         linkExpiresAt = new Date(started.expiresAt).getTime() || Date.now() + 5 * 60_000;
         linkSecondsLeft.value = Math.round((linkExpiresAt - Date.now()) / 1000);
+        linkTotalSeconds.value = Math.max(1, linkSecondsLeft.value);
         ensureTicker();
         poll();
         void listenLinkAnswer();
@@ -641,6 +745,16 @@ async function confirmLink() {
 // --- clé de récupération -----------------------------------------------------
 
 const recoveryInput = ref('');
+const recoveryChars = computed(() => recoveryInput.value.replace(/[\s-]/g, '').length);
+const recoveryReady = computed(() => recoveryChars.value >= 56);
+
+/** Regroupe la saisie par 4 caractères (XXXX-XXXX-…) au fil de la frappe et du collage. */
+function onRecoveryInput(e: Event) {
+    const field = e.target as HTMLTextAreaElement;
+    const raw = field.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 80);
+    recoveryInput.value = raw.match(/.{1,4}/g)?.join('-') ?? '';
+    field.value = recoveryInput.value;
+}
 
 // --- récupération par PIN -----------------------------------------------------
 
@@ -882,31 +996,175 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.option {
-    width: 100%;
-    display: flex;
-    align-items: flex-start;
-    gap: 0.875rem;
-    padding: 1rem;
-    border-radius: 0.75rem;
+/* ---------- transitions d'écran ---------- */
+.step-fwd-enter-active, .step-back-enter-active { transition: opacity 0.28s ease, transform 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
+.step-fwd-leave-active, .step-back-leave-active { transition: opacity 0.14s ease, transform 0.14s ease; }
+.step-fwd-enter-from { opacity: 0; transform: translateX(28px); }
+.step-fwd-leave-to { opacity: 0; transform: translateX(-16px); }
+.step-back-enter-from { opacity: 0; transform: translateX(-28px); }
+.step-back-leave-to { opacity: 0; transform: translateX(16px); }
+.fade-enter-active, .fade-leave-active { transition: opacity 0.25s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
+/* ---------- carte ---------- */
+.gate-card {
+    border-radius: 1.25rem;
     border: 1px solid var(--border-color);
     background: var(--bg);
-    text-align: left;
-    transition: border-color 0.15s ease;
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--text) 4%, transparent), 0 24px 48px -24px rgb(0 0 0 / 0.35);
 }
-.option:not([aria-disabled="true"]):hover {
-    border-color: var(--primary);
+.back-btn {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    margin-bottom: 1rem; padding: 0.25rem 0.5rem 0.25rem 0.25rem;
+    font-size: 0.8125rem; color: var(--text2); border-radius: 0.5rem;
+    transition: color 0.15s ease, transform 0.15s ease;
 }
-.option > span {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    color: var(--text);
-    font-size: 0.875rem;
+.back-btn:hover:not(:disabled) { color: var(--primary); transform: translateX(-2px); }
+
+/* ---------- QR code ---------- */
+.qr-frame {
+    position: relative; border-radius: 1.25rem; padding: 0.375rem; background: #fff;
+    box-shadow: 0 0 0 1px var(--border-color), 0 12px 32px -12px color-mix(in srgb, var(--primary) 45%, transparent);
+    transition: box-shadow 0.4s ease;
 }
-.option small {
-    color: var(--text2);
-    font-size: 0.75rem;
-    line-height: 1.4;
+.qr-frame.is-expired { box-shadow: 0 0 0 1px var(--border-color); }
+.qr-frame.is-expired .qr-in { filter: blur(7px) grayscale(1); opacity: 0.45; }
+.qr-in { transition: filter 0.4s ease, opacity 0.4s ease; animation: pop-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.qr-frame :deep(.qr) { padding: 0.5rem; }
+.qr-skeleton {
+    width: 14rem; height: 14rem; border-radius: 0.9rem;
+    background: linear-gradient(100deg, #eceef0 30%, #f8f9fa 50%, #eceef0 70%) 0 0 / 200% 100%;
+    animation: shimmer 1.2s linear infinite;
+}
+.qr-expired {
+    position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 0.5rem; border-radius: 1.25rem; color: #1f2937; text-align: center;
+}
+
+.expiry { height: 0.3125rem; border-radius: 999px; background: color-mix(in srgb, var(--text) 10%, transparent); overflow: hidden; }
+.expiry-fill {
+    height: 100%; width: 100%; border-radius: inherit; background: var(--primary); transform-origin: left;
+    transition: transform 1s linear, background-color 0.4s ease;
+}
+.expiry-fill.warn { background: #f59e0b; }
+.expiry-fill.ok { background: var(--primary); transition: transform 0.2s ease, background-color 0.4s ease; }
+.expiry-fill:not(.ok):not(.warn) { transition: transform 1s linear, background-color 0.4s ease; }
+
+/* ---------- indicateur « en attente » ---------- */
+.live-pill {
+    align-self: flex-start; display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.3rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600;
+    color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+.live-dot { position: relative; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--primary); }
+.live-dot::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--primary); animation: ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite; }
+
+/* ---------- mode d'emploi ---------- */
+.how li { display: flex; gap: 0.875rem; align-items: flex-start; font-size: 0.875rem; line-height: 1.45; color: var(--text2); animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(var(--i) * 80ms + 120ms); }
+.how li strong { color: var(--text); font-weight: 600; }
+.how-n {
+    flex: none; width: 1.5rem; height: 1.5rem; border-radius: 50%; display: grid; place-items: center;
+    font-size: 0.75rem; font-weight: 700; color: var(--primary); background: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+
+/* ---------- code à recopier ---------- */
+.reveal { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease; }
+.reveal.open { grid-template-rows: 1fr; opacity: 1; }
+.reveal > div { overflow: hidden; }
+.code-chips { display: flex; flex-wrap: wrap; gap: 0.375rem; user-select: all; }
+.code-chips span {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8125rem; letter-spacing: 0.08em;
+    padding: 0.3rem 0.5rem; border-radius: 0.5rem; color: var(--text);
+    background: color-mix(in srgb, var(--text) 6%, transparent); border: 1px solid var(--border-color);
+}
+.copy-btn {
+    flex: none; width: 2.25rem; height: 2.25rem; border-radius: 0.6rem; display: grid; place-items: center;
+    color: var(--text2); border: 1px solid var(--border-color); transition: all 0.2s ease;
+}
+.copy-btn:hover { color: var(--primary); border-color: var(--primary); }
+.copy-btn.done { color: #fff; background: var(--primary); border-color: var(--primary); transform: scale(1.08); }
+
+/* ---------- accès au secours ---------- */
+.rescue-row {
+    margin-top: 1rem; width: 100%; display: flex; align-items: center; gap: 0.875rem; padding: 0.875rem 1rem;
+    border-radius: 1rem; border: 1px dashed var(--border-color); color: var(--text); text-align: left;
+    transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+}
+.rescue-row:hover { border-style: solid; border-color: var(--primary); background: color-mix(in srgb, var(--primary) 6%, transparent); }
+.rescue-row strong { display: block; font-size: 0.875rem; }
+.rescue-row small { display: block; font-size: 0.75rem; color: var(--text2); margin-top: 0.125rem; }
+.rescue-ico { flex: none; width: 2.25rem; height: 2.25rem; border-radius: 0.7rem; display: grid; place-items: center; color: var(--text2); background: color-mix(in srgb, var(--text) 7%, transparent); transition: all 0.2s ease; }
+.rescue-row:hover .rescue-ico { color: #fff; background: var(--primary); }
+.rescue-arrow { color: var(--text2); transition: transform 0.2s ease, color 0.2s ease; }
+.rescue-row:hover .rescue-arrow { transform: translateX(4px); color: var(--primary); }
+
+/* ---------- méthodes de secours ---------- */
+.stagger > * { animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(var(--i, 0) * 90ms + 60ms); }
+.method {
+    width: 100%; display: flex; align-items: center; gap: 0.875rem; padding: 1rem; text-align: left;
+    border-radius: 1rem; border: 1px solid var(--border-color); background: var(--bg);
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+.method:not(.is-disabled):hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 14px 28px -18px color-mix(in srgb, var(--primary) 70%, transparent); }
+.method:not(.is-disabled):active { transform: translateY(0); }
+.method.is-disabled { opacity: 0.6; cursor: not-allowed; }
+.method strong, .danger-row strong { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: var(--text); }
+.method small, .danger-row small { display: block; margin-top: 0.2rem; font-size: 0.75rem; line-height: 1.4; color: var(--text2); }
+.method-ico, .badge-ico {
+    flex: none; width: 2.5rem; height: 2.5rem; border-radius: 0.8rem; display: grid; place-items: center; font-size: 1.15rem;
+    color: var(--primary); background: color-mix(in srgb, var(--primary) 13%, transparent);
+}
+.badge-ico { width: 3.5rem; height: 3.5rem; border-radius: 1.1rem; font-size: 1.6rem; animation: pop-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.is-disabled .method-ico { color: var(--text2); background: color-mix(in srgb, var(--text) 7%, transparent); }
+.method-arrow { color: var(--text2); transition: transform 0.2s ease, color 0.2s ease; }
+.method:hover .method-arrow { transform: translateX(3px); color: var(--primary); }
+.tag { font-style: normal; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.125rem 0.5rem; border-radius: 999px; }
+.tag-ok { color: var(--primary); background: color-mix(in srgb, var(--primary) 14%, transparent); }
+.tag-warn { color: #f59e0b; background: rgb(245 158 11 / 0.14); }
+
+.attempts { display: flex; align-items: center; gap: 0.2rem; margin-top: 0.55rem; font-size: 0.6875rem; color: var(--text2); }
+.attempts i { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: color-mix(in srgb, var(--text) 15%, transparent); transition: background-color 0.3s ease; }
+.attempts i.on { background: var(--primary); }
+.attempts.low i.on { background: #ef4444; }
+.attempts > span { margin-left: 0.4rem; }
+
+.last-resort { padding-top: 0.75rem; }
+.last-resort-label { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text2); }
+.last-resort-label::before, .last-resort-label::after { content: ''; flex: 1; height: 1px; background: var(--border-color); }
+.danger-row {
+    width: 100%; display: flex; align-items: center; gap: 0.875rem; padding: 0.75rem 1rem; border-radius: 0.9rem;
+    border: 1px solid transparent; color: #ef4444; text-align: left; transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.danger-row > i { font-size: 1.1rem; flex: none; width: 2.5rem; text-align: center; transition: transform 0.4s ease; }
+.danger-row strong { color: #ef4444; }
+.danger-row:hover { background: rgb(239 68 68 / 0.07); border-color: rgb(239 68 68 / 0.3); }
+.danger-row:hover > i { transform: rotate(-120deg); }
+
+/* ---------- saisie de la clé ---------- */
+.key-field {
+    width: 100%; resize: none; border-radius: 0.9rem; padding: 0.875rem 1rem; color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9rem; letter-spacing: 0.12em; line-height: 1.6;
+    background: var(--bg2); border: 1.5px solid var(--border-color); transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.key-field:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 15%, transparent); }
+.key-field.ready { border-color: var(--primary); }
+
+/* ---------- code de confirmation ---------- */
+.sas { display: flex; align-items: center; gap: 1.25rem; }
+.sas-group { display: flex; gap: 0.4rem; }
+.sas-digit {
+    width: 2.6rem; height: 3.4rem; display: grid; place-items: center; border-radius: 0.8rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.75rem; font-weight: 700; color: var(--text);
+    background: color-mix(in srgb, var(--primary) 10%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+    animation: pop-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(var(--i) * 60ms + 150ms);
+}
+
+/* ---------- animations ---------- */
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes pop-in { from { opacity: 0; transform: scale(0.88); } to { opacity: 1; transform: none; } }
+@keyframes ping { 75%, 100% { transform: scale(2.6); opacity: 0; } }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; }
 }
 </style>
