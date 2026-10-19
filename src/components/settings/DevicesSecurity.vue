@@ -411,6 +411,7 @@ const VAULT_INFO: Record<VaultKind, { icon: string; label: string; detail: strin
     'web-pin': { icon: 'bi-123', label: 'Code PIN local', detail: "Ce code n'est jamais envoyé au serveur. Sur le web, il est la seule barrière pour qui copierait le profil de votre navigateur : utilisez une passkey si votre appareil ou votre gestionnaire de passkeys le permet." },
     'native-biometric': { icon: 'bi-fingerprint', label: 'Biométrie du téléphone', detail: "Face ID, Touch ID ou empreinte, avec le code de l'appareil en repli. Gérée par les réglages de votre téléphone." },
     'os-keyring': { icon: 'bi-safe', label: 'Trousseau du système', detail: "Vos clés sont protégées par votre session sur cet ordinateur (Trousseau macOS, Gestionnaire d'identifiants Windows, Secret Service Linux)." },
+    'extension': { icon: 'bi-puzzle', label: 'Synco Extension', detail: "Vos clés sont gardées par l'extension, hors de la page, et le code PIN se saisit dans sa fenêtre. Ce n'est pas une protection matérielle : un PIN de 4 chiffres ne protège pas contre le vol de votre ordinateur." },
 };
 
 let dev: DeviceContext | null = null;
