@@ -67,14 +67,9 @@
                 </div>
 
                 <div class="flex min-w-0 flex-col">
-                    <div class="link-status" role="status">
-                        <i class="bi bi-phone" />
-                        <span class="link-wire" aria-hidden="true"><i /><i /><i /></span>
-                        <i class="bi bi-laptop" />
-                        <span>En attente de l'autre appareil<span class="dots" aria-hidden="true"><b>.</b><b>.</b><b>.</b></span></span>
-                    </div>
 
-                    <ol class="how mt-5 space-y-4">
+
+                    <ol class="how space-y-4">
                         <li style="--i: 0"><span class="how-n">1</span><p>Ouvrez Synco sur un appareil <strong>déjà connecté</strong> à votre compte.</p></li>
                         <li style="--i: 1"><span class="how-n">2</span><p>Allez dans <strong>Paramètres › Appareils et sécurité</strong>, puis <strong>Ajouter un appareil</strong>.</p></li>
                         <li style="--i: 2"><span class="how-n">3</span><p>Scannez ce QR code, ou saisissez le code ci-dessous, puis comparez les deux codes à 6 chiffres.</p></li>
@@ -117,7 +112,7 @@
                     L'autre appareil a validé la demande. Vérifiez qu'il affiche <strong class="text-(--text)">exactement le même code</strong> :
                 </p>
                 <div class="sas" aria-label="Code de confirmation">
-                    <span v-for="(group, g) in [linkSas.slice(0, 3), linkSas.slice(3)]" :key="g" class="sas-group">
+                    <span v-for="(group, g) in [sasDigits.slice(0, 3), sasDigits.slice(3, 6)]" :key="g" class="sas-group">
                         <span v-for="(d, i) in group" :key="i" class="sas-digit" :style="{ '--i': g * 3 + i }">{{ d }}</span>
                     </span>
                 </div>
@@ -599,6 +594,7 @@ let pollTimer: ReturnType<typeof setTimeout> | null = null;
 const linkQr = ref('');
 const linkCode = ref('');
 const linkSas = ref('');
+const sasDigits = computed(() => linkSas.value.replace(/\D/g, ''));
 const linkExpired = computed(() => !!linkQr.value && linkSecondsLeft.value <= 0);
 
 async function copyLinkCode() {
@@ -1043,22 +1039,6 @@ onUnmounted(() => {
 .expiry-fill.ok { background: var(--primary); transition: transform 0.2s ease, background-color 0.4s ease; }
 .expiry-fill:not(.ok):not(.warn) { transition: transform 1s linear, background-color 0.4s ease; }
 
-/* ---------- état « en attente » ---------- */
-.link-status {
-    align-self: flex-start; display: inline-flex; align-items: center; gap: 0.6rem;
-    padding: 0.45rem 0.9rem 0.45rem 0.8rem; border-radius: 999px; font-size: 0.8125rem; font-weight: 600;
-    color: var(--text); background: color-mix(in srgb, var(--primary) 9%, transparent);
-    border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
-}
-.link-status > i { color: var(--primary); font-size: 1rem; }
-.link-wire { display: inline-flex; gap: 0.2rem; }
-.link-wire i { width: 0.3rem; height: 0.3rem; border-radius: 50%; background: var(--primary); opacity: 0.25; animation: wire 1.2s ease-in-out infinite; }
-.link-wire i:nth-child(2) { animation-delay: 0.2s; }
-.link-wire i:nth-child(3) { animation-delay: 0.4s; }
-.link-status span > .dots b { font-weight: 700; animation: blink 1.4s infinite both; }
-.dots b:nth-child(2) { animation-delay: 0.2s; }
-.dots b:nth-child(3) { animation-delay: 0.4s; }
-
 /* ---------- mode d'emploi ---------- */
 .how li { display: flex; gap: 0.875rem; align-items: flex-start; font-size: 0.875rem; line-height: 1.45; color: var(--text2); animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(var(--i) * 80ms + 120ms); }
 .how li strong { color: var(--text); font-weight: 600; }
@@ -1162,8 +1142,6 @@ onUnmounted(() => {
 /* ---------- animations ---------- */
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @keyframes pop-in { from { opacity: 0; transform: scale(0.88); } to { opacity: 1; transform: none; } }
-@keyframes wire { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.25); } }
-@keyframes blink { 0%, 80%, 100% { opacity: 0.15; } 40% { opacity: 1; } }
 @keyframes shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; }
