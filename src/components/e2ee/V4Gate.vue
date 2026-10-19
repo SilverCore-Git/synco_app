@@ -387,9 +387,13 @@ let opened: OpenedLink | null = null;
 const accountLabel = computed(() => user.value?.email || user.value?.name || '');
 const vaultLabel = computed(() => {
     const kind = vaults[0]?.capabilities.kind;
+    const extension = vaults.some(v => v.capabilities.kind === 'extension');
     if (kind === 'native-biometric') return 'la biométrie de votre téléphone (ou son code de verrouillage)';
     if (kind === 'os-keyring') return 'le trousseau sécurisé de votre système';
-    if (kind === 'webauthn-prf') return 'une passkey (empreinte, visage ou code de l\'appareil) ou, à défaut, un code PIN local';
+    if (kind === 'webauthn-prf') return extension
+        ? 'une passkey (empreinte, visage ou code de l\'appareil) ou, à défaut, Synco Extension, dont la fenêtre vous demandera un code PIN'
+        : 'une passkey (empreinte, visage ou code de l\'appareil) ou, à défaut, un code PIN local';
+    if (kind === 'extension') return 'Synco Extension : le code PIN se saisit dans sa fenêtre, jamais dans cette page';
     return 'un code PIN local à 4 chiffres';
 });
 
@@ -484,7 +488,7 @@ function abortChoosePin() {
 
 /** Lance une inscription ; si le coffre de repli demande un PIN local, le fait choisir puis recommence. */
 async function withPinFallback<T>(run: (opts: EnrollOptions) => Promise<T>, forcePin = false): Promise<T> {
-    const base: EnrollOptions = { name: defaultDeviceName(platform.value), platform: platform.value, vaults };
+    const base: EnrollOptions = { name: defaultDeviceName(platform.value), platform: platform.value, vaults, ctx: { reason: 'Protéger les clés de cet appareil' } };
     if (!forcePin) {
         try {
             return await run(base);
