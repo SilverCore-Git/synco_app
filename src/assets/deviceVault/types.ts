@@ -7,7 +7,11 @@
  * déverrouillage de l'utilisateur.
  */
 
-export type VaultKind = 'webauthn-prf' | 'web-pin' | 'native-biometric' | 'os-keyring';
+/**
+ * Ajouter un type ne casse aucune lecture : un enregistrement local d'appareil garde le type écrit à
+ * son inscription, et un type inconnu de cette version n'a simplement pas de coffre (`unavailable`).
+ */
+export type VaultKind = 'webauthn-prf' | 'web-pin' | 'native-biometric' | 'os-keyring' | 'extension';
 
 export interface VaultCapabilities {
     kind: VaultKind;
@@ -28,8 +32,13 @@ export interface VaultCapabilities {
 export interface VaultContext {
     /** PIN local (coffre web sans PRF uniquement). */
     pin?: string;
-    /** Texte affiché dans l'invite biométrique du système. */
+    /** Texte affiché dans l'invite biométrique du système (ou dans la fenêtre de l'extension). */
     reason?: string;
+    /**
+     * Abandon côté page d'une attente longue (coffre de l'extension : fenêtre du PIN). L'opération
+     * échoue alors en 'cancelled' ; une réponse tardive est ignorée et ses clés effacées.
+     */
+    signal?: AbortSignal;
 }
 
 export type VaultErrorCode =
