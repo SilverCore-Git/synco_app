@@ -1,8 +1,10 @@
 import { del, get, set } from 'idb-keyval';
+import { ExtensionVault } from './extensionVault';
 import { PinVault } from './pinVault';
 import { PrfVault, webAuthnAvailable } from './prfVault';
 import { KeyringVault } from './keyringVault';
 import { NativeVault } from './nativeVault';
+import { webVaultsInOrder } from './selection';
 import type { DevicePlatform } from './localDevice';
 import type { DeviceVault, KeyValueStore, VaultKind } from './types';
 
@@ -12,7 +14,7 @@ import type { DeviceVault, KeyValueStore, VaultKind } from './types';
  */
 
 export * from './types';
-export { PinVault, PrfVault, KeyringVault, NativeVault };
+export { ExtensionVault, PinVault, PrfVault, KeyringVault, NativeVault };
 export * from './localDevice';
 
 /** IndexedDB. */
@@ -29,6 +31,20 @@ export async function detectPlatform(): Promise<DevicePlatform> {
     if (Capacitor.isNativePlatform()) return Capacitor.getPlatform() === 'ios' ? 'ios' : 'android';
     return 'web';
 }
+
+const createPrfVault = () => new PrfVault({
+    credentials: navigator.credentials, store: idbStore, rpId: location.hostname,
+    platformAuthenticatorAvailable: async () =>
+        (await window.PublicKeyCredential?.isUserVerifyingPlatformAuthenticatorAvailable?.()) === true,
+    signalUnknownCredential: async (credentialId) => {
+        const signal = (window.PublicKeyCredential as unknown as { signalUnknownCredential?: (o: { rpId: string; credentialId: string }) => Promise<void> }).signalUnknownCredential;
+        await signal?.call(window.PublicKeyCredential, { rpId: location.hostname, credentialId });
+    },
+});
+
+/** Un seul coffre d'extension par page : un seul canal, une seule détection. */
+let extensionVault: ExtensionVault | undefined;
+const getExtensionVault = () => typeof window === 'undefined' ? undefined : (extensionVault ??= new ExtensionVault({ win: window }));
 
 async function createVault(kind: VaultKind): Promise<DeviceVault | undefined> {
     switch (kind) {
@@ -48,17 +64,11 @@ async function createVault(kind: VaultKind): Promise<DeviceVault | undefined> {
             });
         }
         case 'webauthn-prf':
-            return webAuthnAvailable() ? new PrfVault({
-                credentials: navigator.credentials, store: idbStore, rpId: location.hostname,
-                platformAuthenticatorAvailable: async () =>
-                    (await window.PublicKeyCredential?.isUserVerifyingPlatformAuthenticatorAvailable?.()) === true,
-                signalUnknownCredential: async (credentialId) => {
-                    const signal = (window.PublicKeyCredential as unknown as { signalUnknownCredential?: (o: { rpId: string; credentialId: string }) => Promise<void> }).signalUnknownCredential;
-                    await signal?.call(window.PublicKeyCredential, { rpId: location.hostname, credentialId });
-                },
-            }) : undefined;
+            return webAuthnAvailable() ? createPrfVault() : undefined;
         case 'web-pin':
             return new PinVault(idbStore);
+        case 'extension':
+            return getExtensionVault();
     }
 }
 
@@ -67,13 +77,18 @@ export const vaultOfKind = (kind: VaultKind) => createVault(kind);
 
 /**
  * Coffres à essayer à l'inscription, du plus protecteur au repli :
- * desktop → trousseau ; mobile → Keychain/Keystore + biométrie ; web → passkey PRF puis PIN local.
+ * desktop → trousseau ; mobile → Keychain/Keystore + biométrie ; web → passkey PRF, puis Synco
+ * Extension si elle répond, puis PIN local (voir selection.ts).
  */
 export async function preferredVaults(): Promise<DeviceVault[]> {
     const platform = await detectPlatform();
-    const kinds: VaultKind[] = platform === 'desktop' ? ['os-keyring']
-        : platform === 'web' ? ['webauthn-prf', 'web-pin']
-        : ['native-biometric'];
-    const vaults = await Promise.all(kinds.map(createVault));
-    return vaults.filter((v): v is DeviceVault => !!v);
+    if (platform === 'web') {
+        return webVaultsInOrder({
+            prf: () => webAuthnAvailable() ? createPrfVault() : undefined,
+            extension: getExtensionVault,
+            pin: () => new PinVault(idbStore),
+        });
+    }
+    const vault = await createVault(platform === 'desktop' ? 'os-keyring' : 'native-biometric');
+    return vault ? [vault] : [];
 }
