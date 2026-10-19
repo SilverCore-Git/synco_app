@@ -39,6 +39,11 @@ export interface VaultContext {
      * échoue alors en 'cancelled' ; une réponse tardive est ignorée et ses clés effacées.
      */
     signal?: AbortSignal;
+    /**
+     * Appelé quand une invite hors de la page vient d'être demandée (fenêtre du PIN de l'extension) :
+     * l'interface peut afficher « En attente de votre PIN… ». Ne reçoit aucune donnée.
+     */
+    onPrompt?: () => void;
 }
 
 export type VaultErrorCode =

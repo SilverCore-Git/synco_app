@@ -205,6 +205,23 @@ describe("ExtensionVault", () => {
         expect(win.hellos).toBe(2);
     });
 
+    test("onPrompt : appelé une fois quand la demande part, jamais si l'extension est absente", async () => {
+        const win = new FakeWindow();
+        const ext = fakeExtension(win);
+        const vault = new ExtensionVault({ win, ...FAST });
+        let calls = 0;
+        await vault.create(DEV, { onPrompt: () => { calls++; expect(ext.requests.length).toBe(0); } });
+        expect(calls).toBe(1);
+
+        const absent = new ExtensionVault({ win: new FakeWindow(), ...FAST });
+        let absentCalls = 0;
+        expect(await code(absent.load(DEV, { onPrompt: () => { absentCalls++; } }))).toBe("unavailable");
+        expect(absentCalls).toBe(0);
+
+        // une interface qui plante dans onPrompt n'interrompt pas la demande
+        expect(await vault.load(DEV, { onPrompt: () => { throw new Error("ui"); } })).toHaveLength(32);
+    });
+
     test("seuls deviceId et la raison partent ; le PIN de ctx n'est jamais transmis", async () => {
         const win = new FakeWindow();
         const ext = fakeExtension(win);
