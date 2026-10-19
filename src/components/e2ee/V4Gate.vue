@@ -39,15 +39,11 @@
             </button>
         </template>
 
-        <!-- ============ Connecter cet appareil ============ -->
+        <!-- ============ Secours : plus aucun appareil connecté ============ -->
         <div v-else-if="step === 'connect'" class="max-w-md w-full space-y-3">
-            <button class="option" @click="beginLink">
-                <i class="bi bi-qr-code-scan text-2xl text-(--primary)" />
-                <span>
-                    <strong>Depuis un autre appareil</strong>
-                    <small>Un appareil déjà connecté à votre compte valide celui-ci (QR code ou code à recopier).</small>
-                </span>
-            </button>
+            <p class="text-sm text-(--text2) text-center pb-1">
+                Ces deux méthodes servent uniquement si vous n'avez plus aucun appareil déjà connecté à votre compte.
+            </p>
             <button class="option" @click="step = 'recovery'">
                 <i class="bi bi-key-fill text-2xl text-(--primary)" />
                 <span>
@@ -59,7 +55,7 @@
                 <i class="bi bi-123 text-2xl text-(--primary)" />
                 <span>
                     <strong>Avec mon code PIN de récupération</strong>
-                    <small>Secours moins sûr que les deux autres. {{ pinRecovery.attemptsLeft }} essai(s) restant(s) avant blocage.</small>
+                    <small>Secours moins sûr que la clé. {{ pinRecovery.attemptsLeft }} essai(s) restant(s) avant blocage.</small>
                 </span>
             </button>
             <div v-else class="option opacity-60 cursor-not-allowed!" aria-disabled="true">
@@ -71,8 +67,8 @@
             </div>
 
             <div class="pt-4 border-t border-(--border-color) flex flex-col items-center gap-3">
-                <button v-if="hasLocalRecord && !identityAlert" class="text-xs text-(--text2) hover:text-(--primary)" @click="backToUnlock">
-                    <i class="bi bi-arrow-left mr-1" /> Revenir au déverrouillage
+                <button class="text-xs text-(--text2) hover:text-(--primary)" @click="beginLink">
+                    <i class="bi bi-arrow-left mr-1" /> Retour à la connexion depuis un autre appareil
                 </button>
                 <button class="text-xs text-red-500/80 hover:text-red-500" @click="openReset">
                     Je n'ai plus aucun appareil ni ma clé de récupération
@@ -98,9 +94,14 @@
                 <p class="text-xs text-amber-500/90 max-w-sm">
                     Ne montrez ce code qu'à vos propres appareils : il donne accès à vos messages chiffrés.
                 </p>
-                <div class="flex gap-2">
-                    <button class="default text-sm" @click="cancelLink">Annuler</button>
-                    <button v-if="linkSecondsLeft <= 0" class="primary text-sm" @click="beginLink">Nouveau code</button>
+                <button v-if="linkSecondsLeft <= 0" class="primary text-sm" @click="beginLink">Nouveau code</button>
+                <div class="w-full pt-4 border-t border-(--border-color) flex flex-col items-center gap-2">
+                    <button class="text-xs text-(--text2) hover:text-(--primary)" @click="openRescue">
+                        Je n'ai plus aucun appareil connecté
+                    </button>
+                    <button v-if="hasLocalRecord && !identityAlert" class="text-xs text-(--text2) hover:text-(--primary)" @click="leaveLink">
+                        <i class="bi bi-arrow-left mr-1" /> Revenir au déverrouillage
+                    </button>
                 </div>
             </template>
             <SpinLoader v-else />
@@ -111,7 +112,7 @@
             <p class="text-sm text-(--text2)">L'autre appareil a validé la demande. Vérifiez qu'il affiche le même code :</p>
             <p class="font-mono text-4xl font-bold tracking-[0.3em] text-(--text)">{{ linkSas }}</p>
             <div class="flex gap-2">
-                <button class="default text-sm" :disabled="busy" @click="cancelLink">Les codes diffèrent</button>
+                <button class="default text-sm" :disabled="busy" @click="cancelLink()">Les codes diffèrent</button>
                 <button class="primary text-sm" :class="{ loader: busy }" :disabled="busy" @click="confirmLink">Les codes correspondent</button>
             </div>
         </div>
@@ -327,7 +328,7 @@ const vaultLabel = computed(() => {
 const title = computed(() => ({
     loading: 'Chargement…',
     unlock: 'Déverrouillez votre session',
-    connect: 'Connecter cet appareil',
+    connect: 'Plus aucun appareil connecté',
     link: 'Connecter depuis un autre appareil',
     'link-sas': 'Confirmez la connexion',
     recovery: 'Clé de récupération',
@@ -339,7 +340,7 @@ const title = computed(() => ({
 
 const subtitle = computed(() => step.value === 'connect'
     ? "Cet appareil n'a pas encore accès à vos messages chiffrés."
-    : '');
+    : step.value === 'link' ? "Cet appareil n'a pas encore accès à vos messages chiffrés. Validez-le depuis un appareil déjà connecté." : '');
 
 const formatDuration = (s: number) => s < 60 ? `${s} s` : s < 3600 ? `${Math.ceil(s / 60)} min` : `${Math.ceil(s / 3600)} h`;
 
@@ -503,12 +504,8 @@ async function goConnect(forget = false) {
         await forgetThisDevice(dev.userId, idbStore, dev.vaultFor).catch(() => {});
         await refreshLocalState();
     }
-    step.value = 'connect';
-}
-
-function backToUnlock() {
-    notice.value = '';
-    step.value = 'unlock';
+    // Chemin par défaut : validation depuis un autre appareil (QR code / code à recopier).
+    await beginLink();
 }
 
 // --- liaison depuis un autre appareil ---------------------------------------
@@ -603,7 +600,8 @@ async function listenLinkAnswer() {
     } catch { /* le filet de sécurité prend le relais */ }
 }
 
-async function cancelLink() {
+/** Abandonne la demande en cours, puis en relance une (`link`) ou va à l'écran indiqué. */
+async function cancelLink(next: 'link' | 'connect' | 'unlock' = 'link') {
     stopListening();
     await opened?.dispose();
     opened = null;
@@ -612,8 +610,13 @@ async function cancelLink() {
     linkQr.value = '';
     linkSas.value = '';
     linkExpiresAt = 0;
-    step.value = 'connect';
+    if (next === 'link') { await beginLink(); return; }
+    notice.value = '';
+    step.value = next;
 }
+
+const openRescue = () => cancelLink('connect');
+const leaveLink = () => cancelLink('unlock');
 
 async function confirmLink() {
     if (!dev || !opened || busy.value) return;
@@ -850,7 +853,7 @@ onMounted(async () => {
         if (props.mode === 'onboard') { step.value = 'onboard-intro'; return; }
         refreshPinRecovery();
         const local = await refreshLocalState();
-        if (!local?.record) { step.value = 'connect'; return; }
+        if (!local?.record) { await beginLink(); return; }
         step.value = 'unlock';
         // Trousseau du système et biométrie native : on propose l'invite tout de suite. Une passkey
         // exige un geste de l'utilisateur (bouton), le PIN local une saisie.
