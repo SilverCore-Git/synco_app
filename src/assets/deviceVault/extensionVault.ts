@@ -287,9 +287,16 @@ export class ExtensionVault implements DeviceVault {
         this.promptTimeoutMs = opts.promptTimeoutMs ?? PROMPT_TIMEOUT_MS;
     }
 
-    /** Un handshake répond-il ? « Extension détectée », jamais « vérifiée » (M7). */
-    async detect(): Promise<boolean> {
-        return (await this.handshake()) !== null;
+    private detected?: Promise<boolean>;
+
+    /**
+     * Un handshake répond-il ? « Extension détectée », jamais « vérifiée » (M7). Le résultat vaut pour
+     * la durée de la page : un content script ne s'injecte qu'au chargement, donc une extension activée
+     * ensuite n'apparaît qu'après rechargement. `force` refait un handshake (bouton « Réessayer »).
+     */
+    detect(force = false): Promise<boolean> {
+        if (force || !this.detected) this.detected = this.handshake().then(channel => channel !== null);
+        return this.detected;
     }
 
     private async handshake(): Promise<ExtensionChannel | null> {

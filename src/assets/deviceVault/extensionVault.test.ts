@@ -194,6 +194,17 @@ describe("ExtensionVault", () => {
         expect(await code(vault.has(DEV))).toBe("unavailable");
     });
 
+    test("détection mise en cache pour la page ; force refait un handshake", async () => {
+        const win = new FakeWindow();
+        const vault = new ExtensionVault({ win, ...FAST });
+        expect(await vault.detect()).toBe(false);
+        fakeExtension(win);
+        expect(await vault.detect()).toBe(false);
+        expect(win.hellos).toBe(1);
+        expect(await vault.detect(true)).toBe(true);
+        expect(win.hellos).toBe(2);
+    });
+
     test("seuls deviceId et la raison partent ; le PIN de ctx n'est jamais transmis", async () => {
         const win = new FakeWindow();
         const ext = fakeExtension(win);
