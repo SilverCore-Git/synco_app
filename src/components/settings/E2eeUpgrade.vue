@@ -205,7 +205,7 @@ async function enroll(localPin?: string) {
         state.saved = false;
         state.step = 'recovery';
     } catch (e) {
-        if (e instanceof VaultError && e.code === 'pin-required') {
+        if (e instanceof VaultError && e.code === 'pin-required' && !localPin) {
             state.firstPin = '';
             state.pin = '';
             state.step = 'choose-pin';

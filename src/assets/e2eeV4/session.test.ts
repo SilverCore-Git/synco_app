@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { getLocalDevice } from "../deviceVault/localDevice";
+import { VaultError, type DeviceVault } from "../deviceVault/types";
 import { createDeviceEnvelope, generateAccountKeyBytes } from "../utils/e2eeV4";
 import {
     DeviceRevokedError, IdentityMismatchError, V4ApiError, answerLink, checkDevices, linkQrPayload, parseLinkQr,
@@ -269,6 +270,19 @@ describe("migration v3 → v4", () => {
             }),
         };
     }
+
+    test("coffre passkey indisponible : pin-required, puis la reprise avec le PIN local aboutit", async () => {
+        const server = fakeServer();
+        const a = device(server.api);
+        const v3 = await v3Identity();
+        const unavailable = { capabilities: { kind: "webauthn-prf", needsPin: false }, create: async () => { throw new VaultError("unavailable"); } } as unknown as DeviceVault;
+        const opts = { name: "Appareil", platform: "web" as const, vaults: [unavailable, a.vault as DeviceVault] };
+        const migrationOf = async () => ({ ...(await v3.source()), verifier: "proof", served: v3.served });
+        expect(await errName(prepareV4Account(a.dev, { ...opts, mode: "migrate", migration: await migrationOf() }))).toBe("pin-required");
+        const prepared = await prepareV4Account(a.dev, { ...opts, ctx: { pin: "4821" }, mode: "migrate", migration: await migrationOf() });
+        await prepared.commit(true);
+        expect(server.state.devices.size).toBe(1);
+    });
 
     test("mêmes clés d'identité, clés publiques renvoyées à l'identique, preuve du PIN jointe", async () => {
         const server = fakeServer();
