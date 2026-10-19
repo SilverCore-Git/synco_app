@@ -242,8 +242,9 @@
                         <div class="space-y-4">
                             <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Mot de passe</h4>
 
-                            <div class="p-6 bg-(--bg2) border border-(--border-color) rounded-xl shadow-sm space-y-4 max-w-lg">
+                            <div class="p-6 bg-(--bg2) border border-(--border-color) rounded-xl shadow-sm space-y-4">
 
+                                <div class="grid gap-4 lg:grid-cols-3">
                                 <div class="space-y-1.5">
                                     <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Mot de passe actuel</label>
                                     <input
@@ -273,6 +274,7 @@
                                         class="w-full bg-(--bg) border border-(--border-color) rounded-xl px-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
                                     />
                                 </div>
+                                </div>
 
                                 <p v-if="passwordBlockReason" class="text-xs text-amber-500 flex items-center gap-1.5">
                                     <i class="bi bi-info-circle-fill"></i>
@@ -298,7 +300,7 @@
                         <div class="space-y-4">
                             <h4 class="text-xs font-black uppercase tracking-widest text-red-500">Zone de danger</h4>
 
-                            <div class="p-6 bg-red-500/5 border border-red-500/20 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center gap-6 max-w-lg">
+                            <div class="p-6 bg-red-500/5 border border-red-500/20 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center gap-6">
                                 <div class="flex-1">
                                     <h4 class="font-bold text-(--text) text-sm">Supprimer mon compte</h4>
                                     <p class="text-xs text-(--text2) mt-1 leading-relaxed">
