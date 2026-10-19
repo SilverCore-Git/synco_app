@@ -327,7 +327,6 @@
             button-text="Déconnecter"
             :checkbox="true"
             checkbox-label="Je comprends que cet appareil perdra l'accès à mes nouveaux messages."
-            :loading="removing"
             extra-option-label="Renouveler aussi mes clés de chiffrement (recommandé si cet appareil était déverrouillé)"
             v-model:extra-option-value="rotateWithRemoval"
             @confirm="confirmRemove"
@@ -523,7 +522,6 @@ async function saveRename(d: CheckedDevice) {
 // --- déconnecter (rotation de la clé de compte) -----------------------------------
 
 const removeTarget = ref<CheckedDevice | null>(null);
-const removing = ref(false);
 const newRecovery = ref('');
 const recoveryAck = ref(false);
 
@@ -551,14 +549,12 @@ function askRemove(d: CheckedDevice) {
 async function confirmRemove() {
     const d = removeTarget.value;
     if (!d) return;
-    removing.value = true;
-    try {
-        await runRotation([d.id], rotateWithRemoval.value, d.name);
-    } finally {
-        removing.value = false;
-        removeTarget.value = null;
-        rotateWithRemoval.value = false;
-    }
+    // La confirmation (z-index 3000) doit être fermée avant de demander le coffre : la fenêtre du PIN
+    // local (2200) et celle du code de récupération s'ouvriraient sinon derrière elle, sans issue.
+    const renewIdentity = rotateWithRemoval.value;
+    removeTarget.value = null;
+    rotateWithRemoval.value = false;
+    await runRotation([d.id], renewIdentity, d.name);
 }
 
 const rotateWithRemoval = ref(false);
