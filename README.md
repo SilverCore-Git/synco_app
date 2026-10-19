@@ -88,6 +88,10 @@ npm run preview       # Preview production build
 npm run type-check    # TypeScript validation
 ```
 
+### Git hook (secrets)
+
+The repository is public: `git config core.hooksPath .githooks` (or `npm run setup`) enables a `pre-commit` hook running `scripts/check-secrets.mjs` on every commit. `npm run check:secrets` scans the whole repository.
+
 ### Building the Linux AppImage locally on Fedora
 
 `linuxdeploy`'s cached tools assume Ubuntu/Debian paths and a `strip` that

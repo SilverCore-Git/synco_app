@@ -4,6 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "setup": "git config core.hooksPath .githooks",
+    "check:secrets": "node scripts/check-secrets.mjs --all",
     "dev": "vite --port 5174",
     "build": "node ./node_modules/vue-tsc/bin/vue-tsc.js -b && vite build",
     "preview": "vite preview",
