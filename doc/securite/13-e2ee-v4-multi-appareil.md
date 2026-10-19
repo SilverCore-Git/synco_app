@@ -171,6 +171,7 @@ Nouvelle section **« Appareils et sécurité »** dans les paramètres utilisat
 
 **Points de conception**
 - À l'inscription, les coffres sont essayés du plus protecteur au repli ; seule l'*indisponibilité* de la plateforme autorise un repli, jamais une annulation de l'utilisateur.
+- Web : sans authentificateur de plateforme (`isUserVerifyingPlatformAuthenticatorAvailable()` faux, typiquement Chrome sous Linux sans gestionnaire de passkeys), `PrfVault` répond « indisponible » **avant** toute invite, pour éviter la fenêtre « téléphone par QR / clé USB » ; l'inscription passe directement au PIN local. Conséquence : une clé de sécurité USB avec PRF seule n'est pas proposée.
 - Au déverrouillage, la clé publique servie par le serveur doit être celle enregistrée localement, sinon l'enveloppe est refusée.
 - Une fois AK ouverte, l'appelant (P4/P5) doit encore vérifier que la clé d'identité déchiffrée correspond à celle qu'il a épinglée (voir §7).
 - Capacitor : la biométrie est un contrôle côté application devant un secret protégé par le trousseau de l'OS, non lié cryptographiquement à la lecture. Un appareil sans aucun verrouillage d'écran est refusé.

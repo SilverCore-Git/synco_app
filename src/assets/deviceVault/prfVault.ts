@@ -23,6 +23,12 @@ export interface PrfDeps {
      * PublicKeyCredential.signalUnknownCredential) : il peut la retirer au lieu de la garder.
      */
     signalUnknownCredential?: (credentialIdB64url: string) => Promise<void>;
+    /**
+     * Un authentificateur de plateforme (Touch ID, Windows Hello, gestionnaire de passkeys) est-il
+     * présent ? Sinon le navigateur n'offrirait que « téléphone par QR » ou « clé USB » : on évite
+     * cette invite et on se replie d'emblée sur le PIN local.
+     */
+    platformAuthenticatorAvailable?: () => Promise<boolean>;
 }
 
 const toB64url = (bytes: Uint8Array) => toB64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -80,6 +86,9 @@ export class PrfVault implements DeviceVault {
     }
 
     async create(deviceId: string): Promise<Uint8Array> {
+        if (this.deps.platformAuthenticatorAvailable && !(await this.deps.platformAuthenticatorAvailable().catch(() => false))) {
+            throw new VaultError('unavailable', 'Aucun authentificateur de plateforme (passkey) sur cet appareil.');
+        }
         let credential: Credential | null;
         try {
             credential = await this.deps.credentials.create({

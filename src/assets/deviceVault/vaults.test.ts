@@ -175,6 +175,14 @@ describe("PrfVault (WebAuthn)", () => {
         expect(await code(vault.create("d"))).toBe("cancelled");
     });
 
+    test("sans authentificateur de plateforme → unavailable, sans invite WebAuthn", async () => {
+        let prompted = false;
+        const credentials = { create: async () => { prompted = true; return null; }, get: async () => null } as any;
+        const vault = new PrfVault({ credentials, store: memory(), platformAuthenticatorAvailable: async () => false });
+        expect(await code(vault.create("d"))).toBe("unavailable");
+        expect(prompted).toBe(false);
+    });
+
     test("coffre inconnu → missing", async () => {
         const vault = new PrfVault({ credentials: authenticator(), store: memory() });
         expect(await code(vault.load("nope"))).toBe("missing");
