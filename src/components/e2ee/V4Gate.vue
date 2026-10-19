@@ -346,7 +346,7 @@ import { E2eeV4Error } from '@/assets/utils/e2eeV4';
 import { PinRecoveryFailure, pinRecoveryStatus, recoverWithPin } from '@/assets/e2eeV4/pinRecovery';
 import { pinRecoveryActors, pinRecoveryConfigured } from '@/assets/e2eeV4/pinRecoveryApi';
 import {
-    applyIdentityKeys, autoUnlock, defaultDeviceName, detectPlatform, deviceContext, enrollmentVaults, sealedFrom, servedFrom,
+    applyIdentityKeys, autoUnlock, defaultDeviceName, detectPlatform, deviceContext, enrollmentVaults, freshIdentity,
 } from '@/assets/e2eeV4/runtime';
 
 /**
@@ -537,7 +537,8 @@ async function tryUnlock() {
     if (!dev || busy.value) return;
     busy.value = true;
     try {
-        const keys = await unlockV4(dev, sealedFrom(user.value), servedFrom(user.value), {
+        const { sealed, served } = await freshIdentity();
+        const keys = await unlockV4(dev, sealed, served, {
             ...(unlockNeedsPin.value ? { pin: pin.value } : {}),
             reason: 'Déverrouiller vos messages chiffrés',
         });
@@ -717,7 +718,8 @@ async function confirmLink() {
     busy.value = true;
     try {
         const link = opened;
-        const keys = await withPinFallback(opts => link.confirm(sealedFrom(user.value), servedFrom(user.value), opts));
+        const { sealed, served } = await freshIdentity();
+        const keys = await withPinFallback(opts => link.confirm(sealed, served, opts));
         opened = null;
         started = null;
         await finishConnected(keys);
@@ -780,7 +782,8 @@ async function submitPinRecovery() {
     const code = pin.value;
     pin.value = '';
     try {
-        const keys = await withPinFallback(opts => recoverWithPin(dev!, pinRecoveryActors, code, sealedFrom(user.value), servedFrom(user.value), opts));
+        const { sealed, served } = await freshIdentity();
+        const keys = await withPinFallback(opts => recoverWithPin(dev!, pinRecoveryActors, code, sealed, served, opts));
         await finishConnected(keys);
     } catch (e) {
         if (e instanceof PinRecoveryFailure) {
@@ -809,7 +812,8 @@ async function submitRecovery() {
     busy.value = true;
     try {
         const text = recoveryInput.value;
-        const keys = await withPinFallback(opts => recoverWithKey(dev!, text, sealedFrom(user.value), servedFrom(user.value), opts));
+        const { sealed, served } = await freshIdentity();
+        const keys = await withPinFallback(opts => recoverWithKey(dev!, text, sealed, served, opts));
         recoveryInput.value = '';
         await finishConnected(keys);
     } catch (e) {
