@@ -244,7 +244,7 @@
 
                             <div class="p-6 bg-(--bg2) border border-(--border-color) rounded-xl shadow-sm space-y-4">
 
-                                <div class="grid gap-4 lg:grid-cols-3">
+                                <div class="grid grid-cols-1 gap-4">
                                 <div class="space-y-1.5">
                                     <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Mot de passe actuel</label>
                                     <input
