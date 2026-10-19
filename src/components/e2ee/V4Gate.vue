@@ -71,7 +71,7 @@
 
                     <ol class="how space-y-4">
                         <li style="--i: 0"><span class="how-n">1</span><p>Ouvrez Synco sur un appareil <strong>déjà connecté</strong> à votre compte.</p></li>
-                        <li style="--i: 1"><span class="how-n">2</span><p>Allez dans <strong>Paramètres › Appareils et sécurité</strong>, puis <strong>Ajouter un appareil</strong>.</p></li>
+                        <li style="--i: 1"><span class="how-n">2</span><p>Allez dans <strong>Paramètres › Appareils</strong>, puis <strong>Ajouter un appareil</strong>.</p></li>
                         <li style="--i: 2"><span class="how-n">3</span><p>Scannez ce QR code, ou saisissez le code ci-dessous, puis comparez les deux codes à 6 chiffres.</p></li>
                     </ol>
 
@@ -267,7 +267,7 @@
             title="Continuer sans clé de récupération ?"
             item-name="la clé de récupération"
             item-type="la clé de récupération"
-            message="Sans clé de récupération, la perte de tous vos appareils rend vos messages définitivement illisibles. Vous pourrez en créer une plus tard dans Paramètres › Appareils et sécurité."
+            message="Sans clé de récupération, la perte de tous vos appareils rend vos messages définitivement illisibles. Vous pourrez en créer une plus tard dans Paramètres › Sécurité."
             button-text="Continuer sans clé"
             :loading="busy"
             @confirm="skipRecovery = false; finishOnboarding(false)"

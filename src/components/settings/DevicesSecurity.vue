@@ -1,11 +1,13 @@
 <template>
 
-    <div class="space-y-8">
+    <div>
 
-        <!-- ================= Appareils ================= -->
-        <div class="space-y-4">
+        <!-- ================= Onglet « Appareils » ================= -->
+        <section v-if="view === 'devices'" class="space-y-4">
             <div class="flex items-center justify-between gap-3 flex-wrap">
-                <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Appareils connectés</h4>
+                <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">
+                    Appareils connectés <span v-if="!loading" class="ml-1 text-(--text2)/70">· {{ devices.length }}</span>
+                </h4>
                 <button class="primary text-sm flex items-center gap-2" :disabled="!E2EEUnloked" @click="openAdd">
                     <i class="bi bi-plus-lg" /> Ajouter un appareil
                 </button>
@@ -16,139 +18,147 @@
 
             <div v-if="loading" class="py-6 flex justify-center"><SpinLoader /></div>
 
-            <ul v-else class="divide-y divide-(--border-color) border border-(--border-color) rounded-xl bg-(--bg2) overflow-hidden">
-                <li v-for="d in filteredDevices" :key="d.id" class="p-4 flex items-start gap-4">
-                    <i class="bi text-2xl text-(--text2) mt-0.5" :class="PLATFORM_ICONS[d.platform]" />
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <template v-if="renamingId === d.id">
-                                <input v-model="renameValue" maxlength="64" @keydown.stop @keyup.enter="saveRename(d)" @keyup.esc="renamingId = ''"
-                                    class="bg-(--bg) border border-(--border-color) rounded-lg px-2 py-1 text-sm text-(--text) focus:outline-none focus:border-(--primary)" />
-                                <button class="text-(--primary) text-sm" title="Enregistrer" @click="saveRename(d)"><i class="bi bi-check-lg" /></button>
-                                <button class="text-(--text2) text-sm" title="Annuler" @click="renamingId = ''"><i class="bi bi-x-lg" /></button>
-                            </template>
-                            <template v-else>
-                                <span class="font-bold text-sm text-(--text) truncate">{{ d.name }}</span>
-                                <button class="text-(--text2) hover:text-(--text) text-xs" title="Renommer" @click="startRename(d)"><i class="bi bi-pencil" /></button>
-                            </template>
-                            <span v-if="d.isThisDevice" class="px-2 py-0.5 rounded-full text-[10px] uppercase tracking-widest font-bold bg-(--primary)/20 text-(--primary)">Cet appareil</span>
-                            <span v-if="!d.certified" class="px-2 py-0.5 rounded-full text-[10px] uppercase tracking-widest font-bold bg-red-500/20 text-red-500"
-                                title="Ce certificat n'a pas été signé par votre identité : cet appareil ne recevra aucune clé et sera retiré au prochain renouvellement.">
-                                Non certifié
-                            </span>
+            <ul v-else class="space-y-3">
+                <li v-for="d in orderedDevices" :key="d.id" class="device-card" :class="{ 'is-current': d.isThisDevice }">
+                    <div class="p-4 flex items-start gap-4">
+                        <span class="device-ico"><i class="bi" :class="PLATFORM_ICONS[d.platform]" /></span>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <template v-if="renamingId === d.id">
+                                    <input v-model="renameValue" maxlength="64" @keydown.stop @keyup.enter="saveRename(d)" @keyup.esc="renamingId = ''"
+                                        class="bg-(--bg) border border-(--border-color) rounded-lg px-2 py-1 text-sm text-(--text) focus:outline-none focus:border-(--primary)" />
+                                    <button class="text-(--primary) text-sm" title="Enregistrer" @click="saveRename(d)"><i class="bi bi-check-lg" /></button>
+                                    <button class="text-(--text2) text-sm" title="Annuler" @click="renamingId = ''"><i class="bi bi-x-lg" /></button>
+                                </template>
+                                <template v-else>
+                                    <span class="font-bold text-sm text-(--text) truncate">{{ d.name }}</span>
+                                    <button class="rename-btn" title="Renommer" @click="startRename(d)"><i class="bi bi-pencil" /></button>
+                                </template>
+                                <span v-if="d.isThisDevice" class="px-2 py-0.5 rounded-full text-[10px] uppercase tracking-widest font-bold bg-(--primary)/20 text-(--primary)">Cet appareil</span>
+                                <span v-if="!d.certified" class="px-2 py-0.5 rounded-full text-[10px] uppercase tracking-widest font-bold bg-red-500/20 text-red-500"
+                                    title="Ce certificat n'a pas été signé par votre identité : cet appareil ne recevra aucune clé et sera retiré au prochain renouvellement.">
+                                    Non certifié
+                                </span>
+                            </div>
+                            <p class="text-xs text-(--text2) mt-1">
+                                {{ PLATFORM_LABELS[d.platform] }} · ajouté le {{ formatDate(d.createdAt) }} · {{ d.lastUsedAt ? `actif ${formatRelative(d.lastUsedAt)}` : 'jamais utilisé' }}
+                            </p>
                         </div>
-                        <p class="text-xs text-(--text2) mt-1">
-                            {{ PLATFORM_LABELS[d.platform] }} · ajouté le {{ formatDate(d.createdAt) }} · {{ d.lastUsedAt ? `actif ${formatRelative(d.lastUsedAt)}` : 'jamais utilisé' }}
+                        <button class="disconnect-btn" :disabled="!E2EEUnloked || devices.length < 2"
+                            :title="devices.length < 2 ? 'Impossible de déconnecter votre seul appareil' : ''" @click="askRemove(d)">
+                            Déconnecter
+                        </button>
+                    </div>
+
+                    <!-- Verrou : il appartient à cet appareil, pas à une section à part -->
+                    <div v-if="d.isThisDevice && localKind" class="lock-panel">
+                        <i class="bi text-lg text-(--text2)" :class="VAULT_INFO[localKind].icon" />
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm text-(--text)"><span class="text-(--text2)">Verrouillé par</span> <strong>{{ VAULT_INFO[localKind].label }}</strong></p>
+                            <p class="text-xs text-(--text2) mt-1 leading-relaxed">{{ VAULT_INFO[localKind].detail }}</p>
+                            <div v-if="localKind === 'web-pin' || localKind === 'webauthn-prf'" class="flex flex-wrap gap-2 mt-3">
+                                <button v-if="localKind === 'web-pin'" class="second text-xs" :disabled="lockBusy" @click="openChangePin">Changer le code PIN</button>
+                                <button v-if="localKind === 'web-pin' && prfPossible" class="primary text-xs" :disabled="lockBusy" @click="enablePasskey">
+                                    <i class="bi bi-fingerprint mr-1" /> Utiliser une passkey
+                                </button>
+                                <button v-if="localKind === 'webauthn-prf'" class="second text-xs" :disabled="lockBusy" @click="disablePasskey">Revenir au code PIN local</button>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+                <li v-if="orderedDevices.length === 0" class="p-4 text-sm text-(--text2)">Aucun appareil.</li>
+            </ul>
+
+            <p v-if="!loading && devices.length === 1" class="text-xs text-(--text2) leading-relaxed">
+                <i class="bi bi-lightbulb mr-1" /> C'est votre seul appareil. Ajoutez-en un second (téléphone, autre ordinateur) : si celui-ci est perdu, vos messages restent accessibles.
+            </p>
+            <p class="text-xs text-(--text2) leading-relaxed">
+                <i class="bi bi-envelope mr-1" /> Un e-mail et une notification vous préviennent à chaque ajout ou retrait d'appareil.
+            </p>
+        </section>
+
+        <!-- ================= Onglet « Sécurité » : accès de secours et clés ================= -->
+        <section v-else class="space-y-8">
+
+            <div class="space-y-3">
+                <div>
+                    <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Si vous perdez vos appareils</h4>
+                    <p class="text-xs text-(--text2) mt-1">Ces accès de secours servent uniquement quand aucun appareil connecté n'est à portée.</p>
+                </div>
+
+                <div class="rounded-xl border border-(--border-color) bg-(--bg2) divide-y divide-(--border-color) overflow-hidden">
+
+                    <!-- Clé de récupération -->
+                    <div class="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                        <span class="rescue-ico"><i class="bi bi-key-fill" /></span>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold text-(--text) flex items-center gap-2 flex-wrap">
+                                Clé de récupération
+                                <span class="chip" :class="hasRecovery ? 'chip-ok' : 'chip-warn'">{{ hasRecovery ? 'Active' : 'Absente' }}</span>
+                            </p>
+                            <p class="text-xs text-(--text2) mt-1 leading-relaxed">
+                                <template v-if="hasRecovery">Ouvre vos messages sur un nouvel appareil. Elle n'est pas réaffichable : en générer une nouvelle rend l'ancienne inutilisable.</template>
+                                <template v-else><strong class="text-amber-500">Sans elle, perdre tous vos appareils rend votre historique définitivement illisible.</strong></template>
+                            </p>
+                        </div>
+                        <button class="text-sm whitespace-nowrap" :class="hasRecovery ? 'second' : 'primary'" :disabled="!E2EEUnloked || recoveryBusy" @click="hasRecovery ? (confirmRegen = true) : regenerate()">
+                            {{ hasRecovery ? 'Générer une nouvelle clé' : 'Créer une clé' }}
+                        </button>
+                    </div>
+
+                    <!-- Récupération par code PIN -->
+                    <div class="p-5 space-y-3" :class="{ 'opacity-80': !pinRecoveryConfigured }">
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+                            <span class="rescue-ico"><i class="bi bi-123" /></span>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-bold text-(--text) flex items-center gap-2 flex-wrap">
+                                    Code PIN de récupération
+                                    <span v-if="!pinRecoveryConfigured" class="chip chip-off">Non proposé</span>
+                                    <span v-else-if="!pinRec.reachable" class="chip chip-warn">Service injoignable</span>
+                                    <span v-else-if="pinRec.enabled && pinRec.locked" class="chip chip-bad">Bloqué</span>
+                                    <span v-else-if="pinRec.enabled" class="chip chip-ok">Activé</span>
+                                    <span v-else class="chip chip-off">Désactivé</span>
+                                </p>
+                                <p class="text-xs text-(--text2) mt-1 leading-relaxed">
+                                    <template v-if="!pinRecoveryConfigured">Non proposé sur ce serveur.</template>
+                                    <template v-else-if="!pinRec.reachable">Le service de récupération ne répond pas pour le moment.</template>
+                                    <template v-else-if="pinRec.enabled && pinRec.locked">Trop d'essais. Réactivez-le depuis cet appareil.</template>
+                                    <template v-else-if="pinRec.enabled">{{ pinRec.attemptsLeft }} essai(s) avant blocage.</template>
+                                    <template v-else>Dernier secours si vous n'avez plus ni appareil ni clé. Moins sûr.</template>
+                                </p>
+                            </div>
+                            <div v-if="pinRecoveryConfigured && pinRec.reachable" class="flex gap-2">
+                                <button class="text-sm whitespace-nowrap" :class="pinRec.enabled ? 'second' : 'primary'" :disabled="!E2EEUnloked || pinRec.busy" @click="openEnablePin">
+                                    {{ pinRec.enabled ? (pinRec.locked ? 'Réactiver' : 'Changer le code') : 'Activer' }}
+                                </button>
+                                <button v-if="pinRec.enabled" class="disconnect-btn" :disabled="pinRec.busy" @click="confirmDisablePin = true">Désactiver</button>
+                            </div>
+                        </div>
+                        <details v-if="pinRecoveryConfigured" class="why-less-safe">
+                            <summary>Pourquoi est-ce moins sûr ?</summary>
+                            <p>
+                                Votre code n'est jamais envoyé, mais quiconque volerait à la fois les secrets de nos deux serveurs pourrait deviner un code à 4 chiffres en quelques secondes.
+                                10 essais au plus, puis blocage ; chaque essai vous est signalé par e-mail.
+                            </p>
+                        </details>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Avancé</h4>
+                <div class="p-5 bg-(--bg2) border border-(--border-color) rounded-xl flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div class="flex-1">
+                        <p class="text-sm font-bold text-(--text)">Renouveler mes clés de chiffrement</p>
+                        <p class="text-xs text-(--text2) mt-1 leading-relaxed">
+                            À faire si un appareil perdu ou volé était déverrouillé : il ne pourra plus rien déchiffrer de ce qui vous sera envoyé ensuite.
+                            Vos contacts reçoivent automatiquement vos nouvelles clés ; votre historique reste lisible sur vos appareils.
                         </p>
                     </div>
-                    <button class="second text-xs whitespace-nowrap" :disabled="!E2EEUnloked || devices.length < 2"
-                        :title="devices.length < 2 ? 'Impossible de déconnecter votre seul appareil' : ''" @click="askRemove(d)">
-                        Déconnecter
-                    </button>
-                </li>
-                <li v-if="filteredDevices.length === 0" class="p-4 text-sm text-(--text2)">Aucun appareil.</li>
-            </ul>
-            <p class="text-xs text-(--text2) leading-relaxed">
-                <i class="bi bi-envelope mr-1" /> Vous recevez un e-mail et une notification à chaque ajout ou retrait d'appareil, et à chaque changement de clé de récupération.
-            </p>
-        </div>
-
-        <!-- ================= Clé de récupération ================= -->
-        <div class="space-y-4">
-            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Clé de récupération</h4>
-            <div class="p-5 bg-(--bg2) border border-(--border-color) rounded-xl flex flex-col sm:flex-row sm:items-center gap-4">
-                <div class="flex-1">
-                    <p class="text-sm font-bold text-(--text) flex items-center gap-2">
-                        <i class="bi" :class="hasRecovery ? 'bi-check-circle-fill text-(--primary)' : 'bi-exclamation-circle-fill text-amber-500'" />
-                        {{ hasRecovery ? 'Clé de récupération active' : 'Aucune clé de récupération' }}
-                    </p>
-                    <p class="text-xs text-(--text2) mt-1 leading-relaxed">
-                        Elle ouvre vos messages sur un nouvel appareil si vous n'avez plus accès à aucun des vôtres.
-                        <template v-if="!hasRecovery"><strong class="text-amber-500">Sans elle, perdre tous vos appareils rend votre historique définitivement illisible.</strong></template>
-                        <template v-else>Elle n'est pas réaffichable : en générer une nouvelle rend l'ancienne inutilisable.</template>
-                    </p>
-                </div>
-                <button class="text-sm whitespace-nowrap" :class="hasRecovery ? 'second' : 'primary'" :disabled="!E2EEUnloked || recoveryBusy" @click="hasRecovery ? (confirmRegen = true) : regenerate()">
-                    {{ hasRecovery ? 'Générer une nouvelle clé' : 'Créer une clé de récupération' }}
-                </button>
-            </div>
-        </div>
-
-        <!-- ================= Récupération par PIN ================= -->
-        <div class="space-y-4">
-            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Récupération par code PIN</h4>
-            <div class="p-5 bg-(--bg2) border border-(--border-color) rounded-xl space-y-3" :class="{ 'opacity-80': !pinRecoveryConfigured }">
-                <div class="flex items-center justify-between gap-4 flex-wrap">
-                    <p class="text-sm font-bold text-(--text) flex items-center gap-2">
-                        <template v-if="!pinRecoveryConfigured">
-                            Retrouver mes messages avec un code PIN
-                            <span class="px-2 py-0.5 rounded text-[10px] uppercase tracking-widest bg-(--text)/10 text-(--text2)">Non proposée sur ce serveur</span>
-                        </template>
-                        <template v-else-if="!pinRec.reachable">
-                            <i class="bi bi-cloud-slash text-amber-500" /> Service de récupération injoignable pour le moment
-                        </template>
-                        <template v-else-if="pinRec.enabled && pinRec.locked">
-                            <i class="bi bi-lock-fill text-red-500" /> Bloquée après trop d'essais
-                        </template>
-                        <template v-else-if="pinRec.enabled">
-                            <i class="bi bi-check-circle-fill text-(--primary)" /> Activée · {{ pinRec.attemptsLeft }} essai(s) avant blocage
-                        </template>
-                        <template v-else>
-                            <i class="bi bi-dash-circle text-(--text2)" /> Désactivée
-                        </template>
-                    </p>
-                    <div v-if="pinRecoveryConfigured && pinRec.reachable" class="flex gap-2">
-                        <button class="text-sm" :class="pinRec.enabled ? 'second' : 'primary'" :disabled="!E2EEUnloked || pinRec.busy" @click="openEnablePin">
-                            {{ pinRec.enabled ? (pinRec.locked ? 'Réactiver' : 'Changer le code') : 'Activer' }}
-                        </button>
-                        <button v-if="pinRec.enabled" class="second text-sm" :disabled="pinRec.busy" @click="confirmDisablePin = true">Désactiver</button>
-                    </div>
-                </div>
-                <p class="text-xs text-(--text2) leading-relaxed">
-                    Option de secours pour qui n'a plus ni appareil ni clé de récupération. Elle est <strong class="text-amber-500">nettement moins sûre</strong> :
-                    votre code n'est jamais envoyé, mais quiconque volerait à la fois les secrets de nos deux serveurs pourrait deviner un code à 4 chiffres en quelques secondes.
-                    10 essais au plus, puis blocage ; chaque essai vous est signalé par e-mail.
-                </p>
-            </div>
-        </div>
-
-        <!-- ================= Clés de chiffrement ================= -->
-        <div class="space-y-4">
-            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Clés de chiffrement</h4>
-            <div class="p-5 bg-(--bg2) border border-(--border-color) rounded-xl flex flex-col sm:flex-row sm:items-center gap-4">
-                <div class="flex-1">
-                    <p class="text-sm font-bold text-(--text)">Renouveler mes clés de chiffrement</p>
-                    <p class="text-xs text-(--text2) mt-1 leading-relaxed">
-                        À faire si un appareil perdu ou volé était déverrouillé : il ne pourra plus rien déchiffrer de ce qui vous sera envoyé ensuite.
-                        Vos contacts reçoivent automatiquement vos nouvelles clés ; votre historique reste lisible sur vos appareils.
-                    </p>
-                </div>
-                <button class="second text-sm whitespace-nowrap" :disabled="!E2EEUnloked || rotating" @click="confirmRotate = true">Renouveler</button>
-            </div>
-        </div>
-
-        <!-- ================= Verrou de cet appareil ================= -->
-        <div v-if="localKind" class="space-y-4">
-            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Verrou de cet appareil</h4>
-            <div class="p-5 bg-(--bg2) border border-(--border-color) rounded-xl space-y-4">
-                <p class="text-sm text-(--text) flex items-start gap-2">
-                    <i class="bi mt-0.5" :class="VAULT_INFO[localKind].icon" />
-                    <span>
-                        <strong>{{ VAULT_INFO[localKind].label }}</strong>
-                        <span class="block text-xs text-(--text2) mt-1 leading-relaxed">{{ VAULT_INFO[localKind].detail }}</span>
-                    </span>
-                </p>
-                <div class="flex flex-wrap gap-2">
-                    <button v-if="localKind === 'web-pin'" class="second text-sm" :disabled="lockBusy" @click="openChangePin">Changer le code PIN local</button>
-                    <button v-if="localKind === 'web-pin' && prfPossible" class="primary text-sm" :disabled="lockBusy" @click="enablePasskey">
-                        <i class="bi bi-fingerprint mr-1" /> Utiliser une passkey
-                    </button>
-                    <button v-if="localKind === 'webauthn-prf'" class="second text-sm" :disabled="lockBusy" @click="disablePasskey">
-                        Revenir au code PIN local
-                    </button>
+                    <button class="second text-sm whitespace-nowrap" :disabled="!E2EEUnloked || rotating" @click="confirmRotate = true">Renouveler</button>
                 </div>
             </div>
-        </div>
+        </section>
 
         <!-- ================= Popups ================= -->
 
@@ -387,10 +397,12 @@ import { pinRecoveryActors, pinRecoveryConfigured } from '@/assets/e2eeV4/pinRec
 import { applyIdentityKeys, PLATFORM_ICONS, PLATFORM_LABELS, deviceContext, enrollmentVaults, sealedFrom, vaultFor } from '@/assets/e2eeV4/runtime';
 
 /**
- * Paramètres › Appareils et sécurité (E2EE v4, doc/securite/13-e2ee-v4-multi-appareil.md §11).
+ * Paramètres › Appareils (view="devices") et › Sécurité (view="security") (E2EE v4, doc/securite/13-e2ee-v4-multi-appareil.md §11).
  * Toute action qui touche à la clé de compte redemande le coffre de cet appareil (biométrie,
  * passkey ou PIN local) : la clé n'est jamais gardée en mémoire pendant la session.
  */
+
+defineProps<{ view: 'devices' | 'security' }>();
 
 const toast = useToast();
 
@@ -415,6 +427,9 @@ const filteredDevices = computed(() => {
     const q = search.value.trim().toLowerCase();
     return q ? devices.value.filter(d => d.name.toLowerCase().includes(q) || PLATFORM_LABELS[d.platform].toLowerCase().includes(q)) : devices.value;
 });
+
+/** Cet appareil d'abord (il porte le verrou local), puis les autres. */
+const orderedDevices = computed(() => [...filteredDevices.value].sort((x, y) => Number(y.isThisDevice) - Number(x.isThisDevice)));
 
 const formatDate = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 function formatRelative(iso: string) {
@@ -934,4 +949,36 @@ async function enablePasskey() {
     outline: none;
     border-color: var(--primary);
 }
+</style>
+
+<style scoped>
+.device-card { border-radius: 0.9rem; border: 1px solid var(--border-color); background: var(--bg2); overflow: hidden; transition: border-color 0.2s ease; }
+.device-card.is-current { border-color: color-mix(in srgb, var(--primary) 45%, var(--border-color)); background: color-mix(in srgb, var(--primary) 4%, var(--bg2)); }
+.device-ico, .rescue-ico {
+    flex: none; width: 2.5rem; height: 2.5rem; border-radius: 0.8rem; display: grid; place-items: center; font-size: 1.15rem;
+    color: var(--text2); background: color-mix(in srgb, var(--text) 7%, transparent);
+}
+.is-current .device-ico { color: var(--primary); background: color-mix(in srgb, var(--primary) 14%, transparent); }
+.rescue-ico { color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); }
+.rename-btn { font-size: 0.75rem; color: var(--text2); opacity: 0; transition: opacity 0.15s ease, color 0.15s ease; }
+.device-card:hover .rename-btn, .rename-btn:focus-visible { opacity: 1; }
+.rename-btn:hover { color: var(--text); }
+@media (hover: none) { .rename-btn { opacity: 1; } }
+.disconnect-btn { flex: none; align-self: center; padding: 0.4rem 0.7rem; border-radius: 0.6rem; font-size: 0.75rem; font-weight: 600; white-space: nowrap; color: var(--text2); transition: color 0.15s ease, background-color 0.15s ease; }
+.disconnect-btn:hover:not(:disabled) { color: #ef4444; background: rgb(239 68 68 / 0.1); }
+.disconnect-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.lock-panel { display: flex; gap: 0.875rem; padding: 0.9rem 1rem 1rem; border-top: 1px dashed color-mix(in srgb, var(--primary) 30%, var(--border-color)); }
+.lock-panel > i { margin-top: 0.1rem; width: 2.5rem; text-align: center; }
+
+.chip { font-size: 0.625rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.125rem 0.5rem; border-radius: 999px; }
+.chip-ok { color: var(--primary); background: color-mix(in srgb, var(--primary) 15%, transparent); }
+.chip-warn { color: #f59e0b; background: rgb(245 158 11 / 0.15); }
+.chip-bad { color: #ef4444; background: rgb(239 68 68 / 0.15); }
+.chip-off { color: var(--text2); background: color-mix(in srgb, var(--text) 9%, transparent); }
+
+.why-less-safe { margin-left: 3.25rem; font-size: 0.75rem; color: var(--text2); }
+.why-less-safe summary { cursor: pointer; width: fit-content; color: var(--text2); transition: color 0.15s ease; }
+.why-less-safe summary:hover { color: var(--primary); }
+.why-less-safe p { margin-top: 0.5rem; line-height: 1.5; }
+@media (max-width: 639px) { .why-less-safe { margin-left: 0; } }
 </style>

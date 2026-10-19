@@ -169,57 +169,52 @@
 
                 </section>
 
-                <!-- SECURITY -->
-                <section 
-                    v-if="activeTab === 'security'" 
-                    class="animate-fade-in space-y-8"
-                >
+                <!-- APPAREILS (E2EE v4 : doc/securite/13 §11) -->
+                <section v-if="activeTab === 'devices'" class="animate-fade-in space-y-8">
                     <div>
-                        <h3 class="text-xl font-black text-(--text) mb-1">Appareils et sécurité</h3>
-                        <p class="text-sm text-(--text2)">Gérez vos appareils, la sécurité de votre compte et le chiffrement de bout en bout.</p>
+                        <h3 class="text-xl font-black text-(--text) mb-1">Appareils</h3>
+                        <p class="text-sm text-(--text2)">Les appareils autorisés à lire vos messages chiffrés.</p>
                     </div>
 
                     <div class="space-y-6">
-                        <div class="space-y-4">
-                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Chiffrement de bout en bout (E2EE)</h4>
-                            
-                            <div class="p-6 bg-(--bg2) border border-(--border-color) rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center gap-6">
-                                <div class="w-16 h-16 rounded-full shrink-0 flex items-center justify-center transition-colors"
-                                    :class="E2EEUnloked ? 'bg-(--primary)/10 text-(--primary)' : 'bg-red-500/10 text-red-500'">
-                                    <i class="bi text-3xl" :class="E2EEUnloked ? 'bi-shield-lock-fill' : 'bi-shield-exclamation'"></i>
-                                </div>
-                                <div class="flex-1">
-                                    <h4 class="font-bold text-(--text) flex items-center gap-2">
-                                        Statut du chiffrement
-                                        <span class="px-2 py-0.5 rounded-full text-[10px] uppercase tracking-widest font-bold"
-                                            :class="E2EEUnloked ? 'bg-(--primary)/20 text-(--primary)' : 'bg-red-500/20 text-red-500'">
-                                            {{ E2EEUnloked ? 'Actif' : 'Verrouillé' }}
-                                        </span>
-                                    </h4>
-                                    <p class="text-sm text-(--text2) mt-1 leading-relaxed">
-                                        Vos conversations sont chiffrées de bout en bout. Même nous ne pouvons pas les lire.
-                                    </p>
-                                </div>
-                                <div>
-                                    <button 
-                                        v-if="E2EEUnloked"
-                                        @click="lockSecurity(); emit('close')" 
-                                        class="second flex items-center gap-2 whitespace-nowrap text-sm"
-                                    >
-                                        <i class="bi bi-lock-fill"></i>
-                                        Verrouiller la session
-                                    </button>
-                                </div>
+                        <div class="p-4 bg-(--bg2) border border-(--border-color) rounded-xl flex items-center gap-4">
+                            <div class="w-11 h-11 rounded-full shrink-0 flex items-center justify-center"
+                                :class="E2EEUnloked ? 'bg-(--primary)/10 text-(--primary)' : 'bg-red-500/10 text-red-500'">
+                                <i class="bi text-xl" :class="E2EEUnloked ? 'bi-shield-lock-fill' : 'bi-shield-exclamation'"></i>
                             </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-bold text-sm text-(--text) flex items-center gap-2 flex-wrap">
+                                    Chiffrement de bout en bout
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] uppercase tracking-widest font-bold"
+                                        :class="E2EEUnloked ? 'bg-(--primary)/20 text-(--primary)' : 'bg-red-500/20 text-red-500'">
+                                        {{ E2EEUnloked ? 'Actif' : 'Verrouillé' }}
+                                    </span>
+                                </p>
+                                <p class="text-xs text-(--text2) mt-0.5">Vos conversations sont chiffrées : même nous ne pouvons pas les lire.</p>
+                            </div>
+                            <button v-if="E2EEUnloked" @click="lockSecurity(); emit('close')" class="second flex items-center gap-2 whitespace-nowrap text-xs">
+                                <i class="bi bi-lock-fill"></i> Verrouiller
+                            </button>
                         </div>
 
-                        <!-- E2EE v4 : appareils, clé de récupération, verrou local (doc/securite/13 §11) -->
-                        <DevicesSecurity v-if="isV4 && E2EEUnloked" />
+                        <DevicesSecurity v-if="isV4 && E2EEUnloked" view="devices" />
                         <!-- Comptes v3 : migration proposée, pas imposée (P5) -->
                         <E2eeUpgrade v-else-if="E2EEUnloked" />
+                    </div>
+                </section>
 
-                        <div v-if="E2EEUnloked" class="space-y-4">
-                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Preuve de chiffrement (E2EE)</h4>
+                <!-- SÉCURITÉ -->
+                <section v-if="activeTab === 'security'" class="animate-fade-in space-y-8">
+                    <div>
+                        <h3 class="text-xl font-black text-(--text) mb-1">Sécurité</h3>
+                        <p class="text-sm text-(--text2)">Accès de secours, clés de chiffrement, mot de passe et suppression du compte.</p>
+                    </div>
+
+                    <div class="space-y-8">
+                        <DevicesSecurity v-if="isV4 && E2EEUnloked" view="security" />
+
+                        <details v-if="E2EEUnloked" class="proof-details space-y-4">
+                            <summary class="cursor-pointer w-fit text-xs font-black uppercase tracking-widest text-(--text2) hover:text-(--primary) transition-colors">Preuve de chiffrement : empreinte de ma clé publique</summary>
                             
                             <div class="p-5 bg-(--bg2) border border-(--border-color) rounded-xl flex flex-col gap-3">
                                 <div class="flex items-center gap-3 text-(--text)">
@@ -242,7 +237,7 @@
                                     Ceci est l'empreinte unique de votre clé publique. Elle est utilisée par vos contacts pour chiffrer les messages qu'ils vous envoient. {{ isV4 ? 'Seuls vos appareils connectés peuvent les déchiffrer avec la clé privée correspondante.' : 'Seul votre appareil (grâce au code PIN) peut les déchiffrer avec la clé privée correspondante.' }}
                                 </p>
                             </div>
-                        </div>
+                        </details>
 
                         <div class="space-y-4">
                             <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Mot de passe</h4>
@@ -298,6 +293,7 @@
 
                             </div>
                         </div>
+
 
                         <div class="space-y-4">
                             <h4 class="text-xs font-black uppercase tracking-widest text-red-500">Zone de danger</h4>
@@ -931,7 +927,8 @@ const deleteAccount = async () => {
 
 const tabs = [
     { id: 'account', label: 'Mon profil', icon: 'bi bi-person-badge-fill' },
-    { id: 'security', label: 'Appareils et sécurité', icon: 'bi bi-shield-lock-fill' },
+    { id: 'devices', label: 'Appareils', icon: 'bi bi-laptop-fill' },
+    { id: 'security', label: 'Sécurité', icon: 'bi bi-shield-lock-fill' },
     { id: 'appearance', label: 'Apparence', icon: 'bi bi-palette-fill' },
     { id: 'notifications', label: 'Notifications', icon: 'bi bi-bell-fill' },
     { id: 'reports', label: "Rapports", icon: 'bi bi-envelope-paper-fill' }

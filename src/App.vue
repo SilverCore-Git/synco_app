@@ -182,7 +182,7 @@ const offerV4Upgrade = () => {
   } catch {
     return;
   }
-  toast.show('Nouveau : utilisez Synco sur plusieurs appareils sans dépendre de votre code PIN. Paramètres › Appareils et sécurité.', 'info', 12000);
+  toast.show('Nouveau : utilisez Synco sur plusieurs appareils sans dépendre de votre code PIN. Paramètres › Appareils.', 'info', 12000);
 };
 
 const press = (num: string) => {

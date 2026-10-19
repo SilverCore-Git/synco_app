@@ -127,7 +127,7 @@ Les comptes existants restent fonctionnels et inchangés tant qu'ils ne migrent 
 | **P1** ✅ | Noyau cryptographique pur et testé : AK, enveloppes, liaison d'appareil (ECDH + SAS), clé de récupération, formats versionnés |
 | **P2** ✅ | API : schéma Prisma, routes (appareils, liaison, récupération), limitation de débit, notifications, tests |
 | **P3** ✅ | Coffres par plateforme : web (PRF/IndexedDB), Capacitor (biométrie native), Tauri |
-| **P4** ✅ | Interface : onboarding, clé de récupération, **paramètres utilisateur › « Appareils et sécurité »** (liste, nom, plateforme, dernière activité, appareil actuel, déconnexion, ajout par QR, clé de récupération, récupération par PIN annoncée), liaison par QR, déverrouillage (§13) |
+| **P4** ✅ | Interface : onboarding, clé de récupération, **paramètres utilisateur › « Appareils » et « Sécurité »** (liste, nom, plateforme, dernière activité, appareil actuel, déconnexion, ajout par QR, clé de récupération, récupération par PIN annoncée), liaison par QR, déverrouillage (§13) |
 | **P5** ✅ | Migration v3 → v4 proposée dans les paramètres, suppression du matériel PIN côté serveur (§13.4) |
 | **P6** ✅ | Révocation d'appareil avec rotation d'AK (réalisée avec P4, §13.2) |
 | **P7** ✅ | Récupération par PIN durcie (troisième acteur, §14) et rotation d'identité (§15) |
@@ -148,14 +148,20 @@ Chaque phase est committée séparément, avec ses tests, et reste compatible av
 
 ## 11. Gestion des appareils dans les paramètres
 
-Nouvelle section **« Appareils et sécurité »** dans les paramètres utilisateur :
-- liste des appareils : nom modifiable, plateforme, date d'ajout, dernière activité, badge « Cet appareil » ;
-- **Déconnecter** un appareil (confirmation avec `ConfirmDelete.vue`, jamais de dialogue natif) : retrait + rotation d'AK ;
-- **Ajouter un appareil** : QR code à scanner depuis un appareil connecté, avec le code de vérification à comparer ;
-- **Clé de récupération** : télécharger / régénérer (régénérer invalide la précédente) ;
-- **Récupération par PIN** : activer / désactiver avec avertissement ;
-- verrou local : changer le PIN local, activer / désactiver la biométrie ;
-- alertes : e-mail et notification in-app à l'ajout et au retrait d'un appareil.
+Deux onglets des paramètres utilisateur, séparés par intention (un seul composant, `DevicesSecurity.vue`, avec la propriété `view`) :
+
+**Appareils** (usage courant)
+- état du chiffrement (« Actif ») et **Verrouiller** ;
+- liste des appareils, **cet appareil en premier** : nom modifiable, plateforme, date d'ajout, dernière activité, badge « Cet appareil », « Non certifié » le cas échéant ;
+- le **verrou local** appartient à cet appareil et s'affiche sous sa ligne : coffre utilisé, changer le PIN local, passer à une passkey ou revenir au PIN ;
+- **Ajouter un appareil** (QR à scanner ou code à saisir, avec le code de vérification à comparer) ; **Déconnecter** discret, avec `ConfirmDelete.vue` (retrait + rotation d'AK, jamais de dialogue natif).
+
+**Sécurité** (rare)
+- **Si vous perdez vos appareils** : une carte, deux lignes, chacune avec un statut (Active / Absente ; Activé / Désactivé / Bloqué / Injoignable) : clé de récupération (créer, régénérer : l'ancienne est invalidée) et code PIN de récupération (activer, changer, désactiver ; « Pourquoi est-ce moins sûr ? » repliable) ;
+- **Avancé** : renouveler les clés de chiffrement (rotation d'identité) ; preuve de chiffrement (empreinte de la clé publique) repliée ;
+- mot de passe, puis zone de danger (suppression du compte).
+
+Alertes : e-mail et notification in-app à l'ajout et au retrait d'un appareil. Les comptes v3 voient la proposition de migration dans l'onglet Appareils.
 
 ## 12. Coffres par plateforme — état de P3 (`src/assets/deviceVault/`)
 
@@ -186,7 +192,7 @@ Nouvelle section **« Appareils et sécurité »** dans les paramètres utilisat
 | Appels HTTP `/api/e2ee/v4` | `src/assets/e2eeV4/api.ts` | non (mince) |
 | Liaison avec l'application (coffres, keyTrust, `privateKey`) | `src/assets/e2eeV4/runtime.ts` | type-check |
 | Écran de verrouillage v4 (déverrouillage, connexion d'un appareil, création, réinitialisation) | `src/components/e2ee/V4Gate.vue`, branché dans `App.vue` | type-check, build |
-| Paramètres › Appareils et sécurité | `src/components/settings/DevicesSecurity.vue`, `E2eeUpgrade.vue` (migration) | type-check, build |
+| Paramètres › Appareils et › Sécurité | `src/components/settings/DevicesSecurity.vue`, `E2eeUpgrade.vue` (migration) | type-check, build |
 | Pavé PIN, QR code, lecteur de QR, clé de récupération | `src/components/e2ee/*.vue` | type-check, build |
 | Verrous API, retrait multiple, réinitialisation | `synco_api` : `routes/users.ts`, `routes/e2eeV4.ts`, `security/e2ee-v4-p4.db.test.ts` | oui |
 
