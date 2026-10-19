@@ -650,6 +650,7 @@ async function checkLink(): Promise<boolean> {
         if (result) {
             opened = result;
             linkSas.value = result.sas;
+            notice.value = '';
             linkQr.value = '';
             step.value = 'link-sas';
             return true;

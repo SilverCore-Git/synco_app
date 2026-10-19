@@ -6,7 +6,7 @@ import {
     prepareV4Account, recoverWithKey, regenerateRecoveryKey, removeDevices, rotateIdentity, startLink, unlockV4,
     type InitBody,
 } from "./session";
-import { U, device, errName, fakeServer, sealedOf, served } from "./testkit";
+import { U, device, errName, trustStore, fakeServer, sealedOf, served } from "./testkit";
 
 async function createAccount(withRecovery = true) {
     const server = fakeServer();
@@ -347,6 +347,32 @@ describe("rotation d'identité", () => {
         await rotateIdentity(a.dev, [], async () => sealedOf(server.state), a.ctx);
         server.state.transitions = [];
         expect(await errName(unlockV4(b.dev, sealedOf(server.state), served(server.state), b.ctx))).toBe("IdentityMismatchError");
+    });
+
+    test("appareil retiré par une rotation, puis reconnecté dans le même navigateur : l'ancienne épingle est remplacée via la chaîne", async () => {
+        const { server, a } = await createAccount();
+        const b = await link(server, a);
+        const bId = (await getLocalDevice(b.dev.store, U))!.deviceId;
+        const result = await rotateIdentity(a.dev, [bId], async () => sealedOf(server.state), a.ctx);
+        // même navigateur (même keyTrust, donc ancienne identité épinglée), stockage d'appareil neuf
+        const c = device(server.api, "2222");
+        c.dev.trust = b.dev.trust;
+        await recoverWithKey(c.dev, result.recoveryKeyText!, sealedOf(server.state), served(server.state), c.opts);
+        expect((b.dev.trust as ReturnType<typeof trustStore>).pinned!.publicKey).toBe(server.state.user!.publicKey);
+    });
+
+    test("même cas sans chaîne justificative : refusé, aucun appareil n'est enregistré", async () => {
+        const { server, a } = await createAccount();
+        const b = await link(server, a);
+        const bId = (await getLocalDevice(b.dev.store, U))!.deviceId;
+        const result = await rotateIdentity(a.dev, [bId], async () => sealedOf(server.state), a.ctx);
+        server.state.transitions = [];
+        const devicesBefore = server.state.devices.size;
+        const c = device(server.api, "2222");
+        c.dev.trust = b.dev.trust;
+        expect(await errName(recoverWithKey(c.dev, result.recoveryKeyText!, sealedOf(server.state), served(server.state), c.opts))).toBe("IdentityMismatchError");
+        expect(server.state.devices.size).toBe(devicesBefore);
+        expect(await getLocalDevice(c.dev.store, U)).toBeUndefined();
     });
 
     test("clé de récupération après rotation : un appareil neuf obtient aussi l'archive", async () => {

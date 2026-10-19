@@ -287,6 +287,7 @@ OPRF de la RFC 9497 sur P-256 (`@noble/curves` 2.4.0, côté app, API et keyguar
 
 - **Ses propres appareils** : au déverrouillage, une identité différente de celle épinglée n'est acceptée que si une chaîne de transitions signées part de l'identité épinglée et y aboutit exactement ; le pin local est alors mis à jour. Sans chaîne valide : `IdentityMismatchError` (défense du §7 inchangée).
 - **Historique** : tous les déchiffrements RSA de l'identité courante (`crypto.ts`, `rsaDecrypt`) se rabattent sur les clés archivées ; DM, clés de salons, d'espaces, de sessions IA et partages de clé d'équipe scellés pour l'ancienne clé restent lisibles. Toute rotation d'AK rescelle l'archive (exigée par l'API dès qu'elle existe).
+- **Appareil retiré puis reconnecté dans le même navigateur** : son épingle locale (keyTrust) date d'avant la rotation. À l'inscription (liaison ou clé de récupération), la nouvelle identité n'est acceptée que si la même chaîne de transitions signées part de l'ancienne clé de signature épinglée et y aboutit ; sinon `IdentityMismatchError`, **avant** toute inscription (aucun appareil enregistré à moitié).
 - **Autres membres** (`keyTrust`) : une clé RSA ou de signature changée est acceptée sans alerte seulement si la chaîne `GET /e2ee/v4/users/:id/transitions` part de la clé de signature **épinglée localement** pour ce membre et aboutit à la clé présentée. Sinon, comportement d'avant : alerte (RSA) ou refus (signature).
 
 ### 15.3 Limites

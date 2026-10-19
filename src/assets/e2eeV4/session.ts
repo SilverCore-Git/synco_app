@@ -260,6 +260,24 @@ async function acceptRotatedIdentity(dev: DeviceContext, pinned: IdentityPin, de
     await dev.trust.pin(derived, { replace: true });
 }
 
+/**
+ * Épingle sa propre identité à l'inscription d'un appareil. Un navigateur dont l'épingle date d'avant
+ * une rotation d'identité (appareil retiré, puis reconnecté) ne reconnaît pas la nouvelle : elle
+ * n'est acceptée que si la chaîne de transitions signées part de l'ancienne clé de signature et y
+ * aboutit (même règle qu'au déverrouillage), sinon IdentityMismatchError.
+ */
+async function pinOwnIdentity(dev: DeviceContext, derived: IdentityPin): Promise<void> {
+    try {
+        await dev.trust.pin(derived);
+    } catch (e) {
+        if (!(e instanceof IdentityMismatchError)) throw e;
+        const pinned = await dev.trust.pinnedSignKey();
+        const end = pinned ? await followIdentityChain(dev.userId, pinned, await dev.api.getTransitions(dev.userId).catch(() => [])) : undefined;
+        if (!end || end.publicKey !== derived.publicKey || end.publicSignKey !== derived.publicSignKey) throw e;
+        await dev.trust.pin(derived, { replace: true });
+    }
+}
+
 /** Ce que le serveur annonce (user.publicKey / publicSignKey) : comparé, jamais cru. */
 export interface ServedIdentity {
     publicKey?: string | null;
@@ -529,6 +547,8 @@ export async function enrollWithAccountKey(
         archived = await openArchive(dev, akBytes);
         const derived = await derivePublic(id);
         assertServed(derived, served);
+        // Avant d'inscrire : un refus ici ne doit pas laisser un appareil enregistré à moitié.
+        await pinOwnIdentity(dev, derived);
         const { payload } = await enroll(dev.userId, dev.store, akBytes, id.signPkcs8, derived, opts);
         try {
             await dev.api.addDevice({ device: payload, ...(linkRequestId ? { linkRequestId } : {}) });
@@ -536,7 +556,6 @@ export async function enrollWithAccountKey(
             await forgetThisDevice(dev.userId, dev.store, dev.vaultFor);
             throw e;
         }
-        await dev.trust.pin(derived);
         return await importIdentity(id, archived);
     } finally {
         wipeIdentity(id);
