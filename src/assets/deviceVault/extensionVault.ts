@@ -61,7 +61,7 @@ export interface ExtensionWindow {
     removeEventListener(type: 'message', listener: (event: ExtensionMessageEvent) => void): void;
 }
 
-type Op = 'status' | 'has' | 'create' | 'load' | 'remove';
+type Op = 'status' | 'has' | 'create' | 'load' | 'remove' | 'cancel';
 
 /** Objet simple, y compris venu d'un autre contexte (prototype racine d'un autre monde). */
 const isPlain = (v: unknown): v is Record<string, unknown> => {
@@ -344,6 +344,12 @@ export class ExtensionVault implements DeviceVault {
         try {
             result = await pending;
             outcome = 'ok';
+        } catch (e) {
+            // La page a abandonné la demande (bouton « Annuler ») : on dit aussi à l'extension de refermer SA fenêtre de PIN,
+            // sinon elle resterait ouverte jusqu'à 2 minutes. Au mieux : une extension plus ancienne répond « bad-request »,
+            // et rien n'en dépend (la fenêtre se ferme alors d'elle-même).
+            if (ctx?.signal?.aborted && !channel.isClosed) channel.request('cancel', {}, this.shortTimeoutMs).catch(() => undefined);
+            throw e;
         } finally {
             try { done?.(outcome); } catch { /* idem */ }
         }

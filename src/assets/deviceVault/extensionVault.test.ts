@@ -429,7 +429,7 @@ describe("ExtensionVault", () => {
             const win = new FakeWindow();
             let pendingReply: (() => void) | undefined;
             const sent = crypto.getRandomValues(new Uint8Array(32)).buffer;
-            fakeExtension(win, (req, reply) => { pendingReply = () => reply({ id: req.id, ok: true, result: { dk: sent } }); });
+            fakeExtension(win, (req, reply) => { if (req.op === "load") pendingReply = () => reply({ id: req.id, ok: true, result: { dk: sent } }); });
             const vault = new ExtensionVault({ win, ...FAST, promptTimeoutMs: 10_000 });
             const ctrl = new AbortController();
             const attempt = vault.load(DEV, { signal: ctrl.signal });
@@ -439,6 +439,53 @@ describe("ExtensionVault", () => {
             pendingReply!();
             await tick();
             expect([...new Uint8Array(sent)].every(b => b === 0)).toBe(true);
+        });
+
+        test("annulation côté page : l'extension reçoit « cancel » pour refermer sa fenêtre de PIN", async () => {
+            const win = new FakeWindow();
+            const ext = fakeExtension(win, () => { /* la fenêtre de PIN reste ouverte : aucune réponse */ });
+            const vault = new ExtensionVault({ win, ...FAST, promptTimeoutMs: 10_000 });
+            const ctrl = new AbortController();
+            const attempt = vault.create(DEV, { signal: ctrl.signal, reason: "Protéger" });
+            await sleep(5);
+            expect(ext.requests.map(r => r.op)).toEqual(["create"]);
+            ctrl.abort();
+            expect(await code(attempt)).toBe("cancelled");
+            await sleep(5);
+            expect(ext.requests.map(r => r.op)).toEqual(["create", "cancel"]);
+            expect(ext.requests[1]!.args).toEqual({}); // jamais d'identifiant ni de donnée avec cancel
+        });
+
+        test("pas de « cancel » après un succès, un refus de l'extension ou un signal déjà annulé", async () => {
+            const win = new FakeWindow();
+            const ext = fakeExtension(win);
+            const vault = new ExtensionVault({ win, ...FAST });
+            const ctrl = new AbortController();
+            await vault.create(DEV, { signal: ctrl.signal });
+            await sleep(5);
+            expect(ext.requests.map(r => r.op)).toEqual(["create"]);
+
+            ctrl.abort(); // abandon après coup : plus rien à fermer
+            await sleep(5);
+            expect(ext.requests.map(r => r.op)).toEqual(["create"]);
+
+            const win2 = new FakeWindow();
+            const ext2 = fakeExtension(win2, (req, reply) => reply({ id: req.id, ok: false, error: { code: "cancelled" } }));
+            expect(await code(new ExtensionVault({ win: win2, ...FAST }).load(DEV, { signal: new AbortController().signal }))).toBe("cancelled");
+            await sleep(5);
+            expect(ext2.requests.map(r => r.op)).toEqual(["load"]);
+        });
+
+        test("extension ancienne qui ne connaît pas « cancel » : l'annulation reste propre, sans erreur ni blocage", async () => {
+            const win = new FakeWindow();
+            fakeExtension(win, (req, reply) => { if (req.op === "cancel") reply({ id: req.id, ok: false, error: { code: "bad-request" } }); });
+            const vault = new ExtensionVault({ win, ...FAST, promptTimeoutMs: 10_000 });
+            const ctrl = new AbortController();
+            const attempt = vault.load(DEV, { signal: ctrl.signal });
+            await sleep(5);
+            ctrl.abort();
+            expect(await code(attempt)).toBe("cancelled");
+            await sleep(5);
         });
 
         test("signal déjà annulé : rien n'est envoyé", async () => {
