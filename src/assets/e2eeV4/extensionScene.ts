@@ -82,10 +82,10 @@ export function createExtensionScene(opts: SceneOptions): ExtensionScene {
 /**
  * Disposition « côte à côte » avec la fenêtre de l'extension : la carte et la fenêtre forment une paire centrée sur la
  * page, la carte à gauche. Constantes communes avec l'extension (synco_extension : src/background/placement.ts) :
- * fenêtre de 400 px, écart de 12 px, et la paire n'existe qu'à partir de 880 px de large (sinon la fenêtre se centre
+ * fenêtre de 420 px, écart de 12 px, et la paire n'existe qu'à partir de 880 px de large (sinon la fenêtre se centre
  * et la carte reste au milieu).
  */
-export const EXTENSION_WINDOW_WIDTH = 400;
+export const EXTENSION_WINDOW_WIDTH = 420;
 export const PAIR_GAP = 12;
 export const MIN_PAIR_VIEWPORT = 880;
 

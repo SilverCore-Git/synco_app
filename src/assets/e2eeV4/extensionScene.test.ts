@@ -84,8 +84,8 @@ describe("scène Synco ↔ extension", () => {
 
 describe("disposition côte à côte", () => {
     test("la carte se décale de la moitié (fenêtre + écart) quand la page est assez large", () => {
-        expect(besideShift(1400)).toBe(206);
-        expect(besideShift(MIN_PAIR_VIEWPORT)).toBe(206);
+        expect(besideShift(1400)).toBe(216);
+        expect(besideShift(MIN_PAIR_VIEWPORT)).toBe(216);
     });
 
     test("page trop étroite ou largeur invalide : aucun décalage (la fenêtre se centre, la carte aussi)", () => {

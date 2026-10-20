@@ -358,6 +358,7 @@ import QrCode from './QrCode.vue';
 import RecoveryKeyPanel from './RecoveryKeyPanel.vue';
 import ExtensionScene from './ExtensionScene.vue';
 import { createExtensionScene, type SceneMode, type SceneView } from '@/assets/e2eeV4/extensionScene';
+import { canAutoPrompt, mustWaitForVisible } from '@/assets/e2eeV4/extensionAuto';
 import { user } from '@/assets/var';
 import { refetchUser } from '@/assets/init';
 import useWSocket from '@/composables/useWSocket';
@@ -423,6 +424,11 @@ let prepared: PreparedAccount | null = null;
 let started: StartedLink | null = null;
 let opened: OpenedLink | null = null;
 let extensionAbort: AbortController | null = null;
+let onVisible: (() => void) | null = null;
+function stopWaitingForVisible() {
+    if (onVisible) document.removeEventListener('visibilitychange', onVisible);
+    onVisible = null;
+}
 let extensionPrompted = false;
 
 /**
@@ -1079,10 +1085,28 @@ onMounted(async () => {
         }
         // Synco Extension : pas de bouton à presser, la fenêtre du PIN s'ouvre d'elle-même (la scène permet d'annuler
         // et de choisir une autre méthode). Une fois par chargement de la page.
-        if (kind === 'extension' && extensionDetected.value && !autoUnlock.tried) {
+        // Strictement bornée (extensionAuto.ts) : onglet visible, rien en cours, pas d'attente après trop d'essais,
+        // une seule fois par session de page. Un onglet chargé en arrière-plan attend d'être affiché.
+        const auto = () => ({
+            kind, detected: extensionDetected.value, tried: autoUnlock.tried, step: step.value, busy: busy.value,
+            waiting: extensionWaiting.value, lockoutSeconds: lockoutSeconds.value, missing: extensionMissing.value,
+            visible: document.visibilityState === 'visible',
+        });
+        const launchExtension = () => {
+            if (!canAutoPrompt(auto())) return;
             autoUnlock.tried = true;
             extensionAutoTried.value = true;
-            tryUnlock();
+            void tryUnlock();
+        };
+        if (mustWaitForVisible(auto())) {
+            onVisible = () => {
+                if (document.visibilityState !== 'visible') return;
+                stopWaitingForVisible();
+                launchExtension();
+            };
+            document.addEventListener('visibilitychange', onVisible);
+        } else {
+            launchExtension();
         }
     } catch (e) {
         console.error('[E2EE v4] initialisation :', e);
@@ -1092,6 +1116,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+    stopWaitingForVisible();
     cancelExtensionWait();
     sceneCtl.dispose();
     stopListening();
