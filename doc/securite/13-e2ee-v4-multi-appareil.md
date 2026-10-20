@@ -339,7 +339,7 @@ Le contrat (protocole 1, opérations, codes d'erreur, stockage, modèle de menac
 
 ### 16.5 Interface
 
-- **Inscription et déverrouillage** (`V4Gate.vue`) : « Extension détectée » (jamais « vérifiée ») ; « En attente de votre code PIN dans la fenêtre de Synco Extension… » dès que la demande part (`onPrompt`), avec **Annuler** côté page ; compte à rebours sur `locked` ; messages propres à `wiped`, `missing` et `cancelled` (fenêtre restée ouverte, autre onglet).
+- **Inscription et déverrouillage** (`V4Gate.vue`, `ExtensionScene.vue`, `extensionScene.ts`) : « Extension détectée » (jamais « vérifiée ») ; dès que la demande part (`onPrompt`), une **scène** montre l'application Synco et l'extension reliées par un lien animé, avec deux étapes (extension détectée, code PIN à saisir dans sa fenêtre) ; à la fin (`'ok'` ou `'error'`, signalé par la fonction renvoyée par `onPrompt`) elle montre la réussite 1,4 s ou s'efface devant le message d'erreur. **Annuler** côté page n'affiche aucun message d'erreur (c'est l'utilisateur qui l'a demandé) ; compte à rebours sur `locked` ; messages propres à `wiped`, `missing` et `cancelled` (fenêtre restée ouverte, autre onglet).
 - **Extension absente au déverrouillage** (`unlockFailure.ts`) : `unavailable` sur ce coffre **n'oublie pas l'appareil** (DK est intacte dans l'extension désactivée ou privée d'accès au site). Un panneau explique comment la réactiver ou lui rendre l'accès au site, propose « Réessayer » et renvoie aux chemins de récupération (autre appareil §4.3, clé de récupération §4.4, PIN de récupération §14). `wiped` et `missing` oublient l'appareil, comme pour les autres coffres.
 - **Paramètres** : bandeau d'attente au-dessus des popups pour toute opération sensible.
 

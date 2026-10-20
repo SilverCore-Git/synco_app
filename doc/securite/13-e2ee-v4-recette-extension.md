@@ -37,7 +37,8 @@ Légende : ✅ conforme · ❌ écart (noter le message exact) · ➖ non applic
 | --- | --- | --- | :-: | :-: |
 | E01 | Charger la page avec l'extension active et l'accès au site accordé | Le démarrage n'est pas retardé de façon perceptible ; sur l'écran de création ou de liaison, la phrase « Cet appareil se déverrouille avec… » cite Synco Extension | | |
 | E02 | Même test sur `https://<ip>:5174` (adresse réseau) | Aucune détection : le PIN local est proposé, comme sans extension | | |
-| E03 | Chrome avec un authentificateur de plateforme (Touch ID, Windows Hello, gestionnaire de passkeys) | La passkey est proposée avant l'extension ; l'extension n'est sollicitée que si la passkey est indisponible | | ➖ |
+| E03 | Chrome avec un authentificateur de plateforme (Touch ID, Windows Hello, gestionnaire de passkeys), extension active | Si le navigateur annonce la prise en charge de la passkey avec PRF (console : `await PublicKeyCredential.getClientCapabilities()` → `userVerifyingPlatformAuthenticator` et `extension:prf` à `true`), la passkey est proposée avant l'extension ; sinon l'extension passe devant **sans aucune invite WebAuthn** | | ➖ |
+| E03b | Firefox, même vérification | Noter la valeur de `extension:prf` ; absente ou `false` : aucune invite passkey, jamais deux fenêtres à annuler | ➖ | |
 | E04 | Sans extension (désactivée), recharger | PIN local comme avant, aucun message d'erreur au démarrage | | |
 
 ## 2. Inscription par l'extension
@@ -78,6 +79,19 @@ Légende : ✅ conforme · ❌ écart (noter le message exact) · ➖ non applic
 | E26 | Chrome : arrêter le worker (`chrome://serviceworker-internals` → Stop), puis déverrouiller | Le worker se réveille, déverrouillage normal | | ➖ |
 | E27 | Laisser la fenêtre du PIN ouverte plus de 2 minutes | La fenêtre expire, la page affiche l'annulation ; l'appareil reste inscrit | | |
 | E28 | Déverrouiller, recharger la page pendant que la fenêtre est ouverte | La fenêtre reste ouverte jusqu'à son délai ; la clé obtenue ne parvient à personne ; le déverrouillage suivant est possible | | |
+
+## 4b. Scène de connexion et fenêtre de l'extension
+
+| # | Étape | Résultat attendu | Chrome | Firefox |
+| --- | --- | --- | :-: | :-: |
+| E50 | Lier un appareil, comparer les deux codes, « Les codes correspondent » | Une scène apparaît par-dessus la page : l'icône Synco, un lien animé, l'extension ; deux étapes (« Synco Extension détectée » cochée, « Code PIN à saisir… » en cours) | | |
+| E51 | Observer la fenêtre de l'extension | Elle s'ouvre **au centre** de la fenêtre du navigateur (second écran compris), avec la même scène ; aucune passkey n'a été proposée avant | | |
+| E52 | Saisir le PIN deux fois (choix, confirmation) | Les emplacements se remplissent ; la fenêtre affiche « Appareil protégé » en grand, la page aussi (les deux étapes cochées), puis les deux se ferment d'elles-mêmes (environ 1,5 s) | | |
+| E53 | Mauvais PIN au déverrouillage | La fenêtre de l'extension secoue la saisie et affiche l'erreur ; la page reste sur la scène d'attente | | |
+| E54 | Cliquer « Annuler » dans la scène de la page | La scène se ferme **sans message d'erreur** ; la page revient à l'écran précédent et on peut recommencer | | |
+| E55 | Fermer la fenêtre de l'extension avec la croix | La scène de la page se ferme et le message d'annulation habituel s'affiche | | |
+| E56 | Système réglé sur « réduire les animations » | Aucune animation de flux ; la coche et les états restent lisibles | | |
+| E57 | Thème clair puis sombre de Synco | La scène est lisible dans les deux | | |
 
 ## 5. Extension désinstallée
 
