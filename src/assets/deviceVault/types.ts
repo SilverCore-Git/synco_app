@@ -42,9 +42,10 @@ export interface VaultContext {
     /**
      * Appelé quand une invite hors de la page vient d'être demandée (fenêtre du PIN de l'extension) :
      * l'interface peut afficher « En attente de votre PIN… ». Ne reçoit aucune donnée. La fonction
-     * renvoyée, s'il y en a une, est appelée quand la demande se termine (succès, refus ou annulation).
+     * renvoyée, s'il y en a une, est appelée quand la demande se termine : 'ok' si elle a abouti,
+     * 'error' sinon (refus, annulation, délai). Une fonction sans paramètre reste valable.
      */
-    onPrompt?: () => void | (() => void);
+    onPrompt?: () => void | ((outcome: 'ok' | 'error') => void);
 }
 
 export type VaultErrorCode =

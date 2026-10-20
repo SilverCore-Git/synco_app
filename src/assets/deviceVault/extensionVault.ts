@@ -337,13 +337,15 @@ export class ExtensionVault implements DeviceVault {
         if (!channel) throw unavailable();
         const reason = extensionReason(ctx?.reason);
         const pending = channel.request(op, reason === undefined ? { deviceId } : { deviceId, reason }, this.promptTimeoutMs, ctx?.signal);
-        let done: void | (() => void) = undefined;
+        let done: void | ((outcome: 'ok' | 'error') => void) = undefined;
         try { done = ctx?.onPrompt?.(); } catch { /* l'affichage ne doit pas interrompre la demande */ }
         let result: unknown;
+        let outcome: 'ok' | 'error' = 'error';
         try {
             result = await pending;
+            outcome = 'ok';
         } finally {
-            try { done?.(); } catch { /* idem */ }
+            try { done?.(outcome); } catch { /* idem */ }
         }
         return takeDk(result);
     }

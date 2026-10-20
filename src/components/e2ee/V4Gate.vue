@@ -20,14 +20,8 @@
             <i class="bi bi-info-circle-fill text-amber-500 mr-1" /> {{ notice }}
         </div>
 
-        <!-- Fenêtre du PIN de Synco Extension ouverte : la page attend (déverrouillage ou inscription) -->
-        <div v-if="extensionWaiting" class="ext-wait max-w-md w-full p-4 mb-6 text-sm text-(--text)" role="status" aria-live="polite">
-            <p class="font-semibold"><i class="bi bi-puzzle mr-1" /> En attente de votre code PIN dans la fenêtre de Synco Extension…</p>
-            <p class="text-xs text-(--text2) mt-2 leading-relaxed">
-                Saisissez-le dans la fenêtre de l'extension, jamais dans cette page. Elle se ferme d'elle-même au bout de 2 minutes.
-            </p>
-            <button class="second text-xs mt-3" @click="cancelExtensionWait">Annuler</button>
-        </div>
+        <!-- Fenêtre du PIN de Synco Extension ouverte : scène « Synco ↔ extension » (déverrouillage ou inscription) -->
+        <ExtensionScene :view="scene" @cancel="cancelExtensionWait" />
 
         <Transition :name="stepTransition" mode="out-in">
         <div v-if="step === 'loading'" key="loading" class="py-10"><SpinLoader /></div>
@@ -362,6 +356,8 @@ import ConfirmDelete from '../common/ConfirmDelete.vue';
 import PinPad from './PinPad.vue';
 import QrCode from './QrCode.vue';
 import RecoveryKeyPanel from './RecoveryKeyPanel.vue';
+import ExtensionScene from './ExtensionScene.vue';
+import { createExtensionScene, type SceneMode, type SceneView } from '@/assets/e2eeV4/extensionScene';
 import { user } from '@/assets/var';
 import { refetchUser } from '@/assets/init';
 import useWSocket from '@/composables/useWSocket';
@@ -414,6 +410,9 @@ const localKind = ref<VaultKind | null>(null);
 const extensionDetected = ref(false);
 const extensionMissing = ref(false);
 const extensionWaiting = ref(false);
+/** Scène « Synco ↔ extension » affichée pendant que la fenêtre de l'extension attend le PIN. */
+const scene = ref<SceneView | null>(null);
+const sceneCtl = createExtensionScene({ onChange: v => { scene.value = v; } });
 
 // Hors de l'état réactif : contexte, coffres, et objets qui détiennent AK le temps d'une étape.
 let dev: DeviceContext | null = null;
@@ -428,11 +427,16 @@ let extensionPrompted = false;
  * Contexte d'une opération du coffre : la raison affichée, l'annulation côté page et le signal
  * « fenêtre de l'extension ouverte ». Le PIN de l'extension ne passe jamais par la page.
  */
-function promptCtx(reason: string): VaultContext {
+function promptCtx(reason: string, mode: SceneMode): VaultContext {
     extensionAbort?.abort();
     extensionAbort = new AbortController();
     extensionPrompted = false;
-    return { reason, signal: extensionAbort.signal, onPrompt: () => { extensionPrompted = true; extensionWaiting.value = true; } };
+    return {
+        reason,
+        signal: extensionAbort.signal,
+        // La fonction renvoyée recevra 'ok' ou 'error' : la scène montre la réussite, ou s'efface devant l'erreur.
+        onPrompt: () => { extensionPrompted = true; extensionWaiting.value = true; return sceneCtl.begin(mode); },
+    };
 }
 
 function endPrompt() {
@@ -440,8 +444,12 @@ function endPrompt() {
     extensionAbort = null;
 }
 
-/** La page cesse d'attendre ; la fenêtre de l'extension, elle, reste ouverte (le protocole n'a pas d'annulation). */
+/**
+ * La page cesse d'attendre ; la fenêtre de l'extension, elle, reste ouverte (le protocole n'a pas d'annulation).
+ * L'annulation vient de l'utilisateur : on ne lui explique pas ce qu'il vient de faire (pas de message d'erreur).
+ */
 function cancelExtensionWait() {
+    sceneCtl.markUserCancel();
     extensionAbort?.abort();
 }
 
@@ -549,7 +557,7 @@ function abortChoosePin() {
 
 /** Lance une inscription ; si le coffre de repli demande un PIN local, le fait choisir puis recommence. */
 async function withPinFallback<T>(run: (opts: EnrollOptions) => Promise<T>, forcePin = false): Promise<T> {
-    const base: EnrollOptions = { name: defaultDeviceName(platform.value), platform: platform.value, vaults, ctx: promptCtx('Protéger les clés de cet appareil') };
+    const base: EnrollOptions = { name: defaultDeviceName(platform.value), platform: platform.value, vaults, ctx: promptCtx('Protéger les clés de cet appareil', 'enroll') };
     if (!forcePin) {
         try {
             return await run(base);
@@ -576,6 +584,7 @@ function showIdentityAlert(e: IdentityMismatchError) {
 function handleEnrollError(e: unknown): boolean {
     if (e instanceof VaultError && e.code === 'cancelled') {
         enrollCancelled.value = true;
+        if (sceneCtl.takeUserCancel()) return true; // « Annuler » cliqué dans la scène : rien à ajouter
         toast.show(extensionPrompted ? EXTENSION_CANCELLED_HINT : "Opération annulée.", 'info', extensionPrompted ? 8000 : undefined);
         return true;
     }
@@ -607,7 +616,7 @@ async function tryUnlock() {
     try {
         const { sealed, served } = await freshIdentity();
         const keys = await unlockV4(dev, sealed, served, {
-            ...promptCtx('Déverrouiller vos messages chiffrés'),
+            ...promptCtx('Déverrouiller vos messages chiffrés', 'unlock'),
             ...(unlockNeedsPin.value ? { pin: pin.value } : {}),
         });
         extensionMissing.value = false;
@@ -636,7 +645,7 @@ async function tryUnlock() {
                     extensionMissing.value = true;
                     break;
                 case 'cancelled':
-                    if (failure.message) toast.show(failure.message, 'info', 8000);
+                    if (failure.message && !sceneCtl.takeUserCancel()) toast.show(failure.message, 'info', 8000);
                     break;
                 case 'error':
                     toast.show('Déverrouillage impossible.', 'error');
@@ -1075,6 +1084,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
     cancelExtensionWait();
+    sceneCtl.dispose();
     stopListening();
     if (ticker) clearInterval(ticker);
     opened?.dispose();
@@ -1096,13 +1106,6 @@ onUnmounted(() => {
 .step-back-leave-to { opacity: 0; transform: translateX(16px); }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.25s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
-
-/* ---------- attente de la fenêtre de l'extension ---------- */
-.ext-wait {
-    border-radius: 0.75rem;
-    border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
-    background: color-mix(in srgb, var(--primary) 9%, transparent);
-}
 
 /* ---------- carte ---------- */
 .gate-card {

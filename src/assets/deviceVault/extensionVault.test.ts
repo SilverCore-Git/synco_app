@@ -238,6 +238,21 @@ describe("ExtensionVault", () => {
         expect(events).toEqual(["début", "fin", "début", "fin"]);
     });
 
+    test("onPrompt : la fonction de fin reçoit « ok » après un succès, « error » après un refus", async () => {
+        const win = new FakeWindow();
+        let refuse = false;
+        fakeExtension(win, (req, reply) => refuse
+            ? reply({ id: req.id, ok: false, error: { code: "cancelled" } })
+            : reply({ id: req.id, ok: true, result: { dk: crypto.getRandomValues(new Uint8Array(32)).buffer } }));
+        const vault = new ExtensionVault({ win, ...FAST });
+        const outcomes: string[] = [];
+        const ctx = { onPrompt: () => (outcome: "ok" | "error") => { outcomes.push(outcome); } };
+        await vault.load(DEV, ctx);
+        refuse = true;
+        await code(vault.load(DEV, ctx));
+        expect(outcomes).toEqual(["ok", "error"]);
+    });
+
     test("seuls deviceId et la raison partent ; le PIN de ctx n'est jamais transmis", async () => {
         const win = new FakeWindow();
         const ext = fakeExtension(win);
