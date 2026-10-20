@@ -4,8 +4,9 @@ import {
     EXTENSION_MESSAGES, ExtensionVault, MAX_REASON_LENGTH, detectExtension,
     type ExtensionMessageEvent, type ExtensionPort, type ExtensionWindow,
 } from "./extensionVault";
-import { enrollThisDevice, unlockAccountKey } from "./localDevice";
-import { VaultError, type KeyValueStore } from "./types";
+import { enrollThisDevice, getLocalDevice, switchVault, unlockAccountKey } from "./localDevice";
+import { PinVault } from "./pinVault";
+import { VaultError, type DeviceVault, type KeyValueStore } from "./types";
 
 const ORIGIN = "https://app.synco.one";
 const DEV = "3f2b8c1e-5a7d-4e90-9b6a-1c2d3e4f5a6b";
@@ -500,5 +501,100 @@ describe("ExtensionVault avec localDevice", () => {
         const attempt = enrollThisDevice({ userId: "u", name: "n", platform: "web", akBytes: generateAccountKeyBytes(), identitySignKey: sign.privateKey, vaults: [new ExtensionVault({ win, ...FAST }), next], store: memory() });
         expect(await code(attempt)).toBe("cancelled");
         expect(created.length).toBe(0);
+    });
+});
+
+describe("switchVault vers et depuis l'extension", () => {
+    const memory = (): KeyValueStore => {
+        const m = new Map<string, unknown>();
+        return { get: async <T>(k: string) => m.get(k) as T | undefined, set: async (k, v) => { m.set(k, structuredClone(v)); }, del: async (k) => { m.delete(k); } };
+    };
+
+    /** Appareil inscrit avec `first` ; renvoie de quoi rouvrir AK avec n'importe quel coffre. */
+    async function enrolled(first: DeviceVault, ctx?: { pin: string }) {
+        const store = memory();
+        const sign = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+        const ak = generateAccountKeyBytes();
+        const { payload } = await enrollThisDevice({ userId: "u", name: "n", platform: "web", akBytes: ak.slice(), identitySignKey: sign.privateKey, vaults: [first], store, ...(ctx ? { ctx } : {}) });
+        const unlock = (vault: DeviceVault, c?: { pin: string }) => unlockAccountKey({ userId: "u", store, vaultFor: () => vault, ...(c ? { ctx: c } : {}), fetchEnvelope: async () => ({ envelope: payload.envelope, publicKey: payload.publicKey }) });
+        return { store, ak, deviceId: payload.id, unlock };
+    }
+
+    test("PIN local → extension : même appareil, même AK, l'ancien coffre est vidé", async () => {
+        const win = new FakeWindow();
+        const ext = fakeExtension(win);
+        const extension = new ExtensionVault({ win, ...FAST });
+        const pin = new PinVault(memory(), 1000);
+        const d = await enrolled(pin, { pin: "4821" });
+
+        const next = await switchVault({ userId: "u", store: d.store, from: pin, to: extension, fromCtx: { pin: "4821" } });
+        expect(next.vaultKind).toBe("extension");
+        expect(next.deviceId).toBe(d.deviceId);
+        expect(await pin.has(d.deviceId)).toBe(false);
+        expect(ext.records.has(d.deviceId)).toBe(true);
+        expect((await d.unlock(extension)).akBytes).toEqual(d.ak);
+        // le PIN local n'a jamais été transmis à l'extension
+        expect(JSON.stringify(ext.requests)).not.toContain("4821");
+    });
+
+    test("extension → PIN local : même AK, l'enregistrement de l'extension est supprimé", async () => {
+        const win = new FakeWindow();
+        const ext = fakeExtension(win);
+        const extension = new ExtensionVault({ win, ...FAST });
+        const pin = new PinVault(memory(), 1000);
+        const d = await enrolled(extension);
+
+        const next = await switchVault({ userId: "u", store: d.store, from: extension, to: pin, toCtx: { pin: "9157" } });
+        expect(next.vaultKind).toBe("web-pin");
+        expect(ext.records.has(d.deviceId)).toBe(false);
+        expect(ext.requests.map(r => r.op)).toEqual(["create", "load", "remove"]);
+        expect((await d.unlock(pin, { pin: "9157" })).akBytes).toEqual(d.ak);
+    });
+
+    test("PIN local → extension annulé dans sa fenêtre : rien ne change, le PIN local reste utilisable", async () => {
+        const win = new FakeWindow();
+        const ext = fakeExtension(win, (req, reply) => reply({ id: req.id, ok: false, error: { code: "cancelled" } }));
+        const pin = new PinVault(memory(), 1000);
+        const d = await enrolled(pin, { pin: "4821" });
+        const before = await getLocalDevice(d.store, "u");
+
+        expect(await code(switchVault({ userId: "u", store: d.store, from: pin, to: new ExtensionVault({ win, ...FAST }), fromCtx: { pin: "4821" } }))).toBe("cancelled");
+        expect(await getLocalDevice(d.store, "u")).toEqual(before);
+        expect(ext.records.size).toBe(0);
+        expect((await d.unlock(pin, { pin: "4821" })).akBytes).toEqual(d.ak);
+    });
+
+    test("extension → PIN local, extension désactivée : refusé avant tout changement", async () => {
+        const win = new FakeWindow();
+        const ext = fakeExtension(win);
+        const extension = new ExtensionVault({ win, ...FAST });
+        const pin = new PinVault(memory(), 1000);
+        const d = await enrolled(extension);
+        ext.disable();
+
+        expect(await code(switchVault({ userId: "u", store: d.store, from: extension, to: pin, toCtx: { pin: "9157" } }))).toBe("unavailable");
+        expect((await getLocalDevice(d.store, "u"))!.vaultKind).toBe("extension");
+        expect(await pin.has(d.deviceId)).toBe(false);
+        ext.enable();
+        expect((await d.unlock(extension)).akBytes).toEqual(d.ak);
+    });
+
+    test("extension → PIN local, extension disparue juste après l'ouverture : le changement aboutit (enregistrement orphelin dans l'extension)", async () => {
+        const win = new FakeWindow();
+        let ext: ReturnType<typeof fakeExtension>;
+        ext = fakeExtension(win, (req, reply) => {
+            if (req.op === "remove") return; // plus de réponse : extension désactivée entre-temps
+            const id = req.args.deviceId as string;
+            if (req.op === "create") { const dk = crypto.getRandomValues(new Uint8Array(32)); ext.records.set(id, dk); return reply({ id: req.id, ok: true, result: { dk: dk.slice().buffer } }); }
+            if (req.op === "load") return reply({ id: req.id, ok: true, result: { dk: ext.records.get(id)!.slice().buffer } });
+        });
+        const extension = new ExtensionVault({ win, ...FAST });
+        const pin = new PinVault(memory(), 1000);
+        const d = await enrolled(extension);
+
+        const next = await switchVault({ userId: "u", store: d.store, from: extension, to: pin, toCtx: { pin: "9157" } });
+        expect(next.vaultKind).toBe("web-pin");
+        expect(ext.records.has(d.deviceId)).toBe(true);
+        expect((await d.unlock(pin, { pin: "9157" })).akBytes).toEqual(d.ak);
     });
 });
