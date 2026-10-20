@@ -11,6 +11,7 @@
                     aria-labelledby="ext-scene-title"
                     aria-describedby="ext-scene-text"
                     :data-state="view.state"
+                    :style="shift ? { translate: `-${shift}px 0` } : undefined"
                     @keydown.esc.stop.prevent="emit('cancel')"
                 >
                     <!-- Synco  ←→  Synco Extension -->
@@ -56,13 +57,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
-import type { SceneView } from '@/assets/e2eeV4/extensionScene';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { besideShift, type SceneView } from '@/assets/e2eeV4/extensionScene';
 
 const props = defineProps<{ view: SceneView | null }>();
 const emit = defineEmits<{ cancel: [] }>();
 
 const cancelBtn = ref<HTMLButtonElement | null>(null);
+
+// Côte à côte : la carte se pousse à gauche pour que la fenêtre de l'extension s'ouvre à sa droite, à son niveau.
+const shift = ref(besideShift(typeof window === 'undefined' ? 0 : window.innerWidth));
+const onResize = () => { shift.value = besideShift(window.innerWidth); };
+onMounted(() => window.addEventListener('resize', onResize));
+onUnmounted(() => window.removeEventListener('resize', onResize));
 
 const title = computed(() => {
     const v = props.view;
@@ -88,7 +95,7 @@ watch(() => props.view?.state, async (state, before) => {
 .scene-enter-active, .scene-leave-active { transition: opacity 0.25s ease; }
 .scene-enter-active .scene-card { transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease; }
 .scene-leave-active .scene-card { transition: transform 0.2s ease-in, opacity 0.2s ease; }
-.scene-card { min-height: 31rem; } /* la carte ne change pas de hauteur entre l'attente et la réussite */
+.scene-card { min-height: 32rem; transition: translate 0.4s cubic-bezier(0.22, 1, 0.36, 1); } /* la carte ne change pas de hauteur entre l'attente et la réussite */
 .scene-enter-from, .scene-leave-to { opacity: 0; }
 .scene-enter-from .scene-card, .scene-leave-to .scene-card { transform: scale(0.9) translateY(12px); opacity: 0; }
 

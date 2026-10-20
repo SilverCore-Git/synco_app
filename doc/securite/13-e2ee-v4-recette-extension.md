@@ -85,7 +85,7 @@ Légende : ✅ conforme · ❌ écart (noter le message exact) · ➖ non applic
 | # | Étape | Résultat attendu | Chrome | Firefox |
 | --- | --- | --- | :-: | :-: |
 | E50 | Lier un appareil, comparer les deux codes, « Les codes correspondent » | Une scène apparaît par-dessus la page : l'icône Synco, un lien animé, l'extension ; deux étapes (« Synco Extension détectée » cochée, « Code PIN à saisir… » en cours) | | |
-| E51 | Observer la fenêtre de l'extension | Elle s'ouvre **au centre** de la fenêtre du navigateur (second écran compris), avec la même scène ; aucune passkey n'a été proposée avant | | |
+| E51 | Observer la fenêtre de l'extension (navigateur d'au moins 880 px de large) | La carte de Synco se pousse à gauche et la fenêtre de l'extension s'ouvre **juste à sa droite, au même niveau** : les deux forment une paire centrée sur la page ; elle est basse (environ 560 px) et ne défile pas ; aucune passkey n'a été proposée avant. Sous 880 px : fenêtre centrée, carte au milieu. Sous Wayland, le navigateur peut ignorer la position demandée : noter où la fenêtre apparaît | | |
 | E52 | Saisir le PIN deux fois (choix, confirmation) | Les emplacements se remplissent ; la fenêtre affiche « Appareil protégé » en grand, la page aussi (les deux étapes cochées), puis les deux se ferment d'elles-mêmes (environ 1,5 s) | | |
 | E53 | Mauvais PIN au déverrouillage | La fenêtre de l'extension secoue la saisie et affiche l'erreur ; la page reste sur la scène d'attente | | |
 | E54 | Cliquer « Annuler » dans la scène de la page | La scène se ferme **sans message d'erreur** ; la page revient à l'écran précédent et on peut recommencer | | |
