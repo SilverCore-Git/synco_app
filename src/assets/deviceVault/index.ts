@@ -1,7 +1,7 @@
 import { del, get, set } from 'idb-keyval';
 import { ExtensionVault } from './extensionVault';
 import { PinVault } from './pinVault';
-import { PrfVault, webAuthnAvailable } from './prfVault';
+import { PrfVault, passkeySupport, webAuthnAvailable } from './prfVault';
 import { KeyringVault } from './keyringVault';
 import { NativeVault } from './nativeVault';
 import { webVaultsInOrder } from './selection';
@@ -15,6 +15,7 @@ import type { DeviceVault, KeyValueStore, VaultKind } from './types';
 
 export * from './types';
 export { ExtensionVault, PinVault, PrfVault, KeyringVault, NativeVault };
+export { passkeySupport, type PasskeySupport } from './prfVault';
 export * from './localDevice';
 
 /** IndexedDB. */
@@ -85,6 +86,7 @@ export async function preferredVaults(): Promise<DeviceVault[]> {
     if (platform === 'web') {
         return webVaultsInOrder({
             prf: () => webAuthnAvailable() ? createPrfVault() : undefined,
+            prfSupport: () => passkeySupport(),
             extension: getExtensionVault,
             pin: () => new PinVault(idbStore),
         });

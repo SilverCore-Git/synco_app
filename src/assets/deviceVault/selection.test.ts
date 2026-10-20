@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { generateAccountKeyBytes } from "../utils/e2eeV4";
 import { enrollThisDevice } from "./localDevice";
 import { PinVault } from "./pinVault";
-import { PrfVault } from "./prfVault";
+import { PrfVault, passkeySupport, type PasskeySupport } from "./prfVault";
 import { switchTargets, webVaultsInOrder } from "./selection";
 import { VaultError, type DeviceVault, type KeyValueStore } from "./types";
 
@@ -50,7 +50,7 @@ async function enroll(vaults: DeviceVault[], pin?: string) {
 
 describe("webVaultsInOrder : ordre des coffres sur le web", () => {
     test("ordre : passkey, extension détectée, PIN local", async () => {
-        const list = await webVaultsInOrder({ prf: () => prf({ platform: true }).vault, extension: () => extension(true).vault, pin: () => new PinVault(memory(), 1000) });
+        const list = await webVaultsInOrder({ prf: () => prf({ platform: true }).vault, prfSupport: async () => "yes", extension: () => extension(true).vault, pin: () => new PinVault(memory(), 1000) });
         expect(list.map(v => v.capabilities.kind)).toEqual(["webauthn-prf", "extension", "web-pin"]);
     });
 
@@ -71,9 +71,9 @@ describe("webVaultsInOrder : ordre des coffres sur le web", () => {
 describe("coffre retenu à l'inscription", () => {
     const pin = () => new PinVault(memory(), 1000);
 
-    test("authentificateur de plateforme + extension : la passkey l'emporte, l'extension n'est pas sollicitée", async () => {
+    test("passkey annoncée comme prise en charge + extension : la passkey l'emporte, l'extension n'est pas sollicitée", async () => {
         const p = prf({ platform: true }), e = extension(true);
-        const { record } = await enroll(await webVaultsInOrder({ prf: () => p.vault, extension: () => e.vault, pin }));
+        const { record } = await enroll(await webVaultsInOrder({ prf: () => p.vault, prfSupport: async () => "yes", extension: () => e.vault, pin }));
         expect(record.vaultKind).toBe("webauthn-prf");
         expect(e.calls.create).toBe(0);
     });
@@ -105,6 +105,69 @@ describe("coffre retenu à l'inscription", () => {
         const p = prf({ platform: true }), e = extension(false);
         const { record } = await enroll(await webVaultsInOrder({ prf: () => p.vault, extension: () => e.vault, pin }));
         expect(record.vaultKind).toBe("webauthn-prf");
+    });
+});
+
+describe("passkey et extension : aucune invite du navigateur inutile", () => {
+    const pin = () => new PinVault(memory(), 1000);
+    const kinds = async (support: PasskeySupport | "absent" | "error", detected: boolean) => (await webVaultsInOrder({
+        prf: () => prf({ platform: true }).vault,
+        ...(support === "absent" ? {} : { prfSupport: async () => { if (support === "error") throw new Error("x"); return support; } }),
+        extension: () => extension(detected).vault,
+        pin,
+    })).map(v => v.capabilities.kind);
+
+    test.each([
+        ["yes", true, ["webauthn-prf", "extension", "web-pin"]],
+        ["yes", false, ["webauthn-prf", "web-pin"]],
+        ["no", true, ["extension", "web-pin"]],
+        ["no", false, ["web-pin"]],
+        ["unknown", true, ["extension", "web-pin"]],   // pas de pari quand le bon verrou existe
+        ["unknown", false, ["webauthn-prf", "web-pin"]], // comme avant : sans extension, PrfVault tranche
+        ["absent", true, ["extension", "web-pin"]],
+        ["error", true, ["extension", "web-pin"]],
+    ] as const)("prise en charge %s, extension détectée : %s", async (support, detected, expected) => {
+        expect(await kinds(support, detected)).toEqual([...expected]);
+    });
+
+    test("navigateur dont la passkey échoue sans le dire (authentificateur de plateforme, pas de PRF) : l'extension, zéro invite", async () => {
+        // Le cas rapporté : Firefox + gestionnaire de mots de passe. Création puis lecture = deux invites à annuler.
+        const p = prf({ platform: true, prfSupported: false }), e = extension(true);
+        const vaults = await webVaultsInOrder({ prf: () => p.vault, prfSupport: async () => "unknown", extension: () => e.vault, pin });
+        const { record } = await enroll(vaults);
+        expect(record.vaultKind).toBe("extension");
+        expect(p.prompts.n).toBe(0);
+    });
+});
+
+describe("passkeySupport : détection sans invite", () => {
+    const withNavigator = async <T>(credentials: unknown, run: () => Promise<T>): Promise<T> => {
+        const had = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+        Object.defineProperty(globalThis, "navigator", { value: { credentials }, configurable: true });
+        try { return await run(); } finally { if (had) Object.defineProperty(globalThis, "navigator", had); else delete (globalThis as { navigator?: unknown }).navigator; }
+    };
+    const pkc = (caps: unknown) => ({ getClientCapabilities: async () => caps });
+
+    test("WebAuthn absent : non", async () => {
+        expect(await withNavigator({}, () => passkeySupport(undefined))).toBe("no");
+        expect(await withNavigator(undefined, () => passkeySupport(pkc({})))).toBe("no");
+    });
+
+    test("getClientCapabilities absente ou en échec : inconnu (jamais une invite pour le savoir)", async () => {
+        expect(await withNavigator({}, () => passkeySupport({}))).toBe("unknown");
+        expect(await withNavigator({}, () => passkeySupport({ getClientCapabilities: async () => { throw new Error("x"); } }))).toBe("unknown");
+        expect(await withNavigator({}, () => passkeySupport(pkc(undefined)))).toBe("unknown");
+    });
+
+    test.each([
+        [{ userVerifyingPlatformAuthenticator: true, "extension:prf": true }, "yes"],
+        [{ userVerifyingPlatformAuthenticator: false, "extension:prf": true }, "no"],
+        [{ userVerifyingPlatformAuthenticator: true, "extension:prf": false }, "no"],
+        [{ userVerifyingPlatformAuthenticator: true }, "unknown"],
+        [{ "extension:prf": true }, "unknown"],
+        [{}, "unknown"],
+    ] as const)("capacités %j : %s", async (caps, expected) => {
+        expect(await withNavigator({}, () => passkeySupport(pkc(caps)))).toBe(expected);
     });
 });
 

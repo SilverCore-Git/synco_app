@@ -55,6 +55,29 @@ export function webAuthnAvailable(): boolean {
     return typeof window !== 'undefined' && typeof (window as any).PublicKeyCredential !== 'undefined' && !!navigator.credentials;
 }
 
+/**
+ * La passkey avec PRF est-elle utilisable ici ? Répond SANS ouvrir aucune invite du navigateur :
+ * - 'no'      : WebAuthn absent, ou le navigateur déclare ne pas offrir de passkey de plateforme / d'extension PRF ;
+ * - 'yes'     : il déclare offrir les deux ;
+ * - 'unknown' : il ne sait pas le dire (getClientCapabilities absente ou muette). Seule une création le
+ *               révèle, au prix d'une ou deux invites du navigateur.
+ * `PublicKeyCredential.getClientCapabilities` : Chrome 133+, Firefox 135+, Safari 17.4+.
+ */
+export type PasskeySupport = 'yes' | 'no' | 'unknown';
+
+export async function passkeySupport(pkc: unknown = typeof window === 'undefined' ? undefined : (window as any).PublicKeyCredential): Promise<PasskeySupport> {
+    if (!pkc || typeof navigator === 'undefined' || !navigator.credentials) return 'no';
+    const get = (pkc as { getClientCapabilities?: () => Promise<Record<string, unknown> | undefined> }).getClientCapabilities;
+    if (typeof get !== 'function') return 'unknown';
+    let caps: Record<string, unknown> | undefined;
+    try { caps = await get.call(pkc); } catch { return 'unknown'; }
+    if (!caps || typeof caps !== 'object') return 'unknown';
+    const platform = caps.userVerifyingPlatformAuthenticator;
+    const prf = caps['extension:prf'];
+    if (platform === false || prf === false) return 'no';
+    return platform === true && prf === true ? 'yes' : 'unknown';
+}
+
 export class PrfVault implements DeviceVault {
     readonly capabilities = { kind: 'webauthn-prf', hardwareBacked: true, biometric: true, needsPin: false, rateLimit: 'hardware' } as const;
 
