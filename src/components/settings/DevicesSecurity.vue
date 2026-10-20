@@ -56,13 +56,28 @@
                         <div class="flex-1 min-w-0">
                             <p class="text-sm text-(--text)"><span class="text-(--text2)">Verrouillé par</span> <strong>{{ VAULT_INFO[localKind].label }}</strong></p>
                             <p class="text-xs text-(--text2) mt-1 leading-relaxed">{{ VAULT_INFO[localKind].detail }}</p>
-                            <div v-if="localKind === 'web-pin' || localKind === 'webauthn-prf'" class="flex flex-wrap gap-2 mt-3">
+                            <div v-if="isWebVaultKind(localKind)" class="flex flex-wrap items-center gap-2 mt-3">
                                 <button v-if="localKind === 'web-pin'" class="second text-xs" :disabled="lockBusy" @click="openChangePin">Changer le code PIN</button>
-                                <button v-if="localKind === 'web-pin' && prfPossible" class="primary text-xs" :disabled="lockBusy" @click="enablePasskey">
-                                    <i class="bi bi-fingerprint mr-1" /> Utiliser une passkey
-                                </button>
-                                <button v-if="localKind === 'webauthn-prf'" class="second text-xs" :disabled="lockBusy" @click="disablePasskey">Revenir au code PIN local</button>
+                                <DropDown v-if="switchOptions.length">
+                                    <template #trigger>
+                                        <button class="primary text-xs flex items-center gap-1.5" :class="{ loader: lockBusy }" :disabled="lockBusy">
+                                            <i class="bi bi-arrow-left-right" /> Changer de verrou <i class="bi bi-chevron-down text-[10px]" />
+                                        </button>
+                                    </template>
+                                    <template #content>
+                                        <button v-for="k in switchOptions" :key="k" class="dropdown-item-style gap-3 text-left" @click="switchTarget = k">
+                                            <i class="bi" :class="VAULT_INFO[k].icon" />
+                                            <span class="min-w-0">
+                                                <span class="block font-semibold">{{ VAULT_INFO[k].label }}</span>
+                                                <span class="block text-xs text-(--text2)">{{ VAULT_INFO[k].short }}</span>
+                                            </span>
+                                        </button>
+                                    </template>
+                                </DropDown>
                             </div>
+                            <p v-if="localKind === 'extension'" class="text-[11px] text-(--text2) mt-2 leading-relaxed">
+                                Le code PIN de l'extension ne se change pas ici : passez à un autre verrou, puis revenez à Synco Extension pour en choisir un nouveau.
+                            </p>
                         </div>
                     </div>
                 </li>
@@ -246,12 +261,12 @@
             </template>
         </Popup>
 
-        <!-- Changer le PIN local / passer de la passkey au PIN -->
+        <!-- Changer le PIN local / passer d'un autre verrou au PIN local -->
         <Popup :isOpen="pinChange.open" @close="pinChange.open = false">
             <template #title>{{ pinChange.mode === 'change' ? 'Changer le code PIN local' : 'Utiliser un code PIN local' }}</template>
-            <p v-if="pinChange.mode === 'from-passkey'" class="text-xs text-amber-500 mb-4 leading-relaxed">
+            <p v-if="pinChange.mode === 'to-pin'" class="text-xs text-amber-500 mb-4 leading-relaxed">
                 <i class="bi bi-exclamation-triangle-fill mr-1" />
-                Sur le web, un code PIN local protège moins bien qu'une passkey : quelqu'un qui copierait le profil de votre navigateur pourrait le deviner hors ligne.
+                {{ SWITCH_WARNING['web-pin'] }}
             </p>
             <div class="space-y-3">
                 <div v-if="pinChange.mode === 'change'" class="space-y-1">
@@ -316,6 +331,30 @@
         </Popup>
 
         <ConfirmDelete
+            :show="!!switchTarget"
+            :title="switchTarget ? SWITCH_TITLE[switchTarget] : ''"
+            item-name="le verrou de cet appareil"
+            item-type="le verrou de cet appareil"
+            :message="switchMessage"
+            :extra-warning="switchTarget ? SWITCH_WARNING[switchTarget] : ''"
+            button-text="Changer de verrou"
+            @confirm="confirmSwitch"
+            @cancel="switchTarget = null"
+        />
+
+        <!-- Fenêtre du PIN de Synco Extension ouverte : au-dessus de toute popup -->
+        <Teleport to="body">
+            <div v-if="extensionWaiting" class="ext-wait-banner" role="status" aria-live="polite">
+                <i class="bi bi-puzzle text-lg text-(--primary)" />
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-(--text)">En attente de votre code PIN dans la fenêtre de Synco Extension…</p>
+                    <p class="text-xs text-(--text2) mt-1">Saisissez-le dans la fenêtre de l'extension, jamais dans cette page.</p>
+                </div>
+                <button class="second text-xs" @click="cancelExtensionWait">Annuler</button>
+            </div>
+        </Teleport>
+
+        <ConfirmDelete
             :show="confirmDisablePin"
             title="Désactiver la récupération par code PIN ?"
             item-name="la récupération par code PIN"
@@ -374,7 +413,8 @@
 
 <script setup lang="ts">
 
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
+import DropDown from '../DropDown.vue';
 import Popup from '../Popup.vue';
 import ConfirmDelete from '../common/ConfirmDelete.vue';
 import SpinLoader from '../SpinLoader.vue';
@@ -387,6 +427,7 @@ import { E2EEUnloked, lockSecurity } from '@/assets/utils/crypto';
 import { useToast } from '@/composables/useToast';
 import { getLocalDevice, idbStore, switchVault, VaultError, type VaultContext, type VaultKind } from '@/assets/deviceVault';
 import { PinVault } from '@/assets/deviceVault/pinVault';
+import { isWebVaultKind, switchTargets } from '@/assets/deviceVault/selection';
 import { E2eeV4Error, parseLinkSecret } from '@/assets/utils/e2eeV4';
 import {
     IdentityMismatchError, V4ApiError, answerLink, checkDevices, parseLinkQr, regenerateRecoveryKey, removeDevices, rotateIdentity,
@@ -406,12 +447,52 @@ defineProps<{ view: 'devices' | 'security' }>();
 
 const toast = useToast();
 
-const VAULT_INFO: Record<VaultKind, { icon: string; label: string; detail: string }> = {
-    'webauthn-prf': { icon: 'bi-fingerprint', label: 'Passkey', detail: "Vos clés s'ouvrent avec votre passkey (empreinte, visage, code de l'appareil ou de la clé de sécurité, ou gestionnaire de passkeys compatible PRF)." },
-    'web-pin': { icon: 'bi-123', label: 'Code PIN local', detail: "Ce code n'est jamais envoyé au serveur. Sur le web, il est la seule barrière pour qui copierait le profil de votre navigateur : utilisez une passkey si votre appareil ou votre gestionnaire de passkeys le permet." },
-    'native-biometric': { icon: 'bi-fingerprint', label: 'Biométrie du téléphone', detail: "Face ID, Touch ID ou empreinte, avec le code de l'appareil en repli. Gérée par les réglages de votre téléphone." },
-    'os-keyring': { icon: 'bi-safe', label: 'Trousseau du système', detail: "Vos clés sont protégées par votre session sur cet ordinateur (Trousseau macOS, Gestionnaire d'identifiants Windows, Secret Service Linux)." },
-    'extension': { icon: 'bi-puzzle', label: 'Synco Extension', detail: "Vos clés sont gardées par l'extension, hors de la page, et le code PIN se saisit dans sa fenêtre. Ce n'est pas une protection matérielle : un PIN de 4 chiffres ne protège pas contre le vol de votre ordinateur." },
+/** Verrous de cet appareil : ce qu'ils protègent et ce qu'ils ne protègent pas, en langage simple. */
+const VAULT_INFO: Record<VaultKind, { icon: string; label: string; short: string; detail: string }> = {
+    'webauthn-prf': {
+        icon: 'bi-fingerprint', label: 'Passkey', short: 'Protection matérielle, la plus sûre',
+        detail: "Vos clés s'ouvrent avec votre passkey (empreinte, visage, code de l'appareil ou de la clé de sécurité). Les essais sont limités par le matériel : c'est le verrou le plus sûr sur le web, y compris si votre ordinateur est volé.",
+    },
+    'extension': {
+        icon: 'bi-puzzle', label: 'Synco Extension', short: 'Clés hors de la page, PIN dans sa fenêtre',
+        detail: "Vos clés sont gardées par l'extension, hors de la page, et le code PIN se saisit dans sa fenêtre : un script malveillant dans la page ne peut ni les copier ni essayer des codes en silence. Ce n'est pas une protection matérielle : un PIN de 4 chiffres ne protège pas contre le vol de votre ordinateur ; une passkey matérielle, si.",
+    },
+    'web-pin': {
+        icon: 'bi-123', label: 'Code PIN local', short: 'Gardé dans la page, le moins protecteur',
+        detail: "Ce code n'est jamais envoyé au serveur, mais il est gardé dans la page : un script malveillant ou une copie du profil de votre navigateur permettrait de le deviner hors ligne. Un PIN de 4 chiffres ne protège pas contre le vol de votre ordinateur ; une passkey matérielle, si.",
+    },
+    'native-biometric': { icon: 'bi-fingerprint', label: 'Biométrie du téléphone', short: '', detail: "Face ID, Touch ID ou empreinte, avec le code de l'appareil en repli. Gérée par les réglages de votre téléphone." },
+    'os-keyring': { icon: 'bi-safe', label: 'Trousseau du système', short: '', detail: "Vos clés sont protégées par votre session sur cet ordinateur (Trousseau macOS, Gestionnaire d'identifiants Windows, Secret Service Linux)." },
+};
+
+const SWITCH_TITLE: Partial<Record<VaultKind, string>> = {
+    'webauthn-prf': 'Passer à une passkey ?',
+    'extension': 'Passer à Synco Extension ?',
+    'web-pin': 'Passer à un code PIN local ?',
+};
+
+/** Ce que l'utilisateur fera, avec le verrou actuel (ouvrir) et le nouveau (créer). */
+const OPEN_WITH: Partial<Record<VaultKind, string>> = {
+    'webauthn-prf': 'votre passkey',
+    'extension': 'votre code PIN, dans la fenêtre de Synco Extension',
+    'web-pin': 'votre code PIN local',
+};
+const CREATE_WITH: Partial<Record<VaultKind, string>> = {
+    'webauthn-prf': 'vous créerez la passkey',
+    'extension': "vous choisirez un code PIN dans la fenêtre de l'extension (deux fois)",
+    'web-pin': 'vous choisirez un nouveau code PIN local',
+};
+
+const SWITCH_WARNING: Partial<Record<VaultKind, string>> = {
+    'webauthn-prf': "Il faut une passkey compatible PRF : si votre gestionnaire de passkeys ne la prend pas en charge, le verrou actuel reste actif.",
+    'extension': "Synco Extension garde vos clés hors de la page, mais ce n'est pas une protection matérielle : un PIN de 4 chiffres ne protège pas contre le vol de votre ordinateur ; une passkey matérielle, si. Désinstaller l'extension efface vos clés : cet appareil devra être relié de nouveau.",
+    'web-pin': "Un code PIN local est gardé dans la page : un script malveillant ou une copie du profil de votre navigateur permettrait de le deviner hors ligne. Une passkey, ou à défaut Synco Extension, protège mieux.",
+};
+
+const SWITCH_DONE: Partial<Record<VaultKind, string>> = {
+    'webauthn-prf': 'Passkey activée : cet appareil se déverrouille avec elle.',
+    'extension': 'Cet appareil se déverrouille désormais avec Synco Extension.',
+    'web-pin': 'Cet appareil se déverrouille désormais avec un code PIN local.',
 };
 
 let dev: DeviceContext | null = null;
@@ -422,6 +503,8 @@ const search = ref('');
 const hasRecovery = ref(false);
 const localKind = ref<VaultKind | null>(null);
 const prfPossible = ref(false);
+/** Synco Extension a répondu au handshake (« détectée », jamais « vérifiée »). */
+const extensionAvailable = ref(false);
 
 const accountLabel = computed(() => user.value?.email || user.value?.name || '');
 const filteredDevices = computed(() => {
@@ -459,10 +542,43 @@ async function reload() {
 
 onMounted(async () => {
     dev = await deviceContext();
-    prfPossible.value = (await enrollmentVaults()).some(v => v.capabilities.kind === 'webauthn-prf');
+    const available = await enrollmentVaults();
+    prfPossible.value = available.some(v => v.capabilities.kind === 'webauthn-prf');
+    extensionAvailable.value = available.some(v => v.capabilities.kind === 'extension');
     await reload();
     await refreshPinRec();
 });
+
+onUnmounted(() => cancelExtensionWait());
+
+// --- fenêtre du PIN de Synco Extension ---------------------------------------------
+
+const extensionWaiting = ref(false);
+let extensionAbort: AbortController | null = null;
+
+/**
+ * Contexte d'une opération du coffre : raison affichée, annulation côté page, bandeau d'attente
+ * tant que la fenêtre de l'extension est ouverte. `op` partage l'annulation entre les deux étapes
+ * d'un changement de verrou. Aucune clé ni aucun PIN ne passe par cet état.
+ */
+function promptCtx(reason: string, op = new AbortController()): VaultContext {
+    return {
+        reason, signal: op.signal,
+        onPrompt: () => {
+            extensionAbort = op;
+            extensionWaiting.value = true;
+            return () => {
+                extensionWaiting.value = false;
+                if (extensionAbort === op) extensionAbort = null;
+            };
+        },
+    };
+}
+
+/** La page cesse d'attendre ; la fenêtre de l'extension reste ouverte (le protocole n'a pas d'annulation). */
+function cancelExtensionWait() {
+    extensionAbort?.abort();
+}
 
 // --- confirmation par le coffre ------------------------------------------------
 
@@ -470,10 +586,10 @@ const stepUp = reactive({ open: false, pin: '', reason: '', errorTick: 0 });
 let stepUpResolver: { resolve: (ctx: VaultContext) => void; reject: (e: unknown) => void } | null = null;
 
 /** Contexte du coffre pour une opération sensible : demande le PIN local si ce coffre l'exige. */
-async function vaultCtx(reason: string): Promise<VaultContext> {
+async function vaultCtx(reason: string, op?: AbortController): Promise<VaultContext> {
     const record = dev ? await getLocalDevice(idbStore, dev.userId) : undefined;
     const vault = record ? dev!.vaultFor(record.vaultKind) : undefined;
-    if (!vault?.capabilities.needsPin) return { reason };
+    if (!vault?.capabilities.needsPin) return promptCtx(reason, op);
     stepUp.pin = '';
     stepUp.reason = reason;
     stepUp.open = true;
@@ -867,37 +983,85 @@ async function authorize() {
 // --- verrou de cet appareil ------------------------------------------------------------
 
 const lockBusy = ref(false);
-const pinChange = reactive({ open: false, mode: 'change' as 'change' | 'from-passkey', current: '', next: '', confirm: '' });
+const pinChange = reactive({ open: false, mode: 'change' as 'change' | 'to-pin', current: '', next: '', confirm: '' });
 const isPin = (s: string) => /^\d{4}$/.test(s);
 const canSubmitPinChange = computed(() =>
     isPin(pinChange.next) && pinChange.next === pinChange.confirm && (pinChange.mode !== 'change' || isPin(pinChange.current)));
+
+/** Verrous vers lesquels cet appareil peut passer (au plus deux sur le web). */
+const switchOptions = computed(() => switchTargets(localKind.value, { prf: prfPossible.value, extension: extensionAvailable.value }));
+const switchTarget = ref<VaultKind | null>(null);
+const switchMessage = computed(() => {
+    const from = localKind.value ? OPEN_WITH[localKind.value] : undefined;
+    const to = switchTarget.value ? CREATE_WITH[switchTarget.value] : undefined;
+    if (!from || !to) return '';
+    return `Vous confirmerez d'abord avec ${from}, puis ${to}. La clé de cet appareil est rescellée ici : rien n'est envoyé au serveur, et l'ancien verrou n'est effacé qu'une fois le nouveau en place.`;
+});
 
 function openChangePin() {
     Object.assign(pinChange, { open: true, mode: 'change', current: '', next: '', confirm: '' });
 }
 
-function disablePasskey() {
-    Object.assign(pinChange, { open: true, mode: 'from-passkey', current: '', next: '', confirm: '' });
+/** Après la confirmation : le PIN local se choisit d'abord dans la page, les autres verrous ouvrent leur invite. */
+function confirmSwitch() {
+    const target = switchTarget.value;
+    switchTarget.value = null;
+    if (!target) return;
+    if (target === 'web-pin') Object.assign(pinChange, { open: true, mode: 'to-pin', current: '', next: '', confirm: '' });
+    else void runSwitch(target);
 }
 
-async function submitPinChange() {
-    if (!dev || !canSubmitPinChange.value) return;
+/**
+ * Change le verrou de cet appareil (switchVault) : ouverture avec le verrou actuel, création du
+ * nouveau, rescellement local ; l'ancien n'est vidé qu'une fois le nouvel enregistrement écrit.
+ */
+async function runSwitch(target: VaultKind, newPin?: string): Promise<boolean> {
+    if (!dev) return false;
     lockBusy.value = true;
     try {
         const record = await getLocalDevice(idbStore, dev.userId);
         if (!record) throw new VaultError('missing');
-        if (pinChange.mode === 'change') {
-            const vault = dev.vaultFor('web-pin');
-            if (!(vault instanceof PinVault)) throw new VaultError('unavailable');
-            await vault.changePin(record.deviceId, pinChange.current, pinChange.next);
-            toast.show('Code PIN local modifié.', 'success');
+        const from = dev.vaultFor(record.vaultKind) ?? await vaultFor(record.vaultKind);
+        const to = dev.vaultFor(target) ?? await vaultFor(target);
+        if (!from || !to) throw new VaultError('unavailable', target === 'webauthn-prf' ? 'Ce navigateur ne propose pas de passkey compatible.' : undefined);
+        const op = new AbortController();
+        const fromCtx = await vaultCtx('Confirmez avec le verrou actuel pour changer le verrou de cet appareil.', op);
+        const toCtx: VaultContext = target === 'web-pin' ? { pin: newPin } : promptCtx('Nouveau verrou de cet appareil', op);
+        await switchVault({ userId: dev.userId, store: idbStore, from, to, fromCtx, toCtx });
+        const done = SWITCH_DONE[target];
+        if (done) toast.show(done, 'success');
+        await reload();
+        return true;
+    } catch (e) {
+        if (target === 'webauthn-prf' && e instanceof VaultError && e.code === 'unavailable') {
+            const detail = e.message && e.message !== 'unavailable' ? e.message : "Cette passkey ne fournit pas l'extension PRF nécessaire au chiffrement.";
+            toast.show(`${detail} Si une passkey inutilisable a été créée, vous pouvez la supprimer de votre gestionnaire. Le verrou actuel reste actif.`, 'error', 12000);
         } else {
-            const from = dev.vaultFor('webauthn-prf');
-            const to = dev.vaultFor('web-pin') ?? await vaultFor('web-pin');
-            if (!from || !to) throw new VaultError('unavailable');
-            await switchVault({ userId: dev.userId, store: idbStore, from, to, fromCtx: { reason: 'Confirmez le changement de verrou.' }, toCtx: { pin: pinChange.next } });
-            toast.show('Cet appareil se déverrouille désormais avec un code PIN local.', 'success');
+            reportError(e, 'Impossible de changer le verrou de cet appareil. Le verrou actuel reste actif.');
         }
+        return false;
+    } finally {
+        lockBusy.value = false;
+    }
+}
+
+async function submitPinChange() {
+    if (!dev || !canSubmitPinChange.value) return;
+    if (pinChange.mode === 'to-pin') {
+        const ok = await runSwitch('web-pin', pinChange.next);
+        if (ok) pinChange.open = false;
+        pinChange.next = '';
+        pinChange.confirm = '';
+        return;
+    }
+    lockBusy.value = true;
+    try {
+        const record = await getLocalDevice(idbStore, dev.userId);
+        if (!record) throw new VaultError('missing');
+        const vault = dev.vaultFor('web-pin');
+        if (!(vault instanceof PinVault)) throw new VaultError('unavailable');
+        await vault.changePin(record.deviceId, pinChange.current, pinChange.next);
+        toast.show('Code PIN local modifié.', 'success');
         pinChange.open = false;
         await reload();
     } catch (e) {
@@ -907,28 +1071,6 @@ async function submitPinChange() {
         pinChange.current = '';
         pinChange.next = '';
         pinChange.confirm = '';
-    }
-}
-
-async function enablePasskey() {
-    if (!dev) return;
-    lockBusy.value = true;
-    try {
-        const from = dev.vaultFor('web-pin');
-        const to = dev.vaultFor('webauthn-prf') ?? await vaultFor('webauthn-prf');
-        if (!from || !to) throw new VaultError('unavailable', "Ce navigateur ne propose pas de passkey compatible.");
-        const fromCtx = await vaultCtx('Saisissez votre code PIN local pour passer à une passkey.');
-        await switchVault({ userId: dev.userId, store: idbStore, from, to, fromCtx });
-        toast.show('Passkey activée : cet appareil se déverrouille avec elle.', 'success');
-        await reload();
-    } catch (e) {
-        if (e instanceof VaultError && e.code === 'unavailable') {
-            const detail = e.message && e.message !== 'unavailable' ? e.message : "Cette passkey ne fournit pas l'extension PRF nécessaire au chiffrement.";
-            toast.show(`${detail} Vous pouvez la supprimer de votre gestionnaire ; le code PIN local reste actif.`, 'error', 12000);
-        }
-        else reportError(e, "Impossible d'activer la passkey.");
-    } finally {
-        lockBusy.value = false;
     }
 }
 
@@ -970,6 +1112,14 @@ async function enablePasskey() {
 .disconnect-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .lock-panel { display: flex; gap: 0.875rem; padding: 0.9rem 1rem 1rem; border-top: 1px dashed color-mix(in srgb, var(--primary) 30%, var(--border-color)); }
 .lock-panel > i { margin-top: 0.1rem; width: 2.5rem; text-align: center; }
+
+/* Au-dessus des Popup (2000-2200) et de ConfirmDelete (3000) : visible pendant toute opération sensible. */
+.ext-wait-banner {
+    position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%); z-index: 3100;
+    width: min(30rem, calc(100vw - 2rem)); display: flex; align-items: center; gap: 0.875rem; padding: 0.9rem 1rem;
+    border-radius: 0.9rem; background: var(--bg2); box-shadow: 0 12px 32px rgb(0 0 0 / 0.35);
+    border: 1px solid color-mix(in srgb, var(--primary) 40%, var(--border-color));
+}
 
 .chip { font-size: 0.625rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.125rem 0.5rem; border-radius: 999px; }
 .chip-ok { color: var(--primary); background: color-mix(in srgb, var(--primary) 15%, transparent); }
