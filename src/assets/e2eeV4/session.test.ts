@@ -149,6 +149,35 @@ describe("liaison d'un appareil", () => {
     });
 });
 
+describe("liaison après une rotation d'AK faite ailleurs", () => {
+    test("identité scellée relue : la liaison aboutit ; celle chargée avant la rotation ne s'ouvre pas", async () => {
+        const { server, a } = await createAccount();
+        const b = await link(server, a);
+        const bId = (await getLocalDevice(b.dev.store, U))!.deviceId;
+
+        // Le nouvel appareil charge la page (identité scellée lue) ...
+        const chargee = sealedOf(server.state);
+        // ... puis un autre appareil en retire un : nouvelle AK, identité rescellée, liaisons en attente supprimées.
+        await removeDevices(a.dev, [bId], async () => sealedOf(server.state), a.ctx);
+        expect(sealedOf(server.state).encryptedPrivateKey).not.toBe(chargee.encryptedPrivateKey);
+
+        // ... enfin un QR est créé (écran resté ouvert, « Nouveau code ») et accepté avec l'AK actuelle.
+        const open = async (d: ReturnType<typeof device>) => {
+            const started = await startLink(d.dev, "Nouveau", "web");
+            const qr = (await parseLinkQr(started.qrPayload))!;
+            const pending = (await server.api.pendingLinks()).find(p => p.id === qr.requestId)!;
+            await answerLink(a.dev, pending, qr.linkSecret, a.ctx);
+            return (await started.poll())!;
+        };
+        const stale = device(server.api, "5555"), fresh = device(server.api, "6666");
+
+        expect(await errName((await open(stale)).confirm(chargee, served(server.state), stale.opts))).toBe("E2eeV4Error");
+        await (await open(fresh)).confirm(sealedOf(server.state), served(server.state), fresh.opts);
+        expect(server.state.devices.size).toBe(2); // a + le nouvel appareil
+        await unlockV4(fresh.dev, sealedOf(server.state), served(server.state), fresh.ctx);
+    });
+});
+
 describe("clé de récupération", () => {
     test("connexion d'un appareil neuf, puis régénération : l'ancienne clé ne marche plus", async () => {
         const { server, a, prepared } = await createAccount();

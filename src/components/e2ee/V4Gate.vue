@@ -20,20 +20,52 @@
             <i class="bi bi-info-circle-fill text-amber-500 mr-1" /> {{ notice }}
         </div>
 
+        <!-- Fenêtre du PIN de Synco Extension ouverte : la page attend (déverrouillage ou inscription) -->
+        <div v-if="extensionWaiting" class="ext-wait max-w-md w-full p-4 mb-6 text-sm text-(--text)" role="status" aria-live="polite">
+            <p class="font-semibold"><i class="bi bi-puzzle mr-1" /> En attente de votre code PIN dans la fenêtre de Synco Extension…</p>
+            <p class="text-xs text-(--text2) mt-2 leading-relaxed">
+                Saisissez-le dans la fenêtre de l'extension, jamais dans cette page. Elle se ferme d'elle-même au bout de 2 minutes.
+            </p>
+            <button class="second text-xs mt-3" @click="cancelExtensionWait">Annuler</button>
+        </div>
+
         <Transition :name="stepTransition" mode="out-in">
         <div v-if="step === 'loading'" key="loading" class="py-10"><SpinLoader /></div>
 
         <!-- ============ Déverrouillage quotidien ============ -->
         <div v-else-if="step === 'unlock'" key="unlock" class="flex flex-col items-center">
             <template v-if="lockoutSeconds > 0">
-                <p class="text-amber-500 font-medium">Trop de tentatives incorrectes.</p>
+                <p class="text-amber-500 font-medium">{{ localKind === 'extension' ? "Trop d'essais ou trop de demandes." : 'Trop de tentatives incorrectes.' }}</p>
                 <p class="text-(--text2) text-sm mt-1">Réessayez dans {{ formatDuration(lockoutSeconds) }}</p>
             </template>
+            <!-- Appareil verrouillé par l'extension, qui ne répond pas : ses clés ne sont pas perdues -->
+            <div v-else-if="extensionMissing" class="gate-card max-w-md w-full p-5 text-sm space-y-3">
+                <p class="font-semibold text-(--text)"><i class="bi bi-puzzle mr-1" /> Synco Extension ne répond pas</p>
+                <p class="text-(--text2) leading-relaxed">
+                    Cet appareil se déverrouille avec Synco Extension. Elle est absente, désactivée, ou n'a pas accès à ce site.
+                    Tant qu'elle n'est pas désinstallée, vos clés sont toujours dans l'extension.
+                </p>
+                <ul class="text-xs text-(--text2) space-y-1 list-disc pl-5 leading-relaxed">
+                    <li>Chrome : <code>chrome://extensions</code>, activez Synco Extension, puis Détails → Accès au site.</li>
+                    <li>Firefox : <code>about:addons</code>, activez Synco Extension, puis Autorisations → accès à ce site.</li>
+                    <li>Si elle vient d'être mise à jour, réactivée ou rechargée, rechargez cette page.</li>
+                </ul>
+                <p class="text-xs text-(--text2) leading-relaxed">
+                    Si vous l'avez désinstallée, ses clés sont effacées : connectez cet appareil depuis un autre appareil ou avec votre
+                    clé de récupération (« Autre méthode » ci-dessous).
+                </p>
+                <button class="primary text-sm" :class="{ loader: busy }" :disabled="busy" @click="retryExtension">Réessayer</button>
+            </div>
             <PinPad v-else-if="unlockNeedsPin" v-model="pin" auto-submit :disabled="busy" :error-tick="errorTick" @submit="tryUnlock" />
-            <button v-else class="primary flex items-center gap-2" :class="{ loader: busy }" :disabled="busy" @click="tryUnlock">
-                <i class="bi" :class="unlockIcon" />
-                <span class="font-bold">Déverrouiller</span>
-            </button>
+            <template v-else>
+                <p v-if="localKind === 'extension' && extensionDetected" class="text-xs text-(--text2) mb-4">
+                    <i class="bi bi-puzzle mr-1" /> Extension détectée : le code PIN se saisira dans sa fenêtre.
+                </p>
+                <button class="primary flex items-center gap-2" :class="{ loader: busy }" :disabled="busy || extensionWaiting" @click="tryUnlock">
+                    <i class="bi" :class="unlockIcon" />
+                    <span class="font-bold">Déverrouiller</span>
+                </button>
+            </template>
 
             <button class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text2) hover:text-(--primary) transition-colors" @click="goConnect()">
                 {{ unlockNeedsPin ? 'Code PIN oublié ?' : 'Autre méthode' }}
@@ -337,7 +369,8 @@ import sfetch from '@/assets/utils/sfetch';
 import { lockSecurity } from '@/assets/utils/crypto';
 import { useToast } from '@/composables/useToast';
 import useSettingsItem from '@/composables/useSettingsItem';
-import { forgetThisDevice, getLocalDevice, idbStore, VaultError, type DevicePlatform, type DeviceVault } from '@/assets/deviceVault';
+import { ExtensionVault, forgetThisDevice, getLocalDevice, idbStore, VaultError, type DevicePlatform, type DeviceVault, type VaultContext, type VaultKind } from '@/assets/deviceVault';
+import { EXTENSION_CANCELLED_HINT, unlockFailure } from '@/assets/e2eeV4/unlockFailure';
 import {
     DeviceRevokedError, IdentityMismatchError, V4ApiError, prepareV4Account, recoverWithKey, startLink, unlockV4,
     type DeviceContext, type EnrollOptions, type OpenedLink, type PreparedAccount, type StartedLink,
@@ -346,7 +379,7 @@ import { E2eeV4Error } from '@/assets/utils/e2eeV4';
 import { PinRecoveryFailure, pinRecoveryStatus, recoverWithPin } from '@/assets/e2eeV4/pinRecovery';
 import { pinRecoveryActors, pinRecoveryConfigured } from '@/assets/e2eeV4/pinRecoveryApi';
 import {
-    applyIdentityKeys, autoUnlock, defaultDeviceName, detectPlatform, deviceContext, enrollmentVaults, sealedFrom, servedFrom,
+    applyIdentityKeys, autoUnlock, defaultDeviceName, detectPlatform, deviceContext, enrollmentVaults, freshIdentity,
 } from '@/assets/e2eeV4/runtime';
 
 /**
@@ -376,6 +409,11 @@ const unlockIcon = ref('bi-unlock-fill');
 const hasPinVault = ref(false);
 const resetMode = ref(false);
 const enrollCancelled = ref(false);
+/** Coffre enregistré pour cet appareil, et état de Synco Extension (jamais de clé ici). */
+const localKind = ref<VaultKind | null>(null);
+const extensionDetected = ref(false);
+const extensionMissing = ref(false);
+const extensionWaiting = ref(false);
 
 // Hors de l'état réactif : contexte, coffres, et objets qui détiennent AK le temps d'une étape.
 let dev: DeviceContext | null = null;
@@ -383,13 +421,40 @@ let vaults: DeviceVault[] = [];
 let prepared: PreparedAccount | null = null;
 let started: StartedLink | null = null;
 let opened: OpenedLink | null = null;
+let extensionAbort: AbortController | null = null;
+let extensionPrompted = false;
+
+/**
+ * Contexte d'une opération du coffre : la raison affichée, l'annulation côté page et le signal
+ * « fenêtre de l'extension ouverte ». Le PIN de l'extension ne passe jamais par la page.
+ */
+function promptCtx(reason: string): VaultContext {
+    extensionAbort?.abort();
+    extensionAbort = new AbortController();
+    extensionPrompted = false;
+    return { reason, signal: extensionAbort.signal, onPrompt: () => { extensionPrompted = true; extensionWaiting.value = true; } };
+}
+
+function endPrompt() {
+    extensionWaiting.value = false;
+    extensionAbort = null;
+}
+
+/** La page cesse d'attendre ; la fenêtre de l'extension, elle, reste ouverte (le protocole n'a pas d'annulation). */
+function cancelExtensionWait() {
+    extensionAbort?.abort();
+}
 
 const accountLabel = computed(() => user.value?.email || user.value?.name || '');
 const vaultLabel = computed(() => {
     const kind = vaults[0]?.capabilities.kind;
+    const extension = vaults.some(v => v.capabilities.kind === 'extension');
     if (kind === 'native-biometric') return 'la biométrie de votre téléphone (ou son code de verrouillage)';
     if (kind === 'os-keyring') return 'le trousseau sécurisé de votre système';
-    if (kind === 'webauthn-prf') return 'une passkey (empreinte, visage ou code de l\'appareil) ou, à défaut, un code PIN local';
+    if (kind === 'webauthn-prf') return extension
+        ? 'une passkey (empreinte, visage ou code de l\'appareil) ou, à défaut, Synco Extension, dont la fenêtre vous demandera un code PIN'
+        : 'une passkey (empreinte, visage ou code de l\'appareil) ou, à défaut, un code PIN local';
+    if (kind === 'extension') return 'Synco Extension : le code PIN se saisit dans sa fenêtre, jamais dans cette page';
     return 'un code PIN local à 4 chiffres';
 });
 
@@ -484,12 +549,14 @@ function abortChoosePin() {
 
 /** Lance une inscription ; si le coffre de repli demande un PIN local, le fait choisir puis recommence. */
 async function withPinFallback<T>(run: (opts: EnrollOptions) => Promise<T>, forcePin = false): Promise<T> {
-    const base: EnrollOptions = { name: defaultDeviceName(platform.value), platform: platform.value, vaults };
+    const base: EnrollOptions = { name: defaultDeviceName(platform.value), platform: platform.value, vaults, ctx: promptCtx('Protéger les clés de cet appareil') };
     if (!forcePin) {
         try {
             return await run(base);
         } catch (e) {
             if (!(e instanceof VaultError && e.code === 'pin-required')) throw e;
+        } finally {
+            endPrompt();
         }
     }
     const chosen = await askPin();
@@ -509,7 +576,7 @@ function showIdentityAlert(e: IdentityMismatchError) {
 function handleEnrollError(e: unknown): boolean {
     if (e instanceof VaultError && e.code === 'cancelled') {
         enrollCancelled.value = true;
-        toast.show("Opération annulée.", 'info');
+        toast.show(extensionPrompted ? EXTENSION_CANCELLED_HINT : "Opération annulée.", 'info', extensionPrompted ? 8000 : undefined);
         return true;
     }
     if (e instanceof VaultError && e.code === 'unavailable') {
@@ -527,9 +594,10 @@ async function refreshLocalState() {
     if (!dev) return;
     const record = await getLocalDevice(idbStore, dev.userId);
     hasLocalRecord.value = !!record;
+    localKind.value = record?.vaultKind ?? null;
     const vault = record ? dev.vaultFor(record.vaultKind) : undefined;
     unlockNeedsPin.value = !!vault?.capabilities.needsPin;
-    unlockIcon.value = vault?.capabilities.biometric ? 'bi-fingerprint' : 'bi-unlock-fill';
+    unlockIcon.value = vault?.capabilities.biometric ? 'bi-fingerprint' : record?.vaultKind === 'extension' ? 'bi-puzzle' : 'bi-unlock-fill';
     return { record, vault };
 }
 
@@ -537,31 +605,41 @@ async function tryUnlock() {
     if (!dev || busy.value) return;
     busy.value = true;
     try {
-        const keys = await unlockV4(dev, sealedFrom(user.value), servedFrom(user.value), {
+        const { sealed, served } = await freshIdentity();
+        const keys = await unlockV4(dev, sealed, served, {
+            ...promptCtx('Déverrouiller vos messages chiffrés'),
             ...(unlockNeedsPin.value ? { pin: pin.value } : {}),
-            reason: 'Déverrouiller vos messages chiffrés',
         });
+        extensionMissing.value = false;
         applyIdentityKeys(keys);
     } catch (e) {
         if (e instanceof VaultError) {
-            if (e.code === 'wrong-pin') {
-                errorTick.value++;
-                toast.show('Code PIN incorrect', 'error');
-                if (e.retryAfterSeconds) { lockoutSeconds.value = e.retryAfterSeconds; ensureTicker(); }
-            } else if (e.code === 'locked') {
-                lockoutSeconds.value = e.retryAfterSeconds ?? 30;
-                ensureTicker();
-                if (!e.retryAfterSeconds) toast.show(e.message, 'error', 8000);
-            } else if (e.code === 'wiped' || e.code === 'missing') {
-                notice.value = e.code === 'wiped'
-                    ? "Trop d'essais : les clés de cet appareil ont été effacées. Reconnectez-le."
-                    : "Les clés de cet appareil sont introuvables. Reconnectez-le.";
-                await goConnect(true);
-            } else if (e.code === 'unavailable') {
-                notice.value = e.message && e.message !== 'unavailable' ? e.message : "Le coffre sécurisé de cet appareil n'est plus disponible.";
-                await goConnect(true);
-            } else if (e.code !== 'cancelled') {
-                toast.show('Déverrouillage impossible.', 'error');
+            const failure = unlockFailure(localKind.value ?? undefined, e);
+            switch (failure.action) {
+                case 'wrong-pin':
+                    errorTick.value++;
+                    toast.show('Code PIN incorrect', 'error');
+                    if (failure.retryAfterSeconds) { lockoutSeconds.value = failure.retryAfterSeconds; ensureTicker(); }
+                    break;
+                case 'lockout':
+                    lockoutSeconds.value = failure.retryAfterSeconds;
+                    ensureTicker();
+                    if (failure.message) toast.show(failure.message, 'error', 8000);
+                    break;
+                case 'reconnect':
+                    notice.value = failure.notice;
+                    await goConnect(true);
+                    break;
+                case 'extension-unavailable':
+                    // Les clés sont toujours dans l'extension : on n'oublie pas l'appareil.
+                    extensionDetected.value = false;
+                    extensionMissing.value = true;
+                    break;
+                case 'cancelled':
+                    if (failure.message) toast.show(failure.message, 'info', 8000);
+                    break;
+                case 'error':
+                    toast.show('Déverrouillage impossible.', 'error');
             }
         } else if (e instanceof DeviceRevokedError) {
             notice.value = "Cet appareil a été déconnecté de votre compte depuis un autre appareil. Reconnectez-le pour retrouver vos messages.";
@@ -573,9 +651,23 @@ async function tryUnlock() {
             toast.show('Erreur de déchiffrement', 'error');
         }
     } finally {
+        endPrompt();
         pin.value = '';
         busy.value = false;
     }
+}
+
+/** Refait le handshake avec Synco Extension (réactivée, accès au site rendu) puis déverrouille. */
+async function retryExtension() {
+    if (!dev || busy.value) return;
+    const vault = dev.vaultFor('extension');
+    busy.value = true;
+    const found = vault instanceof ExtensionVault ? await vault.detect(true) : false;
+    busy.value = false;
+    extensionDetected.value = found;
+    extensionMissing.value = !found;
+    if (found) await tryUnlock();
+    else toast.show("Synco Extension ne répond toujours pas. Vérifiez qu'elle est activée et qu'elle a accès à ce site, puis rechargez la page.", 'error', 8000);
 }
 
 /** Passe à l'écran de connexion ; `forget` : les clés locales sont inutilisables, on les oublie. */
@@ -717,7 +809,8 @@ async function confirmLink() {
     busy.value = true;
     try {
         const link = opened;
-        const keys = await withPinFallback(opts => link.confirm(sealedFrom(user.value), servedFrom(user.value), opts));
+        const { sealed, served } = await freshIdentity();
+        const keys = await withPinFallback(opts => link.confirm(sealed, served, opts));
         opened = null;
         started = null;
         await finishConnected(keys);
@@ -780,7 +873,8 @@ async function submitPinRecovery() {
     const code = pin.value;
     pin.value = '';
     try {
-        const keys = await withPinFallback(opts => recoverWithPin(dev!, pinRecoveryActors, code, sealedFrom(user.value), servedFrom(user.value), opts));
+        const { sealed, served } = await freshIdentity();
+        const keys = await withPinFallback(opts => recoverWithPin(dev!, pinRecoveryActors, code, sealed, served, opts));
         await finishConnected(keys);
     } catch (e) {
         if (e instanceof PinRecoveryFailure) {
@@ -809,7 +903,8 @@ async function submitRecovery() {
     busy.value = true;
     try {
         const text = recoveryInput.value;
-        const keys = await withPinFallback(opts => recoverWithKey(dev!, text, sealedFrom(user.value), servedFrom(user.value), opts));
+        const { sealed, served } = await freshIdentity();
+        const keys = await withPinFallback(opts => recoverWithKey(dev!, text, sealed, served, opts));
         recoveryInput.value = '';
         await finishConnected(keys);
     } catch (e) {
@@ -958,6 +1053,11 @@ onMounted(async () => {
         refreshPinRecovery();
         const local = await refreshLocalState();
         if (!local?.record) { await beginLink(); return; }
+        if (local.record.vaultKind === 'extension') {
+            const vault = dev.vaultFor('extension');
+            extensionDetected.value = vault instanceof ExtensionVault && await vault.detect();
+            extensionMissing.value = !extensionDetected.value;
+        }
         step.value = 'unlock';
         // Trousseau du système et biométrie native : on propose l'invite tout de suite. Une passkey
         // exige un geste de l'utilisateur (bouton), le PIN local une saisie.
@@ -974,6 +1074,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+    cancelExtensionWait();
     stopListening();
     if (ticker) clearInterval(ticker);
     opened?.dispose();
@@ -995,6 +1096,13 @@ onUnmounted(() => {
 .step-back-leave-to { opacity: 0; transform: translateX(16px); }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.25s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+/* ---------- attente de la fenêtre de l'extension ---------- */
+.ext-wait {
+    border-radius: 0.75rem;
+    border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+    background: color-mix(in srgb, var(--primary) 9%, transparent);
+}
 
 /* ---------- carte ---------- */
 .gate-card {

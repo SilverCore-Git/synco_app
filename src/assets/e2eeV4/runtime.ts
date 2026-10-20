@@ -81,6 +81,17 @@ export function sealedFrom(u: User | null | undefined): SealedIdentity {
 
 export const servedFrom = (u: User | null | undefined): ServedIdentity => ({ publicKey: u?.publicKey, publicSignKey: u?.publicSignKey });
 
+/**
+ * Identité scellée et clés publiques servies, RELUES sur le serveur. À utiliser pour tout
+ * déverrouillage ou inscription : `user.value` date du chargement de la page, or une rotation d'AK
+ * ou d'identité faite depuis un autre appareil change l'identité scellée, et l'AK reçue ensuite
+ * ne peut plus ouvrir l'ancienne (« Envelope cannot be opened »).
+ */
+export async function freshIdentity(): Promise<{ sealed: SealedIdentity; served: ServedIdentity }> {
+    await refetchUser();
+    return { sealed: sealedFrom(user.value), served: servedFrom(user.value) };
+}
+
 /** Arme la session déverrouillée (comme unlockSecurity*). */
 export function applyIdentityKeys(keys: IdentityKeys) {
     archivedPrivateKeys.value = keys.archivedKeys;
