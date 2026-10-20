@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | 🚧 En cours — branche `feat/e2ee-v4` (synco_app et synco_api). P1 à P6 faits (P6, le retrait d'appareil avec rotation d'AK, a été réalisé avec l'interface de P4) ; P7 faite : récupération par PIN (§14, service `synco_keyguard`) et rotation d'identité (§15). Audit et pentest de l'ensemble : [`audits/audit_pentest_e2ee-v4_2026-10-18/`](../../audits/audit_pentest_e2ee-v4_2026-10-18/README.md) (10 constats, dont V4A1 haut, corrigé). Rien n'a encore été validé sur de vrais appareils (§13.6). |
+| **Statut** | 🚧 En cours — branche `feat/e2ee-v4` (synco_app et synco_api). P1 à P6 faits (P6, le retrait d'appareil avec rotation d'AK, a été réalisé avec l'interface de P4) ; P7 faite : récupération par PIN (§14, service `synco_keyguard`) et rotation d'identité (§15). Coffre web Synco Extension intégré (§16, branche `feat/e2ee-v4-extension-vault`). Audit et pentest de l'ensemble : [`audits/audit_pentest_e2ee-v4_2026-10-18/`](../../audits/audit_pentest_e2ee-v4_2026-10-18/README.md) (10 constats, dont V4A1 haut, corrigé). Rien n'a encore été validé sur de vrais appareils (§13.6). |
 | **Origine** | Audit 2026-10-01, FC2 : le serveur détient un vérificateur et un `wrapSecret` qui permettent de forcer les 10 000 PIN hors ligne. |
 | **Contraintes** | PIN à **4 chiffres** conservé (expérience utilisateur) · **multi-appareil obligatoire** · compatibilité : les comptes legacy/v2/v3 continuent de fonctionner tant qu'ils ne migrent pas · le plus sûr possible. |
 
@@ -45,9 +45,11 @@ AccountKey (AK)        256 bits aléatoires, créée une fois, jamais en clair c
 | **Capacitor iOS** | Keychain, accès `biometryCurrentSet` (+ code de l'appareil en repli), `ThisDeviceOnly` | Face ID / Touch ID | Matérielle (Secure Enclave) |
 | **Capacitor Android** | Clé AES dans le Keystore (StrongBox si disponible), `setUserAuthenticationRequired`, invalidée si de nouvelles empreintes sont enrôlées | Empreinte / visage / code de l'appareil | Matérielle (TEE/StrongBox) |
 | **Tauri (desktop)** | Trousseau du système (déjà utilisé pour le jeton de rafraîchissement, FC9) ; Windows Hello en option | Session OS ; PIN local en repli | Selon l'OS |
-| **Web** | Secret fourni par **passkey WebAuthn (extension PRF)** quand disponible ; sinon DK enveloppée par une clé non extractable en IndexedDB + PIN | Passkey (biométrie) ou PIN | PRF : matérielle. Sans PRF : **logicielle seulement** (voir §7) |
+| **Web, passkey** | Secret fourni par **passkey WebAuthn (extension PRF)**, si un authentificateur de plateforme est disponible | Passkey (biométrie ou code de l'appareil) | Matérielle |
+| **Web, Synco Extension** | DK dans le stockage de l'extension (Chrome, Firefox), **hors de l'origine de la page**, double scellement PBKDF2 + clé non extractable de l'extension (§16) | PIN saisi dans une fenêtre de l'extension, jamais dans la page | **Logicielle** (compteur de l'extension, effacement au 10ᵉ échec) |
+| **Web, PIN local** | DK scellée par une clé dérivée du PIN (PBKDF2 600 000), en IndexedDB de la page | PIN saisi dans la page | **Logicielle seulement** (voir §7) |
 
-Le PIN à 4 chiffres sert de **repli local** quand la biométrie est indisponible ou refusée. Il ne quitte jamais l'appareil.
+Sur le web, l'ordre de choix à l'inscription est : passkey, puis Synco Extension si elle répond, puis PIN local (§16.2). Le PIN à 4 chiffres sert de **repli local** quand la biométrie est indisponible ou refusée. Il ne quitte jamais l'appareil.
 
 ## 4. Flux utilisateur
 
@@ -168,16 +170,18 @@ Alertes : e-mail et notification in-app à l'ajout et au retrait d'un appareil. 
 | Coffre | Fichier | Testé |
 |---|---|---|
 | Web, passkey WebAuthn PRF | `prfVault.ts` | authentificateur simulé |
+| Web, Synco Extension (protocole 1, voir §16) | `extensionVault.ts` | fenêtre et port simulés ; extension réelle : recette manuelle |
 | Web, repli PIN local (PBKDF2 600 000, effacement au 10ᵉ échec) | `pinVault.ts` | oui |
+| Web, ordre des coffres à l'inscription et verrous proposés au changement | `selection.ts` | oui |
 | Capacitor, Keychain / Keystore + biométrie ou code de l'appareil | `nativeVault.ts` | plugins simulés |
 | Tauri, trousseau du système (`secure_store_*`, clés `e2ee-dk:<uuid>` seulement) | `keyringVault.ts`, `src-tauri/src/lib.rs` | commande simulée, liste blanche Rust vérifiée isolément |
 | Orchestration : inscription avec repli, déverrouillage d'AK | `localDevice.ts` | oui |
 
-**À valider sur de vrais appareils** (non faisable depuis cet environnement) : Face ID / Touch ID (iOS), empreinte / visage (Android), Windows Hello / Secret Service (desktop), passkey PRF sur Chrome, Safari, Edge et Firefox. Après `bun install`, `npx cap sync` est nécessaire pour embarquer `@aparajita/capacitor-biometric-auth` dans les projets natifs.
+**À valider sur de vrais appareils** (non faisable depuis cet environnement) : Face ID / Touch ID (iOS), empreinte / visage (Android), Windows Hello / Secret Service (desktop), passkey PRF sur Chrome, Safari, Edge et Firefox, Synco Extension dans Chrome et Firefox ([recette](13-e2ee-v4-recette-extension.md)). Après `bun install`, `npx cap sync` est nécessaire pour embarquer `@aparajita/capacitor-biometric-auth` dans les projets natifs.
 
 **Points de conception**
 - À l'inscription, les coffres sont essayés du plus protecteur au repli ; seule l'*indisponibilité* de la plateforme autorise un repli, jamais une annulation de l'utilisateur.
-- Web : sans authentificateur de plateforme (`isUserVerifyingPlatformAuthenticatorAvailable()` faux, typiquement Chrome sous Linux sans gestionnaire de passkeys), `PrfVault` répond « indisponible » **avant** toute invite, pour éviter la fenêtre « téléphone par QR / clé USB » ; l'inscription passe directement au PIN local. Conséquence : une clé de sécurité USB avec PRF seule n'est pas proposée.
+- Web : sans authentificateur de plateforme (`isUserVerifyingPlatformAuthenticatorAvailable()` faux, typiquement Chrome sous Linux sans gestionnaire de passkeys), `PrfVault` répond « indisponible » **avant** toute invite, pour éviter la fenêtre « téléphone par QR / clé USB » ; l'inscription passe au coffre suivant : Synco Extension si elle a répondu au handshake, sinon le PIN local. Conséquence : une clé de sécurité USB avec PRF seule n'est pas proposée.
 - Au déverrouillage, la clé publique servie par le serveur doit être celle enregistrée localement, sinon l'enveloppe est refusée.
 - Une fois AK ouverte, l'appelant (P4/P5) doit encore vérifier que la clé d'identité déchiffrée correspond à celle qu'il a épinglée (voir §7).
 - Capacitor : la biométrie est un contrôle côté application devant un secret protégé par le trousseau de l'OS, non lié cryptographiquement à la lecture. Un appareil sans aucun verrouillage d'écran est refusé.
@@ -302,4 +306,64 @@ OPRF de la RFC 9497 sur P-256 (`@noble/curves` 2.4.0, côté app, API et keyguar
 - **Membre sans clé de signature épinglée** pour l'utilisateur qui a tourné : la chaîne n'est pas vérifiable, il voit l'alerte habituelle de changement de clé.
 - **Appareil volé déverrouillé plus rapide que le propriétaire** : il détient l'ancienne clé de signature et peut, lui aussi, signer une transition. La parade reste la même que pour la rotation d'AK : réagir vite (mot de passe Keycloak changé, sessions révoquées) ; les notifications e-mail signalent chaque rotation.
 - La réinitialisation de dernier recours ne produit pas de transition (l'ancienne identité est perdue) : les membres voient l'alerte de changement de clé, comme avant la v4.
+
+## 16. Coffre de l'extension
+
+### 16.1 Rôle et référence
+
+**Synco Extension** (Chrome, Firefox) fournit un troisième coffre web, de type `extension`, pour les navigateurs où la passkey PRF n'est pas disponible (Firefox et Chrome sous Linux, gestionnaires de passkeys sans PRF). DK y est gardée dans le stockage de l'extension, hors de l'origine de la page ; le PIN est saisi dans une fenêtre de l'extension, jamais dans la page.
+
+Ce coffre remplace le PIN local, pas la passkey : il protège contre un script hostile dans la page (lecture de l'enregistrement, essais silencieux), **pas** contre le vol du disque ou une copie du profil du navigateur, contre lesquels seule une passkey matérielle protège.
+
+Le contrat (protocole 1, opérations, codes d'erreur, stockage, modèle de menace M1 à M19, limites) est la spécification publique de l'extension : [`synco_extension/doc/16-coffre-extension.md`](https://github.com/SilverCore-Git/synco_extension/blob/main/doc/16-coffre-extension.md) (en local : `../../../synco_extension/doc/16-coffre-extension.md`). Cette section ne décrit que l'intégration côté application.
+
+### 16.2 Choix du coffre
+
+- **Inscription (web)** : passkey PRF (refusée par `PrfVault` lui-même, avant toute invite, sans authentificateur de plateforme), puis Synco Extension **si le handshake répond**, puis PIN local (`selection.ts`). Desktop et mobile ne changent pas. Une annulation dans la fenêtre de l'extension ne déclenche jamais de repli silencieux ; une extension devenue indisponible, si.
+- **Paramètres › Appareils › Verrou de cet appareil** : changement dans tous les sens entre passkey, extension et PIN local, par `switchVault` (rescellement local, rien n'est envoyé au serveur, ancien coffre vidé après l'écriture du nouveau). L'extension n'est proposée que si elle a répondu.
+- **Format local** : `vaultKind: 'extension'` s'ajoute aux quatre types existants ; un enregistrement existant n'est pas migré, et un type inconnu n'a simplement pas de coffre.
+
+### 16.3 Canal (`extensionVault.ts`)
+
+- **Handshake** : `hello` envoyé par `postMessage` à `location.origin`, jamais `'*'`. Un `ready` n'est accepté que si `event.source === window`, `event.origin === location.origin`, avec exactement les clés `source`, `type`, `protocol` (= 1) et un seul port ; une réponse mal formée est ignorée et ses ports fermés ; `unsupported` vaut « absente ».
+- **Délais** : détection 300 ms (le content script, injecté à `document_start`, répond sans passer par le worker ; le démarrage n'attend jamais au-delà) ; `status`, `has`, `remove` 5 s ; `create`, `load` 150 s, au-delà des 2 minutes de la fenêtre de l'extension.
+- **Port mort** (extension mise à jour, rechargée, désactivée) : un délai dépassé ferme le canal. Les opérations courtes refont un handshake et réessaient une fois ; `create` et `load` partent toujours sur un canal neuf et ne sont jamais relancées (pas de seconde fenêtre de PIN).
+- **Détection** mise en cache pour la page (un content script ne s'injecte qu'au chargement) ; « Réessayer » refait le handshake.
+- **Codes d'erreur** : ceux de `DeviceVault` sont repris ; `bad-request`, `unsupported-protocol` et tout code inconnu deviennent `unavailable`. Les messages de l'extension ne sont **jamais affichés** : un faux coffre (M7) pourrait y glisser un texte trompeur ; l'application affiche les siens.
+
+### 16.4 Données échangées et DK
+
+- **Vers l'extension** : `deviceId` (UUID, `crypto.randomUUID()`, revérifié avant tout envoi) et une raison en texte brut d'une ligne, au plus 200 caractères. Jamais le PIN (`ctx.pin` est ignoré), ni aucune autre donnée.
+- **DK reçue** : `ArrayBuffer` d'exactement 32 octets, sinon `unavailable` ; copiée dans un `Uint8Array`, le tampon reçu est effacé (`fill(0)`) dans tous les cas, y compris pour une réponse tardive, inconnue ou annulée. L'appelant efface sa copie dès la clé privée de l'appareil ouverte, comme pour les autres coffres.
+- Ni DK, ni PIN, ni AK, ni clé privée dans un état réactif Vue, un journal ou un message d'erreur : l'interface ne reçoit que des booléens (« fenêtre ouverte », « extension détectée »).
+
+### 16.5 Interface
+
+- **Inscription et déverrouillage** (`V4Gate.vue`) : « Extension détectée » (jamais « vérifiée ») ; « En attente de votre code PIN dans la fenêtre de Synco Extension… » dès que la demande part (`onPrompt`), avec **Annuler** côté page ; compte à rebours sur `locked` ; messages propres à `wiped`, `missing` et `cancelled` (fenêtre restée ouverte, autre onglet).
+- **Extension absente au déverrouillage** (`unlockFailure.ts`) : `unavailable` sur ce coffre **n'oublie pas l'appareil** (DK est intacte dans l'extension désactivée ou privée d'accès au site). Un panneau explique comment la réactiver ou lui rendre l'accès au site, propose « Réessayer » et renvoie aux chemins de récupération (autre appareil §4.3, clé de récupération §4.4, PIN de récupération §14). `wiped` et `missing` oublient l'appareil, comme pour les autres coffres.
+- **Paramètres** : bandeau d'attente au-dessus des popups pour toute opération sensible.
+
+### 16.6 Limites côté application
+
+- **La détection n'est pas une preuve d'identité** (M7) : un script de la page ou une autre extension peut répondre `ready` et fournir une DK qu'il connaît. Elle n'affaiblit aucun autre contrôle de l'application.
+- **Annuler côté page ne ferme pas la fenêtre de l'extension** : le protocole n'a pas d'opération d'annulation ; la page cesse d'attendre et ignore (en l'effaçant) toute réponse tardive.
+- **Pas de changement du PIN de l'extension** dans l'application : le protocole n'en prévoit pas, et `create` écrase l'enregistrement avant le rescellement. Pour changer de PIN : passer à un autre verrou, puis revenir à l'extension.
+- **Enregistrement orphelin** : si l'extension ne répond plus au moment du nettoyage (`remove` après un changement de verrou, déconnexion), sa clé reste dans l'extension ; elle se supprime depuis la page d'options de l'extension.
+- **Désinstaller l'extension efface DK** : l'appareil doit être relié de nouveau (`missing` après réinstallation, `unavailable` tant qu'elle est absente).
+- **Origines** : production `https://app.synco.one` ; développement `https://localhost:5174` (`bun run dev`) avec le build `--dev` de l'extension seulement. L'origine réseau local (`https://<ip>:5174`) n'est pas acceptée : le coffre y est absent.
+- **Navigateurs sans fenêtres d'extension** (Firefox pour Android) : non pris en charge par l'extension.
+
+### 16.7 Fichiers et vérification
+
+| Rôle | Fichier | Testé |
+|---|---|---|
+| Coffre, handshake, canal, délais, DK | `src/assets/deviceVault/extensionVault.ts` | fenêtre et port simulés (`extensionVault.test.ts`), dont changement de coffre vers et depuis l'extension |
+| Ordre des coffres, verrous proposés | `src/assets/deviceVault/selection.ts` | oui, avec de vraies inscriptions |
+| Décision après un refus du coffre | `src/assets/e2eeV4/unlockFailure.ts` | oui |
+| Branchement (`vaultOfKind`, `preferredVaults`) | `src/assets/deviceVault/index.ts` | type-check |
+| Écrans | `V4Gate.vue`, `DevicesSecurity.vue` | type-check |
+
+Chaque protection du canal et de la DK (source, origine, forme, nombre de ports, cible du `hello`, taille et effacement de DK, UUID, PIN jamais transmis, codes inconnus, messages de l'extension, réponses tardives, annulation, port mort), la règle « extension absente ≠ appareil oublié » et l'ordre des coffres ont été retirés une fois pour vérifier qu'un test échoue.
+
+**Ce que les tests ne couvrent pas** : une vraie extension chargée, la vraie fenêtre du PIN, la DK reçue comme `ArrayBuffer` de la page, la mise en veille du worker, le content script orphelin de Chrome après une mise à jour, une extension désactivée, désinstallée ou privée d'accès au site. Recette : [`13-e2ee-v4-recette-extension.md`](13-e2ee-v4-recette-extension.md).
 
