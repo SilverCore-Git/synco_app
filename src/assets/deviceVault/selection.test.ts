@@ -3,7 +3,7 @@ import { generateAccountKeyBytes } from "../utils/e2eeV4";
 import { enrollThisDevice } from "./localDevice";
 import { PinVault } from "./pinVault";
 import { PrfVault } from "./prfVault";
-import { webVaultsInOrder } from "./selection";
+import { switchTargets, webVaultsInOrder } from "./selection";
 import { VaultError, type DeviceVault, type KeyValueStore } from "./types";
 
 const memory = (): KeyValueStore => {
@@ -105,5 +105,28 @@ describe("coffre retenu à l'inscription", () => {
         const p = prf({ platform: true }), e = extension(false);
         const { record } = await enroll(await webVaultsInOrder({ prf: () => p.vault, extension: () => e.vault, pin }));
         expect(record.vaultKind).toBe("webauthn-prf");
+    });
+});
+
+describe("switchTargets : verrous proposés au changement", () => {
+    const all = { prf: true, extension: true };
+
+    test("depuis chaque verrou web : les deux autres, dans l'ordre de préférence", () => {
+        expect(switchTargets("web-pin", all)).toEqual(["webauthn-prf", "extension"]);
+        expect(switchTargets("extension", all)).toEqual(["webauthn-prf", "web-pin"]);
+        expect(switchTargets("webauthn-prf", all)).toEqual(["extension", "web-pin"]);
+    });
+
+    test("extension non détectée : jamais proposée ; sans WebAuthn : pas de passkey ; le PIN local toujours", () => {
+        expect(switchTargets("web-pin", { prf: true, extension: false })).toEqual(["webauthn-prf"]);
+        expect(switchTargets("webauthn-prf", { prf: true, extension: false })).toEqual(["web-pin"]);
+        expect(switchTargets("extension", { prf: false, extension: false })).toEqual(["web-pin"]);
+        expect(switchTargets("web-pin", { prf: false, extension: false })).toEqual([]);
+    });
+
+    test("desktop, mobile, appareil inconnu : aucun changement proposé", () => {
+        expect(switchTargets("os-keyring", all)).toEqual([]);
+        expect(switchTargets("native-biometric", all)).toEqual([]);
+        expect(switchTargets(null, all)).toEqual([]);
     });
 });

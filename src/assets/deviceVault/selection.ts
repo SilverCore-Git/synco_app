@@ -1,4 +1,4 @@
-import type { DeviceVault } from './types';
+import type { DeviceVault, VaultKind } from './types';
 
 /**
  * Ordre des coffres proposés à l'inscription sur le web (doc/securite/13-…md §16) :
@@ -24,4 +24,21 @@ export async function webVaultsInOrder(sources: WebVaultSources): Promise<Device
     if (extension && detected) list.push(extension);
     list.push(sources.pin());
     return list;
+}
+
+const WEB_KINDS: readonly VaultKind[] = ['webauthn-prf', 'extension', 'web-pin'];
+
+export const isWebVaultKind = (kind: VaultKind | null | undefined): boolean => !!kind && WEB_KINDS.includes(kind);
+
+/**
+ * Verrous vers lesquels cet appareil web peut passer (réglage « Verrou de cet appareil »), dans
+ * l'ordre de préférence, sans le verrou actuel. Le PIN local est toujours possible ; la passkey si
+ * WebAuthn existe (PrfVault refusera seul, avant toute invite, sans authentificateur de plateforme) ;
+ * l'extension seulement si elle a répondu. Desktop et mobile : aucun changement proposé.
+ */
+export function switchTargets(current: VaultKind | null | undefined, available: { prf: boolean; extension: boolean }): VaultKind[] {
+    if (!isWebVaultKind(current)) return [];
+    return WEB_KINDS.filter(kind => kind !== current
+        && (kind !== 'webauthn-prf' || available.prf)
+        && (kind !== 'extension' || available.extension));
 }
