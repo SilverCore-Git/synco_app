@@ -92,6 +92,10 @@ Légende : ✅ conforme · ❌ écart (noter le message exact) · ➖ non applic
 | E55 | Fermer la fenêtre de l'extension avec la croix | La scène de la page se ferme et le message d'annulation habituel s'affiche | | |
 | E56 | Système réglé sur « réduire les animations » | Aucune animation de flux ; la coche et les états restent lisibles | | |
 | E57 | Thème clair puis sombre de Synco | La scène est lisible dans les deux | | |
+| E58 | Cliquer « Annuler » dans la scène de la page | La fenêtre de l'extension **se ferme aussitôt** (pas au bout de 2 minutes) | | |
+| E59 | Appareil verrouillé par l'extension, ouvrir Synco | Aucun bouton à presser : la scène apparaît et la fenêtre de PIN s'ouvre d'elle-même | | |
+| E60 | Dans ce cas, « Annuler » dans la scène | La scène se ferme ; l'écran propose « Réessayer avec l'extension » et « Utiliser une autre méthode » (qui mène aux autres moyens de connexion) | | |
+| E61 | Extension plus ancienne (sans l'opération `cancel`) | « Annuler » ferme la scène de la page sans message d'erreur ; la fenêtre de l'extension se ferme d'elle-même au bout de 2 minutes | | |
 
 ## 5. Extension désinstallée
 

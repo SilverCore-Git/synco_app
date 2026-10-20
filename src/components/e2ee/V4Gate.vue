@@ -52,17 +52,17 @@
             </div>
             <PinPad v-else-if="unlockNeedsPin" v-model="pin" auto-submit :disabled="busy" :error-tick="errorTick" @submit="tryUnlock" />
             <template v-else>
-                <p v-if="localKind === 'extension' && extensionDetected" class="text-xs text-(--text2) mb-4">
+                <p v-if="localKind === 'extension' && extensionDetected && !extensionAutoTried" class="text-xs text-(--text2) mb-4">
                     <i class="bi bi-puzzle mr-1" /> Extension détectée : le code PIN se saisira dans sa fenêtre.
                 </p>
                 <button class="primary flex items-center gap-2" :class="{ loader: busy }" :disabled="busy || extensionWaiting" @click="tryUnlock">
                     <i class="bi" :class="unlockIcon" />
-                    <span class="font-bold">Déverrouiller</span>
+                    <span class="font-bold">{{ localKind === 'extension' && extensionAutoTried ? "Réessayer avec l'extension" : 'Déverrouiller' }}</span>
                 </button>
             </template>
 
             <button class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text2) hover:text-(--primary) transition-colors" @click="goConnect()">
-                {{ unlockNeedsPin ? 'Code PIN oublié ?' : 'Autre méthode' }}
+                {{ unlockNeedsPin ? 'Code PIN oublié ?' : localKind === 'extension' ? 'Utiliser une autre méthode' : 'Autre méthode' }}
             </button>
         </div>
 
@@ -410,6 +410,8 @@ const localKind = ref<VaultKind | null>(null);
 const extensionDetected = ref(false);
 const extensionMissing = ref(false);
 const extensionWaiting = ref(false);
+/** Le déverrouillage par l'extension a déjà été lancé tout seul : le bouton propose alors de réessayer. */
+const extensionAutoTried = ref(false);
 /** Scène « Synco ↔ extension » affichée pendant que la fenêtre de l'extension attend le PIN. */
 const scene = ref<SceneView | null>(null);
 const sceneCtl = createExtensionScene({ onChange: v => { scene.value = v; } });
@@ -1073,6 +1075,13 @@ onMounted(async () => {
         const kind = local.record.vaultKind;
         if ((kind === 'os-keyring' || kind === 'native-biometric') && !autoUnlock.tried) {
             autoUnlock.tried = true;
+            tryUnlock();
+        }
+        // Synco Extension : pas de bouton à presser, la fenêtre du PIN s'ouvre d'elle-même (la scène permet d'annuler
+        // et de choisir une autre méthode). Une fois par chargement de la page.
+        if (kind === 'extension' && extensionDetected.value && !autoUnlock.tried) {
+            autoUnlock.tried = true;
+            extensionAutoTried.value = true;
             tryUnlock();
         }
     } catch (e) {
