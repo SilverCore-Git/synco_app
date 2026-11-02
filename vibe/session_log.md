@@ -1081,3 +1081,40 @@ L'ancienne popup initialisait l'état local avec les **valeurs du rôle** quand 
 3. Toujours aucune vérification visuelle en navigateur (Node.js absent du sandbox) : `vue-tsc` et `vite build` passent.
 4. La colonne des rôles est limitée à `max-h-56` sous `md` : à contrôler sur mobile avec beaucoup de rôles.
 
+
+
+---
+
+## 📅 **2 Novembre 2026 - Audit de sécurité complet (API + app)**
+
+**Durée** : Session complète  
+**Priorité** : ⭐⭐⭐⭐⭐ (Haute)  
+**Complexité** : Élevée  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Audit de sécurité complet des deux dépôts, centré sur le code ajouté depuis l'audit du 01/10 et sur la tenue des correctifs de cet audit. Branche `audit/full-2026-11-02` (depuis `main`) dans les deux dépôts. Aucun code applicatif modifié.
+
+### **Fichiers Créés**
+
+| Fichier | Description |
+|---------|-------------|
+| `synco_api/audits/audit_full_2026-11-02/README.md` | Rapport général (les deux dépôts) : synthèse, périmètre, matrice des risques, état des correctifs, recommandations |
+| `synco_api/audits/audit_full_2026-11-02/NA1…NA12-*.md` | 12 fiches API (1 par vulnérabilité) |
+| `synco_app/audits/audit_full_2026-11-02/README.md` | Volet frontend + état des fiches FC/FX |
+| `synco_app/audits/audit_full_2026-11-02/NF1…NF6-*.md` | 6 fiches app |
+
+### **Résultats**
+18 constats : 1 critique (NF1, PIN v3 cassable par le serveur), 3 élevés (NF2 enveloppes FC4 fail-open, NA1 changement d'e-mail sans ré-auth, NA3 dépendances), 7 moyens, 3 bas, 4 info.
+
+### **Commits**
+```bash
+ce0e467 docs(audit): audit de sécurité complet du 2026-11-02 (fiches NA1-NA12 et rapport général)   # synco_api
+7ce6d4e docs(audit): volet frontend de l'audit de sécurité complet du 2026-11-02 (NF1-NF6)        # synco_app
+```
+**Date** : 2 Novembre 2026
+
+### **Prochaines Étapes**
+1. Corriger NA1, NA3/NF4, NA2 en priorité (voir le plan de remédiation du README API).
+2. NA12 : migration Prisma des fichiers hérités pour que `bun test src/security` (tests DB) tourne à nouveau — la base de dev locale est désynchronisée de `schema.prisma` (`files.blobId`).
+3. `synco_api/vibe/session_log.md` contient un marqueur de conflit `=======` préexistant (entrée du 28/09) à nettoyer.
