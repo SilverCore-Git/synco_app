@@ -48,6 +48,16 @@ async function deriveDk(prfOutput: ArrayBuffer, deviceId: string): Promise<Uint8
     ));
 }
 
+/**
+ * Le navigateur range sous `NotAllowedError` aussi bien un vrai « Annuler » qu'un refus silencieux
+ * (certificat TLS non approuvé, page sans focus, délai dépassé, Windows Hello non configuré) :
+ * sans ce log, l'utilisateur ne voit qu'« Opération annulée » et rien n'indique la cause.
+ */
+function logWebAuthnError(op: 'create' | 'get', e: unknown) {
+    const err = e as DOMException | undefined;
+    console.warn(`[PrfVault] navigator.credentials.${op} a échoué : ${err?.name ?? 'Error'} — ${err?.message ?? String(e)}`);
+}
+
 type PrfResults = { prf?: { enabled?: boolean; results?: { first?: ArrayBuffer } } };
 
 /** Détection grossière (la prise en charge réelle de PRF ne se découvre qu'à la création). */
@@ -99,6 +109,7 @@ export class PrfVault implements DeviceVault {
                 },
             });
         } catch (e) {
+            logWebAuthnError('get', e);
             if ((e as DOMException)?.name === 'NotAllowedError') throw new VaultError('cancelled');
             throw new VaultError('unavailable', (e as Error)?.message);
         }
@@ -125,6 +136,7 @@ export class PrfVault implements DeviceVault {
                 },
             });
         } catch (e) {
+            logWebAuthnError('create', e);
             if ((e as DOMException)?.name === 'NotAllowedError') throw new VaultError('cancelled');
             throw new VaultError('unavailable', (e as Error)?.message);
         }
