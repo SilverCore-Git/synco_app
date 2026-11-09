@@ -81,8 +81,8 @@ const titles: Record<Status, string> = {
 };
 
 const messages: Record<Status, string> = {
-  offline: 'Impossible de contacter le serveur. Vérifiez votre connexion internet, puis réessayez.',
-  reconnecting: 'Le serveur répond de nouveau, reconnexion en cours.',
+  offline: 'Impossible de contacter le serveur. \nVérifiez votre connexion internet, puis réessayez.',
+  reconnecting: 'Le serveur répond de nouveau, \nreconnexion en cours.',
   success: 'C’est reparti !',
 };
 </script>
