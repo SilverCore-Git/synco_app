@@ -33,22 +33,21 @@
                 <p class="text-(--text2) text-sm mt-1">Réessayez dans {{ formatDuration(lockoutSeconds) }}</p>
             </template>
             <!-- Appareil verrouillé par l'extension, qui ne répond pas : ses clés ne sont pas perdues -->
-            <div v-else-if="extensionMissing" class="gate-card max-w-md w-full p-5 text-sm space-y-3">
-                <p class="font-semibold text-(--text)"><i class="bi bi-puzzle mr-1" /> Synco Extension ne répond pas</p>
-                <p class="text-(--text2) leading-relaxed">
-                    Cet appareil se déverrouille avec Synco Extension. Elle est absente, désactivée, ou n'a pas accès à ce site.
-                    Tant qu'elle n'est pas désinstallée, vos clés sont toujours dans l'extension.
-                </p>
-                <ul class="text-xs text-(--text2) space-y-1 list-disc pl-5 leading-relaxed">
-                    <li>Chrome : <code>chrome://extensions</code>, activez Synco Extension, puis Détails → Accès au site.</li>
-                    <li>Firefox : <code>about:addons</code>, activez Synco Extension, puis Autorisations → accès à ce site.</li>
-                    <li>Si elle vient d'être mise à jour, réactivée ou rechargée, rechargez cette page.</li>
-                </ul>
-                <p class="text-xs text-(--text2) leading-relaxed">
-                    Si vous l'avez désinstallée, ses clés sont effacées : connectez cet appareil depuis un autre appareil ou avec votre
-                    clé de récupération (« Autre méthode » ci-dessous).
-                </p>
-                <button class="primary text-sm" :class="{ loader: busy }" :disabled="busy" @click="retryExtension">Réessayer</button>
+            <div v-else-if="extensionMissing" class="w-full max-w-sm flex flex-col items-center">
+                <span class="ext-missing-ico" aria-hidden="true"><i class="bi bi-puzzle" /></span>
+
+                <button class="primary w-full mt-6" :class="{ loader: busy }" :disabled="busy" @click="retryExtension">Réessayer</button>
+
+                <!-- Une seule consigne, celle du navigateur utilisé, et seulement si on la demande -->
+                <details class="ext-help w-full mt-4">
+                    <summary>Comment la réactiver ?</summary>
+                    <ol>
+                        <li>Ouvrez <code>{{ extensionHelp.page }}</code> dans un nouvel onglet.</li>
+                        <li>Activez <strong>Synco Extension</strong> et autorisez-la sur ce site.</li>
+                        <li>Revenez ici et cliquez sur <strong>Réessayer</strong>.</li>
+                    </ol>
+                    <p>Désinstallée ? Ses clés sont effacées : utilisez une autre méthode ci-dessous.</p>
+                </details>
             </div>
             <template v-else-if="unlockNeedsPin">
                 <!-- Synco Extension présente mais pas utilisée : on propose d'y passer (une fois par lancement). Le PIN
@@ -76,13 +75,20 @@
                 </button>
             </template>
 
-            <button class="mt-10 text-xs font-bold uppercase tracking-widest text-(--text2) hover:text-(--primary) transition-colors" @click="goConnect()">
-                {{ unlockNeedsPin ? 'Code PIN oublié ?' : localKind === 'extension' ? 'Utiliser une autre méthode' : 'Autre méthode' }}
+            <button v-if="unlockNeedsPin" class="mt-6 text-sm text-(--text2) hover:text-(--primary) transition-colors" @click="goConnect()">
+                Code PIN oublié ?
+            </button>
+            <button v-else class="other-method" :class="{ 'is-wide': extensionMissing }" @click="goConnect()">
+                <i class="bi bi-phone" />
+                <span>{{ localKind === 'extension' ? 'Utiliser un autre appareil ou une clé' : 'Utiliser une autre méthode' }}</span>
             </button>
         </div>
 
         <!-- ============ Liaison : QR code (chemin par défaut) ============ -->
         <div v-else-if="step === 'link'" key="link" class="w-full max-w-3xl">
+            <button v-if="hasLocalRecord && !identityAlert" class="back-btn" @click="leaveLink">
+                <i class="bi bi-arrow-left" /> {{ localKind === 'extension' ? 'Revenir à Synco Extension' : 'Revenir au déverrouillage' }}
+            </button>
             <div class="gate-card grid gap-8 p-6 md:grid-cols-[auto_1fr] md:p-8">
 
                 <div class="flex flex-col items-center gap-4">
@@ -138,11 +144,6 @@
                 </span>
                 <i class="bi bi-arrow-right rescue-arrow" />
             </button>
-            <div v-if="hasLocalRecord && !identityAlert" class="mt-3 text-center">
-                <button class="text-xs text-(--text2) hover:text-(--primary)" @click="leaveLink">
-                    <i class="bi bi-arrow-left me-1" /> Revenir au déverrouillage
-                </button>
-            </div>
         </div>
 
         <!-- ============ Liaison : code de confirmation ============ -->
@@ -369,7 +370,7 @@ import { canAutoPrompt, mustWaitForVisible } from '@/assets/e2eeV4/extensionAuto
 import { user } from '@/assets/var';
 import { refetchUser } from '@/assets/init';
 import { logoutEverywhere } from '@/assets/keycloak';
-import { clearInstallPending, isInstallPending } from '@/assets/deviceVault/extensionInstall';
+import { clearInstallPending, extensionBrowser, isInstallPending } from '@/assets/deviceVault/extensionInstall';
 import useWSocket, { disconnectSocket } from '@/composables/useWSocket';
 import sfetch from '@/assets/utils/sfetch';
 import { lockSecurity } from '@/assets/utils/crypto';
@@ -497,7 +498,7 @@ const vaultLabel = computed(() => {
 
 const title = computed(() => ({
     loading: 'Chargement…',
-    unlock: 'Déverrouillez votre session',
+    unlock: extensionMissing.value ? 'Synco Extension ne répond pas' : 'Déverrouillez votre session',
     connect: "Récupérer l'accès",
     link: 'Connecter cet appareil',
     'link-sas': 'Confirmez la connexion',
@@ -513,6 +514,7 @@ const subtitle = computed(() => ({
     connect: "Ces méthodes servent seulement quand aucun de vos appareils connectés n'est à portée.",
     'choose-pin': pinFirst.value ? 'Saisissez-le une seconde fois.' : '4 chiffres, pour déverrouiller Synco sur cet appareil.',
     'onboard-recovery': 'Le seul moyen de retrouver vos messages si vous perdez tous vos appareils.',
+    ...(extensionMissing.value ? { unlock: 'Elle est sans doute désactivée. Vos clés sont toujours dedans : rien n\'est perdu.' } : {}),
 } as Partial<Record<Step, string>>)[step.value] ?? '');
 
 // --- transitions entre écrans : on avance (→) ou on revient (←) dans l'arborescence --------
@@ -735,12 +737,22 @@ async function retryExtension() {
     const vault = dev.vaultFor('extension');
     busy.value = true;
     const found = vault instanceof ExtensionVault ? await vault.detect(true) : false;
-    busy.value = false;
     extensionDetected.value = found;
-    extensionMissing.value = !found;
-    if (found) await tryUnlock();
-    else toast.show("Synco Extension ne répond toujours pas. Vérifiez qu'elle est activée et qu'elle a accès à ce site, puis rechargez la page.", 'error', 8000);
+    if (found) {
+        busy.value = false;
+        extensionMissing.value = false;
+        await tryUnlock();
+        return;
+    }
+    // Une extension réactivée n'est injectée qu'aux pages chargées après coup (Chrome) : on recharge.
+    location.reload();
 }
+
+/** Consigne de réactivation pour le navigateur utilisé, et seulement lui. */
+const extensionHelp = computed(() => {
+    const browser = extensionBrowser(navigator.userAgent);
+    return { page: browser === 'firefox' ? 'about:addons' : browser === 'edge' ? 'edge://extensions' : 'chrome://extensions' };
+});
 
 /** Passe à l'écran de connexion ; `forget` : les clés locales sont inutilisables, on les oublie. */
 async function goConnect(forget = false) {
@@ -874,7 +886,16 @@ async function cancelLink(next: 'link' | 'connect' | 'unlock' = 'link') {
 }
 
 const openRescue = () => cancelLink('connect');
-const leaveLink = () => cancelLink('unlock');
+function leaveLink() {
+    cancelLink('unlock');
+    // Retour vers l'extension : on vérifie de nouveau si elle répond (elle a pu être réactivée entre-temps).
+    if (localKind.value === 'extension' && dev) {
+        const vault = dev.vaultFor('extension');
+        if (vault instanceof ExtensionVault) {
+            void vault.detect(true).then((found) => { extensionDetected.value = found; extensionMissing.value = !found; });
+        }
+    }
+}
 
 async function confirmLink() {
     if (!dev || !opened || busy.value) return;
@@ -1223,6 +1244,26 @@ function logOut() {
     background: var(--bg);
     box-shadow: 0 1px 0 color-mix(in srgb, var(--text) 4%, transparent), 0 24px 48px -24px rgb(0 0 0 / 0.35);
 }
+.ext-missing-ico {
+    display: grid; place-items: center; width: 3.5rem; height: 3.5rem; border-radius: 1rem;
+    font-size: 1.6rem; color: var(--text2); background: color-mix(in srgb, var(--text) 7%, transparent);
+}
+.ext-help { font-size: 0.8125rem; color: var(--text2); }
+.ext-help summary { cursor: pointer; text-align: center; list-style: none; transition: color 0.15s ease; }
+.ext-help summary::-webkit-details-marker { display: none; }
+.ext-help summary:hover, .ext-help[open] summary { color: var(--text); }
+.ext-help ol { margin-top: 0.9rem; padding: 0.9rem 1rem 0.9rem 2.1rem; list-style: decimal; border-radius: 0.75rem; background: color-mix(in srgb, var(--text) 4%, transparent); line-height: 1.6; }
+.ext-help ol strong { color: var(--text); font-weight: 600; }
+.ext-help code { font-size: 0.78rem; color: var(--text); }
+.ext-help p { margin-top: 0.6rem; font-size: 0.75rem; text-align: center; }
+.other-method {
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; margin-top: 1rem;
+    padding: 0.6rem 1rem; border-radius: 0.75rem; font-size: 0.875rem; color: var(--text2);
+    border: 1px solid var(--border-color); transition: color 0.15s ease, border-color 0.15s ease;
+}
+.other-method:hover { color: var(--text); border-color: color-mix(in srgb, var(--text) 25%, transparent); }
+.other-method.is-wide { width: 100%; max-width: 24rem; }
+
 .back-btn {
     display: inline-flex; align-items: center; gap: 0.4rem;
     margin-bottom: 1rem; padding: 0.25rem 0.5rem 0.25rem 0.25rem;
