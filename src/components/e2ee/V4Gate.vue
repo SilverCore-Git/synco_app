@@ -34,14 +34,14 @@
             </template>
             <!-- Appareil verrouillé par l'extension, qui ne répond pas : ses clés ne sont pas perdues -->
             <div v-else-if="extensionMissing" class="w-full max-w-sm flex flex-col items-center">
-                <span class="ext-missing-ico" aria-hidden="true"><i class="bi bi-puzzle" /></span>
+                <span class="method-ico ext-missing-ico" aria-hidden="true"><i class="bi bi-puzzle" /></span>
 
                 <button class="primary w-full mt-6" :class="{ loader: busy }" :disabled="busy" @click="retryExtension">Réessayer</button>
 
                 <!-- Une seule consigne, celle du navigateur utilisé, et seulement si on la demande -->
                 <details class="ext-help w-full mt-4">
                     <summary>Comment la réactiver ?</summary>
-                    <ol>
+                    <ol class="gate-card">
                         <li>Ouvrez <code>{{ extensionHelp.page }}</code> dans un nouvel onglet.</li>
                         <li>Activez <strong>Synco Extension</strong> et autorisez-la sur ce site.</li>
                         <li>Revenez ici et cliquez sur <strong>Réessayer</strong>.</li>
@@ -78,7 +78,7 @@
             <button v-if="unlockNeedsPin" class="mt-6 text-sm text-(--text2) hover:text-(--primary) transition-colors" @click="goConnect()">
                 Code PIN oublié ?
             </button>
-            <button v-else class="other-method" :class="{ 'is-wide': extensionMissing }" @click="goConnect()">
+            <button v-else class="second text-sm flex items-center justify-center gap-2 mt-4" :class="extensionMissing ? 'w-full max-w-sm' : ''" @click="goConnect()">
                 <i class="bi bi-phone" />
                 <span>{{ localKind === 'extension' ? 'Utiliser un autre appareil ou une clé' : 'Utiliser une autre méthode' }}</span>
             </button>
@@ -1244,25 +1244,18 @@ function logOut() {
     background: var(--bg);
     box-shadow: 0 1px 0 color-mix(in srgb, var(--text) 4%, transparent), 0 24px 48px -24px rgb(0 0 0 / 0.35);
 }
-.ext-missing-ico {
-    display: grid; place-items: center; width: 3.5rem; height: 3.5rem; border-radius: 1rem;
-    font-size: 1.6rem; color: var(--text2); background: color-mix(in srgb, var(--text) 7%, transparent);
+.method-ico.ext-missing-ico { width: 3.5rem; border-radius: 1.1rem; height: 3.5rem; font-size: 1.6rem; }
+.ext-help summary {
+    cursor: pointer; text-align: center; list-style: none;
+    font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--text2); transition: color 0.15s ease;
 }
-.ext-help { font-size: 0.8125rem; color: var(--text2); }
-.ext-help summary { cursor: pointer; text-align: center; list-style: none; transition: color 0.15s ease; }
 .ext-help summary::-webkit-details-marker { display: none; }
-.ext-help summary:hover, .ext-help[open] summary { color: var(--text); }
-.ext-help ol { margin-top: 0.9rem; padding: 0.9rem 1rem 0.9rem 2.1rem; list-style: decimal; border-radius: 0.75rem; background: color-mix(in srgb, var(--text) 4%, transparent); line-height: 1.6; }
+.ext-help summary:hover, .ext-help[open] summary { color: var(--primary); }
+.ext-help ol { margin-top: 0.9rem; padding: 1rem 1.1rem 1rem 2.2rem; list-style: decimal; font-size: 0.8125rem; color: var(--text2); line-height: 1.6; }
 .ext-help ol strong { color: var(--text); font-weight: 600; }
 .ext-help code { font-size: 0.78rem; color: var(--text); }
-.ext-help p { margin-top: 0.6rem; font-size: 0.75rem; text-align: center; }
-.other-method {
-    display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; margin-top: 1rem;
-    padding: 0.6rem 1rem; border-radius: 0.75rem; font-size: 0.875rem; color: var(--text2);
-    border: 1px solid var(--border-color); transition: color 0.15s ease, border-color 0.15s ease;
-}
-.other-method:hover { color: var(--text); border-color: color-mix(in srgb, var(--text) 25%, transparent); }
-.other-method.is-wide { width: 100%; max-width: 24rem; }
+.ext-help p { margin-top: 0.6rem; font-size: 0.75rem; color: var(--text2); text-align: center; }
 
 .back-btn {
     display: inline-flex; align-items: center; gap: 0.4rem;
