@@ -352,7 +352,7 @@ Le contrat (protocole 1, opérations, codes d'erreur, stockage, modèle de menac
 - **Pas de changement du PIN de l'extension** dans l'application : le protocole n'en prévoit pas, et `create` écrase l'enregistrement avant le rescellement. Pour changer de PIN : passer à un autre verrou, puis revenir à l'extension.
 - **Enregistrement orphelin** : si l'extension ne répond plus au moment du nettoyage (`remove` après un changement de verrou, déconnexion), sa clé reste dans l'extension ; elle se supprime depuis la page d'options de l'extension.
 - **Désinstaller l'extension efface DK** : l'appareil doit être relié de nouveau (`missing` après réinstallation, `unavailable` tant qu'elle est absente).
-- **Origines** : production `https://app.synco.one` ; développement `https://localhost:5174` et `https://dev.synco.local:5174` (VM de test : nom déclaré dans son fichier `hosts`, certificat de `synco_api/certs/generate_certs.sh`) avec le build `--dev` de l'extension seulement. Une origine par adresse IP (`https://<ip>:5174`) n'est pas acceptée : le coffre y est absent, et WebAuthn y refuse aussi les passkeys.
+- **Origines** : production `https://app.synco.one` ; développement `https://localhost:5174` avec le build `--dev` de l'extension seulement (pour une VM de test, ajouter son origine, ex. `https://dev.synco.local:5174`, dans `synco_extension/config/origins.json` ; certificat de `synco_api/certs/generate_certs.sh`). Une origine par adresse IP (`https://<ip>:5174`) n'est pas acceptée : le coffre y est absent, et WebAuthn y refuse aussi les passkeys.
 - **Navigateurs sans fenêtres d'extension** (Firefox pour Android) : non pris en charge par l'extension.
 
 ### 16.7 Fichiers et vérification
