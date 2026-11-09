@@ -287,6 +287,12 @@
 
         </Transition>
 
+        <!-- Toujours accessible, à chaque étape : sans lui, un compte non déverrouillé reste bloqué ici -->
+        <button class="mt-8 text-xs font-bold uppercase tracking-widest text-(--text2) hover:text-red-500 transition-colors disabled:opacity-50"
+            :disabled="loggingOut" @click="logOut">
+            <i class="bi bi-box-arrow-right mr-1" /> Se déconnecter
+        </button>
+
         <!-- ============ Confirmations ============ -->
         <ConfirmDelete
             :show="skipRecovery"
@@ -361,7 +367,8 @@ import { createExtensionScene, type SceneMode, type SceneView } from '@/assets/e
 import { canAutoPrompt, mustWaitForVisible } from '@/assets/e2eeV4/extensionAuto';
 import { user } from '@/assets/var';
 import { refetchUser } from '@/assets/init';
-import useWSocket from '@/composables/useWSocket';
+import { logoutEverywhere } from '@/assets/keycloak';
+import useWSocket, { disconnectSocket } from '@/composables/useWSocket';
 import sfetch from '@/assets/utils/sfetch';
 import { lockSecurity } from '@/assets/utils/crypto';
 import { useToast } from '@/composables/useToast';
@@ -1128,6 +1135,14 @@ onUnmounted(() => {
     if (pinResolver) abortChoosePin();
 });
 
+
+const loggingOut = ref(false);
+function logOut() {
+    if (loggingOut.value) return;
+    loggingOut.value = true;
+    try { disconnectSocket(); } catch { /* socket absent */ }
+    void logoutEverywhere();
+}
 </script>
 
 <style scoped>
