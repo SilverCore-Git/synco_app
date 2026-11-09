@@ -50,7 +50,22 @@
                 </p>
                 <button class="primary text-sm" :class="{ loader: busy }" :disabled="busy" @click="retryExtension">Réessayer</button>
             </div>
-            <PinPad v-else-if="unlockNeedsPin" v-model="pin" auto-submit :disabled="busy" :error-tick="errorTick" @submit="tryUnlock" />
+            <template v-else-if="unlockNeedsPin">
+                <!-- Synco Extension présente mais pas utilisée : on propose d'y passer (une fois par lancement). Le PIN
+                     saisi juste après sert aussi au changement de verrou : rien de plus à taper. -->
+                <div v-if="extensionOffer" class="gate-card max-w-sm w-full p-4 mb-6 flex items-start gap-3">
+                    <i class="bi bi-puzzle text-lg text-(--primary)" />
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-(--text)">Synco Extension est installée</p>
+                        <p class="text-xs text-(--text2) mt-1">Déverrouiller désormais avec l'extension ?</p>
+                        <div class="flex items-center gap-3 mt-3">
+                            <button class="primary text-xs" @click="acceptExtensionOffer">Oui</button>
+                            <button class="text-xs text-(--text2) hover:text-(--text) transition-colors" @click="extensionOffer = false">Pas maintenant</button>
+                        </div>
+                    </div>
+                </div>
+                <PinPad v-model="pin" auto-submit :disabled="busy" :error-tick="errorTick" @submit="tryUnlock" />
+            </template>
             <template v-else>
                 <p v-if="localKind === 'extension' && extensionDetected && !extensionAutoTried" class="text-xs text-(--text2) mb-4">
                     <i class="bi bi-puzzle mr-1" /> Extension détectée : le code PIN se saisira dans sa fenêtre.
@@ -405,6 +420,16 @@ const localKind = ref<VaultKind | null>(null);
 const extensionDetected = ref(false);
 /** Synco Extension vient d'être installée depuis la suggestion : le PIN saisi au déverrouillage sert aussi à basculer. */
 const extensionUpgrade = ref(false);
+/** Synco Extension répond mais l'appareil est au PIN local : proposer d'y passer, à chaque lancement. */
+const extensionOffer = ref(false);
+
+const UPGRADE_NOTICE = "Saisissez votre code PIN actuel : Synco Extension vous proposera ensuite de choisir le sien.";
+
+function acceptExtensionOffer() {
+    extensionOffer.value = false;
+    extensionUpgrade.value = true;
+    notice.value = UPGRADE_NOTICE;
+}
 const extensionMissing = ref(false);
 const extensionWaiting = ref(false);
 /** Le déverrouillage par l'extension a déjà été lancé tout seul : le bouton propose alors de réessayer. */
@@ -1108,11 +1133,15 @@ onMounted(async () => {
             extensionMissing.value = !extensionDetected.value;
         }
         step.value = 'unlock';
-        // Retour de la boutique : l'extension a rechargé cet onglet. Un seul PIN à saisir pour tout finir.
-        if (local.record.vaultKind === 'web-pin' && isInstallPending(sessionStorage, dev.userId)
-            && vaults.some(v => v.capabilities.kind === 'extension')) {
-            extensionUpgrade.value = true;
-            notice.value = "Synco Extension est installée. Saisissez votre code PIN actuel : l'extension vous proposera ensuite de choisir le sien.";
+        // Synco Extension répond alors que l'appareil est au PIN local. Retour de la boutique (l'extension a
+        // rechargé cet onglet) : l'utilisateur a déjà dit oui, on enchaîne. Sinon : on lui propose d'y passer.
+        if (local.record.vaultKind === 'web-pin' && vaults.some(v => v.capabilities.kind === 'extension')) {
+            if (isInstallPending(sessionStorage, dev.userId)) {
+                extensionUpgrade.value = true;
+                notice.value = `Synco Extension est installée. ${UPGRADE_NOTICE}`;
+            } else {
+                extensionOffer.value = true;
+            }
         }
         // Trousseau du système et biométrie native : on propose l'invite tout de suite. Une passkey
         // exige un geste de l'utilisateur (bouton), le PIN local une saisie.
