@@ -258,19 +258,9 @@
             </div>
         </div>
 
-        <div v-else-if="step === 'onboard-recovery'" class="max-w-md w-full space-y-5">
-            <p class="text-sm text-(--text2) leading-relaxed">
-                Voici votre <strong class="text-(--text)">clé de récupération</strong>. Si vous perdez tous vos appareils, c'est le seul moyen de retrouver vos messages.
-            </p>
+        <div v-else-if="step === 'onboard-recovery'" class="max-w-md w-full space-y-4">
             <RecoveryKeyPanel :key-text="recoveryText" :account-label="accountLabel" @saved="recoverySaved = true" />
-            <label class="flex items-start gap-2 text-sm text-(--text) cursor-pointer">
-                <input type="checkbox" v-model="recoverySaved" class="mt-1" />
-                <span>J'ai conservé ma clé de récupération en lieu sûr.</span>
-            </label>
-            <div class="flex flex-col items-center gap-3">
-                <button class="primary" :class="{ loader: busy }" :disabled="busy || !recoverySaved" @click="finishOnboarding(true)">Terminer</button>
-                <button class="text-xs text-(--text2) hover:text-amber-500" :disabled="busy" @click="skipRecovery = true">Continuer sans clé de récupération</button>
-            </div>
+            <button class="primary w-full" :class="{ loader: busy }" :disabled="busy || !recoverySaved" @click="finishOnboarding(true)">Terminer</button>
         </div>
 
         </Transition>
@@ -280,6 +270,9 @@
         <div class="mt-8 flex items-center justify-center gap-6 text-xs font-bold uppercase tracking-widest text-(--text2)">
             <button v-if="step === 'choose-pin'" class="uppercase tracking-widest hover:text-(--primary) transition-colors" @click="abortChoosePin">
                 Annuler
+            </button>
+            <button v-if="step === 'onboard-recovery'" class="uppercase tracking-widest hover:text-amber-500 transition-colors" :disabled="busy" @click="skipRecovery = true">
+                Passer cette étape
             </button>
             <button class="uppercase tracking-widest hover:text-red-500 transition-colors disabled:opacity-50" :disabled="loggingOut" @click="logOut">
                 <i class="bi bi-box-arrow-right mr-1" /> Se déconnecter
@@ -494,6 +487,7 @@ const subtitle = computed(() => ({
     link: "Validez cet appareil depuis un appareil déjà connecté à votre compte.",
     connect: "Ces méthodes servent seulement quand aucun de vos appareils connectés n'est à portée.",
     'choose-pin': pinFirst.value ? 'Saisissez-le une seconde fois.' : '4 chiffres, pour déverrouiller Synco sur cet appareil.',
+    'onboard-recovery': 'Le seul moyen de retrouver vos messages si vous perdez tous vos appareils.',
 } as Partial<Record<Step, string>>)[step.value] ?? '');
 
 // --- transitions entre écrans : on avance (→) ou on revient (←) dans l'arborescence --------

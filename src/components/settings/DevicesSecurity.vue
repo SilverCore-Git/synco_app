@@ -250,12 +250,8 @@
         <!-- Nouvelle clé de récupération -->
         <Popup :isOpen="!!newRecovery" :zIndex="2100" @close="closeNewRecovery">
             <template #title>Votre nouvelle clé de récupération</template>
-            <p class="text-sm text-(--text2) mb-4">L'ancienne clé ne fonctionne plus. Conservez celle-ci : elle ne sera plus affichée.</p>
+            <p class="text-sm text-(--text2) mb-4">L'ancienne clé ne fonctionne plus.</p>
             <RecoveryKeyPanel v-if="newRecovery" :key-text="newRecovery" :account-label="accountLabel" @saved="recoveryAck = true" />
-            <label class="flex items-start gap-2 mt-4 text-sm text-(--text) cursor-pointer">
-                <input type="checkbox" v-model="recoveryAck" class="mt-1" />
-                <span>J'ai conservé ma nouvelle clé de récupération.</span>
-            </label>
             <template #footer>
                 <button class="primary" :disabled="!recoveryAck" @click="closeNewRecovery">Terminer</button>
             </template>

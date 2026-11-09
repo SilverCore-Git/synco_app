@@ -49,12 +49,8 @@
             </div>
 
             <div v-else-if="state.step === 'recovery'" class="space-y-4">
-                <p class="text-sm text-(--text2)">Voici votre <strong class="text-(--text)">clé de récupération</strong>. Si vous perdez tous vos appareils, c'est le seul moyen de retrouver vos messages.</p>
+                <p class="text-sm text-(--text2)">Le seul moyen de retrouver vos messages si vous perdez tous vos appareils.</p>
                 <RecoveryKeyPanel :key-text="state.recoveryText" :account-label="accountLabel" @saved="state.saved = true" />
-                <label class="flex items-start gap-2 text-sm text-(--text) cursor-pointer">
-                    <input type="checkbox" v-model="state.saved" class="mt-1" />
-                    <span>J'ai conservé ma clé de récupération en lieu sûr.</span>
-                </label>
             </div>
 
             <template #footer>

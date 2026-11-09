@@ -2,26 +2,30 @@
 
     <div class="space-y-4">
 
-        <div class="rounded-xl border border-(--border-color) bg-(--bg2) p-4">
-            <p class="font-mono text-sm sm:text-base tracking-wider text-(--text) text-center leading-relaxed break-words select-all">
-                {{ keyText }}
-            </p>
-        </div>
-
-        <div class="flex flex-wrap gap-2 justify-center">
-            <button type="button" class="primary text-sm flex items-center gap-2" @click="download">
-                <i class="bi bi-download" /> Télécharger
-            </button>
-            <button type="button" class="second text-sm flex items-center gap-2" @click="copy">
-                <i class="bi" :class="copied ? 'bi-check2' : 'bi-copy'" /> {{ copied ? 'Copiée' : 'Copier' }}
+        <!-- La clé, en groupes de 4 caractères : plus facile à lire et à recopier -->
+        <div class="relative rounded-xl border border-(--border-color) bg-(--bg2) py-4 pl-4 pr-12">
+            <div class="grid grid-cols-4 sm:grid-cols-7 gap-x-3 gap-y-2 font-mono text-sm sm:text-base tracking-wider text-(--text) text-center select-all">
+                <span v-for="(group, i) in groups" :key="i">{{ group }}</span>
+            </div>
+            <button type="button" class="absolute top-2 right-2 w-8 h-8 rounded-lg flex items-center justify-center text-(--text2) hover:text-(--primary) hover:bg-(--text)/5 transition-colors"
+                :title="copied ? 'Copiée' : 'Copier'" :aria-label="copied ? 'Clé copiée' : 'Copier la clé'" @click="copy">
+                <i class="bi" :class="copied ? 'bi-check2 text-(--primary)' : 'bi-copy'" />
             </button>
         </div>
 
-        <ul class="text-xs text-(--text2) space-y-1.5 leading-relaxed">
-            <li><i class="bi bi-info-circle mr-1" />Elle ouvre vos messages sur un nouvel appareil quand aucun autre appareil n'est disponible.</li>
-            <li><i class="bi bi-safe mr-1" />Gardez-la hors ligne (papier, gestionnaire de mots de passe). Elle ne sera plus affichée.</li>
-            <li><i class="bi bi-exclamation-triangle mr-1 text-amber-500" />Quiconque la possède, avec l'accès à votre compte, peut lire vos messages.</li>
-        </ul>
+        <button type="button" class="w-full text-sm flex items-center justify-center gap-2" :class="saved ? 'second' : 'primary'" @click="download">
+            <i class="bi" :class="saved ? 'bi-check2' : 'bi-download'" /> {{ saved ? 'Clé enregistrée' : 'Télécharger la clé' }}
+        </button>
+
+        <p class="text-xs text-(--text2) text-center leading-relaxed">
+            <i class="bi bi-safe mr-1" /> Gardez-la en lieu sûr : elle donne accès à vos messages et ne sera plus affichée.
+        </p>
+
+        <p v-if="!saved" class="text-center">
+            <button type="button" class="text-xs text-(--text2) hover:text-(--primary) underline underline-offset-2 transition-colors" @click="markSaved">
+                Je l'ai notée autrement
+            </button>
+        </p>
 
     </div>
 
@@ -29,14 +33,23 @@
 
 <script setup lang="ts">
 
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { recoveryKeyFile } from '@/assets/e2eeV4/session';
 import { useToast } from '@/composables/useToast';
 
 const props = defineProps<{ keyText: string; accountLabel: string }>();
+/** Émis dès que la clé a été téléchargée, copiée ou déclarée notée : l'écran peut laisser continuer. */
 const emit = defineEmits<{ saved: [] }>();
 const toast = useToast();
 const copied = ref(false);
+const saved = ref(false);
+
+const groups = computed(() => props.keyText.split('-'));
+
+const markSaved = () => {
+    saved.value = true;
+    emit('saved');
+};
 
 const download = () => {
     const blob = new Blob([recoveryKeyFile(props.keyText, props.accountLabel)], { type: 'text/plain;charset=utf-8' });
@@ -48,7 +61,7 @@ const download = () => {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    emit('saved');
+    markSaved();
 };
 
 const copy = async () => {
@@ -56,7 +69,7 @@ const copy = async () => {
         await navigator.clipboard.writeText(props.keyText);
         copied.value = true;
         setTimeout(() => { copied.value = false; }, 2000);
-        emit('saved');
+        markSaved();
     } catch {
         toast.show('Copie impossible : sélectionnez la clé et copiez-la à la main.', 'error');
     }
