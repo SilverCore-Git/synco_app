@@ -235,19 +235,7 @@
 
         <!-- ============ Choix du PIN local ============ -->
         <div v-else-if="step === 'choose-pin'" class="flex flex-col items-center">
-            <p class="text-sm text-(--text2) mb-6 max-w-sm text-center leading-relaxed">
-                <template v-if="!pinFirst">
-                    Ce navigateur ne propose pas de passkey compatible : choisissez un <strong>code PIN local</strong> à 4 chiffres.
-                    Il ne quitte jamais cet appareil.
-                </template>
-                <template v-else>Saisissez à nouveau ce code pour le confirmer.</template>
-            </p>
             <PinPad v-model="pin" :error-tick="errorTick" @submit="submitChosenPin" />
-            <p class="text-[11px] text-(--text2) mt-6 max-w-sm text-center">
-                Sur le web sans passkey, ce code est la seule barrière pour qui copierait le profil de votre navigateur.
-                10 erreurs effacent les clés de cet appareil (il faudra le relier de nouveau).
-            </p>
-            <button class="mt-6 text-xs text-(--text2) hover:text-(--primary)" @click="abortChoosePin">Annuler</button>
         </div>
 
         <!-- ============ Création du compte ============ -->
@@ -287,11 +275,16 @@
 
         </Transition>
 
-        <!-- Toujours accessible, à chaque étape : sans lui, un compte non déverrouillé reste bloqué ici -->
-        <button class="mt-8 text-xs font-bold uppercase tracking-widest text-(--text2) hover:text-red-500 transition-colors disabled:opacity-50"
-            :disabled="loggingOut" @click="logOut">
-            <i class="bi bi-box-arrow-right mr-1" /> Se déconnecter
-        </button>
+        <!-- Actions secondaires, sur une seule ligne. « Se déconnecter » est toujours là : sans lui, un compte
+             non déverrouillé reste bloqué sur cet écran. -->
+        <div class="mt-8 flex items-center justify-center gap-6 text-xs font-bold uppercase tracking-widest text-(--text2)">
+            <button v-if="step === 'choose-pin'" class="uppercase tracking-widest hover:text-(--primary) transition-colors" @click="abortChoosePin">
+                Annuler
+            </button>
+            <button class="uppercase tracking-widest hover:text-red-500 transition-colors disabled:opacity-50" :disabled="loggingOut" @click="logOut">
+                <i class="bi bi-box-arrow-right mr-1" /> Se déconnecter
+            </button>
+        </div>
 
         <!-- ============ Confirmations ============ -->
         <ConfirmDelete
@@ -492,7 +485,7 @@ const title = computed(() => ({
     'link-sas': 'Confirmez la connexion',
     recovery: 'Clé de récupération',
     'pin-recovery': 'Récupération par code PIN',
-    'choose-pin': pinFirst.value ? 'Confirmez votre code PIN' : 'Choisissez un code PIN local',
+    'choose-pin': pinFirst.value ? 'Confirmez votre code PIN' : 'Choisissez un code PIN',
     'onboard-intro': resetMode.value ? 'Réinitialiser le chiffrement' : 'Configurez votre accès sécurisé',
     'onboard-recovery': 'Votre clé de récupération',
 }[step.value]));
@@ -500,6 +493,7 @@ const title = computed(() => ({
 const subtitle = computed(() => ({
     link: "Validez cet appareil depuis un appareil déjà connecté à votre compte.",
     connect: "Ces méthodes servent seulement quand aucun de vos appareils connectés n'est à portée.",
+    'choose-pin': pinFirst.value ? 'Saisissez-le une seconde fois.' : '4 chiffres, pour déverrouiller Synco sur cet appareil.',
 } as Partial<Record<Step, string>>)[step.value] ?? '');
 
 // --- transitions entre écrans : on avance (→) ou on revient (←) dans l'arborescence --------
