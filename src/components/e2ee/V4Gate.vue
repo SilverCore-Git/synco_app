@@ -368,12 +368,13 @@ import { canAutoPrompt, mustWaitForVisible } from '@/assets/e2eeV4/extensionAuto
 import { user } from '@/assets/var';
 import { refetchUser } from '@/assets/init';
 import { logoutEverywhere } from '@/assets/keycloak';
+import { clearInstallPending, isInstallPending } from '@/assets/deviceVault/extensionInstall';
 import useWSocket, { disconnectSocket } from '@/composables/useWSocket';
 import sfetch from '@/assets/utils/sfetch';
 import { lockSecurity } from '@/assets/utils/crypto';
 import { useToast } from '@/composables/useToast';
 import useSettingsItem from '@/composables/useSettingsItem';
-import { ExtensionVault, forgetThisDevice, getLocalDevice, idbStore, VaultError, type DevicePlatform, type DeviceVault, type VaultContext, type VaultKind } from '@/assets/deviceVault';
+import { ExtensionVault, forgetThisDevice, getLocalDevice, idbStore, switchVault, VaultError, type DevicePlatform, type DeviceVault, type VaultContext, type VaultKind } from '@/assets/deviceVault';
 import { EXTENSION_CANCELLED_HINT, unlockFailure } from '@/assets/e2eeV4/unlockFailure';
 import {
     DeviceRevokedError, IdentityMismatchError, V4ApiError, prepareV4Account, recoverWithKey, startLink, unlockV4,
@@ -416,6 +417,8 @@ const enrollCancelled = ref(false);
 /** Coffre enregistré pour cet appareil, et état de Synco Extension (jamais de clé ici). */
 const localKind = ref<VaultKind | null>(null);
 const extensionDetected = ref(false);
+/** Synco Extension vient d'être installée depuis la suggestion : le PIN saisi au déverrouillage sert aussi à basculer. */
+const extensionUpgrade = ref(false);
 const extensionMissing = ref(false);
 const extensionWaiting = ref(false);
 /** Le déverrouillage par l'extension a déjà été lancé tout seul : le bouton propose alors de réessayer. */
@@ -628,6 +631,7 @@ async function refreshLocalState() {
 async function tryUnlock() {
     if (!dev || busy.value) return;
     busy.value = true;
+    const typedPin = unlockNeedsPin.value ? pin.value : '';
     try {
         const { sealed, served } = await freshIdentity();
         const keys = await unlockV4(dev, sealed, served, {
@@ -635,6 +639,7 @@ async function tryUnlock() {
             ...(unlockNeedsPin.value ? { pin: pin.value } : {}),
         });
         extensionMissing.value = false;
+        if (extensionUpgrade.value && localKind.value === 'web-pin' && typedPin) await upgradeToExtension(typedPin);
         applyIdentityKeys(keys);
     } catch (e) {
         if (e instanceof VaultError) {
@@ -678,6 +683,36 @@ async function tryUnlock() {
         endPrompt();
         pin.value = '';
         busy.value = false;
+    }
+}
+
+/**
+ * Bascule du PIN local vers Synco Extension juste après un déverrouillage réussi : le PIN qui vient
+ * d'ouvrir le coffre sert à le rouvrir pour le rescellement, l'extension ouvre sa fenêtre pour le sien.
+ * Un échec ne bloque rien : le déverrouillage aboutit et le PIN local reste le verrou.
+ */
+async function upgradeToExtension(currentPin: string) {
+    if (!dev) return;
+    clearInstallPending(sessionStorage);
+    extensionUpgrade.value = false;
+    notice.value = '';
+    const from = dev.vaultFor('web-pin');
+    const to = dev.vaultFor('extension');
+    if (!from || !to) return;
+    try {
+        await switchVault({
+            userId: dev.userId, store: idbStore, from, to,
+            fromCtx: { pin: currentPin },
+            toCtx: promptCtx('Protéger les clés de cet appareil avec Synco Extension', 'enroll'),
+        });
+        toast.show('Cet appareil se déverrouille désormais avec Synco Extension.', 'success');
+    } catch (e) {
+        console.warn('[E2EE v4] passage à Synco Extension :', e);
+        if (!(e instanceof VaultError && e.code === 'cancelled' && sceneCtl.takeUserCancel())) {
+            toast.show("Synco Extension n'a pas été configurée : le code PIN local reste actif. Vous pourrez réessayer dans Paramètres › Appareils.", 'info', 8000);
+        }
+    } finally {
+        endPrompt();
     }
 }
 
@@ -1083,6 +1118,12 @@ onMounted(async () => {
             extensionMissing.value = !extensionDetected.value;
         }
         step.value = 'unlock';
+        // Retour de la boutique : l'extension a rechargé cet onglet. Un seul PIN à saisir pour tout finir.
+        if (local.record.vaultKind === 'web-pin' && isInstallPending(sessionStorage, dev.userId)
+            && vaults.some(v => v.capabilities.kind === 'extension')) {
+            extensionUpgrade.value = true;
+            notice.value = "Synco Extension est installée. Saisissez votre code PIN actuel : l'extension vous proposera ensuite de choisir le sien.";
+        }
         // Trousseau du système et biométrie native : on propose l'invite tout de suite. Une passkey
         // exige un geste de l'utilisateur (bouton), le PIN local une saisie.
         const kind = local.record.vaultKind;

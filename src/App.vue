@@ -10,6 +10,7 @@ import { isLoaded, user } from './assets/var';
 import type { User } from '@/types/types';
 import Notifications from './components/overlay/Notifications.vue';
 import TransfersPanel from './components/overlay/TransfersPanel.vue';
+import ExtensionSuggestion from './components/overlay/ExtensionSuggestion.vue';
 import ConnectionStatusBanner from './components/overlay/ConnectionStatusBanner.vue';
 import RateLimitOverlay from './components/overlay/RateLimitOverlay.vue';
 import AiGatewayConsent from './components/common/AiGatewayConsent.vue';
@@ -781,6 +782,9 @@ onMounted(async () => {
               <SpinLoader />
             </div>
           </Transition>
+
+          <!-- Suggestion de Synco Extension (appareil protégé par le seul PIN local), une fois l'app affichée -->
+          <ExtensionSuggestion v-if="isLoaded" />
 
         </div>
 
