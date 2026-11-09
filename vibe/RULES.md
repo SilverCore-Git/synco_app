@@ -27,6 +27,7 @@ When starting a new major feature:
 
 ## 5. E-mails : toujours la charte graphique Synco
 Tout e-mail rédigé (e-mail envoyé par l'API, modèle, ou mail à envoyer à quelqu'un) **DOIT** être stylisé avec la charte graphique Synco — **jamais** un e-mail en texte brut.
-- Utiliser la coque commune `synco_api/src/services/emailLayout.ts` : `renderShell()`, `ctaButton()`, `preheader()`, couleurs `BRAND` (`#16ac77`), `BRAND_DARK` (`#0d7551`), `BRAND_DEEP` (`#062d1f`) et `TONES`.
-- Mise en page en `<table>` avec styles inline (compatibilité Outlook/Gmail), bandeau d'en-tête Synco, bouton d'action aux couleurs de la marque.
-- Tout texte dynamique passe par `escapeHtml()` (ou `renderMarkdownEmail()` pour du markdown).
+- Écrire l'e-mail avec `buildEmail()` (`synco_api/src/services/emailBuilder.ts`) : on décrit des blocs (`paragraph`, `heading`, `quote`, `callout`, `code`, `details`, `list`, `sender`, `markdown`, `button`, `divider`) plus `title`, `cta` et `footer`, et on obtient `{ subject, html, text }` à passer à `sendEmail({ to, ...mail })`. **Jamais** de HTML écrit à la main dans un call site.
+- Placer le gabarit dans une fonction `build*Email()` (`emailTemplates.ts`, `securityEmails.ts`…) et l'ajouter à `scripts/email-preview.ts` ; vérifier le rendu avec `bun run email:preview` (→ `email-previews/index.html`).
+- Le texte est échappé par défaut. Seul le bloc `raw` accepte du HTML : il est réservé aux gabarits spécialisés (rapport d'activité). Couleurs : `BRAND`, `BRAND_DARK`, `BRAND_DEEP`, `TONES`, `INK*`, `RULE` et `SURFACE` dans `emailLayout.ts`, jamais une valeur en dur.
+- Pour un mail envoyé hors code, fournir quand même une version HTML générée par `buildEmail()`.
