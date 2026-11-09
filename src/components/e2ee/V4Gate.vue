@@ -1027,7 +1027,9 @@ async function finishOnboarding(withRecovery: boolean) {
 
 // --- réinitialisation de dernier recours ---------------------------------------
 
-const RESET_PHRASE = 'RÉINITIALISER';
+// Sans accent : tapable sur tous les claviers. La saisie est comparée sans accents ni casse (« réinitialiser » passe aussi).
+const RESET_PHRASE = 'REINITIALISER';
+const normalizePhrase = (s: string) => s.trim().normalize('NFD').replace(/\p{M}/gu, '').toUpperCase();
 const showReset = ref(false);
 const resetStep = ref<'warn' | 'code'>('warn');
 const resetAckLoss = ref(false);
@@ -1036,7 +1038,7 @@ const resetTyped = ref('');
 const resetCode = ref('');
 const resetBusy = ref(false);
 const canSendResetCode = computed(() =>
-    resetAckLoss.value && resetAckIrreversible.value && resetTyped.value.trim().toUpperCase() === RESET_PHRASE && !resetBusy.value);
+    resetAckLoss.value && resetAckIrreversible.value && normalizePhrase(resetTyped.value) === RESET_PHRASE && !resetBusy.value);
 
 function closeReset() {
     showReset.value = false;

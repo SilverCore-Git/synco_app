@@ -358,11 +358,13 @@ const resetAckIrreversible = ref<boolean>(false);
 const resetTyped = ref<string>('');
 const resetCode = ref<string>('');
 const resetBusy = ref<boolean>(false);
-const RESET_PHRASE = 'RÉINITIALISER';
+// Sans accent : tapable sur tous les claviers. La saisie est comparée sans accents ni casse (« réinitialiser » passe aussi).
+const RESET_PHRASE = 'REINITIALISER';
+const normalizePhrase = (s: string) => s.trim().normalize('NFD').replace(/\p{M}/gu, '').toUpperCase();
 
 const canSendResetCode = computed(() =>
   resetAckLoss.value && resetAckIrreversible.value &&
-  resetTyped.value.trim().toUpperCase() === RESET_PHRASE && !resetBusy.value
+  normalizePhrase(resetTyped.value) === RESET_PHRASE && !resetBusy.value
 );
 
 const closeResetPopup = () => {
