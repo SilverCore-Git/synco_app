@@ -31,8 +31,8 @@ const useHttps = getEnvValue('VITE_USE_HTTPS') !== 'false';
 // Certificat de dev fourni (ex. celui de synco_api/certs, signé par une autorité locale que les
 // clients approuvent). Sans lui, basicSsl génère un certificat auto-signé : la page est alors en
 // erreur TLS et les navigateurs refusent WebAuthn (passkeys / Windows Hello).
-const devCertFile = getEnvValue('VITE_DEV_CERT', '');
-const devKeyFile = getEnvValue('VITE_DEV_KEY', '');
+const devCertFile = getEnvValue('SYNCO_DEV_CERT', '');
+const devKeyFile = getEnvValue('SYNCO_DEV_KEY', '');
 const devTls = useHttps && devCertFile && devKeyFile && fs.existsSync(devCertFile) && fs.existsSync(devKeyFile)
   ? { cert: fs.readFileSync(devCertFile), key: fs.readFileSync(devKeyFile) }
   : undefined;
