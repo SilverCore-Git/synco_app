@@ -13,7 +13,9 @@ android {
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
-            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+            // Synco : `!models` écarte public/models (poids des IA locales, plusieurs Go, au-delà de la limite zip de
+            // l'APK). L'app les télécharge depuis HuggingFace ou VITE_LOCAL_AI_MODELS_URL, jamais depuis l'APK.
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~:!models'
         }
     }
     buildTypes {
