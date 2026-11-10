@@ -1,6 +1,6 @@
 /**
- * Scène « Synco ↔ Synco Extension » : ce que la page montre pendant que la fenêtre de l'extension demande le
- * code PIN. Logique seule (sans Vue) pour pouvoir la tester ; le composant ExtensionScene.vue l'affiche.
+ * Scène « Synco ↔ Synco Extension » : ce que la page montre pendant que la fenêtre de l'extension attend l'accord
+ * de l'utilisateur. Logique seule (sans Vue) pour pouvoir la tester ; le composant ExtensionScene.vue l'affiche.
  *
  * Elle ne reçoit jamais de PIN ni de clé : seulement « une invite vient de s'ouvrir » et « elle s'est terminée ».
  */
@@ -77,19 +77,4 @@ export function createExtensionScene(opts: SceneOptions): ExtensionScene {
             current = null;
         },
     };
-}
-
-/**
- * Disposition « côte à côte » avec la fenêtre de l'extension : la carte et la fenêtre forment une paire centrée sur la
- * page, la carte à gauche. Constantes communes avec l'extension (synco_extension : src/background/placement.ts) :
- * fenêtre de 420 px, écart de 12 px, et la paire n'existe qu'à partir de 880 px de large (sinon la fenêtre se centre
- * et la carte reste au milieu).
- */
-export const EXTENSION_WINDOW_WIDTH = 420;
-export const PAIR_GAP = 12;
-export const MIN_PAIR_VIEWPORT = 880;
-
-/** Décalage vers la gauche de la carte (px) pour laisser la place à la fenêtre de l'extension ; 0 si la page est trop étroite. */
-export function besideShift(viewportWidth: number): number {
-    return Number.isFinite(viewportWidth) && viewportWidth >= MIN_PAIR_VIEWPORT ? (EXTENSION_WINDOW_WIDTH + PAIR_GAP) / 2 : 0;
 }

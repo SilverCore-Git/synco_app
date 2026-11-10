@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { besideShift, createExtensionScene, MIN_PAIR_VIEWPORT, SCENE_HOLD_MS, type SceneView } from "./extensionScene";
+import { createExtensionScene, SCENE_HOLD_MS, type SceneView } from "./extensionScene";
 
 function setup(holdMs?: number) {
     const views: (SceneView | null)[] = [];
@@ -79,18 +79,5 @@ describe("scène Synco ↔ extension", () => {
         const { scene, timers } = setup(250);
         scene.begin("unlock")("ok");
         expect(timers[0]!.ms).toBe(250);
-    });
-});
-
-describe("disposition côte à côte", () => {
-    test("la carte se décale de la moitié (fenêtre + écart) quand la page est assez large", () => {
-        expect(besideShift(1400)).toBe(216);
-        expect(besideShift(MIN_PAIR_VIEWPORT)).toBe(216);
-    });
-
-    test("page trop étroite ou largeur invalide : aucun décalage (la fenêtre se centre, la carte aussi)", () => {
-        expect(besideShift(MIN_PAIR_VIEWPORT - 1)).toBe(0);
-        expect(besideShift(0)).toBe(0);
-        expect(besideShift(NaN)).toBe(0);
     });
 });

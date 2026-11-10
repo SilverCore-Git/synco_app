@@ -1,32 +1,51 @@
 <template>
     <Teleport to="body">
         <Transition name="scene">
-            <div v-if="view" class="fixed inset-0 z-[3000] flex items-center justify-center p-4">
-                <div class="absolute inset-0 bg-black/45" />
+            <div v-if="view" class="scene-root" @keydown.esc.stop.prevent="view.state === 'waiting' && emit('cancel')">
+                <div class="scene-backdrop" />
 
-                <!-- Carte sobre : elle dit seulement où regarder. La fenêtre de l'extension, à côté, fait le reste. -->
+                <!-- Barre d'attente ancrée en bas : elle ne dépend pas de l'endroit où s'ouvre la fenêtre de l'extension
+                     (le gestionnaire de fenêtres peut ignorer la position demandée), et ne la masque jamais. -->
                 <div
-                    class="scene-card relative w-full max-w-sm rounded-2xl border border-(--border-color) bg-(--bg2) px-6 py-7 text-center shadow-xl"
+                    class="scene-bar"
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="ext-scene-title"
                     aria-describedby="ext-scene-text"
                     :data-state="view.state"
-                    :style="shift ? { translate: `-${shift}px 0` } : undefined"
-                    @keydown.esc.stop.prevent="emit('cancel')"
                 >
-                    <div class="mark" aria-hidden="true">
-                        <span v-if="view.state === 'success'" class="mark-check" />
-                        <span v-else class="mark-spin" />
+                    <div class="scene-main">
+                        <span class="scene-mark" aria-hidden="true">
+                            <span v-if="view.state === 'success'" class="mark-check" />
+                            <span v-else class="mark-spin" />
+                        </span>
+
+                        <div class="scene-text">
+                            <p id="ext-scene-title" class="scene-title">{{ title }}</p>
+                            <p id="ext-scene-text" class="scene-sub" role="status" aria-live="polite">{{ text }}</p>
+                        </div>
+
+                        <button v-if="view.state === 'waiting'" ref="cancelBtn" class="default scene-cancel" @click="emit('cancel')">
+                            Annuler
+                        </button>
                     </div>
 
-                    <h2 id="ext-scene-title" class="mt-5 text-base font-bold text-(--text)">{{ title }}</h2>
-                    <p id="ext-scene-text" class="mt-1.5 text-sm leading-relaxed text-(--text2)" role="status" aria-live="polite">{{ text }}</p>
-
-                    <template v-if="view.state === 'waiting'">
-                        <p class="mt-4 text-xs text-(--text2)">Pas de fenêtre ? Elle est peut-être passée derrière celle-ci.</p>
-                        <button ref="cancelBtn" class="default mt-5 w-full" @click="emit('cancel')">Annuler</button>
-                    </template>
+                    <div v-if="view.state === 'waiting'" class="scene-help">
+                        <button
+                            type="button"
+                            class="scene-help-toggle"
+                            :aria-expanded="helpOpen"
+                            aria-controls="ext-scene-help"
+                            @click="helpOpen = !helpOpen"
+                        >
+                            Je ne vois pas la fenêtre
+                            <i class="bi" :class="helpOpen ? 'bi-chevron-up' : 'bi-chevron-down'" aria-hidden="true" />
+                        </button>
+                        <p v-show="helpOpen" id="ext-scene-help" class="scene-help-text">
+                            Elle s'est sans doute ouverte derrière le navigateur : cherchez « Synco Extension » dans la barre
+                            des tâches. Si elle a été fermée, annulez puis recommencez.
+                        </p>
+                    </div>
                 </div>
             </div>
         </Transition>
@@ -34,25 +53,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import { besideShift, type SceneView } from '@/assets/e2eeV4/extensionScene';
+import { computed, nextTick, ref, watch } from 'vue';
+import type { SceneView } from '@/assets/e2eeV4/extensionScene';
 
 const props = defineProps<{ view: SceneView | null }>();
 const emit = defineEmits<{ cancel: [] }>();
 
 const cancelBtn = ref<HTMLButtonElement | null>(null);
-
-// Côte à côte : la carte se pousse à gauche pour que la fenêtre de l'extension s'ouvre à sa droite, à son niveau.
-const shift = ref(besideShift(typeof window === 'undefined' ? 0 : window.innerWidth));
-const onResize = () => { shift.value = besideShift(window.innerWidth); };
-onMounted(() => window.addEventListener('resize', onResize));
-onUnmounted(() => window.removeEventListener('resize', onResize));
+const helpOpen = ref(false);
 
 const title = computed(() => {
     const v = props.view;
     if (!v) return '';
     if (v.state === 'success') return v.mode === 'enroll' ? 'Appareil protégé' : 'Déverrouillé';
-    return 'Continuez dans Synco Extension';
+    return 'Répondez dans Synco Extension';
 });
 
 const text = computed(() => {
@@ -60,42 +74,79 @@ const text = computed(() => {
     if (!v) return '';
     if (v.state === 'success') return v.mode === 'enroll' ? 'Synco Extension garde désormais la clé de cet appareil.' : 'Vos messages s\'ouvrent.';
     return v.mode === 'enroll'
-        ? 'Cliquez sur « Autoriser » dans la fenêtre de l\'extension.'
-        : 'Autorisez l\'ouverture dans la fenêtre de l\'extension.';
+        ? 'Cliquez sur « Autoriser » dans sa fenêtre pour protéger cet appareil.'
+        : 'Cliquez sur « Autoriser » dans sa fenêtre pour ouvrir vos messages.';
 });
 
 // Le focus va au bouton « Annuler » à l'ouverture : Échap et Entrée restent utilisables au clavier.
 watch(() => props.view?.state, async (state, before) => {
-    if (state === 'waiting' && before !== 'waiting') { await nextTick(); cancelBtn.value?.focus(); }
+    if (state === 'waiting' && before !== 'waiting') {
+        helpOpen.value = false;
+        await nextTick();
+        cancelBtn.value?.focus();
+    }
 });
 </script>
 
 <style scoped>
-.scene-enter-active, .scene-leave-active { transition: opacity 0.2s ease; }
-.scene-enter-active .scene-card, .scene-leave-active .scene-card { transition: transform 0.2s ease, opacity 0.2s ease; }
-.scene-card { transition: translate 0.3s ease; }
-.scene-enter-from, .scene-leave-to { opacity: 0; }
-.scene-enter-from .scene-card, .scene-leave-to .scene-card { transform: translateY(6px); opacity: 0; }
+.scene-root { position: fixed; inset: 0; z-index: 3000; }
+.scene-backdrop { position: absolute; inset: 0; background: rgb(0 0 0 / 0.4); }
+
+.scene-bar {
+    position: absolute; left: 50%; bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+    width: min(34rem, calc(100% - 2rem)); translate: -50% 0;
+    padding: 1rem 1.25rem; border-radius: 1rem;
+    background: var(--bg); border: 1px solid var(--border-color);
+    /* Elle flotte vraiment au-dessus de la page : une ombre, et rien d'autre. */
+    box-shadow: 0 18px 40px -16px rgb(0 0 0 / 0.55);
+}
+.scene-main { display: flex; align-items: center; gap: 0.875rem; }
+.scene-mark { flex: none; display: grid; place-items: center; width: 2.25rem; height: 2.25rem; }
+.scene-text { flex: 1; min-width: 0; }
+.scene-title { font-size: 0.95rem; font-weight: 600; color: var(--text); }
+.scene-sub { margin-top: 0.125rem; font-size: 0.85rem; line-height: 1.4; color: var(--text2); }
+.scene-cancel { flex: none; padding: 0.55em 1.2em; font-size: 0.9rem; }
+
+.scene-help { margin-top: 0.625rem; padding-left: calc(2.25rem + 0.875rem); }
+.scene-help-toggle {
+    display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; color: var(--text2);
+    border-radius: 0.375rem; transition: color 0.15s ease;
+}
+.scene-help-toggle:hover { color: var(--text); }
+.scene-help-toggle i { font-size: 0.7rem; }
+.scene-help-text { margin-top: 0.375rem; font-size: 0.8rem; line-height: 1.45; color: var(--text2); }
 
 /* Marque d'état : un indicateur discret pendant l'attente, une coche à la réussite. */
-.mark { display: flex; justify-content: center; height: 2.75rem; align-items: center; }
 .mark-spin {
-    width: 1.5rem; height: 1.5rem; border-radius: 50%;
-    border: 2px solid var(--border-color); border-top-color: var(--text2);
+    width: 1.375rem; height: 1.375rem; border-radius: 50%;
+    border: 2px solid var(--border-color); border-top-color: var(--primary);
     animation: spin 0.9s linear infinite;
 }
 .mark-check {
-    display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 50%;
+    display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 50%;
     background: color-mix(in srgb, var(--primary) 14%, transparent);
 }
 .mark-check::before {
-    content: ""; width: 0.65rem; height: 1.15rem; margin-top: -0.25rem;
-    border: solid var(--primary); border-width: 0 3px 3px 0; transform: rotate(45deg);
+    content: ""; width: 0.5rem; height: 0.9rem; margin-top: -0.2rem;
+    border: solid var(--primary); border-width: 0 2.5px 2.5px 0; transform: rotate(45deg);
 }
+
+/* Téléphone ou fenêtre étroite : la barre devient une feuille en bas, le bouton passe dessous. */
+@media (max-width: 30rem) {
+    .scene-bar { bottom: 0; width: 100%; border-radius: 1rem 1rem 0 0; padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); }
+    .scene-main { flex-wrap: wrap; }
+    .scene-cancel { width: 100%; margin-top: 0.25rem; }
+    .scene-help { padding-left: 0; }
+}
+
+.scene-enter-active, .scene-leave-active { transition: opacity 0.2s ease; }
+.scene-enter-active .scene-bar, .scene-leave-active .scene-bar { transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1); }
+.scene-enter-from, .scene-leave-to { opacity: 0; }
+.scene-enter-from .scene-bar, .scene-leave-to .scene-bar { transform: translateY(12px); }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
     .mark-spin { animation-duration: 2.5s; }
-    .scene-card, .scene-enter-active, .scene-leave-active { transition-duration: 0.01ms !important; }
+    .scene-enter-active, .scene-leave-active, .scene-enter-active .scene-bar, .scene-leave-active .scene-bar { transition-duration: 0.01ms !important; }
 }
 </style>
