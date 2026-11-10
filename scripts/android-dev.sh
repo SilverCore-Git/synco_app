@@ -54,7 +54,7 @@ echo "▸ Build web (mode development : .env, CSP de dev)"
 node ./node_modules/vite/bin/vite.js build --mode development >/dev/null
 
 echo "▸ Synchronisation Capacitor"
-npx cap sync android >/dev/null
+node ./node_modules/@capacitor/cli/bin/capacitor sync android >/dev/null
 
 echo "▸ Compilation de l'APK de débogage"
 (cd android && ./gradlew --quiet assembleDebug)
