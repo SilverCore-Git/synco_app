@@ -62,5 +62,7 @@
 	<true/>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Synco utilise Face ID pour déverrouiller vos messages chiffrés.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Synco utilise la caméra pour scanner le QR code qui relie un nouvel appareil à votre compte.</string>
 </dict>
 </plist>

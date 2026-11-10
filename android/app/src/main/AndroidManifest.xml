@@ -43,4 +43,7 @@
     <!-- E2EE v4 : scan du QR code de liaison d'un nouvel appareil (getUserMedia dans la WebView). -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- E2EE v4 : la clé de l'appareil se déverrouille par la biométrie (BiometricPrompt, NativeVault).
+         Normalement apportée par androidx.biometric à la fusion des manifestes ; déclarée ici pour ne pas en dépendre. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 </manifest>

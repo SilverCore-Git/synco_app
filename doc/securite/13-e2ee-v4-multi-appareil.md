@@ -233,9 +233,16 @@ Proposée dans les paramètres (et signalée une fois par un message après un d
 
 Rien de ce qui suit n'a pu être lancé depuis l'environnement de développement :
 - parcours complet dans l'application : création v4, déverrouillage, ajout d'un second appareil par QR et par code, retrait, clé de récupération, réinitialisation, migration d'un compte v3 ;
-- lecture du QR par la caméra : `BarcodeDetector` (Chrome, Android) et `jsqr` (Firefox, Safari, WebKitGTK), permission caméra Android (ajoutée au manifeste) et iOS (`NSCameraUsageDescription` à ajouter si un projet iOS est créé) ;
+- lecture du QR par la caméra : `BarcodeDetector` (Chrome, Android) et `jsqr` (Firefox, Safari, WebKitGTK), permission caméra Android (manifeste) et iOS (`NSCameraUsageDescription`, `Info.plist`) ;
 - passkey PRF (Chrome, Edge, Safari ; Firefox inégal), Face ID / Touch ID, empreinte Android, trousseau Tauri ;
 - téléchargement du fichier de clé de récupération dans Tauri et Capacitor.
+
+Préparé pour ces essais (sans compilation possible ici, faute de SDK Android et de Mac) : les plugins
+`@aparajita/capacitor-biometric-auth` et `@aparajita/capacitor-secure-storage` sont intégrés aux projets natifs
+(`npx cap sync` : `android/capacitor.settings.gradle`, `android/app/capacitor.build.gradle`,
+`ios/App/CapApp-SPM/Package.swift`, chemins iOS en `/`), `USE_BIOMETRIC` est déclarée dans le manifeste Android et
+`NSFaceIDUsageDescription` / `NSCameraUsageDescription` dans `Info.plist`. Avant chaque compilation mobile :
+`bun run build` puis `npx cap sync` (les fichiers web copiés dans les projets natifs viennent de `dist/`).
 
 ## 14. Récupération par PIN — état de P7
 
