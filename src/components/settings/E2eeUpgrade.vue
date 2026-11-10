@@ -3,61 +3,56 @@
     <div class="space-y-4">
         <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Appareils</h4>
 
-        <div class="p-6 bg-(--bg2) border border-(--border-color) rounded-xl space-y-4">
-            <div class="flex items-start gap-4">
-                <i class="bi bi-phone-flip text-3xl text-(--primary)" />
-                <div class="flex-1">
-                    <p class="font-bold text-(--text)">Chiffrement multi-appareil</p>
-                    <ul class="text-sm text-(--text2) mt-2 space-y-1.5 leading-relaxed">
-                        <li>• Vos clés ne dépendent plus d'un code PIN connu du serveur : elles sont protégées par vos appareils (biométrie, passkey, trousseau du système).</li>
-                        <li>• Ajoutez vos autres appareils par QR code et déconnectez à distance un appareil perdu.</li>
-                        <li>• Une clé de récupération vous est proposée en cas de perte de tous vos appareils.</li>
-                        <li>• Vos messages, fichiers et conversations restent lisibles : vos clés ne changent pas.</li>
-                    </ul>
-                </div>
+        <div class="rounded-xl border border-(--border-color) bg-(--bg2) p-5 space-y-4">
+            <div>
+                <p class="font-bold text-sm text-(--text)">Chiffrement multi-appareil</p>
+                <p class="text-sm text-(--text2) mt-1">Ouvrez vos messages sur tous vos appareils, sans code PIN à retenir.</p>
             </div>
+            <ul class="facts">
+                <li><i class="bi bi-fingerprint" aria-hidden="true" /> Déverrouillage par empreinte, passkey ou Synco Extension</li>
+                <li><i class="bi bi-qr-code" aria-hidden="true" /> Un nouvel appareil s'ajoute en scannant un QR code</li>
+                <li><i class="bi bi-check2" aria-hidden="true" /> Vos messages et fichiers restent lisibles</li>
+            </ul>
 
-            <p v-if="!eligible" class="text-xs text-amber-500 leading-relaxed">
-                <i class="bi bi-info-circle-fill mr-1" />
-                {{ notEligibleReason }}
-            </p>
-            <div v-else class="flex flex-wrap items-center gap-3">
-                <button class="primary text-sm" @click="open">Passer au chiffrement multi-appareil</button>
-                <p class="text-[11px] text-(--text2)">Les anciennes versions de l'application ne sauront plus ouvrir ce compte.</p>
+            <p v-if="!eligible" class="text-xs text-amber-500 leading-relaxed">{{ notEligibleReason }}</p>
+            <div v-else class="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <button class="primary text-sm" @click="open">Activer</button>
+                <p class="text-xs text-(--text2)">Les anciennes versions de l'application ne pourront plus ouvrir ce compte.</p>
             </div>
         </div>
 
         <Popup :isOpen="state.open" @close="close">
-            <template #title>Passer au chiffrement multi-appareil</template>
+            <template #title>Chiffrement multi-appareil</template>
 
             <div v-if="state.step === 'pin'" class="flex flex-col items-center">
-                <p class="text-sm text-(--text2) mb-6 text-center">Saisissez votre code PIN actuel pour confirmer.</p>
+                <p class="text-sm text-(--text2) mb-6 text-center">Saisissez votre code PIN actuel, une dernière fois.</p>
                 <p v-if="lockoutSeconds > 0" class="text-amber-500 text-sm mb-4">Trop de tentatives. Réessayez dans {{ lockoutSeconds }} s.</p>
                 <PinPad v-else v-model="state.pin" auto-submit :disabled="state.busy" :error-tick="state.errorTick" @submit="submitPin" />
             </div>
 
             <div v-else-if="state.step === 'choose-pin'" class="flex flex-col items-center">
                 <p class="text-sm text-(--text2) mb-6 text-center max-w-sm">
-                    {{ state.firstPin ? 'Confirmez ce code.' : "Ce navigateur ne propose pas de passkey compatible : choisissez le code PIN local de cet appareil (4 chiffres). Il ne quittera jamais l'appareil." }}
+                    {{ state.firstPin ? 'Saisissez-le une seconde fois.' : "Ce navigateur n'a pas de passkey compatible. Choisissez 4 chiffres pour déverrouiller cet appareil." }}
                 </p>
                 <PinPad v-model="state.pin" :error-tick="state.errorTick" @submit="submitLocalPin" />
             </div>
 
             <div v-else-if="state.step === 'working'" class="py-10 flex flex-col items-center gap-3">
                 <SpinLoader />
-                <p class="text-sm text-(--text2)">Protection de vos clés sur cet appareil…</p>
+                <p class="text-sm text-(--text2)">Protection de cet appareil…</p>
             </div>
 
             <div v-else-if="state.step === 'recovery'" class="space-y-4">
-                <p class="text-sm text-(--text2)">Le seul moyen de retrouver vos messages si vous perdez tous vos appareils.</p>
+                <p class="text-sm text-(--text2)">Gardez-la précieusement : elle vous rend vos messages si vous perdez tous vos appareils.</p>
                 <RecoveryKeyPanel :key-text="state.recoveryText" :account-label="accountLabel" @saved="state.saved = true" />
             </div>
 
             <template #footer>
                 <button class="default" :disabled="state.busy" @click="close">Annuler</button>
                 <template v-if="state.step === 'recovery'">
-                    <button class="second" :disabled="state.busy" @click="state.skipConfirm = true">Sans clé de récupération</button>
-                    <button class="primary" :class="{ loader: state.busy }" :disabled="!state.saved || state.busy" @click="finish(true)">Terminer</button>
+                    <!-- Une seule action principale : Terminer n'apparaît qu'une fois la clé gardée -->
+                    <button v-if="!state.saved" class="second" :disabled="state.busy" @click="state.skipConfirm = true">Continuer sans clé</button>
+                    <button v-else class="primary" :class="{ loader: state.busy }" :disabled="state.busy" @click="finish(true)">Terminer</button>
                 </template>
             </template>
         </Popup>
@@ -67,7 +62,7 @@
             title="Continuer sans clé de récupération ?"
             item-name="la clé de récupération"
             item-type="la clé de récupération"
-            message="Sans clé de récupération, la perte de tous vos appareils rend vos messages définitivement illisibles. Vous pourrez en créer une plus tard."
+            message="Si vous perdez tous vos appareils, vos messages seront illisibles pour toujours. Vous pourrez créer une clé plus tard dans Paramètres › Sécurité."
             button-text="Continuer sans clé"
             :loading="state.busy"
             @confirm="state.skipConfirm = false; finish(false)"
@@ -252,7 +247,7 @@ async function finish(withRecovery: boolean) {
         await refetchUser();
         applyIdentityKeys(keys);
         state.open = false;
-        toast.show('Chiffrement multi-appareil activé. Vous pouvez maintenant ajouter vos autres appareils.', 'success', 8000);
+        toast.show('C\'est activé. Ajoutez vos autres appareils dans Paramètres › Appareils.', 'success', 8000);
     } catch (e) {
         prepared = null;
         state.open = false;
@@ -266,3 +261,9 @@ async function finish(withRecovery: boolean) {
 }
 
 </script>
+
+<style scoped>
+.facts { display: grid; gap: 0.5rem; }
+.facts li { display: flex; align-items: baseline; gap: 0.625rem; font-size: 0.8125rem; color: var(--text); }
+.facts i { flex: none; width: 1rem; text-align: center; color: var(--text2); }
+</style>

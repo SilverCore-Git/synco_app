@@ -6,37 +6,38 @@
         <section v-if="view === 'devices'" class="space-y-4">
             <div class="flex items-center justify-between gap-3 flex-wrap">
                 <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">
-                    Appareils connectés <span v-if="!loading" class="ml-1 text-(--text2)/70">· {{ devices.length }}</span>
+                    Appareils connectés <span v-if="!loading" class="ml-1 tabular-nums">· {{ devices.length }}</span>
                 </h4>
                 <button class="primary text-sm flex items-center gap-2" :disabled="!E2EEUnloked" @click="openAdd">
-                    <i class="bi bi-plus-lg" /> Ajouter un appareil
+                    <i class="bi bi-plus-lg" aria-hidden="true" /> Ajouter un appareil
                 </button>
             </div>
 
-            <input v-if="devices.length > 6" v-model="search" type="search" placeholder="Rechercher un appareil…" @keydown.stop
+            <input v-if="devices.length > 6" v-model="search" type="search" placeholder="Rechercher un appareil…" aria-label="Rechercher un appareil" @keydown.stop
                 class="w-full max-w-sm bg-(--bg) border border-(--border-color) rounded-xl px-4 py-2 text-sm text-(--text) focus:outline-none focus:border-(--primary)" />
 
             <div v-if="loading" class="py-6 flex justify-center"><SpinLoader /></div>
 
-            <ul v-else class="space-y-3">
-                <li v-for="d in orderedDevices" :key="d.id" class="device-card" :class="{ 'is-current': d.isThisDevice }">
-                    <div class="p-4 flex items-start gap-4">
-                        <span class="device-ico"><i class="bi" :class="PLATFORM_ICONS[d.platform]" /></span>
+            <!-- Une seule carte, une ligne par appareil : cet appareil d'abord, avec son verrou -->
+            <ul v-else class="panel">
+                <li v-for="d in orderedDevices" :key="d.id" class="device-row">
+                    <div class="flex items-start gap-3.5">
+                        <i class="bi row-ico" :class="[PLATFORM_ICONS[d.platform], { 'is-current': d.isThisDevice }]" aria-hidden="true" />
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <template v-if="renamingId === d.id">
-                                    <input v-model="renameValue" maxlength="64" @keydown.stop @keyup.enter="saveRename(d)" @keyup.esc="renamingId = ''"
+                                    <input v-model="renameValue" maxlength="64" aria-label="Nom de l'appareil" @keydown.stop @keyup.enter="saveRename(d)" @keyup.esc="renamingId = ''"
                                         class="bg-(--bg) border border-(--border-color) rounded-lg px-2 py-1 text-sm text-(--text) focus:outline-none focus:border-(--primary)" />
-                                    <button class="text-(--primary) text-sm" title="Enregistrer" @click="saveRename(d)"><i class="bi bi-check-lg" /></button>
-                                    <button class="text-(--text2) text-sm" title="Annuler" @click="renamingId = ''"><i class="bi bi-x-lg" /></button>
+                                    <button class="text-(--primary) text-sm" title="Enregistrer" aria-label="Enregistrer" @click="saveRename(d)"><i class="bi bi-check-lg" /></button>
+                                    <button class="text-(--text2) text-sm" title="Annuler" aria-label="Annuler" @click="renamingId = ''"><i class="bi bi-x-lg" /></button>
                                 </template>
                                 <template v-else>
                                     <span class="font-bold text-sm text-(--text) truncate">{{ d.name }}</span>
-                                    <button class="rename-btn" title="Renommer" @click="startRename(d)"><i class="bi bi-pencil" /></button>
+                                    <button class="rename-btn" title="Renommer" aria-label="Renommer" @click="startRename(d)"><i class="bi bi-pencil" /></button>
                                 </template>
-                                <span v-if="d.isThisDevice" class="px-2 py-0.5 rounded-full text-[10px] uppercase tracking-widest font-bold bg-(--primary)/20 text-(--primary)">Cet appareil</span>
-                                <span v-if="!d.certified" class="px-2 py-0.5 rounded-full text-[10px] uppercase tracking-widest font-bold bg-red-500/20 text-red-500"
-                                    title="Ce certificat n'a pas été signé par votre identité : cet appareil ne recevra aucune clé et sera retiré au prochain renouvellement.">
+                                <span v-if="d.isThisDevice" class="pill pill-ok">Cet appareil</span>
+                                <span v-if="!d.certified" class="pill pill-bad"
+                                    title="Non signé par votre identité : cet appareil ne reçoit aucune clé et sera retiré au prochain renouvellement.">
                                     Non certifié
                                 </span>
                             </div>
@@ -44,7 +45,7 @@
                                 {{ PLATFORM_LABELS[d.platform] }} · ajouté le {{ formatDate(d.createdAt) }} · {{ d.lastUsedAt ? `actif ${formatRelative(d.lastUsedAt)}` : 'jamais utilisé' }}
                             </p>
                         </div>
-                        <button class="disconnect-btn" :disabled="!E2EEUnloked || devices.length < 2"
+                        <button class="quiet-btn" :disabled="!E2EEUnloked || devices.length < 2"
                             :title="devices.length < 2 ? 'Impossible de déconnecter votre seul appareil' : ''" @click="askRemove(d)">
                             Déconnecter
                         </button>
@@ -52,122 +53,114 @@
 
                     <!-- Verrou : il appartient à cet appareil, pas à une section à part -->
                     <div v-if="d.isThisDevice && localKind" class="lock-panel">
-                        <i class="bi text-lg text-(--text2)" :class="VAULT_INFO[localKind].icon" />
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm text-(--text)"><span class="text-(--text2)">Verrouillé par</span> <strong>{{ VAULT_INFO[localKind].label }}</strong></p>
-                            <p class="text-xs text-(--text2) mt-1 leading-relaxed">{{ VAULT_INFO[localKind].detail }}</p>
-                            <div v-if="isWebVaultKind(localKind)" class="flex flex-wrap items-center gap-2 mt-3">
-                                <button v-if="localKind === 'web-pin'" class="second text-xs" :disabled="lockBusy" @click="openChangePin">Changer le code PIN</button>
-                                <DropDown v-if="switchOptions.length">
-                                    <template #trigger>
-                                        <button class="primary text-xs flex items-center gap-1.5" :class="{ loader: lockBusy }" :disabled="lockBusy">
-                                            <i class="bi bi-arrow-left-right" /> Changer de verrou <i class="bi bi-chevron-down text-[10px]" />
-                                        </button>
-                                    </template>
-                                    <template #content>
-                                        <button v-for="k in switchOptions" :key="k" class="dropdown-item-style gap-3 text-left" @click="switchTarget = k">
-                                            <i class="bi" :class="VAULT_INFO[k].icon" />
-                                            <span class="min-w-0">
-                                                <span class="block font-semibold">{{ VAULT_INFO[k].label }}</span>
-                                                <span class="block text-xs text-(--text2)">{{ VAULT_INFO[k].short }}</span>
-                                            </span>
-                                        </button>
-                                    </template>
-                                </DropDown>
-                            </div>
+                        <p class="text-sm text-(--text)">
+                            Se déverrouille avec <strong>{{ VAULT_INFO[localKind].label }}</strong>
+                        </p>
+                        <p class="text-xs text-(--text2) mt-1 leading-relaxed">{{ VAULT_INFO[localKind].detail }}</p>
+                        <details v-if="VAULT_INFO[localKind].limit" class="more">
+                            <summary>Ce qu'il ne protège pas</summary>
+                            <p>{{ VAULT_INFO[localKind].limit }}</p>
+                        </details>
+                        <div v-if="isWebVaultKind(localKind) && (localKind === 'web-pin' || switchOptions.length)" class="flex flex-wrap items-center gap-2 mt-3">
+                            <button v-if="localKind === 'web-pin'" class="small-btn" :disabled="lockBusy" @click="openChangePin">Changer le code PIN</button>
+                            <DropDown v-if="switchOptions.length">
+                                <template #trigger>
+                                    <button class="small-btn" :disabled="lockBusy">
+                                        Changer de verrou <i class="bi bi-chevron-down text-[10px]" aria-hidden="true" />
+                                    </button>
+                                </template>
+                                <template #content>
+                                    <button v-for="k in switchOptions" :key="k" class="dropdown-item-style gap-3 text-left" @click="switchTarget = k">
+                                        <i class="bi" :class="VAULT_INFO[k].icon" aria-hidden="true" />
+                                        <span class="min-w-0">
+                                            <span class="block font-semibold">{{ VAULT_INFO[k].label }}</span>
+                                            <span class="block text-xs text-(--text2)">{{ VAULT_INFO[k].short }}</span>
+                                        </span>
+                                    </button>
+                                </template>
+                            </DropDown>
                         </div>
                     </div>
                 </li>
-                <li v-if="orderedDevices.length === 0" class="p-4 text-sm text-(--text2)">Aucun appareil.</li>
+                <li v-if="orderedDevices.length === 0" class="device-row text-sm text-(--text2)">Aucun appareil ne correspond.</li>
             </ul>
 
             <p v-if="!loading && devices.length === 1" class="text-xs text-(--text2) leading-relaxed">
-                <i class="bi bi-lightbulb mr-1" /> C'est votre seul appareil. Ajoutez-en un second (téléphone, autre ordinateur) : si celui-ci est perdu, vos messages restent accessibles.
+                C'est votre seul appareil. Ajoutez-en un second : si celui-ci est perdu, vos messages restent accessibles.
             </p>
-            <p class="text-xs text-(--text2) leading-relaxed">
-                <i class="bi bi-envelope mr-1" /> Un e-mail et une notification vous préviennent à chaque ajout ou retrait d'appareil.
-            </p>
+            <p class="text-xs text-(--text2) leading-relaxed">Chaque ajout ou retrait d'appareil vous est signalé par e-mail.</p>
         </section>
 
         <!-- ================= Onglet « Sécurité » : accès de secours et clés ================= -->
         <section v-else class="space-y-8">
 
             <div class="space-y-3">
-                <div>
-                    <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Si vous perdez vos appareils</h4>
-                    <p class="text-xs text-(--text2) mt-1">Ces accès de secours servent uniquement quand aucun appareil connecté n'est à portée.</p>
-                </div>
+                <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Si vous perdez vos appareils</h4>
 
-                <div class="rounded-xl border border-(--border-color) bg-(--bg2) divide-y divide-(--border-color) overflow-hidden">
-
+                <div class="panel">
                     <!-- Clé de récupération -->
-                    <div class="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
-                        <span class="rescue-ico"><i class="bi bi-key-fill" /></span>
+                    <div class="setting-row">
+                        <i class="bi bi-key row-ico" aria-hidden="true" />
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-bold text-(--text) flex items-center gap-2 flex-wrap">
                                 Clé de récupération
-                                <span class="chip" :class="hasRecovery ? 'chip-ok' : 'chip-warn'">{{ hasRecovery ? 'Active' : 'Absente' }}</span>
+                                <span class="pill" :class="hasRecovery ? 'pill-ok' : 'pill-warn'">{{ hasRecovery ? 'Active' : 'Absente' }}</span>
                             </p>
-                            <p class="text-xs text-(--text2) mt-1 leading-relaxed">
-                                <template v-if="hasRecovery">Ouvre vos messages sur un nouvel appareil. Elle n'est pas réaffichable : en générer une nouvelle rend l'ancienne inutilisable.</template>
-                                <template v-else><strong class="text-amber-500">Sans elle, perdre tous vos appareils rend votre historique définitivement illisible.</strong></template>
-                            </p>
+                            <p v-if="hasRecovery" class="text-xs text-(--text2) mt-1 leading-relaxed">Ouvre vos messages sur un nouvel appareil, si vous avez perdu les autres.</p>
+                            <p v-else class="text-xs text-amber-500 mt-1 leading-relaxed">Sans elle, perdre tous vos appareils rend vos messages illisibles pour toujours.</p>
                         </div>
                         <button class="text-sm whitespace-nowrap" :class="hasRecovery ? 'second' : 'primary'" :disabled="!E2EEUnloked || recoveryBusy" @click="hasRecovery ? (confirmRegen = true) : regenerate()">
-                            {{ hasRecovery ? 'Générer une nouvelle clé' : 'Créer une clé' }}
+                            {{ hasRecovery ? 'Remplacer' : 'Créer une clé' }}
                         </button>
                     </div>
 
                     <!-- Récupération par code PIN -->
-                    <div class="p-5 space-y-3" :class="{ 'opacity-80': !pinRecoveryConfigured }">
-                        <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-                            <span class="rescue-ico"><i class="bi bi-123" /></span>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-bold text-(--text) flex items-center gap-2 flex-wrap">
-                                    Code PIN de récupération
-                                    <span v-if="!pinRecoveryConfigured" class="chip chip-off">Non proposé</span>
-                                    <span v-else-if="!pinRec.reachable" class="chip chip-warn">Service injoignable</span>
-                                    <span v-else-if="pinRec.enabled && pinRec.locked" class="chip chip-bad">Bloqué</span>
-                                    <span v-else-if="pinRec.enabled" class="chip chip-ok">Activé</span>
-                                    <span v-else class="chip chip-off">Désactivé</span>
-                                </p>
-                                <p class="text-xs text-(--text2) mt-1 leading-relaxed">
-                                    <template v-if="!pinRecoveryConfigured">Non proposé sur ce serveur.</template>
-                                    <template v-else-if="!pinRec.reachable">Le service de récupération ne répond pas pour le moment.</template>
-                                    <template v-else-if="pinRec.enabled && pinRec.locked">Trop d'essais. Réactivez-le depuis cet appareil.</template>
-                                    <template v-else-if="pinRec.enabled">{{ pinRec.attemptsLeft }} essai(s) avant blocage.</template>
-                                    <template v-else>Dernier secours si vous n'avez plus ni appareil ni clé. Moins sûr.</template>
-                                </p>
-                            </div>
-                            <div v-if="pinRecoveryConfigured && pinRec.reachable" class="flex gap-2">
-                                <button class="text-sm whitespace-nowrap" :class="pinRec.enabled ? 'second' : 'primary'" :disabled="!E2EEUnloked || pinRec.busy" @click="openEnablePin">
-                                    {{ pinRec.enabled ? (pinRec.locked ? 'Réactiver' : 'Changer le code') : 'Activer' }}
-                                </button>
-                                <button v-if="pinRec.enabled" class="disconnect-btn" :disabled="pinRec.busy" @click="confirmDisablePin = true">Désactiver</button>
-                            </div>
-                        </div>
-                        <details v-if="pinRecoveryConfigured" class="why-less-safe">
-                            <summary>Pourquoi est-ce moins sûr ?</summary>
-                            <p>
-                                Votre code n'est jamais envoyé, mais quiconque volerait à la fois les secrets de nos deux serveurs pourrait deviner un code à 4 chiffres en quelques secondes.
-                                10 essais au plus, puis blocage ; chaque essai vous est signalé par e-mail.
+                    <div class="setting-row">
+                        <i class="bi bi-123 row-ico" aria-hidden="true" />
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold text-(--text) flex items-center gap-2 flex-wrap">
+                                Code PIN de récupération
+                                <span v-if="!pinRecoveryConfigured" class="pill pill-off">Non proposé</span>
+                                <span v-else-if="!pinRec.reachable" class="pill pill-warn">Injoignable</span>
+                                <span v-else-if="pinRec.enabled && pinRec.locked" class="pill pill-bad">Bloqué</span>
+                                <span v-else-if="pinRec.enabled" class="pill pill-ok">Activé</span>
+                                <span v-else class="pill pill-off">Désactivé</span>
                             </p>
-                        </details>
+                            <p class="text-xs text-(--text2) mt-1 leading-relaxed">
+                                <template v-if="!pinRecoveryConfigured">Non proposé sur ce serveur.</template>
+                                <template v-else-if="!pinRec.reachable">Le service de récupération ne répond pas pour le moment.</template>
+                                <template v-else-if="pinRec.enabled && pinRec.locked">Trop d'essais. Réactivez-le depuis cet appareil.</template>
+                                <template v-else-if="pinRec.enabled">{{ pinRec.attemptsLeft }} essai(s) avant blocage.</template>
+                                <template v-else>4 chiffres, si vous n'avez plus ni appareil ni clé. Moins sûr.</template>
+                            </p>
+                            <details v-if="pinRecoveryConfigured" class="more">
+                                <summary>Pourquoi est-ce moins sûr ?</summary>
+                                <p>{{ PIN_RECOVERY_WHY }}</p>
+                            </details>
+                        </div>
+                        <div v-if="pinRecoveryConfigured && pinRec.reachable" class="flex gap-2">
+                            <button class="text-sm whitespace-nowrap" :class="pinRec.enabled ? 'second' : 'primary'" :disabled="!E2EEUnloked || pinRec.busy" @click="openEnablePin">
+                                {{ pinRec.enabled ? (pinRec.locked ? 'Réactiver' : 'Changer') : 'Activer' }}
+                            </button>
+                            <button v-if="pinRec.enabled" class="quiet-btn" :disabled="pinRec.busy" @click="confirmDisablePin = true">Désactiver</button>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div class="space-y-3">
                 <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Avancé</h4>
-                <div class="p-5 bg-(--bg2) border border-(--border-color) rounded-xl flex flex-col sm:flex-row sm:items-center gap-4">
-                    <div class="flex-1">
-                        <p class="text-sm font-bold text-(--text)">Renouveler mes clés de chiffrement</p>
-                        <p class="text-xs text-(--text2) mt-1 leading-relaxed">
-                            À faire si un appareil perdu ou volé était déverrouillé : il ne pourra plus rien déchiffrer de ce qui vous sera envoyé ensuite.
-                            Vos contacts reçoivent automatiquement vos nouvelles clés ; votre historique reste lisible sur vos appareils.
-                        </p>
+                <div class="panel">
+                    <div class="setting-row">
+                        <i class="bi bi-arrow-repeat row-ico" aria-hidden="true" />
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold text-(--text)">Renouveler mes clés de chiffrement</p>
+                            <p class="text-xs text-(--text2) mt-1 leading-relaxed">
+                                Un appareil perdu était déverrouillé ? Il ne pourra plus lire ce qu'on vous enverra ensuite. Votre historique reste lisible.
+                            </p>
+                        </div>
+                        <button class="second text-sm whitespace-nowrap" :disabled="!E2EEUnloked || rotating" @click="confirmRotate = true">Renouveler</button>
                     </div>
-                    <button class="second text-sm whitespace-nowrap" :disabled="!E2EEUnloked || rotating" @click="confirmRotate = true">Renouveler</button>
                 </div>
             </div>
         </section>
@@ -176,78 +169,75 @@
 
         <!-- Ajouter un appareil -->
         <Popup :isOpen="add.open" @close="closeAdd">
-            <template #title>Ajouter un appareil</template>
+            <template #title>{{ add.step === 'done' ? 'Comparez les codes' : 'Ajouter un appareil' }}</template>
 
             <div v-if="add.step === 'scan'" class="space-y-4">
-                <p class="text-sm text-(--text2)">
-                    Sur le nouvel appareil, ouvrez Synco et choisissez « Depuis un autre appareil ». Scannez le QR code affiché,
-                    ou saisissez le code de 28 caractères.
-                </p>
+                <p class="text-sm text-(--text2)">Sur le nouvel appareil, connectez-vous à Synco : un QR code s'affiche. Scannez-le.</p>
                 <QrScanner v-if="add.useCamera" @result="onScanned" @unavailable="add.useCamera = false" />
-                <div class="space-y-2">
-                    <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Code affiché sur le nouvel appareil</label>
-                    <input v-model="add.code" type="text" spellcheck="false" autocomplete="off" autocapitalize="characters" @keydown.stop @keyup.enter="submitCode"
-                        placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
-                        class="w-full bg-(--bg) border border-(--border-color) rounded-xl px-4 py-2 font-mono text-sm tracking-wider text-(--text) focus:outline-none focus:border-(--primary)" />
+                <div>
+                    <label for="add-code" class="field-label">{{ add.useCamera ? 'Ou saisissez le code affiché sous le QR code' : 'Code affiché sous le QR code' }}</label>
+                    <input id="add-code" v-model="add.code" type="text" spellcheck="false" autocomplete="off" autocapitalize="characters" @keydown.stop @keyup.enter="submitCode"
+                        placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" class="field font-mono tracking-wider" />
                 </div>
             </div>
 
             <div v-else-if="add.step === 'select'" class="space-y-3">
-                <p class="text-sm text-(--text2)">Quel appareil voulez-vous ajouter ?</p>
-                <button v-for="p in add.pending" :key="p.id" class="w-full text-left p-3 rounded-xl border border-(--border-color) hover:border-(--primary) flex items-center gap-3"
-                    @click="selectPending(p)">
-                    <i class="bi text-xl" :class="PLATFORM_ICONS[p.platform]" />
-                    <span class="flex-1">
-                        <span class="block text-sm font-bold text-(--text)">{{ p.name }}</span>
-                        <span class="block text-xs text-(--text2)">{{ PLATFORM_LABELS[p.platform] }} · demande {{ formatRelative(p.createdAt) }}</span>
-                    </span>
-                </button>
+                <p class="text-sm text-(--text2)">Plusieurs demandes attendent. Laquelle est la vôtre ?</p>
+                <div class="panel">
+                    <button v-for="p in add.pending" :key="p.id" class="setting-row w-full text-left hover:bg-(--text)/5 transition-colors" @click="selectPending(p)">
+                        <i class="bi row-ico" :class="PLATFORM_ICONS[p.platform]" aria-hidden="true" />
+                        <span class="flex-1 min-w-0">
+                            <span class="block text-sm font-bold text-(--text)">{{ p.name }}</span>
+                            <span class="block text-xs text-(--text2)">{{ PLATFORM_LABELS[p.platform] }} · demande {{ formatRelative(p.createdAt) }}</span>
+                        </span>
+                        <i class="bi bi-chevron-right text-(--text2)" aria-hidden="true" />
+                    </button>
+                </div>
             </div>
 
             <div v-else-if="add.step === 'confirm' && add.target" class="space-y-4">
-                <div class="p-4 rounded-xl border border-(--border-color) bg-(--bg2) flex items-center gap-3">
-                    <i class="bi text-2xl" :class="PLATFORM_ICONS[add.target.platform]" />
-                    <div>
-                        <p class="text-sm font-bold text-(--text)">{{ add.target.name }}</p>
-                        <p class="text-xs text-(--text2)">{{ PLATFORM_LABELS[add.target.platform] }} · demande {{ formatRelative(add.target.createdAt) }}</p>
+                <div class="panel">
+                    <div class="setting-row">
+                        <i class="bi row-ico" :class="PLATFORM_ICONS[add.target.platform]" aria-hidden="true" />
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold text-(--text)">{{ add.target.name }}</p>
+                            <p class="text-xs text-(--text2)">{{ PLATFORM_LABELS[add.target.platform] }} · demande {{ formatRelative(add.target.createdAt) }}</p>
+                        </div>
                     </div>
                 </div>
-                <div class="flex items-start gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                    <i class="bi bi-exclamation-triangle-fill text-amber-500 mt-0.5 shrink-0" />
-                    <span class="text-xs text-amber-500 leading-snug">
-                        Cet appareil pourra lire tous vos messages chiffrés. N'autorisez que vos propres appareils, que vous avez sous les yeux.
-                    </span>
-                </div>
-                <label class="flex items-start gap-2 text-sm text-(--text) cursor-pointer">
-                    <input type="checkbox" v-model="add.ack" class="mt-1" />
-                    <span>C'est bien mon appareil, et c'est moi qui viens de lancer cette demande.</span>
+                <p class="text-sm text-(--text)">Cet appareil pourra lire tous vos messages chiffrés.</p>
+                <label class="flex items-start gap-2.5 text-sm text-(--text) cursor-pointer">
+                    <input type="checkbox" v-model="add.ack" class="mt-1 accent-(--primary)" />
+                    <span>C'est mon appareil, et je viens de lancer cette demande.</span>
                 </label>
             </div>
 
-            <div v-else-if="add.step === 'done'" class="space-y-4 text-center">
-                <p class="text-sm text-(--text2)">Vérifiez que le nouvel appareil affiche le même code, puis validez-le là-bas :</p>
-                <p class="font-mono text-4xl font-bold tracking-[0.3em] text-(--text)">{{ add.sas }}</p>
-                <p class="text-xs text-(--text2)">Si les codes diffèrent, refusez sur le nouvel appareil et déconnectez-le d'ici s'il apparaît dans la liste.</p>
+            <div v-else-if="add.step === 'done'" class="space-y-5 text-center">
+                <p class="text-sm text-(--text2)">Le nouvel appareil affiche un code. Il doit être identique :</p>
+                <p class="sas" aria-label="Code de confirmation">
+                    <span>{{ add.sas.replace(/\D/g, '').slice(0, 3) }}</span><span>{{ add.sas.replace(/\D/g, '').slice(3, 6) }}</span>
+                </p>
+                <p class="text-xs text-(--text2)">Identique : validez sur le nouvel appareil. Différent : refusez-y la connexion.</p>
             </div>
 
             <template #footer>
                 <button class="default" @click="closeAdd">{{ add.step === 'done' ? 'Fermer' : 'Annuler' }}</button>
                 <button v-if="add.step === 'scan'" class="primary" :disabled="add.busy || add.code.replace(/[\s-]/g, '').length < 28" @click="submitCode">Continuer</button>
-                <button v-if="add.step === 'confirm'" class="primary" :class="{ loader: add.busy }" :disabled="!add.ack || add.busy" @click="authorize">Autoriser cet appareil</button>
+                <button v-if="add.step === 'confirm'" class="primary" :class="{ loader: add.busy }" :disabled="!add.ack || add.busy" @click="authorize">Autoriser</button>
             </template>
         </Popup>
 
         <!-- Confirmation par le coffre (PIN local) -->
         <Popup :isOpen="stepUp.open" :zIndex="2200" @close="cancelStepUp">
-            <template #title>Confirmez avec votre code PIN local</template>
-            <p class="text-sm text-(--text2) mb-6">{{ stepUp.reason }}</p>
+            <template #title>Code PIN de cet appareil</template>
+            <p class="text-sm text-(--text2) mb-6 text-center">{{ stepUp.reason }}</p>
             <PinPad v-if="stepUp.open" v-model="stepUp.pin" auto-submit :error-tick="stepUp.errorTick" @submit="submitStepUp" />
         </Popup>
 
         <!-- Nouvelle clé de récupération -->
         <Popup :isOpen="!!newRecovery" :zIndex="2100" @close="closeNewRecovery">
-            <template #title>Votre nouvelle clé de récupération</template>
-            <p class="text-sm text-(--text2) mb-4">L'ancienne clé ne fonctionne plus.</p>
+            <template #title>Nouvelle clé de récupération</template>
+            <p class="text-sm text-(--text2) mb-4">L'ancienne ne fonctionne plus.</p>
             <RecoveryKeyPanel v-if="newRecovery" :key-text="newRecovery" :account-label="accountLabel" @saved="recoveryAck = true" />
             <template #footer>
                 <button class="primary" :disabled="!recoveryAck" @click="closeNewRecovery">Terminer</button>
@@ -256,25 +246,22 @@
 
         <!-- Changer le PIN local / passer d'un autre verrou au PIN local -->
         <Popup :isOpen="pinChange.open" @close="pinChange.open = false">
-            <template #title>{{ pinChange.mode === 'change' ? 'Changer le code PIN local' : 'Utiliser un code PIN local' }}</template>
-            <p v-if="pinChange.mode === 'to-pin'" class="text-xs text-amber-500 mb-4 leading-relaxed">
-                <i class="bi bi-exclamation-triangle-fill mr-1" />
-                {{ SWITCH_WARNING['web-pin'] }}
-            </p>
-            <div class="space-y-3">
-                <div v-if="pinChange.mode === 'change'" class="space-y-1">
-                    <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Code actuel</label>
-                    <input v-model="pinChange.current" type="password" inputmode="numeric" maxlength="4" autocomplete="off" @keydown.stop class="pin-input" />
+            <template #title>{{ pinChange.mode === 'change' ? 'Changer le code PIN' : 'Utiliser un code PIN' }}</template>
+            <div class="space-y-4">
+                <div v-if="pinChange.mode === 'change'">
+                    <label for="pin-current" class="field-label">Code actuel</label>
+                    <input id="pin-current" v-model="pinChange.current" type="password" inputmode="numeric" maxlength="4" autocomplete="off" @keydown.stop class="field pin-field" />
                 </div>
-                <div class="space-y-1">
-                    <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Nouveau code (4 chiffres)</label>
-                    <input v-model="pinChange.next" type="password" inputmode="numeric" maxlength="4" autocomplete="off" @keydown.stop class="pin-input" />
+                <div>
+                    <label for="pin-next" class="field-label">Nouveau code (4 chiffres)</label>
+                    <input id="pin-next" v-model="pinChange.next" type="password" inputmode="numeric" maxlength="4" autocomplete="off" @keydown.stop class="field pin-field" />
                 </div>
-                <div class="space-y-1">
-                    <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Confirmer</label>
-                    <input v-model="pinChange.confirm" type="password" inputmode="numeric" maxlength="4" autocomplete="off" @keydown.stop @keyup.enter="submitPinChange" class="pin-input" />
+                <div>
+                    <label for="pin-confirm" class="field-label">Confirmez le nouveau code</label>
+                    <input id="pin-confirm" v-model="pinChange.confirm" type="password" inputmode="numeric" maxlength="4" autocomplete="off" @keydown.stop @keyup.enter="submitPinChange" class="field pin-field" />
                 </div>
-                <p class="text-[11px] text-(--text2)">Ce code ne quitte jamais cet appareil. 10 erreurs effacent les clés de cet appareil.</p>
+                <p class="text-xs text-(--text2) leading-relaxed">Il ne quitte jamais cet appareil. Après 10 erreurs, ses clés sont effacées.</p>
+                <p v-if="pinChange.mode === 'to-pin'" class="text-xs text-amber-500 leading-relaxed">{{ SWITCH_WARNING['web-pin'] }}</p>
             </div>
             <template #footer>
                 <button class="default" @click="pinChange.open = false">Annuler</button>
@@ -284,23 +271,21 @@
 
         <!-- Activer / changer le code de récupération -->
         <Popup :isOpen="enablePin.open" @close="closeEnablePin">
-            <template #title>Récupération par code PIN</template>
+            <template #title>Code PIN de récupération</template>
             <div v-if="enablePin.step === 'warn'" class="space-y-4">
-                <div class="flex items-start gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                    <i class="bi bi-exclamation-triangle-fill text-amber-500 mt-0.5 shrink-0" />
-                    <span class="text-xs text-amber-500 leading-snug">
-                        Un code à 4 chiffres protège moins bien que vos appareils ou votre clé de récupération. Votre code n'est jamais envoyé
-                        (il est « aveuglé ») et deux serveurs séparés limitent les essais, mais quiconque compromettrait les deux pourrait retrouver vos messages.
-                    </span>
-                </div>
-                <label class="flex items-start gap-2 text-sm text-(--text) cursor-pointer">
-                    <input type="checkbox" v-model="enablePin.ack" class="mt-1" />
-                    <span>J'ai compris et je veux tout de même pouvoir récupérer mes messages avec un code PIN.</span>
+                <p class="text-sm text-(--text)">Un code à 4 chiffres protège moins bien que vos appareils ou votre clé de récupération.</p>
+                <details class="more !ml-0">
+                    <summary>Pourquoi ?</summary>
+                    <p>{{ PIN_RECOVERY_WHY }}</p>
+                </details>
+                <label class="flex items-start gap-2.5 text-sm text-(--text) cursor-pointer">
+                    <input type="checkbox" v-model="enablePin.ack" class="mt-1 accent-(--primary)" />
+                    <span>Je veux quand même pouvoir retrouver mes messages avec un code.</span>
                 </label>
             </div>
             <div v-else class="flex flex-col items-center">
                 <p class="text-sm text-(--text2) mb-6 text-center max-w-sm">
-                    {{ enablePin.step === 'choose' ? 'Choisissez votre code PIN de récupération (4 chiffres). Vous pouvez reprendre votre code habituel.' : 'Saisissez-le à nouveau pour confirmer.' }}
+                    {{ enablePin.step === 'choose' ? 'Choisissez 4 chiffres. Vous pouvez reprendre votre code habituel.' : 'Saisissez-le une seconde fois.' }}
                 </p>
                 <PinPad v-if="enablePin.open" v-model="enablePin.pin" :error-tick="enablePin.errorTick" :disabled="pinRec.busy" @submit="submitEnablePin" />
             </div>
@@ -312,14 +297,12 @@
 
         <!-- Code de récupération demandé lors d'un retrait d'appareil -->
         <Popup :isOpen="recPinAsk.open" :zIndex="2200" @close="answerRecPin(undefined)">
-            <template #title>Conserver la récupération par code PIN</template>
-            <p class="text-sm text-(--text2) mb-6">
-                Une nouvelle clé de compte va être créée. Saisissez votre code PIN de récupération pour la conserver, ou désactivez-la.
-            </p>
+            <template #title>Garder le code PIN de récupération ?</template>
+            <p class="text-sm text-(--text2) mb-6 text-center">Vos clés vont changer. Saisissez ce code pour qu'il reste valable.</p>
             <PinPad v-if="recPinAsk.open" v-model="recPinAsk.pin" auto-submit @submit="answerRecPin(recPinAsk.pin)" />
             <template #footer>
-                <button class="default" @click="answerRecPin(undefined)">Annuler le retrait</button>
-                <button class="second" @click="answerRecPin(null)">Désactiver la récupération par PIN</button>
+                <button class="default" @click="answerRecPin(undefined)">Annuler</button>
+                <button class="second" @click="answerRecPin(null)">Ne pas le garder</button>
             </template>
         </Popup>
 
@@ -335,24 +318,15 @@
             @cancel="switchTarget = null"
         />
 
-        <!-- Fenêtre du PIN de Synco Extension ouverte : au-dessus de toute popup -->
-        <Teleport to="body">
-            <div v-if="extensionWaiting" class="ext-wait-banner" role="status" aria-live="polite">
-                <i class="bi bi-puzzle text-lg text-(--primary)" />
-                <div class="flex-1 min-w-0">
-                    <p class="text-sm font-semibold text-(--text)">En attente de votre accord dans la fenêtre de Synco Extension…</p>
-                    <p class="text-xs text-(--text2) mt-1">Cliquez sur « Autoriser » dans la fenêtre de l'extension.</p>
-                </div>
-                <button class="second text-xs" @click="cancelExtensionWait">Annuler</button>
-            </div>
-        </Teleport>
+        <!-- Fenêtre de Synco Extension ouverte : la même barre d'attente que l'écran de verrouillage, au-dessus de tout -->
+        <ExtensionScene :view="scene" @cancel="cancelExtensionWait" />
 
         <ConfirmDelete
             :show="confirmDisablePin"
-            title="Désactiver la récupération par code PIN ?"
+            title="Désactiver le code PIN de récupération ?"
             item-name="la récupération par code PIN"
             item-type="la récupération par code PIN"
-            message="Vous ne pourrez plus retrouver vos messages avec un code PIN. Vos appareils et votre clé de récupération restent les moyens d'accès."
+            message="Il ne permettra plus de retrouver vos messages. Vos appareils et votre clé de récupération restent valables."
             button-text="Désactiver"
             :loading="pinRec.busy"
             @confirm="disablePin"
@@ -367,9 +341,9 @@
             :message="removeMessage"
             :extra-warning="removeWarning"
             button-text="Déconnecter"
-            :checkbox="true"
-            checkbox-label="Je comprends que cet appareil perdra l'accès à mes nouveaux messages."
-            extra-option-label="Renouveler aussi mes clés de chiffrement (recommandé si cet appareil était déverrouillé)"
+            :checkbox="!!removeTarget?.isThisDevice"
+            checkbox-label="Je comprends que je devrai reconnecter cet appareil pour lire mes messages."
+            extra-option-label="Renouveler aussi mes clés (si l'appareil était déverrouillé quand vous l'avez perdu)"
             v-model:extra-option-value="rotateWithRemoval"
             @confirm="confirmRemove"
             @cancel="removeTarget = null"
@@ -380,8 +354,8 @@
             title="Renouveler vos clés de chiffrement ?"
             item-name="vos clés de chiffrement"
             item-type="vos clés de chiffrement"
-            message="De nouvelles clés seront créées et distribuées à vos appareils. Vos contacts les recevront automatiquement ; votre historique reste lisible sur vos appareils. Les salons et espaces existants gardent leur clé tant qu'elle n'est pas renouvelée par leurs membres."
-            :extra-warning="hasRecovery ? 'Votre clé de récupération sera renouvelée : la nouvelle s\'affichera ensuite.' : ''"
+            message="Vos appareils et vos contacts recevront les nouvelles clés automatiquement. Votre historique reste lisible."
+            :extra-warning="hasRecovery ? 'Vous recevrez aussi une nouvelle clé de récupération.' : ''"
             button-text="Renouveler"
             :loading="rotating"
             @confirm="confirmRotate = false; runRotation([], true)"
@@ -390,11 +364,11 @@
 
         <ConfirmDelete
             :show="confirmRegen"
-            title="Générer une nouvelle clé de récupération ?"
+            title="Remplacer la clé de récupération ?"
             item-name="la clé de récupération"
             item-type="la clé de récupération"
-            message="L'ancienne clé de récupération cessera immédiatement de fonctionner. Une nouvelle clé s'affichera : conservez-la."
-            button-text="Générer"
+            message="L'ancienne clé cessera aussitôt de fonctionner. La nouvelle s'affichera : gardez-la."
+            button-text="Remplacer"
             :loading="recoveryBusy"
             @confirm="confirmRegen = false; regenerate()"
             @cancel="confirmRegen = false"
@@ -414,6 +388,8 @@ import SpinLoader from '../SpinLoader.vue';
 import PinPad from '../e2ee/PinPad.vue';
 import QrScanner from '../e2ee/QrScanner.vue';
 import RecoveryKeyPanel from '../e2ee/RecoveryKeyPanel.vue';
+import ExtensionScene from '../e2ee/ExtensionScene.vue';
+import { createExtensionScene, type SceneMode, type SceneView } from '@/assets/e2eeV4/extensionScene';
 import { user } from '@/assets/var';
 import { refetchUser } from '@/assets/init';
 import { E2EEUnloked, lockSecurity } from '@/assets/utils/crypto';
@@ -440,23 +416,30 @@ defineProps<{ view: 'devices' | 'security' }>();
 
 const toast = useToast();
 
-/** Verrous de cet appareil : ce qu'ils protègent et ce qu'ils ne protègent pas, en langage simple. */
-const VAULT_INFO: Record<VaultKind, { icon: string; label: string; short: string; detail: string }> = {
+/**
+ * Verrous de cet appareil, en langage simple : `detail` est toujours visible (une ligne), `limit` (ce que le verrou
+ * ne protège pas) est replié sous « Ce qu'il ne protège pas ».
+ */
+const VAULT_INFO: Record<VaultKind, { icon: string; label: string; short: string; detail: string; limit?: string }> = {
     'webauthn-prf': {
-        icon: 'bi-fingerprint', label: 'Passkey', short: 'Protection matérielle, la plus sûre',
-        detail: "Vos clés s'ouvrent avec votre passkey (empreinte, visage, code de l'appareil ou de la clé de sécurité). Les essais sont limités par le matériel : c'est le verrou le plus sûr sur le web, y compris si votre ordinateur est volé.",
+        icon: 'bi-fingerprint', label: 'Passkey', short: 'La plus sûre, même en cas de vol',
+        detail: "Empreinte, visage ou code de l'appareil. Les essais sont limités par le matériel.",
     },
     'extension': {
-        icon: 'bi-puzzle', label: 'Synco Extension', short: 'Clés hors de la page, sans code',
-        detail: "Vos clés sont gardées par l'extension, hors de la page, et chaque ouverture s'autorise d'un clic dans sa fenêtre : un script malveillant dans la page ne peut pas les copier en silence. Ce n'est pas une protection matérielle : elle ne protège ni contre le vol de votre ordinateur, ni contre quelqu'un qui utilise votre session ouverte ; une passkey matérielle, si.",
+        icon: 'bi-puzzle', label: 'Synco Extension', short: 'Sans code, clés hors de la page',
+        detail: "Un clic sur « Autoriser » dans sa fenêtre, à chaque ouverture.",
+        limit: "Elle empêche un script de la page de copier vos clés. Elle ne protège ni contre le vol de l'ordinateur, ni contre quelqu'un qui utilise votre session ouverte : une passkey, si.",
     },
     'web-pin': {
-        icon: 'bi-123', label: 'Code PIN local', short: 'Gardé dans la page, le moins protecteur',
-        detail: "Ce code n'est jamais envoyé au serveur, mais il est gardé dans la page : un script malveillant ou une copie du profil de votre navigateur permettrait de le deviner hors ligne. Un PIN de 4 chiffres ne protège pas contre le vol de votre ordinateur ; une passkey matérielle, si.",
+        icon: 'bi-123', label: 'Code PIN local', short: 'Le moins protecteur',
+        detail: "4 chiffres gardés dans ce navigateur, jamais envoyés au serveur.",
+        limit: "Un script malveillant ou une copie du profil du navigateur permettrait de deviner le code hors ligne. Il ne protège pas contre le vol de l'ordinateur : une passkey, si.",
     },
-    'native-biometric': { icon: 'bi-fingerprint', label: 'Biométrie du téléphone', short: '', detail: "Face ID, Touch ID ou empreinte, avec le code de l'appareil en repli. Gérée par les réglages de votre téléphone." },
-    'os-keyring': { icon: 'bi-safe', label: 'Trousseau du système', short: '', detail: "Vos clés sont protégées par votre session sur cet ordinateur (Trousseau macOS, Gestionnaire d'identifiants Windows, Secret Service Linux)." },
+    'native-biometric': { icon: 'bi-fingerprint', label: 'Biométrie du téléphone', short: '', detail: "Face ID, Touch ID ou empreinte, avec le code du téléphone en repli." },
+    'os-keyring': { icon: 'bi-safe', label: 'Trousseau du système', short: '', detail: "Protégé par votre session sur cet ordinateur (trousseau macOS, Windows ou Linux)." },
 };
+
+const PIN_RECOVERY_WHY = "Votre code n'est jamais envoyé. Mais quelqu'un qui volerait les secrets de nos deux serveurs pourrait deviner 4 chiffres en quelques secondes. 10 essais au plus, chacun signalé par e-mail.";
 
 const SWITCH_TITLE: Partial<Record<VaultKind, string>> = {
     'webauthn-prf': 'Passer à une passkey ?',
@@ -477,9 +460,9 @@ const CREATE_WITH: Partial<Record<VaultKind, string>> = {
 };
 
 const SWITCH_WARNING: Partial<Record<VaultKind, string>> = {
-    'webauthn-prf': "Il faut une passkey compatible PRF : si votre gestionnaire de passkeys ne la prend pas en charge, le verrou actuel reste actif.",
-    'extension': "Synco Extension garde vos clés hors de la page, sans code à retenir. Ce n'est pas une protection matérielle : verrouillez votre ordinateur quand vous le quittez ; une passkey matérielle protège aussi contre le vol. Désinstaller l'extension efface vos clés : cet appareil devra être relié de nouveau.",
-    'web-pin': "Un code PIN local est gardé dans la page : un script malveillant ou une copie du profil de votre navigateur permettrait de le deviner hors ligne. Une passkey, ou à défaut Synco Extension, protège mieux.",
+    'webauthn-prf': "Certaines passkeys ne conviennent pas au chiffrement : dans ce cas, rien ne change.",
+    'extension': "Désinstaller l'extension efface les clés : il faudrait alors reconnecter cet appareil.",
+    'web-pin': "Un code PIN local protège moins bien qu'une passkey ou que Synco Extension.",
 };
 
 const SWITCH_DONE: Partial<Record<VaultKind, string>> = {
@@ -542,34 +525,37 @@ onMounted(async () => {
     await refreshPinRec();
 });
 
-onUnmounted(() => cancelExtensionWait());
+onUnmounted(() => { cancelExtensionWait(); sceneCtl.dispose(); });
 
-// --- fenêtre du PIN de Synco Extension ---------------------------------------------
+// --- fenêtre de Synco Extension -------------------------------------------------------
 
-const extensionWaiting = ref(false);
+/** Barre d'attente partagée avec l'écran de verrouillage (ExtensionScene) tant que la fenêtre de l'extension est ouverte. */
+const scene = ref<SceneView | null>(null);
+const sceneCtl = createExtensionScene({ onChange: v => { scene.value = v; } });
 let extensionAbort: AbortController | null = null;
 
 /**
- * Contexte d'une opération du coffre : raison affichée, annulation côté page, bandeau d'attente
- * tant que la fenêtre de l'extension est ouverte. `op` partage l'annulation entre les deux étapes
- * d'un changement de verrou. Aucune clé ni aucun PIN ne passe par cet état.
+ * Contexte d'une opération du coffre : raison affichée, annulation côté page, barre d'attente tant que la fenêtre
+ * de l'extension est ouverte. `op` partage l'annulation entre les deux étapes d'un changement de verrou. Aucune clé
+ * ni aucun PIN ne passe par cet état.
  */
-function promptCtx(reason: string, op = new AbortController()): VaultContext {
+function promptCtx(reason: string, op = new AbortController(), mode: SceneMode = 'confirm'): VaultContext {
     return {
         reason, signal: op.signal,
         onPrompt: () => {
             extensionAbort = op;
-            extensionWaiting.value = true;
-            return () => {
-                extensionWaiting.value = false;
+            const end = sceneCtl.begin(mode);
+            return (outcome) => {
                 if (extensionAbort === op) extensionAbort = null;
+                end(outcome);
             };
         },
     };
 }
 
-/** La page cesse d'attendre ; la fenêtre de l'extension reste ouverte (le protocole n'a pas d'annulation). */
+/** La page cesse d'attendre et demande à l'extension de fermer sa fenêtre. Pas de message : l'utilisateur sait ce qu'il a fait. */
 function cancelExtensionWait() {
+    sceneCtl.markUserCancel();
     extensionAbort?.abort();
 }
 
@@ -654,16 +640,17 @@ const removeMessage = computed(() => {
     const d = removeTarget.value;
     if (!d) return '';
     return d.isThisDevice
-        ? `« ${d.name} » (cet appareil) sera retiré de votre compte : vos clés seront effacées d'ici et une nouvelle clé de compte sera distribuée à vos autres appareils.`
-        : `« ${d.name} » ne pourra plus déchiffrer vos nouveaux messages : une nouvelle clé de compte sera distribuée à vos autres appareils.`;
+        ? 'Cet appareil sera retiré de votre compte et ses clés effacées.'
+        : `« ${d.name} » ne pourra plus lire vos nouveaux messages.`;
 });
+/** Seulement ce qui va se passer en plus, une phrase par fait. */
 const removeWarning = computed(() => {
-    const parts = ["Si cet appareil était déverrouillé au moment de sa perte, il conserve l'accès à ce qu'il a déjà pu ouvrir : changez aussi votre mot de passe."];
-    if (hasRecovery.value) parts.push('Votre clé de récupération sera renouvelée : la nouvelle s\'affichera ensuite.');
-    if (pinRec.enabled) parts.push('Votre code PIN de récupération vous sera demandé pour la conserver.');
-    parts.push("Pour l'en priver aussi à l'avenir, cochez le renouvellement des clés ci-dessous.");
+    const parts: string[] = [];
+    if (hasRecovery.value) parts.push('Vous recevrez une nouvelle clé de récupération.');
+    if (pinRec.enabled) parts.push('Votre code PIN de récupération vous sera demandé.');
     const uncertified = devices.value.filter(x => !x.certified && x.id !== removeTarget.value?.id).length;
     if (uncertified) parts.push(`${uncertified} appareil(s) non certifié(s) seront aussi retirés.`);
+    if (!removeTarget.value?.isThisDevice) parts.push('Appareil perdu ou volé ? Cochez le renouvellement des clés et changez votre mot de passe.');
     return parts.join(' ');
 });
 
@@ -988,7 +975,7 @@ const switchMessage = computed(() => {
     const from = localKind.value ? OPEN_WITH[localKind.value] : undefined;
     const to = switchTarget.value ? CREATE_WITH[switchTarget.value] : undefined;
     if (!from || !to) return '';
-    return `Vous confirmerez d'abord avec ${from}, puis ${to}. La clé de cet appareil est rescellée ici : rien n'est envoyé au serveur, et l'ancien verrou n'est effacé qu'une fois le nouveau en place.`;
+    return `Vous confirmerez avec ${from}, puis ${to}. Rien n'est envoyé au serveur.`;
 });
 
 function openChangePin() {
@@ -1019,7 +1006,7 @@ async function runSwitch(target: VaultKind, newPin?: string): Promise<boolean> {
         if (!from || !to) throw new VaultError('unavailable', target === 'webauthn-prf' ? 'Ce navigateur ne propose pas de passkey compatible.' : undefined);
         const op = new AbortController();
         const fromCtx = await vaultCtx('Confirmez avec le verrou actuel pour changer le verrou de cet appareil.', op);
-        const toCtx: VaultContext = target === 'web-pin' ? { pin: newPin } : promptCtx('Nouveau verrou de cet appareil', op);
+        const toCtx: VaultContext = target === 'web-pin' ? { pin: newPin } : promptCtx('Nouveau verrou de cet appareil', op, 'enroll');
         await switchVault({ userId: dev.userId, store: idbStore, from, to, fromCtx, toCtx });
         const done = SWITCH_DONE[target];
         if (done) toast.show(done, 'success');
@@ -1070,59 +1057,62 @@ async function submitPinChange() {
 </script>
 
 <style scoped>
-.pin-input {
-    width: 100%;
-    max-width: 10rem;
-    background: var(--bg);
-    border: 1px solid var(--border-color);
-    border-radius: 0.75rem;
-    padding: 0.5rem 1rem;
-    font-size: 1.125rem;
-    letter-spacing: 0.5em;
-    color: var(--text);
-}
-.pin-input:focus {
-    outline: none;
-    border-color: var(--primary);
-}
-</style>
+/* Une carte par groupe, une ligne par objet séparée d'un trait ; icônes grises sans pastille ; le vert de Synco sur
+   l'état (« Cet appareil », « Active ») et sur l'action principale de chaque vue. */
+.panel { border-radius: 0.75rem; border: 1px solid var(--border-color); background: var(--bg2); overflow: hidden; }
+.panel > * + * { border-top: 1px solid var(--border-color); }
 
-<style scoped>
-.device-card { border-radius: 0.9rem; border: 1px solid var(--border-color); background: var(--bg2); overflow: hidden; transition: border-color 0.2s ease; }
-.device-card.is-current { border-color: color-mix(in srgb, var(--primary) 45%, var(--border-color)); background: color-mix(in srgb, var(--primary) 4%, var(--bg2)); }
-.device-ico, .rescue-ico {
-    flex: none; width: 2.5rem; height: 2.5rem; border-radius: 0.8rem; display: grid; place-items: center; font-size: 1.15rem;
-    color: var(--text2); background: color-mix(in srgb, var(--text) 7%, transparent);
+.device-row { padding: 1rem 1.125rem; }
+.setting-row { display: flex; align-items: flex-start; gap: 0.875rem; padding: 1rem 1.125rem; }
+/* Téléphone : le texte prend la ligne, l'action passe dessous, alignée sur le texte (icône 1.25rem + écart). */
+@media (max-width: 639px) {
+    .setting-row { flex-wrap: wrap; }
+    .setting-row > .flex-1 { flex-basis: calc(100% - 2.125rem); }
+    .setting-row > :last-child:not(.flex-1) { margin-left: 2.125rem; }
 }
-.is-current .device-ico { color: var(--primary); background: color-mix(in srgb, var(--primary) 14%, transparent); }
-.rescue-ico { color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); }
+
+.row-ico { flex: none; width: 1.25rem; margin-top: 0.05rem; font-size: 1.05rem; text-align: center; color: var(--text2); }
+.row-ico.is-current { color: var(--primary); }
+
+.pill { padding: 0.125rem 0.5rem; border-radius: 999px; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.pill-ok { color: var(--primary); background: color-mix(in srgb, var(--primary) 16%, transparent); }
+.pill-warn { color: #f59e0b; background: rgb(245 158 11 / 0.15); }
+.pill-bad { color: #ef4444; background: rgb(239 68 68 / 0.15); }
+.pill-off { color: var(--text2); background: color-mix(in srgb, var(--text) 9%, transparent); }
+
 .rename-btn { font-size: 0.75rem; color: var(--text2); opacity: 0; transition: opacity 0.15s ease, color 0.15s ease; }
-.device-card:hover .rename-btn, .rename-btn:focus-visible { opacity: 1; }
+.device-row:hover .rename-btn, .rename-btn:focus-visible { opacity: 1; }
 .rename-btn:hover { color: var(--text); }
 @media (hover: none) { .rename-btn { opacity: 1; } }
-.disconnect-btn { flex: none; align-self: center; padding: 0.4rem 0.7rem; border-radius: 0.6rem; font-size: 0.75rem; font-weight: 600; white-space: nowrap; color: var(--text2); transition: color 0.15s ease, background-color 0.15s ease; }
-.disconnect-btn:hover:not(:disabled) { color: #ef4444; background: rgb(239 68 68 / 0.1); }
-.disconnect-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.lock-panel { display: flex; gap: 0.875rem; padding: 0.9rem 1rem 1rem; border-top: 1px dashed color-mix(in srgb, var(--primary) 30%, var(--border-color)); }
-.lock-panel > i { margin-top: 0.1rem; width: 2.5rem; text-align: center; }
 
-/* Au-dessus des Popup (2000-2200) et de ConfirmDelete (3000) : visible pendant toute opération sensible. */
-.ext-wait-banner {
-    position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%); z-index: 3100;
-    width: min(30rem, calc(100vw - 2rem)); display: flex; align-items: center; gap: 0.875rem; padding: 0.9rem 1rem;
-    border-radius: 0.9rem; background: var(--bg2); box-shadow: 0 12px 32px rgb(0 0 0 / 0.35);
-    border: 1px solid color-mix(in srgb, var(--primary) 40%, var(--border-color));
+/* Action secondaire discrète (Déconnecter, Désactiver) : rouge seulement au survol. */
+.quiet-btn { flex: none; align-self: center; padding: 0.4rem 0.7rem; border-radius: 0.6rem; font-size: 0.75rem; font-weight: 600; white-space: nowrap; color: var(--text2); transition: color 0.15s ease, background-color 0.15s ease; }
+.quiet-btn:hover:not(:disabled) { color: #ef4444; background: rgb(239 68 68 / 0.1); }
+.quiet-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Bouton compact dans une ligne (verrou de cet appareil) : contour fin, pas le grand bouton de Synco. */
+.small-btn {
+    display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.4rem 0.75rem; border-radius: 0.6rem;
+    border: 1px solid var(--border-color); font-size: 0.8125rem; font-weight: 500; color: var(--text); transition: border-color 0.15s ease;
 }
+.small-btn:hover:not(:disabled) { border-color: color-mix(in srgb, var(--text) 35%, transparent); }
+.small-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.chip { font-size: 0.625rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.125rem 0.5rem; border-radius: 999px; }
-.chip-ok { color: var(--primary); background: color-mix(in srgb, var(--primary) 15%, transparent); }
-.chip-warn { color: #f59e0b; background: rgb(245 158 11 / 0.15); }
-.chip-bad { color: #ef4444; background: rgb(239 68 68 / 0.15); }
-.chip-off { color: var(--text2); background: color-mix(in srgb, var(--text) 9%, transparent); }
+.lock-panel { margin: 0.875rem 0 0 2.125rem; padding-top: 0.875rem; border-top: 1px solid var(--border-color); }
 
-.why-less-safe { margin-left: 3.25rem; font-size: 0.75rem; color: var(--text2); }
-.why-less-safe summary { cursor: pointer; width: fit-content; color: var(--text2); transition: color 0.15s ease; }
-.why-less-safe summary:hover { color: var(--primary); }
-.why-less-safe p { margin-top: 0.5rem; line-height: 1.5; }
-@media (max-width: 639px) { .why-less-safe { margin-left: 0; } }
+/* « En savoir plus » : le détail technique reste lisible pour qui le cherche, replié pour les autres. */
+.more { margin-top: 0.5rem; font-size: 0.75rem; color: var(--text2); }
+.more summary { cursor: pointer; width: fit-content; transition: color 0.15s ease; }
+.more summary:hover, .more[open] summary { color: var(--text); }
+.more p { margin-top: 0.375rem; line-height: 1.5; max-width: 40rem; }
+
+.field-label { display: block; margin-bottom: 0.5rem; font-size: 0.875rem; font-weight: 500; color: var(--text); }
+.field {
+    width: 100%; background: var(--bg); border: 1px solid var(--border-color); border-radius: 0.75rem;
+    padding: 0.55rem 0.875rem; font-size: 0.875rem; color: var(--text); transition: border-color 0.15s ease;
+}
+.field:focus { outline: none; border-color: var(--primary); }
+.pin-field { max-width: 10rem; font-size: 1.125rem; letter-spacing: 0.5em; }
+
+.sas { display: flex; justify-content: center; gap: 1rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 2.25rem; font-weight: 700; letter-spacing: 0.2em; color: var(--text); font-variant-numeric: tabular-nums; }
 </style>

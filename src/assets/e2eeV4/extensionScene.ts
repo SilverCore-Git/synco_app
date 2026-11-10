@@ -5,7 +5,8 @@
  * Elle ne reçoit jamais de PIN ni de clé : seulement « une invite vient de s'ouvrir » et « elle s'est terminée ».
  */
 
-export type SceneMode = 'enroll' | 'unlock';
+/** enroll : protéger l'appareil ; unlock : ouvrir les messages ; confirm : approuver une action sensible (paramètres). */
+export type SceneMode = 'enroll' | 'unlock' | 'confirm';
 export type SceneState = 'waiting' | 'success';
 
 export interface SceneView {

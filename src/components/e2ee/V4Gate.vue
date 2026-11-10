@@ -3,84 +3,75 @@
     <div class="w-full h-full overflow-y-auto bg-(--bg2) select-none">
     <div class="min-h-full flex flex-col items-center justify-center p-6">
 
-        <div class="mb-6 text-center max-w-lg">
-            <img :src="theme === 'light' ? '/assets/logo/synco/light_banner_synco.svg' : '/banner.svg'" alt="Logo" class="h-16 mx-auto mb-3" />
+        <div class="mb-6 text-center max-w-md">
+            <img :src="theme === 'light' ? '/assets/logo/synco/light_banner_synco.svg' : '/banner.svg'" alt="Synco" class="h-14 mx-auto mb-4" />
             <h1 class="text-xl font-bold text-(--text)">{{ title }}</h1>
             <p v-if="subtitle" class="text-sm text-(--text2) mt-2 leading-relaxed">{{ subtitle }}</p>
         </div>
 
         <!-- Alerte d'identité : rien ne se déverrouille -->
-        <div v-if="identityAlert" class="max-w-md w-full rounded-lg border-2 border-red-500 bg-red-500/10 p-4 mb-6">
-            <p class="text-red-500 font-bold text-sm"><i class="bi bi-shield-exclamation mr-1" /> Alerte de sécurité</p>
-            <p class="text-(--text) text-sm mt-2">{{ identityAlert }}</p>
-            <p class="text-(--text2) text-xs mt-2">Le chiffrement reste verrouillé. Contactez votre administrateur.</p>
+        <div v-if="identityAlert" role="alert" class="gate-alert is-danger">
+            <i class="bi bi-shield-exclamation" aria-hidden="true" />
+            <div class="min-w-0">
+                <p class="font-semibold">Alerte de sécurité</p>
+                <p>{{ identityAlert }}</p>
+                <p class="gate-alert-sub">Le chiffrement reste verrouillé. Contactez votre administrateur.</p>
+            </div>
         </div>
 
-        <div v-if="notice" class="max-w-md w-full rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 mb-6 text-sm text-(--text)">
-            <i class="bi bi-info-circle-fill text-amber-500 mr-1" /> {{ notice }}
+        <div v-if="notice" class="gate-alert">
+            <i class="bi bi-info-circle" aria-hidden="true" />
+            <p class="min-w-0">{{ notice }}</p>
         </div>
 
-        <!-- Fenêtre du PIN de Synco Extension ouverte : scène « Synco ↔ extension » (déverrouillage ou inscription) -->
+        <!-- Fenêtre de Synco Extension ouverte : barre d'attente (déverrouillage ou inscription) -->
         <ExtensionScene :view="scene" @cancel="cancelExtensionWait" />
 
         <Transition :name="stepTransition" mode="out-in">
         <div v-if="step === 'loading'" key="loading" class="py-10"><SpinLoader /></div>
 
         <!-- ============ Déverrouillage quotidien ============ -->
-        <div v-else-if="step === 'unlock'" key="unlock" class="flex flex-col items-center">
-            <template v-if="lockoutSeconds > 0">
-                <p class="text-amber-500 font-medium">{{ localKind === 'extension' ? "Trop d'essais ou trop de demandes." : 'Trop de tentatives incorrectes.' }}</p>
-                <p class="text-(--text2) text-sm mt-1">Réessayez dans {{ formatDuration(lockoutSeconds) }}</p>
-            </template>
+        <div v-else-if="step === 'unlock'" key="unlock" class="flex w-full max-w-sm flex-col items-center">
+            <p v-if="lockoutSeconds > 0" class="gate-lockout">
+                {{ localKind === 'extension' ? "Trop d'essais." : 'Trop de codes incorrects.' }}
+                Réessayez dans <strong>{{ formatDuration(lockoutSeconds) }}</strong>.
+            </p>
+
             <!-- Appareil verrouillé par l'extension, qui ne répond pas : ses clés ne sont pas perdues -->
-            <div v-else-if="extensionMissing" class="w-full max-w-sm flex flex-col items-center">
-                <span class="method-ico ext-missing-ico" aria-hidden="true"><i class="bi bi-puzzle" /></span>
-
-                <button class="primary w-full mt-6" :class="{ loader: busy }" :disabled="busy" @click="retryExtension">Réessayer</button>
-
+            <template v-else-if="extensionMissing">
+                <button class="primary w-full" :class="{ loader: busy }" :disabled="busy" @click="retryExtension">Réessayer</button>
                 <!-- Une seule consigne, celle du navigateur utilisé, et seulement si on la demande -->
-                <details class="ext-help w-full mt-4">
+                <details class="gate-help w-full mt-5">
                     <summary>Comment la réactiver ?</summary>
-                    <ol class="gate-card">
+                    <ol>
                         <li>Ouvrez <code>{{ extensionHelp.page }}</code> dans un nouvel onglet.</li>
                         <li>Activez <strong>Synco Extension</strong> et autorisez-la sur ce site.</li>
                         <li>Revenez ici et cliquez sur <strong>Réessayer</strong>.</li>
                     </ol>
-                    <p>Désinstallée ? Ses clés sont effacées : utilisez une autre méthode ci-dessous.</p>
+                    <p>Désinstallée ? Ses clés sont effacées : connectez cet appareil autrement, ci-dessous.</p>
                 </details>
-            </div>
+            </template>
+
             <template v-else-if="unlockNeedsPin">
                 <!-- Synco Extension présente mais pas utilisée : on propose d'y passer (une fois par lancement). Le PIN
                      saisi juste après sert aussi au changement de verrou : rien de plus à taper. -->
-                <div v-if="extensionOffer" class="gate-card max-w-sm w-full p-4 mb-6 flex items-start gap-3">
-                    <i class="bi bi-puzzle text-lg text-(--primary)" />
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-semibold text-(--text)">Synco Extension est installée</p>
-                        <p class="text-xs text-(--text2) mt-1">Déverrouiller désormais avec l'extension ?</p>
-                        <div class="flex items-center gap-3 mt-3">
-                            <button class="primary text-xs" @click="acceptExtensionOffer">Oui</button>
-                            <button class="text-xs text-(--text2) hover:text-(--text) transition-colors" @click="extensionOffer = false">Pas maintenant</button>
-                        </div>
+                <div v-if="extensionOffer" class="gate-card offer">
+                    <p class="text-sm text-(--text)"><strong>Synco Extension est installée.</strong> L'utiliser à la place du code ?</p>
+                    <div class="flex items-center gap-4 mt-3">
+                        <button class="primary text-xs" @click="acceptExtensionOffer">Oui</button>
+                        <button class="text-link" @click="extensionOffer = false">Pas maintenant</button>
                     </div>
                 </div>
                 <PinPad v-model="pin" auto-submit :disabled="busy" :error-tick="errorTick" @submit="tryUnlock" />
             </template>
-            <template v-else>
-                <p v-if="localKind === 'extension' && extensionDetected && !extensionAutoTried" class="text-xs text-(--text2) mb-4">
-                    <i class="bi bi-puzzle mr-1" /> Extension détectée : vous autoriserez l'accès dans sa fenêtre.
-                </p>
-                <button class="primary flex items-center gap-2" :class="{ loader: busy }" :disabled="busy || extensionWaiting" @click="tryUnlock">
-                    <i class="bi" :class="unlockIcon" />
-                    <span class="font-bold">{{ localKind === 'extension' && extensionAutoTried ? "Réessayer avec l'extension" : 'Déverrouiller' }}</span>
-                </button>
-            </template>
 
-            <button v-if="unlockNeedsPin" class="mt-6 text-sm text-(--text2) hover:text-(--primary) transition-colors" @click="goConnect()">
-                Code PIN oublié ?
+            <button v-else class="primary w-full flex items-center justify-center gap-2" :class="{ loader: busy }" :disabled="busy || extensionWaiting" @click="tryUnlock">
+                <i class="bi" :class="unlockIcon" aria-hidden="true" />
+                <span class="font-bold">{{ localKind === 'extension' && extensionAutoTried ? 'Réessayer' : 'Déverrouiller' }}</span>
             </button>
-            <button v-else class="second text-sm flex items-center justify-center gap-2 mt-4" :class="extensionMissing ? 'w-full max-w-sm' : ''" @click="goConnect()">
-                <i class="bi bi-phone" />
-                <span>{{ localKind === 'extension' ? 'Utiliser un autre appareil ou une clé' : 'Utiliser une autre méthode' }}</span>
+
+            <button class="text-link mt-6" @click="goConnect()">
+                {{ unlockNeedsPin ? 'Code PIN oublié ?' : 'Utiliser un autre appareil ou une clé' }}
             </button>
         </div>
 
@@ -91,13 +82,12 @@
             </button>
             <div class="gate-card grid gap-8 p-6 md:grid-cols-[auto_1fr] md:p-8">
 
-                <div class="flex flex-col items-center gap-4">
-                    <div class="qr-frame" :class="{ 'is-expired': linkExpired, 'is-ready': !!linkQr }">
-                        <QrCode v-if="linkQr" :value="linkQr" label="QR code de liaison" class="qr-in" />
+                <div class="flex flex-col items-center gap-3">
+                    <div class="qr-frame" :class="{ 'is-expired': linkExpired }">
+                        <QrCode v-if="linkQr" :value="linkQr" label="QR code de connexion" class="qr-in" />
                         <div v-else class="qr-skeleton" aria-hidden="true" />
                         <Transition name="fade">
                             <div v-if="linkExpired" class="qr-expired">
-                                <i class="bi bi-hourglass-bottom text-2xl" />
                                 <span class="font-semibold text-sm">Code expiré</span>
                                 <button class="primary text-sm" @click="beginLink">Nouveau code</button>
                             </div>
@@ -114,55 +104,47 @@
                 </div>
 
                 <div class="flex min-w-0 flex-col">
-
-
-                    <ol class="how space-y-4">
-                        <li style="--i: 0"><span class="how-n">1</span><p>Ouvrez Synco sur un appareil <strong>déjà connecté</strong> à votre compte.</p></li>
-                        <li style="--i: 1"><span class="how-n">2</span><p>Allez dans <strong>Paramètres › Appareils</strong>, puis <strong>Ajouter un appareil</strong>.</p></li>
-                        <li style="--i: 2"><span class="how-n">3</span><p>Scannez ce QR code, ou saisissez le code ci-dessous, puis comparez les deux codes à 6 chiffres.</p></li>
+                    <ol class="how">
+                        <li><span class="how-n">1</span><p>Sur un appareil déjà connecté, ouvrez <strong class="whitespace-nowrap">Paramètres › Appareils</strong>.</p></li>
+                        <li><span class="how-n">2</span><p>Choisissez <strong>Ajouter un appareil</strong> et scannez ce QR code.</p></li>
                     </ol>
 
-                    <div class="code-line mt-5" aria-label="Code de liaison à recopier">
-                        <i class="bi bi-keyboard text-(--text2)" />
+                    <p class="mt-6 mb-2 text-xs text-(--text2)">Pas de caméra ? Saisissez plutôt ce code :</p>
+                    <div class="code-line" aria-label="Code de connexion à recopier">
                         <code>{{ linkCode }}</code>
-                        <button class="copy-btn" :class="{ done: copied }" :title="copied ? 'Copié' : 'Copier le code'" @click="copyLinkCode">
-                            <i class="bi" :class="copied ? 'bi-check2' : 'bi-clipboard'" />
+                        <button class="copy-btn" :class="{ done: copied }" :title="copied ? 'Copié' : 'Copier le code'" :aria-label="copied ? 'Code copié' : 'Copier le code'" @click="copyLinkCode">
+                            <i class="bi" :class="copied ? 'bi-check2' : 'bi-copy'" />
                         </button>
                     </div>
 
-                    <p class="mt-auto pt-6 text-xs leading-snug text-amber-500/90">
-                        <i class="bi bi-shield-lock-fill me-1" /> Ne montrez ce code qu'à vos propres appareils : il donne accès à vos messages chiffrés.
+                    <p class="mt-auto pt-6 text-xs leading-snug text-(--text2)">
+                        <i class="bi bi-shield-lock me-1" aria-hidden="true" /> Ne le montrez qu'à vos propres appareils : il ouvre vos messages.
                     </p>
                 </div>
             </div>
 
             <button class="rescue-row" @click="openRescue">
-                <span class="rescue-ico"><i class="bi bi-life-preserver" /></span>
                 <span class="min-w-0 flex-1 text-left">
                     <strong>Je n'ai plus aucun appareil connecté</strong>
-                    <small>Récupérer l'accès avec une clé ou un code de secours</small>
+                    <small>Utiliser un accès de secours</small>
                 </span>
-                <i class="bi bi-arrow-right rescue-arrow" />
+                <i class="bi bi-arrow-right rescue-arrow" aria-hidden="true" />
             </button>
         </div>
 
         <!-- ============ Liaison : code de confirmation ============ -->
         <div v-else-if="step === 'link-sas'" key="link-sas" class="w-full max-w-md">
-            <div class="gate-card flex flex-col items-center gap-5 p-8 text-center">
-                <span class="badge-ico"><i class="bi bi-phone-vibrate" /></span>
-                <p class="max-w-xs text-sm leading-relaxed text-(--text2)">
-                    L'autre appareil a validé la demande. Vérifiez qu'il affiche <strong class="text-(--text)">exactement le même code</strong> :
-                </p>
+            <div class="gate-card flex flex-col items-center gap-6 p-8 text-center">
                 <div class="sas" aria-label="Code de confirmation">
                     <span v-for="(group, g) in [sasDigits.slice(0, 3), sasDigits.slice(3, 6)]" :key="g" class="sas-group">
                         <span v-for="(d, i) in group" :key="i" class="sas-digit" :style="{ '--i': g * 3 + i }">{{ d }}</span>
                     </span>
                 </div>
-                <p class="text-xs text-(--text2)">Deux codes différents signalent une tentative d'interception : refusez.</p>
                 <div class="flex w-full gap-3">
-                    <button class="default flex-1" :disabled="busy" @click="cancelLink()">Les codes diffèrent</button>
-                    <button class="primary flex-1" :class="{ loader: busy }" :disabled="busy" @click="confirmLink">Les codes correspondent</button>
+                    <button class="default flex-1" :disabled="busy" @click="cancelLink()">Ils diffèrent</button>
+                    <button class="primary flex-1" :class="{ loader: busy }" :disabled="busy" @click="confirmLink">Ils sont identiques</button>
                 </div>
+                <p class="text-xs text-(--text2)">Deux codes différents : quelqu'un tente peut-être d'intercepter la connexion.</p>
             </div>
         </div>
 
@@ -170,87 +152,64 @@
         <div v-else-if="step === 'connect'" key="connect" class="w-full max-w-md">
             <button class="back-btn" @click="beginLink"><i class="bi bi-arrow-left" /> Retour</button>
 
-            <div class="stagger space-y-3">
-                <button class="method" style="--i: 0" @click="step = 'recovery'">
-                    <span class="method-ico"><i class="bi bi-key-fill" /></span>
+            <div class="gate-card options">
+                <button class="option" @click="step = 'recovery'">
+                    <i class="bi bi-key option-ico" aria-hidden="true" />
                     <span class="min-w-0 flex-1">
-                        <strong>Clé de récupération <em class="tag tag-ok">Recommandé</em></strong>
-                        <small>La clé de 56 caractères proposée à la création de votre compte.</small>
+                        <strong>Clé de récupération</strong>
+                        <small>56 caractères, reçue à l'activation du chiffrement</small>
                     </span>
-                    <i class="bi bi-chevron-right method-arrow" />
+                    <i class="bi bi-chevron-right option-arrow" aria-hidden="true" />
                 </button>
 
-                <button v-if="pinRecovery.enabled && !pinRecovery.locked" class="method" style="--i: 1" @click="openPinRecovery">
-                    <span class="method-ico"><i class="bi bi-123" /></span>
+                <button v-if="pinRecovery.enabled && !pinRecovery.locked" class="option" @click="openPinRecovery">
+                    <i class="bi bi-123 option-ico" aria-hidden="true" />
                     <span class="min-w-0 flex-1">
-                        <strong>Code PIN de récupération <em class="tag tag-warn">Moins sûr</em></strong>
-                        <small>Un code à 4 chiffres, vérifié par deux serveurs distincts.</small>
-                        <span class="attempts" :class="{ low: pinRecovery.attemptsLeft <= 3 }" :aria-label="`${pinRecovery.attemptsLeft} essais restants`">
-                            <i v-for="n in 10" :key="n" :class="{ on: n <= pinRecovery.attemptsLeft }" />
-                            <span>{{ pinRecovery.attemptsLeft }} essai(s) restant(s)</span>
-                        </span>
+                        <strong>Code PIN de récupération</strong>
+                        <small :class="{ 'is-low': pinRecovery.attemptsLeft <= 3 }">{{ attemptsText }}</small>
                     </span>
-                    <i class="bi bi-chevron-right method-arrow" />
+                    <i class="bi bi-chevron-right option-arrow" aria-hidden="true" />
                 </button>
-                <div v-else class="method is-disabled" style="--i: 1" aria-disabled="true">
-                    <span class="method-ico"><i class="bi bi-123" /></span>
+                <div v-else class="option is-disabled" aria-disabled="true">
+                    <i class="bi bi-123 option-ico" aria-hidden="true" />
                     <span class="min-w-0 flex-1">
                         <strong>Code PIN de récupération</strong>
                         <small>{{ pinRecoveryUnavailableText }}</small>
                     </span>
-                    <i class="bi bi-lock-fill text-(--text2)" />
                 </div>
+            </div>
 
-                <div class="last-resort" style="--i: 2">
-                    <p class="last-resort-label"><span>Dernier recours</span></p>
-                    <button class="danger-row" @click="openReset">
-                        <i class="bi bi-arrow-counterclockwise" />
-                        <span class="min-w-0 flex-1 text-left">
-                            <strong>Repartir de zéro</strong>
-                            <small>Plus aucun appareil ni clé ? Vous perdrez vos anciens messages.</small>
-                        </span>
-                    </button>
-                </div>
+            <div class="last-resort">
+                <button class="danger-link" @click="openReset">Repartir de zéro</button>
+                <p>Ni appareil ni clé ? Vous perdrez vos anciens messages.</p>
             </div>
         </div>
 
         <!-- ============ Clé de récupération ============ -->
         <div v-else-if="step === 'recovery'" key="recovery" class="w-full max-w-md">
             <button class="back-btn" :disabled="busy" @click="step = 'connect'"><i class="bi bi-arrow-left" /> Retour</button>
-            <div class="gate-card space-y-4 p-6">
-                <div class="flex items-center gap-3">
-                    <span class="method-ico"><i class="bi bi-key-fill" /></span>
-                    <p class="text-sm leading-snug text-(--text2)">Saisissez ou collez votre clé. Les tirets, les espaces et la casse n'ont pas d'importance.</p>
-                </div>
-                <textarea :value="recoveryInput" rows="3" spellcheck="false" autocomplete="off" autocapitalize="characters" autofocus
+            <div class="gate-card p-6">
+                <label for="recovery-key" class="field-label">Votre clé</label>
+                <textarea id="recovery-key" :value="recoveryInput" rows="3" spellcheck="false" autocomplete="off" autocapitalize="characters" autofocus
                     placeholder="XXXX-XXXX-XXXX-XXXX-…" @input="onRecoveryInput" @keydown.stop @keydown.enter.prevent="recoveryReady && submitRecovery()"
                     class="key-field" :class="{ ready: recoveryReady }" />
-                <div>
-                    <div class="expiry"><div class="expiry-fill" :class="{ ok: recoveryReady }" :style="{ transform: `scaleX(${Math.min(1, recoveryChars / 56)})` }" /></div>
-                    <p class="mt-1.5 flex justify-between text-xs tabular-nums text-(--text2)">
-                        <span>{{ recoveryReady ? 'Longueur correcte' : 'Une clé compte 56 caractères' }}</span>
-                        <span>{{ recoveryChars }} / 56</span>
-                    </p>
-                </div>
-                <button class="primary w-full" :class="{ loader: busy }" :disabled="busy || !recoveryReady" @click="submitRecovery">Connecter cet appareil</button>
+                <p class="mt-2 flex justify-between gap-4 text-xs text-(--text2)">
+                    <span>Tirets et espaces facultatifs</span>
+                    <span class="tabular-nums" :class="{ 'text-(--primary)': recoveryReady }">{{ Math.min(recoveryChars, 56) }} / 56</span>
+                </p>
+                <button class="primary w-full mt-5" :class="{ loader: busy }" :disabled="busy || !recoveryReady" @click="submitRecovery">Connecter cet appareil</button>
             </div>
         </div>
 
         <!-- ============ Récupération par PIN ============ -->
         <div v-else-if="step === 'pin-recovery'" key="pin-recovery" class="flex w-full max-w-md flex-col items-center">
             <button class="back-btn self-start" :disabled="busy" @click="step = 'connect'"><i class="bi bi-arrow-left" /> Retour</button>
-            <p class="mb-5 max-w-sm text-center text-sm leading-relaxed text-(--text2)">
-                Saisissez votre <strong class="text-(--text)">code PIN de récupération</strong>.
-            </p>
-            <span class="attempts mb-6" :class="{ low: pinRecovery.attemptsLeft <= 3 }">
-                <i v-for="n in 10" :key="n" :class="{ on: n <= pinRecovery.attemptsLeft }" />
-                <span>{{ pinRecovery.attemptsLeft }} essai(s) avant blocage</span>
-            </span>
+            <p class="mb-6 text-sm tabular-nums" :class="pinRecovery.attemptsLeft <= 3 ? 'text-red-500' : 'text-(--text2)'">{{ attemptsText }}</p>
             <PinPad v-model="pin" auto-submit :disabled="busy" :error-tick="errorTick" @submit="submitPinRecovery" />
         </div>
 
         <!-- ============ Choix du PIN local ============ -->
-        <div v-else-if="step === 'choose-pin'" class="flex flex-col items-center">
+        <div v-else-if="step === 'choose-pin'" key="choose-pin" class="flex flex-col items-center">
             <PinPad v-model="pin" :error-tick="errorTick" @submit="submitChosenPin" />
         </div>
 
@@ -274,7 +233,7 @@
                 <button class="primary w-full" :class="{ loader: busy }" :disabled="busy" @click="startOnboarding()">
                     <span class="font-bold">Continuer</span>
                 </button>
-                <button v-if="enrollCancelled && platform === 'web' && hasPinVault" class="text-xs text-(--text2) hover:text-(--primary)" @click="onboardWithPin">
+                <button v-if="enrollCancelled && platform === 'web' && hasPinVault" class="text-link" @click="onboardWithPin">
                     Utiliser plutôt un code PIN
                 </button>
             </div>
@@ -294,15 +253,13 @@
 
         <!-- Actions secondaires, sur une seule ligne. « Se déconnecter » est toujours là : sans lui, un compte
              non déverrouillé reste bloqué sur cet écran. -->
-        <div class="mt-8 flex items-center justify-center gap-6 text-xs font-bold uppercase tracking-widest text-(--text2)">
-            <button v-if="step === 'choose-pin'" class="uppercase tracking-widest hover:text-(--primary) transition-colors" @click="abortChoosePin">
-                Annuler
+        <div class="mt-10 flex items-center justify-center gap-6">
+            <button v-if="step === 'choose-pin'" class="text-link" @click="abortChoosePin">Annuler</button>
+            <button v-if="step === 'onboard-recovery' && !recoverySaved" class="text-link" :disabled="busy" @click="skipRecovery = true">
+                Continuer sans clé
             </button>
-            <button v-if="step === 'onboard-recovery' && !recoverySaved" class="uppercase tracking-widest hover:text-amber-500 transition-colors" :disabled="busy" @click="skipRecovery = true">
-                Passer cette étape
-            </button>
-            <button class="uppercase tracking-widest hover:text-red-500 transition-colors disabled:opacity-50" :disabled="loggingOut" @click="logOut">
-                <i class="bi bi-box-arrow-right mr-1" /> Se déconnecter
+            <button class="text-link is-quiet" :disabled="loggingOut" @click="logOut">
+                <i class="bi bi-box-arrow-right mr-1" aria-hidden="true" /> Se déconnecter
             </button>
         </div>
 
@@ -312,7 +269,7 @@
             title="Continuer sans clé de récupération ?"
             item-name="la clé de récupération"
             item-type="la clé de récupération"
-            message="Sans clé de récupération, la perte de tous vos appareils rend vos messages définitivement illisibles. Vous pourrez en créer une plus tard dans Paramètres › Sécurité."
+            message="Si vous perdez tous vos appareils, vos messages seront illisibles pour toujours. Vous pourrez créer une clé plus tard dans Paramètres › Sécurité."
             button-text="Continuer sans clé"
             :loading="busy"
             @confirm="skipRecovery = false; finishOnboarding(false)"
@@ -467,25 +424,44 @@ const vaultMethod = computed(() => {
 
 const title = computed(() => ({
     loading: 'Chargement…',
-    unlock: extensionMissing.value ? 'Synco Extension ne répond pas' : 'Déverrouillez votre session',
+    unlock: extensionMissing.value ? 'Synco Extension ne répond pas' : 'Ouvrez vos messages',
     connect: "Récupérer l'accès",
     link: 'Connecter cet appareil',
-    'link-sas': 'Confirmez la connexion',
+    'link-sas': 'Comparez les codes',
     recovery: 'Clé de récupération',
-    'pin-recovery': 'Récupération par code PIN',
+    'pin-recovery': 'Code PIN de récupération',
     'choose-pin': pinFirst.value ? 'Confirmez votre code PIN' : 'Choisissez un code PIN',
     'onboard-intro': resetMode.value ? 'Repartir de zéro' : 'Protégez vos messages',
     'onboard-recovery': 'Clé de récupération',
 }[step.value]));
 
+/** Sous le titre du déverrouillage : comment on ouvre, en quelques mots, selon le verrou de cet appareil. */
+const UNLOCK_HOW: Partial<Record<VaultKind, string>> = {
+    'webauthn-prf': 'Avec votre passkey : empreinte, visage ou code de l\'appareil.',
+    'native-biometric': 'Avec votre empreinte, votre visage ou le code du téléphone.',
+    'os-keyring': 'Avec le trousseau sécurisé de cet ordinateur.',
+    'extension': 'Synco Extension vous demandera d\'autoriser l\'accès.',
+    'web-pin': 'Saisissez le code PIN de cet appareil.',
+};
+
 const subtitle = computed(() => ({
-    link: "Validez cet appareil depuis un appareil déjà connecté à votre compte.",
-    connect: "Ces méthodes servent seulement quand aucun de vos appareils connectés n'est à portée.",
+    unlock: extensionMissing.value
+        ? 'Elle est sans doute désactivée. Vos clés sont toujours dedans : rien n\'est perdu.'
+        : lockoutSeconds.value > 0 ? '' : (localKind.value ? UNLOCK_HOW[localKind.value] : ''),
+    link: 'Validez-le depuis un appareil déjà connecté à votre compte.',
+    'link-sas': 'Votre autre appareil affiche aussi un code : ils doivent être identiques.',
+    connect: 'Aucun appareil connecté sous la main ? Utilisez un accès de secours.',
+    recovery: 'Dans le fichier synco-cle-de-recuperation.txt, téléchargé à l\'activation.',
+    'pin-recovery': 'Le code à 4 chiffres choisi dans vos paramètres.',
     'choose-pin': pinFirst.value ? 'Saisissez-le une seconde fois.' : '4 chiffres, pour déverrouiller Synco sur cet appareil.',
     'onboard-intro': 'Seuls vous et vos interlocuteurs pourront les lire, pas même Synco. C\'est le chiffrement de bout en bout.',
     'onboard-recovery': 'Gardez-la précieusement : elle vous rend vos messages si vous perdez votre téléphone.',
-    ...(extensionMissing.value ? { unlock: 'Elle est sans doute désactivée. Vos clés sont toujours dedans : rien n\'est perdu.' } : {}),
 } as Partial<Record<Step, string>>)[step.value] ?? '');
+
+const attemptsText = computed(() => {
+    const n = pinRecovery.attemptsLeft;
+    return n > 1 ? `${n} essais restants` : n === 1 ? 'Dernier essai' : 'Aucun essai restant';
+});
 
 // --- transitions entre écrans : on avance (→) ou on revient (←) dans l'arborescence --------
 
@@ -1150,6 +1126,56 @@ function logOut() {
 </script>
 
 <style scoped>
+/* Écran de verrouillage : surfaces plates séparées par un trait, une ombre seulement sur ce qui flotte (la barre
+   de l'extension), aucune icône dans une pastille teintée. Le vert de Synco est réservé à l'action principale et à
+   l'état (progression, réussite). */
+
+/* ---------- surfaces ---------- */
+.gate-card { border-radius: 1.25rem; border: 1px solid var(--border-color); background: var(--bg); }
+
+.gate-alert {
+    width: 100%; max-width: 28rem; display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 1.5rem;
+    padding: 0.875rem 1rem; border-radius: 0.875rem; border: 1px solid var(--border-color); background: var(--bg);
+    font-size: 0.875rem; line-height: 1.45; color: var(--text);
+}
+.gate-alert > i { flex: none; margin-top: 0.1rem; color: #f59e0b; }
+.gate-alert.is-danger { border-color: rgb(239 68 68 / 0.45); }
+.gate-alert.is-danger > i, .gate-alert.is-danger .font-semibold { color: #ef4444; }
+.gate-alert-sub { margin-top: 0.375rem; font-size: 0.8125rem; color: var(--text2); }
+
+.gate-lockout { font-size: 0.9rem; color: var(--text2); text-align: center; }
+.gate-lockout strong { color: #f59e0b; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Lien texte : les actions secondaires, sans cadre ni capitales. */
+.text-link { font-size: 0.875rem; color: var(--text2); text-underline-offset: 3px; transition: color 0.15s ease; }
+.text-link:hover:not(:disabled) { color: var(--text); text-decoration: underline; }
+.text-link.is-quiet { font-size: 0.8125rem; }
+.text-link.is-quiet:hover:not(:disabled) { color: #ef4444; }
+.text-link:disabled { opacity: 0.5; }
+
+.offer { width: 100%; margin-bottom: 1.75rem; padding: 1rem 1.125rem; }
+
+.gate-help summary {
+    cursor: pointer; width: fit-content; margin: 0 auto; list-style: none;
+    font-size: 0.875rem; color: var(--text2); transition: color 0.15s ease;
+}
+.gate-help summary::-webkit-details-marker { display: none; }
+.gate-help summary:hover, .gate-help[open] summary { color: var(--text); }
+.gate-help ol {
+    margin-top: 0.875rem; padding: 1rem 1.1rem 1rem 2.2rem; list-style: decimal; border-radius: 0.875rem;
+    border: 1px solid var(--border-color); background: var(--bg); font-size: 0.8125rem; color: var(--text2); line-height: 1.6;
+}
+.gate-help ol strong, .gate-help code { color: var(--text); font-weight: 600; }
+.gate-help code { font-size: 0.78rem; }
+.gate-help p { margin-top: 0.625rem; font-size: 0.8125rem; color: var(--text2); text-align: center; }
+
+.back-btn {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    margin-bottom: 1rem; padding: 0.25rem 0.5rem 0.25rem 0.25rem;
+    font-size: 0.8125rem; color: var(--text2); border-radius: 0.5rem; transition: color 0.15s ease;
+}
+.back-btn:hover:not(:disabled) { color: var(--text); }
+
 /* ---------- création : étapes et fait unique ---------- */
 .onboard-steps { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1.25rem; list-style: none; padding: 0; }
 .onboard-steps li { padding-top: 0.625rem; font-size: 0.75rem; font-weight: 600; color: var(--text2); border-top: 3px solid color-mix(in srgb, var(--text) 12%, transparent); transition: border-color 0.3s ease, color 0.3s ease; }
@@ -1171,167 +1197,89 @@ function logOut() {
 .fade-enter-active, .fade-leave-active { transition: opacity 0.25s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-/* ---------- carte ---------- */
-.gate-card {
-    border-radius: 1.25rem;
-    border: 1px solid var(--border-color);
-    background: var(--bg);
-    box-shadow: 0 1px 0 color-mix(in srgb, var(--text) 4%, transparent), 0 24px 48px -24px rgb(0 0 0 / 0.35);
-}
-.method-ico.ext-missing-ico { width: 3.5rem; border-radius: 1.1rem; height: 3.5rem; font-size: 1.6rem; }
-.ext-help summary {
-    cursor: pointer; text-align: center; list-style: none;
-    font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--text2); transition: color 0.15s ease;
-}
-.ext-help summary::-webkit-details-marker { display: none; }
-.ext-help summary:hover, .ext-help[open] summary { color: var(--primary); }
-.ext-help ol { margin-top: 0.9rem; padding: 1rem 1.1rem 1rem 2.2rem; list-style: decimal; font-size: 0.8125rem; color: var(--text2); line-height: 1.6; }
-.ext-help ol strong { color: var(--text); font-weight: 600; }
-.ext-help code { font-size: 0.78rem; color: var(--text); }
-.ext-help p { margin-top: 0.6rem; font-size: 0.75rem; color: var(--text2); text-align: center; }
-
-.back-btn {
-    display: inline-flex; align-items: center; gap: 0.4rem;
-    margin-bottom: 1rem; padding: 0.25rem 0.5rem 0.25rem 0.25rem;
-    font-size: 0.8125rem; color: var(--text2); border-radius: 0.5rem;
-    transition: color 0.15s ease, transform 0.15s ease;
-}
-.back-btn:hover:not(:disabled) { color: var(--primary); transform: translateX(-2px); }
-
 /* ---------- QR code ---------- */
-.qr-frame {
-    position: relative; border-radius: 1.25rem; padding: 0.375rem; background: #fff;
-    box-shadow: 0 0 0 1px var(--border-color), 0 12px 32px -12px color-mix(in srgb, var(--primary) 45%, transparent);
-    transition: box-shadow 0.4s ease;
-}
-.qr-frame.is-expired { box-shadow: 0 0 0 1px var(--border-color); }
+.qr-frame { position: relative; border-radius: 1.25rem; padding: 0.375rem; background: #fff; border: 1px solid var(--border-color); }
 .qr-frame.is-expired .qr-in { filter: blur(7px) grayscale(1); opacity: 0.45; }
-.qr-in { transition: filter 0.4s ease, opacity 0.4s ease; animation: pop-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.qr-in { transition: filter 0.4s ease, opacity 0.4s ease; }
 .qr-frame :deep(.qr) { padding: 0.5rem; }
-.qr-skeleton {
-    width: 14rem; height: 14rem; border-radius: 0.9rem;
-    background: linear-gradient(100deg, #eceef0 30%, #f8f9fa 50%, #eceef0 70%) 0 0 / 200% 100%;
-    animation: shimmer 1.2s linear infinite;
-}
+.qr-skeleton { width: 14rem; height: 14rem; border-radius: 0.9rem; background: #eceef0; }
 .qr-expired {
     position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 0.5rem; border-radius: 1.25rem; color: #1f2937; text-align: center;
+    gap: 0.625rem; border-radius: 1.25rem; color: #1f2937; text-align: center;
 }
 
-.expiry { height: 0.3125rem; border-radius: 999px; background: color-mix(in srgb, var(--text) 10%, transparent); overflow: hidden; }
-.expiry-fill {
-    height: 100%; width: 100%; border-radius: inherit; background: var(--primary); transform-origin: left;
-    transition: transform 1s linear, background-color 0.4s ease;
-}
+.expiry { height: 0.25rem; border-radius: 999px; background: color-mix(in srgb, var(--text) 10%, transparent); overflow: hidden; }
+.expiry-fill { height: 100%; width: 100%; border-radius: inherit; background: var(--primary); transform-origin: left; transition: transform 1s linear, background-color 0.4s ease; }
 .expiry-fill.warn { background: #f59e0b; }
-.expiry-fill.ok { background: var(--primary); transition: transform 0.2s ease, background-color 0.4s ease; }
-.expiry-fill:not(.ok):not(.warn) { transition: transform 1s linear, background-color 0.4s ease; }
 
 /* ---------- mode d'emploi ---------- */
-.how li { display: flex; gap: 0.875rem; align-items: flex-start; font-size: 0.875rem; line-height: 1.45; color: var(--text2); animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(var(--i) * 80ms + 120ms); }
+.how { display: grid; gap: 1rem; }
+.how li { display: flex; gap: 0.875rem; align-items: baseline; font-size: 0.9rem; line-height: 1.5; color: var(--text2); }
 .how li strong { color: var(--text); font-weight: 600; }
-.how-n {
-    flex: none; width: 1.5rem; height: 1.5rem; border-radius: 50%; display: grid; place-items: center;
-    font-size: 0.75rem; font-weight: 700; color: var(--primary); background: color-mix(in srgb, var(--primary) 14%, transparent);
-}
+.how-n { flex: none; width: 1.25rem; font-size: 0.875rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
 
-/* ---------- code à recopier (une seule ligne) ---------- */
-.code-line {
-    display: flex; align-items: center; gap: 0.6rem; max-width: 100%; padding: 0.35rem 0.4rem 0.35rem 0.8rem;
-    border-radius: 0.8rem; border: 1px solid var(--border-color); background: color-mix(in srgb, var(--text) 5%, transparent);
-}
+/* ---------- code à recopier : champ et bouton joints ---------- */
+.code-line { display: flex; align-items: stretch; max-width: 100%; border-radius: 0.75rem; border: 1px solid var(--border-color); background: var(--bg2); overflow: hidden; }
 .code-line code {
-    flex: 1; min-width: 0; white-space: nowrap; overflow-x: auto; scrollbar-width: none; user-select: all; color: var(--text);
+    flex: 1; min-width: 0; padding: 0.625rem 0.875rem; white-space: nowrap; overflow-x: auto; scrollbar-width: none; user-select: all; color: var(--text);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: clamp(0.62rem, 2.5vw, 0.8125rem); letter-spacing: 0.05em;
 }
 .code-line code::-webkit-scrollbar { display: none; }
-.copy-btn {
-    flex: none; width: 2.25rem; height: 2.25rem; border-radius: 0.6rem; display: grid; place-items: center;
-    color: var(--text2); border: 1px solid var(--border-color); transition: all 0.2s ease;
-}
-.copy-btn:hover { color: var(--primary); border-color: var(--primary); }
-.copy-btn.done { color: #fff; background: var(--primary); border-color: var(--primary); transform: scale(1.08); }
+.copy-btn { flex: none; width: 2.75rem; display: grid; place-items: center; color: var(--text2); border-left: 1px solid var(--border-color); transition: color 0.15s ease; }
+.copy-btn:hover, .copy-btn.done { color: var(--primary); }
 
 /* ---------- accès au secours ---------- */
 .rescue-row {
-    margin-top: 1rem; width: 100%; display: flex; align-items: center; gap: 0.875rem; padding: 0.875rem 1rem;
-    border-radius: 1rem; border: 1px dashed var(--border-color); color: var(--text); text-align: left;
-    transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+    margin-top: 1rem; width: 100%; display: flex; align-items: center; gap: 0.875rem; padding: 0.875rem 1.125rem;
+    border-radius: 1rem; border: 1px solid var(--border-color); color: var(--text); text-align: left; transition: border-color 0.2s ease;
 }
-.rescue-row:hover { border-style: solid; border-color: var(--primary); background: color-mix(in srgb, var(--primary) 6%, transparent); }
-.rescue-row strong { display: block; font-size: 0.875rem; }
-.rescue-row small { display: block; font-size: 0.75rem; color: var(--text2); margin-top: 0.125rem; }
-.rescue-ico { flex: none; width: 2.25rem; height: 2.25rem; border-radius: 0.7rem; display: grid; place-items: center; color: var(--text2); background: color-mix(in srgb, var(--text) 7%, transparent); transition: all 0.2s ease; }
-.rescue-row:hover .rescue-ico { color: #fff; background: var(--primary); }
-.rescue-arrow { color: var(--text2); transition: transform 0.2s ease, color 0.2s ease; }
-.rescue-row:hover .rescue-arrow { transform: translateX(4px); color: var(--primary); }
+.rescue-row:hover { border-color: color-mix(in srgb, var(--text) 30%, transparent); }
+.rescue-row strong { display: block; font-size: 0.875rem; font-weight: 600; }
+.rescue-row small { display: block; font-size: 0.8125rem; color: var(--text2); margin-top: 0.125rem; }
+.rescue-arrow { color: var(--text2); transition: transform 0.2s ease; }
+.rescue-row:hover .rescue-arrow { transform: translateX(3px); }
 
-/* ---------- méthodes de secours ---------- */
-.stagger > * { animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(var(--i, 0) * 90ms + 60ms); }
-.method {
-    width: 100%; display: flex; align-items: center; gap: 0.875rem; padding: 1rem; text-align: left;
-    border-radius: 1rem; border: 1px solid var(--border-color); background: var(--bg);
-    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-}
-.method:not(.is-disabled):hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 14px 28px -18px color-mix(in srgb, var(--primary) 70%, transparent); }
-.method:not(.is-disabled):active { transform: translateY(0); }
-.method.is-disabled { opacity: 0.6; cursor: not-allowed; }
-.method strong, .danger-row strong { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: var(--text); }
-.method small, .danger-row small { display: block; margin-top: 0.2rem; font-size: 0.75rem; line-height: 1.4; color: var(--text2); }
-.method-ico, .badge-ico {
-    flex: none; width: 2.5rem; height: 2.5rem; border-radius: 0.8rem; display: grid; place-items: center; font-size: 1.15rem;
-    color: var(--primary); background: color-mix(in srgb, var(--primary) 13%, transparent);
-}
-.badge-ico { width: 3.5rem; height: 3.5rem; border-radius: 1.1rem; font-size: 1.6rem; animation: pop-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
-.is-disabled .method-ico { color: var(--text2); background: color-mix(in srgb, var(--text) 7%, transparent); }
-.method-arrow { color: var(--text2); transition: transform 0.2s ease, color 0.2s ease; }
-.method:hover .method-arrow { transform: translateX(3px); color: var(--primary); }
-.tag { font-style: normal; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.125rem 0.5rem; border-radius: 999px; }
-.tag-ok { color: var(--primary); background: color-mix(in srgb, var(--primary) 14%, transparent); }
-.tag-warn { color: #f59e0b; background: rgb(245 158 11 / 0.14); }
+/* ---------- méthodes de secours : une seule carte, des lignes ---------- */
+.options { overflow: hidden; }
+.option { width: 100%; display: flex; align-items: center; gap: 0.875rem; padding: 1rem 1.125rem; text-align: left; transition: background-color 0.15s ease; }
+.option + .option { border-top: 1px solid var(--border-color); }
+.option:not(.is-disabled):hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
+.option.is-disabled { cursor: not-allowed; }
+.option.is-disabled strong, .option.is-disabled .option-ico { opacity: 0.55; }
+.option strong { display: block; font-size: 0.9rem; font-weight: 600; color: var(--text); }
+.option small { display: block; margin-top: 0.125rem; font-size: 0.8125rem; line-height: 1.4; color: var(--text2); }
+.option small.is-low { color: #ef4444; }
+.option-ico { flex: none; width: 1.25rem; font-size: 1.1rem; text-align: center; color: var(--text2); }
+.option-arrow { color: var(--text2); transition: transform 0.2s ease; }
+.option:hover .option-arrow { transform: translateX(3px); }
 
-.attempts { display: flex; align-items: center; gap: 0.2rem; margin-top: 0.55rem; font-size: 0.6875rem; color: var(--text2); }
-.attempts i { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: color-mix(in srgb, var(--text) 15%, transparent); transition: background-color 0.3s ease; }
-.attempts i.on { background: var(--primary); }
-.attempts.low i.on { background: #ef4444; }
-.attempts > span { margin-left: 0.4rem; }
-
-.last-resort { padding-top: 0.75rem; }
-.last-resort-label { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text2); }
-.last-resort-label::before, .last-resort-label::after { content: ''; flex: 1; height: 1px; background: var(--border-color); }
-.danger-row {
-    width: 100%; display: flex; align-items: center; gap: 0.875rem; padding: 0.75rem 1rem; border-radius: 0.9rem;
-    border: 1px solid transparent; color: #ef4444; text-align: left; transition: background-color 0.2s ease, border-color 0.2s ease;
-}
-.danger-row > i { font-size: 1.1rem; flex: none; width: 2.5rem; text-align: center; transition: transform 0.4s ease; }
-.danger-row strong { color: #ef4444; }
-.danger-row:hover { background: rgb(239 68 68 / 0.07); border-color: rgb(239 68 68 / 0.3); }
-.danger-row:hover > i { transform: rotate(-120deg); }
+.last-resort { margin-top: 1.75rem; text-align: center; }
+.danger-link { font-size: 0.875rem; font-weight: 600; color: #ef4444; text-underline-offset: 3px; }
+.danger-link:hover { text-decoration: underline; }
+.last-resort p { margin-top: 0.25rem; font-size: 0.8125rem; color: var(--text2); }
 
 /* ---------- saisie de la clé ---------- */
+.field-label { display: block; margin-bottom: 0.5rem; font-size: 0.875rem; font-weight: 500; color: var(--text); }
 .key-field {
-    width: 100%; resize: none; border-radius: 0.9rem; padding: 0.875rem 1rem; color: var(--text);
+    width: 100%; resize: none; border-radius: 0.875rem; padding: 0.875rem 1rem; color: var(--text);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9rem; letter-spacing: 0.12em; line-height: 1.6;
-    background: var(--bg2); border: 1.5px solid var(--border-color); transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    background: var(--bg2); border: 1px solid var(--border-color); transition: border-color 0.2s ease;
 }
-.key-field:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 15%, transparent); }
+.key-field:focus { outline: none; border-color: var(--primary); }
 .key-field.ready { border-color: var(--primary); }
 
 /* ---------- code de confirmation ---------- */
 .sas { display: flex; align-items: center; gap: 1.25rem; }
 .sas-group { display: flex; gap: 0.4rem; }
 .sas-digit {
-    width: 2.6rem; height: 3.4rem; display: grid; place-items: center; border-radius: 0.8rem;
+    width: 2.6rem; height: 3.4rem; display: grid; place-items: center; border-radius: 0.75rem;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.75rem; font-weight: 700; color: var(--text);
-    background: color-mix(in srgb, var(--primary) 10%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+    background: var(--bg2); border: 1px solid var(--border-color);
     animation: pop-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(var(--i) * 60ms + 150ms);
 }
 
 /* ---------- animations ---------- */
-@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @keyframes pop-in { from { opacity: 0; transform: scale(0.88); } to { opacity: 1; transform: none; } }
-@keyframes shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; }
 }

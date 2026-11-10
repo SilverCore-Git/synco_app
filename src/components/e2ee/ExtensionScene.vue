@@ -65,17 +65,22 @@ const helpOpen = ref(false);
 const title = computed(() => {
     const v = props.view;
     if (!v) return '';
-    if (v.state === 'success') return v.mode === 'enroll' ? 'Appareil protégé' : 'Déverrouillé';
+    if (v.state === 'success') return SUCCESS[v.mode].title;
     return 'Répondez dans Synco Extension';
 });
+
+const SUCCESS = {
+    enroll: { title: 'Appareil protégé', text: 'Synco Extension garde désormais la clé de cet appareil.' },
+    unlock: { title: 'Déverrouillé', text: 'Vos messages s\'ouvrent.' },
+    confirm: { title: 'Autorisé', text: 'L\'opération continue.' },
+} as const;
+const PURPOSE = { enroll: 'protéger cet appareil', unlock: 'ouvrir vos messages', confirm: 'confirmer l\'opération' } as const;
 
 const text = computed(() => {
     const v = props.view;
     if (!v) return '';
-    if (v.state === 'success') return v.mode === 'enroll' ? 'Synco Extension garde désormais la clé de cet appareil.' : 'Vos messages s\'ouvrent.';
-    return v.mode === 'enroll'
-        ? 'Cliquez sur « Autoriser » dans sa fenêtre pour protéger cet appareil.'
-        : 'Cliquez sur « Autoriser » dans sa fenêtre pour ouvrir vos messages.';
+    if (v.state === 'success') return SUCCESS[v.mode].text;
+    return `Cliquez sur « Autoriser » dans sa fenêtre pour ${PURPOSE[v.mode]}.`;
 });
 
 // Le focus va au bouton « Annuler » à l'ouverture : Échap et Entrée restent utilisables au clavier.
@@ -89,7 +94,8 @@ watch(() => props.view?.state, async (state, before) => {
 </script>
 
 <style scoped>
-.scene-root { position: fixed; inset: 0; z-index: 3000; }
+/* Au-dessus des Popup (2000-2200) et de ConfirmDelete (3000) : l'attente peut venir de n'importe quelle fenêtre. */
+.scene-root { position: fixed; inset: 0; z-index: 3100; }
 .scene-backdrop { position: absolute; inset: 0; background: rgb(0 0 0 / 0.4); }
 
 .scene-bar {
