@@ -75,9 +75,6 @@
                                     </template>
                                 </DropDown>
                             </div>
-                            <p v-if="localKind === 'extension'" class="text-[11px] text-(--text2) mt-2 leading-relaxed">
-                                Le code PIN de l'extension ne se change pas ici : passez à un autre verrou, puis revenez à Synco Extension pour en choisir un nouveau.
-                            </p>
                         </div>
                     </div>
                 </li>
@@ -343,8 +340,8 @@
             <div v-if="extensionWaiting" class="ext-wait-banner" role="status" aria-live="polite">
                 <i class="bi bi-puzzle text-lg text-(--primary)" />
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-semibold text-(--text)">En attente de votre code PIN dans la fenêtre de Synco Extension…</p>
-                    <p class="text-xs text-(--text2) mt-1">Saisissez-le dans la fenêtre de l'extension, jamais dans cette page.</p>
+                    <p class="text-sm font-semibold text-(--text)">En attente de votre accord dans la fenêtre de Synco Extension…</p>
+                    <p class="text-xs text-(--text2) mt-1">Cliquez sur « Autoriser » dans la fenêtre de l'extension.</p>
                 </div>
                 <button class="second text-xs" @click="cancelExtensionWait">Annuler</button>
             </div>
@@ -450,8 +447,8 @@ const VAULT_INFO: Record<VaultKind, { icon: string; label: string; short: string
         detail: "Vos clés s'ouvrent avec votre passkey (empreinte, visage, code de l'appareil ou de la clé de sécurité). Les essais sont limités par le matériel : c'est le verrou le plus sûr sur le web, y compris si votre ordinateur est volé.",
     },
     'extension': {
-        icon: 'bi-puzzle', label: 'Synco Extension', short: 'Clés hors de la page, PIN dans sa fenêtre',
-        detail: "Vos clés sont gardées par l'extension, hors de la page, et le code PIN se saisit dans sa fenêtre : un script malveillant dans la page ne peut ni les copier ni essayer des codes en silence. Ce n'est pas une protection matérielle : un PIN de 4 chiffres ne protège pas contre le vol de votre ordinateur ; une passkey matérielle, si.",
+        icon: 'bi-puzzle', label: 'Synco Extension', short: 'Clés hors de la page, sans code',
+        detail: "Vos clés sont gardées par l'extension, hors de la page, et chaque ouverture s'autorise d'un clic dans sa fenêtre : un script malveillant dans la page ne peut pas les copier en silence. Ce n'est pas une protection matérielle : elle ne protège ni contre le vol de votre ordinateur, ni contre quelqu'un qui utilise votre session ouverte ; une passkey matérielle, si.",
     },
     'web-pin': {
         icon: 'bi-123', label: 'Code PIN local', short: 'Gardé dans la page, le moins protecteur',
@@ -470,18 +467,18 @@ const SWITCH_TITLE: Partial<Record<VaultKind, string>> = {
 /** Ce que l'utilisateur fera, avec le verrou actuel (ouvrir) et le nouveau (créer). */
 const OPEN_WITH: Partial<Record<VaultKind, string>> = {
     'webauthn-prf': 'votre passkey',
-    'extension': 'votre code PIN, dans la fenêtre de Synco Extension',
+    'extension': "un clic sur « Autoriser », dans la fenêtre de Synco Extension",
     'web-pin': 'votre code PIN local',
 };
 const CREATE_WITH: Partial<Record<VaultKind, string>> = {
     'webauthn-prf': 'vous créerez la passkey',
-    'extension': "vous choisirez un code PIN dans la fenêtre de l'extension (deux fois)",
+    'extension': "vous cliquerez sur « Autoriser » dans la fenêtre de l'extension",
     'web-pin': 'vous choisirez un nouveau code PIN local',
 };
 
 const SWITCH_WARNING: Partial<Record<VaultKind, string>> = {
     'webauthn-prf': "Il faut une passkey compatible PRF : si votre gestionnaire de passkeys ne la prend pas en charge, le verrou actuel reste actif.",
-    'extension': "Synco Extension garde vos clés hors de la page, mais ce n'est pas une protection matérielle : un PIN de 4 chiffres ne protège pas contre le vol de votre ordinateur ; une passkey matérielle, si. Désinstaller l'extension efface vos clés : cet appareil devra être relié de nouveau.",
+    'extension': "Synco Extension garde vos clés hors de la page, sans code à retenir. Ce n'est pas une protection matérielle : verrouillez votre ordinateur quand vous le quittez ; une passkey matérielle protège aussi contre le vol. Désinstaller l'extension efface vos clés : cet appareil devra être relié de nouveau.",
     'web-pin': "Un code PIN local est gardé dans la page : un script malveillant ou une copie du profil de votre navigateur permettrait de le deviner hors ligne. Une passkey, ou à défaut Synco Extension, protège mieux.",
 };
 

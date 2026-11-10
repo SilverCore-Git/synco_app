@@ -60,8 +60,8 @@ const text = computed(() => {
     if (!v) return '';
     if (v.state === 'success') return v.mode === 'enroll' ? 'Synco Extension garde désormais la clé de cet appareil.' : 'Vos messages s\'ouvrent.';
     return v.mode === 'enroll'
-        ? 'Choisissez votre code PIN dans la fenêtre de l\'extension.'
-        : 'Saisissez votre code PIN dans la fenêtre de l\'extension.';
+        ? 'Cliquez sur « Autoriser » dans la fenêtre de l\'extension.'
+        : 'Autorisez l\'ouverture dans la fenêtre de l\'extension.';
 });
 
 // Le focus va au bouton « Annuler » à l'ouverture : Échap et Entrée restent utilisables au clavier.

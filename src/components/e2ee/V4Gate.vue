@@ -67,7 +67,7 @@
             </template>
             <template v-else>
                 <p v-if="localKind === 'extension' && extensionDetected && !extensionAutoTried" class="text-xs text-(--text2) mb-4">
-                    <i class="bi bi-puzzle mr-1" /> Extension détectée : le code PIN se saisira dans sa fenêtre.
+                    <i class="bi bi-puzzle mr-1" /> Extension détectée : vous autoriserez l'accès dans sa fenêtre.
                 </p>
                 <button class="primary flex items-center gap-2" :class="{ loader: busy }" :disabled="busy || extensionWaiting" @click="tryUnlock">
                     <i class="bi" :class="unlockIcon" />
@@ -395,7 +395,7 @@ const extensionUpgrade = ref(false);
 /** Synco Extension répond mais l'appareil est au PIN local : proposer d'y passer, à chaque lancement. */
 const extensionOffer = ref(false);
 
-const UPGRADE_NOTICE = "Saisissez votre code PIN actuel : Synco Extension vous proposera ensuite de choisir le sien.";
+const UPGRADE_NOTICE = "Saisissez votre code PIN actuel une dernière fois : Synco Extension prendra ensuite le relais, sans code.";
 
 function acceptExtensionOffer() {
     extensionOffer.value = false;
