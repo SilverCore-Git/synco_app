@@ -11,7 +11,9 @@
     "preview": "vite preview",
     "download-models": "node scripts/download_ai_models.js",
     "tauri:dev": "node scripts/tauri-run.js dev",
-    "tauri:build": "node scripts/tauri-run.js build"
+    "tauri:build": "node scripts/tauri-run.js build",
+    "android:dev": "bash scripts/android-dev.sh",
+    "android:ports": "bash scripts/android-dev.sh --ports"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "10.0.0",
