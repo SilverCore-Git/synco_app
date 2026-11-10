@@ -302,9 +302,9 @@
 
                             <div v-if="isV4 && E2EEUnloked" class="p-6 bg-red-500/5 border border-red-500/20 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center gap-6">
                                 <div class="flex-1">
-                                    <h4 class="font-bold text-(--text) text-sm">Réinitialiser le chiffrement</h4>
+                                    <h4 class="font-bold text-(--text) text-sm">Repartir de zéro</h4>
                                     <p class="text-xs text-(--text2) mt-1 leading-relaxed">
-                                        Nouvelles clés : vos messages actuels deviennent illisibles et vos autres appareils sont déconnectés.
+                                        Recrée la protection de vos messages (chiffrement de bout en bout). Vous ne pourrez plus lire vos anciens messages.
                                     </p>
                                 </div>
                                 <button
@@ -312,7 +312,7 @@
                                     class="danger flex items-center gap-2 whitespace-nowrap text-sm"
                                 >
                                     <i class="bi bi-arrow-counterclockwise"></i>
-                                    Réinitialiser le chiffrement
+                                    Repartir de zéro
                                 </button>
                             </div>
 

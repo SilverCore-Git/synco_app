@@ -1,15 +1,15 @@
 <template>
     <Popup :isOpen="isOpen" @close="close">
-        <template #title>Réinitialiser le chiffrement</template>
+        <template #title>Repartir de zéro</template>
 
         <template v-if="step === 'warn'">
             <ul class="reset-losses">
-                <li><i class="bi bi-x-circle-fill" aria-hidden="true" /> Vos messages actuels deviennent illisibles</li>
-                <li><i class="bi bi-x-circle-fill" aria-hidden="true" /> Vos autres appareils sont déconnectés</li>
+                <li><i class="bi bi-x-circle-fill" aria-hidden="true" /> Vous ne pourrez plus lire vos anciens messages</li>
+                <li><i class="bi bi-x-circle-fill" aria-hidden="true" /> Vos autres appareils seront déconnectés</li>
             </ul>
-            <p class="reset-note">Irréversible : personne ne pourra les récupérer, pas même nous.</p>
+            <p class="reset-note">Personne ne pourra les récupérer, pas même Synco.</p>
 
-            <label for="reset-phrase" class="reset-label">Tapez <strong>{{ RESET_PHRASE }}</strong> pour confirmer</label>
+            <label for="reset-phrase" class="reset-label">Pour confirmer, tapez <strong>{{ RESET_PHRASE }}</strong></label>
             <input id="reset-phrase" v-model="typed" type="text" @keydown.stop @keyup.enter="sendCode"
                 autocomplete="off" autocapitalize="characters" spellcheck="false"
                 class="reset-input" />
@@ -17,7 +17,7 @@
 
         <template v-else>
             <label for="reset-code" class="reset-label">
-                Code envoyé à <strong>{{ maskedEmail }}</strong>
+                Entrez le code reçu à <strong>{{ maskedEmail }}</strong>
             </label>
             <input id="reset-code" v-model="code" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code"
                 placeholder="000000" @keydown.stop @keyup.enter="confirmCode"
@@ -27,8 +27,8 @@
 
         <template #footer>
             <button @click="close" class="default">Annuler</button>
-            <button v-if="step === 'warn'" @click="sendCode" :disabled="!canSendCode" class="danger">Recevoir le code</button>
-            <button v-else @click="confirmCode" :disabled="code.length !== 6 || busy" class="danger">Réinitialiser</button>
+            <button v-if="step === 'warn'" @click="sendCode" :disabled="!canSendCode" class="danger">M'envoyer un code</button>
+            <button v-else @click="confirmCode" :disabled="code.length !== 6 || busy" class="danger">Confirmer</button>
         </template>
     </Popup>
 </template>

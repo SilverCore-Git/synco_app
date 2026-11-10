@@ -207,7 +207,7 @@
                         <i class="bi bi-arrow-counterclockwise" />
                         <span class="min-w-0 flex-1 text-left">
                             <strong>Repartir de zéro</strong>
-                            <small>Ni appareil, ni clé : nouvelle identité, historique chiffré définitivement perdu.</small>
+                            <small>Plus aucun appareil ni clé ? Vous perdrez vos anciens messages.</small>
                         </span>
                     </button>
                 </div>
@@ -263,16 +263,16 @@
             <div class="gate-card onboard-fact">
                 <i class="bi" :class="vaultMethod.icon" aria-hidden="true" />
                 <div class="min-w-0">
-                    <p class="onboard-fact-label">Déverrouillage</p>
+                    <p class="onboard-fact-label">Pour ouvrir Synco</p>
                     <p class="onboard-fact-value">{{ vaultMethod.label }}</p>
                 </div>
             </div>
             <p v-if="resetMode" class="onboard-warning">
-                <i class="bi bi-exclamation-triangle-fill" aria-hidden="true" /> Vos anciens messages resteront illisibles.
+                <i class="bi bi-exclamation-triangle-fill" aria-hidden="true" /> Vos anciens messages ne pourront plus être lus.
             </p>
             <div class="flex flex-col items-center gap-3 mt-6">
                 <button class="primary w-full" :class="{ loader: busy }" :disabled="busy" @click="startOnboarding()">
-                    <span class="font-bold">{{ resetMode ? 'Créer mes nouvelles clés' : 'Activer' }}</span>
+                    <span class="font-bold">Continuer</span>
                 </button>
                 <button v-if="enrollCancelled && platform === 'web' && hasPinVault" class="text-xs text-(--text2) hover:text-(--primary)" @click="onboardWithPin">
                     Utiliser plutôt un code PIN
@@ -474,7 +474,7 @@ const title = computed(() => ({
     recovery: 'Clé de récupération',
     'pin-recovery': 'Récupération par code PIN',
     'choose-pin': pinFirst.value ? 'Confirmez votre code PIN' : 'Choisissez un code PIN',
-    'onboard-intro': resetMode.value ? 'Nouvelles clés de chiffrement' : 'Activer le chiffrement',
+    'onboard-intro': resetMode.value ? 'Repartir de zéro' : 'Protégez vos messages',
     'onboard-recovery': 'Clé de récupération',
 }[step.value]));
 
@@ -482,8 +482,8 @@ const subtitle = computed(() => ({
     link: "Validez cet appareil depuis un appareil déjà connecté à votre compte.",
     connect: "Ces méthodes servent seulement quand aucun de vos appareils connectés n'est à portée.",
     'choose-pin': pinFirst.value ? 'Saisissez-le une seconde fois.' : '4 chiffres, pour déverrouiller Synco sur cet appareil.',
-    'onboard-intro': 'Vos messages ne seront lisibles que sur vos appareils.',
-    'onboard-recovery': 'Elle seule rouvre vos messages si vous perdez tous vos appareils.',
+    'onboard-intro': 'Seuls vous et vos interlocuteurs pourront les lire, pas même Synco. C\'est le chiffrement de bout en bout.',
+    'onboard-recovery': 'Gardez-la précieusement : elle vous rend vos messages si vous perdez votre téléphone.',
     ...(extensionMissing.value ? { unlock: 'Elle est sans doute désactivée. Vos clés sont toujours dedans : rien n\'est perdu.' } : {}),
 } as Partial<Record<Step, string>>)[step.value] ?? '');
 
@@ -1009,7 +1009,7 @@ async function startOnboarding(forcePin = false) {
     } catch (e) {
         if (!handleEnrollError(e)) {
             console.error('[E2EE v4] création :', e);
-            toast.show("Une erreur est survenue lors de l'initialisation du chiffrement.", 'error');
+            toast.show("La protection n'a pas pu être activée. Réessayez.", 'error');
         }
     } finally {
         busy.value = false;
@@ -1029,13 +1029,13 @@ async function finishOnboarding(withRecovery: boolean) {
         await refetchUser();
         await refreshLocalState();
         applyIdentityKeys(p.keys);
-        if (resetMode.value) toast.show('Chiffrement réinitialisé. Vos anciens messages sont désormais illisibles.', 'warning', 10000);
+        if (resetMode.value) toast.show('C\'est fait : vos nouveaux messages sont protégés.', 'success', 8000);
         resetMode.value = false;
     } catch (e) {
         prepared = null;
         recoveryText.value = '';
         step.value = 'onboard-intro';
-        if (!handleEnrollError(e)) toast.show("Une erreur est survenue lors de l'initialisation du chiffrement.", 'error');
+        if (!handleEnrollError(e)) toast.show("La protection n'a pas pu être activée. Réessayez.", 'error');
     } finally {
         busy.value = false;
     }
