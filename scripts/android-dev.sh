@@ -57,7 +57,7 @@ echo "▸ Synchronisation Capacitor"
 bunx cap sync android >/dev/null
 
 echo "▸ Compilation de l'APK de débogage"
-(cd android && ./gradlew --quiet assembleDebug)
+(cd android && sh ./gradlew --quiet assembleDebug)
 APK="$APP_DIR/android/app/build/outputs/apk/debug/app-debug.apk"
 [ -f "$APK" ] || fail "APK introuvable : $APK"
 
