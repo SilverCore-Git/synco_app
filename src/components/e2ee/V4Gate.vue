@@ -308,47 +308,7 @@
             @cancel="skipRecovery = false"
         />
 
-        <Popup :isOpen="showReset" @close="closeReset">
-            <template #title>Réinitialiser le chiffrement</template>
-            <template v-if="resetStep === 'warn'">
-                <div class="rounded-lg border-2 border-red-500 bg-red-500/10 p-4">
-                    <p class="text-red-500 font-bold text-base uppercase tracking-wide">
-                        <i class="bi bi-exclamation-triangle-fill mr-1" /> Action destructive et irréversible
-                    </p>
-                    <p class="text-(--text) text-sm mt-2">
-                        De nouvelles clés seront créées : <strong>tous vos messages déjà envoyés et reçus deviendront illisibles</strong>,
-                        et <strong>tous vos autres appareils seront déconnectés</strong>. Personne, pas même nous, ne pourra les récupérer.
-                    </p>
-                </div>
-                <p class="text-(--text2) text-xs mt-3">
-                    Si l'un de vos appareils est encore connecté, ou si vous retrouvez votre clé de récupération, annulez et utilisez-les plutôt.
-                    Un code de confirmation sera envoyé à votre adresse e-mail.
-                </p>
-                <label class="flex items-start gap-2 mt-4 text-sm text-(--text) cursor-pointer">
-                    <input type="checkbox" v-model="resetAckLoss" class="mt-1" />
-                    <span>Je comprends que tous mes anciens messages seront perdus.</span>
-                </label>
-                <label class="flex items-start gap-2 mt-2 text-sm text-(--text) cursor-pointer">
-                    <input type="checkbox" v-model="resetAckIrreversible" class="mt-1" />
-                    <span>Je comprends que cette action est irréversible.</span>
-                </label>
-                <p class="text-(--text2) text-xs mt-4">Tapez <strong class="text-red-500">{{ RESET_PHRASE }}</strong> pour confirmer :</p>
-                <input v-model="resetTyped" type="text" @keydown.stop autocomplete="off" spellcheck="false" :placeholder="RESET_PHRASE"
-                    class="w-full mt-1 rounded-md border border-(--border) bg-transparent px-3 py-2 text-sm" />
-            </template>
-            <template v-else>
-                <p class="text-(--text) text-sm">Saisissez le code à 6 chiffres envoyé à votre adresse e-mail. Il expire dans 15 minutes.</p>
-                <input v-model="resetCode" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code"
-                    placeholder="000000" @keydown.stop @keyup.enter="confirmResetCode"
-                    class="w-full mt-3 rounded-md border border-(--border) bg-transparent px-3 py-2 text-center text-xl tracking-[0.5em]" />
-                <button @click="sendResetCode" :disabled="resetBusy" class="mt-3 text-xs text-(--text2) hover:text-(--primary) underline">Renvoyer un code</button>
-            </template>
-            <template #footer>
-                <button @click="closeReset" class="default">Annuler</button>
-                <button v-if="resetStep === 'warn'" @click="sendResetCode" :disabled="!canSendResetCode" class="danger">Envoyer le code par e-mail</button>
-                <button v-else @click="confirmResetCode" :disabled="resetCode.length !== 6 || resetBusy" class="danger">Valider</button>
-            </template>
-        </Popup>
+        <E2eeResetDialog :isOpen="showReset" @close="showReset = false" @confirmed="beginReset" />
 
     </div>
     </div>
@@ -359,7 +319,7 @@
 
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import SpinLoader from '../SpinLoader.vue';
-import Popup from '../Popup.vue';
+import E2eeResetDialog from './E2eeResetDialog.vue';
 import ConfirmDelete from '../common/ConfirmDelete.vue';
 import PinPad from './PinPad.vue';
 import QrCode from './QrCode.vue';
@@ -367,12 +327,12 @@ import RecoveryKeyPanel from './RecoveryKeyPanel.vue';
 import ExtensionScene from './ExtensionScene.vue';
 import { createExtensionScene, type SceneMode, type SceneView } from '@/assets/e2eeV4/extensionScene';
 import { canAutoPrompt, mustWaitForVisible } from '@/assets/e2eeV4/extensionAuto';
+import { consumeV4ResetRequest } from '@/assets/e2eeV4/pendingReset';
 import { user } from '@/assets/var';
 import { refetchUser } from '@/assets/init';
 import { logoutEverywhere } from '@/assets/keycloak';
 import { clearInstallPending, extensionBrowser, isInstallPending } from '@/assets/deviceVault/extensionInstall';
 import useWSocket, { disconnectSocket } from '@/composables/useWSocket';
-import sfetch from '@/assets/utils/sfetch';
 import { lockSecurity } from '@/assets/utils/crypto';
 import { useToast } from '@/composables/useToast';
 import useSettingsItem from '@/composables/useSettingsItem';
@@ -1073,67 +1033,19 @@ async function finishOnboarding(withRecovery: boolean) {
 
 // --- réinitialisation de dernier recours ---------------------------------------
 
-// Sans accent : tapable sur tous les claviers. La saisie est comparée sans accents ni casse (« réinitialiser » passe aussi).
-const RESET_PHRASE = 'REINITIALISER';
-const normalizePhrase = (s: string) => s.trim().normalize('NFD').replace(/\p{M}/gu, '').toUpperCase();
 const showReset = ref(false);
-const resetStep = ref<'warn' | 'code'>('warn');
-const resetAckLoss = ref(false);
-const resetAckIrreversible = ref(false);
-const resetTyped = ref('');
-const resetCode = ref('');
-const resetBusy = ref(false);
-const canSendResetCode = computed(() =>
-    resetAckLoss.value && resetAckIrreversible.value && normalizePhrase(resetTyped.value) === RESET_PHRASE && !resetBusy.value);
-
-function closeReset() {
-    showReset.value = false;
-    resetStep.value = 'warn';
-    resetAckLoss.value = false;
-    resetAckIrreversible.value = false;
-    resetTyped.value = '';
-    resetCode.value = '';
-}
 
 function openReset() {
-    closeReset();
     showReset.value = true;
 }
 
-async function sendResetCode() {
-    if (resetStep.value === 'warn' && !canSendResetCode.value) return;
-    resetBusy.value = true;
-    try {
-        const res = await sfetch('/api/users/me/pin/reset/request', { method: 'POST' });
-        if (res.ok) {
-            resetStep.value = 'code';
-            toast.show('Un code de confirmation vous a été envoyé par e-mail.', 'info', 8000);
-        } else {
-            toast.show((await res.json().catch(() => ({}))).error || "Impossible d'envoyer le code", 'error');
-        }
-    } finally {
-        resetBusy.value = false;
-    }
-}
-
-async function confirmResetCode() {
-    if (!/^\d{6}$/.test(resetCode.value) || resetBusy.value) return;
-    resetBusy.value = true;
-    try {
-        const res = await sfetch('/api/users/me/pin/reset/confirm', { method: 'POST', body: JSON.stringify({ code: resetCode.value }) });
-        if (!res.ok) {
-            toast.show((await res.json().catch(() => ({}))).error || 'Code incorrect', 'error');
-            resetCode.value = '';
-            return;
-        }
-        closeReset();
-        if (dev) await forgetThisDevice(dev.userId, idbStore, dev.vaultFor).catch(() => {});
-        resetMode.value = true;
-        notice.value = '';
-        step.value = 'onboard-intro';
-    } finally {
-        resetBusy.value = false;
-    }
+/** Code e-mail validé (ici, ou depuis Paramètres › Sécurité) : on oublie cet appareil et on crée de nouvelles clés. */
+async function beginReset() {
+    showReset.value = false;
+    if (dev) await forgetThisDevice(dev.userId, idbStore, dev.vaultFor).catch(() => {});
+    resetMode.value = true;
+    notice.value = '';
+    step.value = 'onboard-intro';
 }
 
 // --- cycle de vie -----------------------------------------------------------
@@ -1145,6 +1057,7 @@ onMounted(async () => {
         vaults = await enrollmentVaults();
         hasPinVault.value = vaults.some(v => v.capabilities.needsPin);
         if (props.mode === 'onboard') { step.value = 'onboard-intro'; return; }
+        if (consumeV4ResetRequest()) { await beginReset(); return; }
         refreshPinRecovery();
         const local = await refreshLocalState();
         if (!local?.record) { await beginLink(); return; }

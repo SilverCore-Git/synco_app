@@ -300,6 +300,22 @@
                         <div class="space-y-4">
                             <h4 class="text-xs font-black uppercase tracking-widest text-red-500">Zone de danger</h4>
 
+                            <div v-if="isV4 && E2EEUnloked" class="p-6 bg-red-500/5 border border-red-500/20 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center gap-6">
+                                <div class="flex-1">
+                                    <h4 class="font-bold text-(--text) text-sm">Réinitialiser le chiffrement</h4>
+                                    <p class="text-xs text-(--text2) mt-1 leading-relaxed">
+                                        Crée de nouvelles clés de chiffrement. Tous vos messages chiffrés existants deviennent définitivement illisibles et vos autres appareils sont déconnectés. Un code de confirmation est envoyé par e-mail.
+                                    </p>
+                                </div>
+                                <button
+                                    @click="showResetE2ee = true"
+                                    class="danger flex items-center gap-2 whitespace-nowrap text-sm"
+                                >
+                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                    Réinitialiser le chiffrement
+                                </button>
+                            </div>
+
                             <div class="p-6 bg-red-500/5 border border-red-500/20 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center gap-6">
                                 <div class="flex-1">
                                     <h4 class="font-bold text-(--text) text-sm">Supprimer mon compte</h4>
@@ -582,6 +598,13 @@
         @cancel="showDeleteAccount = false"
     />
 
+    <E2eeResetDialog
+        :isOpen="showResetE2ee"
+        from-settings
+        @close="showResetE2ee = false"
+        @confirmed="onE2eeResetConfirmed"
+    />
+
 </template>
 
 <script setup lang="ts">
@@ -604,6 +627,8 @@ import { E2EEUnloked, lockSecurity } from '@/assets/utils/crypto';
 import { isV4Account } from '@/assets/e2eeV4/runtime';
 import DevicesSecurity from '../settings/DevicesSecurity.vue';
 import E2eeUpgrade from '../settings/E2eeUpgrade.vue';
+import E2eeResetDialog from '../e2ee/E2eeResetDialog.vue';
+import { requestV4Reset } from '@/assets/e2eeV4/pendingReset';
 import { logoutEverywhere } from '@/assets/keycloak';
 import { disconnectSocket } from '@/composables/useWSocket';
 
@@ -634,6 +659,16 @@ const passwordForm = reactive({
 const isChangingPassword = ref<boolean>(false);
 
 const showDeleteAccount = ref<boolean>(false);
+
+// Réinitialisation E2EE v4 : une fois le code e-mail validé, on verrouille la session ;
+// V4Gate prend le relais et enchaîne directement sur la création de nouvelles clés.
+const showResetE2ee = ref<boolean>(false);
+function onE2eeResetConfirmed() {
+    showResetE2ee.value = false;
+    requestV4Reset();
+    emit('close');
+    lockSecurity();
+}
 const isDeletingAccount = ref<boolean>(false);
 
 const formData = reactive({
