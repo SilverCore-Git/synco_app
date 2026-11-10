@@ -120,6 +120,9 @@ async function confirmCode() {
             code.value = '';
             return;
         }
+        // L'API de dev accepte un code de test (NODE_ENV=development) : on le dit clairement.
+        const body = await res.json().catch(() => ({}));
+        if (body.dev) toast.show(body.message || 'Mode développement : code de test accepté.', 'warning', 8000);
         resetState();
         emit('confirmed');
     } finally {

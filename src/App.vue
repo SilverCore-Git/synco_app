@@ -410,10 +410,13 @@ const resetPIN = async () => {
       resetCode.value = '';
       return;
     }
+    const body = await res.json().catch(() => ({}));
     closeResetPopup();
     isResettingPIN.value = true;
     pin.value = '';
-    toast.show('Email validé. Veuillez définir un nouveau code PIN', 'info');
+    // L'API de dev accepte un code de test (NODE_ENV=development) : on le dit clairement.
+    if (body.dev) toast.show(body.message || 'Mode développement : code de test accepté.', 'warning', 8000);
+    else toast.show('Email validé. Veuillez définir un nouveau code PIN', 'info');
   } finally {
     resetBusy.value = false;
   }
