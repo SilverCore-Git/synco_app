@@ -16,7 +16,11 @@ APP_ID="fr.silvercore.synco"
 
 JAVA_HOME="${JAVA_HOME:-$(ls -d "$HOME"/.local/share/jdk/jdk-21* 2>/dev/null | sort | tail -1)}"
 ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
-export JAVA_HOME ANDROID_HOME
+# Clé de signature de débogage au même endroit quel que soit le terminal : dans le flatpak de VSCodium,
+# le SDK la rangeait sinon sous ~/.var/app/…/config/.android, et une compilation lancée hors du flatpak
+# en créait une autre, refusée ensuite par le téléphone (signatures différentes).
+ANDROID_USER_HOME="${ANDROID_USER_HOME:-$HOME/.android}"
+export JAVA_HOME ANDROID_HOME ANDROID_USER_HOME
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
 
 fail() { echo "✖ $*" >&2; exit 1; }
