@@ -17,8 +17,8 @@
             <i class="bi" :class="saved ? 'bi-check2' : 'bi-download'" /> {{ saved ? 'Clé enregistrée' : 'Télécharger la clé' }}
         </button>
 
-        <p class="text-xs text-(--text2) text-center leading-relaxed">
-            <i class="bi bi-safe mr-1" /> Gardez-la en lieu sûr : elle donne accès à vos messages et ne sera plus affichée.
+        <p class="text-xs text-(--text2) text-center">
+            À garder en lieu sûr. Elle ne sera plus affichée.
         </p>
 
         <p v-if="!saved" class="text-center">

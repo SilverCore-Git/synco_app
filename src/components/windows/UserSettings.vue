@@ -304,7 +304,7 @@
                                 <div class="flex-1">
                                     <h4 class="font-bold text-(--text) text-sm">Réinitialiser le chiffrement</h4>
                                     <p class="text-xs text-(--text2) mt-1 leading-relaxed">
-                                        Crée de nouvelles clés de chiffrement. Tous vos messages chiffrés existants deviennent définitivement illisibles et vos autres appareils sont déconnectés. Un code de confirmation est envoyé par e-mail.
+                                        Nouvelles clés : vos messages actuels deviennent illisibles et vos autres appareils sont déconnectés.
                                     </p>
                                 </div>
                                 <button
@@ -600,7 +600,6 @@
 
     <E2eeResetDialog
         :isOpen="showResetE2ee"
-        from-settings
         @close="showResetE2ee = false"
         @confirmed="onE2eeResetConfirmed"
     />

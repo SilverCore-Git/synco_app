@@ -5,7 +5,7 @@
 
         <div class="mb-6 text-center max-w-lg">
             <img :src="theme === 'light' ? '/assets/logo/synco/light_banner_synco.svg' : '/banner.svg'" alt="Logo" class="h-16 mx-auto mb-3" />
-            <h2 class="text-xl font-bold text-(--text)">{{ title }}</h2>
+            <h1 class="text-xl font-bold text-(--text)">{{ title }}</h1>
             <p v-if="subtitle" class="text-sm text-(--text2) mt-2 leading-relaxed">{{ subtitle }}</p>
         </div>
 
@@ -254,29 +254,40 @@
             <PinPad v-model="pin" :error-tick="errorTick" @submit="submitChosenPin" />
         </div>
 
-        <!-- ============ Création du compte ============ -->
-        <div v-else-if="step === 'onboard-intro'" class="max-w-md w-full space-y-5">
-            <ul class="space-y-3 text-sm text-(--text)">
-                <li class="flex gap-3"><i class="bi bi-shield-lock-fill text-(--primary) text-lg" /><span>Vos messages sont chiffrés de bout en bout. Les clés restent sur vos appareils : même nous ne pouvons pas les lire.</span></li>
-                <li class="flex gap-3"><i class="bi bi-fingerprint text-(--primary) text-lg" /><span>Cet appareil se déverrouille avec {{ vaultLabel }}.</span></li>
-                <li class="flex gap-3"><i class="bi bi-phone text-(--primary) text-lg" /><span>Vous pourrez ajouter vos autres appareils depuis les paramètres.</span></li>
-            </ul>
-            <div v-if="resetMode" class="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-(--text)">
-                <i class="bi bi-exclamation-triangle-fill text-red-500 mr-1" /> Nouvelles clés : vos anciens messages deviendront illisibles et vos autres appareils seront déconnectés.
+        <!-- ============ Création du compte (ou nouvelles clés) ============ -->
+        <div v-else-if="step === 'onboard-intro'" key="onboard-intro" class="max-w-sm w-full">
+            <ol class="onboard-steps" aria-label="Étapes">
+                <li class="is-current" aria-current="step">Cet appareil</li>
+                <li>Clé de récupération</li>
+            </ol>
+            <div class="gate-card onboard-fact">
+                <i class="bi" :class="vaultMethod.icon" aria-hidden="true" />
+                <div class="min-w-0">
+                    <p class="onboard-fact-label">Déverrouillage</p>
+                    <p class="onboard-fact-value">{{ vaultMethod.label }}</p>
+                </div>
             </div>
-            <div class="flex flex-col items-center gap-3">
-                <button class="primary" :class="{ loader: busy }" :disabled="busy" @click="startOnboarding()">
-                    <span class="font-bold">{{ resetMode ? 'Créer de nouvelles clés' : 'Activer le chiffrement' }}</span>
+            <p v-if="resetMode" class="onboard-warning">
+                <i class="bi bi-exclamation-triangle-fill" aria-hidden="true" /> Vos anciens messages resteront illisibles.
+            </p>
+            <div class="flex flex-col items-center gap-3 mt-6">
+                <button class="primary w-full" :class="{ loader: busy }" :disabled="busy" @click="startOnboarding()">
+                    <span class="font-bold">{{ resetMode ? 'Créer mes nouvelles clés' : 'Activer' }}</span>
                 </button>
                 <button v-if="enrollCancelled && platform === 'web' && hasPinVault" class="text-xs text-(--text2) hover:text-(--primary)" @click="onboardWithPin">
-                    Utiliser plutôt un code PIN local
+                    Utiliser plutôt un code PIN
                 </button>
             </div>
         </div>
 
-        <div v-else-if="step === 'onboard-recovery'" class="max-w-md w-full space-y-4">
+        <div v-else-if="step === 'onboard-recovery'" key="onboard-recovery" class="max-w-md w-full">
+            <ol class="onboard-steps" aria-label="Étapes">
+                <li class="is-done">Cet appareil</li>
+                <li class="is-current" aria-current="step">Clé de récupération</li>
+            </ol>
             <RecoveryKeyPanel :key-text="recoveryText" :account-label="accountLabel" @saved="recoverySaved = true" />
-            <button class="primary w-full" :class="{ loader: busy }" :disabled="busy || !recoverySaved" @click="finishOnboarding(true)">Terminer</button>
+            <!-- Une seule action principale à la fois : Télécharger, puis Terminer une fois la clé gardée -->
+            <button v-if="recoverySaved" class="primary w-full mt-4" :class="{ loader: busy }" :disabled="busy" @click="finishOnboarding(true)">Terminer</button>
         </div>
 
         </Transition>
@@ -287,7 +298,7 @@
             <button v-if="step === 'choose-pin'" class="uppercase tracking-widest hover:text-(--primary) transition-colors" @click="abortChoosePin">
                 Annuler
             </button>
-            <button v-if="step === 'onboard-recovery'" class="uppercase tracking-widest hover:text-amber-500 transition-colors" :disabled="busy" @click="skipRecovery = true">
+            <button v-if="step === 'onboard-recovery' && !recoverySaved" class="uppercase tracking-widest hover:text-amber-500 transition-colors" :disabled="busy" @click="skipRecovery = true">
                 Passer cette étape
             </button>
             <button class="uppercase tracking-widest hover:text-red-500 transition-colors disabled:opacity-50" :disabled="loggingOut" @click="logOut">
@@ -444,16 +455,14 @@ function cancelExtensionWait() {
 }
 
 const accountLabel = computed(() => user.value?.email || user.value?.name || '');
-const vaultLabel = computed(() => {
+/** Comment cet appareil se déverrouillera : une icône et quelques mots, pas une phrase. */
+const vaultMethod = computed(() => {
     const kind = vaults[0]?.capabilities.kind;
-    const extension = vaults.some(v => v.capabilities.kind === 'extension');
-    if (kind === 'native-biometric') return 'la biométrie de votre téléphone (ou son code de verrouillage)';
-    if (kind === 'os-keyring') return 'le trousseau sécurisé de votre système';
-    if (kind === 'webauthn-prf') return extension
-        ? 'une passkey (empreinte, visage ou code de l\'appareil) ou, à défaut, Synco Extension, dont la fenêtre vous demandera un code PIN'
-        : 'une passkey (empreinte, visage ou code de l\'appareil) ou, à défaut, un code PIN local';
-    if (kind === 'extension') return 'Synco Extension : le code PIN se saisit dans sa fenêtre, jamais dans cette page';
-    return 'un code PIN local à 4 chiffres';
+    if (kind === 'native-biometric') return { icon: 'bi-fingerprint', label: 'Empreinte ou code du téléphone' };
+    if (kind === 'os-keyring') return { icon: 'bi-safe', label: 'Trousseau sécurisé du système' };
+    if (kind === 'webauthn-prf') return { icon: 'bi-fingerprint', label: 'Passkey : empreinte, visage ou code' };
+    if (kind === 'extension') return { icon: 'bi-puzzle', label: 'Synco Extension' };
+    return { icon: 'bi-123', label: 'Code PIN à 4 chiffres' };
 });
 
 const title = computed(() => ({
@@ -465,15 +474,16 @@ const title = computed(() => ({
     recovery: 'Clé de récupération',
     'pin-recovery': 'Récupération par code PIN',
     'choose-pin': pinFirst.value ? 'Confirmez votre code PIN' : 'Choisissez un code PIN',
-    'onboard-intro': resetMode.value ? 'Réinitialiser le chiffrement' : 'Configurez votre accès sécurisé',
-    'onboard-recovery': 'Votre clé de récupération',
+    'onboard-intro': resetMode.value ? 'Nouvelles clés de chiffrement' : 'Activer le chiffrement',
+    'onboard-recovery': 'Clé de récupération',
 }[step.value]));
 
 const subtitle = computed(() => ({
     link: "Validez cet appareil depuis un appareil déjà connecté à votre compte.",
     connect: "Ces méthodes servent seulement quand aucun de vos appareils connectés n'est à portée.",
     'choose-pin': pinFirst.value ? 'Saisissez-le une seconde fois.' : '4 chiffres, pour déverrouiller Synco sur cet appareil.',
-    'onboard-recovery': 'Le seul moyen de retrouver vos messages si vous perdez tous vos appareils.',
+    'onboard-intro': 'Vos messages ne seront lisibles que sur vos appareils.',
+    'onboard-recovery': 'Elle seule rouvre vos messages si vous perdez tous vos appareils.',
     ...(extensionMissing.value ? { unlock: 'Elle est sans doute désactivée. Vos clés sont toujours dedans : rien n\'est perdu.' } : {}),
 } as Partial<Record<Step, string>>)[step.value] ?? '');
 
@@ -1140,6 +1150,17 @@ function logOut() {
 </script>
 
 <style scoped>
+/* ---------- création : étapes et fait unique ---------- */
+.onboard-steps { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1.25rem; list-style: none; padding: 0; }
+.onboard-steps li { padding-top: 0.625rem; font-size: 0.75rem; font-weight: 600; color: var(--text2); border-top: 3px solid color-mix(in srgb, var(--text) 12%, transparent); transition: border-color 0.3s ease, color 0.3s ease; }
+.onboard-steps li.is-current { color: var(--text); border-top-color: var(--primary); }
+.onboard-steps li.is-done { border-top-color: var(--primary); }
+.onboard-fact { display: flex; align-items: center; gap: 0.875rem; padding: 1rem 1.125rem; }
+.onboard-fact > i { flex: none; font-size: 1.25rem; color: var(--text2); }
+.onboard-fact-label { font-size: 0.75rem; color: var(--text2); }
+.onboard-fact-value { font-size: 0.95rem; font-weight: 600; color: var(--text); margin-top: 0.125rem; }
+.onboard-warning { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.875rem; font-size: 0.8125rem; color: #ef4444; }
+
 /* ---------- transitions d'écran ---------- */
 .step-fwd-enter-active, .step-back-enter-active { transition: opacity 0.28s ease, transform 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
 .step-fwd-leave-active, .step-back-leave-active { transition: opacity 0.14s ease, transform 0.14s ease; }

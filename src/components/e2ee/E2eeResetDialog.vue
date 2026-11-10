@@ -1,56 +1,41 @@
 <template>
     <Popup :isOpen="isOpen" @close="close">
         <template #title>Réinitialiser le chiffrement</template>
+
         <template v-if="step === 'warn'">
-            <div class="rounded-lg border-2 border-red-500 bg-red-500/10 p-4">
-                <p class="text-red-500 font-bold text-base uppercase tracking-wide">
-                    <i class="bi bi-exclamation-triangle-fill mr-1" /> Action destructive et irréversible
-                </p>
-                <p class="text-(--text) text-sm mt-2">
-                    De nouvelles clés seront créées : <strong>tous vos messages déjà envoyés et reçus deviendront illisibles</strong>,
-                    et <strong>tous vos autres appareils seront déconnectés</strong>. Personne, pas même nous, ne pourra les récupérer.
-                </p>
-            </div>
-            <p class="text-(--text2) text-xs mt-3">
-                <template v-if="fromSettings">
-                    Pour simplement changer de méthode de déverrouillage ou remplacer votre clé de récupération, annulez :
-                    ces réglages n'effacent rien. Un code de confirmation sera envoyé à votre adresse e-mail.
-                </template>
-                <template v-else>
-                    Si l'un de vos appareils est encore connecté, ou si vous retrouvez votre clé de récupération, annulez et utilisez-les plutôt.
-                    Un code de confirmation sera envoyé à votre adresse e-mail.
-                </template>
-            </p>
-            <label class="flex items-start gap-2 mt-4 text-sm text-(--text) cursor-pointer">
-                <input type="checkbox" v-model="ackLoss" class="mt-1" />
-                <span>Je comprends que tous mes anciens messages seront perdus.</span>
-            </label>
-            <label class="flex items-start gap-2 mt-2 text-sm text-(--text) cursor-pointer">
-                <input type="checkbox" v-model="ackIrreversible" class="mt-1" />
-                <span>Je comprends que cette action est irréversible.</span>
-            </label>
-            <p class="text-(--text2) text-xs mt-4">Tapez <strong class="text-red-500">{{ RESET_PHRASE }}</strong> pour confirmer :</p>
-            <input v-model="typed" type="text" @keydown.stop autocomplete="off" spellcheck="false" :placeholder="RESET_PHRASE"
-                class="w-full mt-1 rounded-md border border-(--border) bg-transparent px-3 py-2 text-sm" />
+            <ul class="reset-losses">
+                <li><i class="bi bi-x-circle-fill" aria-hidden="true" /> Vos messages actuels deviennent illisibles</li>
+                <li><i class="bi bi-x-circle-fill" aria-hidden="true" /> Vos autres appareils sont déconnectés</li>
+            </ul>
+            <p class="reset-note">Irréversible : personne ne pourra les récupérer, pas même nous.</p>
+
+            <label for="reset-phrase" class="reset-label">Tapez <strong>{{ RESET_PHRASE }}</strong> pour confirmer</label>
+            <input id="reset-phrase" v-model="typed" type="text" @keydown.stop @keyup.enter="sendCode"
+                autocomplete="off" autocapitalize="characters" spellcheck="false"
+                class="reset-input" />
         </template>
+
         <template v-else>
-            <p class="text-(--text) text-sm">Saisissez le code à 6 chiffres envoyé à votre adresse e-mail. Il expire dans 15 minutes.</p>
-            <input v-model="code" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code"
+            <label for="reset-code" class="reset-label">
+                Code envoyé à <strong>{{ maskedEmail }}</strong>
+            </label>
+            <input id="reset-code" v-model="code" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code"
                 placeholder="000000" @keydown.stop @keyup.enter="confirmCode"
-                class="w-full mt-3 rounded-md border border-(--border) bg-transparent px-3 py-2 text-center text-xl tracking-[0.5em]" />
-            <button @click="sendCode" :disabled="busy" class="mt-3 text-xs text-(--text2) hover:text-(--primary) underline">Renvoyer un code</button>
+                class="reset-input reset-code" />
+            <button @click="sendCode" :disabled="busy" class="reset-resend">Renvoyer le code</button>
         </template>
+
         <template #footer>
             <button @click="close" class="default">Annuler</button>
-            <button v-if="step === 'warn'" @click="sendCode" :disabled="!canSendCode" class="danger">Envoyer le code par e-mail</button>
-            <button v-else @click="confirmCode" :disabled="code.length !== 6 || busy" class="danger">Valider</button>
+            <button v-if="step === 'warn'" @click="sendCode" :disabled="!canSendCode" class="danger">Recevoir le code</button>
+            <button v-else @click="confirmCode" :disabled="code.length !== 6 || busy" class="danger">Réinitialiser</button>
         </template>
     </Popup>
 </template>
 
 <script setup lang="ts">
 /**
- * Confirmation de la réinitialisation E2EE v4 : avertissement, phrase à taper, puis code reçu par e-mail.
+ * Confirmation de la réinitialisation E2EE v4 : les deux pertes, le mot à taper, puis le code reçu par e-mail.
  * Le code validé arme côté serveur la fenêtre que consomme POST /api/e2ee/v4/reset ; ce composant ne crée
  * aucune clé : l'appelant enchaîne (V4Gate passe en création de nouvelles clés).
  * Utilisé par l'écran de verrouillage (dernier recours) et par Paramètres › Sécurité › Zone de danger.
@@ -58,9 +43,10 @@
 import { computed, ref, watch } from 'vue';
 import Popup from '../Popup.vue';
 import sfetch from '@/assets/utils/sfetch';
+import { user } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 
-const props = defineProps<{ isOpen: boolean; fromSettings?: boolean }>();
+const props = defineProps<{ isOpen: boolean }>();
 const emit = defineEmits<{ close: []; confirmed: [] }>();
 
 const toast = useToast();
@@ -70,18 +56,21 @@ const RESET_PHRASE = 'REINITIALISER';
 const normalizePhrase = (s: string) => s.trim().normalize('NFD').replace(/\p{M}/gu, '').toUpperCase();
 
 const step = ref<'warn' | 'code'>('warn');
-const ackLoss = ref(false);
-const ackIrreversible = ref(false);
 const typed = ref('');
 const code = ref('');
 const busy = ref(false);
-const canSendCode = computed(() =>
-    ackLoss.value && ackIrreversible.value && normalizePhrase(typed.value) === RESET_PHRASE && !busy.value);
+const canSendCode = computed(() => normalizePhrase(typed.value) === RESET_PHRASE && !busy.value);
+
+/** « m•••@gmail.com » : l'utilisateur reconnaît sa boîte sans que l'adresse s'affiche en entier. */
+const maskedEmail = computed(() => {
+    const email = user.value?.email || '';
+    const at = email.indexOf('@');
+    if (at < 1) return 'votre adresse e-mail';
+    return `${email[0]}•••${email.slice(at)}`;
+});
 
 function resetState() {
     step.value = 'warn';
-    ackLoss.value = false;
-    ackIrreversible.value = false;
     typed.value = '';
     code.value = '';
 }
@@ -101,7 +90,7 @@ async function sendCode() {
         const res = await sfetch('/api/users/me/pin/reset/request', { method: 'POST' });
         if (res.ok) {
             step.value = 'code';
-            toast.show('Un code de confirmation vous a été envoyé par e-mail.', 'info', 8000);
+            code.value = '';
         } else {
             toast.show((await res.json().catch(() => ({}))).error || "Impossible d'envoyer le code", 'error');
         }
@@ -130,3 +119,20 @@ async function confirmCode() {
     }
 }
 </script>
+
+<style scoped>
+.reset-losses { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.625rem; }
+.reset-losses li { display: flex; align-items: center; gap: 0.625rem; font-size: 0.95rem; font-weight: 600; color: var(--text); }
+.reset-losses i { flex: none; color: #ef4444; font-size: 1rem; }
+.reset-note { margin-top: 0.75rem; font-size: 0.8125rem; color: var(--text2); }
+.reset-label { display: block; margin-top: 1.5rem; margin-bottom: 0.5rem; font-size: 0.875rem; color: var(--text2); }
+.reset-label strong { color: var(--text); font-weight: 600; }
+.reset-input {
+    width: 100%; border-radius: 0.75rem; padding: 0.625rem 0.875rem; font-size: 0.95rem; color: var(--text);
+    background: var(--bg2); border: 1px solid var(--border-color); transition: border-color 0.15s ease;
+}
+.reset-input:focus { outline: none; border-color: #ef4444; }
+.reset-code { text-align: center; font-size: 1.375rem; letter-spacing: 0.5em; font-variant-numeric: tabular-nums; }
+.reset-resend { margin-top: 0.75rem; font-size: 0.8125rem; color: var(--text2); text-decoration: underline; text-underline-offset: 2px; }
+.reset-resend:hover { color: var(--text); }
+</style>
