@@ -143,7 +143,7 @@ const handleDelete = async () => {
                 </button>
             </CreateNewCategory>
 
-            <button v-if="!isHome && (todoEnabled || filesEnabled)" @click="router.push({ name: 'SpaceStats', query: { showView: '1' } })" class="dropdown-item-annimate dropdown-item-style">
+            <button v-if="!isHome && (todoEnabled || filesEnabled) && canHere('SPACE_STATS')" @click="router.push({ name: 'OrgSettingsStats', params: { orgId: currentWorkspace?.orgId }, query: { showView: '1', scope: currentWorkspace?.id } })" class="dropdown-item-annimate dropdown-item-style">
                 <i class="bi bi-bar-chart-line mr-2" /> Statistiques
             </button>
 

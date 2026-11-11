@@ -94,7 +94,7 @@
 
                     <template v-for="view in settingsViews" :key="'settings-' + view.name + '-link'">
                         <RouterLink
-                            v-if="can(view.permission) && (view.route !== 'OrgSettingsStorage' || filesEnabled)"
+                            v-if="(view.route === STATS_SETTINGS_ROUTE ? canSeeStats && (todoEnabled || filesEnabled) : can(view.permission)) && (view.route !== 'OrgSettingsStorage' || filesEnabled)"
                             :to="{ name: view.route, query: { ...route.query, showView: '1' } }"
                             class="w-full"
                         >
@@ -320,14 +320,6 @@
                                 @click="router.push({ name: 'TasksSpace', query: { showView: '1' } })"
                             />
 
-                            <SettingsViewBtn
-                                v-if="!isHome && (todoEnabled || filesEnabled)"
-                                name="Statistiques"
-                                icon="bi-bar-chart-line"
-                                :active="route.name == 'SpaceStats'"
-                                @click="router.push({ name: 'SpaceStats', query: { showView: '1' } })"
-                            />
-
                             <hr v-if="!isHome" class=" w-full h-0.5 bg-(--text)/50 border-none rounded-full my-1" />
                             
                             <draggable
@@ -381,8 +373,9 @@ import ThreadDropDown from '../dropdown/ThreadDropDown.vue';
 import ThreadBarDropDown from '../dropdown/ThreadBarDropDown.vue';
 import ChatUserBtn from '../CanalBar/ChatUserBtn.vue';
 import SettingsViewBtn from '../CanalBar/SettingsViewBtn.vue';
-import { settingsViews } from '../../views/settings/settings';
+import { settingsViews, STATS_SETTINGS_ROUTE } from '../../views/settings/settings';
 import { usePermissions } from '@/composables/usePermissions';
+import { useSettingsAccess } from '@/composables/useSettingsAccess';
 import Category from '../CanalBar/Category.vue';
 import isDesktopApp from '@/assets/isDesktopApp';
 import DropDown from '@/components/DropDown.vue';
@@ -394,7 +387,7 @@ import { useRecentDMs } from '@/composables/useRecentDMs';
 import { useNotification } from '@/composables/useNotification';
 
 const orgId = computed(() => openedOrg.value?.id);
-const { canAny, can, fetchPermissions } = usePermissions(orgId);
+const { can, fetchPermissions } = usePermissions(orgId);
 
 const route = useRoute();
 
@@ -429,7 +422,8 @@ const showDropDown = ref<boolean>(false);
 const showSearchModal = ref<boolean>(false);
 const showAiSettings = ref<boolean>(false);
 
-const showSettingsNav = computed(() => isSettings.value && canAny(['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI']));
+const { canOpenSettings, canSeeStats } = useSettingsAccess(orgId);
+const showSettingsNav = computed(() => isSettings.value && canOpenSettings.value);
 
 // Mêmes conditions que l'affichage du bouton « Rechercher » : branche
 // « espace » du template (ni paramètres, ni DM, ni IA) et hors accueil.

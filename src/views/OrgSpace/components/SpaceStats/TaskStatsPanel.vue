@@ -106,6 +106,16 @@
             </StatsCard>
         </div>
 
+        <!-- Par space (portée organisation) -->
+        <StatsCard v-if="data.scope === 'org'" title="Par space" icon="bi-grid-fill" subtitle="Tâches actives · ouvertes · en retard">
+            <BarList :rows="spaceRows" empty="Aucune tâche">
+                <template #label="{ row }">
+                    <i class="bi shrink-0 text-(--text2)" :class="row.key === 'none' ? 'bi-house-fill' : 'bi-grid'" />
+                    <span class="truncate" :class="row.key === 'none' ? 'text-(--text2) italic' : 'text-(--text)'">{{ row.label }}</span>
+                </template>
+            </BarList>
+        </StatsCard>
+
         <!-- Par membre -->
         <StatsCard
             :title="data.canSeeMembers ? 'Par membre' : 'Vos chiffres'"
@@ -192,10 +202,10 @@
         <!-- Vigilance -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <StatsCard title="Les plus en retard" icon="bi-alarm-fill" subtitle="Échéance dépassée, non terminées">
-                <TaskRows :rows="data.overdueTasks.map(t => ({ id: t.id, title: t.title, meta: overdueText(t.dueDate), assigneeIds: t.assigneeIds }))" critical empty="Aucune tâche en retard 🎉" />
+                <TaskRows :rows="data.overdueTasks.map(t => ({ id: t.id, title: t.title, spaceId: t.spaceId, meta: overdueText(t.dueDate), assigneeIds: t.assigneeIds }))" critical empty="Aucune tâche en retard 🎉" />
             </StatsCard>
             <StatsCard title="Bloquées « en cours »" icon="bi-pause-circle-fill" subtitle="Sans changement de statut depuis plus de 14 jours">
-                <TaskRows :rows="data.stuck.map(t => ({ id: t.id, title: t.title, meta: `depuis ${daysSince(t.since)} j`, assigneeIds: t.assigneeIds }))" empty="Rien ne stagne" />
+                <TaskRows :rows="data.stuck.map(t => ({ id: t.id, title: t.title, spaceId: t.spaceId, meta: `depuis ${daysSince(t.since)} j`, assigneeIds: t.assigneeIds }))" empty="Rien ne stagne" />
             </StatsCard>
         </div>
 
@@ -306,6 +316,17 @@ const tagRows = computed(() => {
         });
 });
 
+// ── Spaces ──
+const spaceRows = computed(() => {
+    const names = new Map(props.data.spacesMeta.map(s => [s.id, s.name]));
+    return props.data.spaces.filter(s => s.total > 0).slice(0, 12).map(s => ({
+        key: s.spaceId ?? 'none',
+        label: s.spaceId ? names.get(s.spaceId) ?? 'Space supprimé' : 'Hors space (Général)',
+        value: s.total,
+        extra: `${s.open} ouv.${s.overdue ? ` · ${s.overdue} en retard` : ''}`,
+    }));
+});
+
 // ── Vigilance ──
 const daysSince = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
 const overdueText = (iso: string) => {
@@ -313,10 +334,12 @@ const overdueText = (iso: string) => {
     return days < 1 ? 'en retard' : `${days} j de retard`;
 };
 
-interface TaskRowItem { id: string; title: string; meta: string; assigneeIds: string[] }
+interface TaskRowItem { id: string; title: string; spaceId: string | null; meta: string; assigneeIds: string[] }
 
-const openTask = (id: string) => {
-    router.push({ name: 'TasksSpace', params: { orgId: route.params.orgId, spaceId: route.params.spaceId }, query: { showView: '1', select: id } });
+const openTask = (r: TaskRowItem) => {
+    const query = { showView: '1', select: r.id };
+    if (r.spaceId) router.push({ name: 'TasksSpace', params: { orgId: route.params.orgId, spaceId: r.spaceId }, query });
+    else router.push({ name: 'TasksGlobal', params: { orgId: route.params.orgId }, query });
 };
 
 const TaskRows: FunctionalComponent<{ rows: TaskRowItem[]; critical?: boolean; empty: string }> = (p) => {
@@ -325,7 +348,7 @@ const TaskRows: FunctionalComponent<{ rows: TaskRowItem[]; critical?: boolean; e
         h('button', {
             type: 'button',
             class: 'w-full flex items-center gap-3 text-left px-3 py-2 rounded-xl hover:bg-(--text)/5 transition-colors min-w-0',
-            onClick: () => openTask(r.id),
+            onClick: () => openTask(r),
         }, [
             h('span', { class: 'text-xs text-(--text) truncate flex-1' }, r.title),
             h('span', { class: 'flex -space-x-1.5 shrink-0' }, r.assigneeIds.slice(0, 3).map(id =>

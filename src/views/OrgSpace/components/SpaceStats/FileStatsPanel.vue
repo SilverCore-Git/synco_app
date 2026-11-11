@@ -102,7 +102,15 @@
 
         <!-- Dossiers, gros fichiers, tags -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <StatsCard title="Dossiers les plus lourds" icon="bi-folder-fill" subtitle="Dossiers de premier niveau, sous-dossiers compris">
+            <StatsCard v-if="data.scope === 'org'" title="Spaces les plus lourds" icon="bi-grid-fill" subtitle="Hors space : DM, dossiers d’organisation…">
+                <BarList :rows="spaceRows" :format="formatBytes" empty="Aucun fichier">
+                    <template #label="{ row }">
+                        <i class="bi shrink-0 text-(--text2)" :class="row.key === 'none' ? 'bi-house-fill' : 'bi-grid'" />
+                        <span class="truncate" :class="row.key === 'none' ? 'text-(--text2) italic' : 'text-(--text)'">{{ row.label }}</span>
+                    </template>
+                </BarList>
+            </StatsCard>
+            <StatsCard v-else title="Dossiers les plus lourds" icon="bi-folder-fill" subtitle="Dossiers de premier niveau, sous-dossiers compris">
                 <BarList :rows="folderRows" :format="formatBytes" empty="Aucun dossier">
                     <template #label="{ row }">
                         <i class="bi shrink-0" :class="row.key === 'root' ? 'bi-house-fill text-(--text2)' : 'bi-folder-fill'" :style="row.color ? { color: row.color } : {}" />
@@ -114,7 +122,7 @@
             <StatsCard title="Plus gros fichiers" icon="bi-sort-down" subtitle="Candidats au ménage">
                 <ul class="flex flex-col gap-1">
                     <li v-for="f in data.largest" :key="f.id">
-                        <button type="button" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-(--text)/5 transition-colors text-left min-w-0" @click="revealFile(f.id)">
+                        <button type="button" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-(--text)/5 transition-colors text-left min-w-0 disabled:cursor-default disabled:hover:bg-transparent" :disabled="!f.spaceId" @click="revealFile(f.spaceId, f.id)">
                             <i class="bi text-(--text2) shrink-0" :class="FAMILY_LABELS[fileFamily(f.mimeType)].icon" />
                             <span class="text-xs text-(--text) truncate flex-1">{{ f.name }}</span>
                             <StatsUserBadge :user="userById(f.ownerId)" avatar-only size="w-5 h-5" />
@@ -151,7 +159,7 @@ import StatsUserBadge from './StatsUserBadge.vue';
 import { delta, fileFamily, formatBytes, formatCount, formatPercent, FAMILY_LABELS, FAMILY_SLOT } from './statsFormat';
 import type { FileStatsResponse, StatsUser } from './statsTypes';
 
-const props = defineProps<{ data: FileStatsResponse }>();
+const props = defineProps<{ data: FileStatsResponse; spaceId?: string | null }>();
 
 const route = useRoute();
 const router = useRouter();
@@ -202,8 +210,18 @@ const tagRows = computed(() => {
     }));
 });
 
-const filesRoute = (query: Record<string, string>) =>
-    ({ name: 'SpaceFiles', params: { orgId: route.params.orgId, spaceId: route.params.spaceId }, query: { showView: '1', ...query } });
-const revealFile = (id: string) => router.push(filesRoute({ reveal: id }));
-const openFolder = (key: string) => router.push(filesRoute(key === 'root' ? {} : { folderId: key }));
+const filesRoute = (spaceId: string, query: Record<string, string>) =>
+    ({ name: 'SpaceFiles', params: { orgId: route.params.orgId, spaceId }, query: { showView: '1', ...query } });
+const revealFile = (spaceId: string | null, id: string) => { if (spaceId) router.push(filesRoute(spaceId, { reveal: id })); };
+const openFolder = (key: string) => { if (props.spaceId) router.push(filesRoute(props.spaceId, key === 'root' ? {} : { folderId: key })); };
+
+const spaceRows = computed(() => {
+    const names = new Map(props.data.spacesMeta.map(s => [s.id, s.name]));
+    return props.data.spaces.slice(0, 12).map(s => ({
+        key: s.spaceId ?? 'none',
+        label: s.spaceId ? names.get(s.spaceId) ?? 'Space supprimé' : 'Hors space',
+        value: s.bytes,
+        extra: `${s.files} fich.`,
+    }));
+});
 </script>

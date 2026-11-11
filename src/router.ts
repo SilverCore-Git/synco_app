@@ -200,6 +200,12 @@ const routes = [
             name: 'OrgSettingsStorage',
             props: true,
             component: () => import('./views/OrgSpace/views/settings/views/StorageSettings.vue'),
+          },
+          {
+            path: 'stats',
+            name: 'OrgSettingsStats',
+            props: true,
+            component: () => import('./views/OrgSpace/views/settings/views/StatsSettings.vue'),
           }
         ]
 
@@ -245,12 +251,6 @@ const routes = [
         path: ':spaceId/files',
         name: 'SpaceFiles',
         component: SpaceFiles,
-        props: true,
-      },
-      {
-        path: ':spaceId/stats',
-        name: 'SpaceStats',
-        component: () => import('./views/OrgSpace/views/SpaceStats.vue'),
         props: true,
       },
       {

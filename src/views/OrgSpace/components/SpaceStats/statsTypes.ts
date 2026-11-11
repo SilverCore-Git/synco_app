@@ -27,7 +27,22 @@ export interface DurationStats {
     sample: number;
 }
 
+export type StatsScopeKind = 'org' | 'space';
+
+export interface StatsSpaceRef {
+    id: string;
+    name: string;
+    logo: string | null;
+}
+
+/** Portées que l'utilisateur peut consulter (Paramètres > Statistiques). */
+export interface StatsScopesResponse {
+    org: boolean;
+    spaces: StatsSpaceRef[];
+}
+
 export interface TaskStatsResponse {
+    scope: StatsScopeKind;
     period: StatsPeriodInfo;
     /** Premier évènement d'historique de l'espace : avant, temps de cycle et réouvertures sont inconnus. */
     historySince: string | null;
@@ -54,8 +69,8 @@ export interface TaskStatsResponse {
     };
     flow: Array<{ bucket: string; created: number; completed: number; open: number }>;
     age: Array<{ label: string; count: number }>;
-    stuck: Array<{ id: string; title: string; since: string; assigneeIds: string[] }>;
-    overdueTasks: Array<{ id: string; title: string; dueDate: string; assigneeIds: string[] }>;
+    stuck: Array<{ id: string; title: string; spaceId: string | null; since: string; assigneeIds: string[] }>;
+    overdueTasks: Array<{ id: string; title: string; spaceId: string | null; dueDate: string; assigneeIds: string[] }>;
     members: Array<{
         userId: string;
         open: number;
@@ -68,15 +83,19 @@ export interface TaskStatsResponse {
     /** tagId null = tâches sans tag. */
     tags: Array<{ tagId: string | null; total: number; open: number; completed: number; overdue: number }>;
     lists: Array<{ id: string; title: string; total: number; done: number }>;
+    /** Portée organisation seulement : une ligne par space (spaceId null = tâches hors space). */
+    spaces: Array<{ spaceId: string | null; total: number; open: number; completed: number; overdue: number }>;
     /** [jour 0 = lundi][heure 0-23] */
     heatmap: { created: number[][]; completed: number[][] };
     users: StatsUser[];
     tagsMeta: StatsTag[];
+    spacesMeta: StatsSpaceRef[];
 }
 
 export type FileFamily = 'image' | 'video' | 'audio' | 'pdf' | 'document' | 'archive' | 'text' | 'other';
 
 export interface FileStatsResponse {
+    scope: StatsScopeKind;
     period: StatsPeriodInfo;
     canSeeMembers: boolean;
     kpis: {
@@ -95,10 +114,13 @@ export interface FileStatsResponse {
     members: Array<{ userId: string; files: number; bytes: number; added: number; lastAt: string | null }>;
     /** Dossiers de premier niveau, totaux sous-dossiers compris ; id null = racine de l'espace. */
     folders: Array<{ id: string | null; name: string; color: string | null; files: number; bytes: number }>;
-    largest: Array<{ id: string; name: string; mimeType: string; size: number; ownerId: string; createdAt: string }>;
+    largest: Array<{ id: string; name: string; mimeType: string; size: number; ownerId: string; spaceId: string | null; folderId: string | null; createdAt: string }>;
     origin: Record<'space' | 'messages' | 'tasks', { files: number; bytes: number }>;
+    /** Portée organisation seulement : une ligne par space (spaceId null = hors space : DM, dossiers d'organisation…). */
+    spaces: Array<{ spaceId: string | null; files: number; bytes: number }>;
     tasks: { filesLinkedToTasks: number; tasksWithFiles: number; tasksTotal: number };
     tags: Array<{ tagId: string; files: number; bytes: number }>;
     users: StatsUser[];
     tagsMeta: StatsTag[];
+    spacesMeta: StatsSpaceRef[];
 }

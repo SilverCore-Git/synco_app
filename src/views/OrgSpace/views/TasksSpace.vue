@@ -21,13 +21,6 @@
                 </CreateTaskModal>
                 <div class="ml-auto flex items-center gap-4 text-(--text2)">
                     <button
-                        @click="router.push({ name: 'SpaceStats', params: { orgId: route.params.orgId, spaceId: route.params.spaceId }, query: { showView: '1', tab: 'tasks' } })"
-                        class="hover:text-(--text) transition-colors"
-                        title="Statistiques des tâches"
-                    >
-                        <i class="bi bi-bar-chart-line" />
-                    </button>
-                    <button
                         @click="showUsersBar = !showUsersBar"
                         class="hover:text-(--text) transition-colors"
                         :class="showUsersBar ? 'text-(--text)' : ''"
