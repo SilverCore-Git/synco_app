@@ -386,9 +386,15 @@ import { useRecentDMs } from '@/composables/useRecentDMs';
 import { useNotification } from '@/composables/useNotification';
 
 const orgId = computed(() => openedOrg.value?.id);
-const { canAny, can } = usePermissions(orgId);
+const { canAny, can, fetchPermissions } = usePermissions(orgId);
 
 const route = useRoute();
+
+// Permissions résolues sur le space affiché (surcharges comprises) : les
+// boutons des threads s'en servent via can(…, spaceId).
+watch(() => [orgId.value, route.params.spaceId] as const, ([org, space]) => {
+    if (org && space) fetchPermissions(String(space));
+}, { immediate: true });
 const router = useRouter();
 
 const isChat = computed(() => route.name == 'OrgChat' || route.name == 'OrgThreadChat' || route.name == 'OrgThreadChatPrivateMeet');

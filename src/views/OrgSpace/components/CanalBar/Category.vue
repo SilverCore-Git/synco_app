@@ -27,6 +27,7 @@
 
             <div @click.stop>
                 <CreateNewThread 
+                    v-if="canHere('THREAD_CREATE')"
                     :categoryId="category.id"
                     :index="threads.length + 1"
                     key="'createNewSpace-' + category.id"
@@ -95,6 +96,9 @@ import type { Category, Thread } from '@/types/types';
 import ThreadBtn from './ThreadBtn.vue';
 import { useRoute, useRouter } from 'vue-router';
 import CreateNewThread from '../popup/CreateNewThread.vue';
+import { useHerePermissions } from '@/composables/useHerePermissions';
+
+const { canHere } = useHerePermissions();
 import useWSocket from '@/composables/useWSocket';
 import VoiceThreadBtn from './VoiceThreadBtn.vue';
 import { useNotification } from '@/composables/useNotification';

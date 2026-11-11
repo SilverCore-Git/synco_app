@@ -74,7 +74,7 @@
 
         </div>
 
-        <div class="flex items-center justify-between mt-2">
+        <div v-if="canHere('THREAD_CREATE_PRIVATE')" class="flex items-center justify-between mt-2">
             <label class="text-xs font-bold text-(--text2) uppercase tracking-wider">
                 Salon Privé
             </label>
@@ -166,6 +166,9 @@ import { openedOrg, user } from '@/assets/var';
 import sfetch from '@/assets/utils/sfetch';
 import type { Thread } from '@/types/types';
 import { useToast } from '@/composables/useToast';
+import { useHerePermissions } from '@/composables/useHerePermissions';
+
+const { canHere } = useHerePermissions();
 import { generateThreadKey, encryptThreadKeyForMember, E2EEUnloked, privateKey } from '@/assets/utils/crypto';
 import { resolveRecipientKey } from '@/assets/utils/keyTrust';
 // FC4 §2 : pas d'enveloppe signée ici — l'id du salon (composant du contexte

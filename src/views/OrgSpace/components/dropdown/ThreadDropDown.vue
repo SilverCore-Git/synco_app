@@ -11,7 +11,10 @@ import sfetch from '@/assets/utils/sfetch';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import DropDown from '@/components/DropDown.vue';
 import CreateNewCategory from '../popup/CreateNewCategory.vue';
+import { useHerePermissions } from '@/composables/useHerePermissions';
 import SpaceSettings from '@/components/windows/SpaceSettings.vue';
+
+const { canHere } = useHerePermissions();
 
 
 const toast = useToast();
@@ -131,6 +134,7 @@ const handleDelete = async () => {
         <template #content>
 
             <CreateNewCategory
+                v-if="canHere('CATEGORY_MANAGE')"
                 :index="currentWorkspace?.categories.length || 0 + 1"
                 :key="'createNewSpace-' + currentWorkspace?.id"
             >

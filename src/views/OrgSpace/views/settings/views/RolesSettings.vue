@@ -77,10 +77,27 @@
               <h2 class="text-2xl font-black text-(--text)">{{ selectedRole.name }}</h2>
             </div>
             <p class="text-sm text-(--text2)">
-              Définissez les permissions par défaut pour ce rôle.
+              Définissez ce que ce rôle peut faire dans l'organisation et, par défaut, dans les spaces.
             </p>
+
+            <!-- Deux niveaux : l'organisation, et ce qui vaut par défaut dans chaque space -->
+            <div class="flex flex-wrap items-center gap-3 mt-4">
+              <div class="flex items-center gap-0.5 p-0.5 rounded-lg bg-(--bg2) border border-(--border-color)">
+                <button
+                  v-for="tab in SCOPE_TABS"
+                  :key="tab.id"
+                  @click="scopeTab = tab.id"
+                  class="px-3 py-1.5 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5"
+                  :class="scopeTab === tab.id && !searchQuery ? 'bg-(--bg) text-(--text) shadow-sm' : 'text-(--text2) hover:text-(--text)'"
+                >
+                  <i :class="tab.icon" />
+                  {{ tab.label }}
+                </button>
+              </div>
+            </div>
+
             <!-- Barre de recherche -->
-            <div class="relative mt-4">
+            <div class="relative mt-3">
               <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-xs" />
               <input 
                 type="search" 
@@ -113,6 +130,11 @@
           </div>
 
           <div class="max-w-3xl flex flex-col gap-10 pb-32">
+            <p v-if="scopeTab === 'space' && !searchQuery" class="text-xs text-(--text2) leading-relaxed bg-(--bg2)/60 border border-(--border-color) rounded-xl px-4 py-3 -mb-4">
+              <i class="bi bi-info-circle mr-1" />
+              Valeurs par défaut dans tous les spaces et à l'accueil de l'organisation.
+              Chaque space peut les redéfinir dans ses propres paramètres, onglet Permissions.
+            </p>
             <template v-for="group in filteredPermissionGroups" :key="$p(group.name)">
               <div v-if="group.keys.length > 0" class="flex flex-col gap-4">
                 
@@ -177,7 +199,7 @@
         </div>
         <h3 class="text-xl font-bold text-(--text) relative z-10">Gestion des rôles</h3>
         <p class="text-sm text-(--text2) mt-2 max-w-sm relative z-10">
-          Sélectionnez un rôle dans la liste de gauche pour configurer ses accès par défaut à l'ensemble du workspace.
+          Sélectionnez un rôle à gauche pour régler ce qu'il peut faire dans l'organisation et, par défaut, dans les spaces.
         </p>
       </div>
 
@@ -298,7 +320,7 @@ import { usePermissions } from '@/composables/usePermissions';
 import { openedOrg } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
-import { PERMISSION_REGISTRY, type Permission, type PermissionValue, type RoleData } from '@/config/permissions.config';
+import { PERMISSION_REGISTRY, permissionGroupsFor, type Permission, type PermissionScope, type PermissionValue, type RoleData } from '@/config/permissions.config';
 import useWSocket from '@/composables/useWSocket';
 import Popup from '@/components/Popup.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
@@ -383,32 +405,13 @@ const handleDragEnd = () => {
 const localPerms = ref<Record<string, Record<string, PermissionValue>>>({});
 const originalPerms = ref<Record<string, Record<string, PermissionValue>>>({});
 
-const permissionGroups = [
-  {
-    name: 'Organisation (Paramètres)',
-    keys: ['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI']
-  },
-  {
-    name: 'Espaces de travail',
-    keys: ['SPACE_CREATE', 'SPACE_MANAGE', 'SPACE_DELETE']
-  },
-  {
-    name: 'Salons & Dossiers',
-    keys: ['FOLDER_CREATE', 'FOLDER_MANAGE', 'FOLDER_DELETE']
-  },
-  {
-    name: 'Contenu & Fichiers',
-    keys: ['VIEW', 'READ', 'WRITE', 'UPLOAD', 'CONTENT_DELETE', 'SHARE']
-  },
-  {
-    name: 'Tâches (Gestion Globale)',
-    keys: ['TASK_UPDATE_ALL', 'TASK_DELETE_ALL', 'TASK_STATUS_ALL', 'TASK_SUBTASK_ALL']
-  },
-  {
-    name: 'Tâches (Hiérarchie - Rôles Inférieurs)',
-    keys: ['TASK_UPDATE_LOWER', 'TASK_DELETE_LOWER', 'TASK_STATUS_LOWER', 'TASK_SUBTASK_LOWER']
-  }
+// Deux niveaux, deux onglets : l'organisation, et les valeurs par défaut des spaces.
+const SCOPE_TABS: Array<{ id: PermissionScope; label: string; icon: string }> = [
+  { id: 'org', label: 'Organisation', icon: 'bi bi-building' },
+  { id: 'space', label: 'Dans les spaces', icon: 'bi bi-grid' },
 ];
+const scopeTab = ref<PermissionScope>('org');
+const groupsByScope = { org: permissionGroupsFor('org'), space: permissionGroupsFor('space') };
 
 let socketRef: any = null;
 
@@ -497,22 +500,20 @@ function selectRole(role: RoleData) {
 }
 
 const filteredPermissionGroups = computed(() => {
-  if (!searchQuery.value) return permissionGroups;
-  
+  if (!searchQuery.value) return groupsByScope[scopeTab.value];
+
+  // La recherche couvre les deux niveaux : on ne sait pas toujours où se range une permission.
   const query = searchQuery.value.toLowerCase();
-  
-  return permissionGroups.map(group => {
-    const filteredKeys = group.keys.filter(key => {
-      const meta = PERMISSION_REGISTRY[key as Permission];
-      return meta.label.toLowerCase().includes(query) || 
-             meta.description.toLowerCase().includes(query);
-    });
-    
-    return {
-      ...group,
-      keys: filteredKeys
-    };
-  });
+  const prefix = (scope: PermissionScope, name: string) => scope === 'space' ? `Spaces · ${name}` : name;
+
+  return (['org', 'space'] as const).flatMap(scope => groupsByScope[scope].map(group => ({
+    ...group,
+    name: prefix(scope, group.name),
+    keys: group.keys.filter(key => {
+      const meta = PERMISSION_REGISTRY[key];
+      return meta.label.toLowerCase().includes(query) || meta.description.toLowerCase().includes(query);
+    }),
+  })));
 });
 
 const hasChanges = computed(() => {

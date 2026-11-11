@@ -103,6 +103,7 @@
                     <SpacePermissionsPanel 
                         ref="permissionsPanel"
                         :space-id="space.id"
+                        :space-owner-id="space.ownerId"
                         @dirty="isPermissionsModified = $event"
                     />
                 </section>

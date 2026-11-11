@@ -50,7 +50,16 @@ const router = useRouter();
 // Vues pleine largeur sans liste de salons (ThreadsBar).
 const showThreadsBar = computed(() => !['TasksGlobal', 'TasksGlobalArchived', 'AgendaGlobal', 'OrgHome'].includes(route.name as string));
 const toast = useToast();
-const { fetchPermissions } = usePermissions(computed(() => props.orgId));
+const { fetchPermissions, invalidateCache } = usePermissions(computed(() => props.orgId));
+
+// Un rôle ou les permissions d'un space ont changé : on relit les droits de
+// l'organisation et du space ouvert. invalidateCache() garde les anciennes
+// valeurs lisibles pendant le rechargement (pas de vue qui disparaît).
+const refreshPermissions = () => {
+    invalidateCache();
+    fetchPermissions();
+    if (route.params.spaceId) fetchPermissions(String(route.params.spaceId));
+};
 
 const mediaQuery = window.matchMedia('(max-width: 1024px)');
 const showRouterView = computed(() => !isLittleScreen.value || route.query.showView !== '0');
@@ -260,6 +269,9 @@ const initSocketListener = async () => {
     } 
 
     // Removed forced 'online' status update. The backend now restores the user's lastStatus upon connection.
+
+    socket.value?.on('roles:updated', refreshPermissions);
+    socket.value?.on('space:permissions-updated', refreshPermissions);
 
     socket.value?.on('member:new', ({ member }: { member: OrgMember }) => {
         openedOrg.value?.members?.push(member);
@@ -770,6 +782,9 @@ onBeforeUnmount(async () => {
         'thread:updated',
         'thread:deleted',
     ].forEach(event => socket.value?.off(event));
+    // Handler précis : RolesSettings écoute aussi roles:updated.
+    socket.value?.off('roles:updated', refreshPermissions);
+    socket.value?.off('space:permissions-updated', refreshPermissions);
 })
 
 </script>
