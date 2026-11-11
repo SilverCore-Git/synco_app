@@ -1,0 +1,35 @@
+@import 'tailwindcss';
+
+/* Page neutre et anonyme : aucune marque d'organisation, thème du système. */
+:root {
+  --primary: #16ac77;
+  --bg: #f6f7f8;
+  --card: #ffffff;
+  --text: #111214;
+  --text2: #5c6370;
+  --border: rgba(0, 0, 0, 0.08);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0b0c;
+    --card: #141416;
+    --text: #f2f3f5;
+    --text2: #9aa1ac;
+    --border: rgba(255, 255, 255, 0.09);
+    color-scheme: dark;
+  }
+}
+
+html, body, #app {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}

@@ -30,6 +30,7 @@ ARG VITE_KEYCLOAK_CLIENT_ID
 ARG VITE_SOCKET_URL
 ARG VITE_SOCKET_PATH
 ARG VITE_API_URL
+ARG VITE_SHARE_URL
 ARG VITE_DEV
 ARG VITE_USE_HTTPS
 ARG VITE_TAURI_DEV_IP
@@ -53,6 +54,7 @@ ENV VITE_LIVEKIT_URL=$VITE_LIVEKIT_URL \
     VITE_SOCKET_URL=$VITE_SOCKET_URL \
     VITE_SOCKET_PATH=$VITE_SOCKET_PATH \
     VITE_API_URL=$VITE_API_URL \
+    VITE_SHARE_URL=$VITE_SHARE_URL \
     VITE_DEV=$VITE_DEV \
     VITE_USE_HTTPS=$VITE_USE_HTTPS \
     VITE_TAURI_DEV_IP=$VITE_TAURI_DEV_IP \
@@ -72,4 +74,24 @@ RUN NODE_OPTIONS=--max-old-space-size=6144 npm run build
 FROM nginx:alpine AS prod
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+
+# ── share.synco.one : page de téléchargement des liens ───────────────────
+# Build séparé (vite.share.config.ts) : aucune dépendance à l'app (ni
+# Keycloak ni Firebase), servi depuis sa propre origine.
+#   docker build --target prod-share --build-arg VITE_API_URL=… --build-arg VITE_CDN_URL=… .
+FROM deps AS build-share
+ARG VITE_API_URL
+ARG VITE_CDN_URL
+ARG VITE_APP_URL
+ENV VITE_API_URL=$VITE_API_URL \
+    VITE_CDN_URL=$VITE_CDN_URL \
+    VITE_APP_URL=$VITE_APP_URL
+COPY . .
+RUN printenv | grep '^VITE_' > .env.production
+RUN npm run build:share
+
+FROM nginx:alpine AS prod-share
+COPY --from=build-share /app/dist-share /usr/share/nginx/html
+COPY docker/nginx-share.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80

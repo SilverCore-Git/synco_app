@@ -9,6 +9,8 @@
     "dev": "vite --port 5174",
     "build": "node ./node_modules/vue-tsc/bin/vue-tsc.js -b && vite build",
     "preview": "vite preview",
+    "dev:share": "vite --config vite.share.config.ts",
+    "build:share": "node ./node_modules/vue-tsc/bin/vue-tsc.js --noEmit -p tsconfig.app.json && vite build --config vite.share.config.ts",
     "download-models": "node scripts/download_ai_models.js",
     "tauri:dev": "node scripts/tauri-run.js dev",
     "tauri:build": "node scripts/tauri-run.js build",
