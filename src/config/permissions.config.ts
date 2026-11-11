@@ -43,6 +43,7 @@ export const PERMISSION_REGISTRY = {
   SPACE_MANAGE:      { scope: 'space', group: 'space', label: 'Gérer le space', icon: 'bi-grid', description: 'Renommer le space, changer son logo, gérer ses membres' },
   SPACE_PERMISSIONS: { scope: 'space', group: 'space', label: 'Régler les permissions', icon: 'bi-sliders', description: 'Modifier les permissions de ce space pour les rôles inférieurs au sien' },
   SPACE_DELETE:      { scope: 'space', group: 'space', label: 'Supprimer le space', icon: 'bi-trash', description: 'Supprimer définitivement le space' },
+  STATS_MEMBERS:     { scope: 'space', group: 'space', label: 'Statistiques par membre', icon: 'bi-person-lines-fill', description: 'Voir le détail de chaque membre dans les statistiques du space (sans elle, chacun ne voit que ses propres chiffres)' },
 
   // ── Threads ─────────────────────────────────────────────────────────────
   THREAD_CREATE:         { scope: 'space', group: 'threads', label: 'Créer des threads', icon: 'bi-plus-square', description: 'Créer des threads texte et vocaux' },
