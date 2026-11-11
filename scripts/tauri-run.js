@@ -29,6 +29,10 @@ function readEnvValue(envFile, key) {
 // En dev on lit .env (poste local), en build on lit .env.production (config qui part dans le binaire livré).
 const envFile = mode === 'build' ? '.env.production' : '.env';
 const devLanIp = readEnvValue(envFile, 'VITE_TAURI_DEV_IP');
+// Vite sert en https dès que VITE_USE_HTTPS n'est pas « false » (vite.config.ts) : la fenêtre doit charger le même
+// protocole, sinon elle reste blanche. En build, devUrl ne sert pas (frontendDist).
+const useHttps = (process.env.VITE_USE_HTTPS ?? readEnvValue('.env', 'VITE_USE_HTTPS') ?? 'false') !== 'false';
+const devUrl = `${useHttps ? 'https' : 'http'}://localhost:5174`;
 
 const tauriConf = JSON.parse(fs.readFileSync(TAURI_CONF_PATH, 'utf-8'));
 const baseCsp = tauriConf.app.security.csp;
@@ -61,7 +65,7 @@ const result = spawnSync(process.execPath, [tauriCliEntry, mode, ...forwardedArg
   cwd: ROOT_DIR,
   env: {
     ...process.env,
-    TAURI_CONFIG: JSON.stringify({ app: { security: { csp: patchedCsp } } }),
+    TAURI_CONFIG: JSON.stringify({ app: { security: { csp: patchedCsp } }, ...(isProd ? {} : { build: { devUrl } }) }),
   },
 });
 
