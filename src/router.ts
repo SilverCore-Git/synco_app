@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import { armOrgMorph } from './assets/orgMorph';
 import sfetch from './assets/utils/sfetch';
 
 
@@ -318,15 +317,8 @@ const router = createRouter({
 });
 
 // Plus de View Transition à chaque navigation : elle figeait la page sur une capture le temps de l'animation et
-// étirait la carte de l'organisation en plein écran (déformée, souvent sur l'état « chargement »). L'ouverture et
-// la fermeture d'une organisation sont animées en CSS (animate-org-open / animate-org-back, style.css).
-
-// Liste des organisations ↔ une organisation : la carte s'agrandit ou se referme (orgMorph.ts). Posé avant le
-// rendu de la nouvelle page, pour que ses classes de transition trouvent l'animation.
-router.beforeEach((to, from) => {
-  const isOrg = (r: typeof to) => r.matched[0]?.name === 'OrgLayout';
-  if ((from.name === 'OrgSelection' && isOrg(to)) || (isOrg(from) && to.name === 'OrgSelection')) armOrgMorph();
-});
+// étirait la carte de l'organisation en plein écran (déformée, souvent sur l'état « chargement »). L'ouverture
+// d'une organisation est une apparition échelonnée en CSS (style.css, « Apparition échelonnée »).
 
 router.beforeEach((to: any, _from: any, next: any) => {
   const title = to.meta.title as string;

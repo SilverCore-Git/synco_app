@@ -54,7 +54,7 @@
                 @change="onChange"
                 ghost-class="opacity-50"
                 drag-class="cursor-grabbing"
-                class="space-y-0.5 min-h-[10px]"
+                data-reveal-subsublist class="space-y-0.5 min-h-[10px]"
             >
 
                 <template #item="{ element: thread }">

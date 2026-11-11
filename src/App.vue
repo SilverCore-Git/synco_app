@@ -769,11 +769,7 @@ onMounted(async () => {
                   <component
                     :is="Component"
                     :key="pageKey(matchedRoute)"
-                    :class="{
-                      'overlay-page': matchedRoute.meta?.overlay,
-                      'org-page': matchedRoute.matched[0]?.name === 'OrgLayout',
-                      'selection-page': matchedRoute.name === 'OrgSelection',
-                    }"
+                    :class="{ 'overlay-page': matchedRoute.meta?.overlay }"
                   />
                 </Transition>
               </RouterView>

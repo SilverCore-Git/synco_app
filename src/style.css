@@ -791,49 +791,76 @@ button.tab:not(.active) {
    du timing d'accrochage rAF de <Transition> ni de ses classes -enter-from
    / -enter-active, qui peuvent être invisibles si l'état "avant" et l'état
    "après" se résolvent dans le même tick. */
-/* Ouverture d'une organisation : sa page, découpée au rectangle de sa carte (--org-card-clip, orgMorph.ts),
-   s'élargit jusqu'à la fenêtre ; à la fermeture elle se resserre sur sa carte et s'efface dessus. La vraie
-   page s'anime (pas de capture, rien ne fige). Actif seulement pendant un passage liste ↔ organisation
-   (#app-pages[data-morph]) : changer d'organisation ou de salon reste instantané. */
-#app-pages[data-morph] .push-enter-active.org-page,
-#app-pages[data-morph] .push-leave-active.org-page {
-  position: absolute;
-  inset: 0;
-  z-index: 40;
-  transition: clip-path 0.46s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.22s ease;
-  will-change: clip-path;
+/* Apparition échelonnée à l'ouverture d'une organisation : les zones arrivent l'une après l'autre
+   (data-reveal-region, rang --r), puis leurs éléments un par un (enfants de data-reveal-list, rang --a ; enfants
+   d'une sous-liste data-reveal-sublist, rang --a + --b). Opacité et léger décalage seulement : fluide partout.
+   Active tant que la racine porte .stagger-reveal (useStaggerReveal) : ce qui s'ajoute ensuite (nouveau
+   message, nouveau salon) apparaît normalement. */
+:root { --reveal-ease: cubic-bezier(0.16, 1, 0.3, 1); --reveal-step: 28ms; }
+@keyframes reveal-region-in { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+@keyframes reveal-item-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.stagger-reveal [data-reveal-region] {
+  animation: reveal-region-in 0.5s var(--reveal-ease) both;
+  animation-delay: calc(var(--r, 0) * 70ms);
 }
-#app-pages[data-morph] .push-enter-from.org-page {
-  clip-path: var(--org-card-clip, inset(12% 12% 12% 12% round 16px));
-  opacity: 0.35;
+.stagger-reveal [data-reveal-list] > * {
+  animation: reveal-item-in 0.45s var(--reveal-ease) both;
+  animation-delay: calc(var(--r, 0) * 70ms + 100ms + var(--a, 0) * var(--reveal-step));
 }
-#app-pages[data-morph] .push-enter-to.org-page,
-#app-pages[data-morph] .push-leave-from.org-page {
-  clip-path: inset(0 round 0);
-  opacity: 1;
+.stagger-reveal [data-reveal-sublist] > * {
+  animation: reveal-item-in 0.45s var(--reveal-ease) both;
+  animation-delay: calc(var(--r, 0) * 70ms + 100ms + (var(--a, 0) + var(--b, 0)) * var(--reveal-step));
 }
-#app-pages[data-morph] .push-leave-to.org-page {
-  clip-path: var(--org-card-clip, inset(12% 12% 12% 12% round 16px));
-  opacity: 0;
-  /* L'organisation se resserre d'abord, puis s'efface sur sa carte. */
-  transition: clip-path 0.46s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.16s ease 0.3s;
+[data-reveal-list] > :nth-child(1) { --a: 0; }
+[data-reveal-list] > :nth-child(2) { --a: 1; }
+[data-reveal-list] > :nth-child(3) { --a: 2; }
+[data-reveal-list] > :nth-child(4) { --a: 3; }
+[data-reveal-list] > :nth-child(5) { --a: 4; }
+[data-reveal-list] > :nth-child(6) { --a: 5; }
+[data-reveal-list] > :nth-child(7) { --a: 6; }
+[data-reveal-list] > :nth-child(8) { --a: 7; }
+[data-reveal-list] > :nth-child(9) { --a: 8; }
+[data-reveal-list] > :nth-child(10) { --a: 9; }
+[data-reveal-list] > :nth-child(11) { --a: 10; }
+[data-reveal-list] > :nth-child(12) { --a: 11; }
+[data-reveal-list] > :nth-child(13) { --a: 12; }
+[data-reveal-list] > :nth-child(14) { --a: 13; }
+[data-reveal-list] > :nth-child(15) { --a: 14; }
+[data-reveal-list] > :nth-child(16) { --a: 15; }
+[data-reveal-list] > :nth-child(n+17) { --a: 16; }
+[data-reveal-sublist] > :nth-child(1) { --b: 1; }
+[data-reveal-sublist] > :nth-child(2) { --b: 2; }
+[data-reveal-sublist] > :nth-child(3) { --b: 3; }
+[data-reveal-sublist] > :nth-child(4) { --b: 4; }
+[data-reveal-sublist] > :nth-child(5) { --b: 5; }
+[data-reveal-sublist] > :nth-child(6) { --b: 6; }
+[data-reveal-sublist] > :nth-child(7) { --b: 7; }
+[data-reveal-sublist] > :nth-child(8) { --b: 8; }
+[data-reveal-sublist] > :nth-child(9) { --b: 9; }
+[data-reveal-sublist] > :nth-child(10) { --b: 10; }
+[data-reveal-sublist] > :nth-child(11) { --b: 11; }
+[data-reveal-sublist] > :nth-child(12) { --b: 12; }
+[data-reveal-sublist] > :nth-child(n+13) { --b: 12; }
+.stagger-reveal [data-reveal-subsublist] > * {
+  animation: reveal-item-in 0.45s var(--reveal-ease) both;
+  animation-delay: calc(var(--r, 0) * 70ms + 100ms + (var(--a, 0) + var(--b, 0) + var(--c, 0)) * var(--reveal-step));
 }
-/* La liste reste derrière : elle s'estompe à l'ouverture, réapparaît à la fermeture (opacité seule, pour que le
-   rectangle de la carte mesuré à son arrivée soit le bon). */
-#app-pages[data-morph] .push-leave-active.selection-page {
-  position: absolute;
-  inset: 0;
-  z-index: 30;
-  transition: opacity 0.46s ease;
-}
-#app-pages[data-morph] .push-leave-to.selection-page { opacity: 0; }
-#app-pages[data-morph] .push-enter-active.selection-page { transition: opacity 0.36s ease; }
-#app-pages[data-morph] .push-enter-from.selection-page { opacity: 0.25; }
+[data-reveal-subsublist] > :nth-child(1) { --c: 1; }
+[data-reveal-subsublist] > :nth-child(2) { --c: 2; }
+[data-reveal-subsublist] > :nth-child(3) { --c: 3; }
+[data-reveal-subsublist] > :nth-child(4) { --c: 4; }
+[data-reveal-subsublist] > :nth-child(5) { --c: 5; }
+[data-reveal-subsublist] > :nth-child(6) { --c: 6; }
+[data-reveal-subsublist] > :nth-child(7) { --c: 7; }
+[data-reveal-subsublist] > :nth-child(8) { --c: 8; }
+[data-reveal-subsublist] > :nth-child(9) { --c: 9; }
+[data-reveal-subsublist] > :nth-child(10) { --c: 10; }
+[data-reveal-subsublist] > :nth-child(11) { --c: 11; }
+[data-reveal-subsublist] > :nth-child(12) { --c: 12; }
+[data-reveal-subsublist] > :nth-child(n+13) { --c: 12; }
 @media (prefers-reduced-motion: reduce) {
-  #app-pages[data-morph] .push-enter-active.org-page,
-  #app-pages[data-morph] .push-leave-active.org-page,
-  #app-pages[data-morph] .push-leave-active.selection-page,
-  #app-pages[data-morph] .push-enter-active.selection-page { transition-duration: 0.01ms; transition-delay: 0s; }
+  .stagger-reveal [data-reveal-region], .stagger-reveal [data-reveal-list] > *,
+  .stagger-reveal [data-reveal-sublist] > *, .stagger-reveal [data-reveal-subsublist] > * { animation: none; }
 }
 
 /* Démarrage et déverrouillage : fondus croisés. L'écran qui part se met au-dessus et s'efface pendant que le

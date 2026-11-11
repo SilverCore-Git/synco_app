@@ -13,6 +13,7 @@ import usePrivateMeet from '@/composables/usePrivatMeet';
 import type { Category, DMMessage, Message, OrgMember } from '@/types/types';
 import { useRoute } from 'vue-router';
 import { useUsersBar } from '@/composables/useUsersBar';
+import { useStaggerReveal } from '@/composables/useStaggerReveal';
 import { keycloak } from '@/assets/keycloak';
 import useNotifications from '@/composables/useNotifications';
 import { useNotification } from '@/composables/useNotification';
@@ -53,6 +54,8 @@ const mediaQuery = window.matchMedia('(max-width: 1024px)');
 const showRouterView = computed(() => !isLittleScreen.value || route.query.showView !== '0');
 
 const orgReady = computed(() => openedOrg.value?.id === props.orgId);
+// Ouverture de l'organisation : apparition échelonnée des zones et de leurs éléments (style.css).
+const revealing = useStaggerReveal();
 const orgBanned = computed(() => isOrgBanned(props.orgId));
 const orgBanInfo = computed(() => getOrgBanInfo(props.orgId));
 
@@ -713,6 +716,7 @@ onBeforeUnmount(async () => {
                 h-full w-full flex flex-row 
                 relative bg-(--bg) overflow-hidden
             "
+            :class="{ 'stagger-reveal': revealing }"
         >
 
             <!-- Organisation bannie : aucun accès à son contenu, ni en
@@ -727,9 +731,12 @@ onBeforeUnmount(async () => {
             />
             <template v-else>
 
-            <SpaceBar class="h-full" />
+            <!-- Ouverture : chaque zone arrive à son tour (--r), puis ses éléments un par un (style.css) -->
+            <SpaceBar class="h-full" data-reveal-region style="--r: 0" />
             <ThreadsBar
                 v-if="showThreadsBar"
+                data-reveal-region
+                style="--r: 1"
                 class="h-full " 
                 :class="[
                     isDesktopApp() ? 'rounded-tl-2xl' : '',
@@ -740,6 +747,8 @@ onBeforeUnmount(async () => {
             <div
                 v-if="!orgReady"
                 key="org-loading"
+                data-reveal-region
+                style="--r: 2"
                 class="flex-1 h-full min-w-0 bg-(--bg3) p-6 flex flex-col gap-5"
                 :class="isDesktopApp() ? ['border-t border-(--text)/10', !showThreadsBar && 'rounded-tl-2xl border-l'] : ''"
                 aria-busy="true"
@@ -761,6 +770,8 @@ onBeforeUnmount(async () => {
             <Transition v-else :name="isLittleScreen && orgContentRevealed ? 'mobile-view-slide' : ''">
                 <div
                     key="org-content"
+                    data-reveal-region
+                    style="--r: 2"
                     v-show="showRouterView"
                     class="overflow-hidden bg-(--bg3)"
                     :class="[
@@ -800,6 +811,8 @@ onBeforeUnmount(async () => {
             <Transition name="slide-in-right-20">
                 <UsersBar 
                     v-if="showUsersBar" 
+                    data-reveal-region
+                    style="--r: 3"
                     :isLittleScreen="isLittleScreen"
                     class="w-60 max-w-60 min-w-60" 
                     :class="isLittleScreen ? 'fixed top-0 right-0 h-full z-50 bg-(--bg) shadow-lg' : 'relative'"

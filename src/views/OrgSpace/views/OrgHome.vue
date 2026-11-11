@@ -1,5 +1,5 @@
 <template>
-    <div class="flex flex-col h-full relative overflow-hidden w-full">
+    <div class="flex flex-col h-full relative overflow-hidden w-full" :class="{ 'stagger-reveal': revealing }">
         <div class="min-h-14 pl-5 px-3 flex items-center justify-between border-b border-(--border-color) bg-(--bg2) z-10 shrink-0">
             <div class="flex items-center gap-3">
                 <MobileBackBtn />
@@ -25,15 +25,15 @@
             </div>
         </div>
 
-        <main class="flex-1 overflow-y-auto p-4 md:p-6">
-            <h2 class="text-xl font-bold text-(--text) mb-6 animate-app-reveal">
+        <main data-reveal-list class="flex-1 overflow-y-auto p-4 md:p-6">
+            <h2 class="text-xl font-bold text-(--text) mb-6">
                 {{ greeting }}, {{ $p(user?.name) }} <span class="inline-block animate-wave">👋</span>
             </h2>
 
-            <div class="dash-grid">
-                <NotificationsCard ref="notificationsCard" class="animate-app-reveal" style="animation-delay: 0.06s" />
-                <AgendaCard v-if="agendaEnabled" class="animate-app-reveal" style="animation-delay: 0.12s" />
-                <TodosCard v-if="todoEnabled" ref="todosCard" class="animate-app-reveal" style="animation-delay: 0.18s" />
+            <div class="dash-grid" data-reveal-sublist>
+                <NotificationsCard ref="notificationsCard" />
+                <AgendaCard v-if="agendaEnabled" />
+                <TodosCard v-if="todoEnabled" ref="todosCard" />
             </div>
         </main>
     </div>
@@ -43,10 +43,14 @@
 import { computed, useTemplateRef } from 'vue';
 import { user, todoEnabled, agendaEnabled } from '@/assets/var';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
+import { useStaggerReveal } from '@/composables/useStaggerReveal';
 import NotificationsCard from '../components/Home/NotificationsCard.vue';
 import AgendaCard from '../components/Home/AgendaCard.vue';
 import TodosCard from '../components/Home/TodosCard.vue';
 import { useUsersBar } from '@/composables/useUsersBar';
+
+// Le salut puis chaque carte apparaissent un par un, à chaque visite de l'accueil (style.css).
+const revealing = useStaggerReveal();
 
 const { showUsersBar } = useUsersBar();
 
