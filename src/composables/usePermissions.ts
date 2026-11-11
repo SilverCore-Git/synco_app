@@ -8,6 +8,9 @@ import type { Permission, RoleData, PermissionOverride } from '@/config/permissi
 const permissionsCache = ref<Map<string, Record<Permission, boolean>>>(new Map());
 const rolesCache = ref<Map<string, RoleData[]>>(new Map());
 const loading = ref(false);
+// Clés à rafraîchir : on garde l'ancienne valeur lisible par can() pendant le rechargement, sinon
+// canAny() passe à false et les v-if racines (SettingsLayout…) démontent la vue (écran noir).
+const staleKeys = new Set<string>();
 
 function cacheKey(orgId: string, spaceId?: string, folderId?: string, fileId?: string): string {
   return [orgId, spaceId || '', folderId || '', fileId || ''].join(':');
@@ -38,7 +41,7 @@ export function usePermissions(orgId: Ref<string | undefined>) {
     const key = cacheKey(orgId.value, spaceId, folderId, fileId);
 
     // Retourner le cache si disponible
-    if (permissionsCache.value.has(key)) {
+    if (permissionsCache.value.has(key) && !staleKeys.has(key)) {
       return permissionsCache.value.get(key)!;
     }
 
@@ -58,6 +61,7 @@ export function usePermissions(orgId: Ref<string | undefined>) {
       const data = await res.json();
       const perms = data.permissions as Record<Permission, boolean>;
       permissionsCache.value.set(key, perms);
+      staleKeys.delete(key);
       return perms;
 
     } catch (err) {
@@ -201,7 +205,7 @@ export function usePermissions(orgId: Ref<string | undefined>) {
   // ── Utilitaires ────────────────────────────────────────────────────────
 
   function invalidateCache() {
-    permissionsCache.value.clear();
+    for (const k of permissionsCache.value.keys()) staleKeys.add(k);
   }
 
   function invalidateRolesCache() {
