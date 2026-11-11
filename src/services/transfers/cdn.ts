@@ -1,5 +1,8 @@
 import sfetch from '@/assets/utils/sfetch';
 import { TransferCancelledError, TransferHttpError } from './transferManager';
+import { RENEW_MARGIN_MS, RangeDownload, SingleFlight, cdnFetch, readError, type DownloadTicket } from './cdnHttp';
+
+export { FileChangedError, type DownloadTicket } from './cdnHttp';
 
 /**
  * Requêtes vers synco_cdn. Le CDN ne connaît pas les jetons Keycloak : chaque
@@ -15,40 +18,11 @@ import { TransferCancelledError, TransferHttpError } from './transferManager';
  * révoqué) déclenche un renouvellement puis une seule nouvelle tentative.
  */
 
-/** Renouvelé quand il lui reste moins que ça. */
-const RENEW_MARGIN_MS = 5 * 60 * 1000;
-
-const readError = (status: number, body: string): TransferHttpError => {
-    try {
-        const parsed = JSON.parse(body);
-        if (parsed?.error) return new TransferHttpError(status, String(parsed.message || parsed.error), String(parsed.error));
-    } catch { /* corps non JSON */ }
-    return new TransferHttpError(status, status === 0 ? 'Erreur réseau' : `Erreur serveur (${status})`);
-};
-
 async function apiJson(path: string, init: RequestInit = {}): Promise<any> {
     const res = await sfetch(path, init);
     const text = await res.text();
     if (!res.ok) throw readError(res.status, text);
     return text ? JSON.parse(text) : null;
-}
-
-async function cdnFetch(url: string, init: RequestInit): Promise<Response> {
-    try {
-        return await fetch(url, { ...init, credentials: 'omit' });
-    } catch (error) {
-        if ((error as any)?.name === 'AbortError') throw new TransferCancelledError();
-        throw new TransferHttpError(0, 'Erreur réseau');
-    }
-}
-
-/** Renouvelle `refresh` au plus une fois à la fois (parts en parallèle). */
-class SingleFlight<T> {
-    private inflight: Promise<T> | null = null;
-    run(task: () => Promise<T>): Promise<T> {
-        this.inflight ??= task().finally(() => { this.inflight = null; });
-        return this.inflight;
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -203,67 +177,13 @@ export class CdnUpload {
 // Téléchargement
 // ---------------------------------------------------------------------------
 
-/** Champ `download` de GET /api/cdn/meta/:id. */
-export interface DownloadTicket {
-    url: string;
-    ticket: string;
-    expiresAt: number;
-}
-
-/** Contenu du fichier modifié pendant le téléchargement : à recommencer. */
-export class FileChangedError extends TransferHttpError {
-    constructor() {
-        super(409, 'Le fichier a été modifié pendant le téléchargement.', 'file_changed');
-    }
-}
-
-export class CdnDownload {
-    private current: DownloadTicket;
-    private readonly fileId: string;
-    private readonly version: string;
-    private readonly renewal = new SingleFlight<void>();
-
+/** Téléchargement d'un fichier de l'app : ticket renouvelé par GET /api/cdn/meta/:id. */
+export class CdnDownload extends RangeDownload {
     /**
      * `version` identifie le contenu (blobId) : un ticket renouvelé pour un
      * autre contenu signifie que le fichier a été remplacé entre-temps.
      */
     constructor(fileId: string, ticket: DownloadTicket, version: string) {
-        this.fileId = fileId;
-        this.current = ticket;
-        this.version = version;
-    }
-
-    private renew(): Promise<void> {
-        return this.renewal.run(async () => {
-            const meta = await apiJson(`/api/cdn/meta/${this.fileId}`);
-            if (!meta?.download || meta.blobId !== this.version) throw new FileChangedError();
-            this.current = meta.download;
-        });
-    }
-
-    private async ticket(): Promise<string> {
-        if (this.current.expiresAt - Date.now() < RENEW_MARGIN_MS / 5) await this.renew();
-        return `Bearer ${this.current.ticket}`;
-    }
-
-    /** Octets chiffrés [start, end). */
-    async fetchRange(start: number, end: number, signal: AbortSignal): Promise<ArrayBuffer> {
-        const send = async () => cdnFetch(this.current.url, {
-            headers: { Authorization: await this.ticket(), Range: `bytes=${start}-${end - 1}` },
-            signal,
-        });
-        let res = await send();
-        if (res.status === 401) {
-            await this.renew();
-            res = await send();
-        }
-        if (res.status === 409) throw new FileChangedError();
-        if (res.status !== 206 && res.status !== 200) throw readError(res.status, await res.text().catch(() => ''));
-
-        const data = await res.arrayBuffer();
-        // 200 = plage ignorée par un intermédiaire (fichier complet renvoyé).
-        const bytes = res.status === 200 ? data.slice(start, end) : data;
-        if (bytes.byteLength !== end - start) throw new TransferHttpError(0, 'Morceau incomplet');
-        return bytes;
+        super(ticket, version, () => apiJson(`/api/cdn/meta/${fileId}`));
     }
 }
