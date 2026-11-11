@@ -17,6 +17,11 @@
 export const LINK_SECRET_LENGTH = 32;
 export const LINK_PASSWORD_ITERATIONS = 600_000;
 const HKDF_SALT = new TextEncoder().encode('synco-link-v1');
+
+/** Octets sur un ArrayBuffer ordinaire, comme l'exige WebCrypto (TS ≥ 5.7). */
+export type Bytes = Uint8Array<ArrayBuffer>;
+/** Recopie sur un ArrayBuffer ordinaire. */
+const bytes = (value: Uint8Array): Bytes => new Uint8Array(value);
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
@@ -110,7 +115,7 @@ export async function authHashOf(auth: string): Promise<string> {
 // AES-GCM lié à un contexte
 // ---------------------------------------------------------------------------
 
-async function seal(key: CryptoKey, aad: string, plain: Uint8Array): Promise<Uint8Array> {
+async function seal(key: CryptoKey, aad: string, plain: Bytes): Promise<Uint8Array> {
     const iv = random(12);
     const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: enc.encode(aad) }, key, plain));
     const out = new Uint8Array(iv.length + ct.length);
@@ -119,7 +124,7 @@ async function seal(key: CryptoKey, aad: string, plain: Uint8Array): Promise<Uin
     return out;
 }
 
-async function open(key: CryptoKey, aad: string, sealed: Uint8Array): Promise<Uint8Array> {
+async function open(key: CryptoKey, aad: string, sealed: Uint8Array): Promise<Bytes> {
     if (sealed.length < 12 + 16) throw new Error('Chiffré tronqué.');
     return new Uint8Array(await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv: sealed.slice(0, 12), additionalData: enc.encode(aad) },
@@ -145,7 +150,7 @@ export function fileRefOf(file: { id: string; encryptedFileKey: string }): strin
 
 /** DEK brute → "l1:" + b64(iv ‖ AES-GCM(KEK_lien, DEK)), liée au lien et au fichier. */
 export async function wrapDekForLink(rawDek: ArrayBuffer | Uint8Array, kek: CryptoKey, linkId: string, fileRef: string): Promise<string> {
-    const raw = rawDek instanceof Uint8Array ? rawDek : new Uint8Array(rawDek);
+    const raw = rawDek instanceof Uint8Array ? bytes(rawDek) : new Uint8Array(rawDek);
     if (raw.length !== 32) throw new Error('DEK invalide.');
     return DEK_PREFIX + toB64(await seal(kek, `synco-link-dek-v1|${linkId}|${fileRef}`, raw));
 }
@@ -217,7 +222,7 @@ const recipientLabel = (linkId: string, userId: string) => enc.encode(`synco-lin
 /** S chiffré pour la clé publique RSA-OAEP d'un destinataire, lié au lien et à son compte. */
 export async function wrapSecretForRecipient(secret: Uint8Array, publicKeyJwk: string, linkId: string, userId: string): Promise<string> {
     const key = await crypto.subtle.importKey('jwk', JSON.parse(publicKeyJwk), { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['encrypt']);
-    return toB64(new Uint8Array(await crypto.subtle.encrypt({ name: 'RSA-OAEP', label: recipientLabel(linkId, userId) }, key, secret)));
+    return toB64(new Uint8Array(await crypto.subtle.encrypt({ name: 'RSA-OAEP', label: recipientLabel(linkId, userId) }, key, bytes(secret))));
 }
 
 export async function unwrapSecretForRecipient(wrapped: string, privateKey: CryptoKey, linkId: string, userId: string): Promise<Uint8Array> {
