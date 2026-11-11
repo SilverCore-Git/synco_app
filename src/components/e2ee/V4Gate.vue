@@ -1,5 +1,8 @@
 <template>
 
+    <div class="w-full h-full">
+    <!-- Une seule racine (ce div) : V4Gate est animé par une <Transition> dans App.vue, qui exige un élément unique. -->
+
     <!-- Démarrage, ou ouverture automatique (trousseau, biométrie) : l'écran de chargement de l'app continue,
          sans montrer un écran de déverrouillage que l'utilisateur n'a rien à faire. -->
     <LogoLoader v-if="step === 'loading' || autoUnlocking" :progress="100" status="Ouverture de vos messages…" />
@@ -280,6 +283,7 @@
 
         <E2eeResetDialog :isOpen="showReset" @close="showReset = false" @confirmed="beginReset" />
 
+    </div>
     </div>
     </div>
 
