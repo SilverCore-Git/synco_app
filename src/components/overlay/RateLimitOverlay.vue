@@ -7,8 +7,8 @@
                     <i class="bi bi-speedometer2 rl-icon" />
                     <h2 id="rl-title">Doucement, trop de requêtes</h2>
                     <p>
-                        Vous avez envoyé trop de requêtes au serveur. Par sécurité, il faut patienter un instant
-                        avant de continuer.
+                        Vous avez envoyé trop de requêtes au serveur.<br />
+                        Par sécurité, il faut patienter un instant avant de continuer.
                     </p>
                     <div class="rl-count" aria-live="polite">
                         <span>{{ label }}</span>

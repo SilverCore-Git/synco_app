@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "enables the default permissions",
+  "description": "Fenêtre principale : permissions par défaut, les contrôles de fenêtre de la barre de titre maison (topBar.vue : déplacer, réduire, agrandir, fermer), plus les commandes de l'app (connexion par le navigateur système, trousseau du système). Chaque commande valide elle-même ses arguments (lib.rs).",
   "windows": [
     "main"
   ],
@@ -9,6 +9,14 @@
     "core:default",
     "deep-link:default",
     "notification:default",
-    "core:window:allow-is-focused"
+    "core:window:allow-is-focused",
+    "core:window:allow-start-dragging",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-close",
+    "allow-open-external-url",
+    "allow-secure-store-set",
+    "allow-secure-store-get",
+    "allow-secure-store-delete"
   ]
 }

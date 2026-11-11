@@ -51,11 +51,11 @@
 import { computed } from 'vue';
 import { logoutEverywhere } from '@/assets/keycloak';
 import { disconnectSocket } from '@/composables/useWSocket';
-import useSettingsItem from '@/composables/useSettingsItem';
+import useTheme from '@/composables/useTheme';
 import { banInfo } from '@/composables/useBanStatus';
 import SimpleMarkdown from '@/components/common/SimpleMarkdown.vue';
 
-const { Item: theme } = useSettingsItem('theme', 'dark');
+const { resolvedTheme: theme } = useTheme();
 
 const formattedDate = computed(() => {
   if (!banInfo.value.bannedAt) return '';

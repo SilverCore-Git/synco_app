@@ -80,7 +80,7 @@ const onSpaceOrderChange = async () => {
         "
     >
 
-        <ul
+        <ul data-reveal-list
             class="flex justify-start items-center flex-col gap-2 h-full w-full overflow-y-auto"
             :style="{ paddingBottom: userCardHeight + 16 + 'px' }"
         >
@@ -159,7 +159,7 @@ const onSpaceOrderChange = async () => {
                 @change="onSpaceOrderChange"
                 ghost-class="opacity-50"
                 drag-class="cursor-grabbing"
-                class="shrink-0 flex flex-col gap-2 w-full"
+                data-reveal-sublist class="shrink-0 flex flex-col gap-2 w-full"
             >
                 <template #item="{ element: space }">
                     <RouterLink
@@ -206,7 +206,7 @@ const onSpaceOrderChange = async () => {
         "
     >
 
-        <ul
+        <ul data-reveal-list
             class="flex justify-start items-center flex-col gap-2 h-full w-full overflow-y-auto"
             :style="{ paddingBottom: userCardHeight + 16 + 'px' }"
         >

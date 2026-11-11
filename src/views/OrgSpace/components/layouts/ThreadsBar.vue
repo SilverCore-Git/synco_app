@@ -34,7 +34,7 @@
                         
                         </div>
 
-                        <ul
+                        <ul data-reveal-list
                             class="
                                 flex justify-start items-start flex-col flex-1 min-h-0
                                 gap-3 w-full px-3 py-5 overflow-scroll
@@ -84,7 +84,7 @@
                         
                 </div>
 
-                <ul
+                <ul data-reveal-list
                     class="
                         flex justify-start items-start flex-col flex-1 min-h-0
                         gap-3 w-full px-3 py-5 overflow-scroll
@@ -151,7 +151,7 @@
                     </div>
                 </div>
 
-                <ul
+                <ul data-reveal-list
                     class="
                         flex justify-start items-start flex-col flex-1 min-h-0
                         gap-3 w-full px-3 py-5 overflow-y-auto
@@ -287,7 +287,7 @@
                         
                         </div>
 
-                        <ul
+                        <ul data-reveal-list
                             class="
                                 flex justify-start items-start flex-col flex-1 min-h-0
                                 gap-3 w-full px-3 py-5 overflow-scroll
@@ -329,7 +329,7 @@
                                 @change="onCategoriesChange"
                                 ghost-class="opacity-50"
                                 drag-class="cursor-grabbing"
-                                class="w-full space-y-1 min-h-[10px]"
+                                data-reveal-sublist class="w-full space-y-1 min-h-[10px]"
                                 handle=".category-drag-handle"
                             >
                                 <template #item="{ element: category }">

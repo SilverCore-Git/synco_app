@@ -169,52 +169,52 @@
 
                 </section>
 
-                <!-- SECURITY -->
-                <section 
-                    v-if="activeTab === 'security'" 
-                    class="animate-fade-in space-y-8"
-                >
+                <!-- APPAREILS (E2EE v4 : doc/securite/13 §11) -->
+                <section v-if="activeTab === 'devices'" class="animate-fade-in space-y-8">
                     <div>
-                        <h3 class="text-xl font-black text-(--text) mb-1">Sécurité & Confidentialité</h3>
-                        <p class="text-sm text-(--text2)">Gérez la sécurité de votre compte et le chiffrement de bout en bout.</p>
+                        <h3 class="text-xl font-black text-(--text) mb-1">Appareils</h3>
+                        <p class="text-sm text-(--text2)">Les appareils autorisés à lire vos messages chiffrés.</p>
                     </div>
 
                     <div class="space-y-6">
-                        <div class="space-y-4">
-                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Chiffrement de bout en bout (E2EE)</h4>
-                            
-                            <div class="p-6 bg-(--bg2) border border-(--border-color) rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center gap-6">
-                                <div class="w-16 h-16 rounded-full shrink-0 flex items-center justify-center transition-colors"
-                                    :class="E2EEUnloked ? 'bg-(--primary)/10 text-(--primary)' : 'bg-red-500/10 text-red-500'">
-                                    <i class="bi text-3xl" :class="E2EEUnloked ? 'bi-shield-lock-fill' : 'bi-shield-exclamation'"></i>
-                                </div>
-                                <div class="flex-1">
-                                    <h4 class="font-bold text-(--text) flex items-center gap-2">
-                                        Statut du chiffrement
-                                        <span class="px-2 py-0.5 rounded-full text-[10px] uppercase tracking-widest font-bold"
-                                            :class="E2EEUnloked ? 'bg-(--primary)/20 text-(--primary)' : 'bg-red-500/20 text-red-500'">
-                                            {{ E2EEUnloked ? 'Actif' : 'Verrouillé' }}
-                                        </span>
-                                    </h4>
-                                    <p class="text-sm text-(--text2) mt-1 leading-relaxed">
-                                        Vos conversations sont chiffrées de bout en bout. Même nous ne pouvons pas les lire.
-                                    </p>
-                                </div>
-                                <div>
-                                    <button 
-                                        v-if="E2EEUnloked"
-                                        @click="lockSecurity(); emit('close')" 
-                                        class="second flex items-center gap-2 whitespace-nowrap text-sm"
-                                    >
-                                        <i class="bi bi-lock-fill"></i>
-                                        Verrouiller la session
-                                    </button>
-                                </div>
+                        <div class="p-4 bg-(--bg2) border border-(--border-color) rounded-xl flex items-center gap-4">
+                            <div class="w-11 h-11 rounded-full shrink-0 flex items-center justify-center"
+                                :class="E2EEUnloked ? 'bg-(--primary)/10 text-(--primary)' : 'bg-red-500/10 text-red-500'">
+                                <i class="bi text-xl" :class="E2EEUnloked ? 'bi-shield-lock-fill' : 'bi-shield-exclamation'"></i>
                             </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-bold text-sm text-(--text) flex items-center gap-2 flex-wrap">
+                                    Chiffrement de bout en bout
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] uppercase tracking-widest font-bold"
+                                        :class="E2EEUnloked ? 'bg-(--primary)/20 text-(--primary)' : 'bg-red-500/20 text-red-500'">
+                                        {{ E2EEUnloked ? 'Actif' : 'Verrouillé' }}
+                                    </span>
+                                </p>
+                                <p class="text-xs text-(--text2) mt-0.5">Vos conversations sont chiffrées : même nous ne pouvons pas les lire.</p>
+                            </div>
+                            <button v-if="E2EEUnloked" @click="lockSecurity(); emit('close')" class="second flex items-center gap-2 whitespace-nowrap text-xs">
+                                <i class="bi bi-lock-fill"></i> Verrouiller
+                            </button>
                         </div>
 
-                        <div v-if="E2EEUnloked" class="space-y-4">
-                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Preuve de chiffrement (E2EE)</h4>
+                        <DevicesSecurity v-if="isV4 && E2EEUnloked" view="devices" />
+                        <!-- Comptes v3 : migration proposée, pas imposée (P5) -->
+                        <E2eeUpgrade v-else-if="E2EEUnloked" />
+                    </div>
+                </section>
+
+                <!-- SÉCURITÉ -->
+                <section v-if="activeTab === 'security'" class="animate-fade-in space-y-8">
+                    <div>
+                        <h3 class="text-xl font-black text-(--text) mb-1">Sécurité</h3>
+                        <p class="text-sm text-(--text2)">Accès de secours, clés de chiffrement, mot de passe et suppression du compte.</p>
+                    </div>
+
+                    <div class="space-y-8">
+                        <DevicesSecurity v-if="isV4 && E2EEUnloked" view="security" />
+
+                        <details v-if="E2EEUnloked" class="proof-details space-y-4">
+                            <summary class="cursor-pointer w-fit text-xs font-black uppercase tracking-widest text-(--text2) hover:text-(--primary) transition-colors">Preuve de chiffrement : empreinte de ma clé publique</summary>
                             
                             <div class="p-5 bg-(--bg2) border border-(--border-color) rounded-xl flex flex-col gap-3">
                                 <div class="flex items-center gap-3 text-(--text)">
@@ -234,16 +234,17 @@
                                     </button>
                                 </div>
                                 <p class="text-[10px] text-(--text2) leading-relaxed">
-                                    Ceci est l'empreinte unique de votre clé publique. Elle est utilisée par vos contacts pour chiffrer les messages qu'ils vous envoient. Seul votre appareil (grâce au code PIN) peut les déchiffrer avec la clé privée correspondante.
+                                    Ceci est l'empreinte unique de votre clé publique. Elle est utilisée par vos contacts pour chiffrer les messages qu'ils vous envoient. {{ isV4 ? 'Seuls vos appareils connectés peuvent les déchiffrer avec la clé privée correspondante.' : 'Seul votre appareil (grâce au code PIN) peut les déchiffrer avec la clé privée correspondante.' }}
                                 </p>
                             </div>
-                        </div>
+                        </details>
 
                         <div class="space-y-4">
                             <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Mot de passe</h4>
 
-                            <div class="p-6 bg-(--bg2) border border-(--border-color) rounded-xl shadow-sm space-y-4 max-w-lg">
+                            <div class="p-6 bg-(--bg2) border border-(--border-color) rounded-xl shadow-sm space-y-4">
 
+                                <div class="grid grid-cols-1 gap-4">
                                 <div class="space-y-1.5">
                                     <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Mot de passe actuel</label>
                                     <input
@@ -273,6 +274,7 @@
                                         class="w-full bg-(--bg) border border-(--border-color) rounded-xl px-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
                                     />
                                 </div>
+                                </div>
 
                                 <p v-if="passwordBlockReason" class="text-xs text-amber-500 flex items-center gap-1.5">
                                     <i class="bi bi-info-circle-fill"></i>
@@ -294,10 +296,27 @@
                             </div>
                         </div>
 
+
                         <div class="space-y-4">
                             <h4 class="text-xs font-black uppercase tracking-widest text-red-500">Zone de danger</h4>
 
-                            <div class="p-6 bg-red-500/5 border border-red-500/20 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center gap-6 max-w-lg">
+                            <div v-if="isV4 && E2EEUnloked" class="p-6 bg-red-500/5 border border-red-500/20 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center gap-6">
+                                <div class="flex-1">
+                                    <h4 class="font-bold text-(--text) text-sm">Repartir de zéro</h4>
+                                    <p class="text-xs text-(--text2) mt-1 leading-relaxed">
+                                        Recrée la protection de vos messages (chiffrement de bout en bout). Vous ne pourrez plus lire vos anciens messages.
+                                    </p>
+                                </div>
+                                <button
+                                    @click="showResetE2ee = true"
+                                    class="danger flex items-center gap-2 whitespace-nowrap text-sm"
+                                >
+                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                    Repartir de zéro
+                                </button>
+                            </div>
+
+                            <div class="p-6 bg-red-500/5 border border-red-500/20 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center gap-6">
                                 <div class="flex-1">
                                     <h4 class="font-bold text-(--text) text-sm">Supprimer mon compte</h4>
                                     <p class="text-xs text-(--text2) mt-1 leading-relaxed">
@@ -333,7 +352,24 @@
 
                             <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Thème global</h4>
 
-                            <div class="grid grid-cols-2 gap-4 max-w-md">
+                            <div class="grid grid-cols-3 gap-4 max-w-xl">
+
+                                <button 
+                                    class="relative overflow-hidden flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all duration-300"
+                                    :class="
+                                        theme == 'auto' 
+                                            ? 'border-(--primary) bg-(--primary)/5 scale-100 shadow-[0_0_20px_var(--primary-glow)]' 
+                                            : 'border-(--border-color) bg-(--bg2) hover:border-(--text)/20 scale-95 opacity-70 hover:opacity-100'
+                                    "
+                                    @click="theme = 'auto'"
+                                >
+                                    <div class="w-full h-24 rounded-lg border border-(--text)/10 flex items-center justify-center shadow-inner overflow-hidden relative bg-gray-100">
+                                        <div class="absolute inset-y-0 left-0 w-1/2 bg-(--bg)"></div>
+                                        <i class="bi bi-circle-half text-(--primary) text-3xl drop-shadow-md relative" />
+                                    </div>
+                                    <span class="font-bold text-(--text)">Auto</span>
+                                    <div v-if="theme == 'auto'" class="absolute top-2 right-2 w-3 h-3 bg-(--primary) rounded-full shadow-[0_0_10px_var(--primary)]"></div>
+                                </button>
 
                                 <button 
                                     class="relative overflow-hidden flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all duration-300"
@@ -579,6 +615,12 @@
         @cancel="showDeleteAccount = false"
     />
 
+    <E2eeResetDialog
+        :isOpen="showResetE2ee"
+        @close="showResetE2ee = false"
+        @confirmed="onE2eeResetConfirmed"
+    />
+
 </template>
 
 <script setup lang="ts">
@@ -586,6 +628,7 @@
 import { ref, reactive, watch, computed } from 'vue';
 import Window from './Window.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
+import useTheme from '@/composables/useTheme';
 import ProfileUploader from '../common/ProfileUploader.vue';
 import ConfirmDelete from '../common/ConfirmDelete.vue';
 import ActivityReports from '../settings/ActivityReports/index.vue';
@@ -598,6 +641,11 @@ import { cleanProfile, emptyProfile, profileForOrg } from '@/assets/utils/userPr
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import { E2EEUnloked, lockSecurity } from '@/assets/utils/crypto';
+import { isV4Account } from '@/assets/e2eeV4/runtime';
+import DevicesSecurity from '../settings/DevicesSecurity.vue';
+import E2eeUpgrade from '../settings/E2eeUpgrade.vue';
+import E2eeResetDialog from '../e2ee/E2eeResetDialog.vue';
+import { requestV4Reset } from '@/assets/e2eeV4/pendingReset';
 import { logoutEverywhere } from '@/assets/keycloak';
 import { disconnectSocket } from '@/composables/useWSocket';
 
@@ -610,8 +658,9 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits(['close']);
 const toast = useToast();
+const isV4 = computed(() => isV4Account(user.value?.pinSalt));
 
-const { Item: theme } = useSettingsItem('theme', 'dark');
+const { theme } = useTheme();
 const { Item: devMode } = useSettingsItem('devMode', false);
 const { Item: privacyMode } = useSettingsItem('privacyMode', false);
 
@@ -627,6 +676,16 @@ const passwordForm = reactive({
 const isChangingPassword = ref<boolean>(false);
 
 const showDeleteAccount = ref<boolean>(false);
+
+// Réinitialisation E2EE v4 : une fois le code e-mail validé, on verrouille la session ;
+// V4Gate prend le relais et enchaîne directement sur la création de nouvelles clés.
+const showResetE2ee = ref<boolean>(false);
+function onE2eeResetConfirmed() {
+    showResetE2ee.value = false;
+    requestV4Reset();
+    emit('close');
+    lockSecurity();
+}
 const isDeletingAccount = ref<boolean>(false);
 
 const formData = reactive({
@@ -922,6 +981,7 @@ const deleteAccount = async () => {
 
 const tabs = [
     { id: 'account', label: 'Mon profil', icon: 'bi bi-person-badge-fill' },
+    { id: 'devices', label: 'Appareils', icon: 'bi bi-laptop-fill' },
     { id: 'security', label: 'Sécurité', icon: 'bi bi-shield-lock-fill' },
     { id: 'appearance', label: 'Apparence', icon: 'bi bi-palette-fill' },
     { id: 'notifications', label: 'Notifications', icon: 'bi bi-bell-fill' },

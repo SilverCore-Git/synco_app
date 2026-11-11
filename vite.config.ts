@@ -28,6 +28,26 @@ function getEnvValue(key: string, defaultValue: string = 'false', envFile: strin
 
 const useHttps = getEnvValue('VITE_USE_HTTPS') !== 'false';
 
+// Certificat de dev fourni (ex. celui de synco_api/certs, signé par une autorité locale que les
+// clients approuvent). Sans lui, basicSsl génère un certificat auto-signé : la page est alors en
+// erreur TLS et les navigateurs refusent WebAuthn (passkeys / Windows Hello).
+const devCertFile = getEnvValue('SYNCO_DEV_CERT', '');
+const devKeyFile = getEnvValue('SYNCO_DEV_KEY', '');
+const devTls = useHttps && devCertFile && devKeyFile && fs.existsSync(devCertFile) && fs.existsSync(devKeyFile)
+  ? { cert: fs.readFileSync(devCertFile), key: fs.readFileSync(devKeyFile) }
+  : undefined;
+
+// Origine à ajouter à connect-src pour synco_keyguard, précédée d'un espace ; '' si l'URL est absente ou invalide.
+// Même logique que keyguardCspOrigin dans scripts/tauri-run.js.
+function keyguardCspOrigin(raw: string): string {
+  try {
+    const url = new URL(raw.trim());
+    return url.protocol === 'https:' || url.protocol === 'http:' ? ` ${url.origin}` : '';
+  } catch {
+    return '';
+  }
+}
+
 // index.html embarque sa propre CSP (utilisée par Capacitor et le web) avec le même
 // placeholder __DEV_LAN_ORIGIN__ que src-tauri/tauri.conf.json (patché par scripts/tauri-run.js).
 // On le résout ici pour que index.html reste cohérent avec le build Tauri.
@@ -53,6 +73,11 @@ function devLanCspPlugin(): Plugin {
       // continuent de fonctionner.
       const devHosts = isProd ? '' : ' http://localhost:* https://localhost:*';
       const devConnect = isProd ? '' : ' http://localhost:* https://localhost:* ws://localhost:* wss://localhost:*';
+      // synco_keyguard (récupération par PIN, E2EE v4 §14) est appelé directement par le navigateur : son origine
+      // doit figurer dans connect-src. Seule l'origine de VITE_KEYGUARD_URL est reprise (jamais le chemin ni une
+      // valeur brute, qui pourrait injecter une directive) ; absente ou invalide, rien n'est ajouté.
+      out = out.split('__CSP_KEYGUARD__').join(keyguardCspOrigin(getEnvValue('VITE_KEYGUARD_URL', '', envFile)));
+
       out = out
         .split('__CSP_DEV_SCRIPT__').join(devHosts)
         .split('__CSP_DEV_CONNECT__').join(devConnect)
@@ -105,7 +130,7 @@ export default defineConfig({
   plugins: [
     vue(),
     tailwindcss(),
-    useHttps ? basicSsl() : undefined,
+    useHttps && !devTls ? basicSsl() : undefined,
     devLanCspPlugin(),
     firebaseSwPlugin(),
   ].filter(Boolean),
@@ -116,6 +141,7 @@ export default defineConfig({
   },
   server: {
     host: true,
+    ...(devTls ? { https: devTls } : {}),
     // HSTS is deliberately omitted here (unlike docker/nginx.conf): it's
     // cached per-host by the browser for a year, and dev is sometimes
     // accessed over plain HTTP (VITE_TAURI_DEV_IP / LAN testing) — forcing

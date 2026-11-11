@@ -1,0 +1,20 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "app": {
+    "windows": [
+      {
+        "title": "Synco",
+        "maximized": false,
+        "resizable": true,
+        "width": 1280,
+        "height": 800,
+        "minWidth": 1200,
+        "minHeight": 800,
+        "dragDropEnabled": false,
+        "decorations": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
+      }
+    ]
+  }
+}

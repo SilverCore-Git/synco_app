@@ -1,10 +1,10 @@
 <template>
 
-    <!-- Même disposition maître/détail que « Rôles & Permissions » : la liste
-         reste visible pendant qu'on configure, et la configuration se fait à
-         plat dans la page au lieu d'empiler des pop-ups les unes sur les
-         autres. Seule la création — trois champs — reste une pop-up. -->
     <div ref="rootRef" class="flex h-full w-full bg-(--bg) overflow-hidden relative">
+        <!-- Même disposition maître/détail que « Rôles & Permissions » : la liste
+             reste visible pendant qu'on configure, et la configuration se fait à
+             plat dans la page au lieu d'empiler des pop-ups les unes sur les
+             autres. Seule la création — trois champs — reste une pop-up. -->
 
         <!-- ── Colonne gauche : liste ───────────────────────────────────── -->
         <!-- Deux colonnes ou une seule : la bascule dépend de la largeur

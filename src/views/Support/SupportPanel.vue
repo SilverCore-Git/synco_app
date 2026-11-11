@@ -1,9 +1,8 @@
 <template>
 
-    <!-- Panel SAV équipe : visuel volontairement distinct d'AdminPanel.vue
-         (propre entête, pas d'onglets admin). -->
-
     <div class="h-full flex flex-col overflow-hidden bg-(--bg2) text-(--text)">
+        <!-- Panel SAV équipe : visuel volontairement distinct d'AdminPanel.vue
+             (propre entête, pas d'onglets admin). -->
 
         <nav class="shrink-0 bg-(--bg)/80 backdrop-blur-xl border-b border-(--text)/5 px-6 py-4">
             <div class="max-w-6xl mx-auto">

@@ -3,6 +3,8 @@ import sfetch from './assets/utils/sfetch';
 
 
 import OrgSelection from './views/OrgsSelection/OrgSelection.vue';
+import { orgNav } from './assets/orgOpen';
+import { trackNavDirection } from './assets/navDirection';
 import OrgLayout from './views/OrgSpace/OrgLayout.vue';
 import SpaceView from './views/OrgSpace/views/SpaceView.vue';
 import OrgHome from './views/OrgSpace/views/OrgHome.vue';
@@ -13,7 +15,6 @@ import MembersSettings from './views/OrgSpace/views/settings/views/MembersSettin
 import WebhooksSettings from './views/OrgSpace/views/settings/views/WebhooksSettings.vue';
 import InviteView from './views/inviteView.vue';
 import ThreadLayout from './views/OrgSpace/views/ThreadLayout.vue';
-import { nextTick } from 'vue';
 import SpaceFiles from './views/OrgSpace/views/SpaceFiles.vue';
 import AdminPanel from './views/AdminPanel.vue';
 import { loadSupportRole } from './services/support/role';
@@ -317,20 +318,19 @@ const router = createRouter({
   }
 });
 
-router.beforeResolve((_to, _from) => {
+// Plus de View Transition à chaque navigation : elle figeait la page sur une capture le temps de l'animation et
+// étirait la carte de l'organisation en plein écran (déformée, souvent sur l'état « chargement »). L'ouverture
+// d'une organisation est une apparition échelonnée en CSS (style.css, « Apparition échelonnée »).
 
-  if (!document.startViewTransition) return;
+trackNavDirection(router);
 
-  return new Promise((resolve) => {
-    document.startViewTransition(async () => {
-      resolve()
-      await nextTick()
-    })
-  })
-  
-})
+router.beforeEach((to: any, from: any, next: any) => {
+  // Sens de la navigation liste <-> organisation, lu par App.vue pour n'animer que ce passage (orgOpen.ts).
+  const isOrg = (r: any) => r.matched?.some((m: any) => m.name === 'OrgLayout');
+  orgNav.value = from.name === 'OrgSelection' && isOrg(to) ? 'open'
+    : isOrg(from) && to.name === 'OrgSelection' ? 'close'
+    : null;
 
-router.beforeEach((to: any, _from: any, next: any) => {
   const title = to.meta.title as string;
 
   if (title) {

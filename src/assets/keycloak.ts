@@ -180,7 +180,9 @@ async function nativeLogin(): Promise<{ token?: string; refreshToken?: string }>
   return { token: tokens.access_token, refreshToken: tokens.refresh_token };
 }
 
-async function tauriLogin(): Promise<{ token?: string; refreshToken?: string }> {
+/** `signal` : l'utilisateur abandonne depuis l'écran de connexion ; le retour du navigateur sera alors ignoré. */
+async function tauriLogin(signal?: AbortSignal): Promise<{ token?: string; refreshToken?: string }> {
+  if (signal?.aborted) return {};
   const redirectUri = 'fr.silvercore.synco://callback';
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = await generateCodeChallenge(codeVerifier);
@@ -211,11 +213,17 @@ async function tauriLogin(): Promise<{ token?: string; refreshToken?: string }> 
     + `&code_challenge=${codeChallenge}&code_challenge_method=S256`;
 
   await invoke('open_external_url', { url: authUrl });
-  const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), LOGIN_FLOW_TIMEOUT_MS));
-  const code = await Promise.race([deepLinkArrived, timeout]);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), LOGIN_FLOW_TIMEOUT_MS); });
+  let onAbort: (() => void) | undefined;
+  const aborted = new Promise<null>((resolve) => { onAbort = () => resolve(null); signal?.addEventListener('abort', onAbort, { once: true }); });
+  const code = await Promise.race([deepLinkArrived, timeout, aborted]);
+  clearTimeout(timer);
+  if (onAbort) signal?.removeEventListener('abort', onAbort);
+  // Après annulation, un retour tardif du navigateur ne trouve plus personne à l'écoute : il est ignoré.
   unlistenSingleInstance();
   unlistenOpenUrl();
-  if (!code) return {};
+  if (!code || signal?.aborted) return {};
 
   // fetch natif — fonctionne car connect-src dans la CSP de tauri.conf.json autorise KC_URL
   const tokenRes = await fetch(`${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/token`, {
@@ -271,11 +279,11 @@ async function exchangeRefreshToken(refreshToken: string): Promise<{ token?: str
  * Doit être déclenché depuis une interaction utilisateur (clic bouton) —
  * on ne veut pas ouvrir un onglet de navigateur sans action explicite.
  */
-async function loginWithSystemBrowser(): Promise<boolean> {
+async function loginWithSystemBrowser(signal?: AbortSignal): Promise<boolean> {
   try {
     const redirectUri = 'fr.silvercore.synco://callback';
-    const fresh = await tauriLogin();
-    if (!fresh.token) return false;
+    const fresh = await tauriLogin(signal);
+    if (!fresh.token || signal?.aborted) return false;
 
     const authenticated = await keycloak.init({
       checkLoginIframe: false,

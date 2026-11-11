@@ -110,6 +110,43 @@ html {
   overflow-x: hidden;
 }
 
+/* Cadre arrondi de l'app de bureau (Linux/Windows, cf. main.ts) : la fenêtre Tauri est transparente, le
+   contenu est découpé en rectangle arrondi par le clip-path du body, qui coupe aussi ce qui est téléporté
+   dans <body> (popups, menus, fenêtres). Le fond est peint sur #app et non sur body : le fond du body
+   serait sinon reporté sur tout le canevas, coins compris. Pas d'arrondi en plein écran/agrandi. */
+html.desktop-frame {
+  --window-radius: 10px;
+  background: transparent !important;
+}
+html.desktop-frame body {
+  background: transparent !important;
+  min-height: 100dvh;
+  clip-path: inset(0 round var(--window-radius));
+}
+html.desktop-frame #app {
+  background-color: var(--bg);
+  min-height: 100dvh;
+}
+html.desktop-frame #boot-loader {
+  border-radius: var(--window-radius);
+}
+/* Liseré discret qui dessine le bord (une fenêtre sans décorations n'a pas d'ombre système) */
+html.desktop-frame::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  border-radius: var(--window-radius);
+  border: 1px solid var(--border-color);
+  pointer-events: none;
+  z-index: 2147483647;
+}
+html.desktop-frame.window-maximized body {
+  clip-path: none;
+}
+html.desktop-frame.window-maximized::after {
+  display: none;
+}
+
 body {
 
   overflow-x: hidden;
@@ -307,7 +344,7 @@ select {
    — un simple translateX suffit, pas besoin de jouer sur la largeur. */
 .mobile-view-slide-enter-active,
 .mobile-view-slide-leave-active {
-  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .mobile-view-slide-enter-from,
@@ -320,28 +357,56 @@ select {
   transform: translateX(0);
 }
 
-/* Navigation entre sous-pages à l'intérieur du panneau déjà ouvert (ex: tâches
-   -> tâches archivées) : contrairement au cas ci-dessus, l'ancienne et la
-   nouvelle page sont montées en même temps pendant la transition — sans
-   position absolute elles s'empileraient dans le flux et doubleraient la
-   hauteur le temps de l'animation. */
-.mobile-page-slide-enter-active,
-.mobile-page-slide-leave-active {
-  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+/* Pages mobiles (OrgLayout.vue, navDirection.ts) : navigation entre deux pages dans le panneau déjà ouvert. Les deux
+   pages sont montées en même temps, superposées (absolute) ; celle qui bouge passe au-dessus.
+   - En avant : la nouvelle arrive de la droite par-dessus ; l'ancienne recule un peu et s'assombrit.
+   - En arrière : la page courante repart vers la droite et découvre la précédente, qui revient en place.
+   - Panneau qui se ferme (hold) : la page affichée ne bouge pas pendant que le panneau glisse, la nouvelle (cachée
+     sous les barres) n'apparaît qu'ensuite. */
+.mobile-page-forward-enter-active,
+.mobile-page-forward-leave-active,
+.mobile-page-back-enter-active,
+.mobile-page-back-leave-active {
   position: absolute !important;
   inset: 0;
+  transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.34s cubic-bezier(0.32, 0.72, 0, 1);
 }
-
-.mobile-page-slide-enter-from,
-.mobile-page-slide-leave-to {
-  transform: translateX(100%);
+.mobile-page-forward-enter-active,
+.mobile-page-back-leave-active {
+  z-index: 2;
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.35);
 }
-
-.mobile-page-slide-enter-to,
-.mobile-page-slide-leave-from {
-  transform: translateX(0);
+.mobile-page-forward-leave-active,
+.mobile-page-back-enter-active {
+  z-index: 1;
+  pointer-events: none;
 }
+.mobile-page-forward-enter-from,
+.mobile-page-back-leave-to { transform: translateX(100%); }
+.mobile-page-forward-leave-to,
+.mobile-page-back-enter-from { transform: translateX(-25%); opacity: 0.5; }
 
+.mobile-page-hold-leave-active {
+  position: absolute !important;
+  inset: 0;
+  z-index: 2;
+  transition: opacity 0s linear 0.34s;
+}
+.mobile-page-hold-leave-to { opacity: 0; }
+.mobile-page-hold-enter-active { transition: opacity 0s linear 0.34s; }
+.mobile-page-hold-enter-from { opacity: 0; }
+
+/* Liste des salons sur petit écran : quand le panneau s'ouvre sur une page qui n'en a pas, elle reste en place le
+   temps qu'il la recouvre (même durée que mobile-view-slide), puis s'en va. */
+.mobile-bar-hold-leave-active { transition: opacity 0s linear 0.34s; }
+.mobile-bar-hold-leave-to { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-page-forward-enter-active, .mobile-page-forward-leave-active,
+  .mobile-page-back-enter-active, .mobile-page-back-leave-active { transition: opacity 0.15s ease; }
+  .mobile-page-forward-enter-from, .mobile-page-back-leave-to,
+  .mobile-page-forward-leave-to, .mobile-page-back-enter-from { transform: none; opacity: 0; }
+}
 
 .slide-in-right-enter-active,
 .slide-in-right-leave-active {
@@ -791,6 +856,175 @@ button.tab:not(.active) {
    du timing d'accrochage rAF de <Transition> ni de ses classes -enter-from
    / -enter-active, qui peuvent être invisibles si l'état "avant" et l'état
    "après" se résolvent dans le même tick. */
+/* Apparition échelonnée à l'ouverture d'une organisation : les zones arrivent l'une après l'autre
+   (data-reveal-region, rang --r), puis leurs éléments un par un (enfants de data-reveal-list, rang --a ; enfants
+   d'une sous-liste data-reveal-sublist, rang --a + --b). Opacité et léger décalage seulement : fluide partout.
+   Active tant que la racine porte .stagger-reveal (useStaggerReveal) : ce qui s'ajoute ensuite (nouveau
+   message, nouveau salon) apparaît normalement. */
+:root { --reveal-ease: cubic-bezier(0.16, 1, 0.3, 1); --reveal-step: 28ms; }
+@keyframes reveal-region-in { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+@keyframes reveal-item-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.stagger-reveal [data-reveal-region] {
+  animation: reveal-region-in 0.5s var(--reveal-ease) both;
+  animation-delay: calc(var(--reveal-base, 0ms) + var(--r, 0) * 70ms);
+}
+.stagger-reveal [data-reveal-list] > * {
+  animation: reveal-item-in 0.45s var(--reveal-ease) both;
+  animation-delay: calc(var(--reveal-base, 0ms) + var(--r, 0) * 70ms + 100ms + var(--a, 0) * var(--reveal-step));
+}
+.stagger-reveal [data-reveal-sublist] > * {
+  animation: reveal-item-in 0.45s var(--reveal-ease) both;
+  animation-delay: calc(var(--reveal-base, 0ms) + var(--r, 0) * 70ms + 100ms + (var(--a, 0) + var(--b, 0)) * var(--reveal-step));
+}
+[data-reveal-list] > :nth-child(1) { --a: 0; }
+[data-reveal-list] > :nth-child(2) { --a: 1; }
+[data-reveal-list] > :nth-child(3) { --a: 2; }
+[data-reveal-list] > :nth-child(4) { --a: 3; }
+[data-reveal-list] > :nth-child(5) { --a: 4; }
+[data-reveal-list] > :nth-child(6) { --a: 5; }
+[data-reveal-list] > :nth-child(7) { --a: 6; }
+[data-reveal-list] > :nth-child(8) { --a: 7; }
+[data-reveal-list] > :nth-child(9) { --a: 8; }
+[data-reveal-list] > :nth-child(10) { --a: 9; }
+[data-reveal-list] > :nth-child(11) { --a: 10; }
+[data-reveal-list] > :nth-child(12) { --a: 11; }
+[data-reveal-list] > :nth-child(13) { --a: 12; }
+[data-reveal-list] > :nth-child(14) { --a: 13; }
+[data-reveal-list] > :nth-child(15) { --a: 14; }
+[data-reveal-list] > :nth-child(16) { --a: 15; }
+[data-reveal-list] > :nth-child(n+17) { --a: 16; }
+[data-reveal-sublist] > :nth-child(1) { --b: 1; }
+[data-reveal-sublist] > :nth-child(2) { --b: 2; }
+[data-reveal-sublist] > :nth-child(3) { --b: 3; }
+[data-reveal-sublist] > :nth-child(4) { --b: 4; }
+[data-reveal-sublist] > :nth-child(5) { --b: 5; }
+[data-reveal-sublist] > :nth-child(6) { --b: 6; }
+[data-reveal-sublist] > :nth-child(7) { --b: 7; }
+[data-reveal-sublist] > :nth-child(8) { --b: 8; }
+[data-reveal-sublist] > :nth-child(9) { --b: 9; }
+[data-reveal-sublist] > :nth-child(10) { --b: 10; }
+[data-reveal-sublist] > :nth-child(11) { --b: 11; }
+[data-reveal-sublist] > :nth-child(12) { --b: 12; }
+[data-reveal-sublist] > :nth-child(n+13) { --b: 12; }
+.stagger-reveal [data-reveal-subsublist] > * {
+  animation: reveal-item-in 0.45s var(--reveal-ease) both;
+  animation-delay: calc(var(--reveal-base, 0ms) + var(--r, 0) * 70ms + 100ms + (var(--a, 0) + var(--b, 0) + var(--c, 0)) * var(--reveal-step));
+}
+[data-reveal-subsublist] > :nth-child(1) { --c: 1; }
+[data-reveal-subsublist] > :nth-child(2) { --c: 2; }
+[data-reveal-subsublist] > :nth-child(3) { --c: 3; }
+[data-reveal-subsublist] > :nth-child(4) { --c: 4; }
+[data-reveal-subsublist] > :nth-child(5) { --c: 5; }
+[data-reveal-subsublist] > :nth-child(6) { --c: 6; }
+[data-reveal-subsublist] > :nth-child(7) { --c: 7; }
+[data-reveal-subsublist] > :nth-child(8) { --c: 8; }
+[data-reveal-subsublist] > :nth-child(9) { --c: 9; }
+[data-reveal-subsublist] > :nth-child(10) { --c: 10; }
+[data-reveal-subsublist] > :nth-child(11) { --c: 11; }
+[data-reveal-subsublist] > :nth-child(12) { --c: 12; }
+[data-reveal-subsublist] > :nth-child(n+13) { --c: 12; }
+@media (prefers-reduced-motion: reduce) {
+  .stagger-reveal [data-reveal-region], .stagger-reveal [data-reveal-list] > *,
+  .stagger-reveal [data-reveal-sublist] > *, .stagger-reveal [data-reveal-subsublist] > * { animation: none; }
+}
+
+/* Liste des salons (ThreadsBar, OrgLayout.vue) qui entre ou sort en changeant de page (salon <-> accueil, tâches,
+   agenda) : elle glisse sous la barre des espaces pendant que sa place se replie (marge négative de sa largeur),
+   le contenu à droite suit en continu au lieu de sauter. Sa largeur ne change pas : son contenu ne se
+   recompose pas pendant le mouvement. */
+.threads-bar-enter-active,
+.threads-bar-leave-active {
+  transition: margin-left 0.38s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.26s ease, translate 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.threads-bar-enter-from,
+.threads-bar-leave-to { margin-left: -15rem; opacity: 0; translate: -12px 0; }
+@media (prefers-reduced-motion: reduce) {
+  .threads-bar-enter-active, .threads-bar-leave-active { transition: opacity 0.2s ease; }
+  .threads-bar-enter-from, .threads-bar-leave-to { margin-left: 0; translate: none; }
+}
+
+/* Changement de vue dans une organisation (OrgLayout.vue, SettingsLayout.vue), sur grand écran : l'ancienne vue
+   s'efface vite par-dessus sa place (absolue, sans bloquer les clics), la nouvelle arrive juste après en fondu
+   avec une légère montée. Les deux coexistent un instant : pas de trou vide entre les deux. */
+.view-swap-enter-active {
+  transition: opacity 0.26s ease 0.05s, translate 0.36s cubic-bezier(0.16, 1, 0.3, 1) 0.05s;
+}
+.view-swap-leave-active {
+  position: absolute; inset: 0; pointer-events: none;
+  transition: opacity 0.14s ease;
+}
+.view-swap-enter-from { opacity: 0; translate: 0 8px; }
+.view-swap-leave-to { opacity: 0; }
+
+/* Titre de l'en-tête des paramètres : relais court d'un onglet à l'autre, l'en-tête lui-même ne bouge pas. */
+.title-swap-enter-active, .title-swap-leave-active { transition: opacity 0.14s ease, translate 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+.title-swap-enter-from { opacity: 0; translate: 0 4px; }
+.title-swap-leave-to { opacity: 0; translate: 0 -4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .view-swap-enter-from, .title-swap-enter-from, .title-swap-leave-to { translate: none; }
+}
+
+/* Ouverture d'une organisation depuis la liste (assets/orgOpen.ts) : les données sont déjà chargées quand on
+   navigue, la carte cliquée ayant porté l'attente. La liste s'efface PAR-DESSUS l'organisation en zoomant vers
+   la carte (--org-origin), pendant que l'organisation apparaît dessous par son apparition échelonnée, légèrement
+   retardée (--reveal-base) pour que les deux mouvements s'enchaînent au lieu de se superposer. Au retour, le
+   mouvement inverse : l'organisation s'efface au-dessus et la liste se dézoome depuis la carte. Gardé par
+   .org-nav-open / .org-nav-close (posés par le routeur sur #app-pages) : rien ne joue ailleurs. */
+.org-nav-open { --reveal-base: 120ms; }
+.org-nav-open .push-leave-active.org-list-page,
+.org-nav-close .push-leave-active.org-layout-page {
+  position: absolute; inset: 0; z-index: 200; pointer-events: none; /* au-dessus des panneaux fixed z-50 de l'organisation sur mobile */
+}
+.org-nav-open .push-leave-active.org-list-page,
+.org-nav-close .push-enter-active.org-list-page {
+  transform-origin: var(--org-origin, 50% 40%);
+  transition: opacity 0.36s cubic-bezier(0.4, 0, 0.2, 1), transform 0.55s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.org-nav-open .push-leave-to.org-list-page,
+.org-nav-close .push-enter-from.org-list-page { opacity: 0; transform: scale(1.12); }
+.org-nav-close .push-leave-active.org-layout-page {
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.org-nav-close .push-leave-to.org-layout-page { opacity: 0; transform: scale(0.98); }
+
+/* Carte en cours d'ouverture : soulignée, les autres s'estompent ; barre indéterminée en pied de carte, visible
+   dès le clic. Elle glisse par transform (compositeur) et non par left : elle continue de bouger pendant que le
+   montage de l'organisation occupe le fil principal, au lieu de se figer. */
+.org-card { transition-property: opacity, filter, border-color, box-shadow, transform, translate, scale; }
+.org-card-opening {
+  border-color: color-mix(in srgb, var(--primary) 70%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 18%, transparent), 0 12px 32px var(--shadow-elevated);
+  translate: 0 -4px;
+  pointer-events: none;
+}
+.org-card-dimmed { opacity: 0.45; filter: saturate(0.6); pointer-events: none; }
+.org-card-progress {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 3px; overflow: hidden;
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  opacity: 0; animation: org-card-progress-in 0.15s ease forwards;
+}
+.org-card-progress > span {
+  position: absolute; top: 0; bottom: 0; left: 0; width: 40%; border-radius: 9999px; background: var(--primary);
+  will-change: transform;
+  animation: org-card-progress-slide 1s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+@keyframes org-card-progress-in { to { opacity: 1; } }
+@keyframes org-card-progress-slide { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+@media (prefers-reduced-motion: reduce) {
+  .org-nav-open .push-leave-to.org-list-page,
+  .org-nav-close .push-enter-from.org-list-page,
+  .org-nav-close .push-leave-to.org-layout-page { transform: none; }
+  .org-nav-open { --reveal-base: 0ms; }
+  .org-card-opening { translate: none; }
+}
+
+/* Démarrage et déverrouillage : fondus croisés. L'écran qui part se met au-dessus et s'efface pendant que le
+   suivant apparaît dessous, au lieu de disparaître d'abord (mode out-in) et de laisser un écran noir. */
+.page-lock-leave-active { position: absolute; inset: 0; z-index: 1; }
+.boot-cross-leave-active { position: absolute; inset: 0; z-index: 1; transition: opacity 0.3s ease; }
+.boot-cross-leave-to { opacity: 0; }
+
 @keyframes app-reveal-in {
   from {
     opacity: 0;
