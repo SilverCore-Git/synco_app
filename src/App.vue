@@ -479,7 +479,7 @@ const finishAuthInit = async () => {
   await init.run((done) => {
     pending.delete(done);
     const next = pending.values().next().value;
-    if (next) bootStatus.value = labels[next];
+    if (next) bootStatus.value = labels[next] ?? bootStatus.value;
     completedInitSteps++;
     bootProgress.value = 50 + (completedInitSteps / 3) * 35;
   });

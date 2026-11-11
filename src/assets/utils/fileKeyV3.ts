@@ -40,7 +40,7 @@ const aad = (label: string, fileUid: Uint8Array) => enc.encode(`${label}|${toB64
 
 export const isFileKeyV3 = (encryptedFileKey: string) => encryptedFileKey.startsWith(FILE_KEY_V3_PREFIX);
 
-async function seal(key: CryptoKey, additionalData: Uint8Array, plain: BufferSource): Promise<Uint8Array> {
+async function seal(key: CryptoKey, additionalData: Uint8Array<ArrayBuffer>, plain: BufferSource): Promise<Uint8Array> {
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData }, key, plain));
     const out = new Uint8Array(iv.length + ct.length);
@@ -49,7 +49,7 @@ async function seal(key: CryptoKey, additionalData: Uint8Array, plain: BufferSou
     return out;
 }
 
-const open = (key: CryptoKey, additionalData: Uint8Array, blob: Uint8Array): Promise<ArrayBuffer> =>
+const open = (key: CryptoKey, additionalData: Uint8Array<ArrayBuffer>, blob: Uint8Array): Promise<ArrayBuffer> =>
     crypto.subtle.decrypt({ name: 'AES-GCM', iv: blob.slice(0, 12), additionalData }, key, blob.slice(12));
 
 /** Emballe la DEK brute sous `kek`, liée à `fileUid`, et y joint le manifeste chiffré par la DEK. */

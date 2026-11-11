@@ -677,7 +677,7 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined, replayed 
                 if (!recipientId) throw new Error('DM recipient unknown');
                 const { text, auth } = await decryptDmV2(msg, keyToUse, privateKey.value, { senderId: msg.senderId, recipientId }, replayed);
                 if (auth === 'invalid') return { ...msg, content: UNVERIFIED_SENDER_TEXT, authState: 'invalid' };
-                setCachedPlaintext(msg.id, msg.nonce, text, auth);
+                setCachedPlaintext(msg.id, msg.nonce, text, auth === 'legacy' ? undefined : auth);
                 return { ...msg, content: text, authState: auth };
             }
 
