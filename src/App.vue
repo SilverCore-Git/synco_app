@@ -686,7 +686,11 @@ onMounted(async () => {
 
   <div class="w-screen h-[100dvh] relative flex flex-col overflow-hidden">
 
-    <div class="w-full">
+    <!-- shrink-0 + branches en flex-1 min-h-0 (et non h-full) : avec h-full, la zone de l'app faisait 100 % de
+         la hauteur EN PLUS des 36 px de la barre de titre Tauri. Tout dépassait vers le bas (UserCard
+         « dans le sol »), et un focus ou un scrollIntoView (ouverture d'un salon…) faisait défiler ce conteneur
+         overflow-hidden, cachant puis réaffichant la barre de titre. -->
+    <div class="w-full shrink-0">
       <TopBar />
     </div>
 
@@ -705,14 +709,14 @@ onMounted(async () => {
          resterait bloqué sur l'écran de chargement sans explication — et s'il
          est banni en cours de session, cet écran remplace immédiatement
          l'app. Il arrive donc bien avant l'écran de code PIN. -->
-    <div v-if="banned" class="h-full w-full">
+    <div v-if="banned" class="flex-1 min-h-0 w-full">
       <BannedScreen />
     </div>
 
     <!-- Écran de connexion Tauri (bureau) : authenticated est déjà à false
          ici, mais tant que l'utilisateur n'a pas cliqué "Se connecter" on
          reste sur ce bouton plutôt que le loader ci-dessous. -->
-    <div v-else-if="isTauri && authChecked && !authenticated" class="h-full w-full">
+    <div v-else-if="isTauri && authChecked && !authenticated" class="flex-1 min-h-0 w-full">
       <DesktopLogin :loading="tauriLoginLoading" :error="tauriLoginError" @login="handleTauriLogin" @cancel="cancelTauriLogin" />
     </div>
 
@@ -722,7 +726,7 @@ onMounted(async () => {
          v-if/v-else-if séparé. Même garde qu'avant (!authenticated || !user) :
          bootError ne peut redevenir true qu'avant d'atteindre l'app (cf.
          bootstrap()/attemptSilentReconnect), jamais une fois dedans. -->
-    <div v-else-if="!authenticated || !user" class="h-full w-full bg-(--bg3)">
+    <div v-else-if="!authenticated || !user" class="flex-1 min-h-0 w-full bg-(--bg3)">
       <Transition name="boot-fade" mode="out-in">
         <ConnectionErrorScreen
           v-if="bootError || reconnectStatus !== 'offline'"
@@ -741,7 +745,7 @@ onMounted(async () => {
       </Transition>
     </div>
 
-    <div v-else class="h-full w-full relative">
+    <div v-else class="flex-1 min-h-0 w-full relative">
 
       <CallOverlay />
       <UserProfile :isOpen="isProfileOpen" :profileUser="profileUser" @close="closeProfile"

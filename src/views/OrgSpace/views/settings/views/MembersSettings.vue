@@ -568,7 +568,6 @@
 
         </main>
 
-    </div>
 
     <ConfirmDelete 
         :show="showConfirmDelete !== null"
@@ -584,6 +583,8 @@
         @confirm="removeMember(showConfirmKick!)"
     />
 
+    <!-- Racine unique (Popup/ConfirmDelete sont téléportés dans body) : les <Transition> de changement de vue n'animent qu'un élément. -->
+    </div>
 </template>
 
 <script lang="ts" setup>

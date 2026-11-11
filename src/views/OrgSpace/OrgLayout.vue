@@ -11,7 +11,7 @@ import useWSocket from '@/composables/useWSocket';
 import useSecurePeer from '@/composables/useSecurePeer';
 import usePrivateMeet from '@/composables/usePrivatMeet';
 import type { Category, DMMessage, Message, OrgMember } from '@/types/types';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useUsersBar } from '@/composables/useUsersBar';
 import { useStaggerReveal } from '@/composables/useStaggerReveal';
 import { keycloak } from '@/assets/keycloak';
@@ -44,6 +44,7 @@ const { notify, notifications } = useNotifications();
 const { init: initNotifications } = useNotification();
 const { fetchRecentDMs, recordDMInteraction } = useRecentDMs();
 const route = useRoute();
+const router = useRouter();
 
 // Vues pleine largeur sans liste de salons (ThreadsBar).
 const showThreadsBar = computed(() => !['TasksGlobal', 'TasksGlobalArchived', 'AgendaGlobal', 'OrgHome'].includes(route.name as string));
@@ -52,6 +53,11 @@ const { fetchPermissions } = usePermissions(computed(() => props.orgId));
 
 const mediaQuery = window.matchMedia('(max-width: 1024px)');
 const showRouterView = computed(() => !isLittleScreen.value || route.query.showView !== '0');
+
+// Clé de la vue de contenu : la route de PREMIER niveau sous l'organisation, pas la route feuille. Avec
+// route.name, passer d'un onglet des paramètres à un autre recréait tout SettingsLayout (son en-tête
+// disparaissait et réapparaissait) ; les sous-pages s'animent dans leur propre layout.
+const viewKey = computed(() => String(route.matched[1]?.name ?? route.name ?? ''));
 
 const orgReady = computed(() => openedOrg.value?.id === props.orgId);
 // Ouverture de l'organisation : apparition échelonnée des zones et de leurs éléments (style.css).
@@ -398,6 +404,44 @@ const initSocketListener = async () => {
 
     });
 
+    // Modules activés/désactivés dans les réglages, ou fonctionnalités changées depuis le panel admin :
+    // SpaceBar, ThreadsBar, OrgHome et les réglages lisent openedOrg, ils suivent d'eux-mêmes.
+    socket.value?.on('org:modules-updated', ({ orgId, features, activeModules }: { orgId: string, features: string[], activeModules: Record<string, any> }) => {
+
+        const listed = organizations.value.find(org => org.id === orgId);
+        if (listed) {
+            listed.features = features;
+            listed.activeModules = activeModules;
+        }
+
+        if (orgId !== props.orgId || !openedOrg.value) return;
+
+        openedOrg.value.features = features;
+        openedOrg.value.activeModules = activeModules;
+
+        // Quelqu'un se trouvait sur la page d'un module qui vient de disparaître : retour à l'accueil.
+        const routeName = String(route.name ?? '');
+        const moduleOfRoute =
+            routeName.startsWith('Tasks') ? 'todo'
+            : routeName === 'AgendaGlobal' ? 'agenda'
+            : routeName === 'OrgAI' ? 'ai'
+            : routeName === 'SpaceFiles' || routeName === 'OrgSettingsStorage' ? 'files'
+            : null;
+        if (!moduleOfRoute) return;
+
+        // Mêmes règles que les computed de var.ts (files est actif par défaut).
+        const stillEnabled = features.includes(moduleOfRoute) && (
+            moduleOfRoute === 'files' ? activeModules?.files !== false
+            : moduleOfRoute === 'ai' ? activeModules?.ai === true
+            : !!activeModules?.[moduleOfRoute]
+        );
+        if (!stillEnabled) {
+            toast.show('Ce module a été désactivé pour l’organisation.', 'info');
+            router.replace(`/${orgId}?showView=1`);
+        }
+
+    });
+
     socket.value?.on('category-updated', ({ orgId, spaceId, category }: { orgId: string, spaceId: string, category: Category }) => {
         
         if (orgId !== props.orgId) return;
@@ -695,6 +739,7 @@ onBeforeUnmount(async () => {
         'todo-added',
         'space:updated',
         'org-data-updated',
+        'org:modules-updated',
         'category-updated',
         'categories-updated',
         'notif:new-message',
@@ -799,8 +844,8 @@ onBeforeUnmount(async () => {
                          que route.fullPath pour ignorer les changements de query seuls
                          (sélection d'un item, etc.) qui ne doivent pas rejouer le slide. -->
                     <RouterView v-slot="{ Component }">
-                        <Transition :name="isLittleScreen && orgContentRevealed ? 'mobile-page-slide' : ''">
-                            <component :is="Component" :key="route.name" />
+                        <Transition :name="!orgContentRevealed ? '' : isLittleScreen ? 'mobile-page-slide' : 'view-swap'">
+                            <component :is="Component" :key="viewKey" />
                         </Transition>
                     </RouterView>
                 </div>

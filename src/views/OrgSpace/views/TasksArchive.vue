@@ -296,7 +296,6 @@
             </transition>
 
         </main>
-    </div>
 
     <Transition name="pop">
         <div v-if="draggedTaskId" class="fixed bottom-8 right-8 flex items-center gap-4 z-[100]">
@@ -331,6 +330,9 @@
         @cancel="taskToRemove = null; pendingBulkDelete = false"
         @confirm="confirmDelete"
     />
+
+    <!-- Racine unique (Popup/ConfirmDelete sont téléportés dans body) : les <Transition> de changement de vue n'animent qu'un élément. -->
+    </div>
 </template>
 
 <script setup lang="ts">
