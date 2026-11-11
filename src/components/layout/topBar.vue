@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref } from 'vue';
+import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import isDesktopApp, { isMacDesktop } from '@/assets/isDesktopApp';
 import { openedOrg } from '@/assets/var';
@@ -17,6 +17,8 @@ const desktop = isDesktopApp();
 const mac = isMacDesktop();
 
 const maximized = ref(false);
+// Agrandie (ou plein écran) : le cadre arrondi (style.css, html.desktop-frame) laisse place à des angles droits.
+watch(maximized, (m) => document.documentElement.classList.toggle('window-maximized', m));
 const focused = ref(true);
 const unlisteners: Array<() => void> = [];
 
@@ -28,10 +30,10 @@ const close = () => appWindow?.close();
 
 onMounted(async () => {
     if (!appWindow) return;
-    maximized.value = await appWindow.isMaximized();
+    maximized.value = (await appWindow.isMaximized()) || (await appWindow.isFullscreen());
     focused.value = await appWindow.isFocused();
     unlisteners.push(await appWindow.onResized(async () => {
-        maximized.value = await appWindow.isMaximized();
+        maximized.value = (await appWindow.isMaximized()) || (await appWindow.isFullscreen());
     }));
     unlisteners.push(await appWindow.onFocusChanged(({ payload }: { payload: boolean }) => {
         focused.value = payload;

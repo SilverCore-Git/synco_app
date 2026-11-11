@@ -21,6 +21,11 @@ import FloatingVue from 'floating-vue'
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import 'floating-vue/dist/style.css'
 import { isFirebaseConfigured } from './config/firebase';
+import isDesktopApp, { isMacDesktop } from './assets/isDesktopApp';
+
+// App de bureau Linux/Windows : fenêtre transparente sans décorations (tauri.conf.json), le cadre arrondi
+// est dessiné en CSS (style.css, html.desktop-frame). macOS garde sa fenêtre native, déjà arrondie.
+if (isDesktopApp() && !isMacDesktop()) document.documentElement.classList.add('desktop-frame');
 
 // Le SW est enregistré uniquement si Firebase est réellement configuré : le
 // fichier statique public/firebase-messaging-sw.js ne peut pas lire

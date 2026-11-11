@@ -110,6 +110,43 @@ html {
   overflow-x: hidden;
 }
 
+/* Cadre arrondi de l'app de bureau (Linux/Windows, cf. main.ts) : la fenêtre Tauri est transparente, le
+   contenu est découpé en rectangle arrondi par le clip-path du body, qui coupe aussi ce qui est téléporté
+   dans <body> (popups, menus, fenêtres). Le fond est peint sur #app et non sur body : le fond du body
+   serait sinon reporté sur tout le canevas, coins compris. Pas d'arrondi en plein écran/agrandi. */
+html.desktop-frame {
+  --window-radius: 10px;
+  background: transparent !important;
+}
+html.desktop-frame body {
+  background: transparent !important;
+  min-height: 100dvh;
+  clip-path: inset(0 round var(--window-radius));
+}
+html.desktop-frame #app {
+  background-color: var(--bg);
+  min-height: 100dvh;
+}
+html.desktop-frame #boot-loader {
+  border-radius: var(--window-radius);
+}
+/* Liseré discret qui dessine le bord (une fenêtre sans décorations n'a pas d'ombre système) */
+html.desktop-frame::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  border-radius: var(--window-radius);
+  border: 1px solid var(--border-color);
+  pointer-events: none;
+  z-index: 2147483647;
+}
+html.desktop-frame.window-maximized body {
+  clip-path: none;
+}
+html.desktop-frame.window-maximized::after {
+  display: none;
+}
+
 body {
 
   overflow-x: hidden;
