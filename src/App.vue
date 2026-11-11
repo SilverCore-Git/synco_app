@@ -37,6 +37,7 @@ import V4Gate from './components/e2ee/V4Gate.vue';
 import { isV4Account } from './assets/e2eeV4/runtime';
 import useFavicon from './composables/useFavicon';
 import { banned } from './composables/useBanStatus';
+import { syncSystemBars } from './assets/nativeSystemBars';
 
 const toast = useToast();
 const { resolvedTheme: theme } = useTheme();
@@ -59,6 +60,8 @@ const handleSendMessageFromProfile = (targetUser: User) => {
 
 watch(() => theme.value, () => {
   document.body.className = theme.value;
+  // Android : barres système au fond du thème qui vient d'être posé (nativeSystemBars.ts).
+  syncSystemBars(theme.value);
 }, { immediate: true })
 
 watch(() => E2EEUnloked.value, (isUnlocked) => {
