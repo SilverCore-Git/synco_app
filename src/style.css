@@ -344,7 +344,7 @@ select {
    — un simple translateX suffit, pas besoin de jouer sur la largeur. */
 .mobile-view-slide-enter-active,
 .mobile-view-slide-leave-active {
-  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .mobile-view-slide-enter-from,
@@ -357,28 +357,56 @@ select {
   transform: translateX(0);
 }
 
-/* Navigation entre sous-pages à l'intérieur du panneau déjà ouvert (ex: tâches
-   -> tâches archivées) : contrairement au cas ci-dessus, l'ancienne et la
-   nouvelle page sont montées en même temps pendant la transition — sans
-   position absolute elles s'empileraient dans le flux et doubleraient la
-   hauteur le temps de l'animation. */
-.mobile-page-slide-enter-active,
-.mobile-page-slide-leave-active {
-  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+/* Pages mobiles (OrgLayout.vue, navDirection.ts) : navigation entre deux pages dans le panneau déjà ouvert. Les deux
+   pages sont montées en même temps, superposées (absolute) ; celle qui bouge passe au-dessus.
+   - En avant : la nouvelle arrive de la droite par-dessus ; l'ancienne recule un peu et s'assombrit.
+   - En arrière : la page courante repart vers la droite et découvre la précédente, qui revient en place.
+   - Panneau qui se ferme (hold) : la page affichée ne bouge pas pendant que le panneau glisse, la nouvelle (cachée
+     sous les barres) n'apparaît qu'ensuite. */
+.mobile-page-forward-enter-active,
+.mobile-page-forward-leave-active,
+.mobile-page-back-enter-active,
+.mobile-page-back-leave-active {
   position: absolute !important;
   inset: 0;
+  transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.34s cubic-bezier(0.32, 0.72, 0, 1);
 }
-
-.mobile-page-slide-enter-from,
-.mobile-page-slide-leave-to {
-  transform: translateX(100%);
+.mobile-page-forward-enter-active,
+.mobile-page-back-leave-active {
+  z-index: 2;
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.35);
 }
-
-.mobile-page-slide-enter-to,
-.mobile-page-slide-leave-from {
-  transform: translateX(0);
+.mobile-page-forward-leave-active,
+.mobile-page-back-enter-active {
+  z-index: 1;
+  pointer-events: none;
 }
+.mobile-page-forward-enter-from,
+.mobile-page-back-leave-to { transform: translateX(100%); }
+.mobile-page-forward-leave-to,
+.mobile-page-back-enter-from { transform: translateX(-25%); opacity: 0.5; }
 
+.mobile-page-hold-leave-active {
+  position: absolute !important;
+  inset: 0;
+  z-index: 2;
+  transition: opacity 0s linear 0.34s;
+}
+.mobile-page-hold-leave-to { opacity: 0; }
+.mobile-page-hold-enter-active { transition: opacity 0s linear 0.34s; }
+.mobile-page-hold-enter-from { opacity: 0; }
+
+/* Liste des salons sur petit écran : quand le panneau s'ouvre sur une page qui n'en a pas, elle reste en place le
+   temps qu'il la recouvre (même durée que mobile-view-slide), puis s'en va. */
+.mobile-bar-hold-leave-active { transition: opacity 0s linear 0.34s; }
+.mobile-bar-hold-leave-to { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-page-forward-enter-active, .mobile-page-forward-leave-active,
+  .mobile-page-back-enter-active, .mobile-page-back-leave-active { transition: opacity 0.15s ease; }
+  .mobile-page-forward-enter-from, .mobile-page-back-leave-to,
+  .mobile-page-forward-leave-to, .mobile-page-back-enter-from { transform: none; opacity: 0; }
+}
 
 .slide-in-right-enter-active,
 .slide-in-right-leave-active {

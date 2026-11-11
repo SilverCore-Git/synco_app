@@ -37,7 +37,7 @@
         <!-- flex-1 min-h-0 (et non h-full) : sous l'en-tête, h-full dépassait de sa hauteur vers le bas -->
         <main class="flex-1 min-h-0 w-full overflow-auto bg-(--bg3) relative">
             <RouterView v-slot="{ Component }">
-                <Transition name="view-swap">
+                <Transition :name="isLittleScreen ? mobilePageTransition : 'view-swap'">
                     <component :is="Component" :key="route.name" />
                 </Transition>
             </RouterView>
@@ -49,15 +49,18 @@
 
 <script lang="ts" setup>
 
-import { computed, watch } from 'vue';
+import { computed, inject, ref, watch } from 'vue';
+import type { Ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { settingsViews } from './settings';
 import { usePermissions } from '@/composables/usePermissions';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, isLittleScreen } from '@/assets/var';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import { useUsersBar } from '@/composables/useUsersBar';
 
 const route = useRoute();
+// Petit écran : transition choisie par OrgLayout selon que le panneau reste ouvert, s'ouvre ou se ferme.
+const mobilePageTransition = inject<Ref<string>>('mobilePageTransition', ref(''));
 const router = useRouter();
 
 const orgId = computed(() => openedOrg.value?.id);

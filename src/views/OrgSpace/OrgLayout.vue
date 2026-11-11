@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, provide, ref } from 'vue';
 import ThreadsBar from './components/layouts/ThreadsBar.vue';
 import SpaceBar from './components/layouts/SpaceBar.vue';
 import UserCard from './components/layouts/UserCard.vue';
@@ -19,6 +19,7 @@ import useNotifications from '@/composables/useNotifications';
 import { useNotification } from '@/composables/useNotification';
 import { useRecentDMs } from '@/composables/useRecentDMs';
 import { isMeeting, registerIncomingMeetSecret } from '@/composables/usePrivatMeet';
+import { navDirection } from '@/assets/navDirection';
 
 import isDesktopApp from '@/assets/isDesktopApp';
 import { useToast } from '@/composables/useToast';
@@ -58,6 +59,25 @@ const showRouterView = computed(() => !isLittleScreen.value || route.query.showV
 // route.name, passer d'un onglet des paramètres à un autre recréait tout SettingsLayout (son en-tête
 // disparaissait et réapparaissait) ; les sous-pages s'animent dans leur propre layout.
 const viewKey = computed(() => String(route.matched[1]?.name ?? route.name ?? ''));
+
+// Petit écran : le panneau de contenu recouvre les barres (mobile-view-slide). Dans ce panneau, la transition
+// entre deux pages dépend de ce que fait le panneau pendant la navigation (style.css, « Pages mobiles ») :
+// - il reste ouvert : la nouvelle page arrive de la droite par-dessus (en avant) ou la page courante repart vers
+//   la droite (en arrière) ;
+// - il se ferme : la page affichée reste en place le temps qu'il glisse, au lieu d'être remplacée sous les yeux ;
+// - il s'ouvre : rien à animer à l'intérieur, c'est le panneau entier qui arrive.
+// Watch par défaut (avant le rendu) : router.afterEach a déjà posé navDirection.
+const mobilePageTransition = ref('');
+let panelWasOpen = showRouterView.value;
+watch(() => route.fullPath, () => {
+    const open = showRouterView.value;
+    mobilePageTransition.value = panelWasOpen && open ? `mobile-page-${navDirection.value}`
+        : panelWasOpen && !open ? 'mobile-page-hold'
+        : '';
+    panelWasOpen = open;
+});
+// Les paramètres ont leur propre RouterView (un onglet par sous-route) : même règle sur petit écran.
+provide('mobilePageTransition', mobilePageTransition);
 
 const orgReady = computed(() => openedOrg.value?.id === props.orgId);
 // Ouverture de l'organisation : apparition échelonnée des zones et de leurs éléments (style.css).
@@ -782,7 +802,9 @@ onBeforeUnmount(async () => {
             <!-- Accueil, tâches, agenda n'ont pas de liste des salons : elle glisse et se replie au lieu
                  d'apparaître ou de disparaître d'un coup (style.css, « Liste des salons »). Pas sur petit
                  écran, où elle occupe toute la largeur. -->
-            <Transition :name="isLittleScreen ? '' : 'threads-bar'">
+            <!-- Petit écran : quand le panneau s'ouvre sur une page sans liste (accueil, tâches, agenda), la liste reste
+                 dessous le temps qu'il la recouvre au lieu de disparaître avant (mobile-bar-hold). -->
+            <Transition :name="isLittleScreen ? 'mobile-bar-hold' : 'threads-bar'">
             <ThreadsBar
                 v-if="showThreadsBar"
                 data-reveal-region
@@ -844,7 +866,7 @@ onBeforeUnmount(async () => {
                          que route.fullPath pour ignorer les changements de query seuls
                          (sélection d'un item, etc.) qui ne doivent pas rejouer le slide. -->
                     <RouterView v-slot="{ Component }">
-                        <Transition :name="!orgContentRevealed ? '' : isLittleScreen ? 'mobile-page-slide' : 'view-swap'">
+                        <Transition :name="!orgContentRevealed ? '' : isLittleScreen ? mobilePageTransition : 'view-swap'">
                             <component :is="Component" :key="viewKey" />
                         </Transition>
                     </RouterView>

@@ -4,6 +4,7 @@ import sfetch from './assets/utils/sfetch';
 
 import OrgSelection from './views/OrgsSelection/OrgSelection.vue';
 import { orgNav } from './assets/orgOpen';
+import { trackNavDirection } from './assets/navDirection';
 import OrgLayout from './views/OrgSpace/OrgLayout.vue';
 import SpaceView from './views/OrgSpace/views/SpaceView.vue';
 import OrgHome from './views/OrgSpace/views/OrgHome.vue';
@@ -320,6 +321,8 @@ const router = createRouter({
 // Plus de View Transition à chaque navigation : elle figeait la page sur une capture le temps de l'animation et
 // étirait la carte de l'organisation en plein écran (déformée, souvent sur l'état « chargement »). L'ouverture
 // d'une organisation est une apparition échelonnée en CSS (style.css, « Apparition échelonnée »).
+
+trackNavDirection(router);
 
 router.beforeEach((to: any, from: any, next: any) => {
   // Sens de la navigation liste <-> organisation, lu par App.vue pour n'animer que ce passage (orgOpen.ts).
