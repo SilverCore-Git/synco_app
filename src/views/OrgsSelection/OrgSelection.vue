@@ -101,10 +101,10 @@ onMounted(async () => {
 
 <template>
 
-    <!-- Racine unique : la <Transition> d'App.vue n'anime qu'un élément (Popup et UserSettings sont téléportés
-         dans body, les garder ici ne change rien à leur affichage). --org-origin : point vers lequel la page
-         zoome en partant vers une organisation, et d'où elle revient (style.css). -->
     <div ref="pageEl" class="org-list-page h-full w-full" :style="{ '--org-origin': orgOrigin }">
+        <!-- Racine unique : la <Transition> d'App.vue n'anime qu'un élément (Popup et UserSettings sont téléportés
+             dans body, les garder ici ne change rien à leur affichage). --org-origin : point vers lequel la page
+             zoome en partant vers une organisation, et d'où elle revient (style.css). -->
 
     <div class="h-full bg-(--bg2) flex flex-col items-center p-6 md:p-12 font-sans overflow-x-hidden overflow-y-auto relative">
         
