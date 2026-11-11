@@ -1,6 +1,10 @@
 <template>
 
-    <div class="w-full h-full overflow-y-auto bg-(--bg2) select-none">
+    <!-- Démarrage, ou ouverture automatique (trousseau, biométrie) : l'écran de chargement de l'app continue,
+         sans montrer un écran de déverrouillage que l'utilisateur n'a rien à faire. -->
+    <LogoLoader v-if="step === 'loading' || autoUnlocking" :progress="100" status="Ouverture de vos messages…" />
+
+    <div v-else class="w-full h-full overflow-y-auto bg-(--bg2) select-none">
     <div class="min-h-full flex flex-col items-center justify-center p-6">
 
         <div class="mb-6 text-center max-w-md">
@@ -28,10 +32,8 @@
         <ExtensionScene :view="scene" @cancel="cancelExtensionWait" />
 
         <Transition :name="stepTransition" mode="out-in">
-        <div v-if="step === 'loading'" key="loading" class="py-10"><SpinLoader /></div>
-
         <!-- ============ Déverrouillage quotidien ============ -->
-        <div v-else-if="step === 'unlock'" key="unlock" class="flex w-full max-w-sm flex-col items-center">
+        <div v-if="step === 'unlock'" key="unlock" class="flex w-full max-w-sm flex-col items-center">
             <p v-if="lockoutSeconds > 0" class="gate-lockout">
                 {{ localKind === 'extension' ? "Trop d'essais." : 'Trop de codes incorrects.' }}
                 Réessayez dans <strong>{{ formatDuration(lockoutSeconds) }}</strong>.
@@ -286,7 +288,7 @@
 <script setup lang="ts">
 
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
-import SpinLoader from '../SpinLoader.vue';
+import LogoLoader from '../LogoLoader.vue';
 import E2eeResetDialog from './E2eeResetDialog.vue';
 import ConfirmDelete from '../common/ConfirmDelete.vue';
 import PinPad from './PinPad.vue';
@@ -365,6 +367,8 @@ const extensionWaiting = ref(false);
 const extensionAutoTried = ref(false);
 /** Scène « Synco ↔ extension » affichée pendant que la fenêtre de l'extension attend le PIN. */
 const scene = ref<SceneView | null>(null);
+/** Ouverture automatique en cours (trousseau du système, biométrie native) : on garde l'écran de chargement. */
+const autoUnlocking = ref(false);
 const sceneCtl = createExtensionScene({ onChange: v => { scene.value = v; } });
 
 // Hors de l'état réactif : contexte, coffres, et objets qui détiennent AK le temps d'une étape.
@@ -1068,7 +1072,9 @@ onMounted(async () => {
         const kind = local.record.vaultKind;
         if ((kind === 'os-keyring' || kind === 'native-biometric') && !autoUnlock.tried) {
             autoUnlock.tried = true;
-            tryUnlock();
+            autoUnlocking.value = true;
+            // Réussite : l'app s'ouvre (E2EEUnloked). Échec ou annulation : l'écran de déverrouillage apparaît.
+            void tryUnlock().finally(() => { autoUnlocking.value = false; });
         }
         // Synco Extension : pas de bouton à presser, la fenêtre du PIN s'ouvre d'elle-même (la scène permet d'annuler
         // et de choisir une autre méthode). Une fois par chargement de la page.

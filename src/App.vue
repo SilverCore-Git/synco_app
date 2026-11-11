@@ -66,6 +66,9 @@ watch(() => E2EEUnloked.value, (isUnlocked) => {
 });
 
 const authenticated = ref<boolean>(false);
+// Vrai une fois que Keycloak a répondu (session restaurée ou non) : avant, on ne sait pas encore s'il faut
+// demander la connexion, et l'écran de chargement reste affiché au lieu de l'écran de connexion.
+const authChecked = ref<boolean>(false);
 const isTauri = isTauriPlatform();
 const tauriLoginLoading = ref<boolean>(false);
 const tauriLoginError = ref<boolean>(false);
@@ -545,6 +548,7 @@ const bootstrap = async (options?: { silent?: boolean }) => {
     bootStatus.value = 'Authentification auprès de Keycloak…';
     debugLog('[boot] calling initKC...');
     authenticated.value = await initKC();
+    authChecked.value = true;
     debugLog('[boot] initKC done, authenticated =', authenticated.value);
     bootProgress.value = 50;
 
@@ -697,7 +701,7 @@ onMounted(async () => {
     <!-- Écran de connexion Tauri (bureau) : authenticated est déjà à false
          ici, mais tant que l'utilisateur n'a pas cliqué "Se connecter" on
          reste sur ce bouton plutôt que le loader ci-dessous. -->
-    <div v-else-if="isTauri && !authenticated" class="h-full w-full">
+    <div v-else-if="isTauri && authChecked && !authenticated" class="h-full w-full">
       <DesktopLogin :loading="tauriLoginLoading" :error="tauriLoginError" @login="handleTauriLogin" @cancel="cancelTauriLogin" />
     </div>
 
@@ -760,8 +764,9 @@ onMounted(async () => {
               </RouterView>
             </div>
 
-            <div v-else class="w-full h-full flex items-center justify-center bg-(--bg)" key="loading">
-              <SpinLoader />
+            <!-- Même écran que le démarrage : on ne change pas d'indicateur entre la connexion et l'app -->
+            <div v-else class="w-full h-full" key="loading">
+              <Loader :progress="100" status="Chargement de vos espaces…" />
             </div>
           </Transition>
 
