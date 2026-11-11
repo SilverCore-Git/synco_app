@@ -2,12 +2,13 @@ import { DK_LENGTH, VaultError, type DeviceVault, type VaultContext, type VaultE
 
 /**
  * Coffre web fourni par Synco Extension (Chrome, Firefox) : DK est gardée dans le stockage de
- * l'extension, hors de l'origine de la page, et le PIN se saisit dans une fenêtre de l'extension.
+ * l'extension, hors de l'origine de la page ; chaque ouverture demande un accord (« Autoriser ») dans
+ * une fenêtre de l'extension (le PIN d'un ancien enregistrement, une dernière fois, s'y saisit aussi).
  * Contrat : synco_extension/doc/16-coffre-extension.md (protocole 1). Spec de l'application : §16.
  *
  * LIMITES ASSUMÉES :
- * - ce n'est pas un coffre matériel : une copie du profil du navigateur permet d'essayer les PIN
- *   hors ligne (spec de l'extension, M10) ;
+ * - ce n'est pas un coffre matériel : une copie du profil du navigateur suffit à ouvrir DK
+ *   (spec de l'extension, M10) ;
  * - l'extension authentifie la page, pas l'inverse (M7) : un script de la page ou une autre
  *   extension peut répondre `ready`. La détection n'est jamais une preuve d'identité.
  *
@@ -24,7 +25,7 @@ export const EXTENSION_PROTOCOL = 1;
 export const DETECT_TIMEOUT_MS = 300;
 /** status, has, remove : relais vers le worker, que Chrome peut devoir réveiller. */
 export const SHORT_TIMEOUT_MS = 5_000;
-/** create, load : l'utilisateur saisit son PIN ; la fenêtre de l'extension expire au bout de 2 min. */
+/** create, load : l'utilisateur répond dans la fenêtre de l'extension, qui expire au bout de 2 min. */
 export const PROMPT_TIMEOUT_MS = 150_000;
 export const MAX_REASON_LENGTH = 200;
 /** Plafond d'attente annoncé (le barème de l'extension s'arrête à 1 h). */
@@ -327,8 +328,8 @@ export class ExtensionVault implements DeviceVault {
     }
 
     /**
-     * Opération avec saisie du PIN : toujours sur un canal fraîchement établi, pour ne pas attendre
-     * 150 s sur un port mort. Jamais relancée d'office (pas de seconde fenêtre de PIN).
+     * Opération avec accord de l'utilisateur : toujours sur un canal fraîchement établi, pour ne pas
+     * attendre 150 s sur un port mort. Jamais relancée d'office (pas de seconde fenêtre de l'extension).
      */
     private async prompt(op: 'create' | 'load', deviceId: string, ctx?: VaultContext): Promise<Uint8Array> {
         checkDeviceId(deviceId);
@@ -345,7 +346,7 @@ export class ExtensionVault implements DeviceVault {
             result = await pending;
             outcome = 'ok';
         } catch (e) {
-            // La page a abandonné la demande (bouton « Annuler ») : on dit aussi à l'extension de refermer SA fenêtre de PIN,
+            // La page a abandonné la demande (bouton « Annuler ») : on dit aussi à l'extension de refermer SA fenêtre,
             // sinon elle resterait ouverte jusqu'à 2 minutes. Au mieux : une extension plus ancienne répond « bad-request »,
             // et rien n'en dépend (la fenêtre se ferme alors d'elle-même).
             if (ctx?.signal?.aborted && !channel.isClosed) channel.request('cancel', {}, this.shortTimeoutMs).catch(() => undefined);
