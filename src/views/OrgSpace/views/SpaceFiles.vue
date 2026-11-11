@@ -282,6 +282,7 @@
                         @show-permissions="openFolderPermissions(folder)"
                         @request-delete="requestDeleteFolder"
                         @request-share="openShareModal('folder', folder.id, folder.name)"
+                        @request-link="openLinkModal('folder', folder.id, folder.name)"
                     />
 
                 </div>
@@ -305,6 +306,7 @@
                     @file-watermarked="handleFileWatermarked"
                     @show-permissions="openFilePermissions(file)"
                     @request-share="openShareModal('file', file.id, file.originalName)"
+                    @request-link="openLinkModal('file', file.id, file.originalName)"
                 />
 
                 </div>
@@ -607,6 +609,16 @@
         @close="showFolderPermissions = false"
     />
 
+    <ShareLinkModal
+        v-if="linkTarget"
+        :show="showLinkModal"
+        :org-id="String(route.params.orgId)"
+        :item-type="linkTarget.type"
+        :item-id="linkTarget.id"
+        :item-name="linkTarget.name"
+        @close="showLinkModal = false"
+    />
+
     <ManageAccessModal
         v-if="selectedFileForPerms"
         :show="showFilePermissions"
@@ -663,6 +675,7 @@ import { extractTextFromPDF } from '@/assets/utils/pdfExtractor';
 import VectorWorker from '@/workers/semantic.worker?worker';
 import { localSearchDB } from '@/services/LocalSearchVectorDB';
 import ManageAccessModal from '@/components/permissions/ManageAccessModal.vue';
+import ShareLinkModal from '@/components/shareLinks/ShareLinkModal.vue';
 import ShareToTargetModal from '@/components/common/ShareToTargetModal.vue';
 import { shareReference } from '@/composables/useShareReference';
 
@@ -1225,6 +1238,14 @@ const openFolderPermissions = (folder: Folder) => {
 const openFilePermissions = (file: StoredFile) => {
     selectedFileForPerms.value = file;
     showFilePermissions.value = true;
+};
+
+// Liens de téléchargement (chiffrés de bout en bout, cf. services/shareLinks).
+const showLinkModal = ref<boolean>(false);
+const linkTarget = ref<{ type: 'file' | 'folder'; id: string; name: string } | null>(null);
+const openLinkModal = (type: 'file' | 'folder', id: string, name: string) => {
+    linkTarget.value = { type, id, name };
+    showLinkModal.value = true;
 };
 
 const breadcrumbs = computed(() => {

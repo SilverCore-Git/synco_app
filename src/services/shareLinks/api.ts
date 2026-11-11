@@ -138,11 +138,14 @@ export interface RecipientOpenedLink {
 
 const base = (orgId: string) => `/api/orgs/${encodeURIComponent(orgId)}/links`;
 
+const targetQuery = (target: { fileId?: string; folderId?: string }) =>
+    target.fileId ? `fileId=${encodeURIComponent(target.fileId)}` : `folderId=${encodeURIComponent(target.folderId!)}`;
+
 export const shareLinksApi = {
-    candidates: (orgId: string, target: { fileId?: string; folderId?: string }) => {
-        const query = target.fileId ? `fileId=${encodeURIComponent(target.fileId)}` : `folderId=${encodeURIComponent(target.folderId!)}`;
-        return call<LinkCandidates>(`${base(orgId)}/candidates?${query}`);
-    },
+    canShare: (orgId: string, target: { fileId?: string; folderId?: string }) =>
+        call<{ canShare: boolean }>(`${base(orgId)}/can-share?${targetQuery(target)}`),
+    candidates: (orgId: string, target: { fileId?: string; folderId?: string }) =>
+        call<LinkCandidates>(`${base(orgId)}/candidates?${targetQuery(target)}`),
     lookupRecipient: (orgId: string, email: string) =>
         call<RecipientCandidate>(`${base(orgId)}/recipients/lookup`, { method: 'POST', body: JSON.stringify({ email }) }),
     create: (orgId: string, body: CreateLinkBody) =>

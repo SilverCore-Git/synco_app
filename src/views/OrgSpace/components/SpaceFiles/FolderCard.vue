@@ -76,7 +76,7 @@
                 <i class="bi bi-download text-lg" />
             </button>
 
-            <DropDown ref="dropdownRef" align="mouse" @click.stop @toggled="val => isDropdownOpen = val">
+            <DropDown ref="dropdownRef" align="mouse" @click.stop @toggled="onDropdownToggled">
                 <template #trigger>
                     <button class="w-8 h-8 rounded-lg hover:bg-(--primary)/10 flex items-center justify-center transition-colors hover:text-(--primary)">
                         <i class="bi bi-three-dots-vertical text-lg" />
@@ -114,6 +114,14 @@
                         Gérer les accès
                     </button>
                     <button
+                        v-if="canShareLink"
+                        @click="$emit('request-link', folder)"
+                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                    >
+                        <i class="bi bi-link-45deg" />
+                        Lien de téléchargement
+                    </button>
+                    <button
                         @click="$emit('request-share', folder)"
                         class="dropdown-item-annimate dropdown-item-style gap-2"
                     >
@@ -146,6 +154,7 @@
 import type { Folder, StoredFile } from '@/types/types';
 import { user } from '@/assets/var';
 import { ref } from 'vue';
+import { useShareLinkAction } from '@/composables/useShareLinkAction';
 import EditFolder from '../popup/EditFolder.vue';
 import DropDown from '@/components/DropDown.vue';
 
@@ -158,7 +167,9 @@ const props = defineProps<{
     isSelectionMode?: boolean
 }>();
 
-const emit = defineEmits(['toggle-select', 'range-select', 'click', 'download', 'show-permissions', 'request-delete', 'request-share']);
+const emit = defineEmits(['toggle-select', 'range-select', 'click', 'download', 'show-permissions', 'request-delete', 'request-share', 'request-link']);
+
+const { canShareLink, checkShareLink } = useShareLinkAction(() => ({ kind: 'folder', id: props.folder.id, ownerId: props.folder.ownerId }));
 
 let longPressTimer: any = null;
 
@@ -233,6 +244,11 @@ const colorBgMap: Record<string, string> = {
 
 const showEditFolder = ref<boolean>(false);
 const isDropdownOpen = ref<boolean>(false);
+
+const onDropdownToggled = (open: boolean) => {
+    isDropdownOpen.value = open;
+    if (open) void checkShareLink();
+};
 const dropdownRef = ref<any>(null);
 
 const handleContextMenu = (e: MouseEvent) => {

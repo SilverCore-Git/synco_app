@@ -67,7 +67,7 @@
                 <i class="bi bi-download text-lg" />
             </button>
 
-            <DropDown ref="dropdownRef" align="mouse" @click.stop @toggled="val => isDropdownOpen = val">
+            <DropDown ref="dropdownRef" align="mouse" @click.stop @toggled="onDropdownToggled">
                 <template #trigger>
                     <button class="w-8 h-8 rounded-lg hover:bg-(--primary)/10 flex items-center justify-center transition-colors hover:text-(--primary)">
                         <i class="bi bi-three-dots-vertical text-lg" />
@@ -103,6 +103,14 @@
                     >
                         <i class="bi bi-shield-lock" />
                         Gérer les accès
+                    </button>
+                    <button
+                        v-if="canShareLink"
+                        @click="$emit('request-link', file)"
+                        class="dropdown-item-annimate dropdown-item-style gap-2"
+                    >
+                        <i class="bi bi-link-45deg" />
+                        Lien de téléchargement
                     </button>
                     <button 
                         v-if="file.mimeType.startsWith('image/') || file.mimeType === 'application/pdf'"
@@ -178,6 +186,7 @@ import type { StoredFile } from '@/types/types';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import { ref } from 'vue';
+import { useShareLinkAction } from '@/composables/useShareLinkAction';
 
 const toast = useToast();
 const router = useRouter();
@@ -200,7 +209,19 @@ const props = defineProps<{
     isSelectionMode?: boolean
 }>();
 
-const emit = defineEmits(['file-deleted', 'show-file-info', 'file-watermarked', 'toggle-select', 'range-select', 'request-delete', 'show-permissions', 'request-share']);
+const emit = defineEmits(['file-deleted', 'show-file-info', 'file-watermarked', 'toggle-select', 'range-select', 'request-delete', 'show-permissions', 'request-share', 'request-link']);
+
+const { canShareLink, checkShareLink } = useShareLinkAction(() => ({
+    kind: 'file',
+    id: props.file.id,
+    ownerId: props.file.ownerId,
+    attachment: !!(props.file.messageId || props.file.dmMessageId || (props.file as { taskId?: string }).taskId),
+}));
+
+const onDropdownToggled = (open: boolean) => {
+    isDropdownOpen.value = open;
+    if (open) void checkShareLink();
+};
 
 let longPressTimer: any = null;
 
