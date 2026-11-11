@@ -2,7 +2,7 @@ name: Release on main
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, recipe/main ]
   workflow_dispatch: # relance manuelle (onglet Actions ou `gh workflow run release_main.yml`)
 
 permissions:
