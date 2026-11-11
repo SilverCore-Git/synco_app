@@ -7,8 +7,8 @@
     leave-from-class="transform scale-100 opacity-100"
     leave-to-class="transform scale-95 opacity-0"
   >
-    <div 
-      v-if="show" 
+    <div
+      v-if="show"
       class="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
       @click.self="$emit('close')"
     >
@@ -16,13 +16,15 @@
 
         <!-- Header -->
         <header class="flex items-center justify-between px-6 py-4 border-b border-(--border-color) shrink-0">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-(--primary)/10 flex items-center justify-center">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-10 h-10 rounded-xl bg-(--primary)/10 flex items-center justify-center shrink-0">
               <i class="bi bi-shield-lock text-(--primary) text-lg" />
             </div>
-            <div>
+            <div class="min-w-0">
               <h2 class="text-lg font-bold text-(--text)">Gérer les accès</h2>
-              <p class="text-xs text-(--text2)">{{ itemName }}</p>
+              <p class="text-xs text-(--text2) truncate">
+                <i :class="itemType === 'folder' ? 'bi bi-folder' : 'bi bi-file-earmark'" class="mr-1" />{{ itemName }}
+              </p>
             </div>
           </div>
           <button @click="$emit('close')" class="text-(--text2) hover:text-(--text) transition-colors p-2 rounded-lg hover:bg-(--text)/5">
@@ -30,58 +32,93 @@
           </button>
         </header>
 
+        <!-- Légende + recherche -->
+        <div class="px-6 pt-4 pb-3 flex flex-col gap-3 shrink-0 border-b border-(--border-color)">
+          <p class="text-xs text-(--text2) leading-relaxed">
+            <template v-if="canManage">
+              <b class="text-(--text)">Aucun</b> : ne voit pas {{ itemType === 'folder' ? 'le dossier ni son contenu' : 'le fichier' }}.
+              <b class="text-(--text)">Voir</b> : peut l'ouvrir et le télécharger.
+              <b class="text-(--text)">Modifier</b> : peut aussi le modifier{{ itemType === 'folder' ? ' et y déposer des fichiers' : '' }}.
+              Sans réglage, chacun garde l'accès que lui donnent ses rôles et le space.
+            </template>
+            <template v-else>
+              <i class="bi bi-eye mr-1" />Vous pouvez consulter ces accès, pas les modifier.
+            </template>
+          </p>
+          <div v-if="members.length > 6" class="relative">
+            <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-xs" />
+            <input
+              v-model="search"
+              type="search"
+              placeholder="Rechercher un membre…"
+              class="w-full pl-8 pr-3 py-2 bg-(--bg2) border border-(--border-color) rounded-lg text-sm text-(--text) outline-none focus:border-(--primary) placeholder-(--text2)/50"
+            />
+          </div>
+        </div>
+
         <!-- Main -->
         <main class="flex-1 overflow-y-auto p-6">
           <div v-if="isLoading" class="flex justify-center py-12">
             <div class="w-8 h-8 border-2 border-(--primary)/30 border-t-(--primary) rounded-full animate-spin" />
           </div>
 
-          <div v-else class="space-y-4">
-            <div 
-              v-for="member in workspaceMembers" 
-              :key="member.userId"
-              class="flex items-center justify-between p-4 bg-(--bg2)/20 border border-(--border-color) rounded-xl"
+          <div v-else class="flex flex-col gap-2">
+            <div
+              v-for="row in filteredRows"
+              :key="row.userId"
+              class="flex flex-wrap items-center justify-between gap-3 p-3 bg-(--bg2)/20 border border-(--border-color) rounded-xl"
             >
-              <!-- Info utilisateur -->
-              <div class="flex items-center gap-3">
-                <img v-if="member.user?.avatarUrl" :src="member.user.avatarUrl" class="w-10 h-10 rounded-full object-cover border border-(--text)/10" />
-                <div v-else class="w-10 h-10 rounded-full bg-(--primary)/20 flex items-center justify-center text-(--primary) font-bold uppercase">
-                  {{ member.user?.name?.charAt(0) || '?' }}
+              <!-- Membre -->
+              <div class="flex items-center gap-3 min-w-0">
+                <img v-if="row.member?.user?.avatarUrl" :src="row.member.user.avatarUrl" class="w-9 h-9 rounded-full object-cover border border-(--text)/10 shrink-0" />
+                <div v-else class="w-9 h-9 rounded-full bg-(--primary)/20 flex items-center justify-center text-(--primary) font-bold uppercase shrink-0">
+                  {{ row.member?.user?.name?.charAt(0) || '?' }}
                 </div>
-                <div>
-                  <h4 class="text-sm font-semibold text-(--text)">{{ member.user?.name || 'Utilisateur inconnu' }}</h4>
-                  <p class="text-xs text-(--text2)">{{ getMemberRoleName(member) }}</p>
+                <div class="min-w-0">
+                  <h4 class="text-sm font-semibold text-(--text) truncate">{{ $p(row.member?.user?.name) || 'Utilisateur inconnu' }}</h4>
+                  <p class="text-[11px] text-(--text2) truncate">
+                    <template v-if="row.locked === 'owner'">Propriétaire {{ itemType === 'folder' ? 'du dossier' : 'du fichier' }}</template>
+                    <template v-else-if="row.locked === 'org-owner'">Propriétaire de l'organisation</template>
+                    <template v-else-if="row.locked === 'superior'">Rôle égal ou supérieur au vôtre</template>
+                    <template v-else-if="levelOf(row) === null">Par défaut · {{ LEVEL_LABEL[row.inherited] }}</template>
+                    <template v-else>
+                      Réglé ici
+                      <button
+                        v-if="canManage"
+                        @click="setLevel(row.userId, null)"
+                        class="ml-1 text-(--primary) hover:underline"
+                        :title="`Revenir à l'accès par défaut : ${LEVEL_LABEL[row.inherited]}`"
+                      >
+                        <i class="bi bi-arrow-counterclockwise" /> par défaut ({{ LEVEL_LABEL[row.inherited] }})
+                      </button>
+                    </template>
+                  </p>
                 </div>
               </div>
 
-              <!-- Contrôles -->
-              <div class="flex items-center gap-6">
-                <!-- Toggle Lire -->
-                <label class="flex items-center gap-2 cursor-pointer" :class="{ 'opacity-50 cursor-not-allowed': isSuperior(member) }">
-                  <span class="text-sm text-(--text2)">Voir</span>
-                  <input 
-                    type="checkbox" 
-                    class="toggle toggle-primary toggle-sm"
-                    :checked="canRead(member)"
-                    :disabled="isSuperior(member)"
-                    @change="updatePerm(member.userId, 'READ', ($event.target as HTMLInputElement).checked)"
-                  />
-                </label>
-                <!-- Toggle Écrire -->
-                <label class="flex items-center gap-2 cursor-pointer" :class="{ 'opacity-50 cursor-not-allowed': isSuperior(member) }">
-                  <span class="text-sm text-(--text2)">Écrire</span>
-                  <input 
-                    type="checkbox" 
-                    class="toggle toggle-primary toggle-sm"
-                    :checked="canWrite(member)"
-                    :disabled="isSuperior(member)"
-                    @change="updatePerm(member.userId, 'WRITE', ($event.target as HTMLInputElement).checked)"
-                  />
-                </label>
+              <!-- Aucun / Voir / Modifier -->
+              <div
+                class="flex items-center gap-0.5 p-0.5 rounded-lg bg-(--bg2) border border-(--border-color) shrink-0"
+                :class="{ 'opacity-50': isDisabled(row) }"
+              >
+                <button
+                  v-for="option in LEVEL_OPTIONS"
+                  :key="option.value"
+                  @click="setLevel(row.userId, option.value)"
+                  :disabled="isDisabled(row)"
+                  class="px-2.5 py-1 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5 disabled:cursor-not-allowed"
+                  :class="displayed(row) === option.value
+                    ? (levelOf(row) === null && !row.locked ? option.inheritedClass : option.activeClass)
+                    : 'text-(--text2) hover:text-(--text)'"
+                >
+                  <i :class="option.icon" />
+                  {{ option.label }}
+                </button>
               </div>
             </div>
-            <div v-if="workspaceMembers.length === 0" class="text-center text-(--text2) py-8">
-              Aucun membre dans cet espace.
+
+            <div v-if="filteredRows.length === 0" class="text-center text-(--text2) py-8 text-sm">
+              {{ members.length === 0 ? 'Aucun autre membre dans ce space.' : `Aucun membre ne correspond à « ${search} »` }}
             </div>
           </div>
         </main>
@@ -94,9 +131,10 @@
           </p>
           <div v-else />
           <div class="flex items-center gap-3">
-            <button @click="$emit('close')" class="default">Annuler</button>
-            <button 
-              @click="save" 
+            <button @click="$emit('close')" class="default">{{ canManage ? 'Annuler' : 'Fermer' }}</button>
+            <button
+              v-if="canManage"
+              @click="save"
               class="primary"
               :class="{ 'loader': isSaving }"
               :disabled="!hasChanges || isSaving"
@@ -112,11 +150,21 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { openedOrg, user } from '@/assets/var';
-import { usePermissions } from '@/composables/usePermissions';
+import { openedOrg } from '@/assets/var';
+import sfetch from '@/assets/utils/sfetch';
 import { useToast } from '@/composables/useToast';
-import type { PermissionOverride, RoleData } from '@/config/permissions.config';
-import type { OrgMember } from '@/types/types';
+
+type AccessLevel = 'none' | 'read' | 'write';
+
+interface AccessRow {
+  userId: string;
+  /** Réglage posé sur cet élément pour ce membre, null = par défaut. */
+  override: AccessLevel | null;
+  /** Ce qu'il aurait sans réglage (rôles, space, dossiers parents). */
+  inherited: AccessLevel;
+  effective: AccessLevel;
+  locked: 'owner' | 'org-owner' | 'superior' | null;
+}
 
 const props = defineProps<{
   show: boolean;
@@ -126,122 +174,105 @@ const props = defineProps<{
   spaceId: string;
 }>();
 
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'saved']);
 const toast = useToast();
 
-const orgId = computed(() => openedOrg.value?.id);
-const { fetchRoles, fetchOverrides, saveOverrides } = usePermissions(orgId);
+const LEVEL_LABEL: Record<AccessLevel, string> = { none: 'aucun accès', read: 'voir', write: 'modifier' };
+
+const LEVEL_OPTIONS: Array<{ value: AccessLevel; label: string; icon: string; activeClass: string; inheritedClass: string }> = [
+  { value: 'none',  label: 'Aucun',    icon: 'bi bi-eye-slash', activeClass: 'bg-red-500/15 text-red-400',         inheritedClass: 'bg-(--text)/5 text-red-400/70 ring-1 ring-inset ring-red-400/30' },
+  { value: 'read',  label: 'Voir',     icon: 'bi bi-eye',       activeClass: 'bg-sky-500/15 text-sky-400',         inheritedClass: 'bg-(--text)/5 text-sky-400/70 ring-1 ring-inset ring-sky-400/30' },
+  { value: 'write', label: 'Modifier', icon: 'bi bi-pencil',    activeClass: 'bg-emerald-500/15 text-emerald-400', inheritedClass: 'bg-(--text)/5 text-emerald-400/70 ring-1 ring-inset ring-emerald-400/30' },
+];
 
 const isLoading = ref(false);
 const isSaving = ref(false);
-const roles = ref<RoleData[]>([]);
-const originalOverrides = ref<PermissionOverride[]>([]);
-const localOverrides = ref<PermissionOverride[]>([]);
+const canManage = ref(false);
+const rows = ref<AccessRow[]>([]);
+/** Réglages en cours : userId → niveau, null = revenir au défaut. */
+const pending = ref<Record<string, AccessLevel | null>>({});
+const search = ref('');
 
-const hasChanges = computed(() => {
-  if (localOverrides.value.length !== originalOverrides.value.length) return true;
-  for (const lo of localOverrides.value) {
-    const match = originalOverrides.value.find(
-      o => o.userId === lo.userId && o.permission === lo.permission && o.value === lo.value
-    );
-    if (!match) return true;
-  }
-  return false;
+const endpoint = computed(() =>
+  `/api/orgs/${openedOrg.value?.id}/${props.itemType === 'file' ? 'files' : 'folders'}/${props.itemId}/access`);
+
+const memberById = computed(() => new Map((openedOrg.value?.members ?? []).map(m => [m.userId, m])));
+
+const members = computed(() => rows.value
+  .map(row => ({ ...row, member: memberById.value.get(row.userId) }))
+  .sort((a, b) => (a.member?.user?.name ?? '').localeCompare(b.member?.user?.name ?? '')));
+
+const filteredRows = computed(() => {
+  const q = search.value.trim().toLowerCase();
+  if (!q) return members.value;
+  return members.value.filter(r => (r.member?.user?.name ?? '').toLowerCase().includes(q)
+    || (r.member?.user?.email ?? '').toLowerCase().includes(q));
 });
 
-const workspaceMembers = computed(() => {
-  if (!openedOrg.value) return [];
-  const space = openedOrg.value.spaces?.find(s => s.id === props.spaceId);
-  if (!space) return [];
-  
-  return openedOrg.value.members?.filter(m => space.membersId.includes(m.userId) && m.userId !== user.value?.id) || [];
-});
+/** Réglage propre à l'élément, modifications en cours comprises. */
+const levelOf = (row: AccessRow): AccessLevel | null =>
+  row.userId in pending.value ? pending.value[row.userId]! : row.override;
 
-const getUserMaxPosition = (member: OrgMember) => {
-  if (!member.memberRoles || member.memberRoles.length === 0) return 0;
-  return Math.max(...member.memberRoles.map((mr: any) => mr.role?.position || 0), 0);
+/** Niveau affiché : le réglage, sinon le défaut (propriétaires : modifier). */
+const displayed = (row: AccessRow): AccessLevel => {
+  if (row.locked === 'owner' || row.locked === 'org-owner') return 'write';
+  return levelOf(row) ?? row.inherited;
 };
 
-const currentUserMaxPosition = computed(() => {
-  const currentMember = openedOrg.value?.members?.find(m => m.userId === user.value?.id);
-  if (!currentMember) return 0;
-  return getUserMaxPosition(currentMember);
-});
+const isDisabled = (row: AccessRow): boolean => !canManage.value || row.locked !== null;
 
-const isSuperior = (member: OrgMember) => {
-  return getUserMaxPosition(member) > currentUserMaxPosition.value;
-};
-
-const getMemberRoleName = (member: OrgMember) => {
-  if (member.memberRoles && member.memberRoles.length > 0) {
-    return [...member.memberRoles].sort((a: any, b: any) => (b.role?.position ?? 0) - (a.role?.position ?? 0)).map((mr: any) => mr.role?.name).join(', ');
-  }
-  return member.role || 'MEMBER';
-};
-
-const getOverride = (userId: string, permission: string) => {
-  return localOverrides.value.find(o => o.userId === userId && o.permission === permission);
-};
-
-const canRead = (member: OrgMember) => {
-  if (isSuperior(member)) return true;
-  const o = getOverride(member.userId, 'READ');
-  return o ? o.value === 'ALLOW' : false; 
-};
-
-const canWrite = (member: OrgMember) => {
-  if (isSuperior(member)) return true;
-  const o = getOverride(member.userId, 'WRITE');
-  return o ? o.value === 'ALLOW' : false;
-};
-
-const updatePerm = (userId: string, permission: 'READ' | 'WRITE', checked: boolean) => {
-  const val = checked ? 'ALLOW' : 'DENY';
-  const existingIndex = localOverrides.value.findIndex(o => o.userId === userId && o.permission === permission);
-  if (existingIndex >= 0) {
-    const existing = localOverrides.value[existingIndex];
-    if (existing) {
-        existing.value = val as any;
-    }
+const setLevel = (userId: string, level: AccessLevel | null) => {
+  const row = rows.value.find(r => r.userId === userId);
+  if (!row || isDisabled(row)) return;
+  // Choisir la valeur par défaut revient à ne rien régler.
+  const next = level !== null && row.override === null && level === row.inherited ? null : level;
+  if (next === row.override) {
+    const { [userId]: _, ...rest } = pending.value;
+    pending.value = rest;
   } else {
-    localOverrides.value.push({
-      userId,
-      permission: permission as any,
-      value: val as any
-    });
+    pending.value = { ...pending.value, [userId]: next };
   }
 };
 
-watch(() => props.show, async (show) => {
-  if (!show || !orgId.value) return;
+const hasChanges = computed(() => Object.keys(pending.value).length > 0);
+
+const load = async () => {
+  if (!openedOrg.value?.id) return;
   isLoading.value = true;
+  pending.value = {};
+  search.value = '';
   try {
-    const [rolesData, overridesData] = await Promise.all([
-      fetchRoles(),
-      fetchOverrides(props.itemType, props.itemId, props.spaceId)
-    ]);
-    roles.value = rolesData;
-    originalOverrides.value = overridesData.filter((o: PermissionOverride) => o.userId); // On ne garde que les overrides individuels
-    localOverrides.value = JSON.parse(JSON.stringify(originalOverrides.value));
-  } catch (err) {
-    toast.show('Erreur de chargement', 'error');
+    const res = await sfetch(endpoint.value);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    canManage.value = !!data.canManage;
+    rows.value = data.members ?? [];
+  } catch {
+    toast.show('Erreur de chargement des accès', 'error');
+    rows.value = [];
   } finally {
     isLoading.value = false;
   }
-});
+};
+
+watch(() => [props.show, props.itemId] as const, ([show]) => { if (show) load(); }, { immediate: true });
 
 const save = async () => {
+  if (!hasChanges.value) return;
   isSaving.value = true;
   try {
-    const success = await saveOverrides(props.itemType, props.itemId, localOverrides.value, props.spaceId);
-    if (success) {
-      toast.show('Accès mis à jour', 'success');
-      originalOverrides.value = JSON.parse(JSON.stringify(localOverrides.value));
-      emit('close');
-    } else {
-      toast.show('Erreur de sauvegarde', 'error');
+    const access = Object.entries(pending.value).map(([userId, level]) => ({ userId, level: level ?? 'inherit' }));
+    const res = await sfetch(endpoint.value, { method: 'PUT', body: JSON.stringify({ access }) });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.show(err.error || 'Erreur de sauvegarde', 'error');
+      return;
     }
-  } catch (err) {
+    toast.show('Accès mis à jour', 'success');
+    pending.value = {};
+    emit('saved');
+    emit('close');
+  } catch {
     toast.show('Erreur de sauvegarde', 'error');
   } finally {
     isSaving.value = false;
