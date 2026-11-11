@@ -4,7 +4,7 @@ import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useToast } from '@/composables/useToast';
-import { openedOrg, user } from '@/assets/var';
+import { openedOrg, user, todoEnabled, filesEnabled } from '@/assets/var';
 import type { WorkSpace } from '@/types/types';
 import sfetch from '@/assets/utils/sfetch';
 
@@ -142,6 +142,10 @@ const handleDelete = async () => {
                     <i class="bi bi-folder-plus mr-2" /> Créer une catégorie
                 </button>
             </CreateNewCategory>
+
+            <button v-if="!isHome && (todoEnabled || filesEnabled)" @click="router.push({ name: 'SpaceStats', query: { showView: '1' } })" class="dropdown-item-annimate dropdown-item-style">
+                <i class="bi bi-bar-chart-line mr-2" /> Statistiques
+            </button>
 
             <button v-if="!isHome" @click="showUpdateSpace = true" class="dropdown-item-annimate dropdown-item-style">
                 <i class="bi bi-gear mr-2" /> Paramètres

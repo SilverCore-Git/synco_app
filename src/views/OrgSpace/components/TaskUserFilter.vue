@@ -33,7 +33,7 @@
                     :class="!modelValue ? '!bg-(--primary)/15 !text-(--primary)' : ''"
                 >
                     <i class="bi bi-people-fill mr-2"></i>
-                    Toutes les tâches
+                    {{ allLabel ?? 'Toutes les tâches' }}
                 </button>
                 <button
                     type="button"
@@ -42,7 +42,7 @@
                     :class="modelValue === currentUserId ? '!bg-(--primary)/15 !text-(--primary)' : ''"
                 >
                     <i class="bi bi-person-fill mr-2"></i>
-                    Mes tâches
+                    {{ mineLabel ?? 'Mes tâches' }}
                 </button>
 
                 <div class="border-t border-(--border-color) my-1.5"></div>
@@ -91,6 +91,8 @@ const props = defineProps<{
     modelValue: string | null;
     currentUserId: string | null;
     me?: User | null;
+    allLabel?: string;
+    mineLabel?: string;
 }>();
 
 const emit = defineEmits<{

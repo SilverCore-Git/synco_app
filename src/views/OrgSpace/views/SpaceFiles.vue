@@ -21,6 +21,13 @@
             </div>
             
             <div class="ml-auto flex items-center gap-4 text-(--text2)">
+                <button
+                    @click="router.push({ name: 'SpaceStats', params: { orgId: route.params.orgId, spaceId: route.params.spaceId }, query: { showView: '1', tab: 'files' } })"
+                    class="hover:text-(--text) transition-colors"
+                    title="Statistiques des fichiers"
+                >
+                    <i class="bi bi-bar-chart-line" />
+                </button>
                 <button 
                     @click="showUsersBar = !showUsersBar"
                     class="hover:text-(--text) transition-colors"

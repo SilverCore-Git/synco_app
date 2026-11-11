@@ -1,0 +1,41 @@
+/* Jetons des graphiques de statistiques (palette de référence validée,
+   ordre fixe des emplacements). Sombre par défaut comme l'app, clair sous
+   body.light. Le texte ne porte jamais la couleur d'une série. */
+.stats-root {
+    --viz-1: #3987e5;
+    --viz-2: #d95926;
+    --viz-3: #199e70;
+    --viz-4: #c98500;
+    --viz-5: #d55181;
+    --viz-6: #008300;
+    --viz-7: #9085e9;
+    --viz-8: #e66767;
+    --viz-critical: #d03b3b;
+    --viz-warning: #fab219;
+    --viz-grid: rgba(255, 255, 255, 0.07);
+    --viz-axis: rgba(255, 255, 255, 0.16);
+    --viz-muted: #898781;
+    --viz-heat-0: rgba(57, 135, 229, 0.06);
+    --viz-heat-rgb: 57, 135, 229;
+    --viz-up-good: #0ca30c;
+}
+
+body.light .stats-root {
+    --viz-1: #2a78d6;
+    --viz-2: #eb6834;
+    --viz-3: #1baf7a;
+    --viz-4: #eda100;
+    --viz-5: #e87ba4;
+    --viz-6: #008300;
+    --viz-7: #6250d6;
+    --viz-8: #e34948;
+    --viz-grid: rgba(0, 0, 0, 0.07);
+    --viz-axis: rgba(0, 0, 0, 0.2);
+    --viz-heat-0: rgba(42, 120, 214, 0.06);
+    --viz-heat-rgb: 42, 120, 214;
+    --viz-up-good: #006300;
+}
+
+.stats-num {
+    font-variant-numeric: tabular-nums;
+}

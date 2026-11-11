@@ -248,6 +248,12 @@ const routes = [
         props: true,
       },
       {
+        path: ':spaceId/stats',
+        name: 'SpaceStats',
+        component: () => import('./views/OrgSpace/views/SpaceStats.vue'),
+        props: true,
+      },
+      {
         path: 'ai',
         name: 'OrgAI',
         component: () => import('./views/OrgSpace/views/OrgAI.vue'),

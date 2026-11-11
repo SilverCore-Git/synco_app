@@ -320,6 +320,14 @@
                                 @click="router.push({ name: 'TasksSpace', query: { showView: '1' } })"
                             />
 
+                            <SettingsViewBtn
+                                v-if="!isHome && (todoEnabled || filesEnabled)"
+                                name="Statistiques"
+                                icon="bi-bar-chart-line"
+                                :active="route.name == 'SpaceStats'"
+                                @click="router.push({ name: 'SpaceStats', query: { showView: '1' } })"
+                            />
+
                             <hr v-if="!isHome" class=" w-full h-0.5 bg-(--text)/50 border-none rounded-full my-1" />
                             
                             <draggable
