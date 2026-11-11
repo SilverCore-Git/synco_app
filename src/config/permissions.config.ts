@@ -38,11 +38,13 @@ export const PERMISSION_REGISTRY = {
   ORG_STORAGE:  { scope: 'org', group: 'org', label: 'Stockage & quotas', icon: 'bi-server', description: 'Gérer l\'espace de stockage de l\'organisation' },
   ORG_AI:       { scope: 'org', group: 'org', label: 'Synco IA', icon: 'bi-robot', description: 'Configurer l\'assistant Synco IA' },
   SPACE_CREATE: { scope: 'org', group: 'org', label: 'Créer des spaces', icon: 'bi-grid-plus', description: 'Créer de nouveaux spaces dans l\'organisation' },
+  ORG_STATS:    { scope: 'org', group: 'org', label: 'Statistiques de l\'organisation', icon: 'bi-bar-chart-line', description: 'Voir les statistiques de toute l\'organisation (tâches, fichiers), détail par space et par membre compris' },
 
   // ── Space ───────────────────────────────────────────────────────────────
   SPACE_MANAGE:      { scope: 'space', group: 'space', label: 'Gérer le space', icon: 'bi-grid', description: 'Renommer le space, changer son logo, gérer ses membres' },
   SPACE_PERMISSIONS: { scope: 'space', group: 'space', label: 'Régler les permissions', icon: 'bi-sliders', description: 'Modifier les permissions de ce space pour les rôles inférieurs au sien' },
   SPACE_DELETE:      { scope: 'space', group: 'space', label: 'Supprimer le space', icon: 'bi-trash', description: 'Supprimer définitivement le space' },
+  SPACE_STATS:       { scope: 'space', group: 'space', label: 'Voir les statistiques', icon: 'bi-bar-chart', description: 'Voir les statistiques des tâches et des fichiers de ce space (Paramètres > Statistiques)' },
   STATS_MEMBERS:     { scope: 'space', group: 'space', label: 'Statistiques par membre', icon: 'bi-person-lines-fill', description: 'Voir le détail de chaque membre dans les statistiques du space (sans elle, chacun ne voit que ses propres chiffres)' },
 
   // ── Threads ─────────────────────────────────────────────────────────────
