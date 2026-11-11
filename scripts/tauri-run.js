@@ -50,6 +50,19 @@ let patchedCsp = devLanIp
 const isProd = mode === 'build';
 const devHosts = isProd ? '' : ' http://localhost:* https://localhost:*';
 const devConnect = isProd ? '' : ' http://localhost:* https://localhost:* ws://localhost:* wss://localhost:*';
+// synco_keyguard (récupération par PIN, E2EE v4 §14) est appelé directement par la fenêtre : seule l'origine de
+// VITE_KEYGUARD_URL entre dans connect-src (même logique que keyguardCspOrigin dans vite.config.ts).
+function keyguardCspOrigin(raw) {
+  try {
+    const url = new URL(String(raw ?? '').trim());
+    return url.protocol === 'https:' || url.protocol === 'http:' ? ` ${url.origin}` : '';
+  } catch {
+    return '';
+  }
+}
+const keyguardUrl = process.env.VITE_KEYGUARD_URL ?? readEnvValue(envFile, 'VITE_KEYGUARD_URL');
+patchedCsp = patchedCsp.split('__CSP_KEYGUARD__').join(keyguardCspOrigin(keyguardUrl));
+
 patchedCsp = patchedCsp
   .split('__CSP_DEV_SCRIPT__').join(devHosts)
   .split('__CSP_DEV_CONNECT__').join(devConnect)
