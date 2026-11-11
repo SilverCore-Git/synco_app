@@ -17,6 +17,8 @@ import AiGatewayConsent from './components/common/AiGatewayConsent.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
 import useSettingsItem from './composables/useSettingsItem';
 import { initKC, isTauriPlatform, loginWithSystemBrowser } from './assets/keycloak';
+import DesktopLogin from './components/auth/DesktopLogin.vue';
+import { rememberDesktopAccount } from './assets/desktopAccount';
 import { E2EEUnloked, setupFirstTimeSecurityV3, unlockSecurity, unlockSecurityV3, SALT_V2_PREFIX, SALT_V3_PREFIX, privateKey, lockSecurity, assertOwnPublicKeyMatches, OwnKeyMismatchError, rewrapLegacyPrivateKeyV3, generateSigningKeypairForMigration } from './assets/utils/crypto';
 import sfetch from './assets/utils/sfetch';
 import { useToast } from './composables/useToast';
@@ -468,6 +470,8 @@ const finishAuthInit = async () => {
 
   bootStatus.value = 'Finalisation…';
   await waitFor(() => user.value !== null);
+  // Bureau : retenir le prénom pour l'accueil de la prochaine connexion (« Bon retour, … »).
+  if (isTauri) rememberDesktopAccount(user.value);
   bootProgress.value = 90;
   bootStatus.value = 'Connexion sécurisée…';
   await initPeer();
@@ -683,45 +687,7 @@ onMounted(async () => {
          ici, mais tant que l'utilisateur n'a pas cliqué "Se connecter" on
          reste sur ce bouton plutôt que le loader ci-dessous. -->
     <div v-else-if="isTauri && !authenticated" class="h-full w-full">
-
-      <div class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none">
-
-        <div class="mb-8 text-center max-w-lg">
-
-          <div class="flex flex-col items-center gap-4 mb-3">
-            <img :src="theme === 'light' ? '/assets/logo/synco/light_banner_synco.svg' : '/banner.svg'" alt="Logo" class="h-16" />
-          </div>
-
-          <h2 class="text-xl font-bold text-(--text)">
-            Connectez-vous à votre compte
-          </h2>
-
-          <p class="text-sm text-(--text2) mt-2 leading-relaxed">
-            La connexion se fait dans votre navigateur, pour plus de sécurité.
-          </p>
-
-        </div>
-
-        <button
-          @click="handleTauriLogin"
-          class="primary"
-          :class="{ loader: tauriLoginLoading }"
-          :disabled="tauriLoginLoading"
-        >
-          <i class="bi bi-box-arrow-up-right mr-2" />
-          <span class="font-bold tracking-wide">Se connecter</span>
-        </button>
-
-        <p v-if="tauriLoginLoading" class="text-xs text-(--text2) mt-6 uppercase tracking-widest font-bold">
-          En attente de connexion dans le navigateur...
-        </p>
-
-        <p v-if="tauriLoginError" class="text-xs text-red-400 mt-6 font-medium">
-          La connexion a échoué. Réessayez.
-        </p>
-
-      </div>
-
+      <DesktopLogin :loading="tauriLoginLoading" :error="tauriLoginError" @login="handleTauriLogin" />
     </div>
 
     <!-- Fenêtre de démarrage : soit le loader (logo + barre de progression),
