@@ -174,7 +174,7 @@ const isSuperior = (member: OrgMember) => {
 
 const getMemberRoleName = (member: OrgMember) => {
   if (member.memberRoles && member.memberRoles.length > 0) {
-    return member.memberRoles.map((mr: any) => mr.role?.name).join(', ');
+    return [...member.memberRoles].sort((a: any, b: any) => (b.role?.position ?? 0) - (a.role?.position ?? 0)).map((mr: any) => mr.role?.name).join(', ');
   }
   return member.role || 'MEMBER';
 };

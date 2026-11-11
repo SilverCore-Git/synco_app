@@ -209,7 +209,7 @@ defineProps<{
 // memberRoles, déjà inclus dans openedOrg.
 const getMemberRoleLabel = (member: any): string => {
     if (member.memberRoles && member.memberRoles.length > 0) {
-        const names = member.memberRoles.map((mr: any) => mr.role?.name).filter(Boolean);
+        const names = [...member.memberRoles].sort((a: any, b: any) => (b.role?.position ?? 0) - (a.role?.position ?? 0)).map((mr: any) => mr.role?.name).filter(Boolean);
         if (names.length > 0) return names.join(', ');
     }
     return member.role || 'Membre';

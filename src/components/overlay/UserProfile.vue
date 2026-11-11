@@ -95,7 +95,9 @@ const headline = computed(() => orgMember.value?.user?.job ?? u.value?.job);
 
 // Sans rôle attribué : « Membre », comme avant.
 const roles = computed(() => {
-    const list = (orgMember.value?.memberRoles || []).filter((mr: any) => mr.role).map((mr: any) => mr.role);
+    // Le rôle le plus haut placé (position la plus grande) en premier.
+    const list = (orgMember.value?.memberRoles || []).filter((mr: any) => mr.role).map((mr: any) => mr.role)
+        .sort((a: any, b: any) => (b.position ?? 0) - (a.position ?? 0));
     if (list.length === 0 && orgMember.value) return [{ id: 'member', name: 'Membre', color: null }];
     return list;
 });
