@@ -791,6 +791,22 @@ button.tab:not(.active) {
    du timing d'accrochage rAF de <Transition> ni de ses classes -enter-from
    / -enter-active, qui peuvent être invisibles si l'état "avant" et l'état
    "après" se résolvent dans le même tick. */
+/* Ouverture d'une organisation, et retour à la liste : un fondu et un léger zoom, transform et opacity seulement
+   (composités, fluides même dans WebKitGTK). Remplace la View Transition du routeur, qui figeait la page. */
+@keyframes org-open-in {
+  from { opacity: 0; transform: scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes org-back-in {
+  from { opacity: 0; transform: scale(1.015); }
+  to { opacity: 1; transform: none; }
+}
+.animate-org-open { animation: org-open-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-org-back { animation: org-back-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-org-open, .animate-org-back { animation-duration: 0.01ms; }
+}
+
 @keyframes app-reveal-in {
   from {
     opacity: 0;

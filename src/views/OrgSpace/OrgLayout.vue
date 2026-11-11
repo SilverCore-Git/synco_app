@@ -50,10 +50,6 @@ const { fetchPermissions } = usePermissions(computed(() => props.orgId));
 const mediaQuery = window.matchMedia('(max-width: 1024px)');
 const showRouterView = computed(() => !isLittleScreen.value || route.query.showView !== '0');
 
-const orgOnOpen = computed(() => {
-    return organizations.value.find(org => org.id === route.params.orgId);
-});
-
 const orgReady = computed(() => openedOrg.value?.id === props.orgId);
 const orgBanned = computed(() => isOrgBanned(props.orgId));
 const orgBanInfo = computed(() => getOrgBanInfo(props.orgId));
@@ -713,9 +709,8 @@ onBeforeUnmount(async () => {
         <div
             class="
                 h-full w-full flex flex-row 
-                relative bg-(--bg) overflow-hidden
+                relative bg-(--bg) overflow-hidden animate-org-open
             "
-            :style="{ viewTransitionName: `openOrg-${orgOnOpen?.id}` }"
         >
 
             <!-- Organisation bannie : aucun accès à son contenu, ni en

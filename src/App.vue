@@ -17,6 +17,7 @@ import AiGatewayConsent from './components/common/AiGatewayConsent.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
 import useTheme from './composables/useTheme';
 import { initKC, isTauriPlatform, loginWithSystemBrowser } from './assets/keycloak';
+import type { RouteLocationNormalizedLoaded } from 'vue-router';
 import DesktopLogin from './components/auth/DesktopLogin.vue';
 import { rememberDesktopAccount } from './assets/desktopAccount';
 import { E2EEUnloked, setupFirstTimeSecurityV3, unlockSecurity, unlockSecurityV3, SALT_V2_PREFIX, SALT_V3_PREFIX, privateKey, lockSecurity, assertOwnPublicKeyMatches, OwnKeyMismatchError, rewrapLegacyPrivateKeyV3, generateSigningKeypairForMigration } from './assets/utils/crypto';
@@ -483,6 +484,15 @@ const finishAuthInit = async () => {
   bootProgress.value = 100;
 };
 
+/**
+ * Clé de la page de premier niveau. Les pages « overlay » (SAV, admin) gardent l'URL complète : la liste et le
+ * détail d'un ticket glissent l'un sur l'autre. Une organisation, elle, n'est recréée que quand on en change :
+ * avec l'URL complète, chaque clic sur un salon recréait tout OrgLayout (rechargement, sockets, pairs,
+ * notifications) et rejouait son animation d'ouverture.
+ */
+const pageKey = (r: RouteLocationNormalizedLoaded) =>
+  r.meta?.overlay ? r.fullPath : `${String(r.matched[0]?.path ?? r.path)}|${String(r.params.orgId ?? '')}`;
+
 let tauriLoginAbort: AbortController | null = null;
 
 /** « Annuler » pendant l'attente du navigateur : retour à l'écran de connexion, sans message d'erreur. */
@@ -757,7 +767,7 @@ onMounted(async () => {
                 <Transition name="push">
                   <component
                     :is="Component"
-                    :key="matchedRoute.fullPath"
+                    :key="pageKey(matchedRoute)"
                     :class="{ 'overlay-page': matchedRoute.meta?.overlay }"
                   />
                 </Transition>

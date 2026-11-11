@@ -90,7 +90,7 @@ onMounted(async () => {
 
 <template>
 
-    <div class="h-full bg-(--bg2) flex flex-col items-center p-6 md:p-12 font-sans overflow-x-hidden overflow-y-auto relative">
+    <div class="h-full bg-(--bg2) flex flex-col items-center p-6 md:p-12 font-sans overflow-x-hidden overflow-y-auto relative animate-org-back">
         
         <div class="absolute top-6 right-6 md:top-8 md:right-8 z-10 flex items-center gap-3">
 
@@ -177,7 +177,6 @@ onMounted(async () => {
                 <div 
                     v-for="org in filteredOrganizations" 
                     :key="org.id"
-                    :style="{ viewTransitionName: `openOrg-${org.id}` }"
                     class="w-full"
                 >
                     <OrgBtn :org="org" />

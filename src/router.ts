@@ -13,7 +13,6 @@ import MembersSettings from './views/OrgSpace/views/settings/views/MembersSettin
 import WebhooksSettings from './views/OrgSpace/views/settings/views/WebhooksSettings.vue';
 import InviteView from './views/inviteView.vue';
 import ThreadLayout from './views/OrgSpace/views/ThreadLayout.vue';
-import { nextTick } from 'vue';
 import SpaceFiles from './views/OrgSpace/views/SpaceFiles.vue';
 import AdminPanel from './views/AdminPanel.vue';
 import { loadSupportRole } from './services/support/role';
@@ -317,18 +316,9 @@ const router = createRouter({
   }
 });
 
-router.beforeResolve((_to, _from) => {
-
-  if (!document.startViewTransition) return;
-
-  return new Promise((resolve) => {
-    document.startViewTransition(async () => {
-      resolve()
-      await nextTick()
-    })
-  })
-  
-})
+// Plus de View Transition à chaque navigation : elle figeait la page sur une capture le temps de l'animation et
+// étirait la carte de l'organisation en plein écran (déformée, souvent sur l'état « chargement »). L'ouverture et
+// la fermeture d'une organisation sont animées en CSS (animate-org-open / animate-org-back, style.css).
 
 router.beforeEach((to: any, _from: any, next: any) => {
   const title = to.meta.title as string;
