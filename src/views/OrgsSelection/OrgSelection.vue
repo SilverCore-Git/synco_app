@@ -14,6 +14,7 @@ import DropDown from '@/components/DropDown.vue';
 import UserSettings from '@/components/windows/UserSettings.vue';
 import { useSupportRole } from '@/composables/useSupportRole';
 import { useNotification } from '@/composables/useNotification';
+import { rememberOpeningCard, targetClosingCard } from '@/assets/orgMorph';
 
 const { isStaff: isSupportStaff } = useSupportRole();
 const { getUnreadCountForSupport, getUnreadCountForSupportStaff } = useNotification();
@@ -74,6 +75,9 @@ const createNewOrg = async () => {
 }
 
 onMounted(async () => {
+    // Retour depuis une organisation : sa carte est la cible où la page se referme (orgMorph.ts). Synchrone,
+    // avant la première image de la transition.
+    targetClosingCard(localStorage.getItem('lastOpenedOrgId'));
     const res = await sfetch('/api/users/me/cancreateorg');
     const data = await res.json();
     canCreateOrg.value = data.canCreateOrg;
@@ -90,7 +94,7 @@ onMounted(async () => {
 
 <template>
 
-    <div class="h-full bg-(--bg2) flex flex-col items-center p-6 md:p-12 font-sans overflow-x-hidden overflow-y-auto relative animate-org-back">
+    <div class="h-full bg-(--bg2) flex flex-col items-center p-6 md:p-12 font-sans overflow-x-hidden overflow-y-auto relative">
         
         <div class="absolute top-6 right-6 md:top-8 md:right-8 z-10 flex items-center gap-3">
 
@@ -177,7 +181,9 @@ onMounted(async () => {
                 <div 
                     v-for="org in filteredOrganizations" 
                     :key="org.id"
+                    :data-org-card="org.id"
                     class="w-full"
+                    @click.capture="rememberOpeningCard($event.currentTarget as Element)"
                 >
                     <OrgBtn :org="org" />
                 </div>

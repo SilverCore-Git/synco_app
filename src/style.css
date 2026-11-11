@@ -791,21 +791,56 @@ button.tab:not(.active) {
    du timing d'accrochage rAF de <Transition> ni de ses classes -enter-from
    / -enter-active, qui peuvent être invisibles si l'état "avant" et l'état
    "après" se résolvent dans le même tick. */
-/* Ouverture d'une organisation, et retour à la liste : un fondu et un léger zoom, transform et opacity seulement
-   (composités, fluides même dans WebKitGTK). Remplace la View Transition du routeur, qui figeait la page. */
-@keyframes org-open-in {
-  from { opacity: 0; transform: scale(0.985); }
-  to { opacity: 1; transform: none; }
+/* Ouverture d'une organisation : sa page, découpée au rectangle de sa carte (--org-card-clip, orgMorph.ts),
+   s'élargit jusqu'à la fenêtre ; à la fermeture elle se resserre sur sa carte et s'efface dessus. La vraie
+   page s'anime (pas de capture, rien ne fige). Actif seulement pendant un passage liste ↔ organisation
+   (#app-pages[data-morph]) : changer d'organisation ou de salon reste instantané. */
+#app-pages[data-morph] .push-enter-active.org-page,
+#app-pages[data-morph] .push-leave-active.org-page {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  transition: clip-path 0.46s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.22s ease;
+  will-change: clip-path;
 }
-@keyframes org-back-in {
-  from { opacity: 0; transform: scale(1.015); }
-  to { opacity: 1; transform: none; }
+#app-pages[data-morph] .push-enter-from.org-page {
+  clip-path: var(--org-card-clip, inset(12% 12% 12% 12% round 16px));
+  opacity: 0.35;
 }
-.animate-org-open { animation: org-open-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.animate-org-back { animation: org-back-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both; }
+#app-pages[data-morph] .push-enter-to.org-page,
+#app-pages[data-morph] .push-leave-from.org-page {
+  clip-path: inset(0 round 0);
+  opacity: 1;
+}
+#app-pages[data-morph] .push-leave-to.org-page {
+  clip-path: var(--org-card-clip, inset(12% 12% 12% 12% round 16px));
+  opacity: 0;
+  /* L'organisation se resserre d'abord, puis s'efface sur sa carte. */
+  transition: clip-path 0.46s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.16s ease 0.3s;
+}
+/* La liste reste derrière : elle s'estompe à l'ouverture, réapparaît à la fermeture (opacité seule, pour que le
+   rectangle de la carte mesuré à son arrivée soit le bon). */
+#app-pages[data-morph] .push-leave-active.selection-page {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  transition: opacity 0.46s ease;
+}
+#app-pages[data-morph] .push-leave-to.selection-page { opacity: 0; }
+#app-pages[data-morph] .push-enter-active.selection-page { transition: opacity 0.36s ease; }
+#app-pages[data-morph] .push-enter-from.selection-page { opacity: 0.25; }
 @media (prefers-reduced-motion: reduce) {
-  .animate-org-open, .animate-org-back { animation-duration: 0.01ms; }
+  #app-pages[data-morph] .push-enter-active.org-page,
+  #app-pages[data-morph] .push-leave-active.org-page,
+  #app-pages[data-morph] .push-leave-active.selection-page,
+  #app-pages[data-morph] .push-enter-active.selection-page { transition-duration: 0.01ms; transition-delay: 0s; }
 }
+
+/* Démarrage et déverrouillage : fondus croisés. L'écran qui part se met au-dessus et s'efface pendant que le
+   suivant apparaît dessous, au lieu de disparaître d'abord (mode out-in) et de laisser un écran noir. */
+.page-lock-leave-active { position: absolute; inset: 0; z-index: 1; }
+.boot-cross-leave-active { position: absolute; inset: 0; z-index: 1; transition: opacity 0.3s ease; }
+.boot-cross-leave-to { opacity: 0; }
 
 @keyframes app-reveal-in {
   from {

@@ -740,22 +740,23 @@ onMounted(async () => {
       </Transition>
     </div>
 
-    <div v-else class="h-full w-full">
+    <div v-else class="h-full w-full relative">
 
       <CallOverlay />
       <UserProfile :isOpen="isProfileOpen" :profileUser="profileUser" @close="closeProfile"
         @send-message="handleSendMessageFromProfile" />
 
-      <Transition name="page-lock" mode="out-in" appear>
+      <!-- Fondu croisé (pas out-in) : l'écran qui part s'efface PAR-DESSUS celui qui arrive, sans passer par le noir -->
+      <Transition name="page-lock" appear>
 
-        <div v-if="E2EEUnloked && !pinLoading" class="w-full h-full" key="app">
+        <div v-if="E2EEUnloked && !pinLoading" class="w-full h-full relative" key="app">
 
           <!-- Une fois déverrouillé, les données d'org sont presque toujours déjà
                chargées (elles se chargent en parallèle depuis avant l'écran PIN) ;
                ce court instant d'attente reste discret plutôt que de réafficher
                le plein écran logo+barre, qui donnait l'impression d'un rechargement. -->
-          <Transition name="fade" mode="out-in">
-            <div v-if="isLoaded" class="w-full h-full relative overflow-hidden animate-app-reveal" key="loaded">
+          <Transition name="boot-cross">
+            <div v-if="isLoaded" id="app-pages" class="w-full h-full relative overflow-hidden animate-app-reveal" key="loaded">
               <!-- Transition "push" (src/style.css) : une route dont le
                    meta.overlay est vrai (/root, /support, /support-panel…)
                    glisse depuis la droite et recouvre la page du dessous au
@@ -768,7 +769,11 @@ onMounted(async () => {
                   <component
                     :is="Component"
                     :key="pageKey(matchedRoute)"
-                    :class="{ 'overlay-page': matchedRoute.meta?.overlay }"
+                    :class="{
+                      'overlay-page': matchedRoute.meta?.overlay,
+                      'org-page': matchedRoute.matched[0]?.name === 'OrgLayout',
+                      'selection-page': matchedRoute.name === 'OrgSelection',
+                    }"
                   />
                 </Transition>
               </RouterView>

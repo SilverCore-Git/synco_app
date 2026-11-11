@@ -26,7 +26,6 @@ import { requireTrustedKey } from '@/assets/utils/keyTrust';
 import { signKeyEnvelope } from '@/assets/utils/keyEnvelope';
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { usePermissions } from '@/composables/usePermissions';
-import SpinLoader from '@/components/SpinLoader.vue';
 import KeyTrustAlerts from '@/components/security/KeyTrustAlerts.vue';
 import OrgBannedScreen from '@/components/OrgBannedScreen.vue';
 import { isOrgBanned, getOrgBanInfo } from '@/composables/useOrgBanStatus';
@@ -712,7 +711,7 @@ onBeforeUnmount(async () => {
         <div
             class="
                 h-full w-full flex flex-row 
-                relative bg-(--bg) overflow-hidden animate-org-open
+                relative bg-(--bg) overflow-hidden
             "
         >
 
@@ -741,10 +740,23 @@ onBeforeUnmount(async () => {
             <div
                 v-if="!orgReady"
                 key="org-loading"
-                class="flex-1 h-full min-w-0 flex items-center justify-center bg-(--bg3) animate-app-reveal"
+                class="flex-1 h-full min-w-0 bg-(--bg3) p-6 flex flex-col gap-5"
                 :class="isDesktopApp() ? ['border-t border-(--text)/10', !showThreadsBar && 'rounded-tl-2xl border-l'] : ''"
+                aria-busy="true"
+                aria-label="Chargement de l'organisation"
             >
-                <SpinLoader />
+                <!-- Même squelette gris pulsé que la barre des espaces et la liste des salons -->
+                <div class="flex items-center gap-3">
+                    <div class="h-9 w-9 rounded-xl bg-(--text)/6 animate-pulse" />
+                    <div class="h-5 w-56 rounded-lg bg-(--text)/6 animate-pulse" />
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 flex-1 min-h-0">
+                    <div class="rounded-2xl bg-(--text)/4 animate-pulse lg:col-span-2" />
+                    <div class="flex flex-col gap-5">
+                        <div class="flex-1 rounded-2xl bg-(--text)/4 animate-pulse" />
+                        <div class="flex-1 rounded-2xl bg-(--text)/4 animate-pulse" />
+                    </div>
+                </div>
             </div>
             <Transition v-else :name="isLittleScreen && orgContentRevealed ? 'mobile-view-slide' : ''">
                 <div
