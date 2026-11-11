@@ -886,8 +886,9 @@ button.tab:not(.active) {
 }
 .org-nav-close .push-leave-to.org-layout-page { opacity: 0; transform: scale(0.98); }
 
-/* Carte en cours d'ouverture : soulignée, les autres s'estompent ; barre indéterminée en pied de carte, qui
-   n'apparaît qu'après 150 ms pour ne pas clignoter quand l'organisation arrive aussitôt. */
+/* Carte en cours d'ouverture : soulignée, les autres s'estompent ; barre indéterminée en pied de carte, visible
+   dès le clic. Elle glisse par transform (compositeur) et non par left : elle continue de bouger pendant que le
+   montage de l'organisation occupe le fil principal, au lieu de se figer. */
 .org-card { transition-property: opacity, filter, border-color, box-shadow, transform, translate, scale; }
 .org-card-opening {
   border-color: color-mix(in srgb, var(--primary) 70%, transparent);
@@ -899,14 +900,15 @@ button.tab:not(.active) {
 .org-card-progress {
   position: absolute; left: 0; right: 0; bottom: 0; height: 3px; overflow: hidden;
   background: color-mix(in srgb, var(--primary) 15%, transparent);
-  opacity: 0; animation: org-card-progress-in 0.2s ease 0.15s forwards;
+  opacity: 0; animation: org-card-progress-in 0.15s ease forwards;
 }
 .org-card-progress > span {
-  position: absolute; top: 0; bottom: 0; width: 40%; border-radius: 9999px; background: var(--primary);
+  position: absolute; top: 0; bottom: 0; left: 0; width: 40%; border-radius: 9999px; background: var(--primary);
+  will-change: transform;
   animation: org-card-progress-slide 1s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
 @keyframes org-card-progress-in { to { opacity: 1; } }
-@keyframes org-card-progress-slide { from { left: -40%; } to { left: 100%; } }
+@keyframes org-card-progress-slide { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
 @media (prefers-reduced-motion: reduce) {
   .org-nav-open .push-leave-to.org-list-page,
   .org-nav-close .push-enter-from.org-list-page,

@@ -30,14 +30,23 @@ export function setOrgOriginFrom(el: Element, page: Element) {
     orgOrigin.value = `${r.left - p.left + r.width / 2}px ${r.top - p.top + r.height / 2}px`;
 }
 
+const nextPaint = () => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+
 export async function openOrg(router: Router, orgId: string) {
     if (openingOrgId.value) return;
     openingOrgId.value = orgId;
+    // Laisse le navigateur peindre l'état « ouverture » de la carte AVANT tout travail : sans cela, quand
+    // l'organisation est déjà en mémoire, la navigation part dans la même tâche que le clic et le montage
+    // d'OrgLayout (lourd) bloque l'affichage — la carte semble figée un instant.
+    // La requête part tout de suite, en parallèle de cette peinture.
+    const load = openedOrg.value?.id === orgId ? null : sfetch(`/api/orgs/${orgId}`);
+    load?.catch(() => { /* traité plus bas ; évite un rejet « non géré » pendant l'attente de la peinture */ });
+    await nextPaint();
     try {
-        if (openedOrg.value?.id !== orgId) {
+        if (load) {
             // Échec (organisation bannie, réseau…) : on navigue quand même, OrgLayout refait la requête et
             // affiche le motif de bannissement ou renvoie à la liste, comme avant.
-            const res = await sfetch(`/api/orgs/${orgId}`);
+            const res = await load;
             if (res.ok) openedOrg.value = await res.json();
         }
     } catch { /* idem */ }

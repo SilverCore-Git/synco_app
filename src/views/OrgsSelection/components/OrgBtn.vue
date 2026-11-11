@@ -4,7 +4,7 @@
         ref="cardEl"
         :key="org.id"
         :data-org-id="isCreate ? undefined : org.id"
-        class="org-card group relative flex flex-col w-full h-[180px] bg-(--bg) border border-(--border-color) rounded-2xl overflow-hidden transition-all duration-300 transform cursor-pointer hover:-translate-y-1 hover:border-(--primary)/50 hover:shadow-[0_8px_30px_var(--shadow-elevated)] active:scale-95"
+        class="org-card group relative flex flex-col w-full h-[180px] bg-(--bg) border border-(--border-color) rounded-2xl overflow-hidden transition-all duration-300 transform cursor-pointer hover:-translate-y-1 hover:border-(--primary)/50 hover:shadow-[0_8px_30px_var(--shadow-elevated)] active:scale-95 active:duration-100"
         :class="{
             'org-card-opening': isOpening,
             'org-card-dimmed': openingOrgId && !isOpening,
