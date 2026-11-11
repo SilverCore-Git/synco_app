@@ -82,7 +82,7 @@
  * ordinateur (rememberDesktopAccount), il l'accueille par son nom ; rien d'autre n'est gardé.
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import useSettingsItem from '@/composables/useSettingsItem';
+import useTheme from '@/composables/useTheme';
 import { forgetDesktopAccount, lastDesktopAccount } from '@/assets/desktopAccount';
 
 const props = defineProps<{ loading: boolean; error: boolean }>();
@@ -93,7 +93,7 @@ const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && props.loading) e
 onMounted(() => window.addEventListener('keydown', onKey));
 onUnmounted(() => window.removeEventListener('keydown', onKey));
 
-const { Item: theme } = useSettingsItem('theme', 'dark');
+const { resolvedTheme: theme } = useTheme();
 
 const known = ref(lastDesktopAccount());
 function forget() {

@@ -15,7 +15,7 @@ import ConnectionStatusBanner from './components/overlay/ConnectionStatusBanner.
 import RateLimitOverlay from './components/overlay/RateLimitOverlay.vue';
 import AiGatewayConsent from './components/common/AiGatewayConsent.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
-import useSettingsItem from './composables/useSettingsItem';
+import useTheme from './composables/useTheme';
 import { initKC, isTauriPlatform, loginWithSystemBrowser } from './assets/keycloak';
 import DesktopLogin from './components/auth/DesktopLogin.vue';
 import { rememberDesktopAccount } from './assets/desktopAccount';
@@ -37,7 +37,7 @@ import useFavicon from './composables/useFavicon';
 import { banned } from './composables/useBanStatus';
 
 const toast = useToast();
-const { Item: theme } = useSettingsItem('theme', 'dark');
+const { resolvedTheme: theme } = useTheme();
 const pin = ref<string>('');
 const pinLoading = ref<boolean>(false);
 
@@ -57,7 +57,7 @@ const handleSendMessageFromProfile = (targetUser: User) => {
 
 watch(() => theme.value, () => {
   document.body.className = theme.value;
-})
+}, { immediate: true })
 
 watch(() => E2EEUnloked.value, (isUnlocked) => {
   if (!isUnlocked) {

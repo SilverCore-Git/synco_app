@@ -303,7 +303,7 @@ import { clearInstallPending, extensionBrowser, isInstallPending } from '@/asset
 import useWSocket, { disconnectSocket } from '@/composables/useWSocket';
 import { lockSecurity } from '@/assets/utils/crypto';
 import { useToast } from '@/composables/useToast';
-import useSettingsItem from '@/composables/useSettingsItem';
+import useTheme from '@/composables/useTheme';
 import { ExtensionVault, forgetThisDevice, getLocalDevice, idbStore, switchVault, VaultError, type DevicePlatform, type DeviceVault, type VaultContext, type VaultKind } from '@/assets/deviceVault';
 import { EXTENSION_CANCELLED_HINT, unlockFailure } from '@/assets/e2eeV4/unlockFailure';
 import {
@@ -328,7 +328,7 @@ import {
 const props = defineProps<{ mode: 'unlock' | 'onboard' }>();
 
 const toast = useToast();
-const { Item: theme } = useSettingsItem('theme', 'dark');
+const { resolvedTheme: theme } = useTheme();
 
 type Step = 'loading' | 'unlock' | 'connect' | 'link' | 'link-sas' | 'recovery' | 'pin-recovery' | 'choose-pin' | 'onboard-intro' | 'onboard-recovery';
 const step = ref<Step>('loading');

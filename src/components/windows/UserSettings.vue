@@ -352,7 +352,24 @@
 
                             <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Thème global</h4>
 
-                            <div class="grid grid-cols-2 gap-4 max-w-md">
+                            <div class="grid grid-cols-3 gap-4 max-w-xl">
+
+                                <button 
+                                    class="relative overflow-hidden flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all duration-300"
+                                    :class="
+                                        theme == 'auto' 
+                                            ? 'border-(--primary) bg-(--primary)/5 scale-100 shadow-[0_0_20px_var(--primary-glow)]' 
+                                            : 'border-(--border-color) bg-(--bg2) hover:border-(--text)/20 scale-95 opacity-70 hover:opacity-100'
+                                    "
+                                    @click="theme = 'auto'"
+                                >
+                                    <div class="w-full h-24 rounded-lg border border-(--text)/10 flex items-center justify-center shadow-inner overflow-hidden relative bg-gray-100">
+                                        <div class="absolute inset-y-0 left-0 w-1/2 bg-(--bg)"></div>
+                                        <i class="bi bi-circle-half text-(--primary) text-3xl drop-shadow-md relative" />
+                                    </div>
+                                    <span class="font-bold text-(--text)">Auto</span>
+                                    <div v-if="theme == 'auto'" class="absolute top-2 right-2 w-3 h-3 bg-(--primary) rounded-full shadow-[0_0_10px_var(--primary)]"></div>
+                                </button>
 
                                 <button 
                                     class="relative overflow-hidden flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all duration-300"
@@ -611,6 +628,7 @@
 import { ref, reactive, watch, computed } from 'vue';
 import Window from './Window.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
+import useTheme from '@/composables/useTheme';
 import ProfileUploader from '../common/ProfileUploader.vue';
 import ConfirmDelete from '../common/ConfirmDelete.vue';
 import ActivityReports from '../settings/ActivityReports/index.vue';
@@ -642,7 +660,7 @@ const emit = defineEmits(['close']);
 const toast = useToast();
 const isV4 = computed(() => isV4Account(user.value?.pinSalt));
 
-const { Item: theme } = useSettingsItem('theme', 'dark');
+const { theme } = useTheme();
 const { Item: devMode } = useSettingsItem('devMode', false);
 const { Item: privacyMode } = useSettingsItem('privacyMode', false);
 
