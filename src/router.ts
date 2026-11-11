@@ -80,6 +80,16 @@ const routes = [
     meta: { overlay: true },
   },
 
+  // Liens de téléchargement reçus (destinataires d'un lien « utilisateurs »).
+  // Cible des notifications : /shared/<linkId>.
+  {
+    path: '/shared/:linkId?',
+    name: 'SharedWithMe',
+    component: () => import('./views/Shared/SharedWithMe.vue'),
+    props: true,
+    meta: { overlay: true },
+  },
+
   {
     path: '/support-panel',
     name: 'SupportPanel',

@@ -207,6 +207,9 @@ defineExpose({ close: () => dropDownRef.value?.closeDropdown() });
             <div class="h-px bg-(--text)/5 my-1" />
 
             <div class="p-1">
+                <router-link to="/shared" class="dropdown-item-style dropdown-item-annimate">
+                    <i class="bi bi-inbox mr-2" /> Partagés avec moi
+                </router-link>
                 <router-link to="/support" class="dropdown-item-style dropdown-item-annimate">
                     <i class="bi bi-life-preserver mr-2" /> Aide &amp; support
                     <div v-if="getUnreadCountForSupport > 0" class="ml-auto w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_var(--glow-danger-strong)]" />

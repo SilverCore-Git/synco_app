@@ -142,6 +142,9 @@ onMounted(async () => {
 
                     <div class="h-px bg-(--text)/5 my-1" />
                     <div class="p-1">
+                        <router-link to="/shared" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--text) hover:bg-(--text)/5 rounded-lg transition-colors">
+                            <i class="bi bi-inbox"></i> Partagés avec moi
+                        </router-link>
                         <router-link to="/support" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-(--text) hover:bg-(--text)/5 rounded-lg transition-colors">
                             <i class="bi bi-life-preserver"></i> Aide &amp; support
                             <div v-if="getUnreadCountForSupport > 0" class="ml-auto w-2 h-2 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_var(--glow-danger-strong)]" />
