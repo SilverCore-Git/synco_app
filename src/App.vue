@@ -12,6 +12,7 @@ import type { User } from '@/types/types';
 import Notifications from './components/overlay/Notifications.vue';
 import TransfersPanel from './components/overlay/TransfersPanel.vue';
 import ExtensionSuggestion from './components/overlay/ExtensionSuggestion.vue';
+import V4MigrationDialog from './components/e2ee/V4MigrationDialog.vue';
 import ConnectionStatusBanner from './components/overlay/ConnectionStatusBanner.vue';
 import RateLimitOverlay from './components/overlay/RateLimitOverlay.vue';
 import AiGatewayConsent from './components/common/AiGatewayConsent.vue';
@@ -21,7 +22,7 @@ import { initKC, isTauriPlatform, loginWithSystemBrowser } from './assets/keyclo
 import type { RouteLocationNormalizedLoaded } from 'vue-router';
 import DesktopLogin from './components/auth/DesktopLogin.vue';
 import { rememberDesktopAccount } from './assets/desktopAccount';
-import { E2EEUnloked, setupFirstTimeSecurityV3, unlockSecurity, unlockSecurityV3, SALT_V2_PREFIX, SALT_V3_PREFIX, privateKey, lockSecurity, assertOwnPublicKeyMatches, OwnKeyMismatchError, rewrapLegacyPrivateKeyV3, generateSigningKeypairForMigration } from './assets/utils/crypto';
+import { E2EEUnloked, setupFirstTimeSecurityV3, unlockSecurity, unlockSecurityV3, SALT_V2_PREFIX, SALT_V3_PREFIX, privateKey, lockSecurity, assertOwnPublicKeyMatches, OwnKeyMismatchError, rewrapLegacyPrivateKeyV3, generateSigningKeypairForMigration, openV3IdentityForMigration } from './assets/utils/crypto';
 import sfetch from './assets/utils/sfetch';
 import { useToast } from './composables/useToast';
 import TopBar from './components/layout/topBar.vue';
@@ -34,7 +35,8 @@ import Popup from './components/Popup.vue';
 import BannedScreen from './components/BannedScreen.vue';
 import { isProfileOpen, profileUser, closeProfile } from './composables/useProfile';
 import V4Gate from './components/e2ee/V4Gate.vue';
-import { isV4Account } from './assets/e2eeV4/runtime';
+import { isV4Account, sealedFrom } from './assets/e2eeV4/runtime';
+import { discardV3Migration, handOffV3Migration } from './assets/e2eeV4/v3MigrationHandoff';
 import useFavicon from './composables/useFavicon';
 import { banned } from './composables/useBanStatus';
 import { syncSystemBars } from './assets/nativeSystemBars';
@@ -67,6 +69,8 @@ watch(() => theme.value, () => {
 watch(() => E2EEUnloked.value, (isUnlocked) => {
   if (!isUnlocked) {
     pin.value = '';
+    // Clés v3 remises pour la migration mais pas encore prises : effacées au verrouillage.
+    discardV3Migration();
   }
 });
 
@@ -183,17 +187,28 @@ const migrateSigningKeyIfNeeded = async (pinValue: string, salt: string) => {
   }
 };
 
-// E2EE v4 (P5) : mise à niveau proposée, pas imposée — une seule fois par
-// compte et par appareil, la proposition reste ensuite dans les paramètres.
-const offerV4Upgrade = () => {
-  const key = `e2ee-v4-offer:${user.value?.id}`;
-  try {
-    if (localStorage.getItem(key)) return;
-    localStorage.setItem(key, '1');
-  } catch {
+// E2EE v4 (P5, §13.4) : mise à niveau proposée à CHAQUE ouverture d'un compte v3, pas imposée. L'utilisateur
+// accepte sur l'écran de déverrouillage, AVANT de saisir son PIN (même principe que la bascule vers Synco Extension
+// dans V4Gate) : le PIN déverrouille, puis ouvre une dernière fois les clés v3, remises à V4MigrationDialog
+// (v3MigrationHandoff.ts) qui continue sans le redemander. Le PIN n'est jamais gardé. Refusée : la proposition
+// revient au lancement suivant, et reste dans Paramètres › Appareils.
+const v4Offer = ref<'offered' | 'accepted' | 'dismissed'>('offered');
+const showV4Offer = computed(() => pinScheme.value === 'v3' && isUnlockMode.value && v4Offer.value !== 'dismissed');
+
+const startV4Migration = async (typedPin: string) => {
+  const u = user.value;
+  const later = "La mise à niveau n'a pas pu démarrer. Vous la retrouverez dans Paramètres › Appareils.";
+  // Clé de signature : créée juste avant par migrateSigningKeyIfNeeded pour les comptes v3 qui ne l'avaient pas.
+  if (!u?.pinSalt?.startsWith(SALT_V3_PREFIX) || !u.encryptedSignPrivateKey || !u.signKeyIv || !u.publicSignKey) {
+    toast.show(later, 'info', 8000);
     return;
   }
-  toast.show('Nouveau : utilisez Synco sur plusieurs appareils sans dépendre de votre code PIN. Paramètres › Appareils.', 'info', 12000);
+  try {
+    handOffV3Migration(await openV3IdentityForMigration(typedPin, u.pinSalt, sealedFrom(u), fetchWrapSecret));
+  } catch (e) {
+    console.warn('[E2EE v4] migration proposée à l\'ouverture :', e);
+    toast.show(later, 'info', 8000);
+  }
 };
 
 const press = (num: string) => {
@@ -269,8 +284,8 @@ const submit = async () => {
           // Salt toujours v3 ici (branche pinScheme === 'v3') : pas de
           // nouveau round-trip verifier, fetchWrapSecret suffit.
           await migrateSigningKeyIfNeeded(pin.value, user.value.pinSalt);
+          if (v4Offer.value === 'accepted') await startV4Migration(pin.value);
           pin.value = '';
-          offerV4Upgrade();
         } catch (e: any) {
           pin.value = '';
           if (e?.locked) {
@@ -792,6 +807,9 @@ onMounted(async () => {
           <!-- Suggestion de Synco Extension (appareil protégé par le seul PIN local), une fois l'app affichée -->
           <ExtensionSuggestion v-if="isLoaded" />
 
+          <!-- Migration v3 → v4 acceptée sur l'écran de déverrouillage : reprend avec les clés déjà ouvertes -->
+          <V4MigrationDialog v-if="isLoaded" takes-handoff />
+
         </div>
 
         <div class="w-full h-full" key="lock" v-else>
@@ -829,6 +847,23 @@ onMounted(async () => {
                 Attention : vos anciens messages deviendront indéchiffrables.
               </p>
 
+            </div>
+
+            <!-- Compte v3 : passage au chiffrement multi-appareil proposé à chaque ouverture. Le PIN saisi ensuite
+                 déverrouille ET sert à la migration : rien de plus à taper (startV4Migration). -->
+            <div v-if="showV4Offer" class="w-full max-w-sm mb-8 rounded-xl border border-(--border-color) bg-(--bg) px-4 py-3.5 text-left pin-step pin-step-2">
+              <template v-if="v4Offer === 'offered'">
+                <p class="text-sm text-(--text)"><strong>Nouveau : chiffrement multi-appareil.</strong> Vos messages sur tous vos appareils, sans code PIN à retenir.</p>
+                <p class="text-xs text-(--text2) mt-1">Les anciennes versions de l'application ne pourront plus ouvrir ce compte.</p>
+                <div class="flex items-center gap-4 mt-3">
+                  <button class="primary text-xs" @click="v4Offer = 'accepted'">Activer</button>
+                  <button class="text-xs text-(--text2) hover:text-(--text) transition-colors" @click="v4Offer = 'dismissed'">Pas maintenant</button>
+                </div>
+              </template>
+              <template v-else>
+                <p class="text-sm text-(--text)"><i class="bi bi-check2 text-(--primary) mr-1" aria-hidden="true" />Saisissez votre code PIN une dernière fois : vous choisirez ensuite comment déverrouiller cet appareil.</p>
+                <button class="text-xs text-(--text2) hover:text-(--text) transition-colors mt-2" @click="v4Offer = 'offered'">Annuler</button>
+              </template>
             </div>
 
             <div v-if="pinMaxLength === 4" class="flex gap-4 mb-10 transition-transform duration-300 pin-step pin-step-3">

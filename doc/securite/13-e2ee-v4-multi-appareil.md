@@ -219,7 +219,7 @@ Alertes : e-mail et notification in-app à l'ajout et au retrait d'un appareil. 
 
 ### 13.4 Migration v3 → v4 (P5)
 
-Proposée dans les paramètres (et signalée une fois par un message après un déverrouillage v3) : PIN v3 → mêmes PKCS#8 + preuve `verifier` → AK, DK, RK neuves → identité rescellée sous AK → `POST /init`, qui supprime `UserPinSecret`. Les clés publiques sont renvoyées **à l'identique** (chaîne stockée, pas la forme canonique), après vérification qu'elles correspondent aux clés privées. Comptes `v2:` (PIN long) : non éligibles pour l'instant (aucune preuve de PIN vérifiable par le serveur). Les comptes legacy passent d'abord en v3 au déverrouillage, comme avant.
+Proposée **à chaque ouverture** d'un compte v3, sur l'écran de déverrouillage (« Activer » / « Pas maintenant », sans mémoire d'un lancement à l'autre), et dans Paramètres › Appareils ; jamais imposée. Acceptée avant la saisie du PIN, comme la bascule vers Synco Extension : le PIN déverrouille, puis ouvre une dernière fois les clés v3 (`openV3IdentityForMigration`) ; ces octets, hors de tout état réactif, passent à la fenêtre de migration (`v3MigrationHandoff.ts`, `V4MigrationDialog.vue`), qui reprend au choix du verrou sans redemander le PIN, et sont effacés après usage, à une nouvelle remise ou au verrouillage. Le PIN n'est jamais conservé. Depuis les paramètres, le PIN est redemandé une dernière fois. Échec ou refus : le compte reste en v3. Migration : PIN v3 → mêmes PKCS#8 + preuve `verifier` → AK, DK, RK neuves → identité rescellée sous AK → `POST /init`, qui supprime `UserPinSecret`. Les clés publiques sont renvoyées **à l'identique** (chaîne stockée, pas la forme canonique), après vérification qu'elles correspondent aux clés privées. Comptes `v2:` (PIN long) : non éligibles pour l'instant (aucune preuve de PIN vérifiable par le serveur). Les comptes legacy passent d'abord en v3 au déverrouillage, comme avant.
 
 ### 13.5 Limites connues
 
@@ -232,7 +232,7 @@ Proposée dans les paramètres (et signalée une fois par un message après un d
 ### 13.6 À valider sur de vrais appareils
 
 Rien de ce qui suit n'a pu être lancé depuis l'environnement de développement :
-- parcours complet dans l'application : création v4, déverrouillage, ajout d'un second appareil par QR et par code, retrait, clé de récupération, réinitialisation, migration d'un compte v3 ;
+- parcours complet dans l'application : création v4, déverrouillage, ajout d'un second appareil par QR et par code, retrait, clé de récupération, réinitialisation, migration d'un compte v3 (depuis les paramètres, et proposée à l'ouverture : « Activer », un seul PIN, choix du verrou, clé de récupération ; « Pas maintenant » ; mauvais PIN avec « Activer » armé ; annulation du verrou, le compte restant en v3) ;
 - lecture du QR par la caméra : `BarcodeDetector` (Chrome, Android) et `jsqr` (Firefox, Safari, WebKitGTK), permission caméra Android (manifeste) et iOS (`NSCameraUsageDescription`, `Info.plist`) ;
 - passkey PRF (Chrome, Edge, Safari ; Firefox inégal), Face ID / Touch ID, empreinte Android, trousseau Tauri ;
 - téléchargement du fichier de clé de récupération dans Tauri et Capacitor.
