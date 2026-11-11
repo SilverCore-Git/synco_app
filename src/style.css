@@ -801,15 +801,15 @@ button.tab:not(.active) {
 @keyframes reveal-item-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .stagger-reveal [data-reveal-region] {
   animation: reveal-region-in 0.5s var(--reveal-ease) both;
-  animation-delay: calc(var(--r, 0) * 70ms);
+  animation-delay: calc(var(--reveal-base, 0ms) + var(--r, 0) * 70ms);
 }
 .stagger-reveal [data-reveal-list] > * {
   animation: reveal-item-in 0.45s var(--reveal-ease) both;
-  animation-delay: calc(var(--r, 0) * 70ms + 100ms + var(--a, 0) * var(--reveal-step));
+  animation-delay: calc(var(--reveal-base, 0ms) + var(--r, 0) * 70ms + 100ms + var(--a, 0) * var(--reveal-step));
 }
 .stagger-reveal [data-reveal-sublist] > * {
   animation: reveal-item-in 0.45s var(--reveal-ease) both;
-  animation-delay: calc(var(--r, 0) * 70ms + 100ms + (var(--a, 0) + var(--b, 0)) * var(--reveal-step));
+  animation-delay: calc(var(--reveal-base, 0ms) + var(--r, 0) * 70ms + 100ms + (var(--a, 0) + var(--b, 0)) * var(--reveal-step));
 }
 [data-reveal-list] > :nth-child(1) { --a: 0; }
 [data-reveal-list] > :nth-child(2) { --a: 1; }
@@ -843,7 +843,7 @@ button.tab:not(.active) {
 [data-reveal-sublist] > :nth-child(n+13) { --b: 12; }
 .stagger-reveal [data-reveal-subsublist] > * {
   animation: reveal-item-in 0.45s var(--reveal-ease) both;
-  animation-delay: calc(var(--r, 0) * 70ms + 100ms + (var(--a, 0) + var(--b, 0) + var(--c, 0)) * var(--reveal-step));
+  animation-delay: calc(var(--reveal-base, 0ms) + var(--r, 0) * 70ms + 100ms + (var(--a, 0) + var(--b, 0) + var(--c, 0)) * var(--reveal-step));
 }
 [data-reveal-subsublist] > :nth-child(1) { --c: 1; }
 [data-reveal-subsublist] > :nth-child(2) { --c: 2; }
@@ -861,6 +861,58 @@ button.tab:not(.active) {
 @media (prefers-reduced-motion: reduce) {
   .stagger-reveal [data-reveal-region], .stagger-reveal [data-reveal-list] > *,
   .stagger-reveal [data-reveal-sublist] > *, .stagger-reveal [data-reveal-subsublist] > * { animation: none; }
+}
+
+/* Ouverture d'une organisation depuis la liste (assets/orgOpen.ts) : les données sont déjà chargées quand on
+   navigue, la carte cliquée ayant porté l'attente. La liste s'efface PAR-DESSUS l'organisation en zoomant vers
+   la carte (--org-origin), pendant que l'organisation apparaît dessous par son apparition échelonnée, légèrement
+   retardée (--reveal-base) pour que les deux mouvements s'enchaînent au lieu de se superposer. Au retour, le
+   mouvement inverse : l'organisation s'efface au-dessus et la liste se dézoome depuis la carte. Gardé par
+   .org-nav-open / .org-nav-close (posés par le routeur sur #app-pages) : rien ne joue ailleurs. */
+.org-nav-open { --reveal-base: 120ms; }
+.org-nav-open .push-leave-active.org-list-page,
+.org-nav-close .push-leave-active.org-layout-page {
+  position: absolute; inset: 0; z-index: 200; pointer-events: none; /* au-dessus des panneaux fixed z-50 de l'organisation sur mobile */
+}
+.org-nav-open .push-leave-active.org-list-page,
+.org-nav-close .push-enter-active.org-list-page {
+  transform-origin: var(--org-origin, 50% 40%);
+  transition: opacity 0.36s cubic-bezier(0.4, 0, 0.2, 1), transform 0.55s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.org-nav-open .push-leave-to.org-list-page,
+.org-nav-close .push-enter-from.org-list-page { opacity: 0; transform: scale(1.12); }
+.org-nav-close .push-leave-active.org-layout-page {
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.org-nav-close .push-leave-to.org-layout-page { opacity: 0; transform: scale(0.98); }
+
+/* Carte en cours d'ouverture : soulignée, les autres s'estompent ; barre indéterminée en pied de carte, qui
+   n'apparaît qu'après 150 ms pour ne pas clignoter quand l'organisation arrive aussitôt. */
+.org-card { transition-property: opacity, filter, border-color, box-shadow, transform, translate, scale; }
+.org-card-opening {
+  border-color: color-mix(in srgb, var(--primary) 70%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 18%, transparent), 0 12px 32px var(--shadow-elevated);
+  translate: 0 -4px;
+  pointer-events: none;
+}
+.org-card-dimmed { opacity: 0.45; filter: saturate(0.6); pointer-events: none; }
+.org-card-progress {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 3px; overflow: hidden;
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  opacity: 0; animation: org-card-progress-in 0.2s ease 0.15s forwards;
+}
+.org-card-progress > span {
+  position: absolute; top: 0; bottom: 0; width: 40%; border-radius: 9999px; background: var(--primary);
+  animation: org-card-progress-slide 1s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+@keyframes org-card-progress-in { to { opacity: 1; } }
+@keyframes org-card-progress-slide { from { left: -40%; } to { left: 100%; } }
+@media (prefers-reduced-motion: reduce) {
+  .org-nav-open .push-leave-to.org-list-page,
+  .org-nav-close .push-enter-from.org-list-page,
+  .org-nav-close .push-leave-to.org-layout-page { transform: none; }
+  .org-nav-open { --reveal-base: 0ms; }
+  .org-card-opening { translate: none; }
 }
 
 /* Démarrage et déverrouillage : fondus croisés. L'écran qui part se met au-dessus et s'efface pendant que le

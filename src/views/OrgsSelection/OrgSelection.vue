@@ -14,6 +14,8 @@ import DropDown from '@/components/DropDown.vue';
 import UserSettings from '@/components/windows/UserSettings.vue';
 import { useSupportRole } from '@/composables/useSupportRole';
 import { useNotification } from '@/composables/useNotification';
+import { orgNav, orgOrigin, setOrgOriginFrom } from '@/assets/orgOpen';
+import { openedOrg } from '@/assets/var';
 
 const { isStaff: isSupportStaff } = useSupportRole();
 const { getUnreadCountForSupport, getUnreadCountForSupportStaff } = useNotification();
@@ -73,7 +75,16 @@ const createNewOrg = async () => {
 
 }
 
+const pageEl = ref<HTMLElement | null>(null);
+
 onMounted(async () => {
+    // Retour depuis une organisation : la page revient en se dézoomant depuis la carte de celle-ci. Posé ici,
+    // avant la première frame de la transition d'entrée, pour que l'origine soit la bonne dès le départ.
+    if (orgNav.value === 'close' && pageEl.value && openedOrg.value) {
+        const card = pageEl.value.querySelector(`[data-org-id="${CSS.escape(openedOrg.value.id)}"]`);
+        if (card) setOrgOriginFrom(card, pageEl.value);
+    }
+
     const res = await sfetch('/api/users/me/cancreateorg');
     const data = await res.json();
     canCreateOrg.value = data.canCreateOrg;
@@ -89,6 +100,11 @@ onMounted(async () => {
 </script>
 
 <template>
+
+    <!-- Racine unique : la <Transition> d'App.vue n'anime qu'un élément (Popup et UserSettings sont téléportés
+         dans body, les garder ici ne change rien à leur affichage). --org-origin : point vers lequel la page
+         zoome en partant vers une organisation, et d'où elle revient (style.css). -->
+    <div ref="pageEl" class="org-list-page h-full w-full" :style="{ '--org-origin': orgOrigin }">
 
     <div class="h-full bg-(--bg2) flex flex-col items-center p-6 md:p-12 font-sans overflow-x-hidden overflow-y-auto relative">
         
@@ -265,5 +281,7 @@ onMounted(async () => {
     </Popup>
 
     <UserSettings :is-open="showUserSettings" :initial-tab="userSettingsInitialTab" @close="showUserSettings = false" />
+
+    </div>
 
 </template>

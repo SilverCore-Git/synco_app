@@ -1,5 +1,6 @@
 <script setup lang="ts">
 
+import { orgNav } from './assets/orgOpen';
 import Loader from './components/LogoLoader.vue';
 import SpinLoader from './components/SpinLoader.vue';
 import ConnectionErrorScreen from './components/ConnectionErrorScreen.vue';
@@ -756,7 +757,7 @@ onMounted(async () => {
                ce court instant d'attente reste discret plutôt que de réafficher
                le plein écran logo+barre, qui donnait l'impression d'un rechargement. -->
           <Transition name="boot-cross">
-            <div v-if="isLoaded" id="app-pages" class="w-full h-full relative overflow-hidden animate-app-reveal" key="loaded">
+            <div v-if="isLoaded" id="app-pages" class="w-full h-full relative overflow-hidden animate-app-reveal" :class="orgNav && `org-nav-${orgNav}`" key="loaded">
               <!-- Transition "push" (src/style.css) : une route dont le
                    meta.overlay est vrai (/root, /support, /support-panel…)
                    glisse depuis la droite et recouvre la page du dessous au

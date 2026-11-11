@@ -713,7 +713,7 @@ onBeforeUnmount(async () => {
 
         <div
             class="
-                h-full w-full flex flex-row 
+                org-layout-page h-full w-full flex flex-row 
                 relative bg-(--bg) overflow-hidden
             "
             :class="{ 'stagger-reveal': revealing }"
