@@ -18,8 +18,12 @@ Préfixe `V4U` : intégration de l'extension et parcours UX de la v4.
 
 ## Résumé exécutif
 
-**4 constats : 2 moyens, 2 informatifs. Les 3 premiers sont corrigés ; reste une vérification de configuration de
+**5 constats : 1 haut, 2 moyens, 2 informatifs. Quatre sont corrigés ; restent une vérification de configuration de
 production (V4U2) et 4 erreurs de type sans effet (V4U4).**
+
+> **Constat dominant — [V4U5](./V4U5-code-de-reinitialisation-de-dev-actif-dans-l-image-de-prod.md)** : le code de
+> réinitialisation de dev (`454545`) restait actif dans l'image de production construite depuis `feat/e2ee-v4`
+> (`NODE_ENV` figé à `development` par `bun build`). Corrigé par le merge de `main` dans la branche.
 
 Le canal page ↔ extension tient : aucun chemin trouvé ne fait sortir DK, le PIN local ou une clé de la page, ni ne fait
 accepter un faux `ready` venu d'une autre fenêtre ou d'une autre origine. Le passage de l'extension à « Autoriser »
@@ -30,6 +34,7 @@ déplace une limite déjà documentée côté extension (M2, M12b), désormais �
 
 | ID | Titre | Sévérité | Statut |
 |---|---|---|---|
+| [V4U5](./V4U5-code-de-reinitialisation-de-dev-actif-dans-l-image-de-prod.md) | Code de réinitialisation de dev actif dans l'image de prod | 🟠 Haute | ✅ Corrigé (api `1abcc5c`, merge de `31527eb`) |
 | [V4U1](./V4U1-csp-desactivee-dans-l-arbre-de-travail.md) | CSP désactivée dans l'arbre de travail | 🟡 Moyenne | ✅ Corrigé (`dc650c2`) |
 | [V4U2](./V4U2-origine-du-keyguard-absente-de-la-csp.md) | Origine de synco_keyguard absente de la CSP | 🟡 Moyenne | ✅ Corrigé (`dc650c2`) · ⏳ config prod |
 | [V4U3](./V4U3-documentation-et-recette-restees-sur-le-pin-de-l-extension.md) | §16 et recette restées sur le PIN de l'extension | 🔵 Info | ✅ Corrigé (`b5d4f5b`) |
@@ -56,16 +61,23 @@ déplace une limite déjà documentée côté extension (M2, M12b), désormais �
 | Bascule PIN local → extension : le PIN local ne sert qu'à ouvrir l'ancien coffre ; ancien coffre vidé après écriture du nouveau | `V4Gate.vue`, `switchVault` | conforme |
 | Aucune formulation « vérifiée » / « authentique » pour la détection | interface | conforme |
 | Aucun `console.*` ne journalise DK, PIN, AK ou clé privée (seulement des objets d'erreur aux messages de l'app ; nom et message WebAuthn pour la passkey) | `deviceVault/`, `e2eeV4/`, `components/e2ee/` | conforme |
-| Code de dev `454545` (réinitialisation sans e-mail) : actif seulement si `NODE_ENV === 'development'` ; l'image publiée par la CI (`target: prod`) fixe `NODE_ENV=production` | `synco_api` `pinSecurityService.ts`, `Dockerfile` | conforme (ne jamais lancer la prod avec `NODE_ENV=development`) |
+| Code de dev `454545` (réinitialisation sans e-mail) : absent du bundle quand `NODE_ENV=production` au build | `synco_api` `pinSecurityService.ts`, `Dockerfile` | conforme **après V4U5** (avant : actif en prod) |
 | CSP de production générée : ni `localhost:*`, ni emplacement non résolu | `dist/index.html` | conforme après V4U1 |
 
 ## Vérifications
 
 - synco_app (copie propre de la branche) : `bun test` **438 réussis, 0 échec** ; `vue-tsc -b` : 4 erreurs (V4U4) ;
   `vite build` OK.
-- synco_api `feat/e2ee-v4` : `bun test` **350 réussis, 5 ignorés, 0 échec**.
+- synco_api `feat/e2ee-v4` (après merge de `main`) : `bun test` **350 réussis, 5 ignorés, 0 échec**.
 
 ## Non testé (navigateur réel requis)
 
 Toute la [recette de l'extension](../../doc/securite/13-e2ee-v4-recette-extension.md) (E01–E61), dans Chrome et Firefox,
 et le §13.6 de la spec (parcours sur de vrais appareils) : rien n'y a encore été validé.
+
+## Hors périmètre, à arbitrer avant publication
+
+L'[audit complet du 2 novembre](https://github.com/SilverCore-Git/synco_api/tree/audit/full-2026-11-02/audits/audit_full_2026-11-02)
+(branche `audit/full-2026-11-02`, non fusionnée) a été mené sur `main` et liste des constats ouverts qui touchent aussi
+le chiffrement, dont NF1 (PIN v3, critique : les comptes non migrés vers la v4 restent exposés), NF2, NF3, NA4 et des
+dépendances vulnérables (NA3, NF4). Ils ne sont pas réévalués ici.
