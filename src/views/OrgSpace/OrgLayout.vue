@@ -44,6 +44,9 @@ const { notify, notifications } = useNotifications();
 const { init: initNotifications } = useNotification();
 const { fetchRecentDMs, recordDMInteraction } = useRecentDMs();
 const route = useRoute();
+
+// Vues pleine largeur sans liste de salons (ThreadsBar).
+const showThreadsBar = computed(() => !['TasksGlobal', 'TasksGlobalArchived', 'AgendaGlobal', 'OrgHome'].includes(route.name as string));
 const toast = useToast();
 const { fetchPermissions } = usePermissions(computed(() => props.orgId));
 
@@ -727,7 +730,7 @@ onBeforeUnmount(async () => {
 
             <SpaceBar class="h-full" />
             <ThreadsBar
-                v-if="route.name !== 'TasksGlobal' && route.name !== 'TasksGlobalArchived' && route.name !== 'AgendaGlobal' && route.name !== 'OrgHome'"
+                v-if="showThreadsBar"
                 class="h-full " 
                 :class="[
                     isDesktopApp() ? 'rounded-tl-2xl' : '',
@@ -739,7 +742,7 @@ onBeforeUnmount(async () => {
                 v-if="!orgReady"
                 key="org-loading"
                 class="flex-1 h-full min-w-0 flex items-center justify-center bg-(--bg3) animate-app-reveal"
-                :class="isDesktopApp() ? 'border-t border-(--text)/10' : ''"
+                :class="isDesktopApp() ? ['border-t border-(--text)/10', !showThreadsBar && 'rounded-tl-2xl border-l'] : ''"
             >
                 <SpinLoader />
             </div>
@@ -750,6 +753,9 @@ onBeforeUnmount(async () => {
                     class="overflow-hidden bg-(--bg3)"
                     :class="[
                         isDesktopApp() ? 'border-t border-(--text)/10' : '',
+                        // Sans ThreadsBar (accueil, tâches, agenda), c'est le contenu qui
+                        // touche la SpaceBar sous la barre de titre : il porte l'arrondi.
+                        isDesktopApp() && !showThreadsBar && !isLittleScreen ? 'rounded-tl-2xl border-l' : '',
                         isLittleScreen ? 'fixed top-0 right-0 h-full w-full z-50 bg-(--bg) shadow-lg' : 'relative flex-1 h-full min-w-0',
                         orgContentRevealed ? '' : 'animate-app-reveal'
                     ]"
