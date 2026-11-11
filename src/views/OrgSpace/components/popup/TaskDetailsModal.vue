@@ -33,10 +33,22 @@
                 </p>
 
                 <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-semibold text-(--text2) uppercase">
-                    <span class="flex items-center gap-1 whitespace-nowrap">
+                    <!-- Une sous-tâche suit sa tâche parente : son space ne se change pas ici. -->
+                    <span v-if="task.parentTaskId" class="flex items-center gap-1 whitespace-nowrap">
                         <i class="bi bi-folder text-(--primary)/80"></i>
-                        {{ task.space?.name || 'Général' }}
+                        {{ currentSpaceName }}
                     </span>
+                    <button
+                        v-else
+                        type="button"
+                        @click="toggleSection('space')"
+                        class="flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-1 -mx-1.5 transition-colors"
+                        :class="activeSection === 'space' ? 'bg-(--primary)/15 text-(--primary)' : 'hover:bg-(--text)/5'"
+                        title="Cliquer pour déplacer la tâche dans un autre space"
+                    >
+                        <i class="bi bi-folder" :class="activeSection === 'space' ? 'text-(--primary)' : 'text-(--primary)/80'"></i>
+                        {{ currentSpaceName }}
+                    </button>
                     <span v-if="task?.creator" class="flex items-center gap-1.5 whitespace-nowrap">
                         <span class="text-(--text2)">Créée par</span>
                         <button @click.stop="(e) => task?.creator && openProfile(task.creator, e)" class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-(--text)/5 hover:bg-(--text)/10 border border-(--text)/10 text-(--text) font-bold transition-all shadow-sm" :title="'Profil de ' + $p(task.creator.name)">
@@ -208,6 +220,54 @@
                             <button v-if="editForm.dueDate" type="button" @click="editForm.dueDate = ''; editForm.dueTime = ''" class="text-(--text2) hover:text-red-500 transition-colors px-2" title="Retirer l'échéance">
                                 <i class="bi bi-x-lg"></i>
                             </button>
+                        </div>
+                    </template>
+
+                    <template v-else-if="activeSection === 'space'">
+                        <p class="text-xs font-bold text-(--text2) uppercase mb-2">Déplacer vers</p>
+
+                        <p v-if="task.attachments?.length || task._count?.attachments" class="text-xs text-amber-400 flex items-start gap-1.5 mb-2">
+                            <i class="bi bi-exclamation-triangle mt-0.5"></i>
+                            Les images jointes sont chiffrées avec la clé de ce space : retirez-les pour pouvoir déplacer la tâche.
+                        </p>
+
+                        <div v-if="spaceOptions.length > 8" class="relative mb-2">
+                            <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-sm"></i>
+                            <input
+                                v-model="searchSpace"
+                                placeholder="Rechercher un space..."
+                                class="w-full bg-(--surface-sunken) border border-(--text)/20 rounded-xl pl-9 pr-4 py-2 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
+                            />
+                        </div>
+
+                        <div class="max-h-48 overflow-y-auto flex flex-col gap-1">
+                            <button
+                                v-for="option in filteredSpaceOptions"
+                                :key="option.id ?? 'general'"
+                                type="button"
+                                @click="requestMove(option.id)"
+                                :disabled="loading || moving || option.id === (task.spaceId ?? null)"
+                                class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-left transition-colors disabled:cursor-default"
+                                :class="option.id === (task.spaceId ?? null) ? 'bg-(--primary)/10 text-(--primary) font-bold' : 'text-(--text) hover:bg-(--text)/5'"
+                            >
+                                <i :class="option.icon" class="w-4 text-center"></i>
+                                <span class="truncate flex-1">{{ option.name }}</span>
+                                <i v-if="option.id === (task.spaceId ?? null)" class="bi bi-check-lg"></i>
+                                <span v-else-if="pendingMove?.spaceId === option.id && moving" class="w-3.5 h-3.5 border-2 border-(--primary)/30 border-t-(--primary) rounded-full animate-spin"></span>
+                            </button>
+                        </div>
+
+                        <!-- Assignés qui ne verraient plus la tâche : on le dit avant de déplacer. -->
+                        <div v-if="pendingMove && pendingMove.removed.length" class="mt-3 p-3 rounded-lg bg-amber-400/10 border border-amber-400/30 text-xs text-(--text)">
+                            <p class="mb-2">
+                                <b>{{ pendingMove.removed.map(m => $p(m.name)).join(', ') }}</b>
+                                {{ pendingMove.removed.length > 1 ? 'ne font pas partie' : 'ne fait pas partie' }}
+                                de « {{ pendingMove.name }} » et {{ pendingMove.removed.length > 1 ? 'seront retirés' : 'sera retiré(e)' }} des assignés.
+                            </p>
+                            <div class="flex gap-2 justify-end">
+                                <button type="button" class="default text-xs!" @click="pendingMove = null">Annuler</button>
+                                <button type="button" class="primary text-xs!" :disabled="moving" @click="moveTask(pendingMove.spaceId)">Déplacer quand même</button>
+                            </div>
                         </div>
                     </template>
 
@@ -414,7 +474,7 @@ import sfetch from '@/assets/utils/sfetch';
 import { useRoute, useRouter } from 'vue-router';
 import { useToast } from '@/composables/useToast';
 import confetti from 'canvas-confetti';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, user } from '@/assets/var';
 import { openProfile } from '@/composables/useProfile';
 import uploadFile from '@/assets/uploadFile';
 import { getFilePreviewUrl } from '@/assets/utils/downloadFile';
@@ -684,11 +744,86 @@ const editForm = reactive({
     tagIds: [] as string[]
 });
 
-type Section = 'date' | 'assignees' | 'tags' | 'linkedFiles';
+type Section = 'date' | 'space' | 'assignees' | 'tags' | 'linkedFiles';
 const activeSection = ref<Section | null>(null);
 
 const toggleSection = (key: Section) => {
     activeSection.value = activeSection.value === key ? null : key;
+    pendingMove.value = null;
+    searchSpace.value = '';
+};
+
+// ── Déplacer la tâche : Général ou un space dont on est membre ─────────
+const currentSpaceName = computed(() => {
+    if (!props.task?.spaceId) return 'Général';
+    return props.task.space?.name
+        || openedOrg.value?.spaces?.find(s => s.id === props.task!.spaceId)?.name
+        || 'Space';
+});
+
+const spaceOptions = computed<Array<{ id: string | null; name: string; icon: string }>>(() => {
+    const myId = user.value?.id;
+    const spaces = (openedOrg.value?.spaces ?? [])
+        .filter(s => !myId || s.membersId?.includes(myId))
+        .map(s => ({ id: s.id, name: s.name, icon: 'bi bi-grid' }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    return [{ id: null, name: 'Général', icon: 'bi bi-house' }, ...spaces];
+});
+
+const searchSpace = ref('');
+const filteredSpaceOptions = computed(() => {
+    const q = searchSpace.value.trim().toLowerCase();
+    return q ? spaceOptions.value.filter(o => o.name.toLowerCase().includes(q)) : spaceOptions.value;
+});
+
+const moving = ref(false);
+const pendingMove = ref<{ spaceId: string | null; name: string; removed: Array<{ id: string; name: string }> } | null>(null);
+
+/** Assignés qui ne sont pas membres du space visé (Général : personne). */
+const assigneesOutside = (spaceId: string | null) => {
+    if (!spaceId) return [];
+    const space = openedOrg.value?.spaces?.find(s => s.id === spaceId);
+    const assignees = props.task?.assignees ?? [];
+    return assignees.filter(a => !space?.membersId?.includes(a.id)).map(a => ({ id: a.id, name: a.name }));
+};
+
+const requestMove = (spaceId: string | null) => {
+    const removed = assigneesOutside(spaceId);
+    const name = spaceOptions.value.find(o => o.id === spaceId)?.name ?? 'Space';
+    pendingMove.value = { spaceId, name, removed };
+    if (removed.length === 0) moveTask(spaceId);
+};
+
+const moveTask = async (spaceId: string | null) => {
+    if (!props.task || moving.value) return;
+    moving.value = true;
+    try {
+        const removed = new Set(assigneesOutside(spaceId).map(a => a.id));
+        const assigneeIds = (props.task.assignees ?? []).map(a => a.id).filter(id => !removed.has(id));
+        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${props.task.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ spaceId, assigneeIds }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            toast.show(err.error || 'Impossible de déplacer la tâche', 'error');
+            return;
+        }
+        const updated = await res.json();
+        // Le formulaire suit sans relancer d'enregistrement automatique.
+        initializing = true;
+        editForm.assigneeIds = assigneeIds;
+        await nextTick();
+        initializing = false;
+        emit('update', updated);
+        toast.show(`Tâche déplacée vers « ${pendingMove.value?.name ?? 'Général'} »`, 'success');
+        pendingMove.value = null;
+        activeSection.value = null;
+    } catch {
+        toast.show('Impossible de déplacer la tâche', 'error');
+    } finally {
+        moving.value = false;
+    }
 };
 
 const dueDateLabel = computed(() => {
