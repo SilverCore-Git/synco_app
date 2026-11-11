@@ -67,6 +67,8 @@ export interface ShareLinkSummary {
     fileId: string | null;
     folderId: string | null;
     workspaceId: string;
+    /** Nom du fichier ou du dossier ; null hors de son espace. */
+    targetName: string | null;
     keyVersion: number;
     /** Null si l'on n'est pas membre de l'espace (secret illisible de toute façon). */
     wrappedSecret: string | null;

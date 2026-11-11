@@ -212,6 +212,12 @@ const routes = [
             component: () => import('./views/OrgSpace/views/settings/views/StorageSettings.vue'),
           },
           {
+            path: 'links',
+            name: 'OrgSettingsLinks',
+            props: true,
+            component: () => import('./views/OrgSpace/views/settings/views/LinksSettings.vue'),
+          },
+          {
             path: 'stats',
             name: 'OrgSettingsStats',
             props: true,

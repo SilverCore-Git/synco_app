@@ -48,6 +48,12 @@ const settingsViews: settingsView[] = [
         permission: 'ORG_AI'
     },
     {
+        name: 'Liens de partage',
+        icon: 'bi-box-arrow-up-right',
+        route: 'OrgSettingsLinks',
+        permission: 'ORG_STORAGE'
+    },
+    {
         // Ouvert aussi par SPACE_STATS sur un seul space : voir useSettingsAccess.
         name: 'Statistiques',
         icon: 'bi-bar-chart-line-fill',

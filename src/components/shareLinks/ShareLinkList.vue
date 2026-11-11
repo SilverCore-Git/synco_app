@@ -19,7 +19,7 @@
             </div>
             <p class="text-[11px] text-(--text2) truncate">
               <template v-if="showTarget">
-                <i :class="link.folderId ? 'bi bi-folder' : 'bi bi-file-earmark'" class="mr-0.5" />{{ link.folderId ? 'Dossier' : 'Fichier' }} ·
+                <i :class="link.folderId ? 'bi bi-folder' : 'bi bi-file-earmark'" class="mr-0.5" />{{ link.targetName ?? (link.folderId ? 'Dossier' : 'Fichier') }} ·
               </template>
               Par {{ $p(link.createdBy.name) }} · {{ formatDate(link.createdAt) }}
             </p>
