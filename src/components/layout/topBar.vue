@@ -52,7 +52,6 @@ onBeforeUnmount(() => unlisteners.forEach((u) => u()));
 
         <!-- Gauche : marque (sur macOS, place laissée au feu tricolore natif) -->
         <div class="flex items-center gap-2 h-full min-w-0" :class="mac ? 'pl-20' : 'pl-3'">
-            <img src="/assets/logo/synco/favicon_synco.svg" alt="" class="w-4 h-4" draggable="false" />
             <img
                 :src="resolvedTheme === 'light' ? '/assets/logo/synco/light_banner_synco.svg' : '/banner.svg'"
                 alt="Synco"
