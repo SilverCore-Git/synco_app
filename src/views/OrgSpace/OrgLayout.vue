@@ -732,7 +732,12 @@ onBeforeUnmount(async () => {
             <template v-else>
 
             <!-- Ouverture : chaque zone arrive à son tour (--r), puis ses éléments un par un (style.css) -->
-            <SpaceBar class="h-full" data-reveal-region style="--r: 0" />
+            <!-- relative z-1 : la liste des salons glisse SOUS la barre des espaces quand elle entre ou sort -->
+            <SpaceBar class="h-full relative z-1" data-reveal-region style="--r: 0" />
+            <!-- Accueil, tâches, agenda n'ont pas de liste des salons : elle glisse et se replie au lieu
+                 d'apparaître ou de disparaître d'un coup (style.css, « Liste des salons »). Pas sur petit
+                 écran, où elle occupe toute la largeur. -->
+            <Transition :name="isLittleScreen ? '' : 'threads-bar'">
             <ThreadsBar
                 v-if="showThreadsBar"
                 data-reveal-region
@@ -743,6 +748,7 @@ onBeforeUnmount(async () => {
                     isLittleScreen ? 'flex-1 min-w-0' : 'w-60 max-w-60 min-w-60'
                 ]" 
             />
+            </Transition>
 
             <div
                 v-if="!orgReady"
