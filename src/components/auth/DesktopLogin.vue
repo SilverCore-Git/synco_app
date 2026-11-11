@@ -45,6 +45,8 @@
                     <i class="bi bi-box-arrow-up-right" aria-hidden="true" />
                 </button>
 
+                <button v-if="loading" class="cancel" @click="emit('cancel')">Annuler</button>
+
                 <p v-if="error" class="error" role="alert">
                     <i class="bi bi-exclamation-circle" aria-hidden="true" />
                     La connexion n'a pas abouti. Le navigateur a peut-être été fermé avant la fin.
@@ -79,12 +81,17 @@
  * étapes, suivies en direct pendant l'attente. S'il connaît le prénom du dernier compte ouvert sur cet
  * ordinateur (rememberDesktopAccount), il l'accueille par son nom ; rien d'autre n'est gardé.
  */
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import useSettingsItem from '@/composables/useSettingsItem';
 import { forgetDesktopAccount, lastDesktopAccount } from '@/assets/desktopAccount';
 
 const props = defineProps<{ loading: boolean; error: boolean }>();
-const emit = defineEmits<{ login: [] }>();
+const emit = defineEmits<{ login: []; cancel: [] }>();
+
+// Échap annule l'attente, comme le lien « Annuler ».
+const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && props.loading) emit('cancel'); };
+onMounted(() => window.addEventListener('keydown', onKey));
+onUnmounted(() => window.removeEventListener('keydown', onKey));
 
 const { Item: theme } = useSettingsItem('theme', 'dark');
 
@@ -157,6 +164,9 @@ const MESSAGES = [
 
 .cta { gap: 0.625rem; padding-block: 0.85em; }
 .cta i { font-size: 0.875rem; }
+
+.cancel { display: block; margin: 0.875rem auto 0; padding: 0.25rem 0.5rem; font-size: 0.875rem; color: var(--text2); text-underline-offset: 3px; transition: color 0.15s ease; }
+.cancel:hover { color: var(--text); text-decoration: underline; }
 
 .error { display: flex; align-items: flex-start; gap: 0.5rem; margin-top: 0.875rem; font-size: 0.8125rem; line-height: 1.45; color: #ef4444; }
 .error i { margin-top: 0.1rem; }

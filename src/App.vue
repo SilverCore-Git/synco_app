@@ -480,12 +480,22 @@ const finishAuthInit = async () => {
   bootProgress.value = 100;
 };
 
+let tauriLoginAbort: AbortController | null = null;
+
+/** « Annuler » pendant l'attente du navigateur : retour à l'écran de connexion, sans message d'erreur. */
+const cancelTauriLogin = () => {
+  tauriLoginAbort?.abort();
+};
+
 const handleTauriLogin = async () => {
   tauriLoginLoading.value = true;
   tauriLoginError.value = false;
+  const abort = new AbortController();
+  tauriLoginAbort = abort;
 
   try {
-    const success = await loginWithSystemBrowser();
+    const success = await loginWithSystemBrowser(abort.signal);
+    if (abort.signal.aborted) return;
     authenticated.value = success;
 
     if (success) {
@@ -502,6 +512,7 @@ const handleTauriLogin = async () => {
     console.error('Error during Tauri login:', error);
     tauriLoginError.value = true;
   } finally {
+    if (tauriLoginAbort === abort) tauriLoginAbort = null;
     tauriLoginLoading.value = false;
   }
 };
@@ -687,7 +698,7 @@ onMounted(async () => {
          ici, mais tant que l'utilisateur n'a pas cliqué "Se connecter" on
          reste sur ce bouton plutôt que le loader ci-dessous. -->
     <div v-else-if="isTauri && !authenticated" class="h-full w-full">
-      <DesktopLogin :loading="tauriLoginLoading" :error="tauriLoginError" @login="handleTauriLogin" />
+      <DesktopLogin :loading="tauriLoginLoading" :error="tauriLoginError" @login="handleTauriLogin" @cancel="cancelTauriLogin" />
     </div>
 
     <!-- Fenêtre de démarrage : soit le loader (logo + barre de progression),
