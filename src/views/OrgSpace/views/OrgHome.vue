@@ -70,19 +70,25 @@
                 />
             </section>
 
-            <div class="home-grid">
-                <NotificationsCard ref="notificationsCard" class="span-7" />
-                <UpcomingHoursCard
-                    v-if="agendaEnabled"
-                    class="span-5"
-                    :days="days"
-                    :loading="agendaLoading"
-                    :error="agendaError"
-                    :now="now"
-                    @retry="orgId && startAgenda(orgId)"
-                />
-                <TodosCard v-if="todoEnabled" ref="todosCard" :key="tasksKey" class="span-7" />
-                <ActiveSpacesCard class="span-5" />
+            <!-- Deux colonnes indépendantes : une carte courte (rien à répondre)
+                 laisse la suivante remonter au lieu de laisser un trou de rangée. -->
+            <div class="home-cols">
+                <div class="home-col home-col-main">
+                    <NotificationsCard ref="notificationsCard" class="order-1" />
+                    <TodosCard v-if="todoEnabled" ref="todosCard" :key="tasksKey" class="order-3" />
+                </div>
+                <div class="home-col home-col-side">
+                    <UpcomingHoursCard
+                        v-if="agendaEnabled"
+                        class="order-2"
+                        :days="days"
+                        :loading="agendaLoading"
+                        :error="agendaError"
+                        :now="now"
+                        @retry="orgId && startAgenda(orgId)"
+                    />
+                    <ActiveSpacesCard class="order-4" />
+                </div>
             </div>
         </main>
     </div>
@@ -257,30 +263,33 @@ const findingParts = computed(() => {
 }
 .home-quick:active { transform: scale(0.95); }
 
-.home-grid {
-    display: grid;
-    grid-template-columns: repeat(12, minmax(0, 1fr));
+.home-cols {
+    display: flex;
     gap: 1.25rem;
-    align-items: start;
+    align-items: flex-start;
 }
-.span-7 { grid-column: span 7; }
-.span-5 { grid-column: span 5; }
+.home-col {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    min-width: 0;
+}
+/* Mêmes proportions que le haut de page (7/5). */
+.home-col-main { flex: 7 1 0; }
+.home-col-side { flex: 5 1 0; }
+.home-col:empty { display: none; }
 
-/* Cartes à défilement interne : la page garde ses deux rangées lisibles. */
-.home-grid > * {
+/* Cartes à défilement interne : aucune ne s'étire sur toute la page. */
+.home-col > * {
     max-height: min(34rem, calc(100vh - 160px));
 }
 
-/* Une carte seule sur sa rangée (module désactivé) prend toute la largeur. */
-.home-grid > .span-7:last-child,
-.home-grid > .span-7:has(+ .span-7),
-.home-grid > .span-5 + .span-5 {
-    grid-column: 1 / -1;
-}
-
+/* Écran étroit : une seule pile, dans l'ordre d'urgence
+   (répondre, prochaines heures, tâches, espaces). */
 @media (max-width: 1100px) {
     .home-hero { grid-template-columns: 1fr; }
-    .span-7, .span-5 { grid-column: 1 / -1; }
-    .home-grid > * { max-height: none; }
+    .home-cols { flex-direction: column; align-items: stretch; }
+    .home-col { display: contents; }
+    .home-col > * { max-height: none; }
 }
 </style>
