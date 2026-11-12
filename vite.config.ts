@@ -126,6 +126,27 @@ function firebaseSwPlugin(): Plugin {
   };
 }
 
+// Développement seulement : /l/<id> (adresse d'un lien de téléchargement) est servi par la page
+// publique, un serveur Vite à part (npm run dev:share, vite.share.config.ts). Une redirection 302 garde
+// le fragment #secret : le navigateur le reporte sur la nouvelle adresse, il n'est jamais envoyé ici.
+function shareLinkDevRedirectPlugin(): Plugin {
+  return {
+    name: 'share-link-dev-redirect',
+    apply: 'serve',
+    configureServer(server) {
+      const shareUrl = (getEnvValue('VITE_SHARE_URL', 'http://localhost:5175') || 'http://localhost:5175').replace(/\/+$/, '');
+      server.middlewares.use((req, res, next) => {
+        const match = /^\/l\/([A-Za-z0-9_-]{22})\/?$/.exec((req.url ?? '').split('?')[0] ?? '');
+        if (!match) return next();
+        res.statusCode = 302;
+        res.setHeader('Location', `${shareUrl}/l/${match[1]}`);
+        res.setHeader('Cache-Control', 'no-store');
+        res.end();
+      });
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
     vue(),
@@ -133,6 +154,7 @@ export default defineConfig({
     useHttps && !devTls ? basicSsl() : undefined,
     devLanCspPlugin(),
     firebaseSwPlugin(),
+    shareLinkDevRedirectPlugin(),
   ].filter(Boolean),
   resolve: {
     alias: {
