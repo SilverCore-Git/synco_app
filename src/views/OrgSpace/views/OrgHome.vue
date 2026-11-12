@@ -28,7 +28,12 @@
             </div>
         </div>
 
-        <main data-reveal-list class="flex-1 overflow-y-auto p-4 md:p-7 flex flex-col gap-5">
+        <!-- Marge basse = hauteur de la user card (mesurée par UserCard.vue) pour que le bas des cartes ne passe pas dessous. -->
+        <main
+            data-reveal-list
+            class="flex-1 overflow-y-auto p-4 md:p-7 flex flex-col gap-5"
+            :style="{ paddingBottom: userCardHeight + 24 + 'px' }"
+        >
             <!-- Maintenant : le salut, le constat du moment et le prochain rendez-vous -->
             <section class="home-hero">
                 <div class="flex flex-col justify-center gap-3 min-w-0 py-1">
@@ -85,7 +90,7 @@
 
 <script lang="ts" setup>
 import { computed, getCurrentInstance, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
-import { user, openedOrg, todoEnabled, agendaEnabled, aiEnabled } from '@/assets/var';
+import { user, openedOrg, todoEnabled, agendaEnabled, aiEnabled, userCardHeight } from '@/assets/var';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import { useStaggerReveal } from '@/composables/useStaggerReveal';
 import { useUpcomingAgenda } from '@/composables/useUpcomingAgenda';
