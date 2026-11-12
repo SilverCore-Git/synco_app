@@ -451,6 +451,14 @@ watch(() => route.query.eventId, (eventId) => {
     if (typeof eventId === 'string' && eventId) openEventFromNotification(eventId);
 }, { immediate: true });
 
+// « Nouvel évènement » depuis l'accueil ('/:orgId/agenda?create=1') : ouvre
+// le panneau de création vierge, puis retire le paramètre comme pour eventId.
+watch(() => route.query.create, (create) => {
+    if (create !== '1') return;
+    openCreateBlank();
+    router.replace({ query: { ...route.query, create: undefined } });
+}, { immediate: true });
+
 function clearSelectionIfCreating() {
     if (!selectedOccurrence.value) selectionRange.value = null;
 }
