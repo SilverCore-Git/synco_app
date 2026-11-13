@@ -89,7 +89,7 @@
 <script lang="ts" setup>
 
 import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import type { Socket } from 'socket.io-client';
 import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { decryptMessages } from '@/assets/utils/decryptMessages';
@@ -111,6 +111,7 @@ import { STATUS_COLORS, PRIORITY_COLORS, statusLabel, priorityLabel } from './su
 
 const route = useRoute();
 const toast = useToast();
+const router = useRouter();
 const { role } = useSupportRole();
 const { markSupportTicketAsRead } = useNotification();
 
@@ -186,6 +187,10 @@ useSupportTicketEvents({
     ticketId,
     onTicketUpdated: (t) => { if (t.id === ticket.value?.id) ticket.value = t; },
     onEvent: (ev) => { if (ev.ticketId === ticket.value?.id) events.value = [...events.value, ev]; },
+    onTicketDeleted: () => {
+        toast.show("Ce ticket a été supprimé par l'équipe support.", 'info');
+        void router.replace('/support');
+    },
 });
 
 const close = async () => {

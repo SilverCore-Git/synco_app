@@ -556,6 +556,14 @@ export function useNotification() {
         if (n.data?.ticketId === data.ticketId) n.isRead = true;
       });
     });
+
+    // Ticket supprimé par l'équipe : l'API a déjà effacé ses notifications
+    // en base, on les retire aussi de la liste en mémoire (sinon elles
+    // gonfleraient le compteur jusqu'au prochain rechargement).
+    socket.value.on('support:ticket-deleted', (data: { ticketId?: string }) => {
+      if (!data?.ticketId) return;
+      notifications.value = notifications.value.filter(n => n.data?.ticketId !== data.ticketId);
+    });
   };
 
   // Types traités comme des demandes/réponses actionnables (comme un appel

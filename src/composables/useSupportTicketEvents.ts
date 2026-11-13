@@ -15,7 +15,7 @@ import { resolveTicketTitle } from '@/services/support/tickets';
 
 /**
  * Temps réel des tickets (SUPPORT_FEATURE.md §6) : `support:ticket-updated`,
- * `support:ticket-created` (équipe) et `support:event`. Pour l'équipe, le
+ * `support:ticket-created` (équipe), `support:ticket-deleted` et `support:event`. Pour l'équipe, le
  * socket rejoint la room `support-staff` (`support:subscribe-staff`), et la
  * rejoint de nouveau après une reconnexion.
  *
@@ -32,6 +32,8 @@ export interface SupportTicketEventsOptions {
     /** Équipe seulement. */
     onTicketCreated?: (ticket: SupportTicketStaffDTO) => void;
     onEvent?: (event: SupportTicketEventDTO) => void;
+    /** Ticket supprimé définitivement par l'équipe. */
+    onTicketDeleted?: (ticketId: string) => void;
 }
 
 // L'API émet `{ scope, ticket }` (et non le DTO seul comme l'écrit la spec) :
@@ -85,6 +87,10 @@ export function useSupportTicketEvents(options: SupportTicketEventsOptions): () 
         if (!raw?.ticketId || !matches(raw.ticketId)) return;
         options.onEvent?.(normalizeEvent(raw));
     };
+    const onDeleted = (payload: { ticketId?: string }) => {
+        if (!payload?.ticketId || !matches(payload.ticketId)) return;
+        options.onTicketDeleted?.(payload.ticketId);
+    };
     const subscribeStaff = () => {
         if (options.scope !== 'staff' || !socket) return;
         emitWithAck(socket, 'support:subscribe-staff', {})
@@ -97,6 +103,7 @@ export function useSupportTicketEvents(options: SupportTicketEventsOptions): () 
         s.on('support:ticket-updated', onUpdated);
         s.on('support:ticket-created', onCreated);
         s.on('support:event', onEvent);
+        s.on('support:ticket-deleted', onDeleted);
         // Les rooms sont perdues à la reconnexion : on rejoint de nouveau.
         s.on('connect', subscribeStaff);
         subscribeStaff();
@@ -108,6 +115,7 @@ export function useSupportTicketEvents(options: SupportTicketEventsOptions): () 
         socket.off('support:ticket-updated', onUpdated);
         socket.off('support:ticket-created', onCreated);
         socket.off('support:event', onEvent);
+        socket.off('support:ticket-deleted', onDeleted);
         socket.off('connect', subscribeStaff);
         socket = null;
     };
@@ -167,6 +175,7 @@ export function useClientSupportTickets() {
     useSupportTicketEvents({
         scope: 'client',
         onTicketUpdated: (t) => { if (!isStaffTicket(t)) upsert(t); },
+        onTicketDeleted: (id) => { tickets.value = tickets.value.filter(x => x.id !== id); },
     });
 
     void reload();
@@ -248,6 +257,7 @@ export function useStaffSupportTickets(filters: MaybeRefOrGetter<Omit<SupportSta
         scope: 'staff',
         onTicketUpdated: (t) => { if (isStaffTicket(t)) apply(t); },
         onTicketCreated: apply,
+        onTicketDeleted: (id) => { tickets.value = tickets.value.filter(x => x.id !== id); },
     });
 
     watch(() => JSON.stringify(toValue(filters)), () => { void reload(); }, { immediate: true });

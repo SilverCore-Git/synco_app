@@ -103,6 +103,8 @@ export const supportApi = {
         call<SupportTicketStaffDTO>(`${BASE}/tickets/${enc(id)}/release`, { method: 'POST' }),
     patchTicket: (id: string, body: { priority?: SupportTicketPriority; status?: SupportTicketStatus }) =>
         call<SupportTicketStaffDTO>(`${BASE}/tickets/${enc(id)}`, { method: 'PATCH', body }),
+    /** Suppression définitive (équipe support, modérateurs compris). */
+    deleteTicket: (id: string) => call<{ success: true }>(`${BASE}/tickets/${enc(id)}`, { method: 'DELETE' }),
     setTicketTags: (id: string, tagIds: string[]) =>
         call<SupportTicketStaffDTO>(`${BASE}/tickets/${enc(id)}/tags`, { method: 'PUT', body: { tagIds } }),
     /** Message épinglé du fil INTERNAL (équipe), même hors de l'historique chargé. */
