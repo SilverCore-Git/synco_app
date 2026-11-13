@@ -183,6 +183,13 @@ pub fn run() {
                 )?;
             }
 
+            #[cfg(desktop)]
+            {
+                // Mises à jour : vérification/téléchargement pilotés côté front (useAppUpdater.ts).
+                app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+                app.handle().plugin(tauri_plugin_process::init())?;
+            }
+
             #[cfg(any(windows, target_os = "linux"))]
             {
                 use tauri_plugin_deep_link::DeepLinkExt;

@@ -39,3 +39,8 @@ tauri-plugin-single-instance = "2"
 # vivait en clair dans localStorage sur Tauri (audit FC9). Mobile (Android/
 # iOS) passe par un mécanisme Capacitor séparé côté JS, pas par ce crate.
 keyring = { version = "=3.6.3", features = ["apple-native", "windows-native", "sync-secret-service"] }
+# Auto-update depuis les releases GitHub (latest.json signé, cf. release_main.yml) et relance
+# de l'app après installation. Bornés à ~2.12 / ~2.3 : les versions suivantes exigent tauri ^2.12,
+# et le paquet npm du même nom doit rester sur la même minor (contrôle du CLI Tauri).
+tauri-plugin-updater = "~2.12"
+tauri-plugin-process = "~2.3"

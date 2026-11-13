@@ -12,6 +12,7 @@ import type { User } from '@/types/types';
 import Notifications from './components/overlay/Notifications.vue';
 import TransfersPanel from './components/overlay/TransfersPanel.vue';
 import ExtensionSuggestion from './components/overlay/ExtensionSuggestion.vue';
+import UpdateAvailable from './components/overlay/UpdateAvailable.vue';
 import V4MigrationDialog from './components/e2ee/V4MigrationDialog.vue';
 import ConnectionStatusBanner from './components/overlay/ConnectionStatusBanner.vue';
 import RateLimitOverlay from './components/overlay/RateLimitOverlay.vue';
@@ -806,6 +807,9 @@ onMounted(async () => {
 
           <!-- Suggestion de Synco Extension (appareil protégé par le seul PIN local), une fois l'app affichée -->
           <ExtensionSuggestion v-if="isLoaded" />
+
+          <!-- Mise à jour de l'app desktop (tauri-plugin-updater), inerte hors Tauri -->
+          <UpdateAvailable v-if="isLoaded" />
 
           <!-- Migration v3 → v4 acceptée sur l'écran de déverrouillage : reprend avec les clés déjà ouvertes -->
           <V4MigrationDialog v-if="isLoaded" takes-handoff />
