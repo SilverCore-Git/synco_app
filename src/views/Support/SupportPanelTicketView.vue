@@ -284,6 +284,10 @@ const load = async () => {
     loadingInternal.value = true;
     publicKeyError.value = null;
     internalKeyError.value = null;
+    // Avant l'ouverture, pas après : un ticket supprimé ou devenu
+    // inaccessible (404/403) laissait sinon ses notifications non lues pour
+    // toujours, aucune autre ouverture ne pouvant plus les solder.
+    void markSupportTicketAsRead(ticketId.value);
     try {
         const opened = await openSupportTicket(ticketId.value);
         if (!('creator' in opened.ticket)) throw new Error("Accès refusé : ce ticket n'est pas visible par l'équipe.");
@@ -294,7 +298,6 @@ const load = async () => {
         publicKeyError.value = opened.publicKeyError;
         internalKeyError.value = opened.internalKeyError;
         loadingTicket.value = false;
-        void markSupportTicketAsRead(ticketId.value);
 
         await Promise.all([
             loadEvents(),

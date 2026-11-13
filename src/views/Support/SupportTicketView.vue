@@ -149,6 +149,10 @@ const load = async () => {
     loadingTicket.value = true;
     loadingMessages.value = true;
     publicKeyError.value = null;
+    // Avant l'ouverture, pas après : un ticket supprimé ou devenu
+    // inaccessible (404/403) laissait sinon ses notifications non lues pour
+    // toujours, aucune autre ouverture ne pouvant plus les solder.
+    void markSupportTicketAsRead(ticketId.value);
     try {
         const opened = await openSupportTicket(ticketId.value);
         ticket.value = opened.ticket;
@@ -156,7 +160,6 @@ const load = async () => {
         publicKey.value = opened.publicKey;
         publicKeyError.value = opened.publicKeyError;
         loadingTicket.value = false;
-        void markSupportTicketAsRead(ticketId.value);
 
         await loadEvents();
 
