@@ -144,7 +144,12 @@ async function nativeLogin(): Promise<{ token?: string; refreshToken?: string }>
   const listenerHandle = await CapApp.addListener('appUrlOpen', async (data: URLOpenListenerEvent) => {
     const code = extractValidatedCode(data.url, state);
     if (code === null) return;
-    await Browser.close().catch(() => {});
+    // Android : le deep link ramène déjà l'app au premier plan, et
+    // Browser.close() de @capacitor/browser y recrée BrowserControllerActivity,
+    // qui rejoue le dernier open() : l'URL de login se rouvrait dans le
+    // navigateur par-dessus l'app, page blanche. Sur iOS, le
+    // SFSafariViewController doit bien être fermé.
+    if (Capacitor.getPlatform() === 'ios') await Browser.close().catch(() => {});
     resolveDeepLink(code);
   });
 
