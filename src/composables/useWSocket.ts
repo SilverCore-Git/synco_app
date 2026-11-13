@@ -108,10 +108,15 @@ const useWSocket = async (): Promise<Ref<Socket | null>> => {
         } else {
             socketUrl = import.meta.env?.VITE_SOCKET_URL || 'https://localhost:3467';
             if (socketUrl) {
-                if (useHttps) {
-                    socketUrl = socketUrl.replace(/^wss?:\/\//i, 'https://');
-                } else {
-                    socketUrl = socketUrl.replace(/^wss?:\/\//i, 'http://');
+                const scheme = useHttps ? 'https://' : 'http://';
+                socketUrl = socketUrl.replace(/^wss?:\/\//i, scheme);
+                // Sans schéma (ex. VITE_SOCKET_URL=api.synco.one), socket.io-client
+                // prend celui de la page : correct sur le web (https:) et sur
+                // Capacitor (https://localhost), mais sur Tauri la page est en
+                // tauri://localhost et l'URL devenait http://tauri/socket, bloquée
+                // par la CSP — le socket ne se connectait jamais sur desktop.
+                if (!/^https?:\/\//i.test(socketUrl)) {
+                    socketUrl = scheme + socketUrl.replace(/^\/\//, '');
                 }
             }
         }
