@@ -196,9 +196,14 @@ jobs:
         id: env
         run: |
           echo "${{ secrets.ENV_PRODUCTION }}" > /tmp/env.production
+          # Docker ne retire pas les guillemets d'un build-arg (contrairement à
+          # Vite qui lit un .env) : VITE_KEYCLOAK_URL="https://..." arrivait
+          # guillemets compris dans le bundle, keycloak-js prenait l'URL pour
+          # un chemin relatif et le web ne pouvait plus s'authentifier.
           {
             echo "args<<EOF"
-            grep '^VITE_' /tmp/env.production || true
+            grep '^VITE_' /tmp/env.production | tr -d '\r' \
+              | sed -E "s/^([A-Za-z0-9_]+)=\"(.*)\"[[:space:]]*$/\1=\2/; s/^([A-Za-z0-9_]+)='(.*)'[[:space:]]*$/\1=\2/" || true
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
