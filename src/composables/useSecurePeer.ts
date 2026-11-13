@@ -13,6 +13,7 @@ import { createPeerReconnector } from '@/assets/utils/peerReconnect';
 import { generateFingerprint, normalizeSas } from '@/assets/utils/sas';
 import sfetch from '@/assets/utils/sfetch';
 import { createFrameTransform } from '@/assets/utils/frameCrypto';
+import { SoundService } from '@/services/SoundService';
 
 // ============================================================================
 // Types
@@ -1295,13 +1296,16 @@ export default function useSecurePeer() {
 
         remoteMediaEls.delete(peerId);
 
-        if (activeCalls.value.size === 0) cleanupCall();
+        // `session` absent = signal tardif/dupliqué (HANGUP puis 'close') pour
+        // un pair déjà retiré : l'appel est déjà terminé, pas de second son.
+        if (activeCalls.value.size === 0) cleanupCall({ playEndSound: !!session });
     };
 
     /**
      * Cleanup call resources
      */
-    const cleanupCall = () => {
+    const cleanupCall = ({ playEndSound = false }: { playEndSound?: boolean } = {}) => {
+        if (playEndSound) SoundService.play('call_disconnect');
         ringtone.pause();
         ringtone.currentTime = 0;
         clearRingTimeout();
@@ -1336,6 +1340,7 @@ export default function useSecurePeer() {
      * End all calls
      */
     const endCall = () => {
+        const hadCall = activeCalls.value.size > 0;
         activeCalls.value.forEach(session => {
             if (session.dataChannel?.readyState === 'open') {
                 // Prévient le correspondant explicitement AVANT de fermer —
@@ -1367,7 +1372,7 @@ export default function useSecurePeer() {
             }
             session.call.close();
         });
-        cleanupCall();
+        cleanupCall({ playEndSound: hadCall });
     };
 
     /**

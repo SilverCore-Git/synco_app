@@ -8,6 +8,9 @@ class SoundManager {
   public readonly SOUNDS: Record<string, string> = {
     notification: '/sounds/notification.mp3',
     call_incoming: '/sounds/call_incoming.mp3',
+    // Fin d'appel : déconnexion volontaire, expulsion ou coupure, en salon
+    // vocal LiveKit comme en appel P2P.
+    call_disconnect: '/sounds/call_disconnect.mp3',
     // call_outgoing: '/sounds/call_outgoing.mp3',
     // ... ajoutez d'autres sons ici
   };

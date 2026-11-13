@@ -28,6 +28,7 @@ import { getVoicePrefs, saveVoicePrefs } from '@/assets/utils/voicePrefs';
 import E2EEWorker from '../../node_modules/livekit-client/dist/livekit-client.e2ee.worker.mjs?worker';
 import useWSocket from './useWSocket';
 import { useToast } from './useToast';
+import { SoundService } from '@/services/SoundService';
 import sfetch from '@/assets/utils/sfetch';
 import type { OrgMember } from '@/types/types';
 
@@ -277,7 +278,8 @@ function useLiveKit()
 
         if (room.value)
         {
-            await leaveRoom(room.value.name, spaceId);
+            // Changement de salon : pas de son de déconnexion entre les deux.
+            await leaveRoom(room.value.name, spaceId, { silent: true });
         }
 
         let e2eeOptions = undefined;
@@ -384,6 +386,9 @@ function useLiveKit()
             noiseProcessor = null;
 
             if (!intentionalDisconnect) {
+                // Expulsion (removeParticipant côté serveur) ou coupure réseau :
+                // leaveRoom() ne passe pas par ici, il joue son propre son.
+                SoundService.play('call_disconnect');
                 useToast().show("Connexion au salon vocal perdue", "error");
             }
             intentionalDisconnect = false;
@@ -500,11 +505,12 @@ function useLiveKit()
         }
     };
 
-    const leaveRoom = async (threadId: string, spaceId: string) => {
+    const leaveRoom = async (threadId: string, spaceId: string, opts: { silent?: boolean } = {}) => {
 
         if (room.value)
         {
 
+            if (!opts.silent) SoundService.play('call_disconnect');
             intentionalDisconnect = true;
             await room.value.disconnect();
             
