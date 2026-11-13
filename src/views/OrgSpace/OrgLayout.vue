@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, provide, ref } from 'vue';
 import ThreadsBar from './components/layouts/ThreadsBar.vue';
 import SpaceBar from './components/layouts/SpaceBar.vue';
 import UserCard from './components/layouts/UserCard.vue';
@@ -11,13 +11,15 @@ import useWSocket from '@/composables/useWSocket';
 import useSecurePeer from '@/composables/useSecurePeer';
 import usePrivateMeet from '@/composables/usePrivatMeet';
 import type { Category, DMMessage, Message, OrgMember } from '@/types/types';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useUsersBar } from '@/composables/useUsersBar';
+import { useStaggerReveal } from '@/composables/useStaggerReveal';
 import { keycloak } from '@/assets/keycloak';
 import useNotifications from '@/composables/useNotifications';
 import { useNotification } from '@/composables/useNotification';
 import { useRecentDMs } from '@/composables/useRecentDMs';
 import { isMeeting, registerIncomingMeetSecret } from '@/composables/usePrivatMeet';
+import { navDirection } from '@/assets/navDirection';
 
 import isDesktopApp from '@/assets/isDesktopApp';
 import { useToast } from '@/composables/useToast';
@@ -26,7 +28,6 @@ import { requireTrustedKey } from '@/assets/utils/keyTrust';
 import { signKeyEnvelope } from '@/assets/utils/keyEnvelope';
 import { SearchSyncService } from '@/services/SearchSyncService';
 import { usePermissions } from '@/composables/usePermissions';
-import SpinLoader from '@/components/SpinLoader.vue';
 import KeyTrustAlerts from '@/components/security/KeyTrustAlerts.vue';
 import OrgBannedScreen from '@/components/OrgBannedScreen.vue';
 import { isOrgBanned, getOrgBanInfo } from '@/composables/useOrgBanStatus';
@@ -44,17 +45,52 @@ const { notify, notifications } = useNotifications();
 const { init: initNotifications } = useNotification();
 const { fetchRecentDMs, recordDMInteraction } = useRecentDMs();
 const route = useRoute();
+const router = useRouter();
+
+// Vues pleine largeur sans liste de salons (ThreadsBar).
+const showThreadsBar = computed(() => !['TasksGlobal', 'TasksGlobalArchived', 'AgendaGlobal', 'OrgHome'].includes(route.name as string));
 const toast = useToast();
-const { fetchPermissions } = usePermissions(computed(() => props.orgId));
+const { fetchPermissions, invalidateCache } = usePermissions(computed(() => props.orgId));
+
+// Un rôle ou les permissions d'un space ont changé : on relit les droits de
+// l'organisation et du space ouvert. invalidateCache() garde les anciennes
+// valeurs lisibles pendant le rechargement (pas de vue qui disparaît).
+const refreshPermissions = () => {
+    invalidateCache();
+    fetchPermissions();
+    if (route.params.spaceId) fetchPermissions(String(route.params.spaceId));
+};
 
 const mediaQuery = window.matchMedia('(max-width: 1024px)');
 const showRouterView = computed(() => !isLittleScreen.value || route.query.showView !== '0');
 
-const orgOnOpen = computed(() => {
-    return organizations.value.find(org => org.id === route.params.orgId);
+// Clé de la vue de contenu : la route de PREMIER niveau sous l'organisation, pas la route feuille. Avec
+// route.name, passer d'un onglet des paramètres à un autre recréait tout SettingsLayout (son en-tête
+// disparaissait et réapparaissait) ; les sous-pages s'animent dans leur propre layout.
+const viewKey = computed(() => String(route.matched[1]?.name ?? route.name ?? ''));
+
+// Petit écran : le panneau de contenu recouvre les barres (mobile-view-slide). Dans ce panneau, la transition
+// entre deux pages dépend de ce que fait le panneau pendant la navigation (style.css, « Pages mobiles ») :
+// - il reste ouvert : la nouvelle page arrive de la droite par-dessus (en avant) ou la page courante repart vers
+//   la droite (en arrière) ;
+// - il se ferme : la page affichée reste en place le temps qu'il glisse, au lieu d'être remplacée sous les yeux ;
+// - il s'ouvre : rien à animer à l'intérieur, c'est le panneau entier qui arrive.
+// Watch par défaut (avant le rendu) : router.afterEach a déjà posé navDirection.
+const mobilePageTransition = ref('');
+let panelWasOpen = showRouterView.value;
+watch(() => route.fullPath, () => {
+    const open = showRouterView.value;
+    mobilePageTransition.value = panelWasOpen && open ? `mobile-page-${navDirection.value}`
+        : panelWasOpen && !open ? 'mobile-page-hold'
+        : '';
+    panelWasOpen = open;
 });
+// Les paramètres ont leur propre RouterView (un onglet par sous-route) : même règle sur petit écran.
+provide('mobilePageTransition', mobilePageTransition);
 
 const orgReady = computed(() => openedOrg.value?.id === props.orgId);
+// Ouverture de l'organisation : apparition échelonnée des zones et de leurs éléments (style.css).
+const revealing = useStaggerReveal();
 const orgBanned = computed(() => isOrgBanned(props.orgId));
 const orgBanInfo = computed(() => getOrgBanInfo(props.orgId));
 
@@ -234,6 +270,9 @@ const initSocketListener = async () => {
 
     // Removed forced 'online' status update. The backend now restores the user's lastStatus upon connection.
 
+    socket.value?.on('roles:updated', refreshPermissions);
+    socket.value?.on('space:permissions-updated', refreshPermissions);
+
     socket.value?.on('member:new', ({ member }: { member: OrgMember }) => {
         openedOrg.value?.members?.push(member);
     });
@@ -272,14 +311,16 @@ const initSocketListener = async () => {
         if (member && member.user) {
             if (data.name !== undefined) member.user.name = data.name;
             if (data.avatarUrl !== undefined) member.user.avatarUrl = data.avatarUrl;
-            if (data.job !== undefined) member.user.job = data.job;
+            if (data.job !== undefined) member.user.job = data.job ?? undefined;
+            if (data.profile !== undefined) member.user.profile = data.profile;
             if (data.description !== undefined) member.user.description = data.description;
         }
         
+        // `job`/`profile` reçus ici sont filtrés pour cette org : ne pas en
+        // écraser le profil complet de l'utilisateur courant (cf. GET /me).
         if (user.value && user.value.id === userId) {
             if (data.name !== undefined) user.value.name = data.name;
             if (data.avatarUrl !== undefined) user.value.avatarUrl = data.avatarUrl;
-            if (data.job !== undefined) user.value.job = data.job;
             if (data.description !== undefined) user.value.description = data.description;
         }
     });
@@ -391,6 +432,44 @@ const initSocketListener = async () => {
         {
             curentOrg.logo = data.logo;
             curentOrg.name = data.name;
+        }
+
+    });
+
+    // Modules activés/désactivés dans les réglages, ou fonctionnalités changées depuis le panel admin :
+    // SpaceBar, ThreadsBar, OrgHome et les réglages lisent openedOrg, ils suivent d'eux-mêmes.
+    socket.value?.on('org:modules-updated', ({ orgId, features, activeModules }: { orgId: string, features: string[], activeModules: Record<string, any> }) => {
+
+        const listed = organizations.value.find(org => org.id === orgId);
+        if (listed) {
+            listed.features = features;
+            listed.activeModules = activeModules;
+        }
+
+        if (orgId !== props.orgId || !openedOrg.value) return;
+
+        openedOrg.value.features = features;
+        openedOrg.value.activeModules = activeModules;
+
+        // Quelqu'un se trouvait sur la page d'un module qui vient de disparaître : retour à l'accueil.
+        const routeName = String(route.name ?? '');
+        const moduleOfRoute =
+            routeName.startsWith('Tasks') ? 'todo'
+            : routeName === 'AgendaGlobal' ? 'agenda'
+            : routeName === 'OrgAI' ? 'ai'
+            : routeName === 'SpaceFiles' || routeName === 'OrgSettingsStorage' ? 'files'
+            : null;
+        if (!moduleOfRoute) return;
+
+        // Mêmes règles que les computed de var.ts (files est actif par défaut).
+        const stillEnabled = features.includes(moduleOfRoute) && (
+            moduleOfRoute === 'files' ? activeModules?.files !== false
+            : moduleOfRoute === 'ai' ? activeModules?.ai === true
+            : !!activeModules?.[moduleOfRoute]
+        );
+        if (!stillEnabled) {
+            toast.show('Ce module a été désactivé pour l’organisation.', 'info');
+            router.replace(`/${orgId}?showView=1`);
         }
 
     });
@@ -692,6 +771,7 @@ onBeforeUnmount(async () => {
         'todo-added',
         'space:updated',
         'org-data-updated',
+        'org:modules-updated',
         'category-updated',
         'categories-updated',
         'notif:new-message',
@@ -702,6 +782,9 @@ onBeforeUnmount(async () => {
         'thread:updated',
         'thread:deleted',
     ].forEach(event => socket.value?.off(event));
+    // Handler précis : RolesSettings écoute aussi roles:updated.
+    socket.value?.off('roles:updated', refreshPermissions);
+    socket.value?.off('space:permissions-updated', refreshPermissions);
 })
 
 </script>
@@ -710,10 +793,10 @@ onBeforeUnmount(async () => {
 
         <div
             class="
-                h-full w-full flex flex-row 
+                org-layout-page h-full w-full flex flex-row 
                 relative bg-(--bg) overflow-hidden
             "
-            :style="{ viewTransitionName: `openOrg-${orgOnOpen?.id}` }"
+            :class="{ 'stagger-reveal': revealing }"
         >
 
             <!-- Organisation bannie : aucun accès à son contenu, ni en
@@ -728,31 +811,62 @@ onBeforeUnmount(async () => {
             />
             <template v-else>
 
-            <SpaceBar class="h-full" />
+            <!-- Ouverture : chaque zone arrive à son tour (--r), puis ses éléments un par un (style.css) -->
+            <!-- relative z-1 : la liste des salons glisse SOUS la barre des espaces quand elle entre ou sort -->
+            <SpaceBar class="h-full relative z-1" data-reveal-region style="--r: 0" />
+            <!-- Accueil, tâches, agenda n'ont pas de liste des salons : elle glisse et se replie au lieu
+                 d'apparaître ou de disparaître d'un coup (style.css, « Liste des salons »). Pas sur petit
+                 écran, où elle occupe toute la largeur. -->
+            <!-- Petit écran : quand le panneau s'ouvre sur une page sans liste (accueil, tâches, agenda), la liste reste
+                 dessous le temps qu'il la recouvre au lieu de disparaître avant (mobile-bar-hold). -->
+            <Transition :name="isLittleScreen ? 'mobile-bar-hold' : 'threads-bar'">
             <ThreadsBar
-                v-if="route.name !== 'TasksGlobal' && route.name !== 'TasksGlobalArchived' && route.name !== 'AgendaGlobal' && route.name !== 'OrgHome'"
+                v-if="showThreadsBar"
+                data-reveal-region
+                style="--r: 1"
                 class="h-full " 
                 :class="[
                     isDesktopApp() ? 'rounded-tl-2xl' : '',
                     isLittleScreen ? 'flex-1 min-w-0' : 'w-60 max-w-60 min-w-60'
                 ]" 
             />
+            </Transition>
 
             <div
                 v-if="!orgReady"
                 key="org-loading"
-                class="flex-1 h-full min-w-0 flex items-center justify-center bg-(--bg3) animate-app-reveal"
-                :class="isDesktopApp() ? 'border-t border-(--text)/10' : ''"
+                data-reveal-region
+                style="--r: 2"
+                class="flex-1 h-full min-w-0 bg-(--bg3) p-6 flex flex-col gap-5"
+                :class="isDesktopApp() ? ['border-t border-(--text)/10', !showThreadsBar && 'rounded-tl-2xl border-l'] : ''"
+                aria-busy="true"
+                aria-label="Chargement de l'organisation"
             >
-                <SpinLoader />
+                <!-- Même squelette gris pulsé que la barre des espaces et la liste des salons -->
+                <div class="flex items-center gap-3">
+                    <div class="h-9 w-9 rounded-xl bg-(--text)/6 animate-pulse" />
+                    <div class="h-5 w-56 rounded-lg bg-(--text)/6 animate-pulse" />
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 flex-1 min-h-0">
+                    <div class="rounded-2xl bg-(--text)/4 animate-pulse lg:col-span-2" />
+                    <div class="flex flex-col gap-5">
+                        <div class="flex-1 rounded-2xl bg-(--text)/4 animate-pulse" />
+                        <div class="flex-1 rounded-2xl bg-(--text)/4 animate-pulse" />
+                    </div>
+                </div>
             </div>
             <Transition v-else :name="isLittleScreen && orgContentRevealed ? 'mobile-view-slide' : ''">
                 <div
                     key="org-content"
+                    data-reveal-region
+                    style="--r: 2"
                     v-show="showRouterView"
                     class="overflow-hidden bg-(--bg3)"
                     :class="[
                         isDesktopApp() ? 'border-t border-(--text)/10' : '',
+                        // Sans ThreadsBar (accueil, tâches, agenda), c'est le contenu qui
+                        // touche la SpaceBar sous la barre de titre : il porte l'arrondi.
+                        isDesktopApp() && !showThreadsBar && !isLittleScreen ? 'rounded-tl-2xl border-l' : '',
                         isLittleScreen ? 'fixed top-0 right-0 h-full w-full z-50 bg-(--bg) shadow-lg' : 'relative flex-1 h-full min-w-0',
                         orgContentRevealed ? '' : 'animate-app-reveal'
                     ]"
@@ -767,8 +881,8 @@ onBeforeUnmount(async () => {
                          que route.fullPath pour ignorer les changements de query seuls
                          (sélection d'un item, etc.) qui ne doivent pas rejouer le slide. -->
                     <RouterView v-slot="{ Component }">
-                        <Transition :name="isLittleScreen && orgContentRevealed ? 'mobile-page-slide' : ''">
-                            <component :is="Component" :key="route.name" />
+                        <Transition :name="!orgContentRevealed ? '' : isLittleScreen ? mobilePageTransition : 'view-swap'">
+                            <component :is="Component" :key="viewKey" />
                         </Transition>
                     </RouterView>
                 </div>
@@ -785,6 +899,8 @@ onBeforeUnmount(async () => {
             <Transition name="slide-in-right-20">
                 <UsersBar 
                     v-if="showUsersBar" 
+                    data-reveal-region
+                    style="--r: 3"
                     :isLittleScreen="isLittleScreen"
                     class="w-60 max-w-60 min-w-60" 
                     :class="isLittleScreen ? 'fixed top-0 right-0 h-full z-50 bg-(--bg) shadow-lg' : 'relative'"

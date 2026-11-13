@@ -63,12 +63,12 @@
 
             <MuteMenuItems kind="thread" :id="thread.id" separator />
 
-            <button @click="showEditThread = !showEditThread" class="dropdown-item-annimate dropdown-item-style">
+            <button v-if="canManage" @click="showEditThread = !showEditThread" class="dropdown-item-annimate dropdown-item-style">
                 <i class="bi bi-pencil-fill mr-2" />
                 Modifier
             </button>
 
-            <button v-if="can('FOLDER_DELETE')" @click="showConfirmDelete = !showConfirmDelete" class="dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!">
+            <button v-if="canDelete" @click="showConfirmDelete = !showConfirmDelete" class="dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!">
                 <i class="bi bi-trash-fill mr-2" />
                 Supprimer
             </button>
@@ -102,10 +102,10 @@ import UpdateThread from '../popup/UpdateThread.vue';
 import { ref } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useWSocket, { waitForSocketConnection } from '@/composables/useWSocket';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, user } from '@/assets/var';
 import useSettingsItem from '@/composables/useSettingsItem';
 import { useToast } from '@/composables/useToast';
-import { usePermissions } from '@/composables/usePermissions';
+import { useHerePermissions } from '@/composables/useHerePermissions';
 import { computed } from 'vue';
 import { useNotificationMutes } from '@/composables/useNotificationMutes';
 import MuteMenuItems from '@/components/common/MuteMenuItems.vue';
@@ -125,8 +125,10 @@ const emit = defineEmits(['click']);
 const showEditThread = ref<boolean>(false);
 const showConfirmDelete = ref<boolean>(false);
 const toast = useToast();
-const orgId = computed(() => openedOrg.value?.id);
-const { can } = usePermissions(orgId);
+const { canHere } = useHerePermissions();
+// Le créateur supprime toujours son thread ; THREAD_DELETE porte sur ceux des autres.
+const canDelete = computed(() => props.thread.ownerId === user.value?.id || canHere('THREAD_DELETE'));
+const canManage = computed(() => props.thread.ownerId === user.value?.id || canHere('THREAD_MANAGE'));
 const { Item: devMode } = useSettingsItem('devMode', false);
 const { isThreadMuted } = useNotificationMutes();
 const muted = computed(() => isThreadMuted(props.thread.id));

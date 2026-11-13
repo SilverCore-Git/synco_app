@@ -230,7 +230,6 @@
             </footer>
         </Transition>
 
-    </div>
 
     <ConfirmDelete 
         :show="showDeleteOrg"
@@ -242,6 +241,8 @@
         @confirm="deleteOrg"
     />
 
+    <!-- Racine unique (Popup/ConfirmDelete sont téléportés dans body) : les <Transition> de changement de vue n'animent qu'un élément. -->
+    </div>
 </template>
 
 <script lang="ts" setup>
@@ -307,6 +308,24 @@ const toggleModule = (module: 'todo' | 'files' | 'ai' | 'agenda') => {
     if (module === 'ai') orgData.value.aiEnabled = !orgData.value.aiEnabled;
     if (module === 'agenda') orgData.value.agendaEnabled = !orgData.value.agendaEnabled;
 };
+
+// Un autre admin a enregistré (ou le panel admin a changé les fonctionnalités) : on reprend le nouvel état
+// des modules, sauf pour un interrupteur que l'utilisateur a déjà touché ici et pas encore enregistré.
+const moduleState = (org: typeof openedOrg.value) => ({
+    todoEnabled: org?.features?.includes('todo') ? (org?.activeModules?.todo || false) : false,
+    filesEnabled: org?.features?.includes('files') ? (org?.activeModules?.files !== false) : false,
+    aiEnabled: org?.features?.includes('ai') ? (org?.activeModules?.ai === true) : false,
+    agendaEnabled: org?.features?.includes('agenda') ? (org?.activeModules?.agenda || false) : false,
+});
+
+watch(
+    () => moduleState(openedOrg.value),
+    (next, prev) => {
+        for (const key of Object.keys(next) as (keyof typeof next)[]) {
+            if (orgData.value[key] === prev[key]) orgData.value[key] = next[key];
+        }
+    },
+);
 
 const hasChanges = computed(() => {
     return (

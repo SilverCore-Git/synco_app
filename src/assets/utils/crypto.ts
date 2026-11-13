@@ -1,11 +1,35 @@
-import { computed, ref } from "vue";
+import { computed, ref, shallowRef } from "vue";
 import { clearAllKeyCaches } from "./keyCaches";
+import { isFileKeyV3, unwrapFileKeyV3 } from "./fileKeyV3";
 
 export const privateKey = ref<CryptoKey | null>(null);
 // Clé privée ECDSA P-256 d'identité de signature — distincte de privateKey
 // (RSA-OAEP, chiffrement uniquement). Audit FC4 §2 : signe les enveloppes de
 // clé symétrique qu'on distribue (voir keyEnvelope.ts), jamais de contenu.
 export const privateSignKey = ref<CryptoKey | null>(null);
+// E2EE v4 — anciennes clés privées RSA (rotations d'identité passées), non extractables : elles ne
+// servent qu'à relire ce qui a été scellé pour une ancienne clé publique (rsaDecrypt ci-dessous).
+export const archivedPrivateKeys = shallowRef<CryptoKey[]>([]);
+
+/**
+ * Déchiffrement RSA-OAEP avec la clé donnée ; si c'est la clé d'identité courante et qu'elle échoue,
+ * essaie les clés archivées (historique scellé avant une rotation d'identité). Les erreurs restent
+ * celles de la clé courante quand aucune ne convient.
+ */
+async function rsaDecrypt(myPrivateKey: CryptoKey, data: BufferSource): Promise<ArrayBuffer> {
+    try {
+        return await crypto.subtle.decrypt({ name: "RSA-OAEP" }, myPrivateKey, data);
+    } catch (e) {
+        if (myPrivateKey !== privateKey.value) throw e;
+        for (const old of archivedPrivateKeys.value) {
+            try {
+                return await crypto.subtle.decrypt({ name: "RSA-OAEP" }, old, data);
+            } catch { /* clé suivante */ }
+        }
+        throw e;
+    }
+}
+
 export const E2EEUnloked = computed(() => {
     return privateKey.value !== null && typeof privateKey.value === 'object';
 });
@@ -94,7 +118,7 @@ export async function decryptUserPrivateKey (
 
 
 
-export async function encryptForPeer (text: string, peerPublicKeyJWK: string, myPublicKeyJWK?: string | object) 
+export async function encryptForPeer (text: string, peerPublicKeyJWK: string, myPublicKeyJWK?: string | object, additionalData?: Uint8Array) 
 {
 
     const encoder = new TextEncoder();
@@ -115,7 +139,7 @@ export async function encryptForPeer (text: string, peerPublicKeyJWK: string, my
 
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const ciphertext = await crypto.subtle.encrypt(
-        { name: "AES-GCM", iv },
+        additionalData ? { name: "AES-GCM", iv, additionalData: additionalData as BufferSource } : { name: "AES-GCM", iv },
         messageKey,
         encoder.encode(text)
     );
@@ -168,7 +192,8 @@ export async function decryptFromPeer (
     ciphertextBase64: string,
     encryptedAesKeyBase64: string,
     ivBase64: string,
-    myPrivateKey: CryptoKey
+    myPrivateKey: CryptoKey,
+    additionalData?: Uint8Array
 ) 
 {
 
@@ -176,18 +201,14 @@ export async function decryptFromPeer (
     const encryptedAesKey = Uint8Array.from(atob(encryptedAesKeyBase64), c => c.charCodeAt(0));
     const iv = Uint8Array.from(atob(ivBase64), c => c.charCodeAt(0));
 
-    const aesKeyRaw = await crypto.subtle.decrypt(
-        { name: "RSA-OAEP" },
-        myPrivateKey,
-        encryptedAesKey
-    );
+    const aesKeyRaw = await rsaDecrypt(myPrivateKey, encryptedAesKey);
 
     const aesKey = await crypto.subtle.importKey(
         "raw", aesKeyRaw, "AES-GCM", false, ["decrypt"]
     );
 
     const decrypted = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv },
+        additionalData ? { name: "AES-GCM", iv, additionalData: additionalData as BufferSource } : { name: "AES-GCM", iv },
         aesKey,
         ciphertext
     );
@@ -263,11 +284,7 @@ export async function decryptBufferFromPeer (
 ): Promise<ArrayBuffer>
 {
 
-    const aesKeyRaw = await crypto.subtle.decrypt(
-        { name: "RSA-OAEP" },
-        myPrivateKey,
-        encryptedAesKey
-    );
+    const aesKeyRaw = await rsaDecrypt(myPrivateKey, encryptedAesKey);
 
     const aesKey = await crypto.subtle.importKey(
         "raw", aesKeyRaw, "AES-GCM", false, ["decrypt"]
@@ -292,11 +309,7 @@ export async function decryptThreadKeyWithRsa(
 
     const encryptedKeyBuffer = Uint8Array.from(atob(encryptedThreadKeyBase64), c => c.charCodeAt(0));
 
-    const decryptedRawAesKey = await crypto.subtle.decrypt(
-        { name: "RSA-OAEP" },
-        myPrivateKey,
-        encryptedKeyBuffer
-    );
+    const decryptedRawAesKey = await rsaDecrypt(myPrivateKey, encryptedKeyBuffer);
 
     return await crypto.subtle.importKey(
         "raw",
@@ -433,11 +446,7 @@ export async function decryptSpaceKeyWithRsa(
 {
     const encryptedKeyBuffer = Uint8Array.from(atob(encryptedSpaceKeyBase64), c => c.charCodeAt(0));
 
-    const decryptedRawAesKey = await crypto.subtle.decrypt(
-        { name: "RSA-OAEP" },
-        myPrivateKey,
-        encryptedKeyBuffer
-    );
+    const decryptedRawAesKey = await rsaDecrypt(myPrivateKey, encryptedKeyBuffer);
 
     return await crypto.subtle.importKey(
         "raw",
@@ -476,6 +485,7 @@ export async function wrapFileKey(rawFileKey: ArrayBuffer, kek: CryptoKey): Prom
 /** Inverse of wrapFileKey() (current layout: key-wrap IV prepended). */
 export async function unwrapFileKey(encryptedFileKeyBase64: string, kek: CryptoKey): Promise<ArrayBuffer>
 {
+    if (isFileKeyV3(encryptedFileKeyBase64)) return (await unwrapFileKeyV3(encryptedFileKeyBase64, kek)).raw;
     const encryptedFileKeyBytes = Uint8Array.from(atob(encryptedFileKeyBase64), c => c.charCodeAt(0));
     return crypto.subtle.decrypt(
         { name: "AES-GCM", iv: encryptedFileKeyBytes.slice(0, 12) },
@@ -577,6 +587,7 @@ export function lockSecurity()
 {
     privateKey.value = null;
     privateSignKey.value = null;
+    archivedPrivateKeys.value = [];
     // Sans cet appel, workspaceKeyCache/dmKeyCache/le cache de clé de
     // session IA restaient utilisables après un verrouillage manuel — seul
     // threadKeyCache réagissait déjà (watch(E2EEUnloked, ...) local) à ce
@@ -820,6 +831,34 @@ export async function unlockSecurityV3(
 
 
 /**
+ * Migration v3 → v4 (doc/securite/13-e2ee-v4-multi-appareil.md §8) : rouvre, avec le PIN v3, les
+ * MÊMES clés privées d'identité (PKCS#8) pour les réenvelopper sous la clé de compte v4, et
+ * fournit la preuve du PIN (`verifier`) que POST /api/e2ee/v4/init exige. Les octets renvoyés
+ * sont à effacer par l'appelant dès qu'ils sont scellés.
+ */
+export async function openV3IdentityForMigration(
+    pin: string,
+    salt: string,
+    sealed: { encryptedPrivateKey: string; keyIv: string; encryptedSignPrivateKey: string; signKeyIv: string },
+    doFetch: (verifier: string) => Promise<{ wrapSecret: string }>
+): Promise<{ rsaPkcs8: Uint8Array; signPkcs8: Uint8Array; verifier: string }> {
+    if (!salt.startsWith(SALT_V3_PREFIX)) throw new Error('Compte non v3');
+    const unlockKeyBytes = await deriveUnlockKeyV3(pin, salt.slice(SALT_V3_PREFIX.length));
+    const verifier = await deriveVerifierV3(unlockKeyBytes);
+    const { wrapSecret } = await doFetch(verifier);
+    const masterKey = await deriveMasterKeyV3(unlockKeyBytes, Uint8Array.from(atob(wrapSecret), c => c.charCodeAt(0)).buffer);
+    const b64 = (s: string) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+    const rsaPkcs8 = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(sealed.keyIv) }, masterKey, b64(sealed.encryptedPrivateKey)));
+    try {
+        const signPkcs8 = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(sealed.signKeyIv) }, masterKey, b64(sealed.encryptedSignPrivateKey)));
+        return { rsaPkcs8, signPkcs8, verifier };
+    } catch (e) {
+        rsaPkcs8.fill(0);
+        throw e;
+    }
+}
+
+/**
  * Migration d'un compte au PIN legacy (4 chiffres, PBKDF2 100 000, entièrement
  * côté client — testable hors ligne) vers le schéma v3 assisté par le
  * serveur, avec verrouillage des essais (audit FC2). Même PIN, même paire de
@@ -901,11 +940,7 @@ export async function unwrapAiSessionKey(
 
     const encryptedKeyBuffer = Uint8Array.from(atob(encryptedKeyBase64), c => c.charCodeAt(0));
 
-    return await crypto.subtle.decrypt(
-        { name: "RSA-OAEP" },
-        myPrivateKey,
-        encryptedKeyBuffer
-    );
+    return await rsaDecrypt(myPrivateKey, encryptedKeyBuffer);
 
 }
 

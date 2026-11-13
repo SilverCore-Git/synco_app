@@ -29,6 +29,10 @@ function readEnvValue(envFile, key) {
 // En dev on lit .env (poste local), en build on lit .env.production (config qui part dans le binaire livré).
 const envFile = mode === 'build' ? '.env.production' : '.env';
 const devLanIp = readEnvValue(envFile, 'VITE_TAURI_DEV_IP');
+// Vite sert en https dès que VITE_USE_HTTPS n'est pas « false » (vite.config.ts) : la fenêtre doit charger le même
+// protocole, sinon elle reste blanche. En build, devUrl ne sert pas (frontendDist).
+const useHttps = (process.env.VITE_USE_HTTPS ?? readEnvValue('.env', 'VITE_USE_HTTPS') ?? 'false') !== 'false';
+const devUrl = `${useHttps ? 'https' : 'http'}://localhost:5174`;
 
 const tauriConf = JSON.parse(fs.readFileSync(TAURI_CONF_PATH, 'utf-8'));
 const baseCsp = tauriConf.app.security.csp;
@@ -46,6 +50,19 @@ let patchedCsp = devLanIp
 const isProd = mode === 'build';
 const devHosts = isProd ? '' : ' http://localhost:* https://localhost:*';
 const devConnect = isProd ? '' : ' http://localhost:* https://localhost:* ws://localhost:* wss://localhost:*';
+// synco_keyguard (récupération par PIN, E2EE v4 §14) est appelé directement par la fenêtre : seule l'origine de
+// VITE_KEYGUARD_URL entre dans connect-src (même logique que keyguardCspOrigin dans vite.config.ts).
+function keyguardCspOrigin(raw) {
+  try {
+    const url = new URL(String(raw ?? '').trim());
+    return url.protocol === 'https:' || url.protocol === 'http:' ? ` ${url.origin}` : '';
+  } catch {
+    return '';
+  }
+}
+const keyguardUrl = process.env.VITE_KEYGUARD_URL ?? readEnvValue(envFile, 'VITE_KEYGUARD_URL');
+patchedCsp = patchedCsp.split('__CSP_KEYGUARD__').join(keyguardCspOrigin(keyguardUrl));
+
 patchedCsp = patchedCsp
   .split('__CSP_DEV_SCRIPT__').join(devHosts)
   .split('__CSP_DEV_CONNECT__').join(devConnect)
@@ -61,7 +78,7 @@ const result = spawnSync(process.execPath, [tauriCliEntry, mode, ...forwardedArg
   cwd: ROOT_DIR,
   env: {
     ...process.env,
-    TAURI_CONFIG: JSON.stringify({ app: { security: { csp: patchedCsp } } }),
+    TAURI_CONFIG: JSON.stringify({ app: { security: { csp: patchedCsp } }, ...(isProd ? {} : { build: { devUrl } }) }),
   },
 });
 

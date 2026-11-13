@@ -1,10 +1,17 @@
 <template>
 
     <a
+        ref="cardEl"
         :key="org.id"
-        class="group relative flex flex-col w-full h-[180px] bg-(--bg) border border-(--border-color) rounded-2xl overflow-hidden transition-all duration-300 transform cursor-pointer hover:-translate-y-1 hover:border-(--primary)/50 hover:shadow-[0_8px_30px_var(--shadow-elevated)] active:scale-95"
+        :data-org-id="isCreate ? undefined : org.id"
+        class="org-card group relative flex flex-col w-full h-[180px] bg-(--bg) border border-(--border-color) rounded-2xl overflow-hidden transition-all duration-300 transform cursor-pointer hover:-translate-y-1 hover:border-(--primary)/50 hover:shadow-[0_8px_30px_var(--shadow-elevated)] active:scale-95 active:duration-100"
+        :class="{
+            'org-card-opening': isOpening,
+            'org-card-dimmed': openingOrgId && !isOpening,
+        }"
+        :aria-busy="isOpening || undefined"
         :href="isCreate ? '#' : `/${org.id}`"
-        @click.prevent="isCreate ? null : handleClick()"
+        @click.prevent="isCreate ? emit('click') : handleClick()"
     >
         <!-- For Create Button -->
         <div v-if="isCreate" class="absolute inset-0 w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-(--text)/10 hover:border-(--primary)/50 bg-(--text)/5 group-hover:bg-(--primary)/5 transition-colors gap-3">
@@ -38,6 +45,10 @@
                 </div>
             </div>
 
+            <!-- Ouverture en cours : barre indéterminée en pied de carte (style.css, n'apparaît qu'après un court
+                 délai pour ne pas clignoter quand l'organisation se charge instantanément) -->
+            <div v-if="isOpening" class="org-card-progress" aria-hidden="true"><span /></div>
+
             <!-- Footer area -->
             <div class="p-4 flex-1 flex flex-col justify-center items-center">
                 <span v-if="!loader" class="text-base font-bold text-(--text) truncate w-full text-center group-hover:text-(--primary) transition-colors">
@@ -52,7 +63,9 @@
 
 <script lang="ts" setup>
 
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { openOrg, openingOrgId, setOrgOriginFrom } from '@/assets/orgOpen';
 
 const props = defineProps<{
     org: any;
@@ -60,17 +73,18 @@ const props = defineProps<{
     isCreate?: boolean;
 }>();
 
+const emit = defineEmits<{ click: [] }>();
+
 const router = useRouter();
+const cardEl = ref<HTMLElement | null>(null);
+const isOpening = computed(() => openingOrgId.value === props.org.id);
 
 const handleClick = () => {
-    if (props.isCreate) return;
-
-    // On ouvre sur le contenu de l'accueil, pas sur les barres ; la flèche de
-    // retour les révèle ensuite (showView=0). `showView=1` est écrit
-    // explicitement plutôt que laissé au défaut de OrgLayout — même raison
-    // qu'au démarrage à froid dans init.ts : la destination ne dépend alors
-    // plus de la valeur par défaut choisie ailleurs.
-    router.push(`/${props.org.id}?showView=1`);
+    if (props.isCreate || openingOrgId.value) return;
+    // La liste zoomera vers cette carte en partant (style.css, « Ouverture d'une organisation »).
+    const page = cardEl.value?.closest('.org-list-page');
+    if (cardEl.value && page) setOrgOriginFrom(cardEl.value, page);
+    openOrg(router, props.org.id);
 };
 
 </script>

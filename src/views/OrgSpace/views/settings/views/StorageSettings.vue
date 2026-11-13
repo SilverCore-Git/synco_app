@@ -25,16 +25,29 @@
                     </div>
 
                     <!-- Détails par espace de travail -->
-                    <div class="bg-(--bg2) border border-(--border-color) rounded-2xl p-6 shadow-sm flex flex-col gap-4 max-h-[300px]">
-                        <div>
-                            <h4 class="text-sm font-bold text-(--text)">Détails par Espace de travail</h4>
-                            <p class="text-xs text-(--text2) mt-1">Répartition de l'utilisation du stockage.</p>
+                    <div class="bg-(--bg2) border border-(--border-color) rounded-2xl p-6 shadow-sm flex flex-col gap-4 max-h-[420px]">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                                <h4 class="text-sm font-bold text-(--text)">Détails par Espace de travail</h4>
+                                <p class="text-xs text-(--text2) mt-1">Répartition de l'utilisation du stockage.</p>
+                            </div>
+                            <div class="relative w-full sm:w-60 group">
+                                <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-xs group-focus-within:text-(--primary) transition-colors" />
+                                <input
+                                    v-model="spaceSearch"
+                                    type="text"
+                                    placeholder="Rechercher un espace..."
+                                    class="w-full bg-(--bg) border border-(--border-color) rounded-xl pl-9 pr-3 py-2 text-xs text-(--text) focus:outline-none focus:border-(--primary) transition-all placeholder:text-(--text2)"
+                                />
+                            </div>
                         </div>
-                        <div class="overflow-y-auto pr-2 space-y-2 mt-2 custom-scrollbar">
-                            <div v-if="openedOrg?.spaces?.length" v-for="space in openedOrg?.spaces" :key="space.id" class="flex items-center justify-between p-3 bg-(--bg) border border-(--border-color) rounded-xl group hover:border-(--primary)/50 transition-colors">
+                        <div class="overflow-y-auto min-h-0 pr-2 space-y-2 mt-2 custom-scrollbar">
+                            <div v-if="filteredSpaces.length" v-for="space in filteredSpaces" :key="space.id" class="flex items-center justify-between p-3 bg-(--bg) border border-(--border-color) rounded-xl group hover:border-(--primary)/50 transition-colors">
                                 <div class="flex items-center gap-3 overflow-hidden">
-                                    <div class="w-8 h-8 rounded-lg bg-(--primary)/10 text-(--primary) flex items-center justify-center shrink-0">
-                                        <i class="bi bi-folder-fill"></i>
+                                    <div class="w-8 h-8 rounded-lg bg-(--primary)/10 text-(--primary) flex items-center justify-center shrink-0 overflow-hidden">
+                                        <img v-if="space.logo && space.logo.includes('data:')" :src="space.logo" :alt="space.name" class="w-full h-full object-cover" />
+                                        <i v-else-if="space.logo" class="bi" :class="space.logo"></i>
+                                        <span v-else class="text-[11px] font-black">{{ space.name.substring(0, 2).toUpperCase() }}</span>
                                     </div>
                                     <span class="font-medium text-sm truncate group-hover:text-(--primary) transition-colors">{{ space.name }}</span>
                                 </div>
@@ -43,7 +56,7 @@
                                 </span>
                             </div>
                             <div v-else class="text-sm text-(--text2) italic mt-2 p-6 text-center border border-dashed border-(--border-color) rounded-xl bg-(--bg)/50">
-                                Aucun espace de travail n'utilise de stockage.
+                                {{ spaceSearch ? 'Aucun espace ne correspond à la recherche.' : "Aucun espace de travail n'utilise de stockage." }}
                             </div>
                         </div>
                     </div>
@@ -73,16 +86,43 @@
 
                     </div>
 
-                    <div class="overflow-x-auto">
+                    <div class="px-6 py-4 border-b border-(--border-color) flex flex-wrap items-center gap-3">
+                        <select v-model="typeFilter" class="bg-(--bg) border border-(--border-color) rounded-xl px-3 py-2 text-sm text-(--text) focus:outline-none focus:border-(--primary)">
+                            <option value="all">Tous les types</option>
+                            <option v-for="t in fileTypes" :key="t.value" :value="t.value">{{ t.label }}</option>
+                        </select>
+                        <select v-model="spaceFilter" class="bg-(--bg) border border-(--border-color) rounded-xl px-3 py-2 text-sm text-(--text) focus:outline-none focus:border-(--primary)">
+                            <option value="all">Tous les espaces</option>
+                            <option value="__org__">Organisation</option>
+                            <option v-for="s in openedOrg?.spaces || []" :key="s.id" :value="s.id">{{ s.name }}</option>
+                        </select>
+                        <select v-model="sortOrder" class="bg-(--bg) border border-(--border-color) rounded-xl px-3 py-2 text-sm text-(--text) focus:outline-none focus:border-(--primary)">
+                            <option value="date">Plus récents</option>
+                            <option value="size-desc">Taille décroissante</option>
+                            <option value="size-asc">Taille croissante</option>
+                        </select>
+                        <button
+                            v-if="typeFilter !== 'all' || spaceFilter !== 'all' || sortOrder !== 'date' || searchQuery"
+                            @click="resetFilters"
+                            class="text-xs text-(--text2) hover:text-(--primary) transition-colors"
+                        >
+                            Réinitialiser
+                        </button>
+                    </div>
+
+                    <div class="overflow-auto max-h-[480px] custom-scrollbar">
 
                         <table class="w-full text-left border-collapse">
 
                             <thead>
-                                <tr class="text-[10px] uppercase tracking-widest text-(--text2) bg-(--bg3)/30 border-b border-(--border-color)">
+                                <tr class="text-[10px] uppercase tracking-widest text-(--text2) bg-(--bg2) border-b border-(--border-color) sticky top-0 z-10">
                                     <th class="px-6 py-4 font-bold">Fichier</th>
                                     <th class="px-6 py-4 font-bold">Espace de travail</th>
                                     <th class="px-6 py-4 font-bold">Type</th>
-                                    <th class="px-6 py-4 font-bold">Taille</th>
+                                    <th class="px-6 py-4 font-bold cursor-pointer select-none hover:text-(--primary)" @click="toggleSizeSort">
+                                        Taille
+                                        <i v-if="sortOrder !== 'date'" class="bi ml-1" :class="sortOrder === 'size-asc' ? 'bi-arrow-up' : 'bi-arrow-down'"></i>
+                                    </th>
                                     <th class="px-6 py-4 font-bold">Ajouté le</th>
                                     <th class="px-6 py-4 font-bold text-right">Actions</th>
                                 </tr>
@@ -218,13 +258,60 @@ onMounted(() => {
     }
 });
 
+const spaceSearch = ref('');
+const filteredSpaces = computed(() => {
+    const q = spaceSearch.value.trim().toLowerCase();
+    const spaces = openedOrg.value?.spaces || [];
+    return q ? spaces.filter(s => s.name.toLowerCase().includes(q)) : spaces;
+});
+
+const typeFilter = ref('all');
+const spaceFilter = ref('all');
+const sortOrder = ref<'date' | 'size-asc' | 'size-desc'>('date');
+
+const fileTypes = [
+    { value: 'image', label: 'Images' },
+    { value: 'video', label: 'Vidéos' },
+    { value: 'audio', label: 'Audio' },
+    { value: 'pdf', label: 'PDF' },
+    { value: 'archive', label: 'Archives' },
+    { value: 'text', label: 'Texte' },
+    { value: 'other', label: 'Autres' },
+];
+
+const getFileType = (mime: string) => {
+    if (mime.startsWith('image/')) return 'image';
+    if (mime.startsWith('video/')) return 'video';
+    if (mime.startsWith('audio/')) return 'audio';
+    if (mime.includes('pdf')) return 'pdf';
+    if (mime.includes('zip') || mime.includes('rar') || mime.includes('tar')) return 'archive';
+    if (mime.includes('text/') || mime.includes('json') || mime.includes('xml')) return 'text';
+    return 'other';
+};
+
+const toggleSizeSort = () => {
+    sortOrder.value = sortOrder.value === 'size-desc' ? 'size-asc' : 'size-desc';
+};
+
+const resetFilters = () => {
+    typeFilter.value = 'all';
+    spaceFilter.value = 'all';
+    sortOrder.value = 'date';
+    searchQuery.value = '';
+};
+
 const filteredFiles = computed(() => {
-    if (!searchQuery.value) return files.value;
     const q = searchQuery.value.toLowerCase();
-    return files.value.filter(f => 
-        f.originalName.toLowerCase().includes(q) || 
-        f.id.toLowerCase().includes(q)
-    );
+    const result = files.value.filter(f => {
+        if (q && !f.originalName.toLowerCase().includes(q) && !f.id.toLowerCase().includes(q)) return false;
+        if (typeFilter.value !== 'all' && getFileType(f.mimeType) !== typeFilter.value) return false;
+        if (spaceFilter.value === '__org__') return !f.workspaceId;
+        if (spaceFilter.value !== 'all') return f.workspaceId === spaceFilter.value;
+        return true;
+    });
+    if (sortOrder.value === 'size-asc') return result.sort((a, b) => Number(a.size) - Number(b.size));
+    if (sortOrder.value === 'size-desc') return result.sort((a, b) => Number(b.size) - Number(a.size));
+    return result;
 });
 
 const getSpaceName = (spaceId?: string | null) => {

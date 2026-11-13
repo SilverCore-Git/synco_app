@@ -229,24 +229,23 @@
 
             <div 
                 class="relative flex flex-col w-full"
-                @dragover.prevent="isDragging = true"
-                @dragleave.prevent="isDragging = false"
-                @drop.prevent="handleDrop"
             >
             
-                <div 
-                    v-if="isDragging" 
-                    class="
-                        absolute inset-0 z-50 bg-(--primary)/10
-                        border-2 border-dashed border-(--primary) 
-                        rounded-xl flex items-center justify-center 
-                        pointer-events-none
-                    "
-                >
-                    <span class="text-(--primary) font-bold">
-                        Relâchez pour ajouter
-                    </span>
-                </div>
+                <Teleport to="body">
+            <div
+                v-if="isDragging"
+                class="
+                    fixed inset-4 z-[3500] bg-(--primary)/10 backdrop-blur-[2px]
+                    border-2 border-dashed border-(--primary)
+                    rounded-2xl flex items-center justify-center
+                    pointer-events-none
+                "
+            >
+                <span class="text-(--primary) font-bold text-xl">
+                    Relâchez pour ajouter
+                </span>
+            </div>
+            </Teleport>
 
                 <div class="relative flex items-center bg-(--bg) border border-(--text)/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
 
@@ -353,6 +352,7 @@
 <script lang="ts" setup>
 
 import { defaultAvatar } from '@/assets/utils/defaultAvatar';
+import { autoFocus } from '@/assets/utils/autoFocus';
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { DMMessage, OrgMember, User } from '@/types/types';
@@ -363,6 +363,7 @@ import getColorByStatus from '@/assets/utils/getColorByStatus';
 import getTextByStatus from '@/assets/utils/getTextByStatus';
 import { useToast } from '@/composables/useToast';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
+import { useMessageDraft, selfCipher } from '@/composables/useMessageDraft';
 import DropDown from '@/components/DropDown.vue';
 import EmojiPicker from '@/components/common/EmojiPicker.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
@@ -376,12 +377,15 @@ import ChatMessage from '../components/common/ChatMessage.vue';
 import ReplyBanner from '../components/common/ReplyBanner.vue';
 import TypingIndicator from '@/components/common/TypingIndicator.vue';
 import useFooterInset from '@/composables/useFooterInset';
+import useWindowFileDrop from '@/composables/useWindowFileDrop';
 import { uploadFiles } from '@/assets/uploadFile';
 import useResponse from '@/composables/useResponse';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { useNotification } from '@/composables/useNotification';
 import { useRecentDMs } from '@/composables/useRecentDMs';
-import { getCachedPlaintext, setCachedPlaintext } from '@/assets/utils/dmPlaintextCache';
+import { getCachedAuth, getCachedPlaintext, setCachedPlaintext } from '@/assets/utils/dmPlaintextCache';
+import { decryptDmV2, findReplayedDms, isAuthenticatedDmNonce, encryptDmV2 } from '@/assets/utils/messageAuth';
+import { UNVERIFIED_SENDER_TEXT } from '@/assets/utils/decryptMessages';
 import { checkKeyTrust, trustKey, computeKeyFingerprint, requireTrustedKey, dismissKeyTrustAlert, type KeyTrustResult } from '@/assets/utils/keyTrust';
 import Popup from '@/components/Popup.vue';
 
@@ -418,6 +422,15 @@ watch(
 const isE2EEEnabled = ref<boolean>(true);
 const messages = ref<any[]>([]);
 const newMessage = ref<string>("");
+// Brouillon par conversation, chiffré pour soi (clé publique) ; pas pour les sessions éphémères.
+useMessageDraft(
+    newMessage,
+    () => (isPrivateMeet.value ? null : (route.params.userId as string) || null),
+    () => {
+        const pub = user.value?.publicKey;
+        return pub && privateKey.value ? selfCipher(pub, privateKey.value) : null;
+    },
+);
 const messagesContainer = ref<HTMLElement | null>(null);
 const footerRef = ref<HTMLElement | null>(null);
 const { footerHeight } = useFooterInset(footerRef, messagesContainer, 72);
@@ -587,11 +600,7 @@ watch(() => messageWillBeResponded.value, () => {
     TextareaRef.value?.textarea?.focus();
 });
 
-const isDragging = ref<boolean>(false);
-const handleDrop = (e: DragEvent) => {
-    isDragging.value = false;
-    if (e.dataTransfer?.files) handleFiles(e.dataTransfer.files);
-};
+const { isDragging } = useWindowFileDrop((files) => handleFiles(files), () => !!recipient.value);
 
 const removeFile = (index: number) => {
     selectedFiles.value.splice(index, 1);
@@ -632,7 +641,7 @@ const hydrateParticipants = (msg: DMMessage): DMMessage => {
     return hydrated;
 };
 
-const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<DMMessage | null> => {
+const decryptSingleMessage = async (msg: DMMessage | null | undefined, replayed = false): Promise<DMMessage | null> => {
 
         if (!msg) return null;
         
@@ -657,13 +666,24 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<
         }
 
         const cached = getCachedPlaintext(msg.id, msg.nonce);
-        if (cached !== undefined) return { ...msg, content: cached };
+        if (cached !== undefined && !replayed) return { ...msg, content: cached, authState: getCachedAuth(msg.id, msg.nonce) ?? 'legacy' };
 
         try {
 
+            // DM authentifié (FC7) : AAD (expéditeur, destinataire, id) + signature de l'expéditeur.
+            if (isAuthenticatedDmNonce(msg.nonce)) {
+                // Les citations (replyMessage) n'embarquent pas recipientId : c'est l'autre participant.
+                const recipientId = msg.recipientId ?? (msg.senderId === user.value?.id ? recipient.value?.id : user.value?.id);
+                if (!recipientId) throw new Error('DM recipient unknown');
+                const { text, auth } = await decryptDmV2(msg, keyToUse, privateKey.value, { senderId: msg.senderId, recipientId }, replayed);
+                if (auth === 'invalid') return { ...msg, content: UNVERIFIED_SENDER_TEXT, authState: 'invalid' };
+                setCachedPlaintext(msg.id, msg.nonce, text, auth === 'legacy' ? undefined : auth);
+                return { ...msg, content: text, authState: auth };
+            }
+
             const clearText = await decryptFromPeer(msg.content, keyToUse, msg.nonce, privateKey.value);
             setCachedPlaintext(msg.id, msg.nonce, clearText);
-            return { ...msg, content: clearText };
+            return { ...msg, content: clearText, authState: 'legacy' };
 
         } 
         catch (cryptoErr) {
@@ -675,8 +695,11 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined): Promise<
 
 // Contenu principal uniquement (pas la citation), tous les messages en même
 // temps : WebCrypto parallélise lui-même les déchiffrements RSA.
-const decryptMain = (list: DMMessage[]): Promise<DMMessage[]> =>
-    Promise.all(list.map(async m => (await decryptSingleMessage(m)) ?? m));
+const decryptMain = (list: DMMessage[]): Promise<DMMessage[]> => {
+    // DM qui rejouent l'identifiant d'un DM plus ancien de la liste (FC7).
+    const replayed = findReplayedDms(list as any);
+    return Promise.all(list.map(async m => (await decryptSingleMessage(m, replayed.has(m.id))) ?? m));
+};
 
 // Texte clair des messages déjà déchiffrés, par id : une citation dont le
 // message d'origine est dans la liste se résout sans aucun déchiffrement.
@@ -1104,7 +1127,9 @@ const sendMessage = async () => {
 
         try {
             
-            const encryptedData = await encryptForPeer(clearContent, recipientPubKey, myPubKey || undefined);
+            const encryptedData = user.value?.id
+                ? await encryptDmV2(clearContent, recipientPubKey, myPubKey || undefined, { senderId: user.value.id, recipientId: recipient.value.id })
+                : await encryptForPeer(clearContent, recipientPubKey, myPubKey || undefined);
 
             finalContent = encryptedData.ciphertext;
             finalEncryptedAesKey = encryptedData.encryptedAesKey;
@@ -1289,7 +1314,7 @@ const mount = async () => {
     }
     if (E2EEUnloked.value) 
     {
-        TextareaRef.value?.textarea?.focus();
+        autoFocus(TextareaRef.value?.textarea);
     }
 };
 

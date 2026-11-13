@@ -2,8 +2,8 @@
     <section class="dash-card">
         <header class="dash-card-header">
             <div class="flex items-center gap-2">
-                <i class="bi bi-bell text-(--text)"></i>
-                <h3 class="font-semibold text-(--text)">Notifications</h3>
+                <i class="bi bi-chat-square-text text-(--text)"></i>
+                <h3 class="font-semibold text-(--text)">À vous de répondre</h3>
                 <span v-if="totalUnread > 0" class="dash-badge">{{ totalUnread }}</span>
             </div>
             <button
@@ -16,13 +16,25 @@
             </button>
         </header>
 
+        <div v-if="!loading && allItems.length > 0" class="dash-tabs" role="group" aria-label="Filtrer">
+            <button
+                v-for="tab in visibleTabs"
+                :key="tab.id"
+                :aria-pressed="filter === tab.id"
+                @click="filter = tab.id"
+            >
+                {{ tab.label }} <span class="tabular-nums">{{ tab.count }}</span>
+            </button>
+        </div>
+
         <div v-if="loading" class="dash-card-body space-y-2 animate-pulse">
             <div v-for="i in 3" :key="i" class="h-12 bg-(--text)/5 rounded-xl"></div>
         </div>
 
-        <div v-else-if="items.length === 0" class="dash-card-empty animate-app-reveal">
+        <div v-else-if="allItems.length === 0" class="dash-card-empty animate-app-reveal">
             <i class="bi bi-check2-circle text-2xl text-(--text2)"></i>
-            <p>Aucune notification en attente</p>
+            <p class="font-semibold text-(--text)">Vous êtes à jour</p>
+            <p>Aucun message, mention ou appel manqué en attente.</p>
         </div>
 
         <ul v-else class="dash-card-body space-y-1 animate-app-reveal">
@@ -31,7 +43,7 @@
                     <div class="relative shrink-0">
                         <img
                             :src="item.avatar || defaultAvatar(item.title)"
-                            class="w-9 h-9 rounded-full"
+                            class="w-9 h-9 rounded-full object-cover"
                             alt=""
                         />
                         <span v-if="item.kind === 'missedCall'" class="dash-row-badge bg-red-500">
@@ -39,6 +51,9 @@
                         </span>
                         <span v-else-if="item.kind === 'missedMeet'" class="dash-row-badge bg-red-500">
                             <i class="bi bi-shield-x" />
+                        </span>
+                        <span v-else-if="item.kind === 'thread'" class="dash-row-badge bg-sky-600">
+                            <i class="bi bi-hash" />
                         </span>
                         <span v-else-if="item.kind === 'workspaceAdded'" class="dash-row-badge bg-(--primary)">
                             <i class="bi bi-plus-lg" />
@@ -51,14 +66,17 @@
                         </span>
                     </div>
                     <div class="flex-1 min-w-0 text-left">
-                        <p class="text-sm font-medium text-(--text) truncate">{{ item.title }}</p>
+                        <p class="text-sm font-semibold text-(--text) truncate">{{ item.title }}</p>
                         <p class="text-xs text-(--text2) truncate">{{ item.subtitle }}</p>
                     </div>
                     <div class="flex flex-col items-end gap-1 shrink-0">
                         <span class="text-[11px] text-(--text2)">{{ formatRelativeTime(item.latestAt) }}</span>
-                        <span v-if="item.count > 1" class="dash-badge-sm">{{ item.count }}</span>
+                        <span v-if="item.count > 1" class="dash-badge-sm tabular-nums">{{ item.count }}</span>
                     </div>
                 </button>
+            </li>
+            <li v-if="hiddenCount > 0" class="px-3 py-1.5 text-xs text-(--text2)">
+                et {{ hiddenCount }} autre{{ hiddenCount > 1 ? 's' : '' }}
             </li>
         </ul>
     </section>
@@ -66,7 +84,7 @@
 
 <script lang="ts" setup>
 import { defaultAvatar } from '@/assets/utils/defaultAvatar';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { openedOrg } from '@/assets/var';
 import { useNotification } from '@/composables/useNotification';
@@ -210,13 +228,47 @@ const otherNotifs = computed<DashItem[]>(() => {
         }));
 });
 
-const items = computed(() =>
+const allItems = computed(() =>
     [...unreadDMs.value, ...unreadThreads.value, ...otherNotifs.value]
         .sort((a, b) => new Date(b.latestAt).getTime() - new Date(a.latestAt).getTime())
-        .slice(0, 8)
 );
 
-const totalUnread = computed(() => unreadDMs.value.length + unreadThreads.value.length + otherNotifs.value.length);
+// Filtres de la carte : on ne montre que les catégories qui ont quelque chose.
+type FilterId = 'all' | 'dm' | 'thread' | 'call' | 'other';
+const filter = ref<FilterId>('all');
+
+function filterOf(kind: DashItem['kind']): Exclude<FilterId, 'all'> {
+    if (kind === 'dm') return 'dm';
+    if (kind === 'thread') return 'thread';
+    if (kind === 'missedCall' || kind === 'missedMeet') return 'call';
+    return 'other';
+}
+
+const visibleTabs = computed(() => {
+    const count = (id: FilterId) => id === 'all' ? allItems.value.length : allItems.value.filter(i => filterOf(i.kind) === id).length;
+    const tabs: { id: FilterId; label: string; count: number }[] = [
+        { id: 'all', label: 'Tout', count: count('all') },
+        { id: 'dm', label: 'Messages', count: count('dm') },
+        { id: 'thread', label: 'Salons', count: count('thread') },
+        { id: 'call', label: 'Appels', count: count('call') },
+        { id: 'other', label: 'Invitations', count: count('other') }
+    ];
+    return tabs.filter(t => t.id === 'all' || t.count > 0);
+});
+
+// Un filtre vidé (tout lu) retombe sur « Tout ».
+watch(visibleTabs, tabs => {
+    if (!tabs.some(t => t.id === filter.value)) filter.value = 'all';
+});
+
+const MAX_ROWS = 8;
+const filteredItems = computed(() =>
+    filter.value === 'all' ? allItems.value : allItems.value.filter(i => filterOf(i.kind) === filter.value)
+);
+const items = computed(() => filteredItems.value.slice(0, MAX_ROWS));
+const hiddenCount = computed(() => Math.max(0, filteredItems.value.length - MAX_ROWS));
+
+const totalUnread = computed(() => allItems.value.length);
 
 // Uniquement ce que la carte affiche (org ouverte) — pas markAllAsRead(),
 // qui viderait aussi les notifications des autres organisations. DM/threads
@@ -230,7 +282,7 @@ async function markAllRead() {
     ]);
 }
 
-defineExpose({ markAllRead });
+defineExpose({ markAllRead, totalUnread });
 
 function openItem(item: DashItem) {
     const orgId = openedOrg.value?.id;
@@ -311,7 +363,34 @@ function openItem(item: DashItem) {
     transition: background-color 0.15s;
 }
 .dash-row:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--bg);
+}
+
+.dash-tabs {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.5rem 0.5rem 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.dash-tabs button {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    height: 1.85rem;
+    padding: 0 0.65rem;
+    border-radius: 0.6rem;
+    font-size: 0.8rem;
+    color: var(--text2);
+    transition: background-color 0.15s, color 0.15s;
+}
+.dash-tabs button span { font-size: 0.7rem; opacity: 0.8; }
+.dash-tabs button:hover { color: var(--text); }
+.dash-tabs button[aria-pressed="true"] {
+    background: rgba(var(--primary-rgb), 0.12);
+    color: var(--primary);
+    font-weight: 600;
 }
 
 .dash-row-badge {

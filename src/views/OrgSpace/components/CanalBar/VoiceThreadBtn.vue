@@ -52,7 +52,7 @@
                 </button>
             </template>
             <template #content>
-                <button @click="showEditThread = !showEditThread" class="dropdown-item-annimate dropdown-item-style">
+                <button v-if="canManage" @click="showEditThread = !showEditThread" class="dropdown-item-annimate dropdown-item-style">
                     <i class="bi bi-pencil-fill mr-2" />
                     Modifier
                 </button>
@@ -62,7 +62,7 @@
                 <button @click="openInviteModal" class="dropdown-item-annimate dropdown-item-style">
                     <i class="bi bi-link-45deg mr-2"></i> Gérer les liens d'invitation
                 </button>
-                <button v-if="can('FOLDER_DELETE')" @click="showConfirmDelete = !showConfirmDelete" class="dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!">
+                <button v-if="canDelete" @click="showConfirmDelete = !showConfirmDelete" class="dropdown-item-annimate dropdown-item-style text-red-400! hover:bg-red-500/10!">
                     <i class="bi bi-trash-fill mr-2" /> Supprimer
                 </button>
             </template>
@@ -147,6 +147,7 @@ import VoiceInviteModal from '../popup/VoiceInviteModal.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import VoiceParticipantMenu from '../dropdown/VoiceParticipantMenu.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { useHerePermissions } from '@/composables/useHerePermissions';
 import { openProfile } from '@/composables/useProfile';
 
 const props = defineProps<{
@@ -166,6 +167,10 @@ const spaceId = computed(() => String(route.params.spaceId || ''));
 const ownIdentity = computed(() => user.value?.id || '');
 const { can, fetchPermissions } = usePermissions(orgId);
 const canMuteOthers = computed(() => can('VOICE_MUTE_OTHERS', spaceId.value));
+const { canHere } = useHerePermissions();
+// Le créateur supprime toujours son thread ; THREAD_DELETE porte sur ceux des autres.
+const canDelete = computed(() => props.thread.ownerId === user.value?.id || canHere('THREAD_DELETE'));
+const canManage = computed(() => props.thread.ownerId === user.value?.id || canHere('THREAD_MANAGE'));
 const canDisconnectOthers = computed(() => can('VOICE_DISCONNECT', spaceId.value));
 
 // Menu de modération par participant : même pattern que VoiceThreadView.vue

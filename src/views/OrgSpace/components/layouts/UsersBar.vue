@@ -25,7 +25,7 @@
 
         </div>
 
-        <div v-if="openedOrg?.members" class="flex-1 overflow-y-auto p-2 space-y-1 animate-app-reveal">
+        <div v-if="openedOrg?.members" data-reveal-list class="flex-1 overflow-y-auto p-2 space-y-1">
 
             <p v-if="members.filter(member => member.user?.data.status !== 'offline').length > 0" class=" py-1 text-xs text-(--text2)">
                 En ligne — {{ members.filter(member => member.user?.data.status !== 'offline').length }}
@@ -209,7 +209,7 @@ defineProps<{
 // memberRoles, déjà inclus dans openedOrg.
 const getMemberRoleLabel = (member: any): string => {
     if (member.memberRoles && member.memberRoles.length > 0) {
-        const names = member.memberRoles.map((mr: any) => mr.role?.name).filter(Boolean);
+        const names = [...member.memberRoles].sort((a: any, b: any) => (b.role?.position ?? 0) - (a.role?.position ?? 0)).map((mr: any) => mr.role?.name).filter(Boolean);
         if (names.length > 0) return names.join(', ');
     }
     return member.role || 'Membre';

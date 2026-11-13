@@ -4,8 +4,8 @@
         ref="rootRef"
         class="group relative"
         :style="{ '--glow-rgb': glowRgb }"
-        @mouseenter="onMouseEnter"
-        @mouseleave="hovering = false"
+        @pointerenter="(e: PointerEvent) => e.pointerType === 'mouse' && onMouseEnter()"
+        @pointerleave="hovering = false"
     >
 
         <button

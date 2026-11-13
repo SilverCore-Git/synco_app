@@ -45,6 +45,7 @@ import {
 import { useMentionSource } from '@/composables/mentionSource';
 import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import { autoFocus } from '@/assets/utils/autoFocus';
 
 const props = withDefaults(defineProps<{
     modelValue: string;
@@ -353,7 +354,7 @@ watch(displayValue, () => nextTick(adjustHeight));
 watch(() => route.params.threadId, async () => {
     showMentions.value = false;
     await nextTick();
-    textareaRef.value?.focus();
+    autoFocus(textareaRef.value);
 });
 
 onMounted(async () => {
@@ -362,7 +363,7 @@ onMounted(async () => {
     adjustHeight();
     if (!props.autoFocus) return;
     await nextTick();
-    textareaRef.value?.focus();
+    autoFocus(textareaRef.value);
 });
 
 </script>

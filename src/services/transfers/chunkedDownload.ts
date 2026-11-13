@@ -1,4 +1,5 @@
 import { openChunkedFileKey } from '@/assets/utils/chunkedCrypto';
+import { FileSubstitutedError } from '@/assets/utils/fileKeyV3';
 import {
     chunkCountForEncrypted,
     encryptedChunkRange,
@@ -91,6 +92,8 @@ export interface ChunkedFileMeta {
     size: number;
     iv: string;
     encryptedFileKey: string;
+    /** Nom de l'enregistrement : doit correspondre au manifeste authentifié du contenu (FC11). */
+    originalName?: string;
     /** Absent si le contenu est introuvable sur le serveur. */
     download?: DownloadTicket;
 }
@@ -114,10 +117,12 @@ export async function runChunkedDownload(
 
     if (!meta.download) throw new Error('Contenu du fichier introuvable sur le serveur');
     const cdn = new CdnDownload(meta.id, meta.download, meta.blobId);
-    const fileKey = await openChunkedFileKey(meta.encryptedFileKey, kek);
+    const { fileKey, fileUid, manifest } = await openChunkedFileKey(meta.encryptedFileKey, kek, meta.originalName);
     const encryptedSize = Number(meta.size);
     const count = chunkCountForEncrypted(encryptedSize, format.chunkSize);
     const plainSize = plainSizeForEncrypted(encryptedSize, format.chunkSize);
+    // Taille du clair déclarée dans le manifeste authentifié (FC11) : un contenu de taille différente est un autre fichier.
+    if (manifest && manifest.size !== plainSize) throw new FileSubstitutedError(meta.originalName, manifest.name);
 
     const parts = linkedAbortController(signal);
     let loaded = 0;
@@ -131,7 +136,7 @@ export async function runChunkedDownload(
 
                 let plain: ArrayBuffer;
                 try {
-                    plain = await decryptChunkInPool(fileKey, format.noncePrefix, index, index === count - 1, encrypted);
+                    plain = await decryptChunkInPool(fileKey, format.noncePrefix, index, index === count - 1, encrypted, fileUid);
                 } catch {
                     throw new Error('Fichier corrompu ou clé de déchiffrement invalide');
                 }

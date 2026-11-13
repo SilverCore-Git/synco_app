@@ -8,6 +8,9 @@ import type { WorkSpace } from '@/types/types';
 import DropDown from '@/components/DropDown.vue';
 import CreateNewCategory from '../popup/CreateNewCategory.vue';
 import CreateNewThread from '../popup/CreateNewThread.vue';
+import { useHerePermissions } from '@/composables/useHerePermissions';
+
+const { canHere } = useHerePermissions();
 
 
 const route = useRoute();
@@ -32,6 +35,7 @@ const currentWorkspace = computed(() => {
         <template #content>
 
             <CreateNewCategory
+                v-if="canHere('CATEGORY_MANAGE')"
                 :index="(currentWorkspace?.categories?.length || 0) + 1"
                 :key="'createNewCategory-' + currentWorkspace?.id"
             >
@@ -41,6 +45,7 @@ const currentWorkspace = computed(() => {
             </CreateNewCategory>
 
             <CreateNewThread
+                v-if="canHere('THREAD_CREATE')"
                 :index="(currentWorkspace?.threads?.length || 0) + 1"
                 :categoryId="currentWorkspace?.categories?.[0]?.id || ''"
                 :key="'createNewThread-' + currentWorkspace?.id"

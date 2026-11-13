@@ -10,17 +10,17 @@ class Init
     // onStep : appelé après CHAQUE sous-requête (pas juste à la toute fin),
     // pour que App.vue puisse faire avancer sa barre de progression au fil
     // de l'eau plutôt que de rester figée pendant tout le Promise.all.
-    public async run(onStep?: () => void)
+    public async run(onStep?: (label: string) => void)
     {
-        const step = async (p: Promise<void>) => {
+        const step = async (label: string, p: Promise<void>) => {
             await p;
-            onStep?.();
+            onStep?.(label);
         };
         try {
             await Promise.all([
-                step(this.InitUser()),
-                step(this.initOrg()),
-                step(this.initOpenedOrg())
+                step('user', this.InitUser()),
+                step('orgs', this.initOrg()),
+                step('openedOrg', this.initOpenedOrg())
             ]);
         }
         catch (e) {

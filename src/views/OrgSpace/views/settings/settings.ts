@@ -8,6 +8,8 @@ interface settingsView {
 }
 
 
+const STATS_SETTINGS_ROUTE = 'OrgSettingsStats';
+
 const settingsViews: settingsView[] = [
     {
         name: 'Paramètres généraux',
@@ -44,12 +46,20 @@ const settingsViews: settingsView[] = [
         icon: 'bi-robot',
         route: 'OrgSettingsAI',
         permission: 'ORG_AI'
+    },
+    {
+        // Ouvert aussi par SPACE_STATS sur un seul space : voir useSettingsAccess.
+        name: 'Statistiques',
+        icon: 'bi-bar-chart-line-fill',
+        route: STATS_SETTINGS_ROUTE,
+        permission: 'ORG_STATS'
     }
 ]
 
 
 export {
-    settingsViews
+    settingsViews,
+    STATS_SETTINGS_ROUTE
 }
 
 export type {

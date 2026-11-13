@@ -8,6 +8,7 @@
 import { isLittleScreen } from '@/assets/var';
 import { useRouter, useRoute } from 'vue-router';
 import type { RouteLocationRaw } from 'vue-router';
+import { markBackNavigation } from '@/assets/navDirection';
 
 // `to` + `alwaysVisible` couvrent le cas d'une vraie sous-route (ex: tâches
 // archivées) où la flèche doit aussi naviguer en arrière sur desktop, et pas
@@ -52,6 +53,8 @@ const handleClick = () => {
     if (isBackInsideOrg()) {
         router.back();
     } else {
+        // Empile une entrée mais reste un retour : la page repart vers la droite (navDirection.ts).
+        markBackNavigation();
         router.push(fallback);
     }
 };

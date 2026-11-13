@@ -18,7 +18,7 @@ mock.module("@/assets/utils/sfetch", () => ({
     default: (url: string, init?: any) => sfetchImpl(url, init),
 }));
 
-const { loadSession, aiSessionMessages, fetchSessions, chatSessions } = await import("./AIService");
+const { loadSession, aiSessionMessages, fetchSessions, chatSessions, aiSessionNotEncrypted } = await import("./AIService");
 const { openedOrg, user } = await import("@/assets/var");
 const { privateKey, wrapAiSessionKeyForMember, encryptAiField, encryptForPeer } = await import("@/assets/utils/crypto");
 
@@ -56,6 +56,8 @@ describe("loadSession — the 3 message formats it must distinguish", () => {
         await loadSession("sess-plain");
 
         expect(aiSessionMessages.value).toEqual(fixture);
+        // FC7 : une session enregistrée en clair est signalée comme telle.
+        expect(aiSessionNotEncrypted.value).toBe(true);
     });
 
     test("case 2 — legacy E2EE envelope (local/custom): self-encrypted via encryptForPeer, decrypted with the private key", async () => {
@@ -82,6 +84,7 @@ describe("loadSession — the 3 message formats it must distinguish", () => {
         await loadSession("sess-legacy");
 
         expect(aiSessionMessages.value).toEqual(original);
+        expect(aiSessionNotEncrypted.value).toBe(false); // enveloppe E2EE : pas de bannière
     });
 
     test("case 2 fallback — legacy E2EE envelope but private key locked: shows the placeholder instead of crashing", async () => {

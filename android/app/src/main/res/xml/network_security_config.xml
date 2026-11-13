@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Référencé par AndroidManifest.xml (android:networkSecurityConfig).
+
+  Version publiée : comportement par défaut d'Android (seules les autorités du système, pas de HTTP en clair).
+
+  debug-overrides ne s'applique QU'AUX builds de débogage (android:debuggable) : ils font aussi confiance aux
+  autorités installées par l'utilisateur sur le téléphone, pour joindre l'environnement de développement signé par
+  l'autorité locale « Synco Dev CA » (synco_api/certs/dev-ca.crt, à installer sur le téléphone de test).
+  Une version publiée n'est jamais concernée.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <!-- Boucle locale du téléphone : en développement, adb reverse y relie le CDN et le keyguard de dev, servis en
+         HTTP. Rien ne sort du téléphone par là ; une version publiée n'appelle jamais localhost. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>

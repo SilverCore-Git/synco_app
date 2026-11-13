@@ -12,14 +12,14 @@ import draggable from 'vuedraggable';
 import { ref, watch } from 'vue';
 import type { WorkSpace } from '@/types/types';
 import sfetch from '@/assets/utils/sfetch';
-import { usePermissions } from '@/composables/usePermissions';
+import { useSettingsAccess } from '@/composables/useSettingsAccess';
 import { computed } from 'vue';
 import { useVoicePresence } from '@/composables/useVoicePresence';
 
 const router = useRouter();
 const route = useRoute();
 const orgId = computed(() => openedOrg.value?.id);
-const { canAny } = usePermissions(orgId);
+const { canOpenSettings } = useSettingsAccess(orgId);
 const { getUnreadCountBySpaceId, getUnreadCountForTasks, getUnreadCountForDMs } = useNotification();
 const { refreshForOrg, spaceHasVoiceActivity } = useVoicePresence();
 const { isSpaceMuted } = useNotificationMutes();
@@ -80,7 +80,7 @@ const onSpaceOrderChange = async () => {
         "
     >
 
-        <ul
+        <ul data-reveal-list
             class="flex justify-start items-center flex-col gap-2 h-full w-full overflow-y-auto"
             :style="{ paddingBottom: userCardHeight + 16 + 'px' }"
         >
@@ -94,7 +94,7 @@ const onSpaceOrderChange = async () => {
                 />
             </RouterLink>
 
-            <RouterLink v-if="canAny(['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI'])" :to="`/${openedOrg.id}/settings?showView=0`" class="shrink-0">
+            <RouterLink v-if="canOpenSettings" :to="`/${openedOrg.id}/settings?showView=0`" class="shrink-0">
                 <SpaceBarBTN
                     icon="bi-gear"
                     label="Paramètres"
@@ -159,7 +159,7 @@ const onSpaceOrderChange = async () => {
                 @change="onSpaceOrderChange"
                 ghost-class="opacity-50"
                 drag-class="cursor-grabbing"
-                class="shrink-0 flex flex-col gap-2 w-full"
+                data-reveal-sublist class="shrink-0 flex flex-col gap-2 w-full"
             >
                 <template #item="{ element: space }">
                     <RouterLink
@@ -206,7 +206,7 @@ const onSpaceOrderChange = async () => {
         "
     >
 
-        <ul
+        <ul data-reveal-list
             class="flex justify-start items-center flex-col gap-2 h-full w-full overflow-y-auto"
             :style="{ paddingBottom: userCardHeight + 16 + 'px' }"
         >
@@ -219,7 +219,7 @@ const onSpaceOrderChange = async () => {
             />
 
             <div
-                v-if="canAny(['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI'])"
+                v-if="canOpenSettings"
                 class="                
                     relative flex items-center justify-center 
                     w-12 h-12 cursor-pointer transition-all duration-300 ease-out

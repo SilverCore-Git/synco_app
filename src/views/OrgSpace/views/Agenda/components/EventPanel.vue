@@ -542,6 +542,7 @@ interface DisplayReminder {
     minutesBefore: number;
 }
 
+const DEFAULT_REMINDER_MINUTES = 10;
 const localReminders = ref<DisplayReminder[]>([]);
 
 const currentReminders = computed<DisplayReminder[]>(() => {
@@ -706,9 +707,14 @@ watch(() => props.show, async (isShown) => {
         } finally {
             loadingDetails.value = false;
         }
-    } else if (props.initialRange) {
-        prefillFromInitialRange(props.initialRange);
-        if (props.initialTitle) title.value = props.initialTitle;
+    } else {
+        // Nouvel événement : rappel de 10 min par défaut (retirable par l'utilisateur).
+        localReminders.value = [{ id: `pending-default-${Date.now()}`, minutesBefore: DEFAULT_REMINDER_MINUTES }];
+        remindersOpen.value = true;
+        if (props.initialRange) {
+            prefillFromInitialRange(props.initialRange);
+            if (props.initialTitle) title.value = props.initialTitle;
+        }
     }
 
     await nextTick();

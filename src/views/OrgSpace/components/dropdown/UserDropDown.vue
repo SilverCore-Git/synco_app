@@ -89,11 +89,18 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
 
 };
 
+
+// Permet au parent de refermer le panneau (ex. UserCard à l'ouverture des paramètres :
+// le panneau, en z-index 1000, resterait sinon par-dessus la fenêtre des paramètres).
+const dropDownRef = ref<InstanceType<typeof DropDown> | null>(null);
+defineExpose({ close: () => dropDownRef.value?.closeDropdown() });
+
 </script>
 
 <template>
     
     <DropDown 
+        ref="dropDownRef"
         align="top" 
         content-iner-t-w="
             z-100 sdropdown min-w-[290px] shadow-none! bottom-17! w-75 

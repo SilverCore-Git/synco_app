@@ -7,7 +7,7 @@
 
       <div class="p-6 border-b border-(--border-color) shrink-0">
         <h1 class="text-xl font-bold text-(--text)">Rôles</h1>
-        <p class="text-xs text-(--text2) mt-1">Réglages propres à ce space</p>
+        <p class="text-xs text-(--text2) mt-1">Ce que chaque rôle peut faire dans ce space</p>
       </div>
 
       <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 relative max-h-56 md:max-h-none">
@@ -37,6 +37,7 @@
                 <span v-if="role.name === 'OWNER'" class="text-[9px] font-black bg-(--text)/5 px-1.5 py-0.5 rounded text-(--text2) uppercase tracking-wider border border-(--border-color)">
                   Sys
                 </span>
+                <i v-else-if="isRoleLocked(role)" class="bi bi-lock-fill text-[10px] text-(--text2)" title="Rôle égal ou supérieur au vôtre : non modifiable" />
               </span>
               <span class="text-xs text-(--text2) mt-0.5">
                 {{ role.memberCount }} membre{{ (role.memberCount || 0) !== 1 ? 's' : '' }}
@@ -76,11 +77,17 @@
             </div>
 
             <p class="text-sm text-(--text2)">
-              <template v-if="isRoleLocked(selectedRole)">
+              <template v-if="selectedRole.name === 'OWNER'">
                 Le rôle propriétaire garde tous ses droits, ici comme ailleurs.
               </template>
+              <template v-else-if="!canEdit">
+                Vous pouvez consulter ces permissions, pas les modifier.
+              </template>
+              <template v-else-if="isRoleLocked(selectedRole)">
+                Ce rôle est égal ou supérieur au vôtre : vous ne pouvez pas le modifier.
+              </template>
               <template v-else>
-                Ce qui reste sur « Hériter » suit les permissions de l'organisation.
+                « Hériter » reprend la valeur définie sur le rôle dans les paramètres de l'organisation.
               </template>
             </p>
 
@@ -149,7 +156,7 @@
                           class="text-[10px] mt-1.5 font-bold uppercase tracking-wider"
                           :class="inheritedValue(selectedRole, permKey) === 'ALLOW' ? 'text-emerald-400/70' : 'text-(--text2)'"
                         >
-                          Hérité de l'organisation :
+                          Valeur du rôle :
                           {{ inheritedValue(selectedRole, permKey) === 'ALLOW' ? 'autorisé' : 'refusé' }}
                         </span>
 
@@ -163,10 +170,10 @@
                         v-for="option in VALUE_OPTIONS"
                         :key="option.value"
                         @click="setValue(selectedRole.id, permKey, option.value)"
-                        :disabled="isRoleLocked(selectedRole)"
+                        :disabled="isRoleLocked(selectedRole) || !holds(permKey)"
                         class="px-2 sm:px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         :class="valueOf(selectedRole.id, permKey) === option.value ? option.activeClass : 'text-(--text2) hover:text-(--text)'"
-                        :title="option.label"
+                        :title="holds(permKey) ? option.label : 'Vous ne détenez pas cette permission'"
                       >
                         <i :class="option.icon" />
                         <span class="hidden lg:inline ml-1">{{ option.label }}</span>
@@ -209,10 +216,13 @@ import { ref, watch, computed, onMounted } from 'vue';
 import { usePermissions } from '@/composables/usePermissions';
 import { useToast } from '@/composables/useToast';
 import { openedOrg } from '@/assets/var';
-import { PERMISSION_REGISTRY, type Permission, type PermissionValue, type RoleData, type PermissionOverride } from '@/config/permissions.config';
+import { keycloak } from '@/assets/keycloak';
+import { PERMISSION_REGISTRY, permissionGroupsFor, type Permission, type PermissionValue, type RoleData, type PermissionOverride } from '@/config/permissions.config';
 
 const props = defineProps<{
   spaceId: string;
+  /** Propriétaire du space : règle les rôles jusqu'au sien. */
+  spaceOwnerId?: string;
 }>();
 
 // L'état « non enregistré » remonte à la fenêtre de paramètres, qui possède la
@@ -223,7 +233,7 @@ const emit = defineEmits<{
 
 const toast = useToast();
 const orgId = computed(() => openedOrg.value?.id);
-const { fetchRoles, fetchOverrides, saveOverrides, invalidateCache, fetchPermissions } = usePermissions(orgId);
+const { fetchRoles, fetchOverrides, saveOverrides, invalidateCache, fetchPermissions, can } = usePermissions(orgId);
 
 const isLoading = ref<boolean>(false);
 const isSaving = ref<boolean>(false);
@@ -243,17 +253,43 @@ const VALUE_OPTIONS: Array<{ value: PermissionValue; label: string; icon: string
   { value: 'DENY',    label: 'Refuser',   icon: 'bi bi-x-lg',     activeClass: 'bg-red-500/15 text-red-400' },
 ];
 
-// Même découpage que l'écran Rôles de l'organisation, pour que les deux écrans
-// se lisent de la même façon.
-const permissionGroups: Array<{ name: string; keys: Permission[] }> = [
-  { name: 'Organisation (Paramètres)',            keys: ['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI'] },
-  { name: 'Espaces de travail',                   keys: ['SPACE_CREATE', 'SPACE_MANAGE', 'SPACE_DELETE'] },
-  { name: 'Salons & Dossiers',                    keys: ['FOLDER_CREATE', 'FOLDER_MANAGE', 'FOLDER_DELETE'] },
-  { name: 'Contenu & Fichiers',                   keys: ['VIEW', 'READ', 'WRITE', 'UPLOAD', 'CONTENT_DELETE', 'SHARE'] },
-  { name: 'Tâches (Gestion Globale)',             keys: ['TASK_UPDATE_ALL', 'TASK_DELETE_ALL', 'TASK_STATUS_ALL', 'TASK_SUBTASK_ALL'] },
-  { name: 'Tâches (Hiérarchie - Rôles Inférieurs)', keys: ['TASK_UPDATE_LOWER', 'TASK_DELETE_LOWER', 'TASK_STATUS_LOWER', 'TASK_SUBTASK_LOWER'] },
-  { name: 'Salons vocaux',                        keys: ['VOICE_MUTE_OTHERS', 'VOICE_DISCONNECT'] },
-];
+// Seulement ce qui se règle dans un space : les permissions d'organisation
+// (paramètres, rôles, création de spaces…) ne se redéfinissent pas ici.
+const permissionGroups = permissionGroupsFor('space');
+
+// ── Qui peut modifier, et quoi (mêmes règles que l'API) ──────────────────
+// - propriétaire de l'org : tout sauf le rôle OWNER ;
+// - ORG_ROLES : les rôles strictement sous le sien ;
+// - propriétaire du space : les rôles jusqu'au sien ;
+// - SPACE_PERMISSIONS dans ce space : les rôles strictement sous le sien.
+// Hors propriétaire de l'org, on ne touche qu'aux permissions qu'on détient.
+const myId = computed<string | undefined>(() => keycloak.userInfo?.sub);
+const isOrgOwner = computed<boolean>(() => !!myId.value && openedOrg.value?.ownerId === myId.value);
+const isSpaceOwner = computed<boolean>(() => !!myId.value && props.spaceOwnerId === myId.value);
+const hasOrgRoles = computed<boolean>(() => can('ORG_ROLES'));
+
+type EditMode = 'org-owner' | 'org-roles' | 'space-owner' | 'space-delegate' | null;
+const editMode = computed<EditMode>(() => {
+  if (isOrgOwner.value) return 'org-owner';
+  if (hasOrgRoles.value) return 'org-roles';
+  if (isSpaceOwner.value) return 'space-owner';
+  if (can('SPACE_PERMISSIONS', props.spaceId)) return 'space-delegate';
+  return null;
+});
+const canEdit = computed<boolean>(() => editMode.value !== null);
+
+const myRank = computed<number>(() => {
+  const me = openedOrg.value?.members?.find(m => m.userId === myId.value);
+  const positions = (me?.memberRoles ?? []).map((mr: any) => mr.role?.position ?? 0);
+  if (positions.length > 0) return Math.max(...positions);
+  return roles.value.find(r => r.name === 'MEMBER')?.position ?? 10;
+});
+
+const holds = (permission: Permission): boolean => {
+  if (editMode.value === 'org-owner') return true;
+  // ORG_ROLES est vérifié par l'API sur les droits d'organisation, les autres sur ceux du space.
+  return editMode.value === 'org-roles' ? can(permission) : can(permission, props.spaceId);
+};
 
 const selectedRole = computed<RoleData | undefined>(() => roles.value.find(r => r.id === selectedRoleId.value));
 
@@ -274,7 +310,12 @@ const filteredPermissionGroups = computed(() => {
 
 });
 
-const isRoleLocked = (role: RoleData): boolean => role.name === 'OWNER';
+const isRoleLocked = (role: RoleData): boolean => {
+  if (role.name === 'OWNER' || !canEdit.value) return true;
+  if (editMode.value === 'org-owner') return false;
+  if (editMode.value === 'space-owner') return role.position > myRank.value;
+  return role.position >= myRank.value;
+};
 
 const valueOf = (roleId: string, permission: Permission): PermissionValue => {
   return localPerms.value[roleId]?.[permission] ?? 'INHERIT';
@@ -362,6 +403,8 @@ const load = async () => {
     const [rolesData, overridesData] = await Promise.all([
       fetchRoles(),
       fetchOverrides('space', props.spaceId),
+      fetchPermissions(),
+      fetchPermissions(props.spaceId),
     ]);
 
     roles.value = rolesData;

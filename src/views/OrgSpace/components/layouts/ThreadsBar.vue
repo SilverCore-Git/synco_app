@@ -34,7 +34,7 @@
                         
                         </div>
 
-                        <ul
+                        <ul data-reveal-list
                             class="
                                 flex justify-start items-start flex-col flex-1 min-h-0
                                 gap-3 w-full px-3 py-5 overflow-scroll
@@ -84,7 +84,7 @@
                         
                 </div>
 
-                <ul
+                <ul data-reveal-list
                     class="
                         flex justify-start items-start flex-col flex-1 min-h-0
                         gap-3 w-full px-3 py-5 overflow-scroll
@@ -94,7 +94,7 @@
 
                     <template v-for="view in settingsViews" :key="'settings-' + view.name + '-link'">
                         <RouterLink
-                            v-if="can(view.permission) && (view.route !== 'OrgSettingsStorage' || filesEnabled)"
+                            v-if="(view.route === STATS_SETTINGS_ROUTE ? canSeeStats && (todoEnabled || filesEnabled) : can(view.permission)) && (view.route !== 'OrgSettingsStorage' || filesEnabled)"
                             :to="{ name: view.route, query: { ...route.query, showView: '1' } }"
                             class="w-full"
                         >
@@ -151,7 +151,7 @@
                     </div>
                 </div>
 
-                <ul
+                <ul data-reveal-list
                     class="
                         flex justify-start items-start flex-col flex-1 min-h-0
                         gap-3 w-full px-3 py-5 overflow-y-auto
@@ -287,7 +287,7 @@
                         
                         </div>
 
-                        <ul
+                        <ul data-reveal-list
                             class="
                                 flex justify-start items-start flex-col flex-1 min-h-0
                                 gap-3 w-full px-3 py-5 overflow-scroll
@@ -329,7 +329,7 @@
                                 @change="onCategoriesChange"
                                 ghost-class="opacity-50"
                                 drag-class="cursor-grabbing"
-                                class="w-full space-y-1 min-h-[10px]"
+                                data-reveal-sublist class="w-full space-y-1 min-h-[10px]"
                                 handle=".category-drag-handle"
                             >
                                 <template #item="{ element: category }">
@@ -373,8 +373,9 @@ import ThreadDropDown from '../dropdown/ThreadDropDown.vue';
 import ThreadBarDropDown from '../dropdown/ThreadBarDropDown.vue';
 import ChatUserBtn from '../CanalBar/ChatUserBtn.vue';
 import SettingsViewBtn from '../CanalBar/SettingsViewBtn.vue';
-import { settingsViews } from '../../views/settings/settings';
+import { settingsViews, STATS_SETTINGS_ROUTE } from '../../views/settings/settings';
 import { usePermissions } from '@/composables/usePermissions';
+import { useSettingsAccess } from '@/composables/useSettingsAccess';
 import Category from '../CanalBar/Category.vue';
 import isDesktopApp from '@/assets/isDesktopApp';
 import DropDown from '@/components/DropDown.vue';
@@ -386,9 +387,15 @@ import { useRecentDMs } from '@/composables/useRecentDMs';
 import { useNotification } from '@/composables/useNotification';
 
 const orgId = computed(() => openedOrg.value?.id);
-const { canAny, can } = usePermissions(orgId);
+const { can, fetchPermissions } = usePermissions(orgId);
 
 const route = useRoute();
+
+// Permissions résolues sur le space affiché (surcharges comprises) : les
+// boutons des threads s'en servent via can(…, spaceId).
+watch(() => [orgId.value, route.params.spaceId] as const, ([org, space]) => {
+    if (org && space) fetchPermissions(String(space));
+}, { immediate: true });
 const router = useRouter();
 
 const isChat = computed(() => route.name == 'OrgChat' || route.name == 'OrgThreadChat' || route.name == 'OrgThreadChatPrivateMeet');
@@ -415,7 +422,8 @@ const showDropDown = ref<boolean>(false);
 const showSearchModal = ref<boolean>(false);
 const showAiSettings = ref<boolean>(false);
 
-const showSettingsNav = computed(() => isSettings.value && canAny(['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI']));
+const { canOpenSettings, canSeeStats } = useSettingsAccess(orgId);
+const showSettingsNav = computed(() => isSettings.value && canOpenSettings.value);
 
 // Mêmes conditions que l'affichage du bouton « Rechercher » : branche
 // « espace » du template (ni paramètres, ni DM, ni IA) et hors accueil.

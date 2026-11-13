@@ -44,7 +44,7 @@
 
 <script setup lang="ts">
 
-import { ref, onMounted, onUnmounted, reactive, watchEffect } from 'vue';
+import { ref, onMounted, onUnmounted, reactive, watch, watchEffect } from 'vue';
 
 const props = defineProps<{
   align?: 'left' | 'right' | 'mouse' | 'top';
@@ -63,6 +63,23 @@ const dropdownContentRef = ref<HTMLElement | null>(null);
 const isOpen = ref<boolean>(false);
 const pos = reactive({ x: 0, y: 0 });
 
+// Hauteur réelle du menu une fois rendu : une estimation fixe (200px)
+// laissait déborder sous la fenêtre les menus plus hauts (ex. grille
+// d'icônes de liens du profil) au lieu de les ouvrir vers le haut.
+const contentHeight = ref(0);
+let resizeObserver: ResizeObserver | null = null;
+
+watch(dropdownContentRef, (el) => {
+    resizeObserver?.disconnect();
+    resizeObserver = null;
+    if (!el) return;
+    contentHeight.value = el.offsetHeight;
+    resizeObserver = new ResizeObserver(() => { contentHeight.value = el.offsetHeight; });
+    resizeObserver.observe(el);
+}, { flush: 'post' });
+
+const MARGIN = 8;
+
 const emit = defineEmits(['toggled']);
 
 const toggleDropdown = (e?: MouseEvent) => {
@@ -80,7 +97,7 @@ const getDropdownPosition = () => {
     
     const triggerRect = triggerRef.value.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
-    const dropdownHeight = 200; // Approximate height
+    const dropdownHeight = contentHeight.value || 200; // estimation avant le premier rendu
     
     let left = triggerRect.left + window.scrollX;
     
@@ -94,9 +111,13 @@ const getDropdownPosition = () => {
     
     let top = triggerRect.bottom + window.scrollY + 8;
     
-    // Vérifier si le dropdown dépasse en bas
-    if (top + dropdownHeight > viewportHeight + window.scrollY) {
-        top = triggerRect.top + window.scrollY - dropdownHeight - 8;
+    // Vérifier si le dropdown dépasse en bas : on l'ouvre alors vers le
+    // haut, et s'il ne tient d'aucun côté on le garde dans la fenêtre.
+    if (top + dropdownHeight > viewportHeight + window.scrollY - MARGIN) {
+        const above = triggerRect.top + window.scrollY - dropdownHeight - 8;
+        top = above >= window.scrollY + MARGIN
+            ? above
+            : Math.max(window.scrollY + MARGIN, viewportHeight + window.scrollY - dropdownHeight - MARGIN);
     }
 
     // Alignement à droite
@@ -108,6 +129,8 @@ const getDropdownPosition = () => {
     } else if (props.align === 'mouse') {
         top = pos.y - 10 + window.scrollY;
         left = pos.x - 70 + window.scrollX;
+        const maxTop = viewportHeight + window.scrollY - dropdownHeight - MARGIN;
+        if (top > maxTop) top = Math.max(window.scrollY + MARGIN, maxTop);
     }
     
     return {
@@ -154,6 +177,7 @@ onMounted(() => {
     window.addEventListener('contextmenu', handleClickOutside, true);
 });
 onUnmounted(() => {
+    resizeObserver?.disconnect();
     window.removeEventListener('click', handleClickOutside, true);
     window.removeEventListener('contextmenu', handleClickOutside, true);
 });

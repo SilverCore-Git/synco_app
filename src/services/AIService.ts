@@ -50,6 +50,8 @@ const prefItem = (kind: 'provider' | 'effort', orgId: string) => {
 const sessionProviderOverride = ref<AiProviderId | null>(null);
 /** Famille de la conversation affichée, quand elle a été détectée au chargement. */
 const activeSessionRegime = ref<SessionRegime | null>(null);
+/** La conversation ouverte a été enregistrée en clair (ancien format, sans enveloppe E2EE) — audit FC7. */
+const activeSessionLegacyPlain = ref(false);
 
 /** Convertit les événements du parseur en ce que consomment les appelants de chat() : du texte ou un `tool_call`. */
 function* toolStream(events: ParsedEvent[]): Generator<any> {
@@ -685,6 +687,10 @@ export const loadSession = async (id: string) => {
 
             let loadedMessages = session.messages || [];
 
+            // Tableau de messages sans aucun champ chiffré par la passerelle : stocké en clair (cas 1).
+            activeSessionLegacyPlain.value = Array.isArray(loadedMessages) && loadedMessages.length > 0
+                && !hasEncryptedGatewayFields(loadedMessages) && !isStructuredAgentTranscript(loadedMessages);
+
             let regime: SessionRegime | null = null;
             if (Array.isArray(loadedMessages) && loadedMessages.length > 0) {
                 regime = hasEncryptedGatewayFields(loadedMessages) ? 'gateway'
@@ -764,6 +770,7 @@ export const newSession = () => {
     aiSessionMessages.value = [];
     activeSessionId.value = null;
     activeSessionRegime.value = null;
+    activeSessionLegacyPlain.value = false;
     sessionProviderOverride.value = null;
 };
 
@@ -772,6 +779,13 @@ export const newSession = () => {
  * alors `clientAgentTurn` qui fait tourner la boucle d'agent, avec le même flux d'événements que le
  * serveur pour les autres fournisseurs.
  */
+/**
+ * La conversation affichée n'est pas chiffrée de bout en bout : provider piloté par le serveur (qui
+ * doit lire les messages) ou ancienne session enregistrée en clair. Sert à la bannière d'OrgAI.vue.
+ */
+export const aiSessionNotEncrypted = computed(() =>
+    activeSessionLegacyPlain.value || (activeSessionRegime.value ?? regimeOf(aiService.provider)) === 'server');
+
 export const aiIsClientDriven = computed(() => regimeOf(aiService.provider) === 'client');
 
 // Un petit modèle se perd dans une liste de 21 outils : on lui en donne le noyau.

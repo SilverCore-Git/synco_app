@@ -1,6 +1,6 @@
 <template>
 
-    <div v-if="canAny(['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI'])" class="flex flex-col h-full bg-(--bg) relative overflow-hidden w-full">
+    <div v-if="canOpenSettings" class="flex flex-col h-full bg-(--bg) relative overflow-hidden w-full">
         
         <header 
             class="min-h-14 flex items-center px-4 border-b border-(--border-color) bg-(--bg2) backdrop-blur-md z-10"
@@ -10,10 +10,15 @@
 
                 <MobileBackBtn />
 
-                <i class="bi text-2xl text-(--text2)" :class="setting?.icon" />
-                <h2 class="font-bold text-(--text) tracking-wide lowercase">
-                    {{ setting?.name }}
-                </h2>
+                <!-- L'en-tête reste en place d'un onglet à l'autre : seuls l'icône et le titre se relaient -->
+                <Transition name="title-swap" mode="out-in">
+                    <div :key="setting?.route" class="flex items-center gap-2">
+                        <i class="bi text-2xl text-(--text2)" :class="setting?.icon" />
+                        <h2 class="font-bold text-(--text) tracking-wide lowercase">
+                            {{ setting?.name }}
+                        </h2>
+                    </div>
+                </Transition>
                 
             </div>
 
@@ -29,8 +34,13 @@
 
         </header>
 
-        <main class="h-full w-full overflow-auto bg-(--bg3)">
-            <RouterView />
+        <!-- flex-1 min-h-0 (et non h-full) : sous l'en-tête, h-full dépassait de sa hauteur vers le bas -->
+        <main class="flex-1 min-h-0 w-full overflow-auto bg-(--bg3) relative">
+            <RouterView v-slot="{ Component }">
+                <Transition :name="isLittleScreen ? mobilePageTransition : 'view-swap'">
+                    <component :is="Component" :key="route.name" />
+                </Transition>
+            </RouterView>
         </main>
 
     </div>
@@ -39,19 +49,25 @@
 
 <script lang="ts" setup>
 
-import { computed, onMounted } from 'vue';
+import { computed, inject, ref, watch } from 'vue';
+import type { Ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { settingsViews } from './settings';
+import { settingsViews, STATS_SETTINGS_ROUTE, type settingsView } from './settings';
+import { useSettingsAccess, ORG_SETTINGS_PERMISSIONS } from '@/composables/useSettingsAccess';
 import { usePermissions } from '@/composables/usePermissions';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, isLittleScreen } from '@/assets/var';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import { useUsersBar } from '@/composables/useUsersBar';
 
 const route = useRoute();
+// Petit écran : transition choisie par OrgLayout selon que le panneau reste ouvert, s'ouvre ou se ferme.
+const mobilePageTransition = inject<Ref<string>>('mobilePageTransition', ref(''));
 const router = useRouter();
 
 const orgId = computed(() => openedOrg.value?.id);
 const { canAny, can } = usePermissions(orgId);
+const { canOpenSettings, canSeeStats, statsScopes } = useSettingsAccess(orgId);
+const canSeeView = (view: settingsView) => (view.route === STATS_SETTINGS_ROUTE ? canSeeStats.value : can(view.permission));
 
 const { showUsersBar } = useUsersBar();
 
@@ -59,21 +75,25 @@ const setting = computed(() => {
     return settingsViews.find(view => view.route == route.name);
 })
 
-onMounted(() => {
-    const hasAnySettingsPerm = canAny(['ORG_GENERAL', 'ORG_MEMBERS', 'ORG_ROLES', 'ORG_WEBHOOKS', 'ORG_STORAGE', 'ORG_AI']);
-    if (!hasAnySettingsPerm) return router.push({ name: 'OrgHome' });
+// Rejoué à chaque onglet : SettingsLayout n'est plus recréé en changeant d'onglet (clé de vue d'OrgLayout).
+watch([() => route.name, canOpenSettings], () => {
+    // En quittant les paramètres, la route change avant le démontage : rien à vérifier.
+    if (!route.matched.some(r => r.name === 'OrgSettings')) return;
+    // Sans onglet de réglage, seules les statistiques peuvent ouvrir les paramètres : attendre leurs portées.
+    if (!canAny(ORG_SETTINGS_PERMISSIONS) && !statsScopes.value) return;
+    if (!canOpenSettings.value) return router.push({ name: 'OrgHome' });
 
     if (route.name === 'OrgSettings') {
-        const firstAllowedSetting = settingsViews.find(v => can(v.permission));
+        const firstAllowedSetting = settingsViews.find(canSeeView);
         if (!firstAllowedSetting) return router.push({ name: 'OrgHome' });
         router.push({ name: firstAllowedSetting.route, query: route.query });
     } else {
-        if (setting.value && !can(setting.value.permission)) {
-            const firstAllowedSetting = settingsViews.find(v => can(v.permission));
+        if (setting.value && !canSeeView(setting.value)) {
+            const firstAllowedSetting = settingsViews.find(canSeeView);
             if (firstAllowedSetting) router.push({ name: firstAllowedSetting.route, query: route.query });
             else router.push({ name: 'OrgHome' });
         }
     }
-});
+}, { immediate: true });
 
 </script>

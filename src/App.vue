@@ -1,5 +1,6 @@
 <script setup lang="ts">
 
+import { orgNav } from './assets/orgOpen';
 import Loader from './components/LogoLoader.vue';
 import SpinLoader from './components/SpinLoader.vue';
 import ConnectionErrorScreen from './components/ConnectionErrorScreen.vue';
@@ -10,12 +11,18 @@ import { isLoaded, user } from './assets/var';
 import type { User } from '@/types/types';
 import Notifications from './components/overlay/Notifications.vue';
 import TransfersPanel from './components/overlay/TransfersPanel.vue';
+import ExtensionSuggestion from './components/overlay/ExtensionSuggestion.vue';
+import V4MigrationDialog from './components/e2ee/V4MigrationDialog.vue';
 import ConnectionStatusBanner from './components/overlay/ConnectionStatusBanner.vue';
+import RateLimitOverlay from './components/overlay/RateLimitOverlay.vue';
 import AiGatewayConsent from './components/common/AiGatewayConsent.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
-import useSettingsItem from './composables/useSettingsItem';
+import useTheme from './composables/useTheme';
 import { initKC, isTauriPlatform, loginWithSystemBrowser } from './assets/keycloak';
-import { E2EEUnloked, setupFirstTimeSecurityV3, unlockSecurity, unlockSecurityV3, SALT_V2_PREFIX, SALT_V3_PREFIX, privateKey, lockSecurity, assertOwnPublicKeyMatches, OwnKeyMismatchError, rewrapLegacyPrivateKeyV3, generateSigningKeypairForMigration } from './assets/utils/crypto';
+import type { RouteLocationNormalizedLoaded } from 'vue-router';
+import DesktopLogin from './components/auth/DesktopLogin.vue';
+import { rememberDesktopAccount } from './assets/desktopAccount';
+import { E2EEUnloked, setupFirstTimeSecurityV3, unlockSecurity, unlockSecurityV3, SALT_V2_PREFIX, SALT_V3_PREFIX, privateKey, lockSecurity, assertOwnPublicKeyMatches, OwnKeyMismatchError, rewrapLegacyPrivateKeyV3, generateSigningKeypairForMigration, openV3IdentityForMigration } from './assets/utils/crypto';
 import sfetch from './assets/utils/sfetch';
 import { useToast } from './composables/useToast';
 import TopBar from './components/layout/topBar.vue';
@@ -27,11 +34,15 @@ import { debugLog } from './assets/utils/debugLog';
 import Popup from './components/Popup.vue';
 import BannedScreen from './components/BannedScreen.vue';
 import { isProfileOpen, profileUser, closeProfile } from './composables/useProfile';
+import V4Gate from './components/e2ee/V4Gate.vue';
+import { isV4Account, sealedFrom } from './assets/e2eeV4/runtime';
+import { discardV3Migration, handOffV3Migration } from './assets/e2eeV4/v3MigrationHandoff';
 import useFavicon from './composables/useFavicon';
 import { banned } from './composables/useBanStatus';
+import { syncSystemBars } from './assets/nativeSystemBars';
 
 const toast = useToast();
-const { Item: theme } = useSettingsItem('theme', 'dark');
+const { resolvedTheme: theme } = useTheme();
 const pin = ref<string>('');
 const pinLoading = ref<boolean>(false);
 
@@ -51,15 +62,22 @@ const handleSendMessageFromProfile = (targetUser: User) => {
 
 watch(() => theme.value, () => {
   document.body.className = theme.value;
-})
+  // Android : barres système au fond du thème qui vient d'être posé (nativeSystemBars.ts).
+  syncSystemBars(theme.value);
+}, { immediate: true })
 
 watch(() => E2EEUnloked.value, (isUnlocked) => {
   if (!isUnlocked) {
     pin.value = '';
+    // Clés v3 remises pour la migration mais pas encore prises : effacées au verrouillage.
+    discardV3Migration();
   }
 });
 
 const authenticated = ref<boolean>(false);
+// Vrai une fois que Keycloak a répondu (session restaurée ou non) : avant, on ne sait pas encore s'il faut
+// demander la connexion, et l'écran de chargement reste affiché au lieu de l'écran de connexion.
+const authChecked = ref<boolean>(false);
 const isTauri = isTauriPlatform();
 const tauriLoginLoading = ref<boolean>(false);
 const tauriLoginError = ref<boolean>(false);
@@ -81,14 +99,26 @@ const isResettingPIN = ref<boolean>(false);
 //   endpoint (see crypto.ts's SALT_V3_PREFIX comment), not from PIN length.
 // v3 is the sole target for every new setup and every PIN reset going
 // forward, regardless of which scheme the account was on before.
-type PinScheme = 'legacy' | 'v2' | 'v3';
+//
+// v4 ("v4:", doc/securite/13-e2ee-v4-multi-appareil.md) : plus aucun PIN côté
+// serveur, l'identité est enveloppée par une clé de compte que détiennent les
+// appareils. Écran dédié (V4Gate) ; tout compte neuf est créé en v4.
+type PinScheme = 'legacy' | 'v2' | 'v3' | 'v4';
 const pinScheme = computed<PinScheme>(() => {
   const salt = user.value?.pinSalt || '';
+  if (isV4Account(salt)) return 'v4';
   if (salt.startsWith(SALT_V3_PREFIX)) return 'v3';
   if (salt.startsWith(SALT_V2_PREFIX)) return 'v2';
   return 'legacy';
 });
 const isUnlockMode = computed(() => pinSetup.value && !isResettingPIN.value);
+// v4 : compte v4, ou compte neuf (création directement en v4). Les comptes
+// legacy / v2 / v3 gardent exactement l'écran PIN ci-dessous.
+const v4GateMode = computed<'unlock' | 'onboard' | null>(() => {
+  if (pinScheme.value === 'v4') return 'unlock';
+  if (!pinSetup.value && !isResettingPIN.value) return 'onboard';
+  return null;
+});
 
 const MIN_PIN_LENGTH = 6;
 const MAX_PIN_LENGTH = 10;
@@ -154,6 +184,30 @@ const migrateSigningKeyIfNeeded = async (pinValue: string, salt: string) => {
     if (res.ok) await refetchUser();
   } catch (e) {
     console.warn('[E2EE] Génération de la clé de signature impossible pour le moment :', e);
+  }
+};
+
+// E2EE v4 (P5, §13.4) : mise à niveau proposée à CHAQUE ouverture d'un compte v3, pas imposée. L'utilisateur
+// accepte sur l'écran de déverrouillage, AVANT de saisir son PIN (même principe que la bascule vers Synco Extension
+// dans V4Gate) : le PIN déverrouille, puis ouvre une dernière fois les clés v3, remises à V4MigrationDialog
+// (v3MigrationHandoff.ts) qui continue sans le redemander. Le PIN n'est jamais gardé. Refusée : la proposition
+// revient au lancement suivant, et reste dans Paramètres › Appareils.
+const v4Offer = ref<'offered' | 'accepted' | 'dismissed'>('offered');
+const showV4Offer = computed(() => pinScheme.value === 'v3' && isUnlockMode.value && v4Offer.value !== 'dismissed');
+
+const startV4Migration = async (typedPin: string) => {
+  const u = user.value;
+  const later = "La mise à niveau n'a pas pu démarrer. Vous la retrouverez dans Paramètres › Appareils.";
+  // Clé de signature : créée juste avant par migrateSigningKeyIfNeeded pour les comptes v3 qui ne l'avaient pas.
+  if (!u?.pinSalt?.startsWith(SALT_V3_PREFIX) || !u.encryptedSignPrivateKey || !u.signKeyIv || !u.publicSignKey) {
+    toast.show(later, 'info', 8000);
+    return;
+  }
+  try {
+    handOffV3Migration(await openV3IdentityForMigration(typedPin, u.pinSalt, sealedFrom(u), fetchWrapSecret));
+  } catch (e) {
+    console.warn('[E2EE v4] migration proposée à l\'ouverture :', e);
+    toast.show(later, 'info', 8000);
   }
 };
 
@@ -230,6 +284,7 @@ const submit = async () => {
           // Salt toujours v3 ici (branche pinScheme === 'v3') : pas de
           // nouveau round-trip verifier, fetchWrapSecret suffit.
           await migrateSigningKeyIfNeeded(pin.value, user.value.pinSalt);
+          if (v4Offer.value === 'accepted') await startV4Migration(pin.value);
           pin.value = '';
         } catch (e: any) {
           pin.value = '';
@@ -321,19 +376,81 @@ const submit = async () => {
 }
 
 const showResetConfirm = ref<boolean>(false);
+// Étapes : 'warn' (avertissement + confirmations) → 'code' (code reçu par email).
+const resetStep = ref<'warn' | 'code'>('warn');
+const resetAckLoss = ref<boolean>(false);
+const resetAckIrreversible = ref<boolean>(false);
+const resetTyped = ref<string>('');
+const resetCode = ref<string>('');
+const resetBusy = ref<boolean>(false);
+// Sans accent : tapable sur tous les claviers. La saisie est comparée sans accents ni casse (« réinitialiser » passe aussi).
+const RESET_PHRASE = 'REINITIALISER';
+const normalizePhrase = (s: string) => s.trim().normalize('NFD').replace(/\p{M}/gu, '').toUpperCase();
+
+const canSendResetCode = computed(() =>
+  resetAckLoss.value && resetAckIrreversible.value &&
+  normalizePhrase(resetTyped.value) === RESET_PHRASE && !resetBusy.value
+);
+
+const closeResetPopup = () => {
+  showResetConfirm.value = false;
+  resetStep.value = 'warn';
+  resetAckLoss.value = false;
+  resetAckIrreversible.value = false;
+  resetTyped.value = '';
+  resetCode.value = '';
+};
 
 const pinForgot = () => {
+  closeResetPopup();
   showResetConfirm.value = true;
 };
 
+const sendResetCode = async () => {
+  if (!canSendResetCode.value) return;
+  resetBusy.value = true;
+  try {
+    const res = await sfetch('/api/users/me/pin/reset/request', { method: 'POST' });
+    if (res.ok) {
+      resetStep.value = 'code';
+      toast.show('Un code de confirmation vous a été envoyé par email.', 'info', 8000);
+    } else {
+      toast.show((await res.json().catch(() => ({}))).error || "Impossible d'envoyer le code", 'error');
+    }
+  } finally {
+    resetBusy.value = false;
+  }
+};
+
 const resetPIN = async () => {
-  showResetConfirm.value = false;
-  isResettingPIN.value = true;
-  pin.value = '';
-  toast.show('Veuillez définir un nouveau code PIN', 'info');
+  if (!/^\d{6}$/.test(resetCode.value) || resetBusy.value) return;
+  resetBusy.value = true;
+  try {
+    const res = await sfetch('/api/users/me/pin/reset/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ code: resetCode.value }),
+    });
+    if (!res.ok) {
+      toast.show((await res.json().catch(() => ({}))).error || 'Code incorrect', 'error');
+      resetCode.value = '';
+      return;
+    }
+    const body = await res.json().catch(() => ({}));
+    closeResetPopup();
+    isResettingPIN.value = true;
+    pin.value = '';
+    // L'API de dev accepte un code de test (NODE_ENV=development) : on le dit clairement.
+    if (body.dev) toast.show(body.message || 'Mode développement : code de test accepté.', 'warning', 8000);
+    else toast.show('Email validé. Veuillez définir un nouveau code PIN', 'info');
+  } finally {
+    resetBusy.value = false;
+  }
 };
 
 const handleInput = (e: KeyboardEvent) => {
+  // V4Gate gère son propre clavier : sans cette garde, Entrée lancerait ici
+  // la création d'un compte v3.
+  if (v4GateMode.value) return;
   if (e.key >= '0' && e.key <= '9') press(e.key);
   else if (e.key === 'Enter' && canSubmitPin.value) submit();
   else if (e.key === 'Backspace') pin.value = pin.value.slice(0, -1);
@@ -343,6 +460,8 @@ const handleInput = (e: KeyboardEvent) => {
 // plutôt qu'un vrai pourcentage d'octets transférés, qui n'a pas de sens ici
 // (peu de requêtes, surtout de la latence réseau/Keycloak).
 const bootProgress = ref(0);
+// Libellé affiché en bas du loader : ce qui est en cours de chargement.
+const bootStatus = ref('Démarrage…');
 
 const finishAuthInit = async () => {
   // init.run() lance 3 requêtes en parallèle (user, orgs, org ouverte) —
@@ -350,7 +469,17 @@ const finishAuthInit = async () => {
   // d'un coup à 85%. On avance plutôt à chaque requête qui termine, dans
   // l'ordre où elles arrivent (pas forcément 1-2-3).
   let completedInitSteps = 0;
-  await init.run(() => {
+  bootStatus.value = 'Chargement de votre profil…';
+  const pending = new Set(['user', 'orgs', 'openedOrg']);
+  const labels: Record<string, string> = {
+    user: 'Chargement de votre profil…',
+    orgs: 'Chargement de vos organisations…',
+    openedOrg: "Chargement de l'espace ouvert…"
+  };
+  await init.run((done) => {
+    pending.delete(done);
+    const next = pending.values().next().value;
+    if (next) bootStatus.value = labels[next] ?? bootStatus.value;
     completedInitSteps++;
     bootProgress.value = 50 + (completedInitSteps / 3) * 35;
   });
@@ -362,20 +491,43 @@ const finishAuthInit = async () => {
     return;
   }
 
+  bootStatus.value = 'Finalisation…';
   await waitFor(() => user.value !== null);
+  // Bureau : retenir le prénom pour l'accueil de la prochaine connexion (« Bon retour, … »).
+  if (isTauri) rememberDesktopAccount(user.value);
   bootProgress.value = 90;
+  bootStatus.value = 'Connexion sécurisée…';
   await initPeer();
   bootProgress.value = 95;
   useAppPresence();
   bootProgress.value = 100;
 };
 
+/**
+ * Clé de la page de premier niveau. Les pages « overlay » (SAV, admin) gardent l'URL complète : la liste et le
+ * détail d'un ticket glissent l'un sur l'autre. Une organisation, elle, n'est recréée que quand on en change :
+ * avec l'URL complète, chaque clic sur un salon recréait tout OrgLayout (rechargement, sockets, pairs,
+ * notifications) et rejouait son animation d'ouverture.
+ */
+const pageKey = (r: RouteLocationNormalizedLoaded) =>
+  r.meta?.overlay ? r.fullPath : `${String(r.matched[0]?.path ?? r.path)}|${String(r.params.orgId ?? '')}`;
+
+let tauriLoginAbort: AbortController | null = null;
+
+/** « Annuler » pendant l'attente du navigateur : retour à l'écran de connexion, sans message d'erreur. */
+const cancelTauriLogin = () => {
+  tauriLoginAbort?.abort();
+};
+
 const handleTauriLogin = async () => {
   tauriLoginLoading.value = true;
   tauriLoginError.value = false;
+  const abort = new AbortController();
+  tauriLoginAbort = abort;
 
   try {
-    const success = await loginWithSystemBrowser();
+    const success = await loginWithSystemBrowser(abort.signal);
+    if (abort.signal.aborted) return;
     authenticated.value = success;
 
     if (success) {
@@ -392,6 +544,7 @@ const handleTauriLogin = async () => {
     console.error('Error during Tauri login:', error);
     tauriLoginError.value = true;
   } finally {
+    if (tauriLoginAbort === abort) tauriLoginAbort = null;
     tauriLoginLoading.value = false;
   }
 };
@@ -409,6 +562,7 @@ const bootstrap = async (options?: { silent?: boolean }) => {
   bootError.value = false;
   bootLoading.value = true;
   bootProgress.value = 5;
+  bootStatus.value = 'Connexion au serveur…';
 
   try {
     const res = await fetch(`${import.meta.env.VITE_API_URL}/health`);
@@ -420,8 +574,10 @@ const bootstrap = async (options?: { silent?: boolean }) => {
     }
     bootProgress.value = 25;
 
+    bootStatus.value = 'Authentification auprès de Keycloak…';
     debugLog('[boot] calling initKC...');
     authenticated.value = await initKC();
+    authChecked.value = true;
     debugLog('[boot] initKC done, authenticated =', authenticated.value);
     bootProgress.value = 50;
 
@@ -548,7 +704,11 @@ onMounted(async () => {
 
   <div class="w-screen h-[100dvh] relative flex flex-col overflow-hidden">
 
-    <div class="w-full">
+    <!-- shrink-0 + branches en flex-1 min-h-0 (et non h-full) : avec h-full, la zone de l'app faisait 100 % de
+         la hauteur EN PLUS des 36 px de la barre de titre Tauri. Tout dépassait vers le bas (UserCard
+         « dans le sol »), et un focus ou un scrollIntoView (ouverture d'un salon…) faisait défiler ce conteneur
+         overflow-hidden, cachant puis réaffichant la barre de titre. -->
+    <div class="w-full shrink-0">
       <TopBar />
     </div>
 
@@ -558,6 +718,7 @@ onMounted(async () => {
     <Notifications />
     <TransfersPanel />
     <ConnectionStatusBanner />
+    <RateLimitOverlay />
     <AiGatewayConsent />
 
     <!-- Compte banni : prioritaire sur tout le reste. Un compte banni ne
@@ -566,53 +727,15 @@ onMounted(async () => {
          resterait bloqué sur l'écran de chargement sans explication — et s'il
          est banni en cours de session, cet écran remplace immédiatement
          l'app. Il arrive donc bien avant l'écran de code PIN. -->
-    <div v-if="banned" class="h-full w-full">
+    <div v-if="banned" class="flex-1 min-h-0 w-full">
       <BannedScreen />
     </div>
 
     <!-- Écran de connexion Tauri (bureau) : authenticated est déjà à false
          ici, mais tant que l'utilisateur n'a pas cliqué "Se connecter" on
          reste sur ce bouton plutôt que le loader ci-dessous. -->
-    <div v-else-if="isTauri && !authenticated" class="h-full w-full">
-
-      <div class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none">
-
-        <div class="mb-8 text-center max-w-lg">
-
-          <div class="flex flex-col items-center gap-4 mb-3">
-            <img :src="theme === 'light' ? '/assets/logo/synco/light_banner_synco.svg' : '/banner.svg'" alt="Logo" class="h-16" />
-          </div>
-
-          <h2 class="text-xl font-bold text-(--text)">
-            Connectez-vous à votre compte
-          </h2>
-
-          <p class="text-sm text-(--text2) mt-2 leading-relaxed">
-            La connexion se fait dans votre navigateur, pour plus de sécurité.
-          </p>
-
-        </div>
-
-        <button
-          @click="handleTauriLogin"
-          class="primary"
-          :class="{ loader: tauriLoginLoading }"
-          :disabled="tauriLoginLoading"
-        >
-          <i class="bi bi-box-arrow-up-right mr-2" />
-          <span class="font-bold tracking-wide">Se connecter</span>
-        </button>
-
-        <p v-if="tauriLoginLoading" class="text-xs text-(--text2) mt-6 uppercase tracking-widest font-bold">
-          En attente de connexion dans le navigateur...
-        </p>
-
-        <p v-if="tauriLoginError" class="text-xs text-red-400 mt-6 font-medium">
-          La connexion a échoué. Réessayez.
-        </p>
-
-      </div>
-
+    <div v-else-if="isTauri && authChecked && !authenticated" class="flex-1 min-h-0 w-full">
+      <DesktopLogin :loading="tauriLoginLoading" :error="tauriLoginError" @login="handleTauriLogin" @cancel="cancelTauriLogin" />
     </div>
 
     <!-- Fenêtre de démarrage : soit le loader (logo + barre de progression),
@@ -621,7 +744,7 @@ onMounted(async () => {
          v-if/v-else-if séparé. Même garde qu'avant (!authenticated || !user) :
          bootError ne peut redevenir true qu'avant d'atteindre l'app (cf.
          bootstrap()/attemptSilentReconnect), jamais une fois dedans. -->
-    <div v-else-if="!authenticated || !user" class="h-full w-full bg-(--bg3)">
+    <div v-else-if="!authenticated || !user" class="flex-1 min-h-0 w-full bg-(--bg3)">
       <Transition name="boot-fade" mode="out-in">
         <ConnectionErrorScreen
           v-if="bootError || reconnectStatus !== 'offline'"
@@ -635,27 +758,28 @@ onMounted(async () => {
           key="boot-loading"
           class="h-full w-full flex flex-col items-center justify-center p-6 select-none animate-app-reveal"
         >
-          <Loader :progress="bootProgress" />
+          <Loader :progress="bootProgress" :status="bootStatus" />
         </div>
       </Transition>
     </div>
 
-    <div v-else class="h-full w-full">
+    <div v-else class="flex-1 min-h-0 w-full relative">
 
       <CallOverlay />
       <UserProfile :isOpen="isProfileOpen" :profileUser="profileUser" @close="closeProfile"
         @send-message="handleSendMessageFromProfile" />
 
-      <Transition name="page-lock" mode="out-in" appear>
+      <!-- Fondu croisé (pas out-in) : l'écran qui part s'efface PAR-DESSUS celui qui arrive, sans passer par le noir -->
+      <Transition name="page-lock" appear>
 
-        <div v-if="E2EEUnloked && !pinLoading" class="w-full h-full" key="app">
+        <div v-if="E2EEUnloked && !pinLoading" class="w-full h-full relative" key="app">
 
           <!-- Une fois déverrouillé, les données d'org sont presque toujours déjà
                chargées (elles se chargent en parallèle depuis avant l'écran PIN) ;
                ce court instant d'attente reste discret plutôt que de réafficher
                le plein écran logo+barre, qui donnait l'impression d'un rechargement. -->
-          <Transition name="fade" mode="out-in">
-            <div v-if="isLoaded" class="w-full h-full relative overflow-hidden animate-app-reveal" key="loaded">
+          <Transition name="boot-cross">
+            <div v-if="isLoaded" id="app-pages" class="w-full h-full relative overflow-hidden animate-app-reveal" :class="orgNav && `org-nav-${orgNav}`" key="loaded">
               <!-- Transition "push" (src/style.css) : une route dont le
                    meta.overlay est vrai (/root, /support, /support-panel…)
                    glisse depuis la droite et recouvre la page du dessous au
@@ -667,24 +791,33 @@ onMounted(async () => {
                 <Transition name="push">
                   <component
                     :is="Component"
-                    :key="matchedRoute.fullPath"
+                    :key="pageKey(matchedRoute)"
                     :class="{ 'overlay-page': matchedRoute.meta?.overlay }"
                   />
                 </Transition>
               </RouterView>
             </div>
 
-            <div v-else class="w-full h-full flex items-center justify-center bg-(--bg)" key="loading">
-              <SpinLoader />
+            <!-- Même écran que le démarrage : on ne change pas d'indicateur entre la connexion et l'app -->
+            <div v-else class="w-full h-full" key="loading">
+              <Loader :progress="100" status="Chargement de vos espaces…" />
             </div>
           </Transition>
+
+          <!-- Suggestion de Synco Extension (appareil protégé par le seul PIN local), une fois l'app affichée -->
+          <ExtensionSuggestion v-if="isLoaded" />
+
+          <!-- Migration v3 → v4 acceptée sur l'écran de déverrouillage : reprend avec les clés déjà ouvertes -->
+          <V4MigrationDialog v-if="isLoaded" takes-handoff />
 
         </div>
 
         <div class="w-full h-full" key="lock" v-else>
 
           <Transition name="fade" mode="out-in">
-          <div v-if="pinLoading" key="pin-loading"
+          <V4Gate v-if="v4GateMode" key="v4-gate" :mode="v4GateMode" />
+
+          <div v-else-if="pinLoading" key="pin-loading"
             class="w-full h-full flex flex-col items-center justify-center bg-(--bg2) p-6 select-none animate-app-reveal">
             <SpinLoader />
           </div>
@@ -714,6 +847,23 @@ onMounted(async () => {
                 Attention : vos anciens messages deviendront indéchiffrables.
               </p>
 
+            </div>
+
+            <!-- Compte v3 : passage au chiffrement multi-appareil proposé à chaque ouverture. Le PIN saisi ensuite
+                 déverrouille ET sert à la migration : rien de plus à taper (startV4Migration). -->
+            <div v-if="showV4Offer" class="w-full max-w-sm mb-8 rounded-xl border border-(--border-color) bg-(--bg) px-4 py-3.5 text-left pin-step pin-step-2">
+              <template v-if="v4Offer === 'offered'">
+                <p class="text-sm text-(--text)"><strong>Nouveau : chiffrement multi-appareil.</strong> Vos messages sur tous vos appareils, sans code PIN à retenir.</p>
+                <p class="text-xs text-(--text2) mt-1">Les anciennes versions de l'application ne pourront plus ouvrir ce compte.</p>
+                <div class="flex items-center gap-4 mt-3">
+                  <button class="primary text-xs" @click="v4Offer = 'accepted'">Activer</button>
+                  <button class="text-xs text-(--text2) hover:text-(--text) transition-colors" @click="v4Offer = 'dismissed'">Pas maintenant</button>
+                </div>
+              </template>
+              <template v-else>
+                <p class="text-sm text-(--text)"><i class="bi bi-check2 text-(--primary) mr-1" aria-hidden="true" />Saisissez votre code PIN une dernière fois : vous choisirez ensuite comment déverrouiller cet appareil.</p>
+                <button class="text-xs text-(--text2) hover:text-(--text) transition-colors mt-2" @click="v4Offer = 'offered'">Annuler</button>
+              </template>
             </div>
 
             <div v-if="pinMaxLength === 4" class="flex gap-4 mb-10 transition-transform duration-300 pin-step pin-step-3">
@@ -776,18 +926,55 @@ onMounted(async () => {
               Code PIN oublié ?
             </button>
 
-            <Popup :isOpen="showResetConfirm" @close="showResetConfirm = false">
+            <Popup :isOpen="showResetConfirm" @close="closeResetPopup">
               <template #title>Réinitialiser le code PIN</template>
-              <p class="text-(--text) text-sm">
-                Cela réinitialisera votre clé de chiffrement.
-                <span class="text-amber-500 font-medium">Tous vos anciens messages deviendront illisibles.</span>
-              </p>
-              <p class="text-(--text2) text-xs mt-4">
-                Cette action ne peut pas être annulée.
-              </p>
+
+              <template v-if="resetStep === 'warn'">
+                <div class="rounded-lg border-2 border-red-500 bg-red-500/10 p-4">
+                  <p class="text-red-500 font-bold text-base uppercase tracking-wide">
+                    <i class="bi bi-exclamation-triangle-fill mr-1"></i> Action destructive et irréversible
+                  </p>
+                  <p class="text-(--text) text-sm mt-2">
+                    Si vous réinitialisez votre code PIN, <strong>vous perdez définitivement tout votre historique</strong> :
+                    <strong>tous les messages déjà envoyés et reçus deviendront illisibles</strong>, et personne, pas même nous, ne pourra les récupérer.
+                  </p>
+                </div>
+                <p class="text-(--text2) text-xs mt-3">
+                  Si vous pensez vous souvenir de votre code, annulez et réessayez plutôt que de réinitialiser.
+                  Un code de confirmation sera envoyé à votre adresse email.
+                </p>
+                <label class="flex items-start gap-2 mt-4 text-sm text-(--text) cursor-pointer">
+                  <input type="checkbox" v-model="resetAckLoss" class="mt-1" />
+                  <span>Je comprends que tous mes anciens messages seront perdus.</span>
+                </label>
+                <label class="flex items-start gap-2 mt-2 text-sm text-(--text) cursor-pointer">
+                  <input type="checkbox" v-model="resetAckIrreversible" class="mt-1" />
+                  <span>Je comprends que cette action est irréversible.</span>
+                </label>
+                <p class="text-(--text2) text-xs mt-4">Tapez <strong class="text-red-500">{{ RESET_PHRASE }}</strong> pour confirmer :</p>
+                <input v-model="resetTyped" type="text" @keydown.stop autocomplete="off" spellcheck="false" :placeholder="RESET_PHRASE"
+                  class="w-full mt-1 rounded-md border border-(--border) bg-transparent px-3 py-2 text-sm" />
+              </template>
+
+              <template v-else>
+                <p class="text-(--text) text-sm">
+                  Saisissez le code à 6 chiffres envoyé à votre adresse email. Il expire dans 15 minutes.
+                </p>
+                <input v-model="resetCode" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code"
+                  placeholder="000000" @keydown.stop @keyup.enter="resetPIN"
+                  class="w-full mt-3 rounded-md border border-(--border) bg-transparent px-3 py-2 text-center text-xl tracking-[0.5em]" />
+                <p class="text-amber-500 text-xs mt-3 font-medium">
+                  Une fois le code validé, vos anciens messages seront définitivement perdus.
+                </p>
+                <button @click="sendResetCode" :disabled="resetBusy" class="mt-3 text-xs text-(--text2) hover:text-(--primary) underline">
+                  Renvoyer un code
+                </button>
+              </template>
+
               <template #footer>
-                <button @click="showResetConfirm = false" class="default">Annuler</button>
-                <button @click="resetPIN" class="danger">Réinitialiser</button>
+                <button @click="closeResetPopup" class="default">Annuler</button>
+                <button v-if="resetStep === 'warn'" @click="sendResetCode" :disabled="!canSendResetCode" class="danger">Envoyer le code par email</button>
+                <button v-else @click="resetPIN" :disabled="resetCode.length !== 6 || resetBusy" class="danger">Valider et réinitialiser</button>
               </template>
             </Popup>
 

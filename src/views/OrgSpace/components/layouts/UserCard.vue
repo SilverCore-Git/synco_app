@@ -99,7 +99,7 @@
             "
         >
 
-            <UserDropDown :user="user?.user" class="w-full">
+            <UserDropDown ref="userDropDownRef" :user="user?.user" class="w-full">
 
                 <template #trigger>
 
@@ -145,7 +145,7 @@
 
                         <div class="flex items-center gap-0.5">
 
-                            <button @click.stop="showUserSettings = !showUserSettings" class="p-1.5 rounded-md active:scale-90 transition-all group/settings text-(--text) hover:text-(--primary) hover:rotate-45">
+                            <button @click.stop="toggleUserSettings" class="p-1.5 rounded-md active:scale-90 transition-all group/settings text-(--text) hover:text-(--primary) hover:rotate-45">
                                 <i class="bi bi-gear-fill text-md group-hover/settings:rotate-45 transition-transform duration-300" />
                             </button>
 
@@ -233,6 +233,14 @@ const getMemberRoleNames = (member: any) => {
 
 const ping = ref<number>(-1);
 const showUserSettings = ref<boolean>(false);
+
+// Le bouton engrenage est dans le déclencheur du panneau de profil : ouvrir les paramètres
+// le laissait ouvert, par-dessus la fenêtre (z-index 1000 contre 100). On le referme d'abord.
+const userDropDownRef = ref<{ close: () => void } | null>(null);
+const toggleUserSettings = () => {
+    userDropDownRef.value?.close();
+    showUserSettings.value = !showUserSettings.value;
+};
 
 const connectionColor = computed(() => {
     const quality = room.value?.localParticipant.connectionQuality;

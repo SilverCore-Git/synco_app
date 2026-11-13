@@ -4,14 +4,17 @@ import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useToast } from '@/composables/useToast';
-import { openedOrg, user } from '@/assets/var';
+import { openedOrg, user, todoEnabled, filesEnabled } from '@/assets/var';
 import type { WorkSpace } from '@/types/types';
 import sfetch from '@/assets/utils/sfetch';
 
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import DropDown from '@/components/DropDown.vue';
 import CreateNewCategory from '../popup/CreateNewCategory.vue';
+import { useHerePermissions } from '@/composables/useHerePermissions';
 import SpaceSettings from '@/components/windows/SpaceSettings.vue';
+
+const { canHere } = useHerePermissions();
 
 
 const toast = useToast();
@@ -131,6 +134,7 @@ const handleDelete = async () => {
         <template #content>
 
             <CreateNewCategory
+                v-if="canHere('CATEGORY_MANAGE')"
                 :index="currentWorkspace?.categories.length || 0 + 1"
                 :key="'createNewSpace-' + currentWorkspace?.id"
             >
@@ -138,6 +142,10 @@ const handleDelete = async () => {
                     <i class="bi bi-folder-plus mr-2" /> Créer une catégorie
                 </button>
             </CreateNewCategory>
+
+            <button v-if="!isHome && (todoEnabled || filesEnabled) && canHere('SPACE_STATS')" @click="router.push({ name: 'OrgSettingsStats', params: { orgId: currentWorkspace?.orgId }, query: { showView: '1', scope: currentWorkspace?.id } })" class="dropdown-item-annimate dropdown-item-style">
+                <i class="bi bi-bar-chart-line mr-2" /> Statistiques
+            </button>
 
             <button v-if="!isHome" @click="showUpdateSpace = true" class="dropdown-item-annimate dropdown-item-style">
                 <i class="bi bi-gear mr-2" /> Paramètres

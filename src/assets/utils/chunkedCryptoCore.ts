@@ -9,6 +9,7 @@
  *   chiffré = C_0 || C_1 || … || C_{n-1},   C_i = AES-GCM(DEK, nonce_i, M_i, aad_i)
  *   nonce_i = préfixe aléatoire (8 octets) || i (uint32 big-endian)
  *   aad_i   = "synco-e2ee-v2" || i (uint32 BE) || dernier ? 1 : 0
+ *             (fichiers récents : "synco-e2ee-v3" || fileUid || i || dernier, cf. FILE_UID_LENGTH)
  *
  * Chaque C_i fait chunkSize + 16 octets (tag GCM), sauf le dernier : sa
  * position dans le fichier se calcule directement, ce qui permet d'envoyer
@@ -32,6 +33,11 @@ export const NONCE_PREFIX_LENGTH = 8;
 const MAX_CHUNK_SIZE = 64 * 1024 * 1024;
 const IV_PREFIX = 'v2:';
 const AAD_LABEL = new TextEncoder().encode('synco-e2ee-v2');
+// v3 : l'AAD embarque en plus l'identifiant du fichier (FILE_UID_LENGTH octets), choisi par le
+// client et porté par encryptedFileKey (cf. fileKeyV3.ts) : un morceau ne se déchiffre plus sous
+// un autre fichier du même contexte de clé (audit FC11).
+const AAD_LABEL_V3 = new TextEncoder().encode('synco-e2ee-v3');
+export const FILE_UID_LENGTH = 16;
 
 export interface ChunkedFormat {
     chunkSize: number;
@@ -104,7 +110,7 @@ export function encryptedChunkRange(index: number, encryptedSize: number, chunkS
 // Chiffrement d'un morceau
 // ---------------------------------------------------------------------------
 
-function chunkParams(noncePrefix: Uint8Array, index: number, isLast: boolean): AesGcmParams {
+function chunkParams(noncePrefix: Uint8Array, index: number, isLast: boolean, fileUid?: Uint8Array): AesGcmParams {
     if (!Number.isInteger(index) || index < 0 || index > 0xffffffff) {
         throw new Error('Invalid chunk index');
     }
@@ -112,10 +118,14 @@ function chunkParams(noncePrefix: Uint8Array, index: number, isLast: boolean): A
     iv.set(noncePrefix, 0);
     new DataView(iv.buffer).setUint32(NONCE_PREFIX_LENGTH, index);
 
-    const aad = new Uint8Array(AAD_LABEL.length + 5);
-    aad.set(AAD_LABEL, 0);
-    new DataView(aad.buffer).setUint32(AAD_LABEL.length, index);
-    aad[AAD_LABEL.length + 4] = isLast ? 1 : 0;
+    const label = fileUid ? AAD_LABEL_V3 : AAD_LABEL;
+    const uidLength = fileUid ? FILE_UID_LENGTH : 0;
+    if (fileUid && fileUid.length !== FILE_UID_LENGTH) throw new Error('Invalid file uid');
+    const aad = new Uint8Array(label.length + uidLength + 5);
+    aad.set(label, 0);
+    if (fileUid) aad.set(fileUid, label.length);
+    new DataView(aad.buffer).setUint32(label.length + uidLength, index);
+    aad[label.length + uidLength + 4] = isLast ? 1 : 0;
 
     return { name: 'AES-GCM', iv, additionalData: aad };
 }
@@ -125,9 +135,10 @@ export function encryptChunk(
     noncePrefix: Uint8Array,
     index: number,
     isLast: boolean,
-    plain: BufferSource
+    plain: BufferSource,
+    fileUid?: Uint8Array
 ): Promise<ArrayBuffer> {
-    return crypto.subtle.encrypt(chunkParams(noncePrefix, index, isLast), fileKey, plain);
+    return crypto.subtle.encrypt(chunkParams(noncePrefix, index, isLast, fileUid), fileKey, plain);
 }
 
 export function decryptChunk(
@@ -135,7 +146,8 @@ export function decryptChunk(
     noncePrefix: Uint8Array,
     index: number,
     isLast: boolean,
-    cipher: BufferSource
+    cipher: BufferSource,
+    fileUid?: Uint8Array
 ): Promise<ArrayBuffer> {
-    return crypto.subtle.decrypt(chunkParams(noncePrefix, index, isLast), fileKey, cipher);
+    return crypto.subtle.decrypt(chunkParams(noncePrefix, index, isLast, fileUid), fileKey, cipher);
 }

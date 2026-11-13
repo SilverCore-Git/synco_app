@@ -21,199 +21,200 @@
 
             </aside>
 
-            <main class="flex-1 p-4 sm:p-8 overflow-y-auto bg-(--bg)">
+            <!-- Colonne de contenu : la barre d'enregistrement est hors de la
+                 zone qui défile, pour rester collée au bas de la fenêtre (en
+                 sticky dans <main>, le padding la décollait du bord). -->
+            <div class="flex-1 min-w-0 min-h-0 flex flex-col bg-(--bg)">
+
+            <main class="flex-1 min-h-0 p-4 sm:p-8 overflow-y-auto bg-(--bg)">
                 
-                <!-- ACCOUNT -->
+                <!-- PROFIL -->
                 <section 
                     v-if="activeTab === 'account'" 
                     class="animate-fade-in"
                 >
 
-                    <!-- Profil Banner inspiré de UserDropDown -->
-                    <div class="w-full relative rounded-xl overflow-hidden bg-(--bg2) border border-(--border-color) mb-8 shadow-xl">
-                        <!-- Banner -->
-                        <div 
-                            class="h-[120px] w-full relative z-0 transition-all duration-500"
-                            :style="{ background: `linear-gradient(to top right, rgba(0,0,0,0.3), transparent), ${dominantColor}` }"
-                        ></div>
-                        
-                        <!-- Avatar & Actions -->
-                        <div class="px-4 sm:px-6 relative flex flex-col sm:flex-row sm:justify-between items-start sm:items-end pb-4 sm:pb-6">
-                            <!-- Overlapping Avatar -->
-                            <div class="absolute -top-10 sm:-top-12 left-4 sm:left-6 p-1.5 bg-(--bg2) rounded-full z-10 shadow-lg">
-                                <div class="relative w-[80px] h-[80px] sm:w-[100px] sm:h-[100px] rounded-full overflow-hidden bg-(--bg)">
-                                    <img 
-                                        :src="user?.avatarUrl || defaultAvatar($p(user?.name))" 
-                                        :alt="$p(user?.name)" 
-                                        @error="(e: any) => e.target.src = defaultAvatar($p(user?.name))"
-                                        class="w-full h-full object-cover"
-                                    />
-                                </div>
-                            </div>
-
-                            <!-- Spacer pour l'avatar -->
-                            <div class="w-full sm:w-[110px] h-[30px] sm:h-auto"></div>
-
-                            <button 
-                                @click="avatarChange = true" 
-                                class="mt-2 sm:mt-4 primary flex items-center gap-2 text-sm self-end"
-                            >
-                                <i class="bi bi-camera-fill"></i>
-                                Modifier l'avatar
-                            </button>
-                        </div>
-
-                        <ProfileUploader 
-                            :show="avatarChange" 
-                            @close="avatarChange = false" 
-                        />
-                    </div>
-
                     <div class="mb-6">
-                        <h3 class="text-xl font-black text-(--text) mb-1">Informations personnelles</h3>
-                        <p class="text-sm text-(--text2)">Mettez à jour votre profil et vos coordonnées.</p>
+                        <h3 class="text-2xl font-black text-(--text) mb-1">Mon profil</h3>
+                        <p class="text-sm text-(--text2)">Composez votre profil professionnel : postes, spécialités, projets… Chaque section peut être visible dans toutes vos organisations ou seulement certaines.</p>
                     </div>
 
-                    <div class="space-y-6 max-w-lg">
+                    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-8 items-start">
 
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div class="space-y-1.5">
-                                <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Prénom</label>
-                                <div class="relative">
-                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2)">
-                                        <i class="bi bi-person-fill"></i>
+                        <!-- Édition -->
+                        <div class="space-y-8 min-w-0">
+
+                            <!-- Identité -->
+                            <div class="space-y-4">
+                                <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Identité</h4>
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div class="space-y-1.5">
+                                        <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Prénom</label>
+                                        <div class="relative">
+                                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2)">
+                                                <i class="bi bi-person-fill"></i>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                v-model="formData.firstName"
+                                                class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                            />
+                                        </div>
                                     </div>
-                                    <input
-                                        type="text"
-                                        v-model="formData.firstName"
-                                        class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
-                                    />
+
+                                    <div class="space-y-1.5">
+                                        <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Nom</label>
+                                        <div class="relative">
+                                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2)">
+                                                <i class="bi bi-person-fill"></i>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                v-model="formData.lastName"
+                                                class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-1.5">
+                                    <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Adresse Email</label>
+                                    <div class="relative">
+                                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2)">
+                                            <i class="bi bi-envelope-fill"></i>
+                                        </div>
+                                        <input 
+                                            type="email" 
+                                            v-model="formData.email" 
+                                            class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                                        />
+                                    </div>
+                                    <p v-if="emailChanged" class="text-sm text-(--text2)">
+                                        Cette adresse devient aussi ton identifiant de connexion.
+                                        Le changement est immédiat, et une alerte est envoyée à
+                                        ton ancienne adresse.
+                                    </p>
                                 </div>
                             </div>
 
-                            <div class="space-y-1.5">
-                                <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Nom</label>
-                                <div class="relative">
-                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2)">
-                                        <i class="bi bi-person-fill"></i>
-                                    </div>
-                                    <input
-                                        type="text"
-                                        v-model="formData.lastName"
-                                        class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
-                                    />
+                            <!-- À propos -->
+                            <div class="space-y-4">
+                                <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">À propos</h4>
+                                <div class="space-y-1.5">
+                                    <textarea 
+                                        v-model="formData.description" 
+                                        placeholder="Présentez-vous en quelques lignes : votre rôle, ce sur quoi vous travaillez, comment vous joindre…"
+                                        rows="3"
+                                        maxlength="1000"
+                                        class="w-full bg-(--bg2) border border-(--border-color) rounded-xl p-4 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner resize-none"
+                                    ></textarea>
+                                    <p class="text-[11px] text-(--text2) text-right">{{ formData.description.length }} / 1000</p>
                                 </div>
                             </div>
+
+                            <!-- Profil professionnel -->
+                            <div class="space-y-4">
+                                <div>
+                                    <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Profil professionnel</h4>
+                                    <p class="text-sm text-(--text2) mt-1">Ajoutez les sections qui vous décrivent. Le poste marqué <i class="bi bi-star-fill text-(--primary)"></i> s'affiche sous votre nom.</p>
+                                </div>
+                                <ProfileEditor v-model="profileDraft" />
+                            </div>
+
                         </div>
 
-                        <div class="space-y-1.5">
-                            <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Adresse Email</label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2)">
-                                    <i class="bi bi-envelope-fill"></i>
-                                </div>
-                                <input 
-                                    type="email" 
-                                    v-model="formData.email" 
-                                    class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
+                        <!-- Aperçu -->
+                        <aside class="xl:sticky xl:top-0 space-y-3">
+                            <div class="flex items-center justify-between gap-2">
+                                <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Aperçu</h4>
+                            </div>
+                            <div class="space-y-1.5">
+                                <label class="text-[11px] text-(--text2)">Vu par les membres de</label>
+                                <SupportSearchSelect
+                                    v-model="previewOrgId"
+                                    :options="previewOrgOptions"
+                                    placeholder="Choisir une organisation"
+                                    search-placeholder="Rechercher une organisation"
+                                    none-label="Hors organisation (messages privés)"
                                 />
                             </div>
-                            <p v-if="emailChanged" class="text-sm text-(--text2)">
-                                Cette adresse devient aussi ton identifiant de connexion.
-                                Le changement est immédiat, et une alerte est envoyée à
-                                ton ancienne adresse.
+
+                            <div class="rounded-2xl shadow-xl overflow-hidden border border-(--border-color)">
+                                <ProfileCard
+                                    :user="{ name: $p(previewName), avatarUrl: user?.avatarUrl, email: formData.email, description: formData.description, createdAt: user?.createdAt }"
+                                    :profile="previewProfile"
+                                    :status="user?.data?.status || 'online'"
+                                    empty-hint="Rien d'autre n'est visible ici pour le moment."
+                                    avatar-editable
+                                    @edit-avatar="avatarChange = true"
+                                />
+                            </div>
+                            <ProfileUploader 
+                                :show="avatarChange" 
+                                @close="avatarChange = false" 
+                            />
+                            <p class="text-[11px] text-(--text2) flex items-center gap-1.5">
+                                <i class="bi bi-camera"></i>
+                                Cliquez sur votre avatar pour le changer.
                             </p>
-                        </div>
-                        
-                        <div class="space-y-1.5">
-                            <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Poste</label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-(--text2)">
-                                    <i class="bi bi-briefcase-fill"></i>
-                                </div>
-                                <input 
-                                    type="text" 
-                                    v-model="formData.job" 
-                                    placeholder="Mon poste"
-                                    class="w-full bg-(--bg2) border border-(--border-color) rounded-xl pl-11 pr-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
-                                />
-                            </div>
-                        </div>
-
-                        <div class="space-y-1.5">
-                            <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Description</label>
-                            <div class="relative">
-                                <textarea 
-                                    v-model="formData.description" 
-                                    placeholder="Dites-nous en plus sur vous..."
-                                    rows="3"
-                                    class="w-full bg-(--bg2) border border-(--border-color) rounded-xl p-4 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner resize-none"
-                                ></textarea>
-                            </div>
-                        </div>
-                        
-                        <div class="pt-4">
-                            <button  
-                                @click="updateProfile"
-                                class="w-full sm:w-auto primary flex items-center justify-center gap-2 text-sm" 
-                                :disabled="!isModified || isUpdating"
-                            >
-                                <i v-if="isUpdating" class="bi bi-arrow-repeat animate-spin"></i>
-                                <i v-else class="bi bi-check-circle-fill"></i>
-                                <span>{{ isUpdating ? 'Enregistrement...' : 'Enregistrer les modifications' }}</span>
-                            </button>
-                        </div>
+                            <p v-if="hiddenBlockCount > 0" class="text-[11px] text-(--text2) flex items-start gap-1.5">
+                                <i class="bi bi-eye-slash mt-0.5"></i>
+                                {{ hiddenBlockCount }} section{{ hiddenBlockCount > 1 ? 's' : '' }} masquée{{ hiddenBlockCount > 1 ? 's' : '' }} pour ces membres.
+                            </p>
+                        </aside>
 
                     </div>
+
 
                 </section>
 
-                <!-- SECURITY -->
-                <section 
-                    v-if="activeTab === 'security'" 
-                    class="animate-fade-in space-y-8"
-                >
+                <!-- APPAREILS (E2EE v4 : doc/securite/13 §11) -->
+                <section v-if="activeTab === 'devices'" class="animate-fade-in space-y-8">
                     <div>
-                        <h3 class="text-xl font-black text-(--text) mb-1">Sécurité & Confidentialité</h3>
-                        <p class="text-sm text-(--text2)">Gérez la sécurité de votre compte et le chiffrement de bout en bout.</p>
+                        <h3 class="text-xl font-black text-(--text) mb-1">Appareils</h3>
+                        <p class="text-sm text-(--text2)">Les appareils autorisés à lire vos messages chiffrés.</p>
                     </div>
 
                     <div class="space-y-6">
-                        <div class="space-y-4">
-                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Chiffrement de bout en bout (E2EE)</h4>
-                            
-                            <div class="p-6 bg-(--bg2) border border-(--border-color) rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center gap-6">
-                                <div class="w-16 h-16 rounded-full shrink-0 flex items-center justify-center transition-colors"
-                                    :class="E2EEUnloked ? 'bg-(--primary)/10 text-(--primary)' : 'bg-red-500/10 text-red-500'">
-                                    <i class="bi text-3xl" :class="E2EEUnloked ? 'bi-shield-lock-fill' : 'bi-shield-exclamation'"></i>
-                                </div>
-                                <div class="flex-1">
-                                    <h4 class="font-bold text-(--text) flex items-center gap-2">
-                                        Statut du chiffrement
-                                        <span class="px-2 py-0.5 rounded-full text-[10px] uppercase tracking-widest font-bold"
-                                            :class="E2EEUnloked ? 'bg-(--primary)/20 text-(--primary)' : 'bg-red-500/20 text-red-500'">
-                                            {{ E2EEUnloked ? 'Actif' : 'Verrouillé' }}
-                                        </span>
-                                    </h4>
-                                    <p class="text-sm text-(--text2) mt-1 leading-relaxed">
-                                        Vos conversations sont chiffrées de bout en bout. Même nous ne pouvons pas les lire.
-                                    </p>
-                                </div>
-                                <div>
-                                    <button 
-                                        v-if="E2EEUnloked"
-                                        @click="lockSecurity(); emit('close')" 
-                                        class="second flex items-center gap-2 whitespace-nowrap text-sm"
-                                    >
-                                        <i class="bi bi-lock-fill"></i>
-                                        Verrouiller la session
-                                    </button>
-                                </div>
+                        <div class="p-4 bg-(--bg2) border border-(--border-color) rounded-xl flex items-center gap-4">
+                            <div class="w-11 h-11 rounded-full shrink-0 flex items-center justify-center"
+                                :class="E2EEUnloked ? 'bg-(--primary)/10 text-(--primary)' : 'bg-red-500/10 text-red-500'">
+                                <i class="bi text-xl" :class="E2EEUnloked ? 'bi-shield-lock-fill' : 'bi-shield-exclamation'"></i>
                             </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-bold text-sm text-(--text) flex items-center gap-2 flex-wrap">
+                                    Chiffrement de bout en bout
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] uppercase tracking-widest font-bold"
+                                        :class="E2EEUnloked ? 'bg-(--primary)/20 text-(--primary)' : 'bg-red-500/20 text-red-500'">
+                                        {{ E2EEUnloked ? 'Actif' : 'Verrouillé' }}
+                                    </span>
+                                </p>
+                                <p class="text-xs text-(--text2) mt-0.5">Vos conversations sont chiffrées : même nous ne pouvons pas les lire.</p>
+                            </div>
+                            <button v-if="E2EEUnloked" @click="lockSecurity(); emit('close')" class="second flex items-center gap-2 whitespace-nowrap text-xs">
+                                <i class="bi bi-lock-fill"></i> Verrouiller
+                            </button>
                         </div>
 
-                        <div v-if="E2EEUnloked" class="space-y-4">
-                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Preuve de chiffrement (E2EE)</h4>
+                        <DevicesSecurity v-if="isV4 && E2EEUnloked" view="devices" />
+                        <!-- Comptes v3 : migration proposée, pas imposée (P5) -->
+                        <E2eeUpgrade v-else-if="E2EEUnloked" />
+                    </div>
+                </section>
+
+                <!-- SÉCURITÉ -->
+                <section v-if="activeTab === 'security'" class="animate-fade-in space-y-8">
+                    <div>
+                        <h3 class="text-xl font-black text-(--text) mb-1">Sécurité</h3>
+                        <p class="text-sm text-(--text2)">Accès de secours, clés de chiffrement, mot de passe et suppression du compte.</p>
+                    </div>
+
+                    <div class="space-y-8">
+                        <DevicesSecurity v-if="isV4 && E2EEUnloked" view="security" />
+
+                        <details v-if="E2EEUnloked" class="proof-details space-y-4">
+                            <summary class="cursor-pointer w-fit text-xs font-black uppercase tracking-widest text-(--text2) hover:text-(--primary) transition-colors">Preuve de chiffrement : empreinte de ma clé publique</summary>
                             
                             <div class="p-5 bg-(--bg2) border border-(--border-color) rounded-xl flex flex-col gap-3">
                                 <div class="flex items-center gap-3 text-(--text)">
@@ -233,16 +234,17 @@
                                     </button>
                                 </div>
                                 <p class="text-[10px] text-(--text2) leading-relaxed">
-                                    Ceci est l'empreinte unique de votre clé publique. Elle est utilisée par vos contacts pour chiffrer les messages qu'ils vous envoient. Seul votre appareil (grâce au code PIN) peut les déchiffrer avec la clé privée correspondante.
+                                    Ceci est l'empreinte unique de votre clé publique. Elle est utilisée par vos contacts pour chiffrer les messages qu'ils vous envoient. {{ isV4 ? 'Seuls vos appareils connectés peuvent les déchiffrer avec la clé privée correspondante.' : 'Seul votre appareil (grâce au code PIN) peut les déchiffrer avec la clé privée correspondante.' }}
                                 </p>
                             </div>
-                        </div>
+                        </details>
 
                         <div class="space-y-4">
                             <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Mot de passe</h4>
 
-                            <div class="p-6 bg-(--bg2) border border-(--border-color) rounded-xl shadow-sm space-y-4 max-w-lg">
+                            <div class="p-6 bg-(--bg2) border border-(--border-color) rounded-xl shadow-sm space-y-4">
 
+                                <div class="grid grid-cols-1 gap-4">
                                 <div class="space-y-1.5">
                                     <label class="text-xs font-bold uppercase tracking-widest text-(--text2)">Mot de passe actuel</label>
                                     <input
@@ -272,6 +274,7 @@
                                         class="w-full bg-(--bg) border border-(--border-color) rounded-xl px-4 py-3 text-(--text) focus:outline-none focus:border-(--primary) focus:ring-1 focus:ring-(--primary) transition-all shadow-inner"
                                     />
                                 </div>
+                                </div>
 
                                 <p v-if="passwordBlockReason" class="text-xs text-amber-500 flex items-center gap-1.5">
                                     <i class="bi bi-info-circle-fill"></i>
@@ -293,10 +296,27 @@
                             </div>
                         </div>
 
+
                         <div class="space-y-4">
                             <h4 class="text-xs font-black uppercase tracking-widest text-red-500">Zone de danger</h4>
 
-                            <div class="p-6 bg-red-500/5 border border-red-500/20 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center gap-6 max-w-lg">
+                            <div v-if="isV4 && E2EEUnloked" class="p-6 bg-red-500/5 border border-red-500/20 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center gap-6">
+                                <div class="flex-1">
+                                    <h4 class="font-bold text-(--text) text-sm">Repartir de zéro</h4>
+                                    <p class="text-xs text-(--text2) mt-1 leading-relaxed">
+                                        Recrée la protection de vos messages (chiffrement de bout en bout). Vous ne pourrez plus lire vos anciens messages.
+                                    </p>
+                                </div>
+                                <button
+                                    @click="showResetE2ee = true"
+                                    class="danger flex items-center gap-2 whitespace-nowrap text-sm"
+                                >
+                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                    Repartir de zéro
+                                </button>
+                            </div>
+
+                            <div class="p-6 bg-red-500/5 border border-red-500/20 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center gap-6">
                                 <div class="flex-1">
                                     <h4 class="font-bold text-(--text) text-sm">Supprimer mon compte</h4>
                                     <p class="text-xs text-(--text2) mt-1 leading-relaxed">
@@ -332,7 +352,24 @@
 
                             <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Thème global</h4>
 
-                            <div class="grid grid-cols-2 gap-4 max-w-md">
+                            <div class="grid grid-cols-3 gap-4 max-w-xl">
+
+                                <button 
+                                    class="relative overflow-hidden flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all duration-300"
+                                    :class="
+                                        theme == 'auto' 
+                                            ? 'border-(--primary) bg-(--primary)/5 scale-100 shadow-[0_0_20px_var(--primary-glow)]' 
+                                            : 'border-(--border-color) bg-(--bg2) hover:border-(--text)/20 scale-95 opacity-70 hover:opacity-100'
+                                    "
+                                    @click="theme = 'auto'"
+                                >
+                                    <div class="w-full h-24 rounded-lg border border-(--text)/10 flex items-center justify-center shadow-inner overflow-hidden relative bg-gray-100">
+                                        <div class="absolute inset-y-0 left-0 w-1/2 bg-(--bg)"></div>
+                                        <i class="bi bi-circle-half text-(--primary) text-3xl drop-shadow-md relative" />
+                                    </div>
+                                    <span class="font-bold text-(--text)">Auto</span>
+                                    <div v-if="theme == 'auto'" class="absolute top-2 right-2 w-3 h-3 bg-(--primary) rounded-full shadow-[0_0_10px_var(--primary)]"></div>
+                                </button>
 
                                 <button 
                                     class="relative overflow-hidden flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all duration-300"
@@ -535,6 +572,33 @@
 
             </main>
 
+            <!-- Barre d'enregistrement -->
+            <Transition name="savebar">
+                <div
+                    v-if="activeTab === 'account' && isModified"
+                    class="shrink-0 px-4 sm:px-8 py-3 bg-(--bg2) border-t border-(--border-color) flex flex-col sm:flex-row sm:items-center gap-3"
+                >
+                    <p class="flex-1 text-sm text-(--text) flex items-center gap-2">
+                        <i class="bi bi-exclamation-circle-fill text-amber-500"></i>
+                        Modifications non enregistrées
+                    </p>
+                    <div class="flex gap-2 justify-end">
+                        <button class="default text-sm" :disabled="isUpdating" @click="resetForm">Annuler</button>
+                        <button  
+                            @click="updateProfile"
+                            class="primary flex items-center justify-center gap-2 text-sm" 
+                            :disabled="isUpdating"
+                        >
+                            <i v-if="isUpdating" class="bi bi-arrow-repeat animate-spin"></i>
+                            <i v-else class="bi bi-check-circle-fill"></i>
+                            <span>{{ isUpdating ? 'Enregistrement...' : 'Enregistrer' }}</span>
+                        </button>
+                    </div>
+                </div>
+            </Transition>
+
+            </div>
+
         </div>
 
     </Window>
@@ -551,24 +615,39 @@
         @cancel="showDeleteAccount = false"
     />
 
+    <E2eeResetDialog
+        :isOpen="showResetE2ee"
+        @close="showResetE2ee = false"
+        @confirmed="onE2eeResetConfirmed"
+    />
+
 </template>
 
 <script setup lang="ts">
 
-import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { ref, reactive, watch, computed } from 'vue';
 import Window from './Window.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
+import useTheme from '@/composables/useTheme';
 import ProfileUploader from '../common/ProfileUploader.vue';
 import ConfirmDelete from '../common/ConfirmDelete.vue';
 import ActivityReports from '../settings/ActivityReports/index.vue';
-import { user } from '@/assets/var';
+import ProfileEditor from '../profile/ProfileEditor.vue';
+import ProfileCard from '../profile/ProfileCard.vue';
+import SupportSearchSelect, { type SupportSelectOption } from '../support/SupportSearchSelect.vue';
+import { user, organizations, openedOrg } from '@/assets/var';
+import type { UserProfile } from '@/types/types';
+import { cleanProfile, emptyProfile, profileForOrg } from '@/assets/utils/userProfile';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import { E2EEUnloked, lockSecurity } from '@/assets/utils/crypto';
+import { isV4Account } from '@/assets/e2eeV4/runtime';
+import DevicesSecurity from '../settings/DevicesSecurity.vue';
+import E2eeUpgrade from '../settings/E2eeUpgrade.vue';
+import E2eeResetDialog from '../e2ee/E2eeResetDialog.vue';
+import { requestV4Reset } from '@/assets/e2eeV4/pendingReset';
 import { logoutEverywhere } from '@/assets/keycloak';
 import { disconnectSocket } from '@/composables/useWSocket';
-import { getAverageColor } from '@/assets/utils/getAverageColor';
 
 const props = withDefaults(defineProps<{
   isOpen: boolean;
@@ -579,15 +658,15 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits(['close']);
 const toast = useToast();
+const isV4 = computed(() => isV4Account(user.value?.pinSalt));
 
-const { Item: theme } = useSettingsItem('theme', 'dark');
+const { theme } = useTheme();
 const { Item: devMode } = useSettingsItem('devMode', false);
 const { Item: privacyMode } = useSettingsItem('privacyMode', false);
 
 const activeTab = ref<string>(props.initialTab);
 const avatarChange = ref<boolean>(false);
 const isUpdating = ref<boolean>(false);
-const dominantColor = ref('#16ac77');
 
 const passwordForm = reactive({
     currentPassword: '',
@@ -597,21 +676,58 @@ const passwordForm = reactive({
 const isChangingPassword = ref<boolean>(false);
 
 const showDeleteAccount = ref<boolean>(false);
-const isDeletingAccount = ref<boolean>(false);
 
-// Ré-ouvrir la fenêtre doit toujours repartir de l'onglet demandé par l'appelant
-// (ex : "Supprimer mon compte" depuis le menu doit amener directement sur Sécurité).
-watch(() => props.isOpen, (open) => {
-    if (open) activeTab.value = props.initialTab;
-});
+// Réinitialisation E2EE v4 : une fois le code e-mail validé, on verrouille la session ;
+// V4Gate prend le relais et enchaîne directement sur la création de nouvelles clés.
+const showResetE2ee = ref<boolean>(false);
+function onE2eeResetConfirmed() {
+    showResetE2ee.value = false;
+    requestV4Reset();
+    emit('close');
+    lockSecurity();
+}
+const isDeletingAccount = ref<boolean>(false);
 
 const formData = reactive({
     firstName: '',
     lastName: '',
     email: '',
-    job: '',
     description: ''
 });
+
+// Brouillon du profil pro : rien n'est envoyé avant « Enregistrer ».
+const profileDraft = ref<UserProfile>(emptyProfile());
+const savedProfileJson = computed(() => JSON.stringify(cleanProfile(user.value?.profile || emptyProfile())));
+const draftProfileJson = computed(() => JSON.stringify(cleanProfile(profileDraft.value)));
+const profileChanged = computed(() => draftProfileJson.value !== savedProfileJson.value);
+
+const resetForm = () => {
+    formData.firstName = user.value?.firstName || '';
+    formData.lastName = user.value?.lastName || '';
+    formData.email = user.value?.email || '';
+    formData.description = user.value?.description || '';
+    profileDraft.value = JSON.parse(JSON.stringify(user.value?.profile || emptyProfile()));
+};
+
+// Ré-ouvrir la fenêtre doit toujours repartir de l'onglet demandé par l'appelant
+// (ex : "Supprimer mon compte" depuis le menu doit amener directement sur Sécurité),
+// et des modifications abandonnées ne doivent pas réapparaître.
+watch(() => props.isOpen, (open) => {
+    if (open) {
+        activeTab.value = props.initialTab;
+        resetForm();
+    }
+});
+
+// --- Aperçu « vu depuis telle org »
+const previewOrgId = ref<string | null>(openedOrg.value?.id ?? organizations.value?.[0]?.id ?? null);
+
+const previewOrgOptions = computed<SupportSelectOption[]>(() =>
+    (organizations.value || []).map((o: any) => ({ id: o.id, label: o.name, avatarUrl: o.logo || null })));
+
+const previewProfile = computed(() => profileForOrg(cleanProfile(profileDraft.value), previewOrgId.value));
+const previewName = computed(() => `${formData.firstName} ${formData.lastName}`.trim() || user.value?.name || '');
+const hiddenBlockCount = computed(() => cleanProfile(profileDraft.value).blocks.length - previewProfile.value.blocks.length);
 
 const notifPrefs = reactive({
     push: true,
@@ -632,7 +748,6 @@ watch(user, (newVal) => {
         formData.firstName = newVal.firstName || '';
         formData.lastName = newVal.lastName || '';
         formData.email = newVal.email || '';
-        formData.job = newVal.job || '';
         formData.description = newVal.description || '';
         
         if (newVal.notificationPreferences) {
@@ -653,11 +768,11 @@ watch(user, (newVal) => {
     }
 }, { immediate: true });
 
-watch(() => [user.value?.avatarUrl, user.value?.name], async () => {
-    if (user.value) {
-        const url = user.value.avatarUrl || defaultAvatar(user.value.name);
-        dominantColor.value = await getAverageColor(url);
-    }
+// Le profil n'est resynchronisé que s'il change réellement côté serveur
+// (enregistrement, autre appareil) : un simple réglage de notification
+// remplace aussi `user`, et ne doit pas effacer une édition en cours.
+watch(savedProfileJson, () => {
+    profileDraft.value = JSON.parse(JSON.stringify(user.value?.profile || emptyProfile()));
 }, { immediate: true });
 
 const updateNotificationPrefs = async <K extends keyof typeof notifPrefs>(key: K, value: typeof notifPrefs[K]) => {
@@ -696,8 +811,8 @@ const isModified = computed(() => {
     return formData.firstName !== (user.value?.firstName || '') ||
            formData.lastName !== (user.value?.lastName || '') ||
            emailChanged.value ||
-           formData.job !== (user.value?.job || '') ||
-           formData.description !== (user.value?.description || '');
+           formData.description !== (user.value?.description || '') ||
+           profileChanged.value;
 });
 
 const passwordFormTouched = computed(() => {
@@ -784,21 +899,26 @@ const updateProfile = async () => {
             }
         }
 
-        const response = await sfetch('/api/users/me', {
-            method: 'PATCH',
-            body: JSON.stringify({
-                job: formData.job,
-                description: formData.description
-            })
-        });
+        const descriptionChanged = formData.description !== (user.value?.description || '');
+        if (descriptionChanged || profileChanged.value) {
+            const response = await sfetch('/api/users/me', {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    ...(descriptionChanged && { description: formData.description }),
+                    ...(profileChanged.value && { profile: cleanProfile(profileDraft.value) }),
+                })
+            });
 
-        if (response.ok) {
+            if (!response.ok) {
+                toast.show(response.status === 400
+                    ? 'Profil refusé : vérifiez les liens (http/https) et la longueur des champs'
+                    : 'Erreur lors de la mise à jour', 'error');
+                return;
+            }
             const updatedUser = await response.json();
             user.value = { ...user.value, ...updatedUser };
-            toast.show('Profil mis à jour avec succès', 'success');
-        } else {
-            toast.show('Erreur lors de la mise à jour', 'error');
         }
+        toast.show('Profil mis à jour avec succès', 'success');
     } catch (e) {
         console.error(e);
         toast.show('Une erreur est survenue', 'error');
@@ -860,7 +980,8 @@ const deleteAccount = async () => {
 };
 
 const tabs = [
-    { id: 'account', label: 'Mon Compte', icon: 'bi bi-person-fill' },
+    { id: 'account', label: 'Mon profil', icon: 'bi bi-person-badge-fill' },
+    { id: 'devices', label: 'Appareils', icon: 'bi bi-laptop-fill' },
     { id: 'security', label: 'Sécurité', icon: 'bi bi-shield-lock-fill' },
     { id: 'appearance', label: 'Apparence', icon: 'bi bi-palette-fill' },
     { id: 'notifications', label: 'Notifications', icon: 'bi bi-bell-fill' },
@@ -884,6 +1005,16 @@ const tabs = [
         opacity: 1; 
         transform: translateY(0); 
     }
+}
+
+.savebar-enter-active,
+.savebar-leave-active {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.savebar-enter-from,
+.savebar-leave-to {
+    opacity: 0;
+    transform: translateY(100%);
 }
 
 .hide-scrollbar::-webkit-scrollbar {

@@ -100,7 +100,6 @@
             </footer>
         </Transition>
 
-    </div>
 
     <Popup :is-open="showLearnMorePopup" @close="showLearnMorePopup = false">
         <template #title>Utilisation de services Cloud externes</template>
@@ -121,6 +120,8 @@
         </template>
     </Popup>
 
+    <!-- Racine unique (Popup/ConfirmDelete sont téléportés dans body) : les <Transition> de changement de vue n'animent qu'un élément. -->
+    </div>
 </template>
 
 <script lang="ts" setup>

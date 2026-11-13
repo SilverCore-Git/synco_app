@@ -1744,7 +1744,9 @@ onMounted(async() => {
     
     const socket = await useWSocket();
     socket.value?.on('file-added', ({ file }: { file: StoredFile }) => {
-        if (file.workspaceId === route.params.spaceId && !allFiles.value.some(f => f.id === file.id)) {
+        // Un fichier déposé dans un dossier qu'on ne voit pas reste caché.
+        const inHiddenFolder = !!file.folderId && !allFolders.value.some(f => f.id === file.folderId);
+        if (file.workspaceId === route.params.spaceId && !inHiddenFolder && !allFiles.value.some(f => f.id === file.id)) {
             allFiles.value.push(file);
         }
     });
@@ -1782,6 +1784,10 @@ onMounted(async() => {
             if (index !== -1) allFolders.value[index] = folder;
         }
     });
+    // Accès changés dans « Gérer les accès » : la liste visible peut changer.
+    socket.value?.on('files:access-updated', ({ spaceId }: { spaceId: string }) => {
+        if (spaceId === route.params.spaceId) refreshFolder();
+    });
     socket.value?.on('folder-deleted', ({ folderId, workspaceId }: { folderId: string, workspaceId: string }) => {
         if (workspaceId === route.params.spaceId) {
             allFolders.value = allFolders.value.filter(f => f.id !== folderId);
@@ -1802,6 +1808,7 @@ onUnmounted(async () => {
     socket.value?.off('folder-updated');
     socket.value?.off('folder-moved');
     socket.value?.off('folder-deleted');
+    socket.value?.off('files:access-updated');
 });
 
 // Fait défiler jusqu'à un fichier et le met en surbrillance quelques

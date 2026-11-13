@@ -296,7 +296,30 @@
             </transition>
 
         </main>
-    </div>
+
+    <Transition name="pop">
+        <div v-if="draggedTaskId" class="fixed bottom-8 right-8 flex items-center gap-4 z-[100]">
+            <div class="w-16 h-16 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-2xl border-4 transition-all duration-500"
+                 :class="[
+                    isTrashDeleting ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
+                    isHoveringTrash && !isTrashDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_var(--glow-danger-strong)]' : 'border-transparent'
+                 ]"
+                 @dragover.prevent="isHoveringTrash = true"
+                 @dragleave.prevent="isHoveringTrash = false"
+                 @drop.prevent="onDropToTrash"
+                 title="Supprimer">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 transition-transform" :class="isTrashDeleting ? 'scale-50' : ''">
+                    <g class="transition-all duration-300" style="transform-origin: 21px 6px;" :class="isHoveringTrash && !isTrashDeleting ? 'rotate-[40deg]' : ''">
+                        <path d="M3 6h18"></path>
+                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </g>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+            </div>
+        </div>
+    </Transition>
 
     <ConfirmDelete
         :show="!!taskToRemove || pendingBulkDelete"
@@ -307,6 +330,9 @@
         @cancel="taskToRemove = null; pendingBulkDelete = false"
         @confirm="confirmDelete"
     />
+
+    <!-- Racine unique (Popup/ConfirmDelete sont téléportés dans body) : les <Transition> de changement de vue n'animent qu'un élément. -->
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -468,6 +494,8 @@ const newFolderTitle = ref('');
 const creatingFolder = ref(false);
 const draggedTaskId = ref<string | null>(null);
 const dragOverFolderId = ref<string | null>(null);
+const isHoveringTrash = ref(false);
+const isTrashDeleting = ref(false);
 
 const onTaskDragStart = (e: DragEvent, task: Task) => {
     draggedTaskId.value = task.id;
@@ -480,22 +508,34 @@ const onTaskDragStart = (e: DragEvent, task: Task) => {
 const onTaskDragEnd = () => {
     draggedTaskId.value = null;
     dragOverFolderId.value = null;
+    isHoveringTrash.value = false;
 };
 
+// Si la tâche déplacée fait partie de la sélection, toute la sélection suit.
 const assignToFolder = async (task: Task, folderId: string | null) => {
-    if ((task.todoListId || null) === folderId) return;
-    try {
-        const res = await sfetch(`/api/tasks/${orgId.value}/tasks/${task.id}`, {
+    const ids = selectedTaskIds.value.has(task.id) ? [...selectedTaskIds.value] : [task.id];
+    const toMove = archivedTasks.value.filter(t => ids.includes(t.id) && (t.todoListId || null) !== folderId);
+    if (!toMove.length) return;
+
+    const results = await Promise.allSettled(toMove.map(async (t) => {
+        const res = await sfetch(`/api/tasks/${orgId.value}/tasks/${t.id}`, {
             method: 'PUT',
             body: JSON.stringify({ todoListId: folderId })
         });
         if (!res.ok) throw new Error();
         const updated = await res.json();
-        const idx = archivedTasks.value.findIndex(t => t.id === task.id);
+        const idx = archivedTasks.value.findIndex(x => x.id === t.id);
         if (idx !== -1) archivedTasks.value[idx] = updated;
+    }));
+
+    const failed = results.filter(r => r.status === 'rejected').length;
+    const moved = toMove.length - failed;
+    if (failed) {
+        toast.show(`Erreur lors du déplacement de ${failed} tâche(s)`, 'error');
+    } else if (moved > 1) {
+        toast.show(`${moved} tâches ${folderId ? 'déplacées dans le dossier' : 'retirées du dossier'}`, 'success');
+    } else {
         toast.show(folderId ? 'Tâche déplacée dans le dossier' : 'Tâche retirée du dossier', 'success');
-    } catch (e) {
-        toast.show('Erreur lors du déplacement', 'error');
     }
 };
 
@@ -504,6 +544,28 @@ const onDropOnFolder = (e: DragEvent, folderId: string | null) => {
     const taskId = e.dataTransfer?.getData('text/plain') || draggedTaskId.value;
     const task = archivedTasks.value.find(t => t.id === taskId);
     if (task) assignToFolder(task, folderId);
+};
+
+// Comme dans TasksSpace : si la tâche déplacée fait partie de la sélection,
+// toute la sélection part à la corbeille.
+const onDropToTrash = async (e: DragEvent) => {
+    const taskId = e.dataTransfer?.getData('text/plain') || draggedTaskId.value;
+    isHoveringTrash.value = false;
+    if (!taskId) return;
+    const ids = selectedTaskIds.value.has(taskId) ? [...selectedTaskIds.value] : [taskId];
+
+    isTrashDeleting.value = true;
+    setTimeout(() => {
+        draggedTaskId.value = null;
+        isTrashDeleting.value = false;
+    }, 600);
+
+    const results = await Promise.allSettled(ids.map(id => deleteById(id)));
+    reportBulkResult(
+        results,
+        ids.length > 1 ? 'Tâches supprimées' : 'Tâche supprimée',
+        'Erreur lors de la suppression'
+    );
 };
 
 const createFolder = async () => {
