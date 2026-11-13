@@ -4,33 +4,61 @@ on:
   push:
     branches: [ main ] # , recipe/main
   workflow_dispatch: # relance manuelle (onglet Actions ou `gh workflow run release_main.yml`)
+    inputs:
+      bump:
+        description: "Niveau de version (auto : déduit des commits, fix → patch, feat → minor, ! → major)"
+        type: choice
+        options: [auto, patch, minor, major]
+        default: auto
 
 permissions:
   contents: write
 
-# Pas d'artefacts (quota de stockage) : la release est créée d'abord et chaque job de build y
-# upload directement son binaire.
-env:
-  RELEASE_TAG: dev-${{ github.run_number }}
+# Deux merges rapprochés calculeraient la même version : les releases passent une par une.
+concurrency:
+  group: release-main
+  cancel-in-progress: false
 
+# Pas d'artefacts (quota de stockage) : la release est créée d'abord et chaque job de build y
+# upload directement son binaire. Elle reste en pré-release jusqu'au job publish-updater, qui
+# la passe en « latest » une fois MSI et AppImage signés en ligne : c'est ce qui déclenche
+# l'auto-update des apps desktop (tauri-plugin-updater lit releases/latest/download/latest.json).
 jobs:
   create-release:
-    name: Création de la release GitHub
+    name: Version et création de la release GitHub
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
     steps:
+      - name: Checkout du code (historique complet pour les tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calcul de la version (dernier tag v* + commits arrivés sur main)
+        id: version
+        env:
+          BUMP: ${{ inputs.bump || 'auto' }}
+        run: node scripts/release-version.mjs next --bump "$BUMP"
+
       - name: Création de la release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.RELEASE_TAG }}
+          tag_name: ${{ steps.version.outputs.tag }}
           target_commitish: ${{ github.sha }}
-          name: "Synco dev build #${{ github.run_number }}"
+          name: "Synco ${{ steps.version.outputs.tag }}"
           prerelease: true
+          make_latest: false
           generate_release_notes: true
 
   build-android-apk:
     name: Build Android APK (debug)
     needs: create-release
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ needs.create-release.outputs.tag }}
+      VERSION: ${{ needs.create-release.outputs.version }}
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
@@ -59,6 +87,9 @@ jobs:
       - name: Installation des dépendances
         run: bun install
 
+      - name: Version de l'app
+        run: node scripts/release-version.mjs apply "$VERSION" --android-code "${{ github.run_number }}"
+
       - name: Build des assets web
         env:
           NODE_OPTIONS: --max-old-space-size=6144
@@ -78,12 +109,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cp android/app/build/outputs/apk/debug/app-debug.apk synco-android-debug.apk
-          gh release upload "$RELEASE_TAG" synco-android-debug.apk
+          gh release upload "$RELEASE_TAG" synco-android-debug.apk --clobber
 
   build-windows-msi:
     name: Build de l'installeur Windows (MSI)
     needs: create-release
     runs-on: windows-latest
+    env:
+      RELEASE_TAG: ${{ needs.create-release.outputs.tag }}
+      VERSION: ${{ needs.create-release.outputs.version }}
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
@@ -93,26 +127,45 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Génération des fichiers .env
+        shell: bash
+        run: |
+          echo "${{ secrets.ENV_PRODUCTION }}" > .env.production
+          echo "${{ secrets.ENV_PRODUCTION }}" > .env
+
       - name: Installation des dépendances
         shell: powershell
         run: bun install
 
+      - name: Version de l'app
+        shell: bash
+        run: node scripts/release-version.mjs apply "$VERSION"
+
+      # Via tauri-run.js comme sur Linux : c'est lui qui remplace les marqueurs __CSP_*__ de la CSP.
       - name: Build de l'installeur MSI
         shell: powershell
         env:
           NODE_OPTIONS: --max-old-space-size=6144
-        run: bunx tauri build --bundles msi
+        run: bun run tauri:build -- --bundles msi
 
-      - name: Upload du MSI sur la release
+      - name: Signature (updater) et upload du MSI sur la release
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$RELEASE_TAG" src-tauri/target/release/bundle/msi/*.msi
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          MSI=$(ls src-tauri/target/release/bundle/msi/*.msi)
+          bunx tauri signer sign "$MSI"
+          gh release upload "$RELEASE_TAG" "$MSI" "$MSI.sig" --clobber
 
   build-linux-appimage:
     name: Build de l'AppImage Linux
     needs: create-release
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ needs.create-release.outputs.tag }}
+      VERSION: ${{ needs.create-release.outputs.version }}
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
@@ -143,6 +196,9 @@ jobs:
       - name: Installation des dépendances
         run: bun install
 
+      - name: Version de l'app
+        run: node scripts/release-version.mjs apply "$VERSION"
+
       - name: Build de l'AppImage
         env:
           NODE_OPTIONS: --max-old-space-size=6144
@@ -166,10 +222,40 @@ jobs:
           ./appimagetool --appimage-extract-and-run squashfs-root "$APPIMAGE"
           rm -rf squashfs-root appimagetool
 
-      - name: Upload de l'AppImage sur la release
+      # Signée après le re-packaging : c'est ce fichier-là que l'updater télécharge et vérifie.
+      - name: Signature (updater) et upload de l'AppImage sur la release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$RELEASE_TAG" src-tauri/target/release/bundle/appimage/*.AppImage
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          APPIMAGE=$(ls src-tauri/target/release/bundle/appimage/*.AppImage)
+          bunx tauri signer sign "$APPIMAGE"
+          gh release upload "$RELEASE_TAG" "$APPIMAGE" "$APPIMAGE.sig" --clobber
+
+  publish-updater:
+    name: Publication de la mise à jour (latest.json)
+    needs: [create-release, build-windows-msi, build-linux-appimage]
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ needs.create-release.outputs.tag }}
+      VERSION: ${{ needs.create-release.outputs.version }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Génération de latest.json (URLs + signatures MSI et AppImage)
+        run: |
+          gh release view "$RELEASE_TAG" --json assets > assets.json
+          gh release download "$RELEASE_TAG" --pattern '*.sig' --dir sigs
+          node scripts/updater-manifest.mjs "$VERSION" "$RELEASE_TAG" assets.json sigs > latest.json
+          cat latest.json
+
+      - name: Upload de latest.json et passage de la release en « latest »
+        run: |
+          gh release upload "$RELEASE_TAG" latest.json --clobber
+          gh release edit "$RELEASE_TAG" --prerelease=false --latest
 
   build-docker-image:
     name: Build et push de l'image Docker (front, prod)
