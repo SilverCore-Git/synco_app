@@ -73,13 +73,15 @@ patchedCsp = patchedCsp
 // dépendre de la façon dont le gestionnaire de paquets (npm/bun) a posé les shims dans .bin.
 const tauriCliEntry = createRequire(import.meta.url).resolve('@tauri-apps/cli/tauri.js');
 
-const result = spawnSync(process.execPath, [tauriCliEntry, mode, ...forwardedArgs], {
+// Passée en --config (et non plus par la variable TAURI_CONFIG) : le CLI ignore TAURI_CONFIG dès qu'un
+// --config est donné, si bien qu'un `-- --config …` ajouté par l'appelant (ex. réutiliser un serveur Vite
+// déjà lancé) faisait perdre la CSP résolue et le devUrl https — toutes les commandes Tauri étaient alors
+// refusées (« not allowed on window main, URL … »). Plusieurs --config sont fusionnés dans l'ordre.
+const runConfig = JSON.stringify({ app: { security: { csp: patchedCsp } }, ...(isProd ? {} : { build: { devUrl } }) });
+
+const result = spawnSync(process.execPath, [tauriCliEntry, mode, '--config', runConfig, ...forwardedArgs], {
   stdio: 'inherit',
   cwd: ROOT_DIR,
-  env: {
-    ...process.env,
-    TAURI_CONFIG: JSON.stringify({ app: { security: { csp: patchedCsp } }, ...(isProd ? {} : { build: { devUrl } }) }),
-  },
 });
 
 process.exit(result.status ?? 1);
