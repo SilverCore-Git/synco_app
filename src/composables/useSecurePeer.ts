@@ -14,6 +14,8 @@ import { generateFingerprint, normalizeSas } from '@/assets/utils/sas';
 import sfetch from '@/assets/utils/sfetch';
 import { createFrameTransform } from '@/assets/utils/frameCrypto';
 import { SoundService } from '@/services/SoundService';
+import waitFor from '@/assets/utils/waitfor';
+import { nativeRingsInstead } from '@/assets/nativeCalls';
 
 // ============================================================================
 // Types
@@ -152,6 +154,19 @@ const clearRingTimeout = () => {
         clearTimeout(ringTimeoutId);
         ringTimeoutId = null;
     }
+};
+
+// Appel attendu après une action sur la notification d'appel native (nativeCalls.ts) : l'app vient de
+// s'ouvrir et l'appelant va recomposer (call:ready → call:redial). Avec autoAccept (bouton Répondre),
+// l'appel est décroché dès son arrivée au lieu d'afficher la carte d'appel entrant.
+let expectedCall: { callerId: string; autoAccept: boolean; until: number } | null = null;
+const EXPECTED_CALL_WINDOW = 45000;
+
+const takeExpectedAutoAccept = (callerId: string): boolean => {
+    const expected = expectedCall;
+    if (!expected || expected.callerId !== callerId) return false;
+    expectedCall = null;
+    return expected.autoAccept && Date.now() < expected.until;
 };
 
 // ============================================================================
@@ -348,6 +363,13 @@ export default function useSecurePeer() {
             if (!member) return;
             dismissMissedIncomingCall(call, member);
         });
+
+        // Le destinataire vient d'ouvrir l'app depuis la notification d'appel (synco_api call:ready) :
+        // l'offre partie pendant que son app était fermée est perdue, on recompose.
+        socket.value?.off('call:redial');
+        socket.value?.on('call:redial', ({ fromUserId }: { fromUserId: string }) => {
+            redialIfRinging(fromUserId);
+        });
     };
 
     const cleanupPeer = () => {
@@ -414,7 +436,68 @@ export default function useSecurePeer() {
 
         enteringCall.value = call;
         callNotif.value.push(member);
-        ringtone.play().catch(() => {});
+
+        // Répondu depuis la notification d'appel native : on décroche sans repasser par la carte.
+        if (takeExpectedAutoAccept(call.peer)) {
+            void acceptCall();
+            return;
+        }
+        // App Android en arrière-plan : la notification native sonne déjà.
+        if (!nativeRingsInstead()) ringtone.play().catch(() => {});
+    };
+
+    /** Abandon automatique côté appelant si personne ne décroche (CALL_RING_TIMEOUT). */
+    const armRingTimeout = (recipientId: string) => {
+        clearRingTimeout();
+        ringTimeoutId = setTimeout(() => {
+            const session = activeCalls.value.get(recipientId);
+            if (session && !session.answered) endCall();
+        }, CALL_RING_TIMEOUT);
+    };
+
+    /**
+     * Côté appelant, sur call:redial : remplace l'offre PeerJS perdue (destinataire hors ligne quand on a
+     * appelé) par une nouvelle, avec les mêmes métadonnées (callId, clé publique de session). L'ancienne
+     * MediaConnection est fermée sans ses écouteurs, sinon removePeerFromCall terminerait l'appel.
+     */
+    const redialIfRinging = (targetUserId: string) => {
+        const session = activeCalls.value.get(targetUserId);
+        if (!isCalling.value || !session || session.answered || !peer.value || !localStream.value) return;
+
+        const previous = session.call;
+        const metadata = previous.metadata;
+        previous.off('close');
+        previous.off('error');
+        previous.off('stream');
+        try { previous.close(); } catch { /* déjà fermée */ }
+
+        const call = peer.value.call(targetUserId, localStream.value, { metadata });
+        if (!call) return;
+        handleCallEvents(call, true);
+        armRingTimeout(targetUserId);
+    };
+
+    /**
+     * Côté appelé, action sur la notification d'appel native (App.vue) : `autoAccept` pour Répondre.
+     * Si l'appel est déjà arrivé (app restée en mémoire), on y répond ; sinon on attend que PeerJS et
+     * l'organisation soient prêts, puis on demande à l'appelant de recomposer.
+     */
+    const answerFromNotification = async (callerId: string, autoAccept: boolean) => {
+        if (enteringCall.value?.peer === callerId) {
+            if (autoAccept) await acceptCall();
+            else ringtone.play().catch(() => {});
+            return;
+        }
+        if (activeCalls.value.size > 0) return;
+
+        expectedCall = { callerId, autoAccept, until: Date.now() + EXPECTED_CALL_WINDOW };
+        const ready = await waitFor(
+            () => !!peer.value?.open && !!openedOrg.value?.members?.some(m => m.user?.id === callerId),
+            30000, 200,
+        );
+        if (!ready || expectedCall?.callerId !== callerId) return;
+        const socket = await useWSocket();
+        socket.value?.emit('call:ready', { callerId });
     };
 
     /**
@@ -1244,12 +1327,11 @@ export default function useSecurePeer() {
             }
 
             handleCallEvents(call, true);
+            armRingTimeout(recipient.id);
 
-            clearRingTimeout();
-            ringTimeoutId = setTimeout(() => {
-                const session = activeCalls.value.get(recipient.id);
-                if (session && !session.answered) endCall();
-            }, CALL_RING_TIMEOUT);
+            // Fait sonner le téléphone du destinataire même app fermée (push « appel » de synco_api) :
+            // PeerJS ne passe pas par notre serveur, qui sans ça ignorerait qu'un appel commence.
+            useWSocket().then(socket => socket.value?.emit('call:ring', { targetUserId: recipient.id }));
 
         } catch (err) {
             console.error("[SECURE-PEER] Erreur startCall:", err);
@@ -1468,6 +1550,7 @@ export default function useSecurePeer() {
         startCall,
         endCall,
         acceptCall,
+        answerFromNotification,
         cleanupPeer,
         rejectCall: () => {
             if (!enteringCall.value) return;

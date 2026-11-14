@@ -42,6 +42,8 @@ import useFavicon from './composables/useFavicon';
 import { banned } from './composables/useBanStatus';
 import { syncSystemBars } from './assets/nativeSystemBars';
 import { startNativePush, type PushTapData } from './assets/nativePush';
+import { startNativeCallBridge, type NativeCallAction } from './assets/nativeCalls';
+import { answerMeetFromNotification } from './composables/usePrivatMeet';
 import { useNotification, type AppNotification } from './composables/useNotification';
 
 const toast = useToast();
@@ -57,14 +59,24 @@ function openPushedNotification({ notificationId, type, ...data }: PushTapData) 
   }
 }
 watch(() => (isLoaded.value ? user.value?.id : undefined), (userId) => {
-  if (userId) void startNativePush(userId, openPushedNotification);
+  if (!userId) return;
+  void startNativePush(userId, openPushedNotification);
+  void startNativeCallBridge(onNativeCallAction);
 }, { immediate: true });
+
+// Notification d'appel native d'Android (appel DM ou invitation à une session éphémère) : « Répondre »
+// décroche dès que l'appelant a recomposé, toucher la notification affiche la carte d'appel entrant.
+function onNativeCallAction({ action, kind, callerId }: NativeCallAction) {
+  const autoAccept = action === 'answer';
+  if (kind === 'meet') void answerMeetFromNotification(callerId, autoAccept);
+  else void answerCallFromNotification(callerId, autoAccept);
+}
 const { resolvedTheme: theme } = useTheme();
 const pin = ref<string>('');
 const pinLoading = ref<boolean>(false);
 
 // Initialize P2P peer connection
-const { initPeer } = useSecurePeer();
+const { initPeer, answerFromNotification: answerCallFromNotification } = useSecurePeer();
 
 import router from '@/router';
 import { openedOrg } from '@/assets/var';

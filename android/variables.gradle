@@ -6,6 +6,8 @@ ext {
     androidxAppCompatVersion = '1.7.1'
     androidxCoordinatorLayoutVersion = '1.3.0'
     androidxCoreVersion = '1.17.0'
+    // Partagé avec @capacitor/push-notifications (même version) : SyncoMessagingService étend son service FCM.
+    firebaseMessagingVersion = '25.0.1'
     androidxFragmentVersion = '1.8.9'
     coreSplashScreenVersion = '1.2.0'
     androidxWebkitVersion = '1.14.0'

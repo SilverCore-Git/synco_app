@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <application
         android:allowBackup="false"
         android:fullBackupContent="false"
@@ -42,6 +43,17 @@
         <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="synco" />
         <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_synco" />
         <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/synco_notification" />
+
+        <!-- Service FCM du plugin remplacé par SyncoMessagingService, qui en hérite : les pushs « appel »
+             (callPushService.ts côté API) y deviennent une notification d'appel plein écran. -->
+        <service android:name="com.capacitorjs.plugins.pushnotifications.MessagingService" tools:node="remove" />
+        <service android:name=".SyncoMessagingService" android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        <!-- Bouton « Refuser » de la notification d'appel -->
+        <receiver android:name=".CallActionReceiver" android:exported="false" />
     </application>
 
     <!-- Permissions -->
@@ -49,6 +61,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Android 13+ : sans elle, la demande de permission des notifications n'est même pas affichée -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Notification d'appel en plein écran quand l'écran est éteint (accordée par l'utilisateur sur Android 14+) -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <!-- E2EE v4 : scan du QR code de liaison d'un nouvel appareil (getUserMedia dans la WebView). -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
