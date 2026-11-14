@@ -351,6 +351,7 @@
 
 <script lang="ts" setup>
 
+import { undecryptableMessageText } from '@/assets/utils/undecryptable';
 import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { autoFocus } from '@/assets/utils/autoFocus';
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
@@ -688,7 +689,7 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined, replayed 
         } 
         catch (cryptoErr) {
             console.error(`[E2EE] Échec du déchiffrement pour le message ${msg.id}:`, cryptoErr);
-            return { ...msg, content: "[⚠️ Impossible de déchiffrer ce message.]" };
+            return { ...msg, content: undecryptableMessageText() };
         }
 
 };
