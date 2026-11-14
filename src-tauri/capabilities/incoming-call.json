@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "incoming-call",
+  "description": "Pop-up d'appel entrant (incoming-call.html, useDesktopCallPopup.ts) : seulement les évènements échangés avec la fenêtre principale et le déplacement de la fenêtre. Ni commandes de l'app, ni trousseau.",
+  "windows": [
+    "incoming-call"
+  ],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:event:allow-emit-to",
+    "core:window:allow-start-dragging"
+  ]
+}

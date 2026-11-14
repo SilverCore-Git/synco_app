@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Fenêtre principale : permissions par défaut, les contrôles de fenêtre de la barre de titre maison (topBar.vue : déplacer, réduire, agrandir, fermer), la mise à jour de l'app (tauri-plugin-updater, puis relance via process), plus les commandes de l'app (connexion par le navigateur système, trousseau du système). Chaque commande valide elle-même ses arguments (lib.rs).",
+  "description": "Fenêtre principale : permissions par défaut, les contrôles de fenêtre de la barre de titre maison (topBar.vue : déplacer, réduire, agrandir, fermer), la pop-up d'appel entrant (création de la fenêtre incoming-call, retour au premier plan de la fenêtre principale), la mise à jour de l'app (tauri-plugin-updater, puis relance via process), plus les commandes de l'app (connexion par le navigateur système, trousseau du système). Chaque commande valide elle-même ses arguments (lib.rs).",
   "windows": [
     "main"
   ],
@@ -19,6 +19,10 @@
     "allow-secure-store-get",
     "allow-secure-store-delete",
     "updater:default",
-    "process:allow-restart"
+    "process:allow-restart",
+    "core:webview:allow-create-webview-window",
+    "core:window:allow-show",
+    "core:window:allow-set-focus",
+    "core:window:allow-unminimize"
   ]
 }

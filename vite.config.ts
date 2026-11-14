@@ -166,6 +166,11 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 1500, // Augmente la limite pour éviter les faux positifs (utile pour les app IA)
     rollupOptions: {
+      // Deux pages : l'app, et la pop-up d'appel entrant de l'app de bureau (useDesktopCallPopup.ts).
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        incomingCall: fileURLToPath(new URL('./incoming-call.html', import.meta.url)),
+      },
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {

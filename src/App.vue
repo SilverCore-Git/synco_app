@@ -44,6 +44,7 @@ import { syncSystemBars } from './assets/nativeSystemBars';
 import { startNativePush, type PushTapData } from './assets/nativePush';
 import { startNativeCallBridge, type NativeCallAction } from './assets/nativeCalls';
 import { answerMeetFromNotification } from './composables/usePrivatMeet';
+import useDesktopCallPopup from './composables/useDesktopCallPopup';
 import { useNotification, type AppNotification } from './composables/useNotification';
 
 const toast = useToast();
@@ -63,6 +64,9 @@ watch(() => (isLoaded.value ? user.value?.id : undefined), (userId) => {
   void startNativePush(userId, openPushedNotification);
   void startNativeCallBridge(onNativeCallAction);
 }, { immediate: true });
+
+// App de bureau : pop-up d'appel entrant toujours au premier plan quand la fenêtre n'a pas le focus.
+useDesktopCallPopup();
 
 // Notification d'appel native d'Android (appel DM ou invitation à une session éphémère) : « Répondre »
 // décroche dès que l'appelant a recomposé, toucher la notification affiche la carte d'appel entrant.
