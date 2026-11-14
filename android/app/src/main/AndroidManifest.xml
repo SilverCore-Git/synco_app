@@ -36,11 +36,19 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Notifications push (FCM) affichées par le système quand l'app est en arrière-plan ou fermée :
+             canal créé par l'app (nativePush.ts), icône monochrome de la barre d'état, couleur de marque. -->
+        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="synco" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_synco" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/synco_notification" />
     </application>
 
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Android 13+ : sans elle, la demande de permission des notifications n'est même pas affichée -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- E2EE v4 : scan du QR code de liaison d'un nouvel appareil (getUserMedia dans la WebView). -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />

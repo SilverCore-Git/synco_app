@@ -41,8 +41,24 @@ import { discardV3Migration, handOffV3Migration } from './assets/e2eeV4/v3Migrat
 import useFavicon from './composables/useFavicon';
 import { banned } from './composables/useBanStatus';
 import { syncSystemBars } from './assets/nativeSystemBars';
+import { startNativePush, type PushTapData } from './assets/nativePush';
+import { useNotification, type AppNotification } from './composables/useNotification';
 
 const toast = useToast();
+
+// Notifications push de l'app mobile (Capacitor) : une fois l'utilisateur chargé, on enregistre
+// l'appareil auprès de synco_api ; le tap sur une notification ouvre l'écran correspondant.
+const { handleNotificationClick } = useNotification();
+function openPushedNotification({ notificationId, type, ...data }: PushTapData) {
+  if (notificationId && type) {
+    handleNotificationClick({ id: notificationId, type, data } as unknown as AppNotification);
+  } else if (data.route) {
+    void router.push(data.route);
+  }
+}
+watch(() => (isLoaded.value ? user.value?.id : undefined), (userId) => {
+  if (userId) void startNativePush(userId, openPushedNotification);
+}, { immediate: true });
 const { resolvedTheme: theme } = useTheme();
 const pin = ref<string>('');
 const pinLoading = ref<boolean>(false);

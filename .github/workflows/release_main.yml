@@ -98,6 +98,18 @@ jobs:
       - name: Synchronisation Capacitor Android
         run: npx cap sync android
 
+      # Config Firebase de l'app Android (push FCM). Sans le secret, l'APK se construit quand même,
+      # mais sans notifications push (build.gradle n'applique alors pas le plugin google-services).
+      - name: Configuration Firebase (google-services.json)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          else
+            echo "::warning::Secret GOOGLE_SERVICES_JSON absent : APK sans notifications push"
+          fi
+
       - name: Build de l'APK debug (non signé)
         working-directory: android
         run: |

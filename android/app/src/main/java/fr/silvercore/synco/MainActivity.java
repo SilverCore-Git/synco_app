@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // Plugins locaux : à enregistrer avant super.onCreate, qui crée le pont avec la WebView.
         registerPlugin(AppChromePlugin.class);
+        registerPlugin(PushSupportPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

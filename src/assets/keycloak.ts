@@ -329,6 +329,9 @@ const USER_SCOPED_KEYS = ['userId', 'lastOpenedOrgId', 'fcm-device-id'];
  * reprenait silencieusement (audit FX3).
  */
 async function logoutEverywhere(): Promise<void> {
+  // Avant toute purge : la suppression du token push sur synco_api a encore besoin de la session.
+  await import('./nativePush').then((m) => m.stopNativePush()).catch(() => {});
+
   const refreshToken = keycloak.refreshToken ?? (await loadRefreshToken().catch(() => undefined));
   if (refreshToken) {
     await fetch(`${KC_URL}/realms/${KC_REALM}/protocol/openid-connect/logout`, {
