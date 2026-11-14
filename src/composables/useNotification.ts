@@ -632,8 +632,11 @@ export function useNotification() {
         }
         break;
       case 'MENTION':
-        if (notification.data?.threadId) {
-          router.push(`/chat/thread/${notification.data.threadId}`);
+        // Comme MESSAGE : notifyMentionedUsers (referencesService.ts côté API) fournit data.route
+        // (salon, DM ou tâche, message ciblé via ?select=) et jamais de threadId ; l'ancienne route
+        // /chat/thread/:id n'a jamais existé, le clic n'ouvrait rien.
+        if (notification.data?.route) {
+          router.push(notification.data.route);
         }
         break;
       case 'INVITATION':
