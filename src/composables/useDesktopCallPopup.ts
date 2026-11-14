@@ -1,4 +1,4 @@
-import { computed, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { OrgMember } from '@/types/types';
 import isDesktopApp, { isMacDesktop } from '@/assets/isDesktopApp';
 import { openedOrg } from '@/assets/var';
@@ -33,6 +33,8 @@ interface Incoming {
     member: OrgMember;
     /** Carte d'invitation à retirer (sessions éphémères). */
     notifId?: number;
+    /** Simulation de dev : affichée même fenêtre principale au premier plan. */
+    forced?: boolean;
 }
 
 const POPUP_WIDTH = 300;
@@ -47,7 +49,11 @@ export default function useDesktopCallPopup(): void {
     const { Item: privacyMode } = useSettingsItem('privacyMode', false);
     const { resolvedTheme } = useTheme();
 
+    // Mode dev seulement (retiré des builds) : appel simulé pour tester la pop-up sans second compte.
+    const simulated = ref<Incoming | null>(null);
+
     const incoming = computed<Incoming | null>(() => {
+        if (simulated.value) return simulated.value;
         const call = enteringCall.value;
         if (call) {
             const member = openedOrg.value?.members?.find(m => m.user?.id === call.peer);
@@ -131,7 +137,7 @@ export default function useDesktopCallPopup(): void {
 
     function sync() {
         const inc = incoming.value;
-        if (!inc || mainFocused) {
+        if (!inc || (mainFocused && !inc.forced)) {
             if (shown) void closePopup();
             return;
         }
@@ -140,11 +146,20 @@ export default function useDesktopCallPopup(): void {
 
     async function onAction({ action, kind, callerId }: IncomingCallAction) {
         const inc = incoming.value;
+        // Synco d'abord, la pop-up ensuite : sous Wayland (GNOME), c'est le clic tout juste reçu par la
+        // pop-up qui autorise l'activation d'une autre fenêtre de l'app ; une fois la pop-up fermée, le
+        // compositeur refuse de passer Synco au premier plan.
+        if (action === 'answer') await bringMainToFront();
         await closePopup();
         if (!inc || inc.kind !== kind || inc.callerId !== callerId) return;
 
+        if (import.meta.env.DEV && inc === simulated.value) {
+            simulated.value = null;
+            console.info(`[call-popup] simulation : ${action === 'answer' ? 'Répondre' : 'Refuser'} (${kind})`);
+            return;
+        }
+
         if (action === 'answer') {
-            await bringMainToFront();
             if (kind === 'call') {
                 void router.push({ name: 'OrgThreadChat', params: { userId: inc.member.id } });
                 void acceptCall();
@@ -187,4 +202,31 @@ export default function useDesktopCallPopup(): void {
     })();
 
     watch(() => (incoming.value ? `${incoming.value.kind}:${incoming.value.callerId}` : null), sync);
+
+    // Mode dev : Ctrl+Alt+K simule un appel, Ctrl+Alt+J une session éphémère, 3 s plus tard (le temps de
+    // passer sur une autre fenêtre : la pop-up ne s'ouvre que si Synco n'a pas le focus). Raccroche seul
+    // au bout de 30 s, comme l'appelant.
+    // Depuis un terminal, `target/debug/app "fr.silvercore.synco://dev/simulate-call?kind=meet"` : le
+    // lien arrive par l'instance unique et affiche la pop-up même si Synco a le focus.
+    if (import.meta.env.DEV) {
+        const simulate = (kind: IncomingCallKind, delay: number, forced: boolean) => {
+            const member = openedOrg.value?.members?.find(m => m.user?.id && m.user.avatarUrl) ?? openedOrg.value?.members?.[0];
+            if (!member) return console.info('[call-popup] simulation : aucune organisation ouverte');
+            console.info(`[call-popup] simulation de ${kind} dans ${delay / 1000} s`);
+            setTimeout(() => {
+                const fake: Incoming = { kind, callerId: `simulated-${Date.now()}`, member, forced };
+                simulated.value = fake;
+                setTimeout(() => { if (simulated.value === fake) simulated.value = null; }, 30000);
+            }, delay);
+        };
+        window.addEventListener('keydown', (e) => {
+            if (!e.ctrlKey || !e.altKey || (e.code !== 'KeyK' && e.code !== 'KeyJ')) return;
+            simulate(e.code === 'KeyJ' ? 'meet' : 'call', 3000, false);
+        });
+        void tauri.then(({ listen }) => listen('single-instance', ({ payload }: { payload: string[] }) => {
+            const link = payload.find(a => a.startsWith('fr.silvercore.synco://dev/simulate-call'));
+            if (!link) return;
+            simulate(new URL(link).searchParams.get('kind') === 'meet' ? 'meet' : 'call', 1000, true);
+        }));
+    }
 }
