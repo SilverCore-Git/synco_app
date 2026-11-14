@@ -21,7 +21,7 @@ concurrency:
 
 # Pas d'artefacts (quota de stockage) : la release est créée d'abord et chaque job de build y
 # upload directement son binaire. Elle reste en pré-release jusqu'au job publish-updater, qui
-# la passe en « latest » une fois MSI et AppImage signés en ligne : c'est ce qui déclenche
+# la passe en « latest » une fois MSI, AppImage et archive macOS signés en ligne : c'est ce qui déclenche
 # l'auto-update des apps desktop (tauri-plugin-updater lit releases/latest/download/latest.json).
 jobs:
   create-release:
@@ -233,9 +233,64 @@ jobs:
           bunx tauri signer sign "$APPIMAGE"
           gh release upload "$RELEASE_TAG" "$APPIMAGE" "$APPIMAGE.sig" --clobber
 
+  build-macos-dmg:
+    name: Build du DMG macOS (universel Apple Silicon + Intel)
+    needs: create-release
+    runs-on: macos-latest
+    env:
+      RELEASE_TAG: ${{ needs.create-release.outputs.tag }}
+      VERSION: ${{ needs.create-release.outputs.version }}
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Installation de Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Installation de Rust (cibles arm64 et x86_64)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Génération des fichiers .env
+        run: |
+          echo "${{ secrets.ENV_PRODUCTION }}" > .env.production
+          echo "${{ secrets.ENV_PRODUCTION }}" > .env
+
+      - name: Installation des dépendances
+        run: bun install
+
+      - name: Version de l'app
+        run: node scripts/release-version.mjs apply "$VERSION"
+
+      # Signature ad hoc (tauri.macos.conf.json, signingIdentity "-") : sans compte Apple Developer,
+      # l'app n'est pas notarisée et Gatekeeper demande une autorisation au premier lancement.
+      - name: Build du .app et du DMG
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: bun run tauri:build -- --target universal-apple-darwin --bundles app,dmg
+
+      # L'updater installe une archive du .app (pas le DMG) : on l'empaquette et on la signe ici,
+      # comme le MSI et l'AppImage.
+      - name: Signature (updater) et upload du DMG et de l'archive .app sur la release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          BUNDLE=src-tauri/target/universal-apple-darwin/release/bundle
+          DMG=$(ls "$BUNDLE"/dmg/*.dmg)
+          APP=$(cd "$BUNDLE/macos" && ls -d *.app)
+          ARCHIVE="$BUNDLE/macos/synco_${VERSION}_universal.app.tar.gz"
+          tar -czf "$ARCHIVE" -C "$BUNDLE/macos" "$APP"
+          bunx tauri signer sign "$ARCHIVE"
+          gh release upload "$RELEASE_TAG" "$DMG" "$ARCHIVE" "$ARCHIVE.sig" --clobber
+
   publish-updater:
     name: Publication de la mise à jour (latest.json)
-    needs: [create-release, build-windows-msi, build-linux-appimage]
+    needs: [create-release, build-windows-msi, build-linux-appimage, build-macos-dmg]
     runs-on: ubuntu-latest
     env:
       RELEASE_TAG: ${{ needs.create-release.outputs.tag }}
@@ -245,7 +300,7 @@ jobs:
       - name: Checkout du code
         uses: actions/checkout@v4
 
-      - name: Génération de latest.json (URLs + signatures MSI et AppImage)
+      - name: Génération de latest.json (URLs + signatures MSI, AppImage et macOS)
         run: |
           gh release view "$RELEASE_TAG" --json assets > assets.json
           gh release download "$RELEASE_TAG" --pattern '*.sig' --dir sigs

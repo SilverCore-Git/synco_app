@@ -4,14 +4,17 @@
 //   node scripts/updater-manifest.mjs <version> <tag> <assets.json> <dossier des .sig>
 //
 // assets.json : sortie de `gh release view <tag> --json assets`. Chaque installeur doit avoir sa
-// signature <nom>.sig (minisign, `tauri signer sign`) dans le dossier donné. On ne publie que les
-// installeurs que l'updater sait remplacer : MSI (Windows) et AppImage (Linux).
+// signature <nom>.sig (minisign, `tauri signer sign`) dans le dossier donné. On ne publie que ce que
+// l'updater sait installer : MSI (Windows), AppImage (Linux) et l'archive .app.tar.gz (macOS, binaire
+// universel : la même archive sert Apple Silicon et Intel). Le DMG ne sert qu'à la première install.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const PLATFORMS = [
   { key: 'windows-x86_64', match: (n) => n.endsWith('.msi') },
   { key: 'linux-x86_64', match: (n) => n.endsWith('.AppImage') },
+  { key: 'darwin-aarch64', match: (n) => n.endsWith('.app.tar.gz') },
+  { key: 'darwin-x86_64', match: (n) => n.endsWith('.app.tar.gz') },
 ];
 
 const [version, tag, assetsFile, sigDir] = process.argv.slice(2);

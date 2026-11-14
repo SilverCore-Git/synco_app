@@ -5,9 +5,9 @@ import { debugWarn } from '@/assets/utils/debugLog';
 
 /**
  * Auto-update de l'app desktop (tauri-plugin-updater). Le plugin lit le latest.json de la dernière
- * release GitHub (publié par release_main.yml une fois MSI et AppImage signés), vérifie la signature
+ * release GitHub (publié par release_main.yml une fois MSI, AppImage et archive macOS signés), vérifie la signature
  * de l'installeur avec la clé publique de tauri.conf.json, puis l'installe : MSI en mode passif sous
- * Windows (l'app se ferme), remplacement du fichier AppImage sous Linux. On relance ensuite l'app.
+ * Windows (l'app se ferme), remplacement du fichier AppImage sous Linux et du .app sous macOS. On relance ensuite l'app.
  *
  * Rien ne s'installe sans l'accord de l'utilisateur (UpdateAvailable.vue). « Plus tard » masque
  * cette version jusqu'au prochain lancement ; une version plus récente est proposée à nouveau.
