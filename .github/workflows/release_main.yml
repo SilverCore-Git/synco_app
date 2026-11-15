@@ -367,3 +367,30 @@ jobs:
           tags: |
             ghcr.io/${{ steps.meta.outputs.owner }}/synco_app:latest
             ghcr.io/${{ steps.meta.outputs.owner }}/synco_app:${{ github.sha }}
+  # Rapport posté dans un salon Synco une fois tout terminé, succès ou échec (scripts/release-report.mjs).
+  # Les noms des jobs ci-dessus sont repris dans scripts/lib/releaseReport.mjs (STAGES) pour retrouver
+  # leur durée et l'étape en échec : à garder alignés en cas de renommage.
+  report:
+    name: Rapport de release sur Synco
+    needs: [create-release, build-android-apk, build-windows-msi, build-linux-appimage, build-macos-dmg, publish-updater, build-docker-image]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout du code (historique complet pour la liste des changements)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Envoi du rapport au webhook Synco
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          RELEASE_TAG: ${{ needs.create-release.outputs.tag }}
+          VERSION: ${{ needs.create-release.outputs.version }}
+          DOCKER_IMAGE: ghcr.io/${{ github.repository_owner }}/synco_app:latest
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SYNCO_WEBHOOK_URL: ${{ secrets.SYNCO_WEBHOOK_URL }}
+          SYNCO_WEBHOOK_SECRET: ${{ secrets.SYNCO_WEBHOOK_SECRET }}
+        run: node scripts/release-report.mjs
