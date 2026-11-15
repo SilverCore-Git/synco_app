@@ -29,6 +29,15 @@
     }
   },
   "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEYzRjk3QUU0NDZGODAxREIKUldUYkFmaEc1SHI1ODJQV291WDdUNDRIR09QbFJwb0dRVTl2YWljQnpGU0hDenRtL0lBV2R2ckQK",
+      "endpoints": [
+        "https://github.com/SilverCore-Git/synco_app/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    },
     "deep-link": {
       "desktop": {
         "schemes": [

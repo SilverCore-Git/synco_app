@@ -1,2 +1,5 @@
 /build/*
 !/build/.npmkeep
+
+# Config Firebase (push FCM) : écrite par la CI depuis le secret GOOGLE_SERVICES_JSON, posée à la main en local
+google-services.json

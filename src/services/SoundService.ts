@@ -6,10 +6,21 @@ class SoundManager {
 
   // Dictionnaire des sons disponibles
   public readonly SOUNDS: Record<string, string> = {
+    // Famille « bulle » : une bulle qui monte = une arrivée, une bulle qui
+    // descend = un départ. Sons synthétisés pour Synco, sans licence tierce.
     notification: '/sounds/notification.mp3',
+    // Message direct : trois bulles au lieu de deux.
+    mention: '/sounds/mention.mp3',
     call_incoming: '/sounds/call_incoming.mp3',
-    // call_outgoing: '/sounds/call_outgoing.mp3',
-    // ... ajoutez d'autres sons ici
+    // Quelqu'un rejoint le salon vocal.
+    call_join: '/sounds/call_join.mp3',
+    // Fin d'appel : déconnexion volontaire, expulsion ou coupure, en salon
+    // vocal LiveKit comme en appel P2P ; aussi quand quelqu'un quitte le salon.
+    call_disconnect: '/sounds/call_disconnect.mp3',
+    mute: '/sounds/mute.mp3',
+    unmute: '/sounds/unmute.mp3',
+    // La tonalité d'attente (call_outgoing.mp3) et la sonnerie tournent en
+    // boucle via un élément <audio> dans useSecurePeer / usePrivatMeet.
   };
 
   /**

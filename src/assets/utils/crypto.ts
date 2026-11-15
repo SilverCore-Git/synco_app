@@ -1,5 +1,6 @@
 import { computed, ref, shallowRef } from "vue";
 import { clearAllKeyCaches } from "./keyCaches";
+import { undecryptableMessageText } from "./undecryptable";
 import { isFileKeyV3, unwrapFileKeyV3 } from "./fileKeyV3";
 
 export const privateKey = ref<CryptoKey | null>(null);
@@ -363,7 +364,7 @@ export async function decryptMessageWithContentKey(
 
     } catch (e) {
         console.error("[E2EE] Échec du déchiffrement du message", e);
-        return "[⚠️ Impossible de déchiffrer ce message.]";
+        return undecryptableMessageText();
     }
 
 }

@@ -1,5 +1,6 @@
 import type { Message } from '@/types/types';
 import { decryptMessageWithContentKey } from '@/assets/utils/crypto';
+import { undecryptableMessageText } from '@/assets/utils/undecryptable';
 import { decryptThreadMessageV2, findReplayedMessages, isAuthenticatedIv } from '@/assets/utils/messageAuth';
 
 /**
@@ -68,7 +69,7 @@ const decryptSingleMessage = async (msg: Message | null | undefined, key: Crypto
         if (!vectorInit || vectorInit.trim() === "")
         {
             console.error('ProcesMessages : Erreur E2EE : Vecteur d\'initialisation manquant')
-            return { ...msg, content: "[⚠️ Impossible de déchiffrer ce message.]" };
+            return { ...msg, content: undecryptableMessageText() };
         }
 
         const { text: clearText, authState } = await decryptContent(msg, vectorInit, key, replayed);
@@ -80,7 +81,7 @@ const decryptSingleMessage = async (msg: Message | null | undefined, key: Crypto
     }
     catch (cryptoErr) {
         console.error(`[E2EE] Échec du déchiffrement pour le message ${msg.id}:`, cryptoErr);
-        return { ...msg, content: "[⚠️ Impossible de déchiffrer ce message.]" };
+        return { ...msg, content: undecryptableMessageText() };
     }
 
 };

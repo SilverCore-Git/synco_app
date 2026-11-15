@@ -22,7 +22,9 @@ const orgId = computed(() => openedOrg.value?.id);
 const { canOpenSettings } = useSettingsAccess(orgId);
 const { getUnreadCountBySpaceId, getUnreadCountForTasks, getUnreadCountForDMs } = useNotification();
 const { refreshForOrg, spaceHasVoiceActivity } = useVoicePresence();
-const { isSpaceMuted } = useNotificationMutes();
+// Salons/espaces muets : pas de pastille pour les simples messages, les
+// mentions passent via getUnreadCountBySpaceId (cf. Category.vue).
+const { isSpaceMuted, isThreadMuted } = useNotificationMutes();
 
 const localSpaces = ref<WorkSpace[]>([]);
 
@@ -111,7 +113,7 @@ const onSpaceOrderChange = async () => {
                     label="Général"
                     iconFillOnActive
                     :active="route.name === 'OrgHome' || route.name === 'OrgThreadHome'"
-                    :hasUnread="openedOrg?.home?.threads?.some((t: any) => t.hasUnread)"
+                    :hasUnread="openedOrg?.home?.threads?.some((t: any) => t.hasUnread && !isThreadMuted(t.id))"
                 />
             </RouterLink>
 
@@ -173,7 +175,7 @@ const onSpaceOrderChange = async () => {
                                     :icon="space.logo!"
                                     :label="space.name"
                                     :active="route.path.includes(space.id)"
-                                    :hasUnread="getUnreadCountBySpaceId(space.id).value > 0 || space.threads?.some((t: any) => t.hasUnread)"
+                                    :hasUnread="getUnreadCountBySpaceId(space.id).value > 0 || (!isSpaceMuted(space.id) && space.threads?.some((t: any) => t.hasUnread && !isThreadMuted(t.id)))"
                                     :inVoice="spaceHasVoiceActivity(space.id)"
                                     :muted="isSpaceMuted(space.id)"
                                 />

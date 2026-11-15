@@ -12,6 +12,7 @@ import waitFor from '@/assets/utils/waitfor';
 import { debugLog } from '@/assets/utils/debugLog';
 import { createPeerReconnector } from '@/assets/utils/peerReconnect';
 import sfetch from '@/assets/utils/sfetch';
+import { nativeRingsInstead } from '@/assets/nativeCalls';
 
 // ============================================================================
 // État partagé — niveau module, comme useSecurePeer.ts (pas par instance de
@@ -77,6 +78,8 @@ const ringtone = new Audio('/sounds/call_incoming.mp3');
 ringtone.loop = true;
 
 const startRingtone = () => {
+    // App Android en arrière-plan : la notification d'appel native sonne déjà.
+    if (nativeRingsInstead()) return;
     ringtone.play().catch(() => {});
 };
 
@@ -143,6 +146,19 @@ const toMeetPeerId = (orgMemberId: string) => `${orgMemberId}${MEET_PEER_SUFFIX}
 // clé. Le secret transite par le serveur : contre l'opérateur, c'est le code
 // de vérification (meetSasCode) qui protège.
 let expectedPeer: { peerId: string; secret: Uint8Array } | null = null;
+// Invitation que J'AI lancée et qui attend une réponse : de quoi la renvoyer à l'identique quand le
+// destinataire ouvre l'app depuis la notification d'appel native (privateMeet:redial).
+let outgoingMeet: { recipientUserId: string; recipientMemberId: string; secret: string } | null = null;
+/** Sonnerie côté appelant : le temps de voir la notification, comme pour un appel DM (30 s). */
+const OUTGOING_RING_TIMEOUT = 30000;
+
+// Invitation attendue après une action sur la notification d'appel native (nativeCalls.ts) : l'app
+// vient de s'ouvrir et l'appelant va la renvoyer. autoAccept : bouton Répondre.
+let expectedMeet: { callerUserId: string; autoAccept: boolean; until: number } | null = null;
+// Posé par OrgLayout.vue une fois ses écouteurs privateMeet:* enregistrés : avant, une invitation
+// renvoyée serait perdue.
+let meetSignalsReady = false;
+export const markMeetSignalsReady = () => { meetSignalsReady = true; };
 const incomingMeetSecrets = new Map<string, string>();
 let handshakeDone = false;
 export const meetSasCode = ref<string>('');
@@ -264,6 +280,27 @@ const initPeer = async (userId?: string): Promise<void> => {
         // navigué ailleurs en attendant la réponse, et enregistré une seule
         // fois évite d'empiler un handler à chaque remontage de la vue.
         const socket = await useWSocket();
+        // Le destinataire a accepté : il attend maintenant notre connexion. Celle ouverte au lancement
+        // (si c'est nous qui composons, cf. connectToPeer) a pu être refusée faute d'invitation acceptée
+        // à ce moment-là, ou perdue s'il était hors ligne : on recompose.
+        socket.value?.off('privateMeet:accepted');
+        socket.value?.on('privateMeet:accepted', ({ recipientId }: { recipientId: string }) => {
+            const out = outgoingMeet;
+            if (!out || out.recipientUserId !== recipientId || isConnected.value) return;
+            redialDataConnection(out.recipientMemberId);
+        });
+
+        // Le destinataire vient d'ouvrir l'app depuis la notification d'appel (synco_api
+        // privateMeet:ready) : l'invitation partie pendant que son app était fermée est perdue, on la
+        // renvoie avec le même secret de session.
+        socket.value?.off('privateMeet:redial');
+        socket.value?.on('privateMeet:redial', ({ recipientId }: { recipientId: string }) => {
+            const out = outgoingMeet;
+            if (!out || out.recipientUserId !== recipientId || isConnected.value || !isMeetConnecting.value) return;
+            socket.value?.emit('privateMeet:call', { recipientId, meetSecret: out.secret });
+            armOutgoingTimeout(out.recipientMemberId);
+        });
+
         socket.value?.off('privateMeet:declined');
         socket.value?.on('privateMeet:declined', () => {
             const { show } = useToast();
@@ -308,6 +345,21 @@ const connectToPeer = (targetPeerId: string) => {
     const conn = peer.value.connect(targetId, { reliable: true });
     setupDataConnection(conn);
 
+};
+
+/**
+ * Remplace une connexion de données jamais ouverte par une nouvelle tentative. L'ancienne est fermée
+ * sans ses écouteurs : son 'close' remettrait toute la session à zéro (setupDataConnection).
+ */
+const redialDataConnection = (targetMemberId: string) => {
+    if (String(myPeerId.value) > toMeetPeerId(targetMemberId)) return; // l'autre côté compose
+    const previous = connection.value;
+    if (previous && !previous.open) {
+        previous.removeAllListeners();
+        try { previous.close(); } catch { /* déjà fermée */ }
+        connection.value = null;
+    }
+    connectToPeer(targetMemberId);
 };
 
 const setupDataConnection = (conn: DataConnection) => {
@@ -701,20 +753,68 @@ const startMeet = async (recipient: OrgMember) => {
 
     connectToPeer(recipient.id);
 
-    socket.value?.emit('privateMeet:call', { recipientId: recipient.userId, meetSecret: bytesToB64(secret) });
+    outgoingMeet = { recipientUserId: recipient.userId, recipientMemberId: recipient.id, secret: bytesToB64(secret) };
+    socket.value?.emit('privateMeet:call', { recipientId: recipient.userId, meetSecret: outgoingMeet.secret });
     meetLoadingStatus.value = 'En attente de la réponse...';
     startRingtone();
+    armOutgoingTimeout(recipient.id);
 
+};
+
+/** Abandon côté appelant si personne ne répond, réarmé quand l'invitation est renvoyée. */
+const armOutgoingTimeout = (recipientMemberId: string) => {
     clearPendingCallTimeout();
     pendingCallTimeout = setTimeout(() => {
-        if (isMeetConnecting.value && activeMeetPeerId.value === recipient.id) {
+        if (isMeetConnecting.value && activeMeetPeerId.value === recipientMemberId) {
             meetLoadingStatus.value = 'Aucune réponse, fermeture de la session.';
             setTimeout(() => {
-                if (activeMeetPeerId.value === recipient.id) endMeet();
+                if (activeMeetPeerId.value === recipientMemberId) endMeet();
             }, 2000);
         }
-    }, 10000);
+    }, OUTGOING_RING_TIMEOUT);
+};
 
+/** Appelé par OrgLayout.vue à la réception d'une invitation : vrai s'il faut l'accepter d'office. */
+export const takeExpectedMeetAutoAccept = (callerUserId: string): boolean => {
+    const expected = expectedMeet;
+    if (!expected || expected.callerUserId !== callerUserId) return false;
+    expectedMeet = null;
+    return expected.autoAccept && Date.now() < expected.until;
+};
+
+const removeIncomingMeetCard = (callerUserId: string) => {
+    const { notifications } = useNotifications();
+    notifications.value = notifications.value.filter(
+        n => !(n.type === 'notif:privateMeet' && n.privateMeet?.userId === callerUserId)
+    );
+};
+
+/**
+ * Action sur la notification d'appel native (App.vue) : `autoAccept` pour Répondre. Si l'invitation est
+ * déjà arrivée (app restée en mémoire), on y répond ; sinon on attend que l'app soit prête et on demande
+ * à l'appelant de la renvoyer (privateMeet:ready).
+ */
+export const answerMeetFromNotification = async (callerUserId: string, autoAccept: boolean) => {
+    if (incomingMeetSecrets.has(callerUserId)) {
+        const caller = openedOrg.value?.members?.find(m => m.userId === callerUserId);
+        if (autoAccept && caller) {
+            removeIncomingMeetCard(callerUserId);
+            await acceptIncomingMeet(caller);
+        } else {
+            startRingtone();
+        }
+        return;
+    }
+    if (isMeeting.value || isMeetConnecting.value) return;
+
+    expectedMeet = { callerUserId, autoAccept, until: Date.now() + 45000 };
+    const ready = await waitFor(
+        () => meetSignalsReady && myPeerId.value !== '' && !!openedOrg.value?.members?.some(m => m.userId === callerUserId),
+        30000, 200,
+    );
+    if (!ready || expectedMeet?.callerUserId !== callerUserId) return;
+    const socket = await useWSocket();
+    socket.value?.emit('privateMeet:ready', { callerId: callerUserId });
 };
 
 /**
@@ -859,6 +959,7 @@ const notifyMeetCancelledIfUnconnected = () => {
  */
 const cleanupMeetState = () => {
     stopRingtone();
+    outgoingMeet = null;
     connection.value?.close({ flush: true });
     connection.value = null;
     isConnected.value = false;

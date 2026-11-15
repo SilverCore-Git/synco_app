@@ -18,7 +18,7 @@ import { keycloak } from '@/assets/keycloak';
 import useNotifications from '@/composables/useNotifications';
 import { useNotification } from '@/composables/useNotification';
 import { useRecentDMs } from '@/composables/useRecentDMs';
-import { isMeeting, registerIncomingMeetSecret } from '@/composables/usePrivatMeet';
+import { isMeeting, registerIncomingMeetSecret, takeExpectedMeetAutoAccept, markMeetSignalsReady } from '@/composables/usePrivatMeet';
 import { navDirection } from '@/assets/navDirection';
 
 import isDesktopApp from '@/assets/isDesktopApp';
@@ -40,7 +40,7 @@ const props = defineProps<{
 
 const { showUsersBar, setUsersBarHiddenByRoute } = useUsersBar();
 const { initPeer } = useSecurePeer();
-const { initPeer: initPrivateMeetPeer, startRingtone: startPrivateMeetRingtone } = usePrivateMeet();
+const { initPeer: initPrivateMeetPeer, startRingtone: startPrivateMeetRingtone, acceptIncomingMeet } = usePrivateMeet();
 const { notify, notifications } = useNotifications();
 const { init: initNotifications } = useNotification();
 const { fetchRecentDMs, recordDMInteraction } = useRecentDMs();
@@ -603,6 +603,11 @@ const initSocketListener = async () => {
         // Secret de session de l'invitation (audit FC6), utilisé à l'acceptation.
         registerIncomingMeetSecret(callerId, meetSecret);
         const orgMember = openedOrg.value?.members?.find(m => m.userId === callerId);
+        // Invitation renvoyée après « Répondre » sur la notification d'appel native : acceptée d'office.
+        if (orgMember && !isMeeting.value && takeExpectedMeetAutoAccept(callerId)) {
+            void acceptIncomingMeet(orgMember);
+            return;
+        }
         if (!isMeeting.value) {
             notify('notif:privateMeet', orgMember, -1);
             // Sonnerie en boucle (même son que les appels DM) tant que
@@ -629,6 +634,8 @@ const initSocketListener = async () => {
         const orgMember = openedOrg.value?.members?.find(m => m.userId === fromUserId);
         notify('notif:missedMeet', orgMember, 8000);
     });
+    // Une invitation renvoyée à la demande (privateMeet:ready) peut maintenant être reçue.
+    markMeetSignalsReady();
     socket.value?.on('thread:created', ({ orgId, thread }: { orgId: string, thread: any }) => {
         
         if (orgId !== props.orgId) return;

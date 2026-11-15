@@ -68,6 +68,10 @@
                         </button>
                     </template>
 
+                    <button class="danger text-xs" :disabled="actionBusy" title="Supprimer définitivement ce ticket" @click="confirmDelete = true">
+                        <i class="bi bi-trash3 mr-1" /> Supprimer
+                    </button>
+
                 </div>
             </div>
 
@@ -172,6 +176,18 @@
             @cancel="confirmClose = false"
         />
 
+        <ConfirmDelete
+            :show="confirmDelete"
+            :item-name="ticket ? `le ticket #${ticket.number}` : 'ce ticket'"
+            item-type="le ticket"
+            title="Supprimer ce ticket ?"
+            message="Messages client et internes, pièces jointes et historique seront définitivement supprimés, pour le client comme pour l'équipe. Cette action est irréversible."
+            button-text="Supprimer le ticket"
+            :loading="actionBusy"
+            @confirm="deleteTicket"
+            @cancel="confirmDelete = false"
+        />
+
     </div>
 
 </template>
@@ -179,7 +195,7 @@
 <script lang="ts" setup>
 
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import type { Socket } from 'socket.io-client';
 import { decryptMessageWithContentKey } from '@/assets/utils/crypto';
 import { decryptMessages } from '@/assets/utils/decryptMessages';
@@ -205,6 +221,7 @@ import SupportClaimModal from './components/SupportClaimModal.vue';
 import { STATUS_OPTIONS, PRIORITY_OPTIONS } from './supportLabels';
 
 const route = useRoute();
+const router = useRouter();
 const toast = useToast();
 const { role } = useSupportRole();
 const { markSupportTicketAsRead } = useNotification();
@@ -224,6 +241,7 @@ const notFoundMessage = ref('Ticket introuvable ou accès refusé.');
 const actionBusy = ref(false);
 const showClaim = ref(false);
 const confirmClose = ref(false);
+const confirmDelete = ref(false);
 const pendingStatus = ref<SupportTicketStatus | null>(null);
 const mobileTab = ref<'public' | 'internal'>('public');
 const publicTimelineRef = ref<InstanceType<typeof ChatTimeline> | null>(null);
@@ -284,6 +302,10 @@ const load = async () => {
     loadingInternal.value = true;
     publicKeyError.value = null;
     internalKeyError.value = null;
+    // Avant l'ouverture, pas après : un ticket supprimé ou devenu
+    // inaccessible (404/403) laissait sinon ses notifications non lues pour
+    // toujours, aucune autre ouverture ne pouvant plus les solder.
+    void markSupportTicketAsRead(ticketId.value);
     try {
         const opened = await openSupportTicket(ticketId.value);
         if (!('creator' in opened.ticket)) throw new Error("Accès refusé : ce ticket n'est pas visible par l'équipe.");
@@ -294,7 +316,6 @@ const load = async () => {
         publicKeyError.value = opened.publicKeyError;
         internalKeyError.value = opened.internalKeyError;
         loadingTicket.value = false;
-        void markSupportTicketAsRead(ticketId.value);
 
         await Promise.all([
             loadEvents(),
@@ -327,6 +348,12 @@ useSupportTicketEvents({
     ticketId,
     onTicketUpdated: (t) => { if (t.id === ticket.value?.id && 'creator' in t) ticket.value = t as SupportTicketStaffDTO; },
     onEvent: (ev) => { if (ev.ticketId === ticket.value?.id) events.value = [...events.value, ev]; },
+    // Supprimé par un autre membre de l'équipe pendant qu'on le regarde.
+    onTicketDeleted: () => {
+        if (deleting) return;
+        toast.show('Ce ticket a été supprimé par un autre membre de l\'équipe.', 'info');
+        void router.replace('/support-panel');
+    },
 });
 
 // ── Actions ───────────────────────────────────────────────────────────
@@ -405,6 +432,27 @@ const applyStatus = async (status: SupportTicketStatus) => {
         ticket.value = await supportApi.patchTicket(ticket.value.id, { status });
     } catch (e) {
         toast.show((e as Error).message || 'Impossible de changer le statut.', 'error');
+    } finally {
+        actionBusy.value = false;
+    }
+};
+
+// Vrai pendant notre propre suppression : l'événement support:ticket-deleted
+// qui nous revient ne doit pas afficher le toast « supprimé par un autre ».
+let deleting = false;
+
+const deleteTicket = async () => {
+    if (!ticket.value) return;
+    actionBusy.value = true;
+    deleting = true;
+    try {
+        await supportApi.deleteTicket(ticket.value.id);
+        confirmDelete.value = false;
+        toast.show('Ticket supprimé.', 'success');
+        void router.replace('/support-panel');
+    } catch (e) {
+        deleting = false;
+        toast.show((e as Error).message || 'Impossible de supprimer ce ticket.', 'error');
     } finally {
         actionBusy.value = false;
     }

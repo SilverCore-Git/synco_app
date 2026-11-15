@@ -28,6 +28,7 @@ import { getVoicePrefs, saveVoicePrefs } from '@/assets/utils/voicePrefs';
 import E2EEWorker from '../../node_modules/livekit-client/dist/livekit-client.e2ee.worker.mjs?worker';
 import useWSocket from './useWSocket';
 import { useToast } from './useToast';
+import { SoundService } from '@/services/SoundService';
 import sfetch from '@/assets/utils/sfetch';
 import type { OrgMember } from '@/types/types';
 
@@ -277,7 +278,8 @@ function useLiveKit()
 
         if (room.value)
         {
-            await leaveRoom(room.value.name, spaceId);
+            // Changement de salon : pas de son de déconnexion entre les deux.
+            await leaveRoom(room.value.name, spaceId, { silent: true });
         }
 
         let e2eeOptions = undefined;
@@ -354,6 +356,9 @@ function useLiveKit()
 
         newRoom.on(RoomEvent.ParticipantConnected, handleSync);
         newRoom.on(RoomEvent.ParticipantDisconnected, handleSync);
+        // Quelqu'un rejoint ou quitte le salon (les autres, jamais soi-même).
+        newRoom.on(RoomEvent.ParticipantConnected, () => SoundService.play('call_join'));
+        newRoom.on(RoomEvent.ParticipantDisconnected, () => SoundService.play('call_disconnect'));
         newRoom.on(RoomEvent.TrackMuted, handleSync);
         newRoom.on(RoomEvent.TrackUnmuted, handleSync);
         newRoom.on(RoomEvent.ParticipantMetadataChanged, handleSync);
@@ -384,6 +389,9 @@ function useLiveKit()
             noiseProcessor = null;
 
             if (!intentionalDisconnect) {
+                // Expulsion (removeParticipant côté serveur) ou coupure réseau :
+                // leaveRoom() ne passe pas par ici, il joue son propre son.
+                SoundService.play('call_disconnect');
                 useToast().show("Connexion au salon vocal perdue", "error");
             }
             intentionalDisconnect = false;
@@ -500,11 +508,12 @@ function useLiveKit()
         }
     };
 
-    const leaveRoom = async (threadId: string, spaceId: string) => {
+    const leaveRoom = async (threadId: string, spaceId: string, opts: { silent?: boolean } = {}) => {
 
         if (room.value)
         {
 
+            if (!opts.silent) SoundService.play('call_disconnect');
             intentionalDisconnect = true;
             await room.value.disconnect();
             
@@ -547,6 +556,7 @@ function useLiveKit()
             if (!room.value) return;
             await room.value.localParticipant.setMicrophoneEnabled(en);
             isMicEnabled.value = en;
+            SoundService.play(en ? 'unmute' : 'mute', 0);
         },
         toggleScreenShare: async (en: boolean, captureOptions?: ScreenShareCaptureOptions) => {
             if (!room.value) return;

@@ -65,7 +65,7 @@
                             v-if="thread.type === 'text'"
                             :thread="thread"
                             :active="route.params.threadId == thread.id"
-                            :hasUnread="getUnreadCountByThreadId(thread.id).value > 0 || thread.hasUnread"
+                            :hasUnread="getUnreadCountByThreadId(thread.id).value > 0 || (thread.hasUnread && !isMessageMuted(thread.id, spaceIdParam))"
                             :key="'thread-text-' + thread.id"
                             @click="navigateToThread(thread.id)"
                         />
@@ -90,7 +90,7 @@
 
 <script lang="ts" setup>
 
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import draggable from 'vuedraggable';
 import type { Category, Thread } from '@/types/types';
 import ThreadBtn from './ThreadBtn.vue';
@@ -102,6 +102,7 @@ const { canHere } = useHerePermissions();
 import useWSocket from '@/composables/useWSocket';
 import VoiceThreadBtn from './VoiceThreadBtn.vue';
 import { useNotification } from '@/composables/useNotification';
+import { useNotificationMutes } from '@/composables/useNotificationMutes';
 
 const props = defineProps<{
     category: Category;
@@ -111,6 +112,12 @@ const props = defineProps<{
 const route = useRoute();
 const router = useRouter();
 const { getUnreadCountByThreadId } = useNotification();
+// Salon ou espace muet : pas de pastille pour les simples messages (le
+// marqueur hasUnread est conservé, il réapparaît à la réactivation). Les
+// mentions restent signalées via getUnreadCountByThreadId : le serveur ne
+// persiste plus que celles-là pour un salon muet.
+const { isMessageMuted } = useNotificationMutes();
+const spaceIdParam = computed(() => route.params.spaceId ? String(route.params.spaceId) : null);
 
 const isOpen = ref<boolean>(true);
 

@@ -556,6 +556,14 @@ export function useNotification() {
         if (n.data?.ticketId === data.ticketId) n.isRead = true;
       });
     });
+
+    // Ticket supprimé par l'équipe : l'API a déjà effacé ses notifications
+    // en base, on les retire aussi de la liste en mémoire (sinon elles
+    // gonfleraient le compteur jusqu'au prochain rechargement).
+    socket.value.on('support:ticket-deleted', (data: { ticketId?: string }) => {
+      if (!data?.ticketId) return;
+      notifications.value = notifications.value.filter(n => n.data?.ticketId !== data.ticketId);
+    });
   };
 
   // Types traités comme des demandes/réponses actionnables (comme un appel
@@ -624,8 +632,11 @@ export function useNotification() {
         }
         break;
       case 'MENTION':
-        if (notification.data?.threadId) {
-          router.push(`/chat/thread/${notification.data.threadId}`);
+        // Comme MESSAGE : notifyMentionedUsers (referencesService.ts côté API) fournit data.route
+        // (salon, DM ou tâche, message ciblé via ?select=) et jamais de threadId ; l'ancienne route
+        // /chat/thread/:id n'a jamais existé, le clic n'ouvrait rien.
+        if (notification.data?.route) {
+          router.push(notification.data.route);
         }
         break;
       case 'INVITATION':

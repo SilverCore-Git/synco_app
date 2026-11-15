@@ -12,6 +12,7 @@ import type { User } from '@/types/types';
 import Notifications from './components/overlay/Notifications.vue';
 import TransfersPanel from './components/overlay/TransfersPanel.vue';
 import ExtensionSuggestion from './components/overlay/ExtensionSuggestion.vue';
+import UpdateAvailable from './components/overlay/UpdateAvailable.vue';
 import V4MigrationDialog from './components/e2ee/V4MigrationDialog.vue';
 import ConnectionStatusBanner from './components/overlay/ConnectionStatusBanner.vue';
 import RateLimitOverlay from './components/overlay/RateLimitOverlay.vue';
@@ -40,14 +41,46 @@ import { discardV3Migration, handOffV3Migration } from './assets/e2eeV4/v3Migrat
 import useFavicon from './composables/useFavicon';
 import { banned } from './composables/useBanStatus';
 import { syncSystemBars } from './assets/nativeSystemBars';
+import { startNativePush, type PushTapData } from './assets/nativePush';
+import { startNativeCallBridge, type NativeCallAction } from './assets/nativeCalls';
+import { answerMeetFromNotification } from './composables/usePrivatMeet';
+import useDesktopCallPopup from './composables/useDesktopCallPopup';
+import { useNotification, type AppNotification } from './composables/useNotification';
 
 const toast = useToast();
+
+// Notifications push de l'app mobile (Capacitor) : une fois l'utilisateur chargé, on enregistre
+// l'appareil auprès de synco_api ; le tap sur une notification ouvre l'écran correspondant.
+const { handleNotificationClick } = useNotification();
+function openPushedNotification({ notificationId, type, ...data }: PushTapData) {
+  if (notificationId && type) {
+    handleNotificationClick({ id: notificationId, type, data } as unknown as AppNotification);
+  } else if (data.route) {
+    void router.push(data.route);
+  }
+}
+watch(() => (isLoaded.value ? user.value?.id : undefined), (userId) => {
+  if (!userId) return;
+  void startNativePush(userId, openPushedNotification);
+  void startNativeCallBridge(onNativeCallAction);
+}, { immediate: true });
+
+// App de bureau : pop-up d'appel entrant toujours au premier plan quand la fenêtre n'a pas le focus.
+useDesktopCallPopup();
+
+// Notification d'appel native d'Android (appel DM ou invitation à une session éphémère) : « Répondre »
+// décroche dès que l'appelant a recomposé, toucher la notification affiche la carte d'appel entrant.
+function onNativeCallAction({ action, kind, callerId }: NativeCallAction) {
+  const autoAccept = action === 'answer';
+  if (kind === 'meet') void answerMeetFromNotification(callerId, autoAccept);
+  else void answerCallFromNotification(callerId, autoAccept);
+}
 const { resolvedTheme: theme } = useTheme();
 const pin = ref<string>('');
 const pinLoading = ref<boolean>(false);
 
 // Initialize P2P peer connection
-const { initPeer } = useSecurePeer();
+const { initPeer, answerFromNotification: answerCallFromNotification } = useSecurePeer();
 
 import router from '@/router';
 import { openedOrg } from '@/assets/var';
@@ -806,6 +839,9 @@ onMounted(async () => {
 
           <!-- Suggestion de Synco Extension (appareil protégé par le seul PIN local), une fois l'app affichée -->
           <ExtensionSuggestion v-if="isLoaded" />
+
+          <!-- Mise à jour de l'app desktop (tauri-plugin-updater), inerte hors Tauri -->
+          <UpdateAvailable v-if="isLoaded" />
 
           <!-- Migration v3 → v4 acceptée sur l'écran de déverrouillage : reprend avec les clés déjà ouvertes -->
           <V4MigrationDialog v-if="isLoaded" takes-handoff />
