@@ -8,7 +8,7 @@ import {
     encryptThreadKeyForMember, decryptThreadKeyWithRsa, generateThreadKey,
 } from './crypto';
 import { canonicalRsaJwk, requireTrustedSignKey, UntrustedKeyError } from './keyTrust';
-import { signKeyEnvelope, verifyKeyEnvelope } from './keyEnvelope';
+import { signKeyEnvelope, verifyKeyEnvelopeFrom } from './keyEnvelope';
 import { pinOrCheckKey, type KeyContext } from './keyPinning';
 import { registerKeyCache } from './keyCaches';
 
@@ -294,11 +294,11 @@ export async function verifyTicketKeyEnvelope(
         console.warn(`[E2EE] Clé de signature de ${data.creatorId} introuvable : enveloppe du ticket ${ticketId} non vérifiée.`);
         return;
     }
-    const trusted = await requireTrustedSignKey(data.creatorId, signKey);
-    await verifyKeyEnvelope(
+    await verifyKeyEnvelopeFrom(
         key,
         { ctx: supportKeyContext(ticketId, channel), version: SUPPORT_KEY_VERSION, commitment: data.commitment, signature: data.signature },
-        trusted
+        data.creatorId,
+        signKey
     );
 }
 

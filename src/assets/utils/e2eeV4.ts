@@ -503,39 +503,81 @@ export async function signIdentityTransition(
     return { seq, oldPublicSignKey: oldSign, newPublicKey: newPub, newPublicSignKey: newSign, signature: toB64(new Uint8Array(sig)) };
 }
 
+/** Un maillon est valide s'il est signé par la clé de signature qu'il remplace. */
+async function transitionSignedByOld(userId: string, t: IdentityTransition): Promise<{ oldSign: string; newPub: string; newSign: string } | null> {
+    let oldSign: string, newPub: string, newSign: string;
+    try {
+        oldSign = ecCanonical(parseJwk(t.oldPublicSignKey));
+        newPub = rsaCanonical(parseJwk(t.newPublicKey));
+        newSign = ecCanonical(parseJwk(t.newPublicSignKey));
+    } catch {
+        return null;
+    }
+    try {
+        const key = await crypto.subtle.importKey('jwk', JSON.parse(oldSign), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+        const ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, fromB64(t.signature) as BufferSource, identityTransitionBytes(userId, t.seq, oldSign, newPub, newSign) as BufferSource);
+        return ok ? { oldSign, newPub, newSign } : null;
+    } catch {
+        return null;
+    }
+}
+
 /**
  * Suit la chaîne de transitions depuis une clé de signature épinglée (jamais depuis une valeur du
- * serveur) et renvoie l'identité au bout de la partie valide, ou `null` si aucune transition valide
- * ne part de la clé épinglée. Chaque maillon doit être signé par la clé du maillon précédent.
+ * serveur) et renvoie chaque identité traversée, dans l'ordre. Liste vide si aucune transition
+ * valide ne part de la clé épinglée. Chaque maillon doit être signé par la clé du maillon précédent.
  */
+export async function identityChainPath(
+    userId: string,
+    pinnedPublicSignKey: string | JsonWebKey,
+    chain: IdentityTransition[],
+): Promise<Array<{ publicKey: string; publicSignKey: string }>> {
+    let current = ecCanonical(parseJwk(pinnedPublicSignKey));
+    const path: Array<{ publicKey: string; publicSignKey: string }> = [];
+    for (const t of [...chain].sort((a, b) => a.seq - b.seq)) {
+        const link = await transitionSignedByOld(userId, t);
+        if (!link || link.oldSign !== current) continue;
+        current = link.newSign;
+        path.push({ publicKey: link.newPub, publicSignKey: link.newSign });
+    }
+    return path;
+}
+
+/** Identité au bout de la partie valide de la chaîne (cf. identityChainPath), ou `null`. */
 export async function followIdentityChain(
     userId: string,
     pinnedPublicSignKey: string | JsonWebKey,
     chain: IdentityTransition[],
 ): Promise<{ publicKey: string; publicSignKey: string } | null> {
-    let current = ecCanonical(parseJwk(pinnedPublicSignKey));
-    let end: { publicKey: string; publicSignKey: string } | null = null;
-    for (const t of [...chain].sort((a, b) => a.seq - b.seq)) {
-        let oldSign: string, newPub: string, newSign: string;
-        try {
-            oldSign = ecCanonical(parseJwk(t.oldPublicSignKey));
-            newPub = rsaCanonical(parseJwk(t.newPublicKey));
-            newSign = ecCanonical(parseJwk(t.newPublicSignKey));
-        } catch {
-            continue;
-        }
-        if (oldSign !== current) continue;
-        try {
-            const key = await crypto.subtle.importKey('jwk', JSON.parse(current), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
-            const ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, fromB64(t.signature) as BufferSource, identityTransitionBytes(userId, t.seq, oldSign, newPub, newSign) as BufferSource);
-            if (!ok) continue;
-        } catch {
-            continue;
-        }
-        current = newSign;
-        end = { publicKey: newPub, publicSignKey: newSign };
+    return (await identityChainPath(userId, pinnedPublicSignKey, chain)).slice(-1)[0] ?? null;
+}
+
+/**
+ * Remonte la chaîne À REBOURS depuis une clé de signature : les clés qu'elle a remplacées, de la plus
+ * récente à la plus ancienne. ATTENTION, ce n'est pas une preuve : un maillon n'est signé que par
+ * l'ANCIENNE clé, donc n'importe qui peut fabriquer une « clé précédente » qui désigne la clé actuelle.
+ * À n'utiliser que pour relire un ancien contenu au niveau de confiance « sans signature » (TOFU), jamais
+ * pour le déclarer vérifié.
+ */
+export async function predecessorSignKeys(
+    userId: string,
+    currentPublicSignKey: string | JsonWebKey,
+    chain: IdentityTransition[],
+): Promise<string[]> {
+    let current = ecCanonical(parseJwk(currentPublicSignKey));
+    let below = Infinity; // rangs strictement décroissants : une seule chaîne linéaire, pas de boucle
+    const out: string[] = [];
+    const links = (await Promise.all(chain.map(async t => ({ seq: t.seq, link: await transitionSignedByOld(userId, t) }))))
+        .filter((l): l is { seq: number; link: NonNullable<Awaited<ReturnType<typeof transitionSignedByOld>>> } => l.link !== null && Number.isSafeInteger(l.seq));
+    for (;;) {
+        const prev = links
+            .filter(l => l.seq < below && l.link.newSign === current)
+            .sort((a, b) => b.seq - a.seq)[0];
+        if (!prev) return out;
+        below = prev.seq;
+        current = prev.link.oldSign;
+        out.push(current);
     }
-    return end;
 }
 
 const archiveAad = (userId: string) => `synco-e4-identity-archive|${userId}`;

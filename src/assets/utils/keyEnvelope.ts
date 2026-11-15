@@ -1,6 +1,6 @@
 import { privateSignKey } from './crypto';
 import { keyCommitment, type KeyContext } from './keyPinning';
-import { requireTrustedSignKey, lookupCreatorSignKey } from './keyTrust';
+import { lookupCreatorSignKey, verifyWithSignKeys } from './keyTrust';
 
 /**
  * Enveloppe signée d'une clé symétrique distribuée (ThreadKey/WorkspaceKey/
@@ -54,6 +54,27 @@ export class KeyEnvelopeError extends Error {
     }
 }
 
+async function assertCommitment(rawKey: CryptoKey | ArrayBuffer, envelope: { ctx: KeyContext; version: number; commitment: string }): Promise<void> {
+    const commitment = await keyCommitment(rawKey, envelope.ctx, envelope.version);
+    if (commitment !== envelope.commitment) throw new KeyEnvelopeError('commitment-mismatch');
+}
+
+async function envelopeSignedBy(
+    envelope: { ctx: KeyContext; version: number; commitment: string; signature: string },
+    publicSignKeyJWK: string | object
+): Promise<boolean> {
+    const jwk = typeof publicSignKeyJWK === 'string' ? JSON.parse(publicSignKeyJWK) : publicSignKeyJWK;
+    const pub = await crypto.subtle.importKey(
+        'jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']
+    ).catch(() => { throw new KeyEnvelopeError('bad-signature'); });
+    const sig = Uint8Array.from(atob(envelope.signature), c => c.charCodeAt(0));
+    return crypto.subtle.verify(
+        { name: 'ECDSA', hash: 'SHA-256' },
+        pub, sig as BufferSource,
+        envelopeBytes(envelope.ctx, envelope.version, envelope.commitment) as BufferSource
+    );
+}
+
 /**
  * Vérifie que `rawKey` correspond bien à l'enveloppe signée, et que la
  * signature a été produite par la clé d'identité (déjà résolue/épinglée)
@@ -64,21 +85,30 @@ export async function verifyKeyEnvelope(
     envelope: { ctx: KeyContext; version: number; commitment: string; signature: string },
     creatorPublicSignKeyJWK: string | object
 ): Promise<void> {
-    const commitment = await keyCommitment(rawKey, envelope.ctx, envelope.version);
-    if (commitment !== envelope.commitment) throw new KeyEnvelopeError('commitment-mismatch');
+    await assertCommitment(rawKey, envelope);
+    if (!(await envelopeSignedBy(envelope, creatorPublicSignKeyJWK))) throw new KeyEnvelopeError('bad-signature');
+}
 
-    const jwk = typeof creatorPublicSignKeyJWK === 'string' ? JSON.parse(creatorPublicSignKeyJWK) : creatorPublicSignKeyJWK;
-    const pub = await crypto.subtle.importKey(
-        'jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']
-    ).catch(() => { throw new KeyEnvelopeError('bad-signature'); });
-
-    const sig = Uint8Array.from(atob(envelope.signature), c => c.charCodeAt(0));
-    const ok = await crypto.subtle.verify(
-        { name: 'ECDSA', hash: 'SHA-256' },
-        pub, sig as BufferSource,
-        envelopeBytes(envelope.ctx, envelope.version, envelope.commitment) as BufferSource
-    );
-    if (!ok) throw new KeyEnvelopeError('bad-signature');
+/**
+ * Vérifie une enveloppe au nom de `creatorId` avec toutes ses clés de signature connues
+ * (verifyWithSignKeys) et pas seulement l'actuelle : une clé de salon/espace/fichier signée avant un
+ * renouvellement des clés de son créateur reste acceptée. Signée par une ancienne clé sans preuve
+ * locale ('history') : acceptée au même niveau qu'une enveloppe absente (TOFU), avec un avertissement.
+ */
+export async function verifyKeyEnvelopeFrom(
+    rawKey: CryptoKey | ArrayBuffer,
+    envelope: { ctx: KeyContext; version: number; commitment: string; signature: string },
+    creatorId: string,
+    servedSignKey: string | object
+): Promise<void> {
+    await assertCommitment(rawKey, envelope);
+    const trust = await verifyWithSignKeys(creatorId, servedSignKey, (jwk) => envelopeSignedBy(envelope, jwk));
+    if (trust === 'trusted') return;
+    if (trust === 'history') {
+        console.warn(`[E2EE] Clé ${envelope.ctx} signée par une ancienne clé de ${creatorId} (avant renouvellement), non prouvée sur cet appareil : acceptée comme sans enveloppe.`);
+        return;
+    }
+    throw new KeyEnvelopeError('bad-signature');
 }
 
 /**
@@ -107,10 +137,10 @@ export async function verifyKeyEnvelopeIfPresent(
         return;
     }
 
-    const trustedSignKey = await requireTrustedSignKey(data.creatorId, creatorSignKey);
-    await verifyKeyEnvelope(
+    await verifyKeyEnvelopeFrom(
         rawKey,
         { ctx, version, commitment: data.commitment, signature: data.signature },
-        trustedSignKey
+        data.creatorId,
+        creatorSignKey
     );
 }

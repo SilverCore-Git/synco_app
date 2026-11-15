@@ -1,6 +1,6 @@
 import { decryptFromPeer, encryptForPeer, privateSignKey } from './crypto';
 import { noteMessageRevision } from './messageRevisions';
-import { lookupCreatorSignKey, readPinnedSignKey, requireTrustedSignKey } from './keyTrust';
+import { lookupCreatorSignKey, readPinnedSignKey, verifyWithSignKeys, type SignatureTrust } from './keyTrust';
 
 /**
  * Messages de salon authentifiés, format v2 (audit FC7 §1-2).
@@ -106,27 +106,40 @@ export const clientMsgIdOf = (ivField: string | null | undefined): string | unde
 export const revisionOf = (ivField: string | null | undefined): number =>
     isAuthenticatedIv(ivField) ? parseAuthenticatedIv(ivField!).rev : 0;
 
-async function verifySignature(parsed: ParsedIv, ctx: MessageContext, ciphertextB64: string): Promise<MessageAuthState> {
-    const signKeyJwk = await senderSignKey(ctx.senderId);
-    if (!parsed.signature) {
-        // Pas de signature alors que l'expéditeur a une clé d'identité : signature retirée.
-        return signKeyJwk ? 'invalid' : 'unsigned';
-    }
-    if (!signKeyJwk) return 'unsigned'; // clé d'identité introuvable localement : non vérifiable
+/**
+ * Clé épinglée, anciennes clés prouvées, puis anciennes clés désignées par la chaîne de transitions
+ * (cf. verifyWithSignKeys) : un message signé avant un renouvellement de clés de son expéditeur reste
+ * affiché. Une signature qu'aucune de ces clés ne valide reste 'invalid' (message masqué).
+ */
+const AUTH_BY_TRUST: Record<SignatureTrust, MessageAuthState> = {
+    trusted: 'verified',
+    history: 'unsigned', // ancienne clé sans preuve locale : affiché, mais pas comme vérifié
+    unknown: 'unsigned',
+    none: 'invalid',
+};
 
+async function verifySenderSignature(senderId: string, signatureB64: string, signed: Uint8Array): Promise<MessageAuthState> {
+    const signKeyJwk = await senderSignKey(senderId);
+    // Pas de signature alors que l'expéditeur a une clé d'identité : signature retirée.
+    if (!signatureB64) return signKeyJwk ? 'invalid' : 'unsigned';
+    if (!signKeyJwk) return 'unsigned'; // clé d'identité introuvable localement : non vérifiable
     try {
-        const pinned = await requireTrustedSignKey(ctx.senderId, signKeyJwk);
-        const key = await crypto.subtle.importKey('jwk', JSON.parse(pinned), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
-        const ok = await crypto.subtle.verify(
-            { name: 'ECDSA', hash: 'SHA-256' },
-            key,
-            fromB64(parsed.signature) as BufferSource,
-            signedBytes(ctx.threadId, ctx.senderId, parsed.clientMsgId, parsed.iv, ciphertextB64, parsed.rev) as BufferSource
-        );
-        return ok ? 'verified' : 'invalid';
+        const trust = await verifyWithSignKeys(senderId, lookupCreatorSignKey(senderId), async (jwk) => {
+            const key = await crypto.subtle.importKey('jwk', JSON.parse(jwk), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+            return crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, fromB64(signatureB64) as BufferSource, signed as BufferSource);
+        });
+        return AUTH_BY_TRUST[trust];
     } catch {
         return 'invalid';
     }
+}
+
+async function verifySignature(parsed: ParsedIv, ctx: MessageContext, ciphertextB64: string): Promise<MessageAuthState> {
+    return verifySenderSignature(
+        ctx.senderId,
+        parsed.signature,
+        signedBytes(ctx.threadId, ctx.senderId, parsed.clientMsgId, parsed.iv, ciphertextB64, parsed.rev)
+    );
 }
 
 /**
@@ -233,22 +246,11 @@ export async function encryptDmV2(
 async function verifyDmSignature(
     parsed: ParsedIv, ctx: DmContext, ciphertext: string, encryptedAesKey: string, selfEncryptedAesKey: string
 ): Promise<MessageAuthState> {
-    const signKeyJwk = await senderSignKey(ctx.senderId);
-    if (!parsed.signature) return signKeyJwk ? 'invalid' : 'unsigned';
-    if (!signKeyJwk) return 'unsigned';
-    try {
-        const pinned = await requireTrustedSignKey(ctx.senderId, signKeyJwk);
-        const key = await crypto.subtle.importKey('jwk', JSON.parse(pinned), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
-        const ok = await crypto.subtle.verify(
-            { name: 'ECDSA', hash: 'SHA-256' },
-            key,
-            fromB64(parsed.signature) as BufferSource,
-            dmSignedBytes(ctx, parsed.clientMsgId, parsed.iv, ciphertext, encryptedAesKey, selfEncryptedAesKey, parsed.rev) as BufferSource
-        );
-        return ok ? 'verified' : 'invalid';
-    } catch {
-        return 'invalid';
-    }
+    return verifySenderSignature(
+        ctx.senderId,
+        parsed.signature,
+        dmSignedBytes(ctx, parsed.clientMsgId, parsed.iv, ciphertext, encryptedAesKey, selfEncryptedAesKey, parsed.rev)
+    );
 }
 
 /**
