@@ -2,7 +2,7 @@ import { get, set, del } from 'idb-keyval';
 import { shallowRef } from 'vue';
 import { user, openedOrg } from '@/assets/var';
 import sfetch from './sfetch';
-import { followIdentityChain, type IdentityTransition } from './e2eeV4';
+import { identityChainPath, predecessorSignKeys, type IdentityTransition } from './e2eeV4';
 
 /**
  * Épinglage des clés publiques E2EE des autres utilisateurs (TOFU).
@@ -170,7 +170,50 @@ export async function readPinnedSignKey(userId: string): Promise<string | undefi
  * ouverte : jamais une valeur servie par le serveur.
  */
 export async function trustSignKey(userId: string, publicSignKeyJWK: string | object): Promise<void> {
-    await set(signNs() + userId, canonicalEcJwk(publicSignKeyJWK));
+    const jwk = canonicalEcJwk(publicSignKeyJWK);
+    const previous = await readPinnedSignKey(userId);
+    // Sa propre clé précédente (renouvellement des clés) : ce qu'elle a signé reste vérifiable.
+    if (previous && previous !== jwk) await addSignKeyHistory(userId, [previous]);
+    await set(signNs() + userId, jwk);
+}
+
+// Anciennes clés de signature d'un utilisateur, prouvées : épinglées ici avant d'être remplacées par
+// une chaîne de transitions valide (ou par sa propre identité renouvelée). Elles ne servent qu'à
+// vérifier ce qui a été signé AVANT le renouvellement (messages, enveloppes de clés).
+const signHistoryNs = () => `trusted-signkey-history:${user.value?.id ?? 'anon'}:`;
+
+async function readSignKeyHistory(userId: string): Promise<string[]> {
+    return (await get<string[]>(signHistoryNs() + userId)) ?? [];
+}
+
+async function addSignKeyHistory(userId: string, keys: string[]): Promise<void> {
+    const history = await readSignKeyHistory(userId);
+    const added = keys.filter(k => !history.includes(k));
+    if (added.length) await set(signHistoryNs() + userId, [...history, ...added]);
+}
+
+// Chaîne de transitions servie par l'API, mise en cache brièvement : un salon déchiffre ses messages
+// en parallèle et chacun peut avoir besoin de la chaîne de son expéditeur.
+const TRANSITIONS_TTL_MS = 30_000;
+const transitionsCache = new Map<string, { at: number; chain: Promise<IdentityTransition[]> }>();
+
+function isTransitionsCached(userId: string): boolean {
+    const hit = transitionsCache.get(userId);
+    return !!hit && Date.now() - hit.at < TRANSITIONS_TTL_MS;
+}
+
+async function fetchTransitions(userId: string, fresh = false): Promise<IdentityTransition[]> {
+    const hit = transitionsCache.get(userId);
+    if (!fresh && hit && Date.now() - hit.at < TRANSITIONS_TTL_MS) return hit.chain;
+    const chain = (async () => {
+        const res = await sfetch(`/api/e2ee/v4/users/${encodeURIComponent(userId)}/transitions`);
+        if (!res.ok) throw new Error(`transitions HTTP ${res.status}`);
+        const body = await res.json();
+        return Array.isArray(body) ? (body as IdentityTransition[]) : [];
+    })();
+    transitionsCache.set(userId, { at: Date.now(), chain });
+    chain.catch(() => transitionsCache.delete(userId));
+    return chain;
 }
 
 /**
@@ -206,18 +249,93 @@ async function acceptedByTransitionChain(userId: string, presented: { rsa?: stri
     try {
         const pinnedSign = await readPinnedSignKey(userId);
         if (!pinnedSign) return false;
-        const res = await sfetch(`/api/e2ee/v4/users/${encodeURIComponent(userId)}/transitions`);
-        if (!res.ok) return false;
-        const end = await followIdentityChain(userId, pinnedSign, (await res.json()) as IdentityTransition[]);
-        if (!end) return false;
-        if (presented.rsa && canonicalRsaJwk(presented.rsa) !== end.publicKey) return false;
-        if (presented.sign && canonicalEcJwk(presented.sign) !== end.publicSignKey) return false;
-        await trustKey(userId, end.publicKey);
-        await set(signNs() + userId, end.publicSignKey);
-        return true;
+        // Cache d'abord, puis une relecture fraîche : la clé présentée peut venir d'un renouvellement
+        // plus récent que la chaîne en cache.
+        for (const fresh of [false, true]) {
+            const path = await identityChainPath(userId, pinnedSign, await fetchTransitions(userId, fresh));
+            const end = path[path.length - 1];
+            if (!end) continue;
+            if (presented.rsa && canonicalRsaJwk(presented.rsa) !== end.publicKey) continue;
+            if (presented.sign && canonicalEcJwk(presented.sign) !== end.publicSignKey) continue;
+            // Toutes les clés de signature traversées restent valables pour ce qu'elles ont signé avant.
+            await addSignKeyHistory(userId, [pinnedSign, ...path.slice(0, -1).map(p => p.publicSignKey)]);
+            await trustKey(userId, end.publicKey);
+            await set(signNs() + userId, end.publicSignKey);
+            return true;
+        }
+        return false;
     } catch {
         return false;
     }
+}
+
+/**
+ * Niveau de confiance d'une signature produite au nom de `userId` :
+ * - 'trusted' : par sa clé épinglée, ou par une de ses anciennes clés prouvées (cf. addSignKeyHistory) ;
+ * - 'history' : par une clé que la chaîne de transitions désigne comme antérieure à sa clé actuelle,
+ *   sans preuve locale (appareil qui n'a connu que la nouvelle clé). À traiter comme « sans
+ *   signature » : affiché, jamais présenté comme vérifié (cf. predecessorSignKeys) ;
+ * - 'unknown' : aucune clé de signature connue pour lui (ni épinglée ni servie) ;
+ * - 'none'    : aucune des clés ci-dessus ne valide la signature.
+ */
+export type SignatureTrust = 'trusted' | 'history' | 'unknown' | 'none';
+
+/**
+ * Point de passage unique pour vérifier une signature d'identité (messages, enveloppes de clés).
+ * `servedSignKey` : la clé annoncée par le serveur (annuaire des membres), suivie par la chaîne de
+ * transitions si elle diffère de la clé épinglée. `verify` teste une clé JWK canonique.
+ *
+ * Avant : seule la clé ACTUELLE était essayée. Après « Renouveler mes clés », tout ce que la personne
+ * avait signé avant (messages, clés de salon, d'espace, de fichier) était rejeté comme une usurpation.
+ *
+ * Lève UntrustedKeyError si la clé servie a changé sans chaîne valide ET qu'aucune clé connue ne
+ * valide la signature (comportement inchangé pour une vraie substitution de clé).
+ */
+export async function verifyWithSignKeys(
+    userId: string,
+    servedSignKey: string | object | null | undefined,
+    verify: (canonicalJwk: string) => Promise<boolean>,
+): Promise<SignatureTrust> {
+    let current = await readPinnedSignKey(userId);
+    let untrusted: unknown = null;
+    if (servedSignKey) {
+        try {
+            current = await requireTrustedSignKey(userId, servedSignKey);
+        } catch (e) {
+            if (!(e instanceof UntrustedKeyError)) throw e;
+            untrusted = e; // clé servie refusée : on reste sur la clé épinglée
+        }
+    }
+    if (!current) return 'unknown';
+
+    const tried = new Set<string>();
+    const attempt = async (k: string) => {
+        if (tried.has(k)) return false;
+        tried.add(k);
+        try { return await verify(k); } catch { return false; }
+    };
+
+    const history = await readSignKeyHistory(userId);
+    for (const k of [current, ...[...history].reverse()]) {
+        if (await attempt(k)) return 'trusted';
+    }
+    // Repli à rebours seulement sans aucune ancienne clé prouvée : cet appareil ne connaît que la clé
+    // actuelle, épinglée en TOFU sur la parole du serveur, qui n'y gagne donc aucun pouvoir. Un appareil
+    // qui a suivi la chaîne s'en tient à ses clés prouvées.
+    if (history.length === 0) {
+        // Chaîne en cache d'abord ; relue une fois si elle venait du cache (renouvellement tout récent).
+        const fromCache = isTransitionsCached(userId);
+        for (const fresh of fromCache ? [false, true] : [false]) {
+            try {
+                for (const k of await predecessorSignKeys(userId, current, await fetchTransitions(userId, fresh))) {
+                    if (await attempt(k)) return 'history';
+                }
+            } catch { /* chaîne indisponible : rien de plus à essayer */ }
+        }
+    }
+
+    if (untrusted) throw untrusted;
+    return 'none';
 }
 
 /**
