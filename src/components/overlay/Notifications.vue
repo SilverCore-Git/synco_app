@@ -361,8 +361,9 @@ const getStyles = (type: NotificationType, toastType?: string) => {
 };
 
 
-const playNotificationSound = () => {
-    SoundService.play('notification');
+// Message direct : son « mention » (trois bulles), plus marqué que le simple message de salon.
+const playNotificationSound = (type: NotificationType) => {
+    SoundService.play(type === 'notif:dmmsg' ? 'mention' : 'notification');
 };
 
 const formatName = (name?: string | null): string => {
@@ -532,7 +533,7 @@ watch(() => notifications.value.length, (newLength, oldLength) => {
         const latestNotif = notifications.value[notifications.value.length - 1];
         if (latestNotif && (latestNotif.type !== 'toast' || latestNotif.playSound)) {
             if (!RINGING_NOTIF_TYPES.includes(latestNotif.type)) {
-                playNotificationSound();
+                playNotificationSound(latestNotif.type);
             }
             showNativeNotification(latestNotif);
         }

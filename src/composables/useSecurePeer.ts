@@ -142,6 +142,18 @@ const callSecurityStatus = ref<Map<string, SecurityStatus>>(new Map());
 const ringtone = new Audio('/sounds/call_incoming.mp3');
 ringtone.loop = true;
 
+// Tonalité d'attente côté appelant, tant que le destinataire n'a pas décroché.
+const ringback = new Audio('/sounds/call_outgoing.mp3');
+ringback.loop = true;
+
+/** Coupe la sonnerie (appelé) et la tonalité d'attente (appelant). */
+const stopRinging = () => {
+    for (const audio of [ringtone, ringback]) {
+        audio.pause();
+        audio.currentTime = 0;
+    }
+};
+
 // Durée maximale de sonnerie avant abandon automatique côté appelant, si
 // personne ne décroche — sans ça, la sonnerie et la notification restaient
 // affichées indéfiniment des deux côtés (rien ne mettait fin à l'appel tant
@@ -402,8 +414,7 @@ export default function useSecurePeer() {
         if (enteringCall.value !== call) return;
         enteringCall.value = null;
         callNotif.value = callNotif.value.filter(m => m.user?.id !== call.peer);
-        ringtone.pause();
-        ringtone.currentTime = 0;
+        stopRinging();
         // La carte "Appel entrant" disparaît (ligne au-dessus), mais sans
         // rien d'autre il n'en reste aucune trace — comme un vrai
         // téléphone, on laisse un "appel manqué" derrière.
@@ -827,8 +838,7 @@ export default function useSecurePeer() {
         activeCalls.value = calls;
 
         call.on('stream', (incomingStream) => {
-            ringtone.pause();
-            ringtone.currentTime = 0;
+            stopRinging();
             session.answered = true;
             clearRingTimeout();
 
@@ -1081,6 +1091,7 @@ export default function useSecurePeer() {
         if (audioTrack) {
             audioTrack.enabled = !audioTrack.enabled;
             isMicOn.value = audioTrack.enabled;
+            SoundService.play(audioTrack.enabled ? 'unmute' : 'mute', 0);
         }
     };
 
@@ -1308,7 +1319,7 @@ export default function useSecurePeer() {
 
             monitorAudio(localStream.value, (val) => isSpeaking.value = val);
             isCalling.value = true;
-            ringtone.play().catch(() => {});
+            ringback.play().catch(() => {});
 
             // Create call with E2EE metadata — callId généré ici et transmis dans
             // les metadata pour que handleCallEvents (côté appelé) le relise au
@@ -1388,8 +1399,7 @@ export default function useSecurePeer() {
      */
     const cleanupCall = ({ playEndSound = false }: { playEndSound?: boolean } = {}) => {
         if (playEndSound) SoundService.play('call_disconnect');
-        ringtone.pause();
-        ringtone.currentTime = 0;
+        stopRinging();
         clearRingTimeout();
         localStream.value?.getTracks().forEach(track => track.stop());
         screenStream.value?.getTracks().forEach(track => track.stop());
@@ -1566,8 +1576,7 @@ export default function useSecurePeer() {
             enteringCall.value = null;
             call.close();
             callNotif.value = callNotif.value.filter(m => m.user?.id !== call.peer);
-            ringtone.pause();
-            ringtone.currentTime = 0;
+            stopRinging();
         },
         toggleMic,
         toggleCam,

@@ -356,6 +356,9 @@ function useLiveKit()
 
         newRoom.on(RoomEvent.ParticipantConnected, handleSync);
         newRoom.on(RoomEvent.ParticipantDisconnected, handleSync);
+        // Quelqu'un rejoint ou quitte le salon (les autres, jamais soi-même).
+        newRoom.on(RoomEvent.ParticipantConnected, () => SoundService.play('call_join'));
+        newRoom.on(RoomEvent.ParticipantDisconnected, () => SoundService.play('call_disconnect'));
         newRoom.on(RoomEvent.TrackMuted, handleSync);
         newRoom.on(RoomEvent.TrackUnmuted, handleSync);
         newRoom.on(RoomEvent.ParticipantMetadataChanged, handleSync);
@@ -553,6 +556,7 @@ function useLiveKit()
             if (!room.value) return;
             await room.value.localParticipant.setMicrophoneEnabled(en);
             isMicEnabled.value = en;
+            SoundService.play(en ? 'unmute' : 'mute', 0);
         },
         toggleScreenShare: async (en: boolean, captureOptions?: ScreenShareCaptureOptions) => {
             if (!room.value) return;
