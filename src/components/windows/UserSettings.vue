@@ -417,6 +417,30 @@
                         </div>
 
                         <div class="space-y-4">
+                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Mouvement</h4>
+
+                            <div 
+                                @click="animations = animations === false"
+                                class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all max-w-md"
+                            >
+                                <div>
+                                    <h4 class="font-bold text-(--text)">Animations</h4>
+                                    <p class="text-sm text-(--text2) mt-0.5">Ouverture, réduction et fermeture fluides des fenêtres de Synco</p>
+                                    <p v-if="systemReduced" class="text-xs text-amber-500 mt-1.5">Votre système demande de réduire les animations : elles restent coupées.</p>
+                                </div>
+                                <div 
+                                    class="w-12 h-6 rounded-full relative transition-colors duration-300 shrink-0"
+                                    :class="animations !== false ? 'bg-(--primary)' : 'bg-(--text)/15'"
+                                >
+                                    <div 
+                                        class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
+                                        :class="animations !== false ? 'right-0.5' : 'left-0.5 opacity-50'"
+                                    ></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
                             <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Avancé</h4>
 
                             <div 
@@ -643,6 +667,7 @@ import { ref, reactive, watch, computed } from 'vue';
 import Window from './Window.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
 import useTheme from '@/composables/useTheme';
+import useMotion from '@/composables/useMotion';
 import ProfileUploader from '../common/ProfileUploader.vue';
 import ConfirmDelete from '../common/ConfirmDelete.vue';
 import ActivityReports from '../settings/ActivityReports/index.vue';
@@ -676,6 +701,7 @@ const toast = useToast();
 const isV4 = computed(() => isV4Account(user.value?.pinSalt));
 
 const { theme } = useTheme();
+const { animations, systemReduced } = useMotion();
 const { Item: devMode } = useSettingsItem('devMode', false);
 const { Item: privacyMode } = useSettingsItem('privacyMode', false);
 

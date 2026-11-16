@@ -20,6 +20,7 @@ import RateLimitOverlay from './components/overlay/RateLimitOverlay.vue';
 import AiGatewayConsent from './components/common/AiGatewayConsent.vue';
 import UserProfile from './components/overlay/UserProfile.vue';
 import useTheme from './composables/useTheme';
+import useMotion from './composables/useMotion';
 import { initKC, isTauriPlatform, loginWithSystemBrowser } from './assets/keycloak';
 import type { RouteLocationNormalizedLoaded } from 'vue-router';
 import DesktopLogin from './components/auth/DesktopLogin.vue';
@@ -77,6 +78,13 @@ function onNativeCallAction({ action, kind, callerId }: NativeCallAction) {
   else void answerCallFromNotification(callerId, autoAccept);
 }
 const { resolvedTheme: theme } = useTheme();
+
+// Animations (Paramètres › Apparence) : reflétées sur <html> pour que le CSS
+// puisse les couper partout (classe motion-off).
+const { animationsEnabled } = useMotion();
+watch(animationsEnabled, (on) => {
+  document.documentElement.classList.toggle('motion-off', !on);
+}, { immediate: true });
 const pin = ref<string>('');
 const pinLoading = ref<boolean>(false);
 
