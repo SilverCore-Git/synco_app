@@ -1,17 +1,22 @@
 <template>
-    <!-- Bureau : tâches réduites en barres, puis la tâche dépliée au plus près
-         du bas. Monté dans la colonne bas-droite d'App.vue, au-dessus de
-         l'overlay des transferts : tout s'empile dans la hauteur. -->
-    <div v-if="!isLittleScreen && panels.length" class="task-dock">
-        <TransitionGroup name="task-bar" tag="div" class="flex flex-col items-end gap-2 shrink-0">
+    <!-- Bureau : tâches réduites en grille, puis la tâche dépliée au plus près
+         du bas, toutes sur la même largeur. Monté dans la colonne bas-droite
+         d'App.vue, au-dessus de l'overlay des transferts : tout s'empile dans
+         la hauteur. Toujours rendu (même vide) pour que les animations
+         d'ouverture et de fermeture aient un parent stable. -->
+    <div v-if="!isLittleScreen" ref="dockEl" class="task-dock">
+        <div v-if="minimizedPanels.length" class="grid grid-cols-2 gap-2 w-full shrink-0">
             <div
-                v-for="p in minimizedPanels"
+                v-for="(p, i) in minimizedPanels"
                 :key="p.task.id"
+                :data-task-id="p.task.id"
+                data-kind="bar"
                 class="task-bar"
+                :class="{ 'col-span-2': i === minimizedPanels.length - 1 && minimizedPanels.length % 2 === 1 }"
             >
                 <button
                     type="button"
-                    class="flex-1 min-w-0 h-full flex items-center gap-2.5 pl-3.5 text-left"
+                    class="flex-1 min-w-0 h-full flex items-center gap-2 pl-3 text-left"
                     :title="`Déplier : ${p.task.title}`"
                     @click="restoreTask(p.task.id)"
                 >
@@ -19,50 +24,50 @@
                     <span class="flex-1 min-w-0 truncate text-sm font-semibold text-(--text)">{{ p.task.title }}</span>
                     <span v-if="barDue(p.task)" class="text-[11px] whitespace-nowrap" :class="isTaskOverdue(p.task) ? 'text-red-500 font-bold' : 'text-(--text2)'">{{ barDue(p.task) }}</span>
                 </button>
-                <button type="button" class="dock-btn mr-1.5" :aria-label="`Fermer : ${p.task.title}`" title="Fermer" @click="closeTask(p.task.id)">
+                <button type="button" class="dock-btn mr-1" :aria-label="`Fermer : ${p.task.title}`" title="Fermer" @click="close(p.task.id)">
                     <i class="bi bi-x-lg"></i>
                 </button>
             </div>
-        </TransitionGroup>
+        </div>
 
-        <Transition name="task-panel" mode="out-in">
-            <section
-                v-if="expanded"
-                :key="expanded.task.id"
-                class="task-panel"
-                role="dialog"
-                :aria-label="`Tâche : ${expanded.task.title}`"
-                @keydown.escape="minimizeTask(expanded.task.id)"
-            >
-                <header class="flex items-center gap-1.5 pl-4 pr-2 py-2 border-b border-(--border-color) shrink-0">
-                    <i :class="statusIcon(expanded.task)"></i>
-                    <div class="flex-1 min-w-0 flex items-center gap-1.5 text-xs text-(--text2)">
-                        <span class="truncate shrink-0 max-w-[45%]">{{ spaceName(expanded.task) }}</span>
-                        <template v-if="expanded.task.parentTask">
-                            <i class="bi bi-chevron-right text-[9px]"></i>
-                            <button
-                                type="button"
-                                class="truncate hover:text-(--primary) transition-colors"
-                                :title="`Ouvrir la tâche parente : ${expanded.task.parentTask.title}`"
-                                @click="openTaskById(orgIdOf(expanded.task), expanded.task.parentTask)"
-                            >{{ expanded.task.parentTask.title }}</button>
-                        </template>
-                    </div>
-                    <button type="button" class="dock-btn" title="Réduire" aria-label="Réduire" @click="minimizeTask(expanded.task.id)">
-                        <i class="bi bi-dash-lg"></i>
-                    </button>
-                    <button type="button" class="dock-btn" title="Fermer" aria-label="Fermer" @click="closeTask(expanded.task.id)">
-                        <i class="bi bi-x-lg"></i>
-                    </button>
-                </header>
-                <TaskDetails
-                    :task="expanded.task"
-                    :org-id="orgIdOf(expanded.task)"
-                    :edit-title="expanded.editTitle"
-                    variant="panel"
-                />
-            </section>
-        </Transition>
+        <section
+            v-if="expanded"
+            :key="expanded.task.id"
+            :data-task-id="expanded.task.id"
+            data-kind="panel"
+            class="task-panel"
+            role="dialog"
+            :aria-label="`Tâche : ${expanded.task.title}`"
+            @keydown.escape="minimizeTask(expanded.task.id)"
+        >
+            <header class="flex items-center gap-1.5 pl-4 pr-2 py-2 border-b border-(--border-color) shrink-0">
+                <i :class="statusIcon(expanded.task)"></i>
+                <div class="flex-1 min-w-0 flex items-center gap-1.5 text-xs text-(--text2)">
+                    <span class="truncate shrink-0 max-w-[45%]">{{ spaceName(expanded.task) }}</span>
+                    <template v-if="expanded.task.parentTask">
+                        <i class="bi bi-chevron-right text-[9px]"></i>
+                        <button
+                            type="button"
+                            class="truncate hover:text-(--primary) transition-colors"
+                            :title="`Ouvrir la tâche parente : ${expanded.task.parentTask.title}`"
+                            @click="openTaskById(orgIdOf(expanded.task), expanded.task.parentTask)"
+                        >{{ expanded.task.parentTask.title }}</button>
+                    </template>
+                </div>
+                <button type="button" class="dock-btn" title="Réduire" aria-label="Réduire" @click="minimizeTask(expanded.task.id)">
+                    <i class="bi bi-dash-lg"></i>
+                </button>
+                <button type="button" class="dock-btn" title="Fermer" aria-label="Fermer" @click="close(expanded.task.id)">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </header>
+            <TaskDetails
+                :task="expanded.task"
+                :org-id="orgIdOf(expanded.task)"
+                :edit-title="expanded.editTitle"
+                variant="panel"
+            />
+        </section>
     </div>
 
     <!-- Petit écran : la Popup plein écran habituelle. -->
@@ -95,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import Popup from '@/components/Popup.vue';
 import TaskDetails from './TaskDetails.vue';
@@ -103,10 +108,13 @@ import type { Task } from '@/types/types';
 import { isLittleScreen, openedOrg } from '@/assets/var';
 import { isTaskOverdue, overdueLabel } from '@/assets/utils/taskOverdue';
 import { useTaskPanels } from '@/composables/useTaskPanels';
+import useMotion from '@/composables/useMotion';
 
 const route = useRoute();
 const { panels, openTaskById, minimizeTask, restoreTask, closeTask, closeAllTasks } = useTaskPanels();
+const { animationsEnabled } = useMotion();
 
+const dockEl = ref<HTMLElement | null>(null);
 const expanded = computed(() => panels.value.find(p => !p.minimized) ?? null);
 const minimizedPanels = computed(() => panels.value.filter(p => p.minimized));
 
@@ -116,6 +124,153 @@ watch(() => route.params.orgId, (orgId, previous) => {
     if (orgId !== previous) closeAllTasks();
 });
 
+// ── Animations ─────────────────────────────────────────────────────────
+// Chaque changement du dock (ouvrir, réduire, déplier, fermer), qu'il vienne
+// d'ici ou d'ailleurs (Kanban, accueil, Échap), passe par le même chemin :
+// on mesure chaque tâche avant que Vue ne mette le DOM à jour, puis après,
+// et on anime l'écart (technique FLIP).
+//  - même forme, autre place     → glissement ;
+//  - barre ↔ panneau             → une forme se déforme de l'une à l'autre
+//                                  (le panneau se réduit en sa barre) ;
+//  - nouvelle                    → entrée depuis le bas ;
+//  - disparue                    → sortie (close() l'anime avant de retirer).
+
+const DURATION = 340;
+const EASE = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
+
+interface Snapshot { rect: DOMRect; kind: string; radius: string }
+
+const taskElements = () =>
+    Array.from(dockEl.value?.querySelectorAll<HTMLElement>('[data-task-id]') ?? []);
+
+function snapshot(): Map<string, Snapshot> {
+    const map = new Map<string, Snapshot>();
+    for (const el of taskElements()) {
+        map.set(el.dataset.taskId!, {
+            rect: el.getBoundingClientRect(),
+            kind: el.dataset.kind!,
+            radius: getComputedStyle(el).borderRadius
+        });
+    }
+    return map;
+}
+
+// Forme intermédiaire : une boîte aux couleurs du dock qui passe du rectangle
+// de départ au rectangle d'arrivée, pendant que le vrai élément reste masqué.
+function morph(from: Snapshot, to: DOMRect, toRadius: string): Promise<void> {
+    const ghost = document.createElement('div');
+    Object.assign(ghost.style, {
+        position: 'fixed',
+        left: '0',
+        top: '0',
+        background: 'var(--bg)',
+        border: '1px solid var(--border-color)',
+        boxShadow: '0 18px 50px rgba(0, 0, 0, 0.35)',
+        zIndex: '1501',
+        pointerEvents: 'none'
+    });
+    document.body.appendChild(ghost);
+    const frame = (r: DOMRect, radius: string) => ({
+        width: `${r.width}px`,
+        height: `${r.height}px`,
+        transform: `translate(${r.left}px, ${r.top}px)`,
+        borderRadius: radius
+    });
+    const anim = ghost.animate([frame(from.rect, from.radius), frame(to, toRadius)], { duration: DURATION, easing: EASE });
+    return anim.finished.then(() => ghost.remove(), () => ghost.remove());
+}
+
+function animateFrom(before: Map<string, Snapshot>) {
+    for (const el of taskElements()) {
+        const id = el.dataset.taskId!;
+        const kind = el.dataset.kind!;
+        const prev = before.get(id);
+        const rect = el.getBoundingClientRect();
+
+        if (!prev) {
+            el.style.transformOrigin = 'bottom right';
+            el.animate(
+                kind === 'panel'
+                    ? [{ opacity: 0, transform: 'translateY(24px) scale(0.94)' }, { opacity: 1, transform: 'none' }]
+                    : [{ opacity: 0, transform: 'translateY(10px) scale(0.96)' }, { opacity: 1, transform: 'none' }],
+                { duration: DURATION, easing: EASE }
+            );
+        } else if (prev.kind !== kind || Math.abs(prev.rect.width - rect.width) > 2 || Math.abs(prev.rect.height - rect.height) > 2) {
+            // Masqué pendant la déformation, puis le contenu apparaît en fondu.
+            el.animate([{ opacity: 0 }, { opacity: 0 }], { duration: DURATION });
+            morph(prev, rect, getComputedStyle(el).borderRadius).then(() => {
+                el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: 'ease-out' });
+            });
+        } else {
+            const dx = prev.rect.left - rect.left;
+            const dy = prev.rect.top - rect.top;
+            if (dx || dy) {
+                el.animate(
+                    [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
+                    { duration: DURATION, easing: EASE }
+                );
+            }
+        }
+    }
+    // Remplacée sans passer par close() (une autre tâche ouverte à sa place,
+    // tâche supprimée) : sa forme s'efface sur place.
+    const present = new Set(taskElements().map(el => el.dataset.taskId));
+    for (const [id, prev] of before) {
+        if (present.has(id)) continue;
+        if (closedByHand.delete(id)) continue;
+        fadeOut(prev);
+    }
+}
+
+function fadeOut(prev: Snapshot) {
+    const ghost = document.createElement('div');
+    Object.assign(ghost.style, {
+        position: 'fixed',
+        left: `${prev.rect.left}px`,
+        top: `${prev.rect.top}px`,
+        width: `${prev.rect.width}px`,
+        height: `${prev.rect.height}px`,
+        borderRadius: prev.radius,
+        background: 'var(--bg)',
+        border: '1px solid var(--border-color)',
+        zIndex: '1499',
+        pointerEvents: 'none',
+        transformOrigin: 'bottom right'
+    });
+    document.body.appendChild(ghost);
+    ghost.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(16px) scale(0.96)' }], { duration: 220, easing: 'ease-in' })
+        .finished.then(() => ghost.remove(), () => ghost.remove());
+}
+
+// Mesure avant le rendu (flush: 'pre' : le DOM est encore l'ancien), anime après.
+watch(
+    () => panels.value.map(p => `${p.task.id}:${p.minimized ? 'm' : 'e'}`).join('|'),
+    () => {
+        if (!animationsEnabled.value || isLittleScreen.value) return;
+        const before = snapshot();
+        nextTick(() => animateFrom(before));
+    },
+    { flush: 'pre' }
+);
+
+const closedByHand = new Set<string>();
+
+// Fermer : l'élément part d'abord (vers le bas, en rétrécissant), puis il est retiré.
+async function close(taskId: string) {
+    const el = dockEl.value?.querySelector<HTMLElement>(`[data-task-id="${taskId}"]`);
+    if (animationsEnabled.value && el) {
+        el.style.transformOrigin = 'bottom right';
+        el.style.pointerEvents = 'none';
+        await el.animate(
+            [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: el.dataset.kind === 'panel' ? 'translateY(20px) scale(0.94)' : 'scale(0.94)' }],
+            { duration: 220, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' }
+        ).finished.catch(() => {});
+        closedByHand.add(taskId);
+    }
+    closeTask(taskId);
+}
+
+// ── Affichage ──────────────────────────────────────────────────────────
 const orgIdOf = (task: Task) => task.organizationId || String(route.params.orgId || openedOrg.value?.id || '');
 
 const spaceName = (task: Task) => {
@@ -147,18 +302,18 @@ const barDue = (task: Task) => {
 </script>
 
 <style scoped>
+/* Une seule largeur pour tout le dock : la tâche dépliée et la grille des
+   tâches réduites (deux par ligne, la dernière seule prend toute la ligne). */
 .task-dock {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: stretch;
     gap: 0.5rem;
     min-height: 0;
     width: 25rem;
     max-width: calc(100vw - 2rem);
     pointer-events: none;
 }
-.task-dock > *,
-.task-dock :deep(.task-bar) { pointer-events: auto; }
 
 .task-panel {
     pointer-events: auto;
@@ -175,8 +330,8 @@ const barDue = (task: Task) => {
 }
 
 .task-bar {
-    width: 20rem;
-    max-width: 100%;
+    pointer-events: auto;
+    min-width: 0;
     height: 2.75rem;
     display: flex;
     align-items: center;
@@ -185,9 +340,9 @@ const barDue = (task: Task) => {
     border: 1px solid var(--border-color);
     border-radius: 0.9rem;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
-    transition: border-color 0.15s, transform 0.15s;
+    transition: border-color 0.15s;
 }
-.task-bar:hover { border-color: color-mix(in srgb, var(--primary) 50%, transparent); transform: translateX(-2px); }
+.task-bar:hover { border-color: color-mix(in srgb, var(--primary) 50%, transparent); }
 
 .dock-btn {
     width: 1.9rem;
@@ -201,17 +356,4 @@ const barDue = (task: Task) => {
     transition: background-color 0.15s, color 0.15s;
 }
 .dock-btn:hover { background: color-mix(in srgb, var(--text) 10%, transparent); color: var(--text); }
-
-.task-panel-enter-active, .task-panel-leave-active { transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
-.task-panel-enter-from { opacity: 0; transform: translateY(16px) scale(0.98); }
-.task-panel-leave-to { opacity: 0; transform: translateY(12px) scale(0.98); }
-
-.task-bar-enter-active, .task-bar-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
-.task-bar-enter-from, .task-bar-leave-to { opacity: 0; transform: translateY(8px); }
-.task-bar-move { transition: transform 0.2s ease; }
-
-@media (prefers-reduced-motion: reduce) {
-    .task-panel-enter-active, .task-panel-leave-active,
-    .task-bar-enter-active, .task-bar-leave-active, .task-bar-move { transition: none; }
-}
 </style>
