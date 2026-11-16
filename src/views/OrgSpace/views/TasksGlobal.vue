@@ -329,15 +329,6 @@
             </template>
         </main>
 
-        <TaskDetailsModal
-            :task="selectedTask"
-            :isOpen="!!selectedTask"
-            :startInEditMode="openTaskInEditMode"
-            @close="selectedTask = null"
-            @update="onTaskUpdated"
-            @delete="onTaskDeleted"
-            @open-task="handleOpenTask"
-        />
 
         <Transition name="pop">
             <div v-if="isDraggingTask"
@@ -401,7 +392,7 @@ import TaskCard from '../components/SpaceTasks/TaskCard.vue';
 import TaskSearchBar from '../components/SpaceTasks/TaskSearchBar.vue';
 import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
-import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
+import { useTaskPanels } from '@/composables/useTaskPanels';
 import DropDown from '@/components/DropDown.vue';
 import TaskTagPicker from '../components/popup/TaskTagPicker.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
@@ -427,8 +418,8 @@ const { filterTagIds, filterSpaceId } = usePersistedTaskFilters(
     () => `task-filters:${user.value?.id}:${route.params.orgId}:global`
 );
 
-const selectedTask = ref<Task | null>(null);
-const openTaskInEditMode = ref(false);
+// Les tâches s'ouvrent dans le dock en bas à droite (TaskPanelDock, App.vue).
+const { openTask, onTaskPanelChange } = useTaskPanels();
 
 const isDraggingTask = ref(false);
 const isHoveringTrash = ref(false);
@@ -592,7 +583,7 @@ const loadLists = async () => {
                 const foundTask = allTasks.find(t => t.id === searchId);
 
                 if (foundTask) {
-                    selectedTask.value = foundTask;
+                    openTask(foundTask);
 
                     setTimeout(() => {
                         const el = document.getElementById('task-' + searchId);
@@ -760,15 +751,9 @@ const onDrop = (e: DragEvent, newStatus: string) => dropOnColumn(e, newStatus);
 
 const onCardDrop = (e: DragEvent, targetTask: Task, newStatus: string) => dropOnCard(e, targetTask, newStatus);
 
-const openTaskDetails = (task: Task) => {
-    openTaskInEditMode.value = false;
-    selectedTask.value = task;
-};
+const openTaskDetails = (task: Task) => openTask(task);
 
-const startRenameTask = (task: Task) => {
-    openTaskInEditMode.value = true;
-    selectedTask.value = task;
-};
+const startRenameTask = (task: Task) => openTask(task, { editTitle: true });
 
 const showDeleteTaskConfirm = ref<Task | null>(null);
 const deletingTask = ref(false);
@@ -804,21 +789,6 @@ const onSubtaskCreatedFromMenu = (parentTask: Task, newTask: Task) => {
     }
 };
 
-const handleOpenTask = async (taskPartial: any) => {
-    openTaskInEditMode.value = false;
-    try {
-        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskPartial.id}`);
-        if (res.ok) {
-            const fullTask = await res.json();
-            selectedTask.value = fullTask;
-        } else {
-            selectedTask.value = taskPartial; // Fallback
-        }
-    } catch (e) {
-        selectedTask.value = taskPartial; // Fallback
-    }
-};
-
 const onTaskCreated = (task: Task) => {
     if (!rawTasks.value.some(t => t.id === task.id)) {
         rawTasks.value.push(task);
@@ -830,18 +800,14 @@ const onTaskUpdated = (updatedTask: Task) => {
     if (idx !== -1) {
         rawTasks.value[idx] = updatedTask;
     }
-    // selectedTask est une référence séparée passée à TaskDetailsModal : sans
-    // ça, la modale ouverte continue d'afficher l'ancien titre/description/
-    // assignés tant qu'on ne la referme pas (elle ne suit pas le remplacement
-    // ci-dessus dans rawTasks).
-    if (selectedTask.value?.id === updatedTask.id) {
-        selectedTask.value = updatedTask;
-    }
 };
 
 const onTaskDeleted = (taskId: string) => {
     rawTasks.value = rawTasks.value.filter(t => t.id !== taskId);
 };
+
+// Modifications faites dans le panneau de tâche : le Kanban suit sans attendre le socket.
+onTaskPanelChange({ update: onTaskUpdated, delete: onTaskDeleted });
 
 onMounted(async () => {
     fetchOrder();

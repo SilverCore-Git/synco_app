@@ -11,6 +11,7 @@ import { isLoaded, user } from './assets/var';
 import type { User } from '@/types/types';
 import Notifications from './components/overlay/Notifications.vue';
 import TransfersPanel from './components/overlay/TransfersPanel.vue';
+import TaskPanelDock from './views/OrgSpace/components/TaskPanel/TaskPanelDock.vue';
 import ExtensionSuggestion from './components/overlay/ExtensionSuggestion.vue';
 import UpdateAvailable from './components/overlay/UpdateAvailable.vue';
 import V4MigrationDialog from './components/e2ee/V4MigrationDialog.vue';
@@ -708,6 +709,20 @@ onUnmounted(stopAutoRetry);
 
 const { initFavicon } = useFavicon();
 
+// Hauteur de la colonne bas-droite (tâches + transferts), lue par les toasts
+// pour s'afficher au-dessus plutôt que par-dessus.
+const brDockEl = ref<HTMLElement | null>(null);
+let brDockObserver: ResizeObserver | null = null;
+onMounted(() => {
+  if (!brDockEl.value) return;
+  brDockObserver = new ResizeObserver(([entry]) => {
+    const h = Math.round(entry?.contentRect.height ?? 0);
+    document.documentElement.style.setProperty('--br-dock-h', h ? `${h + 12}px` : '0px');
+  });
+  brDockObserver.observe(brDockEl.value);
+});
+onUnmounted(() => brDockObserver?.disconnect());
+
 onMounted(async () => {
   debugLog('[boot] onMounted start');
 
@@ -749,7 +764,17 @@ onMounted(async () => {
          erreurs de démarrage (health check, initKC) via un toast plutôt
          qu'un alert() natif. -->
     <Notifications />
-    <TransfersPanel />
+    <!-- Colonne bas-droite : tâches ouvertes (TaskPanelDock) puis transferts.
+         Ils s'empilent dans la hauteur au lieu de se recouvrir ; les toasts
+         se placent au-dessus grâce à --br-dock-h (Notifications.vue). Même
+         z-index que l'ancien TransfersPanel : sous les Popup (z-2000). -->
+    <div
+      ref="brDockEl"
+      class="fixed bottom-4 right-4 z-[1500] flex flex-col items-end gap-3 max-h-[calc(100dvh-5rem)] pointer-events-none"
+    >
+      <TaskPanelDock v-if="authenticated && user" />
+      <TransfersPanel />
+    </div>
     <ConnectionStatusBanner />
     <RateLimitOverlay />
     <AiGatewayConsent />

@@ -86,7 +86,7 @@
             <AgentTurn
               :parts="msg.parts || []"
               :is-generating="isGenerating && index === messages.length - 1"
-              @open-task="(t) => selectedTask = t"
+              @open-task="openAiTask"
             />
             <p v-if="msg.usage" class="text-[11px] text-(--text2)/70 mt-1">
               {{ formatTokenCount(msg.usage.totalTokens) }} tokens<template v-if="msg.usage.reasoningTokens"> (dont {{ formatTokenCount(msg.usage.reasoningTokens) }} de raisonnement)</template>
@@ -190,7 +190,7 @@
                 class="mt-4 pt-4 border-t border-(--text)/10">
                 <div
                   class="w-full bg-black/30 border border-(--text)/10 p-4 rounded-xl cursor-pointer hover:border-(--primary)/50 transition-all shadow-lg group relative overflow-hidden flex justify-between items-center"
-                  @click="selectedTask = messages[index + 1]?.tool_data?.results">
+                  @click="openAiTask(messages[index + 1]?.tool_data?.results)">
                   <div class="flex items-center gap-3">
                     <i class="bi bi-circle text-gray-400 text-xl"></i>
                     <div>
@@ -315,7 +315,6 @@
         </form>
       </div>
 
-      <TaskDetailsModal :task="selectedTask" :isOpen="!!selectedTask" @close="selectedTask = null" />
 
     </div>
   </div>
@@ -327,7 +326,7 @@ import { localLLM } from '@/services/LocalLLMService';
 import { aiService, aiIsLocal, aiIsClientDriven, aiSessionNotEncrypted, aiPrefsReady, aiSessionMessages, syncSession, fetchSessions, activeSessionId, setEncryptedSessionTitle, clientAgentTurn, resumeClientAgent } from '@/services/AIService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
-import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
+import { useTaskPanels } from '@/composables/useTaskPanels';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import AgentTurn from '../components/ai/AgentTurn.vue';
 import PendingActionBar from '../components/ai/PendingActionBar.vue';
@@ -421,7 +420,12 @@ interface ChatMessage {
   usage?: { promptTokens: number; completionTokens: number; totalTokens: number; reasoningTokens: number };
 }
 
-const selectedTask = ref<any>(null);
+// Une tâche créée ou citée par l'IA s'ouvre dans le dock en bas à droite.
+// Le résultat d'outil n'est qu'un extrait : on relit la tâche complète.
+const { openTaskById } = useTaskPanels();
+const openAiTask = (task: any) => {
+  if (task?.id && openedOrg.value?.id) openTaskById(openedOrg.value.id, task);
+};
 const isGenerating = ref(false);
 // Par outil (façon Claude Code "don't ask again for this tool"), pas global : autoriser
 // create_task sans redemander ne doit pas dispenser de confirmation pour delete_task. Volontairement

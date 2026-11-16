@@ -1,13 +1,13 @@
 <template>
 
-    <!-- Envois et téléchargements en cours (cf. services/transfers). Au-dessus
-         des DropDown (z-1000) mais sous les modales Popup (z-2000), pour ne
-         jamais masquer leurs boutons. -->
+    <!-- Envois et téléchargements en cours (cf. services/transfers). Placé par
+         la colonne bas-droite d'App.vue (z-1500 : au-dessus des DropDown,
+         sous les Popup), sous les tâches ouvertes du TaskPanelDock. -->
     <Transition name="transfers">
         <div
             v-if="items.length > 0"
             class="
-                fixed bottom-4 right-4 z-[1500] w-80 max-w-[calc(100vw-2rem)]
+                pointer-events-auto shrink-0 w-80 max-w-[calc(100vw-2rem)]
                 bg-(--bg) border border-(--text)/10 rounded-xl shadow-2xl
                 overflow-hidden flex flex-col
             "

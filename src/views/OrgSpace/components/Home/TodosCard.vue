@@ -63,7 +63,7 @@
                     :task="lead"
                     featured
                     :class="{ 'is-leaving': finishing.has(lead.id) }"
-                    @click="router.push(taskLink(lead))"
+                    @click="openTask(lead)"
                 >
                     <template #header-right>
                         <span v-if="isNewOrUpdated(lead)" class="dash-new-pill mt-1">
@@ -90,12 +90,13 @@
                             >
                                 <i class="bi bi-check-lg"></i> Terminer
                             </button>
-                            <RouterLink
-                                :to="taskLink(lead)"
+                            <button
+                                type="button"
                                 class="ml-auto flex items-center gap-1.5 px-3.5 h-8 rounded-lg bg-(--text)/5 hover:bg-(--text)/10 font-bold text-xs text-(--text) transition-colors"
+                                @click="openTask(lead)"
                             >
-                                Ouvrir <i class="bi bi-arrow-right"></i>
-                            </RouterLink>
+                                Ouvrir <i class="bi bi-arrow-up-right"></i>
+                            </button>
                         </div>
                     </template>
                 </TaskCard>
@@ -116,7 +117,7 @@
                             <i v-if="finishing.has(task.id)" class="bi bi-check-circle-fill text-green-500"></i>
                             <i v-else :class="task.status === 'IN_PROGRESS' ? 'bi bi-arrow-repeat' : 'bi bi-circle'"></i>
                         </button>
-                        <RouterLink :to="taskLink(task)" class="flex-1 min-w-0 flex items-center gap-2">
+                        <button type="button" class="flex-1 min-w-0 flex items-center gap-2 text-left" @click="openTask(task)">
                             <span class="task-title">{{ task.title }}</span>
                             <span v-if="isNewOrUpdated(task)" class="dash-new-pill">
                                 {{ isNewlyAssigned(task) ? 'Nouveau' : 'Mis à jour' }}
@@ -126,7 +127,7 @@
                                 <i :class="deadlineProgress(task).color" :style="{ width: `${deadlineProgress(task).percent}%` }"></i>
                             </span>
                             <span class="task-due tabular-nums" :class="{ 'is-late': isTaskOverdue(task) }">{{ dueLabel(task) }}</span>
-                        </RouterLink>
+                        </button>
                     </li>
                 </TransitionGroup>
                 <RouterLink
@@ -143,10 +144,10 @@
 
 <script lang="ts" setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
 import { openedOrg, user } from '@/assets/var';
 import { deadlineProgress, isTaskOverdue } from '@/assets/utils/taskOverdue';
 import TaskCard from '../SpaceTasks/TaskCard.vue';
+import { useTaskPanels } from '@/composables/useTaskPanels';
 import sfetch from '@/assets/utils/sfetch';
 import type { Task, TodoList } from '@/types/types';
 import { useNotification } from '@/composables/useNotification';
@@ -248,8 +249,6 @@ watch(
         if (notifications.value[0]?.type === 'TASK_ASSIGNED') loadTasks();
     }
 );
-
-const router = useRouter();
 
 const isMine = (task: Task) =>
     task.assignees?.some(a => a.id === user.value?.id) || task.creatorId === user.value?.id;
@@ -365,12 +364,19 @@ function advance(task: Task) {
     setStatus(task, task.status === 'TODO' ? 'IN_PROGRESS' : 'DONE');
 }
 
-function taskLink(task: Task): string {
-    // ?select= : TasksSpace.vue / TasksGlobal.vue ouvrent la tâche et
-    // mettent sa carte en surbrillance (scroll + glow) à l'arrivée.
-    const base = task.spaceId ? `/${orgId.value}/${task.spaceId}/tasks` : `/${orgId.value}/tasks`;
-    return `${base}?select=${task.id}`;
-}
+// Ouvrir une tâche : dans le dock en bas à droite, on reste sur l'accueil.
+const { openTask, onTaskPanelChange } = useTaskPanels();
+
+// Modifications faites dans le panneau (statut, titre, échéance…) : la carte suit.
+onTaskPanelChange({
+    update: task => {
+        const idx = rawTasks.value.findIndex(t => t.id === task.id);
+        if (idx !== -1) rawTasks.value[idx] = { ...rawTasks.value[idx], ...task };
+    },
+    delete: taskId => {
+        rawTasks.value = rawTasks.value.filter(t => t.id !== taskId);
+    }
+});
 </script>
 
 <style scoped>
