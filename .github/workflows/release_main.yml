@@ -326,6 +326,8 @@ jobs:
 
   build-docker-image:
     name: Build et push de l'image Docker (front, prod)
+    # Après create-release : l'image embarque la même version que les applis natives.
+    needs: create-release
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -363,7 +365,10 @@ jobs:
           context: .
           target: prod
           push: true
-          build-args: ${{ steps.env.outputs.args }}
+          build-args: |
+            ${{ steps.env.outputs.args }}
+            SYNCO_APP_VERSION=${{ needs.create-release.outputs.version }}
+            GIT_SHA=${{ github.sha }}
           tags: |
             ghcr.io/${{ steps.meta.outputs.owner }}/synco_app:latest
             ghcr.io/${{ steps.meta.outputs.owner }}/synco_app:${{ github.sha }}

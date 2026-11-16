@@ -64,6 +64,10 @@ ENV VITE_LIVEKIT_URL=$VITE_LIVEKIT_URL \
     VITE_FIREBASE_APP_ID=$VITE_FIREBASE_APP_ID \
     VITE_FIREBASE_MEASUREMENT_ID=$VITE_FIREBASE_MEASUREMENT_ID \
     VITE_FIREBASE_VAPID_KEY=$VITE_FIREBASE_VAPID_KEY
+# Identité du build (vue « Développeur ») : version de release et commit, fournis par la CI.
+ARG SYNCO_APP_VERSION
+ARG GIT_SHA
+ENV SYNCO_APP_VERSION=$SYNCO_APP_VERSION GIT_SHA=$GIT_SHA
 COPY . .
 RUN printenv | grep '^VITE_' > .env.production
 RUN NODE_OPTIONS=--max-old-space-size=6144 npm run build
