@@ -35,7 +35,9 @@
             <p v-else>Les tâches qui vous sont assignées apparaîtront ici.</p>
         </div>
 
-        <div v-else class="dash-card-body flex flex-col gap-3 animate-app-reveal">
+        <!-- Enfants en shrink-0 : TaskCard a overflow:hidden, donc sans ça la
+             colonne flex la tasse (boutons coupés) au lieu de faire défiler le corps. -->
+        <div v-else class="dash-card-body flex flex-col gap-3 animate-app-reveal [&>*]:shrink-0">
             <!-- La journée en une jauge : mêmes couleurs que TaskProgressGauge / le Kanban. -->
             <div class="px-2 pt-1.5 flex flex-col gap-2">
                 <div
