@@ -1334,7 +1334,13 @@ onMounted(async () => {
         const target = mostRecentUserId
             ? openedOrg.value?.members?.find(m => m.user?.id === mostRecentUserId)
             : openedOrg.value?.members?.[0];
-        if (target) router.replace({ params: { ...route.params, userId: target.id }, query: route.query });
+        // Nom de route explicite : un replace avec seulement `params` garde le
+        // nom courant (OrgChat, chemin `chat` sans :userId) — la conversation
+        // s'affichait mais la route n'était jamais OrgThreadChat, donc les
+        // garde-fous « conversation active » (isForActiveConversation dans
+        // useNotification.ts, notif:dm:new-message dans OrgLayout.vue) ne
+        // reconnaissaient pas le DM ouvert et chaque message reçu passait non lu.
+        if (target) router.replace({ name: 'OrgThreadChat', params: { ...route.params, userId: target.id }, query: route.query });
     }
 
     const wsRef = await useWSocket();
