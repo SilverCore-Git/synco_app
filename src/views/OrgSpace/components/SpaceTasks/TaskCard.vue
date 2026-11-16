@@ -5,7 +5,7 @@
     >
         <div class="flex justify-between items-start gap-2">
             <div class="flex flex-col gap-1 w-full">
-                <p class="text-sm font-bold text-(--text) leading-snug flex items-start gap-2">
+                <p class="font-bold text-(--text) leading-snug flex items-start gap-2" :class="featured ? 'text-lg' : 'text-sm'">
                     <i class="bi bi-check2-square text-(--primary) mt-0.5 opacity-80 shrink-0"></i>
                     <span>{{ task.title }}</span>
                 </p>
@@ -86,34 +86,10 @@
 
 <script setup lang="ts">
 import type { Task } from '@/types/types';
-import { isTaskOverdue, overdueLabel, TASK_CARD_NORMAL_CLASS, TASK_CARD_OVERDUE_CLASS } from '@/assets/utils/taskOverdue';
+import { deadlineProgress, isTaskOverdue, overdueLabel, TASK_CARD_NORMAL_CLASS, TASK_CARD_OVERDUE_CLASS } from '@/assets/utils/taskOverdue';
 
-defineProps<{ task: Task }>();
+// featured : la tâche « à la une » de l'accueil, titre plus grand.
+defineProps<{ task: Task; featured?: boolean }>();
 
-const getProgress = (task: Task) => {
-    if (!task.dueDate) return { percent: 0, text: '', color: 'bg-green-500' };
-    const start = new Date(task.createdAt || Date.now()).getTime();
-    const end = new Date(task.dueDate).getTime();
-    const now = new Date().getTime();
-    
-    if (now > end) return { percent: 100, text: overdueLabel(task.dueDate), color: 'bg-red-500' };
-    
-    const total = end - start;
-    const passed = now - start;
-    let percent = (passed / total) * 100;
-    if (percent < 0) percent = 0;
-    
-    const remainingMs = end - now;
-    const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
-    const remainingDays = Math.floor(remainingHours / 24);
-    
-    let text = remainingHours < 24 ? `${remainingHours}h restantes` : `${remainingDays}j restants`;
-    
-    let color = 'bg-green-500';
-    if (percent > 60) color = 'bg-orange-400';
-    if (percent > 85) color = 'bg-red-500';
-    if (percent > 95) color = 'bg-red-600 animate-pulse';
-
-    return { percent, text, color };
-};
+const getProgress = deadlineProgress;
 </script>
