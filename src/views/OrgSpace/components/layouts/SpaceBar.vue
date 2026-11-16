@@ -4,6 +4,7 @@ import SpaceBarBTN from '../common/SpaceBarBTN.vue';
 import DropDown from '@/components/DropDown.vue';
 import { useNotificationMutes } from '@/composables/useNotificationMutes';
 import MuteMenuItems from '@/components/common/MuteMenuItems.vue';
+import OpenInTabMenuItem from '@/components/common/OpenInTabMenuItem.vue';
 import { useRoute, useRouter } from 'vue-router';
 import CreateNewSpace from '../popup/CreateNewSpace.vue';
 import { openedOrg, todoEnabled, aiEnabled, agendaEnabled, user, userCardHeight } from '@/assets/var';
@@ -181,6 +182,7 @@ const onSpaceOrderChange = async () => {
                                 />
                             </template>
                             <template #content>
+                                <OpenInTabMenuItem :to="`/${openedOrg.id}/${space.id}?showView=0`" separator />
                                 <MuteMenuItems kind="space" :id="space.id" />
                             </template>
                         </DropDown>

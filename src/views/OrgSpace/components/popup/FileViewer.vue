@@ -73,6 +73,14 @@
                 <img :src="fileUrl" class="max-w-full max-h-full object-contain p-4" @load="isLoading = false" @error="handleError" />
               </template>
 
+              <template v-else-if="isVideo">
+                <video :src="fileUrl" controls autoplay class="max-w-full max-h-full p-4" @loadeddata="isLoading = false" @error="handleError"></video>
+              </template>
+
+              <template v-else-if="isAudio">
+                <audio :src="fileUrl" controls autoplay class="w-full max-w-lg" @loadeddata="isLoading = false" @error="handleError"></audio>
+              </template>
+
               <template v-else-if="isPdf">
                 <iframe :src="fileUrl" class="w-full h-full border-none bg-white" @load="isLoading = false" @error="handleError"></iframe>
               </template>
@@ -234,6 +242,8 @@ const loadedMeta = ref<FileMetadata | null>(null);
 
 const isImage = computed(() => props.file.mimeType.startsWith('image/'));
 const isPdf = computed(() => props.file.mimeType === 'application/pdf');
+const isVideo = computed(() => props.file.mimeType.startsWith('video/'));
+const isAudio = computed(() => props.file.mimeType.startsWith('audio/'));
 const isTextFile = computed(() => {
   const mime = props.file.mimeType;
   return mime.startsWith('text/') ||
@@ -349,7 +359,7 @@ const load = () => {
   hasError.value = false;
   if (isTextFile.value || isMarkdown.value) {
     fetchTextContent();
-  } else if (isImage.value || isPdf.value) {
+  } else if (isImage.value || isPdf.value || isVideo.value || isAudio.value) {
     loadPreview();
   } else {
     isLoading.value = false; // pas d'aperçu

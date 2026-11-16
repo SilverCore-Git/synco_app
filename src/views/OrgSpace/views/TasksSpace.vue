@@ -341,15 +341,6 @@
             </div>
         </main>
         
-        <TaskDetailsModal
-            :task="selectedTask"
-            :isOpen="!!selectedTask"
-            :startInEditMode="openTaskInEditMode"
-            @close="selectedTask = null"
-            @update="onTaskUpdated"
-            @delete="onTaskDeleted"
-            @open-task="handleOpenTask"
-        />
 
         <Transition name="pop">
             <div v-if="isDraggingTask"
@@ -418,7 +409,7 @@ import useWSocket from '@/composables/useWSocket';
 import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
 import TaskUserFilter from '../components/TaskUserFilter.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
-import TaskDetailsModal from '../components/popup/TaskDetailsModal.vue';
+import { useTaskPanels } from '@/composables/useTaskPanels';
 import DropDown from '@/components/DropDown.vue';
 import TaskTagPicker from '../components/popup/TaskTagPicker.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
@@ -459,8 +450,8 @@ const searchRegex = ref(false);
 const searchState = computed(() => buildTaskMatcher(searchQuery.value, searchRegex.value));
 const searchInvalid = computed(() => searchState.value.invalid);
 
-const selectedTask = ref<Task | null>(null);
-const openTaskInEditMode = ref(false);
+// Les tâches s'ouvrent dans le dock en bas à droite (TaskPanelDock, App.vue).
+const { openTask, onTaskPanelChange } = useTaskPanels();
 
 const columns = [
     { id: 'TODO', title: 'À faire', color: 'text-gray-400', icon: 'bi-circle' },
@@ -570,7 +561,7 @@ const loadTasks = async () => {
                 }
 
                 if (foundTask) {
-                    selectedTask.value = foundTask;
+                    openTask(foundTask);
                     
                     // Highlight the card if it's in the Kanban
                     setTimeout(() => {
@@ -606,15 +597,9 @@ const loadTasks = async () => {
     }
 };
 
-const openTaskDetails = (task: Task) => {
-    openTaskInEditMode.value = false;
-    selectedTask.value = task;
-};
+const openTaskDetails = (task: Task) => openTask(task);
 
-const startRenameTask = (task: Task) => {
-    openTaskInEditMode.value = true;
-    selectedTask.value = task;
-};
+const startRenameTask = (task: Task) => openTask(task, { editTitle: true });
 
 const showDeleteTaskConfirm = ref<Task | null>(null);
 const deletingTask = ref(false);
@@ -650,21 +635,6 @@ const onSubtaskCreatedFromMenu = (parentTask: Task, newTask: Task) => {
     }
 };
 
-const handleOpenTask = async (taskPartial: any) => {
-    openTaskInEditMode.value = false;
-    try {
-        const res = await sfetch(`/api/tasks/${route.params.orgId}/tasks/${taskPartial.id}`);
-        if (res.ok) {
-            const fullTask = await res.json();
-            selectedTask.value = fullTask;
-        } else {
-            selectedTask.value = taskPartial; // Fallback
-        }
-    } catch (e) {
-        selectedTask.value = taskPartial; // Fallback
-    }
-};
-
 const onTaskCreated = (task: Task) => {
     if (!tasks.value.some(t => t.id === task.id)) {
         tasks.value.unshift(task);
@@ -674,18 +644,14 @@ const onTaskCreated = (task: Task) => {
 const onTaskUpdated = (updatedTask: Task) => {
     const idx = tasks.value.findIndex(t => t.id === updatedTask.id);
     if (idx !== -1) tasks.value[idx] = updatedTask;
-    // selectedTask est une référence séparée passée à TaskDetailsModal : sans
-    // ça, la modale ouverte continue d'afficher l'ancien titre/description/
-    // assignés tant qu'on ne la referme pas (elle ne suit pas le remplacement
-    // ci-dessus dans tasks).
-    if (selectedTask.value?.id === updatedTask.id) {
-        selectedTask.value = updatedTask;
-    }
 };
 
 const onTaskDeleted = (taskId: string) => {
     tasks.value = tasks.value.filter(t => t.id !== taskId);
 };
+
+// Modifications faites dans le panneau de tâche : le Kanban suit sans attendre le socket.
+onTaskPanelChange({ update: onTaskUpdated, delete: onTaskDeleted });
 
 const onDragStart = (e: DragEvent, task: Task) => {
     isDraggingTask.value = true;

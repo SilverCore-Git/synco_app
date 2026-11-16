@@ -1,6 +1,10 @@
 import sfetch from "./utils/sfetch";
 import { isLoaded, organizations, user, openedOrg } from "./var";
 import router from "../router";
+import { restoredLaunchPath } from "./appTabs";
+
+// Premiers segments de route qui ne sont pas un identifiant d'organisation (router.ts).
+const NON_ORG_SEGMENTS = ['invite', 'root', 'support', 'support-panel'];
 
 class Init 
 {
@@ -57,6 +61,26 @@ class Init
         // last org the user had open, so the app doesn't always restart on
         // the org selection screen.
         const isFreshLaunch = !orgId;
+
+        // App de bureau : les onglets de la session précédente sont restaurés (appTabs.ts), on rouvre
+        // l'onglet actif tel qu'il était — y compris l'accueil — plutôt que la dernière organisation.
+        const restoredPath = isFreshLaunch ? restoredLaunchPath() : null;
+        if (restoredPath !== null) {
+            if (restoredPath === '/') return;
+            const first = restoredPath.split(/[/?#]/)[1] ?? '';
+            if (first && !NON_ORG_SEGMENTS.includes(first)) {
+                try {
+                    const res = await sfetch(`/api/orgs/${first}`);
+                    if (res.ok) openedOrg.value = await res.json();
+                } catch (e) {
+                    console.error('Failed to prefetch org', e);
+                }
+            }
+            // Organisation devenue inaccessible : OrgLayout renvoie à la liste, comme pour un lien périmé.
+            router.replace(restoredPath);
+            return;
+        }
+
         if (isFreshLaunch) {
             orgId = localStorage.getItem('lastOpenedOrgId') || '';
         }

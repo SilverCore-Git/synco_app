@@ -19,6 +19,15 @@
                     {{ tab.label }}
                 </button>
 
+                <!-- Easter egg : 7 appuis sur la version révèlent l'onglet « Développeur ». -->
+                <button
+                    type="button"
+                    class="version-tag shrink-0 sm:mt-auto self-center sm:self-stretch px-3 py-2 text-[11px] font-mono text-(--text2)/60 text-left whitespace-nowrap select-none"
+                    @click="onVersionTap"
+                >
+                    Synco v{{ appVersion }}
+                </button>
+
             </aside>
 
             <!-- Colonne de contenu : la barre d'enregistrement est hors de la
@@ -408,6 +417,30 @@
                         </div>
 
                         <div class="space-y-4">
+                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Mouvement</h4>
+
+                            <div 
+                                @click="animations = animations === false"
+                                class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all max-w-md"
+                            >
+                                <div>
+                                    <h4 class="font-bold text-(--text)">Animations</h4>
+                                    <p class="text-sm text-(--text2) mt-0.5">Ouverture, réduction et fermeture fluides des fenêtres de Synco</p>
+                                    <p v-if="systemReduced" class="text-xs text-amber-500 mt-1.5">Votre système demande de réduire les animations : elles restent coupées.</p>
+                                </div>
+                                <div 
+                                    class="w-12 h-6 rounded-full relative transition-colors duration-300 shrink-0"
+                                    :class="animations !== false ? 'bg-(--primary)' : 'bg-(--text)/15'"
+                                >
+                                    <div 
+                                        class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
+                                        :class="animations !== false ? 'right-0.5' : 'left-0.5 opacity-50'"
+                                    ></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
                             <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Avancé</h4>
 
                             <div 
@@ -562,6 +595,11 @@
                 </section>
 
                 <!-- RAPPORTS D'ACTIVITÉ -->
+                <!-- DÉVELOPPEUR (onglet caché, voir onVersionTap) -->
+                <section v-if="activeTab === 'developer' && devInfoUnlocked" class="animate-fade-in">
+                    <DeveloperInfo @hide="hideDeveloperTab" />
+                </section>
+
                 <section
                     v-if="activeTab === 'reports'"
                     class="animate-fade-in"
@@ -629,6 +667,7 @@ import { ref, reactive, watch, computed } from 'vue';
 import Window from './Window.vue';
 import useSettingsItem from '@/composables/useSettingsItem';
 import useTheme from '@/composables/useTheme';
+import useMotion from '@/composables/useMotion';
 import ProfileUploader from '../common/ProfileUploader.vue';
 import ConfirmDelete from '../common/ConfirmDelete.vue';
 import ActivityReports from '../settings/ActivityReports/index.vue';
@@ -644,6 +683,7 @@ import { E2EEUnloked, lockSecurity } from '@/assets/utils/crypto';
 import { isV4Account } from '@/assets/e2eeV4/runtime';
 import DevicesSecurity from '../settings/DevicesSecurity.vue';
 import E2eeUpgrade from '../settings/E2eeUpgrade.vue';
+import DeveloperInfo from '../settings/DeveloperInfo.vue';
 import E2eeResetDialog from '../e2ee/E2eeResetDialog.vue';
 import { requestV4Reset } from '@/assets/e2eeV4/pendingReset';
 import { logoutEverywhere } from '@/assets/keycloak';
@@ -661,6 +701,7 @@ const toast = useToast();
 const isV4 = computed(() => isV4Account(user.value?.pinSalt));
 
 const { theme } = useTheme();
+const { animations, systemReduced } = useMotion();
 const { Item: devMode } = useSettingsItem('devMode', false);
 const { Item: privacyMode } = useSettingsItem('privacyMode', false);
 
@@ -979,7 +1020,7 @@ const deleteAccount = async () => {
     }
 };
 
-const tabs = [
+const baseTabs = [
     { id: 'account', label: 'Mon profil', icon: 'bi bi-person-badge-fill' },
     { id: 'devices', label: 'Appareils', icon: 'bi bi-laptop-fill' },
     { id: 'security', label: 'Sécurité', icon: 'bi bi-shield-lock-fill' },
@@ -987,6 +1028,45 @@ const tabs = [
     { id: 'notifications', label: 'Notifications', icon: 'bi bi-bell-fill' },
     { id: 'reports', label: "Rapports", icon: 'bi bi-envelope-paper-fill' }
 ];
+
+// Vue « Développeur » : cachée tant qu'on n'a pas tapé 7 fois de suite sur le numéro de version en
+// bas de la barre des onglets (à la manière du « numéro de build » d'Android). Le déblocage est
+// mémorisé dans les réglages du compte ; « Masquer » dans la vue la recache.
+const { Item: devInfoUnlocked } = useSettingsItem('devInfoUnlocked', false);
+const appVersion = __APP_BUILD__.version;
+const DEV_TAPS_REQUIRED = 7;
+const DEV_TAP_WINDOW_MS = 1500;
+let devTaps = 0;
+let lastDevTap = 0;
+
+const tabs = computed(() => devInfoUnlocked.value
+    ? [...baseTabs, { id: 'developer', label: 'Développeur', icon: 'bi bi-terminal-fill' }]
+    : baseTabs);
+
+const onVersionTap = () => {
+    const now = Date.now();
+    devTaps = now - lastDevTap > DEV_TAP_WINDOW_MS ? 1 : devTaps + 1;
+    lastDevTap = now;
+
+    if (devInfoUnlocked.value) {
+        if (devTaps === 1) activeTab.value = 'developer';
+        return;
+    }
+    const left = DEV_TAPS_REQUIRED - devTaps;
+    if (left <= 0) {
+        devTaps = 0;
+        devInfoUnlocked.value = true;
+        activeTab.value = 'developer';
+        toast.show('Vous avez débloqué la vue développeur', 'success', 3000, true);
+    } else if (left <= 3) {
+        toast.show(left === 1 ? 'Encore 1 appui…' : `Encore ${left} appuis…`, 'info', 900);
+    }
+};
+
+const hideDeveloperTab = () => {
+    devInfoUnlocked.value = false;
+    activeTab.value = 'account';
+};
 
 </script>
 
@@ -1015,6 +1095,13 @@ const tabs = [
 .savebar-leave-to {
     opacity: 0;
     transform: translateY(100%);
+}
+
+.version-tag {
+    background: transparent;
+    border: none;
+    cursor: default;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .hide-scrollbar::-webkit-scrollbar {

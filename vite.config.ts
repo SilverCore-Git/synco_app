@@ -5,6 +5,7 @@ import basicSsl from '@vitejs/plugin-basic-ssl';
 import { fileURLToPath, URL } from 'node:url';
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'node:child_process';
 
 // https://vite.dev/config/
 // Check if HTTPS should be used based on VITE_USE_HTTPS in .env file
@@ -126,7 +127,33 @@ function firebaseSwPlugin(): Plugin {
   };
 }
 
+// Identité du build, affichée dans la vue « Développeur » des paramètres (DeveloperInfo.vue).
+// Version : SYNCO_APP_VERSION (CI, image Docker), sinon src-tauri/tauri.conf.json — que
+// release-version.mjs réécrit avant les builds natifs. Commit : GIT_SHA / GITHUB_SHA, sinon git.
+function buildInfo() {
+  let version = process.env.SYNCO_APP_VERSION?.trim() || '';
+  if (!version) {
+    try {
+      version = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'src-tauri/tauri.conf.json'), 'utf-8')).version;
+    } catch {
+      version = '0.0.0';
+    }
+  }
+  let commit = (process.env.GIT_SHA || process.env.GITHUB_SHA || '').trim();
+  if (!commit) {
+    try {
+      commit = execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+    } catch {
+      commit = '';
+    }
+  }
+  return { version, commit: commit || null, builtAt: new Date().toISOString() };
+}
+
 export default defineConfig({
+  define: {
+    __APP_BUILD__: JSON.stringify(buildInfo()),
+  },
   plugins: [
     vue(),
     tailwindcss(),

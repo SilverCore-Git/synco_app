@@ -6,6 +6,7 @@
 
             <button
                 @click="emit('click')"
+                :data-tab-href="tabHref"
                 class="
                     w-full flex items-center justify-start 
                     text-left gap-2 px-2 py-1.5 rounded-lg
@@ -55,6 +56,8 @@
         </template>
 
         <template #content>
+
+            <OpenInTabMenuItem :to="tabHref" separator />
 
             <button v-if="devMode" @click="copyThreadId" class="dropdown-item-annimate dropdown-item-style text-(--primary)! hover:bg-(--primary)/10!">
                 <i class="bi bi-hash mr-2" />
@@ -109,6 +112,8 @@ import { useHerePermissions } from '@/composables/useHerePermissions';
 import { computed } from 'vue';
 import { useNotificationMutes } from '@/composables/useNotificationMutes';
 import MuteMenuItems from '@/components/common/MuteMenuItems.vue';
+import OpenInTabMenuItem from '@/components/common/OpenInTabMenuItem.vue';
+import { useRoute, useRouter } from 'vue-router';
 const props = defineProps<{
   thread: Thread;
   active?: boolean;
@@ -121,6 +126,15 @@ defineOptions({
 });
 
 const emit = defineEmits(['click']);
+
+// Route du salon, pour l'ouvrir dans un nouvel onglet (clic molette, Ctrl+clic, menu clic droit) — même
+// cible que navigateToThread() de Category.vue.
+const route = useRoute();
+const router = useRouter();
+const tabHref = computed(() => {
+    const name = (route.name == 'OrgHome' || route.name == 'OrgThreadHome') ? 'OrgThreadHome' : 'SpaceThreadView';
+    return router.resolve({ name, params: { ...route.params, threadId: props.thread.id }, query: { type: 'text', showView: '1' } }).fullPath;
+});
 
 const showEditThread = ref<boolean>(false);
 const showConfirmDelete = ref<boolean>(false);

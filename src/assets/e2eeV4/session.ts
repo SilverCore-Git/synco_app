@@ -10,6 +10,7 @@ import {
     type DevicePayload, type DevicePlatform, type IdentityPin, type LocalDeviceRecord,
 } from '../deviceVault/localDevice';
 import { VaultError, type DeviceVault, type KeyValueStore, type VaultContext, type VaultKind } from '../deviceVault/types';
+import { recordVaultUsage } from '../deviceVault/usage';
 
 /**
  * Orchestration de l'E2EE v4 côté application (doc/securite/13-e2ee-v4-multi-appareil.md, P4) :
@@ -363,6 +364,7 @@ export async function withAccountKey<T>(
     fn: (akBytes: Uint8Array, record: LocalDeviceRecord) => Promise<T>,
 ): Promise<T> {
     const { akBytes, record } = await unlockAccountKey({ userId: dev.userId, store: dev.store, vaultFor: dev.vaultFor, ctx, fetchEnvelope: envelopeFetcher(dev.api) });
+    recordVaultUsage(record.vaultKind);
     try {
         return await fn(akBytes, record);
     } finally {

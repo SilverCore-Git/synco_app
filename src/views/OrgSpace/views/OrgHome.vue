@@ -72,14 +72,15 @@
 
             <!-- Deux colonnes indépendantes : une carte courte (rien à répondre)
                  laisse la suivante remonter au lieu de laisser un trou de rangée. -->
-            <div class="home-cols">
+            <div class="home-cols" :style="hoursHeight ? { '--hours-h': `${hoursHeight}px` } : undefined">
                 <div class="home-col home-col-main">
-                    <NotificationsCard ref="notificationsCard" class="order-1" />
+                    <NotificationsCard ref="notificationsCard" class="order-1 notifications-card" />
                     <TodosCard v-if="todoEnabled" ref="todosCard" :key="tasksKey" class="order-3" />
                 </div>
                 <div class="home-col home-col-side">
                     <UpcomingHoursCard
                         v-if="agendaEnabled"
+                        ref="hoursCard"
                         class="order-2"
                         :days="days"
                         :loading="agendaLoading"
@@ -117,6 +118,20 @@ const orgId = computed(() => openedOrg.value?.id);
 
 const notificationsCard = useTemplateRef<InstanceType<typeof NotificationsCard>>('notificationsCard');
 const todosCard = useTemplateRef<InstanceType<typeof TodosCard>>('todosCard');
+
+// « À vous de répondre » prend la hauteur de « Les prochaines heures » (côte à côte).
+const hoursCard = useTemplateRef<InstanceType<typeof UpcomingHoursCard>>('hoursCard');
+const hoursHeight = ref(0);
+const hoursObserver = new ResizeObserver(([entry]) => {
+    if (!entry) return;
+    hoursHeight.value = Math.round(entry.borderBoxSize?.[0]?.blockSize ?? entry.target.getBoundingClientRect().height);
+});
+watch(() => hoursCard.value?.$el as Element | undefined, (el, prev) => {
+    if (prev) hoursObserver.unobserve(prev);
+    if (el instanceof Element) hoursObserver.observe(el);
+    else hoursHeight.value = 0;
+}, { flush: 'post' });
+onBeforeUnmount(() => hoursObserver.disconnect());
 
 async function markAllRead() {
     await Promise.all([
@@ -278,6 +293,7 @@ const findingParts = computed(() => {
 .home-col-main { flex: 7 1 0; }
 .home-col-side { flex: 5 1 0; }
 .home-col:empty { display: none; }
+.home-col-main > .notifications-card { height: var(--hours-h, auto); }
 
 /* Cartes à défilement interne : aucune ne s'étire sur toute la page. */
 .home-col > * {
@@ -291,5 +307,6 @@ const findingParts = computed(() => {
     .home-cols { flex-direction: column; align-items: stretch; }
     .home-col { display: contents; }
     .home-col > * { max-height: none; }
+    .home-col-main > .notifications-card { height: auto; }
 }
 </style>
