@@ -308,6 +308,7 @@
                                 name="Fichiers"
                                 icon="bi-file-earmark"
                                 :active="route.name == 'SpaceFiles'"
+                                :data-tab-href="router.resolve({ name: 'SpaceFiles', query: { showView: '1' } }).fullPath"
                                 @click="router.push({ name: 'SpaceFiles', query: { showView: '1' } })"
                             />
 
@@ -317,6 +318,7 @@
                                 icon="bi-check2-square"
                                 :active="route.name == 'TasksSpace' || route.name == 'TasksSpaceArchived'"
                                 :hasUnread="unreadSpaceTasks > 0"
+                                :data-tab-href="router.resolve({ name: 'TasksSpace', query: { showView: '1' } }).fullPath"
                                 @click="router.push({ name: 'TasksSpace', query: { showView: '1' } })"
                             />
 

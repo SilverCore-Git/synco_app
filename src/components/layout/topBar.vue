@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import isDesktopApp, { isMacDesktop } from '@/assets/isDesktopApp';
-import { openedOrg } from '@/assets/var';
+import TabStrip from './TabStrip.vue';
+import AppContextMenu from './AppContextMenu.vue';
+import { tabsReady } from '@/assets/appTabs';
+import { isLoaded } from '@/assets/var';
+import { E2EEUnloked } from '@/assets/utils/crypto';
 import useSecurePeer from '@/composables/useSecurePeer';
 import useTheme from '@/composables/useTheme';
 
@@ -15,6 +19,10 @@ const { resolvedTheme } = useTheme();
 
 const desktop = isDesktopApp();
 const mac = isMacDesktop();
+
+// Onglets et raccourcis seulement une fois l'app affichée : pas sur l'écran de connexion ni de code PIN.
+const appShown = computed(() => isLoaded.value && E2EEUnloked.value);
+watch(appShown, (shown) => { tabsReady.value = shown; }, { immediate: true });
 
 const maximized = ref(false);
 // Agrandie (ou plein écran) : le cadre arrondi (style.css, html.desktop-frame) laisse place à des angles droits.
@@ -48,12 +56,12 @@ onBeforeUnmount(() => unlisteners.forEach((u) => u()));
     <div
         v-if="desktop"
         data-tauri-drag-region="deep"
-        class="titlebar w-full h-9 bg-(--bg) grid grid-cols-[1fr_auto_1fr] items-center select-none transition-opacity"
+        class="titlebar w-full h-9 bg-(--bg) flex items-center gap-2 select-none transition-opacity"
         :class="{ 'opacity-70': !focused }"
     >
 
         <!-- Gauche : marque (sur macOS, place laissée au feu tricolore natif) -->
-        <div class="flex items-center gap-2 h-full min-w-0" :class="mac ? 'pl-20' : 'pl-3'">
+        <div class="flex items-center h-full shrink-0" :class="mac ? 'pl-20' : 'pl-3'">
             <img
                 :src="resolvedTheme === 'light' ? '/assets/logo/synco/light_banner_synco.svg' : '/banner.svg'"
                 alt="Synco"
@@ -62,24 +70,12 @@ onBeforeUnmount(() => unlisteners.forEach((u) => u()));
             />
         </div>
 
-        <!-- Centre : organisation ouverte -->
-        <div class="flex justify-center items-center gap-2 min-w-0 text-xs text-(--text2) font-semibold">
-            <template v-if="openedOrg">
-                <img
-                    v-if="openedOrg.logo && openedOrg.logo.startsWith('http')"
-                    :src="openedOrg.logo"
-                    :alt="openedOrg.name"
-                    class="w-4 h-4 rounded object-cover"
-                    draggable="false"
-                />
-                <i v-else-if="openedOrg.logo" class="bi text-sm text-(--primary)" :class="openedOrg.logo" />
-                <span v-else class="text-[10px] font-black text-(--primary)">{{ openedOrg.name.substring(0, 2).toUpperCase() }}</span>
-                <span class="truncate max-w-[40vw]">{{ openedOrg.name }}</span>
-            </template>
-        </div>
+        <!-- Précédent / suivant et onglets ; le vide restant déplace la fenêtre -->
+        <TabStrip v-if="appShown" />
+        <div v-else class="flex-1" />
 
         <!-- Droite : appel en cours + contrôles de fenêtre -->
-        <div class="flex h-full items-center justify-end gap-2">
+        <div class="flex h-full shrink-0 items-center justify-end gap-2">
 
             <button
                 v-if="isCalling || remoteStreams.size > 0"
@@ -116,6 +112,8 @@ onBeforeUnmount(() => unlisteners.forEach((u) => u()));
         </div>
 
     </div>
+
+    <AppContextMenu v-if="desktop" />
 
 </template>
 
