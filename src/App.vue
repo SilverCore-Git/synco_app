@@ -31,6 +31,7 @@ import { useToast } from './composables/useToast';
 import TopBar from './components/layout/topBar.vue';
 import useSecurePeer from './composables/useSecurePeer';
 import useAppPresence from './composables/useAppPresence';
+import useDiscordPresence from './composables/useDiscordPresence';
 import CallOverlay from './components/peer/CallOverlay.vue';
 import waitFor from './assets/utils/waitfor';
 import { debugLog } from './assets/utils/debugLog';
@@ -542,6 +543,7 @@ const finishAuthInit = async () => {
   await initPeer();
   bootProgress.value = 95;
   useAppPresence();
+  void useDiscordPresence();
   bootProgress.value = 100;
 };
 

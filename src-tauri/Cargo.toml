@@ -44,3 +44,6 @@ keyring = { version = "=3.6.3", features = ["apple-native", "windows-native", "s
 # et le paquet npm du même nom doit rester sur la même minor (contrôle du CLI Tauri).
 tauri-plugin-updater = "~2.12"
 tauri-plugin-process = "~2.3"
+# Rich Presence Discord (IPC local avec le client Discord, aucun appel réseau) : affiche « Sur Synco » /
+# « En appel vocal » sur le profil Discord quand l'utilisateur l'active (Réglages > Apparence).
+discord-rich-presence = "=1.1.0"

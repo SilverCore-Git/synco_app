@@ -4,7 +4,7 @@ import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import type { User } from '@/types/types';
 import DropDown from '@/components/DropDown.vue';
 import useWSocket, { disconnectSocket } from '@/composables/useWSocket';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, user as currentUser } from '@/assets/var';
 import { keycloak, logoutEverywhere } from '@/assets/keycloak';
 import { computed, ref, watch } from 'vue';
 import { getAverageColor } from '@/assets/utils/getAverageColor';
@@ -78,6 +78,8 @@ const setStatus = async (status: 'online' | 'idle' | 'dnd' | 'offline') => {
 
         const me = openedOrg.value?.members?.find(member => member.user?.id == props.user?.id);
         if (me && me.user) me.user.data!.status = status;
+        // Statut global aussi : la Rich Presence Discord (useDiscordPresence.ts) s'efface en « Invisible ».
+        if (currentUser.value?.data) currentUser.value.data.status = status;
 
         emit('update:status', status);
 

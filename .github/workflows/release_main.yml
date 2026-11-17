@@ -158,6 +158,8 @@ jobs:
         shell: powershell
         env:
           NODE_OPTIONS: --max-old-space-size=6144
+          # ID d'application Discord de la Rich Presence (src-tauri/src/discord_presence.rs) ; vide = désactivée.
+          SYNCO_DISCORD_CLIENT_ID: ${{ vars.SYNCO_DISCORD_CLIENT_ID }}
         run: bun run tauri:build -- --bundles msi
 
       - name: Signature (updater) et upload du MSI sur la release
@@ -214,6 +216,8 @@ jobs:
       - name: Build de l'AppImage
         env:
           NODE_OPTIONS: --max-old-space-size=6144
+          # ID d'application Discord de la Rich Presence (src-tauri/src/discord_presence.rs) ; vide = désactivée.
+          SYNCO_DISCORD_CLIENT_ID: ${{ vars.SYNCO_DISCORD_CLIENT_ID }}
         run: bun run tauri:build -- --bundles appimage
 
       - name: Retrait de libs bundlées problématiques et re-packaging
@@ -282,6 +286,8 @@ jobs:
       - name: Build du .app et du DMG
         env:
           NODE_OPTIONS: --max-old-space-size=6144
+          # ID d'application Discord de la Rich Presence (src-tauri/src/discord_presence.rs) ; vide = désactivée.
+          SYNCO_DISCORD_CLIENT_ID: ${{ vars.SYNCO_DISCORD_CLIENT_ID }}
         run: bun run tauri:build -- --target universal-apple-darwin --bundles app,dmg
 
       # L'updater installe une archive du .app (pas le DMG) : on l'empaquette et on la signe ici,

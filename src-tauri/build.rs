@@ -8,6 +8,9 @@ fn main() {
             "secure_store_set",
             "secure_store_get",
             "secure_store_delete",
+            "discord_presence_available",
+            "discord_presence_set",
+            "discord_presence_clear",
         ])),
     )
     .expect("failed to run tauri-build");

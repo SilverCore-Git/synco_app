@@ -481,6 +481,26 @@
                                 </div>
                             </div>
 
+                            <div 
+                                v-if="discordPresenceAvailable"
+                                @click="discordPresence = !discordPresence"
+                                class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all max-w-md mt-4"
+                            >
+                                <div>
+                                    <h4 class="font-bold text-(--text)"><i class="bi bi-discord mr-1.5" />Statut Discord</h4>
+                                    <p class="text-sm text-(--text2) mt-0.5">Affiche « Sur Synco » ou « En appel vocal » sur votre profil Discord, sans jamais nommer l'organisation ni le salon</p>
+                                </div>
+                                <div 
+                                    class="w-12 h-6 rounded-full relative transition-colors duration-300 shrink-0"
+                                    :class="discordPresence ? 'bg-(--primary)' : 'bg-(--text)/15'"
+                                >
+                                    <div 
+                                        class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
+                                        :class="discordPresence ? 'right-0.5' : 'left-0.5 opacity-50'"
+                                    ></div>
+                                </div>
+                            </div>
+
                         </div>
 
                     </div>
@@ -688,6 +708,7 @@ import E2eeResetDialog from '../e2ee/E2eeResetDialog.vue';
 import { requestV4Reset } from '@/assets/e2eeV4/pendingReset';
 import { logoutEverywhere } from '@/assets/keycloak';
 import { disconnectSocket } from '@/composables/useWSocket';
+import { discordPresenceAvailable, useDiscordPresenceSetting } from '@/composables/useDiscordPresence';
 
 const props = withDefaults(defineProps<{
   isOpen: boolean;
@@ -704,6 +725,7 @@ const { theme } = useTheme();
 const { animations, systemReduced } = useMotion();
 const { Item: devMode } = useSettingsItem('devMode', false);
 const { Item: privacyMode } = useSettingsItem('privacyMode', false);
+const discordPresence = useDiscordPresenceSetting();
 
 const activeTab = ref<string>(props.initialTab);
 const avatarChange = ref<boolean>(false);
