@@ -16,11 +16,12 @@ mql?.addEventListener('change', (e) => { systemDark.value = e.matches; });
  * `resolvedTheme` : thème réellement appliqué ('light' | 'dark'), 'auto' suivant l'OS.
  */
 export default function useTheme() {
-    const { Item: theme } = useSettingsItem('theme', 'auto');
+    const { Item: theme } = useSettingsItem('theme', 'dark');
     const resolvedTheme = computed<'light' | 'dark'>(() => {
         const t = theme.value;
-        if (t === 'light' || t === 'dark') return t;
-        return systemDark.value ? 'dark' : 'light';
+        if (t === 'auto') return systemDark.value ? 'dark' : 'light';
+        // Sombre par défaut, y compris tant que le réglage n'est pas encore chargé (avant connexion).
+        return t === 'light' ? 'light' : 'dark';
     });
     return { theme, resolvedTheme };
 }
