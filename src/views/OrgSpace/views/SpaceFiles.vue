@@ -21,14 +21,7 @@
             </div>
             
             <div class="ml-auto flex items-center gap-4 text-(--text2)">
-                <button 
-                    @click="showUsersBar = !showUsersBar"
-                    class="hover:text-(--text) transition-colors"
-                    :class="showUsersBar ? 'text-(--text)' : ''"
-                    title="Membres"
-                >
-                    <i class="bi bi-people-fill" />
-                </button>
+                <UsersBarToggle />
             </div>
 
         </header>
@@ -570,6 +563,7 @@
 
     <Transition name="pop">
         <div v-if="isDragging" 
+             data-br-obstacle="always"
              class="fixed bottom-8 right-8 w-16 h-16 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-2xl z-[100] border-4 transition-all duration-500"
              :class="[
                 isDeleting ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
@@ -639,7 +633,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
-import { useUsersBar } from '@/composables/useUsersBar';
+import UsersBarToggle from '@/views/OrgSpace/components/layouts/UsersBarToggle.vue';
 import { openedOrg } from '@/assets/var';
 import CreateNewFolder from '../components/popup/CreateNewFolder.vue';
 import CreateNewFile from '../components/popup/CreateNewFile.vue';
@@ -667,7 +661,6 @@ import ShareToTargetModal from '@/components/common/ShareToTargetModal.vue';
 import { shareReference } from '@/composables/useShareReference';
 
 
-const { showUsersBar } = useUsersBar();
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();

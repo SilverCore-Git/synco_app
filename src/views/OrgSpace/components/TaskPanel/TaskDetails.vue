@@ -413,7 +413,10 @@
                     ref="menuEl"
                     class="absolute right-3 bottom-full mb-1 min-w-52 p-1.5 rounded-xl bg-(--bg) border border-(--border-color) shadow-xl flex flex-col gap-0.5 z-10"
                 >
-                    <button type="button" class="task-menu-item" :disabled="loading" @click="archiveTask">
+                    <button v-if="task.archived" type="button" class="task-menu-item" :disabled="loading" @click="restoreTask">
+                        <i class="bi bi-arrow-counterclockwise"></i> Restaurer la tâche
+                    </button>
+                    <button v-else type="button" class="task-menu-item" :disabled="loading" @click="archiveTask">
                         <i class="bi bi-archive"></i> Archiver la tâche
                     </button>
                     <button type="button" class="task-menu-item text-red-500!" :disabled="loading" @click="menuOpen = false; showDeleteConfirm = true">
@@ -1075,6 +1078,26 @@ const archiveTask = async () => {
         }
     } catch (e) {
         toast.show('Erreur lors de l\'archivage', 'error');
+    } finally {
+        loading.value = false;
+    }
+};
+
+// Ouverte depuis les archives : la tâche revient au tableau. L'écran des
+// archives la retire de sa liste sur notifyTaskUpdated (archived: false).
+const restoreTask = async () => {
+    menuOpen.value = false;
+    loading.value = true;
+    try {
+        const res = await sfetch(`/api/tasks/${props.orgId}/tasks/${props.task.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ archived: false })
+        });
+        if (!res.ok) throw new Error();
+        toast.show('Tâche restaurée', 'success');
+        notifyTaskUpdated(await res.json());
+    } catch (e) {
+        toast.show('Erreur lors de la restauration', 'error');
     } finally {
         loading.value = false;
     }

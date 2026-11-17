@@ -54,50 +54,43 @@ body.dark {
 
 }
 
-/* Thème clair : les surfaces (--bg*) montent en clarté au lieu de descendre
-   vers le noir, donc les jetons qui dépendent de la direction du contraste ne
-   peuvent pas juste reprendre les valeurs du thème sombre :
-   - --primary-dark reste un vert TRÈS clair : ailleurs dans l'app il sert de
-     teinte de surbrillance (bg-(--primary-dark)/30, ring, bordure de citation)
-     et doit rester pâle pour donner un lavis doux sur fond clair, comme son
-     équivalent sombre (vert profond) donne un lavis doux sur fond sombre.
-   - --scrollbar-thumb est donc une variable séparée : elle réutilise ce même
-     vert profond en thème sombre (subtil sur fond noir), mais un thumb aussi
-     pâle serait quasi invisible sur fond blanc, d'où une teinte plus soutenue
-     dédiée ici.
-   - --text2 et --primary-rgb n'existaient pas du tout côté clair : toutes les
-     utilisations (texte secondaire, halos box-shadow) tombaient sur une
-     variable non définie et perdaient leur effet silencieusement.
-   - --surface-sunken / --shadow-elevated / --glow-* : les halos colorés et
-     ombres fortes (drag & drop, hover de carte, bouton de suppression...)
-     étaient câblés en dur avec des opacités pensées pour un fond quasi noir
-     (ex. rgba(0,0,0,0.5), rgba(var(--primary-rgb),0.5)). Sur fond clair, la
-     même opacité donne un halo beaucoup plus saturé et voyant (« flashy »,
-     « éblouissant ») au lieu d'un dégradé discret — ces jetons portent donc
-     des intensités nettement réduites côté clair, à valeur d'usage identique
-     côté sombre (comportement inchangé). */
+/* Thème clair. Ce n'est pas le négatif du sombre : la hiérarchie s'inverse.
+   Sombre : cadre --bg (le plus clair) > cartes --bg2 > zone de travail --bg3 (noir).
+   Clair  : zone de travail --bg3 = fond sauge soutenu, cartes/panneaux --bg2 =
+   blanc, cadre et encarts --bg = blanc teinté. Les gris sont teintés du vert
+   Synco (pas de zinc neutre) et chaque niveau de texte tient 4.5:1 sur toutes
+   les surfaces, --bg3 compris :
+   - --text2 est opaque (#46544d, ~6.4:1 sur --bg3) : une opacité le rendait
+     illisible dès qu'il passait sur un fond gris ou recevait lui-même un /60.
+   - --primary #0b7a53 : 5.4:1 avec un libellé blanc (l'ancien #108e62 était
+     sous 4.5:1).
+   - --primary-dark reste un vert pâle (lavis de surbrillance, ring, citation),
+     moins saturé que l'ancien menthe #a7f3d0 qui « criait ».
+   - --scrollbar-thumb, --text2, --primary-rgb : cf. thème sombre ; les halos
+     (--glow-*, --shadow-elevated) gardent des intensités réduites, une même
+     opacité étant bien plus voyante sur fond clair. */
 body.light {
 
-  --primary: #108e62;
-  --primary-dark: #a7f3d0;
-  --primary-hover: #0d7551;
-  --primary-rgb: 16, 142, 98;
+  --primary: #0b7a53;
+  --primary-dark: #b9e5cf;
+  --primary-hover: #08603f;
+  --primary-rgb: 11, 122, 83;
 
-  --bg: #fafafa;
-  --bg2: #f4f4f5;
-  --bg3: #e4e4e7;
+  --bg: #f5f8f6;
+  --bg2: #ffffff;
+  --bg3: #e6ece8;
 
   --black: #000;
   --white: #fff;
 
-  --text: #27272a;
-  --text2: rgba(39, 39, 42, 0.62);
+  --text: #0f1b15;
+  --text2: #46544d;
 
-  --border-color: rgba(0, 0, 0, 0.1);
-  --scrollbar-thumb: rgba(16, 142, 98, 0.35);
+  --border-color: rgba(15, 40, 28, 0.14);
+  --scrollbar-thumb: rgba(15, 40, 28, 0.28);
 
-  --surface-sunken: var(--bg3);
-  --shadow-elevated: rgba(0, 0, 0, 0.12);
+  --surface-sunken: #dde5e0;
+  --shadow-elevated: rgba(15, 40, 28, 0.14);
   --glow-primary-strong: rgba(var(--primary-rgb), 0.22);
   --glow-primary-soft: rgba(var(--primary-rgb), 0.12);
   --glow-primary-faint: rgba(var(--primary-rgb), 0.08);
@@ -1076,3 +1069,50 @@ button.tab:not(.active) {
   transform-origin: 70% 70%;
   animation: wave 1.4s ease-in-out 0.5s 1;
 }
+/* ── Colonne bas-droite (App.vue) ──────────────────────────────────────
+   Tâches et événements ouverts (TaskPanelDock), transferts (TransfersPanel)
+   et toasts (Notifications) partagent la même largeur et les mêmes surfaces :
+   une barre de 2,75 rem pour ce qui est réduit, une carte pour ce qui est
+   déplié. --br-lift : de combien la colonne se lève pour dégager ce qui est
+   cliquable dessous (zone de saisie, corbeille… cf. data-br-obstacle). */
+:root {
+  --br-width: 25rem;
+  --br-lift: 0px;
+}
+
+.br-bar {
+  pointer-events: auto;
+  min-width: 0;
+  height: 2.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: var(--bg);
+  border: 1px solid var(--border-color);
+  border-radius: 0.9rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  transition: border-color 0.15s;
+}
+.br-bar:hover { border-color: color-mix(in srgb, var(--primary) 50%, transparent); }
+
+.br-card {
+  pointer-events: auto;
+  background: var(--bg);
+  border: 1px solid var(--border-color);
+  border-radius: 1.1rem;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+.br-btn {
+  width: 1.9rem;
+  height: 1.9rem;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 0.55rem;
+  color: var(--text2);
+  font-size: 0.85rem;
+  transition: background-color 0.15s, color 0.15s;
+}
+.br-btn:hover { background: color-mix(in srgb, var(--text) 10%, transparent); color: var(--text); }

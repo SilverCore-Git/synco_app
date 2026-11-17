@@ -7,7 +7,7 @@ import ConnectionErrorScreen from './components/ConnectionErrorScreen.vue';
 //import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import init, { refetchUser } from './assets/init';
-import { isLoaded, user } from './assets/var';
+import { isLittleScreen, isLoaded, user } from './assets/var';
 import type { User } from '@/types/types';
 import Notifications from './components/overlay/Notifications.vue';
 import TransfersPanel from './components/overlay/TransfersPanel.vue';
@@ -31,6 +31,7 @@ import { useToast } from './composables/useToast';
 import TopBar from './components/layout/topBar.vue';
 import useSecurePeer from './composables/useSecurePeer';
 import useAppPresence from './composables/useAppPresence';
+import useDiscordPresence from './composables/useDiscordPresence';
 import CallOverlay from './components/peer/CallOverlay.vue';
 import waitFor from './assets/utils/waitfor';
 import { debugLog } from './assets/utils/debugLog';
@@ -542,6 +543,7 @@ const finishAuthInit = async () => {
   await initPeer();
   bootProgress.value = 95;
   useAppPresence();
+  void useDiscordPresence();
   bootProgress.value = 100;
 };
 
@@ -731,6 +733,94 @@ onMounted(() => {
 });
 onUnmounted(() => brDockObserver?.disconnect());
 
+// ── Lever la colonne bas-droite ───────────────────────────────────────
+// La colonne recouvre ce qui est cliquable en bas à droite de la vue : zone
+// de saisie des messages (salons, MP, threads), corbeille du glisser-déposer
+// (fichiers, notes, tâches), sélecteur d'emoji… Ces éléments portent
+// `data-br-obstacle` :
+//  - sans valeur : la colonne se lève de leur hauteur quand le pointeur passe
+//    dessus sous la colonne (« comme pour cliquer derrière »), ou quand ils ont
+//    le focus (on tape un message), et reste levée tant que le pointeur est
+//    sur la colonne elle-même ;
+//  - "always" : tant qu'ils sont affichés sous la colonne (corbeille pendant
+//    un glisser, sélecteur d'emoji ouvert).
+// Le décalage passe par --br-lift, lu aussi par les toasts.
+let brLift = 0;
+let brLiftFrame = 0;
+let brPointer: { x: number; y: number; target: EventTarget | null } | null = null;
+
+function computeBrLift(): number {
+  const dock = brDockEl.value;
+  if (!dock || isLittleScreen.value) return 0;
+  // Pointeur sur la colonne (ou un toast) : on ne bouge pas, sinon elle
+  // fuirait sous la souris.
+  const target = brPointer?.target as Element | null;
+  if (target instanceof Element && (dock.contains(target) || target.closest('[data-br-toasts]'))) return brLift;
+
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  const dockRect = dock.getBoundingClientRect();
+  // Bord gauche de ce qu'occupe la colonne (au moins la largeur d'un panneau, pour les toasts).
+  const zoneLeft = Math.min(dockRect.width ? dockRect.left : Infinity, window.innerWidth - rem - 25 * rem) - 16;
+  const bottom = window.innerHeight - rem;
+  const focused = document.activeElement;
+
+  let lift = 0;
+  for (const el of document.querySelectorAll<HTMLElement>('[data-br-obstacle]')) {
+    if (dock.contains(el)) continue; // zone de saisie d'une tâche ouverte dans le dock
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height || r.right < zoneLeft || r.top >= bottom) continue;
+    const active = el.dataset.brObstacle === 'always'
+      || (!!focused && el.contains(focused))
+      || (!!brPointer && brPointer.x >= Math.max(r.left, zoneLeft) && brPointer.x <= r.right && brPointer.y >= r.top - 8 && brPointer.y <= r.bottom);
+    if (active) lift = Math.max(lift, bottom - r.top + 8);
+  }
+  return Math.max(0, Math.round(lift));
+}
+
+function scheduleBrLift() {
+  if (brLiftFrame) return;
+  brLiftFrame = requestAnimationFrame(() => {
+    brLiftFrame = 0;
+    const next = computeBrLift();
+    if (next === brLift) return;
+    brLift = next;
+    document.documentElement.style.setProperty('--br-lift', `${next}px`);
+  });
+}
+
+const onBrPointer = (e: PointerEvent | DragEvent | MouseEvent) => {
+  brPointer = { x: e.clientX, y: e.clientY, target: e.target };
+  scheduleBrLift();
+};
+const onBrPointerLeave = () => {
+  brPointer = null;
+  scheduleBrLift();
+};
+// Après un clic ou une touche, la vue a pu ouvrir ou fermer un obstacle
+// (sélecteur d'emoji, corbeille) : on remesure après son rendu.
+const onBrLater = () => setTimeout(scheduleBrLift, 0);
+const brLiftEvents: [string, EventListener][] = [
+  ['pointermove', onBrPointer as EventListener],
+  ['dragover', onBrPointer as EventListener],
+  ['click', onBrLater],
+  ['keyup', onBrLater],
+  ['focusin', onBrLater],
+  ['focusout', onBrLater],
+  ['input', onBrLater],
+  ['dragend', () => setTimeout(scheduleBrLift, 350)],
+  ['drop', () => setTimeout(scheduleBrLift, 350)],
+  ['resize', scheduleBrLift]
+];
+onMounted(() => {
+  brLiftEvents.forEach(([name, fn]) => window.addEventListener(name, fn, { passive: true, capture: true }));
+  document.documentElement.addEventListener('pointerleave', onBrPointerLeave);
+});
+onUnmounted(() => {
+  brLiftEvents.forEach(([name, fn]) => window.removeEventListener(name, fn, { capture: true }));
+  document.documentElement.removeEventListener('pointerleave', onBrPointerLeave);
+  cancelAnimationFrame(brLiftFrame);
+});
+
 onMounted(async () => {
   debugLog('[boot] onMounted start');
 
@@ -775,10 +865,11 @@ onMounted(async () => {
     <!-- Colonne bas-droite : tâches ouvertes (TaskPanelDock) puis transferts.
          Ils s'empilent dans la hauteur au lieu de se recouvrir ; les toasts
          se placent au-dessus grâce à --br-dock-h (Notifications.vue). Même
-         z-index que l'ancien TransfersPanel : sous les Popup (z-2000). -->
+         z-index que l'ancien TransfersPanel : sous les Popup (z-2000).
+         --br-lift la lève au-dessus de ce qui est cliquable dessous. -->
     <div
       ref="brDockEl"
-      class="fixed bottom-4 right-4 z-[1500] flex flex-col items-end gap-3 max-h-[calc(100dvh-5rem)] pointer-events-none"
+      class="fixed bottom-[calc(1rem+var(--br-lift,0px))] right-4 z-[1500] flex flex-col items-end gap-3 max-h-[calc(100dvh-5rem-var(--br-lift,0px))] pointer-events-none transition-[bottom] duration-300 ease-out"
     >
       <TaskPanelDock v-if="authenticated && user" />
       <TransfersPanel />

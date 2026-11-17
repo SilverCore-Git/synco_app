@@ -21,8 +21,8 @@
 ```env
 # synco_app/.env
 VITE_USE_HTTPS=true
-VITE_API_URL=https://192.168.1.73:9000
-VITE_SOCKET_URL=https://192.168.1.73:3467
+VITE_API_URL=https://192.168.1.73:9000 check-secrets:allow
+VITE_SOCKET_URL=https://192.168.1.73:3467 check-secrets:allow
 VITE_KEYCLOAK_URL=https://auth.silvercore.fr
 VITE_KEYCLOAK_REALM=Synco
 VITE_DEV=true
@@ -91,7 +91,7 @@ const useHttps = import.meta.env?.VITE_USE_HTTPS !== 'false';
 let socketUrl = import.meta.env?.VITE_SOCKET_URL;
 
 if (!socketUrl) {
-  const host = isDev ? '192.168.1.73' : 'localhost';
+  const host = isDev ? '192.168.1.73' : 'localhost'; check-secrets:allow
   const port = '3467';
   const protocol = useHttps ? 'https' : 'http';
   socketUrl = `${protocol}://${host}:${port}`;
@@ -150,8 +150,8 @@ const waitForSocketConnection = async (socketRef, timeoutMs = 15000) => {
 VITE_USE_HTTPS=true
 
 # URLs en HTTPS
-VITE_API_URL=https://192.168.1.73:9000
-VITE_SOCKET_URL=https://192.168.1.73:3467
+VITE_API_URL=https://192.168.1.73:9000 check-secrets:allow
+VITE_SOCKET_URL=https://192.168.1.73:3467 check-secrets:allow
 
 # Keycloak (nécessite HTTPS)
 VITE_KEYCLOAK_URL=https://auth.silvercore.fr
@@ -203,15 +203,15 @@ function getEnvValue(key: string, defaultValue: string = 'false'): string {
 ### Mode HTTP (pour développement local sans Keycloak)
 ```env
 VITE_USE_HTTPS=false
-VITE_API_URL=http://192.168.1.73:9000
-VITE_SOCKET_URL=http://192.168.1.73:3467
+VITE_API_URL=http://192.168.1.73:9000 check-secrets:allow
+VITE_SOCKET_URL=http://192.168.1.73:3467 check-secrets:allow
 ```
 
 ### Mode HTTPS (pour production ou avec Keycloak)
 ```env
 VITE_USE_HTTPS=true
-VITE_API_URL=https://192.168.1.73:9000
-VITE_SOCKET_URL=https://192.168.1.73:3467
+VITE_API_URL=https://192.168.1.73:9000 check-secrets:allow
+VITE_SOCKET_URL=https://192.168.1.73:3467 check-secrets:allow
 ```
 
 ---
@@ -1081,3 +1081,44 @@ L'ancienne popup initialisait l'état local avec les **valeurs du rôle** quand 
 3. Toujours aucune vérification visuelle en navigateur (Node.js absent du sandbox) : `vue-tsc` et `vite build` passent.
 4. La colonne des rôles est limitée à `max-h-56` sous `md` : à contrôler sur mobile avec beaucoup de rôles.
 
+
+## 📅 **17 Novembre 2026 - Refonte de l'écran des tâches archivées**
+
+**Durée** : Session complète  
+**Priorité** : ⭐⭐⭐ (Moyenne)  
+**Complexité** : Moyenne  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Remplacer l'écran des archives fondé sur les dossiers (todoLists) par un écran rangé par personne, filtrable par tag, avec recherche, qui affiche les mêmes cartes que le Kanban.
+
+### **Fichiers Créés**
+
+| Fichier | Description |
+|---------|-------------|
+| `src/views/OrgSpace/components/SpaceTasks/ArchivePeopleList.vue` | Liste des personnes (Tout le monde, assignés, Sans assigné) avec compteur filtré et date de dernière archive ; recherche au-delà de 6 personnes. Colonne sur desktop, contenu du menu déroulant sous `lg`. |
+| `src/views/OrgSpace/components/SpaceTasks/ArchivePersonAvatar.vue` | Avatar ou initiales sur une teinte stable par personne. |
+| `src/views/OrgSpace/components/SpaceTasks/archivePeople.ts` | `taskPeople` (une tâche à 2 assignés est rangée chez les deux), tri (vous, puis volume, puis nom ; Sans assigné en dernier), `personHue`. |
+| `src/assets/utils/taskArchive.ts` | `archivedAgoLabel` : « Archivée hier », « il y a 5 j », puis la date. |
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/views/OrgSpace/views/TasksArchive.vue` | Réécrit. Groupes par personne (8 cartes puis « N de plus »), recherche `buildTaskMatcher` (mots ou regex), filtre tags limité aux tags présents dans les archives, sélection par carte / par personne / tout le visible, restauration avec barre « Annuler » (6 s), suppression définitive via `ConfirmDelete`, menu clic droit. Plus de dossiers ni de glisser vers la corbeille. Suit `onTaskPanelChange`. |
+| `src/views/OrgSpace/components/SpaceTasks/TaskCard.vue` | Prop `archived` : icône archive, pas de halo de retard, pied « Archivée … » + état (Terminée / Non terminée) poussé en bas pour aligner une rangée de grille. |
+| `src/views/OrgSpace/components/TaskPanel/TaskDetails.vue` | Menu « … » : « Restaurer la tâche » quand `task.archived` (au lieu d'« Archiver »). |
+| `synco_api/src/routes/tasks.ts` | Les deux endpoints d'archives incluent `subtasks { id, status }` et `_count.attachments`, utilisés par TaskCard. |
+
+### **Commits**
+```bash
+5a89da3 (synco_api) feat(tasks): archives renvoient sous-tâches et pièces jointes pour la carte TaskCard
+d1c70f1 (synco_app) feat(tasks): refonte des tâches archivées — par personne, tags, recherche, vraies cartes
+```
+**Date** : 17 Novembre 2026
+
+### **Prochaines Étapes**
+1. Vérifié dans un harnais (vrai composant, données simulées, Firefox headless : `~/.cache/synco-archive-preview`), pas encore dans l'app connectée.
+2. Les todoLists restent en base et dans l'API ; seul cet écran ne les montre plus.
+3. Pas d'écoute websocket sur l'écran des archives (comme avant) : une tâche archivée par quelqu'un d'autre n'apparaît qu'au rechargement.
+4. « Annuler » ré-archive la tâche : sa date d'archivage devient celle du moment.

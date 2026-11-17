@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { useToast } from '@/composables/useToast';
 import { user } from '@/assets/var';
-import EmojiPicker from './EmojiPicker.vue';
+import EmojiPickerPopover, { isCompactPicker as isCompact } from './EmojiPickerPopover.vue';
 import type { ReactionUser } from '@/types/types';
 
 export interface ReactionGroup {
@@ -149,25 +149,32 @@ defineExpose({ toggleReaction });
       </button>
     </div>
 
-    <!-- Emoji picker dropdown (Teleported to body to escape z-index constraints) -->
+    <!-- Sélecteur d'emoji, téléporté vers body pour échapper aux z-index des
+         messages. Le conteneur reste monté (vide, sans taille) pour que
+         EmojiPickerPopover puisse jouer son animation de sortie ; sur mobile,
+         le popover se téléporte lui-même en bottom sheet. Placé au-dessus du
+         bouton, mais rabattu dans l'écran près du haut ou des bords. -->
     <Teleport to="body">
-      <Transition name="fade" mode="out-in">
-         <div v-if="internalShowReactionPicker" 
-              class="fixed z-[9999]"
-              :style="pickerCoords ? {
-                bottom: `calc(100vh - ${pickerCoords.y}px + 10px)`,
-                left: Math.max(10, pickerCoords.x - 280) + 'px'
-              } : {
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)'
-              }"
-         >
-           <EmojiPicker @select="toggleReaction" />
-        </div>
-      </Transition>
+      <div
+        class="fixed z-[9999]"
+        :style="pickerCoords ? {
+          top: `max(0.625rem, calc(${pickerCoords.y}px - 0.625rem - min(26.5rem, 70vh)))`,
+          left: `clamp(0.625rem, ${pickerCoords.x - 320}px, calc(100vw - 20.625rem))`
+        } : {
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)'
+        }"
+      >
+        <EmojiPickerPopover
+          :show="internalShowReactionPicker"
+          :origin="pickerCoords ? 'bottom right' : 'center'"
+          @select="toggleReaction"
+          @close="emit('reaction-picker-closed')"
+        />
+      </div>
 
-      <div class="fixed inset-0 z-[9998]" v-if="internalShowReactionPicker" @click="emit('reaction-picker-closed')" />
+      <div class="fixed inset-0 z-[9998]" v-if="internalShowReactionPicker && !isCompact" @click="emit('reaction-picker-closed')" />
     </Teleport>
 
   </div>

@@ -81,7 +81,7 @@
 
     </main>
 
-    <footer v-if="!unavailable" ref="footerRef" class="absolute bottom-0 inset-x-0 z-[110] p-1 bg-transparent mt-auto">
+    <footer v-if="!unavailable" ref="footerRef" data-br-obstacle class="absolute bottom-0 inset-x-0 z-[110] p-1 bg-transparent mt-auto">
 
         <div v-if="channel.typing?.label.value" class="h-5 flex justify-start items-center px-4 gap-2 select-none">
             <TypingIndicator />
@@ -222,12 +222,16 @@
                 </div>
 
                 <div
-                    v-if="showEmojiPicker"
                     ref="emojiPickerRef"
                     class="absolute bottom-full right-0 mb-2 z-50 emoji-picker-container"
+                    data-br-obstacle="always"
                     @click.stop
                 >
-                    <EmojiPicker @select="insertEmoji" />
+                    <EmojiPickerPopover
+                        :show="showEmojiPicker"
+                        @select="insertEmoji"
+                        @close="showEmojiPicker = false"
+                    />
                 </div>
 
             </div>
@@ -261,7 +265,7 @@ import useWindowFileDrop from '@/composables/useWindowFileDrop';
 import { MESSAGE_CHANNEL_KEY, type MessageChannel } from '@/composables/messageChannel';
 import { MENTION_SOURCE_KEY } from '@/composables/mentionSource';
 import SpinLoader from '@/components/SpinLoader.vue';
-import EmojiPicker from '@/components/common/EmojiPicker.vue';
+import EmojiPickerPopover from '@/components/common/EmojiPickerPopover.vue';
 import TypingIndicator from '@/components/common/TypingIndicator.vue';
 import ThreadMessage from './ThreadMessage.vue';
 import ThreadTextarea from './ThreadTextarea.vue';

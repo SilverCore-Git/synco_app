@@ -158,7 +158,7 @@
 
         </main>
 
-        <footer v-if="recipient" ref="footerRef" class="absolute bottom-0 inset-x-0 z-[110] p-1 bg-transparent mt-auto">
+        <footer v-if="recipient" ref="footerRef" data-br-obstacle class="absolute bottom-0 inset-x-0 z-[110] p-1 bg-transparent mt-auto">
 
             <div v-if="isSomeoneTyping" class="h-5 flex justify-start items-center px-4 gap-2 select-none">
             
@@ -296,12 +296,17 @@
 
                 </div>
 
-                <div 
-                    v-if="showEmojiPicker && recipient"
+                <div
+                    v-if="recipient"
                     class="absolute bottom-full right-0 mb-2 z-50 emoji-picker-container"
+                    data-br-obstacle="always"
                     @click.stop
                 >
-                    <EmojiPicker @select="insertEmoji" />
+                    <EmojiPickerPopover
+                        :show="showEmojiPicker"
+                        @select="insertEmoji"
+                        @close="showEmojiPicker = false"
+                    />
                 </div>
 
             </div>
@@ -366,7 +371,7 @@ import { useToast } from '@/composables/useToast';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import { useMessageDraft, selfCipher } from '@/composables/useMessageDraft';
 import DropDown from '@/components/DropDown.vue';
-import EmojiPicker from '@/components/common/EmojiPicker.vue';
+import EmojiPickerPopover from '@/components/common/EmojiPickerPopover.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import useSecurePeer from '@/composables/useSecurePeer';
 
@@ -1334,7 +1339,13 @@ onMounted(async () => {
         const target = mostRecentUserId
             ? openedOrg.value?.members?.find(m => m.user?.id === mostRecentUserId)
             : openedOrg.value?.members?.[0];
-        if (target) router.replace({ params: { ...route.params, userId: target.id }, query: route.query });
+        // Nom de route explicite : un replace avec seulement `params` garde le
+        // nom courant (OrgChat, chemin `chat` sans :userId) — la conversation
+        // s'affichait mais la route n'était jamais OrgThreadChat, donc les
+        // garde-fous « conversation active » (isForActiveConversation dans
+        // useNotification.ts, notif:dm:new-message dans OrgLayout.vue) ne
+        // reconnaissaient pas le DM ouvert et chaque message reçu passait non lu.
+        if (target) router.replace({ name: 'OrgThreadChat', params: { ...route.params, userId: target.id }, query: route.query });
     }
 
     const wsRef = await useWSocket();

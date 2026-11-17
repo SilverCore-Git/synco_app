@@ -13,15 +13,16 @@
         <div class="p-4 pb-3 flex flex-col gap-3">
             <!-- Évènements sur la journée entière : hors de la frise horaire -->
             <div v-if="allDayToday.length" class="flex flex-wrap gap-1.5">
-                <RouterLink
+                <a
                     v-for="occ in allDayToday"
                     :key="`${occ.eventId}|${occ.occurrenceKey}`"
-                    :to="eventLink(occ)"
+                    :href="router.resolve(eventLink(occ)).href"
+                    @click.prevent="openEvent(orgId!, occ)"
                     class="allday"
                     :style="{ '--c': occ.color || 'var(--primary)' }"
                 >
                     <i class="bi bi-brightness-high"></i> {{ occ.title }}
-                </RouterLink>
+                </a>
             </div>
 
             <div v-if="loading" class="ruler animate-pulse" :style="{ height: `${HOURS * PX}px` }">
@@ -33,10 +34,11 @@
                     <span class="tabular-nums">{{ h.label }}</span>
                 </div>
 
-                <RouterLink
+                <a
                     v-for="b in blocks"
                     :key="b.key"
-                    :to="eventLink(b.occ)"
+                    :href="router.resolve(eventLink(b.occ)).href"
+                    @click.prevent="openEvent(orgId!, b.occ)"
                     class="evt"
                     :class="{ 'is-past': b.past }"
                     :style="b.style"
@@ -46,7 +48,7 @@
                     <span v-if="b.height > 40" class="text-[11px] text-(--text2) truncate tabular-nums">
                         {{ b.range }}<template v-if="b.occ.location"> · {{ b.occ.location }}</template>
                     </span>
-                </RouterLink>
+                </a>
 
                 <div class="now-line" :style="{ top: `${nowTop}px` }">
                     <span class="tabular-nums">{{ nowLabel }}</span>
@@ -73,7 +75,9 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { openedOrg } from '@/assets/var';
+import { useEventPanels } from '@/composables/useEventPanels';
 import { dayKeyOf, type UpcomingAgendaDay } from '@/composables/useUpcomingAgenda';
 import type { OccurrenceInstance } from '@/types/agenda';
 
@@ -93,6 +97,11 @@ const PX = 44;
 
 const orgId = computed(() => openedOrg.value?.id);
 const agendaLink = computed(() => `/${orgId.value}/agenda`);
+
+// Clic : l'évènement s'ouvre dans le dock (useEventPanels) ; le lien vers
+// l'agenda reste pour l'ouverture dans un nouvel onglet.
+const router = useRouter();
+const { openEvent } = useEventPanels();
 
 function eventLink(occ: OccurrenceInstance) {
     return { path: `/${orgId.value}/agenda`, query: { eventId: occ.eventId } };

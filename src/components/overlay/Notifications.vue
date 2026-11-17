@@ -1,6 +1,6 @@
 <template>
 
-    <div class="fixed top-[max(1rem,env(safe-area-inset-top))] left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-80 flex-col sm:top-auto sm:bottom-[calc(1rem+var(--br-dock-h,0px))] sm:left-auto sm:right-4 sm:translate-x-0 sm:w-80 sm:flex-col-reverse z-1000 flex gap-2 pointer-events-none">
+    <div data-br-toasts class="fixed top-[max(1rem,env(safe-area-inset-top))] left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-80 flex-col sm:top-auto sm:bottom-[calc(1rem+var(--br-dock-h,0px)+var(--br-lift,0px))] sm:left-auto sm:right-4 sm:translate-x-0 sm:w-(--br-width) sm:max-w-[calc(100vw-2rem)] sm:transition-[bottom] sm:duration-300 sm:ease-out sm:flex-col-reverse z-1000 flex gap-2 pointer-events-none">
 
         <TransitionGroup name="list">
 
@@ -289,7 +289,7 @@
 
 import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import getSpaceIdByThreadId from '@/assets/utils/getSpaceWithThreadId';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, user } from '@/assets/var';
 import useNotifications, { type Notification, type NotificationType } from '@/composables/useNotifications';
 import useSecurePeer from '@/composables/useSecurePeer';
 import usePrivateMeet from '@/composables/usePrivatMeet';
@@ -362,7 +362,17 @@ const getStyles = (type: NotificationType, toastType?: string) => {
 
 
 // Message direct : son « mention » (trois bulles), plus marqué que le simple message de salon.
+// Paramètres › Notifications › Son : le même réglage coupe le son des push et celui-ci.
+const notificationSoundEnabled = (): boolean => {
+    let prefs = user.value?.notificationPreferences;
+    if (typeof prefs === 'string') {
+        try { prefs = JSON.parse(prefs); } catch { prefs = null; }
+    }
+    return prefs?.sound !== false;
+};
+
 const playNotificationSound = (type: NotificationType) => {
+    if (!notificationSoundEnabled()) return;
     SoundService.play(type === 'notif:dmmsg' ? 'mention' : 'notification');
 };
 

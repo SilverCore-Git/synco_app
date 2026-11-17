@@ -54,6 +54,8 @@
         </service>
         <!-- Bouton « Refuser » de la notification d'appel -->
         <receiver android:name=".CallActionReceiver" android:exported="false" />
+        <!-- Bouton « Marquer comme lu » des notifications de message (SyncoNotifications) -->
+        <receiver android:name=".PushActionReceiver" android:exported="false" />
     </application>
 
     <!-- Permissions -->

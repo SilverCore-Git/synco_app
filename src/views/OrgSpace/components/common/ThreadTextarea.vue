@@ -12,6 +12,16 @@
             @select="insertMention"
         />
 
+        <EmojiSuggestions
+            :is-open="showEmojis"
+            :query="emojiQuery"
+            :results="emojiResults"
+            :active-index="activeEmojiIndex"
+            :ready="emojisReady"
+            @hover="activeEmojiIndex = $event"
+            @select="insertEmojiSuggestion"
+        />
+
         <textarea
             ref="textareaRef"
             :value="displayValue"
@@ -28,6 +38,7 @@
             :disabled="disabled"
             @keydown.enter="handleEnter"
             @keydown="handleKeydown"
+            @blur="showEmojis = false"
         />
 
     </div>
@@ -37,6 +48,10 @@
 <script lang="ts" setup>
 
 import MentionsList from '@/components/common/MentionsList.vue';
+import EmojiSuggestions from '@/components/common/EmojiSuggestions.vue';
+import {
+    emojisReady, findByShortcode, loadEmojis, recordEmojiUsage, suggestEmojis, withSkin, type Emoji,
+} from '@/components/common/emoji/emojiStore';
 import { type MentionEntry } from '@/composables/useMentions';
 import {
     TRIGGERS, TRIGGER_QUERY_REGEX, KIND_TO_TRIGGER_CHAR, buildReferenceToken,
@@ -207,6 +222,79 @@ const updateMentionState = (text: string, selectionStart: number) => {
 
 };
 
+// --- Autocomplétion d'emojis « :requête » ------------------------------
+// Même principe que les mentions : « :fe » propose 🔥 & co au-dessus du
+// champ. Deux caractères minimum pour ne pas transformer « :p » ou « :D »
+// (envoyés tels quels avec Entrée) ; le « : » doit suivre un espace ou le
+// début du texte, donc ni « 12:30 » ni les URL ne déclenchent rien.
+// « :fire: » tapé en entier est remplacé directement par 🔥.
+const EMOJI_QUERY_REGEX = /(?:^|\s):([\p{L}\p{N}_+'’-]{2,})$/u;
+const EMOJI_SHORTCODE_REGEX = /(?:^|\s):([\p{L}\p{N}_+-]+):$/u;
+
+const showEmojis = ref<boolean>(false);
+const emojiQuery = ref<string>('');
+const activeEmojiIndex = ref<number>(0);
+const startEmojiIndex = ref<number>(-1);
+
+const emojiResults = computed<Emoji[]>(() =>
+    showEmojis.value && emojisReady.value ? suggestEmojis(emojiQuery.value) : []
+);
+
+const replaceRange = (start: number, end: number, insertText: string) => {
+    const pretty = displayValue.value;
+    const updated = `${pretty.slice(0, start)}${insertText}${pretty.slice(end)}`;
+    emit('update:modelValue', toRaw(updated));
+    const caret = start + insertText.length;
+    nextTick(() => {
+        const el = textareaRef.value;
+        if (!el) return;
+        el.focus();
+        el.setSelectionRange(caret, caret);
+        adjustHeight();
+    });
+};
+
+const updateEmojiState = (text: string, selectionStart: number) => {
+    const before = text.slice(0, selectionStart);
+
+    // Shortcode fermé connu → remplacement immédiat par l'emoji
+    const closed = before.match(EMOJI_SHORTCODE_REGEX);
+    if (closed && emojisReady.value) {
+        const entry = findByShortcode(closed[1]!);
+        if (entry) {
+            const char = withSkin(entry);
+            recordEmojiUsage(char);
+            showEmojis.value = false;
+            replaceRange(selectionStart - closed[1]!.length - 2, selectionStart, char);
+            return;
+        }
+    }
+
+    const match = before.match(EMOJI_QUERY_REGEX);
+    if (!match) {
+        showEmojis.value = false;
+        return;
+    }
+    // Données chargées à la demande, au premier « :xx » tapé
+    if (!emojisReady.value) loadEmojis().catch((err) => console.error('[ThreadTextarea] emojis indisponibles', err));
+    if (emojiQuery.value !== match[1]) activeEmojiIndex.value = 0;
+    emojiQuery.value = match[1]!;
+    startEmojiIndex.value = selectionStart - match[1]!.length - 1;
+    showEmojis.value = true;
+};
+
+const insertEmojiSuggestion = (entry: Emoji) => {
+    if (startEmojiIndex.value === -1) return;
+    const char = withSkin(entry);
+    recordEmojiUsage(char);
+    const end = textareaRef.value?.selectionStart ?? startEmojiIndex.value + emojiQuery.value.length + 1;
+    const after = displayValue.value.slice(end);
+    // Pas de double espace si le texte qui suit en commence déjà un
+    replaceRange(startEmojiIndex.value, end, /^\s/.test(after) ? char : `${char} `);
+    showEmojis.value = false;
+    activeEmojiIndex.value = 0;
+};
+
 const insertMention = (entry: MentionEntry) => {
 
     if (startMentionIndex.value === -1) return;
@@ -253,6 +341,25 @@ const handleKeydown = (e: KeyboardEvent) => {
 
     if (e.key === 'ArrowUp' && !showMentions.value && props.modelValue === '') {
         emit('edit-last');
+        return;
+    }
+
+    if (showEmojis.value && emojiResults.value.length) {
+        const count = emojiResults.value.length;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeEmojiIndex.value = (activeEmojiIndex.value + 1) % count;
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeEmojiIndex.value = (activeEmojiIndex.value - 1 + count) % count;
+        } else if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
+            e.preventDefault();
+            insertEmojiSuggestion(emojiResults.value[activeEmojiIndex.value] ?? emojiResults.value[0]!);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            showEmojis.value = false;
+        }
         return;
     }
 
@@ -312,12 +419,16 @@ const onInput = (event: Event) => {
     emit('update:modelValue', toRaw(target.value));
     emit('input');
     adjustHeight();
-    updateMentionState(target.value, target.selectionStart ?? target.value.length);
+    const caret = target.selectionStart ?? target.value.length;
+    updateMentionState(target.value, caret);
+    if (showMentions.value) showEmojis.value = false;
+    else updateEmojiState(target.value, caret);
 };
 
 const handleEnter = (event: KeyboardEvent) => {
 
     if (showMentions.value) return;
+    if (showEmojis.value && emojiResults.value.length && !event.shiftKey) return;
     if (event.shiftKey) return;
     // submitOnEnter=false : seule Ctrl/Cmd+Entrée envoie, Entrée seule doit
     // pouvoir insérer un saut de ligne normalement (pas de preventDefault).
@@ -335,6 +446,7 @@ watch(() => props.modelValue, (newVal) => {
     if (newVal === '')
     {
         showMentions.value = false;
+        showEmojis.value = false;
         pendingSubs.value = [];
         nextTick(() => {
             if (textareaRef.value) {
@@ -353,6 +465,7 @@ watch(displayValue, () => nextTick(adjustHeight));
 
 watch(() => route.params.threadId, async () => {
     showMentions.value = false;
+    showEmojis.value = false;
     await nextTick();
     autoFocus(textareaRef.value);
 });

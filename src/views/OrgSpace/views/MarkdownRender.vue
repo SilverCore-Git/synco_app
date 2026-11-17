@@ -465,17 +465,17 @@ const onTaskCardClick = (task: Task) => {
 
 .markdown-body :deep(blockquote) {
   border-left: 4px solid var(--primary, #3b82f6);
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: color-mix(in srgb, var(--text) 3%, transparent);
   padding: 0.5rem 0.75rem;
   margin: 0.5rem 0;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text2);
   border-radius: 0 4px 4px 0;
 }
 
 .markdown-body :deep(h1),
 .markdown-body :deep(h2),
 .markdown-body :deep(h3) {
-  color: #ffffff;
+  color: var(--text);
   font-weight: 800;
   line-height: 1.3;
   margin-top: 1rem;
@@ -494,7 +494,7 @@ const onTaskCardClick = (task: Task) => {
 
 .markdown-body :deep(h3) {
   font-size: 1.1rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: color-mix(in srgb, var(--text) 90%, transparent);
 }
 
 .markdown-body :deep(h1:first-child),
@@ -506,7 +506,7 @@ const onTaskCardClick = (task: Task) => {
 .markdown-body :deep(h4),
 .markdown-body :deep(h5),
 .markdown-body :deep(h6) {
-  color: rgba(255, 255, 255, 0.9);
+  color: color-mix(in srgb, var(--text) 90%, transparent);
   font-weight: 700;
   line-height: 1.3;
   margin-top: 1rem;
@@ -553,7 +553,7 @@ const onTaskCardClick = (task: Task) => {
   border-radius: 0.375rem;
   font-weight: 600;
   background-color: var(--primary-dark);
-  color: white;
+  color: var(--text);
   cursor: pointer;
   transition: filter 0.2s;
 }

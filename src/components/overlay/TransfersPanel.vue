@@ -2,44 +2,69 @@
 
     <!-- Envois et téléchargements en cours (cf. services/transfers). Placé par
          la colonne bas-droite d'App.vue (z-1500 : au-dessus des DropDown,
-         sous les Popup), sous les tâches ouvertes du TaskPanelDock. -->
-    <Transition name="transfers">
-        <div
-            v-if="items.length > 0"
-            class="
-                pointer-events-auto shrink-0 w-80 max-w-[calc(100vw-2rem)]
-                bg-(--bg) border border-(--text)/10 rounded-xl shadow-2xl
-                overflow-hidden flex flex-col
-            "
-        >
+         sous les Popup), sous les tâches ouvertes du TaskPanelDock, avec les
+         mêmes surfaces (br-bar réduit, br-card déplié) et la même largeur. -->
+    <Transition name="transfers" mode="out-in">
 
+        <!-- Réduit : une barre comme une tâche réduite, avec la progression globale en fond. -->
+        <div v-if="items.length > 0 && collapsed" key="bar" class="br-bar relative overflow-hidden shrink-0 w-(--br-width) max-w-[calc(100vw-2rem)]">
+            <div
+                v-if="activeCount > 0"
+                class="absolute inset-y-0 left-0 bg-(--primary)/10 transition-all duration-300 pointer-events-none"
+                :style="{ width: `${overallPercent}%` }"
+            />
             <button
-                class="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-(--text)/5 transition-colors"
-                @click="collapsed = !collapsed"
+                type="button"
+                class="relative flex-1 min-w-0 h-full flex items-center gap-2 pl-3 text-left"
+                :title="`Déplier : ${headline}`"
+                @click="collapsed = false"
             >
-                <i :class="['bi text-(--primary)', activeCount > 0 ? 'bi-arrow-down-up' : 'bi-check2-circle']" />
+                <i :class="['bi shrink-0', headIcon]" />
+                <span class="flex-1 min-w-0 truncate text-sm font-semibold text-(--text)">{{ headline }}</span>
+                <span v-if="activeCount > 0" class="text-[11px] whitespace-nowrap text-(--text2)">{{ Math.round(overallPercent) }} %</span>
+            </button>
+            <button v-if="activeCount === 0" type="button" class="br-btn relative mr-1" title="Fermer" aria-label="Fermer" @click="clearFinished">
+                <i class="bi bi-x-lg" />
+            </button>
+            <span v-else class="w-1" />
+        </div>
+
+        <!-- Déplié : une carte comme un panneau du dock. -->
+        <section
+            v-else-if="items.length > 0"
+            key="card"
+            class="br-card shrink-0 w-(--br-width) max-w-[calc(100vw-2rem)] flex flex-col"
+            aria-label="Transferts"
+        >
+            <header class="flex items-center gap-1.5 pl-4 pr-2 py-2 border-b border-(--border-color) shrink-0">
+                <i :class="['bi shrink-0', headIcon]" />
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-semibold text-(--text) truncate">{{ headline }}</p>
-                    <p v-if="activeCount > 0" class="text-xs text-(--text2) truncate">
+                    <p class="text-xs font-semibold text-(--text) truncate">{{ headline }}</p>
+                    <p v-if="activeCount > 0" class="text-[11px] text-(--text2) truncate">
                         {{ Math.round(overallPercent) }} %<template v-if="overallSpeed > 0"> · {{ formatBytes(overallSpeed) }}/s</template>
                     </p>
                 </div>
-                <i :class="['bi text-(--text2)', collapsed ? 'bi-chevron-up' : 'bi-chevron-down']" />
-            </button>
+                <button type="button" class="br-btn" title="Réduire" aria-label="Réduire" @click="collapsed = true">
+                    <i class="bi bi-dash-lg" />
+                </button>
+                <button v-if="activeCount === 0" type="button" class="br-btn" title="Fermer" aria-label="Fermer" @click="clearFinished">
+                    <i class="bi bi-x-lg" />
+                </button>
+            </header>
 
             <div v-if="activeCount > 0" class="h-0.5 bg-(--text)/10">
                 <div class="h-full bg-(--primary) transition-all duration-300" :style="{ width: `${overallPercent}%` }" />
             </div>
 
-            <ul v-if="!collapsed" class="max-h-72 overflow-y-auto divide-y divide-(--text)/5">
+            <ul class="max-h-72 overflow-y-auto divide-y divide-(--border-color)">
                 <li v-for="t in items" :key="t.id" class="px-4 py-2.5 flex items-center gap-3">
 
                     <i :class="['bi shrink-0', iconFor(t)]" />
 
                     <div class="flex-1 min-w-0">
-                        <p class="text-sm text-(--text) truncate" :title="t.name">{{ t.name }}</p>
+                        <p class="text-sm font-semibold text-(--text) truncate" :title="t.name">{{ t.name }}</p>
 
-                        <p class="text-xs truncate" :class="t.status === 'error' ? 'text-red-400' : 'text-(--text2)'">
+                        <p class="text-[11px] truncate" :class="t.status === 'error' ? 'text-red-400' : 'text-(--text2)'">
                             {{ statusLine(t) }}
                         </p>
 
@@ -50,25 +75,26 @@
 
                     <button
                         v-if="isActive(t)"
-                        class="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-(--text2) hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        type="button"
+                        class="br-btn hover:!text-red-400 hover:!bg-red-500/10"
                         title="Annuler"
                         @click="cancelTransfer(t.id)"
                     >
-                        <i class="bi bi-x-lg text-xs" />
+                        <i class="bi bi-x-lg" />
                     </button>
                     <button
-                        v-else-if="t.status === 'error'"
-                        class="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-(--text2) hover:text-(--text) hover:bg-(--text)/5 transition-colors"
+                        v-else
+                        type="button"
+                        class="br-btn"
                         title="Masquer"
                         @click="dismissTransfer(t.id)"
                     >
-                        <i class="bi bi-x-lg text-xs" />
+                        <i class="bi bi-x-lg" />
                     </button>
 
                 </li>
             </ul>
-
-        </div>
+        </section>
     </Transition>
 
 </template>
@@ -115,6 +141,14 @@ const iconFor = (t: Transfer) => {
     if (t.status === 'cancelled') return 'bi-slash-circle text-(--text2)';
     return t.kind === 'upload' ? 'bi-arrow-up-circle text-(--primary)' : 'bi-arrow-down-circle text-(--primary)';
 };
+
+const headIcon = computed(() => {
+    if (activeCount.value > 0) return 'bi-arrow-down-up text-(--primary)';
+    return items.value.some(t => t.status === 'error') ? 'bi-exclamation-circle-fill text-red-400' : 'bi-check2-circle text-green-400';
+});
+
+/** Tout est fini : on retire les transferts terminés de la liste (la barre disparaît). */
+const clearFinished = () => items.value.filter(t => !isActive(t)).forEach(t => dismissTransfer(t.id));
 
 const formatBytes = (bytes: number) => {
     if (bytes < 1024) return `${Math.round(bytes)} o`;

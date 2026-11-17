@@ -641,7 +641,7 @@ const saveEdit = async () => {
     border-radius: 0.375rem;
     font-weight: 600;
     background-color: var(--primary-dark);
-    color: white;
+    color: var(--text);
     cursor: pointer;
     transition: all 0.2s;
 }

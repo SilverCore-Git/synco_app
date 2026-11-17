@@ -19,7 +19,7 @@
                     {{ tab.label }}
                 </button>
 
-                <!-- Easter egg : 7 appuis sur la version révèlent l'onglet « Développeur ». -->
+                <!-- Easter egg : 7 appuis de suite sur la version ouvrent la vue « Développeur » (à refaire à chaque fois). -->
                 <button
                     type="button"
                     class="version-tag shrink-0 sm:mt-auto self-center sm:self-stretch px-3 py-2 text-[11px] font-mono text-(--text2)/60 text-left whitespace-nowrap select-none"
@@ -344,260 +344,20 @@
                     </div>
                 </section>
 
-                <!-- APPEARANCE -->
-                <section 
-                    v-if="activeTab === 'appearance'" 
-                    class="animate-fade-in space-y-8"
-                >
-
-                    <div>
-                        <h3 class="text-2xl font-black text-(--text) mb-1">Apparence</h3>
-                        <p class="text-sm text-(--text2)">Personnalisez l'interface de SilverTeams à votre goût.</p>
-                    </div>
-
-                    <div class="space-y-8">
-
-                        <div class="space-y-4">
-
-                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Thème global</h4>
-
-                            <div class="grid grid-cols-3 gap-4 max-w-xl">
-
-                                <button 
-                                    class="relative overflow-hidden flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all duration-300"
-                                    :class="
-                                        theme == 'auto' 
-                                            ? 'border-(--primary) bg-(--primary)/5 scale-100 shadow-[0_0_20px_var(--primary-glow)]' 
-                                            : 'border-(--border-color) bg-(--bg2) hover:border-(--text)/20 scale-95 opacity-70 hover:opacity-100'
-                                    "
-                                    @click="theme = 'auto'"
-                                >
-                                    <div class="w-full h-24 rounded-lg border border-(--text)/10 flex items-center justify-center shadow-inner overflow-hidden relative bg-gray-100">
-                                        <div class="absolute inset-y-0 left-0 w-1/2 bg-(--bg)"></div>
-                                        <i class="bi bi-circle-half text-(--primary) text-3xl drop-shadow-md relative" />
-                                    </div>
-                                    <span class="font-bold text-(--text)">Auto</span>
-                                    <div v-if="theme == 'auto'" class="absolute top-2 right-2 w-3 h-3 bg-(--primary) rounded-full shadow-[0_0_10px_var(--primary)]"></div>
-                                </button>
-
-                                <button 
-                                    class="relative overflow-hidden flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all duration-300"
-                                    :class="
-                                        theme == 'dark' 
-                                            ? 'border-(--primary) bg-(--primary)/5 scale-100 shadow-[0_0_20px_var(--primary-glow)]' 
-                                            : 'border-(--border-color) bg-(--bg2) hover:border-(--text)/20 scale-95 opacity-70 hover:opacity-100'
-                                    "
-                                    @click="theme = 'dark'"
-                                >
-                                    <div class="w-full h-24 bg-(--bg) rounded-lg border border-(--text)/10 flex items-center justify-center shadow-inner">
-                                        <i class="bi bi-moon-stars-fill text-(--primary) text-3xl drop-shadow-md" />
-                                    </div>
-                                    <span class="font-bold text-(--text)">Sombre</span>
-                                    <div v-if="theme == 'dark'" class="absolute top-2 right-2 w-3 h-3 bg-(--primary) rounded-full shadow-[0_0_10px_var(--primary)]"></div>
-                                </button>
-
-                                <button 
-                                    class="relative overflow-hidden flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all duration-300"
-                                    :class="
-                                        theme == 'light' 
-                                            ? 'border-(--primary) bg-(--primary)/5 scale-100 shadow-[0_0_20px_var(--primary-glow)]' 
-                                            : 'border-(--border-color) bg-(--bg2) hover:border-(--text)/20 scale-95 opacity-70 hover:opacity-100'
-                                    "
-                                    @click="theme = 'light'"
-                                >
-                                    <div class="w-full h-24 bg-gray-100 rounded-lg border border-black/10 flex items-center justify-center shadow-inner">
-                                        <i class="bi bi-sun-fill text-yellow-500 text-3xl drop-shadow-md" />
-                                    </div>
-                                    <span class="font-bold text-(--text)">Clair</span>
-                                    <div v-if="theme == 'light'" class="absolute top-2 right-2 w-3 h-3 bg-(--primary) rounded-full shadow-[0_0_10px_var(--primary)]"></div>
-                                </button>
-
-                            </div>
-
-                        </div>
-
-                        <div class="space-y-4">
-                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Mouvement</h4>
-
-                            <div 
-                                @click="animations = animations === false"
-                                class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all max-w-md"
-                            >
-                                <div>
-                                    <h4 class="font-bold text-(--text)">Animations</h4>
-                                    <p class="text-sm text-(--text2) mt-0.5">Ouverture, réduction et fermeture fluides des fenêtres de Synco</p>
-                                    <p v-if="systemReduced" class="text-xs text-amber-500 mt-1.5">Votre système demande de réduire les animations : elles restent coupées.</p>
-                                </div>
-                                <div 
-                                    class="w-12 h-6 rounded-full relative transition-colors duration-300 shrink-0"
-                                    :class="animations !== false ? 'bg-(--primary)' : 'bg-(--text)/15'"
-                                >
-                                    <div 
-                                        class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
-                                        :class="animations !== false ? 'right-0.5' : 'left-0.5 opacity-50'"
-                                    ></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="space-y-4">
-                            <h4 class="text-xs font-black uppercase tracking-widest text-(--text2)">Avancé</h4>
-
-                            <div 
-                                @click="devMode = !devMode"
-                                class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all max-w-md"
-                            >
-                                <div>
-                                    <h4 class="font-bold text-(--text)">Mode développeur</h4>
-                                    <p class="text-sm text-(--text2) mt-0.5">Affiche les identifiants techniques et options avancées</p>
-                                </div>
-                                <div 
-                                    class="w-12 h-6 rounded-full relative transition-colors duration-300 shrink-0"
-                                    :class="devMode ? 'bg-(--primary)' : 'bg-(--text)/15'"
-                                >
-                                    <div 
-                                        class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
-                                        :class="devMode ? 'right-0.5' : 'left-0.5 opacity-50'"
-                                    ></div>
-                                </div>
-                            </div>
-
-                            <div 
-                                @click="privacyMode = !privacyMode"
-                                class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all max-w-md mt-4"
-                            >
-                                <div>
-                                    <h4 class="font-bold text-(--text)">Mode confidentialité</h4>
-                                    <p class="text-sm text-(--text2) mt-0.5">Masque les noms et prénoms pour ne garder que la première lettre</p>
-                                </div>
-                                <div 
-                                    class="w-12 h-6 rounded-full relative transition-colors duration-300 shrink-0"
-                                    :class="privacyMode ? 'bg-(--primary)' : 'bg-(--text)/15'"
-                                >
-                                    <div 
-                                        class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
-                                        :class="privacyMode ? 'right-0.5' : 'left-0.5 opacity-50'"
-                                    ></div>
-                                </div>
-                            </div>
-
-                        </div>
-
-                    </div>
-
+                <!-- APPARENCE -->
+                <section v-if="activeTab === 'appearance'" class="animate-fade-in">
+                    <AppearanceSettings />
                 </section>
 
                 <!-- NOTIFICATIONS -->
-                <section 
-                    v-if="activeTab === 'notifications'" 
-                    class="animate-fade-in space-y-8"
-                >
-
-                    <div>
-                        <h3 class="text-2xl font-black text-(--text) mb-1">Notifications</h3>
-                        <p class="text-sm text-(--text2)">Gérez comment et quand vous êtes alerté.</p>
-                    </div>
-
-                    <div class="space-y-4 max-w-lg">
-                        
-                        <div 
-                            @click="updateNotificationPrefs('push', !notifPrefs.push)"
-                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all"
-                        >
-                            <div>
-                                <h4 class="font-bold text-(--text)">Notifications Push</h4>
-                                <p class="text-sm text-(--text2) mt-0.5">Recevoir des alertes sur cet appareil</p>
-                            </div>
-                            <div 
-                                class="w-12 h-6 rounded-full relative transition-colors duration-300"
-                                :class="notifPrefs.push ? 'bg-(--primary)' : 'bg-(--text)/15'"
-                            >
-                                <div 
-                                    class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
-                                    :class="notifPrefs.push ? 'right-0.5' : 'left-0.5 opacity-50'"
-                                ></div>
-                            </div>
-                        </div>
-
-                        <div 
-                            @click="updateNotificationPrefs('email', !notifPrefs.email)"
-                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all"
-                        >
-                            <div>
-                                <h4 class="font-bold text-(--text)">Notifications par Email</h4>
-                                <p class="text-sm text-(--text2) mt-0.5">Recevoir aussi mes notifications par e-mail</p>
-                            </div>
-                            <div 
-                                class="w-12 h-6 rounded-full relative transition-colors duration-300"
-                                :class="notifPrefs.email ? 'bg-(--primary)' : 'bg-(--text)/15'"
-                            >
-                                <div 
-                                    class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
-                                    :class="notifPrefs.email ? 'right-0.5' : 'left-0.5 opacity-50'"
-                                ></div>
-                            </div>
-                        </div>
-
-                        <div v-if="notifPrefs.email" class="grid grid-cols-2 gap-2 -mt-2">
-                            <button
-                                v-for="mode in emailModes"
-                                :key="mode.value"
-                                @click="updateNotificationPrefs('emailMode', mode.value)"
-                                class="p-4 rounded-xl border text-left cursor-pointer transition-all"
-                                :class="notifPrefs.emailMode === mode.value
-                                    ? 'border-(--primary) bg-(--primary)/10'
-                                    : 'border-(--border-color) bg-(--bg2) hover:bg-(--text)/5'"
-                            >
-                                <h5 class="font-bold text-sm text-(--text)">{{ mode.label }}</h5>
-                                <p class="text-xs text-(--text2) mt-0.5">{{ mode.description }}</p>
-                            </button>
-                        </div>
-
-                        <div 
-                            @click="updateNotificationPrefs('sound', !notifPrefs.sound)"
-                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all"
-                        >
-                            <div>
-                                <h4 class="font-bold text-(--text)">Sons des messages</h4>
-                                <p class="text-sm text-(--text2) mt-0.5">Jouer un son lors de la réception d'un message</p>
-                            </div>
-                            <div 
-                                class="w-12 h-6 rounded-full relative transition-colors duration-300"
-                                :class="notifPrefs.sound ? 'bg-(--primary)' : 'bg-(--text)/15'"
-                            >
-                                <div 
-                                    class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
-                                    :class="notifPrefs.sound ? 'right-0.5' : 'left-0.5 opacity-50'"
-                                ></div>
-                            </div>
-                        </div>
-
-                        <div 
-                            @click="updateNotificationPrefs('mentionsOnly', !notifPrefs.mentionsOnly)"
-                            class="flex items-center justify-between p-5 bg-(--bg2) rounded-xl border border-(--border-color) cursor-pointer hover:bg-(--text)/5 transition-all"
-                        >
-                            <div>
-                                <h4 class="font-bold text-(--text)">Mentions @ uniquement</h4>
-                                <p class="text-sm text-(--text2) mt-0.5">M'alerter uniquement quand on me mentionne directement</p>
-                            </div>
-                            <div 
-                                class="w-12 h-6 rounded-full relative transition-colors duration-300"
-                                :class="notifPrefs.mentionsOnly ? 'bg-(--primary)' : 'bg-(--text)/15'"
-                            >
-                                <div 
-                                    class="w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300"
-                                    :class="notifPrefs.mentionsOnly ? 'right-0.5' : 'left-0.5 opacity-50'"
-                                ></div>
-                            </div>
-                        </div>
-                    </div>
-
+                <section v-if="activeTab === 'notifications'" class="animate-fade-in">
+                    <NotificationSettings />
                 </section>
 
                 <!-- RAPPORTS D'ACTIVITÉ -->
-                <!-- DÉVELOPPEUR (onglet caché, voir onVersionTap) -->
-                <section v-if="activeTab === 'developer' && devInfoUnlocked" class="animate-fade-in">
-                    <DeveloperInfo @hide="hideDeveloperTab" />
+                <!-- DÉVELOPPEUR (sans onglet, ouverte par la version, voir onVersionTap) -->
+                <section v-if="activeTab === 'developer'" class="animate-fade-in">
+                    <DeveloperInfo @hide="closeDeveloperView" />
                 </section>
 
                 <section
@@ -665,9 +425,6 @@
 
 import { ref, reactive, watch, computed } from 'vue';
 import Window from './Window.vue';
-import useSettingsItem from '@/composables/useSettingsItem';
-import useTheme from '@/composables/useTheme';
-import useMotion from '@/composables/useMotion';
 import ProfileUploader from '../common/ProfileUploader.vue';
 import ConfirmDelete from '../common/ConfirmDelete.vue';
 import ActivityReports from '../settings/ActivityReports/index.vue';
@@ -688,6 +445,8 @@ import E2eeResetDialog from '../e2ee/E2eeResetDialog.vue';
 import { requestV4Reset } from '@/assets/e2eeV4/pendingReset';
 import { logoutEverywhere } from '@/assets/keycloak';
 import { disconnectSocket } from '@/composables/useWSocket';
+import AppearanceSettings from '../settings/AppearanceSettings.vue';
+import NotificationSettings from '../settings/NotificationSettings.vue';
 
 const props = withDefaults(defineProps<{
   isOpen: boolean;
@@ -699,11 +458,6 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits(['close']);
 const toast = useToast();
 const isV4 = computed(() => isV4Account(user.value?.pinSalt));
-
-const { theme } = useTheme();
-const { animations, systemReduced } = useMotion();
-const { Item: devMode } = useSettingsItem('devMode', false);
-const { Item: privacyMode } = useSettingsItem('privacyMode', false);
 
 const activeTab = ref<string>(props.initialTab);
 const avatarChange = ref<boolean>(false);
@@ -770,19 +524,6 @@ const previewProfile = computed(() => profileForOrg(cleanProfile(profileDraft.va
 const previewName = computed(() => `${formData.firstName} ${formData.lastName}`.trim() || user.value?.name || '');
 const hiddenBlockCount = computed(() => cleanProfile(profileDraft.value).blocks.length - previewProfile.value.blocks.length);
 
-const notifPrefs = reactive({
-    push: true,
-    email: true,
-    sound: true,
-    mentionsOnly: false,
-    emailMode: 'mentions' as 'all' | 'mentions'
-});
-
-const emailModes = [
-    { value: 'mentions', label: 'Seulement les tags', description: 'Mentions, tâches assignées et invitations' },
-    { value: 'all', label: 'Toutes', description: 'Chaque notification, messages compris' },
-] as const;
-
 // Sync user data to form
 watch(user, (newVal) => {
     if (newVal) {
@@ -790,22 +531,6 @@ watch(user, (newVal) => {
         formData.lastName = newVal.lastName || '';
         formData.email = newVal.email || '';
         formData.description = newVal.description || '';
-        
-        if (newVal.notificationPreferences) {
-            let prefs = newVal.notificationPreferences;
-            if (typeof prefs === 'string') {
-                try {
-                    prefs = JSON.parse(prefs);
-                } catch(e) {}
-            }
-            if (typeof prefs === 'object' && prefs !== null) {
-                notifPrefs.push = prefs.push ?? true;
-                notifPrefs.email = prefs.email ?? true;
-                notifPrefs.sound = prefs.sound ?? true;
-                notifPrefs.mentionsOnly = prefs.mentionsOnly ?? false;
-                notifPrefs.emailMode = prefs.emailMode === 'all' ? 'all' : 'mentions';
-            }
-        }
     }
 }, { immediate: true });
 
@@ -815,31 +540,6 @@ watch(user, (newVal) => {
 watch(savedProfileJson, () => {
     profileDraft.value = JSON.parse(JSON.stringify(user.value?.profile || emptyProfile()));
 }, { immediate: true });
-
-const updateNotificationPrefs = async <K extends keyof typeof notifPrefs>(key: K, value: typeof notifPrefs[K]) => {
-    const previous = notifPrefs[key];
-    notifPrefs[key] = value;
-    try {
-        const response = await sfetch('/api/users/me', {
-            method: 'PATCH',
-            body: JSON.stringify({
-                notificationPreferences: notifPrefs
-            })
-        });
-        
-        if (response.ok) {
-            const updatedUser = await response.json();
-            user.value = { ...user.value, ...updatedUser };
-        } else {
-            toast.show('Erreur lors de la sauvegarde', 'error');
-            notifPrefs[key] = previous;
-        }
-    } catch (e) {
-        console.error(e);
-        toast.show('Erreur de connexion', 'error');
-        notifPrefs[key] = previous;
-    }
-};
 
 // L'API normalise l'adresse en minuscules (updateUserEmailSchema) : comparer
 // sans casse évite d'envoyer un PATCH pour une saisie équivalente, que le
@@ -1030,41 +730,33 @@ const baseTabs = [
 ];
 
 // Vue « Développeur » : cachée tant qu'on n'a pas tapé 7 fois de suite sur le numéro de version en
-// bas de la barre des onglets (à la manière du « numéro de build » d'Android). Le déblocage est
-// mémorisé dans les réglages du compte ; « Masquer » dans la vue la recache.
-const { Item: devInfoUnlocked } = useSettingsItem('devInfoUnlocked', false);
+// bas de la barre des onglets (à la manière du « numéro de build » d'Android). Rien n'est mémorisé :
+// il faut refaire les 7 appuis à chaque fois.
 const appVersion = __APP_BUILD__.version;
 const DEV_TAPS_REQUIRED = 7;
 const DEV_TAP_WINDOW_MS = 1500;
 let devTaps = 0;
 let lastDevTap = 0;
 
-const tabs = computed(() => devInfoUnlocked.value
-    ? [...baseTabs, { id: 'developer', label: 'Développeur', icon: 'bi bi-terminal-fill' }]
-    : baseTabs);
+// Pas d'onglet dans la barre : la vue ne s'ouvre que par un appui sur le numéro de version.
+const tabs = baseTabs;
 
 const onVersionTap = () => {
     const now = Date.now();
     devTaps = now - lastDevTap > DEV_TAP_WINDOW_MS ? 1 : devTaps + 1;
     lastDevTap = now;
 
-    if (devInfoUnlocked.value) {
-        if (devTaps === 1) activeTab.value = 'developer';
-        return;
-    }
     const left = DEV_TAPS_REQUIRED - devTaps;
     if (left <= 0) {
         devTaps = 0;
-        devInfoUnlocked.value = true;
         activeTab.value = 'developer';
-        toast.show('Vous avez débloqué la vue développeur', 'success', 3000, true);
+        toast.show('Vue développeur ouverte', 'success', 3000, true);
     } else if (left <= 3) {
         toast.show(left === 1 ? 'Encore 1 appui…' : `Encore ${left} appuis…`, 'info', 900);
     }
 };
 
-const hideDeveloperTab = () => {
-    devInfoUnlocked.value = false;
+const closeDeveloperView = () => {
     activeTab.value = 'account';
 };
 

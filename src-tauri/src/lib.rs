@@ -1,6 +1,8 @@
 use tauri::{Emitter, Manager};
 use url::Url;
 
+mod discord_presence;
+
 // Seule destination légitime : la page d'autorisation Keycloak (keycloak.ts,
 // tauriLogin). Cette commande est appelable par tout script de la WebView
 // (XSS, dépendance compromise…) — sans liste blanche, elle devient un
@@ -172,7 +174,10 @@ pub fn run() {
             open_external_url,
             secure_store::secure_store_set,
             secure_store::secure_store_get,
-            secure_store::secure_store_delete
+            secure_store::secure_store_delete,
+            discord_presence::discord_presence_available,
+            discord_presence::discord_presence_set,
+            discord_presence::discord_presence_clear
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

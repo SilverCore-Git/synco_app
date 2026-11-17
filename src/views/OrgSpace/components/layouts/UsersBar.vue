@@ -14,11 +14,14 @@
                 Membres ({{ members?.length || 0 }})
             </h3>
 
-            <button 
-                v-if="isLittleScreen"
-                @click="showUsersBar = !showUsersBar"
-                class="hover:text-(--text) transition-colors"
-                :class="showUsersBar ? 'text-(--text)' : ''"
+            <!-- Barre affichée : le bouton « Membres » vit ici et la referme ; il
+                 réapparaît alors dans l'en-tête de la page (UsersBarToggle.vue). -->
+            <button
+                type="button"
+                @click="showUsersBar = false"
+                class="text-(--text) hover:text-(--text2) transition-colors"
+                title="Masquer les membres"
+                aria-label="Masquer les membres"
             >
                 <i class="bi bi-people-fill" />
             </button>

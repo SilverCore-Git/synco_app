@@ -34,9 +34,9 @@
                         class="-ml-2 w-7 h-7 rounded-full border-2 border-(--bg2) bg-(--bg3) text-[11px] font-bold text-(--text2) grid place-items-center"
                     >+{{ extraAttendees }}</span>
                 </div>
-                <RouterLink :to="eventLink" class="next-open">
+                <a :href="router.resolve(eventLink).href" class="next-open" @click.prevent="next && openEvent(orgId!, next)">
                     Voir l'évènement <i class="bi bi-arrow-right"></i>
-                </RouterLink>
+                </a>
             </div>
         </template>
 
@@ -92,9 +92,11 @@
 
 <script lang="ts" setup>
 import { computed, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import { openedOrg } from '@/assets/var';
 import { useVoicePresence } from '@/composables/useVoicePresence';
+import { useEventPanels } from '@/composables/useEventPanels';
 import { joinVoiceThread } from '@/composables/useVoiceJoin';
 import type { OccurrenceInstance } from '@/types/agenda';
 import type { Thread } from '@/types/types';
@@ -167,7 +169,12 @@ const metaLine = computed(() => {
     return parts.join(' · ');
 });
 
-// AgendaView ouvre l'évènement ciblé par ?eventId= (même chemin que les notifications).
+// Clic : l'évènement s'ouvre dans le dock (useEventPanels). Le lien vers
+// l'agenda (?eventId=, même chemin que les notifications) reste pour
+// l'ouverture dans un nouvel onglet.
+const router = useRouter();
+const { openEvent } = useEventPanels();
+
 const eventLink = computed(() => ({
     path: `/${orgId.value}/agenda`,
     query: props.next ? { eventId: props.next.eventId } : {}

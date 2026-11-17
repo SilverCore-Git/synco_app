@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Build « preview » uniquement (fr.silvercore.synco.preview, installé à côté de l'app) : aperçu des notifications push sans passer par FCM (voir PushPreviewReceiver). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <receiver android:name=".PushPreviewReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="fr.silvercore.synco.DEBUG_PUSH" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

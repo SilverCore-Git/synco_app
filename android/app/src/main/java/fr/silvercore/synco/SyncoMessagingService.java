@@ -10,7 +10,8 @@ import java.util.Map;
 /**
  * Remplace le service FCM du plugin @capacitor/push-notifications (retiré dans AndroidManifest.xml) :
  * les pushs « appel » de synco_api (callPushService.ts, données seules, champ `kind`) deviennent une
- * notification d'appel native ; tout le reste suit le chemin normal du plugin.
+ * notification d'appel native ; les pushs au format natif (clés `n.*`) deviennent une notification dessinée
+ * par l'app (SyncoNotifications) ; tout le reste suit le chemin normal du plugin.
  */
 public class SyncoMessagingService extends MessagingService {
 
@@ -29,6 +30,14 @@ public class SyncoMessagingService extends MessagingService {
         }
         if (callerId != null && ("call_end".equals(kind) || "meet_end".equals(kind))) {
             CallNotifications.cancel(this, callerId);
+            return;
+        }
+
+        // Format natif de synco_api (données seules) : app en arrière-plan ou fermée, c'est l'app qui
+        // dessine la notification. Au premier plan, comme avant, rien dans le volet : le plugin relaie
+        // le push au front, qui l'affiche dans l'app.
+        if (SyncoNotifications.isNativePush(data) && !MainActivity.isInForeground()) {
+            SyncoNotifications.show(this, valueOr(remoteMessage.getMessageId(), String.valueOf(System.currentTimeMillis())), data);
             return;
         }
 
