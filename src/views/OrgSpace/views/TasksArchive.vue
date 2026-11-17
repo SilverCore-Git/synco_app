@@ -1,5 +1,5 @@
 <template>
-    <div class="flex flex-col h-full relative overflow-hidden w-full">
+    <div class="flex flex-col h-full relative overflow-hidden w-full" :class="{ 'archive-reveal': revealing, 'archive-reveal-all': revealing && revealAll }">
 
         <header class="min-h-14 pl-5 px-3 flex items-center gap-3 border-b border-(--border-color) bg-(--bg2) z-20 shrink-0">
             <MobileBackBtn :to="backTarget" always-visible />
@@ -17,7 +17,7 @@
             <!-- Personnes : le classement principal de l'écran -->
             <aside
                 v-if="!loading && archivedTasks.length"
-                class="hidden lg:flex flex-col w-72 shrink-0 border-r border-(--border-color) p-4 gap-3 min-h-0"
+                class="rv-region hidden lg:flex flex-col w-72 shrink-0 border-r border-(--border-color) p-4 gap-3 min-h-0"
             >
                 <h4 class="text-sm font-bold text-(--text) px-1">Par personne</h4>
                 <ArchivePeopleList v-model="activePersonId" :people="peopleRows" :total-count="filteredTaskCount" />
@@ -25,7 +25,7 @@
 
             <main ref="scrollEl" class="flex-1 min-w-0 overflow-y-auto">
                 <!-- Barre d'outils : reste visible pendant le défilement -->
-                <div v-if="loading || archivedTasks.length" class="sticky top-0 z-10 bg-(--bg) px-4 md:px-6 pt-4 pb-3 flex flex-wrap items-start gap-x-3 gap-y-2">
+                <div v-if="loading || archivedTasks.length" class="rv-first sticky top-0 z-10 bg-(--bg3) px-4 md:px-6 pt-4 pb-3 flex flex-wrap items-start gap-x-3 gap-y-2">
                     <div class="flex-1 min-w-[min(100%,18rem)]">
                         <TaskSearchBar v-model:query="searchQuery" v-model:regex="searchRegex" :invalid="searchInvalid" />
                     </div>
@@ -139,7 +139,7 @@
                     </div>
 
                     <!-- Rien d'archivé -->
-                    <div v-else-if="archivedTasks.length === 0" class="py-20 max-w-sm mx-auto flex flex-col items-center text-center gap-3">
+                    <div v-else-if="archivedTasks.length === 0" class="rv-item py-20 max-w-sm mx-auto flex flex-col items-center text-center gap-3">
                         <div class="w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center">
                             <i class="bi bi-archive text-3xl text-amber-500"></i>
                         </div>
@@ -153,7 +153,7 @@
                     </div>
 
                     <!-- Aucun résultat -->
-                    <div v-else-if="visibleGroups.length === 0" class="py-20 max-w-sm mx-auto flex flex-col items-center text-center gap-3">
+                    <div v-else-if="visibleGroups.length === 0" class="rv-item py-20 max-w-sm mx-auto flex flex-col items-center text-center gap-3">
                         <i class="bi bi-search text-4xl text-(--text2)/60"></i>
                         <h4 class="text-lg font-bold text-(--text)">Aucune tâche archivée ne correspond</h4>
                         <p class="text-sm text-(--text2)">
@@ -166,13 +166,15 @@
                     </div>
 
                     <!-- Groupes par personne -->
-                    <template v-else>
+                    <!-- key : changer de personne remonte la liste et rejoue l'arrivée -->
+                    <div v-else :key="activePersonId ?? '__all__'">
                     <section
-                        v-for="group in visibleGroups" :key="group.person.id"
+                        v-for="(group, gi) in visibleGroups" :key="group.person.id"
                         class="pt-2 pb-8"
+                        :style="{ '--s': Math.min(gi, 3) }"
                         :aria-label="personLabel(group.person, $p)"
                     >
-                        <div class="flex items-center gap-3 mb-4 flex-wrap">
+                        <div class="rv-item flex items-center gap-3 mb-4 flex-wrap">
                             <ArchivePersonAvatar :person="group.person" size="w-10 h-10" />
                             <div class="min-w-0 flex-1">
                                 <h4 class="text-base font-bold text-(--text) truncate">
@@ -207,8 +209,9 @@
 
                         <TransitionGroup tag="div" name="archive-card" class="archive-grid relative">
                             <DropDown
-                                v-for="task in shownTasks(group)" :key="task.id"
-                                align="mouse" click="right" class="w-full h-full"
+                                v-for="(task, ti) in shownTasks(group)" :key="task.id"
+                                align="mouse" click="right" class="rv-card w-full h-full"
+                                :style="{ '--i': ti }"
                             >
                                 <template #trigger>
                                     <TaskCard
@@ -270,13 +273,13 @@
                             v-if="group.tasks.length > shownTasks(group).length"
                             type="button"
                             @click="expand(group.person.id)"
-                            class="mt-4 w-full h-10 rounded-xl bg-(--text)/[0.03] hover:bg-(--text)/[0.06] text-xs font-bold text-(--text2) hover:text-(--text) transition-colors flex items-center justify-center gap-2"
+                            class="rv-card mt-4 w-full h-10 rounded-xl bg-(--text)/[0.03] hover:bg-(--text)/[0.06] text-xs font-bold text-(--text2) hover:text-(--text) transition-colors flex items-center justify-center gap-2"
                         >
                             <i class="bi bi-chevron-down"></i>
                             {{ group.tasks.length - shownTasks(group).length }} {{ group.tasks.length - shownTasks(group).length > 1 ? 'tâches' : 'tâche' }} de plus
                         </button>
                     </section>
-                    </template>
+                    </div>
                 </div>
             </main>
         </div>
@@ -527,7 +530,26 @@ const shownTasks = (g: PersonGroup) =>
     activePersonId.value || expanded.value.has(g.person.id) ? g.tasks : g.tasks.slice(0, PREVIEW);
 const expand = (id: string) => { expanded.value = new Set(expanded.value).add(id); };
 
-watch(activePersonId, () => scrollEl.value?.scrollTo({ top: 0 }));
+// ── Arrivée ──────────────────────────────────────────────────────────────
+// La classe archive-reveal joue la cascade (voir <style>) au premier affichage
+// des données et à chaque changement de personne, puis est retirée : un filtre
+// ou une restauration ne rejouent pas tout l'écran.
+// revealAll : au chargement seulement, la colonne et la barre d'outils arrivent
+// aussi ; un changement de personne ne rejoue que le contenu.
+const revealing = ref(false);
+const revealAll = ref(false);
+let revealTimer: ReturnType<typeof setTimeout> | null = null;
+const reveal = (all = false) => {
+    if (revealTimer) clearTimeout(revealTimer);
+    revealAll.value = all;
+    revealing.value = true;
+    revealTimer = setTimeout(() => { revealing.value = false; }, 1400);
+};
+
+watch(activePersonId, () => {
+    scrollEl.value?.scrollTo({ top: 0 });
+    reveal();
+});
 
 // ── Sélection ────────────────────────────────────────────────────────────
 const selectedIds = ref<Set<string>>(new Set());
@@ -666,7 +688,10 @@ const load = async () => {
     } catch (e) {
         if (token === requestToken) toast.show('Erreur de chargement des archives', 'error');
     } finally {
-        if (token === requestToken) loading.value = false;
+        if (token === requestToken) {
+            loading.value = false;
+            reveal(true);
+        }
     }
 };
 
@@ -689,7 +714,10 @@ onTaskPanelChange({
     delete: (taskId) => removeLocal([taskId]),
 });
 
-onBeforeUnmount(dismissUndo);
+onBeforeUnmount(() => {
+    dismissUndo();
+    if (revealTimer) clearTimeout(revealTimer);
+});
 </script>
 
 <style scoped>
@@ -730,6 +758,46 @@ onBeforeUnmount(dismissUndo);
     }
 }
 
+/* Arrivée : mêmes mouvements et même courbe que l'ouverture de l'organisation
+   (style.css, reveal-region-in / reveal-item-in). La colonne des personnes
+   glisse depuis la gauche, puis chaque personne (--s) monte avec ses cartes
+   en cascade (--i), plafonnée pour ne jamais faire attendre. */
+@keyframes archive-slide-in {
+    from { opacity: 0; transform: translateX(-12px); }
+    to { opacity: 1; transform: none; }
+}
+@keyframes archive-rise-in {
+    from { opacity: 0; transform: translateY(12px) scale(0.985); }
+    to { opacity: 1; transform: none; }
+}
+.archive-reveal-all .rv-region {
+    animation: archive-slide-in 0.5s var(--reveal-ease) both;
+}
+.archive-reveal-all .rv-first {
+    animation: archive-rise-in 0.45s var(--reveal-ease) both;
+}
+.archive-reveal-all :deep(.rv-row) {
+    animation: archive-slide-in 0.45s var(--reveal-ease) both;
+    animation-delay: calc(80ms + var(--i, 0) * 35ms);
+}
+.archive-reveal .rv-item {
+    animation: archive-rise-in 0.45s var(--reveal-ease) both;
+    animation-delay: calc(var(--s, 0) * 110ms);
+}
+.archive-reveal .rv-card {
+    animation: archive-rise-in 0.55s var(--reveal-ease) both;
+    animation-delay: min(calc(var(--s, 0) * 110ms + 90ms + var(--i, 0) * 45ms), 650ms);
+}
+
+/* Cartes qui reviennent après un filtre ou une annulation. */
+.archive-card-enter-active {
+    transition: opacity 220ms var(--reveal-ease), transform 220ms var(--reveal-ease);
+}
+.archive-card-enter-from {
+    opacity: 0;
+    transform: scale(0.96);
+}
+
 .archive-card-leave-active {
     transition: opacity 180ms ease, transform 180ms ease;
 }
@@ -750,9 +818,22 @@ onBeforeUnmount(dismissUndo);
 
 @media (prefers-reduced-motion: reduce) {
     .archive-card-leave-active,
+    .archive-card-enter-active,
     .archive-bar-enter-active,
     .archive-bar-leave-active {
         transition: none;
     }
+    .archive-reveal-all .rv-region,
+    .archive-reveal-all .rv-first,
+    .archive-reveal-all :deep(.rv-row),
+    .archive-reveal .rv-item,
+    .archive-reveal .rv-card {
+        animation: archive-fade-in 0.2s ease both;
+        animation-delay: 0ms;
+    }
+}
+@keyframes archive-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 </style>

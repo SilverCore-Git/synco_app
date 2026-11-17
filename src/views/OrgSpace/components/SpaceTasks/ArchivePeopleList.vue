@@ -16,7 +16,8 @@
         <button
             type="button"
             @click="emit('update:modelValue', null)"
-            class="person-row"
+            class="person-row rv-row"
+            style="--i: 0"
             :class="modelValue === null ? 'is-active' : ''"
             :aria-pressed="modelValue === null"
         >
@@ -32,10 +33,11 @@
 
         <div class="flex flex-col gap-1 overflow-y-auto min-h-0 -mr-1 pr-1">
             <button
-                v-for="row in filteredPeople" :key="row.person.id"
+                v-for="(row, idx) in filteredPeople" :key="row.person.id"
                 type="button"
                 @click="emit('update:modelValue', row.person.id)"
-                class="person-row"
+                class="person-row rv-row"
+                :style="{ '--i': Math.min(idx + 1, 10) }"
                 :class="[modelValue === row.person.id ? 'is-active' : '', row.count === 0 ? 'opacity-50' : '']"
                 :aria-pressed="modelValue === row.person.id"
             >
