@@ -19,7 +19,7 @@
                     {{ tab.label }}
                 </button>
 
-                <!-- Easter egg : 7 appuis sur la version débloquent la vue « Développeur » (ensuite, un appui l'ouvre). -->
+                <!-- Easter egg : 7 appuis de suite sur la version ouvrent la vue « Développeur » (à refaire à chaque fois). -->
                 <button
                     type="button"
                     class="version-tag shrink-0 sm:mt-auto self-center sm:self-stretch px-3 py-2 text-[11px] font-mono text-(--text2)/60 text-left whitespace-nowrap select-none"
@@ -356,8 +356,8 @@
 
                 <!-- RAPPORTS D'ACTIVITÉ -->
                 <!-- DÉVELOPPEUR (sans onglet, ouverte par la version, voir onVersionTap) -->
-                <section v-if="activeTab === 'developer' && devInfoUnlocked" class="animate-fade-in">
-                    <DeveloperInfo @hide="hideDeveloperTab" />
+                <section v-if="activeTab === 'developer'" class="animate-fade-in">
+                    <DeveloperInfo @hide="closeDeveloperView" />
                 </section>
 
                 <section
@@ -731,9 +731,8 @@ const baseTabs = [
 ];
 
 // Vue « Développeur » : cachée tant qu'on n'a pas tapé 7 fois de suite sur le numéro de version en
-// bas de la barre des onglets (à la manière du « numéro de build » d'Android). Le déblocage est
-// mémorisé dans les réglages du compte ; « Masquer » dans la vue la recache.
-const { Item: devInfoUnlocked } = useSettingsItem('devInfoUnlocked', false);
+// bas de la barre des onglets (à la manière du « numéro de build » d'Android). Rien n'est mémorisé :
+// il faut refaire les 7 appuis à chaque fois.
 const appVersion = __APP_BUILD__.version;
 const DEV_TAPS_REQUIRED = 7;
 const DEV_TAP_WINDOW_MS = 1500;
@@ -748,23 +747,17 @@ const onVersionTap = () => {
     devTaps = now - lastDevTap > DEV_TAP_WINDOW_MS ? 1 : devTaps + 1;
     lastDevTap = now;
 
-    if (devInfoUnlocked.value) {
-        if (devTaps === 1) activeTab.value = 'developer';
-        return;
-    }
     const left = DEV_TAPS_REQUIRED - devTaps;
     if (left <= 0) {
         devTaps = 0;
-        devInfoUnlocked.value = true;
         activeTab.value = 'developer';
-        toast.show('Vous avez débloqué la vue développeur', 'success', 3000, true);
+        toast.show('Vue développeur ouverte', 'success', 3000, true);
     } else if (left <= 3) {
         toast.show(left === 1 ? 'Encore 1 appui…' : `Encore ${left} appuis…`, 'info', 900);
     }
 };
 
-const hideDeveloperTab = () => {
-    devInfoUnlocked.value = false;
+const closeDeveloperView = () => {
     activeTab.value = 'account';
 };
 

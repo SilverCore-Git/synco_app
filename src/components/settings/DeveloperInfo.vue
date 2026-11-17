@@ -18,8 +18,8 @@
                 <button class="second flex items-center gap-2 text-xs" :disabled="loading" @click="copyReport">
                     <i class="bi bi-clipboard" /> Copier le rapport
                 </button>
-                <button class="second flex items-center gap-2 text-xs" @click="emit('hide')" title="Verrouiller la vue Développeur">
-                    <i class="bi bi-eye-slash" /> Masquer
+                <button class="second flex items-center gap-2 text-xs" @click="emit('hide')" title="Fermer la vue Développeur">
+                    <i class="bi bi-x-lg" /> Fermer
                 </button>
             </div>
         </div>
