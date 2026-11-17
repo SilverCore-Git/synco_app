@@ -79,9 +79,14 @@ const tauriCliEntry = createRequire(import.meta.url).resolve('@tauri-apps/cli/ta
 // refusées (« not allowed on window main, URL … »). Plusieurs --config sont fusionnés dans l'ordre.
 const runConfig = JSON.stringify({ app: { security: { csp: patchedCsp } }, ...(isProd ? {} : { build: { devUrl } }) });
 
+// Rich Presence Discord : lue par option_env! à la compilation de src-tauri (discord_presence.rs), donc
+// passée dans l'environnement de cargo — le .env n'est lu que par Vite. Vide = fonctionnalité masquée.
+const discordClientId = process.env.SYNCO_DISCORD_CLIENT_ID ?? readEnvValue(envFile, 'SYNCO_DISCORD_CLIENT_ID');
+
 const result = spawnSync(process.execPath, [tauriCliEntry, mode, '--config', runConfig, ...forwardedArgs], {
   stdio: 'inherit',
   cwd: ROOT_DIR,
+  env: { ...process.env, ...(discordClientId ? { SYNCO_DISCORD_CLIENT_ID: discordClientId } : {}) },
 });
 
 process.exit(result.status ?? 1);
