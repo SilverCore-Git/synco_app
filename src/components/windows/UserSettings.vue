@@ -19,7 +19,7 @@
                     {{ tab.label }}
                 </button>
 
-                <!-- Easter egg : 7 appuis sur la version révèlent l'onglet « Développeur ». -->
+                <!-- Easter egg : 7 appuis sur la version débloquent la vue « Développeur » (ensuite, un appui l'ouvre). -->
                 <button
                     type="button"
                     class="version-tag shrink-0 sm:mt-auto self-center sm:self-stretch px-3 py-2 text-[11px] font-mono text-(--text2)/60 text-left whitespace-nowrap select-none"
@@ -615,7 +615,7 @@
                 </section>
 
                 <!-- RAPPORTS D'ACTIVITÉ -->
-                <!-- DÉVELOPPEUR (onglet caché, voir onVersionTap) -->
+                <!-- DÉVELOPPEUR (sans onglet, ouverte par la version, voir onVersionTap) -->
                 <section v-if="activeTab === 'developer' && devInfoUnlocked" class="animate-fade-in">
                     <DeveloperInfo @hide="hideDeveloperTab" />
                 </section>
@@ -1061,9 +1061,8 @@ const DEV_TAP_WINDOW_MS = 1500;
 let devTaps = 0;
 let lastDevTap = 0;
 
-const tabs = computed(() => devInfoUnlocked.value
-    ? [...baseTabs, { id: 'developer', label: 'Développeur', icon: 'bi bi-terminal-fill' }]
-    : baseTabs);
+// Pas d'onglet dans la barre : la vue ne s'ouvre que par un appui sur le numéro de version.
+const tabs = baseTabs;
 
 const onVersionTap = () => {
     const now = Date.now();
