@@ -289,7 +289,7 @@
 
 import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import getSpaceIdByThreadId from '@/assets/utils/getSpaceWithThreadId';
-import { openedOrg } from '@/assets/var';
+import { openedOrg, user } from '@/assets/var';
 import useNotifications, { type Notification, type NotificationType } from '@/composables/useNotifications';
 import useSecurePeer from '@/composables/useSecurePeer';
 import usePrivateMeet from '@/composables/usePrivatMeet';
@@ -362,7 +362,17 @@ const getStyles = (type: NotificationType, toastType?: string) => {
 
 
 // Message direct : son « mention » (trois bulles), plus marqué que le simple message de salon.
+// Paramètres › Notifications › Son : le même réglage coupe le son des push et celui-ci.
+const notificationSoundEnabled = (): boolean => {
+    let prefs = user.value?.notificationPreferences;
+    if (typeof prefs === 'string') {
+        try { prefs = JSON.parse(prefs); } catch { prefs = null; }
+    }
+    return prefs?.sound !== false;
+};
+
 const playNotificationSound = (type: NotificationType) => {
+    if (!notificationSoundEnabled()) return;
     SoundService.play(type === 'notif:dmmsg' ? 'mention' : 'notification');
 };
 
