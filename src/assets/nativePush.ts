@@ -29,7 +29,14 @@ export interface PushTapData {
     [key: string]: string | undefined;
 }
 
-interface Registration { userId: string; token: string; id: string }
+/**
+ * Format de push que l'app Android sait afficher (deviceInfo.pushFormat, lu par fcmService.ts côté
+ * synco_api). 2 : l'app dessine elle-même la notification (SyncoNotifications.java : avatar,
+ * « Marquer comme lu »). Sans ce champ, synco_api garde l'ancien payload affiché par le SDK Firebase.
+ */
+const ANDROID_PUSH_FORMAT = 2;
+
+interface Registration { userId: string; token: string; id: string; format?: number }
 
 /** Plugin local Android (PushSupportPlugin.java) : Firebase est-il configuré dans ce build ? */
 const PushSupport = registerPlugin<{ isConfigured(): Promise<{ configured: boolean }> }>('PushSupport');
@@ -78,22 +85,24 @@ function writeRegistration(reg: Registration | null) {
 }
 
 async function registerOnServer(userId: string, token: string): Promise<void> {
-    const previous = readRegistration();
-    if (previous?.userId === userId && previous.token === token) return;
-
     const platform = Capacitor.getPlatform() === 'ios' ? 'apns' : 'fcm';
+    const format = Capacitor.getPlatform() === 'android' ? ANDROID_PUSH_FORMAT : undefined;
+    // Le format compte aussi : une app mise à jour doit se réenregistrer pour l'annoncer.
+    const previous = readRegistration();
+    if (previous?.userId === userId && previous.token === token && previous.format === format) return;
+
     const res = await sfetch('/api/notifications/tokens', {
         method: 'POST',
         body: JSON.stringify({
             token,
             platform,
             deviceId: deviceId(),
-            deviceInfo: { os: Capacitor.getPlatform(), userAgent: navigator.userAgent },
+            deviceInfo: { os: Capacitor.getPlatform(), userAgent: navigator.userAgent, ...(format ? { pushFormat: format } : {}) },
         }),
     });
     if (!res.ok) throw new Error(`enregistrement du token refusé (${res.status})`);
     const { id } = await res.json() as { id: string };
-    writeRegistration({ userId, token, id });
+    writeRegistration({ userId, token, id, format });
     debugLog(`[push] token ${platform} enregistré`);
 }
 

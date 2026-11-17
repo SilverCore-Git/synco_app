@@ -26,6 +26,9 @@ import java.util.UUID;
  *   adb shell am broadcast -n fr.silvercore.synco.preview/fr.silvercore.synco.PushPreviewReceiver -a fr.silvercore.synco.DEBUG_PUSH \
  *     --es kind call --es callerId test --es callerName "Julie Martin"
  *
+ * Avec --es n.title …, le push est au format natif (données seules, voir fcmService.nativeAndroidMessage)
+ * et dessiné par SyncoNotifications ; sans, au format historique, dessiné par le SDK Firebase.
+ *
  * Toute autre extra --es est transmise telle quelle dans les données du push.
  */
 public class PushPreviewReceiver extends BroadcastReceiver {
@@ -42,8 +45,10 @@ public class PushPreviewReceiver extends BroadcastReceiver {
         String kind = in.getString("kind");
         boolean call = kind != null && !kind.isEmpty();
         if (call && !in.containsKey("sentAt")) extras.putString("sentAt", String.valueOf(System.currentTimeMillis()));
+        // Format natif de synco_api (clés n.*, données seules) : transmis tel quel, comme un push d'appel.
+        boolean raw = call || in.containsKey("n.title");
 
-        if (!call) {
+        if (!raw) {
             // Payload `notification` + android.notification de fcmService.ts (synco_api).
             extras.putString("gcm.n.e", "1");
             extras.putString("gcm.notification.android_channel_id", "synco");
@@ -54,7 +59,7 @@ public class PushPreviewReceiver extends BroadcastReceiver {
             }
         }
         for (String key : in.keySet()) {
-            if (call || !isNotificationKey(key)) {
+            if (raw || !isNotificationKey(key)) {
                 Object value = in.get(key);
                 if (value != null) extras.putString(key, String.valueOf(value));
             }
