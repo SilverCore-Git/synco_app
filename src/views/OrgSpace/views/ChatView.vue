@@ -296,12 +296,16 @@
 
                 </div>
 
-                <div 
-                    v-if="showEmojiPicker && recipient"
+                <div
+                    v-if="recipient"
                     class="absolute bottom-full right-0 mb-2 z-50 emoji-picker-container"
                     @click.stop
                 >
-                    <EmojiPicker @select="insertEmoji" @close="showEmojiPicker = false" />
+                    <EmojiPickerPopover
+                        :show="showEmojiPicker"
+                        @select="insertEmoji"
+                        @close="showEmojiPicker = false"
+                    />
                 </div>
 
             </div>
@@ -366,7 +370,7 @@ import { useToast } from '@/composables/useToast';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import { useMessageDraft, selfCipher } from '@/composables/useMessageDraft';
 import DropDown from '@/components/DropDown.vue';
-import EmojiPicker from '@/components/common/EmojiPicker.vue';
+import EmojiPickerPopover from '@/components/common/EmojiPickerPopover.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import useSecurePeer from '@/composables/useSecurePeer';
 

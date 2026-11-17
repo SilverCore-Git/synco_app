@@ -1,13 +1,17 @@
 <template>
   <div
-    class="emoji-picker w-[20rem] max-w-[calc(100vw-1.5rem)] h-[26.5rem] max-h-[70vh] bg-(--bg) border border-(--text)/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden font-['Outfit',sans-serif] text-(--text) select-none relative z-50"
-    style="background-color: var(--bg);"
+    class="emoji-picker bg-(--bg) flex flex-col overflow-hidden font-['Outfit',sans-serif] text-(--text) select-none relative z-50"
+    :class="isSheet
+      ? 'is-sheet w-full h-[min(32rem,62dvh)]'
+      : 'w-[20rem] max-w-[calc(100vw-1.5rem)] h-[26.5rem] max-h-[70vh] border border-(--text)/10 rounded-2xl shadow-2xl'"
+    :style="{ backgroundColor: 'var(--bg)', '--cell-h': CELL_H + 'px' }"
     @click.stop
   >
     <!-- Recherche -->
-    <div class="px-3 pt-3 pb-2 bg-(--bg2)">
+    <div class="px-3 pb-2 flex items-center gap-2" :class="isSheet ? 'pt-1' : 'pt-3 bg-(--bg2)'">
       <label
-        class="flex items-center gap-2 h-9 px-3 rounded-xl bg-(--bg) border border-(--text)/10 focus-within:border-(--primary)/60 focus-within:ring-2 focus-within:ring-(--primary)/20 transition-[border-color,box-shadow]"
+        class="flex-1 min-w-0 flex items-center gap-2 px-3 rounded-xl border border-(--text)/10 focus-within:border-(--primary)/60 focus-within:ring-2 focus-within:ring-(--primary)/20 transition-[border-color,box-shadow]"
+        :class="isSheet ? 'h-11 bg-(--bg2)' : 'h-9 bg-(--bg)'"
       >
         <i class="bi bi-search text-(--text2) text-sm" />
         <input
@@ -18,9 +22,10 @@
           enterkeyhint="done"
           autocomplete="off"
           spellcheck="false"
-          placeholder="Rechercher (fr, en, :shortcode:)"
+          :placeholder="isSheet ? 'Rechercher un emoji' : 'Rechercher (fr, en, :shortcode:)'"
           aria-label="Rechercher un emoji"
-          class="w-full min-w-0 bg-transparent border-none text-sm text-(--text)/90 placeholder-(--text)/35 focus:outline-none"
+          class="w-full min-w-0 bg-transparent border-none text-(--text)/90 placeholder-(--text)/35 focus:outline-none"
+          :class="isSheet ? 'text-base' : 'text-sm'"
           @keydown="onKeydown"
         />
         <button
@@ -33,12 +38,24 @@
           <i class="bi bi-x-circle-fill text-xs" />
         </button>
       </label>
+      <button
+        v-if="isSheet"
+        type="button"
+        class="w-11 h-11 shrink-0 rounded-xl flex items-center justify-center text-2xl border border-(--text)/10 transition-colors"
+        :class="skinMenuOpen ? 'bg-(--primary)/15 border-(--primary)/40' : 'bg-(--bg2) active:bg-(--text)/10'"
+        aria-label="Choisir le ton de peau"
+        :aria-expanded="skinMenuOpen"
+        @click="skinMenuOpen = !skinMenuOpen"
+      >
+        <span class="emoji-glyph">{{ SKIN_TONE_SAMPLES[skinTone] }}</span>
+      </button>
     </div>
 
     <!-- Onglets de catégories -->
     <nav
       v-if="!query"
-      class="relative flex px-2 pb-1.5 bg-(--bg2) border-b border-(--border-color)"
+      class="relative flex px-2 pb-1.5 border-b border-(--border-color)"
+      :class="{ 'bg-(--bg2)': !isSheet }"
       aria-label="Catégories d'emojis"
     >
       <span
@@ -52,14 +69,14 @@
         v-for="tab in tabs"
         :key="tab.id"
         type="button"
-        class="relative flex-1 h-8 flex items-center justify-center rounded-lg transition-colors"
-        :class="activeSection === tab.id ? 'text-(--primary)' : 'text-(--text2) hover:text-(--text)'"
+        class="relative flex-1 flex items-center justify-center rounded-lg transition-colors"
+        :class="[isSheet ? 'h-10' : 'h-8', activeSection === tab.id ? 'text-(--primary)' : 'text-(--text2) hover:text-(--text)']"
         :title="tab.label"
         :aria-label="tab.label"
         :aria-current="activeSection === tab.id"
         @click="scrollToSection(tab.id)"
       >
-        <i class="bi text-[0.95rem]" :class="activeSection === tab.id ? tab.icon + '-fill' : tab.icon" />
+        <i class="bi" :class="[isSheet ? 'text-lg' : 'text-[0.95rem]', activeSection === tab.id ? tab.icon + '-fill' : tab.icon]" />
       </button>
     </nav>
 
@@ -123,15 +140,18 @@
     </div>
 
     <!-- Aperçu + ton de peau -->
-    <footer class="h-14 shrink-0 flex items-center gap-3 px-3 border-t border-(--border-color) bg-(--bg2)">
-        <div v-if="skinMenuOpen" class="skin-menu flex items-center gap-1 flex-1">
-          <span class="text-xs text-(--text2) mr-1">Ton</span>
+    <footer
+      v-if="!isSheet || skinMenuOpen"
+      class="h-14 shrink-0 flex items-center gap-3 px-3 border-t border-(--border-color) bg-(--bg2)"
+    >
+        <div v-if="skinMenuOpen" class="skin-menu flex items-center gap-1 flex-1" :class="{ 'justify-between': isSheet }">
+          <span v-if="!isSheet" class="text-xs text-(--text2) mr-1">Ton</span>
           <button
             v-for="(sample, tone) in SKIN_TONE_SAMPLES"
             :key="tone"
             type="button"
-            class="w-8 h-8 rounded-lg flex items-center justify-center text-xl transition-colors"
-            :class="skinTone === tone ? 'bg-(--primary)/15 ring-1 ring-(--primary)/50' : 'hover:bg-(--text)/8'"
+            class="rounded-lg flex items-center justify-center transition-colors"
+            :class="[isSheet ? 'w-11 h-11 text-2xl' : 'w-8 h-8 text-xl', skinTone === tone ? 'bg-(--primary)/15 ring-1 ring-(--primary)/50' : 'hover:bg-(--text)/8']"
             :title="SKIN_TONE_LABELS[tone]"
             @click="chooseSkinTone(tone)"
           >
@@ -153,6 +173,7 @@
           {{ hasFinePointer ? '↑ ↓ ← → pour naviguer · Entrée pour choisir' : 'Choisis un emoji' }}
         </p>
       <button
+        v-if="!isSheet"
         type="button"
         class="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center text-xl transition-colors"
         :class="skinMenuOpen ? 'bg-(--primary)/15' : 'hover:bg-(--text)/8'"
@@ -184,6 +205,14 @@ import {
   type Emoji,
 } from './emoji/emojiStore';
 
+const props = withDefaults(defineProps<{
+  /** 'popover' (ordinateur) ou 'sheet' (bottom sheet mobile, cibles tactiles plus grandes). */
+  variant?: 'popover' | 'sheet';
+}>(), {
+  variant: 'popover',
+});
+const isSheet = computed(() => props.variant === 'sheet');
+
 const emit = defineEmits<{
   (e: 'select', emoji: string): void;
   (e: 'close'): void;
@@ -192,8 +221,10 @@ const emit = defineEmits<{
 const SKIN_TONE_LABELS = ['Par défaut', 'Peau claire', 'Peau moyennement claire', 'Peau légèrement mate', 'Peau mate', 'Peau foncée'];
 
 // Géométrie fixe : c'est ce qui permet de virtualiser sans mesurer le DOM.
-const CELL_MIN = 36;
-const ROW_H = 38;
+// (constantes figées au montage : la variante ne change pas en cours de vie)
+const CELL_MIN = props.variant === 'sheet' ? 46 : 36;
+const CELL_H = props.variant === 'sheet' ? 44 : 36;
+const ROW_H = CELL_H + 2;
 const HEADER_H = 30;
 const OVERSCAN = 160;
 
@@ -505,10 +536,11 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 36px;
+  height: var(--cell-h, 36px);
   margin: 1px;
   border-radius: 10px;
   font-size: 1.45rem;
+  touch-action: manipulation;
   transition: background-color 120ms ease;
   -webkit-tap-highlight-color: transparent;
 }
@@ -529,6 +561,20 @@ onBeforeUnmount(() => {
 .emoji-cell:active .emoji-glyph {
   transform: scale(0.88);
   transition-duration: 60ms;
+}
+
+.is-sheet .emoji-cell {
+  font-size: 1.8rem;
+  border-radius: 12px;
+}
+/* Pas d'effet de survol « collant » au doigt : seul l'appui réagit */
+@media (hover: none) {
+  .emoji-cell:hover:not(.is-active) {
+    background-color: transparent;
+  }
+  .emoji-cell:hover:not(.is-active) .emoji-glyph {
+    transform: none;
+  }
 }
 
 .tab-indicator {

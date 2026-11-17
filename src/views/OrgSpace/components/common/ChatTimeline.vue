@@ -222,12 +222,15 @@
                 </div>
 
                 <div
-                    v-if="showEmojiPicker"
                     ref="emojiPickerRef"
                     class="absolute bottom-full right-0 mb-2 z-50 emoji-picker-container"
                     @click.stop
                 >
-                    <EmojiPicker @select="insertEmoji" @close="showEmojiPicker = false" />
+                    <EmojiPickerPopover
+                        :show="showEmojiPicker"
+                        @select="insertEmoji"
+                        @close="showEmojiPicker = false"
+                    />
                 </div>
 
             </div>
@@ -261,7 +264,7 @@ import useWindowFileDrop from '@/composables/useWindowFileDrop';
 import { MESSAGE_CHANNEL_KEY, type MessageChannel } from '@/composables/messageChannel';
 import { MENTION_SOURCE_KEY } from '@/composables/mentionSource';
 import SpinLoader from '@/components/SpinLoader.vue';
-import EmojiPicker from '@/components/common/EmojiPicker.vue';
+import EmojiPickerPopover from '@/components/common/EmojiPickerPopover.vue';
 import TypingIndicator from '@/components/common/TypingIndicator.vue';
 import ThreadMessage from './ThreadMessage.vue';
 import ThreadTextarea from './ThreadTextarea.vue';
