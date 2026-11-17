@@ -373,7 +373,6 @@ const onUnmute = async (kind: MuteKind, id: string) => {
 .choice-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .choice-card.selected {
     border-color: var(--primary);
-    box-shadow: 0 0 20px var(--glow-primary-soft, transparent);
 }
 .choice-icon {
     font-size: 1.25rem;

@@ -200,7 +200,6 @@ const initialOf = (name: string) => name.charAt(0).toUpperCase();
 }
 .theme-card.selected {
     border-color: var(--primary);
-    box-shadow: 0 0 20px var(--glow-primary-soft, transparent);
 }
 
 .check {
