@@ -1,742 +1,758 @@
 <template>
     <div class="flex flex-col h-full relative overflow-hidden w-full">
 
-        <header class="min-h-14 pl-5 px-3 flex items-center border-b border-(--border-color) bg-(--bg2) z-10 shrink-0">
-            <div class="flex items-center gap-3 min-w-0">
-                <MobileBackBtn :to="backTarget" always-visible />
-                <div class="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
-                    <i class="bi bi-archive-fill text-amber-500" />
-                </div>
-                <div class="min-w-0">
-                    <h3 class="font-semibold text-(--text) truncate">{{ scopeTitle }}</h3>
-                    <p class="text-xs text-(--text2)">{{ archivedTasks.length }} tâche(s) archivée(s)</p>
-                </div>
+        <header class="min-h-14 pl-5 px-3 flex items-center gap-3 border-b border-(--border-color) bg-(--bg2) z-20 shrink-0">
+            <MobileBackBtn :to="backTarget" always-visible />
+            <i class="bi bi-archive-fill text-amber-500"></i>
+            <div class="min-w-0 flex items-baseline gap-2">
+                <h3 class="font-semibold text-(--text) truncate">{{ scopeTitle }}</h3>
+                <span v-if="!loading && archivedTasks.length" class="text-xs text-(--text2) tabular-nums whitespace-nowrap hidden sm:inline">
+                    {{ archivedTasks.length }} {{ archivedTasks.length > 1 ? 'tâches' : 'tâche' }}
+                </span>
             </div>
         </header>
 
-        <main class="flex-1 overflow-hidden flex flex-col p-4 md:p-6 gap-4 w-full h-full relative">
+        <div class="flex-1 min-h-0 flex">
 
-            <!-- Recherche + tri -->
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
-                <div class="relative group flex-1 min-w-0">
-                    <i class="bi bi-search absolute left-3.5 top-1/2 -translate-y-1/2 text-(--text2) group-focus-within:text-(--primary) transition-all duration-300" />
-                    <input
-                        v-model="searchQuery"
-                        type="text"
-                        placeholder="Rechercher une tâche archivée..."
-                        class="w-full bg-(--text)/[0.03] border border-(--text)/10 rounded-xl py-2.5 pl-11 pr-10 text-sm text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/60 focus:ring-4 focus:ring-(--primary)/10 transition-all duration-300"
-                    >
-                    <button
-                        v-if="searchQuery"
-                        @click="searchQuery = ''"
-                        class="absolute right-3 top-1/2 -translate-y-1/2 text-(--text2) hover:text-red-400 active:scale-90 transition-all"
-                    >
-                        <i class="bi bi-x-circle-fill" />
-                    </button>
+            <!-- Personnes : le classement principal de l'écran -->
+            <aside
+                v-if="!loading && archivedTasks.length"
+                class="hidden lg:flex flex-col w-72 shrink-0 border-r border-(--border-color) p-4 gap-3 min-h-0"
+            >
+                <h4 class="text-sm font-bold text-(--text) px-1">Par personne</h4>
+                <ArchivePeopleList v-model="activePersonId" :people="peopleRows" :total-count="filteredTaskCount" />
+            </aside>
+
+            <main ref="scrollEl" class="flex-1 min-w-0 overflow-y-auto">
+                <!-- Barre d'outils : reste visible pendant le défilement -->
+                <div v-if="loading || archivedTasks.length" class="sticky top-0 z-10 bg-(--bg) px-4 md:px-6 pt-4 pb-3 flex flex-wrap items-start gap-x-3 gap-y-2">
+                    <div class="flex-1 min-w-[min(100%,18rem)]">
+                        <TaskSearchBar v-model:query="searchQuery" v-model:regex="searchRegex" :invalid="searchInvalid" />
+                    </div>
+
+                    <div class="flex items-center gap-2 flex-wrap min-w-0 min-h-[2.75rem]">
+                        <!-- Personnes, version compacte sous lg -->
+                        <DropDown v-if="archivedTasks.length" align="left" content-iner-t-w="min-w-[280px]" class="lg:hidden">
+                            <template #trigger>
+                                <button
+                                    type="button"
+                                    class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap max-w-[200px]"
+                                    :class="activePerson ? 'bg-(--primary)/15 text-(--primary)' : 'bg-(--text)/5 text-(--text)/70 hover:bg-(--text)/10'"
+                                >
+                                    <ArchivePersonAvatar v-if="activePerson" :person="activePerson" size="w-5 h-5" />
+                                    <i v-else class="bi bi-people-fill"></i>
+                                    <span class="truncate">{{ activePerson ? personLabel(activePerson, $p) : 'Tout le monde' }}</span>
+                                    <i class="bi bi-chevron-down text-[10px] opacity-60"></i>
+                                </button>
+                            </template>
+                            <template #content>
+                                <div class="max-h-[60vh] flex flex-col">
+                                    <ArchivePeopleList v-model="activePersonId" :people="peopleRows" :total-count="filteredTaskCount" />
+                                </div>
+                            </template>
+                        </DropDown>
+
+                        <!-- Tags présents dans les archives, avec leur nombre -->
+                        <DropDown v-if="availableTags.length" align="left" content-iner-t-w="min-w-[260px]">
+                            <template #trigger>
+                                <button
+                                    type="button"
+                                    class="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap"
+                                    :class="filterTagIds.length ? 'bg-(--primary)/15 text-(--primary)' : 'bg-(--text)/5 text-(--text)/70 hover:bg-(--text)/10'"
+                                >
+                                    <i class="bi bi-tags"></i>
+                                    {{ filterTagIds.length ? `${filterTagIds.length} tag${filterTagIds.length > 1 ? 's' : ''}` : 'Tags' }}
+                                    <i class="bi bi-chevron-down text-[10px] opacity-60"></i>
+                                </button>
+                            </template>
+                            <template #content>
+                                <div @click.stop class="flex flex-col gap-1.5">
+                                    <div v-if="availableTags.length > 6" class="relative">
+                                        <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-(--text2) text-xs"></i>
+                                        <input
+                                            v-model="tagSearch"
+                                            type="text"
+                                            placeholder="Rechercher un tag…"
+                                            aria-label="Rechercher un tag"
+                                            class="w-full bg-(--bg3) border border-(--border-color) rounded-lg pl-8 pr-3 py-1.5 text-xs text-(--text) placeholder:text-(--text2) focus:outline-none focus:border-(--primary)/50"
+                                        />
+                                    </div>
+                                    <div class="flex flex-col gap-0.5 max-h-64 overflow-y-auto">
+                                        <button
+                                            v-for="entry in filteredAvailableTags" :key="entry.tag.id"
+                                            type="button"
+                                            @click="toggleTag(entry.tag.id)"
+                                            class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-left transition-colors"
+                                            :class="filterTagIds.includes(entry.tag.id) ? 'bg-(--primary)/15 text-(--text)' : 'text-(--text) hover:bg-(--text)/5'"
+                                            :aria-pressed="filterTagIds.includes(entry.tag.id)"
+                                        >
+                                            <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: entry.tag.color }"></span>
+                                            <span class="flex-1 truncate">{{ entry.tag.name }}</span>
+                                            <span class="tabular-nums text-(--text2) font-medium">{{ entry.count }}</span>
+                                            <i class="bi bi-check-lg text-(--primary) w-3" :class="filterTagIds.includes(entry.tag.id) ? '' : 'invisible'"></i>
+                                        </button>
+                                        <p v-if="filteredAvailableTags.length === 0" class="text-xs text-center text-(--text2) py-3">Aucun tag de ce nom.</p>
+                                    </div>
+                                </div>
+                            </template>
+                        </DropDown>
+
+                        <!-- Tags actifs : visibles et retirables sans rouvrir le menu -->
+                        <button
+                            v-for="tag in activeTags" :key="tag.id"
+                            type="button"
+                            @click="toggleTag(tag.id)"
+                            class="flex items-center gap-1.5 pl-2.5 pr-2 py-1 rounded-full text-[11px] font-bold border transition-opacity hover:opacity-70"
+                            :style="{ borderColor: tag.color, color: tag.color }"
+                            :title="`Retirer le filtre « ${tag.name} »`"
+                        >
+                            {{ tag.name }}
+                            <i class="bi bi-x-lg text-[9px]"></i>
+                        </button>
+
+                        <button
+                            v-if="hasFilters"
+                            type="button"
+                            @click="resetFilters"
+                            class="text-[11px] font-bold text-(--text2) hover:text-(--text) flex items-center gap-1 ml-1"
+                        >
+                            <i class="bi bi-x-circle"></i>
+                            Réinitialiser
+                        </button>
+
+                        <span v-if="hasFilters && !loading" class="ml-auto text-xs text-(--text2) tabular-nums whitespace-nowrap">
+                            {{ visibleTaskCount }} sur {{ archivedTasks.length }}
+                        </span>
+                    </div>
                 </div>
 
-                <div class="flex items-center gap-1.5 shrink-0">
-                    <button
-                        @click="sortMode = 'date'"
-                        class="text-xs font-bold px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5"
-                        :class="sortMode === 'date' ? 'bg-(--primary) text-white' : 'bg-(--text)/5 text-(--text2) hover:bg-(--text)/10'"
-                    >
-                        <i class="bi bi-calendar3" /> Date
-                    </button>
-                    <button
-                        @click="sortMode = 'folder'"
-                        class="text-xs font-bold px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5"
-                        :class="sortMode === 'folder' ? 'bg-(--primary) text-white' : 'bg-(--text)/5 text-(--text2) hover:bg-(--text)/10'"
-                    >
-                        <i class="bi bi-folder2" /> Dossier
-                    </button>
-                </div>
-            </div>
+                <div class="px-4 md:px-6 pb-32">
+                    <!-- Chargement -->
+                    <div v-if="loading" class="flex flex-col gap-4 animate-pulse pt-2">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-(--text)/10"></div>
+                            <div class="w-40 h-4 rounded-full bg-(--text)/10"></div>
+                        </div>
+                        <div class="archive-grid">
+                            <div v-for="i in 8" :key="i" class="h-36 rounded-xl bg-(--text)/5 border border-(--border-color)"></div>
+                        </div>
+                    </div>
 
-            <!-- Dossiers : rangée de chips sur mobile -->
-            <div class="flex md:hidden items-center gap-2 overflow-x-auto pb-1 shrink-0 scrollbar-hide">
+                    <!-- Rien d'archivé -->
+                    <div v-else-if="archivedTasks.length === 0" class="py-20 max-w-sm mx-auto flex flex-col items-center text-center gap-3">
+                        <div class="w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center">
+                            <i class="bi bi-archive text-3xl text-amber-500"></i>
+                        </div>
+                        <h4 class="text-lg font-bold text-(--text)">Rien d'archivé pour l'instant</h4>
+                        <p class="text-sm text-(--text2)">
+                            Les tâches archivées depuis le tableau arrivent ici, rangées par personne. Elles restent consultables et se restaurent en un clic.
+                        </p>
+                        <button type="button" class="primary-glow !text-sm mt-2" @click="router.push(backTarget)">
+                            <i class="bi bi-kanban"></i> Retour au tableau
+                        </button>
+                    </div>
+
+                    <!-- Aucun résultat -->
+                    <div v-else-if="visibleGroups.length === 0" class="py-20 max-w-sm mx-auto flex flex-col items-center text-center gap-3">
+                        <i class="bi bi-search text-4xl text-(--text2)/60"></i>
+                        <h4 class="text-lg font-bold text-(--text)">Aucune tâche archivée ne correspond</h4>
+                        <p class="text-sm text-(--text2)">
+                            <template v-if="activePerson">Pour {{ personLabel(activePerson, $p) }}<template v-if="searchQuery || filterTagIds.length">, avec ces filtres</template>.</template>
+                            <template v-else>Essayez d'autres mots ou retirez un tag.</template>
+                        </p>
+                        <button type="button" class="text-sm font-bold text-(--primary) hover:underline" @click="resetFilters(); activePersonId = null">
+                            Tout afficher
+                        </button>
+                    </div>
+
+                    <!-- Groupes par personne -->
+                    <template v-else>
+                    <section
+                        v-for="group in visibleGroups" :key="group.person.id"
+                        class="pt-2 pb-8"
+                        :aria-label="personLabel(group.person, $p)"
+                    >
+                        <div class="flex items-center gap-3 mb-4 flex-wrap">
+                            <ArchivePersonAvatar :person="group.person" size="w-10 h-10" />
+                            <div class="min-w-0 flex-1">
+                                <h4 class="text-base font-bold text-(--text) truncate">
+                                    {{ personLabel(group.person, $p) }}
+                                </h4>
+                                <p class="text-xs text-(--text2) tabular-nums">
+                                    {{ group.tasks.length }} {{ group.tasks.length > 1 ? 'tâches' : 'tâche' }}
+                                    · {{ group.doneCount }} terminée{{ group.doneCount > 1 ? 's' : '' }}
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <button
+                                    type="button"
+                                    @click="toggleGroupSelection(group)"
+                                    class="h-8 px-3 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5"
+                                    :class="isGroupSelected(group) ? 'bg-(--primary)/15 text-(--primary)' : 'text-(--text2) hover:bg-(--text)/5 hover:text-(--text)'"
+                                >
+                                    <i class="bi" :class="isGroupSelected(group) ? 'bi-check-square-fill' : 'bi-square'"></i>
+                                    <span class="hidden sm:inline">{{ isGroupSelected(group) ? 'Sélectionnées' : 'Sélectionner' }}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    @click="restoreTasks(group.tasks)"
+                                    :disabled="busy"
+                                    class="h-8 px-3 rounded-lg text-xs font-bold bg-(--primary)/10 text-(--primary) hover:bg-(--primary)/20 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                                >
+                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                    {{ group.tasks.length > 1 ? `Tout restaurer` : 'Restaurer' }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <TransitionGroup tag="div" name="archive-card" class="archive-grid relative">
+                            <DropDown
+                                v-for="task in shownTasks(group)" :key="task.id"
+                                align="mouse" click="right" class="w-full h-full"
+                            >
+                                <template #trigger>
+                                    <TaskCard
+                                        :task="task"
+                                        archived
+                                        class="h-full"
+                                        @click="onCardClick(task)"
+                                        :class="selectedIds.has(task.id) ? 'ring-2 ring-(--primary) border-(--primary)!' : ''"
+                                    >
+                                        <template #header-right>
+                                            <div class="flex items-center gap-1 -mr-1 -mt-1 shrink-0" @click.stop>
+                                                <button
+                                                    type="button"
+                                                    @click="restoreTasks([task])"
+                                                    :disabled="busy"
+                                                    class="card-action"
+                                                    :class="selectionActive ? 'hidden' : ''"
+                                                    title="Restaurer dans le tableau"
+                                                    aria-label="Restaurer dans le tableau"
+                                                >
+                                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    @click="toggleSelection(task.id)"
+                                                    class="card-action"
+                                                    :class="selectedIds.has(task.id) ? 'is-on' : (selectionActive ? 'is-visible' : '')"
+                                                    :aria-pressed="selectedIds.has(task.id)"
+                                                    :aria-label="selectedIds.has(task.id) ? 'Désélectionner' : 'Sélectionner'"
+                                                >
+                                                    <i class="bi" :class="selectedIds.has(task.id) ? 'bi-check-circle-fill' : 'bi-circle'"></i>
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </TaskCard>
+                                </template>
+                                <template #content>
+                                    <button @click="openTask(task)" class="dropdown-item-annimate dropdown-item-style gap-2">
+                                        <i class="bi bi-box-arrow-up-right" /> Ouvrir
+                                    </button>
+                                    <button @click="restoreTasks([task])" class="dropdown-item-annimate dropdown-item-style gap-2">
+                                        <i class="bi bi-arrow-counterclockwise" /> Restaurer dans le tableau
+                                    </button>
+                                    <button @click="toggleSelection(task.id)" class="dropdown-item-annimate dropdown-item-style gap-2">
+                                        <i class="bi" :class="selectedIds.has(task.id) ? 'bi-dash-square' : 'bi-check2-square'" />
+                                        {{ selectedIds.has(task.id) ? 'Désélectionner' : 'Sélectionner' }}
+                                    </button>
+                                    <button
+                                        @click="askDelete([task])"
+                                        class="dropdown-item-annimate dropdown-item-style gap-2 text-red-500! hover:bg-red-500/5!"
+                                    >
+                                        <i class="bi bi-trash" /> Supprimer définitivement
+                                    </button>
+                                </template>
+                            </DropDown>
+                        </TransitionGroup>
+
+                        <button
+                            v-if="group.tasks.length > shownTasks(group).length"
+                            type="button"
+                            @click="expand(group.person.id)"
+                            class="mt-4 w-full h-10 rounded-xl bg-(--text)/[0.03] hover:bg-(--text)/[0.06] text-xs font-bold text-(--text2) hover:text-(--text) transition-colors flex items-center justify-center gap-2"
+                        >
+                            <i class="bi bi-chevron-down"></i>
+                            {{ group.tasks.length - shownTasks(group).length }} {{ group.tasks.length - shownTasks(group).length > 1 ? 'tâches' : 'tâche' }} de plus
+                        </button>
+                    </section>
+                    </template>
+                </div>
+            </main>
+        </div>
+
+        <!-- Barre du bas : sélection, ou annulation de la dernière restauration -->
+        <Transition name="archive-bar" mode="out-in">
+            <div
+                v-if="selectedIds.size > 0"
+                key="selection"
+                class="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 bg-(--bg2) border border-(--border-color) rounded-2xl shadow-2xl pl-4 pr-2 py-2 flex items-center gap-2 max-w-[calc(100%-2rem)]"
+            >
+                <span class="text-sm font-bold text-(--text) whitespace-nowrap tabular-nums">
+                    {{ selectedIds.size }} sélectionnée{{ selectedIds.size > 1 ? 's' : '' }}
+                </span>
                 <button
-                    v-for="opt in folderFilterOptions" :key="opt.key ?? '__all__'"
+                    v-if="!allVisibleSelected"
                     type="button"
-                    @click="activeFolderFilter = opt.key"
-                    class="text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
-                    :class="activeFolderFilter === opt.key ? 'bg-(--primary) text-white' : 'bg-(--text)/5 text-(--text2)'"
+                    @click="selectAllVisible"
+                    class="text-xs font-bold text-(--text2) hover:text-(--text) px-2 whitespace-nowrap hidden sm:block"
                 >
-                    <i class="bi" :class="opt.icon" /> {{ opt.label }}
+                    Tout sélectionner ({{ visibleTaskCount }})
+                </button>
+                <div class="h-6 w-px bg-(--border-color) mx-1"></div>
+                <button
+                    type="button"
+                    @click="restoreTasks(selectedTasks)"
+                    :disabled="busy"
+                    class="h-9 px-3 rounded-xl bg-(--primary) text-white text-sm font-bold flex items-center gap-2 hover:brightness-110 transition disabled:opacity-50"
+                >
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                    Restaurer
+                </button>
+                <button
+                    type="button"
+                    @click="askDelete(selectedTasks)"
+                    :disabled="busy"
+                    class="h-9 px-3 rounded-xl text-sm font-bold text-(--text) hover:bg-red-500/10 hover:text-red-500 transition-colors flex items-center gap-2 disabled:opacity-50"
+                >
+                    <i class="bi bi-trash"></i>
+                    <span class="hidden sm:inline">Supprimer</span>
+                </button>
+                <button
+                    type="button"
+                    @click="selectedIds = new Set()"
+                    class="w-9 h-9 rounded-xl text-(--text2) hover:bg-(--text)/5 hover:text-(--text) transition-colors"
+                    aria-label="Annuler la sélection"
+                >
+                    <i class="bi bi-x-lg"></i>
                 </button>
             </div>
 
-            <div class="flex-1 min-h-0 flex flex-col md:flex-row gap-4">
-
-                <!-- Dossiers : sidebar sur desktop, à la fois filtre (clic) et cible de glisser-déposer -->
-                <aside class="hidden md:flex md:flex-col md:w-56 shrink-0 border-r border-(--border-color) pr-4 overflow-y-auto gap-1">
-                    <span class="text-[11px] font-black text-(--text2) uppercase tracking-widest mb-1">Dossiers</span>
-
-                    <button
-                        v-for="opt in folderFilterOptions" :key="opt.key ?? '__all__'"
-                        type="button"
-                        @click="activeFolderFilter = opt.key"
-                        class="text-left text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-2 transition-colors truncate"
-                        :class="[
-                            activeFolderFilter === opt.key ? 'bg-(--primary)/15 text-(--primary)' : 'text-(--text2) hover:bg-(--text)/5',
-                            opt.key && dragOverFolderId === opt.key ? 'ring-2 ring-amber-400 bg-amber-500/10 text-amber-500' : ''
-                        ]"
-                        @dragover.prevent="opt.key && draggedTaskId && (dragOverFolderId = opt.key)"
-                        @dragleave.prevent="dragOverFolderId = null"
-                        @drop.prevent="opt.key && onDropOnFolder($event, opt.key === '__none__' ? null : opt.key)"
-                    >
-                        <i class="bi shrink-0" :class="opt.icon" /> <span class="truncate">{{ opt.label }}</span>
-                    </button>
-
-                    <button
-                        v-if="!showNewFolder"
-                        @click="showNewFolder = true"
-                        class="text-left text-xs font-bold px-3 py-2 rounded-lg text-(--text2) hover:bg-(--text)/5 transition-colors flex items-center gap-2 mt-1"
-                    >
-                        <i class="bi bi-plus-lg" /> Nouveau dossier
-                    </button>
-                    <form v-else @submit.prevent="createFolder" class="flex flex-col gap-1.5 mt-1">
-                        <input
-                            v-model="newFolderTitle"
-                            type="text"
-                            autofocus
-                            placeholder="Nom du dossier..."
-                            class="text-xs bg-(--surface-sunken) border border-(--text)/10 rounded-lg px-3 py-1.5 text-(--text) focus:border-(--primary)/50 outline-none transition-all"
-                            @keydown.esc="showNewFolder = false; newFolderTitle = ''"
-                        />
-                        <div class="flex items-center gap-1.5">
-                            <button
-                                type="submit"
-                                :disabled="!newFolderTitle.trim() || creatingFolder"
-                                class="text-xs font-bold px-3 py-1.5 rounded-lg bg-(--primary)/10 text-(--primary) hover:bg-(--primary)/20 transition-colors disabled:opacity-50"
-                            >
-                                Créer
-                            </button>
-                            <button
-                                type="button"
-                                @click="showNewFolder = false; newFolderTitle = ''"
-                                class="text-xs font-bold p-1.5 rounded-lg text-(--text2) hover:bg-(--text)/5 transition-colors"
-                            >
-                                <i class="bi bi-x-lg" />
-                            </button>
-                        </div>
-                    </form>
-                </aside>
-
-                <!-- Liste des tâches -->
-                <section class="flex-1 min-h-0 overflow-y-auto pr-1">
-                    <div v-if="loading" class="flex justify-center py-16">
-                        <div class="w-8 h-8 border-2 border-(--primary)/30 border-t-(--primary) rounded-full animate-spin" />
-                    </div>
-
-                    <div v-else-if="archivedTasks.length === 0" class="py-16 flex flex-col items-center justify-center text-(--text2)">
-                        <i class="bi bi-archive text-5xl mb-4 opacity-50" />
-                        <p class="text-sm font-medium">Aucune tâche archivée pour le moment.</p>
-                    </div>
-
-                    <div v-else-if="groupedTasks.length === 0" class="py-16 flex flex-col items-center justify-center text-(--text2)">
-                        <i class="bi bi-search text-5xl mb-4 opacity-50" />
-                        <p class="text-sm font-medium">Aucune tâche ne correspond à ce filtre.</p>
-                    </div>
-
-                    <div v-else class="space-y-6 pb-24">
-                        <label class="flex items-center gap-2 pb-2 mb-1 border-b border-(--text)/10 cursor-pointer select-none w-fit">
-                            <input
-                                type="checkbox"
-                                :checked="allVisibleSelected"
-                                :indeterminate="someVisibleSelected"
-                                @change="toggleSelectAllVisible"
-                                class="accent-(--primary) w-4 h-4 shrink-0"
-                            />
-                            <span class="text-xs font-bold text-(--text2)">
-                                {{ allVisibleSelected ? 'Tout désélectionner' : 'Tout sélectionner' }}
-                            </span>
-                            <span class="text-[11px] text-(--text2)/60">({{ filteredTasks.length }})</span>
-                        </label>
-
-                        <div v-for="group in groupedTasks" :key="group.key">
-                            <div class="flex items-center gap-2 mb-3">
-                                <input
-                                    type="checkbox"
-                                    :checked="isGroupSelected(group)"
-                                    :indeterminate="isGroupPartiallySelected(group)"
-                                    @change="toggleGroupSelection(group)"
-                                    :title="isGroupSelected(group) ? 'Désélectionner ce groupe' : 'Sélectionner ce groupe'"
-                                    class="accent-(--primary) w-4 h-4 shrink-0 cursor-pointer"
-                                />
-                                <span class="text-[11px] font-black uppercase tracking-widest text-(--text2)">{{ group.label }}</span>
-                                <span class="text-[10px] text-(--text2)/60">({{ group.tasks.length }})</span>
-                                <div class="flex-1 h-px bg-(--text)/10"></div>
-                            </div>
-
-                            <div class="space-y-3">
-                                <div
-                                    v-for="task in group.tasks" :key="task.id"
-                                    draggable="true"
-                                    @dragstart="onTaskDragStart($event, task)"
-                                    @dragend="onTaskDragEnd"
-                                    class="flex items-center gap-3 p-4 bg-(--bg2)/40 border border-(--border-color) rounded-xl cursor-grab active:cursor-grabbing transition-opacity"
-                                    :class="[
-                                        draggedTaskId === task.id ? 'opacity-40' : '',
-                                        selectedTaskIds.has(task.id) ? 'border-(--primary)/60 bg-(--primary)/5' : ''
-                                    ]"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        :checked="selectedTaskIds.has(task.id)"
-                                        @change="toggleTaskSelection(task.id)"
-                                        @click.stop
-                                        class="accent-(--primary) w-4 h-4 shrink-0"
-                                    />
-
-                                    <div class="min-w-0 flex-1">
-                                        <p class="text-sm font-bold text-(--text) truncate">{{ task.title }}</p>
-                                        <p class="text-[11px] text-(--text2) mt-0.5 flex items-center gap-1.5 flex-wrap">
-                                            <span>Archivée le {{ formatDate(task.archivedAt) }}</span>
-                                            <span v-if="task.todoList" class="inline-flex items-center gap-1 text-(--primary)">
-                                                <i class="bi bi-folder2" />{{ task.todoList.title }}
-                                            </span>
-                                            <span v-if="spaceId && task.assignees?.length" class="inline-flex items-center gap-1">
-                                                <i class="bi bi-person" />{{ task.assignees.map(a => a.name).join(', ') }}
-                                            </span>
-                                        </p>
-                                    </div>
-
-                                    <div class="flex items-center gap-1.5 shrink-0" @click.stop>
-                                        <DropDown align="right" content-iner-t-w="min-w-[200px]">
-                                            <template #trigger>
-                                                <button
-                                                    class="text-(--text2) hover:text-(--text) p-1.5 rounded-lg hover:bg-(--text)/5 transition-colors"
-                                                    title="Déplacer vers…"
-                                                >
-                                                    <i class="bi bi-folder-symlink" />
-                                                </button>
-                                            </template>
-                                            <template #content>
-                                                <button
-                                                    @click="assignToFolder(task, null)"
-                                                    class="dropdown-item-annimate dropdown-item-style gap-2"
-                                                >
-                                                    <i class="bi bi-dash-circle" /> Sans dossier
-                                                </button>
-                                                <button
-                                                    v-for="folder in folders" :key="folder.id"
-                                                    @click="assignToFolder(task, folder.id)"
-                                                    class="dropdown-item-annimate dropdown-item-style gap-2"
-                                                >
-                                                    <i class="bi bi-folder2" /> {{ folder.title }}
-                                                </button>
-                                            </template>
-                                        </DropDown>
-
-                                        <button
-                                            @click="restore(task)"
-                                            :disabled="pendingId === task.id || bulkActionLoading || deleting"
-                                            class="text-xs font-bold px-3 py-1.5 rounded-lg bg-(--primary)/10 text-(--primary) hover:bg-(--primary)/20 transition-colors flex items-center gap-1.5 disabled:opacity-50"
-                                        >
-                                            <i class="bi bi-arrow-counterclockwise" /> <span class="hidden lg:inline">Restaurer</span>
-                                        </button>
-                                        <button
-                                            @click="askRemove(task)"
-                                            :disabled="pendingId === task.id || bulkActionLoading || deleting"
-                                            class="text-xs font-bold p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-                                            title="Supprimer définitivement"
-                                        >
-                                            <i class="bi bi-trash" />
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            </div>
-
-            <!-- Barre d'actions groupées -->
-            <transition
-                enter-active-class="transition duration-300 ease-out"
-                enter-from-class="transform translate-y-full opacity-0"
-                enter-to-class="transform translate-y-0 opacity-100"
-                leave-active-class="transition duration-200 ease-in"
-                leave-from-class="transform translate-y-0 opacity-100"
-                leave-to-class="transform translate-y-full opacity-0"
+            <div
+                v-else-if="undo"
+                key="undo"
+                class="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 bg-(--bg2) border border-(--border-color) rounded-2xl shadow-2xl pl-4 pr-2 py-2 flex items-center gap-3 max-w-[calc(100%-2rem)]"
+                role="status"
             >
-                <div v-if="selectedTaskIds.size > 0" class="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 bg-(--bg2) border border-(--border-color) rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3">
-                    <span class="text-sm font-bold text-(--text) whitespace-nowrap">{{ selectedTaskIds.size }} sélectionnée(s)</span>
-
-                    <div class="h-6 w-px bg-(--border-color)"></div>
-
-                    <button
-                        @click="bulkRestore"
-                        :disabled="bulkActionLoading"
-                        class="p-2 rounded-lg hover:bg-(--primary)/10 text-(--text) hover:text-(--primary) transition-colors flex items-center gap-2 text-sm font-semibold disabled:opacity-50"
-                    >
-                        <i class="bi bi-arrow-counterclockwise"></i>
-                        <span>Restaurer</span>
-                    </button>
-
-                    <button
-                        @click="requestBulkDelete"
-                        :disabled="bulkActionLoading"
-                        class="p-2 rounded-lg hover:bg-red-500/10 text-(--text) hover:text-red-500 transition-colors flex items-center gap-2 text-sm font-semibold disabled:opacity-50"
-                    >
-                        <i class="bi bi-trash"></i>
-                        <span>Supprimer</span>
-                    </button>
-
-                    <div class="h-6 w-px bg-(--border-color)"></div>
-
-                    <button
-                        @click="selectedTaskIds = new Set()"
-                        class="p-2 rounded-lg hover:bg-(--text)/5 text-(--text2) hover:text-(--text) transition-colors"
-                    >
-                        <i class="bi bi-x-lg"></i>
-                    </button>
-                </div>
-            </transition>
-
-        </main>
-
-    <Transition name="pop">
-        <div v-if="draggedTaskId" class="fixed bottom-8 right-8 flex items-center gap-4 z-[100]">
-            <div class="w-16 h-16 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-2xl border-4 transition-all duration-500"
-                 :class="[
-                    isTrashDeleting ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',
-                    isHoveringTrash && !isTrashDeleting ? 'border-red-300 scale-125 shadow-[0_0_40px_var(--glow-danger-strong)]' : 'border-transparent'
-                 ]"
-                 @dragover.prevent="isHoveringTrash = true"
-                 @dragleave.prevent="isHoveringTrash = false"
-                 @drop.prevent="onDropToTrash"
-                 title="Supprimer">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 transition-transform" :class="isTrashDeleting ? 'scale-50' : ''">
-                    <g class="transition-all duration-300" style="transform-origin: 21px 6px;" :class="isHoveringTrash && !isTrashDeleting ? 'rotate-[40deg]' : ''">
-                        <path d="M3 6h18"></path>
-                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </g>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
-                    <line x1="10" y1="11" x2="10" y2="17"></line>
-                    <line x1="14" y1="11" x2="14" y2="17"></line>
-                </svg>
+                <i class="bi bi-check-circle-fill text-green-500"></i>
+                <span class="text-sm font-bold text-(--text) truncate">
+                    {{ undo.tasks.length > 1 ? `${undo.tasks.length} tâches restaurées` : `« ${undo.tasks[0]?.title} » restaurée` }}
+                </span>
+                <button
+                    type="button"
+                    @click="undoRestore"
+                    :disabled="busy"
+                    class="h-9 px-3 rounded-xl text-sm font-bold text-(--primary) hover:bg-(--primary)/10 transition-colors whitespace-nowrap disabled:opacity-50"
+                >
+                    Annuler
+                </button>
+                <button
+                    type="button"
+                    @click="dismissUndo"
+                    class="w-9 h-9 rounded-xl text-(--text2) hover:bg-(--text)/5 hover:text-(--text) transition-colors"
+                    aria-label="Fermer"
+                >
+                    <i class="bi bi-x-lg"></i>
+                </button>
             </div>
-        </div>
-    </Transition>
+        </Transition>
 
-    <ConfirmDelete
-        :show="!!taskToRemove || pendingBulkDelete"
-        item-type="la tâche"
-        :item-name="pendingBulkDelete ? `${selectedTaskIds.size} tâche(s)` : (taskToRemove?.title || '')"
-        button-text="Supprimer définitivement"
-        :loading="deleting"
-        @cancel="taskToRemove = null; pendingBulkDelete = false"
-        @confirm="confirmDelete"
-    />
+        <ConfirmDelete
+            :show="toDelete.length > 0"
+            item-type="la tâche"
+            :item-name="toDelete.length > 1 ? `${toDelete.length} tâches` : (toDelete[0]?.title || '')"
+            button-text="Supprimer définitivement"
+            :loading="busy"
+            @cancel="toDelete = []"
+            @confirm="confirmDelete"
+        />
 
-    <!-- Racine unique (Popup/ConfirmDelete sont téléportés dans body) : les <Transition> de changement de vue n'animent qu'un élément. -->
+    <!-- Racine unique (ConfirmDelete est téléporté dans body) : les <Transition> de changement de vue n'animent qu'un élément. -->
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { ref, computed, watch, onBeforeUnmount } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
-import type { Task, TodoList } from '@/types/types';
+import { user } from '@/assets/var';
+import type { Task, Tag } from '@/types/types';
 import { useToast } from '@/composables/useToast';
+import { useTaskPanels } from '@/composables/useTaskPanels';
+import { buildTaskMatcher } from '@/assets/utils/taskSearch';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import DropDown from '@/components/DropDown.vue';
+import TaskCard from '../components/SpaceTasks/TaskCard.vue';
+import TaskSearchBar from '../components/SpaceTasks/TaskSearchBar.vue';
+import ArchivePeopleList, { type ArchivePersonRow } from '../components/SpaceTasks/ArchivePeopleList.vue';
+import ArchivePersonAvatar from '../components/SpaceTasks/ArchivePersonAvatar.vue';
+import { taskPeople, comparePeople, type ArchivePerson } from '../components/SpaceTasks/archivePeople';
 
 const route = useRoute();
+const router = useRouter();
 const toast = useToast();
+const { openTask, onTaskPanelChange } = useTaskPanels();
 
 const orgId = computed(() => route.params.orgId as string);
 const spaceId = computed(() => (route.params.spaceId as string) || null);
 const scopeTitle = computed(() => spaceId.value ? 'Tâches archivées' : 'Mes tâches archivées');
-
-const loading = ref(false);
-const pendingId = ref<string | null>(null);
-const deleting = ref(false);
-const bulkActionLoading = ref(false);
-const archivedTasks = ref<Task[]>([]);
-const taskToRemove = ref<Task | null>(null);
-const pendingBulkDelete = ref(false);
-const sortMode = ref<'date' | 'folder'>('date');
-const folders = ref<{ id: string; title: string }[]>([]);
-const searchQuery = ref('');
-const activeFolderFilter = ref<string | null>(null); // null = tout, '__none__' = sans dossier, sinon folderId
-const selectedTaskIds = ref<Set<string>>(new Set());
-
-const folderFilterOptions = computed(() => [
-    { key: null as string | null, label: 'Tout', icon: 'bi-collection' },
-    { key: '__none__' as string | null, label: 'Sans dossier', icon: 'bi-dash-circle' },
-    ...folders.value.map(f => ({ key: f.id as string | null, label: f.title, icon: 'bi-folder2' }))
-]);
-
 const backTarget = computed(() => spaceId.value
     ? { name: 'TasksSpace', params: { orgId: orgId.value, spaceId: spaceId.value } }
     : { name: 'TasksGlobal', params: { orgId: orgId.value } }
 );
 
-const formatDate = (date?: string | Date | null) => {
-    if (!date) return '';
-    return new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+const meId = computed(() => user.value?.id ?? null);
+// fmt = $p du template : masque les noms en mode confidentialité.
+const personLabel = (p: ArchivePerson, fmt: (name: string) => string) =>
+    p.isNone ? 'Sans assigné' : (p.isMe ? 'Vous' : fmt(p.name));
+
+const loading = ref(true);
+const busy = ref(false);
+const archivedTasks = ref<Task[]>([]);
+const scrollEl = ref<HTMLElement | null>(null);
+
+// ── Filtres ──────────────────────────────────────────────────────────────
+const searchQuery = ref('');
+const searchRegex = ref(false);
+const searchState = computed(() => buildTaskMatcher(searchQuery.value, searchRegex.value));
+const searchInvalid = computed(() => searchState.value.invalid);
+
+const filterTagIds = ref<string[]>([]);
+const tagSearch = ref('');
+const activePersonId = ref<string | null>(null);
+
+const hasFilters = computed(() => !!searchQuery.value.trim() || filterTagIds.value.length > 0);
+
+const toggleTag = (id: string) => {
+    filterTagIds.value = filterTagIds.value.includes(id)
+        ? filterTagIds.value.filter(t => t !== id)
+        : [...filterTagIds.value, id];
 };
 
-const dayLabel = (date: Date) => {
-    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-    const diffDays = Math.round((startOfDay(new Date()) - startOfDay(date)) / 86400000);
-    if (diffDays === 0) return "Aujourd'hui";
-    if (diffDays === 1) return 'Hier';
-    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+const resetFilters = () => {
+    searchQuery.value = '';
+    filterTagIds.value = [];
 };
 
-const filteredTasks = computed(() => {
-    let list = archivedTasks.value;
-
-    const query = searchQuery.value.trim().toLowerCase();
-    if (query) {
-        list = list.filter(t => t.title?.toLowerCase().includes(query));
+// Seuls les tags réellement portés par une tâche archivée : pas de filtre qui
+// mène à un écran vide.
+const availableTags = computed(() => {
+    const map = new Map<string, { tag: Tag; count: number }>();
+    for (const task of archivedTasks.value) {
+        for (const tag of task.tags ?? []) {
+            const entry = map.get(tag.id);
+            if (entry) entry.count++;
+            else map.set(tag.id, { tag, count: 1 });
+        }
     }
-
-    if (activeFolderFilter.value === '__none__') {
-        list = list.filter(t => !t.todoListId);
-    } else if (activeFolderFilter.value) {
-        list = list.filter(t => t.todoListId === activeFolderFilter.value);
-    }
-
-    return list;
+    return [...map.values()].sort((a, b) => b.count - a.count || a.tag.name.localeCompare(b.tag.name, 'fr'));
 });
 
-type TaskGroup = { key: string; label: string; tasks: Task[] };
+const filteredAvailableTags = computed(() => {
+    const q = tagSearch.value.trim().toLowerCase();
+    return q ? availableTags.value.filter(e => e.tag.name.toLowerCase().includes(q)) : availableTags.value;
+});
 
-const groupedTasks = computed<TaskGroup[]>(() => {
-    const sorted = [...filteredTasks.value].sort(
-        (a, b) => new Date(b.archivedAt || 0).getTime() - new Date(a.archivedAt || 0).getTime()
-    );
+const activeTags = computed(() =>
+    filterTagIds.value
+        .map(id => availableTags.value.find(e => e.tag.id === id)?.tag)
+        .filter((t): t is Tag => !!t)
+);
 
-    const groups = new Map<string, TaskGroup>();
+/** Recherche + tags, avant le choix de la personne. */
+const filteredTasks = computed(() => archivedTasks.value.filter(t => {
+    if (filterTagIds.value.length && !t.tags?.some(tag => filterTagIds.value.includes(tag.id))) return false;
+    if (searchState.value.matcher && !searchState.value.matcher(t)) return false;
+    return true;
+}));
+const filteredTaskCount = computed(() => filteredTasks.value.length);
 
-    if (sortMode.value === 'folder') {
-        for (const task of sorted) {
-            const key = task.todoList?.id || '__none__';
-            const label = task.todoList?.title || 'Sans dossier';
-            if (!groups.has(key)) groups.set(key, { key, label, tasks: [] });
-            groups.get(key)!.tasks.push(task);
-        }
-        return [...groups.values()].sort((a, b) => {
-            if (a.key === '__none__') return 1;
-            if (b.key === '__none__') return -1;
-            return a.label.localeCompare(b.label, 'fr');
-        });
-    }
+// ── Regroupement par personne ────────────────────────────────────────────
+interface PersonGroup {
+    person: ArchivePerson;
+    tasks: Task[];
+    total: number;
+    doneCount: number;
+    lastArchivedAt: Date | null;
+}
+
+const archivedTime = (t: Task) => new Date(t.archivedAt || 0).getTime();
+
+/** Toutes les personnes ayant au moins une archive, même filtrées à zéro :
+ *  la liste de gauche ne bouge pas pendant qu'on tape une recherche. */
+const groups = computed<PersonGroup[]>(() => {
+    const byId = new Map<string, PersonGroup>();
+    const passing = new Set(filteredTasks.value.map(t => t.id));
+    const sorted = [...archivedTasks.value].sort((a, b) => archivedTime(b) - archivedTime(a));
 
     for (const task of sorted) {
-        const date = task.archivedAt ? new Date(task.archivedAt) : null;
-        const key = date ? `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}` : '__unknown__';
-        const label = date ? dayLabel(date) : 'Date inconnue';
-        if (!groups.has(key)) groups.set(key, { key, label, tasks: [] });
-        groups.get(key)!.tasks.push(task);
+        for (const person of taskPeople(task, meId.value)) {
+            let g = byId.get(person.id);
+            if (!g) {
+                g = { person, tasks: [], total: 0, doneCount: 0, lastArchivedAt: task.archivedAt ? new Date(task.archivedAt) : null };
+                byId.set(person.id, g);
+            }
+            g.total++;
+            if (passing.has(task.id)) {
+                g.tasks.push(task);
+                if (task.status === 'DONE') g.doneCount++;
+            }
+        }
     }
-    return [...groups.values()];
+    return [...byId.values()].sort(comparePeople);
 });
 
-// TasksArchive.vue sert les deux routes (globale/espace) : Vue Router réutilise
-// la même instance en changeant juste orgId/spaceId, donc load()/loadFolders()
-// sont redéclenchés par le watcher ci-dessous. Sans jeton de requête, une
-// réponse d'un ancien scope qui arrive après celle du nouveau scope écraserait
-// l'affichage avec les mauvaises données (ex: aller-retour rapide entre deux
-// espaces avant que la première requête n'ait eu le temps de répondre).
+const peopleRows = computed<ArchivePersonRow[]>(() => groups.value.map(g => ({
+    person: g.person,
+    count: g.tasks.length,
+    lastArchivedAt: g.lastArchivedAt,
+})));
+
+const activePerson = computed(() => groups.value.find(g => g.person.id === activePersonId.value)?.person ?? null);
+
+const visibleGroups = computed(() => groups.value.filter(g =>
+    g.tasks.length > 0 && (!activePersonId.value || g.person.id === activePersonId.value)
+));
+
+/** Une tâche à plusieurs assignés apparaît dans plusieurs groupes : on compte les ids. */
+const visibleTaskIds = computed(() => new Set(visibleGroups.value.flatMap(g => g.tasks.map(t => t.id))));
+const visibleTaskCount = computed(() => visibleTaskIds.value.size);
+
+// Sur « Tout le monde », chaque personne montre ses dernières archives et se
+// déplie à la demande : une personne à 200 archives n'écrase pas les autres.
+const PREVIEW = 8;
+const expanded = ref<Set<string>>(new Set());
+const shownTasks = (g: PersonGroup) =>
+    activePersonId.value || expanded.value.has(g.person.id) ? g.tasks : g.tasks.slice(0, PREVIEW);
+const expand = (id: string) => { expanded.value = new Set(expanded.value).add(id); };
+
+watch(activePersonId, () => scrollEl.value?.scrollTo({ top: 0 }));
+
+// ── Sélection ────────────────────────────────────────────────────────────
+const selectedIds = ref<Set<string>>(new Set());
+const selectionActive = computed(() => selectedIds.value.size > 0);
+const selectedTasks = computed(() => archivedTasks.value.filter(t => selectedIds.value.has(t.id)));
+
+const setSelected = (ids: string[], on: boolean) => {
+    const next = new Set(selectedIds.value);
+    ids.forEach(id => on ? next.add(id) : next.delete(id));
+    selectedIds.value = next;
+};
+const toggleSelection = (id: string) => setSelected([id], !selectedIds.value.has(id));
+
+const isGroupSelected = (g: PersonGroup) => g.tasks.length > 0 && g.tasks.every(t => selectedIds.value.has(t.id));
+const toggleGroupSelection = (g: PersonGroup) => setSelected(g.tasks.map(t => t.id), !isGroupSelected(g));
+
+// « Tout sélectionner » ne porte que sur ce qui est affiché : on ne supprime
+// jamais en masse des tâches masquées par un filtre.
+const allVisibleSelected = computed(() =>
+    visibleTaskCount.value > 0 && [...visibleTaskIds.value].every(id => selectedIds.value.has(id))
+);
+const selectAllVisible = () => setSelected([...visibleTaskIds.value], true);
+
+// En mode sélection, un clic sur la carte coche ; sinon il l'ouvre dans le dock.
+const onCardClick = (task: Task) => {
+    if (selectionActive.value) toggleSelection(task.id);
+    else openTask(task);
+};
+
+const removeLocal = (ids: string[]) => {
+    const gone = new Set(ids);
+    archivedTasks.value = archivedTasks.value.filter(t => !gone.has(t.id));
+    setSelected(ids, false);
+};
+
+/** Une requête par tâche ; renvoie celles qui ont réussi. */
+const runEach = async (tasks: Task[], call: (t: Task) => Promise<void>) => {
+    const results = await Promise.allSettled(tasks.map(call));
+    const ok = tasks.filter((_, i) => results[i]?.status === 'fulfilled');
+    return { ok, failed: tasks.length - ok.length };
+};
+
+const setArchived = async (task: Task, archived: boolean): Promise<Task> => {
+    const res = await sfetch(`/api/tasks/${orgId.value}/tasks/${task.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ archived })
+    });
+    if (!res.ok) throw new Error('API Error');
+    return await res.json() as Task;
+};
+
+// ── Restaurer, avec annulation ───────────────────────────────────────────
+const undo = ref<{ tasks: Task[] } | null>(null);
+let undoTimer: ReturnType<typeof setTimeout> | null = null;
+
+const dismissUndo = () => {
+    if (undoTimer) clearTimeout(undoTimer);
+    undoTimer = null;
+    undo.value = null;
+};
+
+const restoreTasks = async (tasks: Task[]) => {
+    if (!tasks.length || busy.value) return;
+    busy.value = true;
+    try {
+        const { ok, failed } = await runEach(tasks, async t => { await setArchived(t, false); });
+        removeLocal(ok.map(t => t.id));
+        if (failed) toast.show(`${failed} tâche${failed > 1 ? 's' : ''} n'${failed > 1 ? 'ont' : 'a'} pas pu être restaurée${failed > 1 ? 's' : ''}`, 'error');
+        if (ok.length) {
+            dismissUndo();
+            undo.value = { tasks: ok };
+            undoTimer = setTimeout(dismissUndo, 6000);
+        }
+    } finally {
+        busy.value = false;
+    }
+};
+
+// Ré-archive : la date d'archivage devient celle d'aujourd'hui (le serveur la pose).
+const undoRestore = async () => {
+    const tasks = undo.value?.tasks ?? [];
+    dismissUndo();
+    if (!tasks.length) return;
+    busy.value = true;
+    try {
+        const back: Task[] = [];
+        const results = await Promise.allSettled(tasks.map(async t => {
+            const updated = await setArchived(t, true);
+            back.push({ ...t, ...updated });
+        }));
+        archivedTasks.value = [...back, ...archivedTasks.value];
+        if (results.some(r => r.status === 'rejected')) toast.show("Certaines tâches n'ont pas pu être ré-archivées", 'error');
+    } finally {
+        busy.value = false;
+    }
+};
+
+// ── Supprimer définitivement ─────────────────────────────────────────────
+const toDelete = ref<Task[]>([]);
+const askDelete = (tasks: Task[]) => { toDelete.value = [...tasks]; };
+
+const confirmDelete = async () => {
+    const tasks = toDelete.value;
+    busy.value = true;
+    try {
+        const { ok, failed } = await runEach(tasks, async t => {
+            const res = await sfetch(`/api/tasks/${orgId.value}/tasks/${t.id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('API Error');
+        });
+        removeLocal(ok.map(t => t.id));
+        if (failed === 0) toast.show(ok.length > 1 ? `${ok.length} tâches supprimées` : 'Tâche supprimée', 'success');
+        else toast.show(`${failed} suppression${failed > 1 ? 's' : ''} en échec`, 'error');
+    } finally {
+        busy.value = false;
+        toDelete.value = [];
+    }
+};
+
+// ── Chargement ───────────────────────────────────────────────────────────
+// Le même composant sert les routes globale et espace : Vue Router le réutilise
+// en changeant orgId/spaceId. Le jeton écarte la réponse d'un ancien scope qui
+// arriverait après celle du nouveau.
 let requestToken = 0;
 
-const load = async (token: number) => {
+const load = async () => {
+    const token = ++requestToken;
     loading.value = true;
     try {
         const url = spaceId.value
             ? `/api/tasks/${orgId.value}/spaces/${spaceId.value}/archived`
             : `/api/tasks/${orgId.value}/archived/me`;
         const res = await sfetch(url);
-        if (res.ok) {
-            const data = await res.json();
-            if (token === requestToken) archivedTasks.value = data.archivedTasks;
-        }
+        if (!res.ok) throw new Error();
+        const data = await res.json() as { archivedTasks: Task[] };
+        if (token === requestToken) archivedTasks.value = data.archivedTasks;
     } catch (e) {
-        if (token === requestToken) toast.show("Erreur chargement des archives", "error");
+        if (token === requestToken) toast.show('Erreur de chargement des archives', 'error');
     } finally {
         if (token === requestToken) loading.value = false;
     }
 };
 
-const loadFolders = async (token: number) => {
-    try {
-        const url = spaceId.value
-            ? `/api/tasks/${orgId.value}/spaces/${spaceId.value}/lists`
-            : `/api/tasks/${orgId.value}/lists/me`;
-        const res = await sfetch(url);
-        if (res.ok) {
-            const data = await res.json();
-            if (token === requestToken) {
-                folders.value = (data.lists || []).map((l: TodoList) => ({ id: l.id, title: l.title }));
-            }
-        }
-    } catch (e) {
-        // Les dossiers sont secondaires : on n'affiche pas d'erreur bloquante ici.
-    }
-};
-
-const refresh = () => {
-    requestToken++;
-    const token = requestToken;
-    load(token);
-    loadFolders(token);
-};
-
-const showNewFolder = ref(false);
-const newFolderTitle = ref('');
-const creatingFolder = ref(false);
-const draggedTaskId = ref<string | null>(null);
-const dragOverFolderId = ref<string | null>(null);
-const isHoveringTrash = ref(false);
-const isTrashDeleting = ref(false);
-
-const onTaskDragStart = (e: DragEvent, task: Task) => {
-    draggedTaskId.value = task.id;
-    if (e.dataTransfer) {
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', task.id);
-    }
-};
-
-const onTaskDragEnd = () => {
-    draggedTaskId.value = null;
-    dragOverFolderId.value = null;
-    isHoveringTrash.value = false;
-};
-
-// Si la tâche déplacée fait partie de la sélection, toute la sélection suit.
-const assignToFolder = async (task: Task, folderId: string | null) => {
-    const ids = selectedTaskIds.value.has(task.id) ? [...selectedTaskIds.value] : [task.id];
-    const toMove = archivedTasks.value.filter(t => ids.includes(t.id) && (t.todoListId || null) !== folderId);
-    if (!toMove.length) return;
-
-    const results = await Promise.allSettled(toMove.map(async (t) => {
-        const res = await sfetch(`/api/tasks/${orgId.value}/tasks/${t.id}`, {
-            method: 'PUT',
-            body: JSON.stringify({ todoListId: folderId })
-        });
-        if (!res.ok) throw new Error();
-        const updated = await res.json();
-        const idx = archivedTasks.value.findIndex(x => x.id === t.id);
-        if (idx !== -1) archivedTasks.value[idx] = updated;
-    }));
-
-    const failed = results.filter(r => r.status === 'rejected').length;
-    const moved = toMove.length - failed;
-    if (failed) {
-        toast.show(`Erreur lors du déplacement de ${failed} tâche(s)`, 'error');
-    } else if (moved > 1) {
-        toast.show(`${moved} tâches ${folderId ? 'déplacées dans le dossier' : 'retirées du dossier'}`, 'success');
-    } else {
-        toast.show(folderId ? 'Tâche déplacée dans le dossier' : 'Tâche retirée du dossier', 'success');
-    }
-};
-
-const onDropOnFolder = (e: DragEvent, folderId: string | null) => {
-    dragOverFolderId.value = null;
-    const taskId = e.dataTransfer?.getData('text/plain') || draggedTaskId.value;
-    const task = archivedTasks.value.find(t => t.id === taskId);
-    if (task) assignToFolder(task, folderId);
-};
-
-// Comme dans TasksSpace : si la tâche déplacée fait partie de la sélection,
-// toute la sélection part à la corbeille.
-const onDropToTrash = async (e: DragEvent) => {
-    const taskId = e.dataTransfer?.getData('text/plain') || draggedTaskId.value;
-    isHoveringTrash.value = false;
-    if (!taskId) return;
-    const ids = selectedTaskIds.value.has(taskId) ? [...selectedTaskIds.value] : [taskId];
-
-    isTrashDeleting.value = true;
-    setTimeout(() => {
-        draggedTaskId.value = null;
-        isTrashDeleting.value = false;
-    }, 600);
-
-    const results = await Promise.allSettled(ids.map(id => deleteById(id)));
-    reportBulkResult(
-        results,
-        ids.length > 1 ? 'Tâches supprimées' : 'Tâche supprimée',
-        'Erreur lors de la suppression'
-    );
-};
-
-const createFolder = async () => {
-    const title = newFolderTitle.value.trim();
-    if (!title || creatingFolder.value) return;
-
-    creatingFolder.value = true;
-    try {
-        const res = await sfetch(`/api/tasks/${orgId.value}/lists`, {
-            method: 'POST',
-            body: JSON.stringify({ title, spaceId: spaceId.value || null })
-        });
-        if (!res.ok) throw new Error();
-        const list = await res.json();
-        folders.value.push({ id: list.id, title: list.title });
-        newFolderTitle.value = '';
-        showNewFolder.value = false;
-        toast.show('Dossier créé', 'success');
-    } catch (e) {
-        toast.show('Erreur lors de la création du dossier', 'error');
-    } finally {
-        creatingFolder.value = false;
-    }
-};
-
-const toggleTaskSelection = (taskId: string) => {
-    const next = new Set(selectedTaskIds.value);
-    if (next.has(taskId)) next.delete(taskId);
-    else next.add(taskId);
-    selectedTaskIds.value = next;
-};
-
-// Les cases "tout sélectionner" ne portent que sur ce qui est affiché
-// (recherche + filtre dossier) : cocher tout puis restreindre le filtre ne doit
-// pas supprimer en masse des tâches que l'utilisateur n'a jamais vues.
-const allVisibleSelected = computed(() =>
-    filteredTasks.value.length > 0 && filteredTasks.value.every(t => selectedTaskIds.value.has(t.id))
-);
-
-const someVisibleSelected = computed(() =>
-    !allVisibleSelected.value && filteredTasks.value.some(t => selectedTaskIds.value.has(t.id))
-);
-
-const setSelection = (ids: string[], selected: boolean) => {
-    const next = new Set(selectedTaskIds.value);
-    for (const id of ids) {
-        if (selected) next.add(id);
-        else next.delete(id);
-    }
-    selectedTaskIds.value = next;
-};
-
-const toggleSelectAllVisible = () => {
-    setSelection(filteredTasks.value.map(t => t.id), !allVisibleSelected.value);
-};
-
-const isGroupSelected = (group: TaskGroup) =>
-    group.tasks.length > 0 && group.tasks.every(t => selectedTaskIds.value.has(t.id));
-
-const isGroupPartiallySelected = (group: TaskGroup) =>
-    !isGroupSelected(group) && group.tasks.some(t => selectedTaskIds.value.has(t.id));
-
-const toggleGroupSelection = (group: TaskGroup) => {
-    setSelection(group.tasks.map(t => t.id), !isGroupSelected(group));
-};
-
-// Sort de la sélection dès qu'une tâche quitte la liste, quel que soit le
-// chemin (restauration/suppression individuelle ou en masse) — sinon une
-// tâche déjà traitée reste "sélectionnée", ce qui fausse le compteur de la
-// barre d'actions groupées et fait retenter une action sur un id disparu.
-const dropFromSelection = (taskId: string) => {
-    if (!selectedTaskIds.value.has(taskId)) return;
-    const next = new Set(selectedTaskIds.value);
-    next.delete(taskId);
-    selectedTaskIds.value = next;
-};
-
-const restoreById = async (taskId: string) => {
-    const res = await sfetch(`/api/tasks/${orgId.value}/tasks/${taskId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ archived: false })
-    });
-    if (!res.ok) throw new Error("API Error");
-    archivedTasks.value = archivedTasks.value.filter(t => t.id !== taskId);
-    dropFromSelection(taskId);
-};
-
-const deleteById = async (taskId: string) => {
-    const res = await sfetch(`/api/tasks/${orgId.value}/tasks/${taskId}`, {
-        method: 'DELETE'
-    });
-    if (!res.ok) throw new Error("API Error");
-    archivedTasks.value = archivedTasks.value.filter(t => t.id !== taskId);
-    dropFromSelection(taskId);
-};
-
-const restore = async (task: Task) => {
-    pendingId.value = task.id;
-    try {
-        await restoreById(task.id);
-        toast.show('Tâche restaurée', 'success');
-    } catch (e) {
-        toast.show('Erreur lors de la restauration', 'error');
-    } finally {
-        pendingId.value = null;
-    }
-};
-
-const askRemove = (task: Task) => {
-    taskToRemove.value = task;
-};
-
-const requestBulkDelete = () => {
-    pendingBulkDelete.value = true;
-};
-
-// Promise.allSettled plutôt que Promise.all : sur une action groupée, un seul
-// échec (ex: permission refusée sur une tâche précise) ne doit pas faire
-// disparaître le résultat des autres tâches déjà traitées avec succès — et
-// dropFromSelection() ayant déjà retiré chaque succès de la sélection au fur
-// et à mesure, les tâches en échec restent sélectionnées pour une nouvelle
-// tentative.
-const reportBulkResult = (results: PromiseSettledResult<void>[], successLabel: string, failLabel: string) => {
-    const failed = results.filter(r => r.status === 'rejected').length;
-    if (failed === 0) {
-        toast.show(successLabel, 'success');
-    } else if (failed === results.length) {
-        toast.show(failLabel, 'error');
-    } else {
-        toast.show(`${results.length - failed} ${successLabel.toLowerCase()}, ${failed} échec(s)`, 'warning');
-    }
-};
-
-const confirmDelete = async () => {
-    deleting.value = true;
-    try {
-        if (pendingBulkDelete.value) {
-            const ids = [...selectedTaskIds.value];
-            const results = await Promise.allSettled(ids.map(id => deleteById(id)));
-            reportBulkResult(results, 'Tâches supprimées définitivement', 'Erreur lors de la suppression');
-        } else if (taskToRemove.value) {
-            await deleteById(taskToRemove.value.id);
-            toast.show('Tâche supprimée définitivement', 'success');
-        }
-    } catch (e) {
-        toast.show('Erreur lors de la suppression', 'error');
-    } finally {
-        deleting.value = false;
-        taskToRemove.value = null;
-        pendingBulkDelete.value = false;
-    }
-};
-
-const bulkRestore = async () => {
-    bulkActionLoading.value = true;
-    try {
-        const ids = [...selectedTaskIds.value];
-        const results = await Promise.allSettled(ids.map(id => restoreById(id)));
-        reportBulkResult(results, 'Tâches restaurées', 'Erreur lors de la restauration groupée');
-    } finally {
-        bulkActionLoading.value = false;
-    }
-};
-
-// Naviguer entre le scope espace et le scope global (changement de route) doit
-// recharger — sinon on garderait les archives de l'ancien scope à l'écran.
-// `immediate: true` couvre aussi le chargement initial, pas besoin d'un
-// onMounted séparé qui dupliquerait le même déclenchement.
 watch([orgId, spaceId], () => {
-    selectedTaskIds.value = new Set();
-    activeFolderFilter.value = null;
-    refresh();
+    selectedIds.value = new Set();
+    activePersonId.value = null;
+    expanded.value = new Set();
+    resetFilters();
+    dismissUndo();
+    load();
 }, { immediate: true });
+
+// Restaurée ou supprimée depuis le panneau de la tâche : la liste suit.
+onTaskPanelChange({
+    update: (task) => {
+        if (!task.archived) { removeLocal([task.id]); return; }
+        const idx = archivedTasks.value.findIndex(t => t.id === task.id);
+        if (idx !== -1) archivedTasks.value[idx] = { ...archivedTasks.value[idx]!, ...task };
+    },
+    delete: (taskId) => removeLocal([taskId]),
+});
+
+onBeforeUnmount(dismissUndo);
 </script>
+
+<style scoped>
+.archive-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
+}
+
+.card-action {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text2);
+    transition: opacity 150ms, background-color 150ms, color 150ms;
+}
+.card-action:hover {
+    background: color-mix(in srgb, var(--text) 8%, transparent);
+    color: var(--text);
+}
+.card-action:focus-visible {
+    outline: 2px solid var(--primary);
+    opacity: 1;
+}
+.card-action.is-on {
+    color: var(--primary);
+}
+/* Souris : actions au survol de la carte. Tactile : toujours visibles. */
+@media (hover: hover) {
+    .card-action:not(.is-on):not(.is-visible) {
+        opacity: 0;
+    }
+    .group:hover .card-action {
+        opacity: 1;
+    }
+}
+
+.archive-card-leave-active {
+    transition: opacity 180ms ease, transform 180ms ease;
+}
+.archive-card-leave-to {
+    opacity: 0;
+    transform: scale(0.96);
+}
+
+.archive-bar-enter-active,
+.archive-bar-leave-active {
+    transition: opacity 200ms ease, transform 200ms ease;
+}
+.archive-bar-enter-from,
+.archive-bar-leave-to {
+    opacity: 0;
+    transform: translateY(1rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .archive-card-leave-active,
+    .archive-bar-enter-active,
+    .archive-bar-leave-active {
+        transition: none;
+    }
+}
+</style>

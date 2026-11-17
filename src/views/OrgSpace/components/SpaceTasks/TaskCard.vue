@@ -1,18 +1,18 @@
 <template>
     <div
          class="border p-4 rounded-xl cursor-pointer transition-all group relative overflow-hidden text-left w-full"
-         :class="isTaskOverdue(task) ? TASK_CARD_OVERDUE_CLASS : TASK_CARD_NORMAL_CLASS"
+         :class="[!archived && isTaskOverdue(task) ? TASK_CARD_OVERDUE_CLASS : TASK_CARD_NORMAL_CLASS, archived ? 'flex flex-col' : '']"
     >
         <div class="flex justify-between items-start gap-2">
             <div class="flex flex-col gap-1 w-full">
                 <p class="font-bold text-(--text) leading-snug flex items-start gap-2" :class="featured ? 'text-lg' : 'text-sm'">
-                    <i class="bi bi-check2-square text-(--primary) mt-0.5 opacity-80 shrink-0"></i>
+                    <i class="bi mt-0.5 opacity-80 shrink-0" :class="archived ? 'bi-archive text-amber-500' : 'bi-check2-square text-(--primary)'"></i>
                     <span>{{ task.title }}</span>
                 </p>
                 <span v-if="task.parentTask" class="text-[9px] font-bold text-(--primary) uppercase flex items-center gap-1 opacity-80">
                     <i class="bi bi-arrow-return-right"></i> {{ task.parentTask.title }}
                 </span>
-                <span v-if="isTaskOverdue(task)" class="self-start mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500 text-white text-[9px] font-black uppercase tracking-wider">
+                <span v-if="!archived && isTaskOverdue(task)" class="self-start mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500 text-white text-[9px] font-black uppercase tracking-wider">
                     <i class="bi bi-exclamation-triangle-fill"></i> {{ overdueLabel(task.dueDate!) }}
                 </span>
             </div>
@@ -58,7 +58,22 @@
             </div>
         </div>
 
-        <div class="mt-4 pt-3 border-t border-(--border-color)" v-if="task.dueDate && task.status !== 'DONE'">
+        <!-- Archivée : ni échéance ni « Terminée » (la tâche n'est plus en cours),
+             mais quand elle a été rangée et dans quel état. -->
+        <!-- Pousse le pied en bas : dans la grille des archives, les cartes d'une rangée ont la même hauteur. -->
+        <div v-if="archived" class="flex-1 min-h-4" aria-hidden="true"></div>
+        <div class="pt-3 border-t border-(--border-color) flex items-center justify-between gap-2 text-[11px]" v-if="archived">
+            <span class="font-bold text-(--text2) flex items-center gap-1.5 min-w-0" :title="archivedFull">
+                <i class="bi bi-archive-fill text-amber-500"></i>
+                <span class="truncate">{{ archivedAgo }}</span>
+            </span>
+            <span class="font-bold shrink-0" :class="task.status === 'DONE' ? 'text-green-500' : 'text-(--text2)'">
+                <i class="bi mr-0.5" :class="task.status === 'DONE' ? 'bi-check-lg' : 'bi-circle'"></i>
+                {{ task.status === 'DONE' ? 'Terminée' : 'Non terminée' }}
+            </span>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-(--border-color)" v-else-if="task.dueDate && task.status !== 'DONE'">
             <div class="flex justify-between items-end mb-1.5">
                 <span class="text-[9px] font-black uppercase tracking-widest text-(--text2)">
                     Échéance
@@ -85,11 +100,19 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { Task } from '@/types/types';
+import { archivedAgoLabel } from '@/assets/utils/taskArchive';
 import { deadlineProgress, isTaskOverdue, overdueLabel, TASK_CARD_NORMAL_CLASS, TASK_CARD_OVERDUE_CLASS } from '@/assets/utils/taskOverdue';
 
 // featured : la tâche « à la une » de l'accueil, titre plus grand.
-defineProps<{ task: Task; featured?: boolean }>();
+// archived : variante de l'écran des archives (TasksArchive.vue).
+const props = defineProps<{ task: Task; featured?: boolean; archived?: boolean }>();
+
+const archivedAgo = computed(() => archivedAgoLabel(props.task.archivedAt));
+const archivedFull = computed(() => props.task.archivedAt
+    ? `Archivée le ${new Date(props.task.archivedAt).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })}`
+    : 'Date d\'archivage inconnue');
 
 const getProgress = deadlineProgress;
 </script>
