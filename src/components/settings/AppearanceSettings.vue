@@ -247,8 +247,8 @@ const initialOf = (name: string) => name.charAt(0).toUpperCase();
     --p-strong: rgba(255,255,255,.55); --p-primary: #16ac77; --p-border: rgba(255,255,255,.08);
 }
 .preview-half.light {
-    --p-bg: #fafafa; --p-bg2: #f4f4f5; --p-bg3: #e4e4e7; --p-line: rgba(39,39,42,.14);
-    --p-strong: rgba(39,39,42,.55); --p-primary: #108e62; --p-border: rgba(0,0,0,.08);
+    --p-bg: #f5f8f6; --p-bg2: #ffffff; --p-bg3: #e6ece8; --p-line: rgba(15,27,21,.16);
+    --p-strong: rgba(15,27,21,.6); --p-primary: #0b7a53; --p-border: rgba(15,40,28,.12);
 }
 
 .mini-rail {
