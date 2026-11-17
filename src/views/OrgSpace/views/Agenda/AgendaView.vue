@@ -57,7 +57,7 @@
                     v-else-if="viewMode === 'month'"
                     :cursor-date="cursorDate"
                     :occurrences="displayOccurrences"
-                    :selection="selectionRange"
+                    :selection="displaySelection"
                     @open-event="openEditModal"
                     @create="onGridCreate"
                     @select-day="goToDay"
@@ -67,7 +67,7 @@
                     v-else-if="viewMode === 'week'"
                     :cursor-date="cursorDate"
                     :occurrences="displayOccurrences"
-                    :selection="selectionRange"
+                    :selection="displaySelection"
                     @open-event="openEditModal"
                     @create="onGridCreate"
                     @reschedule="onReschedule"
@@ -77,7 +77,7 @@
                     v-else
                     :cursor-date="cursorDate"
                     :occurrences="displayOccurrences"
-                    :selection="selectionRange"
+                    :selection="displaySelection"
                     @open-event="openEditModal"
                     @create="onGridCreate"
                     @reschedule="onReschedule"
@@ -95,16 +95,8 @@
             @more-options="onQuickCreateMoreOptions"
         />
 
-        <EventPanel
-            :show="showPanel"
-            :org-id="orgId"
-            :occurrence="selectedOccurrence"
-            :initial-range="createInitialRange"
-            :initial-title="createInitialTitle"
-            @close="onPanelClose"
-            @saved="onPanelSaved"
-            @deleted="onPanelDeleted"
-        />
+        <!-- Ouverture et création d'un événement : dans le dock en bas à
+             droite (TaskPanelDock, App.vue), comme les tâches. -->
     </div>
 </template>
 
@@ -118,12 +110,13 @@ import WeekGrid from './components/WeekGrid.vue';
 import DayGrid from './components/DayGrid.vue';
 import MiniCalendar from './components/MiniCalendar.vue';
 import EventQuickCreate from './components/EventQuickCreate.vue';
-import EventPanel from './components/EventPanel.vue';
 import CalendarAccessPanel from './components/CalendarAccessPanel.vue';
 import ExternalCalendarsPanel from './components/ExternalCalendarsPanel.vue';
 import { useAgenda } from '@/composables/useAgenda';
 import { useCalendarAccess } from '@/composables/useCalendarAccess';
 import { useExternalCalendars } from '@/composables/useExternalCalendars';
+import { useEventPanels } from '@/composables/useEventPanels';
+import { useTaskPanels } from '@/composables/useTaskPanels';
 import { useAgendaViewMode, type AgendaViewMode } from '@/composables/useAgendaViewMode';
 import useWSocket from '@/composables/useWSocket';
 import sfetch from '@/assets/utils/sfetch';
@@ -135,7 +128,7 @@ const route = useRoute();
 const router = useRouter();
 const orgId = computed(() => route.params.orgId as string);
 
-const { occurrences, loading, fetchRange, updateEvent, updateOccurrence, getEvent } = useAgenda();
+const { occurrences, loading, fetchRange, updateEvent, updateOccurrence } = useAgenda();
 const { sharedOccurrences, fetchGrants, fetchSharedOccurrences } = useCalendarAccess();
 const { isExternalCalendarVisible } = useExternalCalendars();
 
@@ -373,26 +366,31 @@ function onQuickCreateMoreOptions(range: Range, title: string) {
     openCreatePanel(range, title);
 }
 
-// ── Panneau latéral événement (édition complète) ─────────────────────
-const showPanel = ref(false);
-const selectedOccurrence = ref<OccurrenceInstance | null>(null);
-const createInitialRange = ref<Range | null>(null);
-const createInitialTitle = ref<string>('');
+// ── Événement ouvert dans le dock (TaskPanelDock, App.vue) ───────────
+const { openEvent, openEventById, openEventDraft, onEventPanelChange } = useEventPanels();
+const { panels, openTaskById } = useTaskPanels();
+
+// Toute modification faite dans le dock (même depuis une autre vue) se
+// reflète dans la grille.
+onEventPanelChange(() => refetch());
+
+// La plage d'une création reste surlignée tant que son brouillon est déplié
+// et pas encore enregistré ; ensuite, l'événement lui-même apparaît.
+const draftSelection = computed<Range | null>(() => {
+    const e = panels.value.find(p => !p.minimized && p.event)?.event;
+    return e && !e.eventId && e.orgId === orgId.value ? e.initialRange : null;
+});
+const displaySelection = computed(() => selectionRange.value ?? draftSelection.value);
 
 function openCreatePanel(range: Range, title: string = '') {
-    selectedOccurrence.value = null;
-    createInitialRange.value = range;
-    createInitialTitle.value = title;
-    selectionRange.value = range;
-    showPanel.value = true;
+    selectionRange.value = null;
+    openEventDraft(orgId.value, range, title);
 }
 
 function openCreateBlank() {
-    const start = new Date();
-    const minutes = start.getMinutes();
-    start.setMinutes(minutes < 30 ? 30 : 60, 0, 0);
-    const end = new Date(start.getTime() + 60 * 60000);
-    openCreatePanel({ start, end, allDay: false });
+    showQuickCreate.value = false;
+    selectionRange.value = null;
+    openEventDraft(orgId.value);
 }
 
 function openEditModal(occ: OccurrenceInstance) {
@@ -401,19 +399,17 @@ function openEditModal(occ: OccurrenceInstance) {
         return;
     }
     showQuickCreate.value = false;
-    selectedOccurrence.value = occ;
-    createInitialRange.value = null;
-    createInitialTitle.value = '';
-    showPanel.value = true;
+    selectionRange.value = null;
+    openEvent(orgId.value, occ);
 }
 
-// Une échéance de tâche n'est pas un vrai événement : on renvoie vers la
-// tâche elle-même (liste personnelle ou liste de l'espace) plutôt que
-// d'ouvrir le panneau d'édition d'événement.
+// Une échéance de tâche n'est pas un vrai événement : c'est la tâche
+// elle-même qui s'ouvre dans le dock.
 function openTaskDeadline(occ: OccurrenceInstance) {
     const taskId = taskIdFromDeadlineEventId(occ.eventId);
     const task = myTasksWithDeadline.value.find(t => t.id === taskId);
-    router.push(task?.spaceId ? `/${orgId.value}/${task.spaceId}/tasks` : `/${orgId.value}/tasks`);
+    if (task) openTaskById(orgId.value, task);
+    else router.push(`/${orgId.value}/tasks`);
 }
 
 // Ouverture depuis une notification ('/:orgId/agenda?eventId=...', voir la
@@ -421,28 +417,11 @@ function openTaskDeadline(occ: OccurrenceInstance) {
 // sur la semaine de l'événement et ouvre directement son panneau, plutôt
 // que de laisser la vue par défaut inchangée avec le paramètre ignoré.
 async function openEventFromNotification(eventId: string) {
-    const event = await getEvent(orgId.value, eventId);
-    if (!event) return;
-
-    viewMode.value = 'week';
-    cursorDate.value = new Date(event.startAt);
-
-    openEditModal({
-        occurrenceKey: event.id,
-        eventId: event.id,
-        title: event.title,
-        description: event.description,
-        location: event.location,
-        startAt: event.startAt,
-        endAt: event.endAt,
-        allDay: event.allDay,
-        color: event.color,
-        isRecurring: !!event.recurrenceRule,
-        isException: false,
-        creatorId: event.creatorId,
-        attendees: event.attendees,
-        externalConnectionId: null
-    });
+    const event = await openEventById(orgId.value, eventId);
+    if (event) {
+        viewMode.value = 'week';
+        cursorDate.value = new Date(event.startAt);
+    }
 
     // Retire eventId de l'URL : un rechargement de page ne doit pas rouvrir
     // le panneau indéfiniment une fois qu'il a été ouvert une première fois.
@@ -460,26 +439,6 @@ watch(() => route.query.create, (create) => {
     openCreateBlank();
     router.replace({ query: { ...route.query, create: undefined } });
 }, { immediate: true });
-
-function clearSelectionIfCreating() {
-    if (!selectedOccurrence.value) selectionRange.value = null;
-}
-
-function onPanelClose() {
-    showPanel.value = false;
-    clearSelectionIfCreating();
-}
-
-function onPanelSaved() {
-    // Le panneau reste ouvert (autosave) : on ne touche pas à la sélection
-    // affichée, seulement aux occurrences pour refléter la modification.
-    refetch();
-}
-
-function onPanelDeleted() {
-    clearSelectionIfCreating();
-    refetch();
-}
 
 // ── Déplacement / redimensionnement d'un événement existant ───────────
 async function onReschedule({ occ, start, end }: { occ: OccurrenceInstance; start: Date; end: Date }) {

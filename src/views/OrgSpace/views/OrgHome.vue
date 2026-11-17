@@ -45,9 +45,9 @@
                         <CreateTaskModal v-if="todoEnabled" @created="onTaskCreated">
                             <button class="home-quick"><i class="bi bi-plus-lg"></i> Nouvelle tâche</button>
                         </CreateTaskModal>
-                        <RouterLink v-if="agendaEnabled" :to="{ path: `/${orgId}/agenda`, query: { create: '1' } }" class="home-quick">
+                        <button v-if="agendaEnabled" type="button" class="home-quick" @click="orgId && openEventDraft(orgId)">
                             <i class="bi bi-calendar-plus"></i> Nouvel évènement
-                        </RouterLink>
+                        </button>
                         <RouterLink v-if="aiEnabled" :to="`/${orgId}/ai`" class="home-quick">
                             <i class="bi bi-stars"></i> Demander à l'IA
                         </RouterLink>
@@ -94,6 +94,7 @@ import { user, openedOrg, todoEnabled, agendaEnabled, aiEnabled, userCardHeight 
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import { useStaggerReveal } from '@/composables/useStaggerReveal';
 import { useUpcomingAgenda } from '@/composables/useUpcomingAgenda';
+import { useEventPanels } from '@/composables/useEventPanels';
 import { useUsersBar } from '@/composables/useUsersBar';
 import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
 import NotificationsCard from '../components/Home/NotificationsCard.vue';
@@ -151,8 +152,20 @@ const {
     days,
     loading: agendaLoading,
     error: agendaError,
-    start: startAgenda
+    start: startAgenda,
+    refresh: refreshAgenda
 } = useUpcomingAgenda();
+
+// Les évènements s'ouvrent et se créent dans le dock (useEventPanels) :
+// l'accueil se met à jour quand on y modifie quelque chose. Débouncé, la
+// sauvegarde automatique se déclenchant pendant la frappe.
+const { openEventDraft, onEventPanelChange } = useEventPanels();
+let agendaRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+onEventPanelChange(() => {
+    if (agendaRefreshTimer) clearTimeout(agendaRefreshTimer);
+    agendaRefreshTimer = setTimeout(() => refreshAgenda(), 800);
+});
+onBeforeUnmount(() => { if (agendaRefreshTimer) clearTimeout(agendaRefreshTimer); });
 
 watch([orgId, agendaEnabled], ([id, enabled]) => {
     if (id && enabled) startAgenda(id);

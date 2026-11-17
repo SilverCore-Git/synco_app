@@ -151,6 +151,35 @@ export function useUpcomingAgenda() {
         }
     }
 
+    /**
+     * Recharge sans bruit ce qui est déjà affiché (après une modification
+     * faite dans le dock, cf. useEventPanels) : pas de squelette de
+     * chargement, la liste est remplacée d'un coup.
+     */
+    async function refresh(): Promise<void> {
+        const id = orgId;
+        const from = feedStart.value;
+        const to = loadedUntil.value;
+        if (!id || loading.value || to.getTime() <= from.getTime()) return;
+        try {
+            const params = new URLSearchParams({ from: from.toISOString(), to: new Date(to.getTime() - 1).toISOString() });
+            const res = await sfetch(`/api/orgs/${id}/agenda/events?${params.toString()}`);
+            if (!res.ok || orgId !== id) return;
+            const data: ListOccurrencesResponse = await res.json();
+            const nextSeen = new Set<string>();
+            occurrences.value = data.occurrences.filter(occ => {
+                if (occ.externalConnectionId && !isExternalCalendarVisible(id, occ.externalConnectionId)) return false;
+                const key = `${occ.eventId}|${occ.occurrenceKey}`;
+                if (nextSeen.has(key)) return false;
+                nextSeen.add(key);
+                return true;
+            });
+            seen = nextSeen;
+        } catch {
+            // Silencieux : l'affichage précédent reste valable.
+        }
+    }
+
     /** (Ré)initialise le flux sur aujourd'hui et charge la première fenêtre. */
     async function start(targetOrgId: string): Promise<void> {
         orgId = targetOrgId;
@@ -173,6 +202,7 @@ export function useUpcomingAgenda() {
         feedStart,
         loadedUntil,
         start,
+        refresh,
         loadMore
     };
 }

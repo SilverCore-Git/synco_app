@@ -1,5 +1,6 @@
 import { markRaw, onUnmounted, reactive, ref } from 'vue';
 import type { Task } from '@/types/types';
+import type { EventPanelState } from './useEventPanels';
 import sfetch from '@/assets/utils/sfetch';
 import { user } from '@/assets/var';
 
@@ -14,6 +15,10 @@ import { user } from '@/assets/var';
  * Une entrée est soit une tâche existante (`task`), soit un brouillon de
  * création (`draft`, cf. TaskCreateForm.vue) : le formulaire vit ici, pour
  * survivre à la réduction du panneau.
+ *
+ * Le dock accueille aussi les événements de l'agenda (`event`, cf.
+ * useEventPanels.ts et EventDetails.vue) : mêmes barres, même règle d'une
+ * seule entrée dépliée.
  *
  * Sur petit écran, le dock affiche l'entrée dépliée dans la Popup plein écran
  * habituelle et ne propose pas de réduire.
@@ -45,10 +50,13 @@ export interface TaskDraft {
 }
 
 export interface TaskPanel {
-    /** id de la tâche, ou `draft-<n>` pour un brouillon. */
+    /** id de la tâche, `draft-<n>` pour un brouillon, `event-…` pour un événement. */
     id: string;
     task?: Task;
     draft?: TaskDraft;
+    event?: EventPanelState;
+    /** Appelé quand l'entrée est fermée (ex. : supprimer un événement créé puis vidé de son titre). */
+    onClose?: () => void;
     minimized: boolean;
     /** « Renommer » depuis un menu contextuel : le titre s'ouvre en édition. */
     editTitle: boolean;
@@ -68,7 +76,13 @@ const deleteListeners = new Set<DeleteListener>();
 /** Ajoute une entrée dépliée : celle qui était dépliée est remplacée, les réduites restent. */
 function pushExpanded(panel: TaskPanel) {
     const kept = panels.value.filter(p => p.minimized);
-    panels.value = [...kept, panel].slice(-MAX_PANELS);
+    const next = [...kept, panel].slice(-MAX_PANELS);
+    const dropped = panels.value.filter(p => !next.includes(p));
+    panels.value = next;
+    dropped.forEach(p => {
+        releaseDraftFiles(p.draft);
+        p.onClose?.();
+    });
 }
 
 function openTask(task: Task, opts: { editTitle?: boolean } = {}) {
@@ -160,13 +174,17 @@ function restoreTask(id: string) {
 }
 
 function closeTask(id: string) {
-    releaseDraftFiles(panels.value.find(p => p.id === id)?.draft);
+    const p = panels.value.find(p => p.id === id);
+    releaseDraftFiles(p?.draft);
     panels.value = panels.value.filter(p => p.id !== id);
+    p?.onClose?.();
 }
 
 function closeAllTasks() {
-    panels.value.forEach(p => releaseDraftFiles(p.draft));
+    const closed = panels.value;
+    closed.forEach(p => releaseDraftFiles(p.draft));
     panels.value = [];
+    closed.forEach(p => p.onClose?.());
 }
 
 // La réponse du PUT ne contient ni pièces jointes, ni fichiers liés, ni tâche
@@ -208,6 +226,7 @@ function onTaskPanelChange(handlers: { update?: UpdateListener; delete?: DeleteL
 export function useTaskPanels() {
     return {
         panels,
+        pushExpanded,
         openTask,
         openTaskById,
         openDraft,

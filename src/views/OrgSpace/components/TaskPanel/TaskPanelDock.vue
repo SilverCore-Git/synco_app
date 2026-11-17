@@ -21,9 +21,10 @@
                     :title="`Déplier : ${panelTitle(p)}`"
                     @click="onBarClick(p.id)"
                 >
-                    <i :class="panelIcon(p)"></i>
-                    <span class="flex-1 min-w-0 truncate text-sm font-semibold" :class="p.task || p.draft?.form.title ? 'text-(--text)' : 'text-(--text2)'">{{ panelTitle(p) }}</span>
+                    <i :class="panelIcon(p)" :style="panelIconStyle(p)"></i>
+                    <span class="flex-1 min-w-0 truncate text-sm font-semibold" :class="p.task || p.draft?.form.title || p.event?.form.title ? 'text-(--text)' : 'text-(--text2)'">{{ panelTitle(p) }}</span>
                     <span v-if="p.task && barDue(p.task)" class="text-[11px] whitespace-nowrap" :class="isTaskOverdue(p.task) ? 'text-red-500 font-bold' : 'text-(--text2)'">{{ barDue(p.task) }}</span>
+                    <span v-else-if="p.event" class="text-[11px] whitespace-nowrap text-(--text2)">{{ eventBarWhen(p.event) }}</span>
                     <span v-else-if="p.draft" class="text-[11px] whitespace-nowrap text-(--text2)">Brouillon</span>
                 </button>
                 <button type="button" class="dock-btn mr-1" :aria-label="`Fermer : ${panelTitle(p)}`" title="Fermer" @click="close(p.id)">
@@ -39,7 +40,7 @@
             data-kind="panel"
             class="task-panel"
             role="dialog"
-            :aria-label="expanded.task ? `Tâche : ${expanded.task.title}` : 'Nouvelle tâche'"
+            :aria-label="panelAriaLabel(expanded)"
             @keydown.escape="minimizeTask(expanded.id)"
         >
             <!-- Tirer l'en-tête vers le bas réduit le panneau. -->
@@ -48,7 +49,7 @@
                 title="Glisser vers le bas pour réduire"
                 @pointerdown="onHeaderPointerDown($event, expanded.id)"
             >
-                <i :class="panelIcon(expanded)"></i>
+                <i :class="panelIcon(expanded)" :style="panelIconStyle(expanded)"></i>
                 <div v-if="expanded.task" class="flex-1 min-w-0 flex items-center gap-1.5 text-xs text-(--text2)">
                     <span class="truncate shrink-0 max-w-[45%]">{{ spaceName(expanded.task) }}</span>
                     <template v-if="expanded.task.parentTask">
@@ -62,7 +63,7 @@
                     </template>
                 </div>
                 <div v-else class="flex-1 min-w-0 text-xs font-semibold text-(--text)">
-                    {{ expanded.draft?.parentTaskId ? 'Nouvelle sous-tâche' : 'Nouvelle tâche' }}
+                    {{ headerLabel(expanded) }}
                 </div>
                 <button type="button" class="dock-btn" title="Réduire" aria-label="Réduire" @click="minimizeTask(expanded.id)">
                     <i class="bi bi-dash-lg"></i>
@@ -85,6 +86,12 @@
                 :org-id="currentOrgId"
                 variant="panel"
             />
+            <EventDetails
+                v-else-if="expanded.event"
+                :panel-id="expanded.id"
+                :state="expanded.event"
+                variant="panel"
+            />
         </section>
     </div>
 
@@ -101,8 +108,8 @@
                     <i class="bi bi-arrow-left-short text-sm"></i> {{ expanded.task.parentTask.title }}
                 </button>
                 <span class="flex items-center gap-2">
-                    <i class="bi bi-check2-square text-(--primary)"></i>
-                    {{ expanded?.task ? spaceName(expanded.task) : (expanded?.draft?.parentTaskId ? 'Nouvelle sous-tâche' : 'Nouvelle tâche') }}
+                    <i :class="expanded?.event ? 'bi bi-calendar-event' : 'bi bi-check2-square'" class="text-(--primary)"></i>
+                    {{ expanded?.task ? spaceName(expanded.task) : expanded ? headerLabel(expanded) : '' }}
                 </span>
             </div>
         </template>
@@ -123,6 +130,13 @@
                 :org-id="currentOrgId"
                 variant="popup"
             />
+            <EventDetails
+                v-else-if="expanded.event"
+                :key="expanded.id"
+                :panel-id="expanded.id"
+                :state="expanded.event"
+                variant="popup"
+            />
         </template>
     </Popup>
 </template>
@@ -133,10 +147,12 @@ import { useRoute } from 'vue-router';
 import Popup from '@/components/Popup.vue';
 import TaskDetails from './TaskDetails.vue';
 import TaskCreateForm from './TaskCreateForm.vue';
+import EventDetails from './EventDetails.vue';
 import type { Task } from '@/types/types';
 import { isLittleScreen, openedOrg } from '@/assets/var';
 import { isTaskOverdue, overdueLabel } from '@/assets/utils/taskOverdue';
 import { useTaskPanels, type TaskPanel } from '@/composables/useTaskPanels';
+import type { EventPanelState } from '@/composables/useEventPanels';
 import useMotion from '@/composables/useMotion';
 
 const route = useRoute();
@@ -147,7 +163,7 @@ const dockEl = ref<HTMLElement | null>(null);
 const expanded = computed(() => panels.value.find(p => !p.minimized) ?? null);
 const minimizedPanels = computed(() => panels.value.filter(p => p.minimized));
 
-// Les tâches appartiennent à une organisation (membres, espaces, droits) :
+// Les tâches et les événements appartiennent à une organisation (membres, espaces, droits) :
 // en changer ferme le dock plutôt que d'afficher des listes qui ne collent plus.
 watch(() => route.params.orgId, (orgId, previous) => {
     if (orgId !== previous) closeAllTasks();
@@ -411,9 +427,40 @@ function onBarClick(id: string) {
 // ── Affichage ──────────────────────────────────────────────────────────
 const currentOrgId = computed(() => String(route.params.orgId || openedOrg.value?.id || ''));
 
-const panelTitle = (p: TaskPanel) => p.task?.title ?? (p.draft?.form.title.trim() || 'Nouvelle tâche');
+const panelTitle = (p: TaskPanel) => {
+    if (p.event) return p.event.form.title.trim() || 'Nouvel événement';
+    return p.task?.title ?? (p.draft?.form.title.trim() || 'Nouvelle tâche');
+};
 
-const panelIcon = (p: TaskPanel) => p.task ? statusIcon(p.task) : 'bi bi-plus-circle-dotted text-(--primary) shrink-0';
+const panelIcon = (p: TaskPanel) => {
+    if (p.event) return 'bi bi-calendar-event shrink-0';
+    return p.task ? statusIcon(p.task) : 'bi bi-plus-circle-dotted text-(--primary) shrink-0';
+};
+
+// L'icône d'un événement prend sa couleur dans l'agenda.
+const panelIconStyle = (p: TaskPanel) => p.event ? { color: p.event.form.color || 'var(--primary)' } : undefined;
+
+const headerLabel = (p: TaskPanel) => {
+    if (p.event) return p.event.eventId ? 'Agenda' : 'Nouvel événement';
+    return p.draft?.parentTaskId ? 'Nouvelle sous-tâche' : 'Nouvelle tâche';
+};
+
+const panelAriaLabel = (p: TaskPanel) => {
+    if (p.event) return p.event.eventId ? `Événement : ${panelTitle(p)}` : 'Nouvel événement';
+    return p.task ? `Tâche : ${p.task.title}` : 'Nouvelle tâche';
+};
+
+// Barre d'un événement réduit : « 14:30 », « Demain », « jeu. », « 3 déc. ».
+const eventBarWhen = (e: EventPanelState) => {
+    if (!e.form.startDate) return '';
+    const start = new Date(`${e.form.startDate}T${e.form.allDay ? '00:00' : (e.form.startTime || '00:00')}:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const days = Math.round((new Date(start).setHours(0, 0, 0, 0) - today.getTime()) / 86_400_000);
+    if (days === 0) return e.form.allDay ? "Aujourd'hui" : e.form.startTime;
+    if (days === 1) return 'Demain';
+    return start.toLocaleDateString('fr-FR', days > 0 && days < 7 ? { weekday: 'short' } : { day: 'numeric', month: 'short' });
+};
 
 const orgIdOf = (task: Task) => task.organizationId || String(route.params.orgId || openedOrg.value?.id || '');
 

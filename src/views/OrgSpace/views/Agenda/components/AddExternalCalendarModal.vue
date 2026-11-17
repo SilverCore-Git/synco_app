@@ -140,7 +140,7 @@ const { addIcsUrl, addIcsFile, updateIcsUrl, connectGoogle } = useExternalCalend
 
 const isEditing = computed(() => !!props.editConnection);
 
-// Mêmes teintes que EventPanel.vue::colorPresets — cohérence visuelle entre
+// Mêmes teintes que EventDetails.vue::COLORS (dock des événements) — cohérence visuelle entre
 // la couleur d'un événement et celle d'un calendrier superposé.
 const colorPresets = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#ec4899', '#06b6d4', '#8b5cf6', '#64748b'];
 
