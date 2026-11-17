@@ -425,7 +425,6 @@
 
 import { ref, reactive, watch, computed } from 'vue';
 import Window from './Window.vue';
-import useSettingsItem from '@/composables/useSettingsItem';
 import ProfileUploader from '../common/ProfileUploader.vue';
 import ConfirmDelete from '../common/ConfirmDelete.vue';
 import ActivityReports from '../settings/ActivityReports/index.vue';
