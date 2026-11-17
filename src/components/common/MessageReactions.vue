@@ -163,7 +163,7 @@ defineExpose({ toggleReaction });
                 transform: 'translate(-50%, -50%)'
               }"
          >
-           <EmojiPicker @select="toggleReaction" />
+           <EmojiPicker @select="toggleReaction" @close="emit('reaction-picker-closed')" />
         </div>
       </Transition>
 

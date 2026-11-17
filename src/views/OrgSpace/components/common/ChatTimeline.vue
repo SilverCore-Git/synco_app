@@ -227,7 +227,7 @@
                     class="absolute bottom-full right-0 mb-2 z-50 emoji-picker-container"
                     @click.stop
                 >
-                    <EmojiPicker @select="insertEmoji" />
+                    <EmojiPicker @select="insertEmoji" @close="showEmojiPicker = false" />
                 </div>
 
             </div>
