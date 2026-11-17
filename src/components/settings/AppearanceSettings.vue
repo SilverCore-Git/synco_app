@@ -188,7 +188,7 @@ const initialOf = (name: string) => name.charAt(0).toUpperCase();
     border: 2px solid var(--border-color);
     background: var(--bg2);
     cursor: pointer;
-    transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+    transition: border-color .2s ease, transform .2s ease;
 }
 .theme-card:hover {
     border-color: color-mix(in srgb, var(--text) 25%, transparent);

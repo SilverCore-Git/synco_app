@@ -367,7 +367,7 @@ const onUnmute = async (kind: MuteKind, id: string) => {
     border: 2px solid var(--border-color);
     background: var(--bg2);
     cursor: pointer;
-    transition: border-color .2s ease, box-shadow .2s ease;
+    transition: border-color .2s ease;
 }
 .choice-card:hover { border-color: color-mix(in srgb, var(--text) 25%, transparent); }
 .choice-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }

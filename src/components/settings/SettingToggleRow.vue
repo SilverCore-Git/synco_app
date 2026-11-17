@@ -99,11 +99,10 @@ const descId = useId();
     height: 24px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--text) 18%, transparent);
-    transition: background-color .2s ease, box-shadow .2s ease;
+    transition: background-color .2s ease;
 }
 .switch-track.on {
     background: var(--primary);
-    box-shadow: 0 0 12px var(--glow-primary-soft, transparent);
 }
 .switch-knob {
     position: absolute;
