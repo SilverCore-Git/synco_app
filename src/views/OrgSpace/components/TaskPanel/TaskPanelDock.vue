@@ -5,6 +5,27 @@
          la hauteur. Toujours rendu (même vide) pour que les animations
          d'ouverture et de fermeture aient un parent stable. -->
     <div v-if="!isLittleScreen" ref="dockEl" class="task-dock">
+        <!-- Tout fermer : dès deux entrées (une seule a déjà sa croix). Un
+             brouillon de tâche commencé demande une confirmation sur place. -->
+        <Transition name="close-all">
+            <button
+                v-if="panels.length >= 2"
+                type="button"
+                class="close-all"
+                :class="{ 'is-confirm': confirmCloseAll }"
+                :title="confirmCloseAll ? 'Les brouillons non enregistrés seront perdus' : 'Tout fermer (Maj+Échap)'"
+                @click="onCloseAllClick"
+            >
+                <template v-if="confirmCloseAll">
+                    <i class="bi bi-exclamation-triangle"></i> Brouillon perdu — confirmer
+                </template>
+                <template v-else>
+                    <span class="text-(--text2) font-medium">{{ panels.length }} ouverts</span>
+                    <span class="close-all-sep"></span>
+                    <i class="bi bi-x-lg text-[10px]"></i> Tout fermer
+                </template>
+            </button>
+        </Transition>
         <div v-if="minimizedPanels.length" class="task-bars">
             <!-- Glisser une barre vers la droite la ferme. -->
             <div
@@ -155,6 +176,7 @@ import type { Task } from '@/types/types';
 import { isLittleScreen, openedOrg } from '@/assets/var';
 import { isTaskOverdue, overdueLabel } from '@/assets/utils/taskOverdue';
 import { useTaskPanels, type TaskPanel } from '@/composables/useTaskPanels';
+import { transfers, dismissTransfer } from '@/services/transfers/transferManager';
 import type { EventPanelState } from '@/composables/useEventPanels';
 import useMotion from '@/composables/useMotion';
 
@@ -314,6 +336,51 @@ watch(
 
 const closedByHand = new Set<string>();
 
+// ── Tout fermer ────────────────────────────────────────────────────────
+// Ferme toutes les entrées du dock (les tâches et événements sont déjà
+// enregistrés au fil de l'eau) et range les transferts terminés ; ceux en
+// cours continuent. Seul un brouillon de tâche commencé serait perdu : on
+// demande alors un second clic.
+const confirmCloseAll = ref(false);
+let confirmTimer: ReturnType<typeof setTimeout> | undefined;
+
+const hasUnsavedDraft = () => panels.value.some(p =>
+    p.draft && (p.draft.form.title.trim() || p.draft.form.description.trim() || p.draft.files.length));
+
+function onCloseAllClick() {
+    if (!confirmCloseAll.value && hasUnsavedDraft()) {
+        confirmCloseAll.value = true;
+        clearTimeout(confirmTimer);
+        confirmTimer = setTimeout(() => { confirmCloseAll.value = false; }, 4000);
+        return;
+    }
+    closeEverything();
+}
+
+async function closeEverything() {
+    clearTimeout(confirmTimer);
+    confirmCloseAll.value = false;
+    transfers.filter(t => t.status === 'done' || t.status === 'error' || t.status === 'cancelled')
+        .forEach(t => dismissTransfer(t.id));
+    const els = taskElements();
+    if (animationsEnabled.value && els.length) {
+        // Toutes partent ensemble, en cascade depuis le coin.
+        await Promise.all(els.reverse().map((el, i) => {
+            el.style.transformOrigin = 'bottom right';
+            el.style.pointerEvents = 'none';
+            closedByHand.add(el.dataset.taskId!);
+            return el.animate(
+                [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(16px) scale(0.94)' }],
+                { duration: 200, delay: Math.min(i, 6) * 25, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' }
+            ).finished.catch(() => {});
+        }));
+    }
+    closeAllTasks();
+}
+
+// Plus de brouillon commencé (ou moins de deux entrées) : on oublie la confirmation.
+watch(() => panels.value.length, () => { confirmCloseAll.value = false; });
+
 // Fermer : l'élément part d'abord (vers le bas, en rétrécissant), puis il est retiré.
 async function close(taskId: string) {
     const el = dockEl.value?.querySelector<HTMLElement>(`[data-task-id="${taskId}"]`);
@@ -440,18 +507,31 @@ function onGlobalKeydown(e: KeyboardEvent) {
     const inDock = !!target && dockEl.value.contains(target);
     if (!inDock && target?.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return;
 
+    // Maj+Échap : tout fermer (mêmes règles que la pastille).
+    if (e.shiftKey) {
+        if (!panels.value.length || isCovered(taskElements()[0])) return;
+        e.preventDefault();
+        onCloseAllClick();
+        return;
+    }
+
     const focused = inDock ? target!.closest<HTMLElement>('[data-kind="panel"]')?.dataset.taskId : undefined;
     const id = focused ?? expandedPanels.value[expandedPanels.value.length - 1]?.id;
     const el = id ? dockEl.value.querySelector<HTMLElement>(`[data-task-id="${CSS.escape(id)}"]`) : null;
     if (!id || !el) return;
 
-    // Quelque chose couvre le panneau (Popup, menu…) : Échap est pour lui.
-    const r = el.getBoundingClientRect();
-    const top = document.elementFromPoint(r.left + r.width / 2, r.top + Math.min(r.height / 2, 40));
-    if (top && !el.contains(top)) return;
+    if (isCovered(el)) return;
 
     e.preventDefault();
     minimizeTask(id);
+}
+
+// Quelque chose couvre l'élément (Popup, menu…) : Échap est pour lui.
+function isCovered(el: HTMLElement | undefined) {
+    if (!el) return true;
+    const r = el.getBoundingClientRect();
+    const top = document.elementFromPoint(r.left + r.width / 2, r.top + Math.min(r.height / 2, 40));
+    return !!top && !el.contains(top);
 }
 
 onMounted(() => window.addEventListener('keydown', onGlobalKeydown));
@@ -555,6 +635,34 @@ const barDue = (task: Task) => {
     min-height: 0;
     max-width: 100%;
 }
+
+/* Pastille « Tout fermer » : discrète, alignée à droite au-dessus des barres. */
+.close-all {
+    pointer-events: auto;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    height: 1.9rem;
+    padding: 0 0.8rem;
+    border-radius: 999px;
+    background: var(--bg);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text);
+    transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+}
+.close-all:hover { border-color: color-mix(in srgb, var(--primary) 50%, transparent); }
+.close-all.is-confirm {
+    color: rgb(248 113 113);
+    border-color: rgb(239 68 68 / 0.5);
+    background: color-mix(in srgb, rgb(239 68 68) 10%, var(--bg));
+}
+.close-all-sep { width: 1px; height: 0.9rem; background: var(--border-color); }
+.close-all-enter-active, .close-all-leave-active { transition: opacity 0.2s, transform 0.2s; }
+.close-all-enter-from, .close-all-leave-to { opacity: 0; transform: translateY(6px) scale(0.95); }
 
 .task-panel {
     width: var(--br-width, 25rem);
