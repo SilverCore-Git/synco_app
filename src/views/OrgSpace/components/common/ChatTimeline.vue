@@ -81,7 +81,7 @@
 
     </main>
 
-    <footer v-if="!unavailable" ref="footerRef" class="absolute bottom-0 inset-x-0 z-[110] p-1 bg-transparent mt-auto">
+    <footer v-if="!unavailable" ref="footerRef" data-br-obstacle class="absolute bottom-0 inset-x-0 z-[110] p-1 bg-transparent mt-auto">
 
         <div v-if="channel.typing?.label.value" class="h-5 flex justify-start items-center px-4 gap-2 select-none">
             <TypingIndicator />
@@ -224,6 +224,7 @@
                 <div
                     ref="emojiPickerRef"
                     class="absolute bottom-full right-0 mb-2 z-50 emoji-picker-container"
+                    data-br-obstacle="always"
                     @click.stop
                 >
                     <EmojiPickerPopover

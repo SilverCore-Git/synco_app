@@ -163,7 +163,7 @@
 
         </main>
 
-        <footer v-if="recipient" class="p-4 bg-transparent mt-auto">
+        <footer v-if="recipient" data-br-obstacle class="p-4 bg-transparent mt-auto">
 
             <div class="relative flex items-center bg-(--bg) border border-(--text)/10 rounded-xl px-4 py-2 focus-within:border-(--primary)/50 transition-all shadow-2xl">
 

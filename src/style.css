@@ -1076,3 +1076,50 @@ button.tab:not(.active) {
   transform-origin: 70% 70%;
   animation: wave 1.4s ease-in-out 0.5s 1;
 }
+/* ── Colonne bas-droite (App.vue) ──────────────────────────────────────
+   Tâches et événements ouverts (TaskPanelDock), transferts (TransfersPanel)
+   et toasts (Notifications) partagent la même largeur et les mêmes surfaces :
+   une barre de 2,75 rem pour ce qui est réduit, une carte pour ce qui est
+   déplié. --br-lift : de combien la colonne se lève pour dégager ce qui est
+   cliquable dessous (zone de saisie, corbeille… cf. data-br-obstacle). */
+:root {
+  --br-width: 25rem;
+  --br-lift: 0px;
+}
+
+.br-bar {
+  pointer-events: auto;
+  min-width: 0;
+  height: 2.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: var(--bg);
+  border: 1px solid var(--border-color);
+  border-radius: 0.9rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  transition: border-color 0.15s;
+}
+.br-bar:hover { border-color: color-mix(in srgb, var(--primary) 50%, transparent); }
+
+.br-card {
+  pointer-events: auto;
+  background: var(--bg);
+  border: 1px solid var(--border-color);
+  border-radius: 1.1rem;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+.br-btn {
+  width: 1.9rem;
+  height: 1.9rem;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 0.55rem;
+  color: var(--text2);
+  font-size: 0.85rem;
+  transition: background-color 0.15s, color 0.15s;
+}
+.br-btn:hover { background: color-mix(in srgb, var(--text) 10%, transparent); color: var(--text); }

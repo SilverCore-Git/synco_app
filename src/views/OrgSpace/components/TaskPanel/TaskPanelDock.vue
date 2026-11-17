@@ -1,25 +1,25 @@
 <template>
-    <!-- Bureau : entrées réduites en colonne, puis l'entrée dépliée au plus près
-         du bas, toutes sur la même largeur. Monté dans la colonne bas-droite
+    <!-- Bureau : entrées réduites en colonne, puis les entrées dépliées au plus
+         près du bas (côte à côte s'il y en a plusieurs), toutes sur la même largeur. Monté dans la colonne bas-droite
          d'App.vue, au-dessus de l'overlay des transferts : tout s'empile dans
          la hauteur. Toujours rendu (même vide) pour que les animations
          d'ouverture et de fermeture aient un parent stable. -->
     <div v-if="!isLittleScreen" ref="dockEl" class="task-dock">
-        <div v-if="minimizedPanels.length" class="grid grid-cols-1 gap-2 w-full shrink-0">
+        <div v-if="minimizedPanels.length" class="task-bars">
             <!-- Glisser une barre vers la droite la ferme. -->
             <div
                 v-for="p in minimizedPanels"
                 :key="p.id"
                 :data-task-id="p.id"
                 data-kind="bar"
-                class="task-bar touch-pan-y"
+                class="task-bar br-bar touch-pan-y"
                 @pointerdown="onBarPointerDown($event, p.id)"
             >
                 <button
                     type="button"
                     class="flex-1 min-w-0 h-full flex items-center gap-2 pl-3 text-left"
                     :title="`Déplier : ${panelTitle(p)}`"
-                    @click="onBarClick(p.id)"
+                    @click="onBarClick($event, p.id)"
                 >
                     <i :class="panelIcon(p)" :style="panelIconStyle(p)"></i>
                     <span class="flex-1 min-w-0 truncate text-sm font-semibold" :class="p.task || p.draft?.form.title || p.event?.form.title ? 'text-(--text)' : 'text-(--text2)'">{{ panelTitle(p) }}</span>
@@ -27,72 +27,75 @@
                     <span v-else-if="p.event" class="text-[11px] whitespace-nowrap text-(--text2)">{{ eventBarWhen(p.event) }}</span>
                     <span v-else-if="p.draft" class="text-[11px] whitespace-nowrap text-(--text2)">Brouillon</span>
                 </button>
-                <button type="button" class="dock-btn mr-1" :aria-label="`Fermer : ${panelTitle(p)}`" title="Fermer" @click="close(p.id)">
+                <button type="button" class="br-btn mr-1" :aria-label="`Fermer : ${panelTitle(p)}`" title="Fermer" @click="close(p.id)">
                     <i class="bi bi-x-lg"></i>
                 </button>
             </div>
         </div>
 
-        <section
-            v-if="expanded"
-            :key="expanded.id"
-            :data-task-id="expanded.id"
-            data-kind="panel"
-            class="task-panel"
-            role="dialog"
-            :aria-label="panelAriaLabel(expanded)"
-            @keydown.escape="minimizeTask(expanded.id)"
-        >
-            <!-- Tirer l'en-tête vers le bas réduit le panneau. -->
-            <header
-                class="flex items-center gap-1.5 pl-4 pr-2 py-2 border-b border-(--border-color) shrink-0 cursor-grab active:cursor-grabbing select-none touch-none"
-                title="Glisser vers le bas pour réduire"
-                @pointerdown="onHeaderPointerDown($event, expanded.id)"
+        <!-- Panneaux dépliés : un seul d'habitude, plusieurs côte à côte après
+             un Ctrl+clic. Le plus récent est au plus près du coin. -->
+        <div v-if="expandedPanels.length" class="task-panels">
+            <section
+                v-for="expanded in expandedPanels"
+                :key="expanded.id"
+                :data-task-id="expanded.id"
+                data-kind="panel"
+                class="task-panel br-card"
+                role="dialog"
+                :aria-label="panelAriaLabel(expanded)"
             >
-                <i :class="panelIcon(expanded)" :style="panelIconStyle(expanded)"></i>
-                <div v-if="expanded.task" class="flex-1 min-w-0 flex items-center gap-1.5 text-xs text-(--text2)">
-                    <span class="truncate shrink-0 max-w-[45%]">{{ spaceName(expanded.task) }}</span>
-                    <template v-if="expanded.task.parentTask">
-                        <i class="bi bi-chevron-right text-[9px]"></i>
-                        <button
-                            type="button"
-                            class="truncate hover:text-(--primary) transition-colors"
-                            :title="`Ouvrir la tâche parente : ${expanded.task.parentTask.title}`"
-                            @click="openTaskById(orgIdOf(expanded.task), expanded.task.parentTask)"
-                        >{{ expanded.task.parentTask.title }}</button>
-                    </template>
-                </div>
-                <div v-else class="flex-1 min-w-0 text-xs font-semibold text-(--text)">
-                    {{ headerLabel(expanded) }}
-                </div>
-                <button type="button" class="dock-btn" title="Réduire" aria-label="Réduire" @click="minimizeTask(expanded.id)">
-                    <i class="bi bi-dash-lg"></i>
-                </button>
-                <button type="button" class="dock-btn" title="Fermer" aria-label="Fermer" @click="close(expanded.id)">
-                    <i class="bi bi-x-lg"></i>
-                </button>
-            </header>
-            <TaskDetails
-                v-if="expanded.task"
-                :task="expanded.task"
-                :org-id="orgIdOf(expanded.task)"
-                :edit-title="expanded.editTitle"
-                variant="panel"
-            />
-            <TaskCreateForm
-                v-else-if="expanded.draft"
-                :panel-id="expanded.id"
-                :draft="expanded.draft"
-                :org-id="currentOrgId"
-                variant="panel"
-            />
-            <EventDetails
-                v-else-if="expanded.event"
-                :panel-id="expanded.id"
-                :state="expanded.event"
-                variant="panel"
-            />
-        </section>
+                <!-- Tirer l'en-tête vers le bas réduit le panneau. -->
+                <header
+                    class="flex items-center gap-1.5 pl-4 pr-2 py-2 border-b border-(--border-color) shrink-0 cursor-grab active:cursor-grabbing select-none touch-none"
+                    title="Glisser vers le bas pour réduire"
+                    @pointerdown="onHeaderPointerDown($event, expanded.id)"
+                >
+                    <i :class="panelIcon(expanded)" :style="panelIconStyle(expanded)"></i>
+                    <div v-if="expanded.task" class="flex-1 min-w-0 flex items-center gap-1.5 text-xs text-(--text2)">
+                        <span class="truncate shrink-0 max-w-[45%]">{{ spaceName(expanded.task) }}</span>
+                        <template v-if="expanded.task.parentTask">
+                            <i class="bi bi-chevron-right text-[9px]"></i>
+                            <button
+                                type="button"
+                                class="truncate hover:text-(--primary) transition-colors"
+                                :title="`Ouvrir la tâche parente : ${expanded.task.parentTask.title}`"
+                                @click="openTaskById(orgIdOf(expanded.task), expanded.task.parentTask)"
+                            >{{ expanded.task.parentTask.title }}</button>
+                        </template>
+                    </div>
+                    <div v-else class="flex-1 min-w-0 text-xs font-semibold text-(--text)">
+                        {{ headerLabel(expanded) }}
+                    </div>
+                    <button type="button" class="br-btn" title="Réduire" aria-label="Réduire" @click="minimizeTask(expanded.id)">
+                        <i class="bi bi-dash-lg"></i>
+                    </button>
+                    <button type="button" class="br-btn" title="Fermer" aria-label="Fermer" @click="close(expanded.id)">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </header>
+                <TaskDetails
+                    v-if="expanded.task"
+                    :task="expanded.task"
+                    :org-id="orgIdOf(expanded.task)"
+                    :edit-title="expanded.editTitle"
+                    variant="panel"
+                />
+                <TaskCreateForm
+                    v-else-if="expanded.draft"
+                    :panel-id="expanded.id"
+                    :draft="expanded.draft"
+                    :org-id="currentOrgId"
+                    variant="panel"
+                />
+                <EventDetails
+                    v-else-if="expanded.event"
+                    :panel-id="expanded.id"
+                    :state="expanded.event"
+                    variant="panel"
+                />
+            </section>
+        </div>
     </div>
 
     <!-- Petit écran : la Popup plein écran habituelle. -->
@@ -142,7 +145,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import Popup from '@/components/Popup.vue';
 import TaskDetails from './TaskDetails.vue';
@@ -160,7 +163,9 @@ const { panels, openTaskById, minimizeTask, restoreTask, closeTask, closeAllTask
 const { animationsEnabled } = useMotion();
 
 const dockEl = ref<HTMLElement | null>(null);
-const expanded = computed(() => panels.value.find(p => !p.minimized) ?? null);
+const expandedPanels = computed(() => panels.value.filter(p => !p.minimized));
+// Petit écran : une seule entrée affichée, dans la Popup (la plus récente).
+const expanded = computed(() => expandedPanels.value[expandedPanels.value.length - 1] ?? null);
 const minimizedPanels = computed(() => panels.value.filter(p => p.minimized));
 
 // Les tâches et les événements appartiennent à une organisation (membres, espaces, droits) :
@@ -370,7 +375,7 @@ function onHeaderPointerDown(e: PointerEvent, id: string) {
 let suppressBarClick = false;
 
 function onBarPointerDown(e: PointerEvent, id: string) {
-    if (e.button !== 0 || (e.target as HTMLElement).closest('.dock-btn')) return;
+    if (e.button !== 0 || (e.target as HTMLElement).closest('.br-btn')) return;
     const bar = e.currentTarget as HTMLElement;
     const startX = e.clientX;
     let dx = 0;
@@ -419,10 +424,38 @@ function onBarPointerDown(e: PointerEvent, id: string) {
     bar.addEventListener('pointercancel', up);
 }
 
-function onBarClick(id: string) {
+function onBarClick(e: MouseEvent, id: string) {
     if (suppressBarClick) return;
-    restoreTask(id);
+    restoreTask(id, e.ctrlKey || e.metaKey);
 }
+
+// ── Échap ──────────────────────────────────────────────────────────────
+// Échap réduit le panneau qui a le focus, sinon le dernier déplié, même si le
+// focus est ailleurs dans l'app. Pas quand autre chose est par-dessus (Popup,
+// visionneuse…) : c'est à elle de se fermer. Pas non plus pendant une saisie
+// hors du dock (Échap y a déjà un sens : annuler une réponse, une mention…).
+function onGlobalKeydown(e: KeyboardEvent) {
+    if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing || !dockEl.value) return;
+    const target = e.target as HTMLElement | null;
+    const inDock = !!target && dockEl.value.contains(target);
+    if (!inDock && target?.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return;
+
+    const focused = inDock ? target!.closest<HTMLElement>('[data-kind="panel"]')?.dataset.taskId : undefined;
+    const id = focused ?? expandedPanels.value[expandedPanels.value.length - 1]?.id;
+    const el = id ? dockEl.value.querySelector<HTMLElement>(`[data-task-id="${CSS.escape(id)}"]`) : null;
+    if (!id || !el) return;
+
+    // Quelque chose couvre le panneau (Popup, menu…) : Échap est pour lui.
+    const r = el.getBoundingClientRect();
+    const top = document.elementFromPoint(r.left + r.width / 2, r.top + Math.min(r.height / 2, 40));
+    if (top && !el.contains(top)) return;
+
+    e.preventDefault();
+    minimizeTask(id);
+}
+
+onMounted(() => window.addEventListener('keydown', onGlobalKeydown));
+onUnmounted(() => window.removeEventListener('keydown', onGlobalKeydown));
 
 // ── Affichage ──────────────────────────────────────────────────────────
 const currentOrgId = computed(() => String(route.params.orgId || openedOrg.value?.id || ''));
@@ -493,58 +526,43 @@ const barDue = (task: Task) => {
 </script>
 
 <style scoped>
-/* Une seule largeur pour tout le dock : la tâche dépliée et la grille des
-   tâches réduites (deux par ligne, la dernière seule prend toute la ligne). */
+/* Une seule largeur pour tout le bas-droite (--br-width, style.css) : chaque
+   panneau déplié, les barres réduites, les transferts et les toasts. */
 .task-dock {
     display: flex;
     flex-direction: column;
-    align-items: stretch;
+    align-items: flex-end;
     gap: 0.5rem;
     min-height: 0;
-    width: 25rem;
     max-width: calc(100vw - 2rem);
     pointer-events: none;
 }
 
-.task-panel {
-    pointer-events: auto;
-    width: 100%;
+.task-bars {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+    width: var(--br-width, 25rem);
+    max-width: 100%;
+    flex-shrink: 0;
+}
+
+/* Panneaux dépliés en ligne, alignés en bas, le plus récent à droite. */
+.task-panels {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
     min-height: 0;
-    max-height: 44rem;
+    max-width: 100%;
+}
+
+.task-panel {
+    width: var(--br-width, 25rem);
+    flex-shrink: 0;
+    max-width: 100%;
+    min-height: 0;
+    max-height: min(44rem, 100%);
     display: flex;
     flex-direction: column;
-    background: var(--bg);
-    border: 1px solid var(--border-color);
-    border-radius: 1.1rem;
-    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.12);
-    overflow: hidden;
 }
-
-.task-bar {
-    pointer-events: auto;
-    min-width: 0;
-    height: 2.75rem;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    background: var(--bg);
-    border: 1px solid var(--border-color);
-    border-radius: 0.9rem;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
-    transition: border-color 0.15s;
-}
-.task-bar:hover { border-color: color-mix(in srgb, var(--primary) 50%, transparent); }
-
-.dock-btn {
-    width: 1.9rem;
-    height: 1.9rem;
-    flex-shrink: 0;
-    display: grid;
-    place-items: center;
-    border-radius: 0.55rem;
-    color: var(--text2);
-    font-size: 0.85rem;
-    transition: background-color 0.15s, color 0.15s;
-}
-.dock-btn:hover { background: color-mix(in srgb, var(--text) 10%, transparent); color: var(--text); }
 </style>

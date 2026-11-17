@@ -563,6 +563,7 @@
 
     <Transition name="pop">
         <div v-if="isDragging" 
+             data-br-obstacle="always"
              class="fixed bottom-8 right-8 w-16 h-16 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-2xl z-[100] border-4 transition-all duration-500"
              :class="[
                 isDeleting ? 'scale-0 translate-y-10 opacity-0 rotate-[360deg]' : 'scale-100',

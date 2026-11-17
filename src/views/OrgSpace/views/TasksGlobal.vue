@@ -333,6 +333,7 @@
 
         <Transition name="pop">
             <div v-if="isDraggingTask"
+                 data-br-obstacle="always"
                  class="fixed bottom-8 right-8 flex items-center gap-4 z-[100]">
 
                 <div class="w-16 h-16 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-2xl border-4 transition-all duration-500"

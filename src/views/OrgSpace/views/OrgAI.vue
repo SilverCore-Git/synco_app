@@ -295,7 +295,7 @@
 
         <AiComposerControls :busy="isGenerating" />
 
-        <form @submit.prevent="sendMessage"
+        <form @submit.prevent="sendMessage" data-br-obstacle
           class="relative w-full max-w-5xl mx-auto flex items-end gap-3 border border-(--text)/10 rounded-xl px-4 py-2 transition-all shadow-2xl"
           :class="(!canType || isGenerating) ? 'bg-black/50 opacity-50 cursor-not-allowed' : 'bg-(--bg) focus-within:border-(--primary)/50'">
 
