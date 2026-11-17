@@ -71,6 +71,10 @@ let loadPromise: Promise<void> | null = null;
 const byChar = new Map<string, Emoji>();
 export const findEmoji = (char: string) => byChar.get(char);
 
+/** Index shortcode (« thumbsup », « +1 »…) → entrée. */
+const byShortcode = new Map<string, Emoji>();
+export const findByShortcode = (code: string) => byShortcode.get(code.toLowerCase());
+
 export function loadEmojis(): Promise<void> {
   if (loadPromise) return loadPromise;
   loadPromise = import('./emojiData.json')
@@ -107,6 +111,7 @@ export function loadEmojis(): Promise<void> {
         // Certaines plateformes collent l'emoji sans le sélecteur de variante FE0F
         byChar.set(emoji.replace(/\uFE0F/g, ''), entry);
         entry.skins?.forEach((s) => byChar.set(s, entry));
+        for (const sc of entry.shortcodes) if (!byShortcode.has(sc)) byShortcode.set(sc, entry);
       });
       emojis.value = list;
       emojisReady.value = true;
@@ -392,4 +397,44 @@ export function searchEmojis(rawQuery: string, list: Emoji[]): Emoji[] {
     results.push({ e, s: total });
   }
   return results.sort((a, b) => b.s - a.s || a.e.order - b.e.order).map((r) => r.e);
+}
+
+/**
+ * Suggestions pour l'autocomplétion « :requête » des zones de texte, par
+ * ordre de priorité : shortcode exact, mot exact (« :lol » → 😂 avant 🍭),
+ * shortcodes préfixés (les plus courts, puis les plus utilisés/courants :
+ * « :fi » → 🔥 avant ✊), puis le reste de la recherche par nom/mots-clés.
+ */
+const POPULAR = new Set(DEFAULT_FREQUENT);
+
+export function suggestEmojis(rawQuery: string, limit = 8): Emoji[] {
+  const q = normalize(rawQuery);
+  if (!q) return [];
+  const list = emojis.value;
+  const searched = searchEmojis(q, list);
+  const out: Emoji[] = [];
+  const seen = new Set<Emoji>();
+  const push = (e: Emoji | undefined) => {
+    if (e && !seen.has(e) && out.length < limit) {
+      seen.add(e);
+      out.push(e);
+    }
+  };
+  const popularity = (e: Emoji) => usageScore(e) * 10 + (POPULAR.has(e.emoji) ? 1 : 0);
+
+  push(byShortcode.get(q));
+  // À partir de 3 caractères seulement : à 2, ça ramènerait les codes pays (« fi » → 🇫🇮)
+  if (q.length >= 3) {
+    searched
+      .filter((e) => e.sNameWords.includes(q) || e.sTagWords.includes(q) || e.sNameWordsEn.includes(q) || e.sTagWordsEn.includes(q))
+      .sort((a, b) => popularity(b) - popularity(a))
+      .forEach(push);
+  }
+  list
+    .map((e) => ({ e, len: Math.min(...e.shortcodes.filter((sc) => sc.startsWith(q)).map((sc) => sc.length)) }))
+    .filter((r) => Number.isFinite(r.len))
+    .sort((a, b) => a.len - b.len || popularity(b.e) - popularity(a.e) || a.e.order - b.e.order)
+    .forEach((r) => push(r.e));
+  searched.forEach(push);
+  return out;
 }
