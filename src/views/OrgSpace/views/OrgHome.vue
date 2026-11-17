@@ -16,15 +16,7 @@
                 >
                     <i class="bi bi-check2-all" />
                 </button>
-                <button
-                    @click="showUsersBar = !showUsersBar"
-                    class="hover:text-(--text) transition-colors"
-                    :class="showUsersBar ? 'text-(--text)' : ''"
-                    title="Membres"
-                    aria-label="Afficher les membres"
-                >
-                    <i class="bi bi-people-fill" />
-                </button>
+                <UsersBarToggle />
             </div>
         </div>
 
@@ -96,6 +88,7 @@
 </template>
 
 <script lang="ts" setup>
+import UsersBarToggle from '@/views/OrgSpace/components/layouts/UsersBarToggle.vue';
 import { computed, getCurrentInstance, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
 import { user, openedOrg, todoEnabled, agendaEnabled, aiEnabled, userCardHeight } from '@/assets/var';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';

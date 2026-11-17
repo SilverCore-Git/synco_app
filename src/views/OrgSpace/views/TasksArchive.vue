@@ -10,6 +10,7 @@
                     {{ archivedTasks.length }} {{ archivedTasks.length > 1 ? 'tâches' : 'tâche' }}
                 </span>
             </div>
+            <UsersBarToggle class="ml-auto text-(--text2)" />
         </header>
 
         <div class="flex-1 min-h-0 flex">
@@ -375,6 +376,7 @@
 </template>
 
 <script setup lang="ts">
+import UsersBarToggle from '@/views/OrgSpace/components/layouts/UsersBarToggle.vue';
 import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';

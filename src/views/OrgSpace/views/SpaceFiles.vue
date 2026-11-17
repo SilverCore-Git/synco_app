@@ -21,14 +21,7 @@
             </div>
             
             <div class="ml-auto flex items-center gap-4 text-(--text2)">
-                <button 
-                    @click="showUsersBar = !showUsersBar"
-                    class="hover:text-(--text) transition-colors"
-                    :class="showUsersBar ? 'text-(--text)' : ''"
-                    title="Membres"
-                >
-                    <i class="bi bi-people-fill" />
-                </button>
+                <UsersBarToggle />
             </div>
 
         </header>
@@ -639,7 +632,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';
-import { useUsersBar } from '@/composables/useUsersBar';
+import UsersBarToggle from '@/views/OrgSpace/components/layouts/UsersBarToggle.vue';
 import { openedOrg } from '@/assets/var';
 import CreateNewFolder from '../components/popup/CreateNewFolder.vue';
 import CreateNewFile from '../components/popup/CreateNewFile.vue';
@@ -667,7 +660,6 @@ import ShareToTargetModal from '@/components/common/ShareToTargetModal.vue';
 import { shareReference } from '@/composables/useShareReference';
 
 
-const { showUsersBar } = useUsersBar();
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();

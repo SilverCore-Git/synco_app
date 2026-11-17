@@ -16,6 +16,7 @@
                         Nouvelle Tâche
                     </button>
                 </CreateTaskModal>
+                <UsersBarToggle class="text-(--text2)" />
             </div>
         </div>
 
@@ -382,6 +383,7 @@
 </template>
 
 <script setup lang="ts">
+import UsersBarToggle from '@/views/OrgSpace/components/layouts/UsersBarToggle.vue';
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import sfetch from '@/assets/utils/sfetch';

@@ -26,6 +26,7 @@
                         {{ v.label }}
                     </button>
                 </div>
+                <UsersBarToggle class="text-(--text2) ml-1" />
             </div>
         </div>
 
@@ -108,6 +109,7 @@
 </template>
 
 <script setup lang="ts">
+import UsersBarToggle from '@/views/OrgSpace/components/layouts/UsersBarToggle.vue';
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';

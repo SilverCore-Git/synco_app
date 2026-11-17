@@ -23,13 +23,7 @@
             </div>
 
             <div class="ml-auto flex items-center gap-4 text-(--text2)">
-                <button 
-                    @click="showUsersBar = !showUsersBar"
-                    class="hover:text-(--text) transition-colors"
-                    :class="showUsersBar ? 'text-(--text)' : ''"
-                >
-                    <i class="bi bi-people-fill" />
-                </button>
+                <UsersBarToggle />
             </div>
 
         </header>
@@ -57,7 +51,7 @@ import { useSettingsAccess, ORG_SETTINGS_PERMISSIONS } from '@/composables/useSe
 import { usePermissions } from '@/composables/usePermissions';
 import { openedOrg, isLittleScreen } from '@/assets/var';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
-import { useUsersBar } from '@/composables/useUsersBar';
+import UsersBarToggle from '@/views/OrgSpace/components/layouts/UsersBarToggle.vue';
 
 const route = useRoute();
 // Petit écran : transition choisie par OrgLayout selon que le panneau reste ouvert, s'ouvre ou se ferme.
@@ -69,7 +63,6 @@ const { canAny, can } = usePermissions(orgId);
 const { canOpenSettings, canSeeStats, statsScopes } = useSettingsAccess(orgId);
 const canSeeView = (view: settingsView) => (view.route === STATS_SETTINGS_ROUTE ? canSeeStats.value : can(view.permission));
 
-const { showUsersBar } = useUsersBar();
 
 const setting = computed(() => {
     return settingsViews.find(view => view.route == route.name);

@@ -20,13 +20,7 @@
                     </button>
                 </CreateTaskModal>
                 <div class="ml-auto flex items-center gap-4 text-(--text2)">
-                    <button
-                        @click="showUsersBar = !showUsersBar"
-                        class="hover:text-(--text) transition-colors"
-                        :class="showUsersBar ? 'text-(--text)' : ''"
-                    >
-                        <i class="bi bi-people-fill" />
-                    </button>
+                    <UsersBarToggle />
                 </div>
             </div>
         </div>
@@ -404,7 +398,7 @@ import TaskCard from '../components/SpaceTasks/TaskCard.vue';
 import TaskSearchBar from '../components/SpaceTasks/TaskSearchBar.vue';
 
 import { useToast } from '@/composables/useToast';
-import { useUsersBar } from '@/composables/useUsersBar';
+import UsersBarToggle from '@/views/OrgSpace/components/layouts/UsersBarToggle.vue';
 import useWSocket from '@/composables/useWSocket';
 import CreateTaskModal from '../components/popup/CreateTaskModal.vue';
 import TaskUserFilter from '../components/TaskUserFilter.vue';
@@ -424,7 +418,6 @@ const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const { fetchOrder, sortByOrder, persistOrder } = useTaskOrder(route.params.orgId as string);
-const { showUsersBar } = useUsersBar();
 const { markTasksAsRead } = useNotification();
 
 const tasks = ref<Task[]>([]);

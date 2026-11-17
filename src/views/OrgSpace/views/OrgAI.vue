@@ -19,10 +19,7 @@
           >
             {{ formatTokenCount(cumulativeUsage.totalTokens) }} tokens
           </span>
-          <button @click="showUsersBar = !showUsersBar" class="hover:text-(--text) transition-colors ml-2"
-            :class="showUsersBar ? 'text-(--text)' : 'text-(--text2)'">
-            <i class="bi bi-people-fill text-lg" />
-          </button>
+          <UsersBarToggle class="ml-2 text-lg text-(--text2)" />
         </div>
       </div>
 
@@ -335,7 +332,7 @@ import AiComposerControls from '../components/ai/AiComposerControls.vue';
 import { recordUsage } from '@/services/aiUsageStats';
 import MarkdownRender from './MarkdownRender.vue';
 import type { TurnPart, ToolStep } from '../components/ai/agentTypes';
-import { useUsersBar } from '@/composables/useUsersBar';
+import UsersBarToggle from '@/views/OrgSpace/components/layouts/UsersBarToggle.vue';
 import { useRoute, useRouter } from 'vue-router';
 
 const route = useRoute();
@@ -352,7 +349,6 @@ import { createFolderRequest, createTextFile } from '@/services/fileActions';
 import { isDocumentationTool, runDocumentationTool } from '@/services/DocumentationService';
 import { autoFocus } from '@/assets/utils/autoFocus';
 
-const { showUsersBar } = useUsersBar();
 
 // Le rendu markdown passe par MarkdownRender.vue (partagé avec le chat/les
 // tâches) — il ne reste ici que le nettoyage spécifique à l'IA : les blocs
