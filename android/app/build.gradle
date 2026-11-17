@@ -19,6 +19,14 @@ android {
         }
     }
     buildTypes {
+        // Aperçu des notifications (PushPreviewReceiver, src/preview) : identifiant à part pour s'installer
+        // à côté de l'app de production sans la remplacer. ./gradlew installPreview
+        preview {
+            initWith debug
+            applicationIdSuffix ".preview"
+            versionNameSuffix "-preview"
+            matchingFallbacks = ['debug']
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
