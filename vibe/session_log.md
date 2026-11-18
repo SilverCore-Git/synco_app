@@ -1122,3 +1122,44 @@ d1c70f1 (synco_app) feat(tasks): refonte des tâches archivées — par personne
 2. Les todoLists restent en base et dans l'API ; seul cet écran ne les montre plus.
 3. Pas d'écoute websocket sur l'écran des archives (comme avant) : une tâche archivée par quelqu'un d'autre n'apparaît qu'au rechargement.
 4. « Annuler » ré-archive la tâche : sa date d'archivage devient celle du moment.
+
+---
+
+## 📅 **2026-11-18 - Refonte Synco AI : spécification du runtime (lot L00)**
+
+**Durée** : Session complète  
+**Priorité** : ⭐⭐⭐⭐⭐ (Haute)  
+**Complexité** : Élevée  
+**Statut** : ✅ **TERMINÉ** (spécification ; aucun code)
+
+### **Objectif**
+Figer les protocoles et formats du Synco AI Runtime avant les lots d'implémentation. Spécification
+de référence : `synco_ai_runtime/docs/plan/` ; part de l'app : `synco_app/vibe/features/SYNCOAI_REFONTE_FEATURE.md`.
+
+### **Fichiers Créés**
+
+| Fichier | Description |
+|---------|-------------|
+| `vibe/features/SYNCOAI_REFONTE_FEATURE.md` | Cryptographie côté client (certificat, épinglage, délégation, clé de conversation, `rt1`), écrans et composants, compatibilité, tests, recette manuelle |
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `vibe/session_log.md` | Cette entrée |
+
+### **Fonctionnalités Implémentées**
+✅ **Spécification** : formats E2EE nouveaux (enveloppe `srd1`, mandat, entrées `sre1`, enveloppe FC4 `rt1`) calqués sur `e2eeV4.ts` et `keyEnvelope.ts` ; format `gcm1:` repris à l'identique (AAD avec `:`).  
+✅ **Vérifié dans le code** : `e2eeV4.ts`, `keyEnvelope.ts`, `keyPinning.ts`, `keyTrust.ts`, `crypto.ts`, `AIService.ts`, `AiSessionKeyService.ts`, `OrgAI.vue` (citations `fichier:ligne` dans la spec du runtime).
+
+### **Commit**
+
+```bash
+bd9b3ab docs(ai): spécification côté app de la refonte Synco AI (runtime auto-hébergé)
+```
+
+**Date** : 2026-11-18  
+
+### **Prochaines Étapes**
+1. Porte A : décisions D1–D7, D10 et questions Q1–Q10 (`synco_ai_runtime/docs/plan/00-vue-ensemble.md`).
+2. L01 (fonctions pures TS + crate Rust + vecteurs), puis L10 à L13.
