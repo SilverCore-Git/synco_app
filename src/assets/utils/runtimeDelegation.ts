@@ -83,8 +83,17 @@ export function delegationWrapContext(ctx: DelegationContext, kex: string | obje
     return `${DELEGATION_WRAP_LABEL}|${ctx.userId}|${ctx.orgId}|${ctx.runtimeId}|${ctx.delegationId}|${ctx.scope}|${ctx.iat}|${ctx.exp}|${canonicalRuntimeEcJwk(kex)}|${canonicalRuntimeEcJwk(epk)}`;
 }
 
-const wrapKek = async (shared: Uint8Array, context: string) =>
-    crypto.subtle.importKey('raw', (await hkdf32(shared, DELEGATION_WRAP_LABEL, context)) as BufferSource, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+/** KEK en clé AES non extractable ; le secret ECDH reçu et les octets de la KEK sont effacés. */
+async function wrapKek(shared: Uint8Array, context: string): Promise<CryptoKey> {
+    let kek: Uint8Array | null = null;
+    try {
+        kek = await hkdf32(shared, DELEGATION_WRAP_LABEL, context);
+        return await crypto.subtle.importKey('raw', kek as BufferSource, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+    } finally {
+        shared.fill(0);
+        kek?.fill(0);
+    }
+}
 
 /**
  * Chiffre `DK` (32 octets) vers la clé `kex` du runtime (celle du certificat vérifié) :
@@ -102,7 +111,9 @@ export async function sealDelegationWrap(ctx: DelegationContext, runtimeKex: str
 
 /**
  * Ouvre l'enveloppe de tête avec la clé privée `kex` (côté runtime ; ici pour les vecteurs Rust → TS).
- * Tout refus : `delegation_unusable`. Renvoie `DK` (à effacer après usage).
+ * Tout refus : `delegation_unusable`. Renvoie `DK` en clair : l'appelant doit l'importer en clé non
+ * extractable et l'effacer (`fill(0)`) aussitôt. Limite : en JavaScript, rien ne garantit l'absence de
+ * copies (moteur, ramasse-miettes) ; l'effacement réduit seulement la durée d'exposition.
  */
 export async function openDelegationWrap(ctx: DelegationContext, kexPrivateKey: CryptoKey, kexPublic: string | object, wrap: string): Promise<Uint8Array> {
     try {
@@ -114,7 +125,10 @@ export async function openDelegationWrap(ctx: DelegationContext, kexPrivateKey: 
         const context = delegationWrapContext(ctx, kexPublic, epk);
         const kek = await wrapKek(await ecdhSharedSecret(kexPrivateKey, epk), context);
         const dk = await gcmOpen(kek, context, blob);
-        if (dk.length !== KEY_LENGTH) throw new Error('longueur');
+        if (dk.length !== KEY_LENGTH) {
+            dk.fill(0);
+            throw new Error('longueur');
+        }
         return dk;
     } catch {
         throw new RuntimeFormatError('delegation_unusable');
@@ -216,7 +230,10 @@ export async function openDelegationEntry(
         const blob = fromB64u(parts[1]!);
         if (blob.length < 12 + 16) throw new Error('longueur');
         const key = await gcmOpen(await aesKey(dk, ['decrypt']), aad, blob);
-        if (key.length !== KEY_LENGTH) throw new Error('longueur');
+        if (key.length !== KEY_LENGTH) {
+            key.fill(0);
+            throw new Error('longueur');
+        }
         return key;
     } catch {
         throw new RuntimeFormatError('entry_unusable');

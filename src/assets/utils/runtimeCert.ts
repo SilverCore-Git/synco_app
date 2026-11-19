@@ -149,11 +149,12 @@ export async function ecdsaVerify(publicKey: string | object, message: string, s
     }
 }
 
-/** ECDH P-256 : coordonnée x du point commun (32 octets). */
+/** ECDH P-256 : coordonnée x du point commun (32 octets). À effacer (`fill(0)`) par l'appelant après usage. */
 export async function ecdhSharedSecret(privateKey: CryptoKey, peerPublic: string | object): Promise<Uint8Array> {
     return new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: await importEcdhPublic(peerPublic) }, privateKey, 256));
 }
 
+/** HKDF-SHA256, 32 octets. Le résultat est une clé : à effacer (`fill(0)`) par l'appelant après import. */
 export async function hkdf32(ikm: Uint8Array, salt: string, info: string): Promise<Uint8Array> {
     const key = await crypto.subtle.importKey('raw', ikm as BufferSource, 'HKDF', false, ['deriveBits']);
     return new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: enc.encode(salt), info: enc.encode(info) }, key, 256));
@@ -377,8 +378,17 @@ export function challengeTranscript(request: ChallengeRequest, runtimeId: string
     return `${CHALLENGE_LABEL}|${request.purpose}|${runtimeId}|${request.orgId}|${request.userId}|${request.nonce}|${eph}|${fprHex}`;
 }
 
-const challengeKey = async (shared: Uint8Array, transcript: string) =>
-    crypto.subtle.importKey('raw', (await hkdf32(shared, CHALLENGE_LABEL, transcript)) as BufferSource, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
+/** K_ch en clé HMAC non extractable ; le secret ECDH reçu et les octets de K_ch sont effacés. */
+async function challengeKey(shared: Uint8Array, transcript: string): Promise<CryptoKey> {
+    let kch: Uint8Array | null = null;
+    try {
+        kch = await hkdf32(shared, CHALLENGE_LABEL, transcript);
+        return await crypto.subtle.importKey('raw', kch as BufferSource, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
+    } finally {
+        shared.fill(0);
+        kch?.fill(0);
+    }
+}
 
 /** Côté client : nonce aléatoire et paire ECDH éphémère (clé privée à oublier après le défi). */
 export async function createChallengeRequest(purpose: ChallengePurpose, orgId: string, userId: string): Promise<{ request: ChallengeRequest; ephemeralPrivateKey: CryptoKey }> {
