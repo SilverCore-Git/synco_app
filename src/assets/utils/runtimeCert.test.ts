@@ -61,6 +61,12 @@ describe("runtimeCert — certificat et défi (01 §5, §6)", () => {
         expect(await verifyRuntimeCertificate(adminPub, cert, sig)).toBe(true);
         expect(await verifyRuntimeCertificate(await pubJwk(other.publicKey), cert, sig)).toBe(false);
         expect(await verifyRuntimeCertificate(adminPub, { ...cert, url: "https://evil.example.com" }, sig)).toBe(false);
+        // http://127.0.0.1 : refusé sauf drapeau de développement explicite.
+        const dev = { ...cert, url: "http://127.0.0.1:8080" };
+        await expect(signRuntimeCertificate(admin.privateKey, dev)).rejects.toMatchObject({ code: "cert_invalid" });
+        const devSig = await signRuntimeCertificate(admin.privateKey, dev, { allowDevHttp: true });
+        await expect(verifyRuntimeCertificate(adminPub, dev, devSig)).rejects.toMatchObject({ code: "cert_invalid" });
+        expect(await verifyRuntimeCertificate(adminPub, dev, devSig, { allowDevHttp: true })).toBe(true);
         await expect(verifyRuntimeCertificate(adminPub, { ...cert, serial: 0 }, sig)).rejects.toMatchObject({ code: "cert_invalid" });
     });
 

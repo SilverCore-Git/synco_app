@@ -171,6 +171,18 @@ const urlCases: Array<{ name: string; input: string; allowDevHttp: boolean; expe
     { name: 'port vide', input: 'https://runtime.example.com:', allowDevHttp: false, expect: 'url_invalid' },
     { name: 'hôte vide', input: 'https://:443', allowDevHttp: false, expect: 'url_invalid' },
     { name: 'IPv6', input: 'https://[::1]:443', allowDevHttp: false, expect: 'url_invalid' },
+    { name: 'segment . dans le chemin', input: 'https://runtime.example.com/a/./b', allowDevHttp: false, expect: 'url_invalid' },
+    { name: 'segment .. dans le chemin', input: 'https://runtime.example.com/a/../b', allowDevHttp: false, expect: 'url_invalid' },
+    { name: 'segment .. final', input: 'https://runtime.example.com/a/..', allowDevHttp: false, expect: 'url_invalid' },
+    { name: 'segment ... admis (pas un point de chemin)', input: 'https://runtime.example.com/...', allowDevHttp: false, expect: 'ok', canonical: 'https://runtime.example.com/...' },
+    { name: 'hôte entier décimal (2130706433)', input: 'https://2130706433', allowDevHttp: false, expect: 'url_invalid' },
+    { name: 'dernier label hexadécimal (0x7f.1)', input: 'https://1.0x7f', allowDevHttp: false, expect: 'url_invalid' },
+    { name: 'IPv4 abrégée (0x7f.1)', input: 'https://0x7f.1', allowDevHttp: false, expect: 'url_invalid' },
+    { name: 'IPv4 avec zéro de tête', input: 'https://127.0.0.01', allowDevHttp: false, expect: 'url_invalid' },
+    { name: 'IPv4 à cinq parties', input: 'https://1.2.3.4.5', allowDevHttp: false, expect: 'url_invalid' },
+    { name: 'IPv4 octet > 255', input: 'https://1.2.3.256', allowDevHttp: false, expect: 'url_invalid' },
+    { name: 'IPv4 décimal pointé canonique', input: 'https://192.0.2.10:8443', allowDevHttp: false, expect: 'ok', canonical: 'https://192.0.2.10:8443' },
+    { name: 'TLD composé de lettres hexadécimales (cafe)', input: 'https://runtime.cafe', allowDevHttp: false, expect: 'ok', canonical: 'https://runtime.cafe' },
     { name: 'hôte non ASCII (signe kelvin)', input: 'https://Kelvin.example.com', allowDevHttp: false, expect: 'url_invalid' },
 ];
 for (const c of urlCases) {
@@ -228,16 +240,16 @@ const certBytes = rc.runtimeCertBytes(cert);
 const certSig = await rc.signRuntimeCertificate(adminKey, cert);
 const certJson = (c: Cert): Json => ({ ...c, keys: { ...c.keys } });
 
-const certCases: Array<{ name: string; certificate: Json; signature: string; expect: string }> = [];
-const addCert = async (name: string, c: Cert, signature: string, expect: string) => {
+const certCases: Array<{ name: string; certificate: Json; signature: string; expect: string; allowDevHttp: boolean }> = [];
+const addCert = async (name: string, c: Cert, signature: string, expect: string, allowDevHttp = false) => {
     let got: string;
     try {
-        got = (await rc.verifyRuntimeCertificate(jwk.admin, c, signature)) ? 'ok' : 'cert_bad_signature';
+        got = (await rc.verifyRuntimeCertificate(jwk.admin, c, signature, { allowDevHttp })) ? 'ok' : 'cert_bad_signature';
     } catch (e) {
         got = e instanceof rc.RuntimeFormatError ? e.code : 'exception';
     }
     check(got === expect, `certificat « ${name} » : ${got}`);
-    certCases.push({ name, certificate: certJson(c), signature, expect });
+    certCases.push({ name, certificate: certJson(c), signature, expect, allowDevHttp });
 };
 await addCert('certificat valide', cert, certSig, 'ok');
 const modified: Array<[string, Partial<Cert>]> = [
@@ -258,6 +270,10 @@ await addCert('signature tronquée', cert, b64(rc.fromB64(certSig).slice(0, 63))
 await addCert('URL non canonique', { ...cert, url: 'https://Runtime.example.com/' }, certSig, 'cert_invalid');
 await addCert('serial 0', { ...cert, serial: 0 }, certSig, 'cert_invalid');
 await addCert('orgId avec |', { ...cert, orgId: 'a|b' }, certSig, 'cert_invalid');
+const devCert = { ...cert, url: 'http://127.0.0.1:8080' };
+const devSig = await rc.signRuntimeCertificate(adminKey, devCert, { allowDevHttp: true });
+await addCert('URL http://127.0.0.1 hors mode développement', devCert, devSig, 'cert_invalid');
+await addCert('URL http://127.0.0.1 avec le drapeau de développement', devCert, devSig, 'ok', true);
 
 write('runtime-cert.json', {
     description: "Certificat de runtime signé par la clé de signature d'identité d'un admin (01 §6). Signatures ECDSA : vérification seulement.",

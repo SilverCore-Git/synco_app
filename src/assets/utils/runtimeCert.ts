@@ -227,10 +227,26 @@ export const MAX_RUNTIME_URL_LENGTH = 255;
 const asciiLower = (s: string) => s.replace(/[A-Z]/g, c => c.toLowerCase());
 const isHostLabel = (label: string) => /^[a-z0-9-]{1,63}$/.test(label) && !label.startsWith('-') && !label.endsWith('-');
 
+/** IPv4 décimal pointé canonique (4 octets décimaux sans zéro de tête). */
+const isCanonicalIpv4 = (host: string) => {
+    const parts = host.split('.');
+    return parts.length === 4 && parts.every(p => /^(0|[1-9][0-9]{0,2})$/.test(p) && Number(p) <= 255);
+};
+
+/**
+ * Un dernier label numérique (`2130706433`) ou hexadécimal `0x…` serait lu comme une IPv4 par les
+ * navigateurs (WHATWG) sous plusieurs écritures : seul l'IPv4 décimal pointé canonique est admis.
+ */
+const isUnambiguousHost = (host: string) => {
+    const last = host.slice(host.lastIndexOf('.') + 1);
+    return !/^([0-9]*|0x[0-9a-f]*)$/.test(last) || isCanonicalIpv4(host);
+};
+
 /**
  * `https` seulement (sauf `http://localhost:<port>` / `http://127.0.0.1:<port>` si `allowDevHttp`),
- * sans identifiants, requête ni fragment ; hôte en minuscules ; port 443 omis ; chemin sans `/` final,
- * limité à `[A-Za-z0-9-._~/]` ; ≤ 255 caractères. Sinon `url_invalid`.
+ * sans identifiants, requête ni fragment ; hôte en minuscules (dernier label non numérique, sauf IPv4
+ * décimal pointé canonique) ; port 443 omis ; chemin sans `/` final ni segment `.`/`..`, limité à
+ * `[A-Za-z0-9-._~/]` ; ≤ 255 caractères. Sinon `url_invalid`.
  */
 export function canonicalRuntimeUrl(input: string, options: { allowDevHttp?: boolean } = {}): string {
     const fail = () => new RuntimeFormatError('url_invalid');
@@ -253,26 +269,30 @@ export function canonicalRuntimeUrl(input: string, options: { allowDevHttp?: boo
         host = authority.slice(0, colon);
     }
     host = asciiLower(host);
-    if (host.length === 0 || host.length > 253 || !host.split('.').every(isHostLabel)) throw fail();
+    if (host.length === 0 || host.length > 253 || !host.split('.').every(isHostLabel) || !isUnambiguousHost(host)) throw fail();
     if (scheme === 'https') {
         if (port === 443) port = null;
     } else if (!(scheme === 'http' && options.allowDevHttp && port !== null && (host === 'localhost' || host === '127.0.0.1'))) {
         throw fail();
     }
     if (path.endsWith('/')) path = path.slice(0, -1);
-    if (!/^[A-Za-z0-9\-._~/]*$/.test(path) || path.endsWith('/') || path.includes('//')) throw fail();
+    if (!/^[A-Za-z0-9\-._~/]*$/.test(path) || path.endsWith('/') || path.includes('//') || path.split('/').some(seg => seg === '.' || seg === '..')) throw fail();
     const url = `${scheme}://${host}${port === null ? '' : `:${port}`}${path}`;
     if (url.length > MAX_RUNTIME_URL_LENGTH) throw fail();
     return url;
 }
 
-function isCanonicalUrl(url: string): boolean {
-    for (const allowDevHttp of [false, true]) {
-        try {
-            if (canonicalRuntimeUrl(url, { allowDevHttp }) === url) return true;
-        } catch { /* essai suivant */ }
+/** Options de validation d'un certificat : `http://localhost|127.0.0.1` seulement sur demande explicite (build de dev). */
+export interface CertUrlOptions {
+    allowDevHttp?: boolean;
+}
+
+function isCanonicalUrl(url: string, options: CertUrlOptions): boolean {
+    try {
+        return canonicalRuntimeUrl(url, { allowDevHttp: options.allowDevHttp === true }) === url;
+    } catch {
+        return false;
     }
-    return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -290,25 +310,25 @@ export interface RuntimeCertificate {
 }
 
 /** `certBytes` ; forme invalide → `cert_invalid`. */
-export function runtimeCertBytes(cert: RuntimeCertificate): string {
+export function runtimeCertBytes(cert: RuntimeCertificate, options: CertUrlOptions = {}): string {
     assertIds('cert_invalid', cert.orgId, cert.runtimeId, cert.adminId);
     assertUints('cert_invalid', cert.issuedAt, cert.serial);
-    if (cert.serial < 1 || !isCanonicalUrl(cert.url)) throw new RuntimeFormatError('cert_invalid');
+    if (cert.serial < 1 || !isCanonicalUrl(cert.url, options)) throw new RuntimeFormatError('cert_invalid');
     const k = canonicalKeys(cert.keys, 'cert_invalid');
     return `synco-rt-cert-v1|${cert.orgId}|${cert.runtimeId}|${cert.url}|${k.sig}|${k.kex}|${k.csk}|${cert.adminId}|${cert.issuedAt}|${cert.serial}`;
 }
 
 /** Signature de l'admin (clé de signature d'identité, `privateSignKey`), `b64`. */
-export async function signRuntimeCertificate(adminSignKey: CryptoKey, cert: RuntimeCertificate): Promise<string> {
-    return toB64(await ecdsaSign(adminSignKey, runtimeCertBytes(cert)));
+export async function signRuntimeCertificate(adminSignKey: CryptoKey, cert: RuntimeCertificate, options: CertUrlOptions = {}): Promise<string> {
+    return toB64(await ecdsaSign(adminSignKey, runtimeCertBytes(cert, options)));
 }
 
 /**
  * Vérifie la signature avec UNE clé de l'admin (à passer comme rappel de `verifyWithSignKeys`).
  * Forme invalide → `cert_invalid` levée ; signature invalide → `false`.
  */
-export async function verifyRuntimeCertificate(adminPublicSignKey: string | object, cert: RuntimeCertificate, signature: string): Promise<boolean> {
-    const bytes = runtimeCertBytes(cert);
+export async function verifyRuntimeCertificate(adminPublicSignKey: string | object, cert: RuntimeCertificate, signature: string, options: CertUrlOptions = {}): Promise<boolean> {
+    const bytes = runtimeCertBytes(cert, options);
     let sig: Uint8Array;
     try {
         sig = fromB64(signature);
