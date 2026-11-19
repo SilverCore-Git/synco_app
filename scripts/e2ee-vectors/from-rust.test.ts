@@ -57,8 +57,8 @@ describe('Rust → TS : délégation', () => {
 
     test('mandat signé par la crate vérifié par le TS', async () => {
         expect(await delegationWrapHash(delegation.wrap)).toBe(delegation.wrapHash);
-        expect(await verifyMandate(delegation.userSignKey, ctx, runtime.fprHex, delegation.wrapHash, delegation.mandateSignature)).toBe(true);
-        expect(await verifyMandate(certificate.adminSignKey, ctx, runtime.fprHex, delegation.wrapHash, delegation.mandateSignature)).toBe(false);
+        expect(await verifyMandate(delegation.userSignKey, ctx, runtime.fprHex, delegation.wrap, delegation.mandateSignature)).toBe(true);
+        expect(await verifyMandate(certificate.adminSignKey, ctx, runtime.fprHex, delegation.wrap, delegation.mandateSignature)).toBe(false);
     });
 
     test('entrées ouvertes par le TS', async () => {

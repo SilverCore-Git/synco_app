@@ -144,8 +144,21 @@ export async function signMandate(userSignKey: CryptoKey, ctx: DelegationContext
     return toB64(await ecdsaSign(userSignKey, mandateBytes(ctx, fprHex, await delegationWrapHash(wrap))));
 }
 
-/** Vérifie un mandat avec UNE clé de l'utilisateur (rappel de `verifyWithSignKeys`) ; `false` au moindre écart. */
-export async function verifyMandate(userPublicSignKey: string | object, ctx: DelegationContext, fprHex: string, wrapHash: string, signature: string): Promise<boolean> {
+/**
+ * Vérifie un mandat avec UNE clé de l'utilisateur (rappel de `verifyWithSignKeys`) sur l'enveloppe de
+ * tête ELLE-MÊME : le hash engagé est recalculé à partir de `wrap`. `false` au moindre écart.
+ */
+export async function verifyMandate(userPublicSignKey: string | object, ctx: DelegationContext, fprHex: string, wrap: string, signature: string): Promise<boolean> {
+    return verifyMandateOfflineFromWrapHash(userPublicSignKey, ctx, fprHex, await delegationWrapHash(wrap), signature);
+}
+
+/**
+ * Vérification HORS LIGNE à partir d'un `wrapHash` servi par l'API (vérification d'une enveloppe
+ * `rt1`, 03 §10 étape 3 : l'API sert le hash, pas l'enveloppe). Ne prouve rien sur une enveloppe de
+ * tête donnée : ne jamais s'en servir pour accepter ou ouvrir une enveloppe (une API malveillante
+ * peut garder le mandat et son hash et servir une autre enveloppe) ; utiliser `verifyMandate`.
+ */
+export async function verifyMandateOfflineFromWrapHash(userPublicSignKey: string | object, ctx: DelegationContext, fprHex: string, wrapHash: string, signature: string): Promise<boolean> {
     try {
         return await ecdsaVerify(userPublicSignKey, mandateBytes(ctx, fprHex, wrapHash), fromB64(signature));
     } catch {
@@ -248,7 +261,7 @@ export async function signRt1Envelope(cskPrivateKey: CryptoKey, rawKey: ArrayBuf
 /**
  * Vérifie l'enveloppe `rt1` avec la `csk` du certificat (03 §10 étape 5) : commitment
  * (`key_commitment_mismatch`) puis signature (`key_bad_signature`). Le mandat se vérifie à part
- * (`verifyMandate`, étape 3).
+ * (`verifyMandateOfflineFromWrapHash`, étape 3, avec le `wrapHash` servi).
  */
 export async function verifyRt1Envelope(
     cskPublic: string | object,

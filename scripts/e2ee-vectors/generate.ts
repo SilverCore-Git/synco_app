@@ -337,10 +337,10 @@ const dk = fill(0x88);
 const userKey = await importEcdsaPrivate(SCALAR.user);
 const otherUserKey = await importEcdsaPrivate(SCALAR.otherUser);
 
-const sealWrap = async (c: Ctx, kex: string, epkScalar: Uint8Array, ivByte: number) => {
+const sealWrap = async (c: Ctx, kex: string, epkScalar: Uint8Array, ivByte: number, key: Uint8Array = dk) => {
     queueEcdhKey(epkScalar);
     queueRandom(fill(ivByte, 12));
-    return rd.sealDelegationWrap(c, kex, dk);
+    return rd.sealDelegationWrap(c, kex, key);
 };
 const wrap = await sealWrap(ctx, jwk.kex, SCALAR.epk, 0xaa);
 const wrapCtx = rd.delegationWrapContext(ctx, jwk.kex, jwk.epk);
@@ -396,20 +396,24 @@ await addWrap('epk canonique refabriquée (témoin)', ctx, SCALAR.kex, await for
 await addWrap('clair de 31 octets', ctx, SCALAR.kex, await forgeWrap(ctx, fill(0x88, 31)), 'delegation_unusable', true);
 await addWrap('clair de 33 octets', ctx, SCALAR.kex, await forgeWrap(ctx, fill(0x88, 33)), 'delegation_unusable', true);
 
-const mandateCases: Array<{ name: string; context: Json; fprHex: string; wrapHash: string; signature: string; userSignKey: string; expect: string }> = [];
-const addMandate = async (name: string, c: Ctx, fh: string, wh: string, sig: string, key: string, expect: string) => {
-    const got = (await rd.verifyMandate(key, c, fh, wh, sig)) ? 'ok' : 'delegation_unusable';
+const mandateCases: Array<{ name: string; context: Json; fprHex: string; wrap: string; wrapHash: string; signature: string; userSignKey: string; expect: string }> = [];
+const addMandate = async (name: string, c: Ctx, fh: string, w: string, sig: string, key: string, expect: string) => {
+    const got = (await rd.verifyMandate(key, c, fh, w, sig)) ? 'ok' : 'delegation_unusable';
     check(got === expect, `mandat « ${name} » : ${got}`);
-    mandateCases.push({ name, context: { ...c }, fprHex: fh, wrapHash: wh, signature: sig, userSignKey: key, expect });
+    mandateCases.push({ name, context: { ...c }, fprHex: fh, wrap: w, wrapHash: await rd.delegationWrapHash(w), signature: sig, userSignKey: key, expect });
 };
-await addMandate('mandat valide', ctx, fprHex, wrapHash, mandateSignature, jwk.user, 'ok');
+await addMandate('mandat valide', ctx, fprHex, wrap, mandateSignature, jwk.user, 'ok');
 const otherWrap = await sealWrap({ ...ctx, delegationId: 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5e' }, jwk.kex, SCALAR.epk, 0xaa);
-await addMandate("wrap d'une autre délégation", ctx, fprHex, await rd.delegationWrapHash(otherWrap), mandateSignature, jwk.user, 'delegation_unusable');
-await addMandate("fprHex d'un autre runtime", ctx, hex(fprConfusable), wrapHash, mandateSignature, jwk.user, 'delegation_unusable');
-await addMandate('signé par une autre clé', ctx, fprHex, wrapHash, await rd.signMandate(otherUserKey, ctx, fprHex, wrap), jwk.user, 'delegation_unusable');
-await addMandate('vérifié avec une autre clé utilisateur', ctx, fprHex, wrapHash, mandateSignature, jwk.otherUser, 'delegation_unusable');
-await addMandate('exp prolongée', { ...ctx, exp: ctx.exp + 86400 }, fprHex, wrapHash, mandateSignature, jwk.user, 'delegation_unusable');
-await addMandate('signature DER', ctx, fprHex, wrapHash, b64(p1363ToDer(rc.fromB64(mandateSignature))), jwk.user, 'delegation_unusable');
+await addMandate("wrap d'une autre délégation", ctx, fprHex, otherWrap, mandateSignature, jwk.user, 'delegation_unusable');
+// Revue L01 : l'API garde le mandat authentique et sert une enveloppe forgée vers kex avec une DK' qu'elle connaît.
+const forgedByApi = await sealWrap(ctx, jwk.kex, fill(0x9b), 0xac, fill(0x66));
+await addMandate("enveloppe forgée par l'API (DK' connue) sous le mandat authentique", ctx, fprHex, forgedByApi, mandateSignature, jwk.user, 'delegation_unusable');
+await addMandate("fprHex d'un autre runtime", ctx, hex(fprConfusable), wrap, mandateSignature, jwk.user, 'delegation_unusable');
+await addMandate('signé par une autre clé', ctx, fprHex, wrap, await rd.signMandate(otherUserKey, ctx, fprHex, wrap), jwk.user, 'delegation_unusable');
+await addMandate('vérifié avec une autre clé utilisateur', ctx, fprHex, wrap, mandateSignature, jwk.otherUser, 'delegation_unusable');
+await addMandate('exp prolongée', { ...ctx, exp: ctx.exp + 86400 }, fprHex, wrap, mandateSignature, jwk.user, 'delegation_unusable');
+await addMandate('signature DER', ctx, fprHex, wrap, b64(p1363ToDer(rc.fromB64(mandateSignature))), jwk.user, 'delegation_unusable');
+check(await rd.verifyMandateOfflineFromWrapHash(jwk.user, ctx, fprHex, wrapHash, mandateSignature), 'vérification hors ligne du mandat');
 
 const entryDefs: Array<{ name: string; kind: 'thread' | 'space' | 'conv'; ref: string; version: number; keyByte: number; ivByte: number }> = [
     { name: 'clé de salon', kind: 'thread', ref: 'cm3threadexample000000001', version: 1, keyByte: 0xbb, ivByte: 0xcc },

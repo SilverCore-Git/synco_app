@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { canonicalRuntimeEcJwk } from "./runtimeCert";
 import {
     delegationWrapHash, openDelegationEntry, openDelegationWrap, parseRt1Creator, rt1CreatorId, sealDelegationEntry,
-    sealDelegationWrap, signMandate, signRt1Envelope, verifyMandate, verifyRt1Envelope, type DelegationContext,
+    sealDelegationWrap, signMandate, signRt1Envelope, verifyMandate, verifyMandateOfflineFromWrapHash, verifyRt1Envelope, type DelegationContext,
 } from "./runtimeDelegation";
 
 const ctx: DelegationContext = {
@@ -32,11 +32,13 @@ describe("runtimeDelegation — enveloppe de tête et mandat (03 §3, §4)", () 
         const wrap = await sealDelegationWrap(ctx, await pubJwk(kex.publicKey), rand());
         const sig = await signMandate(user.privateKey, ctx, fprHex, wrap);
         const hash = await delegationWrapHash(wrap);
-        expect(await verifyMandate(await pubJwk(user.publicKey), ctx, fprHex, hash, sig)).toBe(true);
-        expect(await verifyMandate(await pubJwk(other.publicKey), ctx, fprHex, hash, sig)).toBe(false);
-        expect(await verifyMandate(await pubJwk(user.publicKey), ctx, "0".repeat(64), hash, sig)).toBe(false);
-        const otherWrap = await sealDelegationWrap(ctx, await pubJwk(kex.publicKey), rand());
-        expect(await verifyMandate(await pubJwk(user.publicKey), ctx, fprHex, await delegationWrapHash(otherWrap), sig)).toBe(false);
+        expect(await verifyMandate(await pubJwk(user.publicKey), ctx, fprHex, wrap, sig)).toBe(true);
+        expect(await verifyMandateOfflineFromWrapHash(await pubJwk(user.publicKey), ctx, fprHex, hash, sig)).toBe(true);
+        expect(await verifyMandate(await pubJwk(other.publicKey), ctx, fprHex, wrap, sig)).toBe(false);
+        expect(await verifyMandate(await pubJwk(user.publicKey), ctx, "0".repeat(64), wrap, sig)).toBe(false);
+        // Enveloppe forgée par l'API vers kex (DK' connue) avec le mandat authentique : refusée.
+        const forged = await sealDelegationWrap(ctx, await pubJwk(kex.publicKey), rand());
+        expect(await verifyMandate(await pubJwk(user.publicKey), ctx, fprHex, forged, sig)).toBe(false);
     });
 });
 
