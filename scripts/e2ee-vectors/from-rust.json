@@ -1,0 +1,168 @@
+{
+  "certificate": {
+    "adminSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"G-wSUKqPeCdfmaZmNojzEIWEjQ7ZLxID5EcSX5J7dIY\",\"y\":\"l24Z0u7P09QPk18QvgnmO8vIokpx77Z4SNl3JcOg3HM\"}",
+    "certBytes": "synco-rt-cert-v1|cm3orgrust000000000000001|5e4d3c2b-1a09-4f8e-9d7c-6b5a49382716|https://rust-runtime.example.com/synco|RUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUU|{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"XguIlVR4dS8gtSyG9892pqL2XjUCk7CbW8SK_hLvbYg\",\"y\":\"iPzgvd2drC16UiyoRctAChG0FQKKH4PjbZcQS9NQXik\"}|{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sxACaHMW-ZAMwM6ebCJ76KmCvhw-xUekGt6-IonbqvU\",\"y\":\"iMWTGkFM7jr-GCaGPTObZCHNKUGWXDW7ycbEtV_30s4\"}|22222222-3333-4444-8555-666666666666|1795100000|3",
+    "certificate": {
+      "adminId": "22222222-3333-4444-8555-666666666666",
+      "issuedAt": 1795100000,
+      "keys": {
+        "csk": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sxACaHMW-ZAMwM6ebCJ76KmCvhw-xUekGt6-IonbqvU\",\"y\":\"iMWTGkFM7jr-GCaGPTObZCHNKUGWXDW7ycbEtV_30s4\"}",
+        "kex": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"XguIlVR4dS8gtSyG9892pqL2XjUCk7CbW8SK_hLvbYg\",\"y\":\"iPzgvd2drC16UiyoRctAChG0FQKKH4PjbZcQS9NQXik\"}",
+        "sig": "RUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUU"
+      },
+      "orgId": "cm3orgrust000000000000001",
+      "runtimeId": "5e4d3c2b-1a09-4f8e-9d7c-6b5a49382716",
+      "serial": 3,
+      "url": "https://rust-runtime.example.com/synco"
+    },
+    "signature": "5iBnU9NxijAts0WZHGR4zrCuK5lEk5GBiQEkOHeVBlnW6NDWWSXT5rOeAKhqZ60YgC8u6pvTVVmRtqv6XHNyGw=="
+  },
+  "challenge": {
+    "clientEphScalarHex": "6767676767676767676767676767676767676767676767676767676767676767",
+    "mac": "d_P2FnhHH9_1-Lgf2PRtxLSZ7oknsqSr0Zu0KJD-T_s",
+    "request": {
+      "clientEph": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"I5S0VphLg-p4Wfeg-2R11TtP1VI27PTzMYPB1xnuEGg\",\"y\":\"Omtom0Y6gjZlpAtjc1ZHwpMPPEsdh4fUGZv8LbhJnmE\"}",
+      "nonce": "eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXk",
+      "orgId": "cm3orgrust000000000000001",
+      "purpose": "pair",
+      "userId": "22222222-3333-4444-8555-666666666666"
+    },
+    "sig": "r6w85rol7QPtJj0NoD8XhAe2ob3l4FSZAqrF2wGn_96MjcO-8V5qhgSpn8uFO6NHZMdDzJZJqCKdbWte301Zzg",
+    "transcript": "synco-rt-challenge-v1|pair|5e4d3c2b-1a09-4f8e-9d7c-6b5a49382716|cm3orgrust000000000000001|22222222-3333-4444-8555-666666666666|eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXk|{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"I5S0VphLg-p4Wfeg-2R11TtP1VI27PTzMYPB1xnuEGg\",\"y\":\"Omtom0Y6gjZlpAtjc1ZHwpMPPEsdh4fUGZv8LbhJnmE\"}|d307d9ae88a64f3a8a5604d2326a2b7c8deafb7d3ad09be378ec51ad629157d5"
+  },
+  "delegation": {
+    "context": {
+      "delegationId": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+      "exp": 1795359200,
+      "iat": 1795100000,
+      "orgId": "cm3orgrust000000000000001",
+      "runtimeId": "5e4d3c2b-1a09-4f8e-9d7c-6b5a49382716",
+      "scope": "org",
+      "userId": "77777777-8888-4999-aaaa-bbbbbbbbbbbb"
+    },
+    "dkHex": "8989898989898989898989898989898989898989898989898989898989898989",
+    "entries": [
+      {
+        "ciphertext": "sre1.wcHBwcHBwcHBwcHBfyrzznHm3f1Tb-MGMlp_Z_F9H4xLdo3x9lNurWL32ep88L3RLu0Sbq6UviuObQyP",
+        "keyHex": "b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1",
+        "kind": "thread",
+        "ref": "cm3threadrust000000000001",
+        "version": 1
+      },
+      {
+        "ciphertext": "sre1.wsLCwsLCwsLCwsLCahL-HRTahJzODDGPzvEbE8Mphe7SAJFhSrHjSsKNJsdNAl71ePG-1FYkee0Oy4bK",
+        "keyHex": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+        "kind": "space",
+        "ref": "cm3spacerust0000000000001",
+        "version": 2
+      },
+      {
+        "ciphertext": "sre1.w8PDw8PDw8PDw8PD7cYeSQoxOWV05YPwUJYAx5o2FtkmBrJrmXvERRPIwLBkMcROnevl_Pwfic3mRLs2",
+        "keyHex": "b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3",
+        "kind": "conv",
+        "ref": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+        "version": 1
+      }
+    ],
+    "mandateSignature": "u4PGzCfLQb+i67KTTzaORPVv78xr5qbDBRp9PNVVv0/6QtFr+spUxkr+39nUG3Gss8s0IBoDxB9YHpSZHWCx8g==",
+    "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"MKalm7-LAUWXxUDsKKhJs5w3Z94geIcCUfhInkro4mU\",\"y\":\"CcQklRGgc8UEd7bIXcsm7o0LhTX34PVrESDhBSbhFlU\"}",
+    "wrap": "srd1.eyJjcnYiOiJQLTI1NiIsImt0eSI6IkVDIiwieCI6IklPSHFqWG40VGVoUDl3clZ0eEF0eUJNQVZuLVFFQ1F3bkswcWpvbVRlRFUiLCJ5IjoiUXUzVkp6VFY1a3UtQlJ2d3dGWm5abnM3NHFuMjdmaXI2cjVBbG4ybFFXbyJ9.q6urq6urq6urq6urEUpFv3x9LvpP8UVTi0_LbNiy4uZBlcGOJmF7zFaVMm3YSYwaE38b8TFzPkr8mLEk",
+    "wrapHash": "Yi2igLxRjTYH_6ld6AtUDo5jBikbQqLeOoO8L4_eDgs"
+  },
+  "description": "Valeurs produites par la crate synco-e2ee (examples/emit_ts_vectors.rs), ouvertes ou vérifiées par le code TS de l'app.",
+  "fields": {
+    "cases": [
+      {
+        "fieldName": "content",
+        "messageId": "6f5e4d3c-2b1a-4098-8f7e-6d5c4b3a2918",
+        "plaintext": "Réponse écrite par le runtime ✓",
+        "value": "gcm1:UFBQUFBQUFBQUFBQUa8ioSl9/2xV/XRFnsG85FoJh33O/s0mD+G+fEtjB5wMrSOUP98OmjhkmN+74geHXRHd"
+      },
+      {
+        "fieldName": "tool_call_arguments:call_7",
+        "messageId": "6f5e4d3c-2b1a-4098-8f7e-6d5c4b3a2918",
+        "plaintext": "{\"title\":\"Créer\"}",
+        "value": "gcm1:UVFRUVFRUVFRUVFRX6KBSTK3bleT5FEy+VpWgN/5D4EbXaBCnog2upqOJuz1Gw=="
+      },
+      {
+        "fieldName": "ws:text:4:9",
+        "messageId": "6f5e4d3c-2b1a-4098-8f7e-6d5c4b3a2918",
+        "plaintext": "Bon",
+        "value": "gcm1:UlJSUlJSUlJSUlJSY2KT8qlJNnUohuTh9aCvCXiQ3g=="
+      },
+      {
+        "fieldName": "snapshot:4:10",
+        "messageId": "__snapshot__",
+        "plaintext": "{\"messages\":[],\"status\":\"idle\",\"pendingToolCall\":null}",
+        "value": "gcm1:U1NTU1NTU1NTU1NTjDCBVfu8n6O0e2D1SXrmdwRSlIbQV20SfsZXmeS/djghDv3S4GsP+t50yXpOL/wNWlo366gwRmFntmYJqyHoAQXq8dvQgg=="
+      },
+      {
+        "fieldName": "title",
+        "messageId": "__session_title__",
+        "plaintext": "Titre chiffré",
+        "value": "gcm1:VFRUVFRUVFRUVFRU5seoo71U3II0dj22lXR3frZFfJRf5uVfAnPP9zy2"
+      },
+      {
+        "fieldName": "answer:call_8",
+        "messageId": "__answer__",
+        "plaintext": "Oui",
+        "value": "gcm1:VVVVVVVVVVVVVVVVaJR4E9xrLXsoBgCXPf1/hHzrSg=="
+      }
+    ],
+    "ckHex": "dededededededededededededededededededededededededededededededede",
+    "sessionId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"
+  },
+  "rt1": {
+    "commitment": "jlqj3ILsXeYKHIYEMqya+Tr+d3iU9Ugprx7pdpgTxmg=",
+    "ctx": "thread:cm3threadrust000000000009",
+    "delegationId": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+    "keyHex": "b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0",
+    "signature": "EqQU6pkQKLvK/aHeX/WHISfMtM4cci7Kzv2ISK38V1n4PS2nPxmS+yAwEKm32Wrw7nSnK5LIWjsX4pcME5himg==",
+    "version": 1
+  },
+  "runtime": {
+    "code": "TC3X-KBM8-MS7K-N2JP-0K93-4THB-FGTS",
+    "display": "D307 D9AE 88A6 4F3A 8A56 04D2 326A 2B7C 8DEA FB7D 3AD0 9BE3 78EC 51AD 6291 57D5",
+    "fprHex": "d307d9ae88a64f3a8a5604d2326a2b7c8deafb7d3ad09be378ec51ad629157d5",
+    "kexScalarHex": "2424242424242424242424242424242424242424242424242424242424242424",
+    "keys": {
+      "csk": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sxACaHMW-ZAMwM6ebCJ76KmCvhw-xUekGt6-IonbqvU\",\"y\":\"iMWTGkFM7jr-GCaGPTObZCHNKUGWXDW7ycbEtV_30s4\"}",
+      "kex": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"XguIlVR4dS8gtSyG9892pqL2XjUCk7CbW8SK_hLvbYg\",\"y\":\"iPzgvd2drC16UiyoRctAChG0FQKKH4PjbZcQS9NQXik\"}",
+      "sig": "RUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUU"
+    },
+    "runtimeId": "5e4d3c2b-1a09-4f8e-9d7c-6b5a49382716"
+  },
+  "v4": {
+    "akHex": "4343434343434343434343434343434343434343434343434343434343434343",
+    "deviceCertificate": {
+      "certificate": "rMB+We+XN3m5qn6nsh88PBlp13F8edKjkjio9169VghY95WFm9NGlNKjCchN5bfdAf8/4Z+K+2NslFtv+jm4BA==",
+      "platform": "android"
+    },
+    "deviceEnvelope": "eyJrdHkiOiJFQyIsImNydiI6IlAtMjU2IiwieCI6IklEbElCZzc5YUI3YTlfR3JTZFgyTWZFU0xTNE10RktpemxTUVNYc3kzeUkiLCJ5IjoiVTNLNEM0YmxweENtVG90TmtqR0VGS0Y1UjV1V2duOHplZDRrY1dPVWtJUSJ9.MzMzMzMzMzMzMzMznVjRAxyuEXqeyIHhgUbGbD76jellA2qhwssStnGicq3hbBpE01L+DpReDlIw2nrk",
+    "deviceId": "9c8b7a6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+    "devicePublic": "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"QoqCTqfPVq0qZO02i3ExXYDO6EYAfP8dLuosPw-SFTc\",\"y\":\"MErlmPmN0Q0fECgRpOLRYcP9i7sZPUslvulQrIOcD50\"}",
+    "deviceScalarHex": "6464646464646464646464646464646464646464646464646464646464646464",
+    "identity": {
+      "ciphertext": "xvxpo11mrg24MUV5TvqjjA0KxxzXaD7Ek122NqbVH8Ny+E6+r4/Vso35bB8/75Ltd3ASb/k5PVe3jbB3zvx7NQ==",
+      "iv": "NDQ0NDQ0NDQ0NDQ0",
+      "payloadHex": "303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030",
+      "purpose": "rsa"
+    },
+    "identitySignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"Goc8lho-uEb9fikhP5blNtr690g6OKFm5Labs8LFcFQ\",\"y\":\"nclHWOTCvzResktPPyAXxBp62ue3PBNAUxypTepA-pk\"}",
+    "keyEnvelope": {
+      "commitment": "AUTVfRLgyUb+wFXCojYDh5paQYNAN7AyfIDOdA859mk=",
+      "ctx": "space:cm3spacerust0000000000001",
+      "keyHex": "b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4",
+      "signature": "rqPZEtE7j13n/o2pvWtVK0to0QZw2lwlEZNwpHbAAgqFS7KgBAZQ4q+JPDLdSSPR5S4kB1Z+w6osXsoFUVAD8w==",
+      "version": 2
+    },
+    "transition": {
+      "newPublicKey": "{\"e\":\"AQAB\",\"kty\":\"RSA\",\"n\":\"bnJ1c3Q\"}",
+      "newPublicSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"lvACGLCnbRNSINZdkB9s4zCRGtGXtRUmg6doKoapf0k\",\"y\":\"GUsVuH3BcTohMHkjJnLPvRIJGjPT1DSydBsqgl1HQBQ\"}",
+      "oldPublicSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"Goc8lho-uEb9fikhP5blNtr690g6OKFm5Labs8LFcFQ\",\"y\":\"nclHWOTCvzResktPPyAXxBp62ue3PBNAUxypTepA-pk\"}",
+      "seq": 1,
+      "signature": "UCZ7S79ReG5jtcbh9if2t6M5caHZa8H1JVK0oIa9q+3Dj7M9h+jheyt9JiyL9doqlV2E2jzSus6LR6CirqMbAA=="
+    },
+    "userId": "user-v4-rust000000000001"
+  }
+}

@@ -1163,3 +1163,51 @@ bd9b3ab docs(ai): spécification côté app de la refonte Synco AI (runtime auto
 ### **Prochaines Étapes**
 1. Porte A : décisions D1–D7, D10 et questions Q1–Q10 (`synco_ai_runtime/docs/plan/00-vue-ensemble.md`).
 2. L01 (fonctions pures TS + crate Rust + vecteurs), puis L10 à L13.
+
+## 📅 **2026-11-19 - Refonte Synco AI : référence TS des formats du runtime et vecteurs croisés (lot L01)**
+
+**Durée** : Session complète  
+**Priorité** : ⭐⭐⭐⭐⭐ (Haute)  
+**Complexité** : Élevée  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Écrire la référence TS (fonctions pures) des nouveaux formats E2EE du Synco AI Runtime et produire,
+avec le code réel de l'app, les vecteurs rejoués par la crate Rust `synco-e2ee`
+(`synco_ai_runtime/crates/synco-e2ee`). Spec : `synco_ai_runtime/docs/plan/01`, `03`, `vectors/README.md` ;
+`vibe/features/SYNCOAI_REFONTE_FEATURE.md` §2.1.
+
+### **Fichiers Créés**
+
+| Fichier | Description |
+|---------|-------------|
+| `src/assets/utils/runtimeCert.ts` | Empreinte, code d'appairage (via `formatLinkSecret`/`parseLinkSecret`), URL canonique, certificat, défi de possession ; `RuntimeFormatError` à codes machine |
+| `src/assets/utils/runtimeDelegation.ts` | Enveloppe de tête `srd1`, mandat, entrées `sre1` (liste fermée), enveloppe `rt1` (commitment via `keyCommitment`) |
+| `src/assets/utils/runtimeCert.test.ts`, `runtimeDelegation.test.ts` | Allers-retours et refus avec aléa réel |
+| `scripts/e2ee-vectors/generate.ts` | Générateur des 7 fichiers de vecteurs TS → Rust (lancé avec bun) |
+| `scripts/e2ee-vectors/fixedRandom.ts` | Fige IV, nonces et clés ECDH éphémères le temps du générateur (jamais importé par l'app) |
+| `scripts/e2ee-vectors/from-rust.json`, `from-rust.test.ts` | Sens Rust → TS : valeurs produites par la crate, ouvertes par le code TS |
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `vibe/session_log.md` | Cette entrée |
+
+### **Fonctionnalités Implémentées**
+✅ **Référence TS** des formats de délégation et de certificat, pures (WebCrypto + `@noble/curves` déjà présent pour le contrôle « point sur la courbe »).  
+✅ **Vecteurs** : identité du runtime, certificat, défi, délégation, champs `gcm1`, `rt1` (dont le vecteur de compatibilité des clients actuels : créateur `rt1:` inconnu → accepté sans vérification), formats v4 existants.  
+⚠️ **Écart connu, non corrigé (compatibilité)** : `decryptAiField` (crypto.ts) ne refuse pas un clair non UTF-8 (caractères de remplacement) ; la crate le refuse (`field_invalid_utf8`).
+
+### **Commit**
+
+```bash
+bff0f97 feat(ai): fonctions pures des formats du Synco AI Runtime (référence TS)
+5bf4c18 test(ai): vecteurs croisés TS ↔ Rust de la crate synco-e2ee
+```
+
+**Date** : 2026-11-19  
+
+### **Prochaines Étapes**
+1. L10 : service de délégation sur ces fonctions (épinglage TOFU, `verifyWithSignKeys`, `DK` non extractable) ; ajouter `aiconv:${string}` à `KeyContext` (keyPinning.ts).
+2. Régénérer les vecteurs après tout changement de format : `bun scripts/e2ee-vectors/generate.ts <synco_ai_runtime>/crates/synco-e2ee/tests/vectors`.
