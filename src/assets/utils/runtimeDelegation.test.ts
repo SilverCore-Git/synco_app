@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { canonicalRuntimeEcJwk } from "./runtimeCert";
+import { keyCommitment } from "./keyPinning";
 import {
     delegationWrapHash, openDelegationEntry, openDelegationWrap, parseRt1Creator, rt1CreatorId, sealDelegationEntry,
     sealDelegationWrap, signMandate, signRt1Envelope, verifyMandate, verifyMandateOfflineFromWrapHash, verifyRt1Envelope, type DelegationContext,
@@ -50,8 +51,15 @@ describe("runtimeDelegation — entrées et rt1 (03 §5, §10)", () => {
         expect(await openDelegationEntry(dk, ctx, { ...meta, ciphertext })).toEqual(key);
         await expect(openDelegationEntry(rand(), ctx, { ...meta, ciphertext })).rejects.toMatchObject({ code: "entry_unusable" });
         await expect(openDelegationEntry(dk, { ...ctx, delegationId: "d2" }, { ...meta, ciphertext })).rejects.toMatchObject({ code: "entry_unusable" });
+        // Entrée réellement scellée sous DK avec l'AAD « …|dm|… » : déchiffrable, mais refusée avant.
+        const k = await crypto.subtle.importKey("raw", dk, "AES-GCM", false, ["encrypt", "decrypt"]);
         for (const kind of ["dm", "support", "ai", "org", "account"]) {
-            await expect(openDelegationEntry(dk, ctx, { ...meta, kind, ciphertext })).rejects.toMatchObject({ code: "entry_unusable" });
+            const aad = new TextEncoder().encode(`synco-rt-entry-v1|${ctx.delegationId}|${ctx.userId}|${ctx.orgId}|${ctx.runtimeId}|${kind}|cm3thread|1`);
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: aad }, k, key));
+            expect(new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv, additionalData: aad }, k, ct))).toEqual(key);
+            const forged = `sre1.${Buffer.from([...iv, ...ct]).toString("base64url")}`;
+            await expect(openDelegationEntry(dk, ctx, { ...meta, kind, ciphertext: forged })).rejects.toMatchObject({ code: "entry_unusable" });
         }
     });
 
@@ -63,5 +71,8 @@ describe("runtimeDelegation — entrées et rt1 (03 §5, §10)", () => {
         await verifyRt1Envelope(await pubJwk(csk.publicKey), raw.slice().buffer, { ctx: "thread:t1", version: 1, ...env }, ctx.delegationId);
         await expect(verifyRt1Envelope(await pubJwk(csk.publicKey), rand().buffer, { ctx: "thread:t1", version: 1, ...env }, ctx.delegationId)).rejects.toMatchObject({ code: "key_commitment_mismatch" });
         await expect(verifyRt1Envelope(await pubJwk(csk.publicKey), raw.slice().buffer, { ctx: "thread:t1", version: 1, ...env }, "d2")).rejects.toMatchObject({ code: "key_bad_signature" });
+        // Commitment juste pour le nouveau ctx, signature de l'ancien : la signature couvre ctx et version.
+        const moved = { ctx: "thread:t2" as const, version: 1, commitment: await keyCommitment(raw.slice().buffer, "thread:t2", 1), signature: env.signature };
+        await expect(verifyRt1Envelope(await pubJwk(csk.publicKey), raw.slice().buffer, moved, ctx.delegationId)).rejects.toMatchObject({ code: "key_bad_signature" });
     });
 });

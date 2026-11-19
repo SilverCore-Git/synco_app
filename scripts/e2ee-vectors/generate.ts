@@ -369,8 +369,8 @@ const mandate = rd.mandateBytes(ctx, fprHex, wrapHash);
 const mandateSignature = await rd.signMandate(userKey, ctx, fprHex, wrap);
 
 /** Enveloppe fabriquée à la main (cas mal formés) : même construction que sealDelegationWrap. */
-async function forgeWrap(c: Ctx, plain: Uint8Array, epkJsonOverride?: string): Promise<string> {
-    const context = rd.delegationWrapContext(c, jwk.kex, jwk.epk);
+async function forgeWrap(c: Ctx, plain: Uint8Array, epkJsonOverride?: string, contextOverride?: string): Promise<string> {
+    const context = contextOverride ?? rd.delegationWrapContext(c, jwk.kex, jwk.epk);
     const k = await crypto.subtle.importKey('raw', (await rc.hkdf32(wrapShared, rd.DELEGATION_WRAP_LABEL, context)) as BufferSource, 'AES-GCM', false, ['encrypt']);
     const iv = fill(0xab, 12);
     const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv as BufferSource, additionalData: enc.encode(context) }, k, plain as BufferSource));
@@ -409,6 +409,11 @@ const epkOff = JSON.stringify({ ...JSON.parse(jwk.epk), y: JSON.parse(jwk.kex).y
 await addWrap('epk hors courbe', ctx, SCALAR.kex, await forgeWrap(ctx, dk, epkOff), 'delegation_unusable', true);
 await addWrap('epk non canonique (ordre historique)', ctx, SCALAR.kex, await forgeWrap(ctx, dk, p256Jwk(SCALAR.epk).legacy), 'delegation_unusable', true);
 await addWrap('epk canonique refabriquée (témoin)', ctx, SCALAR.kex, await forgeWrap(ctx, dk), 'ok', true);
+// Scope : enveloppe réellement scellée sous un autre scope (« all »), le contexte de l'ouverture
+// restant valide (« org ») : le refus vient de l'AAD/HKDF, pas d'une validation de forme.
+const otherScopeCtx = wrapCtx.replace('|org|', '|all|');
+check(otherScopeCtx !== wrapCtx, 'contexte scope all');
+await addWrap('enveloppe scellée sous un autre scope (all), ouverte en org', ctx, SCALAR.kex, await forgeWrap(ctx, dk, undefined, otherScopeCtx), 'delegation_unusable', true);
 await addWrap('clair de 31 octets', ctx, SCALAR.kex, await forgeWrap(ctx, fill(0x88, 31)), 'delegation_unusable', true);
 await addWrap('clair de 33 octets', ctx, SCALAR.kex, await forgeWrap(ctx, fill(0x88, 33)), 'delegation_unusable', true);
 
@@ -445,7 +450,7 @@ for (const e of entryDefs) {
 check(entries[0]!.ciphertext === 'sre1.zMzMzMzMzMzMzMzMct41NxlNMdx0P1wYKg4xPQP0ww2YrjkRT_thUzsofrcl7XtxD5j8XMqpb3Xd21OX', 'entrée ≠ exemple de la spec');
 
 const thread = entries[0]!;
-const entryCases: Array<{ name: string; dkHex: string; context: Json; kind: string; ref: string; version: number; ciphertext: string; expect: string }> = [];
+const entryCases: Array<{ name: string; dkHex: string; context: Json; kind: string; ref: string; version: number; ciphertext: string; expect: string; forgedAad?: string }> = [];
 const addEntry = async (name: string, dkBytes: Uint8Array, c: Ctx, kind: string, ref: string, version: number, ciphertext: string, expect: string) => {
     const got = await outcome(() => rd.openDelegationEntry(dkBytes, c, { kind, ref, version, ciphertext }));
     check(got === expect, `entrée « ${name} » : ${got}`);
@@ -458,8 +463,18 @@ await addEntry('ref changée', dk, ctx, thread.kind, 'cm3threadexample000000002'
 await addEntry('version changée', dk, ctx, thread.kind, thread.ref, 2, thread.ciphertext, 'entry_unusable');
 await addEntry('AAD avec un autre userId', dk, { ...ctx, userId: '66666666-7777-4888-9999-aaaaaaaaaaab' }, thread.kind, thread.ref, thread.version, thread.ciphertext, 'entry_unusable');
 await addEntry("AAD d'une autre délégation (même DK)", dk, { ...ctx, delegationId: 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5e' }, thread.kind, thread.ref, thread.version, thread.ciphertext, 'entry_unusable');
+// Kinds hors liste : entrées RÉELLEMENT scellées sous DK avec l'AAD « …|<kind>|… » (fabriquées : l'app
+// refuse de les produire). Elles se déchiffreraient : le refus prouve le contrôle avant déchiffrement.
 for (const kind of ['dm', 'support', 'ai', 'org', 'account', 'identity']) {
-    await addEntry(`kind ${kind} refusé`, dk, ctx, kind, thread.ref, thread.version, thread.ciphertext, 'entry_unusable');
+    const aad = thread.aad.replace('|thread|', `|${kind}|`);
+    const k = await crypto.subtle.importKey('raw', dk as BufferSource, 'AES-GCM', false, ['encrypt', 'decrypt']);
+    const iv = fill(0xcf, 12);
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv as BufferSource, additionalData: enc.encode(aad) }, k, fill(0xbb) as BufferSource));
+    const blob = Uint8Array.from([...iv, ...ct]);
+    check(hex(new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv as BufferSource, additionalData: enc.encode(aad) }, k, ct as BufferSource))) === hex(fill(0xbb)), 'entrée forgée déchiffrable');
+    const name = `kind ${kind} refusé (entrée réellement scellée sous DK avec cette AAD)`;
+    await addEntry(name, dk, ctx, kind, thread.ref, thread.version, `sre1.${b64u(blob)}`, 'entry_unusable');
+    entryCases[entryCases.length - 1]!.forgedAad = aad;
 }
 await addEntry('version 0', dk, ctx, thread.kind, thread.ref, 0, thread.ciphertext, 'entry_unusable');
 await addEntry('préfixe sre2', dk, ctx, thread.kind, thread.ref, thread.version, thread.ciphertext.replace(/^sre1/, 'sre2'), 'entry_unusable');
@@ -606,6 +621,9 @@ await addRt1("commitment d'une autre clé", { ...rt1Base, key: fill(0xbc) }, 'ke
 await addRt1('vérifiée avec kex (mauvaise clé)', { ...rt1Base, verifyKey: jwk.kex }, 'key_bad_signature');
 await addRt1('signée par une autre csk', { ...rt1Base, signature: (await rd.signRt1Envelope(otherCskKey, threadKey.buffer, kctx, 1, delegationId)).signature }, 'key_bad_signature');
 await addRt1('signature FC4 v1 présentée comme rt1', { ...rt1Base, signature: b64(await rc.ecdsaSign(cskKey, `synco-key-envelope-v1|${kctx}|1|${rt1.commitment}`)) }, 'key_bad_signature');
+// La signature couvre ctx et version : commitment juste pour le nouveau ctx/version, signature de l'ancien.
+await addRt1('commitment recalculé pour un autre ctx, signature de l’ancien', { ...rt1Base, ctx: 'thread:cm3threadexample000000002', commitment: await keyCommitment(threadKey.buffer, 'thread:cm3threadexample000000002', 1) }, 'key_bad_signature');
+await addRt1('commitment recalculé pour une autre version, signature de l’ancienne', { ...rt1Base, version: 2, commitment: await keyCommitment(threadKey.buffer, kctx, 2) }, 'key_bad_signature');
 await addRt1('contexte dm refusé', { ...rt1Base, ctx: 'dm:cm3dmexample0000000000001' }, 'key_bad_signature');
 
 // Compatibilité des clients actuels (03 §10) : créateur rt1 inconnu de l'annuaire → accepté sans vérification.
