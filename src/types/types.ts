@@ -70,6 +70,12 @@ export interface Org {
   stats: {
     memberCount: number;
     onlineCount: number;
+    /** Invitations nominatives en attente (GET /api/orgs/:orgId seulement, pour le propriétaire ou ORG_MEMBERS ; null sinon). */
+    pendingInviteCount?: number | null;
+  };
+  /** Limites exposées par le serveur (GET /api/orgs/:orgId). */
+  config?: {
+    memberLimit?: number;
   };
   maxUsers: number;
   maxStorage: number | string | bigint;
