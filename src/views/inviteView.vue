@@ -87,6 +87,7 @@
 import sfetch from '@/assets/utils/sfetch';
 import SpinLoader from '@/components/SpinLoader.vue';
 import { ref, onMounted } from 'vue';
+import { isMemberLimitError, memberLimitMessageForInvitee } from '@/config/orgLimits';
 
 
 const props = defineProps<{
@@ -136,6 +137,11 @@ const acceptInvite = async () => {
             method: 'POST',
             body: JSON.stringify({ code: props.code })
         }).then(res => res.json());
+
+        if (isMemberLimitError(res))
+        {
+            throw new Error(memberLimitMessageForInvitee(res.limit));
+        }
 
         if (res.error && res.error != 'Already a member')
         {

@@ -1211,3 +1211,32 @@ bff0f97 feat(ai): fonctions pures des formats du Synco AI Runtime (référence T
 ### **Prochaines Étapes**
 1. L10 : service de délégation sur ces fonctions (épinglage TOFU, `verifyWithSignKeys`, `DK` non extractable) ; ajouter `aiconv:${string}` à `KeyContext` (keyPinning.ts).
 2. Régénérer les vecteurs après tout changement de format : `bun scripts/e2ee-vectors/generate.ts <synco_ai_runtime>/crates/synco-e2ee/tests/vectors`.
+
+---
+
+## 📅 **2026-11-21 - Limite de 1 000 membres par organisation, côté app (lot L01b, PC30)**
+
+### **Objectif**
+Afficher la limite de membres (membres + invitations nominatives en attente), désactiver l'invitation quand l'org est pleine et traduire le refus `409 org_member_limit`.
+
+### **Fichiers Créés**
+
+| Fichier | Description |
+|---------|-------------|
+| `src/config/orgLimits.ts` | `ORG_MEMBER_LIMIT = 1000` (recopiée de synco_api `src/config/orgLimits.ts`), `getMemberLimit` (le serveur prime), `isMemberLimitError`, messages |
+| `src/config/orgLimits.test.ts` | Tests des helpers |
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/types/types.ts` | `Org.config.memberLimit`, `Org.stats.pendingInviteCount?: number \| null` |
+| `src/views/OrgSpace/views/settings/views/MembersSettings.vue` | Jauge « Limite de l'organisation » (réservée à ORG_MEMBERS, jamais si `pendingInviteCount` est null), boutons d'invitation désactivés si pleine, toast sur 409, pagination des membres (50 par page) |
+| `src/views/inviteView.vue` | Message lisible au 409 à l'acceptation |
+| `vibe/session_log.md` | Cette entrée |
+
+### **Notes**
+- `pendingInviteCount` null (non-gestionnaire) : aucun compteur, ni 0 par défaut ; le 409 reste traduit pour tous.
+- Le compteur suit la liste d'invitations locale une fois chargée.
+
+**Date** : 2026-11-21
