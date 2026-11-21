@@ -13,7 +13,7 @@
                 <section class="flex flex-col gap-8">
 
                     <!-- Carte capacité -->
-                    <div class="w-full">
+                    <div class="w-full grid gap-4" :class="showSeatsGauge ? 'lg:grid-cols-2' : ''">
                         <CapacityGauge 
                             :used="openedOrg?.members?.length || 0"
                             :max="openedOrg?.maxUsers || 100"
@@ -21,6 +21,24 @@
                             icon="bi-person-badge"
                             title="Capacité du serveur"
                         />
+                        <!-- Places prises : membres + invitations en attente (visible seulement de qui gère les membres) -->
+                        <CapacityGauge
+                            v-if="showSeatsGauge"
+                            :used="usedSeats"
+                            :max="memberLimit"
+                            unit="places"
+                            icon="bi-people-fill"
+                            title="Limite de l'organisation"
+                        />
+                    </div>
+
+                    <div
+                        v-if="showSeatsGauge && orgFull"
+                        class="flex items-start gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-sm text-(--text)"
+                        role="status"
+                    >
+                        <i class="bi bi-exclamation-octagon-fill text-red-500 text-lg" />
+                        <p>{{ memberLimitMessage(memberLimit) }}</p>
                     </div>
 
                 </section>
@@ -36,7 +54,7 @@
                             <h3 class="text-lg font-bold text-(--text) flex items-center gap-3">
                                 Membres
                                 <span class="bg-(--primary)/10 text-(--primary) py-1 px-2.5 rounded-lg text-xs">
-                                    {{ openedOrg?.members?.length || 0 }}
+                                    {{ searchQuery.trim() ? `${filteredMembers.length} / ` : '' }}{{ openedOrg?.members?.length || 0 }}
                                 </span>
                             </h3>
 
@@ -67,7 +85,7 @@
                             <!-- Liste des membres -->
                             <div class="divide-y divide-(--border-color)">
                                 <div
-                                    v-for="member in filteredMembers"
+                                    v-for="member in visibleMembers"
                                     :key="member.id"
                                     class="group block sm:grid sm:grid-cols-[2fr_1fr_1fr_1fr] hover:bg-(--bg)/40 transition-colors"
                                 >
@@ -222,6 +240,17 @@
                                 </div>
                             </div>
 
+                            <!-- Pagination : à 1 000 membres on n'affiche qu'une page à la fois -->
+                            <div v-if="hiddenMembersCount > 0" class="p-4 flex justify-center border-t border-(--border-color)">
+                                <button
+                                    @click="visibleCount += MEMBERS_PAGE_SIZE"
+                                    class="bg-(--bg) border border-(--border-color) text-(--text2) hover:text-(--text) hover:bg-(--text)/5 rounded-xl px-4 py-2 text-sm font-medium transition-all flex items-center gap-2 cursor-pointer"
+                                >
+                                    <i class="bi bi-chevron-double-down" />
+                                    Afficher {{ Math.min(MEMBERS_PAGE_SIZE, hiddenMembersCount) }} de plus ({{ hiddenMembersCount }} restants)
+                                </button>
+                            </div>
+
                             <!-- Message si aucun membre -->
                             <div v-if="filteredMembers.length === 0" class="p-8 text-center text-(--text2) text-sm">
                                 Aucun membre ne correspond à votre recherche.
@@ -290,7 +319,9 @@
 
                                     <button 
                                         @click="inviteLink.length === 0 ? createInviteLink() : copyInvite()" 
-                                        class="primary flex items-center justify-center gap-2 whitespace-nowrap shadow-sm !w-full sm:!w-auto"
+                                        :disabled="inviteLink.length === 0 && orgFull"
+                                        :title="inviteLink.length === 0 && orgFull ? memberLimitMessage(memberLimit) : undefined"
+                                        class="primary flex items-center justify-center gap-2 whitespace-nowrap shadow-sm !w-full sm:!w-auto disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <i class="bi" :class="inviteLink.length === 0 ? 'bi-stars' : copied ? 'bi-check-lg' : 'bi-copy'" />
                                         {{ inviteLink.length === 0 ? 'Générer' : copied ? 'Copié' : 'Copier' }}
@@ -501,6 +532,11 @@
                             </h3>
                         </div>
 
+                        <p v-if="orgFull" class="flex items-start gap-2 text-xs text-red-400">
+                            <i class="bi bi-exclamation-octagon-fill" />
+                            <span>{{ memberLimitMessage(memberLimit) }}</span>
+                        </p>
+
                         <!-- Zone de saisie de l'adresse à inviter -->
                         <div class="flex flex-col sm:flex-row gap-3" v-if="can('ORG_MEMBERS')">
                             <input
@@ -512,7 +548,8 @@
                             />
                             <button
                                 @click="sendEmailInvite()"
-                                :disabled="sendingEmailInvite || !inviteEmail.trim()"
+                                :disabled="sendingEmailInvite || !inviteEmail.trim() || orgFull"
+                                :title="orgFull ? memberLimitMessage(memberLimit) : undefined"
                                 class="primary flex items-center justify-center gap-2 whitespace-nowrap shadow-sm !w-full sm:!w-auto disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <i class="bi" :class="sendingEmailInvite ? 'bi-arrow-repeat animate-spin' : 'bi-envelope-plus'" />
@@ -590,13 +627,14 @@
 <script lang="ts" setup>
 
 import { defaultAvatar } from '@/assets/utils/defaultAvatar';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { openedOrg, user } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import CapacityGauge from '@/components/common/CapacityGauge.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { getMemberLimit, getUsedSeats, isMemberLimitError, memberLimitMessage } from '@/config/orgLimits';
 
 const toast = useToast();
 
@@ -615,6 +653,11 @@ const genericInviteLinks = computed(() => inviteLinks.value.filter(l => !l.email
 const emailInvites = computed(() => inviteLinks.value.filter(l => !!l.email));
 
 const isExpired = (invite: any) => !!invite.expiresAt && new Date(invite.expiresAt) < new Date();
+
+// Pagination des membres : une page à la fois (l'org peut monter à 1 000 membres).
+const MEMBERS_PAGE_SIZE = 50;
+const visibleCount = ref<number>(MEMBERS_PAGE_SIZE);
+const inviteLinksLoaded = ref<boolean>(false);
 
 const orgId = computed(() => openedOrg.value?.id);
 const { fetchRoles, can } = usePermissions(orgId);
@@ -687,6 +730,22 @@ const filteredMembers = computed(() => {
         return nameMatch || emailMatch;
     });
 });
+
+const visibleMembers = computed(() => filteredMembers.value.slice(0, visibleCount.value));
+const hiddenMembersCount = computed(() => Math.max(0, filteredMembers.value.length - visibleCount.value));
+watch(searchQuery, () => { visibleCount.value = MEMBERS_PAGE_SIZE; });
+
+// Limite de membres (PC30). Le serveur fait foi : config.memberLimit prime sur la constante.
+// pendingInviteCount vaut null pour qui ne gère pas les membres : on n'affiche alors aucun compteur.
+const memberLimit = computed(() => getMemberLimit(openedOrg.value));
+const serverPendingInvites = computed(() => openedOrg.value?.stats?.pendingInviteCount ?? null);
+const showSeatsGauge = computed(() => can('ORG_MEMBERS') && serverPendingInvites.value !== null);
+// Une fois la liste chargée on la suit en direct (création, révocation) ; sinon valeur serveur.
+const pendingSeats = computed(() => inviteLinksLoaded.value
+    ? emailInvites.value.filter(i => !isExpired(i)).length
+    : (serverPendingInvites.value ?? 0));
+const usedSeats = computed(() => getUsedSeats(openedOrg.value?.members?.length ?? openedOrg.value?.stats?.memberCount ?? 0, pendingSeats.value));
+const orgFull = computed(() => showSeatsGauge.value && usedSeats.value >= memberLimit.value);
 
 const isSelf = (userId: string) => {
     return user.value?.id === userId;
@@ -794,14 +853,24 @@ const createInviteLink = async () => {
 
     try {
 
-        const invite = await sfetch('/api/orgs/users/inviteLink/create', {
+        const res = await sfetch('/api/orgs/users/inviteLink/create', {
             method: 'POST',
             body: JSON.stringify({ 
                 organizationId: openedOrg.value?.id,
                 maxUses: inviteMaxUses.value > 0 ? inviteMaxUses.value : null, 
                 expiresInHours: 24
             })
-        }).then(res => res.json());
+        });
+        const invite = await res.json();
+
+        if (isMemberLimitError(invite)) {
+            toast.show(memberLimitMessage(invite.limit ?? memberLimit.value), 'error', 6000);
+            return;
+        }
+        if (!res.ok || !invite.code) {
+            toast.show(invite.error || 'Erreur lors de la création du lien.', 'error');
+            return;
+        }
 
         inviteLink.value = `${window.location.origin}/invite/${invite.code}`;
         
@@ -832,6 +901,11 @@ const sendEmailInvite = async (resendTo?: string) => {
         // Renvoyée (OK) ou créée mais non délivrée (502) : l'API remplace
         // toute invitation en attente pour cette adresse par une nouvelle,
         // on reflète donc la même substitution côté liste locale.
+        if (isMemberLimitError(data)) {
+            toast.show(memberLimitMessage(data.limit ?? memberLimit.value), 'error', 6000);
+            return;
+        }
+
         const invite = res.ok ? data : data.invite;
 
         if (invite) {
@@ -859,6 +933,7 @@ onMounted(async () => {
         const res = await sfetch(`/api/orgs/users/inviteLink/${openedOrg.value?.id}`);
         if (res.ok) {
             inviteLinks.value = await res.json() || [];
+            inviteLinksLoaded.value = true;
         }
     } catch (err) {
         console.error("Erreur chargement liens", err);

@@ -11,7 +11,7 @@ export const ORG_MEMBER_LIMIT_ERROR = 'org_member_limit';
 
 interface OrgLimitSource {
   config?: { memberLimit?: number } | null;
-  stats?: { memberCount?: number; pendingInviteCount?: number } | null;
+  stats?: { memberCount?: number; pendingInviteCount?: number | null } | null;
 }
 
 /** Limite effective : celle du serveur si elle est valide, sinon la constante recopiée. */
