@@ -6,7 +6,7 @@
 import { describe, expect, test } from 'bun:test';
 import raw from '../../../scripts/e2ee-vectors/action-plan.json';
 import {
-    PlanGraph, PlanInvalidError, PlanRun, ToolManifest, checkServedGraph, checkServerCall, decryptAiFieldStrict, decryptPhaseResult,
+    MAX_PLAN_VALUE_LEN, PlanGraph, PlanInvalidError, PlanRun, ToolManifest, checkServedGraph, checkServerCall, decryptAiFieldStrict, decryptPhaseResult,
     decryptPlan, encryptPhaseResult, encryptPlan, jcs, parseJsonStrict, phaseResultAad, planAad, planServerDigests, serverDigest, validatePlan,
     type GraphAction, type JsonObject, type JsonValue, type PlanContext, type PlanExecutor,
 } from './aiActionPlan';
@@ -40,6 +40,7 @@ interface Vectors {
     };
     toolManifest: JsonValue; serverDigests: Case[]; executeCases: Case[]; encryptionCases: Case[]; validationCases: ValidationCase[];
     levelCases: Case[]; cascadeCases: Case[]; failureCases: Case[]; runCases: RunCase[]; clearCases: ClearCase[];
+    boundCases: { name: string; sessionId: string; planId: string; fieldName: string; valuePrefix: string; fill: string; fillLength: number; expect: string }[];
 }
 const v = raw as unknown as Vectors;
 const fromHex = (h: string) => Uint8Array.from(Buffer.from(h, 'hex'));
@@ -184,6 +185,17 @@ describe('action-plan.json — clairs bruts, lecture stricte (nombres, demi-pair
     });
 });
 
+describe('action-plan.json — borne de la valeur chiffrée (PC61)', () => {
+    test('boundCases', async () => {
+        expect(MAX_PLAN_VALUE_LEN).toBe(349_569);
+        for (const c of v.boundCases) {
+            const value = `${c.valuePrefix}${c.fill.repeat(c.fillLength)}`;
+            await expect(typedDecrypt(ck, c.sessionId, c.planId, c.fieldName, value)).rejects.toMatchObject({ code: c.expect });
+            checks++;
+        }
+    });
+});
+
 describe('action-plan.json — condensats et verrou (12 §8.4, PC47)', () => {
     test('serverDigests', async () => {
         for (const c of v.serverDigests) {
@@ -284,7 +296,7 @@ describe('action-plan.json — graphe et exécution (12 §6–§8, PC37, PC54, P
 
     test('tous les cas rejoués', () => {
         console.log(`action-plan.json : ${checks} vérifications rejouées`);
-        expect(checks).toBe(2 + 4 + 4 + 4 + 12 + 20 + 14 + 43 + 6 + 7 + 2 + 7);
+        expect(checks).toBe(2 + 4 + 4 + 4 + 12 + 20 + 14 + 4 + 45 + 6 + 7 + 2 + 7);
     });
 });
 

@@ -26,6 +26,12 @@ export const MAX_PLAN_ACTIONS = 100;
 export const MAX_PLAN_AFTER_ENTRIES = 2000;
 /** PC61 : `utf8(JCS(plan))` ≤ 256 Kio. */
 export const MAX_PLAN_BYTES = 262_144;
+/**
+ * PC61 : longueur maximale, en OCTETS UTF-8, d'une valeur `gcm1:` de plan ou de résultat de phase,
+ * celle d'un clair de `MAX_PLAN_BYTES` : `5 + 4·⌈(12 + 262 144 + 16) / 3⌉ = 349 569`. Contrôlée avant
+ * le base64, AES-GCM et le JSON, comme `MAX_PLAN_VALUE_LEN` de la crate.
+ */
+export const MAX_PLAN_VALUE_LEN = 5 + 4 * Math.ceil((12 + MAX_PLAN_BYTES + 16) / 3);
 /** 09 §3 : 7 jours au plus. */
 export const MAX_PLAN_LIFETIME_SECS = 604_800;
 export const MAX_PLAN_GROUPS = 50;
@@ -293,8 +299,15 @@ export async function encryptPlan(ck: CryptoKey | Uint8Array, plan: JsonObject):
     return sealField(ck, planAad(sessionId, planId), clear);
 }
 
+/** Borne de PC61 sur la valeur chiffrée, en octets (comme `str::len` de la crate), avant tout décodage. */
+function checkValueLength(value: string): void {
+    // `length` (unités UTF-16) ≤ octets UTF-8 : l'encodage n'est fait que sous la borne.
+    if (value.length > MAX_PLAN_VALUE_LEN || enc.encode(value).length > MAX_PLAN_VALUE_LEN) throw new PlanInvalidError('plan_too_large');
+}
+
 /** Déchiffre `pendingToolCall.args` ; le clair doit porter ce `sessionId` et ce `planId`. */
 export async function decryptPlan(ck: CryptoKey | Uint8Array, sessionId: string, planId: string, value: string): Promise<JsonObject> {
+    checkValueLength(value);
     const plan = parseJsonStrict(await decryptAiFieldStrict(ck, sessionId, planId, 'plan', value));
     if (!isObject(plan) || plan.sessionId !== sessionId || plan.planId !== planId) throw new PlanInvalidError('plan_header');
     return plan;
@@ -332,7 +345,9 @@ export async function encryptPhaseResult(ck: CryptoKey | Uint8Array, sessionId: 
 
 /** Déchiffre et recontrôle un résultat de phase (AAD de l'exécutant et de la phase, puis le clair). */
 export async function decryptPhaseResult(ck: CryptoKey | Uint8Array, sessionId: string, planId: string, executor: PlanExecutor, phase: number, value: string): Promise<JsonObject> {
-    const result = parseJsonStrict(await decryptAiFieldStrict(ck, sessionId, planId, phaseResultField(executor, phase), value));
+    const field = phaseResultField(executor, phase);
+    checkValueLength(value);
+    const result = parseJsonStrict(await decryptAiFieldStrict(ck, sessionId, planId, field, value));
     checkPhaseResult(result, planId, phase);
     return result;
 }
@@ -575,15 +590,17 @@ export function validatePlan(plan: JsonValue, ctx: PlanContext): PlanGraph {
     const actions = plan.actions;
     if (!Array.isArray(actions)) throw fail('plan_actions');
 
-    // Règle 3 (PC61) d'abord : le modèle doit savoir qu'il faut découper.
+    // Règle 3 (PC61) d'abord : le modèle doit savoir qu'il faut découper. Les comptes d'actions et de
+    // dépendances passent avant JCS, qui parcourt tout le plan.
     const afterTotal = actions.reduce<number>((acc, a) => acc + (isObject(a) && Array.isArray(a.after) ? a.after.length : 0), 0);
+    if (actions.length > MAX_PLAN_ACTIONS || afterTotal > MAX_PLAN_AFTER_ENTRIES) throw fail('plan_too_large');
     let clear: string;
     try {
         clear = jcs(plan);
     } catch {
         throw fail('plan_header');
     }
-    if (actions.length > MAX_PLAN_ACTIONS || afterTotal > MAX_PLAN_AFTER_ENTRIES || enc.encode(clear).length > MAX_PLAN_BYTES) throw fail('plan_too_large');
+    if (enc.encode(clear).length > MAX_PLAN_BYTES) throw fail('plan_too_large');
 
     // Règles 1 et 2.
     const idOk = (k: string) => { const v = str(plan, k); return v !== undefined && isValidId(v); };
