@@ -1269,3 +1269,26 @@ Référence TS, octet pour octet avec la crate `synco-e2ee`, du mandat v2 (03 §
 - Règle 7 (identifiants résolus dans l'annuaire local) : à faire par L10.
 
 **Date** : 2026-11-22
+
+---
+
+## 📅 **2026-11-22 - Constats mineurs de la revue cryptographique (lot L01c)**
+
+### **Objectif**
+Même verdict que la crate `synco-e2ee` sur les mêmes octets, en retenant la règle la plus stricte à chaque écart relevé par la revue.
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/assets/utils/aiActionPlan.ts` | `parseJsonStrict` (refuse `1.0`, `1e2`, `-0`, entiers non sûrs, demi-paires), BOM gardé par `TextDecoder`, `__proto__` posé par `defineProperty`, extension en minuscules ASCII, borne `MAX_PLAN_VALUE_LEN` (349 569 octets) avant décodage, comptes PC61 avant JCS, résultats de phase contrôlés contre le `PlanGraph` (exécutant, état final), identifiants validés avant l'AAD |
+| `src/assets/utils/runtimeDelegation.ts` | `rt1Verdict(…, production = true)` : mandat v1 refusé en production |
+| `src/assets/utils/aiActionPlan.test.ts`, `runtimeDelegation.v2.test.ts` | Rejeu des nouvelles sections (`clearCases`, `boundCases`) : 143 vérifications ; 8 cas `rt1Policy` |
+| `scripts/e2ee-vectors/action-plan.json`, `mandate-v2.json` | Copies conformes des vecteurs du runtime |
+| `scripts/e2ee-vectors/generate.ts` | Cas « séparateur \| » attendu en `invalid_input` |
+
+### **Notes**
+- `encryptPhaseResult` / `decryptPhaseResult` prennent désormais le graphe du plan (L10 devra le passer).
+- `decryptAiField` (crypto.ts) reste inchangé.
+
+**Date** : 2026-11-22
