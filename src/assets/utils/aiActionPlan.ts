@@ -400,7 +400,9 @@ export async function checkServerCall(expectedDigest: string, call: ServerCall, 
         const given = refs[field];
         const known = ref ? recorded.get(ref.m)?.[ref.field] : undefined;
         if (!ref || !has(refs, field) || typeof given !== 'string' || typeof known !== 'string' || given !== known || has(effective, field)) throw fail();
-        effective[field] = given;
+        // `defineProperty` : `__proto__` reste une clé ordinaire (une affectation changerait le
+        // prototype et perdrait la clé), comme dans la `Map` de la crate.
+        Object.defineProperty(effective, field, { value: given, enumerable: true, writable: true, configurable: true });
     }
     return effective;
 }

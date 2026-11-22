@@ -197,7 +197,9 @@ describe('action-plan.json — condensats et verrou (12 §8.4, PC47)', () => {
 
     test('executeCases', async () => {
         for (const c of v.executeCases) {
-            expect((await planServerDigests(plans[c.plan!]!)).get(c.n!)).toBe(c.serverDigest);
+            // Sans `plan`, le condensat attendu est celui de l'appel lui-même (cas hors des plans figés).
+            if (c.plan) expect((await planServerDigests(plans[c.plan]!)).get(c.n!)).toBe(c.serverDigest);
+            else expect(await serverDigest(c.call.tool, c.call.args, c.call.argsRefs)).toBe(c.serverDigest);
             const recorded = new Map(Object.entries(c.recordedOutputs).map(([m, o]) => [Number(m), o]));
             const result = checkServerCall(c.serverDigest, c.call, recorded);
             if (c.expect === 'ok') expect(await result).toEqual(c.effectiveArgs);
@@ -282,7 +284,7 @@ describe('action-plan.json — graphe et exécution (12 §6–§8, PC37, PC54, P
 
     test('tous les cas rejoués', () => {
         console.log(`action-plan.json : ${checks} vérifications rejouées`);
-        expect(checks).toBe(2 + 4 + 4 + 4 + 10 + 20 + 14 + 41 + 6 + 7 + 2 + 7);
+        expect(checks).toBe(2 + 4 + 4 + 4 + 12 + 20 + 14 + 41 + 6 + 7 + 2 + 7);
     });
 });
 

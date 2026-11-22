@@ -731,6 +731,59 @@
         }
       },
       "expect": "action_not_accepted"
+    },
+    {
+      "name": "argsRefs et refs sur la clé __proto__ : clé ordinaire dans les arguments exécutés (sans plan, condensat de l'appel)",
+      "n": 5,
+      "serverDigest": "15feeb6a75b9df2c02284e77c2d0ebdf011184bc59dc9efdbf60d78d52ae0b10",
+      "recordedOutputs": {
+        "1": {
+          "id": "cm3threadnew0000000000001",
+          "spaceId": "cm3spaceexample0000000001"
+        }
+      },
+      "call": {
+        "tool": "create_task",
+        "args": {
+          "title": "Valider le budget"
+        },
+        "argsRefs": {
+          "__proto__": "$1.id"
+        },
+        "refs": {
+          "__proto__": "cm3threadnew0000000000001"
+        }
+      },
+      "expect": "ok",
+      "effectiveArgs": {
+        "title": "Valider le budget",
+        "__proto__": "cm3threadnew0000000000001"
+      }
+    },
+    {
+      "name": "__proto__ fixé à la fois par args et par argsRefs : refusé",
+      "n": 5,
+      "serverDigest": "ac70a571e750c38f6c86f718268436080d24c889d955bad2b92f7b2d076df90f",
+      "recordedOutputs": {
+        "1": {
+          "id": "cm3threadnew0000000000001",
+          "spaceId": "cm3spaceexample0000000001"
+        }
+      },
+      "call": {
+        "tool": "create_task",
+        "args": {
+          "title": "Valider le budget",
+          "__proto__": "cm3autre000000000000000001"
+        },
+        "argsRefs": {
+          "__proto__": "$1.id"
+        },
+        "refs": {
+          "__proto__": "cm3threadnew0000000000001"
+        }
+      },
+      "expect": "action_not_accepted"
     }
   ],
   "pendingToolCall": {
