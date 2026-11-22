@@ -576,7 +576,7 @@ await addField({ ...base, name: 'autre messageId dans l’AAD', messageId: '3c2b
 await addField({ ...base, name: 'autre fieldName dans l’AAD', fieldName: 'thinking', expect: 'field_authentication_failed' });
 await addField({ ...delta, name: 'delta rejoué avec un autre seq', fieldName: 'ws:text:2:43', expect: 'field_authentication_failed' });
 await addField({ ...delta, name: 'delta déplacé vers une autre époque', fieldName: 'ws:text:3:42', expect: 'field_authentication_failed' });
-await addField({ ...base, name: 'séparateur | au lieu de :', sessionId: `${sessionId}|${messageId}|content`, messageId: '', fieldName: '', expect: 'field_authentication_failed' });
+await addField({ ...base, name: 'séparateur | au lieu de :', sessionId: `${sessionId}|${messageId}|content`, messageId: '', fieldName: '', expect: 'invalid_input' });
 await addField({ ...base, name: 'mauvaise clé (AiSessionKey au lieu de CK)', keyName: 'aiSessionKey', expect: 'field_authentication_failed' });
 await addField({ ...base, name: 'tag altéré', value: tamper(base.value), expect: 'field_authentication_failed' });
 await addField({ ...base, name: 'base64 invalide', value: 'gcm1:@@@@', expect: 'field_invalid_base64' });

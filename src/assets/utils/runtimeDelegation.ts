@@ -1,7 +1,7 @@
 /**
  * Délégation des clés au Synco AI Runtime — référence TS des formats de
  * synco_ai_runtime/docs/plan/03-delegation.md : enveloppe de tête `srd1`, mandat signé par
- * l'utilisateur, entrées `sre1`, et enveloppe FC4 `rt1` des clés créées par le runtime.
+ * l'utilisateur (v1, et v2 avec l'empreinte RSA du propriétaire et le mode, 03 §4.1), entrées `sre1`, et enveloppe FC4 `rt1` des clés créées par le runtime.
  *
  * Fonctions pures (WebCrypto), rejouées octet pour octet par la crate Rust `synco-e2ee`
  * (vecteurs : scripts/e2ee-vectors/). Réutilisées par le service de délégation (lot L10).
@@ -26,6 +26,7 @@ import {
     sha256,
     toB64,
     toB64u,
+    toHex,
 } from './runtimeCert';
 
 const enc = new TextEncoder();
@@ -178,6 +179,112 @@ export async function verifyMandateOfflineFromWrapHash(userPublicSignKey: string
     } catch {
         return false;
     }
+}
+
+// ---------------------------------------------------------------------------
+// Mandat v2 (03 §4.1) : empreinte RSA du propriétaire et mode
+// ---------------------------------------------------------------------------
+
+/** Mode signé par un mandat v2 (12 §10) ; tout mandat v1 est lu comme `plan`. */
+export type MandateMode = 'plan' | 'auto';
+export const MANDATE_MODES: readonly MandateMode[] = ['plan', 'auto'];
+const isMandateMode = (mode: unknown): mode is MandateMode => mode === 'plan' || mode === 'auto';
+
+/** `ownerRsaSpkiHex` = `hex(SHA-256(SPKI DER))` de la clé RSA d'identité (`exportKey('spki')`). */
+export const ownerRsaSpkiHex = async (spkiDer: Uint8Array): Promise<string> => toHex(await sha256(spkiDer));
+
+/** `mandateBytes v2` : les neuf champs du v1, puis `ownerRsaSpkiHex` (64 `[0-9a-f]`) et le mode. */
+export function mandateBytesV2(ctx: DelegationContext, fprHex: string, wrapHash: string, ownerRsaSpki: string, mode: MandateMode): string {
+    const v1 = mandateBytes(ctx, fprHex, wrapHash);
+    if (!isValidFprHex(ownerRsaSpki) || !isMandateMode(mode)) throw new RuntimeFormatError('invalid_input');
+    return `synco-rt-mandate-v2|${v1.slice('synco-rt-mandate-v1|'.length)}|${ownerRsaSpki}|${mode}`;
+}
+
+/** Signe un mandat v2 (seule version écrite par les clients, 03 §4.1), `b64`. */
+export async function signMandateV2(userSignKey: CryptoKey, ctx: DelegationContext, fprHex: string, wrap: string, ownerRsaSpki: string, mode: MandateMode): Promise<string> {
+    return toB64(await ecdsaSign(userSignKey, mandateBytesV2(ctx, fprHex, await delegationWrapHash(wrap), ownerRsaSpki, mode)));
+}
+
+/** Champs servis avec la délégation : sans valeur tant que la signature n'est pas vérifiée. */
+export interface ServedMandate {
+    /** `mandateVersion` servi (absent = 1). */
+    mandateVersion?: number;
+    /** Ignoré pour un v1. */
+    mode?: string;
+    /** Ignoré pour un v1. */
+    ownerRsaSpkiHex?: string;
+}
+
+/** Mandat dont la signature est vérifiée : seule source du mode retenu. */
+export interface VerifiedMandate {
+    version: 1 | 2;
+    mode: MandateMode;
+    /** Épingle RSA du propriétaire (v2 seulement, 12 §10.3, PC46). */
+    ownerRsaSpkiHex: string | null;
+}
+
+/**
+ * Vérification d'un mandat v1 ou v2 HORS LIGNE à partir d'un `wrapHash` servi (enveloppe `rt1`,
+ * 12 §10.2) ; mêmes réserves que `verifyMandateOfflineFromWrapHash`. Version 1 ou absente : octets v1,
+ * mode servi ignoré, mode `plan` (échec fermé) ; 2 : octets v2 avec le mode et l'empreinte servis ;
+ * autre : refus. Tout refus : `delegation_unusable`.
+ */
+export async function verifyMandateVersionedOfflineFromWrapHash(
+    userPublicSignKey: string | object,
+    ctx: DelegationContext,
+    fprHex: string,
+    wrapHash: string,
+    signature: string,
+    served: ServedMandate,
+): Promise<VerifiedMandate> {
+    const fail = () => new RuntimeFormatError('delegation_unusable');
+    let bytes: string;
+    let verified: VerifiedMandate;
+    try {
+        if (served.mandateVersion === undefined || served.mandateVersion === 1) {
+            bytes = mandateBytes(ctx, fprHex, wrapHash);
+            verified = { version: 1, mode: 'plan', ownerRsaSpkiHex: null };
+        } else if (served.mandateVersion === 2 && isMandateMode(served.mode) && served.ownerRsaSpkiHex !== undefined) {
+            bytes = mandateBytesV2(ctx, fprHex, wrapHash, served.ownerRsaSpkiHex, served.mode);
+            verified = { version: 2, mode: served.mode, ownerRsaSpkiHex: served.ownerRsaSpkiHex };
+        } else {
+            throw fail();
+        }
+        if (await ecdsaVerify(userPublicSignKey, bytes, fromB64(signature))) return verified;
+    } catch {
+        throw fail();
+    }
+    throw fail();
+}
+
+/** Variante sur l'enveloppe de tête ELLE-MÊME (hash recalculé depuis `wrap`). */
+export async function verifyMandateVersioned(
+    userPublicSignKey: string | object,
+    ctx: DelegationContext,
+    fprHex: string,
+    wrap: string,
+    signature: string,
+    served: ServedMandate,
+): Promise<VerifiedMandate> {
+    return verifyMandateVersionedOfflineFromWrapHash(userPublicSignKey, ctx, fprHex, await delegationWrapHash(wrap), signature, served);
+}
+
+/** Sort d'une enveloppe `rt1` chez un client à jour (12 §10.2). */
+export type Rt1Verdict = 'verified' | 'rejected' | 'tofu_warning';
+
+/**
+ * Règle de 12 §10.2 : `mandate` = mandat VÉRIFIÉ (`null` s'il est illisible). v2 `auto` et enveloppe
+ * valide : `verified` ; v2 `plan` : `rejected` (le runtime n'avait pas le droit de créer) ; v1 et
+ * enveloppe valide : `rejected` en production, `tofu_warning` hors production seulement (PC32) ;
+ * sinon `rejected`.
+ *
+ * `production` vaut `true` PAR DÉFAUT : un mandat v1 n'est admis (avec avertissement) que si
+ * l'appelant passe explicitement `false`. Même paramètre que `rt1_verdict` de la crate.
+ */
+export function rt1Verdict(mandate: VerifiedMandate | null, envelopeValid: boolean, production = true): Rt1Verdict {
+    if (!mandate || !envelopeValid) return 'rejected';
+    if (mandate.version === 1) return production ? 'rejected' : 'tofu_warning';
+    return mandate.mode === 'auto' ? 'verified' : 'rejected';
 }
 
 // ---------------------------------------------------------------------------

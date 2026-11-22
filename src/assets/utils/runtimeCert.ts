@@ -30,7 +30,15 @@ export type RuntimeFormatErrorCode =
     | 'delegation_unusable'
     | 'entry_unusable'
     | 'key_commitment_mismatch'
-    | 'key_bad_signature';
+    | 'key_bad_signature'
+    | 'field_unknown_version'
+    | 'field_invalid_base64'
+    | 'field_invalid_length'
+    | 'field_authentication_failed'
+    | 'field_invalid_utf8'
+    | 'field_invalid_json'
+    | 'plan_invalid'
+    | 'action_not_accepted';
 
 export class RuntimeFormatError extends Error {
     readonly code: RuntimeFormatErrorCode;

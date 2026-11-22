@@ -1240,3 +1240,55 @@ Afficher la limite de membres (membres + invitations nominatives en attente), d�
 - Le compteur suit la liste d'invitations locale une fois chargée.
 
 **Date** : 2026-11-21
+
+---
+
+## 📅 **2026-11-22 - Mandat v2 et fonctions pures du plan d'action (lot L01c)**
+
+### **Objectif**
+Référence TS, octet pour octet avec la crate `synco-e2ee`, du mandat v2 (03 §4.1) et des fonctions pures du plan d'action (synco_ai_runtime `docs/plan/12-plan-action.md` §3 à §9). Aucune UI, aucun appel réseau (L10 s'en servira).
+
+### **Fichiers Créés**
+
+| Fichier | Description |
+|---------|-------------|
+| `src/assets/utils/aiActionPlan.ts` | JCS, AAD, `gcm1:` sous `CK` (lecture stricte aux codes de la crate), `serverDigests` et verrou `refs`, `validatePlan` (règles 1 à 6, PC61), `checkServedGraph` (règle 8), `PlanGraph`, `PlanRun` |
+| `src/assets/utils/aiActionPlan.test.ts` | Rejeu de `action-plan.json` (107 vérifications) et garde-fous |
+| `src/assets/utils/runtimeDelegation.v2.test.ts` | Rejeu de `mandate-v2.json` (21 cas, 6 `rt1Policy`) |
+| `scripts/e2ee-vectors/action-plan.json`, `mandate-v2.json` | Copies conformes des vecteurs figés par L00f |
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/assets/utils/runtimeDelegation.ts` | `mandateBytesV2`, `signMandateV2`, `verifyMandateVersioned(OfflineFromWrapHash)`, `ownerRsaSpkiHex`, `rt1Verdict` |
+| `src/assets/utils/runtimeCert.ts` | Codes `field_*`, `plan_invalid`, `action_not_accepted` |
+
+### **Notes**
+- `decryptAiField` (crypto.ts) n'est pas modifié ; le plan a sa lecture stricte (`decryptAiFieldStrict`) et un base64 par morceaux (plan jusqu'à 256 Kio).
+- Règle 7 (identifiants résolus dans l'annuaire local) : à faire par L10.
+
+**Date** : 2026-11-22
+
+---
+
+## 📅 **2026-11-22 - Constats mineurs de la revue cryptographique (lot L01c)**
+
+### **Objectif**
+Même verdict que la crate `synco-e2ee` sur les mêmes octets, en retenant la règle la plus stricte à chaque écart relevé par la revue.
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/assets/utils/aiActionPlan.ts` | `parseJsonStrict` (refuse `1.0`, `1e2`, `-0`, entiers non sûrs, demi-paires), BOM gardé par `TextDecoder`, `__proto__` posé par `defineProperty`, extension en minuscules ASCII, borne `MAX_PLAN_VALUE_LEN` (349 569 octets) avant décodage, comptes PC61 avant JCS, résultats de phase contrôlés contre le `PlanGraph` (exécutant, état final), identifiants validés avant l'AAD |
+| `src/assets/utils/runtimeDelegation.ts` | `rt1Verdict(…, production = true)` : mandat v1 refusé en production |
+| `src/assets/utils/aiActionPlan.test.ts`, `runtimeDelegation.v2.test.ts` | Rejeu des nouvelles sections (`clearCases`, `boundCases`) : 143 vérifications ; 8 cas `rt1Policy` |
+| `scripts/e2ee-vectors/action-plan.json`, `mandate-v2.json` | Copies conformes des vecteurs du runtime |
+| `scripts/e2ee-vectors/generate.ts` | Cas « séparateur \| » attendu en `invalid_input` |
+
+### **Notes**
+- `encryptPhaseResult` / `decryptPhaseResult` prennent désormais le graphe du plan (L10 devra le passer).
+- `decryptAiField` (crypto.ts) reste inchangé.
+
+**Date** : 2026-11-22
