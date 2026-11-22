@@ -146,12 +146,139 @@ export async function decryptAiFieldStrict(ck: CryptoKey | Uint8Array, sessionId
     }
 }
 
-function parseJson(text: string): JsonValue {
-    try {
-        return JSON.parse(text) as JsonValue;
-    } catch {
-        throw new RuntimeFormatError('field_invalid_json');
-    }
+const JSON_ESCAPES: Readonly<Record<string, string>> = { '"': '"', '\\': '\\', '/': '/', b: '\b', f: '\f', n: '\n', r: '\r', t: '\t' };
+
+/**
+ * Lecture STRICTE d'un clair de plan ou de résultat de phase, au verdict identique à `parse_clear` de
+ * la crate (`serde_json`, puis JCS) : `JSON.parse` perd la forme des nombres, d'où ce parseur.
+ * Refusés (`field_invalid_json`) : syntaxe hors RFC 8259, nombre écrit avec fraction ou exposant
+ * (`1.0`, `1e2`), `-0`, entier hors de ±(2⁵³ − 1), demi-paire de substitution (`"\ud800"`), profondeur
+ * > 64. Clés posées par `Object.defineProperty` (`__proto__` reste une clé ordinaire) ; doublon : la
+ * dernière valeur l'emporte, comme `serde_json`.
+ */
+export function parseJsonStrict(text: string): JsonValue {
+    const fail = () => new RuntimeFormatError('field_invalid_json');
+    let i = 0;
+    const ws = () => {
+        while (i < text.length) {
+            const c = text.charCodeAt(i);
+            if (c !== 0x20 && c !== 0x09 && c !== 0x0a && c !== 0x0d) break;
+            i++;
+        }
+    };
+    const literal = (word: string, value: JsonValue): JsonValue => {
+        if (!text.startsWith(word, i)) throw fail();
+        i += word.length;
+        return value;
+    };
+    const hex4 = (): number => {
+        const h = text.slice(i, i + 4);
+        if (!/^[0-9A-Fa-f]{4}$/.test(h)) throw fail();
+        i += 4;
+        return parseInt(h, 16);
+    };
+    const string = (): string => {
+        i++; // "
+        let out = '';
+        let start = i;
+        for (;;) {
+            if (i >= text.length) throw fail();
+            const c = text.charCodeAt(i);
+            if (c === 0x22) {
+                out += text.slice(start, i);
+                i++;
+                return out;
+            }
+            if (c < 0x20) throw fail();
+            if (c !== 0x5c) {
+                i++;
+                continue;
+            }
+            out += text.slice(start, i);
+            const e = text[i + 1];
+            i += 2;
+            if (e === 'u') {
+                const u = hex4();
+                if (u >= 0xdc00 && u <= 0xdfff) throw fail();
+                if (u >= 0xd800 && u <= 0xdbff) {
+                    if (text[i] !== '\\' || text[i + 1] !== 'u') throw fail();
+                    i += 2;
+                    const low = hex4();
+                    if (low < 0xdc00 || low > 0xdfff) throw fail();
+                    out += String.fromCharCode(u, low);
+                } else {
+                    out += String.fromCharCode(u);
+                }
+            } else if (e !== undefined && has(JSON_ESCAPES, e)) {
+                out += JSON_ESCAPES[e] ?? '';
+            } else {
+                throw fail();
+            }
+            start = i;
+        }
+    };
+    const number = (): number => {
+        const m = /^-?(?:0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?/.exec(text.slice(i, i + 400));
+        if (!m) throw fail();
+        const raw = m[0];
+        i += raw.length;
+        const n = Number(raw);
+        if (m[1] !== undefined || m[2] !== undefined || raw === '-0' || !Number.isSafeInteger(n)) throw fail();
+        return n;
+    };
+    const value = (depth: number): JsonValue => {
+        if (depth > MAX_DEPTH) throw fail();
+        ws();
+        const c = text[i];
+        if (c === '{') {
+            i++;
+            const obj: JsonObject = {};
+            ws();
+            if (text[i] === '}') {
+                i++;
+                return obj;
+            }
+            for (;;) {
+                ws();
+                if (text[i] !== '"') throw fail();
+                const key = string();
+                ws();
+                if (text[i] !== ':') throw fail();
+                i++;
+                Object.defineProperty(obj, key, { value: value(depth + 1), enumerable: true, writable: true, configurable: true });
+                ws();
+                if (text[i] === ',') { i++; continue; }
+                if (text[i] === '}') { i++; return obj; }
+                throw fail();
+            }
+        }
+        if (c === '[') {
+            i++;
+            const arr: JsonValue[] = [];
+            ws();
+            if (text[i] === ']') {
+                i++;
+                return arr;
+            }
+            for (;;) {
+                arr.push(value(depth + 1));
+                ws();
+                if (text[i] === ',') { i++; continue; }
+                if (text[i] === ']') { i++; return arr; }
+                throw fail();
+            }
+        }
+        if (c === '"') return string();
+        if (c === 't') return literal('true', true);
+        if (c === 'f') return literal('false', false);
+        if (c === 'n') return literal('null', null);
+        if (c === '-' || (c !== undefined && c >= '0' && c <= '9')) return number();
+        throw fail();
+    };
+    const out = value(0);
+    ws();
+    if (i !== text.length) throw fail();
+    return out;
 }
 
 /** Chiffre le plan (`JCS(plan)`) sous `CK` ; AAD tirée de ses `sessionId` et `planId`. */
@@ -166,7 +293,7 @@ export async function encryptPlan(ck: CryptoKey | Uint8Array, plan: JsonObject):
 
 /** Déchiffre `pendingToolCall.args` ; le clair doit porter ce `sessionId` et ce `planId`. */
 export async function decryptPlan(ck: CryptoKey | Uint8Array, sessionId: string, planId: string, value: string): Promise<JsonObject> {
-    const plan = parseJson(await decryptAiFieldStrict(ck, sessionId, planId, 'plan', value));
+    const plan = parseJsonStrict(await decryptAiFieldStrict(ck, sessionId, planId, 'plan', value));
     if (!isObject(plan) || plan.sessionId !== sessionId || plan.planId !== planId) throw new PlanInvalidError('plan_header');
     return plan;
 }
@@ -203,7 +330,7 @@ export async function encryptPhaseResult(ck: CryptoKey | Uint8Array, sessionId: 
 
 /** Déchiffre et recontrôle un résultat de phase (AAD de l'exécutant et de la phase, puis le clair). */
 export async function decryptPhaseResult(ck: CryptoKey | Uint8Array, sessionId: string, planId: string, executor: PlanExecutor, phase: number, value: string): Promise<JsonObject> {
-    const result = parseJson(await decryptAiFieldStrict(ck, sessionId, planId, phaseResultField(executor, phase), value));
+    const result = parseJsonStrict(await decryptAiFieldStrict(ck, sessionId, planId, phaseResultField(executor, phase), value));
     checkPhaseResult(result, planId, phase);
     return result;
 }

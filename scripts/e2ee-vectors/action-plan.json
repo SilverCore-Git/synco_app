@@ -12830,5 +12830,107 @@
       },
       "expectStatus": "failed"
     }
-  }
+  },
+  "clearCases": [
+    {
+      "name": "plan_result : n écrit 1.0 (pas un entier JSON)",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "planId": "5b1c2d3e-4f50-4a61-8b72-938495a6b7c8",
+      "fieldName": "plan_result:1",
+      "plan": "plan",
+      "clear": "{\"outcomes\":[{\"n\":1.0,\"output\":{\"id\":\"cm3threadnew0000000000001\",\"spaceId\":\"cm3spaceexample0000000001\"},\"state\":\"done\"},{\"n\":2,\"state\":\"skipped\"},{\"n\":3,\"output\":{\"id\":\"cm3foldernew0000000000001\",\"spaceId\":\"cm3spaceexample0000000001\"},\"state\":\"done\"},{\"n\":4,\"output\":{\"id\":\"cm3filenew00000000000001\",\"spaceId\":\"cm3spaceexample0000000001\"},\"state\":\"done\"}],\"phase\":1,\"planId\":\"5b1c2d3e-4f50-4a61-8b72-938495a6b7c8\",\"v\":1}",
+      "ivHex": "a0a0a0a0a0a0a0a0a0a0a0a0",
+      "value": "gcm1:oKCgoKCgoKCgoKCgWe82ExtymoA3nMJP6DPYfV7OiJsm7I2PV6oHrP8Wn9iov9TolNM/6mEM2VNXZA2Ev6A3CiFpSwAhzz1qMIyeCYbP0oVO6QbNEZjZKjrdexsn7386q/RQP3CPzkhq5Q2b/Zq9m995oFMiRnEr/UlGLcbn01VMDKXF2iJ9FJXFFE+aVcKx1levHQ3nnF8+SrWa/evD1iX5cJv3pMlY1qu40sKboPaqSr4wTiiWCu0kOFU5Vp4KDlfxpSIKh1oB62UN5yaNAQb3m9RL7pKM6N7UEpga7pSrhkUOv/lAH5EzlctvoyHS1TmdC9GJWjkUSflzAf8/4sadJ97mJSYJVC02n3CIjPuIMbXv4KTNwYSJ4WNXc/On18VP6BncALcfxPCLREyG5lcjfnan23VAOJbzTq260oCEjhefiEUFqJ1SsWX8befQfvXh7hThKlWbT4o8yEmh340oifH5tyk0qMYebn7qlk+lgmUPe6qG2SZeqI6+Oh85FR0tjG9k92El52RlfBtsgd1gZorwurZFJ68nZJgIS9B6wzBxVfYEfs1xsRGaH9/usKN7UPpoKmqYMkw6zAzoxg==",
+      "expect": "field_invalid_json"
+    },
+    {
+      "name": "plan_result : phase écrite 1e0",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "planId": "5b1c2d3e-4f50-4a61-8b72-938495a6b7c8",
+      "fieldName": "plan_result:1",
+      "plan": "plan",
+      "clear": "{\"outcomes\":[{\"n\":1,\"output\":{\"id\":\"cm3threadnew0000000000001\",\"spaceId\":\"cm3spaceexample0000000001\"},\"state\":\"done\"},{\"n\":2,\"state\":\"skipped\"},{\"n\":3,\"output\":{\"id\":\"cm3foldernew0000000000001\",\"spaceId\":\"cm3spaceexample0000000001\"},\"state\":\"done\"},{\"n\":4,\"output\":{\"id\":\"cm3filenew00000000000001\",\"spaceId\":\"cm3spaceexample0000000001\"},\"state\":\"done\"}],\"phase\":1e0,\"planId\":\"5b1c2d3e-4f50-4a61-8b72-938495a6b7c8\",\"v\":1}",
+      "ivHex": "a1a1a1a1a1a1a1a1a1a1a1a1",
+      "value": "gcm1:oaGhoaGhoaGhoaGh+5DGArF127oMTBIraCFUMqzCvDTJuK6xxGlcCFAt1e49eio1U+pGhp90kEQ6PqCEZMuihhp4PLQDwqIi7FS36WNezRKTOVRVo0P4VBE2XO17NS/EwSqqDA0oT2OmTOnpVS5e2FOXc3fB18recUUVOH4MHqRaBm9fEBUopsAgUjyUOVfygBqufPWBjt+jSKuNeu7XJLBb7OANZQM/TYvbz4myhZ0oA4UXBKrA5xbZW2iMmC2ALQgP5YJHAU4zoJ97kpNfL8zgDAzf1nfSzmPYhVsjtyWV9PBql+EuPb0hwAuvP/VBjp9Dp3+xnfA4IXJKi2FgMpPPc4JqaVDS3ljgR7bkow5hCtCj4VP9zPvuzuhBqRlEMLyMw1292FxIFvgnLD0PwankjuGj7CAwP8yBgCu1XqM6dmBSXzA5jPgCBFoVJ/UrBsR6lC5SqHlqhm/V9q3667qY7ujROvHc2VXAAkfd6wlcr2Wv5P8ipJzfT+B4DDZuIT1ORWGbVMaFQwTXuTYNQxDPCsKjzbMAHQwjIClOOSSMrSdltePtxMDwati+RtDUcsG7PNGuqd8HtXxZdo047g==",
+      "expect": "field_invalid_json"
+    },
+    {
+      "name": "plan_result : v écrit -0",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "planId": "5b1c2d3e-4f50-4a61-8b72-938495a6b7c8",
+      "fieldName": "plan_result:1",
+      "plan": "plan",
+      "clear": "{\"outcomes\":[{\"n\":1,\"output\":{\"id\":\"cm3threadnew0000000000001\",\"spaceId\":\"cm3spaceexample0000000001\"},\"state\":\"done\"},{\"n\":2,\"state\":\"skipped\"},{\"n\":3,\"output\":{\"id\":\"cm3foldernew0000000000001\",\"spaceId\":\"cm3spaceexample0000000001\"},\"state\":\"done\"},{\"n\":4,\"output\":{\"id\":\"cm3filenew00000000000001\",\"spaceId\":\"cm3spaceexample0000000001\"},\"state\":\"done\"}],\"phase\":1,\"planId\":\"5b1c2d3e-4f50-4a61-8b72-938495a6b7c8\",\"v\":-0}",
+      "ivHex": "a2a2a2a2a2a2a2a2a2a2a2a2",
+      "value": "gcm1:oqKioqKioqKioqKiTvmlV/kGSgNzM7ks1ltpZ+b8gIN1FwX1xfbMu+fAguhPJdAT3qZnb6gEgdmWR+wSdLK0INs44goB/AJAz/q3T4byDRnSodebvpv2X2vb3dzZY8Enpi4nrgxsEwgfVADMOJRqTS2a1/2cYrMP8zpxzVHzNyZazbO2e0f3FNJdLcUToP+HjWHen/PsZZydPNKHI/sWSMQmFKDgq7n4ZaiqKCYxd4A5AEIEtDPBZpcL2NY1YE9FX6Ibr+dbx1xeO6XGJ+a8zK5ZPubFSfGLBXVaCNxd70R0HunaZTlqP93kX/S931lattBkGqWwI5hUIbDWCfl+QIc1PVkZng/AwccTMdyXRk6TMMhOsgx5YKcLTRVidtqnpI/ntqy+UPnBfTTc3U4lkwCWvMDhjsbqgYbuaMkc/lp11hjXYycU1RMygHfC/hgCgbUQZRUvMe9JF40B9j/RgCwTOtYr4cVtKNv5VQqWppwvgDKe/AdDzfFlhyDZz6ITE1QFH714PHgjdEMmJjzHxHdjutcE7CAWx557LHv7tm7KGeokhfHVT0A4BPuk+L22tSD8K0L1n7ZXYJjhk+0Z",
+      "expect": "field_invalid_json"
+    },
+    {
+      "name": "plan_result : v écrit 1.0",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "planId": "5b1c2d3e-4f50-4a61-8b72-938495a6b7c8",
+      "fieldName": "plan_result:1",
+      "plan": "plan",
+      "clear": "{\"outcomes\":[{\"n\":1,\"output\":{\"id\":\"cm3threadnew0000000000001\",\"spaceId\":\"cm3spaceexample0000000001\"},\"state\":\"done\"},{\"n\":2,\"state\":\"skipped\"},{\"n\":3,\"output\":{\"id\":\"cm3foldernew0000000000001\",\"spaceId\":\"cm3spaceexample0000000001\"},\"state\":\"done\"},{\"n\":4,\"output\":{\"id\":\"cm3filenew00000000000001\",\"spaceId\":\"cm3spaceexample0000000001\"},\"state\":\"done\"}],\"phase\":1,\"planId\":\"5b1c2d3e-4f50-4a61-8b72-938495a6b7c8\",\"v\":1.0}",
+      "ivHex": "a3a3a3a3a3a3a3a3a3a3a3a3",
+      "value": "gcm1:o6Ojo6Ojo6Ojo6Ojpjjzs6a2lOb8x8yfa9HYySFL0NIWPCbHO2TXxQNYBHMGNZtpIOY6FQiwLDbwEP42r2ATH86OKbKv/lbpelDNCM0BzRFCn7GvogcG2TANHxkQX18CZbTBV5DZD99WPXP1gTL4ciXjzC/Oj8MLacuMOE34POFl2yTdoFSp2Tx6i8nFDR1kBVU8WPJv4DpLkewW4+EUT83VBzNu/mnkXtlEwb/eXKKdUXS35zhB688ly0R6GZgepBFmy+eYS6QXwyEkY63e3wx9R7cBJWJ+yOeBC/a3xvhet5mzg0ZW4CzLkwidanbDFWdOL2OaFCLJuhoSgxgt2tLsFbSa7TOpvMzRDMMlYz791/z3TeyY7Sa3pWPe2prxDSmdHiNPCBhYkB5oWUO6MQm6lvCIxVPulKvVZVIX/dHlkwGKVExcOdtJDqIzn9t1VIKZ/FOkKtZdFM1CbJq6fNu9N9bz3EYLs0JlrjleS2PO+8LqmAFUP/ShrBcnlGirydFrDLNmGB0xVUi00pr7qx/hqcfQtrUZysumYT85/66wPaXnODRAuMqMiYKdYPS9BCyulpN5c4ngah5ZS+cedw==",
+      "expect": "field_invalid_json"
+    },
+    {
+      "name": "plan : after écrit [3.0]",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "planId": "5b1c2d3e-4f50-4a61-8b72-938495a6b7c8",
+      "fieldName": "plan",
+      "plan": "plan",
+      "clear": "{\"actions\":[{\"args\":{\"name\":\"budget\",\"spaceId\":\"cm3spaceexample0000000001\",\"type\":\"text\"},\"kind\":\"thread.create\",\"n\":1},{\"args\":{\"name\":\"annonces\",\"spaceId\":\"cm3spaceexample0000000001\",\"type\":\"text\"},\"kind\":\"thread.create\",\"n\":2},{\"args\":{\"name\":\"Lancement\",\"spaceId\":\"cm3spaceexample0000000001\"},\"kind\":\"folder.create\",\"n\":3},{\"after\":[3.0],\"args\":{\"content\":\"# Plan de lancement\\n\\n- budget\\n- annonces\\n\",\"name\":\"plan.md\",\"spaceId\":\"cm3spaceexample0000000001\"},\"argsRefs\":{\"folderId\":\"$3.id\"},\"kind\":\"file.create_text\",\"n\":4},{\"after\":[1],\"args\":{\"title\":\"Valider le budget\"},\"argsRefs\":{\"description\":\"$1.id\"},\"kind\":\"server.call\",\"n\":5,\"tool\":\"create_task\"}],\"createdAt\":1795000000,\"expiresAt\":1795604800,\"planId\":\"5b1c2d3e-4f50-4a61-8b72-938495a6b7c8\",\"sessionId\":\"0f0e0d0c-0b0a-4908-8706-050403020100\",\"summary\":\"Je prépare l'espace Lancement : deux salons, un dossier, une note et une tâche.\",\"toolCallId\":\"call_7\",\"v\":1}",
+      "ivHex": "a4a4a4a4a4a4a4a4a4a4a4a4",
+      "value": "gcm1:pKSkpKSkpKSkpKSk2rBH8ljnNGx5LAc4M23GliijvTIVP6cVNLpqUa4xuZ+7hzJUGWXfKKrO8jGFF699gRtMzsEAOkaXvxLp8xUztDhPqYksVGCwPApVc1nrwsgVPdUZ94lDDIqxKFuhaslXEhxtVNQeswRJ+H61ilkTI9WB38By2VctUAOvN/yAms5tbndp3oU1bG5B7gmsyHguoYoOLSJ0DFosjmED8wr+/aXPL96HU38cDpUR2doMkxJt7QgqgIkvgOV3rWIgkJKnD089+FJUbcR2fh8/MfY/FsF+IkUfvnGR9XBzdNhiFDFxl7DgjNKLpyH/SfRT+r1r9szibUbs0WjPz2PE8Zg0MyOCakWgQjrofknNV9jnnek7KvIukhVRLYFKYdGbCgRYTmqv0HXTK4Lx+FAAumUfuSFanGGMHUwO9YuH9I83XvVy/3pKFj9oB0Z/9/h7e8s8DgZM3jiuCs9nlifymGKRIdK8qDkyEqYpAQiGLp9xfZ0MCHgVdiriyWf2iBuvXcw4TQ8ko5uPJJiq0Yn/GqwiNFWIyvkZhXW/EPQZh/9dNe0vx/1KlGRaNJyliT5BQWM46LDnXAGaZrxvIe4yHpEVp/q8UtAMpqi5bVu10Tn92fl6s0G2YVRAZCsgjHGe8qzC28U/9re2zepF6cxGkLFX/sur/sUfCJ28YluHyjIb+/1xn7oU0ZdAJl37/bCTAPnZA/TfWYVSDaZ5W+BZWK3RvbatA8JjI7K5lXMWGOhIWs8Z6f72TtTBYfRShrHI56I4QlkEZ3tMb3diT9INdKdLtfODUxxE6GM6fa1jk4+re0dEkVxzGj9I/CtCbRqpTin3DvnXR3/BPZx+eJGuSnMgVQlMZuBs5ZFAncqiKcgS05QghmgcoH7HpHTq5W8Kos4b/1XhwJx9ebdvT9GCgq+qFvcnxCmiRmI5jM3R0g+XcWxfecrxM6vuGO2jtLW+J9r7veyjqyaUYWUUNABCxR4Z1A/T/R2LzIPfJlPnhOjkhqg1TVNuXfbsU1CkaMyCg3+UHt9gaAHLOkVOS+1b2+ZyXFnylEkCdwKR5L6d4u4ZRSS861pI9HbpEJdIPJOMQ/vt7HVrzc3R5Y/PNvtvtUgzYJhL3DjDdMBd3qq4A1y5PVZ6VHKoV9eeYVIQl816AKolx9jsLoR3/aQVS+eFUs7ZVhCqnxtDy/4nTbd57AYPhI1hTbGnd7ezVGoGsIQZzjyrKJmNqPhBYFgk9pP2Mo0vFAze3Z2CVLCcjBRv7gyrVUplaWA=",
+      "expect": "field_invalid_json"
+    },
+    {
+      "name": "plan : n écrit 1e2",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "planId": "5b1c2d3e-4f50-4a61-8b72-938495a6b7c8",
+      "fieldName": "plan",
+      "plan": "plan",
+      "clear": "{\"actions\":[{\"args\":{\"name\":\"budget\",\"spaceId\":\"cm3spaceexample0000000001\",\"type\":\"text\"},\"kind\":\"thread.create\",\"n\":1},{\"args\":{\"name\":\"annonces\",\"spaceId\":\"cm3spaceexample0000000001\",\"type\":\"text\"},\"kind\":\"thread.create\",\"n\":2},{\"args\":{\"name\":\"Lancement\",\"spaceId\":\"cm3spaceexample0000000001\"},\"kind\":\"folder.create\",\"n\":3},{\"after\":[3],\"args\":{\"content\":\"# Plan de lancement\\n\\n- budget\\n- annonces\\n\",\"name\":\"plan.md\",\"spaceId\":\"cm3spaceexample0000000001\"},\"argsRefs\":{\"folderId\":\"$3.id\"},\"kind\":\"file.create_text\",\"n\":4},{\"after\":[1],\"args\":{\"title\":\"Valider le budget\"},\"argsRefs\":{\"description\":\"$1.id\"},\"kind\":\"server.call\",\"n\":1e2,\"tool\":\"create_task\"}],\"createdAt\":1795000000,\"expiresAt\":1795604800,\"planId\":\"5b1c2d3e-4f50-4a61-8b72-938495a6b7c8\",\"sessionId\":\"0f0e0d0c-0b0a-4908-8706-050403020100\",\"summary\":\"Je prépare l'espace Lancement : deux salons, un dossier, une note et une tâche.\",\"toolCallId\":\"call_7\",\"v\":1}",
+      "ivHex": "a5a5a5a5a5a5a5a5a5a5a5a5",
+      "value": "gcm1:paWlpaWlpaWlpaWl53qzGgQ2jH71rVPbTc0ST9m7OshCwB4TSknS+Vuw+8+fVQziXjpAAkBRSX7b1xyxn9lP54tVD6BW4zsOP33GP424wYej57f8WVNw715aUOyNj9D0qPDvYp468C2KeXRwN1cghsDyRDjEoBnh/jF4HSJQ+zR5GhvNfKGX8D+QsfwwRlLv1m43CEsEATS5Hr3tjC/rMolDwnAe+PyD3FirREhltebVrclLfAU+X55iifXGuNKIp0p/TtTcTDhBYxI2t1aIOyyo4KAvGsby21P4uz1YsTyDNfPP/xx9qiCt0r620H54Ix/6aB9QOoze3Gl8ghAIpJBwHrl1m32V05v8inLjMR9rqZCR2HJZ5wt5yvghFOtMsz57afDPOyLmWxSuVx6O2ZiMjNtSQVndygmOsokfwv6mNxTVFvudaFlebCRimerEkzvYOGelKwFj8IWEXo16Q7kVWvs+XHeQ5Lv7hwzVaLr02kUWx6LuYPaKNgNPtHkhnD0xUzMPpiQHolWmFXDE0UmLkAoD4wxtRrlJBVRkLQh6WormyMvf6gDpxb+jedcS7Qu76lA7glq2tM7Qu8RtXrJ3zacpz6JGvyX9gWFDMfi/kiMDMXRZ0gCdC5TODQ5wJ8Fe1EBN5jo+3Qk6rR8UUu2Qs8MvnqpdZBOdkK6JIOWZ602BkQ81FD93+HUYmOJ3ISraXWtxigbIW6i2jchYS10BVUsCjE+bV4ef2/Ao6OREX7FtI2AQiRenH7TGUgDMaEvRfarHAKWh/c+raxC8Sbkfsg3eyXr39ZfUl1bf76iA7wbFvhHT9Z3eb/dK+E9NWFUD7pwhl/aqDzlrwCNZiW0zCVlX91Vhnt3GQArkF1Pfc+u1Ou+IB+N4P7RZgD59yG3CV+cPw9dRAGppSoXz7kefMhWtixDowDpIrjFMFkoProbqIHFv6K0qlhYkOLS8Nch0rqAbMtbRpNJczZAO4uMihFKX3IxxtBZh0j3p0K3o3uu2lKwA4gL406ou9kvoyBGPZ9GqgV20urT3Ea64M23Gd5GOQYUogNVTVnjGG9rkdorJmCA/IULlpgxjsAPGDTYer+Om2zkUgZuHKD4Uxd9psABid6SBxoAXIAJ6J/5dL559VHwo5nValjigIGun0xLfTjxCzxOcGOPK0I4neHtaiY+pcvhMLfxMWTZRTu7SfmnKgaaPdG8I6esXVSs6FuzPpB/ZSZKY/A5vl346yXOZjABz1cruPIuWkgS75WuAcpaHTz4Q0TQBfDl1+SA=",
+      "expect": "field_invalid_json"
+    },
+    {
+      "name": "plan : n écrit -0",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "planId": "5b1c2d3e-4f50-4a61-8b72-938495a6b7c8",
+      "fieldName": "plan",
+      "plan": "plan",
+      "clear": "{\"actions\":[{\"args\":{\"name\":\"budget\",\"spaceId\":\"cm3spaceexample0000000001\",\"type\":\"text\"},\"kind\":\"thread.create\",\"n\":-0},{\"args\":{\"name\":\"annonces\",\"spaceId\":\"cm3spaceexample0000000001\",\"type\":\"text\"},\"kind\":\"thread.create\",\"n\":2},{\"args\":{\"name\":\"Lancement\",\"spaceId\":\"cm3spaceexample0000000001\"},\"kind\":\"folder.create\",\"n\":3},{\"after\":[3],\"args\":{\"content\":\"# Plan de lancement\\n\\n- budget\\n- annonces\\n\",\"name\":\"plan.md\",\"spaceId\":\"cm3spaceexample0000000001\"},\"argsRefs\":{\"folderId\":\"$3.id\"},\"kind\":\"file.create_text\",\"n\":4},{\"after\":[1],\"args\":{\"title\":\"Valider le budget\"},\"argsRefs\":{\"description\":\"$1.id\"},\"kind\":\"server.call\",\"n\":5,\"tool\":\"create_task\"}],\"createdAt\":1795000000,\"expiresAt\":1795604800,\"planId\":\"5b1c2d3e-4f50-4a61-8b72-938495a6b7c8\",\"sessionId\":\"0f0e0d0c-0b0a-4908-8706-050403020100\",\"summary\":\"Je prépare l'espace Lancement : deux salons, un dossier, une note et une tâche.\",\"toolCallId\":\"call_7\",\"v\":1}",
+      "ivHex": "a6a6a6a6a6a6a6a6a6a6a6a6",
+      "value": "gcm1:pqampqampqampqamjPJNvDMnkLeG0Z5G1f9yQeJPD49+t7G79gTGe91QwzSr9NvjyvNvG8T5jo9dQtq4w/jATJhJyoALjRprJt1ItGkfEskq6persJCvoHqPTUlRNJTFtBL1zwxb/ClcnlEWPuCWtXqUkEZBqaO/D9q1nO0TiMurQ0J6rKQw9cCGc3mFBxI2GmnJtOLkqrS6gq/9Oi5tux7x4fZ35rdddNVSWOw+2jtr4g7xqAP1YlMFSXmRxTuloBize3XHjT0Mo6QHMNC3pCfVUCM4eG5iBQ3MVsU5mOhoTWUfUy0kMHg1WOfEYNVlnf3CaDp6G74Yj74CI/nk1hdbaRzggwCrlHS84ye8HW1exTKnJhR6rBoGDun8gJHX/ulh+S4N8zxgMTFHB4JZNRdQXP+M9GCZT3fvu/g8Ry5UdRnHWiLZlh/zzwB9IldunO3kHNCga4gmfOdjeXbuSX0rY3pKeXEnNSDaKUcjT1FZjvx8eBDRGRmQKqbv6NjpVnrQD0usrUvTsCIjaVqzaKc9NxMvxDZ2dT07opYQnw4Le9uGTp+G/nMZOkS2NbV9fpK7SajJda4vA7FB5uLXaynR1YuchsqIA/1wW8zknlX1m6kc2jEaOVB86bbe/R5FZ/eii6VCZd4yCQwDuikZjoBtBKKhfDVuQz/MksDLVBNFNJZQ2UffxcT0oOx2LhNz+dPQpl+B8J5f+WAWDYv6t3aXR30zP+enKoKTnQSnVg98nruxb/3Eg/nXLl7nfTGj7jlOnWWe0285BZRtfgPIiiUaOl5kzp0NqVmmDyCkF48Ux9kuJp91DpVgINjAsHvXNFgxY4UoqxW60Aiofxxi2635B+4DoaICJu0n4An2twZ0LXnJV1qT9En3CIdaJl/YV3aeJnwlBpaAh/6BeFqkCu9iG64ScdzcaDlSUTm4C+kRwkKBE562Bpx5gttt8xsJam4oQhv9LU5MbQ7vzHmtDtmd0IMM1/798nSdKkNq0kV1N/jwdB/3xQ3P8NqRnJN7u6GU/Zg5cn1DoVm+tqhJQFWctOfs0iqDqzdpa2JJyIyt/lIy8aUze4OxdQ3/WdQXjrRwxrki7MECjBi8rSWtzPu2O3XD0YfM0JHSUSDtusyObO0utq3n3APLVicaVJzx9UpqPR4ZBdFTMFobSz06WAKOTuehnV7Zfi8Hch/8bHRuaXVol91CbC6klLIkHvlZ/qJhGmYHxG7xEUsixW/FhG3B51oYYKbmvRQDDU+eTnvZu7vx/bFbz97LOiofSw==",
+      "expect": "field_invalid_json"
+    },
+    {
+      "name": "plan : entier au-delà de 2^53 − 1",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "planId": "5b1c2d3e-4f50-4a61-8b72-938495a6b7c8",
+      "fieldName": "plan",
+      "plan": "plan",
+      "clear": "{\"actions\":[{\"args\":{\"name\":\"budget\",\"spaceId\":\"cm3spaceexample0000000001\",\"type\":\"text\"},\"kind\":\"thread.create\",\"n\":1},{\"args\":{\"name\":\"annonces\",\"spaceId\":\"cm3spaceexample0000000001\",\"type\":\"text\"},\"kind\":\"thread.create\",\"n\":2},{\"args\":{\"name\":\"Lancement\",\"spaceId\":\"cm3spaceexample0000000001\"},\"kind\":\"folder.create\",\"n\":3},{\"after\":[3],\"args\":{\"content\":\"# Plan de lancement\\n\\n- budget\\n- annonces\\n\",\"name\":\"plan.md\",\"spaceId\":\"cm3spaceexample0000000001\"},\"argsRefs\":{\"folderId\":\"$3.id\"},\"kind\":\"file.create_text\",\"n\":4},{\"after\":[1],\"args\":{\"title\":\"Valider le budget\"},\"argsRefs\":{\"description\":\"$1.id\"},\"kind\":\"server.call\",\"n\":5,\"tool\":\"create_task\"}],\"createdAt\":9007199254740992,\"expiresAt\":1795604800,\"planId\":\"5b1c2d3e-4f50-4a61-8b72-938495a6b7c8\",\"sessionId\":\"0f0e0d0c-0b0a-4908-8706-050403020100\",\"summary\":\"Je prépare l'espace Lancement : deux salons, un dossier, une note et une tâche.\",\"toolCallId\":\"call_7\",\"v\":1}",
+      "ivHex": "a7a7a7a7a7a7a7a7a7a7a7a7",
+      "value": "gcm1:p6enp6enp6enp6ensi2ZTSgQd30p6HoR1w+P8FFe9r9x+4c0q4tdnYc9z17dlbHPDcLyqlaM3xKDwUKWTB3S+eR/lihs//XX1Ve3iu66c6dd7+oe4uRVcLh/zOoDOlFtukJX3Siu7bdKHN3fUynYCLrEwVcqKBuaCa/llQQZ8m0ktOB4k2DbufdCYJWqCcF97aaF91Zfz2G94G6XkZCfSs+3icZeidVpeBxhTcSlzX64meK/0Z9WuxMLKKqLZuPqPtb9+Ejmqhl4fgqq6unR2GsWEdDAPnfCpYbirlJdKYxd0ab6zonTN81+JaKilfQ+IMPuUbb+J72qZ3sj12V5B6BgbxuBb5mXix96ZbtBSxBjk5ZMbxJUdyqe1ZiKymQ4iJSiGQ9c+/Dy1NqYid20iJRnggfbJiSp5PnQQSZJP/nwr1/xfHw4TdZRZiZqLfycyNbzdFYbcNjeT6Ao4bO6Slhbn6EZ6hvopMdnxl1pZPlUGaMJYpzp4ZFqhc/znK2WQYBav/U/fChyWFzIbxv4DS7mc8NhinbFgtffQQyimwfsLr8nZ5z9qmQ+Xzc03lgc1F8TmKJmDY6Iw3QKdJq8FnzF9cHSSJELr3se90Y7RlsePGq4+OmAyjgrU9CUrhF8f+cjR0FTgItDZGBoABrIt3lHuRl3rcgZUJWOFML5CvYmmJog66jgjTM5HbzrnMaEYdSEocL4FAvkG+6nBDe9bPRo/h2E+asN+lK1zifPulIzY5unNdRlGF4SHYDU4QlHMVCVAFHey2e+q/a09e1cm9rA8+6y5WnLnmQg3nsNAByTASec61SZImpRsWDu86Yddme6e1oGihlsz1wyvtOKUPNfy68XMriH2IXTdLgVtu3dSqyCy3uOSkGDX3od915Xfi0XlBTkdmB7hGNNcZdLq4p6DeBL2DaZHsm2L0ozbW/nuigvCBjV///An51TQgd6sb4NFPKp7/XH3GR1rLJZ5sM7+wXzs/jBId9Kud2L9eQbyie+s3hHRPEtCeZ/PxV9gy+6HtfxzI5CCkJeCiFA/yiLuEPi7lWqYO5+H8j4lL+4Lhmc4qAA5N+iZiDnZBd/Tm1L8vFTMC5VeZpsJ59tV42DAh/C5z8IcSDcdEzsrJbqNT860iHTirjqXNo5/2UNh4S7d/r1hT2+cvV6Kjh2dVolfGKwzUqb4bBPernqds4R29VUyROxuu6Ou9UGJXrXjdZJklKUW/Q+g7hBhue0gVU7R4johVT7hJTS1ySINPlbPQsFMaX0eKPTY8Phz4xWkqiZ",
+      "expect": "field_invalid_json"
+    },
+    {
+      "name": "plan_result avec espaces : relu, même JCS",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "planId": "5b1c2d3e-4f50-4a61-8b72-938495a6b7c8",
+      "fieldName": "plan_result:1",
+      "plan": "plan",
+      "clear": "{\"outcomes\":[{\"n\":1,\"output\":{\"id\":\"cm3threadnew0000000000001\",\"spaceId\":\"cm3spaceexample0000000001\"},\"state\":\"done\"},{\"n\":2,\"state\":\"skipped\"},{\"n\":3,\"output\":{\"id\":\"cm3foldernew0000000000001\",\"spaceId\":\"cm3spaceexample0000000001\"},\"state\":\"done\"},{\"n\":4,\"output\":{\"id\":\"cm3filenew00000000000001\",\"spaceId\":\"cm3spaceexample0000000001\"},\"state\":\"done\"}],\"phase\" : 1 ,\"planId\":\"5b1c2d3e-4f50-4a61-8b72-938495a6b7c8\",\"v\":1}",
+      "ivHex": "a8a8a8a8a8a8a8a8a8a8a8a8",
+      "value": "gcm1:qKioqKioqKioqKions+tC6JpaOt5fWOL3sMUhvCizX0kXSF/Ex5M92JCO4pUbx+giFK0USaN1uOciJZN/QvLakmn6FY+ujao72I6hW1xn5Sjg/yocQNA07LgCF5FTg4Rhu1FKFr1CAk4k5XlGRO/RiAvtxCz3QNOabVON5vb2ga3F+8yYgEpkd+6hDEyHVwZ6oEngbWP/g2ajWOCHl8MaFy7xRwJVdBCzxO4gH3Z3v2cMP6iN8yjtn7PwVWl8x1X8d/Hx7QyBqCY+iZlxxu8eORKc4J/g0B3PGtTCPOb/5PnxhZDMfO1sqa1v4EBAN+jaQ/Gb/85UPNEWTqyqz4Jwts2xq2ndJwR32jb681GXIv4wNLTheyHti1e0YLm28EQPGzoc7nQCPK2qmH8e/GraYtIk+79+++xhinU+FcZAn4t4fJiaTLpBfHbaAYlW82uFZLDPURhHEo10bZMck6SiJogaILEspD6fR5YN3So19IlnXB6JpISTYIBlC811SnzktRbxGhE1Dg+SyNmnBKym66VNzIaixkIC5XjHCnaRo86iRYUFkBgkX4eKnmDCo5WHN0xG54GdHRMXk3GwP6jBcc=",
+      "expect": "ok",
+      "canonical": "{\"outcomes\":[{\"n\":1,\"output\":{\"id\":\"cm3threadnew0000000000001\",\"spaceId\":\"cm3spaceexample0000000001\"},\"state\":\"done\"},{\"n\":2,\"state\":\"skipped\"},{\"n\":3,\"output\":{\"id\":\"cm3foldernew0000000000001\",\"spaceId\":\"cm3spaceexample0000000001\"},\"state\":\"done\"},{\"n\":4,\"output\":{\"id\":\"cm3filenew00000000000001\",\"spaceId\":\"cm3spaceexample0000000001\"},\"state\":\"done\"}],\"phase\":1,\"planId\":\"5b1c2d3e-4f50-4a61-8b72-938495a6b7c8\",\"v\":1}"
+    }
+  ]
 }

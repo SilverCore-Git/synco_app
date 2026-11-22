@@ -7,7 +7,7 @@ import { describe, expect, test } from 'bun:test';
 import raw from '../../../scripts/e2ee-vectors/action-plan.json';
 import {
     PlanGraph, PlanInvalidError, PlanRun, ToolManifest, checkServedGraph, checkServerCall, decryptAiFieldStrict, decryptPhaseResult,
-    decryptPlan, encryptPhaseResult, encryptPlan, jcs, phaseResultAad, planAad, planServerDigests, serverDigest, validatePlan,
+    decryptPlan, encryptPhaseResult, encryptPlan, jcs, parseJsonStrict, phaseResultAad, planAad, planServerDigests, serverDigest, validatePlan,
     type GraphAction, type JsonObject, type JsonValue, type PlanContext, type PlanExecutor,
 } from './aiActionPlan';
 import { sha256, toHex } from './runtimeCert';
@@ -28,6 +28,7 @@ interface Case {
 }
 interface RunCase extends Run { name: string; plan: string; accepted: number[]; expiresBeforeTick?: number; expectStates: Record<string, string> }
 interface ValidationCase { name: string; plan: JsonObject; expect: string; detail?: string }
+interface ClearCase { name: string; sessionId: string; planId: string; fieldName: string; plan: string; clear: string; ivHex: string; value: string; expect: string; canonical?: string }
 interface Vectors {
     sessionId: string; planId: string; ckHex: string; plan: JsonObject; planCanonical: string; aadPlan: string; ivPlanHex: string; planValue: string;
     planExecutors: PlanExecutor[]; planLevels: number[]; pendingToolCall: { name: string; planId: string; args: string };
@@ -38,7 +39,7 @@ interface Vectors {
         expectLevels: number[]; wavesUnbounded: number[][]; scheduleConcurrency4: Run; failureOfCategory2: Run;
     };
     toolManifest: JsonValue; serverDigests: Case[]; executeCases: Case[]; encryptionCases: Case[]; validationCases: ValidationCase[];
-    levelCases: Case[]; cascadeCases: Case[]; failureCases: Case[]; runCases: RunCase[];
+    levelCases: Case[]; cascadeCases: Case[]; failureCases: Case[]; runCases: RunCase[]; clearCases: ClearCase[];
 }
 const v = raw as unknown as Vectors;
 const fromHex = (h: string) => Uint8Array.from(Buffer.from(h, 'hex'));
@@ -160,6 +161,29 @@ describe('action-plan.json — format et chiffrement (12 §3, §9)', () => {
     });
 });
 
+/** Lecture typée : `decryptPlan` ou `decryptPhaseResult` selon le champ de l'AAD. */
+function typedDecrypt(key: Uint8Array, sessionId: string, planId: string, fieldName: string, value: string): Promise<JsonObject> {
+    const [label, k] = fieldName.split(':');
+    return k === undefined
+        ? decryptPlan(key, sessionId, planId, value)
+        : decryptPhaseResult(key, sessionId, planId, label === 'plan_result' ? 'device' : 'agent', Number(k), value);
+}
+
+describe('action-plan.json — clairs bruts, lecture stricte (nombres, demi-paires, BOM)', () => {
+    test('clearCases', async () => {
+        for (const c of v.clearCases) {
+            const key = await crypto.subtle.importKey('raw', ck, 'AES-GCM', false, ['encrypt']);
+            const iv = fromHex(c.ivHex);
+            const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: new TextEncoder().encode(`${c.sessionId}:${c.planId}:${c.fieldName}`) }, key, new TextEncoder().encode(c.clear)));
+            expect(`${c.name} : gcm1:${Buffer.from([...iv, ...ct]).toString('base64')}`).toBe(`${c.name} : ${c.value}`);
+            const read = typedDecrypt(ck, c.sessionId, c.planId, c.fieldName, c.value);
+            if (c.expect === 'ok') expect(`${c.name} : ${jcs(await read)}`).toBe(`${c.name} : ${c.canonical}`);
+            else await expect(read).rejects.toMatchObject({ code: c.expect });
+            checks++;
+        }
+    });
+});
+
 describe('action-plan.json — condensats et verrou (12 §8.4, PC47)', () => {
     test('serverDigests', async () => {
         for (const c of v.serverDigests) {
@@ -258,11 +282,22 @@ describe('action-plan.json — graphe et exécution (12 §6–§8, PC37, PC54, P
 
     test('tous les cas rejoués', () => {
         console.log(`action-plan.json : ${checks} vérifications rejouées`);
-        expect(checks).toBe(2 + 4 + 4 + 4 + 10 + 20 + 41 + 6 + 7 + 2 + 7);
+        expect(checks).toBe(2 + 4 + 4 + 4 + 10 + 20 + 9 + 41 + 6 + 7 + 2 + 7);
     });
 });
 
 describe('garde-fous hors vecteurs', () => {
+    test('parseJsonStrict : même valeur que JSON.parse sur les clairs des vecteurs, refus stricts', () => {
+        for (const text of [v.planCanonical, v.planResultCanonical, v.categoryPlan.canonical, ...v.mixedPlan.encrypted.map(e => e.canonical)]) {
+            expect(parseJsonStrict(text)).toEqual(JSON.parse(text));
+        }
+        expect(parseJsonStrict(' [ -1 , 0 , 9007199254740991 , "\\u00e9\\n" , true , null ] ')).toEqual([-1, 0, 9007199254740991, 'é\n', true, null]);
+        for (const bad of ['1.0', '1e2', '-0', '9007199254740992', '-9007199254740992', '01', '[1,]', '{"a":1,}', '"\t"', "'a'", '1 2', '', `${'['.repeat(66)}${']'.repeat(66)}`]) {
+            expect(() => parseJsonStrict(bad)).toThrow(expect.objectContaining({ code: 'field_invalid_json' }));
+        }
+        expect(parseJsonStrict(`${'['.repeat(65)}${']'.repeat(65)}`)).toBeDefined();
+    });
+
     test('JCS : décimaux et entiers non sûrs refusés, tri par unités UTF-16', () => {
         expect(() => jcs({ a: 1.5 })).toThrow();
         expect(() => jcs({ a: 2 ** 53 })).toThrow();
