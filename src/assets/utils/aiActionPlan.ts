@@ -638,7 +638,10 @@ export function validatePlan(plan: JsonValue, ctx: PlanContext): PlanGraph {
         if (kind === 'file.create_text') {
             const name = str(args, 'name') ?? '';
             const dot = name.lastIndexOf('.');
-            if (dot < 0 || !TEXT_EXTENSIONS.has(name.slice(dot + 1).toLowerCase())) throw fail('plan_args');
+            // Minuscules ASCII seulement (`to_ascii_lowercase` de la crate) : `toLowerCase` plierait aussi
+            // des lettres hors ASCII.
+            const ext = name.slice(dot + 1).replace(/[A-Z]/g, c => String.fromCharCode(c.charCodeAt(0) + 32));
+            if (dot < 0 || !TEXT_EXTENSIONS.has(ext)) throw fail('plan_args');
         }
 
         // Règle 5 : after.

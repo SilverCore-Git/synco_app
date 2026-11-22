@@ -284,7 +284,7 @@ describe('action-plan.json — graphe et exécution (12 §6–§8, PC37, PC54, P
 
     test('tous les cas rejoués', () => {
         console.log(`action-plan.json : ${checks} vérifications rejouées`);
-        expect(checks).toBe(2 + 4 + 4 + 4 + 12 + 20 + 14 + 41 + 6 + 7 + 2 + 7);
+        expect(checks).toBe(2 + 4 + 4 + 4 + 12 + 20 + 14 + 43 + 6 + 7 + 2 + 7);
     });
 });
 

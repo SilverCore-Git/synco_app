@@ -11896,6 +11896,147 @@
       },
       "expect": "plan_invalid",
       "detail": "plan_too_large"
+    },
+    {
+      "name": "extension en capitales ASCII (Plan.MD) : minuscules ASCII, admise",
+      "plan": {
+        "v": 1,
+        "planId": "5b1c2d3e-4f50-4a61-8b72-938495a6b7c8",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_7",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Je prépare l'espace Lancement : deux salons, un dossier, une note et une tâche.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "thread.create",
+            "args": {
+              "name": "budget",
+              "type": "text",
+              "spaceId": "cm3spaceexample0000000001"
+            }
+          },
+          {
+            "n": 2,
+            "kind": "thread.create",
+            "args": {
+              "name": "annonces",
+              "type": "text",
+              "spaceId": "cm3spaceexample0000000001"
+            }
+          },
+          {
+            "n": 3,
+            "kind": "folder.create",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "name": "Lancement"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "file.create_text",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "name": "Plan.MD",
+              "content": "# Plan de lancement\n\n- budget\n- annonces\n"
+            },
+            "after": [
+              3
+            ],
+            "argsRefs": {
+              "folderId": "$3.id"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "server.call",
+            "tool": "create_task",
+            "args": {
+              "title": "Valider le budget"
+            },
+            "after": [
+              1
+            ],
+            "argsRefs": {
+              "description": "$1.id"
+            }
+          }
+        ]
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "extension en capitales pleine chasse (plan.ＭＤ) : aucune casse hors ASCII, refusée",
+      "plan": {
+        "v": 1,
+        "planId": "5b1c2d3e-4f50-4a61-8b72-938495a6b7c8",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_7",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Je prépare l'espace Lancement : deux salons, un dossier, une note et une tâche.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "thread.create",
+            "args": {
+              "name": "budget",
+              "type": "text",
+              "spaceId": "cm3spaceexample0000000001"
+            }
+          },
+          {
+            "n": 2,
+            "kind": "thread.create",
+            "args": {
+              "name": "annonces",
+              "type": "text",
+              "spaceId": "cm3spaceexample0000000001"
+            }
+          },
+          {
+            "n": 3,
+            "kind": "folder.create",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "name": "Lancement"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "file.create_text",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "name": "plan.ＭＤ",
+              "content": "# Plan de lancement\n\n- budget\n- annonces\n"
+            },
+            "after": [
+              3
+            ],
+            "argsRefs": {
+              "folderId": "$3.id"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "server.call",
+            "tool": "create_task",
+            "args": {
+              "title": "Valider le budget"
+            },
+            "after": [
+              1
+            ],
+            "argsRefs": {
+              "description": "$1.id"
+            }
+          }
+        ]
+      },
+      "expect": "plan_invalid",
+      "detail": "plan_args"
     }
   ],
   "levelCases": [
