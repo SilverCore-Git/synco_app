@@ -115,9 +115,10 @@ describe('action-plan.json — format et chiffrement (12 §3, §9)', () => {
     test('plan_result partiel de la phase d\'appareil 1', async () => {
         expect(jcs(v.planResult)).toBe(v.planResultCanonical);
         expect(phaseResultAad(v.sessionId, v.planId, 'device', 1)).toBe(v.aadPlanResult);
-        const value = await withIv(v.ivPlanResultHex, () => encryptPhaseResult(ck, v.sessionId, 'device', v.planResult));
+        const g = validatePlan(v.plan, ctx());
+        const value = await withIv(v.ivPlanResultHex, () => encryptPhaseResult(ck, v.sessionId, 'device', g, v.planResult));
         expect(value).toBe(v.planResultValue);
-        expect(await decryptPhaseResult(ck, v.sessionId, v.planId, 'device', 1, value)).toEqual(v.planResult);
+        expect(await decryptPhaseResult(ck, v.sessionId, v.planId, 'device', 1, g, value)).toEqual(v.planResult);
         checks++;
     });
 
@@ -135,8 +136,8 @@ describe('action-plan.json — format et chiffrement (12 §3, §9)', () => {
                 const [label, k] = e.fieldName.split(':');
                 const executor: PlanExecutor = label === 'plan_result' ? 'device' : 'agent';
                 expect(phaseResultAad(v.sessionId, m.planId, executor, Number(k))).toBe(e.aad);
-                expect(await withIv(e.ivHex, () => encryptPhaseResult(ck, v.sessionId, executor, e.clear))).toBe(e.value);
-                expect(await decryptPhaseResult(ck, v.sessionId, m.planId, executor, Number(k), e.value)).toEqual(e.clear);
+                expect(await withIv(e.ivHex, () => encryptPhaseResult(ck, v.sessionId, executor, g, e.clear))).toBe(e.value);
+                expect(await decryptPhaseResult(ck, v.sessionId, m.planId, executor, Number(k), g, e.value)).toEqual(e.clear);
             }
             checks++;
         }
@@ -149,11 +150,7 @@ describe('action-plan.json — format et chiffrement (12 §3, §9)', () => {
             if (c.expect === 'ok') {
                 const clear = await read;
                 expect(clear).toBe(c.plaintext);
-                const [label, k] = c.fieldName.split(':');
-                const typed = k === undefined
-                    ? await decryptPlan(key, c.sessionId, c.messageId, c.value)
-                    : await decryptPhaseResult(key, c.sessionId, c.messageId, label === 'plan_result' ? 'device' : 'agent', Number(k), c.value);
-                expect(typed).toEqual(JSON.parse(clear));
+                expect(await typedDecrypt(key, c.sessionId, c.messageId, c.fieldName, c.value)).toEqual(JSON.parse(clear));
             } else {
                 await expect(read).rejects.toMatchObject({ code: c.expect });
             }
@@ -162,12 +159,16 @@ describe('action-plan.json — format et chiffrement (12 §3, §9)', () => {
     });
 });
 
-/** Lecture typée : `decryptPlan` ou `decryptPhaseResult` selon le champ de l'AAD. */
+/** Graphe du plan figé qui porte ce `planId` (le plan de référence par défaut). */
+const graphById = (planId: string): PlanGraph =>
+    validatePlan(planId === v.mixedPlan.planId ? v.mixedPlan.plan : planId === v.categoryPlan.planId ? v.categoryPlan.plan : v.plan, ctx());
+
+/** Lecture typée : `decryptPlan` ou `decryptPhaseResult` (contre le graphe du plan de même `planId`). */
 function typedDecrypt(key: Uint8Array, sessionId: string, planId: string, fieldName: string, value: string): Promise<JsonObject> {
     const [label, k] = fieldName.split(':');
     return k === undefined
         ? decryptPlan(key, sessionId, planId, value)
-        : decryptPhaseResult(key, sessionId, planId, label === 'plan_result' ? 'device' : 'agent', Number(k), value);
+        : decryptPhaseResult(key, sessionId, planId, label === 'plan_result' ? 'device' : 'agent', Number(k), graphById(planId), value);
 }
 
 describe('action-plan.json — clairs bruts, lecture stricte (nombres, demi-paires, BOM)', () => {
@@ -296,7 +297,7 @@ describe('action-plan.json — graphe et exécution (12 §6–§8, PC37, PC54, P
 
     test('tous les cas rejoués', () => {
         console.log(`action-plan.json : ${checks} vérifications rejouées`);
-        expect(checks).toBe(2 + 4 + 4 + 4 + 12 + 20 + 14 + 4 + 45 + 6 + 7 + 2 + 7);
+        expect(checks).toBe(2 + 4 + 4 + 4 + 12 + 20 + 20 + 4 + 45 + 6 + 7 + 2 + 7);
     });
 });
 
@@ -329,15 +330,19 @@ describe('garde-fous hors vecteurs', () => {
     });
 
     test('résultat de phase : planId et phase du clair recontrôlés', async () => {
+        const g = validatePlan(v.plan, ctx());
         const other = { ...v.planResult, phase: 2 };
-        const value = await encryptPhaseResult(ck, v.sessionId, 'device', other);
-        expect(await decryptPhaseResult(ck, v.sessionId, v.planId, 'device', 2, value)).toEqual(other);
+        const value = await encryptPhaseResult(ck, v.sessionId, 'device', g, other);
+        expect(await decryptPhaseResult(ck, v.sessionId, v.planId, 'device', 2, g, value)).toEqual(other);
+        // Le chiffrement refuse aussi un n de l'agent dans un résultat d'appareil.
+        const agentN = parseJsonStrict(v.planResultCanonical.replace('"n":4,', '"n":5,')) as JsonObject;
+        await expect(encryptPhaseResult(ck, v.sessionId, 'device', g, agentN)).rejects.toMatchObject({ code: 'plan_invalid' });
         // Chiffré avec l'AAD de la phase 1 mais clair de la phase 2 : refusé après déchiffrement.
         const key = await crypto.subtle.importKey('raw', ck, 'AES-GCM', false, ['encrypt']);
         const iv = crypto.getRandomValues(new Uint8Array(12));
         const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: new TextEncoder().encode(phaseResultAad(v.sessionId, v.planId, 'device', 1)) }, key, new TextEncoder().encode(jcs(other))));
         const forged = `gcm1:${Buffer.from([...iv, ...ct]).toString('base64')}`;
-        await expect(decryptPhaseResult(ck, v.sessionId, v.planId, 'device', 1, forged)).rejects.toMatchObject({ code: 'plan_invalid' });
+        await expect(decryptPhaseResult(ck, v.sessionId, v.planId, 'device', 1, g, forged)).rejects.toMatchObject({ code: 'plan_invalid' });
     });
 
     test('plan de 256 Kio chiffré et relu (pas de débordement de pile)', async () => {

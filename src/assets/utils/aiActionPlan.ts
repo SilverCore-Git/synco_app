@@ -317,8 +317,12 @@ export type ActionState = 'pending' | 'executing' | 'done' | 'failed' | 'skipped
 const ACTION_STATES: readonly string[] = ['pending', 'executing', 'done', 'failed', 'skipped', 'unknown_outcome'];
 const isFinal = (s: ActionState): boolean => s !== 'pending' && s !== 'executing';
 
-/** Clair d'un résultat de phase : `{ v: 1, planId, phase, outcomes: [{ n, state, output? }] }` (§9). */
-function checkPhaseResult(value: JsonValue, planId: string, phase: number): asserts value is JsonObject {
+/**
+ * Clair d'un résultat de phase : `{ v: 1, planId, phase, outcomes: [{ n, state, output? }] }` (§9),
+ * `n` croissants, chacun action du plan (`graph`) confiée à l'exécutant de l'AAD, état final (ni
+ * `pending` ni `executing`), `output` = objet d'identifiants.
+ */
+function checkPhaseResult(value: JsonValue, planId: string, phase: number, executor: PlanExecutor, graph: PlanGraph): asserts value is JsonObject {
     const fail = () => new PlanInvalidError('plan_header');
     if (!isObject(value) || Object.keys(value).some(k => !['v', 'planId', 'phase', 'outcomes'].includes(k))) throw fail();
     if (value.v !== PLAN_VERSION || value.planId !== planId || value.phase !== phase || !Array.isArray(value.outcomes)) throw fail();
@@ -326,7 +330,8 @@ function checkPhaseResult(value: JsonValue, planId: string, phase: number): asse
     for (const o of value.outcomes) {
         if (!isObject(o) || Object.keys(o).some(k => !['n', 'state', 'output'].includes(k))) throw fail();
         const n = uint(o.n);
-        if (n === undefined || n <= last || n > MAX_PLAN_ACTIONS || typeof o.state !== 'string' || !ACTION_STATES.includes(o.state)) throw fail();
+        if (n === undefined || n <= last || typeof o.state !== 'string' || !ACTION_STATES.includes(o.state)) throw fail();
+        if (graph.actions[n - 1]?.executor !== executor || !isFinal(o.state as ActionState)) throw fail();
         last = n;
         if (has(o, 'output')) {
             const out = o.output;
@@ -335,20 +340,24 @@ function checkPhaseResult(value: JsonValue, planId: string, phase: number): asse
     }
 }
 
-export async function encryptPhaseResult(ck: CryptoKey | Uint8Array, sessionId: string, executor: PlanExecutor, result: JsonObject): Promise<string> {
+/** Chiffre un résultat de phase (`planId` et `phase` lus dans le clair, contrôlés contre le graphe du plan). */
+export async function encryptPhaseResult(ck: CryptoKey | Uint8Array, sessionId: string, executor: PlanExecutor, graph: PlanGraph, result: JsonObject): Promise<string> {
     const planId = str(result, 'planId');
     const phase = uint(result.phase);
     if (planId === undefined || phase === undefined) throw new RuntimeFormatError('invalid_input');
-    checkPhaseResult(result, planId, phase);
+    checkPhaseResult(result, planId, phase, executor, graph);
     return sealField(ck, phaseResultAad(sessionId, planId, executor, phase), jcs(result));
 }
 
-/** Déchiffre et recontrôle un résultat de phase (AAD de l'exécutant et de la phase, puis le clair). */
-export async function decryptPhaseResult(ck: CryptoKey | Uint8Array, sessionId: string, planId: string, executor: PlanExecutor, phase: number, value: string): Promise<JsonObject> {
+/**
+ * Déchiffre et recontrôle un résultat de phase : AAD de l'exécutant et de la phase, puis le clair,
+ * contre `graph` (le plan déchiffré et validé) : chaque `n` du plan et de cet exécutant, état final.
+ */
+export async function decryptPhaseResult(ck: CryptoKey | Uint8Array, sessionId: string, planId: string, executor: PlanExecutor, phase: number, graph: PlanGraph, value: string): Promise<JsonObject> {
     const field = phaseResultField(executor, phase);
     checkValueLength(value);
     const result = parseJsonStrict(await decryptAiFieldStrict(ck, sessionId, planId, field, value));
-    checkPhaseResult(result, planId, phase);
+    checkPhaseResult(result, planId, phase, executor, graph);
     return result;
 }
 
