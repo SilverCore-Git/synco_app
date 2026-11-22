@@ -140,7 +140,9 @@ export async function decryptAiFieldStrict(ck: CryptoKey | Uint8Array, sessionId
         throw new RuntimeFormatError('field_authentication_failed');
     }
     try {
-        return new TextDecoder('utf-8', { fatal: true }).decode(plain);
+        // `ignoreBOM` : un BOM initial reste dans le texte (et le JSON est refusé), comme
+        // `String::from_utf8` de la crate ; sans lui, TextDecoder l'ôterait en silence.
+        return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(plain);
     } catch {
         throw new RuntimeFormatError('field_invalid_utf8');
     }
