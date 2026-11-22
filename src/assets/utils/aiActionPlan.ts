@@ -128,10 +128,12 @@ async function sealField(ck: CryptoKey | Uint8Array, aad: string, plaintext: str
 
 /**
  * Lecture STRICTE d'un champ `gcm1:` avec les codes de la crate (`session::decrypt_field`) :
- * `field_unknown_version`, `field_invalid_base64`, `field_invalid_length`,
- * `field_authentication_failed`, `field_invalid_utf8`. `fieldName` est la partie brute de l'AAD.
+ * `invalid_input` (identifiant non conforme, avant l'AAD), `field_unknown_version`,
+ * `field_invalid_base64`, `field_invalid_length`, `field_authentication_failed`,
+ * `field_invalid_utf8`. `fieldName` est la partie brute de l'AAD.
  */
 export async function decryptAiFieldStrict(ck: CryptoKey | Uint8Array, sessionId: string, messageId: string, fieldName: string, wireValue: string): Promise<string> {
+    assertIds(sessionId, messageId);
     if (!wireValue.startsWith('gcm1:')) throw new RuntimeFormatError('field_unknown_version');
     const raw = fromB64(wireValue.slice(5));
     if (raw.length < 28) throw new RuntimeFormatError('field_invalid_length');
@@ -305,8 +307,12 @@ function checkValueLength(value: string): void {
     if (value.length > MAX_PLAN_VALUE_LEN || enc.encode(value).length > MAX_PLAN_VALUE_LEN) throw new PlanInvalidError('plan_too_large');
 }
 
-/** Déchiffre `pendingToolCall.args` ; le clair doit porter ce `sessionId` et ce `planId`. */
+/**
+ * Déchiffre `pendingToolCall.args` ; le clair doit porter ce `sessionId` et ce `planId`. Identifiants
+ * non conformes : `invalid_input`, avant l'AAD.
+ */
 export async function decryptPlan(ck: CryptoKey | Uint8Array, sessionId: string, planId: string, value: string): Promise<JsonObject> {
+    assertIds(sessionId, planId);
     checkValueLength(value);
     const plan = parseJsonStrict(await decryptAiFieldStrict(ck, sessionId, planId, 'plan', value));
     if (!isObject(plan) || plan.sessionId !== sessionId || plan.planId !== planId) throw new PlanInvalidError('plan_header');
@@ -354,6 +360,7 @@ export async function encryptPhaseResult(ck: CryptoKey | Uint8Array, sessionId: 
  * contre `graph` (le plan déchiffré et validé) : chaque `n` du plan et de cet exécutant, état final.
  */
 export async function decryptPhaseResult(ck: CryptoKey | Uint8Array, sessionId: string, planId: string, executor: PlanExecutor, phase: number, graph: PlanGraph, value: string): Promise<JsonObject> {
+    assertIds(sessionId, planId);
     const field = phaseResultField(executor, phase);
     checkValueLength(value);
     const result = parseJsonStrict(await decryptAiFieldStrict(ck, sessionId, planId, field, value));

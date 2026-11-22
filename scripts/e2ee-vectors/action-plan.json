@@ -962,6 +962,30 @@
       "fieldName": "plan_agent_result:2",
       "value": "gcm1:cnJycnJycnJycnJyvwTn4l8tB4IlAzBGlg4k6em0kGZwn1234gwvzY8D7q55y1ezwaZUvbzcRERlW1hcnHqkYke/20X7Y6YER4Dp3leo/ZEmEQeGa/NnC/nOQ2t1vkj1J8QdqtfIN78RNjWR+nMsuCUem3qpmQ6J8gGaoQrLHbA1YTCR/3EJj7vjgWfzw91A2vqhDbJC7ETauhyeiJU+5/WhunLx1o9eg+zDOpI=",
       "expect": "field_authentication_failed"
+    },
+    {
+      "name": "sessionId avec « : » (AAD ambiguë) : invalid_input avant l'AAD",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100:x",
+      "messageId": "5b1c2d3e-4f50-4a61-8b72-938495a6b7c8",
+      "fieldName": "plan",
+      "value": "gcm1:bW1tbW1tbW1tbW1trnZlRLH+gB5Zjdf6Dx3wEBH9FBwyIJUeY1aOk9EZmV69dpwD1Ehbl2mmbTMAUrg8pYRqCykLHgmPH294FUGhYonHhk4ANyTnttX59FSddYUwBO6doOKTxKuY86PRTac4hBlk6G1m8AD1oY8juzNNJ3nM0pmMZj/9s7wHbCySRM0WHmOM/JPGIgtetPA0f0wnGsDRuJPOLxukQi4FNzC1WFFl56OXNw2dZML9F1fA5Ni506kyfze+rStJXq5a5YtiMgDc4nk3x5qSX3Nl02D9QyHpOfmla6Lz37JvfzKJ5F2YaQKMbAqEVEUWurqhtntvnzK8ZOOOctVylGb6NqrQ9Hy1qp16J3Amdlgj+Wm8q9UxxJJ2lJsqEh6CGoRuglkeUmR1lg++ZA19dXwQnTrZEewkVbFA6vlVzS6nzbwy2eMmY1rn+7vykfkJOP30fdUCq2wSmWG77JFAeWjFCuuNzF1jtoNoT3WzIVTAPnwqPGUYt4KRQws6anuhDo+ksihgwu3H7pcAL4z7XxepW6skCZQBwb5YpLkjDjgY52x6Oth9ZOFRlgQoZUHAd40uopuyb6UzOrmYHrtp1Qa9vN41ECIvdykxho/7VD/2zVTie/5HbeVX+rVopSNGyGHCWtE62+Mz8xEwDOVeucictKP9ofXCsQ72a5CboVUvfrbOB8406Egi5SF6MphqKMNsaAdH2G3vO/Q1/WJEoe+wqQ0SZMVepKvdyGHO93bkF+G+u7Rw+QSXQmwCzyNY4haVcWUXlinSr6usS7Pr4bdPMJnQRcxhH1Z1nAwGjDXHo9wpFCVkc0bF3bPWuyReUNHWUNm95OnLT4IEqmmxQUbAsTptRxjnbEh7u1n5fe2vHInlSl1Gz/0R5lGx7Or7UQS9YEKuGdeQ7Mxy4HQ0lh+i//grEkGBEwq7V6bIUb4kUeUR2nLAwth+9VoJMh5sP07ZBVSWQaQC8gAbxTmOC9UDfRLA0H6EMeUEhNneShFHdXFeJKAqOP6bPGOQY5rhmQxJJWG8uVptG/C6T1yoQ4SBT32A+PPIOdVEzJ5gOYjDqFoTDLpfpJzIGcC90lpm7/acOBRDWcBAj2Qzq8splsPvLqiQ7PpcY4slr91/i7ALBjm7yBi6SM5htPsAjvzHBN2E5/KMfJxKUgG9U0ufmAvhC8gsOByJ+t+rKhLJP2N6a7dRNsyfn777LBGmfodoKNzKc2xB4Qa222ykEm0cjxORRVwsSbnBGISH7l4C9y5bnMbkINbZ",
+      "expect": "invalid_input"
+    },
+    {
+      "name": "messageId (planId) vide : invalid_input",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "messageId": "",
+      "fieldName": "plan",
+      "value": "gcm1:bW1tbW1tbW1tbW1trnZlRLH+gB5Zjdf6Dx3wEBH9FBwyIJUeY1aOk9EZmV69dpwD1Ehbl2mmbTMAUrg8pYRqCykLHgmPH294FUGhYonHhk4ANyTnttX59FSddYUwBO6doOKTxKuY86PRTac4hBlk6G1m8AD1oY8juzNNJ3nM0pmMZj/9s7wHbCySRM0WHmOM/JPGIgtetPA0f0wnGsDRuJPOLxukQi4FNzC1WFFl56OXNw2dZML9F1fA5Ni506kyfze+rStJXq5a5YtiMgDc4nk3x5qSX3Nl02D9QyHpOfmla6Lz37JvfzKJ5F2YaQKMbAqEVEUWurqhtntvnzK8ZOOOctVylGb6NqrQ9Hy1qp16J3Amdlgj+Wm8q9UxxJJ2lJsqEh6CGoRuglkeUmR1lg++ZA19dXwQnTrZEewkVbFA6vlVzS6nzbwy2eMmY1rn+7vykfkJOP30fdUCq2wSmWG77JFAeWjFCuuNzF1jtoNoT3WzIVTAPnwqPGUYt4KRQws6anuhDo+ksihgwu3H7pcAL4z7XxepW6skCZQBwb5YpLkjDjgY52x6Oth9ZOFRlgQoZUHAd40uopuyb6UzOrmYHrtp1Qa9vN41ECIvdykxho/7VD/2zVTie/5HbeVX+rVopSNGyGHCWtE62+Mz8xEwDOVeucictKP9ofXCsQ72a5CboVUvfrbOB8406Egi5SF6MphqKMNsaAdH2G3vO/Q1/WJEoe+wqQ0SZMVepKvdyGHO93bkF+G+u7Rw+QSXQmwCzyNY4haVcWUXlinSr6usS7Pr4bdPMJnQRcxhH1Z1nAwGjDXHo9wpFCVkc0bF3bPWuyReUNHWUNm95OnLT4IEqmmxQUbAsTptRxjnbEh7u1n5fe2vHInlSl1Gz/0R5lGx7Or7UQS9YEKuGdeQ7Mxy4HQ0lh+i//grEkGBEwq7V6bIUb4kUeUR2nLAwth+9VoJMh5sP07ZBVSWQaQC8gAbxTmOC9UDfRLA0H6EMeUEhNneShFHdXFeJKAqOP6bPGOQY5rhmQxJJWG8uVptG/C6T1yoQ4SBT32A+PPIOdVEzJ5gOYjDqFoTDLpfpJzIGcC90lpm7/acOBRDWcBAj2Qzq8splsPvLqiQ7PpcY4slr91/i7ALBjm7yBi6SM5htPsAjvzHBN2E5/KMfJxKUgG9U0ufmAvhC8gsOByJ+t+rKhLJP2N6a7dRNsyfn777LBGmfodoKNzKc2xB4Qa222ykEm0cjxORRVwsSbnBGISH7l4C9y5bnMbkINbZ",
+      "expect": "invalid_input"
+    },
+    {
+      "name": "identifiant invalide et préfixe gcm2: : invalid_input d'abord",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100 ",
+      "messageId": "5b1c2d3e-4f50-4a61-8b72-938495a6b7c8",
+      "fieldName": "plan",
+      "value": "gcm2:bW1tbW1tbW1tbW1trnZlRLH+gB5Zjdf6Dx3wEBH9FBwyIJUeY1aOk9EZmV69dpwD1Ehbl2mmbTMAUrg8pYRqCykLHgmPH294FUGhYonHhk4ANyTnttX59FSddYUwBO6doOKTxKuY86PRTac4hBlk6G1m8AD1oY8juzNNJ3nM0pmMZj/9s7wHbCySRM0WHmOM/JPGIgtetPA0f0wnGsDRuJPOLxukQi4FNzC1WFFl56OXNw2dZML9F1fA5Ni506kyfze+rStJXq5a5YtiMgDc4nk3x5qSX3Nl02D9QyHpOfmla6Lz37JvfzKJ5F2YaQKMbAqEVEUWurqhtntvnzK8ZOOOctVylGb6NqrQ9Hy1qp16J3Amdlgj+Wm8q9UxxJJ2lJsqEh6CGoRuglkeUmR1lg++ZA19dXwQnTrZEewkVbFA6vlVzS6nzbwy2eMmY1rn+7vykfkJOP30fdUCq2wSmWG77JFAeWjFCuuNzF1jtoNoT3WzIVTAPnwqPGUYt4KRQws6anuhDo+ksihgwu3H7pcAL4z7XxepW6skCZQBwb5YpLkjDjgY52x6Oth9ZOFRlgQoZUHAd40uopuyb6UzOrmYHrtp1Qa9vN41ECIvdykxho/7VD/2zVTie/5HbeVX+rVopSNGyGHCWtE62+Mz8xEwDOVeucictKP9ofXCsQ72a5CboVUvfrbOB8406Egi5SF6MphqKMNsaAdH2G3vO/Q1/WJEoe+wqQ0SZMVepKvdyGHO93bkF+G+u7Rw+QSXQmwCzyNY4haVcWUXlinSr6usS7Pr4bdPMJnQRcxhH1Z1nAwGjDXHo9wpFCVkc0bF3bPWuyReUNHWUNm95OnLT4IEqmmxQUbAsTptRxjnbEh7u1n5fe2vHInlSl1Gz/0R5lGx7Or7UQS9YEKuGdeQ7Mxy4HQ0lh+i//grEkGBEwq7V6bIUb4kUeUR2nLAwth+9VoJMh5sP07ZBVSWQaQC8gAbxTmOC9UDfRLA0H6EMeUEhNneShFHdXFeJKAqOP6bPGOQY5rhmQxJJWG8uVptG/C6T1yoQ4SBT32A+PPIOdVEzJ5gOYjDqFoTDLpfpJzIGcC90lpm7/acOBRDWcBAj2Qzq8splsPvLqiQ7PpcY4slr91/i7ALBjm7yBi6SM5htPsAjvzHBN2E5/KMfJxKUgG9U0ufmAvhC8gsOByJ+t+rKhLJP2N6a7dRNsyfn777LBGmfodoKNzKc2xB4Qa222ykEm0cjxORRVwsSbnBGISH7l4C9y5bnMbkINbZ",
+      "expect": "invalid_input"
     }
   ],
   "validationCases": [
@@ -17057,6 +17081,36 @@
       "fill": "é",
       "fillLength": 174783,
       "expect": "plan_invalid"
+    },
+    {
+      "name": "decrypt_plan : planId avec « : », invalid_input avant l'AAD",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "planId": "5b1c2d3e-4f50-4a61-8b72-938495a6b7c8:plan",
+      "fieldName": "plan",
+      "valuePrefix": "gcm1:",
+      "fill": "A",
+      "fillLength": 4,
+      "expect": "invalid_input"
+    },
+    {
+      "name": "decrypt_phase_result : sessionId avec une espace, invalid_input avant l'AAD",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100 ",
+      "planId": "5b1c2d3e-4f50-4a61-8b72-938495a6b7c8",
+      "fieldName": "plan_result:1",
+      "valuePrefix": "gcm1:",
+      "fill": "A",
+      "fillLength": 4,
+      "expect": "invalid_input"
+    },
+    {
+      "name": "planId de 65 caractères et valeur trop longue : invalid_input avant la borne de longueur",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "planId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "fieldName": "plan",
+      "valuePrefix": "gcm1:",
+      "fill": "A",
+      "fillLength": 349568,
+      "expect": "invalid_input"
     }
   ]
 }
