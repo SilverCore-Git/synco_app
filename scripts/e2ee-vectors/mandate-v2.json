@@ -473,10 +473,24 @@
       "expect": "rejected"
     },
     {
-      "name": "mandat v1 (hors production, PC32), enveloppe valide : TOFU avec avertissement",
+      "name": "mandat v1 hors production (production: false, PC32), enveloppe valide : TOFU avec avertissement",
       "mandateVersion": 1,
       "envelopeValid": true,
-      "expect": "tofu_warning"
+      "expect": "tofu_warning",
+      "production": false
+    },
+    {
+      "name": "mandat v1 en production (production: true), enveloppe valide : refusée",
+      "mandateVersion": 1,
+      "envelopeValid": true,
+      "production": true,
+      "expect": "rejected"
+    },
+    {
+      "name": "mandat v1, production non précisée (défaut : production), enveloppe valide : refusée",
+      "mandateVersion": 1,
+      "envelopeValid": true,
+      "expect": "rejected"
     },
     {
       "name": "mandat v1, enveloppe fausse",

@@ -23,7 +23,7 @@ interface Vectors {
     context: DelegationContext; fprHex: string; wrap: string; wrapHash: string; userSignKey: string;
     mandateBytesPlan: string; signaturePlan: string; mandateBytesAuto: string; signatureAuto: string; mandateBytesV1: string; signatureV1: string;
     mandateCases: MandateCase[];
-    rt1Policy: { name: string; mandateVersion: number; mode?: 'plan' | 'auto'; mandateUnusable?: boolean; envelopeValid: boolean; expect: string }[];
+    rt1Policy: { name: string; mandateVersion: number; mode?: 'plan' | 'auto'; mandateUnusable?: boolean; envelopeValid: boolean; production?: boolean; expect: string }[];
 }
 const v = raw as unknown as Vectors;
 const fromHex = (h: string) => Uint8Array.from(Buffer.from(h, 'hex'));
@@ -61,12 +61,14 @@ describe('mandate-v2.json (03 §4.1)', () => {
     });
 
     test('rt1Policy (12 §10.2)', () => {
-        expect(v.rt1Policy.length).toBe(6);
+        expect(v.rt1Policy.length).toBe(8);
         for (const c of v.rt1Policy) {
             const mandate: VerifiedMandate | null = c.mandateUnusable
                 ? null
                 : c.mandateVersion === 1 ? { version: 1, mode: 'plan', ownerRsaSpkiHex: null } : { version: 2, mode: c.mode!, ownerRsaSpkiHex: v.keys.ownerRsaSpkiHex };
-            expect(`${c.name} : ${rt1Verdict(mandate, c.envelopeValid)}`).toBe(`${c.name} : ${c.expect}`);
+            // `production` absent : le défaut de la fonction (production).
+            const verdict = c.production === undefined ? rt1Verdict(mandate, c.envelopeValid) : rt1Verdict(mandate, c.envelopeValid, c.production);
+            expect(`${c.name} : ${verdict}`).toBe(`${c.name} : ${c.expect}`);
         }
     });
 

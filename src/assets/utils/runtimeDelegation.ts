@@ -274,12 +274,16 @@ export type Rt1Verdict = 'verified' | 'rejected' | 'tofu_warning';
 
 /**
  * Règle de 12 §10.2 : `mandate` = mandat VÉRIFIÉ (`null` s'il est illisible). v2 `auto` et enveloppe
- * valide : `verified` ; v2 `plan` : `rejected` (le runtime n'avait pas le droit de créer) ; v1 (hors
- * production, PC32) et enveloppe valide : `tofu_warning` ; sinon `rejected`.
+ * valide : `verified` ; v2 `plan` : `rejected` (le runtime n'avait pas le droit de créer) ; v1 et
+ * enveloppe valide : `rejected` en production, `tofu_warning` hors production seulement (PC32) ;
+ * sinon `rejected`.
+ *
+ * `production` vaut `true` PAR DÉFAUT : un mandat v1 n'est admis (avec avertissement) que si
+ * l'appelant passe explicitement `false`. Même paramètre que `rt1_verdict` de la crate.
  */
-export function rt1Verdict(mandate: VerifiedMandate | null, envelopeValid: boolean): Rt1Verdict {
+export function rt1Verdict(mandate: VerifiedMandate | null, envelopeValid: boolean, production = true): Rt1Verdict {
     if (!mandate || !envelopeValid) return 'rejected';
-    if (mandate.version === 1) return 'tofu_warning';
+    if (mandate.version === 1) return production ? 'rejected' : 'tofu_warning';
     return mandate.mode === 'auto' ? 'verified' : 'rejected';
 }
 
