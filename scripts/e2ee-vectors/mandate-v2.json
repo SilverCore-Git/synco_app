@@ -1,0 +1,496 @@
+{
+  "description": "Mandat v2 (03 §4.1, L00f) : octets signés exacts en mode plan et auto, lecture d'un mandat v1 livré (lu comme plan), refus. Signatures ECDSA P-256 P1363 produites par la crate (RFC 6979) : à VÉRIFIER, pas à recalculer en WebCrypto. Clés de TEST générées pour ces vecteurs ; contexte, wrapHash et mandat v1 repris de crates/synco-e2ee/tests/vectors/delegation.json.",
+  "keys": {
+    "userSignScalarHex": "4444444444444444444444444444444444444444444444444444444444444444",
+    "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"WzaJDay9fJqWu3Sh7iiz0tdbcuCaIO8lz45v2KnwNQ0\",\"y\":\"DhS-2NRoKjTYNTi9_1uW6JpmZuwNtXRdAvoSEAct91o\"}",
+    "otherSignScalarHex": "4545454545454545454545454545454545454545454545454545454545454545",
+    "otherSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"MBWJ1Z1reMoj3MD2dKUhCkdF2OQtW0LuHE5yDT4F9LM\",\"y\":\"h1PHiia0allE5EljrTINbrRVKawhwm0E74oZSTNgC2A\"}",
+    "v1UserSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"V-l39tt-M8P-es8oQu2YcAnK9W1FhoL8pEe309diqzQ\",\"y\":\"xas3cLpXO9_1QUBlZA_7WzRt-oTexNtNaOX1nMRxwuw\"}",
+    "ownerRsaSpkiDerHex": "30820122300d06092a864886f70d01010105000382010f003082010a0282010100e1d4b6bdcb85479dc6d1a3ba13cbdd31de24caa861145a6bbd8c46a7189018edcb8ec27ca4c03171386014158479c70d8e8bbb9c6c30d6cc1c44aff27ec9a9bfa899649bcb5baef9ff928cfe483a2c3f9f563a564b17c9ab1284b7af839302309f717c08733219685d8107d10d748c37abdbe863a6246e955e24e8c92acc2755812b61c3a7bb1ed7623e7a7dadb8193249ab6e4ab36746ffa8fe5fc14996d2c074166021d496f8a2bd78bcb7d0d61788048c96986bdb6203b503d1c12dcc6b145bc84d36383327e64b7b6d140ef394da36b782845a98f3cce611b1972593fbdfd70f4324bf53fdba9644a4049aa65b67ffa5f9a2410a26ac3c3d3c4eaac07d670203010001",
+    "ownerRsaSpkiHex": "43cabd9bfaf2ca1d31dc02bbc4c01e2c71438c130f2cc85319cfb3c5727be23f",
+    "otherRsaSpkiDerHex": "30820122300d06092a864886f70d01010105000382010f003082010a0282010100eb7db21b61a774396c4cf5d80f8a7212fa7237a9fe61a5ca8132663898be3102d42be7cb946ad5c269339768b5fd7d550c33ab7cf6b7b91846e80d0df0058501328f4e71698c3befddd4b8836a9a6bccb584e299a46978e46669c3f89e34c885cbfe749a82b8f994715a5a99263dd776137ab4137c82132af3c0273ea1aa907ca1c3618b9ba484b5c16983a6bb6d032e46503ca95e85601577cdfec62b34ea46cf93f7f5b157c38f2787f164f8bb41ff813cab9781608c062f70bd3dcc22c1ebf0af86a76be83997c845f6fb84694d743ac8de59d6c09db7f0d99cd80a64a4457b9174899e05d2394d674ac91cfdb8f1eb264e6e2d106508b80bcc148fc237890203010001",
+    "otherRsaSpkiHex": "49f67b05478d92f78868cdfa6ac89173bb6300ac044a64f8564029b6b8532384"
+  },
+  "context": {
+    "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+    "orgId": "cm3orgexample0000000000001",
+    "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+    "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+    "scope": "org",
+    "iat": 1795000000,
+    "exp": 1795604800
+  },
+  "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+  "wrap": "srd1.eyJjcnYiOiJQLTI1NiIsImt0eSI6IkVDIiwieCI6IjNjSjExaU1CdHpRMC02LWQ3enhDeFAxWXo1OXBFY0hmOHpWWFowdWcyVVkiLCJ5IjoiSXpScFJGYi11QTgtWlpWY3lxRHVYczhwalNoSFFrcGdnN0FTNW9GcUthYyJ9.qqqqqqqqqqqqqqqqzDr7_Z6KQv9PsHxFxSeZg6mHTfkMLim3ongsZxyfPQJG_ZsPjHxpnoKtZFmNynO8",
+  "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+  "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"WzaJDay9fJqWu3Sh7iiz0tdbcuCaIO8lz45v2KnwNQ0\",\"y\":\"DhS-2NRoKjTYNTi9_1uW6JpmZuwNtXRdAvoSEAct91o\"}",
+  "mandateBytesPlan": "synco-rt-mandate-v2|66666666-7777-4888-9999-aaaaaaaaaaaa|cm3orgexample0000000000001|7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f|a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d|org|1795000000|1795604800|f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b|AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk|43cabd9bfaf2ca1d31dc02bbc4c01e2c71438c130f2cc85319cfb3c5727be23f|plan",
+  "signaturePlan": "x0d7NgVQBqfdEHm2xHH2rRISsO2HH1SQaxzWGB8rPaBm7SrH3w6vbfu7rPadHClGlohVUQFGS9zn/L+o5opcTA==",
+  "mandateBytesAuto": "synco-rt-mandate-v2|66666666-7777-4888-9999-aaaaaaaaaaaa|cm3orgexample0000000000001|7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f|a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d|org|1795000000|1795604800|f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b|AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk|43cabd9bfaf2ca1d31dc02bbc4c01e2c71438c130f2cc85319cfb3c5727be23f|auto",
+  "signatureAuto": "UbBhGHTlG/+16PkJzQ7VnZpTnWZOPoZjYrIlRlxUlvidYbUT6rK0sPISs7V4aFdWnGeUFzAgOSX/U6HoGSTDIA==",
+  "mandateBytesV1": "synco-rt-mandate-v1|66666666-7777-4888-9999-aaaaaaaaaaaa|cm3orgexample0000000000001|7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f|a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d|org|1795000000|1795604800|f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b|AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+  "signatureV1": "fjIbsUkakLj3JgZ/fCNtmc+Qqf9dzpg3y24suOgv5N08LrsVDqc/9eFuTYBGpKSw6Po9xLAGEwRWiijh76pfKw==",
+  "mandateCases": [
+    {
+      "name": "mandat v2 en mode plan, valide",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795604800
+      },
+      "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+      "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"WzaJDay9fJqWu3Sh7iiz0tdbcuCaIO8lz45v2KnwNQ0\",\"y\":\"DhS-2NRoKjTYNTi9_1uW6JpmZuwNtXRdAvoSEAct91o\"}",
+      "mandateVersion": 2,
+      "mode": "plan",
+      "ownerRsaSpkiHex": "43cabd9bfaf2ca1d31dc02bbc4c01e2c71438c130f2cc85319cfb3c5727be23f",
+      "signature": "x0d7NgVQBqfdEHm2xHH2rRISsO2HH1SQaxzWGB8rPaBm7SrH3w6vbfu7rPadHClGlohVUQFGS9zn/L+o5opcTA==",
+      "expect": "ok",
+      "expectMode": "plan"
+    },
+    {
+      "name": "mandat v2 en mode auto, valide",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795604800
+      },
+      "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+      "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"WzaJDay9fJqWu3Sh7iiz0tdbcuCaIO8lz45v2KnwNQ0\",\"y\":\"DhS-2NRoKjTYNTi9_1uW6JpmZuwNtXRdAvoSEAct91o\"}",
+      "mandateVersion": 2,
+      "mode": "auto",
+      "ownerRsaSpkiHex": "43cabd9bfaf2ca1d31dc02bbc4c01e2c71438c130f2cc85319cfb3c5727be23f",
+      "signature": "UbBhGHTlG/+16PkJzQ7VnZpTnWZOPoZjYrIlRlxUlvidYbUT6rK0sPISs7V4aFdWnGeUFzAgOSX/U6HoGSTDIA==",
+      "expect": "ok",
+      "expectMode": "auto"
+    },
+    {
+      "name": "mandat v1 livré, relu en v2 : mode plan",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795604800
+      },
+      "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+      "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"V-l39tt-M8P-es8oQu2YcAnK9W1FhoL8pEe309diqzQ\",\"y\":\"xas3cLpXO9_1QUBlZA_7WzRt-oTexNtNaOX1nMRxwuw\"}",
+      "signature": "fjIbsUkakLj3JgZ/fCNtmc+Qqf9dzpg3y24suOgv5N08LrsVDqc/9eFuTYBGpKSw6Po9xLAGEwRWiijh76pfKw==",
+      "mandateVersion": 1,
+      "expect": "ok",
+      "expectMode": "plan"
+    },
+    {
+      "name": "mandat v1 livré, version absente : lu comme v1, mode plan",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795604800
+      },
+      "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+      "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"V-l39tt-M8P-es8oQu2YcAnK9W1FhoL8pEe309diqzQ\",\"y\":\"xas3cLpXO9_1QUBlZA_7WzRt-oTexNtNaOX1nMRxwuw\"}",
+      "signature": "fjIbsUkakLj3JgZ/fCNtmc+Qqf9dzpg3y24suOgv5N08LrsVDqc/9eFuTYBGpKSw6Po9xLAGEwRWiijh76pfKw==",
+      "expect": "ok",
+      "expectMode": "plan"
+    },
+    {
+      "name": "mandat v1 livré, « mode: auto » servi par l'API : ignoré, mode plan (échec fermé)",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795604800
+      },
+      "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+      "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"V-l39tt-M8P-es8oQu2YcAnK9W1FhoL8pEe309diqzQ\",\"y\":\"xas3cLpXO9_1QUBlZA_7WzRt-oTexNtNaOX1nMRxwuw\"}",
+      "signature": "fjIbsUkakLj3JgZ/fCNtmc+Qqf9dzpg3y24suOgv5N08LrsVDqc/9eFuTYBGpKSw6Po9xLAGEwRWiijh76pfKw==",
+      "mandateVersion": 1,
+      "mode": "auto",
+      "expect": "ok",
+      "expectMode": "plan"
+    },
+    {
+      "name": "signature v1 présentée comme un mandat v2",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795604800
+      },
+      "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+      "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"V-l39tt-M8P-es8oQu2YcAnK9W1FhoL8pEe309diqzQ\",\"y\":\"xas3cLpXO9_1QUBlZA_7WzRt-oTexNtNaOX1nMRxwuw\"}",
+      "signature": "fjIbsUkakLj3JgZ/fCNtmc+Qqf9dzpg3y24suOgv5N08LrsVDqc/9eFuTYBGpKSw6Po9xLAGEwRWiijh76pfKw==",
+      "mandateVersion": 2,
+      "mode": "plan",
+      "ownerRsaSpkiHex": "43cabd9bfaf2ca1d31dc02bbc4c01e2c71438c130f2cc85319cfb3c5727be23f",
+      "expect": "delegation_unusable"
+    },
+    {
+      "name": "signature v2 présentée comme un mandat v1",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795604800
+      },
+      "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+      "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"WzaJDay9fJqWu3Sh7iiz0tdbcuCaIO8lz45v2KnwNQ0\",\"y\":\"DhS-2NRoKjTYNTi9_1uW6JpmZuwNtXRdAvoSEAct91o\"}",
+      "mandateVersion": 1,
+      "mode": "plan",
+      "ownerRsaSpkiHex": "43cabd9bfaf2ca1d31dc02bbc4c01e2c71438c130f2cc85319cfb3c5727be23f",
+      "signature": "x0d7NgVQBqfdEHm2xHH2rRISsO2HH1SQaxzWGB8rPaBm7SrH3w6vbfu7rPadHClGlohVUQFGS9zn/L+o5opcTA==",
+      "expect": "delegation_unusable"
+    },
+    {
+      "name": "mandat plan présenté en mode auto",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795604800
+      },
+      "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+      "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"WzaJDay9fJqWu3Sh7iiz0tdbcuCaIO8lz45v2KnwNQ0\",\"y\":\"DhS-2NRoKjTYNTi9_1uW6JpmZuwNtXRdAvoSEAct91o\"}",
+      "mandateVersion": 2,
+      "mode": "auto",
+      "ownerRsaSpkiHex": "43cabd9bfaf2ca1d31dc02bbc4c01e2c71438c130f2cc85319cfb3c5727be23f",
+      "signature": "x0d7NgVQBqfdEHm2xHH2rRISsO2HH1SQaxzWGB8rPaBm7SrH3w6vbfu7rPadHClGlohVUQFGS9zn/L+o5opcTA==",
+      "expect": "delegation_unusable"
+    },
+    {
+      "name": "mandat auto présenté en mode plan",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795604800
+      },
+      "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+      "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"WzaJDay9fJqWu3Sh7iiz0tdbcuCaIO8lz45v2KnwNQ0\",\"y\":\"DhS-2NRoKjTYNTi9_1uW6JpmZuwNtXRdAvoSEAct91o\"}",
+      "mandateVersion": 2,
+      "mode": "plan",
+      "ownerRsaSpkiHex": "43cabd9bfaf2ca1d31dc02bbc4c01e2c71438c130f2cc85319cfb3c5727be23f",
+      "signature": "UbBhGHTlG/+16PkJzQ7VnZpTnWZOPoZjYrIlRlxUlvidYbUT6rK0sPISs7V4aFdWnGeUFzAgOSX/U6HoGSTDIA==",
+      "expect": "delegation_unusable"
+    },
+    {
+      "name": "empreinte RSA du propriétaire remplacée par une autre clé",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795604800
+      },
+      "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+      "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"WzaJDay9fJqWu3Sh7iiz0tdbcuCaIO8lz45v2KnwNQ0\",\"y\":\"DhS-2NRoKjTYNTi9_1uW6JpmZuwNtXRdAvoSEAct91o\"}",
+      "mandateVersion": 2,
+      "mode": "auto",
+      "ownerRsaSpkiHex": "49f67b05478d92f78868cdfa6ac89173bb6300ac044a64f8564029b6b8532384",
+      "signature": "UbBhGHTlG/+16PkJzQ7VnZpTnWZOPoZjYrIlRlxUlvidYbUT6rK0sPISs7V4aFdWnGeUFzAgOSX/U6HoGSTDIA==",
+      "expect": "delegation_unusable"
+    },
+    {
+      "name": "empreinte RSA en majuscules (refusée avant vérification)",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795604800
+      },
+      "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+      "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"WzaJDay9fJqWu3Sh7iiz0tdbcuCaIO8lz45v2KnwNQ0\",\"y\":\"DhS-2NRoKjTYNTi9_1uW6JpmZuwNtXRdAvoSEAct91o\"}",
+      "mandateVersion": 2,
+      "mode": "auto",
+      "ownerRsaSpkiHex": "43CABD9BFAF2CA1D31DC02BBC4C01E2C71438C130F2CC85319CFB3C5727BE23F",
+      "signature": "UbBhGHTlG/+16PkJzQ7VnZpTnWZOPoZjYrIlRlxUlvidYbUT6rK0sPISs7V4aFdWnGeUFzAgOSX/U6HoGSTDIA==",
+      "expect": "delegation_unusable"
+    },
+    {
+      "name": "empreinte RSA de 63 caractères",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795604800
+      },
+      "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+      "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"WzaJDay9fJqWu3Sh7iiz0tdbcuCaIO8lz45v2KnwNQ0\",\"y\":\"DhS-2NRoKjTYNTi9_1uW6JpmZuwNtXRdAvoSEAct91o\"}",
+      "mandateVersion": 2,
+      "mode": "auto",
+      "ownerRsaSpkiHex": "3cabd9bfaf2ca1d31dc02bbc4c01e2c71438c130f2cc85319cfb3c5727be23f",
+      "signature": "UbBhGHTlG/+16PkJzQ7VnZpTnWZOPoZjYrIlRlxUlvidYbUT6rK0sPISs7V4aFdWnGeUFzAgOSX/U6HoGSTDIA==",
+      "expect": "delegation_unusable"
+    },
+    {
+      "name": "empreinte RSA absente en v2",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795604800
+      },
+      "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+      "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"WzaJDay9fJqWu3Sh7iiz0tdbcuCaIO8lz45v2KnwNQ0\",\"y\":\"DhS-2NRoKjTYNTi9_1uW6JpmZuwNtXRdAvoSEAct91o\"}",
+      "mandateVersion": 2,
+      "mode": "auto",
+      "signature": "UbBhGHTlG/+16PkJzQ7VnZpTnWZOPoZjYrIlRlxUlvidYbUT6rK0sPISs7V4aFdWnGeUFzAgOSX/U6HoGSTDIA==",
+      "expect": "delegation_unusable"
+    },
+    {
+      "name": "mode inconnu « autonomous »",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795604800
+      },
+      "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+      "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"WzaJDay9fJqWu3Sh7iiz0tdbcuCaIO8lz45v2KnwNQ0\",\"y\":\"DhS-2NRoKjTYNTi9_1uW6JpmZuwNtXRdAvoSEAct91o\"}",
+      "mandateVersion": 2,
+      "mode": "autonomous",
+      "ownerRsaSpkiHex": "43cabd9bfaf2ca1d31dc02bbc4c01e2c71438c130f2cc85319cfb3c5727be23f",
+      "signature": "UbBhGHTlG/+16PkJzQ7VnZpTnWZOPoZjYrIlRlxUlvidYbUT6rK0sPISs7V4aFdWnGeUFzAgOSX/U6HoGSTDIA==",
+      "expect": "delegation_unusable"
+    },
+    {
+      "name": "mode absent en v2",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795604800
+      },
+      "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+      "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"WzaJDay9fJqWu3Sh7iiz0tdbcuCaIO8lz45v2KnwNQ0\",\"y\":\"DhS-2NRoKjTYNTi9_1uW6JpmZuwNtXRdAvoSEAct91o\"}",
+      "mandateVersion": 2,
+      "ownerRsaSpkiHex": "43cabd9bfaf2ca1d31dc02bbc4c01e2c71438c130f2cc85319cfb3c5727be23f",
+      "signature": "UbBhGHTlG/+16PkJzQ7VnZpTnWZOPoZjYrIlRlxUlvidYbUT6rK0sPISs7V4aFdWnGeUFzAgOSX/U6HoGSTDIA==",
+      "expect": "delegation_unusable"
+    },
+    {
+      "name": "version 3",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795604800
+      },
+      "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+      "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"WzaJDay9fJqWu3Sh7iiz0tdbcuCaIO8lz45v2KnwNQ0\",\"y\":\"DhS-2NRoKjTYNTi9_1uW6JpmZuwNtXRdAvoSEAct91o\"}",
+      "mandateVersion": 3,
+      "mode": "auto",
+      "ownerRsaSpkiHex": "43cabd9bfaf2ca1d31dc02bbc4c01e2c71438c130f2cc85319cfb3c5727be23f",
+      "signature": "UbBhGHTlG/+16PkJzQ7VnZpTnWZOPoZjYrIlRlxUlvidYbUT6rK0sPISs7V4aFdWnGeUFzAgOSX/U6HoGSTDIA==",
+      "expect": "delegation_unusable"
+    },
+    {
+      "name": "v2 signé par une autre clé que celle de l'utilisateur",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795604800
+      },
+      "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+      "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"WzaJDay9fJqWu3Sh7iiz0tdbcuCaIO8lz45v2KnwNQ0\",\"y\":\"DhS-2NRoKjTYNTi9_1uW6JpmZuwNtXRdAvoSEAct91o\"}",
+      "mandateVersion": 2,
+      "mode": "plan",
+      "ownerRsaSpkiHex": "43cabd9bfaf2ca1d31dc02bbc4c01e2c71438c130f2cc85319cfb3c5727be23f",
+      "signature": "VFOAGOLyV112Q6Y3iZEP47IELBkbwVsMLED310gChzMKNLgexh4s7P4EewEknJ3BotBROy9/H/YDKzakFecpWw==",
+      "expect": "delegation_unusable"
+    },
+    {
+      "name": "fprHex d'un autre runtime",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795604800
+      },
+      "fprHex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"WzaJDay9fJqWu3Sh7iiz0tdbcuCaIO8lz45v2KnwNQ0\",\"y\":\"DhS-2NRoKjTYNTi9_1uW6JpmZuwNtXRdAvoSEAct91o\"}",
+      "mandateVersion": 2,
+      "mode": "auto",
+      "ownerRsaSpkiHex": "43cabd9bfaf2ca1d31dc02bbc4c01e2c71438c130f2cc85319cfb3c5727be23f",
+      "signature": "UbBhGHTlG/+16PkJzQ7VnZpTnWZOPoZjYrIlRlxUlvidYbUT6rK0sPISs7V4aFdWnGeUFzAgOSX/U6HoGSTDIA==",
+      "expect": "delegation_unusable"
+    },
+    {
+      "name": "wrapHash d'une autre délégation",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795604800
+      },
+      "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+      "wrapHash": "CNJx2sggLKdO4eXr1E1AetZ1L1LELSpQHzKENYtS4VQ",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"WzaJDay9fJqWu3Sh7iiz0tdbcuCaIO8lz45v2KnwNQ0\",\"y\":\"DhS-2NRoKjTYNTi9_1uW6JpmZuwNtXRdAvoSEAct91o\"}",
+      "mandateVersion": 2,
+      "mode": "auto",
+      "ownerRsaSpkiHex": "43cabd9bfaf2ca1d31dc02bbc4c01e2c71438c130f2cc85319cfb3c5727be23f",
+      "signature": "UbBhGHTlG/+16PkJzQ7VnZpTnWZOPoZjYrIlRlxUlvidYbUT6rK0sPISs7V4aFdWnGeUFzAgOSX/U6HoGSTDIA==",
+      "expect": "delegation_unusable"
+    },
+    {
+      "name": "exp prolongé d’un jour",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795691200
+      },
+      "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+      "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"WzaJDay9fJqWu3Sh7iiz0tdbcuCaIO8lz45v2KnwNQ0\",\"y\":\"DhS-2NRoKjTYNTi9_1uW6JpmZuwNtXRdAvoSEAct91o\"}",
+      "mandateVersion": 2,
+      "mode": "auto",
+      "ownerRsaSpkiHex": "43cabd9bfaf2ca1d31dc02bbc4c01e2c71438c130f2cc85319cfb3c5727be23f",
+      "signature": "UbBhGHTlG/+16PkJzQ7VnZpTnWZOPoZjYrIlRlxUlvidYbUT6rK0sPISs7V4aFdWnGeUFzAgOSX/U6HoGSTDIA==",
+      "expect": "delegation_unusable"
+    },
+    {
+      "name": "exp prolongé, signature recalculée pour ce exp (contrôle : valide)",
+      "context": {
+        "userId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "orgId": "cm3orgexample0000000000001",
+        "runtimeId": "7d3f2c1e-8a4b-4c6d-9e0f-1a2b3c4d5e6f",
+        "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "scope": "org",
+        "iat": 1795000000,
+        "exp": 1795691200
+      },
+      "fprHex": "f605b872881487a9b37f903d997ff879b94c5718856a5e729587b0e39f8faf2b",
+      "wrapHash": "AhmVSSsEBVdTz0jXtoGJN5FPPNe6C60IuU-L8SVONBk",
+      "userSignKey": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"WzaJDay9fJqWu3Sh7iiz0tdbcuCaIO8lz45v2KnwNQ0\",\"y\":\"DhS-2NRoKjTYNTi9_1uW6JpmZuwNtXRdAvoSEAct91o\"}",
+      "mandateVersion": 2,
+      "mode": "auto",
+      "ownerRsaSpkiHex": "43cabd9bfaf2ca1d31dc02bbc4c01e2c71438c130f2cc85319cfb3c5727be23f",
+      "signature": "Pyq9jsjrCLj1yNkwJU4tAnLOAHtqRmXvuOEAYzFUXuttU6rRLBYqWywnSffQgKCwT7Vu6gduoMzl7dcoYq/+Lw==",
+      "expect": "ok",
+      "expectMode": "auto"
+    }
+  ],
+  "rt1Policy": [
+    {
+      "name": "mandat v2 auto, enveloppe rt1 valide",
+      "mandateVersion": 2,
+      "mode": "auto",
+      "envelopeValid": true,
+      "expect": "verified"
+    },
+    {
+      "name": "mandat v2 plan, enveloppe rt1 valide : refusée comme fausse",
+      "mandateVersion": 2,
+      "mode": "plan",
+      "envelopeValid": true,
+      "expect": "rejected"
+    },
+    {
+      "name": "mandat v2 auto, enveloppe rt1 fausse",
+      "mandateVersion": 2,
+      "mode": "auto",
+      "envelopeValid": false,
+      "expect": "rejected"
+    },
+    {
+      "name": "mandat v1 (hors production, PC32), enveloppe valide : TOFU avec avertissement",
+      "mandateVersion": 1,
+      "envelopeValid": true,
+      "expect": "tofu_warning"
+    },
+    {
+      "name": "mandat v1, enveloppe fausse",
+      "mandateVersion": 1,
+      "envelopeValid": false,
+      "expect": "rejected"
+    },
+    {
+      "name": "mandat illisible (delegation_unusable)",
+      "mandateVersion": 2,
+      "mode": "auto",
+      "mandateUnusable": true,
+      "envelopeValid": true,
+      "expect": "rejected"
+    }
+  ]
+}
