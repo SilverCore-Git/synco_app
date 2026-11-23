@@ -109,3 +109,25 @@ describe('bascule', () => {
         expect(await registerOpenedRuntimeConversation(h.deps, ORG, 'identifiant invalide !')).toBe(false);
     });
 });
+
+describe("vue d'administration", () => {
+    test('runtime appairé : empreinte, état en ligne et politique lus sans défi ni épingle', async () => {
+        const { loadRuntimeAdminView } = await import('./aiRuntimeUi');
+        h.registry.policy = { enabled: true, maxDelegationDays: 3, toolPolicy: { delete_task: 'deny', bad: 'x' } };
+        const v = await loadRuntimeAdminView(h.deps, ORG);
+        expect(v.runtime?.online).toBe(true);
+        expect(v.runtime?.fingerprint).toBeTruthy();
+        expect(v.runtime?.pinState).toBe('first_seen');
+        expect(v.policy).toEqual({ enabled: true, maxDelegationDays: 3, toolPolicy: { delete_task: 'deny' } });
+        expect(h.requests.some(r => r.path.endsWith('/challenge') || r.method === 'POST')).toBe(false);
+    });
+
+    test("aucun runtime : vue vide, politique par défaut", async () => {
+        const { loadRuntimeAdminView } = await import('./aiRuntimeUi');
+        h.registry.runtime = null;
+        h.registry.policy = {};
+        const v = await loadRuntimeAdminView(h.deps, ORG);
+        expect(v.runtime).toBeNull();
+        expect(v.policy).toEqual({ enabled: false, maxDelegationDays: 7, toolPolicy: {} });
+    });
+});

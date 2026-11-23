@@ -11,6 +11,7 @@ import {
     createDefaultAiRuntimeDeps,
     getDelegationSummary,
     registerRuntimeConversation,
+    verifyRuntimeForDelegation,
     type AiRuntimeDeps,
     type AiRuntimeErrorCode,
     type DelegationSummary,
@@ -230,4 +231,77 @@ export async function registerOpenedRuntimeConversation(deps: AiRuntimeDeps, org
     } catch {
         return false;
     }
+}
+
+// ---------------------------------------------------------------------------
+// Vue d'administration du runtime (Paramètres de l'org › Synco AI › Runtime)
+// ---------------------------------------------------------------------------
+
+export type ToolPolicyValue = 'auto' | 'ask' | 'deny';
+
+export interface RuntimeAdminView {
+    runtime: {
+        runtimeId: string;
+        url: string;
+        online: boolean;
+        lastSeenAt: string | null;
+        softwareVersion: string | null;
+        signerId: string | null;
+        /** Empreinte formatée de la clé du runtime (celle qu'il présente), `null` si la vérification a échoué. */
+        fingerprint: string | null;
+        /** État de l'épingle sur cet appareil (`null` si la vérification a échoué avant l'épinglage). */
+        pinState: 'match' | 'first_seen' | 'first_seen_after_change' | 'changed' | null;
+    } | null;
+    policy: { enabled: boolean; maxDelegationDays: number; toolPolicy: Record<string, ToolPolicyValue> };
+    /** Problème de vérification à afficher en bandeau (clé changée, certificat refusé…). */
+    problem: RuntimeProblem | null;
+}
+
+const isRec = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
+
+/** Lit le registre, vérifie le runtime SANS défi ni écriture d'épingle (`challenge: false`). */
+export async function loadRuntimeAdminView(deps: AiRuntimeDeps, orgId: string): Promise<RuntimeAdminView> {
+    const res = await deps.api.request('GET', `/api/orgs/${encodeURIComponent(orgId)}/ai/runtime`);
+    if (res.status !== 200 || !isRec(res.body)) throw new AiRuntimeError(res.status === 403 ? 'forbidden' : 'api_error', { status: res.status });
+    const policyRaw = isRec(res.body.policy) ? res.body.policy : {};
+    const toolPolicy: Record<string, ToolPolicyValue> = {};
+    if (isRec(policyRaw.toolPolicy)) {
+        for (const [k, v] of Object.entries(policyRaw.toolPolicy)) if (v === 'auto' || v === 'ask' || v === 'deny') toolPolicy[k] = v;
+    }
+    const policy = {
+        enabled: policyRaw.enabled === true,
+        maxDelegationDays: typeof policyRaw.maxDelegationDays === 'number' && policyRaw.maxDelegationDays > 0 ? policyRaw.maxDelegationDays : 7,
+        toolPolicy,
+    };
+    const r = isRec(res.body.runtime) ? res.body.runtime : null;
+    if (!r || typeof r.runtimeId !== 'string') return { runtime: null, policy, problem: null };
+
+    let fingerprint: string | null = null;
+    let pinState: NonNullable<RuntimeAdminView['runtime']>['pinState'] = null;
+    let problem: RuntimeProblem | null = null;
+    try {
+        const v = await verifyRuntimeForDelegation(deps, orgId, { challenge: false });
+        fingerprint = v.fingerprint;
+        pinState = v.pinState;
+    } catch (e) {
+        problem = explainRuntimeError(e, { pinnedFingerprint: await previousPinnedFingerprint(deps, orgId) });
+        fingerprint = problem.fingerprint ?? null;
+        if (problem.code === 'runtime_key_changed') pinState = 'changed';
+    }
+    const signer = isRec(r.signer) ? r.signer : {};
+    return {
+        runtime: {
+            runtimeId: r.runtimeId,
+            url: str(r.url) ?? '',
+            online: r.online === true,
+            lastSeenAt: str(r.lastSeenAt),
+            softwareVersion: str(r.softwareVersion),
+            signerId: str(signer.adminId),
+            fingerprint,
+            pinState,
+        },
+        policy,
+        problem,
+    };
 }
