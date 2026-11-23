@@ -131,3 +131,14 @@ describe("vue d'administration", () => {
         expect(v.policy).toEqual({ enabled: false, maxDelegationDays: 7, toolPolicy: {} });
     });
 });
+
+describe('disponibilité', () => {
+    test('runtime autorisé et en ligne, puis non autorisé', async () => {
+        const { runtimeAvailability } = await import('./aiRuntimeUi');
+        expect(await runtimeAvailability(h.deps, ORG)).toEqual({ available: true, online: true });
+        h.registry.allowedForMe = false;
+        expect((await runtimeAvailability(h.deps, ORG)).available).toBe(false);
+        h.registry.runtime = null;
+        expect(await runtimeAvailability(h.deps, ORG)).toEqual({ available: false, online: false });
+    });
+});

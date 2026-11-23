@@ -305,3 +305,14 @@ export async function loadRuntimeAdminView(deps: AiRuntimeDeps, orgId: string): 
         problem,
     };
 }
+
+/** Le runtime de l'org est-il utilisable par moi ? Lecture légère du registre, sans vérification cryptographique. */
+export async function runtimeAvailability(deps: AiRuntimeDeps, orgId: string): Promise<{ available: boolean; online: boolean }> {
+    try {
+        const res = await deps.api.request('GET', `/api/orgs/${encodeURIComponent(orgId)}/ai/runtime`);
+        if (res.status !== 200 || !isRec(res.body) || !isRec(res.body.runtime)) return { available: false, online: false };
+        return { available: res.body.allowedForMe === true, online: res.body.runtime.online === true };
+    } catch {
+        return { available: false, online: false };
+    }
+}

@@ -16,6 +16,7 @@ describe('« Toujours accepter » (PC42)', () => {
         expect(addAutoAccept(['thread.create'], 'thread.create')).toEqual(['thread.create']);
         expect(removeAutoAccept(['a.b', 'c.d'], 'a.b')).toEqual(['c.d']);
         expect(parseAutoAccept('pas une liste')).toEqual([]);
+        expect(parseAutoAccept(JSON.stringify(['folder.create', 'server.call:delete_x']))).toEqual(['folder.create']);
     });
 
     test('libellés lisibles', () => {

@@ -661,6 +661,14 @@ const alignProviderWithSession = (regime: SessionRegime | null) => {
     sessionProviderOverride.value = providerForRegime(aiService.orgConfig, regime, aiService.orgConfig.defaultProvider);
 };
 
+/** Enregistrement des conversations runtime ouvertes (PC81) ; remplaçable dans les tests. */
+export const runtimeConversationRegistrar = {
+    async register(orgId: string, sessionId: string): Promise<void> {
+        const ui = await import('./aiRuntimeUi');
+        await ui.registerOpenedRuntimeConversation(ui.runtimeDeps(), orgId, sessionId);
+    },
+};
+
 export const loadSession = async (id: string) => {
     if (!openedOrg.value) return;
     try {
@@ -671,6 +679,13 @@ export const loadSession = async (id: string) => {
             activeSessionId.value = session.id;
 
             let loadedMessages = session.messages || [];
+
+            // PC81 : l'ouverture d'une conversation runtime de l'org l'enregistre, sinon la synchro ne la délègue pas.
+            if (session.regime === 'runtime') {
+                try {
+                    await runtimeConversationRegistrar.register(orgId, session.id);
+                } catch { /* non bloquant : une conversation non enregistrée reste simplement non déléguée */ }
+            }
 
             // Tableau de messages sans aucun champ chiffré par la passerelle : stocké en clair (cas 1).
             activeSessionLegacyPlain.value = Array.isArray(loadedMessages) && loadedMessages.length > 0

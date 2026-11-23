@@ -18,7 +18,12 @@ export function isSensitiveAutoAcceptKey(key: string): boolean {
 }
 
 /** Lecture tolérante du réglage stocké : ignore le malformé, le sensible et les doublons. */
-export function parseAutoAccept(raw: unknown): string[] {
+export function parseAutoAccept(input: unknown): string[] {
+    // Le réglage du compte n'accepte que chaîne, booléen ou nombre : la liste y est stockée en JSON.
+    let raw: unknown = input;
+    if (typeof input === 'string') {
+        try { raw = JSON.parse(input); } catch { return []; }
+    }
     if (!Array.isArray(raw)) return [];
     const out: string[] = [];
     for (const v of raw) {
@@ -53,8 +58,8 @@ export function autoAcceptLabel(key: string): { label: string; icon: string } {
 
 /** Liste réactive (réglage synchronisé du compte) ; le retrait est écrit tout de suite. */
 export function useAutoAcceptTools(orgId: () => string): { list: ComputedRef<string[]>; remove: (key: string) => void } {
-    const item = (id: string) => useSettingsItem(`ai_auto_accept_${id}`, []);
+    const item = (id: string) => useSettingsItem(`ai_auto_accept_${id}`, '[]');
     const list = computed(() => (orgId() ? parseAutoAccept(item(orgId()).Item.value) : []));
-    const remove = (key: string) => { if (orgId()) item(orgId()).Item.value = removeAutoAccept(list.value, key); };
+    const remove = (key: string) => { if (orgId()) item(orgId()).Item.value = JSON.stringify(removeAutoAccept(list.value, key)); };
     return { list, remove };
 }

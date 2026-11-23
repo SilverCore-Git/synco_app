@@ -1,6 +1,7 @@
 <template>
-    <div class="w-full max-w-5xl mx-auto flex items-center justify-between gap-2 px-1 pb-2">
+    <div class="w-full max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-2 px-1 pb-2">
 
+        <div class="flex items-center gap-2 min-w-0">
         <DropDown align="top" contentInerTW="!w-80">
             <template #trigger>
                 <button type="button" class="chip" :disabled="locked" :title="busy ? 'Impossible de changer pendant une réponse' : 'Choisir le fournisseur et le modèle'">
@@ -37,6 +38,8 @@
                 </template>
             </template>
         </DropDown>
+        <RuntimeSwitchControl :busy="busy" />
+        </div>
 
         <DropDown align="top" contentInerTW="!w-72">
             <template #trigger>
@@ -65,6 +68,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
 import DropDown from '@/components/DropDown.vue';
+import RuntimeSwitchControl from './RuntimeSwitchControl.vue';
 import { useToast } from '@/composables/useToast';
 import { openedOrg } from '@/assets/var';
 import { localLLM, availableModels } from '@/services/LocalLLMService';
