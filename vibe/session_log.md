@@ -1553,3 +1553,18 @@ vue-tsc 0 erreur ; `bun test src/services` : 313 réussis, 0 échec.
 
 ### **Reste ouvert**
 Recette Firefox ; section masquée tant que l'API PC25 n'est pas déployée (non gérée : un PATCH refusé affiche une erreur) ; nombre d'actions « modifiantes » absent des chiffres.
+
+---
+
+## 📅 **2026-11-23 - Lot L13c : titres chiffrés des conversations du régime client**
+
+**Statut** : 🟢 code, tests et vue-tsc faits.
+
+### **Changements**
+`AIService.ts` : `syncSession` crée la conversation avec le titre neutre « Nouvelle conversation » (l'identifiant, AAD du titre, n'existe qu'après le POST), puis envoie le vrai titre en `gcm1:` par PATCH (clé de session IA de l'org, AAD `{id}:__session_title__:title`, comme la lecture). `fetchSessions` repère les titres encore en clair ; la prochaine synchro de la conversation les réécrit chiffrés (migration douce). Sans clé, le titre reste neutre : aucun clair n'est envoyé.
+
+### **Vérifications**
+vue-tsc 0 erreur (détection vérifiée) ; `bun test src/services` : 316 réussis (313 + 3 nouveaux). API vérifiée en lecture seule : `title` est un `@db.Text`, POST/PATCH l'acceptent hors `conv-gcm1-v1` sans contrôle de longueur.
+
+### **Reste ouvert**
+Sans clé de session IA, le vrai titre n'est pas gardé en local (liste = « Nouvelle conversation »). Les conversations `conv-gcm1-v1` ne sont pas concernées (titre déjà `gcm1:`).
