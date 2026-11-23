@@ -31,17 +31,27 @@
 
                 </div>
 
-                <div class="flex flex-col min-w-0 flex-1 pr-2">
+                <div class="flex flex-col min-w-0 flex-1 pr-2 cursor-default" :class="open ? 'cursor-pointer' : ''" @click="open?.(file)">
                     <span class="text-xs font-medium text-(--text) truncate min-w-0">
                         {{ file.originalName }}
                     </span>
-                    <span class="text-[10px] text-(--text2) uppercase tracking-wider">
-                        {{ (file.size / 1024 / 1024).toFixed(2) }} MB
+                    <span class="text-[10px] text-(--text2)">
+                        {{ formatBytes(file.size) }}
                     </span>
                 </div>
 
                 <button
-                    v-if="file.workspaceId"
+                    v-if="saveToSpace"
+                    @click="saveToSpace(file)"
+                    class="ml-auto p-1.5 rounded-md hover:bg-(--primary)/20 text-(--text2) hover:text-(--primary) transition-colors"
+                    title="Enregistrer dans un espace"
+                    aria-label="Enregistrer dans un espace"
+                >
+                    <i class="bi bi-folder-plus" />
+                </button>
+
+                <button
+                    v-else-if="file.workspaceId"
                     @click="reveal(file)"
                     class="ml-auto p-1.5 rounded-md hover:bg-(--primary)/20 text-(--text2) hover:text-(--primary) transition-colors"
                     title="Afficher dans les fichiers"
@@ -50,8 +60,8 @@
                 </button>
 
                 <button
-                    @click="downloadFile(file.id)"
-                    :class="file.workspaceId ? '' : 'ml-auto'"
+                    @click="download ? download(file) : downloadFile(file.id)"
+                    :class="file.workspaceId || saveToSpace ? '' : 'ml-auto'"
                     class="p-1.5 rounded-md hover:bg-(--primary)/20 text-(--text2) hover:text-(--primary) transition-colors"
                     title="Télécharger"
                 >
@@ -87,11 +97,18 @@ import { downloadFile } from '@/assets/utils/downloadFile';
 import { revealFileInFiles } from '@/composables/useReferenceNavigation';
 import { useRouter } from 'vue-router';
 import { getMediaKind } from '@/assets/utils/mediaTypes';
+import { formatBytes } from '@/views/OrgSpace/components/SpaceStats/statsFormat';
 import MessageMedia from './MessageMedia.vue';
 import MediaLightbox from './MediaLightbox.vue';
 
 const props = defineProps<{
     files: StoredFile[];
+    /** Source de téléchargement fournie par l'appelant (ex. artefact de l'agent déchiffré sous CK) ; défaut : `downloadFile(file.id)`. */
+    download?: (file: StoredFile) => void | Promise<void>;
+    /** Action optionnelle « Enregistrer dans un espace » (remplace « Afficher dans les fichiers »). */
+    saveToSpace?: (file: StoredFile) => void;
+    /** Clic sur la carte (ex. ouvrir la visionneuse). */
+    open?: (file: StoredFile) => void;
 }>();
 
 const lightbox = ref<{ url: string; fileName: string } | null>(null);
