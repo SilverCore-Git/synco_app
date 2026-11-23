@@ -16,6 +16,8 @@ export interface PlanActionModel {
     kind: string;
     tool?: string;
     args: JsonObject;
+    /** Références `$m.champ` (cibles créées par une autre action) ; affichées, jamais résolues ici. */
+    argsRefs?: JsonObject;
     group?: string;
     after: number[];
     executor: 'device' | 'agent';
@@ -60,8 +62,8 @@ export function buildPlanModel(opened: OpenedPlan, resolver: NameResolver, flags
         const tool = typeof o.tool === 'string' ? o.tool : undefined;
         const args = isObj(o.args) ? o.args : {};
         return {
-            n: g.n, kind, tool, args, group: typeof o.group === 'string' ? o.group : undefined, after: [...g.after], executor: g.executor,
-            level: levels[i] ?? 1, sensitive: isSensitiveAction(kind, tool, flags), label: actionLabel(kind, tool, args), place: placeOf(args, resolver),
+            n: g.n, kind, tool, args, argsRefs: isObj(o.argsRefs) ? o.argsRefs : undefined, group: typeof o.group === 'string' ? o.group : undefined, after: [...g.after], executor: g.executor,
+            level: levels[i] ?? 1, sensitive: isSensitiveAction(kind, tool, flags), label: actionLabel(kind, tool, args), place: placeOf(args, resolver, isObj(o.argsRefs) ? o.argsRefs : undefined),
         };
     });
     const groups = (Array.isArray(plan.groups) ? plan.groups : []).flatMap(g => (isObj(g) && typeof g.id === 'string' ? [{ id: g.id, label: cleanText(g.label, 100) }] : []));
@@ -74,8 +76,11 @@ export function buildPlanModel(opened: OpenedPlan, resolver: NameResolver, flags
     };
 }
 
-/** PC76 : validation directe dans la carte seulement si 5 actions au plus ET aucune sensible. */
-export const isSmallPlan = (m: PlanModel): boolean => m.actions.length <= SMALL_PLAN_MAX && !m.actions.some(a => a.sensitive);
+/**
+ * PC76 : validation directe dans la carte (et « Toujours accepter ») seulement si 5 actions au plus, aucune
+ * sensible ET aucun lieu inconnu de l'annuaire local : une cible qu'on ne sait pas nommer passe par le graphe.
+ */
+export const isSmallPlan = (m: PlanModel): boolean => m.actions.length <= SMALL_PLAN_MAX && !m.actions.some(a => a.sensitive || a.place?.unknown === true);
 
 export const isLargePlan = (m: PlanModel): boolean => m.actions.length > LARGE_PLAN_MIN;
 

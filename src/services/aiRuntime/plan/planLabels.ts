@@ -4,7 +4,7 @@
  * valeurs insérées (noms, titres) sont nettoyées (contrôles et marques bidi retirés, longueur bornée)
  * et ne sont jamais interprétées comme du HTML : les composants les affichent en texte.
  */
-import type { JsonObject, JsonValue } from '@/assets/utils/aiActionPlan';
+import { parseArgRef, type JsonObject, type JsonValue } from '@/assets/utils/aiActionPlan';
 
 export type ResolveKind = 'space' | 'category' | 'folder' | 'thread' | 'user';
 
@@ -48,12 +48,20 @@ export interface ArgLine {
     unknown: boolean;
 }
 
+/** Numéro `m` d'une référence `$m.champ`, ou `null`. */
+const refAction = (v: JsonValue | undefined): number | null => (typeof v === 'string' ? parseArgRef(v)?.m ?? null : null);
+
 /** Lieu lisible d'une action : « Chantiers » ou « Chantiers › Tilleuls ». */
-export function placeOf(args: JsonObject, r: NameResolver): { text: string; unknown: boolean } | null {
+export function placeOf(args: JsonObject, r: NameResolver, argsRefs?: JsonObject): { text: string; unknown: boolean } | null {
     const space = typeof args.spaceId === 'string' ? args.spaceId : null;
     const cat = typeof args.categoryId === 'string' ? args.categoryId : null;
     const parts: string[] = [];
     let unknown = false;
+    // Cible passée par référence : l'objet n'existe pas encore, il sera créé par l'action `m`.
+    const spaceRef = refAction(argsRefs?.spaceId);
+    const catRef = refAction(argsRefs?.categoryId);
+    if (spaceRef !== null) parts.push(`dans l’espace créé par l’action ${spaceRef}`);
+    if (catRef !== null) parts.push(`dans la catégorie créée par l’action ${catRef}`);
     if (space) {
         const n = r.resolve('space', space);
         if (n) parts.push(cleanText(n, 40)); else { parts.push('espace inconnu'); unknown = true; }
@@ -68,8 +76,12 @@ export function placeOf(args: JsonObject, r: NameResolver): { text: string; unkn
 const asList = (v: JsonValue | undefined): JsonValue[] => (Array.isArray(v) ? v : v === undefined || v === null ? [] : [v]);
 
 /** Arguments lisibles du volet de détail. */
-export function argLines(args: JsonObject, r: NameResolver): ArgLine[] {
+export function argLines(args: JsonObject, r: NameResolver, argsRefs?: JsonObject): ArgLine[] {
     const out: ArgLine[] = [];
+    for (const [field, value] of Object.entries(argsRefs ?? {})) {
+        const m = refAction(value);
+        if (m !== null) out.push({ field, label: FIELD_LABEL[field] ?? cleanText(field, 30), text: `créé par l’action ${m}`, unknown: false });
+    }
     for (const [field, value] of Object.entries(args)) {
         const kind = FIELD_KIND[field];
         const label = FIELD_LABEL[field] ?? cleanText(field, 30);

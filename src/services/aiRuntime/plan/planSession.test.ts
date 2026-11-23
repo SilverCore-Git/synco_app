@@ -8,7 +8,7 @@ import { ToolManifest, type JsonObject, type JsonValue, type PlanContext } from 
 import { AiRuntimeError } from '../errors';
 import type { ServedPlanView } from './actionPlan';
 import { acceptPlan, loadPlan, type PlanSessionDeps } from './planSession';
-import { noResolver } from './planLabels';
+import type { NameResolver } from './planLabels';
 import { isSmallPlan } from './planModel';
 import type { ApiPort } from '../ports';
 
@@ -18,6 +18,8 @@ interface V {
     mixedPlan: { planId: string; plan: JsonObject; executors: ('device' | 'agent')[]; encrypted: { fieldName: string; value: string; clear: JsonObject }[] };
 }
 const v = raw as unknown as V;
+/** Annuaire local qui connaît l'espace du vecteur : un lieu inconnu interdirait la carte (PC76). */
+const spaceKnown: NameResolver = { resolve: (kind, id) => (kind === 'space' && id === (((v.plan.actions as JsonObject[])[0]!.args as JsonObject).spaceId as string) ? 'Chantiers' : null) };
 const ck = Uint8Array.from(Buffer.from(v.ckHex, 'hex'));
 const ctx = (patch: Partial<PlanContext> = {}): PlanContext => ({
     sessionId: v.sessionId, maxLifetimeSecs: 604_800, manifest: ToolManifest.fromJson(v.toolManifest), mode: 'plan', createThreadAsk: true, ...patch,
@@ -38,7 +40,7 @@ const call = { id: 'call_7', name: 'propose_actions', planId: v.planId, args: v.
 
 const posted: unknown[] = [];
 const depsFor = (flags: { name: string; sensitive?: boolean }[] = []): PlanSessionDeps => ({
-    ck, orgId: 'o', sessionId: v.sessionId, context: ctx(), knownLocalId: known, resolver: noResolver, flags,
+    ck, orgId: 'o', sessionId: v.sessionId, context: ctx(), knownLocalId: known, resolver: spaceKnown, flags,
     api: {
         request: async (method, _path, body) => {
             if (method === 'POST') { posted.push(body); return { status: 200, body: { ...view(), status: 'accepted' } }; }

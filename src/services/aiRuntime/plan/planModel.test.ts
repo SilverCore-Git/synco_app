@@ -1,16 +1,16 @@
 import { describe, expect, test } from 'bun:test';
 import { PlanGraph, type JsonObject } from '@/assets/utils/aiActionPlan';
 import type { OpenedPlan } from '../actionPlan';
-import { cleanText, noResolver, type NameResolver } from './planLabels';
+import { argLines, cleanText, noResolver, type NameResolver } from './planLabels';
 import { buildPlanModel, evaluateSelection, graphLinks, initialSelection, isLargePlan, isSmallPlan, layoutGraph, toggleAction, type PlanModel } from './planModel';
 
-interface A { kind: string; tool?: string; args: JsonObject; after?: number[]; group?: string }
+interface A { kind: string; tool?: string; args: JsonObject; after?: number[]; group?: string; argsRefs?: JsonObject }
 function opened(actions: A[], groups?: { id: string; label: string }[], summary = 'Je supprime tout'): OpenedPlan {
     const graph = new PlanGraph(actions.map((a, i) => ({ n: i + 1, executor: a.kind === 'server.call' ? 'agent' as const : 'device' as const, after: a.after ?? [] })));
     const plan: JsonObject = {
         v: 1, planId: 'p1', sessionId: 's1', toolCallId: 'c1', createdAt: 100, expiresAt: 200, summary,
         ...(groups ? { groups } : {}),
-        actions: actions.map((a, i) => ({ n: i + 1, kind: a.kind, ...(a.tool ? { tool: a.tool } : {}), args: a.args, ...(a.after ? { after: a.after } : {}), ...(a.group ? { group: a.group } : {}) })),
+        actions: actions.map((a, i) => ({ n: i + 1, kind: a.kind, ...(a.tool ? { tool: a.tool } : {}), args: a.args, ...(a.after ? { after: a.after } : {}), ...(a.group ? { group: a.group } : {}), ...(a.argsRefs ? { argsRefs: a.argsRefs } : {}) })),
     };
     return { plan, graph, digests: new Map() };
 }
@@ -73,6 +73,23 @@ describe('petit plan (PC76)', () => {
         expect(isSmallPlan(buildPlanModel(opened(five), dir))).toBe(true);
         expect(isSmallPlan(buildPlanModel(opened([...five, cat('x')]), dir))).toBe(false);
         expect(isSmallPlan(buildPlanModel(opened([cat('a'), { kind: 'server.call', tool: 'delete_task', args: {} }]), dir))).toBe(false);
+    });
+});
+
+describe('cible visible et lieu inconnu', () => {
+    test('cible passée par référence : « dans l’espace créé par l’action m », aussi dans les arguments', () => {
+        const m = buildPlanModel(opened([
+            { kind: 'server.call', tool: 'create_space', args: { name: 'Neuf' } },
+            { kind: 'thread.create', args: { name: 'a', type: 'text' }, argsRefs: { spaceId: '$1.id' }, after: [1] },
+        ]), dir);
+        expect(m.actions[1]!.place).toEqual({ text: 'dans l’espace créé par l’action 1', unknown: false });
+        expect(argLines(m.actions[1]!.args, dir, m.actions[1]!.argsRefs).find(l => l.field === 'spaceId')?.text).toBe('créé par l’action 1');
+    });
+    test('lieu inconnu de l’annuaire : interdit la validation inline et « Toujours accepter » (isSmallPlan)', () => {
+        const unknown = buildPlanModel(opened([{ kind: 'folder.create', args: { spaceId: 'zz', name: 'a' } }]), noResolver);
+        expect(isSmallPlan(unknown)).toBe(false);
+        const known = buildPlanModel(opened([{ kind: 'folder.create', args: { spaceId: 'sp1', name: 'a' } }]), dir);
+        expect(isSmallPlan(known)).toBe(true);
     });
 });
 

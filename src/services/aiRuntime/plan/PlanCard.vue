@@ -25,6 +25,7 @@
                         <span class="min-w-0 flex-1 text-sm break-words" :class="dropped(a.n) ? 'line-through opacity-60' : ''">{{ a.label }}</span>
                         <span class="text-[11px] text-(--text2) shrink-0">{{ a.executor === 'device' ? 'Votre appareil' : 'Synco AI' }}</span>
                     </label>
+                    <p v-if="a.place" class="pl-9 text-xs truncate" :class="a.place.unknown ? 'text-amber-500' : 'text-(--text2)'">{{ a.place.text }}</p>
                     <p v-if="result.ignoredBecause.has(a.n)" class="pl-9 text-xs text-amber-600">Ignorée : « {{ label(result.ignoredBecause.get(a.n)!) }} » est décochée</p>
                 </li>
             </ul>

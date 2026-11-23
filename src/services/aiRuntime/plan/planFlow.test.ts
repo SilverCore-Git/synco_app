@@ -2,13 +2,15 @@
 import { describe, expect, test } from 'bun:test';
 import raw from '../../../../scripts/e2ee-vectors/action-plan.json';
 import { ToolManifest, type JsonObject, type JsonValue, type PlanContext } from '@/assets/utils/aiActionPlan';
-import { noResolver } from './planLabels';
+import type { NameResolver } from './planLabels';
 import { usePlanFlow } from './planFlow';
 import { memoryPlanLocalStore, type PlanLocalStore } from './planLocal';
 import type { PlanSessionDeps } from './planSession';
 
 interface V { sessionId: string; planId: string; ckHex: string; plan: JsonObject; planValue: string; planExecutors: ('device' | 'agent')[]; toolManifest: JsonValue; serverDigests: { plan: string | null; n: number | null; sha256Hex: string }[] }
 const v = raw as unknown as V;
+/** Annuaire local qui connaît l'espace du vecteur : un lieu inconnu interdirait la carte (PC76). */
+const spaceKnown: NameResolver = { resolve: (kind, id) => (kind === 'space' && id === (((v.plan.actions as JsonObject[])[0]!.args as JsonObject).spaceId as string) ? 'Chantiers' : null) };
 const ck = Uint8Array.from(Buffer.from(v.ckHex, 'hex'));
 const context: PlanContext = { sessionId: v.sessionId, maxLifetimeSecs: 604_800, manifest: ToolManifest.fromJson(v.toolManifest), mode: 'plan', createThreadAsk: true };
 const SPACE = (v.plan.actions as JsonObject[])[0]!.args as JsonObject;
@@ -28,7 +30,7 @@ function server(status: string, calls: { method: string; path: string; body: unk
 function flow(status: string, pending: typeof call | null = call, digestOverride?: Record<string, string>, auto?: string[], flags?: { name: string; sensitive?: boolean }[], allowed = true, local?: PlanLocalStore) {
     const calls: { method: string; path: string; body: unknown }[] = [];
     const session: PlanSessionDeps = {
-        ck, orgId: 'o', sessionId: v.sessionId, context, knownLocalId: (_f, id) => id === SPACE.spaceId, resolver: noResolver, flags,
+        ck, orgId: 'o', sessionId: v.sessionId, context, knownLocalId: (_f, id) => id === SPACE.spaceId, resolver: spaceKnown, flags,
         api: { request: server(status, calls, digestOverride) },
     };
     return { calls, f: usePlanFlow({ session, pendingCall: async () => pending, now: () => Date.UTC(2026, 10, 23), autoAccept: auto ? () => auto : undefined, autoAcceptAllowed: () => allowed, local }) };

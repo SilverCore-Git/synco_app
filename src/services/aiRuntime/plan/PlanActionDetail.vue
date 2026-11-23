@@ -33,7 +33,7 @@ import { abandonText, STATE_TEXT, type ActionProgress } from './planProgress';
 const props = defineProps<{ model: PlanModel; action: PlanActionModel; resolver: NameResolver; checked: boolean; canToggle: boolean; progress?: ActionProgress }>();
 const emit = defineEmits<{ (e: 'toggle', n: number): void }>();
 
-const lines = computed(() => argLines(props.action.args, props.resolver));
+const lines = computed(() => argLines(props.action.args, props.resolver, props.action.argsRefs));
 const name = (n: number) => `« ${props.model.actions[n - 1]?.label ?? n} »`;
 const needs = computed(() => props.action.after.map(name));
 const neededBy = computed(() => (props.model.dependents[props.action.n - 1] ?? []).map(name));
