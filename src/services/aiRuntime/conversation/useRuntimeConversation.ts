@@ -15,6 +15,8 @@ export interface RuntimeConversationDeps {
     messages: Ref<TranscriptMessage[]>;
     /** Ouvre la source (clé `CK`, ticket…) ; elle n'est démarrée qu'ici. */
     connect(orgId: string, sessionId: string, hooks: ConnectHooks): Promise<RuntimeEventSource>;
+    /** Appel d'outil terminé (statistiques de l'appareil, sans contenu). */
+    recordTool?(sessionId: string, toolCallId: string, name: string): void;
     recordUsage(sessionId: string, frame: { messageId: string; promptTokens?: number; completionTokens?: number; totalTokens?: number; reasoningTokens?: number }): void;
     /** Relit l'historique par l'API (`ready { mode: "reload" }`). */
     reloadHistory(sessionId: string): Promise<void>;
@@ -70,6 +72,7 @@ export function useRuntimeConversation(deps: RuntimeConversationDeps) {
 
     function handle(ev: AgentStreamEvent, sessionId: string): void {
         if (ev.type === 'usage' && ev.messageId) deps.recordUsage(sessionId, { ...ev, messageId: ev.messageId });
+        if (ev.type === 'tool_call_result') deps.recordTool?.(sessionId, ev.toolCallId, ev.name);
         if (ev.type === 'status') status.value = ev.status;
         if (ev.type === 'done') { status.value = 'idle'; clearQueued(); }
         const effect = applyAgentEvent(deps.messages.value, st, ev);

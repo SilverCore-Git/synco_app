@@ -371,7 +371,7 @@ import AgentTurn from '../components/ai/AgentTurn.vue';
 import PendingActionBar from '../components/ai/PendingActionBar.vue';
 import LocalModelPanel from '../components/ai/LocalModelPanel.vue';
 import AiComposerControls from '../components/ai/AiComposerControls.vue';
-import { recordUsage, recordRuntimeUsage } from '@/services/aiUsageStats';
+import { recordUsage, recordRuntimeUsage, recordRuntimeTool } from '@/services/aiUsageStats';
 import RuntimePlanPanel from '../components/ai/RuntimePlanPanel.vue';
 import { useRuntimeConversation } from '@/services/aiRuntime/conversation/useRuntimeConversation';
 import { connectRuntimeConversation } from '@/services/aiRuntime/conversation/connect';
@@ -506,6 +506,7 @@ const runtime = useRuntimeConversation({
   messages: messages as unknown as Ref<TranscriptMessage[]>,
   connect: (orgId, sessionId, hooks) => connectRuntimeConversation(runtimeDeps(), orgId, sessionId, hooks),
   recordUsage: (sessionId, frame) => { recordRuntimeUsage(sessionId, frame); },
+  recordTool: (sessionId, toolCallId, name) => { recordRuntimeTool(sessionId, toolCallId, name); },
   reloadHistory: async (sessionId) => { await loadSession(sessionId); },
   fromSnapshot: (raw) => convertStoredMessagesToChatMessages(raw),
   afterEvent: () => { void scrollToBottom(); },

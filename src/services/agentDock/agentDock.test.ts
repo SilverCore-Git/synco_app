@@ -169,3 +169,14 @@ describe('raccourci Ctrl/Cmd+J', () => {
         expect(agentShortcutAction(ev(), { closest: () => null })).toBe('toggle');
     });
 });
+
+describe('bulles et préférences de l\'agent (PC25)', () => {
+    test('un cas désactivé n\'allume pas de bulle', () => {
+        const sessions = [
+            { id: 'a', regime: 'runtime', status: 'awaiting_confirmation', statusChangedAt: '1' },
+            { id: 'b', regime: 'runtime', status: 'awaiting_user', statusChangedAt: '1' },
+        ];
+        expect(pendingNudges(sessions, new Set(), new Set()).map(n => n.sessionId)).toEqual(['a', 'b']);
+        expect(pendingNudges(sessions, new Set(), new Set(), w => w !== 'confirmation').map(n => n.sessionId)).toEqual(['b']);
+    });
+});

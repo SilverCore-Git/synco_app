@@ -16,6 +16,8 @@ export interface UsageEvent {
     sessionId?: string;
     regime?: 'device' | 'gateway' | 'runtime';
     messageId?: string;
+    /** Appel d'outil (0 token) : nom de l'outil ; absent des évènements de tokens. */
+    tool?: string;
 }
 
 const KEY = 'synco_ai_usage_log';
@@ -67,6 +69,19 @@ export const recordRuntimeUsage = (sessionId: string, frame: { messageId: string
     return true;
 };
 
+/** Appel d'outil d'une conversation runtime : compté une fois par `(sessionId, toolCallId)` (trame rejouée). Aucun contenu. */
+export const recordRuntimeTool = (sessionId: string, toolCallId: string, tool: string): boolean => {
+    if (!sessionId || !toolCallId || !tool) return false;
+    if (usageEvents.value.some(e => e.tool && e.sessionId === sessionId && e.messageId === toolCallId)) return false;
+    const event: UsageEvent = {
+        t: Date.now(), provider: 'runtime', model: 'runtime', promptTokens: 0, completionTokens: 0, reasoningTokens: 0, totalTokens: 0,
+        sessionId, regime: 'runtime', messageId: toolCallId, tool,
+    };
+    usageEvents.value = [...usageEvents.value, event].slice(-MAX_EVENTS);
+    write(usageEvents.value);
+    return true;
+};
+
 export const resetUsageStats = () => {
     usageEvents.value = [];
     write([]);
@@ -110,4 +125,63 @@ export const dailyTokens = (events: UsageEvent[], days: number): Array<{ day: st
         if (i !== undefined) out[i]!.tokens += e.totalTokens;
     }
     return out;
+};
+
+// ---------------------------------------------------------------------------
+// Filtres et agrégats de l'écran « Statistiques » (tokens seulement, PC79 : aucun montant)
+// ---------------------------------------------------------------------------
+
+export type UsageSource = 'all' | 'device' | 'runtime';
+
+/** Les anciens évènements n'ont pas de `regime` : ils viennent de l'appareil. */
+export const sourceOf = (e: UsageEvent): 'device' | 'runtime' => (e.regime === 'runtime' ? 'runtime' : 'device');
+
+export const filterUsage = (events: UsageEvent[], opts: { days: number; source: UsageSource; now?: number }): UsageEvent[] => {
+    const since = opts.days ? (opts.now ?? Date.now()) - opts.days * 86400000 : 0;
+    return events.filter(e => e.t >= since && (opts.source === 'all' || sourceOf(e) === opts.source));
+};
+
+/** Évènements de tokens (hors appels d'outils). */
+export const tokenEvents = (events: UsageEvent[]): UsageEvent[] => events.filter(e => !e.tool);
+export const toolEvents = (events: UsageEvent[]): UsageEvent[] => events.filter(e => !!e.tool);
+
+export interface UsageSummary {
+    tokens: number;
+    requests: number;
+    conversations: { runtime: number; device: number; total: number };
+    toolCalls: number;
+}
+
+export const summarizeUsage = (events: UsageEvent[]): UsageSummary => {
+    const tokens = tokenEvents(events);
+    const runtime = new Set<string>();
+    for (const e of events) if (e.sessionId && sourceOf(e) === 'runtime') runtime.add(e.sessionId);
+    // Une conversation d'appareil n'a pas d'identifiant : on ne compte que celles dont l'évènement le porte.
+    const device = new Set<string>();
+    for (const e of events) if (e.sessionId && sourceOf(e) === 'device') device.add(e.sessionId);
+    return {
+        tokens: tokens.reduce((n, e) => n + e.totalTokens, 0),
+        requests: tokens.length,
+        conversations: { runtime: runtime.size, device: device.size, total: runtime.size + device.size },
+        toolCalls: toolEvents(events).length,
+    };
+};
+
+/** Les `limit` conversations les plus consommatrices : tokens, outils appelés, source. */
+export const topConversations = (events: UsageEvent[], limit = 5): Array<{ sessionId: string; tokens: number; tools: number; source: 'device' | 'runtime' }> => {
+    const map = new Map<string, { sessionId: string; tokens: number; tools: number; source: 'device' | 'runtime' }>();
+    for (const e of events) {
+        if (!e.sessionId) continue;
+        const r = map.get(e.sessionId) ?? { sessionId: e.sessionId, tokens: 0, tools: 0, source: sourceOf(e) };
+        if (e.tool) r.tools++; else r.tokens += e.totalTokens;
+        map.set(e.sessionId, r);
+    }
+    return [...map.values()].sort((a, b) => b.tokens - a.tokens || b.tools - a.tools).slice(0, limit);
+};
+
+/** Appels par outil, le plus utilisé d'abord. */
+export const toolUsage = (events: UsageEvent[]): Array<{ tool: string; calls: number }> => {
+    const map = new Map<string, number>();
+    for (const e of toolEvents(events)) map.set(e.tool!, (map.get(e.tool!) ?? 0) + 1);
+    return [...map].map(([tool, calls]) => ({ tool, calls })).sort((a, b) => b.calls - a.calls);
 };
