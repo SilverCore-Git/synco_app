@@ -704,10 +704,9 @@ const changePassword = async () => {
 const deleteAccount = async () => {
     isDeletingAccount.value = true;
     try {
-        // Keyguard d'abord (récupération par PIN), puis le compte : services/accountDeletion.ts.
+        // Le compte d'abord, puis le keyguard au mieux : services/accountDeletion.ts.
         const outcome = await deleteMyAccount({
             keyguardConfigured: pinRecoveryConfigured,
-            ownsAnOrganization: organizations.value.some((org: { ownerId?: string }) => org.ownerId === user.value?.id),
             disableKeyguard: () => pinRecoveryActors.guard.disable(),
             async deleteMe() {
                 const response = await sfetch('/api/users/me', { method: 'DELETE' });
