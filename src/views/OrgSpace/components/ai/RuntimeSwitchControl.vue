@@ -33,7 +33,7 @@ import { openedOrg } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import Popup from '@/components/Popup.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
-import { activeSessionId, chatSessions, fetchSessions } from '@/services/AIService';
+import { activeSessionId, chatSessions, fetchSessions, loadSession } from '@/services/AIService';
 import {
     canSwitchExistingConversation, explainRuntimeError, explainSwitchRefusal, previousPinnedFingerprint, runtimeAvailability, runtimeDeps,
     switchConversationToLocal, switchConversationToRuntime, SwitchRefusedError, SwitchUnavailableError, type RuntimeProblem,
@@ -92,7 +92,7 @@ const toLocal = async () => {
     if (!id) return;
     switching.value = true;
     try {
-        await switchConversationToLocal(deps, orgId.value, id);
+        await switchConversationToLocal(deps, orgId.value, id, loadSession);
         confirmLocal.value = false;
         toast.show('Conversation revenue en local.', 'success');
         await fetchSessions();

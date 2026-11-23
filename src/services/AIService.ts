@@ -681,6 +681,20 @@ export const runtimeConversationRegistrar = {
     },
 };
 
+/** Conversations `conv-gcm1-v1` (retour en local, runtime) : lecture/écriture sous la clé `CK` ; remplaçable dans les tests. */
+export const convHistoryIo = {
+    async open(orgId: string, sessionId: string, raw: unknown): Promise<any[]> {
+        const ui = await import('./aiRuntimeUi');
+        return ui.conversationHistory.open(orgId, sessionId, raw);
+    },
+    async seal(orgId: string, sessionId: string, display: readonly unknown[]): Promise<unknown[]> {
+        const ui = await import('./aiRuntimeUi');
+        return ui.conversationHistory.seal(orgId, sessionId, display);
+    },
+};
+/** Schéma de la conversation ouverte (`conv-gcm1-v1` : historique chiffré sous `CK`, jamais en blob E2EE). */
+const activeSessionIsConv = ref(false);
+
 export const loadSession = async (id: string) => {
     if (!openedOrg.value) return;
     try {
@@ -692,6 +706,7 @@ export const loadSession = async (id: string) => {
 
             let loadedMessages = session.messages || [];
             activeSessionReadOnly.value = false;
+            activeSessionIsConv.value = session.encryptionScheme === 'conv-gcm1-v1';
 
             // PC81 : l'ouverture d'une conversation runtime de l'org l'enregistre, sinon la synchro ne la délègue pas.
             if (session.regime === 'runtime') {
@@ -716,7 +731,17 @@ export const loadSession = async (id: string) => {
                 regime = 'client';
             }
 
-            if (Array.isArray(loadedMessages) && hasEncryptedGatewayFields(loadedMessages)) {
+            if (activeSessionIsConv.value) {
+                // `conv-gcm1-v1` (03 §6.3) : historique sous la clé de conversation `CK`, relu en strict.
+                try {
+                    loadedMessages = await convHistoryIo.open(orgId, session.id, loadedMessages);
+                } catch (e) {
+                    console.error("Erreur de lecture de la conversation chiffrée (conv-gcm1-v1)", e);
+                    activeSessionReadOnly.value = true;
+                    loadedMessages = [{ role: 'system', content: '[🔒 Conversation chiffrée. Clé de conversation indisponible sur cet appareil.]' }];
+                }
+                regime = session.regime === 'client' ? 'client' : 'server';
+            } else if (Array.isArray(loadedMessages) && hasEncryptedGatewayFields(loadedMessages)) {
                 // Cas 3 (nouveau) : structure JSON en clair, mais content/toolResult/toolCalls[].arguments
                 // sont des chaînes opaques "gcm1:..." chiffrées avec la clé de session IA de l'org.
                 try {
@@ -791,6 +816,7 @@ export const newSession = () => {
     activeSessionRegime.value = null;
     activeSessionLegacyPlain.value = false;
     activeSessionReadOnly.value = false;
+    activeSessionIsConv.value = false;
     sessionProviderOverride.value = null;
 };
 
@@ -906,7 +932,15 @@ export const syncSession = async (lastPrompt: string) => {
         let payloadMessages: unknown = aiSessionMessages.value;
         let encryptedPayload = false;
 
-        if (user.value?.publicKey && privateKey.value) {
+        if (activeSessionIsConv.value && activeSessionId.value) {
+            // `conv-gcm1-v1` : l'API n'accepte que des champs `gcm1:` sous `CK` (jamais le blob E2EE).
+            try {
+                payloadMessages = await convHistoryIo.seal(openedOrg.value.id, activeSessionId.value, aiSessionMessages.value);
+                encryptedPayload = true;
+            } catch (e) {
+                console.error("Erreur de chiffrement de la conversation (conv-gcm1-v1)", e);
+            }
+        } else if (user.value?.publicKey && privateKey.value) {
             try {
                 const encrypted = await encryptForPeer(
                     JSON.stringify(aiSessionMessages.value), 

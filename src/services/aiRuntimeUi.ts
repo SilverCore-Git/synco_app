@@ -19,6 +19,7 @@ import {
     type DelegationSummary,
 } from '@/services/aiRuntime';
 import { readRuntimePin } from '@/services/aiRuntime/runtimePin';
+import { openConversationMessages, sealConversationMessages } from '@/services/aiRuntime/switchBody';
 
 let shared: AiRuntimeDeps | null = null;
 /** Dépendances réelles de L10, créées à la première demande (jamais à l'import : les tests n'ont pas de navigateur). */
@@ -233,9 +234,13 @@ export async function switchConversationToRuntime(deps: AiRuntimeDeps, orgId: st
     return summary;
 }
 
-/** « Revenir en local » : l'API révoque l'autorisation et retire l'entrée `conv`. */
-export async function switchConversationToLocal(deps: AiRuntimeDeps, orgId: string, sessionId: string): Promise<void> {
+/**
+ * « Revenir en local » : l'API révoque l'autorisation et retire l'entrée `conv`. `reload` (après un succès
+ * seulement) recharge la conversation affichée : sans lui, messages et régime affichés resteraient périmés.
+ */
+export async function switchConversationToLocal(deps: AiRuntimeDeps, orgId: string, sessionId: string, reload?: (sessionId: string) => Promise<void>): Promise<void> {
     await post(deps, orgId, sessionId, 'switch-to-local');
+    if (reload) await reload(sessionId);
 }
 
 /**
@@ -250,6 +255,12 @@ export async function registerOpenedRuntimeConversation(deps: AiRuntimeDeps, org
         return false;
     }
 }
+
+/** Lecture et écriture des conversations `conv-gcm1-v1` (clé `CK` de l'appareil), pour `AIService`. */
+export const conversationHistory = {
+    open: (orgId: string, sessionId: string, raw: unknown) => openConversationMessages(runtimeDeps(), orgId, sessionId, raw),
+    seal: (orgId: string, sessionId: string, display: readonly unknown[]) => sealConversationMessages(runtimeDeps(), orgId, sessionId, display),
+};
 
 // ---------------------------------------------------------------------------
 // Vue d'administration du runtime (Paramètres de l'org › Synco AI › Runtime)

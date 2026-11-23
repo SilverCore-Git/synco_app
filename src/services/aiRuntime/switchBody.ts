@@ -579,6 +579,47 @@ function pickEncrypted(m: unknown): EncryptedStoredMessage {
     return e;
 }
 
+/** `CK` d'une conversation déjà sous `conv-gcm1-v1`, ouverte par `deps.keys` ; échec fermé sinon. */
+async function openConvKey(deps: AiRuntimeDeps, orgId: string, sessionId: string): Promise<Uint8Array> {
+    let ck: Uint8Array | null = null;
+    try {
+        ck = await deps.keys.open(orgId, { kind: 'conv', ref: sessionId, version: 1 });
+    } catch {
+        ck = null;
+    }
+    if (!ck || ck.length !== 32) {
+        ck?.fill(0);
+        throw new AiRuntimeError('conversation_key_unavailable');
+    }
+    return ck;
+}
+
+/**
+ * Lecture d'une conversation `conv-gcm1-v1` (affichage après « Revenir en local » ou ouverture d'une
+ * conversation runtime) : lecture stricte sous `CK`, sans placeholder. Illisible = erreur typée.
+ */
+export async function openConversationMessages(deps: AiRuntimeDeps, orgId: string, sessionId: string, raw: unknown): Promise<PlainStoredMessage[]> {
+    if (!Array.isArray(raw)) throw unreadable();
+    const ck = await openConvKey(deps, orgId, sessionId);
+    try {
+        return await decryptConversationHistory(ck, sessionId, raw, true);
+    } finally {
+        ck.fill(0);
+    }
+}
+
+/** Écriture d'une conversation `conv-gcm1-v1` poursuivie en local : historique affiché rechiffré sous `CK`. */
+export async function sealConversationMessages(deps: AiRuntimeDeps, orgId: string, sessionId: string, display: readonly unknown[]): Promise<EncryptedStoredMessage[]> {
+    const nowIso = new Date(deps.clock.now() * 1000).toISOString();
+    const plain = checkPlain(displayToStoredMessages(display, nowIso), nowIso);
+    const ck = await openConvKey(deps, orgId, sessionId);
+    try {
+        return await encryptConversationHistory(ck, sessionId, plain);
+    } finally {
+        ck.fill(0);
+    }
+}
+
 /** Constructeur à brancher par `setSwitchBodyBuilder` (aiRuntimeUi, L11). */
 export function createSwitchBodyBuilder(deps: AiRuntimeDeps, source: SwitchHistorySource): (args: SwitchBodyArgs) => Promise<SwitchToRuntimeBody> {
     return args => buildSwitchToRuntimeBody(deps, source, args);

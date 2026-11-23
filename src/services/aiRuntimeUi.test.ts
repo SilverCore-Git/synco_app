@@ -77,6 +77,16 @@ describe('bascule', () => {
         expect(h.requests.some(r => r.path === path('switch-to-local'))).toBe(true);
     });
 
+    test('« Revenir en local » : la conversation est rechargée après le succès, jamais après un échec', async () => {
+        const reloaded: string[] = [];
+        h.override = (method, p) => (method === 'POST' && p === path('switch-to-local') ? { status: 200, body: { regime: 'client' } } : undefined);
+        await switchConversationToLocal(h.deps, ORG, SESSION, async id => { reloaded.push(id); });
+        expect(reloaded).toEqual([SESSION]);
+        h.override = (method, p) => (method === 'POST' && p === path('switch-to-local') ? { status: 409, body: { error: 'session_busy' } } : undefined);
+        await switchConversationToLocal(h.deps, ORG, SESSION, async id => { reloaded.push(id); }).catch(() => undefined);
+        expect(reloaded).toEqual([SESSION]);
+    });
+
     test('sans constructeur de corps (L10) : refus typé, rien n\'est enregistré ni délégué', async () => {
         const err = await switchConversationToRuntime(h.deps, ORG, SESSION, { builder: null }).catch(e => e);
         expect(err).toBeInstanceOf(SwitchUnavailableError);

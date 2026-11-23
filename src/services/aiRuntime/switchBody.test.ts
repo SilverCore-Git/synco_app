@@ -16,6 +16,8 @@ import {
     buildSwitchToRuntimeBody,
     createSwitchBodyBuilder,
     decryptConversationHistory,
+    openConversationMessages,
+    sealConversationMessages,
     displayToStoredMessages,
     encryptConversationHistory,
     type PlainStoredMessage,
@@ -182,6 +184,27 @@ describe('aller-retour avec le banc de L10', () => {
         b.h.override = (method, path, body) => (method === 'POST' && path === `${sessionPath}/switch-to-runtime` ? { status: 409, body: { error: 'rev_conflict' } } : prev(method, path, body));
         await switchConversationToRuntime(b.h.deps, ORG, S, { builder: createSwitchBodyBuilder(b.h.deps, b.source) }).catch(() => undefined);
         expect(await isKnownRuntimeConversation(b.h.deps, ORG, S)).toBe(false);
+    });
+});
+
+describe('conv-gcm1-v1 : lecture et écriture locales', () => {
+    const open = (b: Bench, raw: unknown) => openConversationMessages(b.h.deps, ORG, S, raw);
+    test('lecture stricte sous la CK de l\'appareil ; mauvais format ou CK absente : erreur typée, pas de placeholder', async () => {
+        const b = await bench();
+        b.h.held.set(`conv|${S}|1`, CK_VEC.slice());
+        expect(await open(b, vectorMessages(V.ck))).toEqual(vectorPlain);
+        expect(await code(open(b, vectorMessages(V.ak)))).toBe('history_unreadable'); // sous AiSessionKey, pas sous CK
+        expect(await code(open(b, { isE2EE: true }))).toBe('history_unreadable');
+        b.h.held.delete(`conv|${S}|1`);
+        expect(await code(open(await bench(), vectorMessages(V.ck)))).toBe('conversation_key_unavailable');
+    });
+
+    test('écriture : l\'historique affiché est rechiffré sous la même CK et se relit', async () => {
+        const b = await bench();
+        b.h.held.set(`conv|${S}|1`, CK_VEC.slice());
+        const sealed = await sealConversationMessages(b.h.deps, ORG, S, [{ role: 'user', content: 'Q' }, { role: 'assistant', content: 'R' }]);
+        expect(JSON.stringify(sealed)).not.toContain('"Q"');
+        expect((await open(b, sealed)).map(m => m.content)).toEqual(['Q', 'R']);
     });
 });
 
