@@ -38,6 +38,9 @@ import {
     canSwitchExistingConversation, explainRuntimeError, explainSwitchRefusal, previousPinnedFingerprint, runtimeAvailability, runtimeDeps,
     switchConversationToLocal, switchConversationToRuntime, SwitchRefusedError, SwitchUnavailableError, type RuntimeProblem,
 } from '@/services/aiRuntimeUi';
+import { installSwitchBodyBuilder } from '@/services/aiRuntimeSwitch';
+
+installSwitchBodyBuilder();
 
 const props = defineProps<{ busy?: boolean }>();
 const toast = useToast();
