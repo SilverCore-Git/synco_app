@@ -131,7 +131,6 @@ import Popup from '@/components/Popup.vue';
 import { openedOrg, organizations } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
-import { ensureAiSessionKey } from '@/services/AiSessionKeyService';
 import AiProviderCard, { type ProviderForm } from './components/AiProviderCard.vue';
 import {
     AI_PROVIDERS, normalizeAiConfig, type AiProviderId, type ReasoningEffort,
@@ -231,19 +230,6 @@ const saveSettings = async () => {
     if (problem) return toast.show(problem, 'error');
 
     saving.value = true;
-
-    // Provisionne (ou récupère) la clé de session IA chiffrée AVANT d'activer le provider 'gateway' —
-    // sans ça, un membre pourrait se retrouver avec la passerelle choisie mais aucune clé, et son premier
-    // chat échouerait silencieusement (cf. E2EE_PLAN.md §6). Idempotent.
-    if (forms.gateway.enabled) {
-        try {
-            await ensureAiSessionKey(openedOrg.value!.id);
-        } catch (keyErr: any) {
-            toast.show(keyErr?.message || "Impossible de provisionner la clé de session IA chiffrée pour cette organisation.", 'error');
-            saving.value = false;
-            return;
-        }
-    }
 
     try {
         const providers = Object.fromEntries(AI_PROVIDERS.map(meta => {

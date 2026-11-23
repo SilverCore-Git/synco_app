@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
-    normalizeAiConfig, providerForRegime, resolveEffectiveEffort, resolveEffectiveProvider,
+    normalizeAiConfig, providerForRegime, regimeOf, resolveEffectiveEffort, resolveEffectiveProvider,
 } from "./aiProviders";
 
 const multi = normalizeAiConfig({
@@ -60,5 +60,11 @@ describe("providerForRegime", () => {
         expect(providerForRegime(multi, 'server')).toBe('openai');
         expect(providerForRegime(multi, 'client')).toBe('local');
         expect(providerForRegime(multi, 'gateway')).toBeNull();
+    });
+
+    test("la passerelle relève du régime client : boucle locale, plus de régime propre (L11)", () => {
+        expect(regimeOf('gateway')).toBe('client');
+        expect(regimeOf('custom')).toBe('client');
+        expect(regimeOf('openai')).toBe('server');
     });
 });

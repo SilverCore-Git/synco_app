@@ -8,8 +8,8 @@ import {
 } from './aiProviders';
 import sfetch from '@/assets/utils/sfetch';
 import { keycloak } from '@/assets/keycloak';
-import { encryptForPeer, decryptFromPeer, privateKey, encryptAiField, decryptAiField } from '@/assets/utils/crypto';
-import { ensureAiSessionKey, getAiSessionKeyRawBase64, AiSessionKeyUnavailableError } from './AiSessionKeyService';
+import { encryptForPeer, decryptFromPeer, privateKey, decryptAiField } from '@/assets/utils/crypto';
+import { ensureAiSessionKey, AiSessionKeyUnavailableError } from './AiSessionKeyService';
 import { assertAllowedGateway } from './aiGatewayPolicy';
 import { ToolCallStreamParser, type ParsedEvent } from './agent/toolCallParser';
 import { startClientAgentTurn, resumeClientAgentTurn, type ClientAgentDeps, type ClientDecision, type PendingClientTool } from './agent/clientAgent';
@@ -118,6 +118,10 @@ export class AIService {
             return localLLM.chat(messages);
         }
 
+        if (conf.provider === 'gateway') {
+            return this.chatGateway(messages);
+        }
+
         if (conf.provider === 'gemini') {
             return this.chatGemini(messages);
         }
@@ -126,42 +130,48 @@ export class AIService {
     }
 
     /**
-     * Appel direct navigateur → passerelle, sans passer par sfetch (qui cible toujours
-     * VITE_API_URL) : on attache le même token Keycloak à la main, exactement comme sfetch le
-     * ferait, mais vers une origine arbitraire (l'URL de la Synco AI Gateway auto-hébergée).
-     * Porte aussi la clé de session IA de l'org (X-Session-Key) — la passerelle en a besoin pour
-     * déchiffrer/chiffrer les champs sensibles avant/après son propre appel à synco_api, cf.
-     * E2EE_PLAN.md §3-4. `synco_api` ne voit jamais cette clé (appel direct navigateur→gateway).
+     * Appel du modèle de la passerelle auto-hébergée par la BOUCLE LOCALE (comme `custom`, L11) : la
+     * passerelle n'est plus qu'un proxy LLM. L'API émet un ticket `sgt1` court lié à l'utilisateur et à
+     * l'org (`POST /ai/gateway-ticket`) ; le navigateur le présente en `Authorization: Bearer` sur
+     * `/v1/chat/completions`. Ni jeton Keycloak ni clé de session IA ne partent vers la passerelle.
      *
-     * `gatewayUrl` vient d'activeModules.aiConfig, lu tel quel depuis la réponse de l'API : un
-     * détenteur de ORG_AI (ou l'opérateur/un intrus côté synco_api, sans toucher la base) peut la
-     * pointer vers un serveur arbitraire, qui recevrait alors le jeton Keycloak complet de chaque
-     * membre et la clé de session IA en clair. `assertAllowedGateway` valide la forme de l'URL et,
-     * si l'origine n'est pas déjà fiable (liste blanche au build ou déjà acceptée), bloque tant que
-     * l'utilisateur n'a pas explicitement autorisé cette origine précise (audit FC5).
+     * `assertAllowedGateway` (audit FC5) valide la forme de l'URL et exige l'accord de l'utilisateur pour
+     * une origine inconnue, AVANT d'envoyer le ticket : l'URL vient de la config de l'org, qu'un détenteur
+     * de ORG_AI peut pointer vers un serveur arbitraire.
      */
-    private async gatewayFetch(orgId: string, path: string, body: any, signal: AbortSignal): Promise<Response> {
+    private async *chatGateway(messages: any[]): AsyncGenerator<any, void, unknown> {
+        this.abortController = new AbortController();
+        const orgId = openedOrg.value?.id;
         const userId = user.value?.id;
-        if (!userId) throw new Error('Utilisateur non identifié.');
-        const base = await assertAllowedGateway(this.config.gatewayUrl, userId, orgId);
+        if (!orgId || !userId) throw new Error('Aucune organisation ouverte');
 
-        // Indépendants l'un de l'autre (rafraîchir le token Keycloak / récupérer la clé de session
-        // IA) — en parallèle plutôt qu'en séquence, ça évite d'empiler deux aller-retours réseau
-        // quand ni l'un ni l'autre n'est déjà en cache (ex: tout premier message d'une session).
-        const [, sessionKeyB64] = await Promise.all([
-            keycloak.authenticated ? keycloak.updateToken(60).catch(() => {}) : Promise.resolve(),
-            getAiSessionKeyRawBase64(orgId),
-        ]);
-        return fetch(`${base}${path}`, {
+        const ticketRes = await sfetch(`/api/orgs/${orgId}/ai/gateway-ticket`, { method: 'POST', signal: this.abortController.signal });
+        if (!ticketRes.ok) {
+            const body = await ticketRes.json().catch(() => ({} as { error?: string }));
+            throw new Error(body.error === 'gateway_not_configured'
+                ? "La passerelle n'est pas configurée pour cette organisation."
+                : `Impossible d'obtenir l'accès à la passerelle (${ticketRes.status}).`);
+        }
+        const { ticket, url } = await ticketRes.json() as { ticket: string; url: string };
+        const base = await assertAllowedGateway(url, userId, orgId);
+
+        const response = await fetch(`${base}/v1/chat/completions`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...(keycloak.token ? { Authorization: `Bearer ${keycloak.token}` } : {}),
-                'X-Session-Key': sessionKeyB64,
-            },
-            body: JSON.stringify(body),
-            signal,
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ticket}` },
+            body: JSON.stringify({
+                model: this.config.modelId,
+                messages,
+                stream: true,
+                stream_options: { include_usage: true },
+                temperature: 0.7,
+            }),
+            signal: this.abortController.signal,
         });
+        if (!response.ok) {
+            const err = await response.text().catch(() => '');
+            throw new Error(`Erreur passerelle (${response.status}): ${err}`);
+        }
+        yield* this.parseSSEStream(response.body);
     }
 
     /**
@@ -173,29 +183,16 @@ export class AIService {
     public async *chatAgentTurn(orgId: string, sessionId: string | null, message: string): AsyncGenerator<any, void, unknown> {
         this.abortController = new AbortController();
 
-        let response: Response;
-
-        if (this.config.provider === 'gateway') {
-            response = await this.gatewayFetch(orgId, '/chat', {
-                orgId,
+        const response = await sfetch(`/api/orgs/${orgId}/ai/chat`, {
+            method: 'POST',
+            body: JSON.stringify({
                 sessionId: sessionId || undefined,
                 message,
-                syncoApiUrl: import.meta.env.VITE_API_URL,
-                modelId: this.config.modelId,
+                provider: this.config.provider,
                 reasoningEffort: this.config.reasoningEffort,
-            }, this.abortController.signal);
-        } else {
-            response = await sfetch(`/api/orgs/${orgId}/ai/chat`, {
-                method: 'POST',
-                body: JSON.stringify({
-                    sessionId: sessionId || undefined,
-                    message,
-                    provider: this.config.provider,
-                    reasoningEffort: this.config.reasoningEffort,
-                }),
-                signal: this.abortController.signal,
-            });
-        }
+            }),
+            signal: this.abortController.signal,
+        });
 
         if (!response.ok) {
             const err = await response.text().catch(() => '');
@@ -208,27 +205,15 @@ export class AIService {
     public async *resumeAgentTurn(orgId: string, sessionId: string, decision: { accepted?: boolean; clientResult?: any }): AsyncGenerator<any, void, unknown> {
         this.abortController = new AbortController();
 
-        let response: Response;
-
-        if (this.config.provider === 'gateway') {
-            response = await this.gatewayFetch(orgId, `/chat/${sessionId}/tool-result`, {
-                orgId,
-                syncoApiUrl: import.meta.env.VITE_API_URL,
-                modelId: this.config.modelId,
-                reasoningEffort: this.config.reasoningEffort,
+        const response = await sfetch(`/api/orgs/${orgId}/ai/chat/${sessionId}/tool-result`, {
+            method: 'POST',
+            body: JSON.stringify({
                 ...decision,
-            }, this.abortController.signal);
-        } else {
-            response = await sfetch(`/api/orgs/${orgId}/ai/chat/${sessionId}/tool-result`, {
-                method: 'POST',
-                body: JSON.stringify({
-                    ...decision,
-                    provider: this.config.provider,
-                    reasoningEffort: this.config.reasoningEffort,
-                }),
-                signal: this.abortController.signal,
-            });
-        }
+                provider: this.config.provider,
+                reasoningEffort: this.config.reasoningEffort,
+            }),
+            signal: this.abortController.signal,
+        });
 
         if (!response.ok) {
             const err = await response.text().catch(() => '');
@@ -484,7 +469,7 @@ export const fetchSessions = async () => {
             const sessions: any[] = await res.json();
 
             await Promise.all(sessions.map(async (session) => {
-                // Titre chiffré côté client (provider 'gateway' uniquement, cf. setEncryptedSessionTitle).
+                // Titre chiffré des anciennes conversations du régime `gateway` (on ne l'écrit plus, on le lit).
                 // Détecté par le préfixe "gcm1:" du champ lui-même, PAS par session.encryptionScheme : la
                 // passerelle Synco AI Gateway ne pose jamais ce marqueur (elle chiffre/déchiffre chaque
                 // champ selon son propre préfixe, sans jamais lire/écrire encryptionScheme — voir
@@ -693,7 +678,10 @@ export const loadSession = async (id: string) => {
 
             let regime: SessionRegime | null = null;
             if (Array.isArray(loadedMessages) && loadedMessages.length > 0) {
-                regime = hasEncryptedGatewayFields(loadedMessages) ? 'gateway'
+                // Ancienne conversation du régime `gateway` (lecture seule du format) : elle se lit avec la
+                // clé de session IA, puis se POURSUIT en régime `client` (la passerelle n'est plus qu'un
+                // fournisseur appelé par la boucle locale) ; la prochaine synchro écrit le format client.
+                regime = hasEncryptedGatewayFields(loadedMessages) ? 'client'
                     : isStructuredAgentTranscript(loadedMessages) ? 'server'
                     : 'client';
             } else if (loadedMessages && loadedMessages.isE2EE) {
@@ -877,35 +865,6 @@ export const setReasoningEffort = (effort: ReasoningEffort) => saveUserPrefs({ r
 watch([() => openedOrg.value?.id, () => aiPrefsReady.value], ([orgId, ready]) => {
     if (orgId && ready && aiService.isLocal) localLLM.warmupInBackground();
 });
-
-/**
- * Pose le titre chiffré d'une session gateway. `syncSession()` ne s'applique pas au provider
- * 'gateway' (c'est Synco_AI_Gateway, pas ce repo, qui écrit les messages) mais le titre reste à la
- * charge du navigateur puisque `synco_api` ne peut plus le dériver lui-même depuis un `content`
- * désormais chiffré (cf. E2EE_PLAN.md §4.4). À appeler juste après le tout premier message d'une
- * nouvelle session gateway, en fire-and-forget (ne doit jamais bloquer/faire échouer l'envoi).
- *
- * On en profite pour poser `encryptionScheme: 'gateway-aes-gcm-v1'` sur la session — la passerelle
- * ne le fait jamais elle-même (elle chiffre/déchiffre chaque champ par son seul préfixe "gcm1:",
- * sans lire/écrire ce marqueur), alors qu'un provider 'gateway' chiffre TOUJOURS son contenu sans
- * condition côté passerelle : c'est donc une affirmation vraie dès qu'on sait qu'on parle à une
- * session gateway. Ça active enfin le garde-fou anti-downgrade déjà présent côté synco_api
- * (PATCH /:sessionId refuse de changer encryptionScheme une fois posé) — synco_app lui-même ne
- * s'appuie plus sur ce marqueur pour décider quoi déchiffrer (cf. hasEncryptedGatewayFields), donc
- * son absence éventuelle (session encore plus ancienne que ce premier PATCH) ne casse rien ici.
- */
-export const setEncryptedSessionTitle = async (orgId: string, sessionId: string, plainTitle: string) => {
-    try {
-        const key = await ensureAiSessionKey(orgId);
-        const encryptedTitle = await encryptAiField(key, sessionId, '__session_title__', 'title', plainTitle.slice(0, 60));
-        await sfetch(`/api/orgs/${orgId}/ai/sessions/${sessionId}`, {
-            method: 'PATCH',
-            body: JSON.stringify({ title: encryptedTitle, encryptionScheme: 'gateway-aes-gcm-v1' }),
-        });
-    } catch (e) {
-        console.error("Erreur lors de la pose du titre chiffré de la session AI", e);
-    }
-};
 
 export const syncSession = async (lastPrompt: string) => {
     if (!openedOrg.value) return;

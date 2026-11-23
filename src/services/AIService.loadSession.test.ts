@@ -149,6 +149,9 @@ describe("loadSession — the 3 message formats it must distinguish", () => {
         const toolPart = assistantTurn.parts.find((p: any) => p.type === "tool");
         expect(toolPart.tool.args).toEqual({ city: "Paris" });
         expect(toolPart.tool.result).toEqual({ ok: true, weather: "sunny" });
+
+        // L11 : une ancienne conversation gateway reste lisible (clé de session IA) et n'est pas « en clair ».
+        expect(aiSessionNotEncrypted.value).toBe(false);
     });
 
     test("case 3 fallback — gateway session but private key locked: shows the placeholder instead of crashing", async () => {
