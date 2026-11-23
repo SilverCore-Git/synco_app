@@ -446,6 +446,8 @@ import { requestV4Reset } from '@/assets/e2eeV4/pendingReset';
 import { logoutEverywhere } from '@/assets/keycloak';
 import { disconnectSocket } from '@/composables/useWSocket';
 import AppearanceSettings from '../settings/AppearanceSettings.vue';
+import { deleteMyAccount } from '@/services/accountDeletion';
+import { pinRecoveryActors, pinRecoveryConfigured } from '@/assets/e2eeV4/pinRecoveryApi';
 import NotificationSettings from '../settings/NotificationSettings.vue';
 
 const props = withDefaults(defineProps<{
@@ -702,14 +704,23 @@ const changePassword = async () => {
 const deleteAccount = async () => {
     isDeletingAccount.value = true;
     try {
-        const response = await sfetch('/api/users/me', { method: 'DELETE' });
+        // Keyguard d'abord (récupération par PIN), puis le compte : services/accountDeletion.ts.
+        const outcome = await deleteMyAccount({
+            keyguardConfigured: pinRecoveryConfigured,
+            ownsAnOrganization: organizations.value.some((org: { ownerId?: string }) => org.ownerId === user.value?.id),
+            disableKeyguard: () => pinRecoveryActors.guard.disable(),
+            async deleteMe() {
+                const response = await sfetch('/api/users/me', { method: 'DELETE' });
+                const err = response.ok ? {} : await response.json().catch(() => ({}));
+                return { ok: response.ok, status: response.status, error: (err as { error?: string }).error };
+            },
+        });
 
-        if (response.ok) {
+        if (outcome.ok) {
             disconnectSocket();
             logoutEverywhere();
         } else {
-            const err = await response.json().catch(() => ({}));
-            toast.show(err.error || 'Erreur lors de la suppression du compte', 'error');
+            toast.show(outcome.error || 'Erreur lors de la suppression du compte', 'error');
         }
     } catch (e) {
         console.error(e);
