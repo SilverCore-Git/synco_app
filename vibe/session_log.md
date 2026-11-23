@@ -1292,3 +1292,47 @@ Même verdict que la crate `synco-e2ee` sur les mêmes octets, en retenant la r�
 - `decryptAiField` (crypto.ts) reste inchangé.
 
 **Date** : 2026-11-22
+
+---
+
+## 📅 **2026-11-23 - Service runtime côté app : délégation, épinglage, plan d'action (lot L10)**
+
+**Priorité** : ⭐⭐⭐⭐⭐ (Haute)  
+**Complexité** : Élevée  
+**Statut** : ✅ **TERMINÉ** (sans UI ; recette manuelle à faire avec L11)
+
+### **Objectif**
+Toute la cryptographie côté client du mode runtime de Synco AI, sans UI : `synco_ai_runtime/docs/plan/01`, `03`, `12`, `vibe/features/SYNCOAI_REFONTE_FEATURE.md`.
+
+### **Fichiers Créés**
+
+| Fichier | Description |
+|---------|-------------|
+| `src/services/aiRuntime/errors.ts` | `AiRuntimeError` typée (codes fermés, messages fixes sans donnée) |
+| `src/services/aiRuntime/ports.ts` | Dépendances injectées (API, runtime direct, magasin, identité, annuaire, clés, horloge) |
+| `src/services/aiRuntime/runtimePin.ts` | Épingle TOFU `rt-pin:<user>:<org>` v1, archivée au désappairage |
+| `src/services/aiRuntime/runtimeTrust.ts` | 01 §6.3 étapes 1 à 6, `inspectRuntime`, `acceptNewRuntimeKey` |
+| `src/services/aiRuntime/pairing.ts` | Appairage admin (code, défi `pair`, certificat signé) |
+| `src/services/aiRuntime/delegation.ts` | Délégation v2, entrées filtrées par type et par org, mandat vérifié, mode autonome |
+| `src/services/aiRuntime/sync.ts` | Synchro P11 en tâche de fond (regroupement, backoff, plafond) |
+| `src/services/aiRuntime/actionPlan.ts` | Ouverture du plan, décision avec `serverDigests` (PC69), résultats de phase |
+| `src/services/aiRuntime/defaults.ts`, `index.ts` | Câblage réel et interface exposée à L11 à L13 |
+| `src/services/aiRuntime/testHarness.ts`, `*.test.ts` | Banc d'essai (faux runtime à vraies clés) et 36 tests |
+
+### **Fichiers Modifiés**
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/assets/utils/aiActionPlan.ts` | Abandons PC74 dans les résultats de phase, `PlanRun.abandon` |
+| `src/assets/utils/keyPinning.ts` | Contexte `aiconv:<sessionId>` |
+| `scripts/e2ee-vectors/action-plan.json` | Resynchronisé (`abandonCases`) |
+
+### **Notes**
+- Choix provisoires : dépôt sans entrée puis ajout des clés manquantes ; épingle archivée avec `runtimeId`/`fpr` à `null` ; préférence locale `rt-mode:<user>:<org>` ; mode reconduit depuis le mandat vérifié.
+- Limites : versions anciennes d'une clé d'espace non ouvrables (pas de route) ; résumé par type limité aux clés confiées pendant la session (l'API ne donne que `entryCount`).
+
+**Date** : 2026-11-23
+
+### **Prochaines Étapes**
+1. L11 : écrans (réglages, première vue, clé changée, appairage) branchés sur `src/services/aiRuntime`.
+2. Recette manuelle navigateur avec un vrai runtime (CORS, défi, dépôt, synchro).
