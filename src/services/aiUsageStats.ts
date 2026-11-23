@@ -12,6 +12,10 @@ export interface UsageEvent {
     completionTokens: number;
     reasoningTokens: number;
     totalTokens: number;
+    /** Conversation et régime (« runtime » : trame `usage` du WebSocket) ; absents des anciens évènements. */
+    sessionId?: string;
+    regime?: 'device' | 'gateway' | 'runtime';
+    messageId?: string;
 }
 
 const KEY = 'synco_ai_usage_log';
@@ -44,6 +48,23 @@ export const recordUsage = (provider: string, model: string, usage: Partial<Reco
     };
     usageEvents.value = [...usageEvents.value, event].slice(-MAX_EVENTS);
     write(usageEvents.value);
+};
+
+/**
+ * Trame `usage` d'une conversation runtime (05 §5) : comptée en tokens seulement (PC79), une seule fois
+ * par `(sessionId, messageId)` même si la trame est rejouée après une reconnexion.
+ */
+export const recordRuntimeUsage = (sessionId: string, frame: { messageId: string } & Partial<Record<'promptTokens' | 'completionTokens' | 'reasoningTokens' | 'totalTokens', number>>, model = 'runtime'): boolean => {
+    const total = frame.totalTokens ?? ((frame.promptTokens || 0) + (frame.completionTokens || 0));
+    if (total <= 0) return false;
+    if (usageEvents.value.some(e => e.sessionId === sessionId && e.messageId === frame.messageId)) return false;
+    const event: UsageEvent = {
+        t: Date.now(), provider: 'runtime', model, promptTokens: frame.promptTokens || 0, completionTokens: frame.completionTokens || 0,
+        reasoningTokens: frame.reasoningTokens || 0, totalTokens: total, sessionId, regime: 'runtime', messageId: frame.messageId,
+    };
+    usageEvents.value = [...usageEvents.value, event].slice(-MAX_EVENTS);
+    write(usageEvents.value);
+    return true;
 };
 
 export const resetUsageStats = () => {
