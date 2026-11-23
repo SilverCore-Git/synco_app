@@ -35,6 +35,7 @@ export const AI_RUNTIME_ERROR_CODES = [
     'delegation_unusable',
     'delegation_entry_forbidden',
     'delegation_not_allowed',
+    'delegation_duration_too_short',
     'runtime_unavailable',
     'feature_not_allowed',
     // Plan d'action (12)
@@ -76,6 +77,7 @@ const MESSAGES: Record<AiRuntimeErrorCode, string> = {
     delegation_unusable: 'La délégation est illisible.',
     delegation_entry_forbidden: 'Une clé ne peut pas être confiée au runtime.',
     delegation_not_allowed: "Votre organisation ne vous autorise pas à déléguer vos clés.",
+    delegation_duration_too_short: "La durée maximale de délégation de votre organisation est inférieure à une heure.",
     runtime_unavailable: "Le runtime de l'organisation n'est pas disponible.",
     feature_not_allowed: "Votre organisation n'autorise pas cette fonctionnalité.",
     plan_invalid: "Le plan d'action est invalide.",

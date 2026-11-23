@@ -385,6 +385,8 @@ export async function createDelegation(deps: AiRuntimeDeps, orgId: string, optio
     const owner = await ownerRsaSpkiHexOf(deps);
 
     const maxSecs = runtime.maxDelegationDays ? runtime.maxDelegationDays * 86_400 : DEFAULT_DELEGATION_SECS;
+    // Plafond de l'org sous le minimum de l'API (1 h) : refus typé local, sans solliciter l'API.
+    if (maxSecs < MIN_DELEGATION_SECS) throw new AiRuntimeError('delegation_duration_too_short');
     const duration = Math.max(MIN_DELEGATION_SECS, Math.min(options.durationSecs ?? DEFAULT_DELEGATION_SECS, maxSecs));
     const iat = deps.clock.now();
     const ctx: DelegationContext = { userId, orgId, runtimeId: runtime.runtimeId, delegationId: crypto.randomUUID(), scope: 'org', iat, exp: iat + duration };

@@ -129,6 +129,15 @@ describe('création (03 §7.1) et contenu des charges', () => {
     });
 });
 
+describe('durée', () => {
+    test('plafond de l\'org sous une heure : delegation_duration_too_short, rien déposé', async () => {
+        const h = await prepared();
+        (h.registry.policy as { maxDelegationDays: number }).maxDelegationDays = 0.01;
+        expect(await code(createDelegation(h.deps, ORG, { mode: 'plan' }))).toBe('delegation_duration_too_short');
+        expect(h.requests.some(r => r.method === 'POST' && r.path === `/api/orgs/${ORG}/ai/runtime/delegations`)).toBe(false);
+    });
+});
+
 describe('mode du résumé', () => {
     test('DK en mémoire : le mode servi par l\'API est ignoré, le mandat fait foi', async () => {
         const h = await prepared();
