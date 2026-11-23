@@ -406,7 +406,7 @@ export async function addMissingEntries(deps: AiRuntimeDeps, orgId: string): Pro
 // Création (03 §7.1) : délégation v2
 // ---------------------------------------------------------------------------
 
-export interface CreateDelegationOptions extends Pick<VerifyOptions, 'confirmFirstSeen'> {
+export interface CreateDelegationOptions extends Pick<VerifyOptions, 'confirmFirstSeen' | 'confirmedFingerprint'> {
     mode: MandateMode;
     /** Durée souhaitée (bornée par 1 h et `maxDelegationDays` de l'org). */
     durationSecs?: number;
@@ -423,7 +423,7 @@ export async function createDelegation(deps: AiRuntimeDeps, orgId: string, optio
     const userId = requireUserId(deps);
     const signKey = deps.identity.signKey();
     if (!signKey) throw new AiRuntimeError('e2ee_locked');
-    const runtime = options.verified ?? (await verifyRuntimeForDelegation(deps, orgId, { confirmFirstSeen: options.confirmFirstSeen }));
+    const runtime = options.verified ?? (await verifyRuntimeForDelegation(deps, orgId, { confirmFirstSeen: options.confirmFirstSeen, confirmedFingerprint: options.confirmedFingerprint }));
     const owner = await ownerRsaSpkiHexOf(deps);
 
     const maxSecs = runtime.maxDelegationDays ? runtime.maxDelegationDays * 86_400 : DEFAULT_DELEGATION_SECS;

@@ -3,7 +3,7 @@
  * enregistrement des conversations runtime (PC81).
  */
 import { beforeEach, describe, expect, test } from 'bun:test';
-import { AiRuntimeError, clearDelegationKeys, isKnownRuntimeConversation } from '@/services/aiRuntime';
+import { AiRuntimeError, clearDelegationKeys, isKnownRuntimeConversation, onRuntimeUnpaired, verifyRuntimeForDelegation } from '@/services/aiRuntime';
 import { ORG, makeHarness, type Harness } from '@/services/aiRuntime/testHarness';
 import {
     explainRuntimeError,
@@ -130,6 +130,20 @@ describe("vue d'administration", () => {
         expect(v.runtime?.pinState).toBe('first_seen');
         expect(v.policy).toEqual({ enabled: true, maxDelegationDays: 3, toolPolicy: { delete_task: 'deny' } });
         expect(h.requests.some(r => r.path.endsWith('/challenge') || r.method === 'POST')).toBe(false);
+    });
+
+    test("nouveau runtime après un désappairage : bandeau d'alerte dès le chargement, avec l'ancienne empreinte", async () => {
+        const { loadRuntimeAdminView } = await import('./aiRuntimeUi');
+        await verifyRuntimeForDelegation(h.deps, ORG, { confirmFirstSeen: true });
+        const registered = h.registry.runtime;
+        h.registry.runtime = null;
+        await onRuntimeUnpaired(h.deps, ORG, h.rt.runtimeId);
+        h.registry.runtime = registered;
+        const v = await loadRuntimeAdminView(h.deps, ORG);
+        expect(v.runtime?.pinState).toBe('first_seen_after_change');
+        expect(v.problem).toMatchObject({ code: 'runtime_first_seen', severity: 'alert', action: 'confirm_first_seen' });
+        expect(v.problem?.pinnedFingerprint).toBeTruthy();
+        expect(v.problem?.fingerprint).toBe(v.runtime?.fingerprint ?? undefined);
     });
 
     test("aucun runtime : vue vide, politique par défaut", async () => {

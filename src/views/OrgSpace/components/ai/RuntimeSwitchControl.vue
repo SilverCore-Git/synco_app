@@ -16,7 +16,7 @@
             <template #footer>
                 <button class="default px-5 py-2.5 rounded-xl text-sm font-medium" @click="notice = null">Fermer</button>
                 <button v-if="notice?.action === 'confirm_first_seen'" class="primary px-5 py-2.5 rounded-xl text-sm font-medium" @click="retryConfirmed">Je reconnais cette empreinte</button>
-                <button v-else-if="notice?.action === 'renew_delegation'" class="primary px-5 py-2.5 rounded-xl text-sm font-medium" @click="retryConfirmed">Renouveler et basculer</button>
+                <button v-else-if="notice?.action === 'renew_delegation'" class="primary px-5 py-2.5 rounded-xl text-sm font-medium" @click="retryRenewed">Renouveler et basculer</button>
             </template>
         </Popup>
 
@@ -70,12 +70,12 @@ const explain = async (e: unknown): Promise<void> => {
     else notice.value = p;
 };
 
-const toRuntime = async (confirmFirstSeen: boolean) => {
+const toRuntime = async (confirmFirstSeen: boolean, confirmedFingerprint?: string) => {
     const id = activeSessionId.value;
     if (!id) return;
     switching.value = true;
     try {
-        await switchConversationToRuntime(deps, orgId.value, id, { confirmFirstSeen });
+        await switchConversationToRuntime(deps, orgId.value, id, { confirmFirstSeen, confirmedFingerprint });
         notice.value = null;
         toast.show('Cette conversation tourne maintenant sur le runtime.', 'success');
         await fetchSessions();
@@ -85,7 +85,9 @@ const toRuntime = async (confirmFirstSeen: boolean) => {
         switching.value = false;
     }
 };
-const retryConfirmed = () => { void toRuntime(true); };
+// Seule l'empreinte AFFICHÉE dans l'avis est confirmée : si le runtime en présente une autre, L10 refuse.
+const retryConfirmed = () => { void toRuntime(true, notice.value?.fingerprint ?? ''); };
+const retryRenewed = () => { void toRuntime(false); };
 
 const toLocal = async () => {
     const id = activeSessionId.value;

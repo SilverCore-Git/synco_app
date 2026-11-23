@@ -203,6 +203,8 @@ async function post(deps: AiRuntimeDeps, orgId: string, sessionId: string, actio
 
 export interface SwitchOptions {
     confirmFirstSeen?: boolean;
+    /** Empreinte affichée à l'utilisateur quand il a confirmé (refus si le runtime en présente une autre). */
+    confirmedFingerprint?: string;
     builder?: SwitchBodyBuilder | null;
 }
 
@@ -217,7 +219,7 @@ export async function switchConversationToRuntime(deps: AiRuntimeDeps, orgId: st
     // DK absente de la mémoire (nouvelle session de l'app) : l'entrée `conv` ne peut pas être scellée,
     // il faut une délégation neuve (03 §7.2).
     if (!summary || summary.status !== 'active' || !summary.keysInMemory || summary.expiresAt.getTime() <= deps.clock.now() * 1000) {
-        summary = await createDelegation(deps, orgId, { mode: summary?.mode ?? 'plan', confirmFirstSeen: options.confirmFirstSeen });
+        summary = await createDelegation(deps, orgId, { mode: summary?.mode ?? 'plan', confirmFirstSeen: options.confirmFirstSeen, confirmedFingerprint: options.confirmedFingerprint });
     }
     // PC81 : le constructeur enregistre la conversation AVANT de sceller son entrée `conv` ; si la
     // bascule échoue, une conversation qui n'était pas déjà connue est retirée du registre.
@@ -317,6 +319,10 @@ export async function loadRuntimeAdminView(deps: AiRuntimeDeps, orgId: string): 
         problem = explainRuntimeError(e, { pinnedFingerprint: await previousPinnedFingerprint(deps, orgId) });
         fingerprint = problem.fingerprint ?? null;
         if (problem.code === 'runtime_key_changed') pinState = 'changed';
+    }
+    // Un runtime qui remplace un runtime déjà épinglé alerte dès le chargement, pas seulement au premier essai.
+    if (!problem && pinState === 'first_seen_after_change') {
+        problem = explainRuntimeError(new AiRuntimeError('runtime_first_seen', { fingerprint: fingerprint ?? undefined, previouslyPinned: true }), { pinnedFingerprint: await previousPinnedFingerprint(deps, orgId) });
     }
     const signer = isRec(r.signer) ? r.signer : {};
     return {

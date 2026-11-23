@@ -195,6 +195,12 @@ export interface VerifyOptions {
      * (01 §8). Sans elle, une première vue lève `runtime_first_seen` (avec l'empreinte à afficher).
      */
     confirmFirstSeen?: boolean;
+    /**
+     * Empreinte (formatée) affichée à l'utilisateur au moment de confirmer. Si elle est fournie et que le
+     * runtime en présente une autre maintenant, la confirmation est refusée (`runtime_first_seen` avec la
+     * nouvelle empreinte) : on ne confirme que ce qu'on a vu. Les écrans la fournissent toujours.
+     */
+    confirmedFingerprint?: string;
     /** Défi de possession (étape 6). `false` seulement pour l'affichage (`inspectRuntime`). */
     challenge?: boolean;
     /**
@@ -250,6 +256,10 @@ export async function verifyRuntimeForDelegation(deps: AiRuntimeDeps, orgId: str
         throw new AiRuntimeError('runtime_key_changed', { fingerprint, pinnedFingerprint: pin.pinnedFpr ? formatRuntimeFingerprint(pin.pinnedFpr) : undefined, adminId: cert.adminId });
     }
     const firstSeen = pin.state === 'first_seen' || pin.state === 'first_seen_after_change';
+    if (firstSeen && options.confirmFirstSeen && options.confirmedFingerprint !== undefined
+        && options.confirmedFingerprint !== fingerprint && options.challenge !== false) {
+        throw new AiRuntimeError('runtime_first_seen', { fingerprint, adminId: cert.adminId, previouslyPinned: pin.state === 'first_seen_after_change' });
+    }
     if (firstSeen && !options.confirmFirstSeen && options.challenge !== false) {
         throw new AiRuntimeError('runtime_first_seen', { fingerprint, adminId: cert.adminId, previouslyPinned: pin.state === 'first_seen_after_change' });
     }

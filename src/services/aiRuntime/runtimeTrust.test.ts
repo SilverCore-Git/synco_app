@@ -178,7 +178,31 @@ describe('certificat (01 §6.3) : refus avant toute délégation', () => {
     });
 });
 
+describe('confirmation de la première vue : seule l\'empreinte affichée est confirmée', () => {
+    test('empreinte confirmée différente de celle présentée : runtime_first_seen, rien d\'épinglé ; identique : accepté', async () => {
+        const h = await makeHarness();
+        const shown = formatRuntimeFingerprint(h.rt.fprHex);
+        const err = (await verifyRuntimeForDelegation(h.deps, ORG, { confirmFirstSeen: true, confirmedFingerprint: 'AAAA-AAAA' }).catch((e: unknown) => e)) as AiRuntimeError;
+        expect(err.code).toBe('runtime_first_seen');
+        expect(err.details.fingerprint).toBe(shown);
+        expect(h.rt.challenges).toBe(0);
+        expect(h.store.get(runtimePinSlot(USER, ORG))).toBeUndefined();
+        expect((await verifyRuntimeForDelegation(h.deps, ORG, { confirmFirstSeen: true, confirmedFingerprint: shown })).pinState).toBe('match');
+    });
+});
+
 describe('appairage par un admin (01 §7)', () => {
+    test('empreinte de l\'aperçu différente de celle présentée au moment d\'appairer : refus, rien déposé', async () => {
+        const rt = await makeRuntime(null);
+        const admin = await makePerson(ADMIN);
+        const h = await makeHarness({ rt, admin, user: admin });
+        h.registry.runtime = null;
+        const pairing = await formatPairingCode(fromB64u(Buffer.from(rt.fprHex, 'hex').toString('base64url')));
+        expect(await code(pairRuntime(h.deps, ORG, rt.url, pairing, 'BBBB-BBBB'))).toBe('pair_code_mismatch');
+        expect(h.requests.some(q => q.method === 'POST' && q.path === `/api/orgs/${ORG}/ai/runtime`)).toBe(false);
+        expect((await pairRuntime(h.deps, ORG, rt.url, pairing, formatRuntimeFingerprint(rt.fprHex))).runtimeId).toBe(rt.runtimeId);
+    });
+
     test('code juste : défi pair, certificat signé déposé, épingle de l\'admin', async () => {
         const rt = await makeRuntime(null);
         const admin = await makePerson(ADMIN);

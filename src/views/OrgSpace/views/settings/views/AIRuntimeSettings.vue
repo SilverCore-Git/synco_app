@@ -58,11 +58,11 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <label class="block">
                         <span class="text-xs font-semibold text-(--text2)">Adresse</span>
-                        <input v-model.trim="pairUrl" type="url" inputmode="url" class="field" placeholder="https://runtime.exemple.fr" :disabled="pairing" autocomplete="off" />
+                        <input v-model.trim="pairUrl" type="url" inputmode="url" class="field" placeholder="https://runtime.exemple.fr" :disabled="pairing || !!preview" autocomplete="off" />
                     </label>
                     <label class="block">
                         <span class="text-xs font-semibold text-(--text2)">Code d'appairage</span>
-                        <input v-model.trim="pairCode" type="text" class="field font-mono" placeholder="XXXX-XXXX-XXXX" :disabled="pairing" autocomplete="off" spellcheck="false" />
+                        <input v-model.trim="pairCode" type="text" class="field font-mono" placeholder="XXXX-XXXX-XXXX" :disabled="pairing || !!preview" autocomplete="off" spellcheck="false" />
                     </label>
                 </div>
 
@@ -77,7 +77,7 @@
                 </p>
 
                 <div class="flex justify-end gap-3">
-                    <button v-if="preview" class="default px-5 py-2.5 rounded-xl text-sm font-medium" :disabled="pairing" @click="preview = null">Modifier</button>
+                    <button v-if="preview" class="default px-5 py-2.5 rounded-xl text-sm font-medium" :disabled="pairing" @click="resetPreview">Modifier</button>
                     <button v-if="!preview" class="primary px-6 py-2.5 rounded-xl text-sm font-medium" :class="pairing ? 'loader' : ''" :disabled="pairing || !pairUrl || !pairCode" @click="runPreview">Vérifier le runtime</button>
                     <button v-else class="primary px-6 py-2.5 rounded-xl text-sm font-medium" :class="pairing ? 'loader' : ''" :disabled="pairing" @click="runPair">Appairer ce runtime</button>
                 </div>
@@ -217,11 +217,16 @@ const runPreview = async () => {
         pairing.value = false;
     }
 };
+/** Les champs sont figés pendant l'aperçu : « Modifier » efface l'aperçu, et seulement lui. */
+const resetPreview = () => { preview.value = null; pairProblem.value = null; };
 const runPair = async () => {
+    const shown = preview.value?.fingerprint;
+    if (!shown) return;
     pairing.value = true;
     pairProblem.value = null;
     try {
-        await pairRuntime(deps, orgId.value, pairUrl.value, pairCode.value);
+        // L'admin certifie l'empreinte qu'il vient de comparer : si le runtime en présente une autre, rien n'est signé.
+        await pairRuntime(deps, orgId.value, pairUrl.value, pairCode.value, shown);
         toast.show('Runtime appairé.', 'success');
         preview.value = null;
         pairUrl.value = '';
