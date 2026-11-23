@@ -4,6 +4,10 @@
 export type AiProviderId = 'local' | 'custom' | 'gateway' | 'openai' | 'gemini' | 'mistral';
 export type ReasoningEffort = 'low' | 'medium' | 'high';
 /** Famille de stockage/pilotage de conversation : on ne peut pas poursuivre une session dans une autre. */
+/**
+ * `gateway` ne désigne plus qu'un ancien format de conversation, que l'on sait lire : aucun fournisseur
+ * n'en relève (la passerelle est appelée par la boucle locale, donc `client`).
+ */
 export type SessionRegime = 'client' | 'gateway' | 'server';
 
 export interface AiProviderMeta {
@@ -23,8 +27,8 @@ export const AI_PROVIDERS: AiProviderMeta[] = [
         desc: "Exécuté sur la carte graphique de l'utilisateur. Gratuit, 100% privé, mais dépend des performances de chaque machine." },
     { id: 'custom', name: 'Serveur client (API custom)', icon: 'bi-hdd-rack', category: 'local', regime: 'client', needsKey: false,
         desc: 'Votre propre serveur local ou distant avec une API compatible OpenAI (Ollama, vLLM, etc.).' },
-    { id: 'gateway', name: 'Passerelle Synco AI (auto-hébergée)', icon: 'bi-hdd-network', category: 'local', regime: 'gateway', needsKey: false,
-        desc: 'Votre propre Synco AI Gateway devant un Ollama que vous contrôlez : vrais outils IA, authentification via votre compte Synco, aucune clé à distribuer.' },
+    { id: 'gateway', name: 'Passerelle Synco AI (auto-hébergée)', icon: 'bi-hdd-network', category: 'local', regime: 'client', needsKey: false,
+        desc: 'Votre propre Synco AI Gateway devant un Ollama que vous contrôlez : la boucle d\'agent tourne dans votre navigateur, la passerelle ne fait que relayer le modèle (accès par ticket court, aucune clé à distribuer).' },
     { id: 'openai', name: 'OpenAI', icon: 'bi-stars', category: 'cloud', regime: 'server', needsKey: true,
         defaultModel: 'gpt-4o-mini', recommendedModels: ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1', 'o3-mini'],
         desc: 'Modèles cloud de pointe (GPT-4o, GPT-4o-mini).' },

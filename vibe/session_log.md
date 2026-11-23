@@ -1357,3 +1357,89 @@ Corriger les constats de la revue crypto de `src/services/aiRuntime/`, un commit
 - Une conversation runtime créée sur un autre appareil n'est déléguée qu'après avoir été ouverte ici (L11 doit appeler `registerRuntimeConversation`).
 
 **Date** : 2026-11-23
+
+---
+
+## 📅 **2026-11-23 - Lot L11 : paramètres du runtime, politiques d'org, bascule des régimes**
+
+**Priorité** : ⭐⭐⭐⭐⭐ (Haute)  
+**Complexité** : Élevée  
+**Statut** : ✅ **TERMINÉ** (recette manuelle Firefox à faire ; bascule d'une conversation existante en attente de L10)
+
+### **Objectif**
+Écrans de L11 au-dessus de `src/services/aiRuntime` : onglets org « Runtime » et « Sécurité », onglet « Agent » des réglages utilisateur, bascule d'une conversation, fin du régime `gateway`.
+
+### **Changements**
+- **Fin du régime gateway** : `regimeOf('gateway')` = `client` ; `chat()` appelle `/v1/chat/completions` de la passerelle avec un ticket `sgt1` (`POST /ai/gateway-ticket`) après `assertAllowedGateway` ; `gatewayFetch`, `/chat` et `/chat/:id/tool-result` retirés ; `setEncryptedSessionTitle` retiré. Les anciennes conversations gateway restent lisibles (`hasEncryptedGatewayFields`, `AiSessionKey`) et se poursuivent en `client`.
+- **Org › Synco AI** : onglets Fournisseurs / Runtime (`AIRuntimeSettings.vue` : appairage en deux temps avec empreinte, désappairage, durée max D4, `toolPolicy` D5) / Sécurité (`AISecuritySettings.vue`, `FeaturePolicyCard.vue`, `MemberPicker.vue` : trois cartes, puces repliées, recherche, annonce chiffrée avant enregistrement, journal).
+- **Réglages utilisateur** : onglet « Agent » (`AgentTab.vue`, `AutonomyWarning.vue`) : où tourne l'agent, empreinte, délégation et « Révoquer », mode autonome (case non précochée), « Toujours accepter » en puces (`aiAutoAccept.ts`, jamais une action sensible).
+- **Bascule** : `RuntimeSwitchControl.vue` dans `AiComposerControls.vue` ; `aiRuntimeUi.ts` (erreurs expliquées, `switchConversationToRuntime/ToLocal`) ; `registerRuntimeConversation` appelé à la bascule et à l'ouverture d'une conversation runtime (`loadSession`).
+
+### **Fichiers Créés**
+`src/services/aiFeaturePolicies.ts`, `aiRuntimeUi.ts`, `aiAutoAccept.ts` (+ tests), `src/components/windows/aiSettings/{AgentTab,AutonomyWarning}.vue`, `src/views/OrgSpace/views/settings/views/{AIRuntimeSettings,AISecuritySettings}.vue`, `…/components/{FeaturePolicyCard,MemberPicker}.vue`, `policyMembers.ts`, `src/views/OrgSpace/components/ai/RuntimeSwitchControl.vue`.
+
+### **Notes**
+- Limite : L10 n'expose pas le constructeur du corps de `switch-to-runtime` (rechiffrement de l'historique sous `CK`, entrée `conv`). `setSwitchBodyBuilder` attend ce constructeur ; sans lui, « Faire tourner sur le runtime » explique que la bascule arrive avec le lot suivant. « Revenir en local » fonctionne.
+- Réglage « Toujours accepter » : liste JSON dans `ai_auto_accept_<orgId>` (le réglage du compte refuse les tableaux) ; à consommer par L12.
+- Aucun montant en euros ; aucune rangée par membre (recherche limitée à 8 résultats).
+
+**Date** : 2026-11-23
+
+### **Prochaines Étapes**
+1. L10 : fonction qui construit le corps de `switch-to-runtime`, à brancher par `setSwitchBodyBuilder`.
+2. Recette manuelle Firefox avec un vrai runtime (porte D), `defaults.ts` (sfetch, CORS, socket), comparaison aux captures C3.
+
+---
+
+## 📅 **2026-11-23 - Lot L10b : corps de `switch-to-runtime` (bascule d'une conversation existante)**
+
+**Priorité** : ⭐⭐⭐⭐⭐ (Haute)  
+**Complexité** : Élevée  
+**Statut** : ✅ **TERMINÉ** (recette manuelle Firefox avec un vrai runtime à faire)
+
+### **Objectif**
+Construire le corps de `POST …/ai/sessions/:sessionId/switch-to-runtime` (04 §5, 03 §6.2 à §6.4) et le brancher par `setSwitchBodyBuilder` : « Faire tourner sur le runtime » fonctionne pour une conversation existante.
+
+### **Changements**
+- `src/services/aiRuntime/switchBody.ts` : `buildSwitchToRuntimeBody` / `createSwitchBodyBuilder`. Ordre : DK de CETTE délégation en mémoire (sinon `delegation_unusable`, rien lu ni enregistré) → `GET` de la conversation (`rev` = `baseRev`) → `CK` existante (`GET …/key` `200` ouverte par `deps.keys`, sinon `conversation_key_unavailable`, jamais de CK neuve) ou tirée → `registerRuntimeConversation` (PC81) → `sealConversationEntry` (`convEntry`) → historique rechiffré sous `CK` → titre (≤ 60 caractères) → `convKey` (RSA-OAEP pour soi + FC4 `aiconv:<sessionId>`) si la CK est neuve → bornes.
+- Formats lus (03 §6.4) : `StoredMessage[]` en clair ; champs `gcm1:` sous `AiSessionKey` (sans placeholder : un champ illisible arrête la bascule) ; format d'affichage d'OrgAI (blob `isE2EE`, que `GET /ai/sessions/:id` rend vide : repris de l'historique affiché) ; `conv-gcm1-v1` relu en strict puis renvoyé tel quel.
+- Bornes de `switchToRuntimeSchema` : 20 000 messages, 64 appels par message, nom ≤ 64, `createdAt` ≤ 40, 8 Mio, titre chiffré ≤ 1024, identifiants `[A-Za-z0-9_-]{1,64}` (réécrits en UUID à la conversion, `toolCallId` suit).
+- `delegation.ts` : `sealConversationEntry`, `forgetRuntimeConversation` ; `aiActionPlan.ts` : `encryptAiFieldStrict` ; `keyEnvelope.ts` : `signKeyEnvelope(…, signKey)`.
+- `aiRuntimeUi.ts` : délégation recréée si la DK n'est pas en mémoire ; conversation retirée du registre si la bascule échoue ; trois nouveaux codes expliqués. `aiRuntimeSwitch.ts` branche le constructeur depuis `RuntimeSwitchControl.vue`.
+
+### **Tests**
+`switchBody.test.ts` (21) : aller-retour avec le banc de L10 (DK ouverte par la `kex` du faux runtime, entrée `conv` → CK, CK = déchiffrement RSA, enveloppe FC4 vérifiée), historique déchiffré = original, CK réutilisée, bornes, aucun clair hors du chiffré, échec fermé, vecteurs `conversation-fields.json` rejoués (lecture stricte, écriture à IV figé octet pour octet). `bun test src/services` : 168 réussis ; `vue-tsc` : 0 erreur.
+
+### **Choix provisoires (à valider)**
+- Conversion du format d'affichage → `StoredMessage[]` (03 §6.4 « à valider par L11 ») : messages `system` écartés, `mutating` absent → `false`, statut absent → `done`, catégorie absente → `client`.
+- Historique au-delà des bornes : refus (`history_too_large`), pas de troncature.
+- `conv-gcm1-v1` : valeurs renvoyées telles quelles après relecture stricte (pas de rechiffrement).
+
+**Date** : 2026-11-23
+
+### **Prochaines Étapes**
+1. Recette manuelle Firefox : bascule d'une conversation claire, gateway et client ; retour local puis retour runtime (CK conservée).
+2. Le blob `isE2EE` reste invisible par `GET /ai/sessions/:id` (l'API ne rend que les tableaux) : seul l'appareil qui l'affiche peut le basculer.
+
+---
+
+## 📅 **2026-11-23 - Lot L11 : corrections de la revue**
+
+**Statut** : ✅ **TERMINÉ** (recette manuelle Firefox à faire)
+
+### **Changements (un commit par point)**
+1. `listGatewayModels` : ticket `sgt1` (`/ai/gateway-ticket`), présenté seulement à l'origine enregistrée ; plus de jeton Keycloak ; `any` supprimé.
+2. `activeSessionReadOnly` : conversation illisible = lecture seule ; `syncSession` n'écrit plus jamais en clair (ni sans clé).
+3. `loadSession` lit `conv-gcm1-v1` (`openConversationMessages`, CK) ; `syncSession` réécrit sous CK (`sealConversationMessages`) ; « Revenir en local » fait `await loadSession(id)`.
+4. Nouveau : la bascule ouvre le blob `isE2EE` rendu par l'API (`openClientBlob`) ; illisible ou format inconnu = `history_unreadable`, jamais un historique vide (`displayedMessages` supprimé).
+5. `confirmedFingerprint` (L10) : seule l'empreinte affichée est confirmée (AgentTab, RuntimeSwitchControl) ; `pairRuntime(…, expectedFingerprint)` compare à l'aperçu ; champs figés pendant l'aperçu ; bandeau `first_seen_after_change` dès le chargement.
+6. AgentTab : pas de redélégation après acceptation de clé si aucune délégation active ; autonomie seulement sur le runtime ; désactivation toujours possible (`aiAgentRules.ts`).
+7. Tout le monde vers liste : un seul `PUT { mode, userIds }` (`applyPolicyChange`, refus au-delà de 100) ; annonce au plus juste (liste vide = tous perdent ; sinon au moins n − choisies).
+8. « Toujours accepter » : liste blanche des types admis, drapeau `sensitive` du manifeste prioritaire s'il existe.
+Mineurs : « +N » cherche côté serveur (`?q=`) ; annonce « Toujours accepter » sans compte d'utilisateurs.
+
+### **Vérifications**
+vue-tsc : 0 erreur. `bun test src/services` : 191 réussis, 0 échec.
+
+### **Reste ouvert**
+`MemberPicker` cherche dans l'annuaire local (aucun endpoint serveur de recherche de membres) ; PC81 « à la création » sans objet (l'API refuse de créer une conversation runtime) ; le manifeste des outils n'a pas de drapeau `sensitive` ; la conversion affichage vers StoredMessage à l'écriture CK horodate tous les messages à l'instant de la synchro.

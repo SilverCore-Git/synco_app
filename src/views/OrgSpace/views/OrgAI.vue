@@ -320,7 +320,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
 import { localLLM } from '@/services/LocalLLMService';
-import { aiService, aiIsLocal, aiIsClientDriven, aiSessionNotEncrypted, aiPrefsReady, aiSessionMessages, syncSession, fetchSessions, activeSessionId, setEncryptedSessionTitle, clientAgentTurn, resumeClientAgent } from '@/services/AIService';
+import { aiService, aiIsLocal, aiIsClientDriven, aiSessionNotEncrypted, aiPrefsReady, aiSessionMessages, syncSession, fetchSessions, activeSessionId, clientAgentTurn, resumeClientAgent } from '@/services/AIService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import { useTaskPanels } from '@/composables/useTaskPanels';
@@ -585,8 +585,7 @@ const upsertToolPart = (idx: number, toolCallId: string, patch: Partial<ToolStep
  */
 const consumeAgentStream = async (
   generator: AsyncGenerator<any, void, unknown>,
-  getIndex: () => number,
-  newSessionTitleSource?: string
+  getIndex: () => number
 ) => {
   for await (const ev of generator) {
     if (!isGenerating.value) break;
@@ -595,17 +594,8 @@ const consumeAgentStream = async (
 
     if (ev.type === 'session') {
       if (activeSessionId.value !== ev.sessionId) {
-        const isNewSession = !activeSessionId.value;
         activeSessionId.value = ev.sessionId;
         fetchSessions();
-
-        // Titre chiffré côté client pour le tout premier message d'une nouvelle session 'gateway' —
-        // synco_api ne peut plus le dériver lui-même une fois le content opaque pour lui (E2EE_PLAN.md §4.4).
-        // Fire-and-forget : ne doit jamais bloquer/faire échouer l'envoi du message.
-        if (isNewSession && newSessionTitleSource && aiService.config.provider === 'gateway') {
-          const orgId = route.params.orgId as string;
-          setEncryptedSessionTitle(orgId, ev.sessionId, newSessionTitleSource);
-        }
       }
     } else if (ev.type === 'text') {
       appendTextPart(idx, ev.delta);
@@ -881,7 +871,7 @@ const sendMessage = async () => {
   try {
     const idx = assistantMsgIndex;
     const generator = clientDriven ? clientAgentTurn(orgId) : aiService.chatAgentTurn(orgId, activeSessionId.value, text);
-    await consumeAgentStream(generator, () => idx, text);
+    await consumeAgentStream(generator, () => idx);
   } catch (error: any) {
     if (error.message !== 'USER_STOPPED' && !String(error).includes('USER_STOPPED')) {
       appendTextPart(assistantMsgIndex, `\n\n**Erreur:** ${error.message}`);

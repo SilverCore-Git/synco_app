@@ -24,8 +24,10 @@
             <main class="flex-1 min-h-0 bg-(--bg) relative overflow-y-auto p-4 sm:p-8 space-y-6">
 
 
+                        <AgentTab v-if="tab === 'agent'" />
+
                         <!-- Statistiques -->
-                        <template v-if="tab === 'stats'">
+                        <template v-else-if="tab === 'stats'">
                             <div class="flex items-center justify-between gap-3">
                                 <div class="flex gap-1">
                                     <button v-for="p in periods" :key="p.id" class="chip" :class="period === p.id ? 'chip-active' : ''" @click="period = p.id">{{ p.label }}</button>
@@ -193,6 +195,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import Window from './Window.vue';
+import AgentTab from './aiSettings/AgentTab.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { localLLM, type LLMModel } from '@/services/LocalLLMService';
 import { usageEvents, resetUsageStats, groupUsage, dailyTokens } from '@/services/aiUsageStats';
@@ -203,13 +206,14 @@ const props = defineProps<{ show: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 const toast = useToast();
 
-type Tab = 'stats' | 'local' | 'debug';
+type Tab = 'agent' | 'stats' | 'local' | 'debug';
 const tabs: Array<{ id: Tab; label: string; icon: string }> = [
+    { id: 'agent', label: 'Agent', icon: 'bi-sliders' },
     { id: 'stats', label: 'Statistiques', icon: 'bi-bar-chart-line' },
     { id: 'local', label: 'Modèles locaux', icon: 'bi-gpu-card' },
     { id: 'debug', label: 'Débogage', icon: 'bi-bug' },
 ];
-const tab = ref<Tab>('stats');
+const tab = ref<Tab>('agent');
 
 // ---- Statistiques
 const periods = [

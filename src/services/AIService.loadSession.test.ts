@@ -18,7 +18,9 @@ mock.module("@/assets/utils/sfetch", () => ({
     default: (url: string, init?: any) => sfetchImpl(url, init),
 }));
 
-const { loadSession, aiSessionMessages, fetchSessions, chatSessions, aiSessionNotEncrypted } = await import("./AIService");
+const registered: string[] = [];
+
+const { runtimeConversationRegistrar, loadSession, aiSessionMessages, fetchSessions, chatSessions, aiSessionNotEncrypted } = await import("./AIService");
 const { openedOrg, user } = await import("@/assets/var");
 const { privateKey, wrapAiSessionKeyForMember, encryptAiField, encryptForPeer } = await import("@/assets/utils/crypto");
 
@@ -149,6 +151,9 @@ describe("loadSession — the 3 message formats it must distinguish", () => {
         const toolPart = assistantTurn.parts.find((p: any) => p.type === "tool");
         expect(toolPart.tool.args).toEqual({ city: "Paris" });
         expect(toolPart.tool.result).toEqual({ ok: true, weather: "sunny" });
+
+        // L11 : une ancienne conversation gateway reste lisible (clé de session IA) et n'est pas « en clair ».
+        expect(aiSessionNotEncrypted.value).toBe(false);
     });
 
     test("case 3 fallback — gateway session but private key locked: shows the placeholder instead of crashing", async () => {
@@ -232,4 +237,20 @@ describe("fetchSessions — sidebar title decryption (same encryptionScheme-is-n
         expect(chatSessions.value.find((s: any) => s.id === "sess-b")?.title).toBe("Nouvelle session");
     });
 
+});
+
+describe("loadSession — conversation runtime (PC81)", () => {
+    test("l'ouverture d'une conversation runtime l'enregistre ; une conversation locale ne l'est pas", async () => {
+        registered.length = 0;
+        runtimeConversationRegistrar.register = async (orgId: string, sessionId: string) => { registered.push(`${orgId}/${sessionId}`); };
+        openedOrg.value = { id: "org-rt" } as any;
+        sfetchImpl = routeByUrl({
+            "/ai/sessions/sess-rt": () => new Response(JSON.stringify({ id: "sess-rt", regime: "runtime", messages: [] }), { status: 200 }),
+            "/ai/sessions/sess-local": () => new Response(JSON.stringify({ id: "sess-local", regime: "client", messages: [] }), { status: 200 }),
+        });
+        await loadSession("sess-local");
+        expect(registered).toEqual([]);
+        await loadSession("sess-rt");
+        expect(registered).toEqual(["org-rt/sess-rt"]);
+    });
 });

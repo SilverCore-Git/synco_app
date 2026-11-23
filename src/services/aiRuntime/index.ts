@@ -37,6 +37,8 @@ export {
     ownRsaThumbprint,
     registerRuntimeConversation,
     isKnownRuntimeConversation,
+    forgetRuntimeConversation,
+    sealConversationEntry,
     onRuntimeUnpaired,
     clearDelegationKeys,
     DEFAULT_DELEGATION_SECS,
@@ -44,6 +46,19 @@ export {
     type CreateDelegationOptions,
 } from './delegation';
 export { RuntimeKeySync, type SyncState, type SyncPhase } from './sync';
+export {
+    buildSwitchToRuntimeBody,
+    createSwitchBodyBuilder,
+    checkSwitchBody,
+    encryptConversationHistory,
+    decryptConversationHistory,
+    displayToStoredMessages,
+    type SwitchHistorySource,
+    type SwitchBodyArgs,
+    type PlainStoredMessage,
+    type EncryptedStoredMessage,
+    type SwitchToRuntimeBody as RuntimeSwitchBody,
+} from './switchBody';
 export {
     openPlan,
     buildAcceptDecision,

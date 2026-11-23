@@ -29,17 +29,21 @@ function envelopeBytes(ctx: KeyContext, version: number, commitment: string): Ui
     return new TextEncoder().encode(`synco-key-envelope-v1|${ctx}|${version}|${commitment}`);
 }
 
-/** Signe la clé `rawKey` pour (ctx, version) avec la clé de signature déverrouillée. */
+/**
+ * Signe la clé `rawKey` pour (ctx, version) avec la clé de signature déverrouillée, ou avec `signKey`
+ * quand l'appelant injecte la sienne (service runtime, testable sans état global).
+ */
 export async function signKeyEnvelope(
     rawKey: CryptoKey | ArrayBuffer,
     ctx: KeyContext,
-    version: number
+    version: number,
+    signKey: CryptoKey | null = privateSignKey.value
 ): Promise<{ commitment: string; signature: string }> {
-    if (!privateSignKey.value) throw new Error('Clé de signature verrouillée');
+    if (!signKey) throw new Error('Clé de signature verrouillée');
     const commitment = await keyCommitment(rawKey, ctx, version);
     const sig = await crypto.subtle.sign(
         { name: 'ECDSA', hash: 'SHA-256' },
-        privateSignKey.value,
+        signKey,
         envelopeBytes(ctx, version, commitment) as BufferSource
     );
     return { commitment, signature: btoa(String.fromCharCode(...new Uint8Array(sig))) };

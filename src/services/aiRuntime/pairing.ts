@@ -42,13 +42,16 @@ export interface PairingResult {
 
 /**
  * Appairage complet (étapes 3 à 6). Une recertification (même runtime, mêmes clés, nouvelle URL)
- * prend `serial` = certificat courant + 1 ; sinon `serial` = 1.
+ * prend `serial` = certificat courant + 1 ; sinon `serial` = 1. `expectedFingerprint` : empreinte affichée à
+ * l'admin dans l'aperçu ; différente de celle présentée maintenant, rien n'est signé ni déposé.
  */
-export async function pairRuntime(deps: AiRuntimeDeps, orgId: string, urlInput: string, pairingCode: string): Promise<PairingResult> {
+export async function pairRuntime(deps: AiRuntimeDeps, orgId: string, urlInput: string, pairingCode: string, expectedFingerprint?: string): Promise<PairingResult> {
     const adminId = requireUserId(deps);
     const signKey = deps.identity.signKey();
     if (!signKey) throw new AiRuntimeError('e2ee_locked');
     const { identity, fingerprint } = await previewPairing(deps, orgId, urlInput, pairingCode);
+    // L'admin certifie l'empreinte qu'il a COMPARÉE à l'aperçu : si le runtime en présente une autre, refus.
+    if (expectedFingerprint !== undefined && expectedFingerprint !== fingerprint) throw new AiRuntimeError('pair_code_mismatch');
 
     const registry = await fetchRuntimeRegistry(deps, orgId);
     const current = registry.runtime;
