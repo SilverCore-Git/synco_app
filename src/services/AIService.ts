@@ -7,7 +7,7 @@ import {
     type AiProviderId, type AiUserPrefs, type ReasoningEffort, type SessionRegime,
 } from './aiProviders';
 import sfetch from '@/assets/utils/sfetch';
-import { encryptForPeer, decryptFromPeer, privateKey, decryptAiField } from '@/assets/utils/crypto';
+import { encryptForPeer, decryptFromPeer, privateKey, decryptAiField, encryptAiField } from '@/assets/utils/crypto';
 import { planPartsFromHistory } from './aiRuntime/conversation/transcript';
 import { ensureAiSessionKey, AiSessionKeyUnavailableError } from './AiSessionKeyService';
 import { assertAllowedGateway, parseGatewayUrl } from './aiGatewayPolicy';
@@ -482,6 +482,9 @@ export const fetchSessions = async () => {
             const sessions: any[] = await res.json();
 
             await Promise.all(sessions.map(async (session) => {
+                // Migration douce : un titre encore en clair (ancien format) est réécrit chiffré à la prochaine synchro.
+                if (isClearSessionTitle(session.title)) clearTitleSessions.set(session.id, session.title);
+                else clearTitleSessions.delete(session.id);
                 // Titre chiffré des anciennes conversations du régime `gateway` (on ne l'écrit plus, on le lit).
                 // Détecté par le préfixe "gcm1:" du champ lui-même, PAS par session.encryptionScheme : la
                 // passerelle Synco AI Gateway ne pose jamais ce marqueur (elle chiffre/déchiffre chaque
@@ -932,6 +935,21 @@ watch([() => openedOrg.value?.id, () => aiPrefsReady.value], ([orgId, ready]) =>
     if (orgId && ready && aiService.isLocal) localLLM.warmupInBackground();
 });
 
+/** Titre neutre envoyé à la création : l'API ne voit jamais le début de la demande. */
+export const NEUTRAL_SESSION_TITLE = 'Nouvelle conversation';
+
+/** Sessions dont le titre est encore en clair côté serveur (ancien format) → titre à réécrire chiffré. */
+const clearTitleSessions = new Map<string, string>();
+
+/** Titre en clair à migrer : ni `gcm1:`, ni un titre neutre/par défaut (rien de secret à protéger). */
+const isClearSessionTitle = (title: unknown): title is string =>
+    typeof title === 'string' && title !== '' && !title.startsWith('gcm1:')
+    && title !== NEUTRAL_SESSION_TITLE && title !== 'Nouvelle session';
+
+/** Titre `gcm1:` sous la clé de session IA de l'org, AAD `{sessionId}:__session_title__:title` (comme la lecture). */
+const sealSessionTitle = async (orgId: string, sessionId: string, title: string): Promise<string> =>
+    encryptAiField(await ensureAiSessionKey(orgId), sessionId, '__session_title__', 'title', title);
+
 export const syncSession = async (lastPrompt: string) => {
     if (!openedOrg.value) return;
     // Conversation illisible ici : ce qui s'affiche n'est pas l'historique, l'écrire l'écraserait.
@@ -972,27 +990,45 @@ export const syncSession = async (lastPrompt: string) => {
 
         if (!activeSessionId.value) {
             // Create session
+            // L'identifiant (AAD du titre) n'existe qu'après la création : on crée avec un titre neutre,
+            // puis le vrai titre part chiffré (PATCH) ; sans clé il reste local, jamais envoyé en clair.
             const title = lastPrompt.substring(0, 30) + (lastPrompt.length > 30 ? '...' : '');
-            const res = await sfetch(`/api/orgs/${openedOrg.value.id}/ai/sessions`, {
+            const orgId = openedOrg.value.id;
+            const res = await sfetch(`/api/orgs/${orgId}/ai/sessions`, {
                 method: 'POST',
                 body: JSON.stringify({
-                    title,
+                    title: NEUTRAL_SESSION_TITLE,
                     messages: payloadMessages
                 })
             });
             if (res.ok) {
                 const data = await res.json();
                 activeSessionId.value = data.id;
+                try {
+                    await sfetch(`/api/orgs/${orgId}/ai/sessions/${data.id}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({ title: await sealSessionTitle(orgId, data.id, title) })
+                    });
+                } catch (e) {
+                    console.error("Titre de conversation non chiffré : laissé neutre", e instanceof Error ? e.name : 'erreur');
+                }
                 await fetchSessions();
             }
         } else {
             // Update session
-            await sfetch(`/api/orgs/${openedOrg.value.id}/ai/sessions/${activeSessionId.value}`, {
+            const orgId = openedOrg.value.id;
+            const sessionId = activeSessionId.value;
+            const body: { messages: unknown; title?: string } = { messages: payloadMessages };
+            const clearTitle = clearTitleSessions.get(sessionId);
+            if (clearTitle !== undefined) {
+                try { body.title = await sealSessionTitle(orgId, sessionId, clearTitle); }
+                catch (e) { console.error("Migration du titre impossible", e instanceof Error ? e.name : 'erreur'); }
+            }
+            const res = await sfetch(`/api/orgs/${orgId}/ai/sessions/${sessionId}`, {
                 method: 'PATCH',
-                body: JSON.stringify({
-                    messages: payloadMessages
-                })
+                body: JSON.stringify(body)
             });
+            if (res.ok && body.title !== undefined) clearTitleSessions.delete(sessionId);
         }
     } catch (e) {
         console.error("Erreur synchro session", e);
