@@ -6,9 +6,9 @@
 import { describe, expect, test } from 'bun:test';
 import raw from '../../../scripts/e2ee-vectors/action-plan.json';
 import {
-    MAX_PLAN_VALUE_LEN, PlanGraph, PlanInvalidError, PlanRun, ToolManifest, checkServedGraph, checkServerCall, decryptAiFieldStrict, decryptPhaseResult,
+    ABANDON_CODES, MAX_PLAN_VALUE_LEN, PlanGraph, PlanInvalidError, PlanRun, ToolManifest, checkServedGraph, checkServerCall, decryptAiFieldStrict, decryptPhaseResult,
     decryptPlan, encryptPhaseResult, encryptPlan, jcs, parseJsonStrict, phaseResultAad, planAad, planServerDigests, serverDigest, validatePlan,
-    type GraphAction, type JsonObject, type JsonValue, type PlanContext, type PlanExecutor,
+    isAbandonCode, type ActionState, type GraphAction, type JsonObject, type JsonValue, type PlanContext, type PlanExecutor,
 } from './aiActionPlan';
 import { sha256, toHex } from './runtimeCert';
 
@@ -40,6 +40,10 @@ interface Vectors {
     };
     toolManifest: JsonValue; serverDigests: Case[]; executeCases: Case[]; encryptionCases: Case[]; validationCases: ValidationCase[];
     levelCases: Case[]; cascadeCases: Case[]; failureCases: Case[]; runCases: RunCase[]; clearCases: ClearCase[];
+    abandonCases: {
+        name: string; plan: string; accepted: number[]; done: number[]; abandoned: { n: number; state: ActionState; code: string }[];
+        expectStates: Record<string, string>; expectStatus: string; replay?: boolean;
+    }[];
     boundCases: { name: string; sessionId: string; planId: string; fieldName: string; valuePrefix: string; fill: string; fillLength: number; expect: string }[];
 }
 const v = raw as unknown as Vectors;
@@ -263,6 +267,25 @@ describe('action-plan.json — graphe et exécution (12 §6–§8, PC37, PC54, P
         }
     });
 
+    test('abandonCases (PC74) : abandon d\'une action d\'agent pending acceptée seulement, rejeu idempotent', () => {
+        for (const c of v.abandonCases) {
+            const run = new PlanRun(validatePlan(plans[c.plan]!, ctx()), c.accepted);
+            for (const n of c.done) {
+                run.start(n);
+                run.finish(n, 'done');
+            }
+            for (let round = 0; round < (c.replay ? 2 : 1); round++) {
+                for (const a of c.abandoned) {
+                    expect(isAbandonCode(a.code)).toBe(true);
+                    run.abandon(a.n, a.state);
+                }
+            }
+            expectStates(run, c.expectStates, c.name);
+            expect(run.status()).toBe(c.expectStatus);
+            checks++;
+        }
+    });
+
     test('runCases', () => {
         for (const c of v.runCases) {
             const { ticks, run } = simulate(validatePlan(plans[c.plan]!, ctx()), c.accepted, c.concurrency, c.failedAt ?? [], c.expiresBeforeTick);
@@ -297,7 +320,7 @@ describe('action-plan.json — graphe et exécution (12 §6–§8, PC37, PC54, P
 
     test('tous les cas rejoués', () => {
         console.log(`action-plan.json : ${checks} vérifications rejouées`);
-        expect(checks).toBe(2 + 4 + 4 + 4 + 12 + 23 + 20 + 7 + 45 + 6 + 7 + 2 + 7);
+        expect(checks).toBe(2 + 4 + 4 + 4 + 12 + 23 + 20 + 7 + 45 + 6 + 7 + 2 + 7 + 8);
     });
 });
 
@@ -366,5 +389,42 @@ describe('garde-fous hors vecteurs', () => {
         expect(run.status()).toBe('executing');
         run.finish(4, 'done');
         expect(run.status()).toBe('stopped');
+    });
+});
+
+describe('résultat de phase avec abandons (PC74, check_phase_result)', () => {
+    const g = () => validatePlan(v.mixedPlan.plan, ctx());
+    const pid = v.mixedPlan.planId;
+    const make = (outcomes: JsonValue) => encryptPhaseResult(ck, v.sessionId, 'agent', g(), { v: 1, planId: pid, phase: 1, outcomes });
+
+    test('liste fermée identique à la crate', () => {
+        expect([...ABANDON_CODES]).toEqual(['rate_limited', 'refs_inconsistent', 'action_not_accepted', 'autonomy_required', 'key_unavailable']);
+    });
+
+    test('code accepté avec failed / unknown_outcome, relu tel quel', async () => {
+        const value = await make([{ n: 2, state: 'failed', code: 'rate_limited' }, { n: 5, state: 'unknown_outcome', code: 'key_unavailable' }]);
+        const clear = await decryptPhaseResult(ck, v.sessionId, pid, 'agent', 1, g(), value);
+        expect((clear.outcomes as JsonObject[])[0]!.code).toBe('rate_limited');
+    });
+
+    test('code hors liste, avec done, avec output ou non chaîne : refusé', async () => {
+        for (const bad of [
+            [{ n: 2, state: 'failed', code: 'tool_failed' }],
+            [{ n: 2, state: 'done', code: 'rate_limited' }],
+            [{ n: 2, state: 'failed', code: 'rate_limited', output: { id: 'cm3x00000000000000000001' } }],
+            [{ n: 2, state: 'failed', code: 7 }],
+        ] as JsonValue[]) {
+            await expect(make(bad)).rejects.toBeInstanceOf(PlanInvalidError);
+        }
+    });
+
+    test('abandon refusé : action d\'appareil, déjà finie, vers done', () => {
+        const run = new PlanRun(g(), [1, 2, 3, 4, 5]);
+        expect(run.abandon(1, 'failed')).toBe(false);
+        expect(run.abandon(2, 'done')).toBe(false);
+        expect(run.abandon(99, 'failed')).toBe(false);
+        expect(run.abandon(2, 'failed')).toBe(true);
+        expect(run.abandon(2, 'unknown_outcome')).toBe(false);
+        expect(run.state(2)).toBe('failed');
     });
 });

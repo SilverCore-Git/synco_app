@@ -16186,6 +16186,250 @@
       "expectStatus": "failed"
     }
   ],
+  "abandonCases": [
+    {
+      "name": "abandon de l'action d'agent 2 (429 épuisé) : échec, dépendantes 3, 4, 5 ignorées (PC54, PC74)",
+      "plan": "mixedPlan",
+      "accepted": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "done": [
+        1
+      ],
+      "abandoned": [
+        {
+          "n": 2,
+          "state": "failed",
+          "code": "rate_limited"
+        }
+      ],
+      "expectStates": {
+        "1": "done",
+        "2": "failed",
+        "3": "skipped",
+        "4": "skipped",
+        "5": "skipped"
+      },
+      "expectStatus": "failed"
+    },
+    {
+      "name": "abandon avec issue inconnue : unknown_outcome, plan interrompu",
+      "plan": "mixedPlan",
+      "accepted": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "done": [
+        1
+      ],
+      "abandoned": [
+        {
+          "n": 2,
+          "state": "unknown_outcome",
+          "code": "action_not_accepted"
+        }
+      ],
+      "expectStates": {
+        "1": "done",
+        "2": "unknown_outcome",
+        "3": "skipped",
+        "4": "skipped",
+        "5": "skipped"
+      },
+      "expectStatus": "interrupted"
+    },
+    {
+      "name": "abandon de la seule action d'agent restante (5) : elle seule échoue",
+      "plan": "mixedPlan",
+      "accepted": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "done": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "abandoned": [
+        {
+          "n": 5,
+          "state": "failed",
+          "code": "refs_inconsistent"
+        }
+      ],
+      "expectStates": {
+        "1": "done",
+        "2": "done",
+        "3": "done",
+        "4": "done",
+        "5": "failed"
+      },
+      "expectStatus": "failed"
+    },
+    {
+      "name": "abandon d'une action déjà done : ignoré, l'autre abandon s'applique",
+      "plan": "mixedPlan",
+      "accepted": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "done": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "abandoned": [
+        {
+          "n": 2,
+          "state": "failed",
+          "code": "rate_limited"
+        },
+        {
+          "n": 5,
+          "state": "failed",
+          "code": "autonomy_required"
+        }
+      ],
+      "expectStates": {
+        "1": "done",
+        "2": "done",
+        "3": "done",
+        "4": "done",
+        "5": "failed"
+      },
+      "expectStatus": "failed"
+    },
+    {
+      "name": "abandon d'une action d'appareil : ignoré",
+      "plan": "mixedPlan",
+      "accepted": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "done": [],
+      "abandoned": [
+        {
+          "n": 1,
+          "state": "failed",
+          "code": "rate_limited"
+        }
+      ],
+      "expectStates": {
+        "1": "pending",
+        "2": "pending",
+        "3": "pending",
+        "4": "pending",
+        "5": "pending"
+      },
+      "expectStatus": "accepted"
+    },
+    {
+      "name": "abandon d'une action décochée (skipped) : ignoré",
+      "plan": "mixedPlan",
+      "accepted": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "done": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "abandoned": [
+        {
+          "n": 5,
+          "state": "failed",
+          "code": "key_unavailable"
+        }
+      ],
+      "expectStates": {
+        "1": "done",
+        "2": "done",
+        "3": "done",
+        "4": "done",
+        "5": "skipped"
+      },
+      "expectStatus": "done"
+    },
+    {
+      "name": "abandon d'une action d'agent non prête (4 attend l'appareil) : suffit d'être acceptée et pending",
+      "plan": "mixedPlan",
+      "accepted": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "done": [],
+      "abandoned": [
+        {
+          "n": 5,
+          "state": "failed",
+          "code": "key_unavailable"
+        }
+      ],
+      "expectStates": {
+        "1": "pending",
+        "2": "pending",
+        "3": "pending",
+        "4": "pending",
+        "5": "failed"
+      },
+      "expectStatus": "accepted"
+    },
+    {
+      "name": "rejeu de la même déclaration après coupure : idempotent",
+      "plan": "mixedPlan",
+      "accepted": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "done": [
+        1
+      ],
+      "abandoned": [
+        {
+          "n": 2,
+          "state": "failed",
+          "code": "rate_limited"
+        }
+      ],
+      "expectStates": {
+        "1": "done",
+        "2": "failed",
+        "3": "skipped",
+        "4": "skipped",
+        "5": "skipped"
+      },
+      "expectStatus": "failed",
+      "replay": true
+    }
+  ],
   "runCases": [
     {
       "name": "plan mixte, tout accepté : l'agent (2) démarre en même temps que l'appareil (1)",
