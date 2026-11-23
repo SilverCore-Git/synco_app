@@ -293,6 +293,7 @@ import getColorByStatus from '@/assets/utils/getColorByStatus';
 import { computed, nextTick, ref, watch } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
+import { askSynco, canAskSynco } from '@/composables/useAskSynco';
 import MessageReactions from '@/components/common/MessageReactions.vue';
 import MessageActionSheet, { type SheetAction } from '@/components/common/MessageActionSheet.vue';
 import { useLongPress } from '@/composables/useLongPress';
@@ -400,6 +401,13 @@ const dropdownBtns: DropdownBtn[] = [
         label: "Répondre",
         func: (msg: Message) => setMessageWillBeResponded(msg),
         show: () => true
+    },
+    {
+        icon: "bi-stars",
+        tooltip: "demander à Synco AI",
+        label: "Demander à Synco AI",
+        func: (msg: Message) => { askSynco({ kind: 'message', id: String(msg.id), name: 'Message de ' + (msg.sender?.name ?? 'un membre'), detail: 'Salon', content: msg.content }); },
+        show: (msg: Message) => canAskSynco() && !msg.isWebhook && !!msg.content
     },
     {
         icon: "bi-send-fill",

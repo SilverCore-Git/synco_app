@@ -302,6 +302,7 @@ import getColorByStatus from '@/assets/utils/getColorByStatus';
 import { computed, nextTick, ref, watch } from 'vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import useResponse from '@/composables/useResponse';
+import { askSynco, canAskSynco } from '@/composables/useAskSynco';
 import useWSocket from '@/composables/useWSocket';
 import MessageReactions from '@/components/common/MessageReactions.vue';
 import MessageActionSheet, { type SheetAction } from '@/components/common/MessageActionSheet.vue';
@@ -452,6 +453,13 @@ const dropdownBtns: DropdownBtn[] = [
         label: "Répondre",
         func: (msg: DMMessage) => setMessageWillBeResponded(msg),
         show: () => true
+    },
+    {
+        icon: "bi-stars",
+        tooltip: "demander à Synco AI",
+        label: "Demander à Synco AI",
+        func: (msg: DMMessage) => { askSynco({ kind: 'message', id: String(msg.id), name: 'Message de ' + (msg.sender?.name ?? 'un membre'), detail: 'Message privé', content: msg.content }); },
+        show: (msg: DMMessage) => canAskSynco() && !!msg.content
     },
     {
         icon: "bi-send-fill",

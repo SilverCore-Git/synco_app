@@ -120,6 +120,7 @@
                         <i class="bi bi-send" />
                         Transférer
                     </button>
+                    <AskSyncoMenuItem :context="{ kind: 'folder', id: folder.id, name: folder.name }" />
                     <button
                         @click="$emit('request-delete', folder.id)"
                         class="dropdown-item-annimate dropdown-item-style gap-2 text-red-500! hover:bg-red-500/5!"
@@ -148,6 +149,7 @@ import { user } from '@/assets/var';
 import { ref } from 'vue';
 import EditFolder from '../popup/EditFolder.vue';
 import DropDown from '@/components/DropDown.vue';
+import AskSyncoMenuItem from '@/components/agentDock/AskSyncoMenuItem.vue';
 
 const props = defineProps<{
     folder: Folder,
