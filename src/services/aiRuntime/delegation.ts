@@ -220,6 +220,46 @@ export function isDelegableInOrg(deps: AiRuntimeDeps, orgId: string, k: { kind: 
     return k.version >= 1;
 }
 
+// ---------------------------------------------------------------------------
+// Conversations runtime connues localement (cloisonnement des `CK`)
+// ---------------------------------------------------------------------------
+
+/**
+ * L'enveloppe FC4 d'une `CK` signe `aiconv:<sessionId>` seul : elle n'est liée ni à l'org ni au mode
+ * de la conversation (03 §6.2), et elle est optionnelle à la vérification. Elle ne prouve donc pas
+ * qu'une conversation appartient à l'org courante. Ce qui fait foi est ce registre LOCAL, alimenté
+ * uniquement par une action de l'utilisateur dans l'org (bascule, création ou ouverture d'une
+ * conversation runtime, via `registerRuntimeConversation`), jamais par `/current/missing`. Une `conv`
+ * absente du registre n'est jamais ouverte ni déléguée (échec fermé).
+ */
+const MAX_KNOWN_CONVERSATIONS = 20_000;
+const convSlot = (userId: string, orgId: string) => `rt-conv:${userId}:${orgId}`;
+
+async function readKnownConversations(deps: AiRuntimeDeps, userId: string, orgId: string): Promise<string[]> {
+    const v = await deps.store.get(convSlot(userId, orgId));
+    if (!isObj(v) || v.v !== 1 || !Array.isArray(v.ids)) return [];
+    return v.ids.filter((x): x is string => typeof x === 'string' && isValidId(x));
+}
+
+/** Enregistre une conversation runtime de CETTE org, sur action de l'utilisateur. */
+export async function registerRuntimeConversation(deps: AiRuntimeDeps, orgId: string, sessionId: string): Promise<void> {
+    const userId = requireUserId(deps);
+    if (!isValidId(sessionId)) throw new AiRuntimeError('delegation_invalid');
+    const ids = await readKnownConversations(deps, userId, orgId);
+    if (ids.includes(sessionId)) return;
+    await deps.store.set(convSlot(userId, orgId), { v: 1, ids: [...ids, sessionId].slice(-MAX_KNOWN_CONVERSATIONS) });
+}
+
+export async function isKnownRuntimeConversation(deps: AiRuntimeDeps, orgId: string, sessionId: string): Promise<boolean> {
+    return (await readKnownConversations(deps, requireUserId(deps), orgId)).includes(sessionId);
+}
+
+/** Filtre complet : format et annuaire (`isDelegableInOrg`), puis registre local pour les `conv`. */
+async function isDelegable(deps: AiRuntimeDeps, orgId: string, known: Set<string>, k: { kind: string; ref: unknown; version: unknown }): Promise<boolean> {
+    if (!isDelegableInOrg(deps, orgId, k)) return false;
+    return k.kind !== 'conv' || known.has(k.ref as string);
+}
+
 interface SealedEntry {
     kind: DelegationEntryKind;
     ref: string;
@@ -229,6 +269,7 @@ interface SealedEntry {
 
 async function sealEntries(deps: AiRuntimeDeps, orgId: string, h: HeldDelegation, refs: readonly KeyRef[]): Promise<{ entries: SealedEntry[]; skipped: number }> {
     const userId = requireUserId(deps);
+    const known = new Set(await readKnownConversations(deps, userId, orgId));
     const bad = unresolvable.get(slot(userId, orgId)) ?? new Set<string>();
     unresolvable.set(slot(userId, orgId), bad);
     const entries: SealedEntry[] = [];
@@ -236,7 +277,7 @@ async function sealEntries(deps: AiRuntimeDeps, orgId: string, h: HeldDelegation
     const seen = new Set<string>();
     for (const k of refs) {
         const id = keyId(k);
-        if (seen.has(id) || bad.has(id) || !isDelegableInOrg(deps, orgId, k)) {
+        if (seen.has(id) || bad.has(id) || !(await isDelegable(deps, orgId, known, k))) {
             skipped++;
             continue;
         }
@@ -282,7 +323,12 @@ async function fetchMissing(deps: AiRuntimeDeps, orgId: string): Promise<KeyRef[
     const res = await deps.api.request('GET', `${base(orgId)}/current/missing`);
     if (res.status === 404) throw new AiRuntimeError('delegation_none');
     if (res.status !== 200 || !Array.isArray(res.body)) throw apiError(res.status, res.body);
-    return res.body.filter((x): x is KeyRef => isObj(x) && typeof x.kind === 'string' && isDelegableInOrg(deps, orgId, x as { kind: string; ref: unknown; version: unknown }));
+    const known = new Set(await readKnownConversations(deps, requireUserId(deps), orgId));
+    const out: KeyRef[] = [];
+    for (const x of res.body) {
+        if (isObj(x) && typeof x.kind === 'string' && await isDelegable(deps, orgId, known, x as { kind: string; ref: unknown; version: unknown })) out.push(x as unknown as KeyRef);
+    }
+    return out;
 }
 
 /**

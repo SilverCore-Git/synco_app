@@ -14,6 +14,7 @@ import {
     enableAutonomousMode,
     getDelegationSummary,
     readVerifiedMandate,
+    registerRuntimeConversation,
     revokeMyDelegation,
 } from './delegation';
 import { verifyRuntimeForDelegation } from './runtimeTrust';
@@ -28,6 +29,7 @@ const T_OTHER = 'cm3threadother0000000001';
 const S_IN = 'cm3spaceorg0000000000001';
 const S_OTHER = 'cm3spaceother00000000001';
 const CONV = '0f0e0d0c-0b0a-4908-8706-050403020100';
+const CONV_FOREIGN = '1a1b1c1d-2a2b-4c2d-8e2f-303132333435';
 const AK_LIKE = 'cm3akorg0000000000000001';
 
 async function prepared(): Promise<Harness> {
@@ -35,12 +37,13 @@ async function prepared(): Promise<Harness> {
     await verifyRuntimeForDelegation(h.deps, ORG, { confirmFirstSeen: true });
     h.threads.add(T_IN).add(T_SPACE);
     h.spaces.add(S_IN);
-    for (const k of [`thread|${T_IN}|1`, `thread|${T_SPACE}|1`, `thread|${T_OTHER}|1`, `space|${S_IN}|1`, `space|${S_IN}|2`, `space|${S_OTHER}|1`, `conv|${CONV}|1`,
+    await registerRuntimeConversation(h.deps, ORG, CONV);
+    for (const k of [`thread|${T_IN}|1`, `thread|${T_SPACE}|1`, `thread|${T_OTHER}|1`, `space|${S_IN}|1`, `space|${S_IN}|2`, `space|${S_OTHER}|1`, `conv|${CONV}|1`, `conv|${CONV_FOREIGN}|1`,
         `dm|${USER}|1`, `support|${T_IN}|1`, `org|${ORG}|1`, `ai|${ORG}|1`, `ai|${AK_LIKE}|1`]) h.held.set(k, rand());
     h.missing = [
         { kind: 'thread', ref: T_IN, version: 1 }, { kind: 'thread', ref: T_SPACE, version: 1 }, { kind: 'thread', ref: T_OTHER, version: 1 },
         { kind: 'space', ref: S_IN, version: 1 }, { kind: 'space', ref: S_IN, version: 2 }, { kind: 'space', ref: S_OTHER, version: 1 },
-        { kind: 'conv', ref: CONV, version: 1 }, { kind: 'dm', ref: USER, version: 1 }, { kind: 'support', ref: T_IN, version: 1 },
+        { kind: 'conv', ref: CONV, version: 1 }, { kind: 'conv', ref: CONV_FOREIGN, version: 1 }, { kind: 'dm', ref: USER, version: 1 }, { kind: 'support', ref: T_IN, version: 1 },
         { kind: 'org', ref: ORG, version: 1 }, { kind: 'ai', ref: ORG, version: 1 }, { kind: 'ai', ref: AK_LIKE, version: 1 },
         { kind: 'thread', ref: 'bad id!', version: 1 }, { kind: 'thread', ref: T_IN, version: 2 },
     ];
@@ -123,6 +126,24 @@ describe('création (03 §7.1) et contenu des charges', () => {
         h.mandates.get(s.delegationId)!.mode = 'auto';
         const runtime = await verifyRuntimeForDelegation(h.deps, ORG);
         expect(await code(readVerifiedMandate(h.deps, ORG, s.delegationId, runtime))).toBe('delegation_unusable');
+    });
+});
+
+describe('cloisonnement des CK', () => {
+    test('une conv servie par /missing mais inconnue localement n\'est ni ouverte ni déléguée', async () => {
+        const h = await prepared();
+        await createDelegation(h.deps, ORG, { mode: 'plan' });
+        const posted = h.requests.filter(r => r.path.endsWith('/entries')).flatMap(r => (r.body as { entries: { ref: string }[] }).entries);
+        expect(posted.some(e => e.ref === CONV_FOREIGN)).toBe(false);
+        expect(posted.some(e => e.ref === CONV)).toBe(true);
+        expect(h.opened.some(k => k.ref === CONV_FOREIGN)).toBe(false);
+    });
+
+    test('le registre est propre à l\'org : une conv enregistrée dans une autre org n\'est pas déléguée ici', async () => {
+        const h = await prepared();
+        await registerRuntimeConversation(h.deps, OTHER_ORG, CONV_FOREIGN);
+        await createDelegation(h.deps, ORG, { mode: 'plan' });
+        expect(h.opened.some(k => k.ref === CONV_FOREIGN)).toBe(false);
     });
 });
 

@@ -35,6 +35,8 @@ export {
     disableAutonomousMode,
     readVerifiedMandate,
     ownRsaThumbprint,
+    registerRuntimeConversation,
+    isKnownRuntimeConversation,
     onRuntimeUnpaired,
     clearDelegationKeys,
     DEFAULT_DELEGATION_SECS,
