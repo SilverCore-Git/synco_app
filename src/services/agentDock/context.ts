@@ -99,3 +99,18 @@ export function composeFirstMessage(text: string, ctx: AgentContext | null): str
     const t = text.trim();
     return ctx ? `${t}\n\n${buildContextPreamble(ctx)}` : t;
 }
+
+/** Suggestions d'une nouvelle conversation sans élément en contexte. */
+export const GENERIC_SUGGESTIONS: AgentSuggestion[] = [
+    { label: 'Préparer une réunion', prompt: 'Aide-moi à préparer une réunion.' },
+    { label: 'Résumer mes messages non lus', prompt: 'Résume mes messages non lus.' },
+    { label: 'Rédiger un message', prompt: 'Aide-moi à rédiger un message.' },
+];
+
+/** Sépare, à l'affichage, la demande de l'utilisateur du bloc de contexte ajouté par `composeFirstMessage`. */
+export function splitContext(content: string): { text: string; contextLine: string | null } {
+    const i = content.indexOf('\n\nContexte : ');
+    if (i < 0) return { text: content, contextLine: null };
+    const line = (content.slice(i + 2).split('\n', 1)[0] ?? '').replace(/^Contexte : /, '');
+    return { text: content.slice(0, i), contextLine: line };
+}

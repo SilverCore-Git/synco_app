@@ -62,7 +62,7 @@ describe('useAgentDock : rien de visible, jamais d\'ouverture sans geste (PC75, 
         expect(b).toBe(a);
         expect(d.entries.value.length).toBe(1);
         d.bindSession(a.key, 'sess-9', 'Titre');
-        expect(d.entries.value[0].key).toBe('sess-9');
+        expect(d.entries.value[0].sessionId).toBe('sess-9');
         expect(d.entries.value[0].prompt).toBe('');
     });
 

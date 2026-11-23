@@ -20,7 +20,7 @@ import { MAX_PANELS, agentPanelSlots, taskPanelSlots } from './dockCapacity';
 export type AgentDockState = 'min' | 'open' | 'full';
 
 export interface AgentDockEntry {
-    /** `sessionId` une fois la conversation créée, sinon `new-<n>` (brouillon). */
+    /** Stable : `new-<n>` pour un brouillon (même après création de la conversation, pour ne pas remonter le panneau), sinon l'id de la conversation. */
     key: string;
     sessionId: string | null;
     orgId: string;
@@ -65,6 +65,8 @@ function makeRoom(keep: string): void {
 
 function rememberTrigger(): void {
     if (typeof document === 'undefined') return;
+    // Déjà un déclencheur encore affiché (on passe d'une conversation à l'autre) : on garde le premier.
+    if (triggerEl?.isConnected) return;
     const el = document.activeElement;
     triggerEl = el instanceof HTMLElement && el !== document.body ? el : null;
 }
@@ -134,7 +136,6 @@ function bindSession(key: string, sessionId: string, title?: string): void {
     const dup = entries.value.find(x => x.sessionId === sessionId && x !== e);
     if (dup) entries.value = entries.value.filter(x => x !== dup);
     e.sessionId = sessionId;
-    e.key = sessionId;
     e.prompt = '';
     if (title) e.title = title;
 }
