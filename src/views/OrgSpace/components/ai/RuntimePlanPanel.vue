@@ -66,7 +66,7 @@
                 :queued-message="queuedMessage"
                 @accept="onAccept($event, 'graph')"
                 @reject="onReject"
-                @stop="f.stop()"
+                @stop="onStop"
                 @close="openMode = null"
                 @follow-in-dock="openMode = null"
             />
@@ -79,7 +79,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue';
 import { openedOrg } from '@/assets/var';
-import { openConversationKey } from '@/services/aiRuntime';
+import { addMissingEntries, openConversationKey } from '@/services/aiRuntime';
 import { loadToolManifest } from '@/services/agent/clientAgent';
 import { runtimeDeps } from '@/services/aiRuntimeUi';
 import { fetchPendingToolCall } from '@/services/aiRuntime/conversation/wiring';
@@ -90,6 +90,9 @@ import { loadPlanEnv, orgKnownLocalId, orgResolver } from '@/services/aiRuntime/
 import { usePlanFlow, type PlanFlow } from '@/services/aiRuntime/plan/planFlow';
 import { dockLabel, gauge } from '@/services/aiRuntime/plan/planProgress';
 import type { PendingPlanCall } from '@/services/aiRuntime/actionPlan';
+import { runDevicePhase } from '@/services/aiRuntime/plan/deviceRunner';
+import { executeDeviceAction } from '@/services/aiRuntime/plan/deviceActions';
+import { createRunnerLoop } from '@/services/aiRuntime/plan/runnerLoop';
 
 const props = defineProps<{ orgId: string; sessionId: string; toolCallId: string; offline?: boolean; queuedMessage?: string }>();
 
@@ -109,6 +112,35 @@ const asPendingCall = (raw: unknown): PendingPlanCall | null => {
     return { id: r.id, name: r.name, args: r.args, planId: typeof r.planId === 'string' ? r.planId : undefined };
 };
 
+// Un identifiant d'appareil par ouverture de la carte (opaque pour l'API, 00 §3.2) : un rechargement
+// attend l'expiration du claim précédent au lieu de reprendre en aveugle.
+const deviceId = crypto.randomUUID();
+let unmounted = false;
+let loop: ReturnType<typeof createRunnerLoop> | null = null;
+
+function startRunner(flowRef: PlanFlow, deps: ReturnType<typeof runtimeDeps>, ck: CryptoKey): void {
+    loop?.stop();
+    loop = createRunnerLoop({
+        flow: { refresh: () => flowRef.refresh(), setOtherDevice: v => flowRef.setOtherDevice(v) },
+        run: async () => {
+            const loaded = flowRef.loaded.value;
+            if (!loaded) return { kind: 'none' };
+            return runDevicePhase({
+                route: { api: deps.api, orgId: props.orgId, sessionId: props.sessionId, planId: loaded.view.planId },
+                deviceId, ck, opened: loaded.opened,
+                execute: (call, header) => executeDeviceAction(call, header, props.orgId),
+                syncKeys: async () => { await addMissingEntries(deps, props.orgId); },
+                wait: ms => new Promise(resolve => setTimeout(resolve, ms)),
+                stopped: () => unmounted,
+                now: () => Date.now(),
+            });
+        },
+        schedule: (fn, ms) => setTimeout(fn, ms),
+        cancel: h => clearTimeout(h as ReturnType<typeof setTimeout>),
+    });
+    watch(() => flowRef.status.value, st => { if (st === 'following') loop?.start(); }, { immediate: true });
+}
+
 async function init(): Promise<void> {
     const deps = runtimeDeps();
     const [ck, env] = await Promise.all([
@@ -127,14 +159,16 @@ async function init(): Promise<void> {
         },
         now: () => Date.now(),
     });
+    startRunner(flow.value, deps, ck);
     await flow.value.load();
 }
 
 const onAccept = (accepted: number[], from: 'card' | 'graph') => { void flow.value?.accept(accepted, from).then(ok => { if (ok && from === 'graph') openMode.value = 'follow'; }); };
+const onStop = () => { void flow.value?.stop().then(() => loop?.kick()); };
 const onReject = () => { void flow.value?.reject().then(() => { openMode.value = null; }); };
 
 const retry = () => { initFailed.value = false; flow.value = null; void init().catch(() => { initFailed.value = true; }); };
 onMounted(retry);
-onBeforeUnmount(() => { openMode.value = null; });
+onBeforeUnmount(() => { unmounted = true; loop?.stop(); openMode.value = null; });
 watch(() => props.toolCallId, retry);
 </script>

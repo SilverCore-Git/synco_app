@@ -42,6 +42,11 @@ export interface UploadContext {
     supportChannel?: SupportChannel;
     /** Message déjà existant (facultatif) : l'API vérifie qu'il est à soi, dans ce ticket et ce canal. */
     supportMessageId?: string;
+    /**
+     * Plan d'action (12 §8.5) : valeur de l'en-tête `X-Synco-Plan` (`<planId>/<n>`) envoyé à l'ouverture
+     * de l'envoi pour que l'API lie le fichier créé à l'action. Aucun effet sur les droits.
+     */
+    planHeader?: string;
 }
 
 /** Ce qu'on envoie : un nouveau fichier, ou le nouveau contenu d'un fichier existant. */
@@ -96,6 +101,7 @@ export async function runChunkedUpload(source: Blob, name: string, target: Uploa
         ...(target.kind === 'create'
             ? { create: createDestination(target.context, name) }
             : { replaceFileId: target.fileId }),
+        planHeader: target.kind === 'create' ? target.context.planHeader : undefined,
         size: encryptedSizeForPlain(source.size, chunkSize),
         partSize: chunkSize + GCM_TAG_LENGTH,
         mimeType: uploadMimeType(name, source.type),

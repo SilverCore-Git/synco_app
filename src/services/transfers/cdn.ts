@@ -84,6 +84,8 @@ export interface UploadRequest {
     };
     /** Remplacement du contenu d'un fichier existant. */
     replaceFileId?: string;
+    /** `X-Synco-Plan` : lien objet créé / action d'un plan (12 §8.5) ; jamais dans le corps. */
+    planHeader?: string;
     size: number;
     partSize: number;
     mimeType: string;
@@ -102,10 +104,10 @@ export class CdnUpload {
 
     /** Ouvre le transfert auprès de l'API (droits, quota) puis la session côté CDN. */
     static async open(request: UploadRequest, signal: AbortSignal): Promise<CdnUpload> {
-        const { create, replaceFileId, ...content } = request;
+        const { create, replaceFileId, planHeader, ...content } = request;
         const ticket: UploadTicket = replaceFileId
             ? await apiJson(`/api/cdn/transfers/uploads/replace/${replaceFileId}`, { method: 'POST', body: JSON.stringify(content), signal })
-            : await apiJson('/api/cdn/transfers/uploads', { method: 'POST', body: JSON.stringify({ ...create, ...content }), signal });
+            : await apiJson('/api/cdn/transfers/uploads', { method: 'POST', body: JSON.stringify({ ...create, ...content }), signal, ...(planHeader ? { headers: { 'X-Synco-Plan': planHeader } } : {}) });
         const upload = new CdnUpload(ticket);
         try {
             await upload.request('POST', '/v1/uploads', signal);

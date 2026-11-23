@@ -130,7 +130,9 @@ export function usePlanFlow(deps: PlanFlowDeps) {
         } catch (e) { fail(e); return false; } finally { busy.value = false; }
     }
 
-    return { stop, status, loaded, view, invalidCode, error, busy, otherDevice, expired, progress, finished, localAccepted, load, refresh, accept, reject };
+    const setOtherDevice = (v: boolean): void => { otherDevice.value = v; };
+
+    return { setOtherDevice, stop, status, loaded, view, invalidCode, error, busy, otherDevice, expired, progress, finished, localAccepted, load, refresh, accept, reject };
 }
 
 export type PlanFlow = ReturnType<typeof usePlanFlow>;
