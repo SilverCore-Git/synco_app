@@ -83,6 +83,11 @@ export interface RuntimeModePreference {
     mode: MandateMode;
 }
 
+/**
+ * `rt-mode:<user>:<org>` est une PRÉFÉRENCE LOCALE non secrète (affichage, reprise de la synchro) : elle
+ * n'autorise rien. L'opt-in serveur (`autonomous_mode`), la politique de l'org et le mandat signé et
+ * vérifié font foi ; la modifier à la main n'élève aucun privilège.
+ */
 const prefSlot = (userId: string, orgId: string) => `rt-mode:${userId}:${orgId}`;
 
 export async function readRuntimeModePreference(deps: AiRuntimeDeps, userId: string, orgId: string): Promise<RuntimeModePreference | null> {
